@@ -56,6 +56,7 @@ function rebuildLegacyPlaylists(options: {
             ALTER TABLE playlists ADD COLUMN epg_urls TEXT;
             ALTER TABLE playlists ADD COLUMN detected_epg_urls TEXT;
             ALTER TABLE playlists ADD COLUMN manual_epg_urls TEXT;
+            ALTER TABLE playlists ADD COLUMN auto_import_epg INTEGER;
             ALTER TABLE playlists ADD COLUMN disabled_epg_urls TEXT;
             CREATE TABLE favorites (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -141,6 +142,7 @@ const expectedPlaylists = [
         detected_epg_urls: '["https://epg.invalid/b.xml"]',
         manual_epg_urls: '["https://epg.invalid/c.xml"]',
         disabled_epg_urls: '[]',
+        auto_import_epg: null,
     }),
     expect.objectContaining({
         id: 'xtream',
@@ -168,7 +170,8 @@ describe('ensurePlaylistsPayloadLast on real SQLite', () => {
 
         expect(outcome.warnings).toEqual([]);
         expect(outcome.columns.at(-1)).toBe('payload');
-        expect(outcome.columns).toHaveLength(28);
+        expect(outcome.columns).toHaveLength(29);
+        expect(outcome.columns).toContain('auto_import_epg');
         expect(outcome.playlists).toEqual(expectedPlaylists);
         // Not cascaded away by the drop, and the orphan it found does not
         // block the rebuild.

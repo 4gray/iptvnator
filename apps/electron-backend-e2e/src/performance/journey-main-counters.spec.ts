@@ -146,14 +146,23 @@ test('only the launch and search journeys opt into SQL statement counting', () =
     assert.deepEqual(containing(/IPTVNATOR_PERF_COUNT_SQL/), [
         join('performance', 'journey-launch-environment.ts'),
     ]);
-    // ...and only J1's launch and J4, which records the count as
+    // ...and only J1's launch, its large-library variant (which samples
+    // the count at its two sentinels) and J4, which records the count as
     // renderer.sqlStatementsPerSearch, ask for them. Another journey that
     // passed `mainCounters: true` to runLaunchJourney would be measured
     // under the statement hook without recording its count.
     assert.deepEqual(containing(/mainCounters:\s*true/).sort(), [
         join('journeys', 'launch-journey-app.ts'),
+        join('journeys', 'launch-large-journey-app.ts'),
         join('journeys', 'search.journey.ts'),
     ]);
+    assert.match(
+        readFileSync(
+            join(sourceRoot, 'performance', 'launch-large-journey-record.ts'),
+            'utf8'
+        ),
+        /SQL_STATEMENTS_TO_FIRST_CARD: 'main\.sqlStatementsToFirstCard'/
+    );
     assert.match(
         readFileSync(join(sourceRoot, 'journeys', 'search.journey.ts'), 'utf8'),
         /\{ idleWindowMs: null, mainCounters: true \}/

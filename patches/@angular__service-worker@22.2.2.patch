@@ -1,0 +1,14 @@
+diff --git a/ngsw-worker.js b/ngsw-worker.js
+index edaa3baa074ca062289e144477c877469e9018e1..7ad918b5cb34c73416454469ec2234e96ae8d7b1 100755
+--- a/ngsw-worker.js
++++ b/ngsw-worker.js
+@@ -2073,8 +2073,7 @@ ${msgIdle}`, { headers: this.adapter.newHeaders({ "Content-Type": "text/plain" }
+         return true;
+       } catch (err) {
+         this.debugger.log(err, `Error occurred while updating to manifest ${hash}`);
+-        this.state = DriverReadyState.EXISTING_CLIENTS_ONLY;
+-        this.stateMessage = `Degraded due to failed initialization: ${errorToString(err)}`;
++        // A failed candidate does not invalidate the installed version or its caches.
+         return false;
+       }
+     }

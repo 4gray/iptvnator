@@ -158,6 +158,37 @@ test.describe('Settings', () => {
         ).toBeVisible();
     });
 
+    test('@settings @web @epg PWA EPG page offers the display settings without XMLTV sources', async ({
+        page,
+    }) => {
+        await openSettings(page);
+        await openSettingsSection(page, 'epg');
+
+        const offset = page.locator('[data-test-id="epg-offset-minutes"]');
+        await expect(offset).toBeVisible();
+        await expect(
+            page.locator('[data-test-id="select-epg-view-mode"]')
+        ).toBeVisible();
+        // XMLTV needs the desktop app (or server EPG later).
+        await expect(
+            page.locator('[data-setting-id="epg-sources"]')
+        ).toHaveCount(0);
+        await expect(
+            page.locator('[data-test-id="toggle-prefer-uploaded-epg"]')
+        ).toHaveCount(0);
+        await expect(
+            page.locator('[data-setting-id="epg-clear-data"]')
+        ).toHaveCount(0);
+
+        // Staged and saved like every other setting, per browser.
+        await offset.fill('60');
+        await saveSettings(page);
+        await page.reload();
+        await expect(
+            page.locator('[data-test-id="epg-offset-minutes"]')
+        ).toHaveValue('60', { timeout: 20_000 });
+    });
+
     test('@settings @web Unsaved bar survives section switches and discard reverts', async ({
         page,
     }) => {

@@ -12,7 +12,7 @@
                 "{projectRoot}/*.mjs",
                 "{projectRoot}/*.json",
                 "{workspaceRoot}/.github/workflows/ci.yml",
-                { "externalDependencies": ["parse5"] }
+                { "externalDependencies": ["parse5", "typescript"] }
             ],
             "options": {
                 "command": "node --test tools/performance/measure-initial-bytes.test.mjs tools/performance/check-journey-ratchet.test.mjs tools/performance/check-baseline-direction.test.mjs tools/performance/tighten-baselines.test.mjs",

@@ -1,9 +1,14 @@
-import { inject, Injectable } from '@angular/core';
+import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
+import { inject, Injectable, Injector } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { firstValueFrom } from 'rxjs';
 import { extractDrmFromRaw } from '@iptvnator/shared/m3u-utils';
 import {
+    EpgPreferencesService,
+    EpgSourceSettingsService,
     DataService,
     PlaylistsService,
+    RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
@@ -16,6 +21,7 @@ import {
     epgProviderClockMs,
     isFullStalkerPortalPlaylist,
     Playlist,
+    StalkerPortalItem,
     isStalkerStreamCredentialSafe,
     ResolvedPortalPlayback,
     shortEpgWindowSize,
@@ -38,10 +44,12 @@ import {
     resolveStalkerStaticPlaybackUrl,
     StalkerPortalRepairService,
     StalkerSessionService,
+    StalkerFavoritePlaybackResolver,
     type StalkerLinkFlagSource,
 } from '@iptvnator/portal/stalker/data-access';
 import {
     UnifiedCollectionItem,
+    collectionEpgKey,
     createLogger,
 } from '@iptvnator/portal/shared/util';
 
@@ -94,10 +102,14 @@ interface EpgLoadClock {
 @Injectable({ providedIn: 'root' })
 export class StreamResolverService {
     private readonly playlistsService = inject(PlaylistsService);
+    private readonly injector = inject(Injector);
     private readonly xtreamApi = inject(XtreamApiService);
     private readonly xtreamUrl = inject(XtreamUrlService);
     private readonly dataService = inject(DataService);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly epgPreferences = inject(EpgPreferencesService);
+    private readonly epgSources = inject(EpgSourceSettingsService);
     private readonly settingsStore = inject(SettingsStore);
 
     /**
@@ -127,8 +139,26 @@ export class StreamResolverService {
     private readonly xtreamEpgCacheTtlMs = 60 * 1000;
     private readonly xtreamEpgFailureCooldownMs = 30 * 1000;
 
+    constructor() {
+        this.epgSources.changed$.pipe(takeUntilDestroyed()).subscribe(() => {
+            this.xtreamEpgCache.clear();
+            this.xtreamEpgFailureTimestamps.clear();
+        });
+    }
+
+    /** Local XMLTV: M3U guides, `epg_channel_id` matches, manual mappings. */
     private get supportsProgramLookup(): boolean {
-        return this.epgBridge.supportsProgramLookup;
+        return (
+            this.epgPreferences.enabled() &&
+            this.epgBridge.supportsProgramLookup
+        );
+    }
+
+    /** Xtream and Stalker guides: only the portal transport is needed. */
+    private get supportsProviderEpg(): boolean {
+        return (
+            this.epgPreferences.enabled() && this.runtime.supportsProviderEpg
+        );
     }
 
     private async getElectronPlaylist(
@@ -151,23 +181,21 @@ export class StreamResolverService {
     async resolvePlayback(
         item: UnifiedCollectionItem
     ): Promise<ResolvedPortalPlayback> {
-        if (item.sourceType === 'm3u') {
-            return (await this.resolveM3uPlaybackDetail(item)).playback;
-        }
-
-        return (await this.resolveLiveDetail(item)).playback;
+        return (await this.resolveLiveDetail(item, { includeEpg: false }))
+            .playback;
     }
 
     async resolveLiveDetail(
-        item: UnifiedCollectionItem
+        item: UnifiedCollectionItem,
+        { includeEpg = true }: { includeEpg?: boolean } = {}
     ): Promise<ResolvedLiveCollectionDetail> {
         switch (item.sourceType) {
             case 'm3u':
-                return this.resolveM3uDetail(item);
+                return this.buildM3uDetail(item, includeEpg);
             case 'xtream':
-                return this.resolveXtreamDetail(item);
+                return this.resolveXtreamDetail(item, includeEpg);
             case 'stalker':
-                return this.resolveStalkerDetail(item);
+                return this.resolveStalkerDetail(item, includeEpg);
         }
     }
 
@@ -189,19 +217,38 @@ export class StreamResolverService {
     }
 
     async loadEpgItems(item: UnifiedCollectionItem): Promise<EpgItem[]> {
-        const detail = await this.resolveLiveDetail(item);
-        if (detail.epgItems) {
-            return detail.epgItems;
+        if (
+            !this.epgPreferences.enabled() ||
+            item.radio === 'true' ||
+            isCatalogUnavailable(item)
+        )
+            return [];
+        if (item.sourceType === 'm3u') {
+            return this.mapProgramsToEpgItems(
+                await this.loadM3uProgramsForItem(item)
+            );
         }
-
-        return this.mapProgramsToEpgItems(detail.epgPrograms ?? []);
+        if (!this.supportsProviderEpg) return [];
+        return this.withFallbackTimeout(
+            item.sourceType === 'xtream'
+                ? this.loadXtreamEpgItems(item)
+                : this.loadStalkerEpgItems(item, 10),
+            this.portalEpgTimeoutMs,
+            []
+        );
     }
 
     async loadEpgForItems(
         items: UnifiedCollectionItem[]
     ): Promise<Map<string, EpgProgram | null>> {
         const epgMap = new Map<string, EpgProgram | null>();
-        if (!this.supportsProgramLookup) {
+        if (!this.epgPreferences.enabled()) return epgMap;
+        // M3U rows need XMLTV; Xtream and Stalker rows need the portal
+        // transport (and try XMLTV matches and mappings first where XMLTV
+        // exists).
+        const loadsM3u = this.supportsProgramLookup;
+        const loadsPortals = this.supportsProviderEpg;
+        if (!loadsM3u && !loadsPortals) {
             return epgMap;
         }
 
@@ -213,7 +260,11 @@ export class StreamResolverService {
         const stalkerByPlaylist = new Map<string, UnifiedCollectionItem[]>();
 
         for (const item of items) {
-            if (item.contentType !== 'live') {
+            if (
+                !loadsPortals ||
+                item.contentType !== 'live' ||
+                isCatalogUnavailable(item)
+            ) {
                 continue;
             }
 
@@ -239,7 +290,11 @@ export class StreamResolverService {
         const tasks: Promise<void>[] = [];
 
         for (const item of items) {
-            if (item.sourceType === 'm3u' && item.contentType === 'live') {
+            if (
+                loadsM3u &&
+                item.sourceType === 'm3u' &&
+                item.contentType === 'live'
+            ) {
                 tasks.push(this.loadM3uEpg(item, epgMap, now));
             }
         }
@@ -270,17 +325,12 @@ export class StreamResolverService {
         return epgMap;
     }
 
-    private async resolveM3uDetail(
-        item: UnifiedCollectionItem
-    ): Promise<ResolvedLiveCollectionDetail> {
-        return this.buildM3uDetail(item, true);
-    }
-
     private async resolveXtreamDetail(
-        item: UnifiedCollectionItem
+        item: UnifiedCollectionItem,
+        includeEpg: boolean
     ): Promise<ResolvedLiveCollectionDetail> {
         const playback = await this.resolveXtream(item);
-        if (!this.supportsProgramLookup) {
+        if (!includeEpg || !this.supportsProviderEpg) {
             return {
                 playback,
                 epgMode: 'portal',
@@ -302,7 +352,8 @@ export class StreamResolverService {
     }
 
     private async resolveStalkerDetail(
-        item: UnifiedCollectionItem
+        item: UnifiedCollectionItem,
+        includeEpg: boolean
     ): Promise<ResolvedLiveCollectionDetail> {
         const playback = await this.resolveStalker(item);
         if (item.radio === 'true') {
@@ -314,7 +365,7 @@ export class StreamResolverService {
             };
         }
 
-        if (!this.supportsProgramLookup) {
+        if (!includeEpg || !this.supportsProviderEpg) {
             return {
                 playback,
                 epgMode: 'portal',
@@ -406,6 +457,17 @@ export class StreamResolverService {
             '';
         const macAddress =
             currentPlaylist?.macAddress ?? item.stalkerMacAddress ?? '';
+        if (currentPlaylist && !item.stalkerCmd) {
+            const row = await this.injector
+                .get(StalkerFavoritePlaybackResolver)
+                .resolve(currentPlaylist, {
+                    ...(item.stalkerItem as StalkerPortalItem | undefined),
+                    id: item.stalkerId,
+                    favoriteContentType:
+                        item.radio === 'true' ? 'radio' : 'itv',
+                });
+            item = { ...item, stalkerItem: row, stalkerCmd: row.cmd };
+        }
         // Favorites and Recently Viewed persist the raw catalog row, so the
         // temporary-link flags travel with the item and this route makes the
         // same decision the portal views make: an unflagged, directly playable
@@ -814,6 +876,7 @@ export class StreamResolverService {
     }
 
     private async getXtreamCredentials(playlistId: string): Promise<{
+        userAgent?: string;
         serverUrl: string;
         username: string;
         password: string;
@@ -833,6 +896,7 @@ export class StreamResolverService {
             serverUrl: playlist.serverUrl,
             username: playlist.username,
             password: playlist.password,
+            userAgent: playlist.userAgent?.trim() || undefined,
             serverTimezone: playlist.serverTimezone,
         };
     }
@@ -869,7 +933,7 @@ export class StreamResolverService {
         epgMap: Map<string, EpgProgram | null>,
         now: number
     ): Promise<void> {
-        const epgLookupKey = item.tvgId?.trim() || item.name?.trim();
+        const epgLookupKey = collectionEpgKey(item);
         if (!epgLookupKey) {
             return;
         }
@@ -1039,8 +1103,7 @@ export class StreamResolverService {
                                     nowSeconds < Number(item.stop_timestamp)
                             ) ?? null;
                     }
-                    const epgKey =
-                        channel.tvgId?.trim() || channel.name?.trim();
+                    const epgKey = collectionEpgKey(channel);
 
                     if (!epgKey) {
                         continue;
@@ -1064,8 +1127,7 @@ export class StreamResolverService {
                             : null
                     );
                 } catch {
-                    const epgKey =
-                        channel.tvgId?.trim() || channel.name?.trim();
+                    const epgKey = collectionEpgKey(channel);
                     if (epgKey) {
                         epgMap.set(epgKey, null);
                     }
@@ -1130,11 +1192,12 @@ export class StreamResolverService {
         limit: number,
         clock = this.epgLoadClock()
     ): Promise<EpgItem[]> {
-        if (!this.supportsProgramLookup) {
+        if (!this.supportsProviderEpg) {
             return [];
         }
 
         const { offsetMinutes, wallNowMs } = clock;
+        const revision = this.epgSources.revision();
         const cacheKey = this.getXtreamEpgCacheKey(
             playlistId,
             streamId,
@@ -1174,6 +1237,7 @@ export class StreamResolverService {
                           wallNowMs
                       );
 
+            if (revision !== this.epgSources.revision()) return [];
             this.xtreamEpgCache.set(cacheKey, {
                 data: items,
                 timestamp: Date.now(),
@@ -1181,6 +1245,7 @@ export class StreamResolverService {
             this.xtreamEpgFailureTimestamps.delete(cacheKey);
             return items;
         } catch {
+            if (revision !== this.epgSources.revision()) return [];
             this.xtreamEpgFailureTimestamps.set(cacheKey, Date.now());
             return [];
         }
@@ -1212,8 +1277,7 @@ export class StreamResolverService {
         await Promise.all(
             channels.map(async (channel) => {
                 const channelId = String(channel.stalkerId ?? '').trim();
-                const epgKey =
-                    channel.tvgId?.trim() || channelId || channel.name?.trim();
+                const epgKey = collectionEpgKey(channel);
 
                 if (!channelId || !epgKey) {
                     return;
@@ -1272,7 +1336,7 @@ export class StreamResolverService {
         channelId: string,
         size: number
     ): Promise<EpgItem[]> {
-        if (!this.supportsProgramLookup) {
+        if (!this.supportsProviderEpg) {
             return [];
         }
 
@@ -1283,16 +1347,20 @@ export class StreamResolverService {
             size: String(size),
         };
 
-        const response: StalkerEpgResponse =
-            await executeStalkerRequest<StalkerEpgResponse>(
-                {
-                    dataService: this.dataService,
-                    stalkerSession: this.stalkerSession,
-                    portalRepair: this.portalRepair,
-                },
-                playlist,
-                params
-            );
+        const response: StalkerEpgResponse = await this.epgPreferences.run(
+            () =>
+                executeStalkerRequest<StalkerEpgResponse>(
+                    {
+                        dataService: this.dataService,
+                        stalkerSession: this.stalkerSession,
+                        portalRepair: this.portalRepair,
+                    },
+                    playlist,
+                    params,
+                    { silent: true }
+                ),
+            { js: [] }
+        );
 
         const epgData = Array.isArray(response?.js)
             ? response.js

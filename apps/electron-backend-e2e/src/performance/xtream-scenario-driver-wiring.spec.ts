@@ -32,14 +32,14 @@ describe('Xtream scenario driver source wiring', () => {
             "'#serverUrl'",
             "'#username'",
             "'#password'",
-            "'app-playlist-item'",
-            "'.refresh-btn'",
-            "'.delete-btn'",
+            "'app-workspace-sources app-source-row'",
+            "'.source-row__refresh'",
+            "'.source-row__more'",
             "'Refresh playlist'",
             "'Remove playlist'",
-            "'.busy-state__message'",
-            "'.action-spinner'",
-            "'.cancel-btn'",
+            "'.source-row__busy'",
+            "'mat-spinner'",
+            "'.source-row__cancel'",
             "'.workspace-loading-overlay'",
         ]) {
             assert.ok(ui.includes(selector), `missing ${selector}`);
@@ -68,6 +68,7 @@ describe('Xtream scenario driver source wiring', () => {
         );
         assert.ok(driver.includes('installXtreamCancellationObserver'));
         assert.ok(driver.includes('installXtreamOperationWindow'));
+        assert.ok(driver.includes("'delete-playlist'"));
         assert.ok(driver.includes('runBackgroundProbe'));
         assert.doesNotMatch(combined, /waitForTimeout\s*\(/);
         assert.doesNotMatch(combined, /setTimeout\s*\(/);

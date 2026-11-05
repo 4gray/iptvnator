@@ -1,3 +1,4 @@
+import { normalizeAgeRatingCountry } from '@iptvnator/shared/interfaces/age-rating';
 import {
     DestroyRef,
     inject,
@@ -37,6 +38,12 @@ import {
 
 type SettingsFormPatch = Parameters<SettingsForm['patchValue']>[0];
 
+export class SettingsRuntimeUpdateError extends Error {
+    constructor(readonly cause: unknown) {
+        super('SETTINGS.SETTINGS_RUNTIME_UPDATE_FAILED');
+    }
+}
+
 /**
  * Owns the settings form: creation, hydration from the store, the small
  * mutations the section components trigger, and persisting on submit.
@@ -53,13 +60,31 @@ export class SettingsFormFacade {
     private readonly settingsSnackbar = inject(SettingsSnackbarService);
     private readonly settingsStore = inject(SettingsStore);
 
+    /** XMLTV sources: the source list, its actions and the Xtream preference. */
     readonly supportsEpg =
         this.epgBridge.supportsImport && this.epgBridge.supportsDataManagement;
 
-    /** Settings form object */
-    readonly form = createSettingsForm(this.formBuilder, this.supportsEpg);
+    /**
+     * The EPG page's display settings (view mode, offset). They shape every
+     * guide on screen, so they show wherever one exists: XMLTV, or a
+     * portal's own guide (the browser PWA).
+     */
+    readonly supportsEpgDisplay =
+        this.supportsEpg ||
+        this.runtime.supportsEpg ||
+        this.runtime.supportsProviderEpg;
 
-    /** Form array with epg sources — absent when EPG is unsupported */
+    /** Settings form object */
+    readonly form = createSettingsForm(
+        this.formBuilder,
+        this.supportsEpg,
+        this.supportsEpgDisplay
+    );
+
+    /**
+     * Form array with epg sources — absent without XMLTV sources (the
+     * browser PWA)
+     */
     readonly epgUrl = this.form.get('epgUrl') as FormArray;
 
     /**
@@ -72,7 +97,8 @@ export class SettingsFormFacade {
     /** Controls whose saved value differs from what the running app uses. */
     readonly restartPendingControls = signal<readonly string[]>([]);
 
-    private savedSnapshot: unknown = {};
+    private savedSnapshot = this.form.getRawValue();
+    private saveRevision = 0;
 
     constructor() {
         this.form.valueChanges
@@ -103,7 +129,12 @@ export class SettingsFormFacade {
      */
     hydrateFromStore(): void {
         const currentSettings = this.settingsStore.getSettings();
-        this.form.patchValue(currentSettings);
+        this.form.patchValue({
+            ...currentSettings,
+            ageRatingCountry: normalizeAgeRatingCountry(
+                currentSettings.ageRatingCountry
+            ),
+        });
         this.syncDashboardControlsEnabledState(
             currentSettings.showDashboard ?? true
         );
@@ -203,10 +234,12 @@ export class SettingsFormFacade {
     /**
      * Persists the form to the settings store and mirrors the result to the
      * desktop backend.
-     * @param onSaved runs after the store write, before the backend is
-     * notified, so the UI confirmation is not delayed by IPC
+     * @param onSaved runs after persistence and the desktop backend update
+     * succeed, so runtime failures keep the form available for retry.
      */
     async save(onSaved: () => void): Promise<void> {
+        const saveRevision = ++this.saveRevision;
+        const submittedSnapshot = this.form.getRawValue();
         const settings = createSettingsFromFormValue(
             this.form,
             this.settingsStore.getSettings()
@@ -217,18 +250,21 @@ export class SettingsFormFacade {
                 retryEpgCleanup: this.epgUrl?.dirty ?? false,
             });
         } catch (error) {
+            if (saveRevision !== this.saveRevision) return;
             if (!(error instanceof EpgSourceReconciliationError)) throw error;
             // This error follows a successful settings write. Mirror the
             // committed values, but retain the dirty form for cleanup retry.
             cleanupError = error;
         }
-        if (!cleanupError) {
-            onSaved();
-            this.refreshRestartPending();
-        }
-
+        if (saveRevision !== this.saveRevision) return;
         if (window.electron) {
-            window.electron.updateSettings(settings);
+            try {
+                await window.electron.updateSettings(settings);
+            } catch (error) {
+                if (saveRevision !== this.saveRevision) return;
+                throw new SettingsRuntimeUpdateError(error);
+            }
+            if (saveRevision !== this.saveRevision) return;
 
             if (this.runtime.supportsExternalPlayerPathSettings) {
                 window.electron.setMpvPlayerPath(settings.mpvPlayerPath);
@@ -236,6 +272,9 @@ export class SettingsFormFacade {
             }
         }
         if (cleanupError) throw cleanupError;
+        this.takeSavedSnapshot(submittedSnapshot);
+        onSaved();
+        this.refreshRestartPending();
     }
 
     /** Later: the reminder stays away until one of those settings changes. */
@@ -247,17 +286,22 @@ export class SettingsFormFacade {
         this.restartPendingControls.set([]);
     }
 
-    /** Applies the saved language/theme and resets the dirty state */
+    /** Applies saved values while keeping edits made during Save available. */
     applySavedSettings(): void {
-        this.form.markAsPristine();
-        this.takeSavedSnapshot();
+        if (this.changedPaths().length) this.form.markAsDirty();
+        else this.form.markAsPristine();
         // The switch re-renders every date with the new locale; its data is
         // a lazy chunk that must be registered first, and a newer choice
         // must win over an older one whose data arrives later.
-        void this.dateLocales.use(this.form.value.language ?? Language.ENGLISH);
-        this.settingsService.changeTheme(
-            this.form.value.theme ?? Theme.SystemTheme
+        void this.dateLocales.use(
+            this.savedSnapshot.language ?? Language.ENGLISH
         );
+        // Theme selections preview immediately; an older save must not undo one.
+        if (this.form.value.theme === this.savedSnapshot.theme) {
+            this.settingsService.changeTheme(
+                this.savedSnapshot.theme ?? Theme.SystemTheme
+            );
+        }
     }
 
     /**
@@ -286,8 +330,8 @@ export class SettingsFormFacade {
         }
     }
 
-    private takeSavedSnapshot(): void {
-        this.savedSnapshot = this.form.getRawValue();
+    private takeSavedSnapshot(snapshot = this.form.getRawValue()): void {
+        this.savedSnapshot = snapshot;
         this.refreshChangedPaths();
     }
 

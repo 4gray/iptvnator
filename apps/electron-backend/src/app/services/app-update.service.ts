@@ -266,10 +266,15 @@ export class AppUpdateService {
             return this.getStatus();
         }
 
+        const keepRelease =
+            this.status.status !==
+                ELECTRON_BRIDGE_APP_UPDATE_STATUSES.NotAvailable &&
+            (!this.status.verdictChannel ||
+                this.status.verdictChannel === this.channel);
         this.setStatus({
             error: undefined,
-            latestVersion: undefined,
-            release: undefined,
+            latestVersion: keepRelease ? this.status.latestVersion : undefined,
+            release: keepRelease ? this.status.release : undefined,
             status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Checking,
             verdictChannel: this.channel,
         });
@@ -451,6 +456,8 @@ export class AppUpdateService {
 
         if (!latestRelease) {
             this.setStatus({
+                latestVersion: undefined,
+                release: undefined,
                 status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.NotAvailable,
             });
             return;

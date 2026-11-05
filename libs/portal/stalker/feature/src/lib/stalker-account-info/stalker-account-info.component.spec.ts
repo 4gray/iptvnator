@@ -187,6 +187,9 @@ describe('StalkerAccountInfoComponent', () => {
 
         expect(component.loadState()).toBe('error');
         expect(component.snapshot()).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('.account-skeleton')
+        ).toBeNull();
     });
 
     it('stays ready with an empty account panel when the portal is reachable but silent', async () => {

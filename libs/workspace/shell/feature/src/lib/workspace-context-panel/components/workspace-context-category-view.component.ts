@@ -1,8 +1,12 @@
-import { focusLiveChannels } from '@iptvnator/ui/components';
 import {
+    createScrollPositionPreserver,
+    focusLiveChannels,
+} from '@iptvnator/ui/components';
+import {
+    afterRenderEffect,
     ChangeDetectionStrategy,
     Component,
-    effect,
+    DestroyRef,
     ElementRef,
     inject,
     input,
@@ -74,41 +78,76 @@ export class WorkspaceContextCategoryViewComponent {
         event: MouseEvent;
     }>();
 
+    private readonly scrollPosition = createScrollPositionPreserver(
+        inject(DestroyRef)
+    );
+
     constructor() {
-        effect(() => {
+        // Keep the selected category in view, but only when it is not
+        // already: a plain effect can read the DOM before the new selection
+        // has rendered (so it centres the PREVIOUS category, often deep in
+        // the list), and centring a row the user just clicked — already
+        // fully visible — yanks the rail away from the rows around it, so
+        // the next pick starts with scrolling back. Read the row after the
+        // render instead, and leave a fully visible row where it is.
+        let revealedSelection: string | number | null | undefined;
+        afterRenderEffect(() => {
             const selectedCategory = this.selectedCategoryId();
+            // Track the rows too: while they are still loading there is no
+            // selected row to reveal, and their arrival must retry.
+            this.items();
             if (selectedCategory == null) {
+                this.scrollPosition.cancel();
+                // A cleared selection must not leave its reveal behind:
+                // when the same category is selected again (e.g. a search
+                // that matched nothing is cleared) it is revealed afresh.
+                revealedSelection = undefined;
+                return;
+            }
+            if (selectedCategory === revealedSelection) {
+                return;
+            }
+            this.scrollPosition.cancel();
+
+            const container = this.hostEl.nativeElement;
+            // Follow the rendered selection: Electron selects by SQLite
+            // ID, while data-category-id can contain a provider ID that
+            // coincides with a different row's SQLite ID.
+            const selected = container.querySelector<HTMLElement>(
+                '.category-item[aria-current="true"]'
+            );
+            if (!selected) {
                 return;
             }
 
-            queueMicrotask(() => {
-                const container = this.hostEl.nativeElement;
-                // Follow the rendered selection: Electron selects by SQLite
-                // ID, while data-category-id can contain a provider ID that
-                // coincides with a different row's SQLite ID.
-                const selected = container.querySelector<HTMLElement>(
-                    '.category-item[aria-current="true"]'
-                );
-                if (!selected) {
-                    return;
-                }
+            revealedSelection = selectedCategory;
 
-                const containerRect = container.getBoundingClientRect();
-                const selectedRect = selected.getBoundingClientRect();
-                const targetTop =
-                    container.scrollTop +
-                    (selectedRect.top - containerRect.top) -
-                    container.clientHeight / 2 +
-                    selectedRect.height / 2;
-                const maxScrollTop = Math.max(
-                    0,
-                    container.scrollHeight - container.clientHeight
-                );
+            const containerRect = container.getBoundingClientRect();
+            const selectedRect = selected.getBoundingClientRect();
+            if (
+                selectedRect.top >= containerRect.top &&
+                selectedRect.bottom <= containerRect.bottom
+            ) {
+                // Fully visible — but an earlier reveal may still be
+                // smooth-scrolling towards the previous selection; stop
+                // it here so it cannot carry this row out of view.
+                this.scrollPosition.preserve(container);
+                return;
+            }
 
-                container.scrollTo({
-                    behavior: 'smooth',
-                    top: Math.min(maxScrollTop, Math.max(0, targetTop)),
-                });
+            const targetTop =
+                container.scrollTop +
+                (selectedRect.top - containerRect.top) -
+                container.clientHeight / 2 +
+                selectedRect.height / 2;
+            const maxScrollTop = Math.max(
+                0,
+                container.scrollHeight - container.clientHeight
+            );
+
+            container.scrollTo({
+                behavior: 'smooth',
+                top: Math.min(maxScrollTop, Math.max(0, targetTop)),
             });
         });
     }

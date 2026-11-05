@@ -4,7 +4,8 @@ import type {
     DownloadMetadataSnapshot,
     ElectronBridgeEpisodeIdentityScope,
 } from '@iptvnator/shared/interfaces';
-import { extname } from 'node:path';
+import { getPlaybackMediaExtensionFromUrl } from '@iptvnator/shared/m3u-utils';
+import { assertDownloadMediaFile } from './download-media-file';
 
 export interface StartDownloadRequest {
     playlistId: string;
@@ -32,19 +33,12 @@ export function sanitizeFilename(name: string): string {
     return name.replace(/[<>:"/\\|?*]/g, '_').trim();
 }
 
-function getExtensionFromUrl(url: string): string {
-    try {
-        // Sanitize too: URL pathnames may legally contain characters like ':'
-        // that would create NTFS alternate data streams on Windows.
-        const extension = sanitizeFilename(extname(new URL(url).pathname));
-        return extension.startsWith('.') ? extension : '.mp4';
-    } catch {
-        return '.mp4';
-    }
-}
-
 export function createFileName(title: string, url: string): string {
-    return sanitizeFilename(title) + getExtensionFromUrl(url);
+    const extension =
+        getPlaybackMediaExtensionFromUrl(new URL(url).href) || 'mp4';
+    const filename = `${sanitizeFilename(title)}.${extension}`;
+    assertDownloadMediaFile(filename);
+    return filename;
 }
 
 export function createHeaders(

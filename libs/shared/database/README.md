@@ -31,6 +31,32 @@ import { content, categories, playlists, type Content } from '@iptvnator/shared/
 ### Connection observer (`connection-observer.ts`)
 - `setDatabaseConnectionObserver(observer | null)` - Called by `initDatabase` with each connection it opens, before any statement runs on it. The Electron main process registers one only with `IPTVNATOR_PERF_CAPTURE=1`, to count main-thread SQL statements. The module has no runtime dependencies and is also importable as `@iptvnator/shared/database/connection-observer`.
 
+## Activity-sync storage
+
+`@iptvnator/shared/database/activity-sync` provides opt-in SQLite stores for
+activity state, local pending operations and server idempotency receipts. The
+module does not alter `initDatabase()` or migrate/upload legacy playback rows.
+Its constructors create only additive activity tables and indexes, and local
+projection/outbox changes share one synchronous transaction. Optional delivery
+leases live inside those JSON records and are checked during compare-and-swap;
+legacy records without leases remain valid. No schema migration is required.
+Server state and receipts also commit together, including durable reset barriers. The owning
+runtime must verify the selected instance/source incarnation and provide the
+connection. Electron read/list/pending/compare-and-swap operations run in the
+database worker through the fixed `DB_ACTIVITY_LOCAL` IPC. NAS routes use a
+separate server store and persisted source incarnations. See the
+[self-hosted activity contract](../../../docs/architecture/pwa-self-hosted.md#viewing-activity-synchronization).
+
+## Favorites-sync storage
+
+`@iptvnator/shared/database/favorites-sync` provides separate additive local
+projection/outbox tables and server state/receipt tables. Constructors preserve
+all historical favorites, catalogs, playlists, history and activity tables.
+Membership changes and local sync intent commit together; server removals retain
+a persistent revision. Electron uses the worker-only `DB_FAVORITES_LOCAL` CAS
+bridge. The owning runtime verifies instance, consent and source incarnation.
+See [the favorites contract](../../../docs/architecture/pwa-self-hosted.md#favorites-synchronization).
+
 ## Database Location
 
 The SQLite database is stored at `<data root>/databases/iptvnator.db`. The data
@@ -41,17 +67,52 @@ root is resolved in this order:
    with a mounted volume, for example `/data`)
 3. `~/.iptvnator`
 
+Electron selects a separate database when connected to a source server:
+`<data root>/server-profiles/<sha256(instanceId)>/databases/iptvnator.db`.
+The main process chooses this profile before opening a database or starting
+its worker. Disconnecting returns to the retained standalone database.
+
 ## Upgrade Compatibility And Migrations
+
+M3U automatic EPG import uses nullable `playlists.auto_import_epg`: NULL keeps
+the historical default-on behavior, and 0 records an import opt-out. It is
+projected by metadata reads without loading the playlist payload. The additive
+migration runs before the canonical payload-last rebuild and is safe to repeat.
+
+EPG metadata reads preserve recorded provenance: missing `detected_epg_urls`
+decodes as an empty detected set, never as the enabled `epg_urls` list. Legacy
+enabled guides remain stored and usable with unknown origin through full reads,
+metadata projections and subsequent writes.
 
 Users may skip releases. The application must apply every required migration in
 dependency order when opening an older database, preserving user data without
 requiring intermediate application installations or a database reset. This is
-the repository policy mirrored in `AGENTS.md` and `CLAUDE.md`.
+the repository policy in `AGENTS.md`, which `CLAUDE.md` imports.
 
 `src/lib/connection.ts` owns initialization: `createTables()` creates missing
 schema objects, then `runMigrations()` applies column/index migrations and
 dedicated schema/data upgrades. One-off data migrations can record completion
 in `app_state`. Keep existing migration paths when adding new ones.
+
+Xtream favorites are migrated by `src/lib/favorites-table.ts` before legacy
+content/category deduplication. The transactional table rebuild backfills typed
+provider identity and saved display metadata while retaining favorite IDs,
+dates and positions. Duplicate favorites of the same playlist/type/provider ID
+collapse to the earliest favorite record. `content_id` becomes nullable with
+`ON DELETE SET NULL`; owning playlist deletion still cascades. The legacy
+content deduplicator updates references without replacing favorite IDs.
+Favorites whose owning playlist was already missing remain stored. The rebuild
+temporarily disables foreign-key enforcement outside its transaction, permits
+only those pre-existing playlist violations by favorite ID, and rolls back if
+it introduces another violation. The original enforcement setting is restored
+on both success and failure. The additive `identity_conflict` column also upgrades
+already-durable tables without rebuilding them. Its default is false; catalog
+reconciliation persists known negative identity evidence independently of missing rows,
+and full saved identity confirmation clears it. Repeated initialization preserves it.
+Historical upgrade tests include tagged 0.19–0.24 schemas, duplicate categories,
+orphaned favorites, repeated startup and forced rollbacks. Keep snapshot
+migration before content deduplication so the originally favorited row's
+metadata survives.
 
 When changing initialization:
 
@@ -72,7 +133,9 @@ When changing initialization:
   each distinct affected historical schema.
 
 Two startup costs found on a 4 GB profile (3.9M catalog titles, 182
-playlists) are guarded in `runMigrations()`:
+playlists) are guarded in `runMigrations()`, and measured weekly by the
+`launch-large` journey on a generated profile of that shape
+([performance journeys](../../../docs/architecture/performance-journeys.md#j1-launch-large-launch-to-usable-on-a-large-library)):
 
 - `deduplicateXtreamCache()` returns at once when both unique indexes
   (`src/lib/xtream-cache-unique-indexes.ts`:
@@ -102,7 +165,7 @@ playlists) are guarded in `runMigrations()`:
 The #1580 index-ordering fix is included in 0.24 through PR #1550.
 `src/lib/connection-upgrades.spec.ts` exercises `initDatabase()` with real
 SQLite under the Electron runtime, using fresh-install schema snapshots from
-tags 0.19–0.23 and a fresh current database. The `epg_channel_id` column is absent
+tags 0.19–0.24 and a fresh current database. The `epg_channel_id` column is absent
 in 0.19, present from 0.20, and indexed from 0.23. Each case checks current Drizzle
 tables, columns/types, and named indexes/uniqueness, as well as preserved user
 rows, foreign keys, database integrity, index availability, and repeated startup;
@@ -115,3 +178,6 @@ the index ahead of its column migration makes the 0.19 case fail again.
 Run this coverage with `pnpm nx test database --runInBand`. The Electron UI and
 worker upgrade flow is also covered by
 `pnpm nx run electron-backend-e2e:e2e-ci--src/legacy-playlist-migration.e2e.ts`.
+For an orphaned 0.24 favorites table, initial startup and restart through the
+real Electron UI and worker are covered by
+`pnpm nx run electron-backend-e2e:e2e-ci--src/favorites-legacy.e2e.ts`.

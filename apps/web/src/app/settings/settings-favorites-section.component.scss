@@ -1,0 +1,34 @@
+:host {
+    display: block;
+}
+.favorites-fields {
+    display: grid;
+    gap: 20px;
+    padding: 20px;
+    min-width: 0;
+}
+p {
+    margin: 0;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+.favorites-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.favorites-conflict {
+    display: grid;
+    gap: 8px;
+    padding: 12px;
+    background: var(--app-hover-overlay);
+}
+button,
+mat-checkbox {
+    app-region: no-drag;
+}
+
+.favorites-conflict h3 {
+    margin: 0;
+    overflow-wrap: anywhere;
+}

@@ -25,6 +25,7 @@ import {
     stalkerSeriesResumeKey,
 } from './stalker-series-resume';
 import {
+    AgeRatingChipComponent,
     CastCrewRowComponent,
     DetailActionButtonComponent,
     DetailActionSkeletonComponent,
@@ -39,7 +40,6 @@ import {
     SeasonContainerSeasonPlaybackToggleRequest,
     SeasonContainerSeriesPlaybackToggleRequest,
     SimilarRailComponent,
-    ViewInPortalActionComponent,
     VodMoreMenuComponent,
     scrollToCastCrewRow,
 } from '@iptvnator/ui/components';
@@ -80,6 +80,7 @@ import {
     normalizeStalkerVodDetailsItem,
     StalkerSelectedVodItem,
     StalkerStore,
+    StalkerEpisodeResolver,
     StalkerVodSource,
 } from '@iptvnator/portal/stalker/data-access';
 import {
@@ -96,6 +97,7 @@ import {
     CrossPortalSimilarService,
     PlaybackPositionRuntimeBridgeService,
     TmdbEnrichmentService,
+    type TmdbMatchContext,
     injectTranslationTick,
 } from '@iptvnator/services';
 import { StalkerSeriesTmdbSeasonsService } from './stalker-series-tmdb-seasons.service';
@@ -143,6 +145,7 @@ interface StalkerSeriesPlaybackRequestContext {
     styleUrls: ['../styles/detail-view.scss'],
     imports: [
         FavoritesButtonComponent,
+        AgeRatingChipComponent,
         CastCrewRowComponent,
         DetailActionButtonComponent,
         DetailActionSkeletonComponent,
@@ -153,7 +156,6 @@ interface StalkerSeriesPlaybackRequestContext {
         MetaChipComponent,
         PortalDetailShellComponent,
         SimilarRailComponent,
-        ViewInPortalActionComponent,
         VodMoreMenuComponent,
         PortalInlinePlayerComponent,
         TranslatePipe,
@@ -172,6 +174,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     readonly stalkerStore = inject(StalkerStore);
     readonly heroPresenter = inject(StalkerSeriesHeroPresenter);
     readonly menu = inject(StalkerSeriesMenuService);
+    private readonly episodeResolver = inject(StalkerEpisodeResolver);
     private readonly seasonContainerRef =
         viewChild<SeasonContainerComponent>('seasonContainer');
     private readonly positions = inject(StalkerSeriesPositionsService);
@@ -229,6 +232,25 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     readonly providerOnly = input(false);
 
     readonly selectedItem = this.stalkerStore.selectedItem;
+    readonly tmdbMatch = computed<TmdbMatchContext | null>(() => {
+        const item = this.displayItem();
+        const playlistId = this.stalkerStore.currentPlaylist()?._id;
+        if (!item?.id || !playlistId) return null;
+        return {
+            identity: {
+                provider: 'stalker',
+                catalog:
+                    this.stalkerStore.selectedContentType() === 'series'
+                        ? 'series'
+                        : 'vod',
+                playlistId,
+                mediaType: 'tv',
+                itemId: String(item.id),
+            },
+            title: item.info.name,
+            tmdbId: item.info.tmdb_id,
+        };
+    });
 
     private readonly tmdbSeasons = inject(StalkerSeriesTmdbSeasonsService);
     private readonly crossPortalSimilar = inject(CrossPortalSimilarService);
@@ -692,6 +714,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                 'en',
             seriesId: this.toSeriesId(item?.id ?? 0),
             seriesMode: this.seriesMode(),
+            resolveLazyUrl: (episode) =>
+                this.episodeResolver.resolveDownload(playlist, episode),
             resolveUrl: (command, episodeNumber) =>
                 this.stalkerStore.fetchLinkToPlay(
                     playlist?.portalUrl ?? '',
@@ -712,12 +736,17 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             const base = this.isVodSeries()
                 ? mapVodSeriesEpisodes(this.vodSeriesSeasons(), {
                       parentSeriesId: this.toSeriesId(displayItem?.id ?? 0),
+                      mode: 'lazy',
+                      activityParentSeriesId: displayItem?.id ?? 0,
                       fallbackPoster: displayItem?.info?.movie_image,
                   })
                 : mapRegularSeriesEpisodes(
                       this.regularSeasons(),
                       displayItem?.info?.movie_image,
-                      this.seriesSeasonTitle()
+                      this.seriesSeasonTitle(),
+                      displayItem?.id ?? 0,
+                      this.vodWithSeries() ? 'embedded' : 'regular',
+                      [displayItem?.info?.name, displayItem?.info?.o_name]
                   );
 
             // Overlay lazily fetched TMDB episode data (real names,
@@ -967,9 +996,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
         const mappedEpisode = episodeState.episode as StalkerMappedEpisode;
         const isLazyVod = mappedEpisode.custom_sid === 'vod-series';
-        const command = isLazyVod
-            ? `/media/file_${mappedEpisode.originalId ?? ''}.mpg`
-            : mappedEpisode.originalCmd;
+        const command = mappedEpisode.originalCmd;
         const title = isLazyVod
             ? `${item.info.name} - ${mappedEpisode.title || this.episodeLabel(episodeState.episodeNumber)}`
             : item.info.name;
@@ -1268,6 +1295,14 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         const pendingSeriesId = this.currentSeriesKey();
         this.pendingStartSeriesIds.update((ids) => [...ids, pendingSeriesId]);
         try {
+            const episode = episodeState.episode as StalkerMappedEpisode;
+            if (episode.custom_sid === 'vod-series') {
+                cmd = await this.episodeResolver.resolveCommand(
+                    this.stalkerStore.currentPlaylist(),
+                    episode
+                );
+                if (!this.isPlaybackRequestCurrent(request)) return;
+            }
             const playback = await this.stalkerStore.resolveVodPlayback(
                 cmd,
                 title,
@@ -1284,6 +1319,12 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                           ...playback,
                           contentInfo: {
                               ...playback.contentInfo,
+                              ...(episode.activityIdentity
+                                  ? {
+                                        activityIdentity:
+                                            episode.activityIdentity,
+                                    }
+                                  : {}),
                               seasonNumber: episodeState.seasonNumber,
                               episodeNumber: episodeState.episodeNumber,
                           },

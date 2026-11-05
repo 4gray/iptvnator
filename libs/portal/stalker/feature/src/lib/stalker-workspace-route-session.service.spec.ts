@@ -10,6 +10,7 @@ import { EMPTY, Observable, Subject, of } from 'rxjs';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { PlaylistsService } from '@iptvnator/services';
+import { SourceSyncService } from '@iptvnator/services/source-sync';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { StalkerWorkspaceRouteSession } from './stalker-workspace-route-session.service';
 
@@ -95,6 +96,7 @@ describe('StalkerWorkspaceRouteSession', () => {
         url: `/workspace/stalker/${PLAYLIST_ID}/vod`,
         events: routerEvents.asObservable(),
     };
+    const sourceChanges = new Subject<void>();
 
     beforeEach(async () => {
         router.url = `/workspace/stalker/${PLAYLIST_ID}/vod`;
@@ -133,6 +135,10 @@ describe('StalkerWorkspaceRouteSession', () => {
             providers: [
                 StalkerWorkspaceRouteSession,
                 {
+                    provide: SourceSyncService,
+                    useValue: { changes: sourceChanges },
+                },
+                {
                     provide: PlaylistContextFacade,
                     useValue: playlistContext,
                 },
@@ -150,6 +156,40 @@ describe('StalkerWorkspaceRouteSession', () => {
                 },
             ],
         });
+    });
+
+    it('restarts an open Stalker session when a shared connection changes without navigation', async () => {
+        const session = TestBed.inject(StalkerWorkspaceRouteSession);
+        await flushEffects();
+        const changed = {
+            ...ACTIVE_PLAYLIST,
+            password: 'changed-password',
+            stalkerDeviceId1: 'new-device',
+        };
+        playlistsService.getPlaylistById.mockReturnValue(of(changed));
+        stalkerStore.setCurrentPlaylist.mockClear();
+        stalkerStore.reloadCategories.mockClear();
+        sourceChanges.next();
+        await flushEffects();
+        expect(stalkerStore.setCurrentPlaylist).toHaveBeenCalledWith(changed);
+        expect(currentPlaylist()).toEqual(changed);
+        expect(stalkerStore.reloadCategories).toHaveBeenCalledTimes(1);
+        expect(session.isReady()).toBe(true);
+    });
+
+    it('keeps the open session and catalog when a shared source is only renamed', async () => {
+        TestBed.inject(StalkerWorkspaceRouteSession);
+        await flushEffects();
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({ ...ACTIVE_PLAYLIST, title: 'Renamed' })
+        );
+        stalkerStore.setCurrentPlaylist.mockClear();
+        stalkerStore.resetCategories.mockClear();
+        sourceChanges.next();
+        await flushEffects();
+        expect(currentPlaylist()?.title).toBe('Renamed');
+        expect(stalkerStore.resetCategories).not.toHaveBeenCalled();
+        expect(stalkerStore.reloadCategories).not.toHaveBeenCalled();
     });
 
     it('keeps the itv route selection after playlist bootstrap', async () => {

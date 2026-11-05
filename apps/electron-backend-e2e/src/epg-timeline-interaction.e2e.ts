@@ -257,7 +257,12 @@ test('@epg @xtream @electron opens the programme dialog from a timeline block an
         await app.mainWindow.getByTestId('epg-view-mode-list').click();
         await saveSettings(app.mainWindow);
         await openWorkspaceSection(app.mainWindow, 'Live TV');
-        await clickCategoryByNameExact(app.mainWindow, fixture.categoryName);
+        // The category survives the settings visit; clicking it again clears it.
+        await expect(
+            app.mainWindow.locator(
+                'app-workspace-context-panel .category-item[aria-current="true"]'
+            )
+        ).toContainText(fixture.categoryName);
         await channelItemByTitle(app.mainWindow, fixture.stream.name ?? '')
             .first()
             .click();
@@ -331,6 +336,7 @@ test('@epg @xtream @electron stacks the programme dialog actions on a phone', as
     ) as {
         WORKSPACE: { SHELL: { RAIL_LIVE: string } };
         EPG: {
+            PREVIOUS_DAY: string;
             PROGRAM_DIALOG: { SHOW_PROGRAM_DETAILS: string };
             TIMELINE: { WATCH_FROM_START: string };
         };
@@ -365,6 +371,15 @@ test('@epg @xtream @electron stacks the programme dialog actions on a phone', as
             .first()
             .click();
         const guide = app.mainWindow.locator('app-epg-list-view');
+        await expect(guide.locator('[data-when="now"]').first()).toBeVisible();
+        // The mock's 30-minute slots run relative to now, so in the first half
+        // hour after UTC midnight today holds only the programme on air: step
+        // back a day for a finished one.
+        if ((await guide.locator('[data-when="past"]').count()) === 0) {
+            await guide
+                .getByRole('button', { name: fr.EPG.PREVIOUS_DAY })
+                .click();
+        }
         await expect(guide.locator('[data-when="past"]').first()).toBeVisible();
 
         // The window cannot shrink below its desktop minimum, so emulate a

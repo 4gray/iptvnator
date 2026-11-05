@@ -43,11 +43,9 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
                     playlistId,
                     { backdropUrl: 'backdrop.jpg' }
                 );
-                expect(harness.dbService.addToFavorites).toHaveBeenCalledWith(
-                    202,
-                    playlistId,
-                    'backdrop.jpg'
-                );
+                expect(
+                    harness.dbService.addToFavoritesOrThrow
+                ).toHaveBeenCalledWith(202, playlistId, 'backdrop.jpg');
                 expect(
                     harness.dbService.removeFromFavorites
                 ).toHaveBeenCalledWith(202, playlistId);
@@ -70,6 +68,15 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
             }
         );
 
+        it('propagates a failed favorite write instead of acknowledging it', async () => {
+            harness.dbService.addToFavoritesOrThrow.mockRejectedValue(
+                new Error('XTREAM_FAVORITE_IDENTITY_CONFLICT')
+            );
+            await expect(
+                harness.dataSource.addFavorite(202, playlistId)
+            ).rejects.toThrow();
+        });
+
         it('delegates favorites operations to the DB', async () => {
             harness.dbService.isFavorite.mockResolvedValue(true);
 
@@ -78,7 +85,9 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
                 playlistId,
                 'https://example.com/backdrop.png'
             );
-            expect(harness.dbService.addToFavorites).toHaveBeenCalledWith(
+            expect(
+                harness.dbService.addToFavoritesOrThrow
+            ).toHaveBeenCalledWith(
                 202,
                 playlistId,
                 'https://example.com/backdrop.png'
@@ -255,31 +264,6 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
             ).not.toHaveBeenCalled();
         });
 
-        it('combines DB restore data with playback positions on clearPlaylistContent', async () => {
-            const hidden = [{ categoryType: 'live', xtreamId: 5 }];
-            const favorites = [{ xtreamId: 202, type: 'movie' }];
-            const recentlyViewed = [{ xtreamId: 101, type: 'live' }];
-            const position = { contentXtreamId: 202 } as never;
-            harness.dbService.deleteXtreamPlaylistContent.mockResolvedValue({
-                hiddenCategories: hidden,
-                favorites,
-                recentlyViewed,
-            });
-            harness.playbackService.getAllPlaybackPositions.mockResolvedValue([
-                position,
-            ]);
-
-            await expect(
-                harness.dataSource.clearPlaylistContent(playlistId)
-            ).resolves.toEqual({
-                hiddenCategories: hidden,
-                favorites,
-                recentlyViewed,
-                playbackPositions: [position],
-                sourcePins: [],
-            });
-        });
-
         it('atomically applies all parked source pins and rejects a failed replacement', async () => {
             // The fresh-import path: a new playlist has no content when the
             // archive is read, so its user state is parked and replayed here.
@@ -370,6 +354,28 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
             ).not.toHaveBeenCalled();
         });
 
+        it('rejects the early pending-favorite restore before calling the database on an unsupported bridge', async () => {
+            harness.playbackService.assertSupportsAtomicReplacement.mockImplementation(
+                () => {
+                    throw new Error(
+                        'Playback position replacement method is unavailable'
+                    );
+                }
+            );
+            await expect(
+                harness.dataSource.restoreFavoriteSnapshots(playlistId, {
+                    favorites: [{ xtreamId: 7, contentType: 'movie' }],
+                    favoritesRestoreId: 'parked-backup',
+                    hiddenCategories: [],
+                    recentlyViewed: [],
+                    playbackPositions: [],
+                })
+            ).rejects.toThrow('unavailable');
+            expect(
+                harness.dbService.restoreXtreamFavoriteSnapshots
+            ).not.toHaveBeenCalled();
+        });
+
         it('rejects deferred restore when position replacement fails, retaining the caller retry', async () => {
             const restoreState = {
                 hiddenCategories: [],
@@ -407,8 +413,8 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
             const positionB = { contentXtreamId: 2 } as never;
             const restoreState = {
                 hiddenCategories: [{ categoryType: 'live', xtreamId: 101 }],
-                favorites: [{ xtreamId: 202, type: 'movie' }],
-                recentlyViewed: [{ xtreamId: 101, type: 'live' }],
+                favorites: [{ xtreamId: 202, contentType: 'movie' }],
+                recentlyViewed: [{ xtreamId: 101, contentType: 'live' }],
                 playbackPositions: [positionA, positionB],
             } as never;
             const options = { operationId: 'op-1' };
@@ -442,8 +448,8 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
                 harness.dbService.restoreXtreamUserData
             ).toHaveBeenCalledWith(
                 playlistId,
-                [{ xtreamId: 202, type: 'movie' }],
-                [{ xtreamId: 101, type: 'live' }],
+                [],
+                [{ xtreamId: 101, contentType: 'live' }],
                 options
             );
             expect(

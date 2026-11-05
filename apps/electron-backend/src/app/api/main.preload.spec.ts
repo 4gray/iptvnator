@@ -3,6 +3,7 @@ import {
     DbWorkerOperation,
 } from '../workers/database-worker.types';
 import {
+    APP_MENU_OPEN,
     APP_UPDATE_CHECK,
     APP_UPDATE_DOWNLOAD,
     APP_UPDATE_GET_RELEASE_NOTES,
@@ -12,6 +13,7 @@ import {
     ACKNOWLEDGE_PLAYLIST_OPEN_REQUEST,
     ANNOUNCE_PLAYLIST_OPEN_LISTENER,
     OPEN_FILE,
+    WINDOW_BACK_REQUESTED,
 } from '@iptvnator/shared/interfaces';
 import type {
     DownloadMetadataSnapshot,
@@ -182,6 +184,25 @@ describe('main preload DB IPC contract', () => {
         }
     );
 
+    it('forwards explicit Origin separately from credentials and Referer', async () => {
+        const api = getExposedApi();
+        await api.setUserAgent(
+            undefined,
+            'https://referer.example/watch',
+            'https://stream.example/live.m3u8',
+            undefined,
+            'https://explicit.example'
+        );
+        expect(mockIpcRenderer.invoke).toHaveBeenLastCalledWith(
+            'set-user-agent',
+            undefined,
+            'https://referer.example/watch',
+            'https://stream.example/live.m3u8',
+            undefined,
+            'https://explicit.example'
+        );
+    });
+
     it('forwards scoped user-agent override arguments', async () => {
         const api = getExposedApi();
 
@@ -196,6 +217,7 @@ describe('main preload DB IPC contract', () => {
             'ChannelAgent/1.0',
             'https://portal.example/referrer',
             'https://stream.example/live.m3u8',
+            undefined,
             undefined
         );
     });
@@ -221,8 +243,14 @@ describe('main preload DB IPC contract', () => {
             {
                 authorization: 'Bearer TOKEN',
                 cookie: 'mac=00%3A1A%3A79%3A00%3A00%3A01',
-            }
+            },
+            undefined
         );
+    });
+
+    it('opens the fixed application menu without renderer payloads', async () => {
+        await getExposedApi().showApplicationMenu?.();
+        expect(mockIpcRenderer.invoke).toHaveBeenCalledWith(APP_MENU_OPEN);
     });
 
     it('exposes app update commands and status events through the typed bridge', async () => {
@@ -309,6 +337,30 @@ describe('main preload DB IPC contract', () => {
         expect(mockIpcRenderer.off).toHaveBeenCalledWith(OPEN_FILE, handler);
     });
 
+    it('forwards only the known window Back gesture sources', () => {
+        const api = getExposedApi();
+        const callback = jest.fn();
+
+        const unsubscribe = api.onWindowBackRequested(callback);
+        const handler = mockIpcRenderer.on.mock.calls.at(-1)?.[1];
+
+        handler({}, 'app-command');
+        handler({}, 'swipe');
+        handler({}, 'browser-forward');
+        handler({}, { source: 'swipe' });
+        unsubscribe();
+
+        expect(mockIpcRenderer.on).toHaveBeenCalledWith(
+            WINDOW_BACK_REQUESTED,
+            expect.any(Function)
+        );
+        expect(callback.mock.calls).toEqual([['app-command'], ['swipe']]);
+        expect(mockIpcRenderer.off).toHaveBeenCalledWith(
+            WINDOW_BACK_REQUESTED,
+            handler
+        );
+    });
+
     it('forwards request-scoped DB operation events and unregisters the listener', () => {
         const api = getExposedApi();
         const callback = jest.fn();
@@ -321,7 +373,9 @@ describe('main preload DB IPC contract', () => {
         };
 
         const unsubscribe = api.onDbOperationEvent(callback) as () => void;
-        const handler = mockIpcRenderer.on.mock.calls[0][1];
+        const handler = mockIpcRenderer.on.mock.calls.find(
+            ([channel]) => channel === 'DB_OPERATION_EVENT'
+        )![1];
 
         handler({}, event);
 
@@ -385,7 +439,9 @@ describe('main preload DB IPC contract', () => {
         const callback = jest.fn();
 
         api.onDbSaveContentProgress(callback);
-        const handler = mockIpcRenderer.on.mock.calls[0][1];
+        const handler = mockIpcRenderer.on.mock.calls.find(
+            ([channel]) => channel === 'DB_OPERATION_EVENT'
+        )![1];
 
         handler({}, { operation: 'delete-playlist', status: 'progress' });
         handler({}, { operation: 'save-content', status: 'started' });

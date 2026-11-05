@@ -25,11 +25,11 @@
 
     @if (showActionButtons()) {
         <div class="error-view__actions">
-            <button mat-stroked-button routerLink="/">
+            <button mat-flat-button routerLink="/">
                 <mat-icon>home</mat-icon>
                 {{ 'PORTALS.ERROR_VIEW.HOME' | translate }}
             </button>
-            <button mat-stroked-button (click)="openPlaylistDetails()">
+            <button mat-flat-button (click)="openPlaylistDetails()">
                 <mat-icon>settings</mat-icon>
                 {{ 'PORTALS.ERROR_VIEW.PLAYLIST_SETTINGS' | translate }}
             </button>

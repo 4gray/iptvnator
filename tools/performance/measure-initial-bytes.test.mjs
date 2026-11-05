@@ -10,6 +10,7 @@ import {
     DEFAULT_DIST_DIR,
     INITIAL_BYTES_COUNTER,
     extractInitialResources,
+    extractStaticImports,
     formatReport,
     measureInitialBytes,
     parseArgs,
@@ -57,6 +58,19 @@ async function writeDist(
         const target = path.join(distDir, file);
         await mkdir(path.dirname(target), { recursive: true });
         await writeFile(target, 'x'.repeat(bytes));
+    }
+    return distDir;
+}
+
+let GRAPH_FILES = {};
+
+/** Writes files with real contents, for tests that read module imports. */
+async function workDirWith(name, files) {
+    GRAPH_FILES = files;
+    const distDir = path.join(workDir, name);
+    await mkdir(distDir, { recursive: true });
+    for (const [file, contents] of Object.entries(files)) {
+        await writeFile(path.join(distDir, file), contents);
     }
     return distDir;
 }
@@ -228,12 +242,111 @@ test('sums index.html and every referenced file into the counter', async () => {
         script,
         stylesheet,
         modulepreload,
+        staticImport: 0,
         initialBytes: indexBytes + script + stylesheet + modulepreload,
     });
     assert.deepEqual(measurement.counters, {
         [INITIAL_BYTES_COUNTER]:
             indexBytes + script + stylesheet + modulepreload,
     });
+});
+
+test('extracts static import and re-export specifiers, not dynamic imports', () => {
+    const source =
+        'import{a as b}from"./chunk-A.js";import"./chunk-B.js";' +
+        'export{c}from"./sub/chunk-C.js";export*from"../chunk-D.js";' +
+        'const l=()=>import("./chunk-LAZY.js");import"@angular/core";' +
+        "const t=\"from './not-a-file.css'\";import\n  { e } from './chunk-E.mjs';";
+    assert.deepEqual(extractStaticImports(source).sort(), [
+        '../chunk-D.js',
+        './chunk-A.js',
+        './chunk-B.js',
+        './chunk-E.mjs',
+        './sub/chunk-C.js',
+    ]);
+});
+
+test('counts chunks that only a static import names, beyond the preload hints', async () => {
+    // Angular emits at most ten modulepreload hints; main imports the rest.
+    const distDir = await workDirWith('import-graph', {
+        'index.html':
+            '<link rel="modulepreload" href="chunk-hinted.js"><script src="main.js" type="module"></script>',
+        'main.js':
+            'import"./chunk-hinted.js";import{x}from"./chunk-unhinted.js";const lazy=()=>import("./chunk-lazy.js");',
+        'chunk-hinted.js': 'export const h=1;',
+        'chunk-unhinted.js': 'import"./chunk-deep.js";export const x=1;',
+        'chunk-deep.js': 'export const d=1;',
+        'chunk-lazy.js': 'export const never=1;',
+    });
+    const measurement = await measureInitialBytes({ distDir });
+    const counted = Object.fromEntries(
+        measurement.resources.map((resource) => [resource.path, resource.kind])
+    );
+    assert.deepEqual(counted, {
+        'chunk-hinted.js': 'modulepreload',
+        'main.js': 'script',
+        'chunk-unhinted.js': 'staticImport',
+        'chunk-deep.js': 'staticImport',
+    });
+    const size = (file) => Buffer.byteLength(GRAPH_FILES[file]);
+    assert.equal(
+        measurement.totals.staticImport,
+        size('chunk-unhinted.js') + size('chunk-deep.js')
+    );
+});
+
+test('import-like text in strings, templates and comments never counts', async () => {
+    const distDir = await workDirWith('import-lookalikes', {
+        'index.html': '<script src="main.js" type="module"></script>',
+        'main.js': [
+            'const a=\'import "./chunk-string.js"\';',
+            'const b=`export{x}from"./chunk-template.js"`;',
+            '/* import"./chunk-comment.js" */',
+            '// import { y } from "./chunk-line-comment.js";',
+            'export const main=1;',
+        ].join('\n'),
+    });
+    const measurement = await measureInitialBytes({ distDir });
+    assert.equal(measurement.totals.staticImport, 0);
+    assert.deepEqual(
+        measurement.resources.map((resource) => resource.path),
+        ['main.js']
+    );
+});
+
+test('counts an import once per request URL, like index.html references', async () => {
+    // The preload and the import name the same file under different URLs,
+    // so the browser fetches two modules.
+    const distDir = await workDirWith('url-dedupe', {
+        'index.html':
+            '<link rel="modulepreload" href="chunk-a.js?v=1"><script src="main.js" type="module"></script>',
+        'main.js': 'import"./chunk-a.js";import"./chunk-a.js";',
+        'chunk-a.js': 'export const a=1;',
+    });
+    const measurement = await measureInitialBytes({ distDir });
+    assert.deepEqual(
+        measurement.resources.map(({ url, kind }) => [url, kind]),
+        [
+            ['chunk-a.js?v=1', 'modulepreload'],
+            ['main.js', 'script'],
+            ['chunk-a.js', 'staticImport'],
+        ]
+    );
+    assert.equal(
+        measurement.totals.staticImport,
+        Buffer.byteLength(GRAPH_FILES['chunk-a.js'])
+    );
+});
+
+test('fails when a startup module imports a file the build did not emit', async () => {
+    const distDir = await workDirWith('broken-import', {
+        'index.html': '<script src="main.js" type="module"></script>',
+        'main.js': 'import"./chunk-gone.js";',
+    });
+    await assert.rejects(
+        measureInitialBytes({ distDir }),
+        /import files that are not in .*broken-import: chunk-gone\.js \(imported by main\.js\)/
+    );
 });
 
 test('fails when index.html is missing instead of reporting zero bytes', async () => {

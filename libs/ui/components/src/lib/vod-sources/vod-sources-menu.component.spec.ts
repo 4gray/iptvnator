@@ -39,6 +39,7 @@ class FakeTranslateLoader implements TranslateLoader {
                     FILTER_AVAILABLE: 'Available',
                     FILTER_HD: 'HD+',
                     ALL_LANGUAGES: 'All languages',
+                    LANGUAGE: 'Language',
                     SAME_AS_ABOVE: 'same as above',
                     SHOWING_OF_TOTAL: '{{visible}} of {{total}}',
                 },
@@ -373,7 +374,26 @@ describe('VodSourcesMenuComponent', () => {
             ).toBe(1);
         });
 
-        it('builds the language select from parsed title prefixes and filters by it', () => {
+        function languageTrigger(): HTMLButtonElement {
+            return fixture.debugElement.query(By.css('.sources-menu__lang'))
+                .nativeElement;
+        }
+
+        /** Opens the language menu; its rows render in the overlay. */
+        function openLanguageMenu(): HTMLButtonElement[] {
+            languageTrigger().click();
+            fixture.detectChanges();
+            return Array.from(
+                document.querySelectorAll<HTMLButtonElement>(
+                    '.sources-language-menu [role="menuitemradio"]'
+                )
+            );
+        }
+
+        const rowText = (row: HTMLElement) =>
+            (row.textContent ?? '').replace('check', '').trim();
+
+        it('offers the parsed title prefixes in a radio menu and filters by the chosen one', () => {
             render([
                 createSource({
                     id: 'a:xtream:1',
@@ -389,18 +409,35 @@ describe('VodSourcesMenuComponent', () => {
                 }),
             ]);
 
-            const select = fixture.debugElement.query(
-                By.css('.sources-menu__lang')
+            // No native select: a chip trigger named with what it picks.
+            expect(fixture.nativeElement.querySelector('select')).toBeNull();
+            const trigger = languageTrigger();
+            expect(trigger.getAttribute('aria-label')).toBe(
+                'Language: All languages'
             );
-            const options = select.nativeElement
-                .textContent as string;
-            expect(options).toContain('EN');
-            expect(options).toContain('RU');
+            expect(trigger.classList).not.toContain('filter-chip--on');
 
-            fixture.componentInstance.setLanguageFilter('RU');
+            let rows = openLanguageMenu();
+            expect(rows.map(rowText)).toEqual(['All languages', 'EN', 'RU']);
+            expect(rows.map((row) => row.getAttribute('aria-checked'))).toEqual(
+                ['true', 'false', 'false']
+            );
+
+            rows[2].click();
             fixture.detectChanges();
 
             expect(rowNames()).toEqual(['Russian Portal']);
+            expect(trigger.getAttribute('aria-label')).toBe('Language: RU');
+            expect(trigger.textContent).toContain('RU');
+            expect(trigger.classList).toContain('filter-chip--on');
+
+            rows = openLanguageMenu();
+            expect(rows.map((row) => row.getAttribute('aria-checked'))).toEqual(
+                ['false', 'false', 'true']
+            );
+            rows[0].click();
+            fixture.detectChanges();
+            expect(rowNames()).toEqual(['English Portal', 'Russian Portal']);
         });
 
         it('offers a category-derived language when the title has no prefix', () => {
@@ -420,12 +457,10 @@ describe('VodSourcesMenuComponent', () => {
                 }),
             ]);
 
-            const select = fixture.debugElement.query(
-                By.css('.sources-menu__lang')
-            );
-            expect(select.nativeElement.textContent).toContain('DE');
+            const rows = openLanguageMenu();
+            expect(rows.map(rowText)).toEqual(['All languages', 'DE']);
 
-            fixture.componentInstance.setLanguageFilter('DE');
+            rows[1].click();
             fixture.detectChanges();
 
             expect(rowNames()).toEqual(['German Portal']);

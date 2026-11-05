@@ -157,6 +157,14 @@ Contracts:
 - Hosts provide hero chips/meta/actions as `*appDetailTags` / `*appDetailMeta` /
   `*appDetailActions` templates; the shell stamps them into the hero and again
   into the About block. Degradation stays "missing → not rendered".
+- Provider stand-ins count as missing: `N/A` (any case), a lone `-`, and a
+  `0` IMDb/Kinopoisk score are dropped where provider rows are mapped, by
+  `readProviderText` / `readProviderRating`
+  (`libs/shared/interfaces/src/lib/provider-metadata.util.ts`) — in
+  `createStalkerInfo()`, the `vod-details-adapters.ts` normalizers and the
+  Xtream store's detail selection. Templates keep plain `@if` guards; do not
+  teach them the placeholder list. Widen the list only with evidence of a
+  provider sending the new stand-in.
 - The shell never wraps the `[detail-player]` slot in a conditional; the
   host's `@if (inlinePlayback())` is the only creator/destroyer of the
   player subtree, so shell state changes cannot recreate the `<video>`.
@@ -191,6 +199,12 @@ player is sized as the largest 16:9 box that fits the stage height and is
 centered, so the leftover is always the stage's own black background — never
 a stray strip of app surface. This is the YouTube-style letterbox and is the
 default behavior for every inline engine.
+
+The surrounding panel uses the app's widget surface and text tokens in both
+themes. Its header keeps a single-line, ellipsized title and a labelled copy
+icon beside the secondary Close player action; below 600 px of panel width,
+actions move below the title. The detail shell aligns the player with the
+episode section and separates them by 24 px (16 px below 800 px of pane width).
 
 The optional `playerAmbientMode` setting (Settings → Playback, default off,
 shown only for the built-in web players) renders a blurred, dimmed copy of the
@@ -301,19 +315,12 @@ strip (poster, season name, episode count — `PORTALS.EPISODE_COUNT_ONE` /
 same gates, from `PortalInlinePlayerComponent.seasonPosters` through
 `buildFullscreenEpisodePanelSeasons`.
 
-Beyond six seasons the tabs become a `mat-menu` dropdown, and that dropdown
-carries **season thumbnails** from the same `seasonPosters` map
-(`SeasonTabsComponent.seasonPosters`, passed by the season container and by
-the fullscreen episode panel): a 28×42 poster projected into the leading slot
-of each menu row that has one, and the selected season's poster inside the
-closed trigger (`season-tabs__dropdown--with-thumb` tightens the pill around
-it). A season without a poster gets no placeholder tile — its row simply
-starts with the text — and a poster whose image request fails is dropped from
-both places rather than left as a broken-image frame (the component keeps its
-own failed-URL set, independent of the container's cover column). The pill
-row (six seasons or fewer) deliberately stays text-only: the design review
-rejected per-pill thumbnails as a second poster rail, and the season cover
-beside the tabs already shows the selected season's picture.
+`SeasonTabsComponent` draws both forms of the picker, on the detail page and
+in the fullscreen episode panel. Up to four seasons the tabs are the kit's
+segmented control (`role="tablist"` on the track only; the "back to playing
+episode" chip sits beside it). From five, the kit's toolbar picker (a small
+secondary button with a chevron) opens a `mat-menu` of radio rows. Neither
+form draws season artwork.
 
 ### Manual watched toggle for movies
 
@@ -1213,6 +1220,13 @@ Keep player-specific reusable-process state in the focused MPV/VLC managers.
 Shared spawn, request-header, session-registry, and notification helpers belong
 in the `external-player-*` modules so IPC registration stays small and
 reviewable.
+
+MPV and VLC progress polling belong to the current playback session. Delayed exit or
+error events from an older child stop only that child's polling; an in-flight
+poll also checks its generation before cleanup so it cannot stop its replacement.
+VLC checks ownership after both the snapshot and stopped-state RC reads, before
+updating the cached snapshot, forwarding progress, or closing the session.
+Obsolete replies and failures cannot cancel the replacement's delayed start.
 
 ## Flatpak External Players
 

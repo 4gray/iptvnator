@@ -489,3 +489,18 @@ describe('planDashboardSeriesLookups', () => {
         );
     });
 });
+
+describe('unavailable series continuation scheduling', () => {
+    it.each(['missing', 'unknown'] as const)(
+        'does not inspect positions or schedule %s series',
+        (catalogStatus) => {
+            const stored = jest.fn(() => row(1, WATCHED));
+            const item = { ...candidate(row(1, WATCHED)).item, catalogStatus };
+            expect(selectSeriesContinuationCandidates([item], stored)).toEqual(
+                []
+            );
+            expect(stored).not.toHaveBeenCalled();
+            expect(item.catalogStatus).toBe(catalogStatus);
+        }
+    );
+});

@@ -1,0 +1,894 @@
+import { activitySyncFixture as fixture } from './test-stubs/activity-sync-fixture.stub';
+import { signal } from '@angular/core';
+import { ActivitySyncClient } from '@iptvnator/services/activity-sync';
+import { prepareSourceConnection } from '@iptvnator/services/source-sync/connection';
+import {
+    applyActivityOperation,
+    emptyActivityState,
+    type ActivityOperation,
+} from '@iptvnator/shared/interfaces/activity-sync';
+import { ActivityPositionAdapter } from './activity-position-adapter';
+import { ActivitySyncRuntime } from './activity-sync-runtime';
+import { ActivityLocalOnlyPositions } from './activity-local-only-positions';
+
+describe('keeping pending activity local', () => {
+    afterEach(async () => {
+        localStorage.clear();
+        await prepareSourceConnection();
+    });
+    it.each(
+        (
+            ['begin', 'reset', 'mark-watched', 'import', 'resolve'] as const
+        ).flatMap((action) =>
+            [false, true].flatMap((succeeds) =>
+                [false, true].map((early) => ({ action, succeeds, early }))
+            )
+        )
+    )(
+        'ignores an old context response after a newer $action action (success: $succeeds, early checkpoint: $early)',
+        async ({ action, succeeds, early }) => {
+            const f = fixture();
+            f.saved.push({ ...f.position, positionSeconds: 10 });
+            if (action === 'resolve') {
+                f.setRemote({
+                    kind: 'begin',
+                    operationId: 'synthetic-remote-begin',
+                    deviceId: 'synthetic-other',
+                    expectedRevision: 0,
+                    sessionId: 'synthetic-remote',
+                });
+                f.setRemote({
+                    kind: 'checkpoint',
+                    operationId: 'synthetic-remote-point',
+                    deviceId: 'synthetic-other',
+                    generation: 1,
+                    sessionId: 'synthetic-remote',
+                    sequence: 1,
+                    resume: { positionSeconds: 30, durationSeconds: 100 },
+                });
+                await f.client.importPosition(f.address.sourceId, {
+                    ...f.position,
+                    positionSeconds: 80,
+                });
+            }
+            f.client.contexts.clear();
+            let release!: () => void;
+            let entered!: () => void;
+            const held = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            const started = new Promise<void>((resolve) => {
+                entered = resolve;
+            });
+            jest.spyOn(f.client.options, 'request').mockImplementationOnce(
+                async () => {
+                    entered();
+                    await held;
+                    if (succeeds)
+                        return {
+                            status: 200,
+                            body: {
+                                sourceId: f.address.sourceId,
+                                sourceIncarnation: f.address.sourceIncarnation,
+                                provider: 'xtream',
+                            },
+                        };
+                    throw new Error('Synthetic old context failure');
+                }
+            );
+            const older = f.client.begin(f.address.sourceId, {
+                ...f.position,
+                activitySessionId: 'synthetic-older',
+            });
+            await started;
+            const checkpoint = early
+                ? f.adapter
+                      .invoke(f.raw, 'savePlaybackPosition', [
+                          f.address.sourceId,
+                          {
+                              ...f.position,
+                              positionSeconds: 65,
+                              activitySessionId: 'synthetic-older',
+                          },
+                      ])
+                      .then(
+                          () => undefined,
+                          (error) => error
+                      )
+                : undefined;
+            if (action === 'begin') {
+                const next = {
+                    ...f.position,
+                    positionSeconds: 80,
+                    activitySessionId: 'synthetic-newer',
+                };
+                await f.client.begin(f.address.sourceId, next);
+                await f.adapter.invoke(f.raw, 'savePlaybackPosition', [
+                    f.address.sourceId,
+                    next,
+                ]);
+            } else if (action === 'reset')
+                await f.client.reset(f.address.sourceId, f.position);
+            else if (action === 'mark-watched')
+                await f.client.save(f.address.sourceId, {
+                    ...f.position,
+                    watched: true,
+                    activityAction: 'mark-watched',
+                });
+            else if (action === 'import')
+                await f.client.importPosition(f.address.sourceId, {
+                    ...f.position,
+                    positionSeconds: 80,
+                });
+            else await f.client.resolve(f.address, true);
+            await f.client.flush();
+            release();
+            await expect(older).rejects.toThrow(
+                succeeds
+                    ? 'Activity launch superseded'
+                    : 'Synthetic old context failure'
+            );
+            if (early) expect(await checkpoint).toBeUndefined();
+            await f.adapter.invoke(f.raw, 'savePlaybackPosition', [
+                f.address.sourceId,
+                {
+                    ...f.position,
+                    positionSeconds: 65,
+                    activitySessionId: 'synthetic-older',
+                },
+            ]);
+            const projected = await f.adapter.all(f.raw, f.address.sourceId);
+            if (action === 'reset') expect(projected).toEqual([]);
+            else
+                expect(projected[0]).toMatchObject(
+                    action === 'mark-watched'
+                        ? { watched: true }
+                        : { positionSeconds: 80 }
+                );
+            expect(f.client.retiredSessions.has('synthetic-older')).toBe(true);
+        }
+    );
+
+    it.each(['reset', 'import', 'mark-watched'] as const)(
+        'does not cache a stale %s context after a newer source incarnation launches',
+        async (action) => {
+            const f = fixture();
+            f.client.contexts.clear();
+            let release!: () => void;
+            let entered!: () => void;
+            const held = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            const started = new Promise<void>((resolve) => {
+                entered = resolve;
+            });
+            jest.spyOn(f.client.options, 'request').mockImplementationOnce(
+                async () => {
+                    entered();
+                    await held;
+                    return {
+                        status: 200,
+                        body: {
+                            sourceId: f.address.sourceId,
+                            sourceIncarnation: 'synthetic-obsolete-incarnation',
+                            provider: 'xtream',
+                        },
+                    };
+                }
+            );
+            const command =
+                action === 'reset'
+                    ? f.client.reset(f.address.sourceId, f.position)
+                    : action === 'import'
+                      ? f.client.importPosition(f.address.sourceId, f.position)
+                      : f.client.save(f.address.sourceId, {
+                            ...f.position,
+                            activityAction: 'mark-watched',
+                        });
+            await started;
+            const newer = {
+                ...f.position,
+                positionSeconds: 80,
+                activitySessionId: 'synthetic-current-incarnation',
+            };
+            await f.client.begin(f.address.sourceId, newer);
+            await f.client.save(f.address.sourceId, newer);
+            await f.client.flush();
+            release();
+            await command;
+            expect(
+                f.client.contexts.get(f.address.sourceId)?.sourceIncarnation
+            ).toBe(f.address.sourceIncarnation);
+            await f.adapter.invoke(f.raw, 'savePlaybackPosition', [
+                f.address.sourceId,
+                { ...newer, positionSeconds: 85 },
+            ]);
+            await f.client.flush();
+            expect(
+                (await f.adapter.all(f.raw, f.address.sourceId))[0]
+                    .positionSeconds
+            ).toBe(85);
+            expect(f.client.retiredSessions.has(newer.activitySessionId)).toBe(
+                false
+            );
+        }
+    );
+
+    it('retires a failed launch cleared before its first checkpoint', async () => {
+        const f = fixture();
+        f.client.contexts.clear();
+        f.setOffline(true);
+        const position = {
+            ...f.position,
+            activitySessionId: 'synthetic-no-checkpoint',
+        };
+        await expect(
+            f.client.begin(f.address.sourceId, position)
+        ).rejects.toThrow();
+        await f.adapter.invoke(f.raw, 'clearPlaybackPosition', [
+            f.address.sourceId,
+            42,
+            'vod',
+        ]);
+        await f.adapter.invoke(f.raw, 'savePlaybackPosition', [
+            f.address.sourceId,
+            { ...position, positionSeconds: 65 },
+        ]);
+        expect(await f.adapter.all(f.raw, f.address.sourceId)).toEqual([]);
+        expect(f.client.retiredSessions.has(position.activitySessionId)).toBe(
+            true
+        );
+    });
+
+    it.each(['reset', 'mark-watched', 'import', 'resolve'] as const)(
+        'keeps newer opt-out progress when an older %s acknowledgement arrives',
+        async (action) => {
+            const f = fixture();
+            const session = {
+                ...f.position,
+                activitySessionId: 'synthetic-shared-session',
+            };
+            await f.client.begin(f.address.sourceId, session);
+            await f.client.save(f.address.sourceId, session);
+            await f.client.flush();
+            let consent: string | null = 'current-consent';
+            jest.spyOn(f.client.options, 'consent').mockImplementation(
+                () => consent
+            );
+            let release!: () => void;
+            let entered!: () => void;
+            const held = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            const started = new Promise<void>((resolve) => {
+                entered = resolve;
+            });
+            const mutate = f.store.mutate;
+            jest.spyOn(f.store, 'mutate').mockImplementationOnce(
+                async (address, change) => {
+                    const record = await mutate(address, change);
+                    entered();
+                    await held;
+                    return record;
+                }
+            );
+            const command =
+                action === 'reset'
+                    ? f.client.reset(f.address.sourceId, f.position)
+                    : action === 'mark-watched'
+                      ? f.client.save(f.address.sourceId, {
+                            ...f.position,
+                            activityAction: 'mark-watched',
+                        })
+                      : action === 'import'
+                        ? f.client.importPosition(
+                              f.address.sourceId,
+                              f.position
+                          )
+                        : f.client.resolve(f.address, false);
+            await started;
+            consent = null;
+            await f.adapter.invoke(
+                f.raw,
+                'savePlaybackPosition',
+                [f.address.sourceId, { ...session, positionSeconds: 80 }],
+                true
+            );
+            release();
+            await command;
+            await f.adapter.keepLocal(f.raw, f.address.sourceId);
+            expect(
+                (await f.adapter.all(f.raw, f.address.sourceId))[0]
+                    .positionSeconds
+            ).toBe(80);
+        }
+    );
+
+    it.each(['reset', 'mark-watched', 'import', 'resolve'] as const)(
+        'does not replay an older %s mutation after a newer launch wins CAS',
+        async (action) => {
+            const f = fixture();
+            const initial = {
+                ...f.position,
+                activitySessionId: 'synthetic-initial',
+            };
+            await f.client.begin(f.address.sourceId, initial);
+            await f.client.save(f.address.sourceId, initial);
+            await f.client.flush();
+            let release!: () => void;
+            let entered!: () => void;
+            const held = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            const started = new Promise<void>((resolve) => {
+                entered = resolve;
+            });
+            const mutate = f.store.mutate;
+            jest.spyOn(f.store, 'mutate').mockImplementationOnce(
+                async (address, change) => {
+                    change(await f.store.read(address));
+                    entered();
+                    await held;
+                    return mutate(address, change);
+                }
+            );
+            const command =
+                action === 'reset'
+                    ? f.client.reset(f.address.sourceId, f.position)
+                    : action === 'mark-watched'
+                      ? f.client.save(f.address.sourceId, {
+                            ...f.position,
+                            activityAction: 'mark-watched',
+                        })
+                      : action === 'import'
+                        ? f.client.importPosition(
+                              f.address.sourceId,
+                              f.position
+                          )
+                        : f.client.resolve(f.address, false);
+            await started;
+            const newer = {
+                ...f.position,
+                positionSeconds: 80,
+                activitySessionId: 'synthetic-cas-new',
+            };
+            await f.client.begin(f.address.sourceId, newer);
+            await f.client.save(f.address.sourceId, newer);
+            await f.client.flush();
+            release();
+            await command;
+            const projected = await f.adapter.all(f.raw, f.address.sourceId);
+            expect(projected[0]).toMatchObject({
+                positionSeconds: 80,
+                watched: false,
+            });
+        }
+    );
+
+    it.each(['reset', 'mark-watched', 'import', 'resolve'] as const)(
+        'keeps a newer failed-launch fallback when an older %s acknowledgement arrives',
+        async (action) => {
+            const f = fixture();
+            const initial = {
+                ...f.position,
+                activitySessionId: 'synthetic-initial',
+            };
+            await f.client.begin(f.address.sourceId, initial);
+            await f.client.save(f.address.sourceId, initial);
+            await f.client.flush();
+            let release!: () => void;
+            let entered!: () => void;
+            const held = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            const started = new Promise<void>((resolve) => {
+                entered = resolve;
+            });
+            const mutate = f.store.mutate;
+            const spy = jest
+                .spyOn(f.store, 'mutate')
+                .mockImplementationOnce(async (address, change) => {
+                    const record = await mutate(address, change);
+                    entered();
+                    await held;
+                    return record;
+                });
+            const command =
+                action === 'reset'
+                    ? f.client.reset(f.address.sourceId, f.position)
+                    : action === 'mark-watched'
+                      ? f.client.save(f.address.sourceId, {
+                            ...f.position,
+                            activityAction: 'mark-watched',
+                        })
+                      : action === 'import'
+                        ? f.client.importPosition(
+                              f.address.sourceId,
+                              f.position
+                          )
+                        : f.client.resolve(f.address, false);
+            await started;
+            spy.mockRejectedValueOnce(
+                new Error('Synthetic newer launch failure')
+            );
+            const newer = {
+                ...f.position,
+                positionSeconds: 80,
+                activitySessionId: 'synthetic-failed-new',
+            };
+            await expect(
+                f.client.begin(f.address.sourceId, newer)
+            ).rejects.toThrow('Synthetic newer launch failure');
+            await f.adapter.invoke(f.raw, 'savePlaybackPosition', [
+                f.address.sourceId,
+                newer,
+            ]);
+            release();
+            await command;
+            expect(
+                (await f.adapter.all(f.raw, f.address.sourceId))[0]
+                    .positionSeconds
+            ).toBe(80);
+        }
+    );
+
+    it('does not append an obsolete begin when compare-and-swap retries after a newer reset', async () => {
+        const f = fixture();
+        let release!: () => void;
+        let entered!: () => void;
+        const held = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        const started = new Promise<void>((resolve) => {
+            entered = resolve;
+        });
+        const mutate = f.store.mutate;
+        jest.spyOn(f.store, 'mutate').mockImplementationOnce(
+            async (address, change) => {
+                change(await f.store.read(address)); // First CAS attempt loses to the reset.
+                entered();
+                await held;
+                return mutate(address, change);
+            }
+        );
+        const begin = f.client.begin(f.address.sourceId, {
+            ...f.position,
+            activitySessionId: 'synthetic-cas-old',
+        });
+        await started;
+        await f.client.reset(f.address.sourceId, f.position);
+        release();
+        await expect(begin).rejects.toThrow('Activity launch superseded');
+        await f.client.flush();
+        expect(await f.adapter.all(f.raw, f.address.sourceId)).toEqual([]);
+        expect((await f.store.read(f.address))?.state.owner).toBeNull();
+    });
+
+    it.each([false, true])(
+        'durably clears an unbound offline fallback and retires its old checkpoints (retry: %s)',
+        async (failedClear) => {
+            const f = fixture();
+            f.client.contexts.clear();
+            f.setOffline(true);
+            const position = {
+                ...f.position,
+                activitySessionId: 'synthetic-unbound',
+            };
+            await expect(
+                f.client.begin(f.address.sourceId, position)
+            ).rejects.toThrow();
+            await f.adapter.invoke(f.raw, 'savePlaybackPosition', [
+                f.address.sourceId,
+                position,
+            ]);
+            if (failedClear)
+                (
+                    f.raw.clearPlaybackPosition as jest.Mock
+                ).mockRejectedValueOnce(
+                    new Error('Synthetic local clear failure')
+                );
+            const clearing = f.adapter.invoke(f.raw, 'clearPlaybackPosition', [
+                f.address.sourceId,
+                42,
+                'vod',
+            ]);
+            if (failedClear) {
+                await expect(clearing).rejects.toThrow(
+                    'Synthetic local clear failure'
+                );
+                expect(await f.adapter.all(f.raw, f.address.sourceId)).toEqual(
+                    []
+                );
+                const reopened = new ActivityPositionAdapter(
+                    f.client,
+                    undefined,
+                    new ActivityLocalOnlyPositions(
+                        'synthetic-nas',
+                        localStorage
+                    )
+                );
+                await reopened.keepLocal(f.raw, f.address.sourceId);
+            } else await expect(clearing).resolves.toBeUndefined();
+            expect(await f.adapter.all(f.raw, f.address.sourceId)).toEqual([]);
+            await f.adapter.invoke(f.raw, 'savePlaybackPosition', [
+                f.address.sourceId,
+                { ...position, positionSeconds: 65 },
+            ]);
+            expect(await f.adapter.all(f.raw, f.address.sourceId)).toEqual([]);
+            expect(await f.store.pending()).toEqual([]);
+        }
+    );
+
+    it('continues saving locally after an uncached offline launch and recovery', async () => {
+        const f = fixture();
+        f.setRemote({
+            kind: 'begin',
+            operationId: 'synthetic-remote-begin',
+            expectedRevision: 0,
+            deviceId: 'other-device',
+            sessionId: 'synthetic-server-session',
+        });
+        f.setRemote({
+            kind: 'checkpoint',
+            operationId: 'synthetic-remote-checkpoint',
+            generation: 1,
+            deviceId: 'other-device',
+            sessionId: 'synthetic-server-session',
+            sequence: 1,
+            resume: { positionSeconds: 30, durationSeconds: 100 },
+        });
+        f.client.contexts.clear();
+        f.setOffline(true);
+        const position = {
+            ...f.position,
+            activitySessionId: 'synthetic-offline-launch',
+        };
+        await expect(
+            f.client.begin(f.address.sourceId, position)
+        ).rejects.toThrow();
+        await expect(
+            f.adapter.invoke(f.raw, 'savePlaybackPosition', [
+                f.address.sourceId,
+                position,
+            ])
+        ).resolves.toBeUndefined();
+        expect(f.saved[f.saved.length - 1]).toEqual(
+            expect.objectContaining({
+                positionSeconds: 20,
+            })
+        );
+        expect(f.saved[f.saved.length - 1]).not.toHaveProperty(
+            'activitySessionId'
+        );
+        f.setOffline(false);
+        await f.client.refresh(f.address.sourceId);
+        await expect(
+            f.adapter.invoke(f.raw, 'savePlaybackPosition', [
+                f.address.sourceId,
+                { ...position, positionSeconds: 35 },
+            ])
+        ).resolves.toBeUndefined();
+        expect(f.saved[f.saved.length - 1].positionSeconds).toBe(35);
+        expect((await f.store.read(f.address))?.state.owner?.sessionId).toBe(
+            'synthetic-server-session'
+        );
+        expect(
+            (await f.adapter.all(f.raw, f.address.sourceId))[0].positionSeconds
+        ).toBe(35);
+        await f.adapter.keepLocal(f.raw, f.address.sourceId);
+        expect(f.saved[f.saved.length - 1].positionSeconds).toBe(35);
+        // Flags survive a renderer/client recreation and do not grant shared ownership.
+        const reopenedClient = new ActivitySyncClient(
+            f.store,
+            f.client.options
+        );
+        const reopened = new ActivityPositionAdapter(
+            reopenedClient,
+            undefined,
+            new ActivityLocalOnlyPositions('synthetic-nas', localStorage)
+        );
+        await reopened.invoke(f.raw, 'savePlaybackPosition', [
+            f.address.sourceId,
+            { ...position, positionSeconds: 45 },
+        ]);
+        expect(
+            (await reopened.all(f.raw, f.address.sourceId))[0].positionSeconds
+        ).toBe(45);
+        await reopened.keepLocal(f.raw, f.address.sourceId);
+        expect(f.saved[f.saved.length - 1].positionSeconds).toBe(45);
+        expect(
+            (await f.store.read(f.address))?.state.resume?.positionSeconds
+        ).toBe(30);
+        expect(await f.store.pending()).toHaveLength(0);
+        await reopenedClient.resolve(f.address, false);
+        await reopened.invoke(f.raw, 'savePlaybackPosition', [
+            f.address.sourceId,
+            { ...position, positionSeconds: 50 },
+        ]);
+        expect(
+            (await reopened.all(f.raw, f.address.sourceId))[0].positionSeconds
+        ).toBe(30);
+        expect(f.saved[f.saved.length - 1].positionSeconds).toBe(45);
+        await reopenedClient.begin(f.address.sourceId, position);
+        await reopened.invoke(f.raw, 'savePlaybackPosition', [
+            f.address.sourceId,
+            { ...position, positionSeconds: 55 },
+        ]);
+        await reopenedClient.flush();
+        expect(
+            (await f.store.read(f.address))?.state.resume?.positionSeconds
+        ).toBe(55);
+        expect(
+            (await reopened.all(f.raw, f.address.sourceId))[0].positionSeconds
+        ).toBe(55);
+        expect(f.saved[f.saved.length - 1].positionSeconds).toBe(45);
+    });
+
+    it.each(['mark-watched', 'reset', 'import', 'server-choice'] as const)(
+        'releases local-only ownership after an explicit %s',
+        async (action) => {
+            const f = fixture();
+            f.setRemote({
+                kind: 'begin',
+                operationId: 'synthetic-begin',
+                expectedRevision: 0,
+                deviceId: 'other-device',
+                sessionId: 'synthetic-session',
+            });
+            f.setRemote({
+                kind: 'checkpoint',
+                operationId: 'synthetic-checkpoint',
+                generation: 1,
+                deviceId: 'other-device',
+                sessionId: 'synthetic-session',
+                sequence: 1,
+                resume: { positionSeconds: 30, durationSeconds: 100 },
+            });
+            await f.client.refresh(f.address.sourceId);
+            const position = { ...f.position, positionSeconds: 45 };
+            await f.raw.savePlaybackPosition(f.address.sourceId, position);
+            const localOnly = new ActivityLocalOnlyPositions(
+                'synthetic-nas',
+                localStorage
+            );
+            localOnly.mark(f.address.sourceId, position);
+            if (action === 'mark-watched')
+                await f.adapter.invoke(f.raw, 'savePlaybackPosition', [
+                    f.address.sourceId,
+                    { ...position, activityAction: 'mark-watched' },
+                ]);
+            else if (action === 'reset')
+                await f.adapter.invoke(f.raw, 'clearPlaybackPosition', [
+                    f.address.sourceId,
+                    42,
+                    'vod',
+                ]);
+            else if (action === 'import')
+                await f.client.importPosition(f.address.sourceId, position);
+            else await f.client.resolve(f.address, false);
+            await f.client.flush();
+            expect(localOnly.has(f.address.sourceId, position)).toBe(false);
+            const projected = await f.adapter.all(f.raw, f.address.sourceId);
+            if (action === 'reset') expect(projected).toHaveLength(0);
+            else if (action === 'mark-watched')
+                expect(projected[0].watched).toBe(true);
+            else
+                expect(projected[0].positionSeconds).toBe(
+                    action === 'import' ? 45 : 30
+                );
+        }
+    );
+
+    it('keeps an unwatched legacy import below completion when a watched server row conflicts', async () => {
+        const f = fixture();
+        const remote = f.setRemote({
+            kind: 'mark-watched',
+            operationId: 'synthetic-watched',
+            deviceId: 'synthetic-other',
+            expectedRevision: 0,
+        });
+        await f.store.mutate(f.address, () => ({ state: remote, pending: [] }));
+        await f.client.importPosition(f.address.sourceId, {
+            ...f.position,
+            watched: undefined,
+        });
+        expect((await f.store.read(f.address))?.conflict).toBeDefined();
+        expect(
+            (await f.client.positions(f.address.sourceId))[0].position.watched
+        ).toBe(false);
+        await f.adapter.keepLocal(f.raw, f.address.sourceId);
+        expect(f.saved).toEqual([
+            expect.objectContaining({
+                positionSeconds: 20,
+                durationSeconds: 100,
+                watched: false,
+            }),
+        ]);
+    });
+
+    it.each([false, true])(
+        'preserves an imported position over a synchronized reset (watched: %s)',
+        async (watched) => {
+            const f = fixture();
+            const reset = f.setRemote({
+                kind: 'reset',
+                operationId: 'synthetic-reset',
+                deviceId: 'other-device',
+                expectedRevision: 0,
+            });
+            await f.store.mutate(f.address, () => ({
+                state: reset,
+                pending: [],
+            }));
+            await f.client.importPosition(f.address.sourceId, {
+                ...f.position,
+                watched,
+            });
+            expect((await f.store.read(f.address))?.conflict).toBeDefined();
+            expect(
+                (await f.client.positions(f.address.sourceId))[0].reset
+            ).toBe(false);
+            expect(await f.adapter.all(f.raw, f.address.sourceId)).toHaveLength(
+                1
+            );
+            await f.adapter.keepLocal(f.raw, f.address.sourceId);
+            await f.client.resolve(f.address, false);
+            expect(await f.store.pending()).toHaveLength(0);
+            expect(f.saved).toEqual([
+                expect.objectContaining({
+                    positionSeconds: watched ? 100 : 20,
+                    watched,
+                }),
+            ]);
+            expect(f.raw.clearPlaybackPosition).not.toHaveBeenCalled();
+        }
+    );
+
+    it('keeps a parked reset local even when its raw position was deleted', async () => {
+        localStorage.setItem(
+            'iptvnator:source-server',
+            JSON.stringify({
+                apiUrl: 'http://synthetic.invalid/api',
+                instanceId: 'synthetic-nas',
+            })
+        );
+        await prepareSourceConnection();
+        localStorage.setItem(
+            'iptvnator-server:synthetic-nas:activity-consent-v1',
+            JSON.stringify({
+                enabled: true,
+                generation: 'current-consent',
+                deviceId: 'synthetic-device',
+            })
+        );
+        const f = fixture();
+        f.setRemote({
+            kind: 'begin',
+            operationId: 'synthetic-begin',
+            expectedRevision: 0,
+            deviceId: 'other-device',
+            sessionId: 'synthetic-session',
+        });
+        const remote = f.setRemote({
+            kind: 'checkpoint',
+            operationId: 'synthetic-checkpoint',
+            generation: 1,
+            deviceId: 'other-device',
+            sessionId: 'synthetic-session',
+            sequence: 1,
+            resume: { positionSeconds: 95, durationSeconds: 100 },
+        });
+        const operation: ActivityOperation = {
+            kind: 'reset',
+            operationId: 'synthetic-reset',
+            expectedRevision: remote.revision,
+            deviceId: 'synthetic-device',
+        };
+        await f.store.mutate(f.address, () => ({
+            state: applyActivityOperation(remote, operation).state,
+            position: { ...f.position, positionSeconds: 0 },
+            pending: [
+                {
+                    address: f.address,
+                    operation,
+                    consentGeneration: 'previous-consent',
+                },
+            ],
+        }));
+        const runtime = Object.create(
+            ActivitySyncRuntime.prototype
+        ) as ActivitySyncRuntime;
+        Object.assign(runtime, {
+            client: f.client,
+            adapter: f.adapter,
+            raw: f.raw,
+            sourceIds: async () => [f.address.sourceId],
+            summary: async () => undefined,
+            busy: signal(false),
+            error: signal(false),
+        });
+        await runtime.parked(false);
+        expect(runtime.error()).toBe(false);
+        expect(f.saved).toHaveLength(0);
+        expect(await f.adapter.all(f.raw, f.address.sourceId)).toHaveLength(0);
+        await f.adapter.keepLocal(f.raw, f.address.sourceId);
+        expect(f.saved).toHaveLength(0);
+        expect(
+            (await f.store.read(f.address))?.state.resume?.positionSeconds
+        ).toBe(95);
+    });
+
+    it.each([false, true])(
+        'ignores retired incarnations when handling the current queue (send: %s)',
+        async (send) => {
+            localStorage.setItem(
+                'iptvnator:source-server',
+                JSON.stringify({
+                    apiUrl: 'http://synthetic.invalid/api',
+                    instanceId: 'synthetic-nas',
+                })
+            );
+            await prepareSourceConnection();
+            localStorage.setItem(
+                'iptvnator-server:synthetic-nas:activity-consent-v1',
+                JSON.stringify({
+                    enabled: true,
+                    generation: 'current-consent',
+                    deviceId: 'synthetic-device',
+                })
+            );
+            const f = fixture();
+            const retired = {
+                ...f.address,
+                sourceIncarnation: 'retired-incarnation',
+            };
+            const operation: ActivityOperation = {
+                kind: 'mark-watched',
+                operationId: 'synthetic-watched',
+                deviceId: 'synthetic-device',
+                expectedRevision: 0,
+            };
+            for (const address of [retired, f.address])
+                await f.store.mutate(address, () => ({
+                    state: applyActivityOperation(
+                        emptyActivityState(),
+                        operation
+                    ).state,
+                    position: { ...f.position, watched: true },
+                    pending: [
+                        {
+                            address,
+                            operation,
+                            consentGeneration: 'previous-consent',
+                        },
+                    ],
+                }));
+            const runtime = Object.create(
+                ActivitySyncRuntime.prototype
+            ) as ActivitySyncRuntime;
+            Object.assign(runtime, {
+                client: f.client,
+                adapter: f.adapter,
+                raw: f.raw,
+                sourceIds: async () => [f.address.sourceId],
+                summary: async () => undefined,
+                busy: signal(false),
+                error: signal(false),
+            });
+            await runtime.parked(send);
+            expect(runtime.error()).toBe(false);
+            expect((await f.store.read(f.address))?.pending).toHaveLength(0);
+            expect(
+                (await f.store.read(retired))?.pending[0].consentGeneration
+            ).toBe('previous-consent');
+            expect(f.saved).toHaveLength(send ? 0 : 1);
+            if (!send) {
+                await f.adapter.keepLocal(f.raw, f.address.sourceId);
+                expect(f.saved).toHaveLength(1);
+                expect(
+                    (await f.adapter.all(f.raw, f.address.sourceId))[0].watched
+                ).toBe(true);
+            }
+        }
+    );
+});

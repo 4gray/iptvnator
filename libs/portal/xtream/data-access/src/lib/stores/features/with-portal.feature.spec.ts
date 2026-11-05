@@ -197,7 +197,18 @@ describe('withPortal', () => {
             },
         });
 
+        store.setCurrentPlaylist({
+            ...PLAYLIST,
+            userAgent:
+                ' Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ',
+        });
         await expect(store.checkPortalStatus()).resolves.toBe('active');
+        expect(apiService.getAccountInfo).toHaveBeenCalledWith(
+            expect.objectContaining({
+                userAgent:
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            })
+        );
         expect(store.portalStatus()).toBe('active');
     });
 

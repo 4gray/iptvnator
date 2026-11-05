@@ -1,4 +1,6 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, Injector } from '@angular/core';
+import { Store } from '@ngrx/store';
+import { selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import {
     DatabaseService,
     ParentalLockService,
@@ -8,6 +10,8 @@ import {
     VodSourcePinService,
 } from '@iptvnator/services';
 import {
+    normalizeXtreamContentTypes,
+    XtreamContentType,
     ContentMetadataPatch,
     PlaybackPositionData,
     PlaylistMeta,
@@ -29,7 +33,6 @@ import {
     XtreamCollectionRef,
     xtreamCollectionId,
     mapCategoryTypeToDbType,
-    ProgressCallback,
     XtreamOperationOptions,
     XtreamCategoryFromDb,
     XtreamContentItem,
@@ -42,12 +45,16 @@ import {
  */
 @Injectable({ providedIn: 'root' })
 export class ElectronXtreamDataSource implements IXtreamDataSource {
+    private readonly playlistMetas = inject(Store, {
+        optional: true,
+    })?.selectSignal(selectAllPlaylistsMeta);
     private readonly dbService = inject(DatabaseService);
     private readonly playbackService = inject(PlaybackPositionService);
     private readonly vodSourcePinService = inject(VodSourcePinService);
     private readonly pendingRestoreService = inject(
         XtreamPendingRestoreService
     );
+    private readonly injector = inject(Injector);
     private readonly apiService = inject(XtreamApiService);
     private readonly parentalLock = inject(ParentalLockService);
     private readonly categoryRequests = new Map<
@@ -58,6 +65,28 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         string,
         Promise<XtreamContentItem[]>
     >();
+
+    private async getEnabledContentTypes(
+        playlistId: string
+    ): Promise<XtreamContentType[]> {
+        // The app already owns reactive source metadata. Do not re-read the
+        // entire playlist over IPC for every category/content/cache check.
+        const meta = this.playlistMetas?.().find(
+            (row) => row._id === playlistId
+        );
+        const playlist = meta ?? (await this.getPlaylist(playlistId));
+        return normalizeXtreamContentTypes(playlist?.xtreamContentTypes);
+    }
+
+    private async isEnabled(
+        playlistId: string,
+        type: string
+    ): Promise<boolean> {
+        const normalized = type === 'vod' || type === 'movies' ? 'movie' : type;
+        return (await this.getEnabledContentTypes(playlistId)).some(
+            (value) => value === normalized
+        );
+    }
 
     private mapCategoryTypeToImportType(
         type: CategoryType
@@ -142,6 +171,7 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         playlistId: string,
         type: DbCategoryType
     ): Promise<boolean> {
+        if (!(await this.isEnabled(playlistId, type))) return true;
         return this.dbService.hasXtreamCategories(playlistId, type);
     }
 
@@ -157,7 +187,14 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         if (this.parentalLock.withholdsEverything?.()) {
             return [];
         }
+        if (!(await this.isEnabled(playlistId, type))) return [];
         const dbType = mapCategoryTypeToDbType(type);
+        // Import cancellation must not reject independent detail/cache readers.
+        if (options?.signal || options?.sessionId) {
+            return this.loadCategories(
+                playlistId, credentials, type, dbType, options
+            );
+        }
         // The lock version keys the share: a read issued under an older lock
         // state (still unlocked, or locks since edited) answers with rows the
         // caller under the newer state must not be handed.
@@ -194,12 +231,32 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         // phase so the sync overlay never shows a phaseless card.
         options?.onPhaseChange?.('loading-cached');
         const importStatus = await this.getImportStatus(playlistId, importType);
+        options?.signal?.throwIfAborted();
+        // Bootstrap owns recovery; a reader may be observing an active import.
+        if (
+            options?.sessionId &&
+            importStatus !== 'completed' &&
+            (importStatus !== 'idle' ||
+                this.pendingRestoreService.get(playlistId)
+                    ?.preservePlaybackPositions)
+        ) {
+            const { clearIncompleteCatalog } =
+                await import('./xtream-category-import');
+            options?.signal?.throwIfAborted();
+            await clearIncompleteCatalog(
+                this.dbService,
+                playlistId,
+                importType
+            );
+        }
         // Fetch from DB directly — avoids a separate 'has' round-trip.
         // An empty result means the cache is cold; proceed to fetch from API.
+        options?.signal?.throwIfAborted();
         const cached = await this.dbService.getXtreamCategories(
             playlistId,
             dbType
         );
+        options?.signal?.throwIfAborted();
         // The read is filtered by the parental lock, so an empty result is
         // not proof of a cold cache: a type whose every category is locked
         // is complete and must not be refetched from the provider.
@@ -211,57 +268,22 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
             return cached;
         }
 
-        // Fetch from API and cache
-        options?.onPhaseChange?.('loading-categories');
-        const remoteData = await this.apiService.getCategories(
+        const { loadRemoteCategories } =
+            await import('./xtream-category-import');
+        options?.signal?.throwIfAborted();
+        return loadRemoteCategories(
+            {
+                db: this.dbService,
+                api: this.apiService,
+                pending: this.pendingRestoreService,
+                locks: this.parentalLock,
+            },
+            playlistId,
             credentials,
             type,
-            {
-                sessionId: options?.sessionId,
-            }
+            dbType,
+            options
         );
-
-        if (remoteData && Array.isArray(remoteData) && remoteData.length > 0) {
-            // Check if there are saved hidden categories to restore
-            const hiddenCategoryXtreamIds = this.getHiddenCategoryXtreamIds(
-                playlistId,
-                dbType
-            );
-
-            options?.onPhaseChange?.('saving-categories');
-            await this.dbService.saveXtreamCategories(
-                playlistId,
-                remoteData,
-                dbType,
-                hiddenCategoryXtreamIds,
-                // Locks live in the renderer's store; the fresh rows get the
-                // SQLite mirror stamped on insert so a refresh keeps them.
-                this.parentalLock.lockedXtreamIds(playlistId, dbType)
-            );
-        }
-
-        // Return from cache (now populated)
-        return this.dbService.getXtreamCategories(playlistId, dbType);
-    }
-
-    /**
-     * Get hidden category xtreamIds from localStorage for a specific playlist and type
-     * Used to restore visibility preferences after playlist refresh
-     */
-    private getHiddenCategoryXtreamIds(
-        playlistId: string,
-        type: 'live' | 'movies' | 'series'
-    ): number[] | undefined {
-        const restoreData = this.pendingRestoreService.get(playlistId);
-        const hiddenCategories = restoreData?.hiddenCategories;
-
-        if (!hiddenCategories || hiddenCategories.length === 0) {
-            return undefined;
-        }
-
-        return hiddenCategories
-            .filter((category) => category.categoryType === type)
-            .map((category) => category.xtreamId);
     }
 
     async getAllCategories(
@@ -281,25 +303,11 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         if (this.parentalLock.withholdsEverything?.()) {
             return [];
         }
+        if (!(await this.isEnabled(playlistId, type))) return [];
         return this.dbService.getXtreamCategories(
             playlistId,
             mapCategoryTypeToDbType(type)
         );
-    }
-
-    async saveCategories(
-        playlistId: string,
-        categories: XtreamCategory[],
-        type: DbCategoryType
-    ): Promise<void> {
-        await this.dbService.saveXtreamCategories(playlistId, categories, type);
-    }
-
-    async updateCategoryVisibility(
-        categoryIds: number[],
-        hidden: boolean
-    ): Promise<void> {
-        await this.dbService.updateCategoryVisibility(categoryIds, hidden);
     }
 
     // =========================================================================
@@ -310,6 +318,9 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         playlistId: string,
         type: 'live' | 'movie' | 'series'
     ): Promise<boolean> {
+        if (!(await this.isEnabled(playlistId, type))) return true;
+        const status = await this.getImportStatus(playlistId, type);
+        if (status !== 'completed' && status !== 'idle') return false;
         return this.dbService.hasXtreamContent(playlistId, type);
     }
 
@@ -326,6 +337,12 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         // still carry a stale `locked = false` stamp, so nothing is served.
         if (this.parentalLock.withholdsEverything?.()) {
             return [];
+        }
+        if (!(await this.isEnabled(playlistId, type))) return [];
+        if (options?.signal || options?.sessionId) {
+            return this.loadContent(
+                playlistId, credentials, type, onProgress, onTotal, options
+            );
         }
         const requestKey = `${playlistId}:${type}:${this.parentalLock.version()}`;
         const inFlightRequest = this.contentRequests.get(requestKey);
@@ -361,9 +378,11 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         // phase so the sync overlay never shows a phaseless card.
         options?.onPhaseChange?.('loading-cached');
         const importStatus = await this.getImportStatus(playlistId, type);
+        options?.signal?.throwIfAborted();
         // Fetch from DB directly — avoids a separate 'has' round-trip.
         // An empty result means the cache is cold; proceed to fetch from API.
         const cached = await this.dbService.getXtreamContent(playlistId, type);
+        options?.signal?.throwIfAborted();
         // Filtered by the parental lock like the category read: empty is not
         // cold while unfiltered rows exist.
         if (
@@ -382,9 +401,11 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
                   ? 'loading-movies'
                   : 'loading-series'
         );
+        options?.signal?.throwIfAborted();
         const remoteData = await this.apiService.getStreams(credentials, type, {
             sessionId: options?.sessionId,
         });
+        options?.signal?.throwIfAborted();
 
         if (remoteData && Array.isArray(remoteData) && remoteData.length > 0) {
             // Report total items to import
@@ -393,6 +414,7 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
             }
 
             // Save to cache with progress tracking
+            options?.signal?.throwIfAborted();
             await this.dbService.saveXtreamContent(
                 playlistId,
                 remoteData as
@@ -401,6 +423,19 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
                 onProgress,
                 options
             );
+            options?.signal?.throwIfAborted();
+            // A refill of a completed empty type has no bootstrap owner to finish it.
+            if (
+                !options?.sessionId &&
+                importStatus === 'completed' &&
+                !(await this.dbService.setXtreamImportStatus(
+                    playlistId,
+                    type,
+                    'completed'
+                ))
+            ) {
+                throw new Error('Could not persist catalog completion status.');
+            }
         }
 
         // Return from cache (now populated)
@@ -417,27 +452,8 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         if (this.parentalLock.withholdsEverything?.()) {
             return [];
         }
+        if (!(await this.isEnabled(playlistId, type))) return [];
         return this.dbService.getXtreamContent(playlistId, type);
-    }
-
-    async saveContent(
-        playlistId: string,
-        streams:
-            | XtreamLiveStream[]
-            | XtreamVodStream[]
-            | XtreamSerieItem[]
-            | XtreamContentItem[],
-        type: 'live' | 'movie' | 'series',
-        onProgress?: ProgressCallback,
-        options?: XtreamOperationOptions
-    ): Promise<number> {
-        return this.dbService.saveXtreamContent(
-            playlistId,
-            streams as Parameters<DatabaseService['saveXtreamContent']>[1],
-            type,
-            onProgress,
-            options
-        );
     }
 
     // =========================================================================
@@ -456,10 +472,15 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         if (this.parentalLock.withholdsEverything?.()) {
             return [];
         }
+        const enabled = await this.getEnabledContentTypes(playlistId);
+        const selected = types.filter((type) =>
+            enabled.some((value) => value === type)
+        );
+        if (!selected.length) return [];
         return this.dbService.searchXtreamContent(
             playlistId,
             searchTerm,
-            types,
+            selected,
             excludeHidden
         );
     }
@@ -468,7 +489,9 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
     // Favorites Operations
     // =========================================================================
 
-    async getFavorites(playlistId: string): Promise<XtreamContentItem[]> {
+    async getFavorites(
+        playlistId: string
+    ): Promise<import('./xtream-data-source.interface').XtreamFavoriteItem[]> {
         return this.dbService.getFavorites(playlistId);
     }
 
@@ -477,7 +500,7 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         playlistId: string,
         backdropUrl?: string
     ): Promise<void> {
-        await this.dbService.addToFavorites(
+        await this.dbService.addToFavoritesOrThrow(
             xtreamCollectionId(contentId),
             playlistId,
             backdropUrl
@@ -545,12 +568,26 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
     async getContentByXtreamId(
         xtreamId: number,
         playlistId: string,
-        contentType?: 'live' | 'movie' | 'series'
+        contentType?: 'live' | 'movie' | 'series',
+        identity?: ContentMetadataPatch,
+        categoryId?: number,
+        excludeLocked?: boolean
     ): Promise<XtreamContentItem | null> {
+        if (categoryId !== undefined || excludeLocked) {
+            return this.dbService.getContentByXtreamId(
+                xtreamId,
+                playlistId,
+                contentType,
+                identity,
+                categoryId,
+                ...(excludeLocked ? [true] : [])
+            );
+        }
         return this.dbService.getContentByXtreamId(
             xtreamId,
             playlistId,
-            contentType
+            contentType,
+            ...(identity ? [identity] : [])
         );
     }
 
@@ -661,26 +698,26 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         // Electron uses the DB as its cache layer; no in-memory state to evict.
     }
 
-    async clearPlaylistContent(
-        playlistId: string
-    ): Promise<XtreamPendingRestoreState> {
-        const [result, playbackPositions, sourcePins] = await Promise.all([
-            this.dbService.deleteXtreamPlaylistContent(playlistId),
-            this.playbackService.getAllPlaybackPositions(playlistId),
-            this.vodSourcePinService.listForPlaylist(playlistId),
-        ]);
-
-        return {
-            hiddenCategories: result.hiddenCategories,
-            favorites: result.favorites,
-            recentlyViewed: result.recentlyViewed,
-            playbackPositions,
-            sourcePins: sourcePins.map((pin) => ({
-                matchKey: pin.matchKey,
-                contentId: pin.contentId,
-                ...(pin.updatedAt ? { updatedAt: pin.updatedAt } : {}),
-            })),
-        };
+    async restoreFavoriteSnapshots(
+        playlistId: string,
+        state: XtreamPendingRestoreState
+    ): Promise<void> {
+        this.playbackService.assertSupportsAtomicReplacement();
+        if (!state.preservePlaybackPositions || !state.catalogSnapshot) {
+            const { prepareElectronFavoriteRestore } =
+                await import('./xtream-deferred-restore');
+            await prepareElectronFavoriteRestore(
+                this.dbService,
+                this.injector,
+                playlistId,
+                state
+            );
+        }
+        await this.dbService.restoreXtreamFavoriteSnapshots(
+            playlistId,
+            state.favorites,
+            state.favoritesRestoreId
+        );
     }
 
     async restoreUserData(
@@ -688,87 +725,21 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         restoreState: XtreamPendingRestoreState,
         options?: XtreamOperationOptions
     ): Promise<void> {
-        this.playbackService.assertSupportsAtomicReplacement();
-        const categoriesByType = await Promise.all([
-            this.dbService.getAllXtreamCategories(playlistId, 'live'),
-            this.dbService.getAllXtreamCategories(playlistId, 'movies'),
-            this.dbService.getAllXtreamCategories(playlistId, 'series'),
-        ]);
-        for (const categories of categoriesByType) {
-            if (categories.length === 0) {
-                continue;
-            }
-
-            const reset = await this.dbService.updateCategoryVisibility(
-                categories.map((category) => category.id),
-                false
-            );
-            if (!reset) {
-                throw new Error(
-                    `Resetting category visibility for "${playlistId}" failed.`
-                );
-            }
-
-            const hiddenCategoryIds = categories
-                .filter((category) =>
-                    restoreState.hiddenCategories.some(
-                        (hiddenCategory) =>
-                            hiddenCategory.categoryType === category.type &&
-                            hiddenCategory.xtreamId === category.xtream_id
-                    )
-                )
-                .map((category) => category.id);
-            if (
-                hiddenCategoryIds.length > 0 &&
-                !(await this.dbService.updateCategoryVisibility(
-                    hiddenCategoryIds,
-                    true
-                ))
-            ) {
-                throw new Error(
-                    `Restoring category visibility for "${playlistId}" failed.`
-                );
-            }
-        }
-
-        await this.dbService.restoreXtreamUserData(
+        const { restoreElectronUserData } =
+            await import('./xtream-deferred-restore');
+        await restoreElectronUserData(
+            {
+                db: this.dbService,
+                playback: this.playbackService,
+                pins: this.vodSourcePinService,
+                injector: this.injector,
+                getPlaylist: (id) => this.getPlaylist(id),
+                restoreFavorites: (id, state) =>
+                    this.restoreFavoriteSnapshots(id, state),
+            },
             playlistId,
-            restoreState.favorites,
-            restoreState.recentlyViewed,
+            restoreState,
             options
         );
-
-        await this.playbackService.replaceAllPlaybackPositions(
-            playlistId,
-            restoreState.playbackPositions
-        );
-
-        // The fresh-import path lands here rather than in the backup service:
-        // a new playlist has no content yet when the archive is read, so its
-        // user state is parked and applied once the import finishes.
-        if (!restoreState.sourcePins) {
-            return;
-        }
-
-        const pins = restoreState.sourcePins.map((pin) => ({
-            matchKey: pin.matchKey,
-            playlistId,
-            contentId: pin.contentId,
-            portalType: 'xtream' as const,
-            ...(pin.updatedAt ? { updatedAt: pin.updatedAt } : {}),
-        }));
-        const replaced = await this.vodSourcePinService.replaceForPlaylist(
-            playlistId,
-            pins
-        );
-
-        // Throwing keeps the pending state for a later retry — the caller only
-        // clears it when this resolves. Dropping it here would lose the
-        // preference with the import still reporting success.
-        if (!replaced) {
-            throw new Error(
-                `Restoring the pinned sources for "${playlistId}" failed.`
-            );
-        }
     }
 }

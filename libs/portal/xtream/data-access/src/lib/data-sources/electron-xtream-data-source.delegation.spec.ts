@@ -19,6 +19,23 @@ describe('ElectronXtreamDataSource (delegation)', () => {
         harness = setupElectronXtreamDataSource();
     });
 
+    it('forwards detail identity while selecting the native duplicate', async () => {
+        harness.dbService.getContentByXtreamId.mockResolvedValue({ id: 2 });
+        const identity = { tmdbId: 100, releaseYear: 1995 };
+        await harness.dataSource.getContentByXtreamId(
+            42,
+            playlistId,
+            'movie',
+            identity
+        );
+        expect(harness.dbService.getContentByXtreamId).toHaveBeenCalledWith(
+            42,
+            playlistId,
+            'movie',
+            identity
+        );
+    });
+
     describe('playlist operations', () => {
         it('reads playlists from the DB by id', async () => {
             const playlist = { _id: playlistId, title: 'My Portal' };
@@ -134,31 +151,13 @@ describe('ElectronXtreamDataSource (delegation)', () => {
                 'movies'
             );
 
-            await harness.dataSource.saveCategories(
-                playlistId,
-                categories as never,
-                'live'
-            );
-            expect(harness.dbService.saveXtreamCategories).toHaveBeenCalledWith(
-                playlistId,
-                categories,
-                'live'
-            );
-
-            await harness.dataSource.updateCategoryVisibility([1, 2], true);
-            expect(
-                harness.dbService.updateCategoryVisibility
-            ).toHaveBeenCalledWith([1, 2], true);
         });
 
-        it('delegates content reads, writes, and search to the DB', async () => {
+        it('delegates content reads and search to the DB', async () => {
             const items = [{ id: 1, title: 'Movie One', xtream_id: 202 }];
             harness.dbService.hasXtreamContent.mockResolvedValue(true);
             harness.dbService.getXtreamContent.mockResolvedValue(items);
-            harness.dbService.saveXtreamContent.mockResolvedValue(1);
             harness.dbService.searchXtreamContent.mockResolvedValue(items);
-            const onProgress = jest.fn();
-            const options = { operationId: 'op-1' };
 
             await expect(
                 harness.dataSource.hasContent(playlistId, 'movie')
@@ -166,23 +165,6 @@ describe('ElectronXtreamDataSource (delegation)', () => {
             await expect(
                 harness.dataSource.getCachedContent(playlistId, 'movie')
             ).resolves.toEqual(items);
-            await expect(
-                harness.dataSource.saveContent(
-                    playlistId,
-                    items as never,
-                    'movie',
-                    onProgress,
-                    options
-                )
-            ).resolves.toBe(1);
-            expect(harness.dbService.saveXtreamContent).toHaveBeenCalledWith(
-                playlistId,
-                items,
-                'movie',
-                onProgress,
-                options
-            );
-
             await expect(
                 harness.dataSource.searchContent(
                     playlistId,

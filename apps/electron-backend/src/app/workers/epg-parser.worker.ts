@@ -6,6 +6,7 @@ import {
     ElectronBridgeTrustOptions,
 } from '@iptvnator/shared/interfaces';
 import { parentPort, workerData } from 'worker_threads';
+import type { Readable } from 'node:stream';
 import {
     EpgDatabase,
     EpgDatabaseClearOperation,
@@ -102,26 +103,16 @@ async function fetchAndParseEpgStreaming(
     // Create database connection in worker
     const epgDb = new EpgDatabase(Database);
 
-    // Old rows for this source are retained until the first successful insert
-    // batch arrives — see `hasClearedSource` below. That way, a fetch or parse
-    // that yields zero channels leaves the existing data intact instead of
-    // wiping it and leaving the URL permanently stale.
-    let hasClearedSource = false;
+    let decodedStream: Readable | undefined;
+    let stats: ReturnType<StreamingEpgParser['finish']>;
 
     try {
-        const decodedStream = await openEpgSourceStream(url, options);
+        decodedStream = await openEpgSourceStream(url, options);
+        const staged = epgDb.createImport(url);
 
         const parser = new StreamingEpgParser(
-            (channels) => {
-                // Clear old rows in the same transaction as the first insert
-                // so we never end up with zero rows on a failed/empty parse.
-                epgDb.insertChannels(channels, url, !hasClearedSource);
-                hasClearedSource = true;
-            },
-            (programs) => {
-                // Insert programs directly into database
-                epgDb.insertPrograms(programs, url);
-            },
+            (channels) => staged.insertChannels(channels),
+            (programs) => staged.insertPrograms(programs),
             (totalChannels, totalPrograms) => {
                 // Send progress to main thread (lightweight)
                 const response: WorkerResponse = {
@@ -134,73 +125,55 @@ async function fetchAndParseEpgStreaming(
             PROGRAM_BATCH_SIZE
         );
 
-        return new Promise((resolve, reject) => {
-            const dataStream = decodedStream;
-
-            dataStream.on('data', (chunk: Buffer) => {
-                try {
-                    parser.write(chunk.toString('utf-8'));
-                } catch (err) {
-                    epgLogger.error(loggerLabel, 'Parse error:', err);
-                    epgDb.close();
-                    reject(err);
-                }
-            });
-
-            dataStream.on('end', () => {
-                try {
-                    const stats = parser.finish();
-                    epgLogger.log(
-                        loggerLabel,
-                        `Parsing complete: ${stats.totalChannels} channels, ${stats.totalPrograms} programs`
-                    );
-
-                    // Close database connection
-                    epgDb.close();
-
-                    // Treat empty results as failure rather than silently
-                    // marking the URL as fetched — that causes the freshness
-                    // check to re-trigger a fetch every session and hides the
-                    // real problem (unreachable feed, SAX parse failure, etc.).
-                    if (stats.totalChannels === 0) {
-                        const errorMessage = `EPG parse produced 0 channels — feed may be unreachable or unsupported`;
-                        epgLogger.error(loggerLabel, errorMessage);
-                        const response: WorkerResponse = {
-                            type: 'EPG_ERROR',
-                            url,
-                            error: errorMessage,
-                        };
-                        parentPort?.postMessage(response);
-                        reject(new Error(errorMessage));
-                        return;
+        // Decode after decompression, retaining partial UTF-8 sequences
+        // between chunks and flushing the decoder before the end event.
+        const dataStream = decodedStream.setEncoding('utf8');
+        stats = await new Promise<ReturnType<StreamingEpgParser['finish']>>(
+            (resolve, reject) => {
+                dataStream.on('data', (chunk: string) => {
+                    try {
+                        parser.write(chunk);
+                    } catch (err) {
+                        epgLogger.error(loggerLabel, 'Parse error:', err);
+                        reject(err);
+                        dataStream.destroy();
                     }
+                });
 
-                    const response: WorkerResponse = {
-                        type: 'EPG_COMPLETE',
-                        url,
-                        stats: {
-                            totalChannels: stats.totalChannels,
-                            totalPrograms: stats.totalPrograms,
-                        },
-                    };
-                    parentPort?.postMessage(response);
-                    resolve();
-                } catch (err) {
-                    epgDb.close();
+                dataStream.on('end', () => {
+                    try {
+                        resolve(parser.finish());
+                    } catch (err) {
+                        reject(err);
+                    }
+                });
+
+                dataStream.on('error', (err) => {
+                    epgLogger.error(loggerLabel, 'Stream error:', err);
                     reject(err);
-                }
-            });
-
-            dataStream.on('error', (err) => {
-                epgLogger.error(loggerLabel, 'Stream error:', err);
-                epgDb.close();
-                reject(err);
-            });
-        });
+                });
+            }
+        );
+        if (stats.totalChannels === 0) {
+            throw new Error(
+                'EPG parse produced 0 channels — feed may be unreachable or unsupported'
+            );
+        }
+        // Publish all batches, source metadata and freshness together. A SQL
+        // failure rolls back the replacement; parsing never changes live rows.
+        staged.commit();
     } catch (error) {
-        epgDb.close();
         throw toEpgFetchError(error, url);
+    } finally {
+        decodedStream?.destroy();
+        epgDb.close();
     }
+    epgLogger.log(
+        loggerLabel,
+        `Parsing complete: ${stats.totalChannels} channels, ${stats.totalPrograms} programs`
+    );
+    const response: WorkerResponse = { type: 'EPG_COMPLETE', url, stats };
+    parentPort?.postMessage(response);
 }
 
 function toEpgFetchError(

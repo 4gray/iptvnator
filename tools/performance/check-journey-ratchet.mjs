@@ -12,6 +12,8 @@
  *   never silently disable the ratchet.
  * - A measurement below its baseline prints a "can tighten" hint. Baselines
  *   are lowered by hand, with the measured output as evidence, never raised.
+ *   An entry with `"autoTighten": false` gets no hint: its slack covers a band
+ *   of normal values, so one low run is no evidence for a lower `value`.
  * - Checking nothing is a failure: an empty baselines file, or `--only`
  *   naming an entry that does not exist, must not exit 0.
  * - An optional `note` (a string) says why an entry is enforced, such as a
@@ -88,6 +90,14 @@ export function validateBaselines(baselines) {
             }
             if (entry.note !== undefined && typeof entry.note !== 'string') {
                 throw new Error(`Baseline ${label} has a non-string "note".`);
+            }
+            if (
+                entry.autoTighten !== undefined &&
+                typeof entry.autoTighten !== 'boolean'
+            ) {
+                throw new Error(
+                    `Baseline ${label} has a non-boolean "autoTighten".`
+                );
             }
             if (
                 entry.slack !== undefined &&
@@ -199,6 +209,10 @@ export function compareToBaselines({ baselines, summary, only = [] }) {
             } else if (entry.slack && measured > entry.value) {
                 result.passed.push(
                     `${label}: ${formatNumber(measured)}${unit} within ${limitText}; uses ${formatNumber(measured - entry.value)} of ${formatNumber(limit - entry.value)}${unit} slack.`
+                );
+            } else if (measured < entry.value && entry.autoTighten === false) {
+                result.passed.push(
+                    `${label}: ${formatNumber(measured)}${unit} within ${limitText}; below the baseline, but autoTighten is false: lower it by hand only when the top of its band fell too (docs/architecture/performance-journeys.md).`
                 );
             } else if (measured < entry.value) {
                 result.tightenable.push(

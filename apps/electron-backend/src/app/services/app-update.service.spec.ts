@@ -320,6 +320,71 @@ describe('AppUpdateService', () => {
         expect(updater.checkForUpdates).toHaveBeenCalledTimes(2);
     });
 
+    it('keeps the known release through a failed retry until a new verdict replaces it', async () => {
+        const { service, updater } = createService();
+        service.handleUpdateAvailable({ version: '0.24.0' });
+        service.handleError(new Error('Synthetic download failure'));
+        updater.checkForUpdates.mockRejectedValueOnce(
+            new Error('Synthetic update check failure')
+        );
+
+        const retry = service.checkForUpdates();
+        expect(service.getStatus()).toMatchObject({
+            latestVersion: '0.24.0',
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Checking,
+        });
+        await expect(retry).resolves.toMatchObject({
+            latestVersion: '0.24.0',
+            release: { version: '0.24.0' },
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Error,
+        });
+
+        service.handleUpdateNotAvailable({ version: '0.22.0' });
+        expect(service.getStatus()).toMatchObject({
+            latestVersion: '0.22.0',
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.NotAvailable,
+        });
+    });
+
+    it('does not retain a previous-channel download when a retry checks the newly saved channel', async () => {
+        const { service, updater } = createService();
+        await service.checkForUpdates();
+        service.handleUpdateDownloaded({ version: '0.24.0' });
+        service.setChannel('nightly');
+        service.handleError(new Error('Synthetic install failure'));
+        updater.checkForUpdates.mockRejectedValueOnce(
+            new Error('Synthetic update check failure')
+        );
+
+        await expect(service.checkForUpdates()).resolves.toMatchObject({
+            latestVersion: undefined,
+            release: undefined,
+            verdictChannel: 'nightly',
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Error,
+        });
+    });
+
+    it('does not turn a no-update verdict into an offer during a failed recheck', async () => {
+        const { service, updater } = createService();
+        service.handleUpdateNotAvailable({ version: '0.22.0' });
+        updater.checkForUpdates.mockRejectedValue(
+            new Error('Synthetic update check failure')
+        );
+
+        const retry = service.checkForUpdates();
+        expect(service.getStatus().latestVersion).toBeUndefined();
+        await expect(retry).resolves.toMatchObject({
+            latestVersion: undefined,
+            release: undefined,
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Error,
+        });
+        await expect(service.checkForUpdates()).resolves.toMatchObject({
+            latestVersion: undefined,
+            release: undefined,
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Error,
+        });
+    });
+
     it('checks packaged non-AppImage Linux builds through GitHub manual fallback', async () => {
         const fetcher = createReleaseFetcher();
         const { service, updater } = createService({

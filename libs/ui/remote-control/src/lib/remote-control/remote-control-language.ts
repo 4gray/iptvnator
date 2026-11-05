@@ -19,9 +19,11 @@ export const REMOTE_CONTROL_TRANSLATIONS: readonly string[] = [
     'ko',
     'nl',
     'pl',
-    'pt',
+    'pt-PT',
+    'pt-BR',
     'ru',
     'tr',
+    'uk',
     'zh',
     'zhtw',
 ];
@@ -49,7 +51,12 @@ export function resolveRemoteControlLanguage(
     for (const tag of browserLanguages) {
         const translation = toTranslationCode(tag);
         if (translation) {
-            return { translation, documentLanguage: tag };
+            return {
+                translation,
+                documentLanguage: translation.startsWith('pt-')
+                    ? translation
+                    : tag.trim().replace(/_/g, '-'),
+            };
         }
     }
     return { translation: 'en', documentLanguage: 'en' };
@@ -57,6 +64,13 @@ export function resolveRemoteControlLanguage(
 
 function toTranslationCode(tag: string): string | null {
     const [language, ...subtags] = tag.trim().toLowerCase().split(/[-_]/);
+    if (language === 'pt') {
+        // Bare pt preserves the old Brazilian translation; other regions
+        // use European Portuguese unless Brazil is explicitly requested.
+        return subtags.length === 0 || subtags.includes('br')
+            ? 'pt-BR'
+            : 'pt-PT';
+    }
     if (language === 'zh') {
         return subtags.some((subtag) => TRADITIONAL_CHINESE_SUBTAGS.has(subtag))
             ? 'zhtw'

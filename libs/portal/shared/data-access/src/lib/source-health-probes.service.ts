@@ -54,6 +54,9 @@ export class SourceHealthProbesService {
                             payload?: XtreamPortalStatusResponseLike;
                         }>('XTREAM_REQUEST', {
                             url: p.serverUrl,
+                            ...(p.userAgent?.trim()
+                                ? { userAgent: p.userAgent.trim() }
+                                : {}),
                             params: {
                                 username: p.username,
                                 password: p.password,
@@ -68,7 +71,8 @@ export class SourceHealthProbesService {
                                 p.serverUrl!,
                                 p.username!,
                                 p.password!,
-                                response.payload
+                                response.payload,
+                                p.userAgent
                             );
                         const info = response.payload.user_info;
                         if (

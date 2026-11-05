@@ -134,6 +134,40 @@ describe('epg-mapping.operations', () => {
                 ['a', 'b', 'c']
             );
         });
+
+        it('splits large key lists and merges the mappings found in every chunk', async () => {
+            // One mapping per chunk, including the partial last one.
+            const mapped = new Map([
+                ['key-0', 'epg-0'],
+                ['key-15000', 'epg-15000'],
+                ['key-25000', 'epg-25000'],
+            ]);
+            const select = jest.fn(() => {
+                const chain: Record<string, unknown> = {};
+                chain['from'] = jest.fn().mockReturnValue(chain);
+                chain['where'] = jest.fn((condition: { values: string[] }) =>
+                    Promise.resolve(
+                        condition.values
+                            .filter((key) => mapped.has(key))
+                            .map((channelKey) => ({
+                                channelKey,
+                                epgChannelId: mapped.get(channelKey),
+                            }))
+                    )
+                );
+                return chain;
+            });
+            const db = { select } as unknown as AppDatabase;
+            const keys = Array.from({ length: 25_001 }, (_, i) => `key-${i}`);
+
+            const result = await getEpgMappingsBatch(db, keys);
+
+            const boundCounts = inArrayMock.mock.calls.map(
+                ([, values]) => (values as unknown[]).length
+            );
+            expect(boundCounts).toEqual([10_000, 10_000, 5_001]);
+            expect(result).toEqual(mapped);
+        });
     });
 
     describe('setEpgMapping', () => {

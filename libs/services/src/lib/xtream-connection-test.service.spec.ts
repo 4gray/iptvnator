@@ -41,6 +41,35 @@ describe('explicit Xtream connection test', () => {
         );
     });
 
+    it('preserves the form User-Agent through HTTP discovery and publishes matching cache evidence', async () => {
+        probe.mockResolvedValueOnce(refused).mockResolvedValueOnce(active);
+        const result = await service.test(
+            {
+                ...connection,
+                userAgent:
+                    ' Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ',
+            },
+            () => true,
+            true
+        );
+        expect(result.usedHttpFallback).toBe(true);
+        expect(probe).toHaveBeenCalledTimes(2);
+        for (const [payload] of probe.mock.calls) {
+            expect(payload.userAgent).toBe(
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            );
+            expect(payload.params).not.toHaveProperty('userAgent');
+        }
+        expect(
+            portalStatus.getCachedStatus(
+                'http://panel.test/base',
+                'user',
+                'pass',
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            )
+        ).toBe('active');
+    });
+
     it.each(['https://panel.test/base', 'http://panel.test/base'])(
         'replaces stale status and expiration for the successful address %s',
         async (serverUrl) => {

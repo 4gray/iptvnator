@@ -22,7 +22,10 @@ import {
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { of } from 'rxjs';
-import { EPISODE_INFO_PLAY } from './episode-info-dialog.component';
+import {
+    EPISODE_INFO_PLAY,
+    buildEpisodeInfoDialogData,
+} from './episode-info-dialog.component';
 import { SeasonContainerComponent } from './season-container.component';
 
 interface DownloadsServiceStub {
@@ -460,6 +463,35 @@ describe('SeasonContainerComponent', () => {
         ).not.toBeNull();
     });
 
+    it('keeps only the season tabs in the tab list, with Back to playing beside it', () => {
+        fixture.componentRef.setInput('playingEpisodeId', 101);
+        setRequiredInputs({
+            '1': [createEpisode()],
+            '2': [createEpisode({ id: '201', season: 2 })],
+        });
+        fixture.detectChanges();
+        (
+            fixture.nativeElement.querySelectorAll(
+                '.season-tabs__pill'
+            )[1] as HTMLButtonElement
+        ).click();
+        fixture.detectChanges();
+
+        const tablists = fixture.nativeElement.querySelectorAll(
+            'app-season-tabs [role="tablist"]'
+        ) as NodeListOf<HTMLElement>;
+        expect(tablists).toHaveLength(1);
+        expect(
+            Array.from(tablists[0].children).map((child) =>
+                child.getAttribute('role')
+            )
+        ).toEqual(['tab', 'tab']);
+        const backToPlaying = fixture.nativeElement.querySelector(
+            '[data-testid="back-to-playing"]'
+        ) as HTMLElement;
+        expect(backToPlaying.closest('[role="tablist"]')).toBeNull();
+    });
+
     it('marks the inline-playing episode as playing and current', () => {
         fixture.componentRef.setInput('playingEpisodeId', 101);
         setRequiredInputs({ '1': [createEpisode()] });
@@ -470,6 +502,22 @@ describe('SeasonContainerComponent', () => {
         ) as HTMLElement;
         expect(item.classList).toContain('episode-item--playing');
         expect(item.classList).toContain('episode-item--current');
+    });
+
+    it('hides season tabs and season prefixes in episode info for flat collections', () => {
+        const episode = createEpisode({
+            season: 9,
+            episode_num: 189,
+            seasonUnknown: true,
+        });
+        setRequiredInputs({ '9': [episode] });
+        fixture.detectChanges();
+        expect(
+            fixture.nativeElement.querySelector('app-season-tabs')
+        ).toBeNull();
+        expect(buildEpisodeInfoDialogData(episode, '9').episodeLabel).toBe(
+            'E189'
+        );
     });
 
     it('opens the episode info dialog and plays on the dialog play action', () => {

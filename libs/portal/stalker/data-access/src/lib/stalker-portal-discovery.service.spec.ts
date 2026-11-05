@@ -67,6 +67,31 @@ describe('StalkerPortalDiscoveryService', () => {
         service = TestBed.inject(StalkerPortalDiscoveryService);
     });
 
+    it('does not authenticate or probe another endpoint after cancellation', async () => {
+        let finish!: (value: unknown) => void;
+        sendIpcEvent.mockImplementation((event) =>
+            event === CONNECTIVITY_GUARD_RESET
+                ? Promise.resolve()
+                : new Promise((resolve) => {
+                      finish = resolve;
+                  })
+        );
+        const controller = new AbortController();
+        const pending = service.discover(
+            'https://fixture.example/c',
+            MAC,
+            {},
+            { signal: controller.signal }
+        );
+        await Promise.resolve();
+        await Promise.resolve();
+        controller.abort();
+        finish('Authorization failed.');
+        await pending;
+        expect(probeCalls()).toHaveLength(1);
+        expect(authenticate).not.toHaveBeenCalled();
+    });
+
     it('resolves a tolerant portal.php panel as a simple portal without authenticating', async () => {
         mockProbes({
             'http://panel.example/portal.php': {

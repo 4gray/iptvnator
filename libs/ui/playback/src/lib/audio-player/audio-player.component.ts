@@ -86,8 +86,8 @@ import { PlaybackHistoryConfirmation } from '../playback-history/playback-histor
                     </button>
 
                     <button
+                        mat-icon-button
                         class="play-btn"
-                        mat-fab
                         [matTooltip]="
                             (playState() === 'play'
                                 ? 'AUDIO_PLAYER.PAUSE'
@@ -264,7 +264,9 @@ export class AudioPlayerComponent {
     handleKeyboard(event: KeyboardEvent) {
         if (
             event.target instanceof HTMLInputElement ||
-            event.target instanceof HTMLTextAreaElement
+            event.target instanceof HTMLTextAreaElement ||
+            (event.target instanceof Element &&
+                event.target.closest('[role="dialog"], [role="alertdialog"]'))
         )
             return;
 

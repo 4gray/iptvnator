@@ -3,6 +3,10 @@
  * the M3U inline player above its EPG panel is about 400px tall in a 720px
  * window, and a sidebar can leave it barely wider than the 760px breakpoint. */
 :host {
+    --diagnostic-utility-text: #c0c8d4;
+    --diagnostic-utility-hover: #e7ecf3;
+    --app-focus-ring: var(--diagnostic-utility-hover);
+
     position: absolute;
     inset: 0;
     z-index: 5;
@@ -186,7 +190,7 @@
 .web-player-diagnostic__alternatives-more {
     margin: 0;
     padding: 6px 12px 8px;
-    color: rgb(255 255 255 / 45%);
+    color: var(--diagnostic-utility-text);
     font-size: 0.75rem;
 }
 
@@ -321,7 +325,7 @@
     align-items: flex-start;
     gap: 8px 12px;
     margin-top: 22px;
-    color: rgb(255 255 255 / 45%);
+    color: var(--diagnostic-utility-text);
 }
 
 .web-player-diagnostic__utility-button,
@@ -343,7 +347,7 @@
 
 .web-player-diagnostic__utility-button:hover,
 .web-player-diagnostic__details summary:hover {
-    color: rgb(255 255 255 / 76%);
+    color: var(--diagnostic-utility-hover);
 }
 
 .web-player-diagnostic__utility-button mat-icon,

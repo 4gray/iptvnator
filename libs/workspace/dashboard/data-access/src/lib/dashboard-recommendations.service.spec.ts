@@ -885,6 +885,45 @@ describe('DashboardRecommendationsService', () => {
         expect(service.items().map((item) => item.title)).toContain('Godzilla');
     });
 
+    it('ignores a release date the TMDB merge supplied when excluding', async () => {
+        // The portal sent no date, so the stored one is the year of
+        // whatever TMDB matched. It must not gate the exact tier, or a
+        // namesake match would keep the watched title on the rail.
+        enrichMovie.mockResolvedValue({
+            recommendations: {
+                results: [
+                    ...recTitles
+                        .slice(0, 5)
+                        .map((title, i) => rec(100 + i, title)),
+                    rec(200, 'Quarry Lights', 2014),
+                ],
+            },
+        });
+        recentAll = [
+            ...recentVod,
+            {
+                title: 'Quarry Lights',
+                type: 'movie',
+                stalker_item: {
+                    id: '9',
+                    category_id: 'vod',
+                    info: {
+                        name: 'Quarry Lights',
+                        releasedate: '1954-11-03',
+                        tmdb_supplied_release_date: true,
+                    },
+                },
+            } as ActivityStub,
+        ];
+        const service = createService();
+
+        await service.load();
+
+        expect(service.items().map((item) => item.title)).not.toContain(
+            'Quarry Lights'
+        );
+    });
+
     it('excludes a watched title whose name ends in a year', async () => {
         // "Blade Runner 2049" is a 2017 film; the 2049 belongs to the
         // NAME, so it must not be read as a release year and used to

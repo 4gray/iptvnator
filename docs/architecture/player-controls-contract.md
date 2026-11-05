@@ -112,6 +112,18 @@ fullscreen (the host-supplied `fullscreenTarget`, else its own shell) so the
 recovery actions remain reachable. Clearing the diagnostic restores those paths; it
 does not make the controls contract an owner of the recovery lifecycle.
 
+Video.js HLS has a separate nonterminal waiting notice. After 15 seconds of
+unpaused waiting with insufficient buffered data, it explains the delay and
+offers Retry through the host's current playback binding. VHS keeps its own
+automatic retries; the notice neither emits a terminal diagnostic nor pauses
+the engine. Playback progress, pause, error, end, source replacement and teardown
+clear it. A current binding can request another retry after a later wait;
+callbacks from retired bindings cannot retry a newer source, including before
+the replacement renders after playback inputs change. Both the native
+Video.js controls and shared-controls mode keep this action available. The
+`data-vjs-player` intake wrapper contains the notice so native Video.js
+fullscreen includes it as well.
+
 ## Why this exists
 
 Historically each playback engine owned both media integration and controls UI.
@@ -542,7 +554,9 @@ the panel the moment the last group disappears.
   24px segmented items) that replaces the dock while open. Picture-in-
   picture and recording stay in the compact dock — the mock shows only
   `tune` + fullscreen there, but those two are engine features a viewer
-  needs without opening anything.
+  needs without opening anything. At 200% zoom or on a short stage, the
+  whole sheet scrolls, including its header, so the body cannot collapse to
+  zero height. Wide panels retain the body as their sole scroll owner.
 - **Inside**: every choice is a `radio` in a `radiogroup`
   (`SettingsRadioGroupDirective` / `SettingsRadioDirective`). List groups
   (audio, subtitles, quality) are rows with a check mark and a cyan
@@ -933,7 +947,7 @@ be.
   the shared ≥90 % `watched` rule; the playing row is the one whose id equals
   `contentInfo.contentXtreamId`.
 - Body: `app-fullscreen-episode-panel` stamps `SeasonTabsComponent` (the
-  detail page's tabs: pills up to six seasons, a dropdown beyond, watched
+  detail page's tabs: segmented tabs up to four seasons, a menu beyond, watched
   check marks, the "Back to playing episode" chip) over the selected season's
   rows: a 16:9 still or, without one, a large numeral tile so the no-TMDB
   case still looks designed; the `S01E03` label, runtime, watched check or
@@ -1033,6 +1047,10 @@ control captures the keyboard: Space and Enter activate it again, and
 `ControlsShortcuts` yields to any interactive element in the key's path, so
 after a click on the fullscreen button Space left fullscreen instead of
 pausing and the seek, volume, and mute keys did nothing.
+Dialog and alertdialog ancestors also retain playback keys: their focused
+reading regions use Space and arrows for scrolling, without pausing, seeking
+or changing the volume of a mounted background player. Escape keeps its
+existing popover-dismissal path and remains available to the dialog.
 `ControlsSurface.wasPointerClick` attributes the click by its `pointerType`
 (non-empty for a pointer; empty for Enter/Space activation and
 `element.click()`), and a legacy `MouseEvent` click by a recent press inside
@@ -1896,6 +1914,9 @@ radio layout; title/group scrolling is CSS-only. It supports play/pause, mute,
 and volume, including the volume keys in 5% steps. Volume shares the video
 players' `volume` localStorage key. The template, SCSS and TypeScript component
 live together; routing/integration stays in the M3U player template.
+When focus is inside a dialog or alertdialog, its reading region owns the
+arrows and M key. Radio leaves those events unconsumed and does not change or
+persist background volume; keyboard volume control resumes after dismissal.
 
 ### Display sleep during playback
 

@@ -4,6 +4,7 @@ import {
     type EpgProgram,
 } from '@iptvnator/shared/interfaces';
 import {
+    EpgPreferencesService,
     EpgSourceSettingsService,
     RuntimeCapabilitiesService,
     SettingsStore,
@@ -56,6 +57,7 @@ export class DashboardPortalLiveEpgService implements OnDestroy {
     private readonly streamResolver = inject(StreamResolverService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly epgPreferences = inject(EpgPreferencesService);
     private readonly sourceSettings = inject(EpgSourceSettingsService);
     private readonly sourceSubscription =
         this.sourceSettings.changed$.subscribe(() => this.retireAnswers());
@@ -78,11 +80,13 @@ export class DashboardPortalLiveEpgService implements OnDestroy {
     /** Keys queued or in flight — the cards that may show a placeholder. */
     readonly pending = this.pendingState.asReadonly();
     /**
-     * False where portals are never asked (no local XMLTV bridge), so no
-     * card there ever gets an answer to wait for.
+     * False where portals are never asked (no portal transport), so no card
+     * there ever gets an answer to wait for.
      */
     get answersPortals(): boolean {
-        return this.runtime.supportsEpgProgramLookup;
+        return (
+            this.epgPreferences.enabled() && this.runtime.supportsProviderEpg
+        );
     }
 
     /**
@@ -91,11 +95,17 @@ export class DashboardPortalLiveEpgService implements OnDestroy {
      * allowed to finish and is cached for when the card scrolls back).
      */
     sync(entries: readonly DashboardPortalLiveEpgEntry[]): void {
-        // The collection resolver this queue asks through is gated on the
-        // local XMLTV bridge (`supportsProgramLookup`, desktop only) and
-        // answers nothing without it, so the PWA never queues at all rather
-        // than filing an empty answer for every card.
-        if (!this.runtime.supportsEpgProgramLookup) {
+        // The collection resolver answers portal cards only where the portal
+        // transport exists (Electron IPC or the PWA's backend proxy); without
+        // it nothing is queued rather than filing an empty answer per card.
+        if (
+            !this.epgPreferences.enabled() ||
+            !this.runtime.supportsProviderEpg
+        ) {
+            this.wanted.clear();
+            this.queue = [];
+            this.dropAnswers();
+            this.publishPending();
             return;
         }
         this.retireStateOfPreviousOffset();

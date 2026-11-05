@@ -27,11 +27,13 @@ export function xtreamCredentialsOf(playlist: {
     username: string;
     password: string;
     serverTimezone?: string | null;
+    userAgent?: string | null;
 }): XtreamCredentials {
     return {
         serverUrl: playlist.serverUrl,
         username: playlist.username,
         password: playlist.password,
+        userAgent: playlist.userAgent?.trim() || undefined,
         serverTimezone: playlist.serverTimezone ?? undefined,
     };
 }

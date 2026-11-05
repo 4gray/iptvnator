@@ -46,8 +46,9 @@ const S_FORM_MARKER = /(?:^|[\s([{_.-])s(\d{1,2})(?=$|[\s)\]}_.-]|e\d)/i;
  * Extract an explicit season number from a RAW provider title (before any
  * normalization — bracket groups like "(2 season)" are removed by
  * `normalizeTitleKeys`, so this must see the original string). Returns
- * `null` when there is no unambiguous marker; season 0 ("specials") is
- * deliberately rejected.
+ * `null` when there is no marker; season 0 ("specials") is rejected.
+ * This also retains historical numeric grouping for persisted identities;
+ * flat Stalker collections check ranges separately before displaying it.
  */
 export function extractSeasonFromTitle(
     raw: string | null | undefined
@@ -78,6 +79,7 @@ export function extractSeasonFromTitle(
  * first non-empty one. Providers spread the descriptive title across
  * fields (a generic `name` with the marker only in `o_name`), and the
  * marker must be read from whichever field carries it.
+ * Identity callers rely on this order; detect ranges without reordering it.
  */
 export function pickSeasonMarkedTitle(
     ...titles: readonly (string | null | undefined)[]

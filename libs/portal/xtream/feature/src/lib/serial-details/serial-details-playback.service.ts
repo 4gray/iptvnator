@@ -1,3 +1,4 @@
+import { observeActivityChanges } from '@iptvnator/services/activity-changes';
 import {
     computed,
     DestroyRef,
@@ -38,7 +39,10 @@ import {
     type PlaybackFallbackRequest,
     type SeriesPlaybackEpisodeState,
 } from '@iptvnator/ui/playback';
-import { injectXtreamRecentHistory } from '../xtream-recent-history';
+import {
+    injectXtreamRecentHistory,
+    xtreamPlayedDetail,
+} from '../xtream-recent-history';
 import { XTREAM_SERIES_RESUME_TARGET } from './serial-details-resume-target.token';
 import {
     externalEpisodeSessionIds,
@@ -142,6 +146,14 @@ export class SerialDetailsPlaybackService {
     );
 
     constructor() {
+        inject(DestroyRef).onDestroy(
+            observeActivityChanges(() => {
+                const id = this.currentPlaylistId();
+                const seriesId = Number(this.selectedItem()?.series_id);
+                if (id && seriesId)
+                    void this.loadSeriesPlaybackPositions(id, seriesId);
+            })
+        );
         // A launch still closing its predecessor must not outlive the page.
         inject(DestroyRef).onDestroy(() => this.bindings.set(null));
         effect(() => {
@@ -242,12 +254,13 @@ export class SerialDetailsPlaybackService {
             xtreamId: this.route.snapshot.params['serialId'],
             contentType: 'series',
             backdropUrl: selectedItem.info?.backdrop_path?.[0],
+            playedContent: xtreamPlayedDetail(selectedItem.info),
         });
         const position = this.episodePlaybackPositions().get(
             Number(episode.id)
         );
         const { playback, episodeState } = buildSerialEpisodePlayback({
-            playlistId: playlist.id,
+            playlist,
             selectedItem,
             episode,
             streamUrl,

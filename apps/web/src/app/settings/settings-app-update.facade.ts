@@ -131,15 +131,9 @@ export class SettingsAppUpdateFacade {
               status?.currentVersion)
             : status?.currentVersion;
 
-        this.matDialog.open(AppUpdateReleaseNotesDialogComponent, {
-            autoFocus: false,
-            data: {
-                ...(!isUpdateRelease ? { fallbackToLatest: true } : {}),
-                initialVersion: initialReleaseNotesVersion,
-            },
-            maxWidth: 'calc(100vw - 32px)',
-            restoreFocus: true,
-            width: '720px',
+        AppUpdateReleaseNotesDialogComponent.open(this.matDialog, {
+            ...(!isUpdateRelease ? { fallbackToLatest: true } : {}),
+            initialVersion: initialReleaseNotesVersion,
         });
     }
 

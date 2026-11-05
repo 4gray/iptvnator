@@ -1,3 +1,5 @@
+import { extractTmdbCertifications } from '@iptvnator/shared/tmdb/certifications';
+
 import {
     Component,
     computed,
@@ -24,6 +26,7 @@ import {
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import {
+    AgeRatingChipComponent,
     CastCrewRowComponent,
     DetailActionButtonComponent,
     DetailActionsTemplateDirective,
@@ -60,6 +63,7 @@ import {
     selector: 'app-m3u-vod-detail',
     providers: [M3uVodMetadataService],
     imports: [
+        AgeRatingChipComponent,
         CastCrewRowComponent,
         DetailActionButtonComponent,
         DetailActionsTemplateDirective,
@@ -120,6 +124,10 @@ export class M3uVodDetailComponent {
     }
 
     readonly tmdb = computed(() => this.metadata.state().details);
+    readonly certifications = computed(() => {
+        const details = this.tmdb();
+        return details ? extractTmdbCertifications(details, 'movie') : [];
+    });
 
     /**
      * What the hero decides its layout for, once per entry. Keyed like the

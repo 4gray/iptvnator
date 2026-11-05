@@ -7,6 +7,7 @@ import {
 } from '@iptvnator/portal/shared/util';
 import {
     XTREAM_DATA_SOURCE,
+    type XtreamPlaylistData,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
 import {
@@ -17,6 +18,8 @@ import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import type {
     PlaybackPositionData,
     PlayerContentInfo,
+    XtreamVodDetails,
+    XtreamVodInfo,
 } from '@iptvnator/shared/interfaces';
 import { VodDetailsPlaybackService } from './vod-details-playback.service';
 
@@ -45,7 +48,9 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
     const openExternalPlayback = jest.fn();
     const supersedePendingSwitch = jest.fn();
     const activeSource = signal<PlayerContentInfo | null>(null);
-    const currentPlaylist = signal({ id: ROUTE_PLAYLIST });
+    const currentPlaylist = signal<
+        Pick<XtreamPlaylistData, 'id' | 'userAgent' | 'referrer' | 'origin'>
+    >({ id: ROUTE_PLAYLIST });
     const routeVodId = signal(ROUTE_VOD_ID);
     const getPlaybackPosition = jest.fn();
 
@@ -163,6 +168,82 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
         });
     });
 
+    describe('ordinary movie playback headers', () => {
+        const movie = {
+            movie_data: {
+                stream_id: ROUTE_VOD_ID,
+                name: 'Synthetic movie',
+                container_extension: 'mkv',
+            },
+        } as XtreamVodDetails;
+
+        it.each([
+            ['playVod', 'inline'],
+            ['resumeVod', 'inline'],
+            ['playVod', 'mpv'],
+            ['resumeVod', 'mpv'],
+            ['playVod', 'vlc'],
+            ['resumeVod', 'vlc'],
+        ] as const)(
+            'carries playlist headers for %s through %s',
+            async (action, target) => {
+                currentPlaylist.set({
+                    id: ROUTE_PLAYLIST,
+                    userAgent: 'SyntheticPlayer/1.0',
+                    referrer: 'https://portal.example/player',
+                    origin: 'https://portal.example',
+                });
+                service.routePlaybackPosition.set(
+                    positionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID, 120)
+                );
+                const player = TestBed.inject(PORTAL_PLAYER);
+                (player.isEmbeddedPlayer as jest.Mock).mockReturnValue(
+                    target === 'inline'
+                );
+
+                await service[action](
+                    movie,
+                    target === 'inline' ? undefined : target
+                );
+
+                const expected = expect.objectContaining({
+                    userAgent: 'SyntheticPlayer/1.0',
+                    referer: 'https://portal.example/player',
+                    origin: 'https://portal.example',
+                    ...(action === 'resumeVod' ? { startTime: 120 } : {}),
+                    contentInfo: {
+                        playlistId: ROUTE_PLAYLIST,
+                        contentXtreamId: ROUTE_VOD_ID,
+                        contentType: 'vod',
+                    },
+                });
+                if (target === 'inline') {
+                    expect(service.inlinePlayback()).toEqual(expected);
+                } else {
+                    expect(openExternalPlayback).toHaveBeenCalledWith(
+                        expected,
+                        target
+                    );
+                }
+            }
+        );
+
+        it('does not reuse a previous playlist header override', () => {
+            currentPlaylist.set({
+                id: ROUTE_PLAYLIST,
+                userAgent: 'SyntheticPlayer/1.0',
+            });
+            expect(service.buildVodPlayback(movie, false)?.userAgent).toBe(
+                'SyntheticPlayer/1.0'
+            );
+            currentPlaylist.set({ id: 'synthetic-other' });
+            const playback = service.buildVodPlayback(movie, false);
+            expect(playback?.userAgent).toBeUndefined();
+            expect(playback?.referer).toBeUndefined();
+            expect(playback?.origin).toBeUndefined();
+        });
+    });
+
     it('records the view when the menu opens the movie in MPV or VLC', async () => {
         const movie = {
             info: {},
@@ -259,11 +340,24 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
     it('saves a confirmation that arrives after a playlist switch without touching the store', async () => {
         // Only a slow MPV/VLC launch can confirm after the page is gone; the
         // store's recent list belongs to the other playlist by then.
+        const detail = {
+            name: 'Played replacement',
+            tmdb_id: 200,
+            releasedate: '2026-01-01',
+        } as XtreamVodInfo;
+        service.bind({
+            vodId: routeVodId,
+            vodInfo: signal(detail),
+            activeSource,
+            supersedePendingSwitch,
+        });
         await service.startResolvedPlayback({
             streamUrl: 'https://example.com/route.mkv',
             title: 'Slow external launch',
         });
         currentPlaylist.set({ id: 'playlist-switched-meanwhile' });
+        detail.name = 'Later detail';
+        detail.tmdb_id = 999;
 
         TestBed.inject(PlaybackHistoryGate).confirm({
             streamUrls: ['https://example.com/route.mkv'],
@@ -279,7 +373,12 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
         expect(xtreamDataSource.addRecentItem).toHaveBeenCalledWith(
             { id: 77, type: 'movie' },
             ROUTE_PLAYLIST,
-            undefined
+            undefined,
+            expect.objectContaining({
+                title: 'Played replacement',
+                tmdbId: 200,
+                releaseYear: 2026,
+            })
         );
     });
 
@@ -313,7 +412,8 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
                 expect(xtreamDataSource.addRecentItem).toHaveBeenCalledWith(
                     { id: ROUTE_VOD_ID, type: 'movie' },
                     ROUTE_PLAYLIST,
-                    undefined
+                    undefined,
+                    expect.objectContaining({ title: 'Slow external launch' })
                 );
             }
         }

@@ -1,0 +1,128 @@
+.tv-select {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-width: 0;
+    width: 100%;
+    font-size: 24px;
+    border: 1px solid var(--tv-line);
+}
+.tv-select > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.tv-select svg {
+    flex-shrink: 0;
+    margin-left: 20px;
+}
+.tv-dialog-backdrop {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 60px;
+    background: rgba(0, 0, 0, 0.8);
+}
+.tv-dialog {
+    width: 1000px;
+    max-width: 100%;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 40px;
+    background: var(--tv-surface);
+    color: var(--tv-text);
+}
+.tv-dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+}
+.tv-dialog-header h2 {
+    font-size: 36px;
+    margin: 0 28px 0 0;
+}
+.tv-dialog-header button {
+    flex-shrink: 0;
+}
+.tv-picker-search {
+    flex-shrink: 0;
+    font-size: 22px;
+}
+.tv-picker-options {
+    min-height: 0;
+    overflow-y: auto;
+    padding: 8px;
+    margin: -8px;
+}
+.tv-picker-options button {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    min-height: 76px;
+    margin-bottom: 12px;
+    padding: 16px 24px;
+    font-size: 28px;
+    overflow-wrap: break-word;
+}
+.tv-picker-options button > span:first-child {
+    min-width: 0;
+}
+.tv-picker-options button > span:last-child:not(:first-child) {
+    flex-shrink: 0;
+    margin-left: 24px;
+}
+.tv-picker-options [aria-selected='true'] {
+    color: var(--tv-accent);
+    background: var(--tv-bg);
+}
+.tv-description-text {
+    min-height: 0;
+    overflow-y: auto;
+    padding: 8px;
+    font-size: 26px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+}
+.detail-hero p.tv-description-preview {
+    overflow: hidden;
+}
+.tv-description-more {
+    margin-bottom: 20px;
+}
+.tv-picker-options::-webkit-scrollbar,
+.tv-description-text::-webkit-scrollbar {
+    width: 12px;
+}
+.tv-picker-options::-webkit-scrollbar-track,
+.tv-description-text::-webkit-scrollbar-track {
+    background: var(--tv-bg);
+}
+.tv-picker-options::-webkit-scrollbar-thumb,
+.tv-description-text::-webkit-scrollbar-thumb {
+    background: var(--tv-muted);
+}
+@media (max-width: 1400px) {
+    .tv-dialog-backdrop {
+        padding: 40px;
+    }
+    .tv-dialog {
+        padding: 28px;
+    }
+    .tv-picker-options button {
+        font-size: 24px;
+        min-height: 68px;
+    }
+    .tv-description-text {
+        font-size: 24px;
+    }
+}

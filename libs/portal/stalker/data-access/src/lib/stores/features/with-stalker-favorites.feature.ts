@@ -49,6 +49,9 @@ export function withStalkerFavorites() {
                         playlistService
                             .addPortalFavorite(portalId, {
                                 ...item,
+                                favoriteContentType:
+                                    storeContext.selectedContentType() as
+                                        'itv' | 'radio' | 'vod' | 'series',
                                 category_id: resolveStalkerCategoryId(
                                     item.category_id,
                                     storeContext.selectedContentType()
@@ -71,7 +74,8 @@ export function withStalkerFavorites() {
                                     portalId,
                                     {
                                         favorites: updatedPlaylist?.favorites,
-                                    }
+                                    },
+                                    false
                                 );
                                 snackBar.open(
                                     translate.instant(
@@ -87,7 +91,8 @@ export function withStalkerFavorites() {
                     },
                     removeFromFavorites(
                         favoriteId: string,
-                        onDone?: () => void
+                        onDone?: () => void,
+                        context?: StalkerPortalItem
                     ) {
                         const portalId = storeContext.currentPlaylist()?._id;
                         if (!portalId) {
@@ -95,14 +100,30 @@ export function withStalkerFavorites() {
                         }
 
                         playlistService
-                            .removeFromPortalFavorites(portalId, favoriteId)
+                            .removeFromPortalFavorites(
+                                portalId,
+                                favoriteId,
+                                context
+                                    ? {
+                                          ...context,
+                                          favoriteContentType:
+                                              context.favoriteContentType ??
+                                              (storeContext.selectedContentType() as
+                                                  | 'itv'
+                                                  | 'radio'
+                                                  | 'vod'
+                                                  | 'series'),
+                                      }
+                                    : undefined
+                            )
                             .subscribe((updatedPlaylist) => {
                                 dispatchStalkerPlaylistMetaUpdate(
                                     ngrxStore,
                                     portalId,
                                     {
                                         favorites: updatedPlaylist?.favorites,
-                                    }
+                                    },
+                                    false
                                 );
                                 snackBar.open(
                                     translate.instant(

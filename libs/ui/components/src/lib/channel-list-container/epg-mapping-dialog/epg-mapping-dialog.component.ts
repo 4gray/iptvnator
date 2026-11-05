@@ -19,9 +19,19 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { EpgRuntimeBridgeService, EpgService } from '@iptvnator/epg/data-access';
+import {
+    EpgRuntimeBridgeService,
+    EpgService,
+} from '@iptvnator/epg/data-access';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { debounceTime, from, Subject, switchMap } from 'rxjs';
+import { catchError, debounceTime, defer, of, Subject, switchMap } from 'rxjs';
+import { provideFormFieldDefaults } from '../../form-field-defaults/form-field-defaults';
+import { DialogShellComponent } from '../../dialog-shell/dialog-shell.component';
+import {
+    DialogFooterDirective,
+    DialogFooterStartDirective,
+} from '../../dialog-shell/dialog-shell.directives';
+import { dialogSize } from '../../dialog-shell/dialog-size';
 
 export interface EpgMappingDialogData {
     channelKey: string;
@@ -39,10 +49,14 @@ const SEARCH_MIN_CHARS = 2;
 
 @Component({
     selector: 'app-epg-mapping-dialog',
+    providers: [provideFormFieldDefaults()],
     templateUrl: './epg-mapping-dialog.component.html',
     styleUrl: './epg-mapping-dialog.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        DialogFooterDirective,
+        DialogFooterStartDirective,
+        DialogShellComponent,
         FormsModule,
         MatButtonModule,
         MatDialogModule,
@@ -66,6 +80,7 @@ export class EpgMappingDialogComponent {
     readonly searchMinChars = SEARCH_MIN_CHARS;
     readonly searchTerm = signal('');
     readonly loading = signal(false);
+    readonly searchFailed = signal(false);
     readonly results = signal<
         Array<{ id: string; displayName: string; iconUrl: string | null }>
     >([]);
@@ -80,9 +95,8 @@ export class EpgMappingDialogComponent {
         data: EpgMappingDialogData
     ): MatDialogRef<EpgMappingDialogComponent, EpgMappingDialogResult> {
         return dialog.open(EpgMappingDialogComponent, {
+            ...dialogSize('md'),
             data,
-            width: '500px',
-            maxHeight: '90vh',
         });
     }
 
@@ -94,24 +108,27 @@ export class EpgMappingDialogComponent {
             .pipe(
                 debounceTime(300),
                 switchMap((term) => {
+                    this.searchFailed.set(false);
                     if (term.trim().length < SEARCH_MIN_CHARS) {
-                        return from(Promise.resolve([]));
+                        return of([]);
                     }
                     this.loading.set(true);
-                    const promise = this.epgBridge.searchEpgChannels(term);
-                    return from(promise ?? Promise.resolve([]));
+                    return defer(
+                        () =>
+                            this.epgBridge.searchEpgChannels(term) ??
+                            Promise.resolve([])
+                    ).pipe(
+                        catchError(() => {
+                            this.searchFailed.set(true);
+                            return of([]);
+                        })
+                    );
                 }),
                 takeUntilDestroyed()
             )
-            .subscribe({
-                next: (items) => {
-                    this.results.set(items ?? []);
-                    this.loading.set(false);
-                },
-                error: () => {
-                    this.results.set([]);
-                    this.loading.set(false);
-                },
+            .subscribe((items) => {
+                this.results.set(items ?? []);
+                this.loading.set(false);
             });
     }
 
@@ -120,8 +137,13 @@ export class EpgMappingDialogComponent {
     );
 
     onSearchInput(value: string): void {
+        this.selectedId.set(null);
         this.searchTerm.set(value);
         this.search$.next(value);
+    }
+
+    retrySearch(): void {
+        this.search$.next(this.searchTerm());
     }
 
     selectChannel(id: string): void {

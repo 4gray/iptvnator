@@ -5,8 +5,6 @@ import {
     clickCategoryByNameExact,
     clickFirstGridListCard,
     closeElectronApp,
-    defaultXtreamPassword,
-    defaultXtreamUsername,
     expect,
     launchElectronApp,
     openSettings,
@@ -20,6 +18,9 @@ import {
 } from './electron-test-fixtures';
 import { fetchXtreamLiveFixture, getXtreamTitle } from './portal-mock-fixtures';
 import { applyTheme } from './theme-contrast';
+
+// Fictional metadata and local artwork keep the attached focus report synthetic.
+const SYNTHETIC_ACCOUNT = { username: 'marketing', password: 'marketing' };
 
 // ---------------------------------------------------------------------------
 // Keyboard focus is visible everywhere. The global stylesheet used to strip
@@ -435,6 +436,7 @@ async function openMoviesWithRatingFilter(page: Page): Promise<void> {
         timeout: 20_000,
     });
     await view.locator('.refine-action').click();
+    await page.locator('.refine-rating-trigger').click();
     await page
         .getByRole('menuitemradio', { name: /^\s*5\.0 and higher/ })
         .click();
@@ -443,14 +445,10 @@ async function openMoviesWithRatingFilter(page: Page): Promise<void> {
 
 /** Switches the guide to its list view and opens a live channel's EPG. */
 async function openLiveEpgList(page: Page, request: APIRequestContext) {
-    const fixture = await fetchXtreamLiveFixture(request, {
-        username: defaultXtreamUsername,
-        password: defaultXtreamPassword,
-    });
+    const fixture = await fetchXtreamLiveFixture(request, SYNTHETIC_ACCOUNT);
     const channel = fixture.items[0];
     if (!channel) throw new Error('Expected a live channel in the mock.');
-    // The mock's live streams redirect to an external demo stream; the
-    // guide needs none of it, so keep that request pending.
+    // Block fallback demo media; the synthetic account serves its clip locally.
     await page.route('https://test-streams.mux.dev/**', () => undefined);
     await openSettings(page);
     await openSettingsSection(page, 'epg');
@@ -489,7 +487,7 @@ test.describe('Keyboard focus ring', () => {
         const page = app.mainWindow;
         const report: Record<string, Stop[]> = {};
         try {
-            await addXtreamPortal(page);
+            await addXtreamPortal(page, SYNTHETIC_ACCOUNT);
             await waitForXtreamWorkspaceReady(page);
 
             const walk = async (
@@ -515,11 +513,17 @@ test.describe('Keyboard focus ring', () => {
                 shell.locator('app-detail-action-button button').first(),
                 14
             );
-            expect(
-                report['detail actions and season tabs (dark)'].map(
-                    (stop) => stop.element
-                )
-            ).toContain('button.season-tabs__pill');
+            for (const theme of ['light', 'dark']) {
+                expect(
+                    report[`detail actions and season tabs (${theme})`]
+                        .map((stop) => stop.element)
+                        .filter((element) =>
+                            element.startsWith('button.season-tabs__pill')
+                        )
+                ).toEqual([
+                    'button.season-tabs__pill.season-tabs__pill--active',
+                ]);
+            }
 
             const pill = shell.locator('.season-tabs__pill').first();
             await expectNoRingAfterClick(page, pill, 'season tab');
@@ -550,19 +554,21 @@ test.describe('Keyboard focus ring', () => {
             // Sources: the type filters, then the list's row actions.
             await openSources(page);
             await expect(
-                page.locator('app-playlist-item').first()
+                page.locator('app-workspace-sources app-source-row').first()
             ).toBeVisible();
+            // Add, the Type and Status rows, Clean up, Sort, then the first
+            // row and its actions; Check again lives in the row's menu.
             await walk(
                 'sources list',
                 page.locator('app-workspace-shell'),
                 page
                     .locator('app-workspace-sources-filters-panel button')
                     .first(),
-                12
+                16
             );
             expect(
                 report['sources list (dark)'].map((stop) => stop.label)
-            ).toContain('Check again');
+            ).toContain('Playlist actions');
 
             // The live EPG list: its rows are Tab stops (`role="button"`)
             // with their own inset ring, then the row's info button.

@@ -19,7 +19,8 @@ import {
     prepareXtreamSourceActionTrigger,
     waitForXtreamCancellationTerminal,
     waitForXtreamCatalogTerminal,
-    waitForXtreamDeleteTerminal,
+    removeXtreamSource,
+    waitForXtreamSourceRowGone,
 } from './xtream-scenario-ui';
 import { assertXtreamMockOrigin } from './xtream-control-client';
 import { assertXtreamBackgroundRefreshActive } from './xtream-renderer-probe';
@@ -106,6 +107,7 @@ export async function prepareXtreamScenario(
         return createPreparedScenario({
             backgroundOperation,
             cancellationObserver: null,
+            deleteOperation: null,
             options,
             page,
             trigger,
@@ -119,6 +121,8 @@ export async function prepareXtreamScenario(
 interface PreparedState {
     readonly backgroundOperation: XtreamOperationWindow | null;
     cancellationObserver: XtreamCancellationObserver | null;
+    /** The playlist delete, armed before its commit click. */
+    deleteOperation: XtreamOperationWindow<'delete-playlist'> | null;
     readonly options: PrepareXtreamScenarioOptions;
     readonly page: Page;
     readonly trigger: Locator;
@@ -136,6 +140,7 @@ function createPreparedScenario(state: PreparedState): PreparedXtreamScenario {
         await Promise.allSettled([
             state.cancellationObserver?.dispose(),
             state.backgroundOperation?.dispose(),
+            state.deleteOperation?.dispose(),
         ]);
     };
     const prepared: PreparedXtreamScenario = {
@@ -189,8 +194,21 @@ function createPreparedScenario(state: PreparedState): PreparedXtreamScenario {
                 state.cancellationObserver =
                     await installXtreamCancellationObserver(state.page);
             }
+            if (state.options.scenarioId === XTREAM_SCENARIO_ID.DELETE_LARGE) {
+                // A fast delete can bring its row back and drop it again
+                // before a UI wait starts; the operation's own events cannot
+                // be missed once armed.
+                state.deleteOperation = await installXtreamOperationWindow(
+                    state.page,
+                    'delete-playlist'
+                );
+            }
+            let commit = state.trigger;
+            if (state.options.scenarioId === XTREAM_SCENARIO_ID.DELETE_LARGE) {
+                commit = await removeXtreamSource(state.page, state.trigger);
+            }
             const triggerEpochMs = Date.now();
-            await state.trigger.click();
+            await commit.click();
             return {
                 scenarioId: state.options.scenarioId,
                 triggerEpochMs,
@@ -224,12 +242,20 @@ async function waitForScenarioTerminal(
             cancellation = await state.cancellationObserver.waitForClick();
             await waitForXtreamCancellationTerminal(state.page);
             break;
-        case XTREAM_SCENARIO_ID.DELETE_LARGE:
-            await waitForXtreamDeleteTerminal(
+        case XTREAM_SCENARIO_ID.DELETE_LARGE: {
+            if (!state.deleteOperation) {
+                throw new Error('xtream-delete-operation-unavailable');
+            }
+            const deleted = await state.deleteOperation.waitForTerminal();
+            if (deleted.terminalStatus !== 'completed') {
+                throw new Error('xtream-delete-did-not-complete');
+            }
+            await waitForXtreamSourceRowGone(
                 state.page,
                 state.options.sourceTitle
             );
             break;
+        }
         case XTREAM_SCENARIO_ID.BACKGROUND_UI:
             if (readBackgroundProbe() === null) {
                 throw new Error('xtream-background-probe-incomplete');

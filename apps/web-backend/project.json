@@ -3,22 +3,40 @@
     "$schema": "../../node_modules/nx/schemas/project-schema.json",
     "projectType": "application",
     "sourceRoot": "apps/web-backend/src",
-    "tags": ["scope:app", "domain:web", "type:app"],
+    "tags": [
+        "scope:app",
+        "domain:web",
+        "type:app"
+    ],
     "targets": {
         "build": {
             "executor": "@nx/esbuild:esbuild",
-            "outputs": ["{options.outputPath}"],
+            "outputs": [
+                "{options.outputPath}"
+            ],
             "options": {
                 "outputPath": "dist/apps/web-backend",
                 "main": "apps/web-backend/src/main.ts",
                 "tsConfig": "apps/web-backend/tsconfig.app.json",
-                "format": ["cjs"],
+                "format": [
+                    "cjs"
+                ],
                 "platform": "node",
                 "target": "node22",
                 "bundle": true,
                 "thirdParty": true,
                 "generatePackageJson": true,
-                "external": ["better-sqlite3"]
+                "external": [
+                    "better-sqlite3"
+                ],
+                "assets": [
+                    {
+                        "input": "dist/apps/tv-setup",
+                        "glob": "**/*",
+                        "output": "tv-setup"
+                    }
+                ],
+                "includeIgnoredAssetFiles": true
             },
             "inputs": [
                 "default",
@@ -38,6 +56,14 @@
                 {
                     "runtime": "node -e \"try{console.log('pnpm major '+require('child_process').execSync('pnpm --version',{stdio:['ignore','pipe','ignore']}).toString().trim().split('.')[0])}catch{console.log('pnpm major unavailable')}\""
                 }
+            ],
+            "dependsOn": [
+                {
+                    "target": "build",
+                    "projects": [
+                        "tv-setup"
+                    ]
+                }
             ]
         },
         "serve": {
@@ -54,17 +80,38 @@
                     "IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS": "1",
                     "TSX_TSCONFIG_PATH": "tsconfig.base.json"
                 }
-            }
+            },
+            "dependsOn": [
+                {
+                    "target": "build",
+                    "projects": [
+                        "tv-setup"
+                    ]
+                }
+            ]
         },
         "lint": {
             "command": "eslint \"apps/web-backend/**/*.ts\""
         },
         "test": {
             "executor": "@nx/jest:jest",
-            "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+            "outputs": [
+                "{workspaceRoot}/coverage/{projectRoot}"
+            ],
             "options": {
                 "jestConfig": "apps/web-backend/jest.config.ts"
-            }
+            },
+            "dependsOn": [
+                {
+                    "target": "build",
+                    "projects": [
+                        "tv-setup"
+                    ]
+                }
+            ]
         }
-    }
+    },
+    "implicitDependencies": [
+        "tv-setup"
+    ]
 }

@@ -15,14 +15,6 @@
     overflow-x: hidden;
 }
 
-.channel-context-menu-anchor {
-    position: fixed;
-    width: 0;
-    height: 0;
-    opacity: 0;
-    pointer-events: none;
-}
-
 .empty-favorites,
 .empty-favorites-hint {
     padding: 16px 24px;

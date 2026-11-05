@@ -1,7 +1,25 @@
-import { inject, Injectable, Injector, signal } from '@angular/core';
+import { favoritesProfileUsed } from '../services/favorites-consent';
+import { loadFavoritesRuntime } from '../services/favorites-sync.providers';
+import { activityEnabled } from '../services/activity-consent';
+import { loadActivityRuntime } from '../services/activity-sync.providers';
+import {
+    afterNextRender,
+    computed,
+    DestroyRef,
+    EnvironmentInjector,
+    inject,
+    Injectable,
+    Injector,
+    signal,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { filter, take } from 'rxjs';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { PlaylistActions } from '@iptvnator/m3u-state';
+import {
+    PlaylistActions,
+    selectPlaylistsLoadingFlag,
+} from '@iptvnator/m3u-state';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import {
@@ -12,25 +30,49 @@ import { SettingsSnackbarService } from './settings-snackbar.service';
 
 @Injectable()
 export class SettingsBackupFacade {
+    private readonly environment = inject(EnvironmentInjector);
     private readonly playlistBackupService = inject(PlaylistBackupService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsSnackbar = inject(SettingsSnackbarService);
     private readonly store = inject(Store);
     private readonly translate = inject(TranslateService);
     private readonly injector = inject(Injector);
+    private readonly destroyRef = inject(DestroyRef);
 
     readonly isExportingData = signal(false);
+    readonly isImportingData = signal(false);
+    private readonly isChoosingFile = signal(false);
+    readonly isBusy = computed(
+        () =>
+            this.isExportingData() ||
+            this.isImportingData() ||
+            this.isChoosingFile()
+    );
+    readonly importSummary = signal<PlaylistBackupImportSummary | null>(null);
+    readonly importFailed = signal(false);
 
     async exportData(waitForUiFeedbackFrame: () => Promise<void>) {
-        if (this.isExportingData()) {
+        if (this.isBusy()) {
             return;
         }
 
         this.isExportingData.set(true);
-        await waitForUiFeedbackFrame();
-
         try {
-            const backup = await this.playlistBackupService.exportBackup();
+            await waitForUiFeedbackFrame();
+            const backup = await this.playlistBackupService.exportBackup(
+                async (sourceId, local) =>
+                    activityEnabled()
+                        ? (
+                              await loadActivityRuntime(this.environment)
+                          ).exportPositions(sourceId, local)
+                        : local,
+                async (playlist, entry) =>
+                    favoritesProfileUsed()
+                        ? (
+                              await loadFavoritesRuntime(this.environment)
+                          ).exportFavorites(playlist, entry)
+                        : entry
+            );
 
             if (this.runtime.supportsDesktopFileSave && window.electron) {
                 const savePath = await window.electron.saveFileDialog(
@@ -58,10 +100,10 @@ export class SettingsBackupFacade {
             this.settingsSnackbar.open(
                 this.translate.instant('SETTINGS.BACKUP_EXPORTED')
             );
-        } catch (error) {
-            console.error('Failed to export playlist backup:', error);
-            this.settingsSnackbar.open(
-                this.translate.instant('SETTINGS.BACKUP_EXPORT_FAILED')
+        } catch {
+            this.settingsSnackbar.error(
+                this.translate.instant('SETTINGS.BACKUP_EXPORT_FAILED'),
+                this.translate.instant('CLOSE')
             );
         } finally {
             this.isExportingData.set(false);
@@ -69,53 +111,98 @@ export class SettingsBackupFacade {
     }
 
     importData(onImported: () => void): void {
+        if (this.isBusy()) return;
+        this.isChoosingFile.set(true);
         const input = document.createElement('input');
+        const returnFocus =
+            document.activeElement instanceof HTMLElement
+                ? document.activeElement
+                : null;
         input.type = 'file';
-        input.accept = 'application/json';
+        input.accept = '.json,application/json';
+        input.addEventListener(
+            'cancel',
+            () => {
+                this.isChoosingFile.set(false);
+                this.restoreFocus(returnFocus);
+            },
+            { once: true }
+        );
 
         input.addEventListener('change', async (event: Event) => {
             const target = event.target as HTMLInputElement;
             const file = target.files?.[0];
 
+            this.isChoosingFile.set(false);
             if (!file) {
+                this.restoreFocus(returnFocus);
                 return;
             }
+            if (this.isImportingData()) return;
+            this.isImportingData.set(true);
+            this.importSummary.set(null);
+            this.importFailed.set(false);
 
             try {
+                const restoreFavorites = favoritesProfileUsed()
+                    ? (
+                          await loadFavoritesRuntime(this.environment)
+                      ).backupRestorer()
+                    : undefined;
                 const summary = await this.playlistBackupService.importBackup(
-                    await file.text()
+                    await file.text(),
+                    ...(restoreFavorites ? [restoreFavorites] : [])
                 );
                 this.injector
                     .get(XtreamStore, null)
                     ?.reconcilePendingRestoreBlock();
 
-                if (summary.imported > 0 || summary.merged > 0) {
+                if (
+                    summary.imported > 0 ||
+                    summary.merged > 0 ||
+                    summary.failed > 0
+                ) {
                     this.store.dispatch(PlaylistActions.removeAllPlaylists());
                     this.store.dispatch(PlaylistActions.loadPlaylists());
                 }
 
                 onImported();
-                this.settingsSnackbar.open(
-                    this.buildBackupImportSummary(summary)
-                );
-
-                if (summary.errors.length > 0) {
-                    console.error(
-                        'Playlist backup import completed with issues:',
-                        summary.errors
-                    );
-                }
-            } catch (error) {
-                console.error('Failed to import playlist backup:', error);
-                this.settingsSnackbar.open(
-                    error instanceof Error
-                        ? error.message
-                        : this.translate.instant('SETTINGS.IMPORT_ERROR')
-                );
+                this.importSummary.set(summary);
+            } catch {
+                this.importFailed.set(true);
+            } finally {
+                this.isImportingData.set(false);
+                this.restoreFocus(returnFocus);
             }
         });
 
-        input.click();
+        try {
+            input.click();
+        } catch {
+            this.isChoosingFile.set(false);
+            this.importFailed.set(true);
+        }
+    }
+
+    private restoreFocus(target: HTMLElement | null): void {
+        this.store
+            .select(selectPlaylistsLoadingFlag)
+            .pipe(filter(Boolean), take(1), takeUntilDestroyed(this.destroyRef))
+            .subscribe(() => {
+                // Reloading the library hides the router outlet until sources are
+                // ready. The trigger must be visible in the completed render.
+                afterNextRender(
+                    () => {
+                        if (
+                            target?.isConnected &&
+                            document.activeElement === document.body
+                        ) {
+                            target.focus();
+                        }
+                    },
+                    { injector: this.injector }
+                );
+            });
     }
 
     private downloadBackupInBrowser(
@@ -131,16 +218,5 @@ export class SettingsBackupFacade {
         link.download = defaultFileName;
         link.click();
         window.URL.revokeObjectURL(url);
-    }
-
-    private buildBackupImportSummary(
-        summary: PlaylistBackupImportSummary
-    ): string {
-        return this.translate.instant('SETTINGS.BACKUP_IMPORT_SUMMARY', {
-            imported: summary.imported,
-            merged: summary.merged,
-            skipped: summary.skipped,
-            failed: summary.failed,
-        });
     }
 }

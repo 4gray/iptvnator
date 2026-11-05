@@ -1,7 +1,7 @@
 import { Injector } from '@angular/core';
 import { SourceHealthService } from '@iptvnator/portal/shared/data-access';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
-import { Injectable, NgZone, inject, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { normalizeStoredStalkerAccountInfo } from '@iptvnator/portal/stalker/data-access';
 import { PlaylistsService, PortalStatusService } from '@iptvnator/services';
@@ -26,7 +26,6 @@ import type { SourceExpiryFacts } from './dashboard-source-expiry.util';
 export class DashboardSourceExpiryService {
     private readonly injector = inject(Injector);
     private readonly runtime = inject(RuntimeCapabilitiesService);
-    private readonly ngZone = inject(NgZone);
     private readonly playlistsService = inject(PlaylistsService);
     private readonly portalStatusService = inject(PortalStatusService);
 
@@ -116,6 +115,7 @@ export class DashboardSourceExpiryService {
             serverUrl: string;
             username: string;
             password: string;
+            userAgent?: string | null;
         }
     ): Promise<SourceExpiryFacts | null> {
         try {
@@ -123,7 +123,8 @@ export class DashboardSourceExpiryService {
                 await this.portalStatusService.checkPortalStatusDetails(
                     playlist.serverUrl,
                     playlist.username,
-                    playlist.password
+                    playlist.password,
+                    { userAgent: playlist.userAgent }
                 );
             // An unreachable portal is unknown, not expired — no badge.
             if (details.status === 'unavailable') {
@@ -182,8 +183,6 @@ export class DashboardSourceExpiryService {
         if (round !== this.refreshRound) {
             return;
         }
-        this.ngZone.run(() => {
-            this.factsState.update(update);
-        });
+        this.factsState.update(update);
     }
 }

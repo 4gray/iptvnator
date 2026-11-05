@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, statSync } from 'fs';
 import { join } from 'path';
 import type { Page } from '@playwright/test';
 import {
@@ -80,6 +80,14 @@ test.describe('Electron download reliability', () => {
                 downloadFolder: downloadsDir,
             });
 
+            const partialPath = join(downloadsDir, 'E2E Reset Movie.mp4.part');
+            await expect
+                .poll(() =>
+                    existsSync(partialPath) ? statSync(partialPath).size : 0
+                )
+                .toBe(rangeServer.interruptedBytes);
+            rangeServer.interrupt();
+
             // The interruption never surfaces as a failure: the runtime
             // reconnects on its own and finishes the transfer.
             await expect(
@@ -137,6 +145,17 @@ test.describe('Electron download reliability', () => {
                 url: rangeServer.url,
                 downloadFolder: downloadsDir,
             });
+
+            const partialPath = join(
+                downloadsDir,
+                'E2E No Validator Movie.mp4.part'
+            );
+            await expect
+                .poll(() =>
+                    existsSync(partialPath) ? statSync(partialPath).size : 0
+                )
+                .toBe(rangeServer.interruptedBytes);
+            rangeServer.interrupt();
 
             await expect(
                 app.mainWindow.getByTestId(

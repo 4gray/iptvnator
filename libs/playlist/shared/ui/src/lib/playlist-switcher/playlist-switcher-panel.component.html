@@ -1,0 +1,170 @@
+<div
+    class="switcher"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="playlist-switcher-title"
+    cdkTrapFocus
+>
+    <header class="switcher__header">
+        <h2 id="playlist-switcher-title" class="switcher__title">
+            {{ 'HOME.PLAYLISTS.MY_PLAYLISTS' | translate }}
+        </h2>
+        <span class="switcher__count">{{ playlists().length }}</span>
+        <span class="switcher__spacer"></span>
+        <button
+            mat-icon-button
+            type="button"
+            class="switcher__action"
+            data-test-id="playlist-switcher-add"
+            (click)="addPlaylist()"
+            [matTooltip]="'WORKSPACE.SHELL.ADD_PLAYLIST' | translate"
+            [attr.aria-label]="'WORKSPACE.SHELL.ADD_PLAYLIST' | translate"
+        >
+            <mat-icon>add</mat-icon>
+        </button>
+        <button
+            mat-icon-button
+            type="button"
+            class="switcher__action"
+            (click)="openAllSources()"
+            [matTooltip]="'WORKSPACE.SWITCHER.ALL_SOURCES' | translate"
+            [attr.aria-label]="'WORKSPACE.SWITCHER.ALL_SOURCES' | translate"
+        >
+            <mat-icon>open_in_new</mat-icon>
+        </button>
+    </header>
+
+    <label class="switcher__search">
+        <mat-icon aria-hidden="true">search</mat-icon>
+        <input
+            #searchInput
+            type="text"
+            role="combobox"
+            autocomplete="off"
+            spellcheck="false"
+            aria-autocomplete="list"
+            aria-expanded="true"
+            aria-keyshortcuts="Shift+F10"
+            [attr.aria-controls]="listId"
+            [attr.aria-activedescendant]="activeOptionId()"
+            [attr.aria-label]="'WORKSPACE.SWITCHER.SEARCH' | translate"
+            [placeholder]="'WORKSPACE.SWITCHER.SEARCH' | translate"
+            [value]="query()"
+            (input)="setQuery(searchInput.value)"
+            (keydown)="onSearchKeydown($event)"
+        />
+        <kbd aria-hidden="true">↑↓ ↵</kbd>
+    </label>
+
+    @if (showTypeFilter()) {
+        <mat-button-toggle-group
+            class="switcher__types"
+            hideSingleSelectionIndicator
+            [value]="activeType()"
+            (change)="setType($event.value)"
+            [attr.aria-label]="'WORKSPACE.SOURCES.TYPE' | translate"
+        >
+            <mat-button-toggle value="all">{{
+                'WORKSPACE.SOURCES.ALL' | translate
+            }}</mat-button-toggle>
+            @for (kind of kinds; track kind) {
+                @if (typeCounts()[kind] > 0) {
+                    <mat-button-toggle [value]="kind"
+                        >{{ kindLabels[kind] }}
+                        <span class="switcher__type-count">{{
+                            typeCounts()[kind]
+                        }}</span></mat-button-toggle
+                    >
+                }
+            }
+        </mat-button-toggle-group>
+    }
+
+    <div
+        #list
+        class="switcher__list"
+        role="listbox"
+        [id]="listId"
+        [attr.aria-label]="'HOME.PLAYLISTS.MY_PLAYLISTS' | translate"
+    >
+        @if (groups().recent.length) {
+            <div role="group" aria-labelledby="playlist-switcher-recent">
+                <div id="playlist-switcher-recent" class="switcher__group">
+                    {{ 'WORKSPACE.SWITCHER.RECENT' | translate }}
+                </div>
+                @for (option of groups().recent; track option.id) {
+                    <ng-container
+                        *ngTemplateOutlet="
+                            row;
+                            context: { $implicit: option, index: $index }
+                        "
+                    />
+                }
+            </div>
+        }
+        <div role="group" aria-labelledby="playlist-switcher-all">
+            @if (groups().recent.length) {
+                <div id="playlist-switcher-all" class="switcher__group">
+                    {{ 'WORKSPACE.SOURCES.ALL' | translate }}
+                </div>
+            }
+            @for (option of groups().all; track option.id) {
+                <ng-container
+                    *ngTemplateOutlet="
+                        row;
+                        context: {
+                            $implicit: option,
+                            index: groups().recent.length + $index,
+                        }
+                    "
+                />
+            }
+        </div>
+    </div>
+    @if (!options().length) {
+        <p class="switcher__empty" role="status">
+            {{ 'WORKSPACE.SWITCHER.NO_MATCHES' | translate }}
+        </p>
+    }
+
+    <footer class="switcher__footer">
+        <span class="switcher__hints" aria-hidden="true">
+            <kbd>↑↓</kbd>{{ 'WORKSPACE.SWITCHER.HINT_SELECT' | translate }}
+            <kbd>↵</kbd>{{ 'WORKSPACE.SWITCHER.HINT_OPEN' | translate }}
+            <kbd>esc</kbd>{{ 'WORKSPACE.SWITCHER.HINT_CLOSE' | translate }}
+        </span>
+        <span class="switcher__spacer"></span>
+        <button
+            mat-button
+            type="button"
+            class="switcher__all"
+            (click)="openAllSources()"
+        >
+            {{ 'WORKSPACE.SWITCHER.ALL_SOURCES' | translate }}
+            <mat-icon iconPositionEnd>arrow_forward</mat-icon>
+        </button>
+    </footer>
+</div>
+
+<ng-template #row let-option let-index="index">
+    <app-source-row
+        size="compact"
+        role="option"
+        [attr.id]="option.id"
+        [attr.aria-selected]="index === highlight()"
+        [attr.aria-current]="option.playlist._id === currentId() || null"
+        [attr.aria-disabled]="isRefreshing(option.playlist) || null"
+        [playlist]="option.playlist"
+        [current]="option.playlist._id === currentId()"
+        [highlighted]="index === highlight()"
+        [canRefresh]="canRefresh(option.playlist)"
+        [refreshing]="isRefreshing(option.playlist)"
+        [removable]="!isBusy(option.playlist)"
+        (activated)="select(option.playlist)"
+        (refreshRequested)="refresh(option.playlist)"
+        (playlistInfoRequested)="openInfo(option.playlist)"
+        (accountInfoRequested)="openAccountInfo(option.playlist)"
+        (removeRequested)="remove(option.playlist)"
+        (menuClosed)="onMenuClosed()"
+    />
+</ng-template>

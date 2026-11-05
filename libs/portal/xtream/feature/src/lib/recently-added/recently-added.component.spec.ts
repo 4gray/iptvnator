@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { EMPTY, of } from 'rxjs';
-import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import { ContentType, XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { RecentlyAddedComponent } from './recently-added.component';
 
 jest.mock('@iptvnator/portal/shared/ui', () => ({
@@ -42,6 +42,19 @@ class MockXtreamStore {
     readonly liveStreams = signal<TestRecentlyAddedItem[]>([]);
     readonly vodStreams = signal<TestRecentlyAddedItem[]>([]);
     readonly serialStreams = signal<TestRecentlyAddedItem[]>([]);
+    readonly getVisibleContentByType = jest.fn(
+        () =>
+            (type: ContentType): TestRecentlyAddedItem[] => {
+                switch (type) {
+                    case 'live':
+                        return this.liveStreams();
+                    case 'vod':
+                        return this.vodStreams();
+                    case 'series':
+                        return this.serialStreams();
+                }
+            }
+    );
     readonly currentPlaylist = signal({ id: 'playlist-1' });
     readonly isLoadingContent = signal(false);
     readonly isLoadingCategories = signal(false);
@@ -129,6 +142,71 @@ describe('RecentlyAddedComponent', () => {
         expect(titles.at(-1)).toBe('Fresh 30');
         expect(titles).not.toContain('Fresh 31');
         expect(titles).not.toContain('Future Provider Item');
+    });
+
+    it('updates all recently added rails when category visibility changes', () => {
+        const visibleLive = createItem(1, { title: 'Visible Live' });
+        const hiddenLive = createItem(2, {
+            category_id: 20,
+            title: 'Hidden Live',
+        });
+        const visibleVod = createItem(3, { title: 'Visible Movie' });
+        const hiddenVod = createItem(4, {
+            category_id: 20,
+            title: 'Hidden Movie',
+        });
+        const visibleSeries = createItem(5, { title: 'Visible Series' });
+        const hiddenSeries = createItem(6, {
+            category_id: 20,
+            title: 'Hidden Series',
+        });
+        store.liveStreams.set([hiddenLive, visibleLive]);
+        store.vodStreams.set([hiddenVod, visibleVod]);
+        store.serialStreams.set([hiddenSeries, visibleSeries]);
+        const visibleCategoryIds = signal([10]);
+        const visibleContentByType = jest.fn((type: ContentType) => {
+            const visible = (items: TestRecentlyAddedItem[]) =>
+                items.filter((item) =>
+                    visibleCategoryIds().includes(item.category_id)
+                );
+            switch (type) {
+                case 'live':
+                    return visible(store.liveStreams());
+                case 'vod':
+                    return visible(store.vodStreams());
+                case 'series':
+                    return visible(store.serialStreams());
+            }
+        });
+        store.getVisibleContentByType.mockReturnValue(visibleContentByType);
+
+        const component = TestBed.runInInjectionContext(
+            () => new RecentlyAddedComponent()
+        );
+
+        expect(component.recentlyAddedLive().map((item) => item.title)).toEqual(
+            ['Visible Live']
+        );
+        expect(component.recentlyAddedVod().map((item) => item.title)).toEqual([
+            'Visible Movie',
+        ]);
+        expect(
+            component.recentlyAddedSeries().map((item) => item.title)
+        ).toEqual(['Visible Series']);
+        expect(store.getVisibleContentByType).toHaveBeenCalledTimes(1);
+        expect(visibleContentByType).toHaveBeenCalledWith('live');
+        expect(visibleContentByType).toHaveBeenCalledWith('vod');
+        expect(visibleContentByType).toHaveBeenCalledWith('series');
+
+        visibleCategoryIds.set([]);
+        expect(component.recentlyAddedLive()).toEqual([]);
+        expect(component.recentlyAddedVod()).toEqual([]);
+        expect(component.recentlyAddedSeries()).toEqual([]);
+
+        visibleCategoryIds.set([10]);
+        expect(component.recentlyAddedLive()).toEqual([visibleLive]);
+        expect(component.recentlyAddedVod()).toEqual([visibleVod]);
+        expect(component.recentlyAddedSeries()).toEqual([visibleSeries]);
     });
 
     it('filters invalid provider dates before slicing small VOD rails', () => {

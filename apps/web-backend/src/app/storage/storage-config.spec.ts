@@ -1,4 +1,7 @@
-import { readServerStorageConfig } from './storage-config';
+import {
+    readServerStorageConfig,
+    serverStorageConfigProblem,
+} from './storage-config';
 
 describe('readServerStorageConfig', () => {
     it('keeps storage off and the API open by default', () => {
@@ -41,5 +44,21 @@ describe('readServerStorageConfig', () => {
             readServerStorageConfig({ IPTVNATOR_MAX_DOCUMENT_MB: '-1' })
                 .maxDocumentBytes
         ).toBe(64 * 1024 * 1024);
+    });
+
+    it('refuses an access token without server storage', () => {
+        const problem = (env: Record<string, string>) =>
+            serverStorageConfigProblem(readServerStorageConfig(env));
+
+        expect(problem({ IPTVNATOR_ACCESS_TOKEN: 's3cret' })).toContain(
+            'IPTVNATOR_STORAGE=server'
+        );
+        expect(
+            problem({
+                IPTVNATOR_ACCESS_TOKEN: 's3cret',
+                IPTVNATOR_STORAGE: 'server',
+            })
+        ).toBeNull();
+        expect(problem({})).toBeNull();
     });
 });

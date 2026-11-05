@@ -1,4 +1,4 @@
-import { Location, NgTemplateOutlet, SlicePipe } from '@angular/common';
+import { NgTemplateOutlet, SlicePipe } from '@angular/common';
 import {
     ChangeDetectionStrategy,
     Component,
@@ -14,6 +14,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
+    AgeRatingChipComponent,
     CastCrewRowComponent,
     DetailActionButtonComponent,
     DetailActionsTemplateDirective,
@@ -25,21 +26,27 @@ import {
     PortalDetailShellComponent,
     SimilarRailComponent,
     type SimilarRailItem,
-    ViewInPortalActionComponent,
     VodMoreMenuComponent,
     scrollToCastCrewRow,
 } from '@iptvnator/ui/components';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import {
     registerContentMetadataBackfill,
+    xtreamDetailContentMetadata,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
 import {
     type PlaybackFallbackRequest,
     PortalInlinePlayerComponent,
 } from '@iptvnator/ui/playback';
-import { DownloadsService, SettingsStore } from '@iptvnator/services';
 import {
+    DownloadsService,
+    SettingsStore,
+    type TmdbMatchContext,
+} from '@iptvnator/services';
+import {
+    getXtreamVodInfo,
+    normalizeXtreamVod,
     TmdbEnrichedCastMember,
     XtreamVodDetails,
     XtreamVodInfo,
@@ -81,10 +88,10 @@ import { VodMultiSourceHostService } from './vod-multi-source-host.service';
         MatIcon,
         NgTemplateOutlet,
         PortalDetailShellComponent,
-        ViewInPortalActionComponent,
         SlicePipe,
         TranslateModule,
         PortalInlinePlayerComponent,
+        AgeRatingChipComponent,
         CastCrewRowComponent,
         DetailActionButtonComponent,
         DetailCreditsComponent,
@@ -95,7 +102,6 @@ import { VodMultiSourceHostService } from './vod-multi-source-host.service';
     ],
 })
 export class VodDetailsRouteComponent implements OnInit, OnDestroy {
-    private readonly location = inject(Location);
     private readonly settingsStore = inject(SettingsStore);
     private readonly route = inject(ActivatedRoute);
     private readonly navigation = injectXtreamDetailNavigation('movie');
@@ -132,10 +138,28 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     readonly playbackSessionKey = this.selection.playbackSessionKey;
     readonly providerOnly = this.selection.providerOnly;
     readonly selectedItem = this.selection.selectedItem;
+    readonly certifications = computed(
+        () => normalizeXtreamVod(this.selectedItem() ?? {}).certifications
+    );
     readonly selectedCategory = this.selection.selectedCategory;
     readonly selectedCatalogItem = this.selection.selectedCatalogItem;
     private readonly multiSourceMovie = this.selection.multiSourceMovie;
     readonly selectedVodInfo = this.selection.selectedVodInfo;
+    readonly tmdbMatch = computed<TmdbMatchContext | null>(() => {
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        const info = getXtreamVodInfo(this.selectedItem());
+        if (!playlistId || !this.selectedItem() || !info) return null;
+        return {
+            identity: {
+                provider: 'xtream',
+                playlistId,
+                mediaType: 'movie',
+                itemId: String(this.selectedVodId()),
+            },
+            title: info.name,
+            tmdbId: Number(info.tmdb_id) || null,
+        };
+    });
     readonly playableVodItem = this.selection.playableVodItem;
     readonly fallbackView = this.selection.fallbackView;
     readonly isLoadingDetails = this.xtreamStore.isLoadingDetails;
@@ -517,7 +541,8 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             this.route.snapshot.params['vodId'],
             playlist.id,
             'movie',
-            this.selectedVodInfo()?.backdrop_path?.[0]
+            this.selectedVodInfo()?.backdrop_path?.[0],
+            xtreamDetailContentMetadata(this.selectedVodInfo()) ?? undefined
         );
 
         this.favoritePulse.set(true);
@@ -540,7 +565,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
 
     goBack(): void {
         this.playback.closeInlinePlayer();
-        this.location.back();
+        this.navigation.back();
     }
 
     closeInlinePlayer(): void {

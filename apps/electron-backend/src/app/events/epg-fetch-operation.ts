@@ -43,6 +43,15 @@ export function runEpgFetch(
                 'Failed to create worker:',
                 error
             );
+            // The renderer already lists the source as queued; like every
+            // other failure of this operation, this one becomes the row's
+            // error with a Retry, the batch result alone carries no row.
+            context.sendProgressToRenderer(
+                url,
+                'error',
+                undefined,
+                error instanceof Error ? error.message : String(error)
+            );
             reject(error);
             return;
         }

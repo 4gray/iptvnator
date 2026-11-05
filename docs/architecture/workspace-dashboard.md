@@ -250,9 +250,14 @@ all, and none inside the hero.
        `continueWatchingSettled()`. A movie stays until its position reaches
        `PORTAL_WATCHED_PROGRESS_PERCENT` (`isPortalPlaybackWatched`). The
        threshold is 90%, the Plex/Jellyfin/Emby/Kodi default, so stopping
-       during the end credits finishes a title, as does "Mark watched". A
-       series stays while it has something to continue: once its newest
-       episode is watched, or is an extra (season 0),
+       during the end credits finishes a title, as does "Mark watched". That
+       command clears inherited player session metadata and carries explicit
+       `mark-watched` intent through the shared playback-position boundary, so
+       consented activity reaches the server. Shared-activity invalidation
+       reloads the cached positions so an open Continue Watching rail reflects
+       progress and watched changes from another device. A series stays while
+       it has something to continue: once its newest episode is watched, or is
+       an extra (season 0),
        `DashboardSeriesEpisodesService` fetches its episode list
        (`get_series_info`, two lookups at a time) and
        `resolveDashboardSeriesContinuation` applies
@@ -380,6 +385,9 @@ all, and none inside the hero.
           by the collection uid — favourites and recent rows of one channel
           share the answer. Radio rows and rows without a usable provider id
           get no entry. Cards carry that key as `liveEpgSourceKey`.
+          The resolver's result map is read through `collectionEpgKey`, shared
+          with favorites/recent: source type, playlist ID and provider channel
+          ID must all match, so two portals reusing an ID cannot share a guide.
         - `lib-dashboard-rail` reports the cards inside its track viewport
           (plus ~one card of `rootMargin`) through `visibleCardsChanged`, from
           an `IntersectionObserver` rooted at the track; without the API every
@@ -418,12 +426,13 @@ all, and none inside the hero.
           cannot queue a replacement, and without it the pre-change answer
           would be trusted for a full TTL (the repo's late-result
           invalidation contract).
-        - Desktop only in practice: the shared collection resolver is gated on
-          the local XMLTV bridge (`supportsProgramLookup`) and answers nothing
-          without it, so `sync()` returns immediately in the PWA rather than
-          filing an empty answer for every card. Lifting that gate for portal
-          lookups would change the collection pages too and is deliberately
-          out of scope here.
+        - Gated on the portal transport (`supportsProviderEpg`), like the
+          collection resolver's portal lookups: it works in the PWA through
+          the backend proxy, and `sync()` returns immediately only where no
+          portal transport exists, rather than filing an empty answer for
+          every card. The XMLTV overlays inside the resolver
+          (`epg_channel_id`, manual mappings) stay behind
+          `supportsProgramLookup`.
         - `DashboardLiveEpgPresenter.enrich()` prefers the portal answer, falls
           back to the XMLTV title match when the portal said "nothing on air",
           and marks a card

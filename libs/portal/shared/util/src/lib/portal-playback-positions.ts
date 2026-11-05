@@ -61,6 +61,7 @@ export const PORTAL_WATCHED_PROGRESS_PERCENT = 90;
 export function getPortalPlaybackProgressPercent(
     position: PlaybackPositionData | null | undefined
 ): number {
+    if (position?.watched === true) return 100;
     if (!position || !position.durationSeconds) {
         return 0;
     }

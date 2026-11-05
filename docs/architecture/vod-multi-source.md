@@ -156,8 +156,8 @@ fit contract:
 The chip row composes with the host search (AND): **All (N)** resets the chip
 filters and states the total copy count, **Available** keeps only sources
 whose probe verified them, **HD+** keeps sources whose quality tag reads
-1080p or better, and the language select is built from the languages actually
-present in the list. Two of these encode a decision worth writing down:
+1080p or better, and the language chip (a filter chip with a chevron that
+opens a radio menu) offers the languages actually present in the list. Two of these encode a decision worth writing down:
 
 - "Available" is strict: only `probe.status === 'ok'` passes. An unchecked
   source must never pass a filter with that name — and because checks are

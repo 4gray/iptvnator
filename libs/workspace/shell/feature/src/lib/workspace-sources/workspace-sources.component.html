@@ -1,55 +1,96 @@
-<section
-    class="sources-page"
-    [class.sources-page--empty]="visibleSourcesCount() === 0"
->
-    @if (visibleSourcesCount() > 0 || canCleanSources()) {
+<section class="sources-page" [class.sources-page--empty]="!hasPlaylists()">
+    @if (hasPlaylists()) {
         <header class="sources-header">
-            <div class="sources-header__meta">
+            <div class="sources-header__title">
                 <h2 class="sources-title">{{ title() }}</h2>
-                <span class="sources-subtitle">{{ subtitle() }}</span>
+                <span class="sources-count" data-test-id="sources-count">{{
+                    visibleCount()
+                }}</span>
             </div>
-            @if (canCleanSources()) {
-                <button
-                    mat-stroked-button
-                    type="button"
-                    class="cleanup-trigger"
-                    [attr.aria-label]="'SOURCE_CLEANUP.TITLE' | translate"
-                    (click)="openCleanup()"
-                >
-                    <mat-icon>cleaning_services</mat-icon>
-                    <span>{{ 'SOURCE_CLEANUP.TITLE' | translate }}</span>
-                </button>
-            }
-            <button
-                type="button"
-                mat-stroked-button
-                class="sort-trigger"
-                [matMenuTriggerFor]="sortMenu"
-            >
-                <mat-icon>sort</mat-icon>
-                <span class="sort-trigger__label">{{ activeSortLabel() }}</span>
-                <mat-icon class="sort-trigger__caret">arrow_drop_down</mat-icon>
-            </button>
-            <mat-menu #sortMenu="matMenu" xPosition="before">
-                @for (option of sortOptions; track option.translationKey) {
+            <div class="sources-header__actions">
+                @if (canCleanSources()) {
                     <button
-                        mat-menu-item
+                        mat-flat-button
                         type="button"
-                        [appMenuItemRadio]="isSortActive(option)"
-                        (click)="setSortOption(option)"
+                        class="sources-action cleanup-trigger"
+                        [attr.aria-label]="'SOURCE_CLEANUP.TITLE' | translate"
+                        (click)="openCleanup()"
                     >
-                        <mat-icon appMenuItemRadioCheck>check</mat-icon>
-                        <mat-icon>{{ option.icon }}</mat-icon>
-                        <span>{{ option.translationKey | translate }}</span>
+                        <mat-icon>cleaning_services</mat-icon>
+                        <span>{{ 'SOURCE_CLEANUP.TITLE' | translate }}</span>
+                        @if (failingCount() > 0) {
+                            <span class="sources-action__count">{{
+                                failingCount()
+                            }}</span>
+                        }
                     </button>
                 }
-            </mat-menu>
+                <button
+                    mat-flat-button
+                    type="button"
+                    class="sources-action sort-trigger"
+                    [matMenuTriggerFor]="sortMenu"
+                    [attr.aria-label]="
+                        ('WORKSPACE.REFINE_SORT_SECTION' | translate) +
+                        ': ' +
+                        activeSortLabel()
+                    "
+                >
+                    <mat-icon>sort</mat-icon>
+                    <span class="sort-trigger__label">{{
+                        activeSortLabel()
+                    }}</span>
+                    <mat-icon class="sort-trigger__chevron" iconPositionEnd
+                        >expand_more</mat-icon
+                    >
+                </button>
+                <mat-menu #sortMenu="matMenu" xPosition="before">
+                    <div
+                        role="group"
+                        [attr.aria-label]="
+                            'WORKSPACE.REFINE_SORT_SECTION' | translate
+                        "
+                    >
+                        @for (option of sortOptions; track $index) {
+                            <button
+                                mat-menu-item
+                                type="button"
+                                [appMenuItemRadio]="isSortActive(option)"
+                                (click)="setSortOption(option)"
+                            >
+                                <mat-icon appMenuItemRadioCheck>check</mat-icon>
+                                <span>{{
+                                    option.translationKey | translate
+                                }}</span>
+                            </button>
+                        }
+                    </div>
+                    @if (showFailingFirst) {
+                        <mat-divider role="separator" />
+                        <button
+                            mat-menu-item
+                            type="button"
+                            role="menuitemcheckbox"
+                            class="sort-failing-first"
+                            [attr.aria-checked]="failingFirst()"
+                            (click)="toggleFailingFirst()"
+                        >
+                            <mat-icon
+                                [class.sort-failing-first__check--off]="
+                                    !failingFirst()
+                                "
+                                >check</mat-icon
+                            >
+                            <span>{{
+                                'HOME.SORT_OPTIONS.FAILING_FIRST' | translate
+                            }}</span>
+                        </button>
+                    }
+                </mat-menu>
+            </div>
         </header>
     }
-    <div
-        class="sources-content"
-        [class.app-scrollbar]="visibleSourcesCount() > 0"
-    >
+    <div class="sources-content app-scrollbar">
         <app-recent-playlists
             [searchQueryInput]="searchQuery()"
             (addPlaylistClicked)="onAddPlaylist($event)"

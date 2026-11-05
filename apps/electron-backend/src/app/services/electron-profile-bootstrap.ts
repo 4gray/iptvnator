@@ -1,6 +1,9 @@
 import { app } from 'electron';
 import { getElectronUserDataPath } from '@iptvnator/shared/database';
 import { selectLegacyProfile } from './legacy-profile';
+import { activateSourceServerProfile } from './source-server-config';
+
+activateSourceServerProfile();
 
 const override = getElectronUserDataPath();
 const current = override ?? app.getPath('userData');

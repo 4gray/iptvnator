@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { PlaylistActions } from '@iptvnator/m3u-state';
+import { applyPlaylistEpgImportPreference } from '@iptvnator/shared/m3u-utils';
 import { Playlist } from '@iptvnator/shared/interfaces';
 
 const M3U_EXTENSIONS = ['.m3u', '.m3u8'];
@@ -10,8 +11,7 @@ export type PlaylistFileImportResult =
     | { ok: false; reason: 'unsupported' | 'empty' | 'read-error' };
 
 export type NativePlaylistFileImportResult =
-    | PlaylistFileImportResult
-    | { ok: false; reason: 'cancelled' };
+    PlaylistFileImportResult | { ok: false; reason: 'cancelled' };
 
 type NativePlaylistFileImportWindow = Window & {
     electron?: {
@@ -41,7 +41,9 @@ export class PlaylistFileImportService {
         return M3U_EXTENSIONS.some((ext) => lower.endsWith(ext));
     }
 
-    async importFromNativeDialog(): Promise<NativePlaylistFileImportResult> {
+    async importFromNativeDialog(
+        autoImportEpg = true
+    ): Promise<NativePlaylistFileImportResult> {
         const openPlaylistFromFile = this.getNativeFileDialog();
         if (!openPlaylistFromFile) {
             return { ok: false, reason: 'read-error' };
@@ -53,7 +55,14 @@ export class PlaylistFileImportService {
                 return { ok: false, reason: 'cancelled' };
             }
 
-            this.store.dispatch(PlaylistActions.addPlaylist({ playlist }));
+            this.store.dispatch(
+                PlaylistActions.addPlaylist({
+                    playlist: applyPlaylistEpgImportPreference(
+                        playlist,
+                        autoImportEpg
+                    ),
+                })
+            );
 
             return {
                 ok: true,
@@ -102,7 +111,10 @@ export class PlaylistFileImportService {
         }
     }
 
-    async importFile(file: File): Promise<PlaylistFileImportResult> {
+    async importFile(
+        file: File,
+        autoImportEpg = true
+    ): Promise<PlaylistFileImportResult> {
         if (!this.isSupportedFile(file)) {
             return { ok: false, reason: 'unsupported' };
         }
@@ -122,6 +134,7 @@ export class PlaylistFileImportService {
         this.store.dispatch(
             PlaylistActions.parsePlaylist({
                 uploadType: 'FILE',
+                ...(autoImportEpg ? {} : { autoImportEpg: false }),
                 playlist,
                 title,
                 path: this.getFilePath(file),
@@ -165,8 +178,7 @@ export class PlaylistFileImportService {
     }
 
     private getNativeFileDialog():
-        | (() => Promise<Playlist | null>)
-        | undefined {
+        (() => Promise<Playlist | null>) | undefined {
         if (typeof window === 'undefined') {
             return undefined;
         }
@@ -186,9 +198,7 @@ export class PlaylistFileImportService {
             ?.updatePlaylistFromFilePath;
     }
 
-    private getNativeFilePathResolver():
-        | ((file: File) => string)
-        | undefined {
+    private getNativeFilePathResolver(): ((file: File) => string) | undefined {
         if (typeof window === 'undefined') {
             return undefined;
         }

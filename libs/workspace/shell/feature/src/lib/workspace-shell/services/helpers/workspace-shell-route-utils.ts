@@ -1,4 +1,8 @@
 import { Router } from '@angular/router';
+import {
+    COLLECTION_VIEW_STATE_KEY,
+    getCollectionViewState,
+} from '@iptvnator/portal/shared/util';
 import { WorkspacePortalContext } from '@iptvnator/workspace/shell/util';
 
 export function toQueryString(queryParams: Record<string, unknown>): string {
@@ -61,7 +65,15 @@ export function syncSearchQueryParam(
 
     const queryString = toQueryString(queryParams);
     const nextUrl = queryString ? `${routePath}?${queryString}` : routePath;
-    void router.navigateByUrl(nextUrl, { replaceUrl: true });
+    // A query replaces this entry, so retain its collection tab and scope.
+    // Router bookkeeping and one-shot detail/playback handoffs are not carried.
+    const collectionViewState = getCollectionViewState(window.history.state);
+    void router.navigateByUrl(nextUrl, {
+        replaceUrl: true,
+        ...(collectionViewState
+            ? { state: { [COLLECTION_VIEW_STATE_KEY]: collectionViewState } }
+            : {}),
+    });
     return true;
 }
 

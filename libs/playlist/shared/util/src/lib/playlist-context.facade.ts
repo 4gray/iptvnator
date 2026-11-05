@@ -22,6 +22,7 @@ import {
     PortalRailSection,
 } from '@iptvnator/portal/shared/util';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { PlaylistRecentHistoryService } from './playlist-recent-history.service';
 
 export interface PlaylistRouteContext {
     inWorkspace: boolean;
@@ -73,6 +74,7 @@ export class PlaylistContextFacade {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly router = inject(Router);
     private readonly store = inject(Store);
+    private readonly recentHistory = inject(PlaylistRecentHistoryService);
 
     readonly playlists = this.store.selectSignal(selectAllPlaylistsMeta);
     readonly allPlaylistsLoaded = this.store.selectSignal(
@@ -539,6 +541,7 @@ export class PlaylistContextFacade {
     }
 
     private writePersistedActivePlaylistId(playlistId: string): void {
+        this.recentHistory.record(playlistId);
         try {
             localStorage.setItem(LAST_ACTIVE_PLAYLIST_STORAGE_KEY, playlistId);
         } catch {

@@ -23,6 +23,7 @@ import {
 } from './live.generator.js';
 import { RawSeriesInfo, RawSeriesItem } from './series.generator.js';
 import { RawVodDetails, RawVodStream } from './vod.generator.js';
+import { marketingEpisodeStory, marketingSeasonOverview } from './marketing-stories.js';
 
 type MarketingAssetKind = 'backdrop' | 'episode' | 'logo' | 'poster' | 'season';
 
@@ -365,7 +366,7 @@ const SERIES: MarketingSeries[] = [
         categoryId: '5301',
         name: 'Skyline Sentinels',
         description:
-            'A young maintenance crew patrols the rooftops, rails, and river bridges of Meridian City.',
+            'Above the waking streets of Meridian City, a night maintenance crew keeps the rooftops, railways and river bridges connected. When a forgotten relay begins transmitting again, their routine repairs uncover a story the city has quietly built over. Each dawn brings a new fault, an old promise and another reason to trust the people beside them.',
         director: 'Ari Vale',
         actors: 'Mara Sol, Theo Quill, Juno Pike, Ren Sato',
         genre: 'Urban Ensemble Drama',
@@ -377,7 +378,7 @@ const SERIES: MarketingSeries[] = [
         categoryId: '5301',
         name: 'The Aegis Club',
         description:
-            'Retired public servants reopen an old social club and mentor the next generation between neighborhood emergencies.',
+            'Four retired public servants reopen their neighborhood social club, expecting quiet chess games and familiar stories. Instead, a young apprentice and a street full of small emergencies turn their evenings into an unexpected second act. Between the last round and the first bus home, they discover that being needed never really gets old.',
         director: 'Selene Park',
         actors: 'Iris Vale, Bram Cole, Lina Storm, Mateo Rinn',
         genre: 'Workplace Dramedy',
@@ -625,16 +626,16 @@ export function buildMarketingSeriesInfo(
             episode_count: episodesPerSeason,
             id: series.series_id * 100 + seasonNumber,
             name: `Season ${seasonNumber}`,
-            overview: `Season ${seasonNumber} expands ${seriesFixture.name} with new heroic alliances, brighter emblems, and city-scale rescues.`,
+            overview: marketingSeasonOverview(seriesFixture.name, seasonNumber),
             season_number: seasonNumber,
             cover: marketingAssetUrl(
-                'season',
-                `${seriesFixture.name} Season ${seasonNumber}`,
+                'poster',
+                seriesFixture.name,
                 '300x450'
             ),
             cover_big: marketingAssetUrl(
-                'season',
-                `${seriesFixture.name} Season ${seasonNumber}`,
+                'poster',
+                seriesFixture.name,
                 '500x750'
             ),
         };
@@ -646,6 +647,7 @@ export function buildMarketingSeriesInfo(
             { length: episodesPerSeason },
             (_, episodeIndex) => {
                 const episodeNumber = episodeIndex + 1;
+                const story = marketingEpisodeStory(seriesFixture.name, season.season_number, episodeNumber);
                 const episodeId =
                     MARKETING_EPISODE_ID_BASE +
                     (series.series_id - MARKETING_SERIES_ID_BASE) * 100 +
@@ -654,19 +656,19 @@ export function buildMarketingSeriesInfo(
                 return {
                     id: String(episodeId),
                     episode_num: episodeNumber,
-                    title: `${seriesFixture.name} S${season.season_number}E${episodeNumber}`,
+                    title: story.title,
                     container_extension: 'mkv',
                     info: {
                         tmdb_id: episodeId,
                         releasedate: `${seriesFixture.year + season.season_number - 1}-10-${String(
                             episodeNumber
                         ).padStart(2, '0')}`,
-                        plot: `A new emblem appears over the skyline while the team follows a rescue signal hidden in plain sight.`,
+                        plot: story.plot,
                         duration_secs: 2_640,
                         duration: '44min',
                         movie_image: marketingAssetUrl(
-                            'episode',
-                            `${seriesFixture.name} Episode ${episodeNumber}`,
+                            seriesFixture.name === 'Skyline Sentinels' && season.season_number === 1 && episodeNumber <= 2 ? 'episode' : 'backdrop',
+                            story.artworkTitle,
                             '600x338'
                         ),
                         bitrate: 4_400,

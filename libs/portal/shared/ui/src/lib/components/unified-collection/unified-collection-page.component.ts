@@ -1,3 +1,8 @@
+import { EpgPreferencesService } from '@iptvnator/services';
+import {
+    isCatalogUnavailable,
+    XTREAM_FAVORITE_IDENTITY_CONFLICT,
+} from '@iptvnator/shared/interfaces';
 import { NgTemplateOutlet } from '@angular/common';
 import {
     AfterContentInit,
@@ -17,13 +22,15 @@ import { MatIconButton } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBar } from '@angular/material/progress-bar';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
     ChannelListSkeletonComponent,
     MenuItemRadioCheckDirective,
     MenuItemRadioDirective,
+    PortalDetailShellComponent,
 } from '@iptvnator/ui/components';
 import {
     clearNavigationStateKeys,
@@ -66,6 +73,7 @@ import {
 import { createCollectionModeLabels } from './unified-collection-labels';
 import { setupCollectionLoad } from './unified-collection-load';
 import { createCollectionScopeState } from './unified-collection-scope';
+import { collectionSkeletonShowsEpg } from './unified-collection-skeleton';
 import { UnifiedCollectionDetailDirective } from './unified-collection-detail.directive';
 
 @Component({
@@ -86,6 +94,7 @@ import { UnifiedCollectionDetailDirective } from './unified-collection-detail.di
         MatTooltip,
         MenuItemRadioCheckDirective,
         MenuItemRadioDirective,
+        PortalDetailShellComponent,
         TranslatePipe,
         UnifiedGridTabComponent,
         UnifiedLiveTabComponent,
@@ -104,7 +113,10 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     private readonly destroyRef = inject(DestroyRef);
     private readonly hostElement = inject(ElementRef<HTMLElement>);
     private readonly data = inject(UnifiedCollectionDataService);
+    private readonly snackBar = inject(MatSnackBar);
+    private readonly translate = inject(TranslateService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly epgPreferences = inject(EpgPreferencesService);
     private readonly liveSidebarStateService = inject(
         LiveLayoutSidebarStateService
     );
@@ -127,7 +139,6 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     readonly showReloadIndicator = this.data.showReloadIndicator;
     readonly allItems = this.data.allItems;
     readonly favoriteUidSet = this.data.favoriteUidSet;
-    readonly supportsEpg = this.runtime.supportsEpg;
     readonly skeletonRows = Array.from({ length: 12 }, (_, i) => i);
     readonly skeletonCards = Array.from({ length: 8 }, (_, i) => i);
     readonly pendingAutoOpenLiveItem = signal(
@@ -159,6 +170,15 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     readonly scope = this.scopeState.scope;
     readonly showScopeToggle = this.scopeState.showToggle;
     readonly effectiveScope = this.scopeState.effective;
+    /** Skeleton rows reserve the programme line like the rows they stand for. */
+    readonly skeletonShowsEpg = computed(() =>
+        collectionSkeletonShowsEpg(this.portalType(), this.effectiveScope(), {
+            xmltv: this.epgPreferences.enabled() && this.runtime.supportsEpg,
+            provider:
+                this.epgPreferences.enabled() &&
+                this.runtime.supportsProviderEpg,
+        })
+    );
     /**
      * Scope of the rows on screen. Every action on them (Clear, drag
      * reorder) uses this instead of `effectiveScope()`, which already names
@@ -228,6 +248,8 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
             }),
     });
     private readonly detailState = createCollectionDetailState({
+        items: this.allItems,
+        isLoading: this.isLoading,
         mode: this.mode,
         portalType: this.portalType,
         detailTemplate: this.detailTemplate,
@@ -237,6 +259,7 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     readonly selectedDetailItem = this.detailState.item;
     readonly selectedDetailSeriesResume = this.detailState.seriesResume;
     readonly detailContext = this.detailState.context;
+    readonly isDetailPending = this.detailState.isPending;
 
     constructor() {
         setupClearCollectionViewCommand({
@@ -263,6 +286,16 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     ngAfterContentInit(): void {
         this.viewStateSync.restore();
         this.detailState.syncFromHistory();
+    }
+
+    @HostListener('window:iptvnator-favorites-changed')
+    onFavoritesChanged(): void {
+        void this.loadData({
+            mode: this.mode(),
+            portalType: this.portalType(),
+            playlistId: this.playlistId(),
+            scope: this.effectiveScope(),
+        });
     }
 
     onScopeChange(value: CollectionScope): void {
@@ -309,6 +342,7 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     }
 
     onGridItemSelected(item: UnifiedCollectionItem): void {
+        if (isCatalogUnavailable(item)) return;
         this.viewStateSync.commitCurrent();
 
         if (this.detailState.canOpen(item)) {
@@ -338,7 +372,18 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
             return;
         }
 
-        await this.data.toggleFavorite(item);
+        try {
+            await this.data.toggleFavorite(item);
+        } catch (error) {
+            const key =
+                error instanceof Error &&
+                error.message === XTREAM_FAVORITE_IDENTITY_CONFLICT
+                    ? 'PORTALS.FAVORITE_IDENTITY_CONFLICT'
+                    : 'PORTALS.FAVORITE_SAVE_FAILED';
+            this.snackBar.open(this.translate.instant(key), undefined, {
+                duration: 6000,
+            });
+        }
     }
 
     clearAllCurrent(): void {

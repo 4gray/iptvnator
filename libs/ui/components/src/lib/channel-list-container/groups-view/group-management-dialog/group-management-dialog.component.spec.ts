@@ -41,6 +41,19 @@ describe('GroupManagementDialogComponent', () => {
         parentalLock.active.set(false);
     });
 
+    it('names each visibility checkbox, including the ungrouped fallback', async () => {
+        const fixture = await create({
+            groups: [...groups, { key: '', count: 1 }],
+            hiddenGroupTitles: [],
+        });
+        const inputs = Array.from(
+            fixture.nativeElement.querySelectorAll('input[type="checkbox"]')
+        ) as HTMLInputElement[];
+        expect(inputs.map((input) => input.getAttribute('aria-label'))).toEqual(
+            ['News', 'Adult', 'CHANNELS.UNGROUPED']
+        );
+    });
+
     it('closes without a result when the session relocks while locks are shown', async () => {
         const fixture = await create({
             groups,

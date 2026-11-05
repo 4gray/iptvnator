@@ -25,8 +25,10 @@ jobs:
         if: github.repository == '4gray/iptvnator'
         runs-on: ubuntu-latest
         # Production web build plus the journeys (their electron-performance
-        # build and seven Electron processes per journey).
-        timeout-minutes: 60
+        # build and seven Electron processes per journey), and the
+        # large-library launch journey with its profile (generated here when
+        # the cache has none; see the journeys document for the cost).
+        timeout-minutes: 90
         strategy:
             # Separate runners, so one machine's noise cannot pass for a
             # reduction. The tightener needs all three runs.
@@ -67,11 +69,15 @@ jobs:
 
             # A failed journey run must not block tightening the initial bytes:
             # its entries are then missing from this run's summary, and the
-            # tightener keeps any baseline that a run did not measure.
+            # tightener keeps any baseline that a run did not measure. The
+            # large-library journey runs only here, weekly, not on every pull
+            # request: its numbers land in the job summary as evidence.
             - name: Run the performance journeys
               id: journeys
               continue-on-error: true
               uses: ./.github/actions/performance-journeys
+              with:
+                  large-library: 'true'
 
             - name: Keep the journey summary
               if: steps.journeys.outputs.summary != ''

@@ -9,6 +9,7 @@ import {
     computed,
     ElementRef,
     input,
+    inject,
     output,
     signal,
     viewChild,
@@ -16,10 +17,14 @@ import {
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
+import { TmdbRuntimeService, type TmdbMatchContext } from '@iptvnator/services';
+import { LazyMatDialog } from '../lazy-dialog/lazy-mat-dialog';
+import { dialogSize } from '../dialog-shell/dialog-size';
 import type {
     VodSourceDescriptor,
     VodSourceMatchKind,
 } from '@iptvnator/shared/interfaces';
+import { VIEW_IN_PORTAL_HANDOFF } from '../view-in-portal-action/view-in-portal-handoff.token';
 import { VodSourcesMenuComponent } from '../vod-sources/vod-sources-menu.component';
 import type {
     VodMoreMenuItem,
@@ -29,9 +34,9 @@ import type {
 type MenuView = 'menu' | 'sources';
 
 /**
- * The "…" button of the details action row and its dropdown. Right edges
- * align with the button so the panel never leaves the details column; when
- * the space below is short the panel opens upward. Rows are plain buttons
+ * The "…" button of the details action row and its dropdown. It prefers the
+ * button's right edge, flips upward, and shifts inside the viewport when
+ * neither position fits. Rows are plain buttons
  * with `role="menuitem"`, reachable with the arrow keys; Escape and an
  * outside click close the menu. Selecting the `sources` row swaps the panel
  * to the alternative-sources list.
@@ -54,6 +59,9 @@ export class VodMoreMenuComponent {
     readonly sections = input.required<readonly VodMoreMenuSection[]>();
     readonly label = input.required<string>();
     readonly testId = input<string | null>(null);
+    readonly tmdbMatch = input<TmdbMatchContext | null>(null);
+    private readonly runtime = inject(TmdbRuntimeService);
+    private readonly dialogs = inject(LazyMatDialog);
 
     // Alternative sources, shown by the `sources` row.
     readonly sources = input<VodSourceDescriptor[]>([]);
@@ -72,9 +80,47 @@ export class VodMoreMenuComponent {
 
     readonly isOpen = signal(false);
     readonly view = signal<MenuView>('menu');
-    readonly hasRows = computed(() =>
-        this.sections().some((section) => section.items.length > 0)
-    );
+    private readonly handoff = inject(VIEW_IN_PORTAL_HANDOFF, {
+        optional: true,
+    });
+    readonly menuSections = computed<readonly VodMoreMenuSection[]>(() => {
+        const sections = this.sections().filter(
+            (section) => section.items.length
+        );
+        if (this.tmdbMatch() && this.runtime.isEnabled()) {
+            sections.push({
+                items: [
+                    {
+                        id: 'tmdb-match',
+                        labelKey: 'TMDB_MATCH.MENU',
+                        icon: 'manage_search',
+                        testId: 'tmdb-match-menu',
+                    },
+                ],
+            });
+        }
+        if (!this.handoff?.viewInPortalAvailable()) {
+            return sections;
+        }
+        const name = this.handoff.viewInPortalPlaylistName();
+        return [
+            {
+                items: [
+                    {
+                        id: 'view-in-portal',
+                        labelKey: name
+                            ? 'PORTALS.VIEW_IN_PORTAL_TOOLTIP'
+                            : 'PORTALS.VIEW_IN_PORTAL',
+                        labelParams: name ? { name } : undefined,
+                        icon: 'open_in_new',
+                        testId: 'collection-view-in-portal',
+                    },
+                ],
+            },
+            ...sections,
+        ];
+    });
+    readonly hasRows = computed(() => this.menuSections().length > 0);
 
     private readonly panel = viewChild<ElementRef<HTMLElement>>('panel');
     private readonly trigger =
@@ -136,7 +182,31 @@ export class VodMoreMenuComponent {
             return;
         }
         this.close(true);
+        if (item.id === 'tmdb-match') {
+            void this.openTmdbMatch();
+            return;
+        }
+        if (item.id === 'view-in-portal') {
+            if (this.handoff?.viewInPortalAvailable()) {
+                this.handoff.openInPortal();
+            }
+            return;
+        }
         this.selected.emit(item.id);
+    }
+
+    private async openTmdbMatch(): Promise<void> {
+        const data = this.tmdbMatch();
+        if (!data || !this.runtime.isEnabled()) return;
+        const [dialog, component] = await Promise.all([
+            this.dialogs.resolve(),
+            import('../tmdb-match-dialog/tmdb-match-dialog.component'),
+        ]);
+        dialog.open(component.TmdbMatchDialogComponent, {
+            ...dialogSize('lg'),
+            data,
+            autoFocus: 'input',
+        });
     }
 
     onOverlayKeydown(event: KeyboardEvent): void {

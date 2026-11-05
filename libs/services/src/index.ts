@@ -2,6 +2,7 @@ export * from './lib/catalog-title-match.service';
 export * from './lib/cross-portal-similar.service';
 export * from './lib/data.service';
 export * from './lib/host-connectivity-reset';
+export * from './lib/lazy-snack-bar/lazy-snack-bar';
 export * from './lib/database-electron.service';
 export * from './lib/downloads.service';
 export * from './lib/recordings.service';
@@ -24,6 +25,7 @@ export * from './lib/stream-probe.service';
 export * from './lib/vod-source-pin.service';
 
 export * from './lib/epg-source-settings.service';
+export * from './lib/epg-preferences.service';
 
 export * from './lib/xtream-connection-test.service';
 export * from './lib/xtream-connection-test-state';
@@ -33,3 +35,6 @@ export * from './lib/source-health-evidence.service';
 export * from './lib/source-activity.service';
 export * from './lib/translation-tick';
 export * from './lib/user-data-storage';
+export * from './lib/server-storage-status.service';
+export * from './lib/server-access-token';
+export * from './lib/server-slow-start';

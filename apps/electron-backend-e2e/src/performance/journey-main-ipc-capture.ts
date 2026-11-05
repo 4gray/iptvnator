@@ -23,6 +23,15 @@ import type { JourneyIpcTimelineEvent } from './journey-ipc-serial-depth';
 /** Literal of `DEBUG_TRACE_EVENT_CHANNEL` in `services/debug-trace.ts`. */
 export const JOURNEY_RENDERER_API_TRACE_CHANNEL = 'IPTVNATOR_DEBUG_TRACE_EVENT';
 export const JOURNEY_MAIN_IPC_STATE_KEY = '__iptvnatorJourneyMainIpcCapture';
+/** Entries kept in `log`; a launch is a few hundred events. */
+export const JOURNEY_MAIN_IPC_LOG_LIMIT = 5_000;
+
+export interface JourneyIpcLogEvent {
+    /** Main-process `Date.now()` when the trace event arrived. */
+    readonly epochMs: number;
+    readonly method: string;
+    readonly phase: 'end' | 'start';
+}
 
 export interface JourneyMainIpcCaptureOptions {
     readonly channel: string;
@@ -59,6 +68,16 @@ export interface JourneyMainIpcCaptureState {
      */
     readonly inFlightByMethod: Record<string, number>;
     readonly installedEpochMs: number;
+    /**
+     * Every bridge start and completion in arrival order with its arrival
+     * epoch, from install until the capture is read, markers included.
+     * Unlike `timeline` it is not bounded by the sentinel, so a journey can
+     * time calls that complete after its terminal moment (`launch-large`
+     * times the playlist metadata and playback position reads with it).
+     * Capped at `JOURNEY_MAIN_IPC_LOG_LIMIT`; `logDropped` counts the rest.
+     */
+    readonly log: JourneyIpcLogEvent[];
+    readonly logDropped: number;
     readonly malformedEvents: number;
     readonly processStartEpochMs: number;
     readonly senderIds: number[];
@@ -79,6 +98,7 @@ export async function installJourneyMainIpcCapture(
     electronApp: ElectronApplication,
     options: JourneyMainIpcCaptureOptions
 ): Promise<void> {
+    const input = { ...options, logLimit: JOURNEY_MAIN_IPC_LOG_LIMIT };
     await electronApp.evaluate(({ ipcMain }, input) => {
         const target = globalThis as unknown as Record<string, unknown>;
         if (target[input.stateKey] !== undefined) {
@@ -92,6 +112,12 @@ export async function installJourneyMainIpcCapture(
             callsBeforeSentinel: 0,
             callsByMethod: {} as Record<string, number>,
             installedEpochMs: Date.now(),
+            log: [] as {
+                epochMs: number;
+                method: string;
+                phase: 'end' | 'start';
+            }[],
+            logDropped: 0,
             malformedEvents: 0,
             processStartEpochMs: Date.now() - process.uptime() * 1000,
             inFlightByMethod: {} as Record<string, number>,
@@ -118,6 +144,13 @@ export async function installJourneyMainIpcCapture(
             }
         };
         target[input.stateKey] = state;
+        const logEvent = (method: string, phase: 'end' | 'start'): void => {
+            if (state.log.length < input.logLimit) {
+                state.log.push({ epochMs: Date.now(), method, phase });
+            } else {
+                state.logDropped += 1;
+            }
+        };
         // Calls in flight per method, split by whether their start is in
         // the timeline. Completions carry no call id, so only these counts
         // decide whether a completion belongs to the timeline.
@@ -148,6 +181,7 @@ export async function installJourneyMainIpcCapture(
                 (state.start === null || state.start.receivedEpochMs !== null);
             if (phase === 'success' || phase === 'error') {
                 const method = record['method'];
+                logEvent(method, 'end');
                 const inTimeline = timelineInFlight[method] ?? 0;
                 const outside = outsideInFlight[method] ?? 0;
                 if (inTimeline > 0 && outside > 0) {
@@ -178,6 +212,7 @@ export async function installJourneyMainIpcCapture(
             if (phase !== 'start') {
                 return;
             }
+            logEvent(record['method'], 'start');
             // Sentinels included: their completions arrive like any other.
             state.inFlightByMethod[record['method']] =
                 (state.inFlightByMethod[record['method']] ?? 0) + 1;
@@ -237,7 +272,7 @@ export async function installJourneyMainIpcCapture(
         target[`${input.stateKey}:detach`] = () => {
             ipcMain.removeListener(input.channel, listener);
         };
-    }, options);
+    }, input);
 }
 
 /**

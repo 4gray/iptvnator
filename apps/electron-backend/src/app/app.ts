@@ -45,6 +45,7 @@ import {
     requestFullScreen,
     trackNativeFullScreen,
 } from './services/native-fullscreen-transitions';
+import { attachWindowBackGestures } from './services/window-back-gestures';
 
 const externalBrowserProtocols = new Set(['http:', 'https:']);
 const trustedDevRendererHosts = new Set([
@@ -543,6 +544,9 @@ export default class App {
         );
         attachWindowTrace(App.mainWindow);
         App.attachWindowStateEvents(App.mainWindow);
+        // Mouse Back buttons and Browser Back (Windows/Linux) and the
+        // trackpad swipe (macOS) run the workspace header's Back.
+        attachWindowBackGestures(App.mainWindow);
         // Seeds the F11 tracker's fullscreen state now, while no transition
         // can be in flight; from here on it follows the window's events.
         trackNativeFullScreen(App.mainWindow);

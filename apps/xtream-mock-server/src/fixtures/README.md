@@ -10,6 +10,13 @@ Regenerate from the repository root with FFmpeg:
 ffmpeg -f lavfi -i testsrc2=size=160x90:rate=25 -f lavfi -i sine=frequency=440:sample_rate=48000 -t 6 -c:v libx264 -preset ultrafast -pix_fmt yuv420p -g 25 -c:a aac -b:a 48k -f mpegts apps/xtream-mock-server/src/fixtures/live.mpegts
 ```
 
-The mock returns the fixture only for synthetic live-format account media;
+`episode.mkv` is sixty seconds of the same pattern, H.264 only, keyframes every
+second, played by the `streamdrop` account's episodes:
+
+```sh
+ffmpeg -f lavfi -i testsrc2=size=160x90:rate=10 -t 60 -c:v libx264 -preset veryslow -crf 40 -pix_fmt yuv420p -g 10 -fflags +bitexact -flags:v +bitexact -map_metadata -1 apps/xtream-mock-server/src/fixtures/episode.mkv
+```
+
+The mock returns `live.mpegts` only for synthetic live-format account media;
 manifest and denied-segment routes return controlled 200/403 responses. Web and
 Electron E2E tests check advancing playback, not HTTP status alone.

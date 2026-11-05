@@ -1,0 +1,141 @@
+---
+title: 'Got a Dreambox or Enigma2 receiver? Give it a new job with Dreaminator'
+description: 'Meet Dreaminator, my companion project for Enigma2: organize IPTV channels in a browser, send them to your receiver, and watch with the remote you already use.'
+pubDate: 2026-11-02
+author: 4gray
+featured: false
+heroImage: /iptvnator/blog/dreaminator/live-tv.webp
+tags: ['m3u', 'stalker-portal', 'epg']
+draft: false
+---
+
+import { Image, getImage } from 'astro:assets';
+import BlogImageSlider from '../../components/blog/BlogImageSlider.astro';
+import ImageGallery from '../../components/blog/ImageGallery.astro';
+import webAdd from '../../assets/blog/dreaminator/web-add-source.png';
+import webChannels from '../../assets/blog/dreaminator/web-channels.png';
+import movies from '../../assets/blog/dreaminator/movies.png';
+import movieDetails from '../../assets/blog/dreaminator/movie-details.png';
+import episodes from '../../assets/blog/dreaminator/episodes.png';
+import favorites from '../../assets/blog/dreaminator/favorites.png';
+import search from '../../assets/blog/dreaminator/search.png';
+
+export const libraryImages = await Promise.all(
+    [
+        {
+            image: movies,
+            alt: 'Dreaminator TV interface preview with movie categories and a grid of demo posters',
+            caption: 'Browse films by category.',
+        },
+        {
+            image: movieDetails,
+            alt: 'Dreaminator TV interface preview of a film description with Watch and Favorite controls',
+            caption: 'Open a film for its description and playback controls.',
+        },
+        {
+            image: episodes,
+            alt: 'Dreaminator TV interface preview with two seasons and a selectable episode list',
+            caption: 'Choose a season, then an episode.',
+        },
+    ].map(async ({ image, ...text }) => ({
+        ...text,
+        src: (await getImage({ src: image, width: 1440, format: 'webp' })).src,
+    }))
+);
+
+export const savedImages = await Promise.all(
+    [
+        {
+            image: favorites,
+            alt: 'Dreaminator TV interface preview of favorite demo films and series',
+            caption: 'Favorites keep saved items close to hand.',
+        },
+        {
+            image: search,
+            alt: 'Dreaminator TV interface preview with an on-screen search keyboard and three matching demo films',
+            caption: 'Search within the current source using the remote.',
+        },
+    ].map(async ({ image, ...text }) => ({
+        ...text,
+        src: (await getImage({ src: image, width: 1440, format: 'webp' })).src,
+    }))
+);
+
+If you have a Dreambox or a compatible Enigma2 receiver at home, you already have a box beside the TV, a remote, and a way to play video. Dreaminator adds a way to organize your IPTV sources around that setup.
+
+I've been working on [Dreaminator](https://github.com/4gray/dreaminator), a small companion project to IPTVnator, for exactly that setup. You organize things on a tablet, phone or computer, then put it down and watch on the TV with your usual remote. My Dreambox DM520 and Vu+ Uno 4K SE are the two receivers I've tested; other models and images still need checking.
+
+Dreaminator has two parts running on the receiver: a small Go service that serves the web interface, and a native Python plugin for Enigma2 that draws the TV screens. The browser is on your other device. You don't need a browser on the receiver itself.
+
+If you use IPTVnator, the source types and the idea of bringing your own playlists will feel familiar. Dreaminator is a simpler, standalone project built around Enigma2. It doesn't bring the whole IPTVnator feature set to a receiver, and it doesn't sync your library or settings between the two apps.
+
+The web screenshots below use demo data. The TV interface previews, including the image above, use English demonstration labels; the app currently uses Russian labels.
+
+> Dreaminator is a player and playlist manager. It doesn't supply content, channels, subscriptions or access credentials. You connect your own sources and are responsible for having the necessary rights or permission and following applicable laws and your provider's terms.
+
+## From your browser to the channel list
+
+Once installed, open `http://<receiver-address>:8088` from another device on your home network. The plugin's Settings screen also has a QR code for that address. There's no web login, so keep it on a trusted home network and don't expose that port to the internet.
+
+Start by adding a source under Playlists. Live TV works with an **M3U URL or file, an Xtream Codes account, or a Stalker/Ministra portal**. You can add an XMLTV guide as well.
+
+<figure>
+    <Image
+        src={webAdd}
+        alt="Dreaminator web interface on a tablet-sized screen, with the Add playlist dialog offering M3U URL, M3U file, Xtream and Stalker"
+        width={1200}
+        format="webp"
+        loading="lazy"
+    />
+    <figcaption>
+        Add a source in the browser. Here, the M3U URL form is open.
+    </figcaption>
+</figure>
+
+Next, choose the groups or individual channels you want. A star adds a channel to a list, or you can turn a whole group into its own list. Under My lists, drag channels into the order that makes sense for your household. You don't have to bring the provider's entire channel lineup to the TV.
+
+<figure>
+    <Image
+        src={webChannels}
+        alt="Dreaminator web channel selector on a tablet-sized screen, with stars beside selected demo channels"
+        width={1200}
+        format="webp"
+        loading="lazy"
+    />
+    <figcaption>Choose individual channels or keep a whole group.</figcaption>
+</figure>
+
+When you're happy with the lists, select **Send to TV**. They become ordinary Enigma2 bouquets — the receiver's named channel lists — alongside your satellite channels. From there, changing channels works the way it always has. Adding a source alone doesn't create bouquets; sending your chosen lists does.
+
+OpenWebif is needed for receiver controls, including reloading bouquets and tuning. For programme information in the receiver's usual bouquets and infobar, install and configure **EPGImport** too. The [installation guide](https://github.com/4gray/dreaminator/blob/main/docs/installation.md) walks through both.
+
+## Watching with the remote
+
+You can stay in the receiver's normal channel list, or open Dreaminator from Plugins for its own Live TV view. That view brings together channels, what's on now, what's next and the programme guide. It can browse the source even if you haven't sent any lists to the TV.
+
+For films and series, the plugin has a poster catalog, descriptions, seasons and episode lists. **These currently work with Stalker/Ministra sources only.** M3U and Xtream movies and series are still planned, so a source that works for live channels doesn't necessarily give you a movie library here.
+
+<BlogImageSlider images={libraryImages} />
+
+Hold OK to save an item to Favorites. Recents help you find something you've opened before, and the on-screen keyboard searches within the current source. Recents record what you launched; playback resume, watched tracking and automatic next-episode playback are still planned, as are downloads and cross-source search.
+
+<ImageGallery images={savedImages} columns={2} />
+
+Catch-up is available for supported **M3U archive modes**, where the source actually retains the programme. You can open it from the guide or the Dreaminator Archive entry in a receiver channel list. Xtream-account and Stalker catch-up are planned; the supported M3U archive mode named `xc` doesn't mean Xtream account archives are implemented.
+
+Streams go directly to Enigma2's player. Dreaminator doesn't transcode them, so whether a particular stream plays, and how audio, subtitles or seeking behave, depends on the receiver, its image and the source.
+
+## Trying it on a receiver
+
+[Dreaminator 0.11.2](https://github.com/4gray/dreaminator/releases/tag/v0.11.2), published on October 31, is the current stable release. These are the combinations I've tested on real hardware:
+
+| Receiver and image                     | Package                                                       |
+| -------------------------------------- | ------------------------------------------------------------- |
+| Dreambox DM520 · OpenHDF 6.4 build 137 | `dreaminator_0.11.2_all.ipk` — MIPS little-endian, soft-float |
+| Vu+ Uno 4K SE · openATV 7.5            | `dreaminator_0.11.2_vuuno4kse.ipk` — 32-bit ARMv7             |
+
+The Dreambox package's `_all` name is historical: it contains a MIPS executable and isn't universal. The Vu+ needs its separate ARM package. Other Enigma2 models and firmware images are unverified, and you don't need to reflash a working receiver just to match these test setups.
+
+Download the matching IPK, follow the [current installation instructions](https://github.com/4gray/dreaminator/blob/main/docs/installation.md), and restart the Enigma2 GUI when prompted. Then open the web interface, add one source and try a few channels before organizing the rest.
+
+The [full screenshot gallery](https://github.com/4gray/dreaminator/blob/main/docs/screenshots.md) has more TV views, and the [repository](https://github.com/4gray/dreaminator) has the code, roadmap and issue tracker. If you try it on another receiver, I'd like to hear how it goes. Include the model, image/build and Dreaminator version, along with what worked or failed. Please leave provider credentials and stream URLs out of your report.

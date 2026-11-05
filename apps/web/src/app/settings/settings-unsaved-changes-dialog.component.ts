@@ -3,6 +3,10 @@ import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
+import {
+    DialogFooterDirective,
+    DialogShellComponent,
+} from '@iptvnator/ui/components';
 
 /** What the user picked; closing via backdrop/Esc yields `undefined` = stay. */
 export type SettingsUnsavedChangesChoice = 'save' | 'discard';
@@ -19,9 +23,20 @@ export interface SettingsUnsavedChangesDialogData {
  * choice. Labels are single verbs so the row fits one line in every locale.
  */
 @Component({
-    imports: [MatButtonModule, MatDialogModule, MatIconModule, TranslateModule],
+    imports: [
+        DialogFooterDirective,
+        DialogShellComponent,
+        MatButtonModule,
+        MatDialogModule,
+        MatIconModule,
+        TranslateModule,
+    ],
     styles: [
         `
+            .unsaved-dialog__message {
+                margin: 0;
+            }
+
             .unsaved-dialog__invalid-hint {
                 display: flex;
                 align-items: center;
@@ -36,31 +51,19 @@ export interface SettingsUnsavedChangesDialogData {
                     height: 18px;
                 }
             }
-
-            /* Phone breakpoint: one full-width action per row, in DOM order,
-               instead of letting a long translation wrap the row unevenly. */
-            @media (max-width: 640px) {
-                .unsaved-dialog__actions {
-                    flex-direction: column;
-                    align-items: stretch;
-                    gap: 8px;
-                }
-
-                .unsaved-dialog__actions
-                    .mat-mdc-button-base
-                    + .mat-mdc-button-base {
-                    margin: 0;
-                }
-            }
         `,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
+    // The shell stacks the three actions on a phone, one full-width button
+    // per row in DOM order, so a long translation never wraps the row.
     template: `
-        <h2 mat-dialog-title>
-            {{ 'SETTINGS.UNSAVED_DIALOG_TITLE' | translate }}
-        </h2>
-        <mat-dialog-content class="mat-typography">
-            <p>{{ 'SETTINGS.UNSAVED_DIALOG_MESSAGE' | translate }}</p>
+        <app-dialog-shell
+            icon="edit_note"
+            [heading]="'SETTINGS.UNSAVED_DIALOG_TITLE' | translate"
+        >
+            <p class="unsaved-dialog__message">
+                {{ 'SETTINGS.UNSAVED_DIALOG_MESSAGE' | translate }}
+            </p>
             @if (!data.canSave) {
                 <p class="unsaved-dialog__invalid-hint">
                     <mat-icon>error_outline</mat-icon>
@@ -69,34 +72,33 @@ export interface SettingsUnsavedChangesDialogData {
                     }}</span>
                 </p>
             }
-        </mat-dialog-content>
-        <mat-dialog-actions align="end" class="unsaved-dialog__actions">
-            <button
-                mat-button
-                mat-dialog-close
-                cdkFocusInitial
-                data-test-id="unsaved-dialog-stay"
-            >
-                {{ 'CANCEL' | translate }}
-            </button>
-            <button
-                mat-button
-                class="app-destructive-button"
-                [mat-dialog-close]="'discard'"
-                data-test-id="unsaved-dialog-discard"
-            >
-                {{ 'SETTINGS.UNSAVED_DIALOG_DISCARD' | translate }}
-            </button>
-            <button
-                mat-flat-button
-                color="primary"
-                [disabled]="!data.canSave"
-                [mat-dialog-close]="'save'"
-                data-test-id="unsaved-dialog-save"
-            >
-                {{ 'SETTINGS.UNSAVED_DIALOG_SAVE' | translate }}
-            </button>
-        </mat-dialog-actions>
+            <div appDialogFooter class="unsaved-dialog__actions">
+                <button
+                    mat-button
+                    mat-dialog-close
+                    cdkFocusInitial
+                    data-test-id="unsaved-dialog-stay"
+                >
+                    {{ 'CANCEL' | translate }}
+                </button>
+                <button
+                    mat-button
+                    class="app-destructive-button"
+                    [mat-dialog-close]="'discard'"
+                    data-test-id="unsaved-dialog-discard"
+                >
+                    {{ 'SETTINGS.UNSAVED_DIALOG_DISCARD' | translate }}
+                </button>
+                <button
+                    mat-flat-button
+                    [disabled]="!data.canSave"
+                    [mat-dialog-close]="'save'"
+                    data-test-id="unsaved-dialog-save"
+                >
+                    {{ 'SETTINGS.UNSAVED_DIALOG_SAVE' | translate }}
+                </button>
+            </div>
+        </app-dialog-shell>
     `,
 })
 export class SettingsUnsavedChangesDialogComponent {

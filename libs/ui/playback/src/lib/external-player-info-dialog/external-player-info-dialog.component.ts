@@ -5,62 +5,62 @@ import { MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
+import {
+    DialogFooterDirective,
+    DialogFooterStartDirective,
+    DialogShellComponent,
+} from '@iptvnator/ui/components';
 
 @Component({
     template: `
-        <h2 mat-dialog-title>{{ 'INFORMATION' | translate }}</h2>
-        <mat-dialog-content class="mat-typography">
-            <div class="centered">
-                <mat-icon class="icon">live_tv</mat-icon>
-                <div>
-                    {{ 'EXTERNAL_PLAYER.INFO_DIALOG.PLAYING' | translate
-                    }}<br />
-                    {{ 'EXTERNAL_PLAYER.INFO_DIALOG.INSTALL_HINT' | translate
-                    }}<br />
-                    <a
-                        [routerLink]
-                        style="cursor: pointer"
-                        (click)="
-                            openUrl(
-                                'https://github.com/4gray/iptvnator/wiki/What-is-mpv-video-player-and-how-to-install-it-on-different-operating-systems%3F'
-                            )
-                        "
-                        >{{
-                            'EXTERNAL_PLAYER.INFO_DIALOG.INSTALL_INSTRUCTIONS'
-                                | translate
-                        }}</a
-                    >
-                </div>
-            </div>
-        </mat-dialog-content>
-        <mat-dialog-actions style="justify-content: space-between;">
-            <div>
+        <app-dialog-shell icon="live_tv" [heading]="'INFORMATION' | translate">
+            <p class="external-player-info">
+                {{ 'EXTERNAL_PLAYER.INFO_DIALOG.PLAYING' | translate }}<br />
+                {{ 'EXTERNAL_PLAYER.INFO_DIALOG.INSTALL_HINT' | translate
+                }}<br />
+                <a
+                    [routerLink]
+                    class="external-player-info__link"
+                    (click)="
+                        openUrl(
+                            'https://github.com/4gray/iptvnator/wiki/What-is-mpv-video-player-and-how-to-install-it-on-different-operating-systems%3F'
+                        )
+                    "
+                    >{{
+                        'EXTERNAL_PLAYER.INFO_DIALOG.INSTALL_INSTRUCTIONS'
+                            | translate
+                    }}</a
+                >
+            </p>
+            <div appDialogFooterStart>
                 <mat-checkbox (change)="setVisibility($event.checked)">{{
                     'EXTERNAL_PLAYER.INFO_DIALOG.DONT_SHOW_AGAIN' | translate
                 }}</mat-checkbox>
             </div>
-            <button mat-button mat-dialog-close cdkFocusInitial>
-                {{ 'CLOSE' | translate }}
-            </button>
-        </mat-dialog-actions>
+            <div appDialogFooter>
+                <button mat-button mat-dialog-close cdkFocusInitial>
+                    {{ 'CLOSE' | translate }}
+                </button>
+            </div>
+        </app-dialog-shell>
     `,
     styles: [
         `
-            .centered {
-                text-align: center;
-                line-height: 24px;
-                margin: 20px;
+            .external-player-info {
+                margin: 0;
+                line-height: 1.6;
+            }
 
-                .icon {
-                    font-size: 64px;
-                    height: 64px;
-                    width: 64px;
-                }
+            .external-player-info__link {
+                cursor: pointer;
             }
         `,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        DialogFooterDirective,
+        DialogFooterStartDirective,
+        DialogShellComponent,
         MatButtonModule,
         MatCheckboxModule,
         MatDialogModule,

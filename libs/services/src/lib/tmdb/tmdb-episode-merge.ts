@@ -4,6 +4,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { tmdbStillUrl } from './tmdb-config';
 import { TmdbEpisode } from './tmdb.types';
+import { isGenericEpisodeTitle } from '@iptvnator/shared/tmdb';
 
 /**
  * Field-level merge of TMDB season data into an episode list (shared by
@@ -15,15 +16,6 @@ import { TmdbEpisode } from './tmdb.types';
  * counterpart pass through untouched, so partial/missing TMDB data can
  * never degrade the list.
  */
-
-/** Provider titles like "Episode 4", "4", "S01E04" carry no information */
-const GENERIC_EPISODE_TITLE =
-    /^(?:episode\s*\d+|серия\s*\d+|\d+|s\d{1,2}\s*e\d{1,3})$/i;
-
-function isGenericEpisodeTitle(title: string | undefined | null): boolean {
-    const trimmed = title?.trim() ?? '';
-    return trimmed === '' || GENERIC_EPISODE_TITLE.test(trimmed);
-}
 
 function episodeInfoOf(
     episode: XtreamSerieEpisode

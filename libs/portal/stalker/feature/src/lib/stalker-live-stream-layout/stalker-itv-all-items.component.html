@@ -1,0 +1,140 @@
+<div class="category-content-header">
+    @if (sidebarCollapsed()) {
+        <button
+            #restoreButton
+            type="button"
+            mat-icon-button
+            class="overview-restore"
+            [attr.aria-label]="'LAYOUT.SHOW_PANELS' | translate"
+            [matTooltip]="'LAYOUT.SHOW_PANELS_TOOLTIP' | translate"
+            (click)="restorePanels.emit()"
+        >
+            <mat-icon>chevron_right</mat-icon>
+        </button>
+    }
+    <div class="category-meta">
+        <h2 class="category-title">
+            {{ 'CHANNELS.ALL_CHANNELS' | translate }}
+        </h2>
+        @if (!loading() && filteredChannels().length > 0) {
+            <span class="category-subtitle">{{
+                filteredChannels().length
+            }}</span>
+        }
+    </div>
+    <mat-button-toggle-group
+        class="view-toggle"
+        [value]="viewMode()"
+        [attr.aria-label]="'CHANNELS.ALL_CHANNELS' | translate"
+        hideSingleSelectionIndicator
+        (change)="setViewMode($event.value)"
+    >
+        <mat-button-toggle
+            value="grid"
+            data-view-mode="grid"
+            [aria-label]="'PORTALS.GRID_VIEW' | translate"
+        >
+            <mat-icon>grid_view</mat-icon
+            ><span>{{ 'PORTALS.GRID_VIEW' | translate }}</span>
+        </mat-button-toggle>
+        <mat-button-toggle
+            value="list"
+            data-view-mode="list"
+            [aria-label]="'PORTALS.LIST_VIEW' | translate"
+        >
+            <mat-icon>view_list</mat-icon
+            ><span>{{ 'PORTALS.LIST_VIEW' | translate }}</span>
+        </mat-button-toggle>
+    </mat-button-toggle-group>
+</div>
+@if (loading()) {
+    <div class="all-items-progress" role="status">
+        <mat-spinner diameter="14" aria-hidden="true" />
+        <span>{{ 'PORTALS.LOADING_ALL_CHANNELS' | translate }}</span>
+        @if (progress(); as loadProgress) {
+            <span class="all-items-progress__count"
+                >{{ loadProgress.loaded }}/{{ loadProgress.total }}</span
+            >
+        }
+    </div>
+}
+<div
+    #scrollContainer
+    class="all-items-content app-scrollbar"
+    appInfiniteScroll
+    [attr.aria-busy]="loading()"
+    [infiniteHasMore]="hasMoreItems()"
+    [infiniteItemCount]="visibleChannels().length"
+    [infiniteResetKey]="searchTerm() + ':' + viewMode()"
+    [infiniteAppending]="loading()"
+    (infiniteLoadMore)="loadMore()"
+    (scroll)="previewRefreshRequested.emit()"
+>
+    @if (viewMode() === 'grid') {
+        <app-grid-list
+            class="all-items-grid"
+            [isLoading]="loading()"
+            [items]="visibleGridItems()"
+            [searchTerm]="searchTerm()"
+            [showEpg]="showEpg()"
+            [epgLoading]="epgLoading()"
+            [activateOnDoubleClick]="settingsStore.openStreamOnDoubleClick()"
+            variant="logo"
+            type="live"
+            (itemClicked)="onItemClicked($event)"
+        />
+    } @else if (loading()) {
+        <app-channel-list-skeleton
+            [count]="12"
+            [showEpg]="showEpg()"
+            [actionCount]="0"
+        />
+    } @else {
+        <div class="all-items-list">
+            @for (channel of visibleChannels(); track channel.id) {
+                @let program = epgPrograms().get('' + channel.id);
+                <app-channel-list-item
+                    [name]="
+                        channel.o_name ||
+                        channel.name ||
+                        ('CHANNELS.UNNAMED_CHANNEL' | translate)
+                    "
+                    [logo]="channel.logo"
+                    [showEpg]="showEpg()"
+                    [epgProgram]="program"
+                    [progressPercentage]="
+                        epgProgress().get('' + channel.id) ?? 0
+                    "
+                    [statusLabel]="
+                        showEpg() && epgLoading() && !program
+                            ? ('LOADING' | translate)
+                            : ''
+                    "
+                    [showProgramInfoButton]="false"
+                    (clicked)="onChannelClicked(channel)"
+                    (activated)="channelActivated.emit(channel)"
+                    (keyboardActivated)="channelActivated.emit(channel)"
+                />
+            } @empty {
+                <app-playlist-error-view
+                    [title]="
+                        (searchTerm()
+                            ? 'PORTALS.SEARCH_VIEW.NO_RESULTS_FOR'
+                            : 'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.TITLE'
+                        ) | translate: { term: searchTerm() }
+                    "
+                    [description]="
+                        (searchTerm()
+                            ? 'PORTALS.EMPTY_LIST_VIEW.NO_SEARCH_RESULTS'
+                            : 'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.DESCRIPTION'
+                        ) | translate
+                    "
+                    [showActionButtons]="false"
+                    [viewType]="
+                        searchTerm() ? 'NO_SEARCH_RESULTS' : 'EMPTY_CATEGORY'
+                    "
+                />
+            }
+        </div>
+    }
+</div>

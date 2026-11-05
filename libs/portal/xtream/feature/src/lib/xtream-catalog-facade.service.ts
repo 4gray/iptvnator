@@ -4,10 +4,12 @@ import {
     PortalCatalogItemProgress,
     PortalCatalogPlaylistMeta,
     PortalCatalogSortMode,
+    PortalWatchStateFilter,
     PORTAL_CATALOG_FACADE,
     resolvePortalSeriesWatchState,
     watchStateFromProgressPercent,
 } from '@iptvnator/portal/shared/util';
+import { createLogger } from '@iptvnator/portal/shared/util/logger';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 
 const SORT_STORAGE_KEY = 'xtream-category-sort-mode';
@@ -30,7 +32,7 @@ export class XtreamCatalogFacadeService implements PortalCatalogFacade<
     unknown
 > {
     private readonly xtreamStore = inject(XtreamStore);
-    private loadedPositionsPlaylistId: string | null = null;
+    private readonly logger = createLogger('XtreamCatalogFacade');
 
     readonly provider = 'xtream' as const;
     readonly contentType = this.xtreamStore.selectedContentType;
@@ -48,7 +50,12 @@ export class XtreamCatalogFacadeService implements PortalCatalogFacade<
             return null;
         }
         const category = this.selectedCategory();
-        return String(category?.['name'] ?? category?.['title'] ?? '');
+        return String(
+            category?.['name'] ??
+                category?.['title'] ??
+                category?.['category_name'] ??
+                ''
+        );
     });
     readonly categoryItemCount = computed(
         () => this.xtreamStore.selectItemsFromSelectedCategory().length
@@ -64,6 +71,25 @@ export class XtreamCatalogFacadeService implements PortalCatalogFacade<
         const type = this.contentType();
         return type === 'vod' || type === 'series';
     }
+    get supportsWatchStateFilter(): boolean {
+        return this.contentType() === 'vod';
+    }
+    readonly watchStateFilter = computed<PortalWatchStateFilter>(() =>
+        this.supportsWatchStateFilter
+            ? this.xtreamStore.watchStateFilter()
+            : null
+    );
+    readonly watchFilterLoadState = computed(() => {
+        if (
+            !this.supportsWatchStateFilter ||
+            !this.xtreamStore.currentPlaylist()?.id ||
+            this.xtreamStore.positionsPlaylistId() !==
+                this.xtreamStore.currentPlaylist()?.id
+        )
+            return 'idle';
+        return this.xtreamStore.positionsLoadState();
+    });
+
     readonly minRating = computed(() =>
         this.supportsRatingSort ? this.xtreamStore.minRating() : null
     );
@@ -85,15 +111,9 @@ export class XtreamCatalogFacadeService implements PortalCatalogFacade<
             this.setContentSortMode(savedSortMode);
         }
 
-        const playlistId = this.xtreamStore.currentPlaylist()?.id;
-        if (playlistId && this.loadedPositionsPlaylistId !== playlistId) {
-            this.loadedPositionsPlaylistId = playlistId;
-            // A failed initial load leaves the maps empty (same as before);
-            // the read now rejects instead of masquerading as empty.
-            void this.xtreamStore.loadAllPositions(playlistId).catch(() => {
-                this.loadedPositionsPlaylistId = null;
-            });
-        }
+        // Every genuine catalog entry (including Back from inline playback)
+        // refreshes persisted progress. Filtering and append remain memory-only.
+        this.refreshPositions();
 
         this.clearSelectedItem();
 
@@ -143,6 +163,26 @@ export class XtreamCatalogFacadeService implements PortalCatalogFacade<
         }
 
         this.xtreamStore.setMinRating(value);
+    }
+
+    setWatchStateFilter(value: PortalWatchStateFilter): void {
+        if (this.supportsWatchStateFilter)
+            this.xtreamStore.setWatchStateFilter(value);
+    }
+
+    retryWatchFilterPositions(): void {
+        if (this.supportsWatchStateFilter) this.refreshPositions();
+    }
+
+    private refreshPositions(): void {
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        if (!playlistId) return;
+        void this.xtreamStore.loadAllPositions(playlistId).catch((error) => {
+            this.logger.warn(
+                'Failed to load catalog playback positions',
+                error
+            );
+        });
     }
 
     selectItem(item: Record<string, unknown>): string[] | null {

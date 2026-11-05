@@ -48,3 +48,20 @@ export function getPlaylistSourceIcon(
 ): string {
     return SOURCE_TYPE_ICONS[resolvePlaylistSourceIconKey(playlist)];
 }
+
+/** The provider family a stored playlist belongs to. */
+export type PlaylistSourceKind = 'm3u' | 'xtream' | 'stalker';
+
+/**
+ * The provider family by the same precedence as the icon, so every type
+ * filter, count and label agrees with the icon on the row: a playlist
+ * counted as Xtream is also listed and drawn as Xtream.
+ */
+export function resolvePlaylistSourceKind(
+    playlist: Pick<PlaylistMeta, 'macAddress' | 'serverUrl'>
+): PlaylistSourceKind {
+    if (playlist.macAddress) {
+        return 'stalker';
+    }
+    return playlist.serverUrl ? 'xtream' : 'm3u';
+}

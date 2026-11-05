@@ -92,6 +92,68 @@ describe('normalizeDownloadFilter', () => {
 });
 
 describe('buildDownloadManagerViewModel', () => {
+    it('keeps collection season knowledge when search hides the flagged member', () => {
+        const model = build(
+            [
+                download(1, {
+                    contentType: 'episode',
+                    seriesXtreamId: 77,
+                    seasonNumber: 9,
+                    episodeNumber: 1,
+                    title: 'Flat collection - S09E01 - Episode 1',
+                }),
+                download(2, {
+                    contentType: 'episode',
+                    seriesXtreamId: 77,
+                    seasonNumber: 9,
+                    episodeNumber: 189,
+                    title: 'Flat collection - E189 - Episode 189',
+                    metadataSnapshot: {
+                        version: 1,
+                        language: 'en',
+                        mediaKind: 'series',
+                        title: 'Flat collection',
+                        episode: {
+                            seasonNumber: 9,
+                            episodeNumber: 189,
+                            seasonUnknown: true,
+                        },
+                    },
+                }),
+            ],
+            { searchTerm: 'S09E01' }
+        );
+        const group = model.library[0];
+        if (group.kind !== 'series') throw new Error('Expected series card');
+        expect(group.members.map((item) => item.id)).toEqual([1]);
+        expect(group).toMatchObject({ seasonUnknown: true });
+        expect(group.firstSeason).toBeUndefined();
+        expect(group.lastSeason).toBeUndefined();
+    });
+    it('labels flat collection downloads without the internal season number', () => {
+        const model = build([
+            download(1, {
+                contentType: 'episode',
+                status: 'queued',
+                title: 'Flat collection - E189 - Episode 189',
+                seasonNumber: 9,
+                episodeNumber: 189,
+                metadataSnapshot: {
+                    version: 1,
+                    mediaKind: 'series',
+                    title: 'Flat collection',
+                    language: 'en',
+                    episode: {
+                        seasonNumber: 9,
+                        episodeNumber: 189,
+                        seasonUnknown: true,
+                    },
+                },
+            }),
+        ]);
+        expect(model.active[0].episodeLabel).toBe('E189');
+        expect(model.active[0].seriesTitle).toBe('Flat collection');
+    });
     it('supports global and playlist-scoped views with resolved source labels', () => {
         const downloads = [
             download(1, { status: 'queued' }),

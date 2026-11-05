@@ -1,4 +1,3 @@
-import { NgZone } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import {
     EmbeddedMpvSession,
@@ -132,27 +131,6 @@ describe('EmbeddedMpvSessionController position drift poll', () => {
         expect(electron.setEmbeddedMpvBounds).not.toHaveBeenCalled();
     });
 
-    it('registers the poll outside the Angular zone', async () => {
-        // With zone change detection, a zone-registered interval would run
-        // app-wide change detection every 500 ms for the whole stream.
-        const zone = TestBed.inject(NgZone);
-        const runOutsideAngular = jest.spyOn(zone, 'runOutsideAngular');
-
-        const controller = TestBed.inject(EmbeddedMpvSessionController);
-        const teardown = controller.startSession(
-            createHost(),
-            createPlayback(),
-            0.5
-        );
-        await waitFor(
-            () => controller.sessionId() === 'mpv-1',
-            'session to start'
-        );
-
-        expect(runOutsideAngular).toHaveBeenCalled();
-        teardown();
-    });
-
     it('skips drift measurement for the frame-copy engine', async () => {
         // Frame-copy paints into a DOM canvas that moves with the layout, so
         // a position-only shift needs no re-sync (size changes still arrive
@@ -162,9 +140,7 @@ describe('EmbeddedMpvSessionController position drift poll', () => {
             platform: 'linux',
             engine: 'frame-copy',
         });
-        electron.attachEmbeddedMpvFrameView = jest
-            .fn()
-            .mockResolvedValue(true);
+        electron.attachEmbeddedMpvFrameView = jest.fn().mockResolvedValue(true);
         electron.detachEmbeddedMpvFrameView = jest.fn();
 
         const rect = { left: 10, top: 20, width: 640, height: 360 };

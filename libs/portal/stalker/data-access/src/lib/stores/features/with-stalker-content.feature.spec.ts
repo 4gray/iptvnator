@@ -778,6 +778,30 @@ describe('withStalkerContent failure states', () => {
         expect(dataService.sendIpcEvent).toHaveBeenCalledTimes(2);
     });
 
+    it('joins retries during guard reset and drops a retry after category navigation', async () => {
+        store.setCurrentPlaylist(PLAYLIST);
+        store.setSelectedCategory('5');
+        let finish!: () => void;
+        dataService.sendIpcEvent.mockImplementation((event) =>
+            event === CONNECTIVITY_GUARD_RESET
+                ? new Promise<void>((resolve) => {
+                      finish = resolve;
+                  })
+                : Promise.resolve({ js: { data: [], total_items: 0 } })
+        );
+        const retry = store.retryContentPage();
+        await store.retryContentPage();
+        expect(dataService.sendIpcEvent).toHaveBeenCalledTimes(1);
+        expect(store.isContentRetrying()).toBe(true);
+        // A completed reset is permission to retry only the failed selection.
+        store.setSelectedCategory('other');
+        const reload = jest.spyOn(store.getContentResource, 'reload');
+        finish();
+        await retry;
+        expect(reload).not.toHaveBeenCalled();
+        expect(store.isContentRetrying()).toBe(false);
+    });
+
     it('keeps accumulated pages when an append fails and retries the same page', async () => {
         let failPageTwo = true;
         dataService.sendIpcEvent.mockImplementation(

@@ -16,6 +16,8 @@ services:
       # Server storage database on the /data volume. Set to "none" to keep
       # the backend stateless.
       IPTVNATOR_STORAGE: server
+      # Ask every browser for this token once before it shows the library.
+      # IPTVNATOR_ACCESS_TOKEN: change-me
     volumes:
       - iptvnator-data:/data
     healthcheck:

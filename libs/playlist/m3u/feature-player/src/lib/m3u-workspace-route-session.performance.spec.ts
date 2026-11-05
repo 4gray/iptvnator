@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
@@ -30,7 +31,11 @@ async function flushEffects(): Promise<void> {
 
 describe('M3uWorkspaceRouteSession performance phases', () => {
     const hookSymbol = Symbol.for(RENDERER_PERFORMANCE_PHASE_HOOK_KEY);
-    const store = { dispatch: jest.fn() };
+    const store = {
+        dispatch: jest.fn(),
+        select: jest.fn(() => of({})),
+        selectSignal: jest.fn(() => signal({})),
+    };
 
     beforeEach(() => {
         Object.defineProperty(window, 'electron', {

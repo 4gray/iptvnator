@@ -32,6 +32,7 @@ const PLAYLISTS_COLUMNS: readonly (readonly [
     ['detected_epg_urls', 'TEXT'],
     ['manual_epg_urls', 'TEXT'],
     ['disabled_epg_urls', 'TEXT'],
+    ['auto_import_epg', 'INTEGER'],
     ['autoRefresh', 'INTEGER DEFAULT 0'],
     ['macAddress', 'TEXT'],
     ['url', 'TEXT'],

@@ -1,65 +1,84 @@
 import { WorkspaceShellXtreamImportService } from '../workspace-shell/services/workspace-shell-xtream-import.service';
-import { Injector, viewChild } from '@angular/core';
-import { MatDialog } from '@angular/material/dialog';
 import {
-    SourceCleanupDialogComponent,
+    ChangeDetectionStrategy,
+    Component,
+    computed,
+    inject,
+    Injector,
+    viewChild,
+} from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
+import { ActivatedRoute } from '@angular/router';
+import { Store } from '@ngrx/store';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { map } from 'rxjs';
+import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
+import { dialogSize } from '@iptvnator/ui/components';
+import {
+    SourceStatusService,
+    sourceStatusBucket,
+} from '@iptvnator/portal/shared/data-access';
+import {
+    isLiveExternalPlayerSession,
+    PORTAL_EXTERNAL_PLAYBACK,
+} from '@iptvnator/portal/shared/util';
+import {
     PlaylistRefreshActionService,
+    RecentPlaylistsComponent,
+    SourceCleanupDialogComponent,
+    SourceRemovalService,
 } from '@iptvnator/playlist/shared/ui';
 import {
-    RuntimeCapabilitiesService,
-    SourceActivityService,
+    filterSources,
+    SourceBucketOf,
+    SourcesViewStateService,
+} from '@iptvnator/playlist/shared/util';
+import {
     injectTranslationTick,
+    RuntimeCapabilitiesService,
+    SortService,
+    SourceActivityService,
 } from '@iptvnator/services';
 import {
-    PORTAL_EXTERNAL_PLAYBACK,
-    isLiveExternalPlayerSession,
-} from '@iptvnator/portal/shared/util';
-import { PlaylistActions } from '@iptvnator/m3u-state';
+    PlaylistUpdateState,
+    sourceHealthType,
+} from '@iptvnator/shared/interfaces';
 import {
     MenuItemRadioCheckDirective,
     MenuItemRadioDirective,
 } from '@iptvnator/ui/components';
 import {
-    foldSearchText,
-    sourceHealthType,
-    PlaylistUpdateState,
-} from '@iptvnator/shared/interfaces';
-import {
-    Component,
-    computed,
-    inject,
-    ChangeDetectionStrategy,
-} from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule } from '@angular/material/menu';
-import { ActivatedRoute } from '@angular/router';
-import { Store } from '@ngrx/store';
-import { RecentPlaylistsComponent } from '@iptvnator/playlist/shared/ui';
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import {
-    selectActiveTypeFilters,
-    selectAllPlaylistsMeta,
-} from '@iptvnator/m3u-state';
-import { map } from 'rxjs';
-import { SortBy, SortOrder, SortService } from '@iptvnator/services';
-import {
     WORKSPACE_SHELL_ACTIONS,
     WorkspacePlaylistType,
 } from '@iptvnator/workspace/shell/util';
+import {
+    isSortOptionActive,
+    SOURCE_SORT_OPTIONS,
+    SourceSortOption,
+} from './workspace-sources-sort-options';
 
-interface SortOption {
-    by: SortBy;
-    order: SortOrder;
-    icon: string;
-    translationKey: string;
-}
+const TYPE_TITLE_KEYS = {
+    all: 'WORKSPACE.SOURCES.ALL_PLAYLISTS',
+    m3u: 'WORKSPACE.SOURCES.M3U_PLAYLISTS',
+    xtream: 'WORKSPACE.SOURCES.XTREAM_PLAYLISTS',
+    stalker: 'WORKSPACE.SOURCES.STALKER_PLAYLISTS',
+} as const;
 
+/**
+ * The Sources page: a 28px title with the visible count, Clean up (desktop,
+ * with a count of sources that do not respond) and the sort menu, above the
+ * list. The side list's filters live in `SourcesViewStateService`.
+ */
 @Component({
     selector: 'app-workspace-sources',
     imports: [
         MatButtonModule,
+        MatDividerModule,
         MatIconModule,
         MatMenuModule,
         MenuItemRadioCheckDirective,
@@ -68,12 +87,20 @@ interface SortOption {
         TranslatePipe,
     ],
     templateUrl: './workspace-sources.component.html',
-    changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrl: './workspace-sources.component.scss',
+    changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WorkspaceSourcesComponent {
     private readonly injector = inject(Injector);
+    private readonly route = inject(ActivatedRoute);
+    private readonly store = inject(Store);
+    private readonly translate = inject(TranslateService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly sortService = inject(SortService);
+    private readonly statusService = inject(SourceStatusService);
+    private readonly removal = inject(SourceRemovalService);
+    private readonly viewState = inject(SourcesViewStateService);
+    private readonly workspaceActions = inject(WORKSPACE_SHELL_ACTIONS);
     private readonly playback = inject(PORTAL_EXTERNAL_PLAYBACK, {
         optional: true,
     });
@@ -81,20 +108,103 @@ export class WorkspaceSourcesComponent {
         optional: true,
     });
     private readonly sourceList = viewChild(RecentPlaylistsComponent);
+    private readonly languageTick = injectTranslationTick();
+
+    readonly sortOptions = SOURCE_SORT_OPTIONS;
+    readonly showFailingFirst = this.statusService.supportsStatusFilter;
+    private readonly currentSort = toSignal(this.sortService.getSortOptions(), {
+        requireSync: true,
+    });
+    readonly searchQuery = toSignal(
+        this.route.queryParamMap.pipe(map((params) => params.get('q') ?? '')),
+        { initialValue: '' }
+    );
+
+    private readonly allPlaylists = this.store.selectSignal(
+        selectAllPlaylistsMeta
+    );
+    private readonly playlists = computed(() => {
+        const pending = this.removal.pendingIds();
+        return this.allPlaylists().filter((p) => !pending.has(p._id));
+    });
+    private readonly bucketOf: SourceBucketOf = (playlist) => {
+        const status = this.statusService.statusOf(playlist);
+        return status ? sourceStatusBucket(status.reachability) : null;
+    };
+
+    readonly hasPlaylists = computed(() => this.playlists().length > 0);
+    readonly visibleCount = computed(() => {
+        const filter = this.viewState.filter();
+        return filterSources(
+            this.playlists(),
+            this.showFailingFirst ? filter : { ...filter, status: 'all' },
+            this.searchQuery(),
+            this.bucketOf
+        ).length;
+    });
+    readonly title = computed(() => {
+        this.languageTick();
+        const filter = this.viewState.filter();
+        const key =
+            this.showFailingFirst && filter.status === 'bad'
+                ? 'WORKSPACE.SOURCES.STATUS_BAD'
+                : TYPE_TITLE_KEYS[filter.type];
+        return this.translate.instant(key);
+    });
+
     readonly canCleanSources = computed(
         () =>
             this.runtime.supportsSourceHealth &&
             this.playlists().some((p) => sourceHealthType(p))
     );
+    /** Sources last seen not responding, across every filter. */
+    readonly failingCount = computed(
+        () => this.playlists().filter((p) => this.bucketOf(p) === 'bad').length
+    );
+
+    readonly activeSortLabel = computed(() => {
+        this.languageTick();
+        const current = this.currentSort();
+        const match = this.sortOptions.find((option) =>
+            isSortOptionActive(option, current)
+        );
+        return this.translate.instant(
+            match?.translationKey ?? 'HOME.SORT_OPTIONS.NEWEST'
+        );
+    });
+    readonly failingFirst = computed(() => !!this.currentSort().failingFirst);
+
+    isSortActive(option: SourceSortOption): boolean {
+        return isSortOptionActive(option, this.currentSort());
+    }
+
+    setSortOption(option: SourceSortOption): void {
+        this.sortService.setSortOptions({
+            ...this.currentSort(),
+            by: option.by,
+            order: option.order,
+        });
+    }
+
+    toggleFailingFirst(): void {
+        this.sortService.setSortOptions({
+            ...this.currentSort(),
+            failingFirst: !this.failingFirst(),
+        });
+    }
+
+    onAddPlaylist(type?: WorkspacePlaylistType): void {
+        this.workspaceActions.openAddPlaylistDialog(type);
+    }
+
     openCleanup(): void {
         const dialogs = this.injector.get(MatDialog);
         const refresh = this.injector.get(PlaylistRefreshActionService);
         const activity = this.injector.get(SourceActivityService);
         if (dialogs.getDialogById('source-cleanup')) return;
         dialogs.open(SourceCleanupDialogComponent, {
+            ...dialogSize('lg'),
             id: 'source-cleanup',
-            width: '680px',
-            maxWidth: '95vw',
             data: {
                 playlists: this.playlists(),
                 current: (id: string) =>
@@ -108,7 +218,7 @@ export class WorkspaceSourcesComponent {
                     activity.isBusy(id) ||
                     refresh.isSourceBusy(id) ||
                     !!this.imports?.isSourceBusy(id) ||
-                    !!this.sourceList()?.isDeletePending(id) ||
+                    this.removal.isPending(id) ||
                     !!this.sourceList()?.isRefreshPending(id) ||
                     this.playlists().find((p) => p._id === id)?.updateState ===
                         PlaylistUpdateState.IN_PROGRESS,
@@ -120,157 +230,5 @@ export class WorkspaceSourcesComponent {
                     ),
             },
         });
-    }
-    private readonly route = inject(ActivatedRoute);
-    private readonly store = inject(Store);
-    private readonly workspaceActions = inject(WORKSPACE_SHELL_ACTIONS);
-    private readonly translate = inject(TranslateService);
-    private readonly sortService = inject(SortService);
-
-    private readonly activeTypeFilters = this.store.selectSignal(
-        selectActiveTypeFilters
-    );
-    private readonly playlists = this.store.selectSignal(
-        selectAllPlaylistsMeta
-    );
-    private readonly languageTick = injectTranslationTick();
-
-    readonly sortOptions: SortOption[] = [
-        {
-            by: SortBy.DATE_ADDED,
-            order: SortOrder.DESC,
-            icon: 'schedule',
-            translationKey: 'HOME.SORT_OPTIONS.NEWEST',
-        },
-        {
-            by: SortBy.DATE_ADDED,
-            order: SortOrder.ASC,
-            icon: 'history',
-            translationKey: 'HOME.SORT_OPTIONS.OLDEST',
-        },
-        {
-            by: SortBy.NAME,
-            order: SortOrder.ASC,
-            icon: 'sort_by_alpha',
-            translationKey: 'HOME.SORT_OPTIONS.NAME_ASC',
-        },
-        {
-            by: SortBy.NAME,
-            order: SortOrder.DESC,
-            icon: 'sort_by_alpha',
-            translationKey: 'HOME.SORT_OPTIONS.NAME_DESC',
-        },
-        {
-            by: SortBy.CUSTOM,
-            order: SortOrder.ASC,
-            icon: 'drag_indicator',
-            translationKey: 'HOME.SORT_OPTIONS.CUSTOM_ORDER',
-        },
-    ];
-
-    private readonly currentSortOptions = toSignal(
-        this.sortService.getSortOptions(),
-        { requireSync: true }
-    );
-
-    readonly searchQuery = toSignal(
-        this.route.queryParamMap.pipe(map((params) => params.get('q') ?? '')),
-        { initialValue: '' }
-    );
-    readonly title = computed(() => {
-        this.languageTick();
-
-        const filters = this.activeTypeFilters();
-
-        if (filters.length === 1) {
-            if (filters[0] === 'm3u') {
-                return this.translateText('WORKSPACE.SOURCES.M3U_PLAYLISTS');
-            }
-            if (filters[0] === 'xtream') {
-                return this.translateText('WORKSPACE.SOURCES.XTREAM_PLAYLISTS');
-            }
-            if (filters[0] === 'stalker') {
-                return this.translateText(
-                    'WORKSPACE.SOURCES.STALKER_PLAYLISTS'
-                );
-            }
-        }
-
-        return this.translateText('WORKSPACE.SOURCES.ALL_PLAYLISTS');
-    });
-
-    readonly visibleSourcesCount = computed(() => {
-        const query = foldSearchText(this.searchQuery().trim());
-        const filters = this.activeTypeFilters();
-        const allPlaylists = this.playlists();
-
-        return allPlaylists
-            .filter((item) => {
-                const isStalkerFilter =
-                    !!item.macAddress && filters.includes('stalker');
-                const isXtreamFilter =
-                    !!item.username &&
-                    !!item.password &&
-                    !!item.serverUrl &&
-                    filters.includes('xtream');
-                const isM3uFilter =
-                    !item.username &&
-                    !item.password &&
-                    !item.serverUrl &&
-                    !item.macAddress &&
-                    filters.includes('m3u');
-
-                return isStalkerFilter || isXtreamFilter || isM3uFilter;
-            })
-            .filter((item) => foldSearchText(item.title || '').includes(query))
-            .length;
-    });
-
-    readonly subtitle = computed(() => {
-        this.languageTick();
-
-        const count = this.visibleSourcesCount();
-        if (count === 1) {
-            return this.translateText('WORKSPACE.SOURCES.PLAYLIST_COUNT_ONE');
-        }
-
-        return this.translateText('WORKSPACE.SOURCES.PLAYLIST_COUNT_OTHER', {
-            count,
-        });
-    });
-
-    readonly activeSortLabel = computed(() => {
-        this.languageTick();
-        const current = this.currentSortOptions();
-        const match = this.sortOptions.find(
-            (option) =>
-                option.by === current.by && option.order === current.order
-        );
-        return this.translateText(
-            match?.translationKey ?? 'HOME.SORT_OPTIONS.NEWEST'
-        );
-    });
-
-    onAddPlaylist(type?: WorkspacePlaylistType): void {
-        this.workspaceActions.openAddPlaylistDialog(type);
-    }
-
-    isSortActive(option: SortOption): boolean {
-        const current = this.currentSortOptions();
-        return current.by === option.by && current.order === option.order;
-    }
-
-    setSortOption(option: SortOption): void {
-        this.sortService.setSortOptions({
-            by: option.by,
-            order: option.order,
-        });
-    }
-
-    private translateText(
-        key: string,
-        params?: Record<string, string | number>
-    ): string {
-        return this.translate.instant(key, params);
     }
 }

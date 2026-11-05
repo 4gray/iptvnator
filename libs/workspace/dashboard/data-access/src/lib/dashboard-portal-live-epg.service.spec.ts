@@ -1,3 +1,7 @@
+import {
+    collectionEpgKey,
+    UnifiedCollectionItem,
+} from '@iptvnator/portal/shared/util';
 import { TestBed } from '@angular/core/testing';
 import { Subject } from 'rxjs';
 import type { EpgProgram } from '@iptvnator/shared/interfaces';
@@ -48,7 +52,7 @@ describe('DashboardPortalLiveEpgService', () => {
     let offsetMinutes: number;
     let sourceChanged: Subject<void>;
     let sourceRevision: number;
-    let supportsEpgProgramLookup: boolean;
+    let supportsProviderEpg: boolean;
 
     const { delayMs, ttlMs, emptyTtlMs, endedRefetchFloorMs } =
         DASHBOARD_PORTAL_LIVE_EPG_TIMING;
@@ -82,16 +86,20 @@ describe('DashboardPortalLiveEpgService', () => {
         deferred = [];
         offsetMinutes = 0;
         sourceRevision = 0;
-        supportsEpgProgramLookup = true;
+        supportsProviderEpg = true;
         sourceChanged = new Subject<void>();
-        loadEpgForItems = jest.fn((items: { tvgId?: string }[]) => {
+        loadEpgForItems = jest.fn((items: UnifiedCollectionItem[]) => {
             const key = `xtream::p::${items[0].tvgId}`;
             return new Promise<Map<string, EpgProgram | null>>(
                 (resolve, reject) => {
                     deferred.push({
                         key,
                         resolve: (value) =>
-                            resolve(new Map([[String(items[0].tvgId), value]])),
+                            resolve(
+                                new Map([
+                                    [collectionEpgKey(items[0]) ?? '', value],
+                                ])
+                            ),
                         reject,
                     });
                 }
@@ -121,8 +129,8 @@ describe('DashboardPortalLiveEpgService', () => {
                 {
                     provide: RuntimeCapabilitiesService,
                     useValue: {
-                        get supportsEpgProgramLookup() {
-                            return supportsEpgProgramLookup;
+                        get supportsProviderEpg() {
+                            return supportsProviderEpg;
                         },
                     },
                 },
@@ -309,10 +317,24 @@ describe('DashboardPortalLiveEpgService', () => {
         );
     });
 
-    it('does nothing at all without the local EPG program-lookup capability', async () => {
-        // PWA: the collection resolver is gated on the desktop XMLTV bridge
-        // and answers nothing, so no request is worth queuing.
-        supportsEpgProgramLookup = false;
+    it('answers portal cards from the provider transport alone, as in the browser PWA', async () => {
+        // The runtime stub carries no XMLTV flag: a portal card needs only
+        // the portal transport, which the PWA has through the backend proxy.
+        expect(service.answersPortals).toBe(true);
+
+        service.sync([entry(1)]);
+        await settle('xtream::p::1', program('Provider guide'));
+
+        expect(loadEpgForItems).toHaveBeenCalledTimes(1);
+        expect(service.programs().get('xtream::p::1')?.title).toBe(
+            'Provider guide'
+        );
+    });
+
+    it('does nothing at all without a portal transport', async () => {
+        // Without the portal transport the collection resolver answers
+        // nothing, so no request is worth queuing.
+        supportsProviderEpg = false;
         // Callers must not wait for an answer that never comes.
         expect(service.answersPortals).toBe(false);
 

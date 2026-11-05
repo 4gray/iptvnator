@@ -45,23 +45,14 @@ import { XtreamCachedOfflineNoticeComponent } from './xtream-cached-offline-noti
             </div>
         } @else {
             <app-xtream-cached-offline-notice />
-            <router-outlet />
+            <div class="xtream-route-content">
+                <router-outlet />
+            </div>
         }
     `,
-    styles: [
-        `
-            .xtream-content-gate {
-                display: grid;
-                gap: 16px;
-                justify-items: center;
-                padding: 24px;
-            }
-
-            .xtream-content-gate__actions {
-                display: flex;
-                justify-content: center;
-            }
-        `,
+    styleUrls: [
+        './xtream-status-layout.scss',
+        './xtream-content-gate.component.scss',
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })

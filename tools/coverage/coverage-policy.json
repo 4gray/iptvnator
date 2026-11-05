@@ -54,6 +54,20 @@
         "description": "Tier A projects collect and trend source coverage. Tier B projects are validated without percentage coverage. Tier C projects are excluded from the source coverage baseline.",
         "tierA": [
             {
+                "name": "shared-epg",
+                "root": "libs/shared/epg",
+                "sourceRoot": "libs/shared/epg/src",
+                "validationCommand": "pnpm nx test shared-epg",
+                "e2eTags": ["@epg"]
+            },
+            {
+                "name": "shared-tmdb",
+                "root": "libs/shared/tmdb",
+                "sourceRoot": "libs/shared/tmdb/src",
+                "validationCommand": "pnpm nx test shared-tmdb",
+                "e2eTags": ["@settings", "@tmdb"]
+            },
+            {
                 "name": "web",
                 "root": "apps/web",
                 "sourceRoot": "apps/web/src",
@@ -295,6 +309,24 @@
         ],
         "tierB": [
             {
+                "name": "tv",
+                "root": "apps/tv",
+                "validationCommand": "pnpm nx run tv:verify-build",
+                "reason": "Independent Preact runtime: Node contracts run in tv-tests and browser workflows in tv-e2e. This target audits the browser build; the existing Tier A coverage collector is Jest-specific."
+            },
+            {
+                "name": "tv-tests",
+                "root": "libs/tv/testing",
+                "validationCommand": "pnpm nx test tv-tests",
+                "reason": "Framework-free TV contracts use node:test. Percentage coverage is not integrated with the Jest-only Tier A collector; these tests remain an explicit validation gate without changing existing thresholds."
+            },
+            {
+                "name": "tv-e2e",
+                "root": "apps/tv-e2e",
+                "validationCommand": "pnpm nx e2e tv-e2e",
+                "reason": "Playwright semantic TV workflows are validated separately from source percentage coverage."
+            },
+            {
                 "name": "website",
                 "root": "apps/website",
                 "validationCommand": "pnpm nx test website",
@@ -353,6 +385,12 @@
                 "root": "apps/electron-backend-e2e",
                 "validationCommand": "pnpm nx run electron-backend-e2e:e2e",
                 "reason": "Playwright semantic flow coverage is reported separately."
+            },
+            {
+                "name": "tv-setup",
+                "root": "apps/tv-setup",
+                "validationCommand": "pnpm nx build tv-setup",
+                "reason": "Small phone-only companion UI; browser pairing flows in tv-e2e validate its behavior. No Jest unit target."
             }
         ],
         "tierC": [

@@ -5,648 +5,134 @@
     width: 100%;
 }
 
+// The trigger is a secondary button (UI kit): 40px, 10px radius, a 10%
+// fill, the source's tile, two lines and a chevron that turns when open.
 .playlist-switcher-trigger {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     width: 100%;
+    height: 40px;
+    padding: 0 10px 0 6px;
     box-sizing: border-box;
-    padding: 4px 8px 4px 4px;
+    border: 0;
     border-radius: 10px;
+    background: color-mix(in srgb, var(--app-on-surface) 10%, transparent);
+    color: var(--app-heading-color);
+    font: inherit;
+    text-align: start;
     cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    background: color-mix(in srgb, var(--app-on-surface) 5%, transparent);
-    border: 1px solid
-        color-mix(in srgb, var(--mat-sys-outline-variant) 36%, transparent);
     app-region: no-drag;
+    transition: background 0.12s ease;
 
     &:hover {
-        background: color-mix(
-            in srgb,
-            var(--app-on-surface) 12%,
-            transparent
-        );
-        border-color: color-mix(
-            in srgb,
-            var(--mat-sys-outline-variant) 64%,
-            transparent
-        );
+        background: color-mix(in srgb, var(--app-on-surface) 16%, transparent);
     }
 
+    // Open: one step up, with a 2px inset ring in the selection colour.
     &.is-open {
-        background: color-mix(
-            in srgb,
-            var(--app-on-surface) 12%,
-            transparent
-        );
-        border-color: color-mix(
-            in srgb,
-            var(--mat-sys-outline-variant) 72%,
-            transparent
-        );
+        background: color-mix(in srgb, var(--app-on-surface) 14%, transparent);
+        box-shadow: inset 0 0 0 2px var(--app-selection-color);
     }
 
-    &:active {
-        transform: scale(0.98);
+    &:focus-visible {
+        @include focus-ring.focus-ring-declarations;
+    }
+
+    app-source-tile {
+        --source-tile-bg: color-mix(
+            in srgb,
+            var(--app-on-surface) 10%,
+            var(--app-header-bg)
+        );
+        --source-tile-ring: var(--app-header-bg);
     }
 }
 
-.trigger-icon-container {
-    width: 30px;
-    height: 30px;
-    border-radius: 8px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: color-mix(
-        in srgb,
-        var(--app-on-surface) 8%,
-        transparent
-    );
-    flex-shrink: 0;
-}
+.trigger-placeholder-tile {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    background: color-mix(in srgb, var(--app-on-surface) 10%, transparent);
+    color: var(--app-body-color);
 
-.trigger-playlist-icon {
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
-    color: var(--mat-sys-on-surface-variant);
+    .mat-icon {
+        width: 14px;
+        height: 14px;
+        font-size: 14px;
+        line-height: 14px;
+    }
 }
 
 .playlist-info {
+    display: flex;
     flex: 1;
+    flex-direction: column;
     min-width: 0;
 
-    .name {
-        font-size: 0.95em;
-        font-weight: 600;
+    .name,
+    .channels-count {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        line-height: 1.25;
-        letter-spacing: 0.01em;
+    }
+
+    .name {
+        font-size: 13px;
+        font-weight: 600;
+        line-height: 1.3;
     }
 
     .channels-count {
-        font-size: 0.74em;
+        font-size: 11px;
         line-height: 1.3;
-        letter-spacing: 0.02em;
-        color: var(--mat-sys-on-surface-variant);
-        // A wrapping subtitle pushes the trigger past the 56px header row.
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-}
-
-// On a phone the header row has no width to spare, and the shell allows this
-// trigger to shrink to 88px there. The decorative type icon goes so that the
-// trigger's fixed chrome (refresh, chevron, gaps, padding) actually fits that
-// floor with the name ellipsizing; the subtitle goes because the name is the
-// only part worth the room.
-@media (max-width: 640px) {
-    .trigger-icon-container {
-        display: none;
-    }
-
-    .playlist-info .channels-count {
-        display: none;
-    }
-}
-
-.trigger-refresh-button {
-    margin-left: auto;
-    width: 32px;
-    height: 32px;
-    min-width: 32px;
-    min-height: 32px;
-    padding: 0;
-    line-height: 32px;
-    flex-shrink: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--mat-sys-on-surface-variant);
-    transition:
-        color 0.15s ease,
-        background 0.15s ease;
-
-    &:hover:not(:disabled) {
-        color: var(--mat-sys-on-surface);
-        background: var(--mat-sys-surface-container);
-    }
-
-    ::ng-deep .mat-mdc-button-touch-target {
-        width: 32px;
-        height: 32px;
-    }
-
-    ::ng-deep .mat-mdc-button-persistent-ripple,
-    ::ng-deep .mat-mdc-focus-indicator {
-        border-radius: 50%;
-    }
-}
-
-.trigger-refresh-icon {
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
-    line-height: 18px;
-    margin: 0;
-    padding: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-
-    &.is-spinning {
-        animation: switcher-refresh-spin 1s linear infinite;
-    }
-}
-
-@keyframes switcher-refresh-spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
+        color: var(--app-body-color);
     }
 }
 
 .dropdown-icon {
-    font-size: 20px;
-    width: 20px;
-    height: 20px;
-    color: var(--mat-sys-on-surface-variant);
-    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    margin-left: 4px;
+    flex: none;
+    width: 12px;
+    height: 12px;
+    font-size: 12px;
+    line-height: 12px;
+    color: var(--app-body-color);
+    transition: transform 0.15s ease;
 
     &.rotated {
         transform: rotate(180deg);
     }
 }
 
-::ng-deep .playlist-switcher-menu.mat-mdc-menu-panel {
-    --mat-menu-container-color: var(--mat-sys-surface-container-high);
-    width: min(
-        var(--playlist-switcher-overlay-width, 400px),
-        calc(100vw - 24px)
-    ) !important;
-    min-width: min(
-        var(--playlist-switcher-overlay-width, 400px),
-        calc(100vw - 24px)
-    ) !important;
-    max-width: min(
-        var(--playlist-switcher-overlay-width, 400px),
-        calc(100vw - 24px)
-    ) !important;
-    margin-top: -1px !important;
-    border-radius: 0 0 12px 12px !important;
-    border: 1px solid var(--mat-sys-outline) !important;
-    border-top: 0 !important;
-    overflow: hidden !important;
-    background: var(--mat-menu-container-color) !important;
-
-    .mat-mdc-menu-content {
-        padding: 0 !important;
-        background: var(--mat-menu-container-color) !important;
-    }
-}
-
-.menu-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 12px 6px;
-    font-size: 0.85em;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    background: var(--mat-menu-container-color);
-
-    .menu-header-title {
-        flex: 1;
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        opacity: 0.7;
-    }
-
-    .menu-header-icon {
-        opacity: 0.7;
-    }
-
-    mat-icon {
-        font-size: 18px;
-        width: 18px;
-        height: 18px;
-    }
-
-    .search-toggle-btn {
-        width: 30px;
-        height: 30px;
-        line-height: 30px;
-        color: var(--mat-sys-on-surface-variant);
-        opacity: 0.8;
-        padding: 0;
-
-        &:hover,
-        &.is-active {
-            opacity: 1;
-            color: var(--mat-sys-on-surface);
-        }
-
-        mat-icon {
-            font-size: 18px;
-            width: 18px;
-            height: 18px;
-        }
-    }
-}
-
-.search-container {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    margin: 0 8px 4px;
-    background: color-mix(
-        in srgb,
-        var(--app-on-surface) 6%,
-        transparent
-    );
-    border-radius: 8px;
-    border: 1px solid transparent;
-    transition: all 0.2s ease;
-}
-
-.search-container:focus-within {
-    border-color: var(--app-focus-ring);
-    background: var(--mat-sys-surface-container-highest);
-}
-
-.search-container .search-icon {
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
-    color: var(--mat-sys-on-surface-variant);
-}
-
-.search-container .search-input {
-    flex: 1;
-    border: none;
-    background: transparent;
-    outline: none;
-    font-size: 0.86em;
-    font-weight: 500;
-    line-height: 1.4;
-    color: inherit;
-    min-width: 0;
-}
-
-.search-container .search-input::placeholder {
-    color: var(--mat-sys-on-surface-variant);
-}
-
-.search-container .clear-btn {
-    width: 24px;
-    height: 24px;
-    line-height: 24px;
-    padding: 0;
-}
-
-.search-container .clear-btn mat-icon {
-    font-size: 16px;
-    width: 16px;
-    height: 16px;
-}
-
-.type-filters {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    padding: 0 8px 8px;
-    margin-top: 6px;
-}
-
-.type-filter-chip {
-    height: 24px;
-    padding: 0 10px;
-    border-radius: 999px;
-    border: 1px solid
-        color-mix(in srgb, var(--mat-sys-outline-variant) 72%, transparent);
-    background: color-mix(
-        in srgb,
-        var(--mat-sys-surface-container-high) 78%,
-        transparent
-    );
-    color: var(--mat-sys-on-surface-variant);
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    line-height: 1;
-    cursor: pointer;
-    transition: all 0.16s ease;
-
-    &:hover {
-        background: var(--mat-sys-surface-container);
-        color: var(--mat-sys-on-surface);
-    }
-
-    &.selected {
-        border-color: var(--app-selection-border, var(--app-selection-color));
-        background: var(
-            --app-selection-surface-strong,
-            var(--app-selection-surface)
-        );
-        color: var(--app-selection-color, var(--mat-sys-primary));
-        /* box-shadow:
-            inset 0 0 0 1px
-                color-mix(in srgb, var(--app-selection-color) 18%, transparent),
-            0 0 0 1px
-                color-mix(in srgb, var(--app-selection-color) 12%, transparent),
-            0 0 10px var(--app-selection-glow, transparent); */
-    }
-
-    &:focus-visible {
-        @include focus-ring.focus-ring-declarations($offset: 1px);
-    }
-}
-
-.menu-content {
-    max-height: 360px;
-    overflow-y: auto;
-    padding: 4px 0;
-    background: color-mix(in srgb, #000 22%, transparent);
-    border-top: 1px solid
-        color-mix(in srgb, var(--app-on-surface) 14%, transparent);
-    border-bottom: 1px solid
-        color-mix(in srgb, var(--app-on-surface) 14%, transparent);
-}
-
-.playlist-item {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 10px;
-    padding: 4px 12px;
-    min-height: 44px;
-    transition: background-color 0.15s ease;
-    position: relative;
-    cursor: pointer;
-
-    &:not(:last-child) {
-        border-bottom: 1px solid
-            color-mix(in srgb, var(--app-on-surface) 8%, transparent);
-    }
-}
-
-.playlist-item.selected {
-    background: var(--app-selection-surface, rgba(139, 92, 246, 0.1));
-
-    &::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 6px;
-        bottom: 6px;
-        width: 3px;
-        border-radius: 0 3px 3px 0;
-        background: var(--app-selection-color, #a78bfa);
-    }
-
-    .playlist-title,
-    .playlist-meta {
-        color: var(--app-selection-color, #a78bfa);
-    }
-}
-
-.item-action-trigger {
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.15s ease;
-    width: 32px;
-    height: 32px;
-    line-height: 32px;
-    flex-shrink: 0;
-    color: var(--mat-sys-on-surface-variant);padding: 0;
-
-    mat-icon {
-        font-size: 18px;
-        width: 18px;
-        height: 18px;
-    }
-}
-
-.playlist-item:hover .item-action-trigger,
-.playlist-item.selected .item-action-trigger,
-.item-action-trigger:focus-visible,
-.item-action-trigger[aria-expanded='true'] {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-::ng-deep .playlist-item-action-menu {
-    .danger,
-    .danger mat-icon {
-        color: var(--mat-sys-error, #f44336);
-    }
-}
-
-.playlist-item:hover:not(.selected) {
-    background: color-mix(
-        in srgb,
-        var(--app-on-surface) 10%,
-        transparent
-    );
-}
-
-.playlist-icon-container {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
-    background: color-mix(
-        in srgb,
-        var(--app-on-surface) 6%,
-        transparent
-    );
-    flex-shrink: 0;
-}
-
-.playlist-type-icon {
-    font-size: 20px;
-    width: 20px;
-    height: 20px;
-    color: var(--mat-sys-on-surface-variant);
-}
-
-.status-dot {
-    position: absolute;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    right: -4px;
-    bottom: -4px;
-    border: 2px solid var(--mat-menu-container-color, #2a2a2e);
-}
-
-.status-active {
-    background-color: #4caf50;
-    box-shadow: 0 0 6px rgba(76, 175, 80, 0.4);
-}
-
-.status-inactive {
-    background-color: #f44336;
-    box-shadow: 0 0 6px rgba(244, 67, 54, 0.4);
-}
-
-.status-expired {
-    background-color: #ff9800;
-    box-shadow: 0 0 6px rgba(255, 152, 0, 0.4);
-}
-
-.status-unavailable {
-    background-color: #666666;
-}
-
-.status-checking {
-    background-color: #9e9e9e;
-    animation: switcher-status-checking 1.4s ease-in-out infinite;
-}
-
-@keyframes switcher-status-checking {
-    0%,
-    100% {
-        opacity: 0.4;
-        box-shadow: 0 0 0 0 rgba(158, 158, 158, 0);
-    }
-    50% {
-        opacity: 1;
-        box-shadow: 0 0 4px 1px rgba(158, 158, 158, 0.6);
-    }
-}
-
 @media (prefers-reduced-motion: reduce) {
-    .status-checking {
-        animation: none;
-        opacity: 0.7;
+    .playlist-switcher-trigger,
+    .dropdown-icon {
+        transition: none;
     }
 }
 
-.auto-refresh-indicator {
-    position: absolute;
-    right: -2px;
-    bottom: -2px;
-    font-size: 12px !important;
-    width: 14px !important;
-    height: 14px !important;
-    color: var(--mat-sys-primary);
-    background-color: var(--mat-menu-container-color, var(--mat-sys-surface));
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.playlist-details {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-}
-
-.playlist-title {
-    font-size: 0.92em;
-    font-weight: 600;
-    line-height: 1.2;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.playlist-meta {
-    font-size: 0.73em;
-    line-height: 1.25;
-    letter-spacing: 0.01em;
-    color: var(--mat-sys-on-surface-variant);
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-
-    .separator {
-        color: var(--mat-sys-on-surface-variant);
-    }
-}
-
-.empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 32px 16px;
-    gap: 12px;
-    color: var(--mat-sys-on-surface-variant);
-
-    mat-icon {
-        font-size: 36px;
-        width: 36px;
-        height: 36px;
-    }
-
-    span {
-        font-size: 0.85em;
-    }
-}
-
-.context-actions-section {
-    padding: 6px 8px 8px;
-    background: var(--mat-menu-container-color);
-
-    .context-action-item {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        width: 100%;
-        padding: 8px 10px;
-        border: none;
-        border-radius: 8px;
-        background: transparent;
-        color: var(--mat-sys-on-surface-variant);
-        font: inherit;
-        font-size: 0.86em;
-        font-weight: 500;
-        cursor: pointer;
-        transition:
-            background 0.15s ease,
-            color 0.15s ease;
-
-        &:hover {
-            background: var(--mat-sys-surface-container);
-            color: var(--mat-sys-on-surface);
-        }
-
-        mat-icon {
-            font-size: 18px;
-            width: 18px;
-            height: 18px;
-        }
-    }
-}
-
-@media only screen and (max-width: 480px) {
-    .playlist-info .name {
-        font-size: 0.9em;
-    }
-
-    .playlist-icon-container {
+// On a phone the header row has no width to spare and the trigger may
+// shrink to 88px: the tile and the subtitle go, the name ellipsizes.
+@media (max-width: 640px) {
+    .playlist-switcher-trigger app-source-tile,
+    .trigger-placeholder-tile,
+    .playlist-info .channels-count {
         display: none;
+    }
+}
+
+// The popover's backdrop dims and slightly blurs the window behind it. The
+// overlay container is outside this component, so these are global.
+::ng-deep .playlist-switcher-backdrop {
+    background: var(--app-popover-backdrop);
+    backdrop-filter: blur(2px);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+    ::ng-deep .playlist-switcher-backdrop {
+        backdrop-filter: none;
     }
 }

@@ -1,3 +1,4 @@
+import { handleTvMinistraFixture } from './tv-ministra-fixture.js';
 import { Request, Response } from 'express';
 import { generateSeasons } from '../data-generator.js';
 import { getPortalData } from '../data-store.js';
@@ -16,6 +17,10 @@ export function handleGetSeasons(req: Request, res: Response): void {
     const seriesId = req.query['movie_id'] as string;
     const data = getPortalData(mac);
     const scenario = getScenario(mac);
+    if (scenario.tvLazySeriesFixture && req.query['type'] === 'vod') {
+        handleTvMinistraFixture(req, res);
+        return;
+    }
 
     // Try the precomputed seasons map first
     if (data.seasons.has(seriesId)) {
@@ -24,7 +29,27 @@ export function handleGetSeasons(req: Request, res: Response): void {
     }
 
     // Series id might belong to a VOD item with is_series=1 — generate seasons on demand
-    let foundItem: { id: string; name: string; o_name: string; title: string; cmd: string; screenshot_uri: string; cover: string; description: string; actors: string; director: string; year: string; genres_str: string; rating_imdb: string; rating_kinopoisk: string; category_id: string; is_series: 0; has_files: 0 } | undefined;
+    let foundItem:
+        | {
+              id: string;
+              name: string;
+              o_name: string;
+              title: string;
+              cmd: string;
+              screenshot_uri: string;
+              cover: string;
+              description: string;
+              actors: string;
+              director: string;
+              year: string;
+              genres_str: string;
+              rating_imdb: string;
+              rating_kinopoisk: string;
+              category_id: string;
+              is_series: 0;
+              has_files: 0;
+          }
+        | undefined;
 
     for (const items of data.vod.values()) {
         const match = items.find((i) => i.id === seriesId);

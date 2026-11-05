@@ -1,7 +1,9 @@
 import { app } from 'electron';
 import * as fs from 'fs';
 import * as http from 'http';
+import { hostname } from 'node:os';
 import * as path from 'path';
+import { redactSensitiveData } from '@iptvnator/shared/logging';
 
 type HttpServerFactory = (requestListener: http.RequestListener) => http.Server;
 
@@ -60,7 +62,7 @@ export class HttpServer {
     private readonly createServer: HttpServerFactory;
     private server: http.Server | null = null;
     private port = 8765;
-    private isEnabled = false;
+    private pendingUpdate: Promise<void> = Promise.resolve();
     private distPath: string | null = null;
     private remoteControlHandlers: Map<
         string,
@@ -109,60 +111,107 @@ export class HttpServer {
     /**
      * Start the HTTP server
      */
-    start(port?: number): void {
+    start(port?: number): Promise<void> {
+        return this.enqueueUpdate(() => this.startServer(port));
+    }
+
+    private async startServer(port?: number): Promise<void> {
+        if (this.server) {
+            return;
+        }
+
         if (port !== undefined) {
             this.port = port;
         }
 
-        if (this.server) {
-            console.log('HTTP server is already running');
-            return;
-        }
-
-        this.server = this.createServer((req, res) => {
+        const server = this.createServer((req, res) => {
             this.handleRequest(req, res);
         });
+        this.server = server;
 
-        this.server.listen(this.port, () => {
+        let started = false;
+        try {
+            await new Promise<void>((resolve, reject) => {
+                server.on('error', (error) => {
+                    if (this.server === server) {
+                        this.server = null;
+                    }
+                    if (server.listening) {
+                        server.close();
+                    }
+                    if (started) {
+                        console.error(
+                            '[HTTP Server] Listener error:',
+                            redactSensitiveData(error)
+                        );
+                    } else {
+                        reject(error);
+                    }
+                });
+                server.listen(this.port, () => {
+                    started = true;
+                    resolve();
+                });
+            });
             console.log(`HTTP server listening on port ${this.port}`);
             console.log(
                 `Remote control available at: http://localhost:${this.port}`
             );
-        });
-
-        this.isEnabled = true;
+        } catch (error) {
+            if (this.server === server) {
+                this.server = null;
+            }
+            throw error;
+        }
     }
 
     /**
      * Stop the HTTP server
      */
-    stop(): void {
-        if (!this.server) {
+    stop(): Promise<void> {
+        return this.enqueueUpdate(() => this.stopServer());
+    }
+
+    private async stopServer(): Promise<void> {
+        const server = this.server;
+        if (!server) {
             return;
         }
 
-        this.server.close(() => {
-            console.log('HTTP server stopped');
+        await new Promise<void>((resolve, reject) => {
+            server.close((error) => (error ? reject(error) : resolve()));
+            server.closeAllConnections();
         });
-
-        this.server = null;
-        this.isEnabled = false;
+        if (this.server === server) {
+            this.server = null;
+        }
+        console.log('HTTP server stopped');
     }
 
     /**
      * Update server settings
      */
-    updateSettings(enabled: boolean, port: number): void {
-        const needsRestart = this.isEnabled && enabled && this.port !== port;
+    updateSettings(enabled: boolean, port: number): Promise<void> {
+        return this.enqueueUpdate(async () => {
+            if (!enabled || this.port !== port) {
+                await this.stopServer();
+            }
+            if (enabled) {
+                await this.startServer(port);
+            }
+        });
+    }
 
-        if (!enabled && this.isEnabled) {
-            this.stop();
-        } else if (enabled && !this.isEnabled) {
-            this.start(port);
-        } else if (needsRestart) {
-            this.stop();
-            this.start(port);
-        }
+    private enqueueUpdate(update: () => Promise<void>): Promise<void> {
+        const operation = this.pendingUpdate.then(update);
+        // Bootstrap callers may ignore the promise; settings callers still receive failures.
+        this.pendingUpdate = operation.catch((error: unknown) => {
+            console.error(
+                '[HTTP Server] Settings update failed:',
+                redactSensitiveData(error)
+            );
+        });
+        return operation;
     }
 
     /**
@@ -186,6 +235,11 @@ export class HttpServer {
 
         // Handle API requests
         if (url.startsWith('/api/remote-control/')) {
+            if (!this.isAllowedApiRequest(req)) {
+                res.writeHead(403, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Forbidden remote request' }));
+                return;
+            }
             const handler = this.remoteControlHandlers.get(url);
             if (handler) {
                 handler(req, res);
@@ -199,6 +253,41 @@ export class HttpServer {
 
         // Serve static files from the remote-control-web app
         this.serveStaticFile(url, res);
+    }
+
+    private isAllowedApiRequest(req: http.IncomingMessage): boolean {
+        const contentType = req.headers['content-type']
+            ?.split(';')[0]
+            .trim()
+            .toLowerCase();
+        if (
+            (req.method === 'POST' && contentType !== 'application/json') ||
+            !req.headers.host ||
+            req.headers['sec-fetch-site'] === 'cross-site'
+        ) {
+            return false;
+        }
+        try {
+            const url = new URL(`http://${req.headers.host}`);
+            const machine = hostname()
+                .toLowerCase()
+                .replace(/\.local$/, '');
+            // An arbitrary reflected Host would let DNS rebinding bypass the Origin check.
+            const allowedHosts = [
+                'localhost',
+                machine,
+                `${machine}.local`,
+                req.socket.localAddress?.replace(/^::ffff:/, ''),
+            ];
+            return (
+                allowedHosts.includes(url.hostname.replace(/^\[|\]$/g, '')) &&
+                Number(url.port || 80) === req.socket.localPort &&
+                (req.headers.origin === undefined ||
+                    req.headers.origin === url.origin)
+            );
+        } catch {
+            return false;
+        }
     }
 
     /**

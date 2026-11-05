@@ -131,6 +131,27 @@ describe('FullscreenEpisodePanelComponent', () => {
         expect(second.querySelector('.episode-panel__watched')).toBeNull();
     });
 
+    it('associates season tabs with the episode panel while preserving its list', () => {
+        fixture.componentRef.setInput('seasons', seasons(12));
+        fixture.detectChanges();
+        const panel: HTMLElement =
+            fixture.nativeElement.querySelector('[role="tabpanel"]');
+        expect(panel.id).toBe(pills()[0].getAttribute('aria-controls'));
+        expect(panel.getAttribute('aria-labelledby')).toBe(pills()[0].id);
+        expect(panel.querySelector('ul')).not.toBeNull();
+        pills()[0].dispatchEvent(
+            new KeyboardEvent('keydown', {
+                key: 'End',
+                bubbles: true,
+                cancelable: true,
+            })
+        );
+        fixture.detectChanges();
+        expect(component.selectedSeasonKey()).toBe('3');
+        expect(panel.getAttribute('aria-labelledby')).toBe(pills()[2].id);
+        expect(pills().map((tab) => tab.tabIndex)).toEqual([-1, -1, 0]);
+    });
+
     it('falls back to the numeral tile when a still fails to load', () => {
         fixture.componentRef.setInput('seasons', seasons(12));
         fixture.detectChanges();
@@ -431,6 +452,26 @@ describe('FullscreenEpisodePanelComponent', () => {
         list.scrollTop = 0;
         fixture.componentRef.setInput('seasons', seasons(12));
         fixture.detectChanges();
+        expect(list.scrollTop).toBe(0);
+    });
+
+    it('leaves the list where it is when the playing row is already fully visible', () => {
+        fixture.componentRef.setInput('seasons', seasons(12));
+        fixture.componentRef.setInput('open', false);
+        fixture.detectChanges();
+
+        const list = fixture.nativeElement.querySelector(
+            '[data-test-id="fullscreen-episode-panel-list"]'
+        ) as HTMLElement;
+        const playingRow = rows()[1];
+        Object.defineProperty(list, 'clientHeight', { value: 400 });
+        // Fully inside the 0..400 view: centring would move the list to 150.
+        Object.defineProperty(playingRow, 'offsetTop', { value: 300 });
+        Object.defineProperty(playingRow, 'offsetHeight', { value: 100 });
+
+        fixture.componentRef.setInput('open', true);
+        fixture.detectChanges();
+
         expect(list.scrollTop).toBe(0);
     });
 });

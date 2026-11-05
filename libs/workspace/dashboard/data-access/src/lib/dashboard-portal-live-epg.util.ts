@@ -1,10 +1,12 @@
 import {
     isStalkerRadioItem,
+    isCatalogUnavailable,
     type EpgProgram,
     type PortalActivityItem,
 } from '@iptvnator/shared/interfaces';
 import {
     buildCollectionUid,
+    collectionEpgKey,
     type UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
 
@@ -35,7 +37,7 @@ export function buildDashboardPortalLiveEpgKey(
 export function buildDashboardPortalLiveEpgEntry(
     item: PortalActivityItem
 ): DashboardPortalLiveEpgEntry | null {
-    if (item.type !== 'live') {
+    if (item.type !== 'live' || isCatalogUnavailable(item)) {
         return null;
     }
     if (item.source === 'xtream') {
@@ -48,14 +50,13 @@ export function buildDashboardPortalLiveEpgEntry(
 }
 
 /**
- * The resolver keys its map by the item's `tvgId`; the entry sets it to the
- * provider id, so a missing key means "asked, nothing on air".
+ * Read the same source/playlist/channel identity the collection resolver writes.
  */
 export function resolveDashboardPortalLiveEpgProgram(
     epgMap: ReadonlyMap<string, EpgProgram | null>,
     entry: DashboardPortalLiveEpgEntry
 ): EpgProgram | null {
-    const key = entry.item.tvgId?.trim();
+    const key = collectionEpgKey(entry.item);
     return key ? (epgMap.get(key) ?? null) : null;
 }
 

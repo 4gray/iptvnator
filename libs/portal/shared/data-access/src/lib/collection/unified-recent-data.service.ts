@@ -1,4 +1,5 @@
 import { inject, Injectable } from '@angular/core';
+import { normalizeXtreamContentTypes } from '@iptvnator/shared/interfaces';
 import { Store } from '@ngrx/store';
 import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import { firstValueFrom, map } from 'rxjs';
@@ -274,6 +275,12 @@ export class UnifiedRecentDataService {
         }
 
         if (item.sourceType === 'xtream') {
+            const playedContent = {
+                title: item.name,
+                posterUrl: item.logo ?? item.posterUrl ?? undefined,
+                categoryId: item.categoryId,
+                ...item.xtreamIdentity,
+            };
             const contentId =
                 item.contentId ??
                 (item.xtreamId != null
@@ -289,7 +296,9 @@ export class UnifiedRecentDataService {
                 } else {
                     await this.xtreamDataSource.addRecentItem(
                         { id: contentId, type: item.contentType },
-                        item.playlistId
+                        item.playlistId,
+                        undefined,
+                        playedContent
                     );
                 }
             }
@@ -384,7 +393,13 @@ export class UnifiedRecentDataService {
 
         try {
             const rows = await this.dbService.getGlobalRecentlyViewed();
+            const metas = new Map(
+                (await this.getAllMeta()).map((meta) => [meta._id, meta])
+            );
             return (rows || []).map((row) => ({
+                catalogDisabled: !normalizeXtreamContentTypes(
+                    metas.get(row.playlist_id)?.xtreamContentTypes
+                ).includes(xtreamContentType(row.type)),
                 uid: buildXtreamCollectionUid(
                     row.playlist_id,
                     xtreamContentType(row.type),
@@ -426,6 +441,9 @@ export class UnifiedRecentDataService {
 
             const rows = await this.dbService.getRecentItems(playlistId);
             return (rows || []).map((row) => ({
+                catalogDisabled: !normalizeXtreamContentTypes(
+                    meta?.xtreamContentTypes
+                ).includes(xtreamContentType(row.type)),
                 uid: buildXtreamCollectionUid(
                     playlistId,
                     xtreamContentType(row.type),
@@ -491,6 +509,11 @@ export class UnifiedRecentDataService {
                 item.xtream_id
             ),
             name: item.title,
+            catalogStatus: item.catalog_status,
+            xtreamIdentity: {
+                tmdbId: item.tmdb_id ?? undefined,
+                releaseYear: item.release_year ?? undefined,
+            },
             contentType,
             sourceType: 'xtream',
             playlistId,

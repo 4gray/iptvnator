@@ -99,6 +99,8 @@ describe('UnifiedRecentDataService', () => {
 
     const createPortalActivityElectronApi = (): Window['electron'] =>
         ({
+            dbGetPlaylist: jest.fn(),
+            dbRestoreXtreamFavorites: jest.fn(),
             dbGetRecentlyViewed: jest.fn(),
             dbClearRecentlyViewed: jest.fn(),
             dbGetAllGlobalFavorites: jest.fn(),
@@ -280,6 +282,39 @@ describe('UnifiedRecentDataService', () => {
         );
     });
 
+    it('passes the displayed live identity to cold PWA playback history', async () => {
+        Object.defineProperty(window, 'electron', {
+            value: undefined,
+            configurable: true,
+        });
+        const item = {
+            uid: 'xtream::xtream-1::live:290',
+            name: 'Played B',
+            contentType: 'live',
+            sourceType: 'xtream',
+            playlistId: 'xtream-1',
+            playlistName: 'Xtream One',
+            contentId: 290,
+            xtreamId: 290,
+            logo: 'b.jpg',
+            categoryId: '2',
+            xtreamIdentity: { tmdbId: 200, releaseYear: 2002 },
+        } satisfies UnifiedCollectionItem;
+        await service.recordLivePlayback(item);
+        expect(xtreamDataSource.addRecentItem).toHaveBeenCalledWith(
+            { id: 290, type: 'live' },
+            'xtream-1',
+            undefined,
+            {
+                title: 'Played B',
+                posterUrl: 'b.jpg',
+                categoryId: '2',
+                tmdbId: 200,
+                releaseYear: 2002,
+            }
+        );
+    });
+
     it('uses the Xtream id as the PWA recent key when cached content is cold', async () => {
         Object.defineProperty(window, 'electron', {
             value: undefined,
@@ -306,7 +341,9 @@ describe('UnifiedRecentDataService', () => {
         );
         expect(xtreamDataSource.addRecentItem).toHaveBeenCalledWith(
             { id: 290, type: 'movie' },
-            'xtream-1'
+            'xtream-1',
+            undefined,
+            { title: 'PWA Movie', posterUrl: undefined, categoryId: undefined }
         );
         expect(dbService.addRecentItem).not.toHaveBeenCalled();
         expect(recorded).toEqual(
@@ -400,55 +437,60 @@ describe('UnifiedRecentDataService', () => {
         );
     });
 
-    it('loads Xtream playlist recent items through the active data source in PWA', async () => {
-        Object.defineProperty(window, 'electron', {
-            value: undefined,
-            configurable: true,
-        });
-        store.select.mockReturnValue(
-            of([
+    it.each(['present', 'missing', 'unknown'] as const)(
+        'carries %s PWA Xtream availability into Recent',
+        async (catalogStatus) => {
+            Object.defineProperty(window, 'electron', {
+                value: undefined,
+                configurable: true,
+            });
+            store.select.mockReturnValue(
+                of([
+                    {
+                        _id: 'xtream-1',
+                        title: 'Xtream PWA',
+                        serverUrl: 'https://example.com',
+                    } satisfies Partial<PlaylistMeta>,
+                ])
+            );
+            xtreamDataSource.getRecentItems.mockResolvedValue([
                 {
-                    _id: 'xtream-1',
-                    title: 'Xtream PWA',
-                    serverUrl: 'https://example.com',
-                } satisfies Partial<PlaylistMeta>,
-            ])
-        );
-        xtreamDataSource.getRecentItems.mockResolvedValue([
-            {
-                id: 202,
-                category_id: 20,
-                title: 'Movie One',
-                type: 'movie',
-                poster_url: 'movie.png',
-                backdrop_url: 'backdrop.png',
-                xtream_id: 202,
-                viewed_at: '2026-05-21T12:00:00.000Z',
-            },
-        ]);
+                    id: 202,
+                    catalog_status: catalogStatus,
+                    category_id: 20,
+                    title: 'Movie One',
+                    type: 'movie',
+                    poster_url: 'movie.png',
+                    backdrop_url: 'backdrop.png',
+                    xtream_id: 202,
+                    viewed_at: '2026-05-21T12:00:00.000Z',
+                },
+            ]);
 
-        const items = await service.getRecentItems(
-            'playlist',
-            'xtream-1',
-            'xtream'
-        );
+            const items = await service.getRecentItems(
+                'playlist',
+                'xtream-1',
+                'xtream'
+            );
 
-        expect(xtreamDataSource.getRecentItems).toHaveBeenCalledWith(
-            'xtream-1'
-        );
-        expect(dbService.getRecentItems).not.toHaveBeenCalled();
-        expect(items).toEqual([
-            expect.objectContaining({
-                uid: 'xtream::xtream-1::movie:202',
-                sourceType: 'xtream',
-                contentType: 'movie',
-                name: 'Movie One',
-                playlistName: 'Xtream PWA',
-                posterUrl: 'movie.png',
-                viewedAt: '2026-05-21T12:00:00.000Z',
-            }),
-        ]);
-    });
+            expect(xtreamDataSource.getRecentItems).toHaveBeenCalledWith(
+                'xtream-1'
+            );
+            expect(dbService.getRecentItems).not.toHaveBeenCalled();
+            expect(items).toEqual([
+                expect.objectContaining({
+                    uid: 'xtream::xtream-1::movie:202',
+                    catalogStatus,
+                    sourceType: 'xtream',
+                    contentType: 'movie',
+                    name: 'Movie One',
+                    playlistName: 'Xtream PWA',
+                    posterUrl: 'movie.png',
+                    viewedAt: '2026-05-21T12:00:00.000Z',
+                }),
+            ]);
+        }
+    );
 
     it('does not load Stalker portals through the PWA Xtream global recent path', async () => {
         Object.defineProperty(window, 'electron', {

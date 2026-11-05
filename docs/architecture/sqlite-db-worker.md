@@ -51,6 +51,20 @@ These files own worker lifecycle and IPC bridging:
 
 ### Worker runtime
 
+Native SQLite imports in worker operation modules must stay type-only. The
+worker connection resolves the constructor after registering unpacked module
+paths and passes it to standalone-profile reads. An eager import prevents the
+entire packaged worker from starting, even when no server is connected.
+`database-worker-packaged.spec.ts` covers startup, source metadata and read-only
+standalone import with SQLite available only under `app.asar.unpacked`.
+
+`DB_GET_STANDALONE_SOURCES` reads the retained standalone database read-only
+for explicit server import. The worker opens that separate file without
+changing/migrating it, maps historical column names through the shared playlist
+codec, and closes it after the read. The active server-profile connection is
+unaffected. Source projection writes/deletes use the existing worker playlist
+operations and retain server source IDs.
+
 These files own the worker protocol and the SQLite work itself:
 
 1. `apps/electron-backend/src/app/workers/database-worker.types.ts`
@@ -264,6 +278,18 @@ same with and without profiling. `DB_GLOBAL_SEARCH` is deliberately not
 instrumented: it interleaves queries and ranking across sources, so these
 single-query phases would be misleading.
 
+### Cache history recovery
+
+The internal `xtream-history-recovery:` keys in `app_state` register Xtream cache
+recovery through `DB_SET_APP_STATE`. Registration atomically captures live history
+and newly available archived entries. Native history mutations update that journal
+in their own transactions, including removal tombstones and explicit clears.
+`DB_RESTORE_XTREAM_USER_DATA` replays the current journal in one transaction so a
+watch or removal cannot be overwritten between replay chunks. This transaction
+contains saved history only; catalog writes keep the row budgets below. The
+renderer acknowledges the journal after deferred state completes, and source
+deletion removes its journal. Explicit backup import resets it before replay.
+
 ### Catalog write batching
 
 Catalog deletes and inserts commit in row-budgeted transactions rather than
@@ -298,6 +324,12 @@ the main-process and EPG-worker connections give up after their 5 s
   an `XtreamContentValue` supplies, 1,100 parameters per statement; a whole
   5,000-row commit in one statement would pass SQLite's 32,766 limit) and
   wrap fifty of them in one transaction.
+- Category imports use at most 1,000 rows per `INSERT` to stay below SQLite's
+  bound-parameter limit. All statements remain in one transaction, preserving
+  provider order and rolling back earlier batches if a later batch fails.
+- A cold content save persists its type's `importing` marker before committing
+  any content rows. Failure to persist the marker prevents all content writes;
+  only the import owner records completion after the save succeeds.
 - For deletes, progress `current` is the sum of the `changes` SQLite reports
   and `total` is the summed pre-count. For inserts, `current` counts the rows
   handed to `INSERT ... ON CONFLICT DO NOTHING` and `total` is the number of
@@ -472,6 +504,17 @@ connections are opened unchanged. See
 The preload bridge keeps the existing database methods but adds scoped worker
 events.
 
+Preload subscriptions forward renderer payloads without exposing the privileged
+Electron IPC event. Each returned unsubscribe function removes only its own
+listener. The legacy import-progress cleanup removes its registered progress
+listeners while retaining modern `onDbOperationEvent` observers on the shared
+channel, including across repeated cleanup and resubscription.
+
+`apps/electron-backend/src/app/api/main.preload.lifecycle.spec.ts` verifies
+subscription ownership, payload-only callbacks, legacy progress filtering,
+preservation of failed results and IPC rejections, and independent cancellation
+acknowledgement/import settlement, with renderer tracing both on and off.
+
 ### Important preload APIs
 
 1. `onDbOperationEvent(callback)`
@@ -618,6 +661,17 @@ Xtream-only row shape:
 12. `DB_GET_APP_STATE`
 13. `DB_SET_APP_STATE`
 
+`DB_UPSERT_APP_PLAYLIST(S)` write whole documents: the row built by the shared
+codec (`buildPlaylistRow` in `libs/shared/database`) replaces the stored one.
+`playlistConflictUpdate` sets every optional column the document leaves empty
+(an empty string or a missing key) to NULL instead of skipping it, because
+`parseAppPlaylist` prefers a column over the payload and would otherwise bring
+a cleared User-Agent, Referrer, Origin, credential, EPG list or file path back.
+Only `date_created` is kept from the first insert. Callers must send the full
+document (`PlaylistsService` reads, patches and writes the whole row); a
+column-only change goes through `DB_UPDATE_PLAYLIST`. The self-hosted web
+backend's playlist repository uses the same conflict update.
+
 `DB_GET_APP_PLAYLIST_METAS` is the preferred path for summary surfaces such as
 the workspace sidebar and dashboard source rail. It selects playlist metadata
 columns only and deliberately skips the large `payload` column, which can
@@ -645,6 +699,43 @@ is unavailable or the SQLite playlist migration has not completed.
 5. `DB_GET_GLOBAL_FAVORITES`
 6. `DB_GET_ALL_GLOBAL_FAVORITES`
 7. `DB_REORDER_GLOBAL_FAVORITES`
+8. `DB_RESTORE_XTREAM_FAVORITES`
+9. `DB_GET_FAVORITES_FOR_BACKUP`
+
+Xtream favorites persist known provider-ID conflicts in `identity_conflict`; a later
+sparse refresh cannot clear them. Full saved TMDB/year confirmation may clear the flag,
+while absence alone does not set it. The flag is migrated on existing durable tables
+and included as identity-conflict evidence in backup snapshots.
+Xtream favorites survive catalog/category deletion through nullable `content_id`
+links and independent typed provider identities plus display snapshots. Reads
+return the durable `favorite_id`, nullable catalog IDs and `catalog_status`;
+remove accepts `{ favoriteId }` and reorder accepts `favorite_id` without a
+catalog row. Legacy content-ID callers resolve playlist/type/provider identity,
+including duplicate category rows. `DB_GET_CONTENT_BY_XTREAM_ID` accepts optional
+normalized TMDB/year evidence from the displayed detail or played item. It excludes
+known conflicting duplicates, ranks full confirmation first, and preserves legacy
+lookup behavior when evidence is omitted. Favorite status/actions use the selected
+internal row ID consistently. Import completion reconciles links and saved
+metadata; detail enrichment also updates the snapshot. Known identity conflicts
+remain unresolved. See [Xtream compatibility](./xtream-portal-compatibility.md#durable-electron-favorites).
+
+The lookup also accepts an optional local `categoryId` restriction, independent
+of TMDB/year evidence. Cold detail Back uses it to verify route membership before
+recovering another category; duplicate typed provider IDs retain their original
+category context. Omitting the selector preserves existing lookup behavior.
+The optional `excludeLocked` flag is forwarded through the same IPC chain for
+shared-favorite projection. It applies the worker's category-lock condition before
+choosing a duplicate. Omitted flags preserve raw lookups used by the PIN guard.
+The renderer also rejects unreadable or changed lock state around these reads.
+
+`DB_RESTORE_XTREAM_FAVORITES` materializes pending/backup snapshots without an
+online catalog. Inserts and their replay receipt share one synchronous worker
+transaction, so retry after removal does not resurrect an item. Explicit backup
+imports supply a fresh restore ID; legacy pending payloads use a canonical
+hash. `DB_DELETE_XTREAM_CONTENT` returns no canonical favorites to replay.
+`DB_GET_FAVORITES_FOR_BACKUP` deliberately includes locked/unresolved rows;
+ordinary UI reads preserve parental-lock filtering. A failed export read must
+propagate to the caller.
 
 ### Recently viewed
 
@@ -920,6 +1011,18 @@ regression tests explicitly assert `.run()` is used and `.execute()` is not.
 
 ### Unit coverage added
 
+`libs/services/src/lib/database-electron.operations.spec.ts` covers concurrent
+renderer operation isolation, cancellation acknowledgement versus completion,
+modern/legacy progress listener cleanup on success and failure, failed-delete
+results, restore payload preservation, and cancellation capability guards.
+
+`apps/electron-backend/src/app/workers/database-worker-operation-lifecycle.spec.ts`
+covers request/operation correlation across concurrent imports, cancellation of
+one operation without cancelling another, progress flush before error events,
+error serialization and subsequent requests, and non-cancellable delete-all.
+These protocol tests mock SQL operations; historical migration, durable
+favorites and packaged-worker tests remain the real SQLite persistence checks.
+
 `apps/electron-backend/src/app/services/database-worker-client.spec.ts`
 covers:
 
@@ -929,6 +1032,8 @@ covers:
 4. `AbortError` propagation for cancelled work
 5. cancel message routing to the live worker
 6. worker exit recovery and fresh worker startup
+7. stale message/error/exit events cannot change a replacement worker's state;
+   shutdown rejects requests still waiting for readiness
 
 `apps/electron-backend/src/app/events/epg.events.spec.ts` covers:
 
@@ -1088,3 +1193,15 @@ When adding another heavy SQLite operation:
 6. Reuse existing preload/service APIs where possible instead of creating a new
    renderer-facing contract.
 7. Re-run the worker unit test and at least one Electron runtime smoke.
+
+
+### Optional favorites projection
+
+`DB_FAVORITES_LOCAL` follows the fixed local CAS protocol used by activity, with
+independent favorite record types and tables. The main handler verifies the
+selected source-server instance before dispatch; only the worker opens SQLite.
+Projection and pending membership operations commit in one synchronous SQLite
+transaction. Renderer retries preserve sibling-window changes and recheck the
+captured consent/source ownership. No callback, SQL or media address crosses this
+bridge. The worker bundler explicitly maps the favorites secondary entries before
+the parent interface/database aliases.

@@ -166,6 +166,57 @@ describe('EmbeddedMpvPlayerComponent series navigation', () => {
         expect(player.isPlaying()).toBe(false);
     });
 
+    it('does not end the episode while the main process reloads a dropped stream', () => {
+        // A connection lost mid-episode reaches mpv as EOF (#1902); the
+        // reconnect owns it, and autoplay would skip the rest of the episode.
+        const reconnect = {
+            attempt: 1,
+            maxAttempts: 6,
+            nextAttemptAt: '2026-06-06T12:00:52Z',
+        };
+        controller.session.update((session) =>
+            session
+                ? {
+                      ...session,
+                      status: 'ended',
+                      positionSeconds: 50,
+                      reconnect,
+                      updatedAt: '2026-06-06T12:00:50Z',
+                  }
+                : session
+        );
+        fixture.detectChanges();
+        controller.session.update((session) =>
+            session
+                ? {
+                      ...session,
+                      status: 'loading',
+                      updatedAt: '2026-06-06T12:00:52Z',
+                  }
+                : session
+        );
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.endedCount).toBe(0);
+        expect(player.statusLabel()).toContain('RECONNECTING');
+
+        // The reloaded episode later finishes for real.
+        controller.session.update((session) =>
+            session
+                ? {
+                      ...session,
+                      status: 'ended',
+                      positionSeconds: 120,
+                      reconnect: undefined,
+                      updatedAt: '2026-06-06T12:02:00Z',
+                  }
+                : session
+        );
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.endedCount).toBe(1);
+    });
+
     it('hides episode navigation for live playback', () => {
         fixture.destroy();
         fixture = TestBed.createComponent(EmbeddedMpvPlayerHostComponent);

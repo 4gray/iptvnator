@@ -22,6 +22,7 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
     EmptyStateComponent,
     PlaylistInfoComponent,
+    playlistInfoDialogConfig,
     PlaylistRefreshActionService,
 } from '@iptvnator/playlist/shared/ui';
 import {
@@ -155,12 +156,13 @@ export class WorkspaceDashboardRailsComponent {
         this.continueWatchingBaseCards()
     );
 
-    readonly liveFavoriteCards = computed<DashboardRailCard[]>(() =>
-        this.data
+    readonly liveFavoriteCards = computed<DashboardRailCard[]>(() => {
+        this.languageTick();
+        return this.data
             .globalFavoriteLiveItems()
             .slice(0, RAIL_ITEM_LIMIT)
-            .map((item) => this.toFavoriteCard(item))
-    );
+            .map((item) => this.toFavoriteCard(item));
+    });
 
     readonly recentLiveCards = computed<DashboardRailCard[]>(() =>
         this.data
@@ -218,12 +220,17 @@ export class WorkspaceDashboardRailsComponent {
         this.liveEpg.enrich(this.recentLiveCards())
     );
 
-    readonly favoriteMoviesAndSeriesCards = computed<DashboardRailCard[]>(() =>
-        this.data
-            .globalFavoriteItems()
-            .filter((item) => item.type === 'movie' || item.type === 'series')
-            .slice(0, RAIL_ITEM_LIMIT)
-            .map((item) => this.toFavoriteCard(item))
+    readonly favoriteMoviesAndSeriesCards = computed<DashboardRailCard[]>(
+        () => {
+            this.languageTick();
+            return this.data
+                .globalFavoriteItems()
+                .filter(
+                    (item) => item.type === 'movie' || item.type === 'series'
+                )
+                .slice(0, RAIL_ITEM_LIMIT)
+                .map((item) => this.toFavoriteCard(item));
+        }
     );
 
     readonly continueWatchingSeeAllState = computed(() =>
@@ -385,7 +392,10 @@ export class WorkspaceDashboardRailsComponent {
                 this.playlistRefreshAction.refresh(playlist);
                 break;
             case 'playlist-info':
-                this.dialog.open(PlaylistInfoComponent, { data: playlist });
+                this.dialog.open(
+                    PlaylistInfoComponent,
+                    playlistInfoDialogConfig(playlist)
+                );
                 break;
             case 'account-info':
                 this.openAccountInfo(playlist);
@@ -473,6 +483,7 @@ export class WorkspaceDashboardRailsComponent {
         );
         return {
             id: this.recentCardId(item),
+            catalogStatus: item.catalogStatus,
             title: item.title,
             imageUrl: item.poster_url,
             icon: this.typeIcon(item.type),
@@ -513,6 +524,15 @@ export class WorkspaceDashboardRailsComponent {
     private toFavoriteCard(item: DashboardFavoriteItem): DashboardRailCard {
         return {
             id: `fav-${item.id}-${item.playlist_id}-${item.added_at}`,
+            catalogStatus: item.catalogStatus,
+            subtitle:
+                item.catalogStatus && item.catalogStatus !== 'present'
+                    ? this.translate.instant(
+                          item.catalogStatus === 'missing'
+                              ? 'WORKSPACE.GLOBAL_FAVORITES.CATALOG_MISSING'
+                              : 'WORKSPACE.GLOBAL_FAVORITES.CATALOG_UNKNOWN'
+                      )
+                    : undefined,
             title: item.title,
             imageUrl: item.poster_url,
             icon: this.typeIcon(item.type),
@@ -644,6 +664,7 @@ export class WorkspaceDashboardRailsComponent {
                     serverUrl: playlist.serverUrl,
                     username: playlist.username,
                     password: playlist.password,
+                    userAgent: playlist.userAgent?.trim() || undefined,
                 },
             });
             return;

@@ -1,9 +1,14 @@
+import type {
+    ElectronBridgeXtreamFavorite,
+    XtreamFavoriteRemovalRef,
+} from '@iptvnator/shared/interfaces';
 /**
  * Database service for Electron renderer process
  * Communicates with the main process database via IPC
  */
 
-import { Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
+import { PlaylistStorageBackend } from './playlist-storage-backend';
 import { normalizeContentMetadataPatch } from '@iptvnator/shared/interfaces';
 import type {
     ContentMetadataPatch,
@@ -61,14 +66,17 @@ export interface XtreamPlaylist {
     type: string;
     /** Projected from the row payload by `DB_GET_PLAYLIST` (issue #1562). */
     serverTimezone?: string;
+    xtreamContentTypes?: import('@iptvnator/shared/interfaces').XtreamContentType[];
 }
 
 type XtreamDatabasePlaylistUpdate = {
     name?: string;
     username?: string;
     password?: string;
+    userAgent?: string;
     serverUrl?: string;
     lastUpdated?: string;
+    xtreamContentTypes?: import('@iptvnator/shared/interfaces').XtreamContentType[];
 };
 
 type XtreamContentStream =
@@ -100,7 +108,9 @@ export interface GlobalRecentItem extends XtreamContent {
     viewed_at: string;
 }
 
-export interface GlobalFavoriteItem extends XtreamContent {
+export type XtreamFavorite = ElectronBridgeXtreamFavorite;
+
+export interface GlobalFavoriteItem extends XtreamFavorite {
     playlist_id: string;
     playlist_name: string;
     added_at: string;
@@ -145,6 +155,13 @@ export interface GlobalRecentlyAddedItem extends XtreamContent {
     providedIn: 'root',
 })
 export class DatabaseService {
+    private readonly playlistBackend = inject(PlaylistStorageBackend);
+    private async clearDeferredCatalogHistory(playlistId?: string): Promise<void> {
+        const { XtreamDeferredCatalogRestoreService } = await import(
+            './xtream-deferred-catalog-restore.service'
+        );
+        new XtreamDeferredCatalogRestoreService().clearHistory(playlistId);
+    }
     private buildXtreamImportStateKey(
         playlistId: string,
         type: 'live' | 'movie' | 'series'
@@ -249,6 +266,10 @@ export class DatabaseService {
         options?: DbOperationOptions
     ): Promise<boolean> {
         try {
+            if (this.playlistBackend?.kind() === 'server') {
+                await this.playlistBackend.documentStore()!.dbDeletePlaylist(playlistId);
+                return true;
+            }
             await this.runWithOperationEvents(
                 'db-delete-playlist',
                 'delete-playlist',
@@ -271,7 +292,9 @@ export class DatabaseService {
      */
     async deleteXtreamPlaylistContent(
         playlistId: string,
-        options?: DbOperationOptions
+        options?: DbOperationOptions & {
+            contentTypes?: import('@iptvnator/shared/interfaces').XtreamContentType[];
+        }
     ): Promise<{
         success: boolean;
         favorites: XtreamBackupFavoriteItem[];
@@ -282,21 +305,43 @@ export class DatabaseService {
             'db-delete-xtream-content',
             'delete-xtream-content',
             (operationId) =>
-                window.electron.dbDeleteXtreamContent(playlistId, operationId),
+                window.electron.dbDeleteXtreamContent(
+                    playlistId,
+                    operationId,
+                    options?.contentTypes
+                ),
             options
         );
     }
 
     /**
-     * Restore favorites and recently viewed items after Xtream refresh
+     * Materialize saved favorites without requiring the provider catalog.
      */
+    async restoreXtreamFavoriteSnapshots(
+        playlistId: string,
+        favorites: XtreamBackupFavoriteItem[],
+        restoreId?: string
+    ): Promise<void> {
+        if (favorites.length === 0) return;
+        const { assertXtreamFavoriteRestoreSupported } =
+            await import('./xtream-pending-favorites');
+        assertXtreamFavoriteRestoreSupported(window.electron);
+        const result = await window.electron.dbRestoreXtreamFavorites(
+            playlistId,
+            favorites,
+            restoreId
+        );
+        if (!result.success)
+            throw new Error('Restoring saved favorites failed.');
+    }
+
     async restoreXtreamUserData(
         playlistId: string,
         favorites: XtreamBackupFavoriteItem[],
         recentlyViewed: XtreamBackupRecentlyViewedItem[],
         options?: DbOperationOptions
-    ): Promise<void> {
-        await this.runWithOperationEvents(
+    ): ReturnType<typeof window.electron.dbRestoreXtreamUserData> {
+        return this.runWithOperationEvents(
             'db-restore-xtream-user-data',
             'restore-xtream-user-data',
             (operationId) =>
@@ -312,13 +357,22 @@ export class DatabaseService {
 
     async deleteAllPlaylists(options?: DbOperationOptions): Promise<boolean> {
         try {
-            await this.runWithOperationEvents(
+            if (this.playlistBackend?.kind() === 'server') {
+                await this.playlistBackend.documentStore()!.dbDeleteAllPlaylists();
+                return true;
+            }
+            const result = await this.runWithOperationEvents(
                 'db-delete-all-playlists',
                 'delete-all-playlists',
                 (operationId) =>
                     window.electron.dbDeleteAllPlaylists(operationId),
                 options
             );
+            if (!result.success) return false;
+            const { XtreamDeferredCatalogRestoreService } = await import(
+                './xtream-deferred-catalog-restore.service'
+            );
+            new XtreamDeferredCatalogRestoreService().clearAll();
             return true;
         } catch (error) {
             if (!isDbAbortError(error)) {
@@ -335,6 +389,9 @@ export class DatabaseService {
         playlist: Pick<XtreamPlaylist, 'id' | 'name'>
     ): Promise<boolean> {
         try {
+            if (this.playlistBackend?.kind() === 'server') {
+                return this.updateXtreamPlaylistDetails({ id: playlist.id, title: playlist.name });
+            }
             await window.electron.dbUpdatePlaylist(playlist.id, {
                 name: playlist.name,
             });
@@ -353,15 +410,29 @@ export class DatabaseService {
         title?: string;
         username?: string;
         password?: string;
+        userAgent?: string;
         serverUrl?: string;
         updateDate?: number;
+        xtreamContentTypes?: import('@iptvnator/shared/interfaces').XtreamContentType[];
     }): Promise<boolean> {
         try {
+            if (this.playlistBackend?.kind() === 'server') {
+                const store = this.playlistBackend.documentStore()!;
+                const current = await store.dbGetAppPlaylist(playlist.id);
+                if (!current) throw new Error('Source no longer exists');
+                const { id, updateDate, ...updates } = playlist;
+                void id;
+                await store.dbUpsertAppPlaylist({ ...current, ...updates, ...(updateDate === undefined ? {} : { updateDate }) });
+                return true;
+            }
             const updates: XtreamDatabasePlaylistUpdate = {};
             if (playlist.title) updates.name = playlist.title;
-            if (playlist.username) updates.username = playlist.username;
-            if (playlist.password) updates.password = playlist.password;
-            if (playlist.serverUrl) updates.serverUrl = playlist.serverUrl;
+            for (const key of ['username', 'password', 'serverUrl'] as const)
+                if (playlist[key]) updates[key] = playlist[key];
+            if (playlist.userAgent !== undefined)
+                updates.userAgent = playlist.userAgent;
+            if (playlist.xtreamContentTypes !== undefined)
+                updates.xtreamContentTypes = playlist.xtreamContentTypes;
             if (playlist.updateDate !== undefined)
                 updates.lastUpdated = new Date(
                     playlist.updateDate
@@ -483,14 +554,19 @@ export class DatabaseService {
      */
     async updateCategoryVisibility(
         categoryIds: number[],
-        hidden: boolean
+        hidden: boolean,
+        explicit?: boolean
     ): Promise<boolean> {
         try {
-            await window.electron.dbUpdateCategoryVisibility(
+            const result = await window.electron.dbUpdateCategoryVisibility(
                 categoryIds,
-                hidden
+                hidden,
+                explicit
             );
-            return true;
+            return (
+                result.success &&
+                (!explicit || result.explicitRecorded === true)
+            );
         } catch (error) {
             console.error('Error updating category visibility:', error);
             return false;
@@ -719,6 +795,11 @@ export class DatabaseService {
         }
 
         try {
+            await materializePendingXtreamFavorites(
+                window.electron,
+                undefined,
+                'continue'
+            );
             const items = await window.electron.dbGetGlobalFavorites();
             return items || [];
         } catch (error) {
@@ -736,6 +817,11 @@ export class DatabaseService {
         }
 
         try {
+            await materializePendingXtreamFavorites(
+                window.electron,
+                undefined,
+                'continue'
+            );
             const items = await window.electron.dbGetAllGlobalFavorites();
             return items || [];
         } catch (error) {
@@ -753,6 +839,7 @@ export class DatabaseService {
         }
 
         try {
+            await this.clearDeferredCatalogHistory();
             await window.electron.dbClearRecentlyViewed();
         } catch (error) {
             console.error('Error clearing recently viewed:', error);
@@ -771,6 +858,11 @@ export class DatabaseService {
      * Create a new playlist
      */
     async createPlaylist(playlist: PlaylistMeta): Promise<void> {
+        if (this.playlistBackend?.kind() === 'server') {
+            const store = this.playlistBackend.documentStore()!;
+            if (!(await store.dbGetAppPlaylist(playlist._id))) throw new Error('Source no longer exists');
+            return;
+        }
         await window.electron.dbCreatePlaylist({
             id: playlist._id,
             name: playlist.title,
@@ -795,9 +887,8 @@ export class DatabaseService {
         if (typeof window.electron?.dbAddFavorite !== 'function') {
             return false;
         }
-
         try {
-            await window.electron.dbAddFavorite(
+            await this.addToFavoritesOrThrow(
                 contentId,
                 playlistId,
                 backdropUrl
@@ -809,11 +900,30 @@ export class DatabaseService {
         }
     }
 
+    /** User-triggered saves must expose a rejected write to the detail toggle. */
+    async addToFavoritesOrThrow(
+        contentId: number,
+        playlistId: string,
+        backdropUrl?: string
+    ): Promise<void> {
+        if (typeof window.electron?.dbAddFavorite !== 'function') {
+            throw new Error('Favorite storage is unavailable');
+        }
+        const result = await window.electron.dbAddFavorite(
+            contentId,
+            playlistId,
+            backdropUrl
+        );
+        if (!result.success) {
+            throw new Error(result.error ?? 'Favorite could not be saved');
+        }
+    }
+
     /**
      * Remove content from favorites
      */
     async removeFromFavorites(
-        contentId: number,
+        contentId: XtreamFavoriteRemovalRef,
         playlistId: string
     ): Promise<boolean> {
         if (typeof window.electron?.dbRemoveFavorite !== 'function') {
@@ -845,15 +955,23 @@ export class DatabaseService {
         }
     }
 
-    /**
-     * Get all favorites for a playlist
-     */
-    async getFavorites(playlistId: string): Promise<XtreamContent[]> {
+    /** Backup reads must fail rather than export an empty list after an IPC error. */
+    async getFavoritesOrThrow(playlistId: string): Promise<XtreamFavorite[]> {
+        await materializePendingXtreamFavorites(window.electron, playlistId);
+        return window.electron.dbGetFavoritesForBackup(playlistId);
+    }
+
+    async getFavorites(playlistId: string): Promise<XtreamFavorite[]> {
         if (typeof window.electron?.dbGetFavorites !== 'function') {
             return [];
         }
 
         try {
+            await materializePendingXtreamFavorites(
+                window.electron,
+                playlistId,
+                'continue'
+            );
             return await window.electron.dbGetFavorites(playlistId);
         } catch (error) {
             console.error('Error getting favorites:', error);
@@ -861,9 +979,18 @@ export class DatabaseService {
         }
     }
 
-    /**
-     * Get recently viewed items for a specific playlist
-     */
+    /** Recovery snapshots must read all history or fail, never silently truncate it. */
+    async getRecentItemsOrThrow(playlistId: string): Promise<XtreamContent[]> {
+        if (typeof window.electron?.dbGetRecentItems !== 'function')
+            throw new Error('History storage unavailable.');
+        const rows = await window.electron.dbGetRecentItems(playlistId, {
+            all: true,
+        });
+        if (!Array.isArray(rows))
+            throw new Error('History storage returned invalid data.');
+        return rows;
+    }
+
     async getRecentItems(playlistId: string): Promise<XtreamContent[]> {
         if (typeof window.electron?.dbGetRecentItems !== 'function') {
             return [];
@@ -941,6 +1068,7 @@ export class DatabaseService {
         }
 
         try {
+            await this.clearDeferredCatalogHistory(playlistId);
             await window.electron.dbClearPlaylistRecentItems(playlistId);
             return true;
         } catch (error) {
@@ -994,21 +1122,49 @@ export class DatabaseService {
     async getContentByXtreamId(
         xtreamId: number,
         playlistId: string,
-        contentType?: 'live' | 'movie' | 'series'
+        contentType?: 'live' | 'movie' | 'series',
+        identity?: ContentMetadataPatch,
+        categoryId?: number,
+        excludeLocked?: boolean
     ): Promise<XtreamContent | null> {
         if (typeof window.electron?.dbGetContentByXtreamId !== 'function') {
             return null;
         }
 
+        const normalized = normalizeContentMetadataPatch(identity);
+        const selector =
+            normalized &&
+            (normalized.tmdbId != null || normalized.releaseYear != null)
+                ? {
+                      ...(normalized.tmdbId != null
+                          ? { tmdbId: normalized.tmdbId }
+                          : {}),
+                      ...(normalized.releaseYear != null
+                          ? { releaseYear: normalized.releaseYear }
+                          : {}),
+                  }
+                : undefined;
         try {
-            return await window.electron.dbGetContentByXtreamId(
-                xtreamId,
-                playlistId,
-                contentType
-            );
+            const args: Parameters<
+                typeof window.electron.dbGetContentByXtreamId
+            > = [xtreamId, playlistId, contentType];
+            if (selector) args[3] = selector;
+            if (categoryId !== undefined) args[4] = categoryId;
+            if (excludeLocked) args[5] = true;
+            return await window.electron.dbGetContentByXtreamId(...args);
         } catch (error) {
             console.error('Error getting content by xtream ID:', error);
             return null;
         }
     }
+}
+
+/** Defer legacy conversion code until a favorites operation actually needs it. */
+async function materializePendingXtreamFavorites(
+    ...args: Parameters<
+        typeof import('./xtream-pending-favorites').materializePendingXtreamFavorites
+    >
+): Promise<void> {
+    const converter = await import('./xtream-pending-favorites');
+    return converter.materializePendingXtreamFavorites(...args);
 }

@@ -1,4 +1,6 @@
 import { TestBed } from '@angular/core/testing';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { TranslateService } from '@ngx-translate/core';
 import {
     DataService,
     DatabaseService,
@@ -23,6 +25,8 @@ import {
 import { XtreamUrlService } from '../services/xtream-url.service';
 import { XtreamXmltvFallbackService } from '../services/xtream-xmltv-fallback.service';
 import { XtreamStore } from './xtream.store';
+import * as tmdbHelpers from './xtream-tmdb-enrichment';
+import * as detailsHelpers from './xtream-details-request';
 
 const PLAYLIST: XtreamPlaylistData = {
     id: 'playlist-b',
@@ -75,6 +79,11 @@ function configureStore(
     TestBed.configureTestingModule({
         providers: [
             XtreamStore,
+            { provide: MatSnackBar, useValue: { open: jest.fn() } },
+            {
+                provide: TranslateService,
+                useValue: { instant: (key: string) => key },
+            },
             { provide: XTREAM_DATA_SOURCE, useValue: dataSource },
             { provide: XtreamApiService, useValue: xtreamApiService },
             { provide: DatabaseService, useValue: {} },
@@ -87,7 +96,7 @@ function configureStore(
             },
             {
                 provide: RuntimeCapabilitiesService,
-                useValue: { supportsEpg: false },
+                useValue: { supportsProviderEpg: false },
             },
             {
                 provide: SettingsStore,
@@ -114,6 +123,95 @@ function configureStore(
 
 describe('XtreamStore VOD details recovery', () => {
     afterEach(() => TestBed.resetTestingModule());
+
+    it.each(['cancel', 'reset', 'playlist', 'newer'] as const)(
+        'drops the provider result when %s takes ownership while detail helpers load',
+        async (change) => {
+            const info = createDeferred<{ info: [] }>();
+            const resolveDetails = jest.spyOn(
+                detailsHelpers,
+                'resolveXtreamVodDetailsSelection'
+            );
+            const api = {
+                getVodInfo: jest.fn((_credentials: unknown, id: string) =>
+                    id === '42'
+                        ? info.promise
+                        : Promise.resolve({
+                              info: [],
+                              stream_id: 99,
+                              container_extension: 'mp4',
+                          })
+                ),
+                getVodStream: jest.fn().mockResolvedValue(null),
+            };
+            const store = configureStore(api);
+            try {
+                store.fetchVodDetailsWithMetadata({
+                    categoryId: 7,
+                    vodId: '42',
+                });
+                info.resolve({ info: [] });
+                // Run the provider-response callback, leaving its dynamic import
+                // continuation pending before applying the ownership change.
+                await Promise.resolve();
+                expect(resolveDetails).not.toHaveBeenCalled();
+                if (change === 'cancel') store.cancelDetailsRequest();
+                else if (change === 'reset') store.resetStore();
+                else if (change === 'playlist') {
+                    store.setCurrentPlaylist({
+                        ...PLAYLIST,
+                        id: 'synthetic-next-source',
+                    });
+                    store.setIsLoadingDetails(false);
+                } else
+                    store.fetchVodDetailsWithMetadata({
+                        categoryId: 9,
+                        vodId: '99',
+                    });
+                await waitForCondition(() => !store.isLoadingDetails());
+                await new Promise((resolve) => setTimeout(resolve, 0));
+                expect(api.getVodStream).not.toHaveBeenCalled();
+                expect(store.detailsError()).toBeNull();
+                if (change === 'newer') {
+                    expect(store.selectedItem()?.stream_id).toBe(99);
+                    expect(resolveDetails).toHaveBeenCalledTimes(1);
+                } else {
+                    expect(store.selectedItem()).toBeNull();
+                    expect(resolveDetails).not.toHaveBeenCalled();
+                }
+            } finally {
+                resolveDetails.mockRestore();
+            }
+        }
+    );
+
+    it('keeps provider details usable when optional TMDB enrichment rejects', async () => {
+        const warn = jest
+            .spyOn(console, 'warn')
+            .mockImplementation(() => undefined);
+        const failure = Promise.reject(
+            new Error('optional helper unavailable')
+        );
+        void failure.catch(() => undefined);
+        const enrich = jest
+            .spyOn(tmdbHelpers, 'enrichVodSelectionWithTmdb')
+            .mockReturnValueOnce(failure);
+        const store = configureStore({
+            getVodInfo: jest.fn().mockResolvedValue({ info: [] }),
+            getVodStream: jest.fn().mockResolvedValue(null),
+        });
+        store.fetchVodDetailsWithMetadata({ categoryId: 7, vodId: '42' });
+        await waitForCondition(() => !store.isLoadingDetails());
+        expect(store.selectedItem()?.stream_id).toBe(42);
+        expect(store.detailsError()).toBeNull();
+        expect(warn).toHaveBeenCalledWith(
+            '[XtreamStore]',
+            'TMDB unavailable',
+            expect.anything()
+        );
+        enrich.mockRestore();
+        warn.mockRestore();
+    });
 
     it('publishes sparse details before upgrading them from the catalog', async () => {
         const catalogItem = createDeferred<XtreamVodStream | null>();
@@ -343,6 +441,39 @@ describe('XtreamStore VOD details recovery', () => {
         });
         expect(store.detailsError()).toBeNull();
         expect(store.isLoadingDetails()).toBe(false);
+    });
+
+    it('publishes series details without provider stand-ins', async () => {
+        const xtreamApiService = {
+            getSeriesInfo: jest.fn().mockResolvedValue({
+                info: {
+                    name: 'Placeholder Series',
+                    plot: 'N/A',
+                    rating: '0',
+                    releaseDate: 'N/A',
+                },
+                seasons: [],
+                episodes: {},
+            }),
+            getVodInfo: jest.fn(),
+            getVodStream: jest.fn(),
+        };
+        const store = configureStore(xtreamApiService);
+
+        store.fetchSerialDetailsWithMetadata({
+            categoryId: 7,
+            serialId: '99',
+        });
+        await waitForCondition(() => store.selectedItem() !== null);
+
+        expect(
+            (store.selectedItem() as { info: Record<string, unknown> }).info
+        ).toEqual({
+            name: 'Placeholder Series',
+            plot: '',
+            rating: '',
+            releaseDate: '',
+        });
     });
 
     it('clears the previous series while a reused-route request is pending or fails', async () => {

@@ -1,0 +1,11 @@
+{
+    "name": "tv-ui",
+    "projectType": "library",
+    "sourceRoot": "libs/tv/ui/src",
+    "tags": ["scope:tv", "domain:tv", "type:ui"],
+    "targets": {
+        "lint": {
+            "command": "eslint \"libs/tv/ui/**/*.{ts,tsx}\""
+        }
+    }
+}

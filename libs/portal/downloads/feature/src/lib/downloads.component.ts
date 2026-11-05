@@ -54,6 +54,7 @@ import { RecordingLibraryComponent } from './recording-library.component';
 import { RecordingManagerActionsService } from './recording-manager-actions.service';
 import { buildRecordingManagerViewModel } from './recording-manager.viewmodel';
 import { RecordingQueueComponent } from './recording-queue.component';
+import { dialogSize } from '@iptvnator/ui/components/dialog-size';
 
 const FILTER_KEYS = {
     all: 'DOWNLOADS.FILTER.ALL',
@@ -308,10 +309,8 @@ export class DownloadsComponent {
                 )?.members ?? []
         );
         const ref = this.dialog.open(DownloadedSeriesDialogComponent, {
+            ...dialogSize('lg'),
             data: group,
-            width: 'min(720px, calc(100vw - 32px))',
-            maxWidth: 'min(720px, calc(100vw - 32px))',
-            maxHeight: 'min(760px, calc(100vh - 32px))',
         });
         ref.componentRef?.setInput('members', liveMembers);
         ref.componentRef?.setInput('pendingIds', this.pendingIds);

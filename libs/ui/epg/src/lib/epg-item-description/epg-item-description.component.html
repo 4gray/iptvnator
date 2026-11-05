@@ -18,7 +18,13 @@
         }
     </div>
 
-    <div class="epg-dialog__body">
+    <div
+        class="epg-dialog__body"
+        tabindex="0"
+        role="region"
+        [attr.aria-label]="epgProgram.title"
+        cdkFocusInitial
+    >
         <div class="epg-dialog__meta">
             <span>{{
                 startMs | date: 'EEE d MMM' : '' : currentLocale()
@@ -124,7 +130,6 @@
                 type="button"
                 class="epg-dialog__btn epg-dialog__btn--ghost epg-dialog__close"
                 mat-dialog-close
-                cdkFocusInitial
             >
                 {{ 'HOME.PLAYLISTS.INFO_DIALOG.CLOSE' | translate }}
             </button>

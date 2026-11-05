@@ -7,6 +7,7 @@ import {
     getChannelItemByNumber,
 } from '@iptvnator/portal/shared/util';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
 import { LiveEpgPanelSummary } from '@iptvnator/ui/shared-portals';
 
 /**
@@ -65,7 +66,9 @@ export function setupUnifiedLiveTabRemoteControl(
         }
 
         const nextChannel = getAdjacentChannelItem(
-            [...host.visibleChannels()],
+            host
+                .visibleChannels()
+                .filter((channel) => !isCatalogUnavailable(channel)),
             activeUid,
             data.direction,
             (channel) => channel.uid
@@ -84,7 +87,7 @@ export function setupUnifiedLiveTabRemoteControl(
             [...host.visibleChannels()],
             command.number
         );
-        if (channel) {
+        if (channel && !isCatalogUnavailable(channel)) {
             host.playChannel(channel);
         }
     });

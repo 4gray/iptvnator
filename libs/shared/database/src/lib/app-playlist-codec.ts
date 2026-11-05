@@ -154,6 +154,10 @@ export function buildPlaylistRow(
                       getStringArrayValue(playlist['disabledEpgUrls'])
                   )
                 : undefined,
+        autoImportEpg:
+            typeof playlist['autoImportEpg'] === 'boolean'
+                ? playlist['autoImportEpg']
+                : undefined,
         autoRefresh: Boolean(playlist['autoRefresh']),
         macAddress: getStringValue(playlist['macAddress']),
         url: type === PLAYLIST_TYPES.STALKER ? (portalUrl ?? url) : url,
@@ -208,7 +212,7 @@ export function parseAppPlaylist(
     const detectedEpgUrls = getStringArrayValue(
         row.detectedEpgUrls
             ? parseJsonValue<unknown[]>(row.detectedEpgUrls, [])
-            : (base['detectedEpgUrls'] ?? epgUrls)
+            : base['detectedEpgUrls']
     );
     const manualEpgUrls = getStringArrayValue(
         row.manualEpgUrls
@@ -244,6 +248,9 @@ export function parseAppPlaylist(
             importDate,
         favorites,
         recentlyViewed,
+        ...(row.autoImportEpg != null
+            ? { autoImportEpg: row.autoImportEpg }
+            : {}),
         autoRefresh: row.autoRefresh ?? Boolean(base['autoRefresh']),
         url:
             row.type === PLAYLIST_TYPES.M3U_URL

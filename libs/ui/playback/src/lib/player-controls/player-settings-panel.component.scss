@@ -49,6 +49,7 @@
     padding: 10px 14px 12px;
     border-bottom: 0;
     border-radius: 16px 16px 0 0;
+    overflow-y: auto;
 }
 
 .player-settings__grip {
@@ -143,6 +144,9 @@
 }
 
 :host(.player-settings--sheet) .player-settings__body {
+    // A short stage must scroll the header too, rather than shrink this body to zero.
+    flex: 0 0 auto;
+    overflow: visible;
     gap: 9px;
 }
 

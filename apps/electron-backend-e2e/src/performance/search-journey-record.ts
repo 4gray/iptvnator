@@ -34,7 +34,7 @@ export const SEARCH_JOURNEY_UNAVAILABLE_COUNTERS: Readonly<
 export const SEARCH_JOURNEY_QUERY_METHOD = 'dbGlobalSearch';
 
 /**
- * Longest accepted gap between two keydowns. Below the shell's 350 ms input
+ * Longest accepted gap between two keydowns. Below the shell's 300 ms input
  * debounce, so a late key on a busy machine cannot let an intermediate term
  * run a query that steady typing would not.
  */

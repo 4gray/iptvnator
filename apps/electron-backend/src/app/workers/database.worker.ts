@@ -1,5 +1,16 @@
+import type { FavoriteLocalRequest } from '@iptvnator/shared/interfaces/favorites-sync';
+import { favoriteLocalOperation } from '../database/operations/favorites-local.operations';
+import type { ActivityLocalRequest } from '@iptvnator/shared/interfaces/activity-sync';
+import { activityLocalOperation } from '../database/operations/activity-local.operations';
+import { getWorkerSqlite } from './database.worker-connection';
+import type {
+    ElectronBridgeFavoriteReorderUpdate,
+    XtreamFavoriteRemovalRef,
+} from '@iptvnator/shared/interfaces';
 import { migrateAppPlaylists } from '../database/operations/playlist-migration.operations';
+import { readStandaloneSources } from '../database/operations/standalone-sources.operations';
 import {
+    Database,
     closeWorkerDatabase,
     flushWorkerSqlStatementCount,
     getWorkerDatabase,
@@ -34,6 +45,7 @@ import {
     addFavorite,
     getAllGlobalFavorites,
     getFavorites,
+    getFavoritesForBackup,
     getGlobalFavorites,
     isFavorite,
     removeFavorite,
@@ -80,6 +92,11 @@ import {
     upsertAppPlaylists,
 } from '../database/operations/playlist.operations';
 import { setPlaylistServerTimezone } from '../database/operations/playlist-server-timezone.operations';
+import { checkXtreamCatalogConnection } from '../database/operations/xtream-catalog-state';
+import type {
+    XtreamCatalogStateCondition,
+    XtreamContentType,
+} from '@iptvnator/shared/interfaces';
 import {
     addRecentItem,
     clearPlaylistRecentItems,
@@ -111,6 +128,7 @@ import {
 import {
     deleteXtreamContent,
     restoreXtreamUserData,
+    restoreXtreamFavorites,
 } from '../database/operations/xtream.operations';
 import {
     armWorkerPerformanceCapture,
@@ -419,6 +437,17 @@ async function executeRequest(
     const db = await getWorkerDatabase();
 
     switch (message.operation) {
+        case 'DB_FAVORITES_LOCAL':
+            return favoriteLocalOperation(
+                getWorkerSqlite(),
+                message.payload as FavoriteLocalRequest
+            );
+        case 'DB_ACTIVITY_LOCAL':
+            return activityLocalOperation(
+                getWorkerSqlite(),
+                message.payload as ActivityLocalRequest
+            );
+
         case 'DB_HAS_CATEGORIES': {
             const payload = message.payload as {
                 playlistId: string;
@@ -478,11 +507,13 @@ async function executeRequest(
             const payload = message.payload as {
                 categoryIds: number[];
                 hidden: boolean;
+                explicit?: boolean;
             };
             return updateCategoryVisibility(
                 db,
                 payload.categoryIds,
-                payload.hidden
+                payload.hidden,
+                payload.explicit === true
             );
         }
 
@@ -604,12 +635,18 @@ async function executeRequest(
                 xtreamId: number;
                 playlistId: string;
                 contentType?: 'live' | 'movie' | 'series';
+                identity?: ContentMetadataPatch;
+                categoryId?: number;
+                excludeLocked?: boolean;
             };
             return getContentByXtreamId(
                 db,
                 payload.xtreamId,
                 payload.playlistId,
-                payload.contentType
+                payload.contentType,
+                payload.identity,
+                payload.categoryId,
+                payload.excludeLocked === true
             );
         }
 
@@ -726,6 +763,9 @@ async function executeRequest(
         case 'DB_GET_APP_PLAYLISTS':
             return getAppPlaylists(db);
 
+        case 'DB_GET_STANDALONE_SOURCES':
+            return readStandaloneSources(Database);
+
         case 'DB_GET_APP_PLAYLIST_METAS':
             return getAppPlaylistMetas(db);
 
@@ -840,9 +880,25 @@ async function executeRequest(
             return getAppState(db, payload.key);
         }
 
+        case 'DB_CHECK_XTREAM_CATALOG_CONNECTION': {
+            const payload = message.payload as {
+                condition: XtreamCatalogStateCondition;
+            };
+            return checkXtreamCatalogConnection(db, payload.condition);
+        }
+
         case 'DB_SET_APP_STATE': {
-            const payload = message.payload as { key: string; value: string };
-            return setAppState(db, payload.key, payload.value);
+            const payload = message.payload as {
+                key: string;
+                value: string;
+                condition?: XtreamCatalogStateCondition;
+            };
+            return setAppState(
+                db,
+                payload.key,
+                payload.value,
+                payload.condition
+            );
         }
 
         case 'DB_GET_TMDB_METADATA': {
@@ -967,6 +1023,7 @@ async function executeRequest(
             const payload = message.payload as {
                 playlistId: string;
                 operationId?: string;
+                contentTypes?: XtreamContentType[];
             };
             const capturePhase =
                 createWorkerPerformancePhaseAdapter(performanceCapture);
@@ -988,7 +1045,8 @@ async function executeRequest(
                         db,
                         payload.playlistId,
                         controller.control,
-                        capturePhase
+                        capturePhase,
+                        payload.contentTypes
                     );
 
                     controller.emitCompleted({
@@ -1046,6 +1104,20 @@ async function executeRequest(
             );
         }
 
+        case 'DB_RESTORE_XTREAM_FAVORITES': {
+            const { playlistId, favorites, restoreId } = message.payload as {
+                playlistId: string;
+                favorites: XtreamBackupFavoriteItem[];
+                restoreId?: string;
+            };
+            return restoreXtreamFavorites(
+                db,
+                playlistId,
+                favorites,
+                undefined,
+                restoreId
+            );
+        }
         case 'DB_ADD_FAVORITE': {
             const payload = message.payload as {
                 contentId: number;
@@ -1059,7 +1131,7 @@ async function executeRequest(
 
         case 'DB_REMOVE_FAVORITE': {
             const payload = message.payload as {
-                contentId: number;
+                contentId: XtreamFavoriteRemovalRef;
                 playlistId: string;
             };
             return removeFavorite(db, payload.contentId, payload.playlistId);
@@ -1073,6 +1145,10 @@ async function executeRequest(
             return isFavorite(db, payload.contentId, payload.playlistId);
         }
 
+        case 'DB_GET_FAVORITES_FOR_BACKUP': {
+            const { playlistId } = message.payload as { playlistId: string };
+            return getFavoritesForBackup(db, playlistId);
+        }
         case 'DB_GET_FAVORITES': {
             const payload = message.payload as { playlistId: string };
             return getFavorites(db, payload.playlistId);
@@ -1086,11 +1162,7 @@ async function executeRequest(
 
         case 'DB_REORDER_GLOBAL_FAVORITES': {
             const payload = message.payload as {
-                updates: {
-                    content_id: number;
-                    playlist_id: string;
-                    position: number;
-                }[];
+                updates: ElectronBridgeFavoriteReorderUpdate[];
             };
             return reorderGlobalFavorites(db, payload.updates);
         }
@@ -1102,8 +1174,11 @@ async function executeRequest(
             return clearRecentlyViewed(db);
 
         case 'DB_GET_RECENT_ITEMS': {
-            const payload = message.payload as { playlistId: string };
-            return getRecentItems(db, payload.playlistId);
+            const payload = message.payload as {
+                playlistId: string;
+                all?: boolean;
+            };
+            return getRecentItems(db, payload.playlistId, payload.all === true);
         }
 
         case 'DB_ADD_RECENT_ITEM': {
@@ -1207,7 +1282,11 @@ async function executeRequest(
                 playlistId: string;
                 items: Parameters<typeof replaceAllPlaybackPositions>[2];
             };
-            return replaceAllPlaybackPositions(db, payload.playlistId, payload.items);
+            return replaceAllPlaybackPositions(
+                db,
+                payload.playlistId,
+                payload.items
+            );
         }
 
         case 'DB_CLEAR_ALL_PLAYBACK_POSITIONS': {

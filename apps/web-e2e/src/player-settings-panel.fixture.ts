@@ -80,7 +80,7 @@ export async function importPlaylist(page: Page): Promise<string> {
             .getByRole('button', { name: 'Add playlist', exact: true })
             .click(),
     ]);
-    await expect(page.getByText('1 channels')).toBeVisible();
+    await expect(page.getByText('1 channel', { exact: false })).toBeVisible();
     return page.url();
 }
 

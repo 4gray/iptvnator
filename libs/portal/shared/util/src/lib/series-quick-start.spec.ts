@@ -1,4 +1,7 @@
-import { PlaybackPositionData, XtreamSerieEpisode } from '@iptvnator/shared/interfaces';
+import {
+    PlaybackPositionData,
+    XtreamSerieEpisode,
+} from '@iptvnator/shared/interfaces';
 import {
     SERIES_QUICK_START_ACTION_KIND,
     formatSeriesEpisodeCode,
@@ -39,6 +42,25 @@ function position(
 }
 
 describe('getSeriesQuickStartAction', () => {
+    it('uses absolute episode labels while retaining the legacy position for a flat collection', () => {
+        const target = { ...episode(189, 9, 189), seasonUnknown: true };
+        const action = getSeriesQuickStartAction({
+            seasons: { '9': [target] },
+            playbackPositions: new Map([
+                [
+                    189,
+                    position(189, {
+                        seasonNumber: 9,
+                        episodeNumber: 189,
+                        positionSeconds: 20,
+                    }),
+                ],
+            ]),
+        });
+        expect(action?.kind).toBe(SERIES_QUICK_START_ACTION_KIND.Resume);
+        expect(action?.episodeLabel).toBe('E189 · Episode 189');
+        expect(action?.episode).toBe(target);
+    });
     it('returns the first episode when there are no playback positions', () => {
         const firstEpisode = episode(101, 1, 1);
 
@@ -119,9 +141,7 @@ describe('getSeriesQuickStartAction', () => {
             ]),
         });
 
-        expect(action?.kind).toBe(
-            SERIES_QUICK_START_ACTION_KIND.PlayRecent
-        );
+        expect(action?.kind).toBe(SERIES_QUICK_START_ACTION_KIND.PlayRecent);
         expect(action?.labelKey).toBe('XTREAM.PLAY_EPISODE');
         expect(action?.labelParams).toEqual({ episode: 8 });
         expect(action?.episodeLabel).toBe('S01E08 \u00b7 Episode 8');
@@ -429,6 +449,9 @@ describe('getSeriesQuickStartAction', () => {
 });
 
 describe('formatSeriesEpisodeCode', () => {
+    it('does not invent a season for absolute episode numbers', () => {
+        expect(formatSeriesEpisodeCode(1, 189, true)).toBe('E189');
+    });
     it('formats season and episode numbers with two digit minimums', () => {
         expect(formatSeriesEpisodeCode(1, 2)).toBe('S01E02');
         expect(formatSeriesEpisodeCode(12, 14)).toBe('S12E14');

@@ -69,6 +69,17 @@ export async function runWithPlaylistAuthorityReset<T>(
     );
 }
 
+/** Row reservations this browsing context holds now, per playlist. */
+const heldHere = new Map<string, number>();
+
+/**
+ * Whether this context holds a reservation on the playlist: a store-wide
+ * reset waits for it, so its own writes must not wait for the reset.
+ */
+export function holdsPlaylistAuthority(playlistId: string): boolean {
+    return (heldHere.get(playlistId) ?? 0) > 0;
+}
+
 /** Tries to hold one origin-wide row reservation until its owner releases it. */
 export async function reservePlaylistAuthority(
     playlistId: string
@@ -120,11 +131,18 @@ export async function reservePlaylistAuthority(
     }
 
     let released = false;
+    heldHere.set(playlistId, (heldHere.get(playlistId) ?? 0) + 1);
     return {
         status: 'acquired',
         release: () => {
             if (!released) {
                 released = true;
+                const count = (heldHere.get(playlistId) ?? 1) - 1;
+                if (count > 0) {
+                    heldHere.set(playlistId, count);
+                } else {
+                    heldHere.delete(playlistId);
+                }
                 releaseHeldLock();
             }
         },

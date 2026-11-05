@@ -37,7 +37,7 @@ export const SETTINGS_SECTION_DEFINITIONS: readonly SettingsSectionDefinition[] 
             id: 'epg',
             navLabelKey: 'SETTINGS.NAV_EPG',
             icon: 'calendar_month',
-            requires: ['epg'],
+            requires: ['epg-display'],
             group: 'app',
         },
         {
@@ -65,6 +65,7 @@ export const SETTINGS_SECTION_DEFINITIONS: readonly SettingsSectionDefinition[] 
             requires: ['remote-control'],
             group: 'devices',
         },
+        { id: 'server', navLabelKey: 'SOURCE_SYNC.TITLE', icon: 'dns', group: 'data' },
         {
             id: 'backup',
             navLabelKey: 'SETTINGS.NAV_BACKUP',

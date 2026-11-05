@@ -12,6 +12,7 @@ import { DatePipe } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import {
     MAT_DIALOG_DATA,
+    MatDialog,
     MatDialogModule,
     MatDialogRef,
 } from '@angular/material/dialog';
@@ -28,6 +29,12 @@ import {
     ElectronBridgeAppUpdateReleaseNotesRequest,
     isAppUpdateReleaseNotesNotFoundMessage,
 } from '@iptvnator/shared/interfaces';
+import {
+    DialogFooterDirective,
+    DialogFooterStartDirective,
+    DialogShellComponent,
+    dialogSize,
+} from '@iptvnator/ui/components';
 
 const RELEASE_NOTES_IMAGE_CLASS = 'release-notes-dialog__image';
 
@@ -69,6 +76,9 @@ function decorateReleaseNotesHtml(html: string): string {
 @Component({
     selector: 'app-update-release-notes-dialog',
     imports: [
+        DialogFooterDirective,
+        DialogFooterStartDirective,
+        DialogShellComponent,
         MatButtonModule,
         MatDialogModule,
         MatIconModule,
@@ -78,131 +88,134 @@ function decorateReleaseNotesHtml(html: string): string {
     ],
     encapsulation: ViewEncapsulation.None,
     template: `
-        <h2 mat-dialog-title>
-            {{ 'SETTINGS.APP_UPDATE_RELEASE_NOTES' | translate }}
-        </h2>
+        <app-dialog-shell
+            icon="new_releases"
+            [heading]="'SETTINGS.APP_UPDATE_RELEASE_NOTES' | translate"
+        >
+            <div class="release-notes-dialog">
+                <div class="release-notes-dialog__toolbar">
+                    <button
+                        mat-icon-button
+                        type="button"
+                        [disabled]="loading() || !notes()?.hasPrevious"
+                        [attr.aria-label]="
+                            'SETTINGS.APP_UPDATE_RELEASE_NOTES_OLDER'
+                                | translate
+                        "
+                        (click)="load('previous')"
+                        data-test-id="release-notes-previous"
+                    >
+                        <mat-icon>chevron_left</mat-icon>
+                    </button>
 
-        <mat-dialog-content class="release-notes-dialog mat-typography">
-            <div class="release-notes-dialog__toolbar">
-                <button
-                    mat-icon-button
-                    type="button"
-                    [disabled]="loading() || !notes()?.hasPrevious"
-                    [attr.aria-label]="
-                        'SETTINGS.APP_UPDATE_RELEASE_NOTES_OLDER' | translate
-                    "
-                    (click)="load('previous')"
-                    data-test-id="release-notes-previous"
-                >
-                    <mat-icon>chevron_left</mat-icon>
-                </button>
+                    <div class="release-notes-dialog__version">
+                        <strong>{{
+                            notes()?.releaseName || notes()?.tagName
+                        }}</strong>
+                        @if (notes()?.publishedAt; as publishedAt) {
+                            <span>{{ publishedAt | date: 'mediumDate' }}</span>
+                        }
+                    </div>
 
-                <div class="release-notes-dialog__version">
-                    <strong>{{
-                        notes()?.releaseName || notes()?.tagName
-                    }}</strong>
-                    @if (notes()?.publishedAt; as publishedAt) {
-                        <span>{{ publishedAt | date: 'mediumDate' }}</span>
-                    }
+                    <button
+                        mat-icon-button
+                        type="button"
+                        [disabled]="loading() || !notes()?.hasNext"
+                        [attr.aria-label]="
+                            'SETTINGS.APP_UPDATE_RELEASE_NOTES_NEWER'
+                                | translate
+                        "
+                        (click)="load('next')"
+                        data-test-id="release-notes-next"
+                    >
+                        <mat-icon>chevron_right</mat-icon>
+                    </button>
                 </div>
 
-                <button
-                    mat-icon-button
-                    type="button"
-                    [disabled]="loading() || !notes()?.hasNext"
-                    [attr.aria-label]="
-                        'SETTINGS.APP_UPDATE_RELEASE_NOTES_NEWER' | translate
-                    "
-                    (click)="load('next')"
-                    data-test-id="release-notes-next"
-                >
-                    <mat-icon>chevron_right</mat-icon>
+                @if (loading()) {
+                    <div class="release-notes-dialog__loading">
+                        <mat-spinner diameter="28" />
+                    </div>
+                } @else if (error(); as loadError) {
+                    <div
+                        class="release-notes-dialog__error"
+                        [class.release-notes-dialog__error--failed]="
+                            loadError.kind === 'failed'
+                        "
+                        data-test-id="release-notes-error"
+                    >
+                        @if (loadError.kind === 'not-found') {
+                            <p>
+                                {{
+                                    'SETTINGS.APP_UPDATE_RELEASE_NOTES_NOT_FOUND'
+                                        | translate
+                                            : { version: loadError.version }
+                                }}
+                            </p>
+                        } @else if (loadError.kind === 'unavailable') {
+                            <p>
+                                {{
+                                    'SETTINGS.APP_UPDATE_RELEASE_NOTES_UNAVAILABLE'
+                                        | translate
+                                }}
+                            </p>
+                        } @else {
+                            <p>
+                                {{
+                                    'SETTINGS.APP_UPDATE_RELEASE_NOTES_LOAD_FAILED'
+                                        | translate
+                                }}
+                            </p>
+                            <small>{{ loadError.message }}</small>
+                        }
+                    </div>
+                } @else {
+                    <article
+                        class="release-notes-dialog__body"
+                        data-test-id="release-notes-body"
+                        [innerHTML]="renderedMarkdown()"
+                    ></article>
+                }
+            </div>
+            <!-- The link to GitHub is a third action at the footer's start. The
+             error is checked first: a failed Previous/Next keeps the earlier
+             notes for navigation, but the body shows the error, so the
+             action must not open that earlier release. -->
+            <div appDialogFooterStart>
+                @if (error()) {
+                    <button
+                        mat-button
+                        type="button"
+                        (click)="openRelease(releasesPageUrl())"
+                        data-test-id="release-notes-open-releases"
+                    >
+                        <mat-icon>open_in_new</mat-icon>
+                        {{
+                            'SETTINGS.APP_UPDATE_OPEN_RELEASES_PAGE' | translate
+                        }}
+                    </button>
+                } @else if (notes()?.htmlUrl; as htmlUrl) {
+                    <button
+                        mat-button
+                        type="button"
+                        (click)="openRelease(htmlUrl)"
+                        data-test-id="release-notes-open-release"
+                    >
+                        <mat-icon>open_in_new</mat-icon>
+                        {{ 'SETTINGS.APP_UPDATE_OPEN_RELEASE' | translate }}
+                    </button>
+                }
+            </div>
+            <div appDialogFooter>
+                <button mat-flat-button type="button" (click)="close()">
+                    {{ 'CLOSE' | translate }}
                 </button>
             </div>
-
-            @if (loading()) {
-                <div class="release-notes-dialog__loading">
-                    <mat-spinner diameter="28" />
-                </div>
-            } @else if (error(); as loadError) {
-                <div
-                    class="release-notes-dialog__error"
-                    [class.release-notes-dialog__error--failed]="
-                        loadError.kind === 'failed'
-                    "
-                    data-test-id="release-notes-error"
-                >
-                    @if (loadError.kind === 'not-found') {
-                        <p>
-                            {{
-                                'SETTINGS.APP_UPDATE_RELEASE_NOTES_NOT_FOUND'
-                                    | translate: { version: loadError.version }
-                            }}
-                        </p>
-                    } @else if (loadError.kind === 'unavailable') {
-                        <p>
-                            {{
-                                'SETTINGS.APP_UPDATE_RELEASE_NOTES_UNAVAILABLE'
-                                    | translate
-                            }}
-                        </p>
-                    } @else {
-                        <p>
-                            {{
-                                'SETTINGS.APP_UPDATE_RELEASE_NOTES_LOAD_FAILED'
-                                    | translate
-                            }}
-                        </p>
-                        <small>{{ loadError.message }}</small>
-                    }
-                </div>
-            } @else {
-                <article
-                    class="release-notes-dialog__body"
-                    data-test-id="release-notes-body"
-                    [innerHTML]="renderedMarkdown()"
-                ></article>
-            }
-        </mat-dialog-content>
-
-        <mat-dialog-actions align="end">
-            <!-- The error is checked first: a failed Previous/Next keeps the
-                 earlier notes for navigation, but the body shows the error,
-                 so the action must not open that earlier release. -->
-            @if (error()) {
-                <button
-                    mat-button
-                    type="button"
-                    (click)="openRelease(releasesPageUrl())"
-                    data-test-id="release-notes-open-releases"
-                >
-                    <mat-icon>open_in_new</mat-icon>
-                    {{ 'SETTINGS.APP_UPDATE_OPEN_RELEASES_PAGE' | translate }}
-                </button>
-            } @else if (notes()?.htmlUrl; as htmlUrl) {
-                <button
-                    mat-button
-                    type="button"
-                    (click)="openRelease(htmlUrl)"
-                    data-test-id="release-notes-open-release"
-                >
-                    <mat-icon>open_in_new</mat-icon>
-                    {{ 'SETTINGS.APP_UPDATE_OPEN_RELEASE' | translate }}
-                </button>
-            }
-            <button mat-flat-button type="button" (click)="close()">
-                {{ 'CLOSE' | translate }}
-            </button>
-        </mat-dialog-actions>
+        </app-dialog-shell>
     `,
     changeDetection: ChangeDetectionStrategy.OnPush,
     styles: [
         `
-            .release-notes-dialog {
-                min-width: min(640px, calc(100vw - 64px));
-                max-width: min(760px, calc(100vw - 32px));
-            }
-
             .release-notes-dialog__toolbar {
                 display: grid;
                 grid-template-columns: 40px minmax(0, 1fr) 40px;
@@ -302,6 +315,23 @@ function decorateReleaseNotesHtml(html: string): string {
     ],
 })
 export class AppUpdateReleaseNotesDialogComponent implements OnInit {
+    /**
+     * Opens the dialog with the settings every entry point shares: the large
+     * preset, no autofocus (the toolbar's arrows would take it) and focus
+     * back on the opener afterwards. A caller picks only which release.
+     */
+    static open(
+        dialog: MatDialog,
+        data: AppUpdateReleaseNotesDialogData
+    ): MatDialogRef<AppUpdateReleaseNotesDialogComponent> {
+        return dialog.open(AppUpdateReleaseNotesDialogComponent, {
+            ...dialogSize('lg'),
+            autoFocus: false,
+            data,
+            restoreFocus: true,
+        });
+    }
+
     private readonly data =
         inject<AppUpdateReleaseNotesDialogData>(MAT_DIALOG_DATA);
     private readonly dialogRef = inject(

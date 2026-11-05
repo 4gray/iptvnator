@@ -1,0 +1,159 @@
+---
+title: Share IPTVnator Sources Between Desktop and Browsers
+description: Run IPTVnator in Docker on a NAS or home server, find its address and access token, and connect Electron and PWA clients to one source library.
+pubDate: 2026-10-16
+author: 4gray
+tags:
+    - guide
+draft: true
+faq:
+    - q: Can the desktop app connect to the server?
+      a: Yes. Open Settings → Server in Electron and enter the same app address you use in a browser. If the server has an access token, enter it too.
+    - q: Does this synchronize favorites or watch progress?
+      a: This version synchronizes source definitions only. Favorites, recently viewed items, watch progress, EPG and settings remain on each device.
+    - q: Where do I get the access token?
+      a: Use the value configured as IPTVNATOR_ACCESS_TOKEN on the server, or ask its owner. Leave the field empty only when no token is configured.
+    - q: Can people have separate libraries on one server?
+      a: One container provides one shared source library, without user accounts. Separate libraries require separate instances with their own data volumes and ports.
+    - q: Will connecting delete my local sources?
+      a: No. Connecting uses a separate server library and keeps the original local library. Import local sources copies source definitions to the server; disconnecting returns to your original library.
+---
+
+The self-hosted image runs the IPTVnator web app and its backend in one Docker
+container. Run it once on a home server or NAS, then connect Electron and browser
+clients to the same source library. IPTVnator does not provide channels or IPTV
+subscriptions; you still bring your own sources.
+
+This guide covers the current source synchronization feature. **Favorites,
+recently viewed items and watch progress remain on each device.** The
+[Docker README](https://github.com/4gray/iptvnator/blob/master/docker/README.md#connect-your-clients)
+is the canonical connection and troubleshooting reference.
+
+## 1. Start IPTVnator on your server
+
+Use a machine with Docker and Docker Compose, such as a container-capable NAS,
+a home computer or a mini PC. Save this as `compose.yaml`, replacing the example
+IP address with the server address that your other devices can reach:
+
+```yaml
+services:
+    iptvnator:
+        image: 4gray/iptvnator:latest
+        restart: unless-stopped
+        ports:
+            - '4333:80'
+        environment:
+            CLIENT_URL: http://192.168.1.20:4333
+            IPTVNATOR_STORAGE: server
+            # Optional: replace this example before enabling it.
+            # IPTVNATOR_ACCESS_TOKEN: replace-with-a-long-random-string
+        volumes:
+            - ./data:/data
+```
+
+Run this in the folder containing `compose.yaml`:
+
+```bash
+docker compose up -d
+```
+
+The first start initializes the database. The persistent `data` folder holds
+the shared sources; keep it when updating or recreating the container. The
+repository also includes a [Compose file with a health check](https://github.com/4gray/iptvnator/blob/master/docker/docker-compose.yml).
+
+## 2. Find the two values for the Server page
+
+**Server address:** the address that opens IPTVnator in a browser on the device
+you want to connect. In this example it is `http://192.168.1.20:4333`.
+It is not your IPTV provider's address or the container's internal backend port.
+Do not add `/api/v1`; the client adds `/api` automatically. `localhost` means the
+current device, so use the NAS address when connecting from another computer.
+
+**Access token:** the value of `IPTVNATOR_ACCESS_TOKEN` in your container's
+environment. If no token was configured, leave the field empty. If someone else
+runs the server, ask them for its address and token. The token is not your IPTV
+provider's password.
+
+To require a token, uncomment the variable, replace the example with a long
+random value and run `docker compose up -d` again. Compose recreates the
+container with the changed environment while retaining the data volume.
+A token-protected server requires that token on every client.
+
+## 3. Connect Electron and PWA clients
+
+In Electron, open **Settings → Server**. Enter the server address and token,
+then choose **Connect**. The application restarts after successful connection.
+The page then shows the connection state and last synchronization time.
+
+![Settings → Server with the app address, access-token instructions and setup guide](/iptvnator/blog/guides/screenshots/guide-server-settings-dark.png)
+
+Get the desktop app or browser version from the [download hub](/iptvnator/download/).
+
+In a browser, open the same server address. The bundled PWA discovers its server
+automatically. If it needs a token, use **Settings → Server** to provide it.
+A standalone PWA can also connect manually through that page.
+
+For browser installation and access over HTTPS, use a reverse proxy with a
+trusted certificate. An HTTPS PWA cannot connect to a plain HTTP backend.
+Set `CLIENT_URL` to the actual browser origin; multiple allowed origins may be
+comma-separated. The [Docker configuration reference](https://github.com/4gray/iptvnator/blob/master/docker/README.md#runtime-configuration)
+covers reverse proxies, certificates and advanced deployments.
+
+## 4. Import existing sources
+
+After connecting, choose **Import local sources** in **Settings → Server**.
+Review the preview before confirming. Matching sources are deduplicated and
+the original local library is kept. Import copies source definitions, not
+favorites or watch progress.
+
+![Settings → Server showing two local sources in the import preview, before confirmation](/iptvnator/blog/guides/screenshots/guide-server-migration-dark.png)
+
+Connected devices refresh source changes within the polling interval, normally
+15 seconds while visible. A previously synchronized client retains cached
+sources while the server is offline; shared source edits require a connection.
+**Disconnect** returns to the original local library without deleting the
+server's sources.
+
+## What is shared
+
+| Data                                                    | Location                                        |
+| ------------------------------------------------------- | ----------------------------------------------- |
+| Source names, provider endpoints and connection details | Server, shared between connected clients        |
+| Uploaded M3U playlist text                              | Server; referenced media files are not uploaded |
+| Favorites, recently viewed items and playback progress  | Each device                                     |
+| EPG, settings, parental locks and UI preferences        | Each device                                     |
+
+One server is one shared source library, without separate user accounts.
+Provider credentials are stored unencrypted in the database, as in the desktop
+app. Keep the data folder private, require an access token when other people can
+reach the instance, and use HTTPS or a trusted private network.
+
+## If connecting fails
+
+A format error needs a full `http://` or `https://` address without embedded
+credentials, query parameters or a `#` fragment. If the server is unavailable,
+try opening the same address in this device's browser, then check the container,
+host port, firewall and VPN. If authentication fails, verify the running
+container's token. An incompatible server needs a current IPTVnator image with
+server storage enabled; a provider portal or the old standalone backend will
+not work.
+
+The form keeps your address and token after a failed attempt so you can correct
+them and retry. Further diagnostics are in the
+[client troubleshooting guide](https://github.com/4gray/iptvnator/blob/master/docker/README.md#if-connecting-fails).
+
+## Backups and updates
+
+Back up the server volume consistently: stop the container before copying its
+`data` folder, or use a SQLite-aware backup procedure. Export local favorites,
+history and settings separately from **Settings → Backup & data** on each device.
+
+To update this example deployment while keeping its volume:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+The `latest` image tracks merged changes; pin a release or commit tag for a
+reproducible deployment. Never remove the data volume as part of a routine update.

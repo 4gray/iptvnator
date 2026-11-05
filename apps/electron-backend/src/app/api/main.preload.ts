@@ -1,6 +1,14 @@
+import { createAppMenuListener } from './app-menu-listener';
+import type {
+    ElectronBridgeFavoriteReorderUpdate,
+    XtreamFavoriteRemovalRef,
+    XtreamBackupFavoriteItem,
+    XtreamCatalogStateCondition,
+} from '@iptvnator/shared/interfaces';
 import type { SourceProbeContext } from '@iptvnator/shared/interfaces';
 import { contextBridge, ipcRenderer, webFrame, webUtils } from 'electron';
 import {
+    APP_MENU_OPEN,
     APP_UPDATE_CHECK,
     APP_UPDATE_DOWNLOAD,
     APP_UPDATE_GET_RELEASE_NOTES,
@@ -10,8 +18,15 @@ import {
     ACKNOWLEDGE_PLAYLIST_OPEN_REQUEST,
     ANNOUNCE_PLAYLIST_OPEN_LISTENER,
     OPEN_FILE,
+    WINDOW_BACK_REQUESTED,
     WINDOW_GET_ZOOM_LEVEL,
     WINDOW_ZOOM_LEVEL_APPLIED,
+    SOURCE_SYNC_CONNECTION,
+    SOURCE_SYNC_CONFIGURE,
+    SOURCE_SYNC_DISCONNECT,
+    SOURCE_SYNC_REQUEST,
+    SOURCE_SYNC_LOCAL_SOURCES,
+    SOURCE_SYNC_RESUME,
 } from '@iptvnator/shared/interfaces/ipc-commands';
 import {
     attachEmbeddedMpvFrameView,
@@ -40,6 +55,7 @@ import type {
     EmbeddedMpvSupport,
     ElectronBridgeApi,
     ElectronBridgeAppUpdateReleaseNotesRequest,
+    ElectronBridgeBackGestureSource,
     ElectronBridgeAppUpdateStatus,
     ElectronBridgeDbOperationEvent,
     ElectronBridgeDownloadStartPayload,
@@ -288,6 +304,27 @@ const frameZoomPorts = {
 };
 
 const electronApi: ElectronBridgeApi = {
+    onAppMenuAction: createAppMenuListener(ipcRenderer),
+    sourceSyncConnection: () => {
+        const result = ipcRenderer.sendSync(SOURCE_SYNC_CONNECTION);
+        if (result?.error) throw new Error('SOURCE_SYNC.INCOMPATIBLE');
+        return result;
+    },
+    favoritesLocalRequest: (request) =>
+        ipcRenderer.invoke('DB_FAVORITES_LOCAL', request),
+    activityLocalRequest: (request) =>
+        ipcRenderer.invoke('DB_ACTIVITY_LOCAL', request),
+    sourceSyncRequest: (request) =>
+        ipcRenderer.invoke(SOURCE_SYNC_REQUEST, request),
+    sourceSyncConfigure: (url, token, restart) =>
+        ipcRenderer.invoke(SOURCE_SYNC_CONFIGURE, url, token, restart),
+    sourceSyncDisconnect: () => ipcRenderer.invoke(SOURCE_SYNC_DISCONNECT),
+    sourceSyncLocalSources: () => ipcRenderer.invoke(SOURCE_SYNC_LOCAL_SOURCES),
+    onSourceSyncResume: (callback) => {
+        const handler = () => callback();
+        ipcRenderer.on(SOURCE_SYNC_RESUME, handler);
+        return () => ipcRenderer.removeListener(SOURCE_SYNC_RESUME, handler);
+    },
     // Remote control channel change listener
     onChannelChange: (
         callback: (data: { direction: 'up' | 'down' }) => void
@@ -424,6 +461,7 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.on(APP_UPDATE_STATUS_CHANGED, handler);
         return () => ipcRenderer.off(APP_UPDATE_STATUS_CHANGED, handler);
     },
+    showApplicationMenu: () => ipcRenderer.invoke(APP_MENU_OPEN),
     minimizeWindow: () => ipcRenderer.invoke(WINDOW_MINIMIZE),
     toggleMaximizeWindow: () => ipcRenderer.invoke(WINDOW_TOGGLE_MAXIMIZE),
     toggleFullScreenWindow: () => ipcRenderer.invoke(WINDOW_TOGGLE_FULLSCREEN),
@@ -441,6 +479,21 @@ const electronApi: ElectronBridgeApi = {
         ) => callback(state);
         ipcRenderer.on(WINDOW_STATE_CHANGED, handler);
         return () => ipcRenderer.off(WINDOW_STATE_CHANGED, handler);
+    },
+    onWindowBackRequested: (
+        callback: (source: ElectronBridgeBackGestureSource) => void
+    ) => {
+        // Only the two known sources cross the bridge.
+        const handler = (
+            _event: Electron.IpcRendererEvent,
+            source: unknown
+        ) => {
+            if (source === 'app-command' || source === 'swipe') {
+                callback(source);
+            }
+        };
+        ipcRenderer.on(WINDOW_BACK_REQUESTED, handler);
+        return () => ipcRenderer.off(WINDOW_BACK_REQUESTED, handler);
     },
     setWindowCloseGuard: (active: boolean) =>
         ipcRenderer.invoke(WINDOW_SET_CLOSE_GUARD, active),
@@ -495,14 +548,16 @@ const electronApi: ElectronBridgeApi = {
         credentials?: {
             authorization?: string | null;
             cookie?: string | null;
-        } | null
+        } | null,
+        origin?: string | null
     ) =>
         ipcRenderer.invoke(
             'set-user-agent',
             userAgent,
             referer,
             scopeUrl,
-            credentials
+            credentials,
+            origin
         ),
     openInMpv: (
         url: string,
@@ -666,6 +721,8 @@ const electronApi: ElectronBridgeApi = {
         playlists: Playlist[],
         options?: ElectronBridgeTrustOptions
     ) => ipcRenderer.invoke('AUTO_UPDATE', playlists, options),
+    setEpgEnabled: (enabled: boolean) =>
+        ipcRenderer.invoke('EPG_SET_ENABLED', enabled),
     fetchEpg: (urls: string[], options?: ElectronBridgeTrustOptions) =>
         ipcRenderer.invoke('FETCH_EPG', { url: urls, options }),
     getChannelPrograms: (
@@ -694,8 +751,11 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('EPG_FORCE_FETCH', { url, options }),
     openEpgFileDialog: () => ipcRenderer.invoke('EPG_OPEN_FILE_DIALOG'),
     clearEpgData: () => ipcRenderer.invoke('EPG_CLEAR_ALL'),
-    reconcileEpgSources: (urls: string[]) =>
-        ipcRenderer.invoke('EPG_RECONCILE_SOURCES', { urls }),
+    reconcileEpgSources: (urls: string[], epgEnabled?: boolean) =>
+        ipcRenderer.invoke('EPG_RECONCILE_SOURCES', {
+            urls,
+            ...(epgEnabled === undefined ? {} : { epgEnabled }),
+        }),
     clearEpgDataForSource: (sourceUrl: string) =>
         ipcRenderer.invoke('EPG_CLEAR_SOURCE', { sourceUrl }),
     checkEpgFreshness: (urls: string[], maxAgeHours?: number) =>
@@ -744,6 +804,7 @@ const electronApi: ElectronBridgeApi = {
     resetHostConnectivityGuard: (url: string) =>
         ipcRenderer.invoke('CONNECTIVITY_GUARD_RESET', { url }),
     xtreamRequest: (payload: {
+        userAgent?: string;
         probe?: SourceProbeContext;
         connectionTest?: boolean;
         url: string;
@@ -802,8 +863,28 @@ const electronApi: ElectronBridgeApi = {
     ) => ipcRenderer.invoke('DB_UPDATE_PLAYLIST', playlistId, updates),
     dbDeletePlaylist: (playlistId: string, operationId?: string) =>
         ipcRenderer.invoke('DB_DELETE_PLAYLIST', playlistId, operationId),
-    dbDeleteXtreamContent: (playlistId: string, operationId?: string) =>
-        ipcRenderer.invoke('DB_DELETE_XTREAM_CONTENT', playlistId, operationId),
+    dbDeleteXtreamContent: (
+        playlistId: string,
+        operationId?: string,
+        contentTypes?: import('@iptvnator/shared/interfaces').XtreamContentType[]
+    ) =>
+        ipcRenderer.invoke(
+            'DB_DELETE_XTREAM_CONTENT',
+            playlistId,
+            operationId,
+            ...(contentTypes === undefined ? [] : [contentTypes])
+        ),
+    dbRestoreXtreamFavorites: (
+        playlistId: string,
+        favorites: XtreamBackupFavoriteItem[],
+        restoreId?: string
+    ) =>
+        ipcRenderer.invoke(
+            'DB_RESTORE_XTREAM_FAVORITES',
+            playlistId,
+            favorites,
+            restoreId
+        ),
     dbRestoreXtreamUserData: (
         playlistId: string,
         favorites: unknown[],
@@ -838,11 +919,16 @@ const electronApi: ElectronBridgeApi = {
         ),
     dbGetAllCategories: (playlistId: string, type: string) =>
         ipcRenderer.invoke('DB_GET_ALL_CATEGORIES', playlistId, type),
-    dbUpdateCategoryVisibility: (categoryIds: number[], hidden: boolean) =>
+    dbUpdateCategoryVisibility: (
+        categoryIds: number[],
+        hidden: boolean,
+        explicit?: boolean
+    ) =>
         ipcRenderer.invoke(
             'DB_UPDATE_CATEGORY_VISIBILITY',
             categoryIds,
-            hidden
+            hidden,
+            ...(explicit === undefined ? [] : [explicit])
         ),
     dbSetCategoryLocks: (
         playlistId: string,
@@ -940,21 +1026,29 @@ const electronApi: ElectronBridgeApi = {
             playlistId,
             backdropUrl
         ),
-    dbRemoveFavorite: (contentId: number, playlistId: string) =>
-        ipcRenderer.invoke('DB_REMOVE_FAVORITE', contentId, playlistId),
+    dbRemoveFavorite: (
+        contentId: XtreamFavoriteRemovalRef,
+        playlistId: string
+    ) => ipcRenderer.invoke('DB_REMOVE_FAVORITE', contentId, playlistId),
     dbIsFavorite: (contentId: number, playlistId: string) =>
         ipcRenderer.invoke('DB_IS_FAVORITE', contentId, playlistId),
+    dbGetFavoritesForBackup: (playlistId: string) =>
+        ipcRenderer.invoke('DB_GET_FAVORITES_FOR_BACKUP', playlistId),
     dbGetFavorites: (playlistId: string) =>
         ipcRenderer.invoke('DB_GET_FAVORITES', playlistId),
     dbGetGlobalFavorites: () => ipcRenderer.invoke('DB_GET_GLOBAL_FAVORITES'),
     dbGetAllGlobalFavorites: () =>
         ipcRenderer.invoke('DB_GET_ALL_GLOBAL_FAVORITES'),
     dbReorderGlobalFavorites: (
-        updates: { content_id: number; playlist_id: string; position: number }[]
+        updates: ElectronBridgeFavoriteReorderUpdate[]
     ) => ipcRenderer.invoke('DB_REORDER_GLOBAL_FAVORITES', updates),
     // Recently viewed (playlist-specific)
-    dbGetRecentItems: (playlistId: string) =>
-        ipcRenderer.invoke('DB_GET_RECENT_ITEMS', playlistId),
+    dbGetRecentItems: (playlistId: string, options?: { all?: boolean }) =>
+        ipcRenderer.invoke(
+            'DB_GET_RECENT_ITEMS',
+            playlistId,
+            ...(options ? [options] : [])
+        ),
     dbAddRecentItem: (
         contentId: number,
         playlistId: string,
@@ -976,13 +1070,23 @@ const electronApi: ElectronBridgeApi = {
     dbGetContentByXtreamId: (
         xtreamId: number,
         playlistId: string,
-        contentType?: 'live' | 'movie' | 'series'
+        contentType?: 'live' | 'movie' | 'series',
+        identity?: ContentMetadataPatch,
+        categoryId?: number,
+        excludeLocked?: boolean
     ) =>
         ipcRenderer.invoke(
             'DB_GET_CONTENT_BY_XTREAM_ID',
             xtreamId,
             playlistId,
-            contentType
+            contentType,
+            ...(excludeLocked
+                ? [identity, categoryId, true]
+                : categoryId !== undefined
+                  ? [identity, categoryId]
+                  : identity
+                    ? [identity]
+                    : [])
         ),
     dbSetContentMetadataIfMissing: (
         contentId: number,
@@ -998,8 +1102,19 @@ const electronApi: ElectronBridgeApi = {
     dbCancelOperation: (operationId: string) =>
         ipcRenderer.invoke('DB_CANCEL_OPERATION', operationId),
     dbGetAppState: (key: string) => ipcRenderer.invoke('DB_GET_APP_STATE', key),
-    dbSetAppState: (key: string, value: string) =>
-        ipcRenderer.invoke('DB_SET_APP_STATE', key, value),
+    dbCheckXtreamCatalogConnection: (condition: XtreamCatalogStateCondition) =>
+        ipcRenderer.invoke('DB_CHECK_XTREAM_CATALOG_CONNECTION', condition),
+    dbSetAppState: (
+        key: string,
+        value: string,
+        condition?: XtreamCatalogStateCondition
+    ) =>
+        ipcRenderer.invoke(
+            'DB_SET_APP_STATE',
+            key,
+            value,
+            ...(condition === undefined ? [] : [condition])
+        ),
     // TMDB metadata cache
     dbGetTmdbMetadata: (
         mediaType: TmdbCacheMediaType,
@@ -1081,7 +1196,12 @@ const electronApi: ElectronBridgeApi = {
     dbReplaceAllPlaybackPositions: (
         playlistId: string,
         items: ElectronBridgePlaybackPositionInput[]
-    ) => ipcRenderer.invoke('DB_REPLACE_ALL_PLAYBACK_POSITIONS', playlistId, items),
+    ) =>
+        ipcRenderer.invoke(
+            'DB_REPLACE_ALL_PLAYBACK_POSITIONS',
+            playlistId,
+            items
+        ),
     dbClearAllPlaybackPositions: (playlistId: string) =>
         ipcRenderer.invoke('DB_CLEAR_ALL_PLAYBACK_POSITIONS', playlistId),
     dbClearPlaybackPosition: (
@@ -1186,11 +1306,14 @@ const electronApi: ElectronBridgeApi = {
 // the next resize. Applied at DOMContentLoaded, never earlier — see
 // preload-zoom-level.ts for the Linux/Windows ready-to-show trap.
 applyPersistedZoomLevel({
-    requestPersistedZoomLevel: () => ipcRenderer.sendSync(WINDOW_GET_ZOOM_LEVEL),
+    requestPersistedZoomLevel: () =>
+        ipcRenderer.sendSync(WINDOW_GET_ZOOM_LEVEL),
     ...frameZoomPorts,
     whenDocumentParsed: (apply) => {
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', apply, { once: true });
+            document.addEventListener('DOMContentLoaded', apply, {
+                once: true,
+            });
         } else {
             apply();
         }

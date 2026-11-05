@@ -1,3 +1,4 @@
+import { observeActivityChanges } from '@iptvnator/services/activity-changes';
 import {
     DestroyRef,
     Injectable,
@@ -38,7 +39,10 @@ import {
     createExternalLaunchOwner,
     startRouteOwnedPlayback,
 } from './vod-details-external-launch-owner';
-import { injectXtreamRecentHistory } from '../xtream-recent-history';
+import {
+    injectXtreamRecentHistory,
+    xtreamPlayedDetail,
+} from '../xtream-recent-history';
 import {
     settleOwnedExternalLaunch,
     VodExternalLaunchClaim,
@@ -137,12 +141,19 @@ export class VodDetailsPlaybackService {
     readonly hasPlaybackPosition = this.positions.hasResumable;
 
     constructor() {
+        const stopActivityUpdates = observeActivityChanges(() => {
+            const id = this.xtreamStore.currentPlaylist()?.id;
+            const contentId = this.bindings()?.vodId();
+            if (id && contentId && !this.inlinePlayback())
+                void this.loadPosition(id, contentId).catch(() => undefined);
+        });
         const unsubscribePositionUpdates =
             this.playbackPositionBridge.onPlaybackPositionUpdate(
                 (data: PlaybackPositionData) => this.positions.trackOwned(data)
             ) ?? null;
 
         inject(DestroyRef).onDestroy(() => {
+            stopActivityUpdates();
             this.positions.destroy();
             unsubscribePositionUpdates?.();
         });
@@ -171,6 +182,8 @@ export class VodDetailsPlaybackService {
         if (!source || !playlist) {
             return null;
         }
+        const streamUrl = this.xtreamStore.constructVodStreamUrl(vodItem);
+        if (!streamUrl) return null;
 
         const presentation = resolveXtreamVodPlaybackPresentation(vodItem);
         // Master's sparse-details fallback: a provider that omits the route
@@ -195,11 +208,14 @@ export class VodDetailsPlaybackService {
             contentType: 'vod',
         };
         return {
-            streamUrl: this.xtreamStore.constructVodStreamUrl(vodItem),
+            streamUrl,
             title: presentation.title,
             thumbnail: presentation.posterUrl,
             ...(position ? { startTime: position.positionSeconds } : {}),
             contentInfo,
+            userAgent: playlist.userAgent,
+            referer: playlist.referrer,
+            origin: playlist.origin,
         };
     }
 
@@ -406,6 +422,11 @@ export class VodDetailsPlaybackService {
                 xtreamId: this.bindings()?.vodId() ?? NaN,
                 contentType: 'movie',
                 backdropUrl: this.bindings()?.vodInfo()?.backdrop_path?.[0],
+                playedContent: xtreamPlayedDetail(
+                    this.bindings()?.vodInfo(),
+                    playback.title,
+                    playback.thumbnail
+                ),
             });
             return await this.applyPlayback(playback, isCurrent, player);
         } finally {

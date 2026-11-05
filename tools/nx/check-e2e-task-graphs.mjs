@@ -27,6 +27,7 @@ export const MODES = {
  */
 export const E2E_PROJECTS = {
     'web-e2e': 'apps/web-e2e',
+    'tv-e2e': 'apps/tv-e2e',
     'electron-backend-e2e': 'apps/electron-backend-e2e',
 };
 
@@ -83,16 +84,26 @@ export async function findInvalidTaskGraphs(projectGraph) {
 
     return playwrightTargets(projectGraph).flatMap(({ project, target }) => {
         try {
-            assertTaskGraphDoesNotContainInvalidTargets(
-                createTaskGraph(
-                    projectGraph,
-                    {},
-                    [project],
-                    [target],
-                    undefined,
-                    {}
-                )
+            const graph = createTaskGraph(
+                projectGraph,
+                {},
+                [project],
+                [target],
+                undefined,
+                {}
             );
+            assertTaskGraphDoesNotContainInvalidTargets(graph);
+            if (
+                project === 'tv-e2e' &&
+                (target === 'e2e' || target.startsWith('e2e-ci--src/'))
+            ) {
+                for (const dependency of ['tv:build', 'tv-setup:build']) {
+                    if (!graph.tasks[dependency])
+                        throw new Error(
+                            `TV browser tests require ${dependency}`
+                        );
+                }
+            }
             return [];
         } catch (error) {
             return [{ task: `${project}:${target}`, message: error.message }];

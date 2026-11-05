@@ -1,3 +1,5 @@
+import type { ContentCertification } from './content-certification';
+import type { ContentMetadataPatch } from './content-metadata.interface';
 import {
     TmdbCountryFacet,
     TmdbEnrichedCastMember,
@@ -27,6 +29,10 @@ export interface XtreamSerieDetails {
 }
 
 export interface XtreamSerieInfo {
+    /** Provider identity retained while a user-selected TMDB result supplies display metadata. */
+    tmdb_provider_identity?: Omit<ContentMetadataPatch, 'backdropUrl'>;
+    /** All country classifications supplied by TMDB. */
+    tmdb_certifications?: readonly ContentCertification[];
     name: string;
     cover: string;
     plot: string;
@@ -59,6 +65,9 @@ export interface XtreamSerieInfo {
 }
 
 export interface XtreamSerieEpisode {
+    /** Absolute provider numbering; `season` remains an internal grouping key. */
+    seasonUnknown?: boolean;
+    activityIdentity?: import('./activity-sync/activity-sync.contract').ActivityContentIdentity;
     id: string;
     episode_num: number;
     title: string;

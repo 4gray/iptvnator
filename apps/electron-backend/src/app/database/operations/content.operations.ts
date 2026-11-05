@@ -1,3 +1,8 @@
+import { selectContentFields } from './content-fields';
+import { setAppState } from './playlist.operations';
+import { enabledXtreamCatalogCondition } from './xtream-content-selection';
+export { getContentByXtreamId } from './content-identity-lookup';
+import { reconcileFavoriteIdentity } from './favorite-catalog';
 import { and, asc, desc, eq, inArray, or, sql, type SQL } from 'drizzle-orm';
 import * as schema from '@iptvnator/shared/database/schema';
 import {
@@ -313,6 +318,7 @@ async function selectXtreamGlobalSearchCandidatesWithTitleIndex(
             types.map((type) => sql`${type}`),
             sql`, `
         )})
+        AND ${enabledXtreamCatalogCondition(sql`cat.playlist_id`, sql`c.type`)}
         AND ${sql.join(titleConditions, sql` AND `)}
         ${excludeHidden ? sql`AND cat.hidden = 0` : sql``}
         ${unlockedCategorySql()}
@@ -354,6 +360,7 @@ async function selectXtreamGlobalSearchCandidatesWithFts(
         INNER JOIN categories AS cat ON c.category_id = cat.id
         INNER JOIN playlists AS p ON cat.playlist_id = p.id
         WHERE content_title_fts MATCH ${matchQuery}
+        AND ${enabledXtreamCatalogCondition(sql`cat.playlist_id`, sql`c.type`)}
         AND c.type IN (${sql.join(
             types.map((type) => sql`${type}`),
             sql`, `
@@ -378,6 +385,7 @@ async function selectXtreamGlobalSearchCandidatesWithContentScan(
     candidateLimit: number
 ): Promise<XtreamGlobalSearchCandidate[]> {
     const conditions = [
+        enabledXtreamCatalogCondition(),
         inArray(
             schema.content.type,
             types as Array<'live' | 'movie' | 'series'>
@@ -649,23 +657,6 @@ function getRecentlyAddedContentTypes(
     return ['movie', 'series'];
 }
 
-function selectContentFields() {
-    return {
-        id: schema.content.id,
-        category_id: schema.content.categoryId,
-        title: schema.content.title,
-        rating: schema.content.rating,
-        added: schema.content.added,
-        poster_url: schema.content.posterUrl,
-        epg_channel_id: schema.content.epgChannelId,
-        tv_archive: schema.content.tvArchive,
-        tv_archive_duration: schema.content.tvArchiveDuration,
-        direct_source: schema.content.directSource,
-        xtream_id: schema.content.xtreamId,
-        type: schema.content.type,
-    };
-}
-
 export async function hasContent(
     db: AppDatabase,
     playlistId: string,
@@ -705,6 +696,7 @@ export async function getContent(
             and(
                 eq(schema.categories.playlistId, playlistId),
                 eq(schema.content.type, type),
+                enabledXtreamCatalogCondition(),
                 unlockedCategoryCondition()
             )
         );
@@ -784,6 +776,7 @@ function getGlobalRecentlyAddedByType(
     playlistType?: RecentlyAddedPlaylistType
 ) {
     const whereConditions = [
+        enabledXtreamCatalogCondition(),
         eq(schema.content.type, type),
         eq(schema.categories.hidden, false),
         unlockedCategoryCondition(),
@@ -974,6 +967,13 @@ export async function saveContent(
               toXtreamContentValue
           );
 
+    // A process exit between commits must leave recoverable unfinished state.
+    await setAppState(
+        db,
+        `xtream-import-status:${playlistId}:${type}`,
+        'importing'
+    );
+
     return capturePhase
         ? capturePhase.captureAsync(
               XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_CONTENT_WRITE_TRANSACTIONS,
@@ -1013,6 +1013,14 @@ export async function clearXtreamImportCache(
             : { success: true };
     }
 
+    reconcileFavoriteIdentity(
+        db,
+        and(
+            eq(schema.favorites.playlistId, playlistId),
+            eq(schema.favorites.type, type)
+        )
+    );
+
     // Count and delete stay scoped to the captured ids, not to the
     // playlist/type predicate, so a category a concurrent import creates
     // between the read and the delete survives.
@@ -1034,34 +1042,6 @@ export async function clearXtreamImportCache(
         : deleteXtreamCacheRows(db, contentRowCounts, categoryIds);
 }
 
-export async function getContentByXtreamId(
-    db: AppDatabase,
-    xtreamId: number,
-    playlistId: string,
-    contentType?: 'live' | 'movie' | 'series'
-) {
-    const conditions = [
-        eq(schema.content.xtreamId, xtreamId),
-        eq(schema.categories.playlistId, playlistId),
-    ];
-
-    if (contentType) {
-        conditions.push(eq(schema.content.type, contentType));
-    }
-
-    const result = await db
-        .select(selectContentFields())
-        .from(schema.content)
-        .innerJoin(
-            schema.categories,
-            eq(schema.content.categoryId, schema.categories.id)
-        )
-        .where(and(...conditions))
-        .limit(1);
-
-    return result[0] || null;
-}
-
 export async function searchContent(
     db: AppDatabase,
     playlistId: string,
@@ -1075,6 +1055,7 @@ export async function searchContent(
     }
 
     const conditions = [
+        enabledXtreamCatalogCondition(),
         eq(schema.categories.playlistId, playlistId),
         inArray(
             schema.content.type,

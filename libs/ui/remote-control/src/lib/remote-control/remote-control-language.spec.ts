@@ -9,13 +9,19 @@ describe('resolveRemoteControlLanguage', () => {
     it.each([
         [['de-DE', 'en'], 'de', 'de-DE'],
         [['fr'], 'fr', 'fr'],
+        [['uk-UA', 'en'], 'uk', 'uk-UA'],
+        [['uk'], 'uk', 'uk'],
         [['zh-TW'], 'zhtw', 'zh-TW'],
         [['zh-Hant-HK'], 'zhtw', 'zh-Hant-HK'],
         [['zh-CN'], 'zh', 'zh-CN'],
         [['be-BY'], 'by', 'be-BY'],
         [['ar-MA'], 'ary', 'ar-MA'],
         [['ar-EG'], 'ar', 'ar-EG'],
-        [['pt_BR'], 'pt', 'pt_BR'],
+        [['pt_BR'], 'pt-BR', 'pt-BR'],
+        [['PT-pt'], 'pt-PT', 'pt-PT'],
+        [['pt-BR', 'pt-PT'], 'pt-BR', 'pt-BR'],
+        [['pt'], 'pt-BR', 'pt-BR'],
+        [['pt-AO'], 'pt-PT', 'pt-PT'],
     ])(
         'maps %j to the %s translation',
         (languages, translation, documentLanguage) => {

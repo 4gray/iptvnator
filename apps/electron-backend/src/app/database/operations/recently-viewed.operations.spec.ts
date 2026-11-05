@@ -6,6 +6,12 @@ import {
 } from './operations.test-helpers';
 
 jest.mock('drizzle-orm', () => mockDrizzleOrmModule());
+// Journal semantics and transaction atomicity have separate real-SQLite coverage.
+jest.mock('./xtream-history-recovery', () => ({
+    clearRecoveredHistory: jest.fn(),
+    recordRecoveredHistory: jest.fn(),
+    removeRecoveredHistory: jest.fn(),
+}));
 
 jest.mock('./content-metadata.operations', () => ({
     persistContentMetadataIfMissing: jest.fn().mockResolvedValue(undefined),
@@ -82,6 +88,19 @@ describe('recently-viewed.operations', () => {
         });
     });
 
+    it('reads complete playlist history for recovery without the browsing limit', async () => {
+        const rows = Array.from({ length: 105 }, (_, id) => ({ id }));
+        const { db, queries } = createDbMock([rows]);
+        await expect(getRecentItems(db, 'playlist-1', true)).resolves.toEqual(
+            rows
+        );
+        expect(queries[0].limit).not.toHaveBeenCalled();
+        expect(mockDrizzle.eq).toHaveBeenCalledWith(
+            schema.recentlyViewed.playlistId,
+            'playlist-1'
+        );
+    });
+
     describe('addRecentItem', () => {
         it('inserts a new history entry on first view and persists the backdrop', async () => {
             const { db, insert, insertValues, update } = createDbMock([[]]);
@@ -110,9 +129,9 @@ describe('recently-viewed.operations', () => {
                 [{ id: 9, contentId: 42, playlistId: 'playlist-1' }],
             ]);
 
-            await expect(
-                addRecentItem(db, 42, 'playlist-1')
-            ).resolves.toEqual({ success: true });
+            await expect(addRecentItem(db, 42, 'playlist-1')).resolves.toEqual({
+                success: true,
+            });
 
             expect(insert).not.toHaveBeenCalled();
             expect(update).toHaveBeenCalledWith(schema.recentlyViewed);
@@ -149,7 +168,7 @@ describe('recently-viewed.operations', () => {
         });
 
         it('deletes only entries belonging to the playlist content ids', async () => {
-            const { db, deleteFn, deleteWhere } = createDbMock([
+            const { db, deleteFn, deleteWhere, queries } = createDbMock([
                 [{ id: 11 }, { id: 12 }],
             ]);
 
@@ -164,21 +183,32 @@ describe('recently-viewed.operations', () => {
             expect(deleteFn).toHaveBeenCalledWith(schema.recentlyViewed);
             expect(mockDrizzle.inArray).toHaveBeenCalledWith(
                 schema.recentlyViewed.contentId,
-                [11, 12]
+                queries[0]
             );
             expect(deleteWhere).toHaveBeenCalledWith(
                 expect.objectContaining({ kind: 'inArray' })
             );
         });
 
-        it('skips the delete entirely when the playlist has no content', async () => {
-            const { db, deleteFn } = createDbMock([[]]);
+        it('keeps the delete scoped even when the playlist has no content', async () => {
+            const { db, deleteFn, deleteWhere, queries } = createDbMock([[]]);
 
             await expect(
                 clearPlaylistRecentItems(db, 'playlist-empty')
             ).resolves.toEqual({ success: true });
 
-            expect(deleteFn).not.toHaveBeenCalled();
+            expect(deleteFn).toHaveBeenCalledWith(schema.recentlyViewed);
+            expect(mockDrizzle.eq).toHaveBeenCalledWith(
+                schema.categories.playlistId,
+                'playlist-empty'
+            );
+            expect(mockDrizzle.inArray).toHaveBeenCalledWith(
+                schema.recentlyViewed.contentId,
+                queries[0]
+            );
+            expect(deleteWhere).toHaveBeenCalledWith(
+                expect.objectContaining({ kind: 'inArray' })
+            );
         });
 
         it('removes a single entry scoped by content and playlist', async () => {
@@ -226,8 +256,12 @@ describe('recently-viewed.operations', () => {
             ).resolves.toEqual({ success: true, count: 2 });
 
             expect(deletePrepare).toHaveBeenCalledTimes(1);
-            expect(mockDrizzle.sql.placeholder).toHaveBeenCalledWith('contentId');
-            expect(mockDrizzle.sql.placeholder).toHaveBeenCalledWith('playlistId');
+            expect(mockDrizzle.sql.placeholder).toHaveBeenCalledWith(
+                'contentId'
+            );
+            expect(mockDrizzle.sql.placeholder).toHaveBeenCalledWith(
+                'playlistId'
+            );
             expect(transaction).toHaveBeenCalledTimes(1);
             // Regression (issue #1137): the prepared delete must be dispatched
             // with synchronous `.run()`. `.execute()` defers to a promise that

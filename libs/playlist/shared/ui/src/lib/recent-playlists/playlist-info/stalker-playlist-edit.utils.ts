@@ -1,5 +1,7 @@
 import {
     normalizeStalkerIdentityValue,
+    normalizeStalkerMacAddress,
+    normalizeXtreamServerUrl,
     normalizeStalkerSerialNumber,
     type Playlist,
     type PlaylistMeta,
@@ -56,4 +58,30 @@ function comparableConnectionValue(
         return normalizeStalkerIdentityValue(value) ?? '';
     }
     return value ?? '';
+}
+
+/** Keep stored MAC bytes for metadata-only saves. Some legacy panels accept
+ * non-canonical identities; rewriting one would authenticate as another device.
+ * An edited parseable MAC is normalized on submit too, since Enter skips blur. */
+export function normalizePlaylistConnectionMeta(
+    update: PlaylistMeta,
+    stored: PlaylistMeta
+): PlaylistMeta {
+    let normalized = update;
+    if (
+        !stored.portalUrl &&
+        update.serverUrl &&
+        update.username &&
+        update.password
+    ) {
+        normalized = {
+            ...update,
+            password: update.password.trim(),
+            serverUrl: normalizeXtreamServerUrl(update.serverUrl),
+            username: update.username.trim(),
+        };
+    }
+    if (update.macAddress === stored.macAddress) return normalized;
+    const macAddress = normalizeStalkerMacAddress(update.macAddress);
+    return macAddress ? { ...normalized, macAddress } : normalized;
 }

@@ -1,4 +1,5 @@
 export interface ScenarioConfig {
+    tvLazySeriesFixture?: true;
     name: string;
     description: string;
     seed: number;
@@ -45,6 +46,18 @@ export interface ScenarioConfig {
  * Any unknown MAC uses its bytes as the seed for deterministic-but-unique data.
  */
 export const SCENARIOS: Record<string, ScenarioConfig> = {
+    '00:1a:79:00:00:0b': {
+        name: 'tv-lazy-series',
+        description: 'Paged lazy Ministra seasons and files',
+        seed: 11011,
+        categoryCount: { itv: 1, radio: 0, vod: 1, series: 0 },
+        itemsPerCategory: 4,
+        seasonsPerSeries: 3,
+        episodesPerSeason: 3,
+        isSeriesFraction: 1,
+        embeddedSeriesFraction: 0,
+        tvLazySeriesFixture: true,
+    },
     '00:1a:79:00:00:01': {
         name: 'default',
         description: 'Balanced portal — 8 categories, 40 items each',
@@ -80,7 +93,8 @@ export const SCENARIOS: Record<string, ScenarioConfig> = {
     },
     '00:1a:79:00:00:03': {
         name: 'minimal',
-        description: 'Minimal portal — 2 categories, 5 items (edge case testing)',
+        description:
+            'Minimal portal — 2 categories, 5 items (edge case testing)',
         seed: 3003,
         categoryCount: { itv: 2, radio: 2, vod: 2, series: 2 },
         itemsPerCategory: 5,

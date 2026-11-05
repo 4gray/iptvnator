@@ -94,12 +94,25 @@ export async function addXtreamPortal(
  * mock itself (the mock ignores the url parameter).
  */
 export async function routeEpisodeClip(page: Page): Promise<void> {
+    await routePlaybackClip(page, 'series');
+}
+
+/** A local movie clip keeps history tests independent of the external HLS stub. */
+export async function routeMovieClip(page: Page): Promise<void> {
+    await routePlaybackClip(page, 'movie');
+}
+
+async function routePlaybackClip(
+    page: Page,
+    contentType: 'series' | 'movie'
+): Promise<void> {
     const episodeClip = readFileSync(
         join(__dirname, 'fixtures/playback/episode.webm')
     );
     await page.route(
         (url) =>
-            url.origin === MOCK_SERVER && url.pathname.startsWith('/series/'),
+            url.origin === MOCK_SERVER &&
+            url.pathname.startsWith(`/${contentType}/`),
         async (route) => {
             // Chromium's media pipeline seeks through byte ranges; a plain
             // 200 to a Range request clamps every seek to the start, which

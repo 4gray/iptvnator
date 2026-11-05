@@ -39,14 +39,6 @@ describe.each(['desktop', 'browser'])(
                 epgUrls: [],
             };
             const collaborators = createStatefulBackupCollaborators(state);
-            if (runtime === 'browser') {
-                // IndexedDB add rejects an occupied ID; document stores upsert.
-                const savePlaylist = collaborators.playlistsService.addPlaylist;
-                collaborators.playlistsService.addPlaylist = (playlist) =>
-                    state.playlists.some((item) => item._id === playlist._id)
-                        ? throwError(() => new Error('Duplicate playlist ID'))
-                        : savePlaylist(playlist);
-            }
             const ensureLocksReadable = jest.fn().mockResolvedValue(true);
             const service = createPlaylistBackupService({
                 ...collaborators,
@@ -119,11 +111,40 @@ describe.each(['desktop', 'browser'])(
             }
         });
 
+        it('reserves a remapped saved ID even when the follow-up write fails', async () => {
+            const { state, collaborators, service, manifest } = setup();
+            const remappedId = 'remapped-synthetic-id';
+            manifest.playlists[1].exportedId = remappedId;
+            const savePlaylist = collaborators.playlistsService.restorePlaylist;
+            jest.spyOn(collaborators.playlistsService, 'restorePlaylist')
+                .mockImplementationOnce((playlist) =>
+                    savePlaylist({ ...playlist, _id: remappedId })
+                )
+                .mockImplementationOnce(() =>
+                    throwError(() => new Error('Follow-up write unavailable'))
+                );
+
+            const summary = await service.importBackup(
+                JSON.stringify(manifest)
+            );
+
+            expect(summary).toMatchObject({ imported: 1, failed: 1 });
+            expect(state.playlists.map((playlist) => playlist.title)).toEqual([
+                'First',
+                'Second',
+            ]);
+            expect(state.playlists[0]._id).toBe(remappedId);
+            expect(state.playlists[1]._id).not.toBe(remappedId);
+            expect(state.rawM3uByPlaylistId.get(remappedId)).toBe(
+                (manifest.playlists[0] as M3uPlaylistBackupEntry).source.rawM3u
+            );
+        });
+
         it('keeps an exported ID available when saving its first entry fails before any write', async () => {
             const { state, collaborators, service, manifest } = setup();
             jest.spyOn(
                 collaborators.playlistsService,
-                'addPlaylist'
+                'restorePlaylist'
             ).mockImplementationOnce(() =>
                 throwError(() => new Error('Playlist storage unavailable'))
             );

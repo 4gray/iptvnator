@@ -172,7 +172,7 @@ describe('StalkerLiveStreamLayoutComponent remote status', () => {
                 {
                     provide: RuntimeCapabilitiesService,
                     useValue: {
-                        get supportsEpg() {
+                        get supportsProviderEpg() {
                             return Boolean(window.electron);
                         },
                         get isElectron() {

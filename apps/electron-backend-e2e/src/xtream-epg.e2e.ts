@@ -102,7 +102,12 @@ test('@epg @xtream @electron removes uploaded guide data and restores provider E
         await app.mainWindow.getByTestId('epg-source-remove').click();
         await saveSettings(app.mainWindow);
         await openWorkspaceSection(app.mainWindow, 'Live TV');
-        await clickCategoryByNameExact(app.mainWindow, fixture.categoryName);
+        // The category survives the settings visit; clicking it again clears it.
+        await expect(
+            app.mainWindow.locator(
+                'app-workspace-context-panel .category-item[aria-current="true"]'
+            )
+        ).toContainText(fixture.categoryName);
         await expect(row.locator('.epg-title')).toHaveText(
             fixture.shortEpg[0].title
         );
@@ -197,7 +202,11 @@ test('@epg @stalker @electron invalidates a loaded manual XMLTV mapping after so
         await app.mainWindow.getByTestId('epg-source-remove').click();
         await saveSettings(app.mainWindow);
         await openWorkspaceSection(app.mainWindow, 'Live TV');
-        await clickCategoryByNameExact(app.mainWindow, fixture.categoryName);
+        await expect(
+            app.mainWindow.locator(
+                'app-workspace-context-panel .category-item[aria-current="true"]'
+            )
+        ).toContainText(fixture.categoryName);
         await expect(row).toBeVisible();
         await row.click();
         await expect

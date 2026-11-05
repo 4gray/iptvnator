@@ -279,6 +279,12 @@ describe('SerialDetailsComponent', () => {
             xtreamId: '103',
             contentType: 'series',
             playlist: expect.any(Function),
+            playedContent: {
+                title: 'Series One',
+                categoryId: '3',
+                posterUrl: 'cover.jpg',
+                tmdbId: 901,
+            },
             backdropUrl: undefined,
         });
         expect(addRecentItem.mock.calls[0][0].playlist()).toEqual(

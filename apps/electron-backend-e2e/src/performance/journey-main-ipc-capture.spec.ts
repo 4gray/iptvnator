@@ -40,6 +40,8 @@ function validCapture(
         callsByMethod: { dbGetAppPlaylists: 1, getSettings: 6 },
         inFlightByMethod: {},
         installedEpochMs: 1,
+        log: [],
+        logDropped: 0,
         malformedEvents: 0,
         processStartEpochMs: 0,
         senderIds: [1],
@@ -226,6 +228,37 @@ test('without a start marker, counts every call from install to the sentinel', a
             getSettings: 1,
             onSomething: 1,
         });
+    });
+});
+
+test('logs every start and completion with its arrival epoch, past the sentinel too', async () => {
+    await withCapture({}, async (fake, read) => {
+        const before = Date.now();
+        fake.send(1, 'dbGetAppState', ['key']);
+        fake.send(1, 'dbGetAppState', ['key'], 'success');
+        fake.send(1, JOURNEY_IPC_SENTINEL_METHOD, [
+            JOURNEY_OPEN_SOURCE_END_SENTINEL_ID,
+        ]);
+        fake.send(1, 'dbGetAllPlaybackPositions', ['p1']);
+        fake.send(1, 'dbGetAllPlaybackPositions', ['p1'], 'error');
+        const state = await read();
+        assert.deepEqual(
+            state.log.map(({ method, phase }) => `${phase}:${method}`),
+            [
+                'start:dbGetAppState',
+                'end:dbGetAppState',
+                `start:${JOURNEY_IPC_SENTINEL_METHOD}`,
+                'start:dbGetAllPlaybackPositions',
+                'end:dbGetAllPlaybackPositions',
+            ]
+        );
+        assert.ok(state.log.every((event) => event.epochMs >= before));
+        assert.equal(state.logDropped, 0);
+        // The sentinel-bounded timeline is unchanged by the log.
+        assert.deepEqual(state.timeline, [
+            { method: 'dbGetAppState', phase: 'start' },
+            { method: 'dbGetAppState', phase: 'end' },
+        ]);
     });
 });
 

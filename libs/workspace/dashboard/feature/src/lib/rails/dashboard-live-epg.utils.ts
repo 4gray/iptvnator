@@ -1,3 +1,4 @@
+import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
 import {
     epgDisplayTimeMs,
     epgProviderClockMs,
@@ -120,7 +121,9 @@ export function buildDashboardLiveEpgDetails(
 }
 
 function liveEpgLookupKeyForCard(card: DashboardRailCard): string {
-    return card.epgLookupKey?.trim() || card.title.trim();
+    return isCatalogUnavailable(card)
+        ? ''
+        : card.epgLookupKey?.trim() || card.title.trim();
 }
 
 /** One XMLTV lookup: the scope it is answered in and the keys asked for. */
@@ -244,6 +247,7 @@ export function getLiveEpgProgramForCard(
     epgMap: ReadonlyMap<string, EpgProgram | null>,
     scopeKey: string
 ): EpgProgram | null {
+    if (isCatalogUnavailable(card)) return null;
     const key = liveEpgLookupKeyForCard(card);
     const program = epgMap.get(liveEpgProgramKey(scopeKey, key));
     if (program) {

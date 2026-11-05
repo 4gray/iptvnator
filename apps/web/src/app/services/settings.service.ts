@@ -99,12 +99,16 @@ export class SettingsService {
     }
 
     private applyResolvedTheme(selectedTheme: Theme): void {
+        // Shared component styles, including the resize handles, use an
+        // explicit .light-theme selector for their light-mode overrides.
         if (selectedTheme === Theme.DarkTheme) {
             document.body.classList.add('dark-theme');
+            document.body.classList.remove('light-theme');
             return;
         }
 
         document.body.classList.remove('dark-theme');
+        document.body.classList.add('light-theme');
     }
 
     private startSystemThemeSync(): void {

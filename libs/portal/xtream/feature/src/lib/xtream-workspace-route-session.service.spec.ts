@@ -9,6 +9,7 @@ import {
     XtreamPlaylistData,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
+import { SourceActivityService } from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { XtreamWorkspaceRouteSession } from './xtream-workspace-route-session.service';
 
@@ -284,6 +285,70 @@ describe('XtreamWorkspaceRouteSession', () => {
         expect(xtreamStore.initializeContent).toHaveBeenCalled();
     });
 
+    it('holds the routed source busy until the import it awaits settles', async () => {
+        xtreamStore.checkPortalStatus.mockImplementation(async () => {
+            portalStatus.set('active');
+            return 'active';
+        });
+        const importDone = createDeferred<void>();
+        xtreamStore.initializeContent.mockImplementationOnce(
+            () => importDone.promise
+        );
+        const activity = TestBed.inject(SourceActivityService);
+
+        TestBed.inject(XtreamWorkspaceRouteSession);
+        // Taken at once, before any await: a refresh's own hold ends when
+        // its navigation does, and nothing may find the source idle then.
+        expect(activity.isBusy(PLAYLIST_ID)).toBe(true);
+        await flushEffects();
+        expect(xtreamStore.initializeContent).toHaveBeenCalled();
+        expect(activity.isBusy(PLAYLIST_ID)).toBe(true);
+
+        importDone.resolve();
+        await flushEffects();
+        expect(activity.isBusy(PLAYLIST_ID)).toBe(false);
+    });
+
+    it('applies an idle section navigation before its categories can be opened', async () => {
+        currentPlaylist.set(XTREAM_PLAYLIST);
+        playlistId.set(PLAYLIST_ID);
+        isContentInitialized.set(true);
+        contentLoadStateByType.set({
+            live: 'ready',
+            vod: 'ready',
+            series: 'ready',
+        });
+        TestBed.inject(XtreamWorkspaceRouteSession);
+        await flushEffects();
+        router.url = `/workspace/xtreams/${PLAYLIST_ID}/live`;
+        routerEvents.next(new NavigationEnd(1, router.url, router.url));
+        expect(selectedContentType()).toBe('live');
+        expect(xtreamStore.resetStore).not.toHaveBeenCalled();
+    });
+
+    it('waits for an active catalog edit before resetting the route and uses the latest section', async () => {
+        xtreamStore.checkPortalStatus.mockResolvedValue('active');
+        const activity = TestBed.inject(SourceActivityService);
+        const finishEdit = activity.begin([PLAYLIST_ID]);
+        TestBed.inject(XtreamWorkspaceRouteSession);
+        await flushEffects();
+        expect(xtreamStore.resetStore).not.toHaveBeenCalled();
+        expect(xtreamStore.initializeContent).not.toHaveBeenCalled();
+
+        router.url = `/workspace/xtreams/${PLAYLIST_ID}/live`;
+        routerEvents.next(new NavigationEnd(1, router.url, router.url));
+        finishEdit();
+        await flushEffects();
+        await flushEffects();
+        expect(xtreamStore.resetStore).toHaveBeenCalledTimes(1);
+        expect(xtreamStore.setSelectedContentType).toHaveBeenLastCalledWith(
+            'live'
+        );
+        expect(xtreamStore.initializeContent).toHaveBeenCalledTimes(1);
+        await flushEffects();
+        expect(activity.isBusy(PLAYLIST_ID)).toBe(false);
+    });
+
     it('marks the routed section loading before status checks complete during playlist switches', async () => {
         const portalStatusCheck = createDeferred<PortalStatusType>();
         xtreamStore.checkPortalStatus.mockReturnValue(
@@ -397,6 +462,29 @@ describe('XtreamWorkspaceRouteSession', () => {
 
         expect(xtreamStore.setSelectedContentType).toHaveBeenCalledWith('vod');
         expect(xtreamStore.setSelectedCategory).toHaveBeenCalledWith(101);
+        expect(xtreamStore.resetStore).not.toHaveBeenCalled();
+        expect(xtreamStore.fetchXtreamPlaylist).not.toHaveBeenCalled();
+        expect(xtreamStore.checkPortalStatus).not.toHaveBeenCalled();
+        expect(xtreamStore.initializeContent).not.toHaveBeenCalled();
+    });
+
+    it('updates the active source name without reloading its session or catalog', async () => {
+        activePlaylist.set({
+            ...ACTIVE_PLAYLIST,
+            title: 'Renamed on another device',
+        });
+        currentPlaylist.set(XTREAM_PLAYLIST);
+        playlistId.set(PLAYLIST_ID);
+        isContentInitialized.set(true);
+        contentLoadStateByType.set({
+            live: 'ready',
+            vod: 'ready',
+            series: 'ready',
+        });
+        TestBed.inject(XtreamWorkspaceRouteSession);
+        await flushEffects();
+        expect(currentPlaylist()?.name).toBe('Renamed on another device');
+        expect(currentPlaylist()?.title).toBe('Renamed on another device');
         expect(xtreamStore.resetStore).not.toHaveBeenCalled();
         expect(xtreamStore.fetchXtreamPlaylist).not.toHaveBeenCalled();
         expect(xtreamStore.checkPortalStatus).not.toHaveBeenCalled();

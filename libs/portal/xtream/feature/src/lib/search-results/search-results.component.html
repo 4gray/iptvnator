@@ -2,6 +2,8 @@
     [searchTerm]="searchTerm()"
     [resultsCount]="xtreamStore.searchResults().length"
     [isLoading]="xtreamStore.isSearching()"
+    [hasError]="xtreamStore.searchError()"
+    (retryClick)="executeSearch()"
     [backAvailable]="backAvailable"
     [showResultsCount]="!isGlobalSearch || !groupByPlaylist()"
     [minSearchLength]="minSearchLength"

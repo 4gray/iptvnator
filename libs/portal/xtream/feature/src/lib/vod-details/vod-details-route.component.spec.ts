@@ -5,7 +5,10 @@ import { ActivatedRoute } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { NEVER, of } from 'rxjs';
 import { Location } from '@angular/common';
-import { ContentHeroComponent } from '@iptvnator/ui/components';
+import {
+    ContentHeroComponent,
+    VodMoreMenuComponent,
+} from '@iptvnator/ui/components';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
@@ -154,6 +157,8 @@ describe('VodDetailsRouteComponent', () => {
                     provide: SettingsStore,
                     useValue: {
                         theme: signal('dark'),
+                        language: signal('en'),
+                        ageRatingCountry: signal('auto'),
                         player: signal(VideoPlayer.Html5Player),
                     },
                 },
@@ -215,6 +220,33 @@ describe('VodDetailsRouteComponent', () => {
         consoleWarnSpy?.mockRestore();
     });
 
+    it('passes the route movie correction context to the actual detail menu', () => {
+        currentPlaylist.set({ id: 'source-a' });
+        selectedItem.set({
+            stream_id: 650020,
+            info: { name: 'Movie', tmdb_id: 603 },
+        } as unknown as XtreamVodDetails);
+        fixture.detectChanges();
+        const menu = fixture.debugElement.query(
+            By.directive(VodMoreMenuComponent)
+        );
+        expect(menu.componentInstance.tmdbMatch()).toEqual({
+            identity: {
+                provider: 'xtream',
+                playlistId: 'source-a',
+                mediaType: 'movie',
+                itemId: '650020',
+            },
+            title: 'Movie',
+            tmdbId: 603,
+        });
+        currentPlaylist.set({ id: 'source-b' });
+        fixture.detectChanges();
+        expect(menu.componentInstance.tmdbMatch().identity.playlistId).toBe(
+            'source-b'
+        );
+    });
+
     it('keeps the fallback visible and exposes actions when catalog playback fields are usable', () => {
         selectedItem.set({
             info: [],
@@ -260,14 +292,19 @@ describe('VodDetailsRouteComponent', () => {
                 ?.textContent
         ).toContain('XTREAM.DETAIL_FALLBACK.STATUS');
         expect(host.querySelector('button.play-btn')).not.toBeNull();
-        expect(host.querySelector('[data-testid="vod-favorite-toggle"]')).not.toBeNull();
-        expect(host.querySelector('[data-testid="vod-download-start"]')).toBeNull();
+        expect(
+            host.querySelector('[data-testid="vod-favorite-toggle"]')
+        ).not.toBeNull();
+        expect(
+            host.querySelector('[data-testid="vod-download-start"]')
+        ).toBeNull();
     });
 
     it('keeps the fallback visible for a minimal info object', () => {
         selectedItem.set({
             info: {
                 name: 'Only a provider title',
+                mpaa_rating: 'R',
             },
             stream_id: 650020,
             name: 'Catalog title',
@@ -288,6 +325,9 @@ describe('VodDetailsRouteComponent', () => {
             host.querySelector('[data-testid="xtream-vod-fallback"]')
         ).not.toBeNull();
         expect(host.querySelector('button.play-btn')).not.toBeNull();
+        expect(
+            host.querySelector('app-age-rating-chip')?.textContent
+        ).toContain('R · US');
     });
 
     it('reveals fallback actions when async catalog recovery adds a source', () => {
@@ -300,8 +340,12 @@ describe('VodDetailsRouteComponent', () => {
         fixture.detectChanges();
 
         const host = fixture.nativeElement as HTMLElement;
-        expect(host.querySelector('button.play-btn')).toBeNull();
-        expect(host.querySelector('[data-testid="vod-favorite-toggle"]')).toBeNull();
+        expect(
+            host.querySelector<HTMLButtonElement>('button.play-btn')?.disabled
+        ).toBe(true);
+        expect(
+            host.querySelector('[data-testid="vod-favorite-toggle"]')
+        ).not.toBeNull();
 
         selectedItem.set({
             info: [],
@@ -311,7 +355,9 @@ describe('VodDetailsRouteComponent', () => {
         fixture.detectChanges();
 
         expect(host.querySelector('button.play-btn')).not.toBeNull();
-        expect(host.querySelector('[data-testid="vod-favorite-toggle"]')).not.toBeNull();
+        expect(
+            host.querySelector('[data-testid="vod-favorite-toggle"]')
+        ).not.toBeNull();
     });
 
     it('keeps the full Xtream detail view when usable metadata exists', () => {
@@ -332,7 +378,7 @@ describe('VodDetailsRouteComponent', () => {
                 description: 'A populated description',
                 plot: 'A populated plot',
                 age: '',
-                mpaa_rating: '',
+                mpaa_rating: 'R',
                 rating_count_kinopoisk: 0,
                 country: 'English',
                 genre: 'Drama',
@@ -365,6 +411,9 @@ describe('VodDetailsRouteComponent', () => {
             host.querySelector('[data-testid="xtream-vod-fallback"]')
         ).toBeNull();
         expect(host.querySelector('button.play-btn')).not.toBeNull();
+        expect(
+            host.querySelector('app-age-rating-chip')?.textContent
+        ).toContain('R · US');
     });
 
     it('renders usable metadata when backdrop_path is absent at runtime', () => {

@@ -1,4 +1,6 @@
-import { inject } from '@angular/core';
+import { stalkerSessionFingerprint } from '@iptvnator/shared/interfaces/stalker-session';
+import { StalkerFavoritePlaybackResolver } from '../../stalker-favorite-playback.service';
+import { inject, Injector } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { signalStoreFeature, withMethods } from '@ngrx/signals';
 import { Store } from '@ngrx/store';
@@ -20,6 +22,7 @@ import {
 import { StalkerPortalRepairService } from '../../stalker-portal-repair.service';
 import { StalkerSessionService } from '../../stalker-session.service';
 import {
+    isStalkerSeriesFlag,
     normalizeStalkerEntityId,
     normalizeStalkerEntityIdAsNumber,
 } from '../../stalker-vod.utils';
@@ -157,6 +160,7 @@ export function withStalkerPlayer() {
                     );
                 };
 
+                const injector = inject(Injector);
                 const resolveVodPlaybackInternal = async (
                     cmd?: string,
                     title?: string,
@@ -165,20 +169,37 @@ export function withStalkerPlayer() {
                     episodeId?: number,
                     startTime?: number
                 ): Promise<ResolvedPortalPlayback> => {
-                    const item = storeState.selectedItem() as
+                    let item = storeState.selectedItem() as
                         StalkerPlayableItem | null | undefined;
-                    let cmdToUse = cmd ?? item?.cmd;
-
-                    if (!cmdToUse) {
-                        throw new Error('nothing_to_play');
-                    }
-
                     const playlist = storeState.currentPlaylist();
+                    if (!cmd && !item?.cmd && item?.id && playlist) {
+                        item = (await injector
+                            .get(StalkerFavoritePlaybackResolver)
+                            .resolve(playlist, {
+                                ...item,
+                                favoriteContentType:
+                                    storeState.selectedContentType() as
+                                        'vod' | 'series' | 'itv' | 'radio',
+                            })) as StalkerPlayableItem;
+                        if (
+                            storeState.currentPlaylist()?._id !==
+                                playlist._id ||
+                            stalkerSessionFingerprint(
+                                storeState.currentPlaylist()!
+                            ) !== stalkerSessionFingerprint(playlist)
+                        )
+                            throw new Error('nothing_to_play');
+                    }
+                    let cmdToUse = cmd || item?.cmd;
+                    if (!cmdToUse) throw new Error('nothing_to_play');
                     if (!playlist?.portalUrl || !playlist.macAddress) {
                         throw new Error('nothing_to_play');
                     }
 
-                    if (shouldResolveMovieFileId(item, cmdToUse)) {
+                    if (
+                        !isStalkerSeriesFlag(item?.is_series) &&
+                        shouldResolveMovieFileId(item, cmdToUse)
+                    ) {
                         const itemId = normalizeStalkerEntityId(item?.id);
                         const fileId = await fetchStalkerMovieFileId(
                             requestDeps,
@@ -265,6 +286,23 @@ export function withStalkerPlayer() {
                     item: StalkerPlayableItem
                 ): Promise<ResolvedPortalPlayback> => {
                     const playlist = storeState.currentPlaylist();
+                    if (!item.cmd && playlist) {
+                        item = (await injector
+                            .get(StalkerFavoritePlaybackResolver)
+                            .resolve(playlist, {
+                                ...item,
+                                favoriteContentType: 'itv' as
+                                    'vod' | 'series' | 'itv' | 'radio',
+                            })) as StalkerPlayableItem;
+                        if (
+                            storeState.currentPlaylist()?._id !==
+                                playlist._id ||
+                            stalkerSessionFingerprint(
+                                storeState.currentPlaylist()!
+                            ) !== stalkerSessionFingerprint(playlist)
+                        )
+                            throw new Error('nothing_to_play');
+                    }
                     if (
                         !playlist?.portalUrl ||
                         !playlist.macAddress ||
@@ -328,6 +366,23 @@ export function withStalkerPlayer() {
                     item: StalkerPlayableItem
                 ): Promise<ResolvedPortalPlayback> => {
                     const playlist = storeState.currentPlaylist();
+                    if (!item.cmd && playlist) {
+                        item = (await injector
+                            .get(StalkerFavoritePlaybackResolver)
+                            .resolve(playlist, {
+                                ...item,
+                                favoriteContentType: 'radio' as
+                                    'vod' | 'series' | 'itv' | 'radio',
+                            })) as StalkerPlayableItem;
+                        if (
+                            storeState.currentPlaylist()?._id !==
+                                playlist._id ||
+                            stalkerSessionFingerprint(
+                                storeState.currentPlaylist()!
+                            ) !== stalkerSessionFingerprint(playlist)
+                        )
+                            throw new Error('nothing_to_play');
+                    }
                     if (
                         !playlist?.portalUrl ||
                         !playlist.macAddress ||

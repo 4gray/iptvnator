@@ -1,9 +1,78 @@
 import {
     xtreamContentMetadataKey,
     xtreamDetailContentMetadata,
+    preserveXtreamProviderIdentity,
 } from './xtream-content-metadata.util';
 
 describe('xtreamDetailContentMetadata', () => {
+    it('keeps manual display metadata separate from provider identity after serialization', () => {
+        const provider = {
+            tmdb_id: 900101,
+            releasedate: '2024-02-03',
+            o_name: 'Synthetic Original Alpha',
+        };
+        const display = {
+            ...provider,
+            tmdb_id: 900202,
+            releasedate: '2026-01-01',
+            o_name: 'Synthetic Selected Alpha',
+            backdrop_path: ['https://example.test/synthetic-backdrop.jpg'],
+        };
+        const corrected = preserveXtreamProviderIdentity(
+            provider,
+            display,
+            true
+        );
+        expect(corrected.tmdb_id).toBe(900202);
+        expect(
+            xtreamDetailContentMetadata(JSON.parse(JSON.stringify(corrected)))
+        ).toEqual({
+            tmdbId: 900101,
+            releaseYear: 2024,
+            originalTitle: 'Synthetic Original Alpha',
+            backdropUrl: display.backdrop_path[0],
+        });
+    });
+
+    it('does not invent provider identity when only the manual result supplies it', () => {
+        const corrected = preserveXtreamProviderIdentity(
+            {},
+            {
+                tmdb_id: 900202,
+                releasedate: '2026-01-01',
+                o_name: 'Synthetic Selected Alpha',
+            },
+            true
+        );
+        expect(corrected.tmdb_id).toBe(900202);
+        expect(xtreamDetailContentMetadata(corrected)).toBeNull();
+    });
+
+    it('retains the original identity through a second manual match', () => {
+        const first = preserveXtreamProviderIdentity(
+            { tmdb_id: 900101 },
+            { tmdb_id: 900202 },
+            true
+        );
+        const second = preserveXtreamProviderIdentity(
+            first,
+            { tmdb_id: 900303 },
+            true
+        );
+        expect(xtreamDetailContentMetadata(second)).toEqual({ tmdbId: 900101 });
+    });
+
+    it('keeps automatic enrichment eligible for the existing metadata backfill', () => {
+        const enriched = { tmdb_id: 900202, releasedate: '2024-02-03' };
+        expect(preserveXtreamProviderIdentity({}, enriched, false)).toBe(
+            enriched
+        );
+        expect(xtreamDetailContentMetadata(enriched)).toEqual({
+            tmdbId: 900202,
+            releaseYear: 2024,
+        });
+    });
+
     it('reads a VOD detail response', () => {
         expect(
             xtreamDetailContentMetadata({
@@ -79,7 +148,10 @@ describe('xtreamDetailContentMetadata', () => {
     it.each([
         ['no info at all', null],
         ['an empty response', {}],
-        ['only empty values', { backdrop_path: [], releasedate: '', o_name: '' }],
+        [
+            'only empty values',
+            { backdrop_path: [], releasedate: '', o_name: '' },
+        ],
     ])('reports %s as nothing to persist', (_label, info) => {
         expect(xtreamDetailContentMetadata(info)).toBeNull();
     });
@@ -87,7 +159,10 @@ describe('xtreamDetailContentMetadata', () => {
     it('takes only the first backdrop', () => {
         expect(
             xtreamDetailContentMetadata({
-                backdrop_path: ['https://a.example/1.jpg', 'https://a.example/2.jpg'],
+                backdrop_path: [
+                    'https://a.example/1.jpg',
+                    'https://a.example/2.jpg',
+                ],
             })
         ).toEqual({ backdropUrl: 'https://a.example/1.jpg' });
     });

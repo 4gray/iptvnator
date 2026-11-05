@@ -154,14 +154,14 @@ export async function runXtreamBackgroundUiActions(
                         );
                         const resultRows = Array.from(
                             document.querySelectorAll(
-                                'app-workspace-sources app-playlist-item'
+                                'app-workspace-sources app-source-row'
                             )
                         );
                         const resultPainted =
                             resultRows.length > 0
                                 ? resultRows.every((row) =>
                                       (
-                                          row.querySelector('.playlist-title')
+                                          row.querySelector('.source-row__name')
                                               ?.textContent ?? ''
                                       )
                                           .trim()

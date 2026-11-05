@@ -14,7 +14,8 @@
     min-height: 0;
 }
 
-.episode-panel {
+.episode-panel,
+.episode-panel__body {
     display: flex;
     flex: 1;
     flex-direction: column;

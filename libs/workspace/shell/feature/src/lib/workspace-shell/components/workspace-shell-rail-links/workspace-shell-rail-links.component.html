@@ -10,11 +10,9 @@
             [attr.aria-label]="link.tooltip"
             [attr.aria-current]="isActive(link) ? 'page' : null"
             [class.active]="activeClass() === 'active' && isActive(link)"
-            [class.is-active]="
-                activeClass() === 'is-active' && isActive(link)
-            "
+            [class.is-active]="activeClass() === 'is-active' && isActive(link)"
         >
-            <mat-icon>{{ resolveIcon(link) }}</mat-icon>
+            <mat-icon aria-hidden="true">{{ resolveIcon(link) }}</mat-icon>
         </a>
     }
 </nav>

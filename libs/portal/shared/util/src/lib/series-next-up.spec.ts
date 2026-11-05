@@ -81,6 +81,67 @@ function summary(result: SeriesNextUp | null): [string, number] | null {
 }
 
 describe('getSeriesNextUp', () => {
+    it('keeps zero reset barriers out of the most recent started episode', () => {
+        expect(
+            summary(
+                nextUp({ '1': season(1, 3) }, [
+                    ...watchedInOrder(101),
+                    [
+                        103,
+                        {
+                            ...position(103, 0, '2026-10-05T12:00:00.000Z')[1],
+                            durationSeconds: 0,
+                        },
+                    ],
+                ])
+            )
+        ).toEqual(['next', 102]);
+    });
+    it('starts at the beginning after a season reset', () => {
+        expect(
+            summary(
+                nextUp(
+                    { '1': season(1, 3) },
+                    [101, 102, 103].map(
+                        (id) =>
+                            [
+                                id,
+                                {
+                                    ...position(
+                                        id,
+                                        0,
+                                        '2026-10-05T12:00:00.000Z'
+                                    )[1],
+                                    durationSeconds: 0,
+                                },
+                            ] as [number, PlaybackPositionData]
+                    )
+                )
+            )
+        ).toEqual(['start', 101]);
+    });
+    it('does not treat an extras reset as played activity', () => {
+        expect(
+            summary(
+                nextUp({ '0': season(0, 1), '1': season(1, 3) }, [
+                    [1, { ...position(1, 0)[1], durationSeconds: 0 }],
+                ])
+            )
+        ).toEqual(['start', 101]);
+    });
+
+    it('keeps a freshly launched zero position with unknown duration as selected activity', () => {
+        expect(
+            summary(
+                nextUp({ '1': season(1, 3) }, [
+                    [
+                        103,
+                        { ...position(103, 0)[1], durationSeconds: undefined },
+                    ],
+                ])
+            )
+        ).toEqual(['resume', 103]);
+    });
     it('starts with the first episode when nothing has been played', () => {
         expect(summary(nextUp({ '1': season(1, 3) }, []))).toEqual([
             'start',

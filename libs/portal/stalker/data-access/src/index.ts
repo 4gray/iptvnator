@@ -19,3 +19,6 @@ export * from './lib/stalker-vod.utils';
 export * from './lib/stalker.store';
 
 export * from './lib/stalker-source-health.service';
+export * from './lib/stalker-episode-resolver.service';
+
+export * from './lib/stalker-favorite-playback.service';

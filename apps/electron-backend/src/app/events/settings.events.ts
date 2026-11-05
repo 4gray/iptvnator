@@ -134,6 +134,6 @@ ipcMain.handle('SETTINGS_UPDATE', (_event, arg) => {
         }
 
         // Update HTTP server
-        httpServer.updateSettings(enabled, port);
+        return httpServer.updateSettings(enabled, port);
     }
 });

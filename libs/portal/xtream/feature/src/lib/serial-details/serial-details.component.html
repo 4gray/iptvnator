@@ -48,6 +48,7 @@
                     }
                 </app-meta-chip>
             }
+            <app-age-rating-chip [certifications]="info.tmdb_certifications" />
             @if (hero.genreChips().length) {
                 <app-meta-chip>
                     @for (genre of hero.genreChips(); track genre.label) {
@@ -141,12 +142,12 @@
                 (pressed)="toggleFavorite()"
             />
             <app-vod-more-menu
+                [tmdbMatch]="tmdbMatch()"
                 [sections]="menu.sections()"
                 [label]="'PORTALS.DETAIL.MORE_ACTIONS' | translate"
                 testId="series-more-menu"
                 (selected)="menu.run($event)"
             />
-            <app-view-in-portal-action />
         </ng-template>
 
         @if (inlinePlayback(); as playback) {

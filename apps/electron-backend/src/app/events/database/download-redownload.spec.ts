@@ -110,6 +110,19 @@ async function setup(options: SetupOptions = {}) {
 }
 
 describe('redownload missing completed file', () => {
+    it('rejects a legacy executable before probing or deleting its partial', async () => {
+        const harness = await setup({
+            row: { filePath: '/downloads/Movie.cmd' },
+        });
+        await expect(harness.redownloadMissingRequest(42)).rejects.toThrow(
+            'Unsupported download media type'
+        );
+        expect(harness.lstatSync).not.toHaveBeenCalled();
+        expect(harness.removePartialDownloadFile).not.toHaveBeenCalled();
+        expect(harness.set).not.toHaveBeenCalled();
+        expect(harness.enqueueDownload).not.toHaveBeenCalled();
+    });
+
     it('requeues the managed row at its retained destination', async () => {
         const harness = await setup();
 

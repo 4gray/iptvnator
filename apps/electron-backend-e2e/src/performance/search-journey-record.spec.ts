@@ -77,6 +77,8 @@ function measurement(
         callsByMethod: { dbGlobalSearch: 1 },
         inFlightByMethod: {},
         installedEpochMs: 9_000,
+        log: [],
+        logDropped: 0,
         malformedEvents: 0,
         processStartEpochMs: 1_000,
         senderIds: [1],

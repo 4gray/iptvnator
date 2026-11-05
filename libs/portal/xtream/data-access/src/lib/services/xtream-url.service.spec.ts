@@ -177,6 +177,18 @@ describe('XtreamUrlService', () => {
         );
     });
 
+    it('uses the provider direct source exactly, without guessing an extension', () => {
+        expect(
+            service.constructVodUrl(credentials, {
+                movie_data: {
+                    stream_id: 15616981,
+                    container_extension: null,
+                    direct_source: 'https://media.example/film?token=demo',
+                },
+            } as unknown as XtreamVodDetails)
+        ).toBe('https://media.example/film?token=demo');
+    });
+
     it('returns empty stream URLs instead of throwing for invalid stored server URLs', () => {
         const invalidCredentials: XtreamCredentials = {
             ...credentials,

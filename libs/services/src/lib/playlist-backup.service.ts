@@ -1,17 +1,33 @@
+import { localBackupPosition } from './playlist-backup-playback-position';
+import { resolvePlaylistEpgSourceState } from '@iptvnator/shared/m3u-utils';
+import {
+    projectBackupPositions,
+    type BackupPositionProjector,
+} from './playlist-backup-position-projection';
+import {
+    hasValidBackupEntryData,
+    hasValidBackupSettings,
+} from './playlist-backup-validation';
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { PlaylistsService } from './playlists.service';
 import { SettingsStore } from './settings-store.service';
+import { toXtreamBackupFavorite } from './xtream-favorite-backup';
 import { DatabaseService } from './database-electron.service';
 import { VodSourcePinService } from './vod-source-pin.service';
+import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
 import { PlaybackPositionService } from './playback-position.service';
+import { PwaXtreamBackupStateService } from './pwa-xtream-backup-state.service';
 import { XtreamPendingRestoreService } from './xtream-pending-restore.service';
+import { XtreamDeferredCatalogRestoreService } from './xtream-deferred-catalog-restore.service';
 import { ParentalLockService } from './parental-lock/parental-lock.service';
 import { removesParentalLocks } from './parental-lock/parental-lock-store.util';
 import {
     isParentalLockPlaylistLocksEmpty,
     isM3uRecentlyViewedItem,
     normalizeXtreamPendingRestoreState,
+    normalizeXtreamContentTypes,
+    XTREAM_CONTENT_TYPES,
     M3uPlaylistBackupEntry,
     M3uRecentlyViewedItem,
     Playlist,
@@ -25,6 +41,7 @@ import {
     XtreamBackupCategoryType,
     XtreamBackupContentType,
     XtreamPlaylistBackupEntry,
+    type XtreamContentType,
     XtreamBackupSourcePin,
     XtreamPendingRestoreState,
     createRandomId,
@@ -61,9 +78,10 @@ export class PlaylistBackupError extends Error {
 }
 
 type PlaylistPortalType = 'm3u' | 'xtream' | 'stalker';
-
-type XtreamContentType = XtreamBackupContentType;
-type XtreamCategoryType = XtreamBackupCategoryType;
+export type BackupFavoriteRestorer = (
+    sourceId: string,
+    entry: PlaylistBackupEntry
+) => Promise<void>;
 
 @Injectable({
     providedIn: 'root',
@@ -77,10 +95,21 @@ export class PlaylistBackupService {
     private readonly pendingRestoreService = inject(
         XtreamPendingRestoreService
     );
+    private readonly deferredRestore = inject(
+        XtreamDeferredCatalogRestoreService
+    );
     private readonly parentalLock = inject(ParentalLockService);
+    private readonly pwaXtream = inject(PwaXtreamBackupStateService);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private backupImportTail?: Promise<void>;
 
-    async exportBackup(): Promise<PlaylistBackupExportPayload> {
+    async exportBackup(
+        projectPositions?: BackupPositionProjector,
+        projectFavorites?: (
+            playlist: Playlist,
+            entry: PlaylistBackupEntry
+        ) => Promise<PlaylistBackupEntry>
+    ): Promise<PlaylistBackupExportPayload> {
         // Locks are written only when present, and an absent field means
         // "no opinion" on restore — so an export must never run against an
         // empty in-memory store that merely has not loaded, or could not.
@@ -90,12 +119,23 @@ export class PlaylistBackupService {
                 'The parental lock store could not be read; the backup would omit its locks.'
             );
         }
+        if (!this.runtime.supportsXtreamSqliteDataSource) {
+            await this.pwaXtream.ready();
+        }
         const playlists = await firstValueFrom(
             this.playlistsService.getAllData()
         );
         const settings = this.buildSettingsPayload();
         const playlistEntries = await Promise.all(
-            playlists.map((playlist) => this.buildPlaylistEntry(playlist))
+            playlists.map(async (playlist) => {
+                const entry = await this.buildPlaylistEntry(
+                    playlist,
+                    projectPositions
+                );
+                return projectFavorites
+                    ? projectFavorites(playlist, entry)
+                    : entry;
+            })
         );
         const exportedAt = new Date().toISOString();
         const manifest: PlaylistBackupManifestV1 = {
@@ -117,9 +157,12 @@ export class PlaylistBackupService {
         };
     }
 
-    importBackup(json: string): Promise<PlaylistBackupImportSummary> {
+    importBackup(
+        json: string,
+        restoreFavorites?: BackupFavoriteRestorer
+    ): Promise<PlaylistBackupImportSummary> {
         const importResult = (this.backupImportTail ?? Promise.resolve()).then(
-            () => this.executeImportBackup(json)
+            () => this.executeImportBackup(json, restoreFavorites)
         );
         this.backupImportTail = importResult.then(
             () => undefined,
@@ -129,7 +172,8 @@ export class PlaylistBackupService {
     }
 
     private async executeImportBackup(
-        json: string
+        json: string,
+        restoreFavorites?: BackupFavoriteRestorer
     ): Promise<PlaylistBackupImportSummary> {
         const manifest = this.parseManifest(json);
         // A backup carrying lock lists REPLACES the matching playlists'
@@ -187,28 +231,68 @@ export class PlaylistBackupService {
                 seenBackupFingerprints.add(fingerprint);
 
                 const existingMatch = fingerprintMap.get(fingerprint);
-                const targetId = this.resolveTargetPlaylistId(
+                let targetId = this.resolveTargetPlaylistId(
                     entry,
                     existingMatch?._id,
                     existingIds
                 );
-                const isMerge = existingMatch != null;
+                let isMerge = existingMatch != null;
+                if (
+                    entry.portalType === 'stalker' &&
+                    entry.userState.playbackPositions !== undefined &&
+                    this.runtime.supportsXtreamSqliteDataSource
+                )
+                    this.playbackPositionService.assertSupportsAtomicReplacement();
                 const nextPlaylist = await this.buildImportedPlaylist(
                     entry,
                     targetId,
                     existingMatch ?? null
                 );
 
-                await firstValueFrom(
-                    this.playlistsService.addPlaylist(nextPlaylist)
+                const saved = await firstValueFrom(
+                    this.playlistsService.restorePlaylist(nextPlaylist)
                 );
-                // The playlist exists even if a later user-state restore fails.
-                // Reserve its ID so another entry cannot overwrite it.
-                existingIds.add(targetId);
+                // A later restore failure must not make a persisted ID reusable.
+                existingIds.add(saved._id);
+                if (saved._id !== targetId) {
+                    targetId = saved._id;
+                    isMerge = true;
+                    // A source created since the inventory read can deduplicate
+                    // to another ID. Restore activity and locks only under that ID.
+                    await firstValueFrom(
+                        this.playlistsService.restorePlaylist(
+                            await this.buildImportedPlaylist(
+                                entry,
+                                targetId,
+                                saved
+                            )
+                        )
+                    );
+                }
 
                 if (entry.portalType === 'xtream') {
                     await this.restoreXtreamEntry(targetId, entry);
                 }
+                if (
+                    entry.portalType === 'stalker' &&
+                    entry.userState.playbackPositions !== undefined
+                ) {
+                    const positions = entry.userState.playbackPositions.map(
+                        (position) => localBackupPosition(position, targetId)
+                    );
+                    if (this.runtime.supportsXtreamSqliteDataSource)
+                        await this.playbackPositionService.replaceAllPlaybackPositions(
+                            targetId,
+                            positions
+                        );
+                    else
+                        await this.pwaXtream.replacePlaybackPositions(
+                            targetId,
+                            positions
+                        );
+                }
+
+                await restoreFavorites?.(targetId, entry);
 
                 // Last: a failed Xtream restore above must leave the
                 // playlist's previous locks in place rather than commit the
@@ -232,15 +316,16 @@ export class PlaylistBackupService {
     }
 
     private async buildPlaylistEntry(
-        playlist: Playlist
+        playlist: Playlist,
+        projectPositions?: BackupPositionProjector
     ): Promise<PlaylistBackupEntry> {
         const portalType = this.getPlaylistPortalType(playlist);
 
         switch (portalType) {
             case 'xtream':
-                return this.buildXtreamEntry(playlist);
+                return this.buildXtreamEntry(playlist, projectPositions);
             case 'stalker':
-                return this.buildStalkerEntry(playlist);
+                return this.buildStalkerEntry(playlist, projectPositions);
             case 'm3u':
             default:
                 return this.buildM3uEntry(playlist);
@@ -268,6 +353,10 @@ export class PlaylistBackupService {
             exportedId: playlist._id,
             title: playlist.title,
             autoRefresh: Boolean(playlist.autoRefresh),
+            autoImportEpg: playlist.autoImportEpg !== false,
+            epgUrls: this.uniqueStrings(playlist.epgUrls ?? []),
+            manualEpgUrls: this.uniqueStrings(playlist.manualEpgUrls ?? []),
+            disabledEpgUrls: this.uniqueStrings(playlist.disabledEpgUrls ?? []),
             position: playlist.position,
             source: {
                 kind: this.resolveM3uSourceKind(playlist),
@@ -285,21 +374,31 @@ export class PlaylistBackupService {
             userState: {
                 favorites: this.uniqueStrings(favorites),
                 recentlyViewed: recentlyViewed.map((item) => ({ ...item })),
-                hiddenGroupTitles: this.uniqueStrings(
-                    Array.isArray(playlist.hiddenGroupTitles)
-                        ? playlist.hiddenGroupTitles
-                        : []
-                ),
+                hiddenGroupTitles: [
+                    ...new Set(
+                        Array.isArray(playlist.hiddenGroupTitles)
+                            ? playlist.hiddenGroupTitles
+                            : []
+                    ),
+                ],
                 ...this.optionalLockedGroupTitles(playlist._id),
             },
         };
     }
 
     private async buildXtreamEntry(
-        playlist: Playlist
+        playlist: Playlist,
+        projectPositions?: BackupPositionProjector
     ): Promise<XtreamPlaylistBackupEntry> {
         const entry: XtreamPlaylistBackupEntry = {
             portalType: 'xtream',
+            ...(playlist.xtreamContentTypes === undefined
+                ? {}
+                : {
+                      xtreamContentTypes: normalizeXtreamContentTypes(
+                          playlist.xtreamContentTypes
+                      ),
+                  }),
             exportedId: playlist._id,
             title: playlist.title,
             autoRefresh: Boolean(playlist.autoRefresh),
@@ -319,22 +418,75 @@ export class PlaylistBackupService {
         };
         const pending = this.pendingRestoreService.getOrThrow(playlist._id);
         if (pending) {
-            // A parked import is authoritative, including empty collections.
-            // Reading the incomplete catalog instead would silently lose it.
+            const recovery = pending.preservePlaybackPositions
+                ? await (
+                      await import('./xtream-catalog-history-recovery')
+                  ).exportCatalogRecoveryState(
+                      this.databaseService,
+                      this.playbackPositionService,
+                      playlist._id,
+                      pending.hiddenCategories,
+                      pending.catalogSnapshot,
+                      { state: pending, deferred: this.deferredRestore }
+                  )
+                : null;
+            // Other parked user state is authoritative during an import. Favorites
+            // already have a durable owner: materialize old parked identities once,
+            // then export the current saved records (including explicit removals).
+            let favorites = pending.favorites;
+            if (this.runtime.supportsXtreamSqliteDataSource) {
+                if (favorites.length) {
+                    this.playbackPositionService.assertSupportsAtomicReplacement();
+                }
+                await this.databaseService.restoreXtreamFavoriteSnapshots(
+                    playlist._id,
+                    pending.favorites,
+                    pending.favoritesRestoreId
+                );
+                favorites = (
+                    await this.databaseService.getFavoritesOrThrow(playlist._id)
+                ).map(toXtreamBackupFavorite);
+            }
             const sourcePins =
                 pending.sourcePins ??
                 (await this.readSourcePinsForExport(playlist._id));
-            return {
+            const pendingEntry: XtreamPlaylistBackupEntry = {
                 ...entry,
                 userState: {
-                    ...pending,
+                    hiddenCategories:
+                        recovery?.hiddenCategories ?? pending.hiddenCategories,
+                    favorites,
+                    recentlyViewed:
+                        recovery?.recentlyViewed ?? pending.recentlyViewed,
+                    playbackPositions:
+                        recovery?.playbackPositions ??
+                        pending.playbackPositions,
                     ...this.optionalLockedXtreamCategories(playlist._id),
                     ...(sourcePins ? { sourcePins } : {}),
                 },
             };
+            return this.runtime.supportsXtreamSqliteDataSource
+                ? {
+                      ...pendingEntry,
+                      userState: {
+                          ...pendingEntry.userState,
+                          ...this.deferredRestore.forExport(
+                              playlist._id,
+                              pendingEntry.userState,
+                              pending.favoritesRestoreId,
+                              recovery?.historyRecovery
+                          ),
+                      },
+                  }
+                : this.pwaXtream.exportInto(pendingEntry, pending);
         }
         // An unavailable pin store is no opinion, never an authoritative [].
-        if (!this.hasElectronApi()) return entry;
+        // Same choice as XTREAM_DATA_SOURCE: user state lives where it reads.
+        if (!this.runtime.supportsXtreamSqliteDataSource)
+            return projectBackupPositions(
+                this.pwaXtream.exportInto(entry),
+                projectPositions
+            );
 
         const [
             liveCategories,
@@ -348,8 +500,8 @@ export class PlaylistBackupService {
             this.databaseService.getAllXtreamCategories(playlist._id, 'live'),
             this.databaseService.getAllXtreamCategories(playlist._id, 'movies'),
             this.databaseService.getAllXtreamCategories(playlist._id, 'series'),
-            this.databaseService.getFavorites(playlist._id),
-            this.databaseService.getRecentItems(playlist._id),
+            this.databaseService.getFavoritesOrThrow(playlist._id),
+            this.databaseService.getRecentItemsOrThrow(playlist._id),
             this.playbackPositionService.getAllPlaybackPositionsOrThrow(
                 playlist._id
             ),
@@ -361,42 +513,52 @@ export class PlaylistBackupService {
             this.readSourcePinsForExport(playlist._id),
         ]);
 
-        return {
-            ...entry,
-            userState: {
+        const {
+            readExplicitCatalogVisibility,
+            reconcileExplicitCatalogVisibilityForExport,
+        } = await import('./xtream-explicit-category-visibility');
+        const explicitVisibility = await readExplicitCatalogVisibility(
+            this.databaseService,
+            playlist._id
+        );
+        const catalogState = reconcileExplicitCatalogVisibilityForExport(
+            this.deferredRestore.forExport(playlist._id, {
                 hiddenCategories: [
                     ...this.mapHiddenCategories(liveCategories, 'live'),
                     ...this.mapHiddenCategories(movieCategories, 'movies'),
                     ...this.mapHiddenCategories(seriesCategories, 'series'),
                 ],
-                ...this.optionalLockedXtreamCategories(playlist._id),
-                favorites: favorites.map((item) => ({
-                    xtreamId: item.xtream_id,
-                    contentType: item.type as XtreamContentType,
-                    ...(item.added_at ? { addedAt: item.added_at } : {}),
-                    ...(item.position !== undefined
-                        ? { position: item.position }
-                        : {}),
-                })),
                 recentlyViewed: recent.map((item) => ({
                     xtreamId: item.xtream_id,
-                    contentType: item.type as XtreamContentType,
+                    contentType: item.type as XtreamBackupContentType,
                     viewedAt: item.viewed_at ?? new Date().toISOString(),
                 })),
-                playbackPositions: playbackPositions.map((item) => ({
-                    ...item,
-                })),
-                // Carried under the playlist they point AT, so a restore that
-                // does not include that portal cannot resurrect a preference
-                // for something the archive never had.
-                //
-                // Present ONLY when this runtime can actually read them. The
-                // collection is authoritative on restore, so stating `[]`
-                // where the answer is "could not look" turns the archive into
-                // an instruction to delete.
-                ...(sourcePins ? { sourcePins } : {}),
+            }),
+            explicitVisibility
+        );
+        return projectBackupPositions(
+            {
+                ...entry,
+                userState: {
+                    ...catalogState,
+                    ...this.optionalLockedXtreamCategories(playlist._id),
+                    favorites: favorites.map(toXtreamBackupFavorite),
+                    playbackPositions: playbackPositions.map((item) => ({
+                        ...item,
+                    })),
+                    // Carried under the playlist they point AT, so a restore that
+                    // does not include that portal cannot resurrect a preference
+                    // for something the archive never had.
+                    //
+                    // Present ONLY when this runtime can actually read them. The
+                    // collection is authoritative on restore, so stating `[]`
+                    // where the answer is "could not look" turns the archive into
+                    // an instruction to delete.
+                    ...(sourcePins ? { sourcePins } : {}),
+                },
             },
-        };
+            projectPositions
+        );
     }
 
     /**
@@ -426,8 +588,11 @@ export class PlaylistBackupService {
         }));
     }
 
-    private buildStalkerEntry(playlist: Playlist): StalkerPlaylistBackupEntry {
-        return {
+    private async buildStalkerEntry(
+        playlist: Playlist,
+        projectPositions?: BackupPositionProjector
+    ): Promise<StalkerPlaylistBackupEntry> {
+        const entry: StalkerPlaylistBackupEntry = {
             portalType: 'stalker',
             exportedId: playlist._id,
             title: playlist.title,
@@ -466,12 +631,18 @@ export class PlaylistBackupService {
             },
             userState: {
                 ...this.optionalLockedStalkerCategories(playlist._id),
+                playbackPositions: this.runtime.supportsXtreamSqliteDataSource
+                    ? await this.playbackPositionService.getAllPlaybackPositionsOrThrow(
+                          playlist._id
+                      )
+                    : this.pwaXtream.getPlaybackPositions(playlist._id),
                 favorites: this.extractStalkerItems(playlist.favorites),
                 recentlyViewed: this.extractStalkerItems(
                     playlist.recentlyViewed
                 ),
             },
         };
+        return projectBackupPositions(entry, projectPositions);
     }
 
     private buildSettingsPayload(): PlaylistBackupSettings | undefined {
@@ -525,6 +696,10 @@ export class PlaylistBackupService {
             );
         }
 
+        if (!hasValidBackupSettings(manifest.settings)) {
+            throw new PlaylistBackupError('Backup has invalid EPG settings.');
+        }
+
         for (const entry of manifest.playlists) {
             this.validateEntry(entry);
         }
@@ -542,6 +717,12 @@ export class PlaylistBackupService {
         if (!entry.exportedId || !entry.title) {
             throw new PlaylistBackupError(
                 'Backup contains a playlist entry without required metadata.'
+            );
+        }
+
+        if (!hasValidBackupEntryData(entry)) {
+            throw new PlaylistBackupError(
+                'Backup contains incomplete user state or invalid playlist data.'
             );
         }
 
@@ -573,6 +754,18 @@ export class PlaylistBackupService {
                 ) {
                     throw new PlaylistBackupError(
                         `Xtream backup "${entry.title}" is missing connection metadata.`
+                    );
+                }
+
+                if (
+                    entry.xtreamContentTypes !== undefined &&
+                    (!Array.isArray(entry.xtreamContentTypes) ||
+                        entry.xtreamContentTypes.some(
+                            (type) => !XTREAM_CONTENT_TYPES.includes(type)
+                        ))
+                ) {
+                    throw new PlaylistBackupError(
+                        'Xtream backup has invalid content selection.'
                     );
                 }
 
@@ -796,11 +989,32 @@ export class PlaylistBackupService {
                 entry.source.rawM3u,
                 entry.title
             );
+        const autoImportEpg = entry.autoImportEpg ?? existing?.autoImportEpg;
         const now = new Date().toISOString();
 
         return {
             ...existing,
             ...parsedPlaylist,
+            ...resolvePlaylistEpgSourceState({
+                autoImportEpg,
+                detectedEpgUrls: parsedPlaylist.detectedEpgUrls,
+                enabledEpgUrls:
+                    entry.epgUrls ??
+                    parsedPlaylist.epgUrls ??
+                    (entry.manualEpgUrls === undefined &&
+                    entry.disabledEpgUrls === undefined
+                        ? existing?.epgUrls
+                        : undefined),
+                manualEpgUrls:
+                    entry.manualEpgUrls ??
+                    existing?.manualEpgUrls ??
+                    parsedPlaylist.manualEpgUrls,
+                disabledEpgUrls:
+                    entry.disabledEpgUrls ??
+                    existing?.disabledEpgUrls ??
+                    parsedPlaylist.disabledEpgUrls,
+            }),
+            ...(autoImportEpg !== undefined ? { autoImportEpg } : {}),
             _id: playlistId,
             title: entry.title,
             filename: entry.title,
@@ -812,9 +1026,7 @@ export class PlaylistBackupService {
             recentlyViewed: entry.userState.recentlyViewed.map((item) =>
                 this.normalizeM3uRecentlyViewedItem(item)
             ),
-            hiddenGroupTitles: this.uniqueStrings(
-                entry.userState.hiddenGroupTitles
-            ),
+            hiddenGroupTitles: [...new Set(entry.userState.hiddenGroupTitles)],
             ...(entry.source.url
                 ? { url: entry.source.url }
                 : { url: undefined }),
@@ -849,6 +1061,10 @@ export class PlaylistBackupService {
             autoRefresh: entry.autoRefresh,
             position: entry.position,
             serverUrl: entry.connection.serverUrl,
+            xtreamContentTypes:
+                entry.xtreamContentTypes === undefined
+                    ? undefined
+                    : normalizeXtreamContentTypes(entry.xtreamContentTypes),
             username: entry.connection.username,
             password: entry.connection.password,
             favorites: [],
@@ -924,7 +1140,25 @@ export class PlaylistBackupService {
         // arbitrary categories during restore.
         const restoreState: XtreamPendingRestoreState =
             normalizeXtreamPendingRestoreState(entry.userState);
+        // A deliberate re-import is a fresh user action. Do not accept an archive's
+        // internal receipt or confuse it with a retry of an older parked import.
+        restoreState.favoritesRestoreId = createRandomId();
+        delete restoreState.preservePlaybackPositions;
+        delete restoreState.catalogSnapshot;
 
+        // Preserve an older unfinished import before parking the incoming backup.
+        // Canonical favorites are additive; legacy-only ones need the same protection.
+        const sqlite = this.runtime.supportsXtreamSqliteDataSource;
+        const previous = this.pendingRestoreService.getOrThrow(playlistId);
+        if (previous && sqlite) {
+            // An unsupported restore must leave the older pending state intact.
+            this.playbackPositionService.assertSupportsAtomicReplacement();
+            await this.databaseService.restoreXtreamFavoriteSnapshots(
+                playlistId,
+                previous.favorites,
+                previous.favoritesRestoreId
+            );
+        }
         const restoreSnapshot = this.pendingRestoreService.set(
             playlistId,
             restoreState
@@ -935,21 +1169,43 @@ export class PlaylistBackupService {
             );
         }
 
-        if (!this.hasElectronApi()) {
-            return;
-        }
-
-        this.playbackPositionService.assertSupportsAtomicReplacement();
-
-        if (!(await this.hasCompletedOfflineCache(playlistId))) {
-            return;
+        // Browser storage has no catalog cache to wait for: apply at once.
+        if (sqlite) {
+            // With no older pending state, park the archive before failing preflight.
+            if (!previous) {
+                this.playbackPositionService.assertSupportsAtomicReplacement();
+            }
+            await (
+                await import('./xtream-catalog-history-recovery')
+            ).clearCatalogHistoryRecovery(this.databaseService, playlistId);
+            await (
+                await import('./xtream-explicit-category-visibility')
+            ).clearExplicitCatalogVisibility(this.databaseService, playlistId);
+            await this.databaseService.restoreXtreamFavoriteSnapshots(
+                playlistId,
+                restoreState.favorites,
+                restoreState.favoritesRestoreId
+            );
+            if (
+                !(await this.hasCompletedOfflineCache(
+                    playlistId,
+                    entry.xtreamContentTypes
+                ))
+            )
+                return;
         }
 
         const restoreResult = await this.pendingRestoreService.applyAndConsume(
             playlistId,
             restoreSnapshot,
-            (pendingState) =>
-                this.applyXtreamRestoreState(playlistId, pendingState)
+            async (state) =>
+                sqlite
+                    ? this.applyXtreamRestoreState(
+                          playlistId,
+                          state,
+                          entry.xtreamContentTypes
+                      )
+                    : this.pwaXtream.restore(playlistId, state, entry)
         );
         if (restoreResult !== 'consumed') {
             throw new PlaylistBackupError(
@@ -959,58 +1215,71 @@ export class PlaylistBackupService {
     }
 
     private async hasCompletedOfflineCache(
-        playlistId: string
+        playlistId: string,
+        selected?: XtreamContentType[]
     ): Promise<boolean> {
         const checks = await Promise.all(
-            [
-                {
-                    categoryType: 'live' as const,
-                    contentType: 'live' as const,
-                },
-                {
-                    categoryType: 'movies' as const,
-                    contentType: 'movie' as const,
-                },
-                {
-                    categoryType: 'series' as const,
-                    contentType: 'series' as const,
-                },
-            ].map(async ({ categoryType, contentType }) => {
-                const [importStatus, hasCategories, hasContent] =
-                    await Promise.all([
-                        this.databaseService.getXtreamImportStatus(
-                            playlistId,
-                            contentType
-                        ),
-                        this.databaseService.hasXtreamCategories(
-                            playlistId,
-                            categoryType
-                        ),
-                        this.databaseService.hasXtreamContent(
-                            playlistId,
-                            contentType
-                        ),
-                    ]);
-
-                return (
-                    importStatus === 'completed' && hasCategories && hasContent
-                );
+            normalizeXtreamContentTypes(selected).map(async (type) => {
+                const [status, categories, content] = await Promise.all([
+                    this.databaseService.getXtreamImportStatus(
+                        playlistId,
+                        type
+                    ),
+                    this.databaseService.hasXtreamCategories(
+                        playlistId,
+                        type === 'movie' ? 'movies' : type
+                    ),
+                    this.databaseService.hasXtreamContent(playlistId, type),
+                ]);
+                return status === 'completed' && categories && content;
             })
         );
-
         return checks.every(Boolean);
     }
 
     private async applyXtreamRestoreState(
         playlistId: string,
-        state: XtreamPendingRestoreState
+        state: XtreamPendingRestoreState,
+        selected?: XtreamContentType[]
     ): Promise<void> {
         this.playbackPositionService.assertSupportsAtomicReplacement();
-        await this.restoreXtreamCategoryVisibility(playlistId, state);
-        await this.databaseService.restoreXtreamUserData(
+        const archiveHistory = state.recentlyViewed;
+        const archiveVisibility = state.hiddenCategories;
+        const { resolveAvailableCatalogs } =
+            await import('./xtream-catalog-availability');
+        const available = await resolveAvailableCatalogs(
+            this.databaseService,
+            playlistId,
+            normalizeXtreamContentTypes(selected)
+        );
+        const prepared = this.deferredRestore.prepare(
+            playlistId,
+            state,
+            available
+        );
+        const {
+            completeExplicitCatalogHistoryRestore,
+            explicitCatalogHistoryForReplay,
+        } = await import('./xtream-catalog-history-recovery');
+        state = prepared.state;
+        const { explicitCategoryVisibilityForReplay } =
+            await import('./xtream-explicit-category-visibility');
+        const appliedCategories = await this.restoreXtreamCategoryVisibility(
+            playlistId,
+            explicitCategoryVisibilityForReplay(
+                prepared.snapshot,
+                archiveVisibility
+            )
+        );
+        await this.databaseService.restoreXtreamFavoriteSnapshots(
             playlistId,
             state.favorites,
-            state.recentlyViewed
+            state.favoritesRestoreId
+        );
+        const restored = await this.databaseService.restoreXtreamUserData(
+            playlistId,
+            [],
+            explicitCatalogHistoryForReplay(prepared.snapshot, archiveHistory)
         );
 
         await this.playbackPositionService.replaceAllPlaybackPositions(
@@ -1023,58 +1292,71 @@ export class PlaylistBackupService {
         // so leaving the current ones would resurrect preferences the archive
         // deliberately does not contain. Absent (an older archive) means "no
         // opinion", and those are left alone.
-        if (!state.sourcePins) {
-            return;
-        }
-
         // ONE call, not a clear followed by writes. Split up, a write that
         // fails partway leaves the previous pins already deleted and only part
         // of the archive applied — a state belonging to neither, reported as a
         // failure the user has no way to undo. The match key identifies the
         // film and survives untouched; only the playlist has a new id here.
-        const replaced = await this.vodSourcePinService.replaceForPlaylist(
-            playlistId,
-            state.sourcePins.map((pin) => ({
-                matchKey: pin.matchKey,
+        if (state.sourcePins) {
+            const replaced = await this.vodSourcePinService.replaceForPlaylist(
                 playlistId,
-                contentId: pin.contentId,
-                portalType: 'xtream' as const,
-                ...(pin.updatedAt ? { updatedAt: pin.updatedAt } : {}),
-            }))
-        );
-
-        // Reported rather than thrown, so ignoring it would drop every
-        // preference while the summary claims the import succeeded.
-        if (!replaced) {
-            throw new PlaylistBackupError(
-                `Restoring the pinned sources for "${playlistId}" failed.`
+                state.sourcePins.map((pin) => ({
+                    matchKey: pin.matchKey,
+                    playlistId,
+                    contentId: pin.contentId,
+                    portalType: 'xtream' as const,
+                    ...(pin.updatedAt ? { updatedAt: pin.updatedAt } : {}),
+                }))
             );
+
+            // Reported rather than thrown, so ignoring it would drop every
+            // preference while the summary claims the import succeeded.
+            if (!replaced) {
+                throw new PlaylistBackupError(
+                    `Restoring the pinned sources for "${playlistId}" failed.`
+                );
+            }
         }
+        await completeExplicitCatalogHistoryRestore(
+            this.databaseService,
+            this.deferredRestore,
+            playlistId,
+            prepared.snapshot,
+            available,
+            restored,
+            appliedCategories
+        );
     }
 
     private async restoreXtreamCategoryVisibility(
         playlistId: string,
-        state: XtreamPendingRestoreState
-    ): Promise<void> {
+        hiddenCategories: XtreamBackupHiddenCategory[]
+    ): Promise<XtreamBackupHiddenCategory[]> {
         const categoriesByType = await Promise.all([
             this.databaseService.getAllXtreamCategories(playlistId, 'live'),
             this.databaseService.getAllXtreamCategories(playlistId, 'movies'),
             this.databaseService.getAllXtreamCategories(playlistId, 'series'),
         ]);
 
+        const applied: XtreamBackupHiddenCategory[] = [];
         for (const categories of categoriesByType) {
             if (categories.length === 0) {
                 continue;
             }
 
-            await this.databaseService.updateCategoryVisibility(
+            const reset = await this.databaseService.updateCategoryVisibility(
                 categories.map((category) => category.id),
                 false
             );
+            if (!reset) {
+                throw new PlaylistBackupError(
+                    'Restoring category visibility failed.'
+                );
+            }
 
             const hiddenCategoryIds = categories
                 .filter((category) =>
-                    state.hiddenCategories.some(
+                    hiddenCategories.some(
                         (hiddenCategory) =>
                             hiddenCategory.categoryType === category.type &&
                             hiddenCategory.xtreamId === category.xtream_id
@@ -1083,12 +1365,25 @@ export class PlaylistBackupService {
                 .map((category) => category.id);
 
             if (hiddenCategoryIds.length > 0) {
-                await this.databaseService.updateCategoryVisibility(
-                    hiddenCategoryIds,
-                    true
-                );
+                const hidden =
+                    await this.databaseService.updateCategoryVisibility(
+                        hiddenCategoryIds,
+                        true
+                    );
+                if (!hidden) {
+                    throw new PlaylistBackupError(
+                        'Restoring hidden categories failed.'
+                    );
+                }
             }
+            applied.push(
+                ...categories.map((row) => ({
+                    categoryType: row.type,
+                    xtreamId: row.xtream_id,
+                }))
+            );
         }
+        return applied;
     }
 
     // Parental locks are written only when the playlist has some: an archive
@@ -1215,9 +1510,9 @@ export class PlaylistBackupService {
         categories: Array<{
             hidden: boolean;
             xtream_id: number;
-            type: XtreamCategoryType;
+            type: XtreamBackupCategoryType;
         }>,
-        categoryType: XtreamCategoryType
+        categoryType: XtreamBackupCategoryType
     ): XtreamPendingRestoreState['hiddenCategories'] {
         return categories
             .filter((category) => category.hidden)
@@ -1360,9 +1655,5 @@ export class PlaylistBackupService {
 
     private getErrorMessage(error: unknown): string {
         return error instanceof Error ? error.message : String(error);
-    }
-
-    private hasElectronApi(): boolean {
-        return !!(window as Window & { electron?: unknown }).electron;
     }
 }

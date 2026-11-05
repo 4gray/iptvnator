@@ -167,6 +167,22 @@ test('one run at or above the value keeps the baseline untouched', () => {
     }
 });
 
+test('an entry with autoTighten false is kept even when every run is lower', () => {
+    // Its slack covers a band of normal values; lowering value to the largest
+    // of three runs could put the limit below the top of that band.
+    const baselines = baselinesFile();
+    baselines.journeys.launch['renderer.initialBytes'].autoTighten = false;
+    const result = tighten(baselines, [
+        bytesRun(990),
+        bytesRun(995),
+        bytesRun(980),
+    ]);
+    assert.deepEqual(result.baselines, baselines);
+    assert.deepEqual(result.tightened, []);
+    assert.match(result.rows[0].reason, /autoTighten is false/);
+    assert.deepEqual(result.rows[0].measured, [990, 995, 980]);
+});
+
 test('an entry missing or non-numeric in any run is kept', () => {
     const missing = tighten(baselinesFile(), [
         bytesRun(990),
@@ -183,6 +199,26 @@ test('an entry missing or non-numeric in any run is kept', () => {
     ]);
     assert.deepEqual(invalid.tightened, []);
     assert.match(invalid.rows[0].reason, /run 3 measured "980"/);
+});
+
+test('an opted-out counter still reports unstable iterations for manual review', () => {
+    const baselines = baselinesFile();
+    baselines.journeys.launch['renderer.initialBytes'].autoTighten = false;
+    const unstableRun = bytesRun(995);
+    unstableRun.journeys.launch.counterStability = {
+        'renderer.initialBytes': { stable: false, values: [990, 995, 992] },
+    };
+    const result = tighten(baselines, [
+        bytesRun(990),
+        unstableRun,
+        bytesRun(980),
+    ]);
+    assert.deepEqual(result.baselines, baselines);
+    assert.deepEqual(result.tightened, []);
+    assert.match(
+        formatReport(result),
+        /kept: unstable in run 2 \(iterations 990, 995, 992\)/
+    );
 });
 
 test('a counter marked unstable in any run is skipped with the iterations', () => {

@@ -6,6 +6,7 @@ import {
     output,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDividerModule } from '@angular/material/divider';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -32,6 +33,7 @@ import {
     imports: [
         DatePipe,
         MatButtonModule,
+        MatDividerModule,
         MatIcon,
         MatMenuModule,
         TranslatePipe,

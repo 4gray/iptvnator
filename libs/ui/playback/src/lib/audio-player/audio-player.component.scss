@@ -205,15 +205,24 @@
 
 // Play / Pause uses the unified app primary, not the station's dominant color
 // — same blue as every other CTA so radio doesn't feel like a different app.
+// An icon button at the fab's 56px, filled: the fab tokens were about 6 KB of
+// the initial stylesheet for this one control, and the fab also reset the
+// keyboard focus ring (`outline: none` on focus) that the icon button keeps.
 .play-btn {
-    @include mat.fab-overrides(
+    @include mat.icon-button-overrides(
         (
-            container-color: var(--app-selection-color, var(--mat-sys-primary)),
-            foreground-color: #fff,
+            state-layer-size: 56px,
+            icon-size: 32px,
+            icon-color: #fff,
             container-shape: 50%,
+            state-layer-color: #fff,
+            ripple-color: color-mix(in srgb, #fff 12%, transparent),
         )
     );
-    box-shadow: none !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--app-selection-color, var(--mat-sys-primary));
     transition: transform 0.2s ease;
 
     &:hover {

@@ -1,4 +1,4 @@
-import { Directive, ElementRef, inject } from '@angular/core';
+import { DestroyRef, Directive, ElementRef, inject } from '@angular/core';
 
 const HIDDEN_PANE = '[inert], .sidebar-collapsed, .context-panel--collapsed';
 
@@ -46,10 +46,72 @@ export function focusLiveChannels(event: KeyboardEvent): void {
         class: 'channel-scroll-focus',
         '(click)': 'onClick($event)',
         '(keydown)': 'onKeydown($event)',
+        '(focusin)': 'onFocusIn($event)',
+        '(focusout)': 'onFocusOut($event)',
     },
 })
 export class ChannelScrollFocusDirective {
     private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+    private focused: {
+        element: HTMLElement;
+        index: number;
+        main: HTMLElement | null;
+    } | null = null;
+
+    constructor() {
+        const observer = new MutationObserver(() => this.restoreRemovedFocus());
+        observer.observe(this.host.nativeElement, {
+            childList: true,
+            subtree: true,
+        });
+        inject(DestroyRef).onDestroy(() => {
+            observer.disconnect();
+            queueMicrotask(() => this.restoreRemovedFocus());
+        });
+    }
+
+    onFocusIn(event: FocusEvent): void {
+        const element = event.target as HTMLElement;
+        const row = element.closest('.channel-list-item');
+        this.focused = row
+            ? {
+                  element,
+                  index: Array.from(
+                      this.host.nativeElement.querySelectorAll(
+                          '.channel-list-item'
+                      )
+                  ).indexOf(row),
+                  main: this.host.nativeElement.closest('main'),
+              }
+            : null;
+    }
+
+    onFocusOut(event: FocusEvent): void {
+        if (
+            event.relatedTarget instanceof Node &&
+            !this.host.nativeElement.contains(event.relatedTarget)
+        ) {
+            this.focused = null;
+        }
+    }
+
+    private restoreRemovedFocus(): void {
+        const saved = this.focused;
+        if (!saved || saved.element.isConnected) return;
+        this.focused = null;
+        if (document.activeElement !== document.body) return;
+        const pane = this.host.nativeElement;
+        if (pane.isConnected && !pane.closest(HIDDEN_PANE)) {
+            const rows = pane.querySelectorAll<HTMLElement>(
+                'button.channel-content:not([disabled])'
+            );
+            (rows[Math.min(saved.index, rows.length - 1)] ?? pane).focus({
+                preventScroll: true,
+            });
+        } else if (saved.main?.isConnected && !saved.main.closest('[inert]')) {
+            saved.main.focus({ preventScroll: true });
+        }
+    }
 
     onClick(event: MouseEvent): void {
         const target = event.target as HTMLElement;

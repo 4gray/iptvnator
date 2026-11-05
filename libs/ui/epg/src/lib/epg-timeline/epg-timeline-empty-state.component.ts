@@ -98,7 +98,8 @@ const PRESETS: Record<
                             </button>
                             @if (hasOtherDays()) {
                                 <button
-                                    mat-stroked-button
+                                    mat-flat-button
+                                    class="epg-empty__secondary"
                                     type="button"
                                     (click)="jumpNearest.emit()"
                                 >

@@ -94,6 +94,7 @@ export interface StalkerContentState {
      * offer a retry instead of collapsing to the empty state.
      */
     appendError: unknown;
+    isContentRetrying: boolean;
 }
 
 const initialContentState: StalkerContentState = {
@@ -111,6 +112,7 @@ const initialContentState: StalkerContentState = {
     categoryError: null,
     contentError: null,
     appendError: null,
+    isContentRetrying: false,
 };
 
 interface StalkerCategoryResponseItem {
@@ -1193,12 +1195,31 @@ export function withStalkerContent() {
                     // Clear the flag synchronously, before the await: otherwise
                     // this stays re-enterable and the next `nearEnd` event
                     // fires a second retry.
-                    patchState(store, { appendError: null });
-                    await resetHostConnectivityGuard(
-                        dataService,
-                        storeContext.currentPlaylist()?.portalUrl
-                    );
-                    storeContext.getContentResource.reload();
+                    if (store.isContentRetrying()) return;
+                    const identity = () =>
+                        JSON.stringify([
+                            storeContext.currentPlaylist()?._id,
+                            storeContext.currentPlaylist()?.portalUrl,
+                            storeContext.selectedContentType(),
+                            storeContext.selectedCategoryId(),
+                            storeContext.searchPhrase(),
+                            storeContext.page(),
+                        ]);
+                    const owner = identity();
+                    patchState(store, {
+                        appendError: null,
+                        isContentRetrying: true,
+                    });
+                    try {
+                        await resetHostConnectivityGuard(
+                            dataService,
+                            storeContext.currentPlaylist()?.portalUrl
+                        );
+                        if (identity() === owner)
+                            storeContext.getContentResource.reload();
+                    } finally {
+                        patchState(store, { isContentRetrying: false });
+                    }
                 },
                 async refreshItvChannels(): Promise<void> {
                     await itvCache.refresh(storeContext.currentPlaylist());

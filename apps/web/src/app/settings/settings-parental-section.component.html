@@ -19,7 +19,7 @@
                         [checked]="enabled()"
                         [disabled]="busy()"
                         (change)="onToggleEnabled($event)"
-                        [attr.aria-label]="
+                        [aria-label]="
                             'SETTINGS.PARENTAL_LOCK.ENABLE' | translate
                         "
                     ></mat-slide-toggle>
@@ -42,7 +42,7 @@
                     <div class="setting-item__control">
                         @if (unlocked()) {
                             <button
-                                mat-stroked-button
+                                mat-flat-button
                                 type="button"
                                 data-test-id="parental-lock-lock-now"
                                 [disabled]="busy()"
@@ -53,7 +53,7 @@
                             </button>
                         } @else {
                             <button
-                                mat-stroked-button
+                                mat-flat-button
                                 type="button"
                                 data-test-id="parental-lock-unlock"
                                 [disabled]="busy()"
@@ -118,7 +118,7 @@
                     </div>
                     <div class="setting-item__control">
                         <button
-                            mat-stroked-button
+                            mat-flat-button
                             type="button"
                             data-test-id="parental-lock-change-pin"
                             [disabled]="busy() || !hasPin()"

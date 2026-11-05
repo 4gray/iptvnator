@@ -1,6 +1,9 @@
 import type { EpgProgram } from '@iptvnator/shared/interfaces';
 import {
     buildDashboardLiveEpgDetails,
+    buildLiveEpgLookupGroups,
+    getLiveEpgProgramForCard,
+    liveEpgProgramKey,
     calcEpgProgress,
     formatEpgTimeRange,
     sameLiveEpgAnswers,
@@ -25,6 +28,23 @@ function program(overrides: Partial<EpgProgram> = {}): EpgProgram {
 }
 
 describe('dashboard-live-epg.utils', () => {
+    it.each(['missing', 'unknown'] as const)(
+        'does not query or enrich unavailable favorites (%s)',
+        (catalogStatus) => {
+            const card = {
+                id: 'saved',
+                title: 'ABC',
+                icon: 'live_tv',
+                link: [],
+                catalogStatus,
+            };
+            expect(buildLiveEpgLookupGroups([card], () => [])).toEqual([]);
+            const answers = new Map([
+                [liveEpgProgramKey('scope', 'ABC'), program()],
+            ]);
+            expect(getLiveEpgProgramForCard(card, answers, 'scope')).toBeNull();
+        }
+    );
     describe('timestamps in unix seconds', () => {
         // `EpgProgram.startTimestamp`/`stopTimestamp` are unix SECONDS
         // everywhere else in the app; treating them as milliseconds put

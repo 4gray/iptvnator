@@ -52,19 +52,16 @@ export class WorkspaceShellHeaderComponent {
     readonly backTarget = input<WorkspaceBackTarget | null>(null);
     readonly playlistTitle = input('');
     readonly playlistSubtitle = input('');
-    readonly canOpenPlaylistInfo = input(false);
-    readonly canOpenAccountInfo = input(false);
     readonly searchQuery = input('');
     readonly canUseSearch = input(false);
     readonly searchPlaceholder = input('');
     readonly searchScopeLabel = input('');
     readonly searchStatusLabel = input('');
+    readonly canClearCategoryScope = input(false);
     readonly headerShortcut = input<WorkspaceHeaderAction | null>(null);
     readonly headerSidebarToggle = input<WorkspaceHeaderSidebarToggle | null>(
         null
     );
-    readonly canRefreshPlaylist = input(false);
-    readonly isRefreshingPlaylist = input(false);
     readonly isElectron = input(false);
     readonly hasNoPlaylists = input(false);
     readonly isDownloadsView = input(false);
@@ -144,12 +141,17 @@ export class WorkspaceShellHeaderComponent {
     readonly headerShortcutRequested = output<void>();
     readonly headerSidebarToggleRequested = output<void>();
     readonly parentalLockToggleRequested = output<void>();
-    readonly refreshPlaylistRequested = output<void>();
     readonly downloadsRequested = output<void>();
-    readonly playlistInfoRequested = output<void>();
-    readonly accountInfoRequested = output<void>();
     readonly contextDrawerToggleRequested = output<void>();
     readonly accountInfoForPlaylistRequested = output<PlaylistMeta>();
+    readonly clearCategoryScopeRequested = output<void>();
+
+    onClearCategoryScope(event: MouseEvent): void {
+        event.preventDefault();
+        event.stopPropagation();
+        this.clearCategoryScopeRequested.emit();
+        this.searchInput()?.nativeElement.focus();
+    }
 
     focusSearchInput(options: { select?: boolean } = {}): void {
         const inputElement = this.searchInput()?.nativeElement;
@@ -199,14 +201,6 @@ export class WorkspaceShellHeaderComponent {
         this.backRequested.emit();
     }
 
-    onPlaylistInfoRequested(): void {
-        this.playlistInfoRequested.emit();
-    }
-
-    onAccountInfoRequested(): void {
-        this.accountInfoRequested.emit();
-    }
-
     onAccountInfoForPlaylistRequested(playlist: PlaylistMeta): void {
         this.accountInfoForPlaylistRequested.emit(playlist);
     }
@@ -229,10 +223,6 @@ export class WorkspaceShellHeaderComponent {
 
     onHeaderSidebarToggleRequested(): void {
         this.headerSidebarToggleRequested.emit();
-    }
-
-    onRefreshPlaylistRequested(): void {
-        this.refreshPlaylistRequested.emit();
     }
 
     onDownloadsRequested(): void {

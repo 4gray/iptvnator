@@ -76,6 +76,37 @@ function idEpisodes(
 }
 
 describe('download library view model helpers', () => {
+    it('omits a season range for flat collections, including legacy downloads in the same group', () => {
+        const series = buildSeries([
+            download(1, {
+                title: 'Flat collection - E189 - Episode 189',
+                seasonNumber: 9,
+                episodeNumber: 189,
+                metadataSnapshot: {
+                    version: 1,
+                    language: 'en',
+                    mediaKind: 'series',
+                    title: 'Flat collection',
+                    episode: {
+                        seasonNumber: 9,
+                        episodeNumber: 189,
+                        seasonUnknown: true,
+                    },
+                },
+            }),
+            download(2, { seasonNumber: 9, episodeNumber: 1 }),
+        ]);
+        expect(series.title).toBe('Flat collection');
+        expect(series.firstSeason).toBeUndefined();
+        expect(series.lastSeason).toBeUndefined();
+    });
+    it('derives the parent title from absolute episode download titles', () => {
+        expect(
+            deriveStandardizedSeriesTitle(
+                download(1, { title: 'Flat collection - E189 - Episode 189' })
+            )
+        ).toBe('Flat collection');
+    });
     it('does not derive a series title from a non-episode item', () => {
         const movie = download(1, {
             contentType: 'vod',

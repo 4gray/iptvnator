@@ -182,4 +182,43 @@ describe('withSearch refreshSearchResults', () => {
         await store.refreshSearchResults();
         expect(searchContent).toHaveBeenCalledTimes(1);
     });
+
+    it('keeps query/filter parameters for retry and clears the error after success', async () => {
+        searchContent.mockRejectedValueOnce(new Error('offline'));
+        await store.searchContent({
+            term: 'news',
+            types: ['live'],
+            excludeHidden: true,
+        });
+        expect(store.searchError()).toBe(true);
+        expect(store.isSearching()).toBe(false);
+
+        await store.refreshSearchResults();
+        expect(searchContent).toHaveBeenLastCalledWith(
+            'playlist-1',
+            'news',
+            ['live'],
+            true
+        );
+        expect(store.searchError()).toBe(false);
+        expect(store.searchResults()).toHaveLength(1);
+    });
+
+    it('does not publish a stale failure over a newer successful search', async () => {
+        const old = createDeferred<unknown[]>();
+        searchContent.mockReturnValueOnce(old.promise);
+        const pending = store.searchContent('old', ['movie']);
+        await store.searchContent('new', ['live']);
+        old.reject(new Error('late failure'));
+        await pending;
+        expect(store.searchError()).toBe(false);
+        expect(store.searchResults()).toHaveLength(1);
+    });
+
+    it('clears a previous error when the query is cleared', async () => {
+        searchContent.mockRejectedValueOnce(new Error('offline'));
+        await store.searchContent('news', ['live']);
+        await store.searchContent('', ['live']);
+        expect(store.searchError()).toBe(false);
+    });
 });

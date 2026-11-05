@@ -32,6 +32,7 @@ using its result as evidence. Docker validation can use
 | EPG data access                    | `pnpm nx test epg-data-access`      |
 | Workspace shell utilities          | `pnpm nx test workspace-shell-util` |
 | Shared SQLite schema/connection    | `pnpm nx test database`             |
+| TV runtime, providers and local storage | `pnpm nx test tv` and `pnpm nx e2e tv-e2e` |
 | Packaging metadata                 | `pnpm nx test packaging`            |
 
 `typecheck:spec` (`tools/typecheck/spec-typecheck.mjs`) runs `tsc --noEmit`
@@ -124,6 +125,15 @@ with `diagnostics: false`); `isolatedModules`-incompatible syntax such as a
 type re-export without `export type` still fails at load time, and spec type
 errors are caught by `typecheck:spec` (see Unit And Type Checks).
 
+The activity SQLite and real Chromium contracts return their actual runtime
+counters through `@iptvnator/shared/testing/runtime-coverage`. Esbuild instruments
+selected original TypeScript files before bundling; paths and locations remain
+source-based. SQLite writes counters on subprocess exit. Browser tests capture
+all pages before reload/close and merge their counters before writing the report.
+The parent merges those reports into Jest without replacing objects cached by
+existing instrumentation. Missing reports fail the test; assertion failures still
+propagate. The helper never creates synthetic hits or changes coverage thresholds.
+
 Some `electron-backend` and `database` specs run SQLite code in the Electron
 binary under `ELECTRON_RUN_AS_NODE`, resolving it with `require('electron')`.
 pnpm does not run Electron's postinstall (`electron` is deliberately absent from
@@ -200,6 +210,40 @@ The merged report is written to `coverage/merged/` as HTML, LCOV, Cobertura,
 and JSON summary output. CI uploads the merged Tier A report to Codecov with the
 `unit` flag and keeps the HTML report as a GitHub artifact.
 
+Each Tier A Jest run also writes `coverage/<projectRoot>/junit.xml` through
+`jest-junit`, with file paths as test class names for Codecov Test Analytics.
+The report lives inside the test target's coverage output so Nx cache restores
+include it, and concurrent projects cannot overwrite one another's results.
+CI uploads available JUnit reports with `codecov-action@v7` and
+`report_type: test_results`, including after test failures, and keeps them in
+the `unit-coverage` artifact. Cancelled runs and runs without reports skip the
+test-results upload. Upload errors are non-blocking for this analytics step;
+test failures and the existing coverage upload remain blocking. Analytics
+covers executed Tier A tests only: projects skipped after the first failure
+and out-of-scope suites do not contribute results.
+
+Passing the local coverage health checks does not guarantee that Codecov's
+`patch` check passes: it separately evaluates changed code, including partially
+covered branches, against the target reported for the current PR head. Inspect
+the affected files in the coverage report and add scenario coverage for missing
+paths before pushing; the overall project percentage alone is insufficient.
+
+Codecov uploads require the repository upload token in the GitHub Actions
+repository secret `CODECOV_TOKEN`. The workflow passes that secret to the
+uploader and fails on upload errors; it only uploads after the complete Tier A
+coverage suite and health checks succeed. The artifact upload still runs on
+failure to preserve diagnostic reports. Fork pull requests use Codecov's
+tokenless fork uploads without access to the repository secret. Dependabot
+pull requests also lack Actions secrets, so their uploads use a
+`dependabot:`-prefixed Codecov branch for tokenless authentication.
+
+Keep Codecov's default branch set to `master`. The README's Shields badge also
+selects `master` explicitly in its URL path (`/iptvnator/master`); a
+`?branch=master` query parameter does not select a branch for that badge.
+If coverage appears stale, compare the Codecov commit with the GitHub run and
+check the upload log for authentication errors. Fix the secret rather than
+changing source exclusions or coverage ratchets to correct a reporting problem.
+
 ## E2E
 
 | Area                  | Command                                         |
@@ -207,6 +251,10 @@ and JSON summary output. CI uploads the merged Tier A report to Codecov with the
 | Web app browser flows | `pnpm nx run web-e2e:e2e -- --project=chromium` |
 | Electron flows        | `pnpm nx run electron-backend-e2e:e2e`          |
 | VOD multi-source      | `pnpm nx run electron-backend-e2e:e2e-ci--src/vod-multi-source.e2e.ts` |
+
+The Web E2E CI job runs Chromium with `--workers=2`; retry and timeout
+settings remain defined by the Playwright configuration. This override applies
+only to the Web E2E workflow step.
 
 Use atomized E2E targets when available, for example
 `pnpm nx run web-e2e:e2e-ci--src/xtream.e2e.ts`.
@@ -244,9 +292,16 @@ After an E2E run, generate the semantic summary with:
 pnpm run coverage:e2e:summary
 ```
 
+The `electron-backend-e2e:e2e` target owns its `electron-backend:build-e2e`
+dependency, including renderer and remote-control assets. CI calls that target
+without a separate production build before each shard.
+
 CI runs the Electron suite as Playwright shards (`--shard=<n>/<total>`, split
-by spec file because the suite is sequential): three shards on Ubuntu and
-Windows, two on macOS, whose runners are the scarcest and queued longest. Each
+by spec file because the suite is sequential): three shards on Ubuntu, four
+on Windows, and two on macOS, whose runners are the scarcest and queued longest.
+Windows uses the additional shard to keep slower runners within the existing
+30-minute job limit, including setup; each shard still uses one worker and
+the same tests, assertions, and retry policy. Each
 shard uploads `playwright-report-electron-<os>-<n>`; the follow-up
 `Electron E2E summary` job downloads the shards of each OS into their own
 directory and runs the summary per OS with `--input=<directory>` and
@@ -255,11 +310,29 @@ directory and runs the summary per OS with `--input=<directory>` and
 the summary never reports a partial run as complete. Tests for that merge live
 in `tools/coverage/e2e-shard-reports.test.mjs` (`pnpm run coverage:tools:test`).
 
+The shared Electron launcher waits for Playwright's first window and selects a
+non-DevTools URL, including a later renderer when DevTools appears first.
+It then waits for the app root, visible rail, fonts and finite rail entrance
+animations, without a fixed startup sleep. Visibility comes first because
+source inventory loading can hide the workspace. `electron-app-readiness.e2e.ts`
+covers this delayed startup gate and animation completion. A visible startup
+failure alert is also ready for tests: failed migration/recovery scenarios need
+the Electron bridge while the workspace stays hidden. Window-selection and
+process-lifecycle regression tests run once per OS before the E2E suite.
+Every test still owns its temporary profile, and restarts still confirm the
+previous process exited before relaunching.
+
 For local investigation only, Chromium browser V8 coverage can be explored with:
 
 ```bash
 pnpm run coverage:e2e:v8:web
 ```
+
+Production PWA update checks use `pnpm nx run web-e2e:pwa-updates`; its
+`web:build-pwa` dependency builds the matching service-worker output first.
+`pnpm nx run web-e2e:test-service-worker` validates the pinned worker behavior
+without a browser. Both are required after changes to update recovery or its
+Angular worker patch; ordinary dev-server browser flows do not exercise it.
 
 ## I18n
 
@@ -272,7 +345,9 @@ pnpm run i18n:baseline:update   # deliberate: rewrite the English-identical base
 ```
 
 The i18n check is non-mutating. It compares every locale file in
-`apps/web/src/assets/i18n/` against `en.json` and fails on missing or extra keys.
+`apps/web/src/assets/i18n/` against `en.json` and fails on missing or extra keys,
+empty/non-string values, changed interpolation placeholders (including their
+multiplicity), or changed inline HTML. The baseline never exempts these errors.
 It also fails on a locale value that is identical to English unless
 `tools/i18n/identical-en-baseline.json` records that exact English text for the
 same locale and key. The baseline holds values that are legitimately the same
@@ -319,6 +394,8 @@ pnpm run perf:initial-bytes         # breakdown only
 pnpm run perf:initial-bytes:check   # measure, then compare with the committed baseline
 pnpm nx test performance-tools
 pnpm run perf:journeys              # J1 launch, J2 open-source and J3 playback journeys, one dist/performance/journeys/<timestamp>/summary.json
+pnpm nx run electron-backend-e2e:journeys-large-library   # J1 on the large-library profile (launch-large); skipped by perf:journeys unless IPTVNATOR_JOURNEY_LARGE_LIBRARY=1
+pnpm nx run electron-backend-e2e:large-library-profile    # build or find that profile (cached by content hash under node_modules/.cache)
 pnpm run perf:compositing           # tile memory and composited layers per route, dist/performance/compositing/<timestamp>/summary.json
 ```
 
@@ -331,7 +408,7 @@ target `master` and for `master` pushes (dispatch it with
 `gh workflow run ci.yml --ref <branch>` for a stacked branch). The
 `Performance journeys` job checks the journey counters listed with `--only`
 in its `Check the journey counters against the baselines` step against the
-same file (warn-only); a new journey baseline
+same file and fails the workflow on a regression; a new journey baseline
 must be added to that list too, which `pnpm nx test performance-tools`
 checks. The weekly
 `performance-ratchet.yml` workflow lowers baselines through a bot PR; validate
@@ -341,7 +418,12 @@ on `master`; before that, see the temporary-trigger note under Weekly
 tightening in the performance journeys document. `perf:journeys` builds the `electron-performance` configuration and runs every
 journey spec against the Xtream mock: J1 launch, then J2 open-source (a
 second set of launches, each followed by the click on the portal card), both
-written to the same summary file; its probe specs run with
+written to the same summary file. The large-library variant of J1
+(`launch-large`, a generated profile of 182 sources and 2.4M catalog rows)
+skips itself unless `IPTVNATOR_JOURNEY_LARGE_LIBRARY=1`, which the
+`journeys-large-library` target sets and the weekly `performance-ratchet.yml`
+passes through the composite action; pull-request CI does not run it (see
+"CI cost" in the journeys document). Its probe specs run with
 `pnpm nx run electron-backend-e2e:test-performance-harness`, which CI runs in
 the `Unit Tests and Typechecks` job of `ci.yml` on every run. `tsx` runs them
 without type checking; `pnpm run typecheck:spec electron-backend-e2e` checks
@@ -388,7 +470,7 @@ not app unit/E2E. Tooling validation still requires its own focused tests.
 
 `pnpm run agents:validate` checks root instruction budgets/imports and guidance
 navigation links/anchors. `pnpm run skills:validate` checks skill frontmatter,
-length, paths and release mirrors. Both tooling suites run through
+length, paths, required release skills and Claude symlinks. Both tooling suites run through
 `pnpm nx test repository-skills`; syntax checks use
 `pnpm nx lint repository-skills`. The CI guidance check runs regardless of the
 Nx affected set. Semantic preservation of moved contracts is a review task;

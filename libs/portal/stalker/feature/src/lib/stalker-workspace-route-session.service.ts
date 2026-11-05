@@ -22,7 +22,9 @@ import {
     StalkerStore,
 } from '@iptvnator/portal/stalker/data-access';
 import { PlaylistsService } from '@iptvnator/services';
+import { SourceSyncService } from '@iptvnator/services/source-sync';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import { SOURCE_CONNECTION_FIELDS } from '@iptvnator/shared/interfaces/source-definition';
 
 @Injectable()
 export class StalkerWorkspaceRouteSession {
@@ -31,6 +33,7 @@ export class StalkerWorkspaceRouteSession {
     private readonly playlistsService = inject(PlaylistsService);
     private readonly router = inject(Router);
     private readonly stalkerStore = inject(StalkerStore);
+    private readonly sourceSync = inject(SourceSyncService);
 
     private currentPlaylistId: string | null = null;
     private targetPlaylistId: string | null = null;
@@ -60,6 +63,11 @@ export class StalkerWorkspaceRouteSession {
     readonly isReady = this.synced.asReadonly();
 
     constructor() {
+        this.sourceSync.changes
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe(() => {
+                void this.syncRouteContext(true);
+            });
         this.router.events
             .pipe(
                 filter(
@@ -94,7 +102,7 @@ export class StalkerWorkspaceRouteSession {
         });
     }
 
-    private syncRouteContext(): Promise<void> {
+    private syncRouteContext(refreshSharedSource = false): Promise<void> {
         const generation = ++this.syncGeneration;
         // Read the route SYNCHRONOUSLY: `syncFromUrl` publishes the active
         // playlist context, and deferring it onto the queue would leave every
@@ -106,7 +114,11 @@ export class StalkerWorkspaceRouteSession {
                 : null;
         const run = async (): Promise<void> => {
             try {
-                await this.applyRouteContext(generation, routeContext);
+                await this.applyRouteContext(
+                    generation,
+                    routeContext,
+                    refreshSharedSource
+                );
             } catch {
                 // A failed bootstrap deliberately leaves readiness false: the
                 // store may still hold the previous portal, and acting on that
@@ -121,7 +133,8 @@ export class StalkerWorkspaceRouteSession {
 
     private async applyRouteContext(
         generation: number,
-        routeContext: ReturnType<PlaylistContextFacade['syncFromUrl']>
+        routeContext: ReturnType<PlaylistContextFacade['syncFromUrl']>,
+        refreshSharedSource: boolean
     ): Promise<void> {
         const playlistId =
             routeContext.provider === 'stalker'
@@ -136,10 +149,27 @@ export class StalkerWorkspaceRouteSession {
             return;
         }
 
+        const refreshed = refreshSharedSource
+            ? await firstValueFrom(
+                  this.playlistsService.getPlaylistById(playlistId),
+                  { defaultValue: null }
+              )
+            : null;
+        if (this.targetPlaylistId !== playlistId || this.destroyRef.destroyed)
+            return;
+        if (refreshSharedSource && !refreshed) return;
+        const current = this.stalkerStore.currentPlaylist();
+        const connectionChanged =
+            refreshed &&
+            SOURCE_CONNECTION_FIELDS.some(
+                (key) => current?.[key] !== refreshed[key]
+            );
         if (
             this.currentPlaylistId !== playlistId ||
-            this.stalkerStore.currentPlaylist()?._id !== playlistId
+            current?._id !== playlistId ||
+            connectionChanged
         ) {
+            this.synced.set(false);
             // A handoff can install the destination in the store before this
             // session does; the categories it held are cleared all the same.
             const storeHeldDestination =
@@ -148,7 +178,8 @@ export class StalkerWorkspaceRouteSession {
             this.stalkerStore.setSelectedCategory(null);
             this.stalkerStore.clearSelectedItem();
 
-            const playlist = await this.resolveStalkerPlaylist(playlistId);
+            const playlist =
+                refreshed ?? (await this.resolveStalkerPlaylist(playlistId));
             if (
                 this.targetPlaylistId !== playlistId ||
                 this.destroyRef.destroyed ||
@@ -161,6 +192,11 @@ export class StalkerWorkspaceRouteSession {
             // The owner did not change, so the category resource keeps its
             // params and would not reload the cleared categories by itself.
             if (storeHeldDestination) this.stalkerStore.reloadCategories();
+        } else if (refreshed && current?.title !== refreshed.title) {
+            await this.stalkerStore.setCurrentPlaylist({
+                ...current,
+                title: refreshed.title,
+            });
         }
 
         if (generation !== this.syncGeneration || this.destroyRef.destroyed) {

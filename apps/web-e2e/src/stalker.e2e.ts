@@ -1,4 +1,5 @@
 import { type APIRequestContext } from '@playwright/test';
+import { configureMockProviderBackend } from './provider-target-route';
 import {
     closeSeriesMenu,
     expectSeriesSurfacesInBothThemes,
@@ -18,6 +19,7 @@ import {
 import { verifyStalkerSeasonMarkers } from './stalker-season-markers.fixture';
 import { verifyStalkerOpenInPlaylist } from './stalker-open-in-playlist.fixture';
 import { playFirstItvChannel } from './stalker-itv-playback.fixture';
+import { verifyRadioPlayControl } from './stalker-radio-player.fixture';
 import {
     AUTH_REJECTED_MAC,
     BACKEND_PROXY,
@@ -56,8 +58,9 @@ import { expect, test } from './fixtures';
  * every spec file and its state is keyed by MAC:
  *
  * - ACROSS FILES: `beforeEach` resets only the MACs in `OWNED_MACS`, and the
- *   sibling files that touch this server (self-hosted, sources-pwa) own a
- *   disjoint `00:1A:79:5F:*` range, so neither can clear the other's state.
+ *   self-hosted suite owns `00:1A:79:5F:*`. PWA source consumers allocate
+ *   per-test MACs in `00:1A:79:C0:*` through `00:1A:79:FF:*`, so their
+ *   scoped resets cannot clear this file's sessions.
  * - WITHIN THIS FILE: tests deliberately share scenario MACs (`default`,
  *   `minimal`, `embedded-series` — their fixture shapes are what the
  *   assertions are written against), and every `beforeEach` resets all of
@@ -76,6 +79,8 @@ import { expect, test } from './fixtures';
  */
 
 test.describe.configure({ mode: 'serial' });
+// These provider fixtures own page.route mocks, including after hard reload.
+test.use({ serviceWorkers: 'block' });
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -139,6 +144,8 @@ test.beforeEach(async ({ page, request }, testInfo) => {
     // Reset mock server state (clears in-memory favorites and cache)
     await resetMockServer(request, getStatefulAuthMacs(testInfo));
 
+    await configureMockProviderBackend(page);
+
     // Playwright creates a fresh browser context per test, so extra
     // IndexedDB cleanup here only risks racing with app-managed DB handles.
     await page.goto('/');
@@ -182,12 +189,15 @@ test('@stalker account info dialog shows subscription facts from the portal', as
 }) => {
     await addStalkerPortal(page);
 
-    // Open the header playlist switcher and its "Account info" entry for
-    // the active stalker portal.
-    await page.locator('.playlist-switcher-trigger').click();
+    // Open the header playlist switcher and the "Account info" entry in the
+    // active stalker portal's row menu.
+    await page.locator('[data-test-id="playlist-switcher-trigger"]').click();
     await page
-        .locator('.context-action-item', { hasText: 'Account info' })
+        .locator(
+            'app-playlist-switcher-panel [role="option"][aria-current="true"] .source-row__more'
+        )
         .click();
+    await page.getByRole('menuitem', { name: 'Account info' }).click();
 
     const dialog = page.locator('mat-dialog-container');
     await expect(dialog).toBeVisible();
@@ -238,22 +248,18 @@ test('@stalker minimal scenario — correct item counts', async ({ page }) => {
     expect(count).toBeGreaterThanOrEqual(2);
 });
 
-test('@stalker PWA hides EPG for ITV channel', async ({ page }) => {
+test('@stalker @epg PWA shows provider EPG for ITV channels', async ({
+    page,
+}) => {
     await addStalkerPortal(page);
 
     const epgInfoRequests: string[] = [];
-    const shortEpgRequests: string[] = [];
     page.on('request', (request) => {
-        const url = request.url();
-        if (url.includes('action=get_epg_info')) {
-            epgInfoRequests.push(url);
-        }
-        if (url.includes('action=get_short_epg')) {
-            shortEpgRequests.push(url);
+        if (request.url().includes('action=get_epg_info')) {
+            epgInfoRequests.push(request.url());
         }
     });
 
-    // Navigate to ITV tab
     await page.getByRole('link', { name: /live|itv/i }).click();
     await page.waitForURL(/stalker.*itv/);
 
@@ -262,20 +268,27 @@ test('@stalker PWA hides EPG for ITV channel', async ({ page }) => {
     await expect(categories.nth(1)).toBeVisible({ timeout: 10_000 });
     await categories.nth(1).click();
 
-    // Wait for channels to appear
+    // The bulk guide comes through the backend proxy and fills the row line;
+    // the mock titles every programme "<channel name>: …".
     const channels = page.locator('[data-test-id="channel-item"]');
     await expect(channels.first()).toBeVisible({ timeout: 20_000 });
-    expect(shortEpgRequests).toHaveLength(0);
+    const channelName = (
+        await channels.first().locator('.channel-name').innerText()
+    ).trim();
+    await expect(channels.first().locator('.epg-title')).toContainText(
+        `${channelName}:`,
+        { timeout: 20_000 }
+    );
+    expect(epgInfoRequests.length).toBeGreaterThan(0);
 
-    // Click a channel — PWA/browser playback must not expose Electron EPG UI.
     await channels.first().click();
     await expect(channels.first()).toHaveClass(/active/, { timeout: 20_000 });
     await expect(page.locator('app-web-player-view')).toBeVisible({
         timeout: 20_000,
     });
-    await expect(page.locator('app-epg-timeline')).toHaveCount(0);
-    expect(epgInfoRequests).toHaveLength(0);
-    expect(shortEpgRequests).toHaveLength(0);
+    await expect(
+        page.locator('app-epg-timeline .epg-timeline__block.is-now')
+    ).toContainText(`${channelName}:`, { timeout: 20_000 });
 });
 
 test('@stalker ITV favorite opens inside its portal from global favorites', async ({
@@ -293,6 +306,7 @@ test('@stalker ITV playback survives a category switch', async ({ page }) => {
 
 test('@stalker radio — stations use the inline audio player without EPG', async ({
     page,
+    browserName,
 }) => {
     await addStalkerPortal(page);
 
@@ -330,6 +344,7 @@ test('@stalker radio — stations use the inline audio player without EPG', asyn
     await expect(page.locator('app-audio-player')).toBeVisible({
         timeout: 20_000,
     });
+    await verifyRadioPlayControl(page, browserName);
 
     // Level 2: only the categories rail folds; the channels header turns
     // its title into a category dropdown that opens the same rail as a
@@ -418,19 +433,15 @@ test('@stalker radio playback survives a category switch', async ({ page }) => {
     await expect(audioPlayer).toBeVisible();
 });
 
-test('@stalker PWA skips bulk EPG across channel switches', async ({
+test('@stalker @epg PWA reuses the bulk guide across channel switches', async ({
     page,
 }) => {
     await addStalkerPortal(page);
 
     const epgInfoRequests: string[] = [];
-    const shortEpgRequests: string[] = [];
     page.on('request', (request) => {
         if (request.url().includes('action=get_epg_info')) {
             epgInfoRequests.push(request.url());
-        }
-        if (request.url().includes('action=get_short_epg')) {
-            shortEpgRequests.push(request.url());
         }
     });
 
@@ -443,17 +454,21 @@ test('@stalker PWA skips bulk EPG across channel switches', async ({
 
     const channels = page.locator('[data-test-id="channel-item"]');
     await expect(channels.nth(1)).toBeVisible({ timeout: 20_000 });
-    expect(shortEpgRequests).toHaveLength(0);
 
     await channels.first().click();
     await expect(channels.first()).toHaveClass(/active/, { timeout: 20_000 });
-    await expect(page.locator('app-epg-timeline')).toHaveCount(0);
+    await expect(page.locator('app-epg-timeline')).toBeVisible({
+        timeout: 20_000,
+    });
 
     await channels.nth(1).click();
     await expect(channels.nth(1)).toHaveClass(/active/, { timeout: 20_000 });
-    await expect(page.locator('app-epg-timeline')).toHaveCount(0);
-    expect(epgInfoRequests).toHaveLength(0);
-    expect(shortEpgRequests).toHaveLength(0);
+    await expect(page.locator('app-epg-timeline')).toBeVisible({
+        timeout: 20_000,
+    });
+
+    // Fetched once per playlist session, never per channel switch.
+    expect(epgInfoRequests).toHaveLength(1);
 });
 
 test('@stalker ITV full channel list loads via get_all_channels and search covers it', async ({
@@ -921,6 +936,9 @@ test('@stalker series watched toggle — embedded series marks and clears from t
     const detailUrl = page.url();
     await page.keyboard.press('Escape');
     await expect(seriesToggle).toBeHidden();
+    // CDK removes its closing backdrop after the panel disappears. Until
+    // then the detail shell correctly leaves Escape to the overlay.
+    await expect(page.locator('.cdk-overlay-backdrop')).toHaveCount(0);
     await page.locator('[data-testid="series-more-menu"]').focus();
     await page.keyboard.press('Escape');
     await expect(page.locator('app-portal-detail-shell')).toHaveCount(0);
@@ -970,6 +988,32 @@ test.describe('@stalker full portal authentication', () => {
     // 30s default budget.
     test.beforeEach(() => {
         test.setTimeout(90_000);
+    });
+
+    test('imports and reopens a full portal without SubtleCrypto on LAN HTTP', async ({
+        page,
+    }, testInfo) => {
+        // localhost is trustworthy even over HTTP. Remove only the API that
+        // Chrome omits on a real NAS/LAN HTTP origin, including after reload.
+        await page.addInitScript(() => {
+            Object.defineProperty(window.crypto, 'subtle', {
+                configurable: true,
+                value: undefined,
+            });
+        });
+        await page.reload();
+        expect(await page.evaluate(() => typeof crypto.subtle)).toBe('undefined');
+        const requests = recordPortalRequests(page);
+        const mac = getStatefulAuthMacs(testInfo).authenticatedFlow;
+
+        await addFullStalkerPortal(page, { mac });
+        await expect(page.locator('.category-item').first()).toBeVisible();
+        expect(requests.some((entry) => entry.action === 'handshake')).toBe(true);
+        expect(requests.some((entry) => entry.action === 'get_profile')).toBe(true);
+
+        await page.reload();
+        await expect(page.locator('.category-item').first()).toBeVisible();
+        expect(await page.evaluate(() => typeof crypto.subtle)).toBe('undefined');
     });
 
     test('handshakes and authenticates before loading content', async ({
@@ -1102,6 +1146,16 @@ test.describe('@stalker full portal authentication', () => {
         await setInputValue(dialog.locator('input#portalUrl'), FULL_PORTAL_URL);
         await setInputValue(dialog.locator('input#macAddress'), mac);
 
+        // Existing identity values must not suppress feedback-driven opening.
+        const summary = dialog.locator('app-stalker-portal-import summary');
+        await summary.click();
+        await setInputValue(
+            dialog.locator('input#serialNumber'),
+            'LOGIN-RETRY-SN'
+        );
+        await summary.click();
+        await expect(dialog.locator('input#username')).toBeHidden();
+
         const addButton = dialog.getByRole('button', {
             name: 'Add playlist',
             exact: true,
@@ -1116,6 +1170,7 @@ test.describe('@stalker full portal authentication', () => {
         );
         // The dialog stays open so the user can add the credentials.
         await expect(dialog).toBeVisible();
+        await expect(dialog.locator('input#username')).toBeVisible();
 
         // Second attempt with credentials in the same dialog succeeds.
         await setInputValue(dialog.locator('input#username'), 'user');
@@ -1283,6 +1338,7 @@ test.describe('@stalker full portal authentication', () => {
         await setInputValue(dialog.locator('input#title'), 'Conflict Portal');
         await setInputValue(dialog.locator('input#portalUrl'), FULL_PORTAL_URL);
         await setInputValue(dialog.locator('input#macAddress'), mac);
+        await dialog.locator('app-stalker-portal-import summary').click();
         await setInputValue(
             dialog.locator('input#deviceId1'),
             'DIFFERENT-DEVICE-B'
@@ -1391,4 +1447,36 @@ test.describe('@stalker full portal authentication', () => {
             'Authorization failed.'
         );
     });
+});
+
+test('@stalker @epg PWA keeps failed background guides off the snackbar', async ({
+    page,
+}) => {
+    let rejectedGuides = 0;
+    await page.route('**/localhost:3000/stalker**', async (route) => {
+        const action = new URL(route.request().url()).searchParams.get(
+            'action'
+        );
+        if (action === 'get_epg_info' || action === 'get_short_epg') {
+            rejectedGuides++;
+            await route.fulfill({
+                status: 500,
+                contentType: 'application/json',
+                body: JSON.stringify({ message: 'Guide unavailable' }),
+            });
+        } else await route.fallback();
+    });
+    await addStalkerPortal(page);
+    await page.getByRole('link', { name: 'Live TV', exact: true }).click();
+    await page.waitForURL(/stalker.*itv/);
+    await page.locator('.category-item').nth(1).click();
+    const channels = page.locator(
+        'app-stalker-live-stream-layout [data-test-id="channel-item"]'
+    );
+    await expect(channels.first()).toBeVisible();
+    await expect.poll(() => rejectedGuides).toBeGreaterThan(1);
+    await expect(page.locator('mat-snack-bar-container')).toHaveCount(0);
+    await channels.first().click();
+    await expect(page.locator('app-web-player-view')).toBeVisible();
+    await expect(page.locator('mat-snack-bar-container')).toHaveCount(0);
 });

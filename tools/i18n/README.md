@@ -93,8 +93,9 @@ removing keys.
 `fill-missing.mjs` never overwrites, so rewording an existing value or paying
 down baseline debt means editing the value in the locale file directly (keep
 the key order, 4-space indent and trailing newline), then running
-`pnpm run i18n:baseline:update` and checking that the baseline diff only
-removes entries.
+`pnpm run i18n:baseline:update` and review the diff. Existing translations
+normally remove entries; additions need an explicit reason such as a brand,
+unit or language autonym that legitimately matches English.
 
 ## Translation rules
 
@@ -103,3 +104,73 @@ removes entries.
 - Match the locale's existing punctuation, casing, and terminology.
 - Keep brand names (IPTVnator, Xtream, Stalker, M3U, EPG, MPV, VLC) untranslated.
 - Short UI strings stay short — no length blow-up.
+
+## Regional Portuguese and source changes
+
+`en.json` is the source text for every translation. Portuguese has two complete
+catalogues: `pt-PT.json` (Portugal) and `pt-BR.json` (Brazil). Stored `pt` settings
+and startup hints normalize to `pt-BR`; `pt` is no longer a third selectable
+language or catalogue. Updates save the canonical code without resetting any
+other settings. Browser-language resolution for the remote control uses
+`pt-BR` for bare `pt` or Brazil, and `pt-PT` for other explicit Portuguese
+regions. Dates and TMDB requests use the selected region too.
+The startup hint is refreshed immediately when the saved language is applied,
+so changing language in settings does not require a reload to prepare the next
+cold start. IndexedDB settings remain authoritative.
+
+The browser and Electron `portuguese-locales.e2e.ts` suites exercise regional
+selection and reload/restart with isolated profiles. Electron also checks a
+legacy `pt` IndexedDB record and preservation of unrelated settings on save.
+The delayed-locale unit test resolves Brazil before an earlier Portugal
+request, guarding the startup hint and final language against stale completion.
+Playlist backups carry EPG URLs, not language preferences (see the
+[backup contract](../../docs/architecture/playlist-backup-restore.md#app-settings)).
+
+Use these terms consistently in context:
+
+| English | Portugal | Brazil |
+| --- | --- | --- |
+| Settings | Definições | Configurações |
+| App | Aplicação | Aplicativo |
+| File / Save | Ficheiro / Guardar | Arquivo / Salvar |
+| Username / Password | Nome de utilizador / Palavra-passe | Nome de usuário / Senha |
+| Playlist | Playlist | Lista de reprodução |
+| Player | Leitor | Reprodutor |
+| Download | Transferir | Baixar |
+| Live TV | TV em direto | TV ao vivo |
+| Remote control | Comando remoto | Controle remoto |
+| Subscription | Subscrição | Assinatura |
+| Device signature | Assinatura | Assinatura |
+| Recently viewed / watched | Visualizados recentemente / Vistos recentemente | Visualizados recentemente / Assistidos recentemente |
+| Age rating / Review rating | Classificação etária / Classificação | Classificação indicativa / Avaliação |
+| IMDb rating | Classificação IMDb | Avaliação IMDb |
+| Blog | Blogue | Blog |
+| Programme guide (UI label) | Guia TV | Guia de programação |
+
+Portugal uses AO90 and consistent informal second-person instructions; Brazil
+uses natural Brazilian Portuguese with você. Use infinitives for action labels,
+sentence case, and localized decimal display (for example `{{value}},0`). Never
+localize protocol identifiers, URLs, MAC addresses or numeric values in code.
+Translate archive/catch-up according to its meaning (past programmes), rather
+than confusing it with a local file. Technical metadata names may stay verbatim.
+In Portugal, use feminine `a playlist` / `as playlists` for the named IPTV source,
+while retaining `lista` for generic lists and queues. Use `Classificação` for a
+review score, and `Classificação etária` for an age rating.
+Use `Guia TV` for the guide's title and actions; explanatory descriptions may
+use `guia de programação`, and protocol references retain `EPG` / `XMLTV`.
+
+When an existing English string changes, review its consumers and update that
+key in **every catalogue in the same change**, including both Portuguese
+regions. A translation may stay unchanged when it already expresses the new
+meaning, but that decision still needs review. Keep the old/new English and
+regional translations together in review material. Automated translation tools,
+including Claude, receive the full sentence, UI context and locale glossary;
+they do not replace semantic review. Brand-only and autonym labels intentionally
+match across languages.
+
+`i18n:check` also rejects empty/non-string values in English and every
+translation, changed interpolation placeholders (including their multiplicity),
+and changed inline HTML. The baseline never exempts these errors. Coverage
+checks cannot prove semantic correctness or catch all stale translations after
+English wording changes; review the source change against every language and
+verify relevant UI flows.

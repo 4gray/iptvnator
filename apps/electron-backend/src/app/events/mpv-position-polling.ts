@@ -14,6 +14,7 @@ let positionPollingDelay: NodeJS.Timeout | null = null;
 // polling stopped (for example when a reused player loads the next stream)
 // must not report what it reads under the previous content.
 let positionPollingGeneration = 0;
+let positionPollingSessionId: string | null = null;
 
 async function getMpvProperty(
     socketPath: string,
@@ -77,8 +78,11 @@ async function getMpvProperty(
     });
 }
 
-export function stopPositionPolling(): void {
+export function stopPositionPolling(sessionId?: string): void {
+    if (sessionId !== undefined && sessionId !== positionPollingSessionId)
+        return;
     positionPollingGeneration += 1;
+    positionPollingSessionId = null;
     if (positionPollingDelay) {
         clearTimeout(positionPollingDelay);
         positionPollingDelay = null;
@@ -95,6 +99,7 @@ export function startPositionPolling(
     sessionId: string
 ): void {
     stopPositionPolling();
+    positionPollingSessionId = sessionId;
     const generation = positionPollingGeneration;
     const isCurrent = () => generation === positionPollingGeneration;
 
@@ -114,7 +119,7 @@ export function startPositionPolling(
                     });
                 }
             } catch {
-                stopPositionPolling();
+                if (isCurrent()) stopPositionPolling(sessionId);
             }
         }, 5000);
     }, 2000);

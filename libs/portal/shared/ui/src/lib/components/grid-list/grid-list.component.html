@@ -1,0 +1,261 @@
+<div class="grid-list__grid">
+    @if (isLoading()) {
+        @for (row of skeletonRows(); track row) {
+            <div class="grid-skeleton-card" aria-hidden="true">
+                <div class="grid-skeleton-thumb">
+                    @if (variant() !== 'logo') {
+                        <span class="grid-skeleton-badge"></span>
+                    }
+                </div>
+                <div class="grid-skeleton-title">
+                    <span
+                        class="grid-skeleton-line grid-skeleton-line--primary"
+                    ></span>
+                    @if (variant() !== 'logo') {
+                        <span
+                            class="grid-skeleton-line grid-skeleton-line--secondary"
+                        ></span>
+                    }
+                </div>
+                @if (variant() === 'logo' && showEpg()) {
+                    <div class="grid-skeleton-epg">
+                        <span class="grid-skeleton-line"></span>
+                        <span
+                            class="grid-skeleton-line grid-skeleton-line--secondary"
+                        ></span>
+                    </div>
+                }
+            </div>
+        }
+    } @else {
+        @for (item of items(); track $index) {
+            @let i = $any(item);
+            @let title = channelTitle(i) || ('PORTALS.UNTITLED' | translate);
+            <mat-card
+                [attr.data-catalog-focus-key]="
+                    i.id ??
+                    i.stream_id ??
+                    i.series_id ??
+                    i.xtream_id ??
+                    i.movie_id
+                "
+                [class.grid-card--logo]="variant() === 'logo'"
+                role="button"
+                tabindex="0"
+                [attr.aria-label]="
+                    variant() === 'logo' && showEpg() ? null : title
+                "
+                [attr.title]="variant() === 'logo' ? title : null"
+                (click)="onItemClick(item, $event)"
+                (dblclick)="onItemDoubleClick(item)"
+                (keydown.enter)="itemClicked.emit(item)"
+                (keydown.space)="onSpaceKey($event, item)"
+            >
+                @let poster = resolvePoster(i);
+                @let artworkMissing = !poster || hasArtworkFailed(poster);
+                <div class="card-thumbnail-container">
+                    @if (!artworkMissing) {
+                        <img
+                            class="stream-icon"
+                            [src]="poster"
+                            (error)="onImageError($event, poster)"
+                            loading="lazy"
+                            [alt]="variant() === 'logo' ? '' : title"
+                        />
+                    } @else if (shouldRenderArtworkPlaceholder(poster)) {
+                        <div class="stream-icon-placeholder" aria-hidden="true">
+                            <mat-icon>{{ getPlaceholderIcon() }}</mat-icon>
+                        </div>
+                    } @else {
+                        <img
+                            class="stream-icon"
+                            src="./assets/images/default-poster.png"
+                            loading="lazy"
+                            [alt]="title"
+                        />
+                    }
+                    @if (postersOnly()) {
+                        <!-- Hover/focus caption for the posters-only
+                                     wall; pinned open when the cover cannot
+                                     identify the item on its own. -->
+                        <div
+                            class="cover-title-overlay"
+                            [class.cover-title-overlay--pinned]="artworkMissing"
+                            aria-hidden="true"
+                        >
+                            <span class="cover-title-overlay__text">{{
+                                title
+                            }}</span>
+                        </div>
+                    }
+                    @if (i.progress && i.progress > 0) {
+                        <app-progress-capsule [progress]="i.progress" />
+                    }
+                    @if (showCatchupBadge(i)) {
+                        <div
+                            class="catchup-badge"
+                            data-test-id="grid-catchup-badge"
+                            [matTooltip]="
+                                catchupLabelKey(i)
+                                    | translate: { days: catchupDays(i) }
+                            "
+                        >
+                            <mat-icon>history</mat-icon>
+                            <!-- mat-icon is aria-hidden; expose the
+                                         status as text for AT users -->
+                            <span class="visually-hidden">{{
+                                catchupLabelKey(i)
+                                    | translate: { days: catchupDays(i) }
+                            }}</span>
+                        </div>
+                    }
+                    @if (i.watchState === 'watched') {
+                        <app-watched-badge
+                            [isWatched]="true"
+                            icon="check_circle"
+                        />
+                    } @else if (i.watchState === 'in-progress' && !i.progress) {
+                        <!-- Started with no percent to draw (a series):
+                                     the eye says "touched", the capsule above
+                                     already says it for a movie. -->
+                        <app-watched-badge
+                            [isWatched]="true"
+                            icon="remove_red_eye"
+                        />
+                    }
+                </div>
+                @let rating = resolveRating(i);
+                @if (rating) {
+                    <div
+                        class="rating"
+                        [matTooltip]="ratingLabelKey(i) | translate"
+                    >
+                        <mat-icon>star</mat-icon>{{ rating }}
+                    </div>
+                }
+                @if (!postersOnly()) {
+                    <mat-card-actions>
+                        <div class="title">{{ title }}</div>
+                        @if (variant() === 'logo' && showEpg()) {
+                            <div class="grid-epg">
+                                @if (i.epgProgram; as program) {
+                                    <div
+                                        class="grid-epg-title"
+                                        [title]="program.title"
+                                    >
+                                        {{ program.title }}
+                                    </div>
+                                    <div class="grid-epg-timeline">
+                                        <span>{{
+                                            programDisplayMs(
+                                                program.start,
+                                                program.startTimestamp
+                                            ) | date: 'HH:mm'
+                                        }}</span>
+                                        <div
+                                            class="grid-epg-progress-track"
+                                            aria-hidden="true"
+                                        >
+                                            <div
+                                                class="grid-epg-progress-fill"
+                                                [style.width.%]="
+                                                    i.epgProgress ?? 0
+                                                "
+                                            ></div>
+                                        </div>
+                                        <span>{{
+                                            programDisplayMs(
+                                                program.stop,
+                                                program.stopTimestamp
+                                            ) | date: 'HH:mm'
+                                        }}</span>
+                                    </div>
+                                } @else {
+                                    <div class="grid-epg-title grid-epg-empty">
+                                        {{
+                                            (epgLoading()
+                                                ? 'LOADING'
+                                                : 'EPG.NO_PROGRAM_INFO'
+                                            ) | translate
+                                        }}
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </mat-card-actions>
+                }
+            </mat-card>
+        } @empty {
+            <div class="grid-empty-state">
+                @if (refinementActive()) {
+                    <p role="status">
+                        {{
+                            (sourceHasMore()
+                                ? 'WORKSPACE.REFINE_HIDE_WATCHED_PARTIAL'
+                                : 'WORKSPACE.REFINE_HIDE_WATCHED_EMPTY'
+                            ) | translate
+                        }}
+                    </p>
+                    <button
+                        type="button"
+                        mat-button
+                        class="grid-filter-clear"
+                        (click)="clearRefinement.emit()"
+                    >
+                        {{ 'WORKSPACE.REFINE_WATCH_RESET' | translate }}
+                    </button>
+                } @else if (hasActiveSearch()) {
+                    <app-playlist-error-view
+                        [title]="
+                            'PORTALS.SEARCH_VIEW.NO_RESULTS_FOR'
+                                | translate: { term: searchTerm() }
+                        "
+                        [description]="
+                            'PORTALS.EMPTY_LIST_VIEW.NO_SEARCH_RESULTS'
+                                | translate
+                        "
+                        [showActionButtons]="false"
+                        [viewType]="'NO_SEARCH_RESULTS'"
+                    />
+                } @else {
+                    <app-playlist-error-view
+                        [title]="
+                            'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.TITLE'
+                                | translate
+                        "
+                        [description]="
+                            'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.DESCRIPTION'
+                                | translate
+                        "
+                        [showActionButtons]="false"
+                        [viewType]="'EMPTY_CATEGORY'"
+                    />
+                }
+            </div>
+        }
+    }
+</div>
+@if (loadMorePaused() && !isAppending() && !appendError()) {
+    <div class="grid-list__tail">
+        <button
+            type="button"
+            mat-stroked-button
+            (click)="continueLoading.emit()"
+        >
+            {{ 'WORKSPACE.REFINE_HIDE_WATCHED_MORE' | translate }}
+        </button>
+    </div>
+}
+@if (isAppending()) {
+    <div class="grid-list__tail" aria-live="polite">
+        <mat-spinner diameter="28" />
+        <span>{{ 'PORTALS.GRID.LOADING_MORE' | translate }}</span>
+    </div>
+} @else if (appendError()) {
+    <div class="grid-list__tail grid-list__tail--error" role="alert">
+        <span>{{ 'PORTALS.GRID.LOAD_MORE_FAILED' | translate }}</span>
+        <button type="button" mat-flat-button (click)="retryLoadMore.emit()">
+            {{ 'PORTALS.GRID.RETRY' | translate }}
+        </button>
+    </div>
+}

@@ -262,7 +262,7 @@ async function runIteration(
 
         await renderer.markOperationStart();
         const row = sourceRowByTitle(app.mainWindow, SOURCE_TITLE).first();
-        await row.locator('.refresh-btn').click();
+        await row.locator('.source-row__refresh').click();
         await renderer.waitForCancelClick();
         await Promise.all([
             renderer.waitForTerminal(),

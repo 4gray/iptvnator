@@ -6,7 +6,10 @@ import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { parseWorkspaceShellRoute } from '@iptvnator/workspace/shell/util';
 import { SettingsSearchService } from '@iptvnator/workspace/shell/util/settings-search';
-import { SEARCH_INPUT_DEBOUNCE_MS } from './helpers/workspace-shell-constants';
+import {
+    CATEGORY_SCOPE_CLEAR_NAVIGATION,
+    SEARCH_INPUT_DEBOUNCE_MS,
+} from './helpers/workspace-shell-constants';
 import {
     getRoutePath,
     getRouteQueryParam,
@@ -22,8 +25,9 @@ export class WorkspaceShellSearchSyncService {
     private readonly destroyRef = inject(DestroyRef);
     private readonly routeState = inject(WorkspaceShellRouteStateService);
 
-    private searchDebounceTimeoutId: ReturnType<typeof setTimeout> | null =
-        null;
+    private readonly searchDebounceTimeoutId = signal<ReturnType<
+        typeof setTimeout
+    > | null>(null);
     private lastSyncedUrl: string | null = null;
 
     readonly searchQuery = signal('');
@@ -100,11 +104,15 @@ export class WorkspaceShellSearchSyncService {
                 return;
             }
 
-            syncSearchQueryParam(
-                this.router,
-                this.routeState.currentUrl(),
-                this.appliedSearchQuery()
-            );
+            const term = this.appliedSearchQuery();
+            const url = this.routeState.currentUrl();
+            const navigation = this.router.currentNavigation();
+            // Wait for typing and navigation to settle: a q write must not
+            // supersede scope clearing or recursively restart its own echo.
+            if (this.searchDebounceTimeoutId() !== null || navigation) {
+                return;
+            }
+            syncSearchQueryParam(this.router, url, term);
         });
     }
 
@@ -174,11 +182,18 @@ export class WorkspaceShellSearchSyncService {
         // The comparison trims `nextTerm` because adoption would too: a URL
         // still carrying a not-yet-rewritten untrimmed `q` adopts to exactly
         // the applied state, so syncing could only cancel a pending debounce.
-        if (
+        const navigation = this.router.lastSuccessfulNavigation();
+        // Scope clearing carries the raw input's normalized term, even before
+        // its debounce applies. The transient intent never survives history.
+        const clearingScope =
+            navigation?.extras.info === CATEGORY_SCOPE_CLEAR_NAVIGATION;
+        const samePageEcho =
             previousUrl !== null &&
             getRoutePath(url) === getRoutePath(previousUrl) &&
-            nextTerm.trim() === this.appliedSearchQuery() &&
-            this.router.lastSuccessfulNavigation()?.trigger === 'imperative'
+            nextTerm.trim() === this.appliedSearchQuery();
+        if (
+            navigation?.trigger === 'imperative' &&
+            (clearingScope || samePageEcho)
         ) {
             return;
         }
@@ -188,16 +203,19 @@ export class WorkspaceShellSearchSyncService {
 
     private scheduleSearchApply(value: string): void {
         this.cancelPendingSearchApply();
-        this.searchDebounceTimeoutId = setTimeout(() => {
-            this.searchDebounceTimeoutId = null;
-            this.applySearchQuery(value);
-        }, SEARCH_INPUT_DEBOUNCE_MS);
+        this.searchDebounceTimeoutId.set(
+            setTimeout(() => {
+                this.searchDebounceTimeoutId.set(null);
+                this.applySearchQuery(value);
+            }, SEARCH_INPUT_DEBOUNCE_MS)
+        );
     }
 
     private cancelPendingSearchApply(): void {
-        if (this.searchDebounceTimeoutId !== null) {
-            clearTimeout(this.searchDebounceTimeoutId);
-            this.searchDebounceTimeoutId = null;
+        const timeoutId = this.searchDebounceTimeoutId();
+        if (timeoutId !== null) {
+            clearTimeout(timeoutId);
+            this.searchDebounceTimeoutId.set(null);
         }
     }
 }

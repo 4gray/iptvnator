@@ -1,4 +1,4 @@
-import { computed, inject, Injectable } from '@angular/core';
+import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistRefreshActionService } from '@iptvnator/playlist/shared/ui';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
@@ -6,7 +6,10 @@ import {
     RuntimeCapabilitiesService,
     injectTranslationTick,
 } from '@iptvnator/services';
-import type { XtreamImportPhaseTone } from './helpers/workspace-shell-constants';
+import {
+    XTREAM_LOCAL_LOAD_OVERLAY_DELAY_MS,
+    type XtreamImportPhaseTone,
+} from './helpers/workspace-shell-constants';
 import {
     buildXtreamImportDetailLabel,
     buildXtreamImportPhaseLabel,
@@ -76,7 +79,8 @@ export class WorkspaceShellXtreamImportService {
             Boolean(this.xtreamStore.activeImportSessionId()) &&
             !this.xtreamStore.isCancellingImport()
     );
-    readonly showXtreamImportOverlay = computed(() => {
+    /** Whether the current route is waiting on an import or refresh. */
+    private readonly isOverlayWanted = computed(() => {
         const route = this.routeState.currentRoute();
         const context = this.routeState.currentContext();
         const section = this.routeState.currentSection();
@@ -102,6 +106,35 @@ export class WorkspaceShellXtreamImportService {
                 section === 'recently-added')
         );
     });
+
+    /**
+     * Remote imports (the store flags `isImporting` for every phase except
+     * `loading-cached`) and refresh preparation of the shown playlist (any
+     * on the dashboard) show the overlay at once. A session that has only
+     * read the saved catalog so far waits `XTREAM_LOCAL_LOAD_OVERLAY_DELAY_MS`,
+     * so a warm open never flashes it, even while another playlist prepares
+     * a refresh.
+     */
+    private readonly isOverlayImmediate = computed(() => {
+        if (this.xtreamStore.isImporting()) {
+            return true;
+        }
+        if (this.routeState.currentRoute().kind === 'dashboard') {
+            return Boolean(this.refreshPreparation());
+        }
+        const playlistId = this.routeState.currentContext()?.playlistId;
+        return (
+            playlistId !== undefined &&
+            this.isRefreshPreparationRunningForPlaylist(playlistId)
+        );
+    });
+    private readonly localLoadDelayElapsed = signal(false);
+
+    readonly showXtreamImportOverlay = computed(
+        () =>
+            this.isOverlayWanted() &&
+            (this.isOverlayImmediate() || this.localLoadDelayElapsed())
+    );
 
     readonly xtreamImportTitleLabel = computed(() => {
         this.languageTick();
@@ -197,6 +230,22 @@ export class WorkspaceShellXtreamImportService {
             this.translateText
         );
     });
+
+    constructor() {
+        // Restart the delay for every wait: it runs from the moment the
+        // route starts waiting and resets as soon as the wait ends.
+        effect((onCleanup) => {
+            if (!this.isOverlayWanted()) {
+                this.localLoadDelayElapsed.set(false);
+                return;
+            }
+            const timer = setTimeout(
+                () => this.localLoadDelayElapsed.set(true),
+                XTREAM_LOCAL_LOAD_OVERLAY_DELAY_MS
+            );
+            onCleanup(() => clearTimeout(timer));
+        });
+    }
 
     readonly isImportRunning = computed(
         () =>

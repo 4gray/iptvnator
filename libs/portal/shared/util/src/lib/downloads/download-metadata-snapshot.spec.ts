@@ -14,6 +14,22 @@ function people(count: number): DownloadMetadataPerson[] {
 }
 
 describe('download metadata snapshot factories', () => {
+    it('retains unknown-season display metadata without changing stored coordinates', () => {
+        const snapshot = createSeriesEpisodeDownloadSnapshot({
+            language: 'en',
+            title: 'Flat collection',
+            episode: {
+                seasonNumber: 9,
+                episodeNumber: 189,
+                seasonUnknown: true,
+            },
+        });
+        expect(snapshot.episode).toEqual({
+            seasonNumber: 9,
+            episodeNumber: 189,
+            seasonUnknown: true,
+        });
+    });
     it('creates an allowlisted movie snapshot without provider secrets or stream URLs', () => {
         const snapshot = createMovieDownloadSnapshot({
             language: 'de',

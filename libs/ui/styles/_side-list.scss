@@ -1,0 +1,102 @@
+// The UI kit's side list: a panel header (title, subtitle, ghost icon
+// actions), uppercase group labels and 40px single-choice rows. The chosen
+// row takes the app's one selected-row look (`--app-list-selected-*`: the
+// Settings navigation's soft tint, outlined in light theme), so every side
+// list and the playlist switcher's current row agree.
+@use 'focus-ring';
+
+@mixin header {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 4px 4px 12px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--app-widget-header-border);
+}
+
+@mixin title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+    line-height: 1.3;
+    color: var(--app-heading-color);
+}
+
+@mixin subtitle {
+    margin: 2px 0 0;
+    font-size: 13px;
+    color: var(--app-body-color);
+}
+
+@mixin label {
+    margin: 0;
+    padding: 8px 12px 6px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--app-muted-color);
+}
+
+/// A row button: leading 16px icon (or dot), label, trailing count. Mark
+/// the chosen row with `aria-pressed="true"`.
+@mixin row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    height: 40px;
+    padding: 0 12px;
+    box-sizing: border-box;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    color: var(--app-body-color);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 400;
+    text-align: start;
+    cursor: pointer;
+
+    .mat-icon {
+        width: 16px;
+        height: 16px;
+        font-size: 16px;
+        color: var(--app-muted-color);
+    }
+
+    &:hover {
+        background: color-mix(in srgb, var(--app-on-surface) 6%, transparent);
+        color: var(--app-heading-color);
+    }
+
+    &[aria-pressed='true'] {
+        background: var(--app-list-selected-bg);
+        box-shadow: inset 0 0 0 1px var(--app-list-selected-outline);
+        color: var(--app-list-selected-fg);
+        font-weight: 500;
+
+        .mat-icon {
+            color: inherit;
+        }
+    }
+
+    &:focus-visible {
+        @include focus-ring.focus-ring-declarations($offset: -2px);
+    }
+}
+
+@mixin row-label {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+@mixin row-count {
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    color: var(--app-muted-color);
+}

@@ -9,9 +9,14 @@ import {
     expect,
     importM3uPlaylistFromNativeDialog,
     launchElectronApp,
+    openSettings,
+    openSettingsSection,
+    saveSettings,
     test,
     workspaceRoot,
 } from './electron-test-fixtures';
+
+import { applyTheme } from './theme-contrast';
 
 /**
  * Layout of the playback diagnostic banner in the M3U inline player, which
@@ -301,3 +306,111 @@ test('@electron @m3u @playback diagnostic cards keep every locale label and stat
         await server.close();
     }
 });
+
+for (const engine of ['html5', 'videojs', 'artplayer']) {
+    test(`@electron @playback ${engine} diagnostics keep utilities readable in both themes`, async ({
+        dataDir,
+    }, testInfo) => {
+        const server = await createMutableTextServer('Unplayable fixture', {
+            contentType: 'video/mp4',
+            resourcePath: '/broken.mp4',
+        });
+        const app = await launchElectronApp(dataDir);
+        const page = app.mainWindow;
+        try {
+            await openSettings(page);
+            await openSettingsSection(page, 'playback');
+            await page.getByTestId('select-video-player').click();
+            const option = page.getByTestId(engine);
+            const wasSelected =
+                (await option.getAttribute('aria-selected')) === 'true';
+            await option.click();
+            if (!wasSelected) {
+                await saveSettings(page);
+            }
+            const playlist = join(dataDir, 'utility-contrast.m3u');
+            writeFileSync(
+                playlist,
+                buildM3uContent([
+                    { name: 'Broken fixture', url: server.resourceUrl },
+                ])
+            );
+            await importM3uPlaylistFromNativeDialog(app, playlist);
+            await channelItemByTitle(page, 'Broken fixture').first().click();
+            if (engine === 'html5') {
+                // Inject a native failure after HTML5's listeners attach;
+                // codec support and error timing differ across platforms.
+                await page
+                    .locator('app-html-video-player video')
+                    .evaluate((video) => {
+                        Object.defineProperty(video, 'error', {
+                            configurable: true,
+                            value: {
+                                code: 4,
+                                message: 'E2E unsupported media',
+                            },
+                        });
+                        video.dispatchEvent(new Event('error'));
+                    });
+            }
+            const banner = page.getByTestId('playback-diagnostic-banner');
+            await expect(banner).toBeVisible({ timeout: 20000 });
+            const utilities = [
+                banner.getByTestId('playback-copy-diagnostic'),
+                banner.getByTestId('playback-copy-url'),
+                banner.locator('summary'),
+            ];
+            for (const theme of ['light', 'dark'] as const) {
+                await applyTheme(page, theme);
+                await expect(page.getByRole('button', {
+                    name: 'Open EPG settings', exact: true,
+                })).toHaveCSS('border-top-left-radius', '10px');
+                for (const utility of utilities) {
+                    await utility.scrollIntoViewIfNeeded();
+                    // Conservative upper bound for the 96% black diagnostic
+                    // scrim plus its faint warm gradient over a white frame.
+                    const ratio = await utility.evaluate((el) => {
+                        const values = (
+                            getComputedStyle(el).color.match(/[\d.]+/g) ?? []
+                        ).map(Number);
+                        const alpha = values[3] ?? 1;
+                        const luminance = (rgb: number[]) =>
+                            rgb
+                                .map((v) => {
+                                    const s = v / 255;
+                                    return s <= 0.04045
+                                        ? s / 12.92
+                                        : ((s + 0.055) / 1.055) ** 2.4;
+                                })
+                                .reduce(
+                                    (sum, v, i) =>
+                                        sum + v * [0.2126, 0.7152, 0.0722][i],
+                                    0
+                                );
+                        const bg = [40, 40, 40];
+                        const fg = values
+                            .slice(0, 3)
+                            .map((v, i) => alpha * v + (1 - alpha) * bg[i]);
+                        return (luminance(fg) + 0.05) / (luminance(bg) + 0.05);
+                    });
+                    expect(ratio).toBeGreaterThanOrEqual(4.5);
+                }
+                await page.screenshot({
+                    path: testInfo.outputPath(`${theme}-utilities.png`),
+                });
+            }
+            await utilities[0].click();
+            await expect(
+                banner.getByTestId('playback-copy-diagnostic-status')
+            ).toContainText(/copied/i);
+            await utilities[2].press('Enter');
+            await expect(banner.locator('details')).toHaveAttribute('open', '');
+            await page.setViewportSize({ width: 1280, height: 460 });
+            await utilities[1].scrollIntoViewIfNeeded();
+            await expect(utilities[1]).toBeInViewport();
+        } finally {
+            await closeElectronApp(app);
+            await server.close();
+        }
+    });
+}

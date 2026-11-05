@@ -1,0 +1,49 @@
+:host {
+    display: block;
+    min-width: 0;
+}
+.sync-summary {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px 20px;
+}
+.sync-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 100%;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: var(--app-hover-overlay);
+    color: var(--app-body-color);
+    font-size: 13px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+    mat-icon {
+        width: 18px;
+        height: 18px;
+        font-size: 18px;
+        flex-shrink: 0;
+    }
+}
+.sync-status--success {
+    color: var(--app-success-color);
+    background: color-mix(in srgb, var(--app-success-color) 9%, transparent);
+}
+.sync-status--error {
+    color: var(--app-danger-text);
+    background: var(--app-danger-surface);
+}
+.sync-time {
+    display: grid;
+    gap: 2px;
+    color: var(--app-eyebrow-color);
+    font-size: 12px;
+    line-height: 1.5;
+    time {
+        color: var(--app-body-color);
+        font-size: 13px;
+        font-variant-numeric: tabular-nums;
+    }
+}

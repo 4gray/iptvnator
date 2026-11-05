@@ -17,7 +17,7 @@ import {
     getTodayEpgDateKey,
     shiftEpgDateKey,
 } from '@iptvnator/ui/epg';
-import { SettingsStore } from '@iptvnator/services';
+import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import {
     Channel,
     EpgItem,
@@ -78,6 +78,7 @@ export function createUnifiedLiveEpgView(options: {
     progressTick: Signal<number>;
 }): UnifiedLiveEpgView {
     const settingsStore = inject(SettingsStore);
+    const runtime = inject(RuntimeCapabilitiesService);
     const panelState = signal<LiveEpgPanelState>(restoreLiveEpgPanelState());
     const selectedDate = signal(getTodayEpgDateKey());
     const offsetMinutes = settingsStore.resolvedEpgOffsetMinutes;
@@ -102,6 +103,7 @@ export function createUnifiedLiveEpgView(options: {
         // timeshift / archive enabled for this channel.
         const item = options.activeItem();
         return (
+            runtime.supportsProviderCatchUp &&
             Number(item?.tvArchive ?? 0) === 1 &&
             Number(item?.tvArchiveDuration ?? 0) > 0
         );

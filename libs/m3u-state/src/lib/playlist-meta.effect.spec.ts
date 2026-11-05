@@ -20,11 +20,13 @@ describe('PlaylistEffects updatePlaylistMeta$', () => {
 
     let actions$: Subject<unknown>;
     let updatePlaylistMeta: jest.Mock;
+    let fetchEpg: jest.Mock;
     let effects: PlaylistEffects;
 
     beforeEach(() => {
         actions$ = new Subject();
         updatePlaylistMeta = jest.fn(() => of(undefined));
+        fetchEpg = jest.fn();
         const permissiveParent = {
             get: () => ({}),
         } as unknown as Injector;
@@ -37,7 +39,7 @@ describe('PlaylistEffects updatePlaylistMeta$', () => {
                     provide: PlaylistsService,
                     useValue: { updatePlaylistMeta },
                 },
-                { provide: EpgService, useValue: { fetchEpg: jest.fn() } },
+                { provide: EpgService, useValue: { fetchEpg } },
                 { provide: Router, useValue: {} },
                 {
                     provide: SettingsStore,
@@ -65,5 +67,59 @@ describe('PlaylistEffects updatePlaylistMeta$', () => {
         actions$.next(PlaylistActions.updatePlaylistMeta({ playlist }));
 
         expect(updatePlaylistMeta).toHaveBeenCalledWith(playlist);
+    });
+
+    it('fetches already-persisted M3U EPG changes without repeating persistence or duplicate fetches', () => {
+        const guide = 'https://guide.example.test/saved.xml';
+        const saved = {
+            ...playlist,
+            _id: 'm3u',
+            portalUrl: undefined,
+            epgUrls: [guide],
+            manualEpgUrls: [guide],
+        };
+        actions$.next(
+            PlaylistActions.updatePlaylistMeta({
+                playlist: saved,
+                persist: false,
+            })
+        );
+        expect(updatePlaylistMeta).not.toHaveBeenCalled();
+        expect(fetchEpg).toHaveBeenCalledWith([guide]);
+        actions$.next(
+            PlaylistActions.updatePlaylistMeta({
+                playlist: saved,
+                persist: false,
+            })
+        );
+        expect(fetchEpg).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not cancel an older write when an awaited owner publishes saved metadata', () => {
+        const write = new Subject<undefined>();
+        updatePlaylistMeta.mockReturnValue(write);
+        const first = {
+            ...playlist,
+            _id: 'first-m3u',
+            portalUrl: undefined,
+            epgUrls: ['https://guide.example.test/first.xml'],
+        };
+        const saved = {
+            ...first,
+            _id: 'saved-m3u',
+            epgUrls: ['https://guide.example.test/saved.xml'],
+        };
+        actions$.next(PlaylistActions.updatePlaylistMeta({ playlist: first }));
+        actions$.next(
+            PlaylistActions.updatePlaylistMeta({
+                playlist: saved,
+                persist: false,
+            })
+        );
+        write.next(undefined);
+        write.complete();
+        expect(updatePlaylistMeta).toHaveBeenCalledTimes(1);
+        expect(fetchEpg).toHaveBeenCalledWith(first.epgUrls);
+        expect(fetchEpg).toHaveBeenCalledWith(saved.epgUrls);
     });
 });

@@ -1,4 +1,4 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, Injector, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
@@ -9,12 +9,19 @@ import {
     DatabaseService,
     type DbOperationEvent,
     isDbAbortError,
-    PlaybackPositionService,
     resetHostConnectivityGuard,
+    SourceActivityService,
     XtreamPendingRestoreService,
 } from '@iptvnator/services';
 import { PlaylistActions } from '@iptvnator/m3u-state';
-import { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import {
+    PlaylistMeta,
+    getXtreamContentRoute,
+    normalizeXtreamContentTypes,
+    XTREAM_CONTENT_TYPES,
+    type XtreamBackupRecentlyViewedItem,
+    type XtreamPendingRestoreState,
+} from '@iptvnator/shared/interfaces';
 import {
     measureRendererPerformancePhase,
     RENDERER_PERFORMANCE_PHASE,
@@ -75,10 +82,11 @@ export class XtreamRefreshFlowService {
     private readonly dialogService = inject(DialogService);
     private readonly databaseService = inject(DatabaseService);
     private readonly dataService = inject(DataService);
-    private readonly playbackPositionService = inject(PlaybackPositionService);
+    private readonly injector = inject(Injector);
     private readonly pendingRestoreService = inject(
         XtreamPendingRestoreService
     );
+    private readonly activity = inject(SourceActivityService);
 
     /**
      * Playlists with a destructive run in flight, across every entry point.
@@ -91,7 +99,30 @@ export class XtreamRefreshFlowService {
      * losing favorites, history, hidden categories and playback positions on
      * re-import. This service is the only place that sees both.
      */
-    private readonly activeRefreshPlaylistIds = new Set<string>();
+    private readonly activeRefreshPlaylistIds = signal<ReadonlySet<string>>(
+        new Set()
+    );
+
+    /**
+     * Whether a destructive run is in flight for the playlist. Opening the
+     * playlist meanwhile would start its import against a half-deleted
+     * catalog, before the user data to restore has been parked.
+     */
+    isRunning(playlistId: string): boolean {
+        return this.activeRefreshPlaylistIds().has(playlistId);
+    }
+
+    private setRunning(playlistId: string, running: boolean): void {
+        this.activeRefreshPlaylistIds.update((current) => {
+            const next = new Set(current);
+            if (running) {
+                next.add(playlistId);
+            } else {
+                next.delete(playlistId);
+            }
+            return next;
+        });
+    }
 
     /**
      * Asks for confirmation, then deletes and re-imports the playlist. Callers
@@ -119,8 +150,11 @@ export class XtreamRefreshFlowService {
         item: PlaylistMeta,
         reporter: XtreamRefreshProgressReporter
     ): Promise<void> {
+        // The shared registry also holds deletes, the startup auto-refresh
+        // and M3U refreshes from either entry point.
         if (
-            this.activeRefreshPlaylistIds.has(item._id) ||
+            this.isRunning(item._id) ||
+            this.activity.isBusy(item._id) ||
             reporter.isBusy(item._id)
         ) {
             return;
@@ -130,7 +164,8 @@ export class XtreamRefreshFlowService {
             this.databaseService.createOperationId('xtream-refresh');
         const run: XtreamRefreshRun = { playlistId: item._id, operationId };
         reporter.begin(run);
-        this.activeRefreshPlaylistIds.add(item._id);
+        this.setRunning(item._id, true);
+        const release = this.activity.begin([item._id]);
 
         try {
             // Before anything destructive: this deletes the cached catalog and
@@ -152,31 +187,103 @@ export class XtreamRefreshFlowService {
             );
             await reporter.waitForVisibleProgress?.();
 
-            // Delete content/categories and update the timestamp in parallel —
-            // all three operations are fully independent.
+            // Migrate an older parked favorite list before replacing its state.
+            // A durable receipt prevents replay after an explicit user removal.
+            const pending = this.pendingRestoreService.getOrThrow(item._id);
+            if (pending) {
+                await this.databaseService.restoreXtreamFavoriteSnapshots(
+                    item._id,
+                    pending.favorites,
+                    pending.favoritesRestoreId
+                );
+            }
+
+            const recovery = await import('./xtream-refresh-recovery');
+            const deferred = this.injector.get(
+                recovery.XtreamDeferredCatalogRestoreService
+            );
+            if (pending && !pending.preservePlaybackPositions) {
+                // An unfinished explicit archive keeps its authoritative state.
+                await recovery.clearCatalogHistoryRecovery(
+                    this.databaseService,
+                    item._id
+                );
+            } else {
+                let state: XtreamPendingRestoreState;
+                let archivedHistory: XtreamBackupRecentlyViewedItem[];
+                if (pending) {
+                    const legacy =
+                        await recovery.prepareLegacyCatalogHistoryRecovery(
+                            this.databaseService,
+                            deferred,
+                            item._id,
+                            pending
+                        );
+                    const catalogSnapshot =
+                        pending.catalogSnapshot ??
+                        (legacy
+                            ? {
+                                  key: legacy.key,
+                                  generation: legacy.generation,
+                              }
+                            : undefined);
+                    state = {
+                        ...pending,
+                        recentlyViewed: [],
+                        hiddenCategories: (
+                            await recovery.readCatalogRecoveryVisibility(
+                                this.databaseService,
+                                item._id,
+                                pending.hiddenCategories
+                            )
+                        ).hiddenCategories,
+                        ...(catalogSnapshot ? { catalogSnapshot } : {}),
+                    };
+                    const archive = deferred.getSnapshot(item._id);
+                    const ownsArchive =
+                        pending.catalogSnapshot?.key === archive.key &&
+                        pending.catalogSnapshot.generation ===
+                            archive.generation;
+                    archivedHistory = ownsArchive
+                        ? archive.state.recentlyViewed
+                        : [];
+                } else {
+                    const captured =
+                        await recovery.captureCatalogCacheRecoveryState(
+                            this.databaseService,
+                            deferred,
+                            item._id,
+                            normalizeXtreamContentTypes(item.xtreamContentTypes)
+                        );
+                    state = captured.state;
+                    archivedHistory = captured.archivedHistory;
+                }
+                if (!this.pendingRestoreService.set(item._id, state))
+                    throw new Error(
+                        `Parking pending restore state for "${item._id}" failed.`
+                    );
+                await recovery.beginCatalogHistoryRecovery(
+                    this.databaseService,
+                    item._id,
+                    XTREAM_CONTENT_TYPES,
+                    archivedHistory
+                );
+            }
+
+            // Recovery is durable before deletion. Current positions remain in
+            // their own store; the cache policy never rewinds them on retry.
             const updateDate = Date.now();
-            const [restoreState, playbackPositions] = await Promise.all([
+            await Promise.all([
                 this.databaseService.deleteXtreamPlaylistContent(item._id, {
                     operationId,
+                    contentTypes: item.xtreamContentTypes,
                     onEvent: (event) => reporter.report(run, event),
                 }),
-                this.playbackPositionService.getAllPlaybackPositions(item._id),
                 this.databaseService.updateXtreamPlaylistDetails({
                     id: item._id,
                     updateDate,
                 }),
             ]);
-
-            if (
-                !this.pendingRestoreService.set(item._id, {
-                    ...restoreState,
-                    playbackPositions,
-                })
-            ) {
-                throw new Error(
-                    `Parking pending restore state for "${item._id}" failed.`
-                );
-            }
 
             // Update the timestamp in NgRx / IndexedDB
             measureRendererPerformancePhase(
@@ -191,7 +298,13 @@ export class XtreamRefreshFlowService {
             );
 
             // Navigate to the playlist to trigger re-import
-            await this.router.navigate(['/workspace', 'xtreams', item._id]);
+            const section = getXtreamContentRoute(item.xtreamContentTypes);
+            await this.router.navigate([
+                '/workspace',
+                'xtreams',
+                item._id,
+                ...(section ? [section] : []),
+            ]);
         } catch (error) {
             if (!isDbAbortError(error)) {
                 console.error('Error refreshing Xtream playlist:', error);
@@ -204,7 +317,8 @@ export class XtreamRefreshFlowService {
                 );
             }
         } finally {
-            this.activeRefreshPlaylistIds.delete(item._id);
+            this.setRunning(item._id, false);
+            release();
             reporter.end(run);
         }
     }

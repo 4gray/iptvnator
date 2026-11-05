@@ -96,7 +96,7 @@ describe('evaluateGate', () => {
         const verdict = gate([
             file('tools/release/build-release-notes.mjs'),
             file('.github/workflows/ci.yml'),
-            file('CLAUDE.md'),
+            file('AGENTS.md'),
             file('package.json'),
         ]);
 

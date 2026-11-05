@@ -6,6 +6,7 @@ import {
 } from '@iptvnator/portal/shared/util';
 import {
     resolvePortalActivityWatchKind,
+    isCatalogUnavailable,
     type PlaybackPositionData,
     type PortalRecentItem,
     type XtreamSerieEpisode,
@@ -71,6 +72,7 @@ export function selectSeriesContinuationCandidates(
     const candidates: DashboardSeriesCandidate[] = [];
     for (const item of items) {
         if (
+            isCatalogUnavailable(item) ||
             item.source !== 'xtream' ||
             resolvePortalActivityWatchKind(item) !== 'series'
         ) {

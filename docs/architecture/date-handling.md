@@ -11,12 +11,15 @@
 ## Locale Strategy
 
 - Date display should follow the user-selected app language from `TranslateService`.
+- The startup hint in `localStorage` is a mirror of saved settings, not their source of truth. `AppDateLocaleService.use()` updates it synchronously when requested, before awaiting locale data, including immediately after a settings save. An older overlapping request cannot overwrite the latest language or its hint. Storage failures do not prevent switching language.
 - When a template renders localized month or weekday names, pass the normalized app locale explicitly to `DatePipe`.
 - Angular locale data is loaded lazily per language by `registerAppDateLocale()` in [apps/web/src/app/app-date-locales.ts](/apps/web/src/app/app-date-locales.ts): `main.ts` awaits the initial language's data before bootstrapping, and every `TranslateService.use()` call site registers the data first (through `AppDateLocaleService`), because the switch re-renders dates with the new locale and a locale without data throws. English needs no data. `AppDateLocaleService.use()` applies only the language requested last when switches overlap, and a locale whose chunk fails to load falls back to English formatting under that locale id until a later call loads it.
 - App language aliases are normalized in [libs/ui/pipes/src/lib/date-format.util.ts](/libs/ui/pipes/src/lib/date-format.util.ts):
     - `ary` -> `ar-MA`
     - `by` -> `be`
     - `zhtw` -> `zh-Hant`
+    - legacy `pt` -> `pt-BR`
+    - `pt-PT` and `pt-BR` retain their regional data (Angular `pt-PT` and `pt` respectively).
 
 ## Parsing Boundaries
 

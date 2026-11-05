@@ -3,6 +3,8 @@ import {
     discardProviderBody,
     discardProviderErrorBody,
     readProviderBody,
+    DEFAULT_PROVIDER_RESPONSE_BYTES,
+    ProviderResponseTooLargeError,
 } from './provider-response';
 import axios, { AxiosRequestConfig } from 'axios';
 import { Agent as HttpAgent, ClientRequest } from 'node:http';
@@ -68,7 +70,8 @@ const SENSITIVE_HEADERS = new Set([
 export class ValidatedHttpClient implements WebBackendHttpClient {
     constructor(
         private readonly policy: ProviderUrlPolicy,
-        private readonly transport: WebBackendHttpClient = new ProviderAxiosTransport()
+        private readonly transport: WebBackendHttpClient = new ProviderAxiosTransport(),
+        private readonly maxResponseBytes = DEFAULT_PROVIDER_RESPONSE_BYTES
     ) {}
 
     async get<T>(
@@ -134,11 +137,19 @@ export class ValidatedHttpClient implements WebBackendHttpClient {
                                     response.data,
                                     options.responseType === 'arraybuffer',
                                     options.timeout,
-                                    response.request?.socket ?? undefined
+                                    response.request?.socket ?? undefined,
+                                    this.maxResponseBytes
                                 ),
                             };
                         } catch (error) {
                             if (axios.isCancel(error)) throw error;
+                            if (
+                                error instanceof ProviderResponseTooLargeError
+                            ) {
+                                throw Object.assign(error, {
+                                    response: { status: response.status },
+                                });
+                            }
                             // A broken/stalled body still proves the endpoint
                             // answered. Preserve buffered axios error semantics.
                             throw Object.assign(

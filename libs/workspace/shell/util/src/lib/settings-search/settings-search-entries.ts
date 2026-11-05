@@ -2,6 +2,7 @@ import { PLAYBACK_SETTINGS_SEARCH_ENTRIES } from './settings-search-entries-play
 import { SettingsSearchEntry } from './settings-search.types';
 
 const DASHBOARD_KEYWORDS = ['dashboard', 'home', 'rail', 'row'];
+const SERVER_KEYWORDS = ['server', 'self-hosted', 'nas', 'sync', 'docker'];
 
 function dashboardRail(
     id: string,
@@ -85,23 +86,34 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
     },
     ...PLAYBACK_SETTINGS_SEARCH_ENTRIES,
     {
+        id: 'epg-enabled',
+        section: 'epg',
+        labelKey: 'SETTINGS.EPG_ENABLED',
+        descriptionKey: 'SETTINGS.EPG_ENABLED_DESCRIPTION',
+        keywords: ['epg', 'tv guide', 'disable', 'enable', 'programme'],
+        requires: ['epg-display'],
+    },
+    {
         id: 'epg-view-mode',
+        fallbackId: 'epg-enabled',
         section: 'epg',
         labelKey: 'SETTINGS.EPG_VIEW_MODE',
         descriptionKey: 'SETTINGS.EPG_VIEW_MODE_DESCRIPTION',
         keywords: ['epg', 'tv guide', 'timeline', 'grid', 'programme'],
-        requires: ['epg'],
+        requires: ['epg-display'],
     },
     {
         id: 'epg-offset',
+        fallbackId: 'epg-enabled',
         section: 'epg',
         labelKey: 'SETTINGS.EPG_OFFSET_TITLE',
         descriptionKey: 'SETTINGS.EPG_OFFSET_HINT',
         keywords: ['epg', 'timezone', 'time shift', 'offset', 'hours'],
-        requires: ['epg'],
+        requires: ['epg-display'],
     },
     {
         id: 'epg-sources',
+        fallbackId: 'epg-enabled',
         section: 'epg',
         labelKey: 'SETTINGS.EPG_SOURCE_LIST_TITLE',
         descriptionKey: 'SETTINGS.EPG_SOURCE_FORMATS_HINT',
@@ -110,6 +122,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
     },
     {
         id: 'prefer-uploaded-epg',
+        fallbackId: 'epg-enabled',
         section: 'epg',
         labelKey: 'SETTINGS.PREFER_UPLOADED_EPG_TITLE',
         descriptionKey: 'SETTINGS.PREFER_UPLOADED_EPG_HINT',
@@ -118,6 +131,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
     },
     {
         id: 'epg-clear-data',
+        fallbackId: 'epg-enabled',
         section: 'epg',
         labelKey: 'SETTINGS.CLEAR_EPG_DATA',
         descriptionKey: 'SETTINGS.CLEAR_EPG_DATA_DESCRIPTION',
@@ -200,6 +214,21 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         fallbackId: 'tmdb-enable',
     },
     {
+        id: 'age-rating-country',
+        section: 'tmdb',
+        labelKey: 'SETTINGS.AGE_RATING_COUNTRY_LABEL',
+        descriptionKey: 'SETTINGS.AGE_RATING_COUNTRY_DESCRIPTION',
+        keywords: [
+            'age',
+            'rating',
+            'classification',
+            'country',
+            'parental',
+            'FSK',
+            'MPAA',
+        ],
+    },
+    {
         id: 'tmdb-cache',
         section: 'tmdb',
         labelKey: 'SETTINGS.TMDB_CACHE',
@@ -250,6 +279,13 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         labelKey: 'SETTINGS.IMPORT_EXPORT_DATA',
         descriptionKey: 'SETTINGS.IMPORT_EXPORT_DATA_DESCRIPTION',
         keywords: ['backup', 'restore', 'import', 'export', 'migrate'],
+    },
+    {
+        id: 'source-server',
+        section: 'server',
+        labelKey: 'SOURCE_SYNC.TITLE',
+        descriptionKey: 'SOURCE_SYNC.DESCRIPTION',
+        keywords: [...SERVER_KEYWORDS, 'NAS', 'sync', 'sources'],
     },
     {
         id: 'remove-all-playlists',

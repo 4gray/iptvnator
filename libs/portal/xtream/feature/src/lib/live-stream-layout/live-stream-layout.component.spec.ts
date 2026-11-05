@@ -222,9 +222,9 @@ describe('LiveStreamLayoutComponent', () => {
                     provide: RuntimeCapabilitiesService,
                     useValue: {
                         supportsDownloads: true,
-                        get supportsEpg() {
-                            return Boolean(window.electron);
-                        },
+                        // The portal transport exists in both runtimes.
+                        supportsProviderEpg: true,
+                        supportsProviderCatchUp: true,
                         get isElectron() {
                             return Boolean(window.electron);
                         },
@@ -342,7 +342,7 @@ describe('LiveStreamLayoutComponent', () => {
 
     liveHistoryTestCases(() => ({ component, xtreamStore, portalPlayer }));
 
-    it('hides the EPG panel in browser/PWA playback', () => {
+    it('renders the provider EPG panel in browser/PWA playback', () => {
         fixture.destroy();
         window.electron = undefined as unknown as typeof window.electron;
 
@@ -352,13 +352,14 @@ describe('LiveStreamLayoutComponent', () => {
         component.playLive(sampleChannel);
         fixture.detectChanges();
 
+        expect(component.isElectron).toBe(false);
         expect(
             fixture.nativeElement.querySelector('app-web-player-view')
         ).not.toBeNull();
-        expect(fixture.nativeElement.querySelector('.epg')).toBeNull();
+        expect(fixture.nativeElement.querySelector('.epg')).not.toBeNull();
         expect(
             fixture.nativeElement.querySelector('app-epg-timeline')
-        ).toBeNull();
+        ).not.toBeNull();
     });
 
     it('restores the collapsed live EPG panel state for embedded playback', () => {
@@ -623,6 +624,23 @@ describe('LiveStreamLayoutComponent', () => {
                 '.sidebar [data-test-id="portal-channels-list-stub"]'
             )
         ).not.toBeNull();
+    });
+
+    it('keeps all-channel browsing and the mounted player when the category is cleared', () => {
+        component.playLive(sampleChannel);
+        fixture.detectChanges();
+        const root: HTMLElement = fixture.nativeElement;
+        const player = root.querySelector('app-web-player-view');
+        const playback = component.activePlayback();
+
+        selectedCategoryId.set(null);
+        fixture.detectChanges();
+
+        expect(
+            root.querySelector('.sidebar app-portal-channels-list')
+        ).not.toBeNull();
+        expect(root.querySelector('app-web-player-view')).toBe(player);
+        expect(component.activePlayback()).toBe(playback);
     });
 
     it('shows embedded playback after selecting a channel from live root search results', () => {

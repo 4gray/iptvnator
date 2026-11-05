@@ -16,7 +16,7 @@
     <button
         type="button"
         class="channel-content"
-        [attr.aria-label]="displayName()"
+        [attr.aria-disabled]="disabled() || null"
     >
         <div class="channel-logo-shell" aria-hidden="true">
             @if (showLogoFallback()) {
@@ -34,7 +34,7 @@
         <div class="channel-details">
             <div class="channel-name-row">
                 <div class="channel-name">{{ displayName() }}</div>
-                @if (catchupAvailable()) {
+                @if (showEpg() && catchupAvailable()) {
                     <mat-icon
                         class="catchup-badge"
                         data-test-id="catchup-badge"
@@ -50,7 +50,9 @@
                     }}</span>
                 }
             </div>
-            @if (showEpg()) {
+            @if (statusLabel()) {
+                <div class="epg-title">{{ statusLabel() }}</div>
+            } @else if (showEpg()) {
                 @if (epgProgram(); as program) {
                     <div class="epg-title">
                         {{ program.title }}

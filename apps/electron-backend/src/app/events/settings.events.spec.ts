@@ -303,6 +303,22 @@ describe('SETTINGS_UPDATE', () => {
         expect(mockUpdateSettings).toHaveBeenCalledWith(true, 9988);
     });
 
+    it('returns remote-control startup failures to the settings caller', async () => {
+        const failure = Object.assign(
+            new Error('Port 9988 is already in use'),
+            {
+                code: 'EADDRINUSE',
+            }
+        );
+        const update = Promise.reject(failure);
+        void update.catch(() => undefined);
+        mockUpdateSettings.mockReturnValue(update);
+
+        await expect(
+            Promise.resolve(settingsUpdateHandler({}, { remoteControl: true }))
+        ).rejects.toBe(failure);
+    });
+
     it('reconciles a remote-control port update with the stored enabled state', () => {
         mockStoreGet.mockImplementation(
             (key: string, fallbackValue: unknown): unknown =>

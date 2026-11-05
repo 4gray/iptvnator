@@ -117,13 +117,15 @@ export class WindowCloseGuard {
     }
 
     /**
-     * Lets exactly one close through even while the guard is armed. Used for
+     * Atomically replaces pending closes with one close bypass. Used for
      * the self-updater's `quitAndInstall()`: on macOS it closes the windows
      * *before* `before-quit` fires, so an intercepted close would downgrade
      * the install into a plain window close and abandon the update. The user
-     * explicitly asked to install, so that close must win.
+     * explicitly asked to install, so that close must win. Called inside
+     * install IPC immediately before quitAndInstall, never by the renderer.
      */
     allowNextClose(): void {
+        this.pendingIntent = null;
         this.bypassClose = true;
     }
 

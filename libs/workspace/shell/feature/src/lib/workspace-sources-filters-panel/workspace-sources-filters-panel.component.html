@@ -1,38 +1,92 @@
-<div class="context-column">
-    <header class="context-header">
-        <div class="context-header__top">
-            <h2>{{ 'WORKSPACE.SOURCES.TITLE' | translate }}</h2>
+<div class="side-list">
+    <header class="side-list__header">
+        <div class="side-list__heading">
+            <h2 class="side-list__title">
+                {{ 'WORKSPACE.SOURCES.TITLE' | translate }}
+            </h2>
+            <p class="side-list__subtitle">
+                @if (total() === 1) {
+                    {{ 'WORKSPACE.SOURCES.PLAYLIST_COUNT_ONE' | translate }}
+                } @else {
+                    {{
+                        'WORKSPACE.SOURCES.PLAYLIST_COUNT_OTHER'
+                            | translate: { count: total() }
+                    }}
+                }
+            </p>
         </div>
-        <p>{{ 'WORKSPACE.SOURCES.SUBTITLE' | translate }}</p>
+        <button
+            mat-icon-button
+            type="button"
+            class="side-list__action"
+            data-test-id="sources-add-playlist"
+            (click)="addPlaylist()"
+            [matTooltip]="'WORKSPACE.SOURCES.ADD_SOURCE' | translate"
+            [attr.aria-label]="'WORKSPACE.SOURCES.ADD_SOURCE' | translate"
+        >
+            <mat-icon>add</mat-icon>
+        </button>
     </header>
 
-    <div class="context-divider"></div>
-
-    <section class="panel-section">
-        <div class="nav-list option-list">
-            <h3 class="panel-section-title">
+    <div class="side-list__groups">
+        <section
+            class="side-list__group"
+            role="group"
+            aria-labelledby="sources-type-label"
+        >
+            <h3 id="sources-type-label" class="side-list__label">
                 {{ 'WORKSPACE.SOURCES.TYPE' | translate }}
             </h3>
             @for (option of typeOptions; track option.id) {
                 <button
                     type="button"
-                    class="nav-item category-item option-row"
-                    [class.selected]="isTypeActive(option.id)"
+                    class="side-list__row option-row"
+                    [attr.data-filter]="option.id"
+                    [attr.aria-pressed]="filter().type === option.id"
                     (click)="selectType(option.id)"
                 >
-                    <mat-icon>{{ option.icon }}</mat-icon>
-                    <span class="nav-item-label option-label">
-                        {{
-                            option.translationKey
-                                ? (option.translationKey | translate)
-                                : option.label
-                        }}
-                    </span>
-                    <div class="nav-item-meta option-meta">
-                        {{ getTypeCount(option.id) }}
-                    </div>
+                    <mat-icon aria-hidden="true">{{ option.icon }}</mat-icon>
+                    <span class="side-list__row-label option-label">{{
+                        option.labelKey | translate
+                    }}</span>
+                    <span class="side-list__row-count">{{
+                        typeCounts()[option.id]
+                    }}</span>
                 </button>
             }
-        </div>
-    </section>
+        </section>
+
+        @if (showStatus) {
+            <section
+                class="side-list__group"
+                role="group"
+                aria-labelledby="sources-status-label"
+            >
+                <h3 id="sources-status-label" class="side-list__label">
+                    {{ 'WORKSPACE.SOURCES.STATUS' | translate }}
+                </h3>
+                @for (option of statusOptions; track option.id) {
+                    <button
+                        type="button"
+                        class="side-list__row option-row"
+                        [attr.data-filter]="'status-' + option.id"
+                        [attr.aria-pressed]="filter().status === option.id"
+                        (click)="selectStatus(option.id)"
+                    >
+                        <span
+                            class="side-list__dot"
+                            [attr.data-state]="option.id"
+                            aria-hidden="true"
+                        ></span>
+                        <span class="side-list__row-label option-label">{{
+                            option.labelKey | translate
+                        }}</span>
+                        <span class="side-list__row-count">{{
+                            statusCounts()[option.id]
+                        }}</span>
+                    </button>
+                }
+            </section>
+        }
+    </div>
 </div>

@@ -39,6 +39,7 @@ describe('Playwright mock-server launch', () => {
             'xtream',
         ],
         'apps/web-e2e/playwright.config.ts': ['stalker', 'xtream'],
+        'apps/tv-e2e/playwright.config.ts': ['stalker', 'xtream'],
     };
     const readSource = (configPath: string) =>
         readFileSync(join(process.cwd(), configPath), 'utf8');
@@ -173,6 +174,7 @@ describe('Nx E2E task dependencies', () => {
             expect.arrayContaining([
                 'apps/electron-backend-e2e/project.json',
                 'apps/web-e2e/project.json',
+                'apps/tv-e2e/project.json',
             ])
         );
         expect([...mockContinuousTargets]).toContain('serve');
@@ -184,5 +186,8 @@ describe('Nx E2E task dependencies', () => {
             { projects: ['electron-backend'], target: 'build-e2e' },
         ]);
         expect(perFileDefaultFor('web-e2e')?.dependsOn).toEqual([]);
+        expect(perFileDefaultFor('tv-e2e')?.dependsOn).toEqual([
+            { projects: ['tv', 'tv-setup'], target: 'build' },
+        ]);
     });
 });

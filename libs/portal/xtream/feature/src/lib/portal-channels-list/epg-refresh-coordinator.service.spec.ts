@@ -4,6 +4,7 @@ import {
     EPG_REFRESH_INTERVAL_MS,
     EpgRefreshContribution,
     EpgRefreshCoordinator,
+    xtreamCredentialsOf,
 } from './epg-refresh-coordinator.service';
 
 const credentials = {
@@ -23,6 +24,23 @@ function contribution(
         ...overrides,
     };
 }
+
+describe('xtreamCredentialsOf', () => {
+    it('preserves the playlist User-Agent for channel-list guides', () => {
+        expect(
+            xtreamCredentialsOf({
+                ...credentials,
+                userAgent:
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            })
+        ).toEqual(
+            expect.objectContaining({
+                userAgent:
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            })
+        );
+    });
+});
 
 describe('EpgRefreshCoordinator', () => {
     const epgQueueService = {

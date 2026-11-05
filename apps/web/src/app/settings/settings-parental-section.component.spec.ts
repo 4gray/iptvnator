@@ -31,6 +31,10 @@ describe('SettingsParentalLockSectionComponent', () => {
             '[data-test-id="parental-lock-enabled"] button'
         ) as HTMLButtonElement;
 
+        expect(button.getAttribute('aria-label')).toBe(
+            'SETTINGS.PARENTAL_LOCK.ENABLE'
+        );
+
         // The set-PIN prompt is then cancelled: `enabled` never changes.
         button.click();
         fixture.detectChanges();

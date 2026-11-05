@@ -444,6 +444,52 @@ describe('PlayerControlsComponent settings panel', () => {
             fixture.nativeElement.remove();
         });
 
+        it('returns focus to tune although removal fires focusout with no related target', async () => {
+            const tune = query(
+                '[data-test-id="player-controls-settings-button"]'
+            ) as HTMLButtonElement;
+            document.body.appendChild(fixture.nativeElement);
+            tune.focus();
+            const matches = tune.matches.bind(tune);
+            Object.defineProperty(tune, 'matches', {
+                configurable: true,
+                value: (selector: string) =>
+                    selector === ':focus-visible' || matches(selector),
+            });
+            tune.click();
+            fixture.detectChanges();
+            await fixture.whenStable();
+            const sheet = query(
+                '[data-test-id="player-controls-settings-panel"]'
+            ) as HTMLElement;
+            expect(document.activeElement).toBe(sheet);
+
+            // Chromium fires focusout with relatedTarget null on the focused
+            // element while its subtree is being removed, in the same task
+            // as the removal; jsdom does not, so the event is dispatched by
+            // hand right before the close destroys the panel.
+            sheet.dispatchEvent(
+                new FocusEvent('focusout', {
+                    bubbles: true,
+                    relatedTarget: null,
+                })
+            );
+            document.dispatchEvent(
+                new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+            );
+            fixture.detectChanges();
+            await fixture.whenStable();
+            await Promise.resolve();
+
+            expect(
+                query('[data-test-id="player-controls-settings-panel"]')
+            ).toBeNull();
+            expect(document.activeElement).toBe(
+                query('[data-test-id="player-controls-settings-button"]')
+            );
+            fixture.nativeElement.remove();
+        });
+
         it('leaves focus alone when a pointer opens the sheet', async () => {
             query('[data-test-id="player-controls-settings-button"]')?.click();
             fixture.detectChanges();

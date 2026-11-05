@@ -1,3 +1,5 @@
+@use '../../../../styles/app-controls' as controls;
+
 $font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
 
 
@@ -29,12 +31,18 @@ $font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
     }
 }
 
+.sources-chip--secondary {
+    @include controls.native-secondary-button;
+    app-region: no-drag;
+}
+
 // Pressed while the popover is open, so the button and the panel read as one
 // control. Doubled class beats the host surface rule the hero applies.
-.sources-chip.sources-chip--open {
+.sources-chip.sources-chip--open,
+.sources-chip.sources-chip--open.sources-chip--secondary {
     background: color-mix(in srgb, var(--app-selection-color) 16%, transparent);
     border-color: var(--app-selection-color);
-    color: var(--app-selection-color);
+    color: var(--app-selection-text-color);
 
     .sources-chip__icon,
     .sources-chip__caret {
@@ -57,7 +65,7 @@ $font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
     line-height: 1.3;
     border-radius: 999px;
     padding: 2px 8px;
-    color: var(--app-selection-color);
+    color: var(--app-selection-text-color);
     background: color-mix(in srgb, var(--app-selection-color) 12%, transparent);
 }
 

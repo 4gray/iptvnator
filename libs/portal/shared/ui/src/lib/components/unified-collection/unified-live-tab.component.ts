@@ -1,3 +1,4 @@
+import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
 import {
     ChangeDetectionStrategy,
     Component,
@@ -59,7 +60,10 @@ import {
     UnifiedLiveTimeshift,
 } from './unified-live-catchup';
 import { createUnifiedLiveChannelRows } from './unified-live-channel-rows';
-import { createUnifiedLiveEpgMap } from './unified-live-epg-map';
+import {
+    createUnifiedLiveEpgMap,
+    createUnifiedLiveEpgVisibility,
+} from './unified-live-epg-map';
 import { createUnifiedLiveEpgView } from './unified-live-epg-view';
 import { createUnifiedLiveRecording } from './unified-live-recording-metadata';
 import { createUnifiedLiveSelection } from './unified-live-selection';
@@ -124,6 +128,7 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     private readonly router = inject(Router);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
 
+    readonly epgVisibility = createUnifiedLiveEpgVisibility();
     readonly supportsEpg = this.runtime.supportsEpg;
 
     private readonly fullscreenChannelPanelTemplate = viewChild<
@@ -172,6 +177,14 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     readonly openInPlaylistTarget = this.view.openInPlaylistTarget;
     readonly openInPlaylistName = this.view.openInPlaylistName;
     readonly playbackSessionKey = this.view.playbackSessionKey;
+    /** M3U selections need XMLTV; Xtream and Stalker ones read the portal guide. */
+    readonly showsEpgPanel = computed(
+        () =>
+            !this.isRadioSelection() &&
+            (this.view.isM3uSelection()
+                ? this.epgVisibility.xmltv
+                : this.epgVisibility.provider)
+    );
 
     private readonly catchup = createUnifiedLiveCatchup({
         activeTimeshift: this.activeTimeshift,
@@ -217,7 +230,8 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     readonly recordingMetadata = this.recording.metadata;
 
     private readonly epgPrograms = createUnifiedLiveEpgMap({
-        supportsEpg: this.supportsEpg,
+        supportsEpg:
+            this.runtime.supportsEpg || this.runtime.supportsProviderEpg,
         items: this.items,
         offsetMinutes: this.epgView.offsetMinutes,
     });
@@ -230,7 +244,8 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
         activeTimeshift: this.activeTimeshift,
         isSelecting: this.isSelecting,
         generation: this.generation,
-        supportsEpg: this.supportsEpg,
+        supportsEpg: this.runtime.supportsEpg,
+        supportsProviderEpg: this.runtime.supportsProviderEpg,
         isRadioDetail: (detail) => this.view.isRadioDetail(detail),
         shouldOpenExternalPlayback: (detail, startPlayback) =>
             this.view.shouldOpenExternalPlayback(detail, startPlayback),
@@ -251,14 +266,22 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     constructor() {
         effect(() => {
             const items = this.items();
-            if (this.supportsEpg) {
+            if (this.epgVisibility.any) {
                 this.epgPrograms.load(items);
             } else {
                 this.epgPrograms.clear();
             }
 
             const activeUid = this.activeUid();
-            if (activeUid && !items.some((item) => item.uid === activeUid)) {
+            const selected = items.find((item) => item.uid === activeUid);
+            // During a switch the highlight belongs to the pending selection,
+            // while the mounted detail still belongs to the previous item.
+            const retainedUid = this.activeItem()?.uid;
+            const retained = items.find((item) => item.uid === retainedUid);
+            if (
+                (activeUid && (!selected || isCatalogUnavailable(selected))) ||
+                (retainedUid && (!retained || isCatalogUnavailable(retained)))
+            ) {
                 this.onClose();
             }
         });
@@ -319,7 +342,7 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
 
     async onChannelSelected(channel: UnifiedFavoriteChannel): Promise<void> {
         const item = this.itemFor(channel);
-        if (item) {
+        if (item && !isCatalogUnavailable(item)) {
             await this.selection.activate(item);
         }
     }
@@ -328,7 +351,7 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
         channel: UnifiedFavoriteChannel
     ): Promise<void> {
         const item = this.itemFor(channel);
-        if (item) {
+        if (item && !isCatalogUnavailable(item)) {
             await this.selection.activate(item, false, true);
         }
     }
@@ -419,7 +442,9 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     }
 
     private openInPlaylist(item: UnifiedCollectionItem): void {
-        const target = getLiveCollectionPlaylistNavigation(item);
+        const current = this.items().find((row) => row.uid === item.uid);
+        if (!current || isCatalogUnavailable(current)) return;
+        const target = getLiveCollectionPlaylistNavigation(current);
         if (target) {
             void this.router.navigate(target.link, { state: target.state });
         }

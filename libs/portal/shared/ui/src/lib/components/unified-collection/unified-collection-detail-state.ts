@@ -1,3 +1,4 @@
+import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
 import {
     computed,
     effect,
@@ -28,6 +29,8 @@ export interface CollectionDetailState {
     readonly seriesResume: WritableSignal<SeriesResumeTarget | null>;
     /** Template context for the host's projected detail template. */
     readonly context: Signal<UnifiedCollectionDetailContext | null>;
+    /** A navigation handoff is waiting for collection validation. */
+    readonly isPending: Signal<boolean>;
     /** Whether this route and host can render the item's detail in place. */
     canOpen(item: UnifiedCollectionItem): boolean;
     open(
@@ -50,6 +53,8 @@ export interface CollectionDetailState {
  */
 export function createCollectionDetailState(options: {
     mode: Signal<CollectionMode>;
+    items: Signal<UnifiedCollectionItem[]>;
+    isLoading: Signal<boolean>;
     portalType: Signal<string | undefined>;
     /** Absent while the host projects no detail template. */
     detailTemplate: Signal<unknown>;
@@ -61,6 +66,9 @@ export function createCollectionDetailState(options: {
     const router = inject(Router);
     const item = signal<UnifiedCollectionItem | null>(null);
     const seriesResume = signal<SeriesResumeTarget | null>(null);
+    const pendingItem = signal(
+        getOpenCollectionDetailItemState(window.history.state)?.item ?? null
+    );
 
     const canRenderOnCurrentRoute = (
         candidate: UnifiedCollectionItem
@@ -72,6 +80,7 @@ export function createCollectionDetailState(options: {
         );
 
     const canOpen = (candidate: UnifiedCollectionItem): boolean =>
+        !isCatalogUnavailable(candidate) &&
         Boolean(options.detailTemplate()) &&
         candidate.contentType !== 'live' &&
         (candidate.sourceType === 'xtream' ||
@@ -82,12 +91,14 @@ export function createCollectionDetailState(options: {
         next: UnifiedCollectionItem,
         nextSeriesResume?: SeriesResumeTarget | null
     ): void => {
+        if (isCatalogUnavailable(next)) return;
         options.onOpen(next.contentType);
         item.set(next);
         seriesResume.set(nextSeriesResume ?? null);
     };
 
     const clear = (): void => {
+        pendingItem.set(null);
         item.set(null);
         seriesResume.set(null);
         options.onClear();
@@ -128,9 +139,47 @@ export function createCollectionDetailState(options: {
         });
     });
 
+    const syncFromHistory = (): void => {
+        const detailState = getOpenCollectionDetailItemState(
+            window.history.state
+        );
+        const savedItem = detailState?.item;
+        pendingItem.set(savedItem ?? null);
+        if (options.isLoading()) return;
+        const currentItem =
+            savedItem &&
+            options.items().find((row) => row.uid === savedItem.uid);
+        // The catalog may have changed since this history entry was written.
+        // Unrelated dashboard discoveries need not be a saved favorite.
+        const detailItem =
+            currentItem ??
+            (savedItem?.favoriteId != null && options.mode() === 'favorites'
+                ? null
+                : savedItem);
+
+        pendingItem.set(null);
+        if (detailItem && canOpen(detailItem)) {
+            open(detailItem, detailState?.seriesResume);
+            return;
+        }
+
+        if (item()) {
+            clear();
+        }
+    };
+
+    effect(() => {
+        options.items();
+        if (!options.isLoading()) untracked(syncFromHistory);
+    });
+
     return {
         item,
         seriesResume,
+        isPending: computed(() => {
+            const pending = pendingItem();
+            return !!pending && canOpen(pending);
+        }),
         context: computed<UnifiedCollectionDetailContext | null>(() => {
             const current = item();
             if (!current) {
@@ -147,20 +196,6 @@ export function createCollectionDetailState(options: {
         canOpen,
         open,
         clear,
-        syncFromHistory(): void {
-            const detailState = getOpenCollectionDetailItemState(
-                window.history.state
-            );
-            const detailItem = detailState?.item;
-
-            if (detailItem && canOpen(detailItem)) {
-                open(detailItem, detailState.seriesResume);
-                return;
-            }
-
-            if (item()) {
-                clear();
-            }
-        },
+        syncFromHistory,
     };
 }

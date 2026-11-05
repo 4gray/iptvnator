@@ -1,3 +1,8 @@
+import { Store } from '@ngrx/store';
+import {
+    PlaylistActions,
+    selectPlaylistsLoadingFlag,
+} from '@iptvnator/m3u-state';
 import {
     Component,
     computed,
@@ -22,9 +27,11 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
     EpgSourceReconciliationError,
     RuntimeCapabilitiesService,
+    ServerStorageStatusService,
     injectTranslationTick,
 } from '@iptvnator/services';
 import { VodSourceDiscoveryService } from '@iptvnator/portal/shared/data-access';
+import { dialogSize } from '@iptvnator/ui/components/dialog-size';
 import {
     ELECTRON_BRIDGE_APP_UPDATE_STATUSES,
     Language,
@@ -43,7 +50,10 @@ import { SettingsDashboardSectionComponent } from './settings-dashboard-section.
 import { SettingsEmbeddedMpvFacade } from './settings-embedded-mpv.facade';
 import { SettingsEpgFacade } from './settings-epg.facade';
 import { SettingsEpgSectionComponent } from './settings-epg-section.component';
-import { SettingsFormFacade } from './settings-form.facade';
+import {
+    SettingsFormFacade,
+    SettingsRuntimeUpdateError,
+} from './settings-form.facade';
 import { SettingsGeneralSectionComponent } from './settings-general-section.component';
 import { SettingsSection } from './settings.models';
 import {
@@ -61,6 +71,7 @@ import { SettingsParentalLockSectionComponent } from './settings-parental-sectio
 import { SettingsPlaybackSectionComponent } from './settings-playback-section.component';
 import { SettingsRemoteControlFacade } from './settings-remote-control.facade';
 import { SettingsRemoteControlSectionComponent } from './settings-remote-control-section.component';
+import { SettingsServerSectionComponent } from './settings-server-section.component';
 import { SettingsSearchFacade } from './settings-search.facade';
 import { SettingsSearchResultsComponent } from './settings-search-results.component';
 import { SettingsTmdbSectionComponent } from './settings-tmdb-section.component';
@@ -70,6 +81,7 @@ import {
 } from './settings-unsaved-changes-dialog.component';
 import { SettingsLeaveConfirmation } from './settings-unsaved-changes.guard';
 import { SettingsUnloadGuardService } from './settings-unload-guard.service';
+import { waitForSettingsUiFeedbackFrame } from './settings-ui-feedback';
 import { SettingsBackupFacade } from './settings-backup.facade';
 import { SettingsPlaylistResetFacade } from './settings-playlist-reset.facade';
 import { SettingsSnackbarService } from './settings-snackbar.service';
@@ -108,7 +120,9 @@ export const SETTINGS_DEFAULT_SECTION = 'general';
         SettingsPlaybackSectionComponent,
         SettingsRemoteControlSectionComponent,
         SettingsSearchResultsComponent,
+        SettingsServerSectionComponent,
         SettingsTmdbSectionComponent,
+        SettingsServerSectionComponent,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     providers: [
@@ -132,6 +146,14 @@ export class SettingsComponent
     readonly backup = inject(SettingsBackupFacade);
     readonly embeddedMpv = inject(SettingsEmbeddedMpvFacade);
     readonly epg = inject(SettingsEpgFacade);
+    private readonly libraryStore = inject(Store);
+    readonly libraryReady = this.libraryStore.selectSignal(
+        selectPlaylistsLoadingFlag
+    );
+    retryLibrary(): void {
+        this.libraryStore.dispatch(PlaylistActions.loadPlaylists());
+    }
+
     readonly form = inject(SettingsFormFacade);
     readonly parentalLock = inject(SettingsParentalLockFacade);
     readonly playlistReset = inject(SettingsPlaylistResetFacade);
@@ -166,6 +188,9 @@ export class SettingsComponent
         this.runtime.supportsExternalPlayerPathSettings;
     readonly supportsVodMultiSource = this.vodSourceDiscovery.isAvailable;
     readonly supportsRemoteControl = this.runtime.supportsRemoteControl;
+    readonly supportsServerStorage = inject(
+        ServerStorageStatusService
+    ).isActive();
     readonly supportsStartupWindowMode = this.runtime.supportsStartupWindowMode;
     readonly supportsPortalConnectivityGuard =
         this.runtime.supportsPortalConnectivityGuard;
@@ -228,8 +253,9 @@ export class SettingsComponent
     readonly epgViewModeOptions = SETTINGS_EPG_VIEW_MODE_OPTIONS;
 
     readonly sectionNavItems: SettingsSection[] = buildSettingsSectionNavItems({
-        supportsEpg: this.supportsEpg,
+        supportsEpg: this.form.supportsEpgDisplay,
         supportsRemoteControl: this.supportsRemoteControl,
+        supportsServerStorage: this.supportsServerStorage,
     });
 
     get sectionNav(): SettingsSection[] {
@@ -415,7 +441,7 @@ export class SettingsComponent
                     { canSave: boolean },
                     SettingsUnsavedChangesChoice
                 >(SettingsUnsavedChangesDialogComponent, {
-                    width: '440px',
+                    ...dialogSize('sm'),
                     data: { canSave: this.settingsForm.valid },
                 })
                 .afterClosed()
@@ -435,28 +461,24 @@ export class SettingsComponent
         return false;
     }
 
-    /** @returns whether the write actually landed */
+    /** @returns whether saved/applied settings include every current edit */
     private async persistSettings(): Promise<boolean> {
         try {
             await this.form.save(() => this.applyChangedSettings());
-            return true;
+            return this.settingsForm.pristine;
         } catch (error) {
+            if (error instanceof SettingsRuntimeUpdateError) {
+                this.settingsSnackbar.runtimeUpdateFailure(error.message);
+                return false;
+            }
             if (error instanceof EpgSourceReconciliationError) {
                 this.settingsSnackbar.open(
                     this.translate.instant('SETTINGS.EPG_DATA_CLEAR_FAILED')
                 );
                 return false;
             }
-            // The store already applied the change in memory, so without
-            // this the save looks successful until the next restart. The
-            // unsaved-changes bar stays visible so it can be retried.
-            //
-            // The Electron-side pushes in SettingsFormFacade.save() stay in
-            // the success branch on purpose: main keeps its own copy of the
-            // player paths and remote-control state, and applying half the
-            // form while telling the user nothing was saved is worse than
-            // applying none of it. Once settings live in the main process
-            // (issue #1273) this split disappears.
+            // A failed storage write still patches the in-memory store. Keep
+            // edits available for retry and explain they will not survive restart.
             this.settingsSnackbar.storageFailure('save');
             return false;
         }
@@ -485,35 +507,21 @@ export class SettingsComponent
     }
 
     async exportData(): Promise<void> {
-        await this.backup.exportData(() => this.waitForUiFeedbackFrame());
+        if (this.playlistReset.isRemovingAllPlaylists()) return;
+        await this.backup.exportData(waitForSettingsUiFeedbackFrame);
     }
 
     importData(): void {
+        if (this.playlistReset.isRemovingAllPlaylists()) return;
         this.backup.importData(() => this.form.hydrateFromStore());
     }
 
     removeAll(): void {
-        this.playlistReset.confirmAndRemoveAll(() =>
-            this.waitForUiFeedbackFrame()
-        );
+        if (this.backup.isBusy()) return;
+        this.playlistReset.confirmAndRemoveAll(waitForSettingsUiFeedbackFrame);
     }
 
     private isNavigableSection(sectionId: string): boolean {
         return this.sectionNav.some((section) => section.id === sectionId);
-    }
-
-    /**
-     * Lets the browser paint the pending busy state before a long running
-     * task blocks the main thread.
-     */
-    private async waitForUiFeedbackFrame(): Promise<void> {
-        if (typeof window.requestAnimationFrame !== 'function') {
-            await Promise.resolve();
-            return;
-        }
-
-        await new Promise<void>((resolve) => {
-            window.requestAnimationFrame(() => resolve());
-        });
     }
 }

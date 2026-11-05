@@ -1,3 +1,5 @@
+@use '@angular/material' as mat;
+@use '../../../../../../ui/styles/app-controls' as controls;
 @use '../../../../../../ui/styles/focus-ring';
 
 :host {
@@ -44,26 +46,20 @@
     flex-shrink: 0;
 }
 
+// The kit's panel-header action: a square ghost icon button, kept at the
+// header's 28px so the list below does not move. A switched-on action
+// (search open, a custom category order) takes the selected-row tint.
 .context-header__action {
-    width: 28px;
-    height: 28px;
-    line-height: 28px;
     flex-shrink: 0;
-    padding: 0;
+    @include controls.ghost-icon-button(28px, 18px);
 
-    &[disabled] {
-        opacity: 0.48;
-    }
-
-    &--active mat-icon {
-        color: var(--mat-sys-primary);
-    }
-
-    mat-icon {
-        font-size: 18px;
-        width: 18px;
-        height: 18px;
-        color: var(--mat-sys-on-surface-variant);
+    &--active {
+        background: var(--app-list-selected-bg);
+        @include mat.icon-button-overrides(
+            (
+                icon-color: var(--app-list-selected-fg),
+            )
+        );
     }
 }
 

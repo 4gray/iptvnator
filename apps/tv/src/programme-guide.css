@@ -1,0 +1,120 @@
+.programme-guide {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 40px 56px;
+    background: rgba(11, 16, 15, 0.96);
+    color: var(--tv-text);
+}
+.programme-guide-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex: none;
+    margin-bottom: 24px;
+}
+.programme-guide-header h1 {
+    font-size: 40px;
+    margin: 8px 24px 0 0;
+}
+.programme-guide-header > div {
+    min-width: 0;
+}
+.programme-guide-header > button {
+    flex: none;
+}
+.programme-guide-days {
+    display: flex;
+    flex: none;
+    padding: 8px;
+    margin: -8px -8px 24px;
+    overflow-x: auto;
+}
+.programme-guide-days button {
+    flex: none;
+    margin-right: 14px;
+    white-space: nowrap;
+}
+.programme-guide-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    grid-gap: 44px;
+    flex: 1;
+    min-height: 0;
+}
+.programme-guide-schedule,
+.programme-guide-details {
+    overflow-y: scroll;
+    min-height: 0;
+    padding: 8px;
+}
+.programme-guide-window {
+    position: relative;
+}
+.programme-guide-row {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 92px;
+    padding: 12px 20px;
+}
+.programme-guide-row strong {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 23px;
+}
+.programme-guide-row time,
+.programme-guide-row small {
+    font-size: 16px;
+    color: var(--tv-muted);
+}
+.programme-guide-row small {
+    position: absolute;
+    top: 12px;
+    right: 20px;
+    color: var(--tv-accent);
+}
+.programme-guide-row[aria-pressed='true'] {
+    background: var(--tv-line);
+    border-color: transparent;
+}
+.programme-guide-details h2 {
+    font-size: 38px;
+    line-height: 1.2;
+    margin: 18px 0;
+}
+.programme-guide-details p {
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+}
+.programme-guide-state {
+    color: var(--tv-accent);
+}
+@media (max-width: 1400px) {
+    .programme-guide {
+        padding: 28px 32px;
+    }
+    .programme-guide-header h1 {
+        font-size: 32px;
+    }
+    .programme-guide-days button {
+        font-size: 18px;
+        padding: 12px;
+    }
+    .programme-guide-body {
+        grid-gap: 24px;
+    }
+    .programme-guide-details h2 {
+        font-size: 30px;
+    }
+}
+.programme-guide-header h1 {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.guide-overlay .live-overlay-panel {
+    padding: 0;
+}

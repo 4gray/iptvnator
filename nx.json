@@ -14,6 +14,8 @@
         ],
         "sharedGlobals": [
             "{workspaceRoot}/.github/workflows/ci.yml",
+            "{workspaceRoot}/.nvmrc",
+            { "runtime": "node --version" },
             "{workspaceRoot}/package.json"
         ]
     },
@@ -81,6 +83,12 @@
             {
                 "filter": { "projects": ["web-e2e"] },
                 "dependsOn": []
+            },
+            {
+                "filter": { "projects": ["tv-e2e"] },
+                "dependsOn": [
+                    { "projects": ["tv", "tv-setup"], "target": "build" }
+                ]
             }
         ]
     },

@@ -27,6 +27,29 @@ export function isFullStalkerPortalUrl(url: string): boolean {
 }
 
 /**
+ * A Stalker playlist saved before the explicit flag existed, with the flag
+ * set from its URL; any other playlist comes back unchanged.
+ */
+export function withExplicitStalkerPortalFlag<
+    T extends {
+        macAddress?: string;
+        isFullStalkerPortal?: boolean;
+        portalUrl?: string;
+        url?: string;
+    },
+>(playlist: T): T {
+    if (!playlist?.macAddress || playlist.isFullStalkerPortal !== undefined) {
+        return playlist;
+    }
+    return {
+        ...playlist,
+        isFullStalkerPortal: isFullStalkerPortalUrl(
+            playlist.portalUrl ?? playlist.url ?? ''
+        ),
+    };
+}
+
+/**
  * Whether a playlist should use the full-portal auth lifecycle
  * (handshake, Bearer token, watchdog).
  *

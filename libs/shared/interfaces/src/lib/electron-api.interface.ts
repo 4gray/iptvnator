@@ -1,7 +1,12 @@
+export type ElectronBridgeAppMenuAction = 'settings' | 'check-for-updates';
 import type { AppUpdateChannel } from './app-update-channel.util';
 import type { SourceProbeContext, SourceHealthResult } from './source-health';
 import type { PortalRequestFailureEnvelope } from './portal-request-failure.util';
 import type { XtreamConnectionFailure } from './xtream-connection-test';
+import type {
+    XtreamCatalogStateCondition,
+    XtreamCatalogStateResult,
+} from './xtream-content-selection';
 import type { ZoomLevelAction } from './zoom-level.util';
 import type {
     CatchupDownloadMetadata,
@@ -225,6 +230,13 @@ export interface ElectronBridgeWindowState {
 }
 
 /**
+ * The window event behind a Back request: `app-command` (`browser-backward`,
+ * Windows and Linux: mouse Back buttons and the keyboard Browser Back key)
+ * or `swipe` (macOS trackpad swipe).
+ */
+export type ElectronBridgeBackGestureSource = 'app-command' | 'swipe';
+
+/**
  * Portal credentials for an auth-gated stream, passed alongside the scoped
  * header override. The main process attaches them only to requests going to
  * the exact origin of the override's `scopeUrl`, keeps them in memory only,
@@ -328,6 +340,7 @@ export interface ElectronBridgeStalkerRequestPayload {
 }
 
 export interface ElectronBridgeXtreamRequestPayload {
+    userAgent?: string;
     probe?: SourceProbeContext;
     connectionTest?: boolean;
     url: string;
@@ -564,7 +577,21 @@ export interface ElectronBridgeGlobalRecentItem extends ElectronBridgeXtreamCont
     viewed_at: string;
 }
 
-export interface ElectronBridgeGlobalFavoriteItem extends ElectronBridgeXtreamContent {
+export interface ElectronBridgeXtreamFavorite extends Omit<
+    ElectronBridgeXtreamContent,
+    'id' | 'category_id'
+> {
+    id: number | null;
+    category_id: number | null;
+    favorite_id?: number;
+    catalog_status?: import('./xtream-favorite.interface').XtreamFavoriteCatalogStatus;
+    catalog_missing_reason?: 'absent' | 'identity_conflict' | null;
+    tmdb_id?: number | null;
+    release_year?: number | null;
+    original_title?: string | null;
+}
+
+export interface ElectronBridgeGlobalFavoriteItem extends ElectronBridgeXtreamFavorite {
     playlist_id: string;
     playlist_name: string;
     added_at: string;
@@ -577,7 +604,8 @@ export interface ElectronBridgeGlobalRecentlyAddedItem extends ElectronBridgeXtr
 }
 
 export interface ElectronBridgeFavoriteReorderUpdate {
-    content_id: number;
+    content_id?: number;
+    favorite_id?: number;
     /** Favorites are playlist-scoped — scope the position write per playlist */
     playlist_id: string;
     position: number;
@@ -720,6 +748,32 @@ export interface ElectronRecordingItem {
 }
 
 export interface ElectronBridgeApi {
+    onAppMenuAction: (
+        callback: (action: ElectronBridgeAppMenuAction) => void
+    ) => () => void;
+    favoritesLocalRequest?: (
+        request: import('./favorites-sync/favorites-sync.contract').FavoriteLocalRequest
+    ) => Promise<unknown>;
+    activityLocalRequest?: (
+        request: import('./activity-sync/activity-sync.wire').ActivityLocalRequest
+    ) => Promise<unknown>;
+    sourceSyncConnection?: () =>
+        import('./source-sync.interface').SourceServerConnection | null;
+    sourceSyncRequest?: (
+        request: import('./source-sync.interface').SourceServerRequest
+    ) => Promise<import('./source-sync.interface').SourceServerResponse>;
+    sourceSyncConfigure?: (
+        url: string,
+        token: string,
+        restart: boolean
+    ) => Promise<
+        import('./source-sync.interface').SourceServerConnection & {
+            tokenPersisted: boolean;
+        }
+    >;
+    sourceSyncDisconnect?: () => Promise<void>;
+    sourceSyncLocalSources?: () => Promise<Playlist[]>;
+    onSourceSyncResume?: (callback: () => void) => () => void;
     onPortalDebugEvent?: (
         callback: (data: PortalDebugEvent) => void
     ) => () => void;
@@ -747,6 +801,8 @@ export interface ElectronBridgeApi {
      */
     toggleFullScreenWindow: () => Promise<ElectronBridgeWindowState>;
     closeWindow: () => Promise<void>;
+    /** Opens the fixed native application menu for frameless desktop windows. */
+    showApplicationMenu?: () => Promise<void>;
     /**
      * Zoom shortcuts (Cmd/Ctrl and +/−/0). Synchronous and preload-local:
      * steps the FRAME-BOUND temporary zoom level through `webFrame` (never a
@@ -763,6 +819,14 @@ export interface ElectronBridgeApi {
     getWindowState: () => Promise<ElectronBridgeWindowState>;
     onWindowStateChange: (
         callback: (state: ElectronBridgeWindowState) => void
+    ) => () => void;
+    /**
+     * Platform Back gestures the window receives, forwarded from the main
+     * process. Subscribe-only: the renderer runs the workspace Back (or
+     * ignores the request) and sends nothing back. Returns the unsubscribe.
+     */
+    onWindowBackRequested: (
+        callback: (source: ElectronBridgeBackGestureSource) => void
     ) => () => void;
     /**
      * While active, the main process intercepts window close / app quit and
@@ -839,7 +903,8 @@ export interface ElectronBridgeApi {
         userAgent?: string | null,
         referer?: string | null,
         scopeUrl?: string | null,
-        credentials?: ElectronBridgeStreamCredentials | null
+        credentials?: ElectronBridgeStreamCredentials | null,
+        origin?: string | null
     ) => Promise<boolean>;
     openInMpv: (
         url: string,
@@ -867,6 +932,8 @@ export interface ElectronBridgeApi {
         playlists: Playlist[],
         options?: ElectronBridgeTrustOptions
     ) => Promise<AutoUpdatePlaylistsResult>;
+    /** Stops imports without removing sources, mappings or cached programmes. */
+    setEpgEnabled?: (enabled: boolean) => Promise<void>;
     fetchEpg: (
         urls: string[],
         options?: ElectronBridgeTrustOptions
@@ -897,7 +964,10 @@ export interface ElectronBridgeApi {
     /** Native picker for a local XMLTV file; resolves null when cancelled. */
     openEpgFileDialog: () => Promise<string | null>;
     clearEpgData: () => Promise<ElectronBridgeResult>;
-    reconcileEpgSources: (urls: string[]) => Promise<ElectronBridgeResult>;
+    reconcileEpgSources: (
+        urls: string[],
+        epgEnabled?: boolean
+    ) => Promise<ElectronBridgeResult>;
     clearEpgDataForSource: (sourceUrl: string) => Promise<ElectronBridgeResult>;
     checkEpgFreshness: (
         urls: string[],
@@ -1026,19 +1096,32 @@ export interface ElectronBridgeApi {
     ) => Promise<ElectronBridgeResult>;
     dbDeleteXtreamContent: (
         playlistId: string,
-        operationId?: string
+        operationId?: string,
+        contentTypes?: import('./xtream-content-selection').XtreamContentType[]
     ) => Promise<{
         success: boolean;
         favorites: XtreamBackupFavoriteItem[];
         recentlyViewed: XtreamBackupRecentlyViewedItem[];
         hiddenCategories: XtreamBackupHiddenCategory[];
     }>;
+    dbRestoreXtreamFavorites: (
+        playlistId: string,
+        favorites: XtreamBackupFavoriteItem[],
+        restoreId?: string
+    ) => Promise<ElectronBridgeResult>;
     dbRestoreXtreamUserData: (
         playlistId: string,
         favorites: XtreamBackupFavoriteItem[],
         recentlyViewed: XtreamBackupRecentlyViewedItem[],
         operationId?: string
-    ) => Promise<ElectronBridgeResult>;
+    ) => Promise<
+        ElectronBridgeResult & {
+            resolvedHistory?: Pick<
+                XtreamBackupRecentlyViewedItem,
+                'contentType' | 'xtreamId'
+            >[];
+        }
+    >;
     dbHasCategories: (playlistId: string, type: string) => Promise<boolean>;
     dbGetCategories: (
         playlistId: string,
@@ -1057,8 +1140,9 @@ export interface ElectronBridgeApi {
     ) => Promise<ElectronBridgeCategoryRow[]>;
     dbUpdateCategoryVisibility: (
         categoryIds: number[],
-        hidden: boolean
-    ) => Promise<ElectronBridgeResult>;
+        hidden: boolean,
+        explicit?: boolean
+    ) => Promise<ElectronBridgeResult & { explicitRecorded?: true }>;
     /**
      * Re-stamps `categories.locked` for one playlist and type from the given
      * provider category ids: rows in the list become locked, every other row
@@ -1109,22 +1193,27 @@ export interface ElectronBridgeApi {
         contentId: number,
         playlistId: string,
         backdropUrl?: string
-    ) => Promise<ElectronBridgeResult>;
+    ) => Promise<ElectronBridgeErrorResult>;
     dbRemoveFavorite: (
-        contentId: number,
+        contentId: import('./xtream-favorite.interface').XtreamFavoriteRemovalRef,
         playlistId: string
     ) => Promise<ElectronBridgeResult>;
     dbIsFavorite: (contentId: number, playlistId: string) => Promise<boolean>;
+    dbGetFavoritesForBackup: (
+        playlistId: string
+    ) => Promise<ElectronBridgeXtreamFavorite[]>;
     dbGetFavorites: (
         playlistId: string
-    ) => Promise<ElectronBridgeXtreamContent[]>;
+    ) => Promise<ElectronBridgeXtreamFavorite[]>;
     dbGetGlobalFavorites: () => Promise<ElectronBridgeGlobalFavoriteItem[]>;
     dbGetAllGlobalFavorites: () => Promise<ElectronBridgeGlobalFavoriteItem[]>;
     dbReorderGlobalFavorites: (
         updates: ElectronBridgeFavoriteReorderUpdate[]
     ) => Promise<ElectronBridgeResult>;
+    /** Ordinary reads cap at 100; recovery explicitly requests all entries. */
     dbGetRecentItems: (
-        playlistId: string
+        playlistId: string,
+        options?: { all?: boolean }
     ) => Promise<ElectronBridgeXtreamContent[]>;
     dbAddRecentItem: (
         contentId: number,
@@ -1144,7 +1233,10 @@ export interface ElectronBridgeApi {
     dbGetContentByXtreamId: (
         xtreamId: number,
         playlistId: string,
-        contentType?: ElectronBridgePortalContentType
+        contentType?: ElectronBridgePortalContentType,
+        identity?: ContentMetadataPatch,
+        categoryId?: number,
+        excludeLocked?: boolean
     ) => Promise<ElectronBridgeXtreamContent | null>;
     dbSetContentMetadataIfMissing: (
         contentId: number,
@@ -1153,8 +1245,12 @@ export interface ElectronBridgeApi {
     dbGetAppState: (key: string) => Promise<string | null>;
     dbSetAppState: (
         key: string,
-        value: string
-    ) => Promise<ElectronBridgeResult>;
+        value: string,
+        condition?: XtreamCatalogStateCondition
+    ) => Promise<XtreamCatalogStateResult>;
+    dbCheckXtreamCatalogConnection: (
+        condition: XtreamCatalogStateCondition
+    ) => Promise<XtreamCatalogStateResult>;
     // TMDB metadata cache
     dbGetTmdbMetadata: (
         mediaType: TmdbCacheMediaType,

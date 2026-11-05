@@ -40,6 +40,7 @@ describe('UnifiedLiveTabComponent fullscreen channel panel', () => {
     let component: UnifiedLiveTabComponent;
     let streamResolver: {
         resolveLiveDetail: jest.Mock;
+        loadEpgItems: jest.Mock;
         resolveM3uPlaybackDetail: jest.Mock;
         resolveXtreamCatchupUrl: jest.Mock;
         loadM3uProgramsForItem: jest.Mock;
@@ -60,6 +61,14 @@ describe('UnifiedLiveTabComponent fullscreen channel panel', () => {
         player = signal(VideoPlayer.VideoJs);
 
         streamResolver = {
+            loadEpgItems: jest.fn(
+                async () =>
+                    (
+                        await streamResolver.resolveLiveDetail.mock.results.at(
+                            -1
+                        )?.value
+                    )?.epgItems ?? []
+            ),
             resolveLiveDetail: jest.fn(),
             resolveM3uPlaybackDetail: jest.fn(),
             resolveXtreamCatchupUrl: jest.fn().mockResolvedValue(null),
@@ -81,6 +90,7 @@ describe('UnifiedLiveTabComponent fullscreen channel panel', () => {
                 {
                     provide: RuntimeCapabilitiesService,
                     useValue: {
+                        supportsProviderEpg: true,
                         get supportsEpg() {
                             return Boolean(window.electron);
                         },

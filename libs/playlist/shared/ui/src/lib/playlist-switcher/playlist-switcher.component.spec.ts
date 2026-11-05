@@ -1,111 +1,53 @@
-import { signal } from '@angular/core';
 import {
-    ComponentFixture,
-    TestBed,
-    fakeAsync,
-    flushMicrotasks,
-    tick,
-} from '@angular/core/testing';
-import { MatDialog } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { Store } from '@ngrx/store';
+    ChangeDetectionStrategy,
+    Component,
+    output,
+    signal,
+} from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { PlaylistActions } from '@iptvnator/m3u-state';
+import { TranslateModule } from '@ngx-translate/core';
+import { SourceStatusService } from '@iptvnator/portal/shared/data-access';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
-import { DialogService } from '@iptvnator/ui/components';
-import {
-    PlaylistDeleteActionService,
-    PortalStatusService,
-} from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
-import { PlaylistRefreshActionService } from '../playlist-refresh-action.service';
+import { PlaylistSwitcherOpenService } from './playlist-switcher-open.service';
+import { PlaylistSwitcherPanelComponent } from './playlist-switcher-panel.component';
 import { PlaylistSwitcherComponent } from './playlist-switcher.component';
 
-const SEARCH_QUERY_STORAGE_KEY = 'playlist-switcher:search-query';
-const PLAYLIST_TYPE_FILTER_STORAGE_KEY = 'playlist-switcher:type-filters';
-
-function createPlaylist(
-    overrides: Partial<PlaylistMeta> & { _id: string }
-): PlaylistMeta {
-    return {
-        title: overrides.title ?? overrides.filename ?? overrides._id,
-        filename: overrides.filename,
-        count: overrides.count ?? 0,
-        importDate:
-            overrides.importDate ??
-            new Date('2026-04-05T10:00:00.000Z').toISOString(),
-        autoRefresh: overrides.autoRefresh ?? false,
-        ...overrides,
-    } as PlaylistMeta;
+@Component({
+    selector: 'app-playlist-switcher-panel',
+    template: '<input class="stub-search" />',
+    changeDetection: ChangeDetectionStrategy.OnPush,
+})
+class StubPanelComponent {
+    readonly closeRequested = output<void>();
+    readonly playlistSelected = output<string>();
+    readonly addPlaylistRequested = output<void>();
+    readonly accountInfoRequested = output<PlaylistMeta>();
 }
 
+const URL_NAMED = {
+    _id: 'url-named',
+    title: 'get.php?username=joe&password=hunter2&type=m3u_plus',
+    url: 'http://biggie.test:8080/get.php?username=joe&password=hunter2&type=m3u_plus',
+    count: 3220,
+    importDate: '',
+    autoRefresh: false,
+} as PlaylistMeta;
+
 describe('PlaylistSwitcherComponent', () => {
-    const testWindow = window as unknown as { electron?: unknown };
-    const originalElectron = testWindow.electron;
     let fixture: ComponentFixture<PlaylistSwitcherComponent>;
-    let component: PlaylistSwitcherComponent;
-    let playlistsSignal: ReturnType<typeof signal<PlaylistMeta[]>>;
-    let resolvedPlaylistIdSignal: ReturnType<typeof signal<string | null>>;
-    let activePlaylistSignal: ReturnType<typeof signal<PlaylistMeta | null>>;
-    let playlistContext: {
-        playlists: typeof playlistsSignal;
-        allPlaylistsLoaded: ReturnType<typeof signal<boolean>>;
-        resolvedPlaylistId: typeof resolvedPlaylistIdSignal;
-        activePlaylist: typeof activePlaylistSignal;
-        selectPlaylist: jest.Mock;
-    };
-    let portalStatusService: {
-        checkPortalStatus: jest.Mock;
-        getCachedStatus: jest.Mock;
-        getStatusClass: jest.Mock;
-    };
-    let refreshActionService: {
-        canRefresh: jest.Mock;
-        refresh: jest.Mock;
-    };
-    let dialog: {
-        open: jest.Mock;
-    };
-    let dialogService: {
-        openConfirmDialog: jest.Mock;
-    };
-    let playlistDeleteAction: {
-        deletePlaylist: jest.Mock;
-    };
-    let snackBar: {
-        open: jest.Mock;
-    };
-    let store: {
-        dispatch: jest.Mock;
-    };
+    let active: ReturnType<typeof signal<PlaylistMeta | null>>;
 
-    const m3uPlaylist = createPlaylist({
-        _id: 'm3u-1',
-        count: 24,
-        importDate: '2026-04-05T09:00:00.000Z',
-        title: 'Morning M3U',
-        url: 'http://example.test/m3u.m3u',
-    });
-    const stalkerPlaylist = createPlaylist({
-        _id: 'stalker-1',
-        importDate: '2026-04-05T11:00:00.000Z',
-        macAddress: '00:1A:79:00:00:01',
-        portalUrl: 'http://127.0.0.1:3210/portal.php',
-        title: 'Living Room Stalker',
-    });
-    const xtreamPlaylist = createPlaylist({
-        _id: 'xtream-1',
-        importDate: '2026-04-05T12:00:00.000Z',
-        password: 'pass1',
-        serverUrl: 'http://127.0.0.1:3211',
-        title: 'Cinema Xtream',
-        updateDate: new Date('2026-04-05T12:30:00.000Z').getTime(),
-        username: 'user1',
-    });
+    const trigger = () =>
+        (fixture.nativeElement as HTMLElement).querySelector(
+            '[data-test-id="playlist-switcher-trigger"]'
+        ) as HTMLButtonElement;
+    const panel = () => document.querySelector('app-playlist-switcher-panel');
 
-    async function createComponent(): Promise<void> {
-        await TestBed.configureTestingModule({
+    beforeEach(() => {
+        active = signal<PlaylistMeta | null>(URL_NAMED);
+        TestBed.configureTestingModule({
             imports: [
                 PlaylistSwitcherComponent,
                 NoopAnimationsModule,
@@ -114,337 +56,98 @@ describe('PlaylistSwitcherComponent', () => {
             providers: [
                 {
                     provide: PlaylistContextFacade,
-                    useValue: playlistContext,
+                    useValue: {
+                        resolvedPlaylistId: signal('url-named'),
+                        activePlaylist: active,
+                    },
                 },
                 {
-                    provide: PortalStatusService,
-                    useValue: portalStatusService,
-                },
-                {
-                    provide: PlaylistRefreshActionService,
-                    useValue: refreshActionService,
-                },
-                {
-                    provide: PlaylistDeleteActionService,
-                    useValue: playlistDeleteAction,
-                },
-                {
-                    provide: MatDialog,
-                    useValue: dialog,
-                },
-                {
-                    provide: DialogService,
-                    useValue: dialogService,
-                },
-                {
-                    provide: MatSnackBar,
-                    useValue: snackBar,
-                },
-                {
-                    provide: Store,
-                    useValue: store,
+                    provide: SourceStatusService,
+                    useValue: { statusOf: () => ({ reachability: 'ok' }) },
                 },
             ],
-        }).compileComponents();
-
+        });
+        TestBed.overrideComponent(PlaylistSwitcherComponent, {
+            remove: { imports: [PlaylistSwitcherPanelComponent] },
+            add: { imports: [StubPanelComponent] },
+        });
         fixture = TestBed.createComponent(PlaylistSwitcherComponent);
-        component = fixture.componentInstance;
         fixture.componentRef.setInput('currentTitle', '');
-        fixture.componentRef.setInput('subtitle', '3 playlists');
+        fixture.componentRef.setInput('subtitle', '3 sources');
         fixture.detectChanges();
-    }
-
-    beforeEach(() => {
-        localStorage.clear();
-
-        playlistsSignal = signal([
-            m3uPlaylist,
-            stalkerPlaylist,
-            xtreamPlaylist,
-        ]);
-        resolvedPlaylistIdSignal = signal<string | null>(xtreamPlaylist._id);
-        activePlaylistSignal = signal<PlaylistMeta | null>(xtreamPlaylist);
-
-        playlistContext = {
-            playlists: playlistsSignal,
-            allPlaylistsLoaded: signal(true),
-            resolvedPlaylistId: resolvedPlaylistIdSignal,
-            activePlaylist: activePlaylistSignal,
-            selectPlaylist: jest.fn((playlist: PlaylistMeta) => {
-                resolvedPlaylistIdSignal.set(playlist._id);
-                activePlaylistSignal.set(playlist);
-            }),
-        };
-        portalStatusService = {
-            checkPortalStatus: jest
-                .fn()
-                .mockResolvedValueOnce('active')
-                .mockResolvedValueOnce('inactive'),
-            getCachedStatus: jest.fn().mockReturnValue(null),
-            getStatusClass: jest.fn((status: string) => `status-${status}`),
-        };
-        refreshActionService = {
-            canRefresh: jest.fn((playlist: PlaylistMeta) =>
-                Boolean(playlist.serverUrl || playlist.url || playlist.filePath)
-            ),
-            refresh: jest.fn(),
-        };
-        dialog = {
-            open: jest.fn(),
-        };
-        dialogService = {
-            openConfirmDialog: jest.fn(),
-        };
-        playlistDeleteAction = {
-            deletePlaylist: jest.fn().mockResolvedValue(true),
-        };
-        snackBar = {
-            open: jest.fn(),
-        };
-        store = {
-            dispatch: jest.fn(),
-        };
     });
 
-    afterEach(() => {
-        localStorage.clear();
-        Object.defineProperty(window, 'electron', {
-            configurable: true,
-            writable: true,
-            value: originalElectron,
-        });
-        jest.restoreAllMocks();
-    });
+    afterEach(() => fixture.destroy());
 
-    it('labels each playlist row with translated text', async () => {
-        await createComponent();
-        const translate = TestBed.inject(TranslateService);
-        translate.setTranslation('en', {
-            HOME: { PLAYLISTS: { CHANNELS_COUNT: '{{count}} channels' } },
-            WORKSPACE: {
-                SHELL: {
-                    STALKER_PORTAL: 'Stalker Portal',
-                    XTREAM_CODE: 'Xtream Code',
-                },
-            },
-        });
-        translate.use('en');
-
-        expect(component.getPlaylistMetaLabel(m3uPlaylist)).toBe('24 channels');
-        expect(component.getPlaylistMetaLabel(stalkerPlaylist)).toBe(
-            'Stalker Portal'
+    it('names the active source by its host, never by a credential URL', () => {
+        expect(trigger().querySelector('.name')?.textContent?.trim()).toBe(
+            'biggie.test:8080'
         );
-        expect(component.getPlaylistMetaLabel(xtreamPlaylist)).toBe(
-            'Xtream Code'
-        );
-    });
-
-    it('reads persisted search and type filters on startup and filters playlists accordingly', async () => {
-        localStorage.setItem(SEARCH_QUERY_STORAGE_KEY, 'room');
-        localStorage.setItem(
-            PLAYLIST_TYPE_FILTER_STORAGE_KEY,
-            JSON.stringify({
-                m3u: false,
-                stalker: true,
-                xtream: true,
-            })
-        );
-
-        await createComponent();
-
-        expect(component.searchQuery()).toBe('room');
-        expect(component.isTypeFilterSelected('m3u')).toBe(false);
-        expect(component.filteredPlaylists()).toEqual([stalkerPlaylist]);
-    });
-
-    it('sorts playlists by import date descending and prevents clearing the last enabled type filter', async () => {
-        await createComponent();
-
         expect(
-            component.filteredPlaylists().map((playlist) => playlist._id)
-        ).toEqual([xtreamPlaylist._id, stalkerPlaylist._id, m3uPlaylist._id]);
-
-        component.togglePlaylistTypeFilter('m3u');
-        component.togglePlaylistTypeFilter('stalker');
-        expect(component.playlistTypeFilters()).toEqual({
-            m3u: false,
-            stalker: false,
-            xtream: true,
-        });
-
-        component.togglePlaylistTypeFilter('xtream');
-        expect(component.playlistTypeFilters()).toEqual({
-            m3u: false,
-            stalker: false,
-            xtream: true,
-        });
+            trigger().querySelector('.channels-count')?.textContent
+        ).toContain('M3U · HOME.PLAYLISTS.CHANNELS_COUNT');
+        expect(trigger().textContent).not.toMatch(/hunter2|password=/);
+        expect(trigger().querySelector('.source-tile__dot')).not.toBeNull();
+        expect(trigger().getAttribute('aria-keyshortcuts')).toBe(
+            'Meta+P Control+P'
+        );
     });
 
-    it('selects a playlist, closes the menu, and emits the selected id', async () => {
-        await createComponent();
-
-        const closeMenuSpy = jest.spyOn(component.menuTrigger(), 'closeMenu');
-        const selectedIds: string[] = [];
-        component.playlistSelected.subscribe((playlistId) => {
-            selectedIds.push(playlistId);
-        });
-
-        component.selectPlaylist(stalkerPlaylist);
+    it('shows the source count when no source is active', () => {
+        active.set(null);
         fixture.detectChanges();
-
-        expect(closeMenuSpy).toHaveBeenCalledTimes(1);
-        expect(playlistContext.selectPlaylist).toHaveBeenCalledWith(
-            stalkerPlaylist
+        expect(trigger().querySelector('.channels-count')?.textContent).toBe(
+            '3 sources'
         );
-        expect(selectedIds).toEqual([stalkerPlaylist._id]);
-        expect(component.isSelected(stalkerPlaylist)).toBe(true);
     });
 
-    it('emits playlist and account info requests through the context actions', async () => {
-        await createComponent();
-
-        const closeMenuSpy = jest.spyOn(component.menuTrigger(), 'closeMenu');
-        const playlistInfoSpy = jest.fn();
-        const accountInfoSpy = jest.fn();
-        component.playlistInfoRequested.subscribe(playlistInfoSpy);
-        component.accountInfoRequested.subscribe(accountInfoSpy);
-
-        component.requestPlaylistInfo();
-        component.requestAccountInfo();
-
-        expect(closeMenuSpy).toHaveBeenCalledTimes(2);
-        expect(playlistInfoSpy).toHaveBeenCalledTimes(1);
-        expect(accountInfoSpy).toHaveBeenCalledTimes(1);
-    });
-
-    it('renders playlist info, account info, and add playlist context actions in the menu', async () => {
-        await createComponent();
-        fixture.componentRef.setInput('showPlaylistInfo', true);
-        fixture.componentRef.setInput('showAccountInfo', true);
-        fixture.componentRef.setInput('showAddPlaylist', true);
+    it('opens the popover in an overlay and closes it on Escape, back on the trigger', () => {
+        trigger().click();
         fixture.detectChanges();
+        expect(panel()).not.toBeNull();
+        expect(trigger().getAttribute('aria-expanded')).toBe('true');
+        expect(trigger().classList).toContain('is-open');
 
-        const playlistInfoSpy = jest.fn();
-        component.playlistInfoRequested.subscribe(playlistInfoSpy);
-
-        component.menuTrigger().openMenu();
+        document.body.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+        );
         fixture.detectChanges();
-
-        const actionButtons = Array.from(
-            document.querySelectorAll<HTMLButtonElement>(
-                '.context-actions-section .context-action-item'
-            )
-        );
-        const labels = actionButtons.map((button) =>
-            button.textContent?.trim()
-        );
-
-        expect(labels).toEqual([
-            expect.stringContaining('PLAYLIST_INFO'),
-            expect.stringContaining('ACCOUNT_INFO'),
-            expect.stringContaining('ADD_PLAYLIST'),
-        ]);
-
-        actionButtons[0].click();
-        expect(playlistInfoSpy).toHaveBeenCalledTimes(1);
+        expect(panel()).toBeNull();
+        expect(document.activeElement).toBe(trigger());
     });
 
-    it('offers per-playlist account info for portal playlists only', async () => {
-        await createComponent();
+    it('refits the open popover when the window shrinks', () => {
+        const height = Object.getOwnPropertyDescriptor(window, 'innerHeight');
+        const setHeight = (value: number) =>
+            Object.defineProperty(window, 'innerHeight', {
+                configurable: true,
+                value,
+            });
+        try {
+            setHeight(900);
+            trigger().click();
+            fixture.detectChanges();
+            const opened = fixture.componentInstance.maxHeight();
 
-        const requestedPlaylists: PlaylistMeta[] = [];
-        component.accountInfoForPlaylistRequested.subscribe((playlist) =>
-            requestedPlaylists.push(playlist)
-        );
-
-        expect(component.hasAccountInfo(m3uPlaylist)).toBe(false);
-        expect(component.hasAccountInfo(stalkerPlaylist)).toBe(true);
-        expect(component.hasAccountInfo(xtreamPlaylist)).toBe(true);
-
-        component.requestAccountInfoFor(stalkerPlaylist);
-        expect(requestedPlaylists).toEqual([stalkerPlaylist]);
+            setHeight(600);
+            window.dispatchEvent(new Event('resize'));
+            expect(fixture.componentInstance.maxHeight()).not.toBe(opened);
+            expect(
+                parseInt(fixture.componentInstance.maxHeight() ?? '', 10)
+            ).toBeLessThanOrEqual(600);
+        } finally {
+            if (height) Object.defineProperty(window, 'innerHeight', height);
+        }
     });
 
-    it('opens the menu, syncs overlay width, and checks portal statuses for Xtream playlists', fakeAsync(async () => {
-        await createComponent();
-
-        const triggerElement = component.triggerElement().nativeElement;
-        jest.spyOn(triggerElement, 'getBoundingClientRect').mockReturnValue({
-            bottom: 0,
-            height: 0,
-            left: 0,
-            right: 320,
-            toJSON: () => ({}),
-            top: 0,
-            width: 320,
-            x: 0,
-            y: 0,
-        });
-
-        component.onMenuOpened();
-        flushMicrotasks();
-        tick();
-
-        expect(component.isMenuOpen()).toBe(true);
-        expect(
-            document.documentElement.style.getPropertyValue(
-                '--playlist-switcher-overlay-width'
-            )
-        ).toBe('400px');
-        expect(portalStatusService.checkPortalStatus).toHaveBeenCalledTimes(1);
-        expect(portalStatusService.checkPortalStatus).toHaveBeenCalledWith(
-            xtreamPlaylist.serverUrl,
-            xtreamPlaylist.username,
-            xtreamPlaylist.password
-        );
-        expect(component.portalStatuses().get(xtreamPlaylist._id)).toBe(
-            'active'
-        );
-        expect(component.getStatusClass(xtreamPlaylist._id)).toBe(
-            'status-active'
-        );
-
-        component.onMenuClosed();
-        expect(component.isMenuOpen()).toBe(false);
-        expect(
-            document.documentElement.style.getPropertyValue(
-                '--playlist-switcher-overlay-width'
-            )
-        ).toBe('');
-    }));
-
-    it('falls back to the active playlist title when no explicit current title is provided', async () => {
-        await createComponent();
-
-        expect(component.displayTitle()).toBe('Cinema Xtream');
-
-        const translate = TestBed.inject(TranslateService);
-        translate.setTranslation('en', {
-            HOME: { PLAYLISTS: { SELECT_PLAYLIST: 'Pick a source' } },
-        });
-        translate.use('en');
-        resolvedPlaylistIdSignal.set(null);
-        activePlaylistSignal.set(null);
+    it('opens on a ⌘P / Ctrl+P request while it is on screen', () => {
+        const switcherOpen = TestBed.inject(PlaylistSwitcherOpenService);
+        expect(switcherOpen.available).toBe(true);
+        switcherOpen.request();
         fixture.detectChanges();
+        expect(panel()).not.toBeNull();
 
-        expect(component.displayTitle()).toBe('Pick a source');
-    });
-
-    it('delegates playlist deletion and removes the source after confirmation', async () => {
-        await createComponent();
-
-        component.removePlaylistFor(xtreamPlaylist);
-        const confirm = dialogService.openConfirmDialog.mock.calls[0][0]
-            .onConfirm as () => Promise<void>;
-        await confirm();
-
-        expect(playlistDeleteAction.deletePlaylist).toHaveBeenCalledWith(
-            xtreamPlaylist
-        );
-        expect(store.dispatch).toHaveBeenCalledWith(
-            PlaylistActions.playlistRemovalCommitted({
-                playlistId: xtreamPlaylist._id,
-            })
-        );
+        fixture.destroy();
+        expect(switcherOpen.available).toBe(false);
     });
 });

@@ -22,7 +22,7 @@
                       : '')
         "
     >
-        @if (hasSeasons()) {
+        @if (hasSeasons() && !seasonUnknown()) {
             <app-season-tabs
                 section-header-lead
                 class="episodes-header__tabs"
@@ -75,7 +75,12 @@
         />
     }
 
-    <div class="content-container">
+    <div
+        class="content-container"
+        [id]="seasonTabs()?.panelId"
+        [attr.role]="seasonTabs()?.selectedTabId() ? 'tabpanel' : null"
+        [attr.aria-labelledby]="seasonTabs()?.selectedTabId()"
+    >
         @if (metaState() === 'loading') {
             <app-episode-skeleton
                 [layout]="effectiveViewMode()"

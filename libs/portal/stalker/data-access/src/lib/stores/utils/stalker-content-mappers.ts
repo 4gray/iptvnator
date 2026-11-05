@@ -5,31 +5,8 @@ import {
     StalkerVodSource,
 } from '../../models';
 
-/**
- * Convert relative URLs to absolute URLs using the portal base URL
- * Handles screenshot_uri and cmd paths that come as relative from the server
- */
-export function makeAbsoluteUrl(baseUrl: string, relativePath: string): string {
-    if (!relativePath) return '';
-    // Already absolute URL
-    if (
-        relativePath.startsWith('http://') ||
-        relativePath.startsWith('https://')
-    ) {
-        return relativePath;
-    }
-    // Parse the base URL to get origin
-    try {
-        const url = new URL(baseUrl);
-        // Ensure the relative path starts with /
-        const path = relativePath.startsWith('/')
-            ? relativePath
-            : `/${relativePath}`;
-        return `${url.origin}${path}`;
-    } catch {
-        return relativePath;
-    }
-}
+import { makeAbsoluteUrl } from '../../stalker-artwork.utils';
+export { makeAbsoluteUrl } from '../../stalker-artwork.utils';
 
 /**
  * Post-process stalker items to convert relative URLs to absolute

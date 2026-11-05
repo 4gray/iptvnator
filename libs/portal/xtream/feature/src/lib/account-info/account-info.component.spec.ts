@@ -62,6 +62,8 @@ describe('AccountInfoComponent', () => {
                             serverUrl: 'https://dialog.example.test',
                             username: 'dialog-user',
                             password: 'dialog-secret',
+                            userAgent:
+                                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                         },
                     },
                 },
@@ -114,6 +116,9 @@ describe('AccountInfoComponent', () => {
         expect(fixture.nativeElement.textContent).toContain(
             'PORTALS.ERROR_VIEW.PORTAL_UNAVAILABLE.TITLE'
         );
+        expect(
+            fixture.nativeElement.querySelector('.account-skeleton')
+        ).toBeNull();
     });
 
     it('loads account info from dialog-supplied playlist credentials', () => {
@@ -121,6 +126,8 @@ describe('AccountInfoComponent', () => {
             serverUrl: 'https://dialog.example.test',
             username: 'dialog-user',
             password: 'dialog-secret',
+            userAgent:
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         });
         expect(component.loadState()).toBe('ready');
         expect(component.playlistLabel()).toBe('Dialog Xtream');

@@ -636,6 +636,13 @@ button disabled state at current-season boundaries.
 
 Autoplay is enabled by default for series playback in embedded MPV. On `ended`, Xtream and Stalker series detail views start the next episode only when the current episode has a next item in the same season. Playback stops on the last episode of the current season. Previous always switches to the previous episode in the current season; it does not implement a restart-threshold behavior.
 
+`ended` alone does not prove the episode is over: mpv reports a connection the
+server closed (and ffmpeg could not reopen) as EOF too, once its cache runs
+dry. `EmbeddedMpvPlayerComponent` therefore emits `playbackEnded` only for an
+`ended` session that carries no `reconnect`; while the main process reloads a
+VOD that ended well before its duration (see Network Auto-Reconnect), the
+episode continues instead of autoplay skipping its rest (issue #1902).
+
 ## Session Options (Extra libmpv Options)
 
 `Settings > Playback > Extra embedded MPV options` is a free-form textarea,
@@ -701,8 +708,9 @@ included.
 `EmbeddedMpvReconnectCoordinator`
 (`apps/electron-backend/src/app/services/embedded-mpv-reconnect.ts`) reloads
 the last user-requested playback when a session reports a stream loss: an
-`error` status, or `ended` while the playback is live (`isLive`, else "no
-`contentInfo`", the same rule the renderer uses). It is driven by
+`error` status, `ended` while the playback is live (`isLive`, else "no
+`contentInfo`", the same rule the renderer uses), or `ended` on VOD well
+before the known duration. It is driven by
 `refreshSession()` status transitions, so it covers every engine, and it is
 captured per session from `Settings.embeddedMpvAutoReconnect` (default on;
 mirrored as `EMBEDDED_MPV_AUTO_RECONNECT`). The policy is deliberately narrow:
@@ -716,6 +724,16 @@ mirrored as `EMBEDDED_MPV_AUTO_RECONNECT`). The policy is deliberately narrow:
   the IPC socket so a stream that ended reports `ended` rather than the
   `paused` that keep-open would otherwise look like, and an mpv process that
   exits abnormally reports `error`.
+- A VOD `ended` counts only when more than `max(10 s, 1 % of the duration)`
+  remained (`isEmbeddedMpvEarlyEof`): the margin absorbs container rounding
+  and the whole-second snapshot values, and with no known duration an EOF is
+  always the end. A reload the engine accepted records where it resumed; an
+  early EOF before playback gets 5 s past that point (and with no user seek
+  in between) ended where the file does (a duration mpv estimated from the
+  bitrate can overshoot) and is left as the end, so autoplay still continues
+  after one attempt instead of a reload loop. A refused reload records
+  nothing, so the original EOF keeps its backoff.
+  With the setting off, an early EOF stays a plain `ended`.
 - Backoff is 2 s, 4 s, 8 s, 16 s, 30 s, 30 s, at most six attempts per
   outage. The budget resets only after 30 s of uninterrupted `playing`, so a
   stream that flaps every few seconds runs out of attempts instead of being
@@ -1118,6 +1136,27 @@ Release runtime policy:
 - FFmpeg must be built without `--enable-gpl` and without `--enable-nonfree`.
 - mpv must be built with `-Dlibmpv=true` and `-Dgpl=false`.
 - The runtime must be dynamically linked and shipped with license/source-distribution notices.
+
+### Local source patches
+
+The macOS builder applies upstream fixes that a pinned release does not yet
+contain. `tools/embedded-mpv/macos-source-patches.mjs` lists them, and the
+files live in `tools/embedded-mpv/patches/<package>/`.
+
+- Only commits merged upstream qualify, stored byte for byte as upstream
+  publishes them (`<commit>.patch?full_index=1`). Each entry pins the file's
+  SHA-256, the upstream commit and the upstream pull request.
+- The build fails closed. It stops when a patch file changed, is already in
+  the source, does not apply, or does not verify after applying.
+- The runtime manifest lists every applied patch in `mpv.localPatches`.
+- The registry and every patch file feed the macOS runtime cache key.
+- Remove an entry when the pin moves to a release that contains its commit.
+  The builder reports such a patch as already applied and stops.
+
+Current entries: mpv `af067b5ea8` and `c5d391adba` from mpv#18383. On macOS
+27 the CoreAudio output fails to start for planar and mono formats, and mpv
+0.41.0 then leaves its device-change listener registered on a freed object.
+The next audio device change, such as AirPods connecting, crashes the app.
 
 After building an LGPL-compatible prefix for a platform/architecture:
 

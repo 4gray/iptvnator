@@ -14,6 +14,53 @@ import {
 const SERIES_ID = 77;
 const CREATED_AT = '2026-01-01T00:00:00.000Z';
 
+it('groups flat collection downloads under unknown seasons despite legacy storage coordinates', () => {
+    const detail = expectSeries(
+        build(1, [
+            download(1, {
+                seasonNumber: 9,
+                episodeNumber: 189,
+                metadataSnapshot: snapshot('series', 'Flat collection', {
+                    episode: {
+                        seasonNumber: 9,
+                        episodeNumber: 189,
+                        seasonUnknown: true,
+                    },
+                }),
+            }),
+            download(2, { seasonNumber: 9, episodeNumber: 1 }),
+        ])
+    );
+    expect(detail.seasons).toHaveLength(1);
+    expect(detail.seasons[0].seasonNumberState).toBe('unknown');
+    expect(detail.seasons[0].episodes.map((e) => e.episodeNumber)).toEqual([
+        1, 189,
+    ]);
+});
+
+it('retains collection season knowledge when the flagged download is unavailable', () => {
+    const detail = expectSeries(
+        build(1, [
+            download(1, { seasonNumber: 9, episodeNumber: 1 }),
+            download(2, {
+                seasonNumber: 9,
+                episodeNumber: 189,
+                fileAvailability: 'missing',
+                metadataSnapshot: snapshot('series', 'Flat collection', {
+                    episode: {
+                        seasonNumber: 9,
+                        episodeNumber: 189,
+                        seasonUnknown: true,
+                    },
+                }),
+            }),
+        ])
+    );
+    expect(detail.seasons).toHaveLength(1);
+    expect(detail.seasons[0].seasonNumberState).toBe('unknown');
+    expect(detail.seasons[0].episodes.map((e) => e.item.id)).toEqual([1]);
+});
+
 function deepFreeze<T>(value: T): T {
     Object.freeze(value);
     for (const child of Object.values(value as Record<string, unknown>)) {

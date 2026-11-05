@@ -32,6 +32,7 @@ interface ThrottledRangeServer {
 }
 
 interface InterruptedRangeServer extends ThrottledRangeServer {
+    interrupt: () => void;
     interruptedBytes: number;
 }
 
@@ -178,14 +179,17 @@ export async function createThrottledRangeServer(
 }
 
 /**
- * Resets the first full response after writing a valid prefix, then serves the
- * remainder to a Range retry. This matches a provider/proxy connection drop
- * without manufacturing a clean EOF.
+ * Holds the first full response after writing a valid prefix until the caller
+ * interrupts it, then serves the remainder to a Range retry. This matches a
+ * provider/proxy connection drop without manufacturing a clean EOF.
  */
 export async function createInterruptedRangeServer(): Promise<InterruptedRangeServer> {
     const payload = Buffer.alloc(64 * 1024, 9);
     const interruptedBytes = 16 * 1024;
     const requests: RangeServerRequest[] = [];
+    let interruptResponse: () => void = () => {
+        throw new Error('The initial download response has not started.');
+    };
 
     const server = createServer((req, res) => {
         const range = req.headers.range;
@@ -214,9 +218,12 @@ export async function createInterruptedRangeServer(): Promise<InterruptedRangeSe
             'Content-Type': 'video/mp4',
             ETag: INTERRUPTED_RANGE_SERVER_ETAG,
         });
-        res.write(payload.subarray(0, interruptedBytes), () => {
-            setTimeout(() => res.socket?.destroy(), 20);
-        });
+        res.write(payload.subarray(0, interruptedBytes));
+        // The caller waits for this prefix on disk before resetting the socket;
+        // a write callback only proves transport buffering, not persisted bytes.
+        interruptResponse = () => {
+            res.destroy();
+        };
     });
 
     await new Promise<void>((resolve) =>
@@ -225,6 +232,7 @@ export async function createInterruptedRangeServer(): Promise<InterruptedRangeSe
     const { port } = server.address() as AddressInfo;
 
     return {
+        interrupt: () => interruptResponse(),
         close: () =>
             new Promise<void>((resolve) => server.close(() => resolve())),
         interruptedBytes,
@@ -235,7 +243,7 @@ export async function createInterruptedRangeServer(): Promise<InterruptedRangeSe
 }
 
 /**
- * Interrupts the first response like createInterruptedRangeServer but sends
+ * Holds the first response like createInterruptedRangeServer but sends
  * no ETag/Last-Modified, and drops far enough in that the partial exceeds the
  * 256 KiB overlap-verification window. The runtime must resume by rewinding
  * the Range request and verifying the overlap instead of restarting from
@@ -248,6 +256,9 @@ export async function createInterruptedNoValidatorServer(): Promise<InterruptedR
     }
     const interruptedBytes = 512 * 1024;
     const requests: RangeServerRequest[] = [];
+    let interruptResponse: () => void = () => {
+        throw new Error('The initial download response has not started.');
+    };
 
     const server = createServer((req, res) => {
         const range = req.headers.range;
@@ -274,9 +285,12 @@ export async function createInterruptedNoValidatorServer(): Promise<InterruptedR
             'Content-Length': payload.length,
             'Content-Type': 'video/mp4',
         });
-        res.write(payload.subarray(0, interruptedBytes), () => {
-            setTimeout(() => res.socket?.destroy(), 20);
-        });
+        res.write(payload.subarray(0, interruptedBytes));
+        // The caller waits for this prefix on disk before resetting the socket;
+        // a write callback only proves transport buffering, not persisted bytes.
+        interruptResponse = () => {
+            res.destroy();
+        };
     });
 
     await new Promise<void>((resolve) =>
@@ -285,6 +299,7 @@ export async function createInterruptedNoValidatorServer(): Promise<InterruptedR
     const { port } = server.address() as AddressInfo;
 
     return {
+        interrupt: () => interruptResponse(),
         close: () =>
             new Promise<void>((resolve) => server.close(() => resolve())),
         interruptedBytes,

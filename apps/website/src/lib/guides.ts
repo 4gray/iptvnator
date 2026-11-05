@@ -12,7 +12,7 @@ export const GUIDE_GROUPS: GuideGroup[] = [
     id: 'getting-started',
     title: 'Getting started',
     description: 'Connect your first source. Start with the kind of access you already have.',
-    posts: ['m3u-playlist-epg-setup-guide', 'xtream-codes-setup-guide', 'stalker-portal-setup-guide'],
+    posts: ['m3u-playlist-epg-setup-guide', 'xtream-codes-setup-guide', 'stalker-portal-setup-guide', 'self-hosted-server-storage-guide'],
   },
   {
     id: 'live-tv-epg',

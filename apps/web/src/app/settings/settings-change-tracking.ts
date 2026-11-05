@@ -33,6 +33,7 @@ export const SETTINGS_CONTROL_SECTIONS: Readonly<Record<string, string>> = {
     vlcPlayerPath: 'playback',
     vlcPlayerArguments: 'playback',
     vlcReuseInstance: 'playback',
+    epgEnabled: 'epg',
     epgUrl: 'epg',
     epgViewMode: 'epg',
     epgOffsetMinutes: 'epg',
@@ -42,6 +43,7 @@ export const SETTINGS_CONTROL_SECTIONS: Readonly<Record<string, string>> = {
     remoteControl: 'remote-control',
     remoteControlPort: 'remote-control',
     tmdb: 'tmdb',
+    ageRatingCountry: 'tmdb',
     m3uVodDetails: 'tmdb',
     updateChannel: 'about',
 };
@@ -90,7 +92,5 @@ export function sectionOfSettingsPath(path: string): string | null {
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
-    return (
-        typeof value === 'object' && value !== null && !Array.isArray(value)
-    );
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
