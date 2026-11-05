@@ -53,7 +53,11 @@ export class StalkerProvider implements ProviderClient {
     connect(signal: AbortSignal) {
         return this.session.discover(signal);
     }
-    private media(raw: Record<string, unknown>, kind: Kind): Media {
+    private media(
+        raw: Record<string, unknown>,
+        kind: Kind,
+        categoryName?: string
+    ): Media {
         const id = [raw.id, raw.stream_id, raw.movie_id].find(
             (v) => v != null && String(v).trim()
         );
@@ -78,6 +82,7 @@ export class StalkerProvider implements ProviderClient {
             description: text(raw.description),
             year: text(raw.year),
             category: text(raw.category_id),
+            categoryName,
             raw: {
                 ...raw,
                 origin:
@@ -124,8 +129,11 @@ export class StalkerProvider implements ProviderClient {
             page,
             signal
         );
+        const categoryNames = new Map(categories.map((c) => [c.id, c.name]));
         return {
-            items: response.data.map((r) => this.media(r, kind)),
+            items: response.data.map((r) =>
+                this.media(r, kind, categoryNames.get(text(r.category_id)))
+            ),
             page,
             pageSize: response.pageSize,
             total: response.total,

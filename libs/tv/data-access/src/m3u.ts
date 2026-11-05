@@ -48,6 +48,7 @@ export class M3uProvider implements ProviderClient {
                 kind,
                 title: text(raw.name),
                 category: text((raw.group as { title?: string })?.title),
+                categoryName: text((raw.group as { title?: string })?.title),
                 poster: artwork(tvg.logo),
                 raw,
             };

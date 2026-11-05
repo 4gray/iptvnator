@@ -712,11 +712,30 @@ summary {
 }
 .detail-hero > div:last-child {
     max-width: 880px;
+    min-width: 0;
 }
 .detail-hero p {
     color: #becbc3;
     max-height: 180px;
     overflow: auto;
+}
+.metadata-chips {
+    display: flex;
+    flex-wrap: wrap;
+    list-style: none;
+    margin: 0 0 20px;
+    padding: 0;
+}
+.metadata-chips li {
+    max-width: 100%;
+    overflow-wrap: break-word;
+    color: var(--tv-text);
+    background: var(--tv-surface);
+    border-radius: 20px;
+    font-size: 18px;
+    line-height: 1.4;
+    padding: 6px 14px;
+    margin: 0 8px 8px 0;
 }
 .tmdb-settings {
     max-width: 900px;
@@ -1359,11 +1378,12 @@ main.live-page {
 }
 .people-list {
     display: flex;
-    flex-wrap: wrap;
+    overflow-x: auto;
     list-style: none;
-    padding: 0;
+    padding: 8px;
 }
 .people-list li {
+    flex: 0 0 164px;
     width: 164px;
     margin: 0 20px 20px 0;
 }
