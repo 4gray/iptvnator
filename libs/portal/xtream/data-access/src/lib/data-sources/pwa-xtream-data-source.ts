@@ -474,16 +474,6 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         return [];
     }
 
-    async updateCategoryVisibility(
-        categoryIds: number[],
-        hidden: boolean
-    ): Promise<void> {
-        void categoryIds;
-        void hidden;
-        // Category visibility is not supported in PWA mode
-        this.logger.warn('Category visibility not supported in PWA mode');
-    }
-
     // =========================================================================
     // Content/Stream Operations (API + in-memory cache)
     // =========================================================================
@@ -1158,25 +1148,6 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     // =========================================================================
     // Cleanup Operations
     // =========================================================================
-
-    async clearPlaylistContent(
-        playlistId: string
-    ): Promise<XtreamPendingRestoreState> {
-        // Resolve only unambiguous legacy references before producing typed backup data.
-        await this.getFavorites(playlistId);
-        await this.getRecentItems(playlistId);
-        const { snapshotPwaPendingState } = await import('./pwa-pending-state');
-        const playbackPositions =
-            await this.getAllPlaybackPositions(playlistId);
-        const state = snapshotPwaPendingState(
-            this.collectionStorage,
-            playlistId,
-            playbackPositions,
-            (ids) => this.getCollectionItemsById(playlistId, ids)
-        );
-        this.clearCacheForPlaylist(playlistId);
-        return state;
-    }
 
     async restoreUserData(
         playlistId: string,

@@ -39,10 +39,8 @@ Electron and PWA paths.
 `RuntimeCapabilitiesService.supportsXtreamSqliteDataSource` proves that the
 complete SQLite-backed Xtream bridge is available. Otherwise it selects
 `PwaXtreamDataSource`. A generic Electron or `window.electron` check is not the
-data-source capability contract. Older favorites/recent branches that still
-probe `window.electron` directly are migration debt, not an alternate runtime
-selection rule; changes in those paths should follow the selected data source
-and explicit capabilities.
+data-source capability contract. Favorites and recent-item operations likewise
+follow the selected data source and explicit capabilities.
 
 Ownership follows the workspace boundaries:
 
@@ -61,6 +59,19 @@ Electron loaders keep writing through the worker-backed `DatabaseService`;
 PWA loaders normalize API responses into their session caches. Tests load PWA
 catalogs through those same API-backed readers instead of seeding a second
 public write path.
+
+Destructive refresh belongs to `XtreamRefreshFlowService`; the data-source
+contract has no separate clear-and-snapshot entry point. Browser backup tests
+use `PwaXtreamBackupStorage` export/restore to preserve typed collection identity,
+saved snapshots and artwork. Category visibility writes remain owned by the
+category-management flow through `DatabaseService`, with no PWA no-op wrapper.
+Global recent-item collection reads and clears belong to
+`UnifiedRecentDataService`; `withRecentItems` retains playlist-local history and
+played-content metadata work only.
+
+Category initialization starts live, VOD and series reads in parallel, then
+publishes the results together. A failed session waits for every sibling
+category request to settle before releasing its busy hold and cleaning up.
 
 Content initialization runs one sequential import sequence for enabled live,
 VOD and series types, in that order. Each type persists completion before

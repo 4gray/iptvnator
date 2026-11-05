@@ -1,9 +1,8 @@
 import { observeActivityChanges } from '@iptvnator/services/activity-changes';
 import { DestroyRef } from '@angular/core';
-import { computed, inject } from '@angular/core';
+import { inject } from '@angular/core';
 import {
     signalStore,
-    withComputed,
     withMethods,
     withHooks,
 } from '@ngrx/signals';
@@ -51,15 +50,6 @@ export const XtreamStore = signalStore(
     withFavorites(),
     withRecentItems(),
     withTmdbEpisodeMetadata(),
-
-    withComputed((store) => ({
-        /**
-         * Get global recent items (from withRecentItems)
-         */
-        globalRecentItems: computed(() => {
-            return store.recentItems();
-        }),
-    })),
 
     // Cross-feature methods & orchestration
     withMethods((store) => {
