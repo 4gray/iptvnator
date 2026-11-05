@@ -216,6 +216,9 @@ jobs:
             - name: Install Chromium
               run: pnpm exec playwright install --with-deps chromium
 
+            - name: Install fonts for vertical CJK text
+              run: sudo apt-get install -y fonts-noto-cjk
+
             - name: Run Web E2E Tests
               run: pnpm nx run web-e2e:e2e -- --project=chromium --workers=2
               env:

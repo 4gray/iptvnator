@@ -736,6 +736,11 @@ remain local when the meaning is explicit.
   layouts keep the full EPG-only panel.
 - Keep the EPG content mounted while collapsed so current-program state can
   continue updating.
+- Narrow timeline titles containing Han, kana, Hangul or Bopomofo use native
+  top-to-bottom vertical text without rotation. Other scripts retain the
+  rotated presentation; choose by programme title, not interface locale.
+  Mixed titles keep the browser's `text-orientation: mixed`, and wider cards
+  retain horizontal text.
 - The ribbon renders only the blocks, ticks and day dividers within half a
   viewport of the visible range (`TimelineWindowController` in
   `epg-timeline-window.controller.ts`); the track keeps the full schedule's

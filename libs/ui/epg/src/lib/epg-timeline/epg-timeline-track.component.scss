@@ -254,6 +254,11 @@
         color: $text-secondary;
         display: block;
         -webkit-line-clamp: initial;
+
+        // Native vertical scripts already read top-to-bottom with upright glyphs.
+        &[data-upright] {
+            transform: none;
+        }
     }
 
     &.is-now .epg-timeline__block-title,

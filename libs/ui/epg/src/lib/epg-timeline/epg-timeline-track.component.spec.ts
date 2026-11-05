@@ -63,6 +63,95 @@ describe('EpgTimelineTrackComponent', () => {
         component = fixture.componentInstance;
     });
 
+    it.each([
+        ['simplified Chinese', '测试甲乙', true],
+        ['traditional Chinese', '測試甲乙', true],
+        ['supplementary Han', '𠀀𠀁', true],
+        ['Japanese hiragana', 'てすと', true],
+        ['Japanese katakana', 'テスト', true],
+        ['half-width katakana', 'ﾃｽﾄ', true],
+        ['Korean Hangul', '테스트', true],
+        ['Korean Jamo', 'ᄀᄂᄃ', true],
+        ['Bopomofo', 'ㄅㄆㄇ', true],
+        ['mixed Chinese and Latin', 'Test 12（测试）', true],
+        ['mixed Japanese and digits', 'テスト 12', true],
+        ['mixed Korean and Latin', 'Test 테스트 12', true],
+        ['English', 'Test programme 12', false],
+        ['German', 'Testsendung zwölf', false],
+        ['French', 'Émission de test', false],
+        ['Spanish', 'Emisión de prueba', false],
+        ['Italian', 'Trasmissione di prova', false],
+        ['Dutch', 'Testuitzending', false],
+        ['Polish', 'Próbna audycja', false],
+        ['Hungarian', 'Próbaadás', false],
+        ['Turkish', 'Deneme yayını', false],
+        ['Portuguese', 'Transmissão de teste', false],
+        ['Russian', 'Тестовая передача', false],
+        ['Ukrainian', 'Тестова передача', false],
+        ['Belarusian', 'Тэставая перадача', false],
+        ['Greek', 'Δοκιμαστική εκπομπή', false],
+        ['Arabic', 'برنامج تجريبي', false],
+        ['Moroccan Arabic', 'برنامج ديال التجربة', false],
+        ['digits and punctuation', '12 (34) — !', false],
+        ['empty title', '', false],
+    ])(
+        'selects native vertical text for %s independently of UI locale',
+        (_, title, upright) => {
+            const item = renderBlock();
+            item.block.program.title = title;
+            fixture.componentRef.setInput('items', [item]);
+            fixture.componentRef.setInput(
+                'currentLocale',
+                upright ? 'en' : 'zh'
+            );
+            fixture.detectChanges();
+
+            const element: HTMLElement = fixture.nativeElement.querySelector(
+                '.epg-timeline__block-title'
+            );
+            expect(element.hasAttribute('data-upright')).toBe(upright);
+            expect(element.textContent?.trim()).toBe(title);
+        }
+    );
+
+    it('updates title orientation when a reused block receives another script', () => {
+        for (const title of ['测试甲乙', 'Test programme', '테스트']) {
+            const item = renderBlock();
+            item.block.program.title = title;
+            fixture.componentRef.setInput('items', [item]);
+            fixture.detectChanges();
+
+            const element: HTMLElement = fixture.nativeElement.querySelector(
+                '.epg-timeline__block-title'
+            );
+            expect(element.hasAttribute('data-upright')).toBe(
+                title !== 'Test programme'
+            );
+        }
+    });
+
+    it('avoids no-op class mutations when rendering a non-CJK title', () => {
+        const observer = new MutationObserver(() => undefined);
+        observer.observe(fixture.nativeElement, {
+            attributes: true,
+            attributeOldValue: true,
+            attributeFilter: ['class'],
+            subtree: true,
+        });
+        fixture.componentRef.setInput('items', [renderBlock()]);
+        fixture.detectChanges();
+
+        const noOpTitleWrites = observer.takeRecords().filter((record) => {
+            const element = record.target as HTMLElement;
+            return (
+                element.classList.contains('epg-timeline__block-title') &&
+                record.oldValue === element.getAttribute('class')
+            );
+        });
+        observer.disconnect();
+        expect(noOpTitleWrites).toHaveLength(0);
+    });
+
     it('shows a popover for a non-wide block on enter', () => {
         const item = renderBlock({ tier: 'narrow' });
         const event = {
