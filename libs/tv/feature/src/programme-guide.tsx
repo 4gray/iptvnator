@@ -30,12 +30,14 @@ export function ProgrammeGuide({
     programs,
     channel,
     enabled,
+    sourceName,
     error,
     close,
 }: {
     programs: Program[];
     channel: Media | undefined;
     enabled: boolean;
+    sourceName: string;
     error: string;
     close: () => void;
 }) {
@@ -46,6 +48,7 @@ export function ProgrammeGuide({
                 <div>
                     <span class="muted">Programme guide</span>
                     <h1>{channel?.title ?? 'Live TV'}</h1>
+                    <p class="muted source-name">{sourceName}</p>
                 </div>
                 <button data-focus="guide-close" onClick={close}>
                     Close programme ×

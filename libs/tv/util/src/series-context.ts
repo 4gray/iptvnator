@@ -35,6 +35,12 @@ export function withSeriesContext(episode: Media, parent?: Media): Media {
         kind: 'series',
         title: parent.title,
         year: parent.year || saved?.year,
+        category: parent.category || saved?.category,
+        categoryName:
+            parent.categoryName ||
+            (!parent.category || parent.category === saved?.category
+                ? saved?.categoryName
+                : undefined),
         poster: parent.poster || saved?.poster,
         backdrop: parent.backdrop || saved?.backdrop,
         description: parent.description || saved?.description,

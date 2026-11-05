@@ -55,7 +55,8 @@ export function useLiveBrowse(tv: TvModel) {
             returning.current = false;
             if (changed && tv.route.view === 'live') {
                 tv.setRoute({ ...tv.route, category: '', query: '', page: 0 });
-                restoreFocus(categoryKey(''));
+                if (focusKey() !== 'source-picker')
+                    restoreFocus(categoryKey(''));
             }
         }
     }, [tv.data.activeId, tv.route.view]);
@@ -94,7 +95,11 @@ export function useLiveBrowse(tv: TvModel) {
         pending.current = null;
     }, [categoriesOpen, tv.catalog.items, tv.catalogError]);
     useLayoutEffect(() => {
-        if (!categoriesOpen) restoreFocus('live-categories');
+        if (!categoriesOpen)
+            restoreFocus(
+                pending.current || 'live-categories',
+                'live-categories'
+            );
         if (categoriesOpen && returning.current) {
             returning.current = false;
             restoreFocus(categoryKey(tv.route.category), categoryKey(''));

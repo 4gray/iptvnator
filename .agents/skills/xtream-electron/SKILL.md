@@ -25,8 +25,8 @@ the Xtream feature.
 Select `ElectronXtreamDataSource` only through
 `RuntimeCapabilitiesService.supportsXtreamSqliteDataSource`; otherwise use the
 PWA data source. A generic `window.electron` check is not the capability
-contract; existing favorites/recent branches that still use one are migration
-debt, not precedent.
+contract. Favorites and recent-item operations likewise follow the selected
+data source and explicit capabilities.
 
 ## Data And Navigation Contracts
 

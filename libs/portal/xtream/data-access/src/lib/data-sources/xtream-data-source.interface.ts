@@ -136,13 +136,6 @@ export interface XtreamCategoryFromDb {
 }
 
 /**
- * Recently viewed item with playlist info
- */
-export interface RecentlyViewedItem extends XtreamContentItem {
-    viewed_at: string;
-}
-
-/**
  * Database category type mapping (differs from API type)
  */
 export type DbCategoryType = 'live' | 'movies' | 'series';
@@ -263,14 +256,6 @@ export interface IXtreamDataSource {
         playlistId: string,
         type: DbCategoryType
     ): Promise<XtreamCategoryFromDb[]>;
-
-    /**
-     * Update category visibility
-     */
-    updateCategoryVisibility(
-        categoryIds: number[],
-        hidden: boolean
-    ): Promise<void>;
 
     // =========================================================================
     // Content/Stream Operations
@@ -510,14 +495,6 @@ export interface IXtreamDataSource {
      * cannot bleed into the new session (relevant for the PWA implementation).
      */
     clearSessionCache(playlistId: string): void;
-
-    /**
-     * Clear all content and categories for a playlist (for refresh)
-     * Returns user data (favorites, recently viewed) for restoration
-     */
-    clearPlaylistContent(
-        playlistId: string
-    ): Promise<XtreamPendingRestoreState>;
 
     /**
      * Restore user data after refresh

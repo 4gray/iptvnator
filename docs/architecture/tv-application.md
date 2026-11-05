@@ -259,10 +259,14 @@ passive connection effects run.
 
 Live opens a large category list in its left pane. OK enters the selected
 category; its header button or Back within the Live panes returns to categories.
-Back from categories leaves Live; fullscreen Back first returns to preview.
+Back from categories leaves Live; catalog-origin fullscreen Back first returns to preview.
 Re-entering the same category restores the channel identity and scroll window;
 choosing another category starts at its first channel. Category browsing never
 starts or replaces playback. Source changes reset this local browse state.
+Manual source selection in Movies, Series, Search and Live retains the section
+and source-picker focus, while clearing the old category, query and page. An open
+source-bound detail/person screen returns to its movie or series catalog. Old
+provider requests lose publication rights; changing sources never starts playback.
 This also applies when a server-library refresh removes the active source while
 Live remains open: category, query and retained focus/scroll are cleared before
 browsing the replacement source.
@@ -281,7 +285,11 @@ Left opens the channel drawer directly; pointer users select Channels. The drawe
 starts in the playing category and focuses the playing item. A playing item beyond
 loaded provider pages appears once as a pinned row rather than crawling the catalog.
 Category browsing and focus never change playback; OK resolves a selected channel.
-The same native video element remains mounted. Back closes the overlay before
+The same native video element remains mounted. The fullscreen information and
+single-channel EPG header name their exact source. Go to playlist reveals the
+playing channel's source catalog and existing preview without reloading video;
+Back returns to fullscreen, including after category browsing. Modal Back still
+closes its owning overlay or picker first. Back closes the overlay before
 leaving fullscreen; the category header changes groups within the drawer.
 The shared browse state retains loaded pages and scroll positions across surfaces.
 
@@ -356,7 +364,7 @@ position again, including records whose duration was unknown; completed items
 still restart. Stop/source replacement cancels the retry timer. Positive timeline
 seeks use the same confirmation path; explicit seek-to-zero starts over.
 Remote Stop (413) tears down the stream and returns focus to its origin or
-channel. Back from fullscreen Live returns to the ongoing preview instead.
+channel. Back from catalog-origin fullscreen Live returns to the ongoing preview instead.
 
 Lazy Stalker episodes retain provider movie/season/episode coordinates and use
 the shared framework-free episode command resolver before `create_link`.
@@ -443,7 +451,12 @@ An unavailable provider image keeps a text fallback and never blocks browsing.
 Section headings, counts and the source selector share a compact top row;
 filters follow directly below. Decorative top slogans and the prototype footer
 are absent. Favorites separates Movies, Series (including saved episodes) and
-TV within the active source. Movie/series posters retain their proportions;
+TV across all sources by default. Its All playlists / Current playlist filter
+is one persisted, additively hydrated preference over the original favorites
+array; changing it never copies, merges or removes records. Counts follow the
+filter, and every card names its source. Unavailable-source entries remain visible
+and fail with recovery guidance instead of borrowing the active provider.
+Movie/series posters retain their proportions;
 channels use horizontal cards. Detail Back restores the selected favorite type,
 item and scroll position. Home Continue watching pairs a 2:3 cover (or local
 fallback icon) with persisted progress and its existing resume action. The cover
@@ -507,15 +520,22 @@ the latest unfinished title. With no unfinished history, a saved title or first 
 fallbacks and optional TMDB enrichment never replace saved playback commands.
 The hero's title/progress/actions remain usable while metadata loads or fails.
 
-Opening or resuming a Home item activates its exact source before using the
-existing detail/playback paths. Activation waits for the matching provider's
+Home and Favorites share exact-source activation, serialized source saves and
+cancellable playback/detail intents. Opening or resuming a saved item activates
+its exact source before using the existing detail/playback paths. Favorites
+channels start fullscreen on OK; focus alone does not activate a provider. Back
+stops that fullscreen session and restores the originating Favorites type,
+filter, card and scroll. Movie/series favorites open their existing details;
+saved episodes reopen their exact parent. Cancel, a newer action, changing the
+favorite type/filter or leaving the screen retires the pending intent. Activation waits for the matching provider's
 readiness and preserves the initiating Home control and scroll. A newer Home
 selection queues behind any source save that has already started, even after
 its previous intent is cancelled. Playback waits for the latest source write and
 matching provider readiness instead of trusting a briefly stale active source.
 A newer Home action, navigation away, Back/Cancel, changed source configuration or backend,
 and a 40-second deadline retire the pending intent; late connection completion
-cannot launch it. Failed activation offers Retry Home title. Retained activity
+cannot launch it. Failed activation offers Retry Home title or Retry favorite
+for its initiating surface. Retained activity
 whose source is no longer available remains visible with an unavailable-source
 label and a recovery message, without borrowing another source's provider.
 Explicit local source removal still removes that source's viewing data.
@@ -548,8 +568,14 @@ The TV adapter enriches the Home feature and selected movie/series details for
 all providers, including episode features with saved parent titles. Artwork,
 description and displayed cast/directors/creators come from the shared merge
 helpers; provider identity, stream ID/extension pairs, episode hierarchy and
-playback commands stay authoritative. Movie directors and series creators have
-distinct labels; a TV series has no invented show-level director.
+playback commands stay authoritative. Movie directors and series creators lead
+one horizontal cast row, with role
+labels and duplicate people removed; a TV series has no invented show-level
+director. Read-only detail chips show available year, genres, countries, playlist
+category, duration and TMDB rating. Catalog adapters attach category names without
+changing category IDs. TMDB fields come from the existing detail response; missing
+metadata falls back to supplied provider year, genres and countries, and unknown
+values and internal category IDs stay hidden.
 The selected season loads through shared `TmdbSeasonClient`, with the existing
 language cache/fallback and explicit single-season title-marker correction.
 Episodes match by number within that season. TMDB fills descriptions/stills and

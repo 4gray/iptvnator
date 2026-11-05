@@ -809,3 +809,17 @@ spec programs, four owning lint targets, formatting, whitespace, guidance,
 release notes and the production frontend pass. Initial bytes are 1,199,002 /
 1,200,301. Commit and run local Codex round 25; the Greptile CLI exception
 still applies, and the GitHub reviewer/CI must run after the final clean push.
+
+The just-started round 25 is interrupted to integrate overlapping Xtream
+cleanup and VLC ownership changes from master 2ab606ec5. Merge without
+conflicts, repeat the frozen install and Nx discovery, and validate the combined
+code. All 36 unit projects pass in 2m33s; merged coverage is
+85.70/77.52/84.00/86.20 percent. Owning totals are web 888, services 1,420,
+Electron 3,020, Xtream data access 668, Stalker data access 702 and portal shared
+data access 333. App types, all 42 spec programs, affected lint, i18n, guidance,
+eight skills, whitespace and 257 release notes pass. Production web/Electron/
+workers build; initial bytes are 1,196,828 / 1,200,301. All 26 mixed PWA/Electron
+flows pass on the combined base in 6.1 minutes. No baseline, threshold or retry
+policy changes. The existing feature note covers the fixes. Record this
+validation in the local merge and run a fresh committed Codex round 26 before
+pushing. Greptile CLI remains unavailable; cloud Codex account quota is unchanged.

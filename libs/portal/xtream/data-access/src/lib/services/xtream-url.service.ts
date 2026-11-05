@@ -10,26 +10,6 @@ import { DatabaseService, SettingsStore } from '@iptvnator/services';
 import { XtreamCredentials } from './xtream-api.service';
 import { resolveXtreamVodPlaybackSource } from './xtream-vod-playback-source';
 
-/**
- * Extended playlist with optional HTTP headers
- */
-export interface XtreamPlaylistWithHeaders extends XtreamCredentials {
-    id: string;
-    name: string;
-    type?: string;
-    userAgent?: string;
-    referrer?: string;
-    origin?: string;
-}
-
-/**
- * Live stream item with xtream_id
- */
-export interface LiveStreamItem {
-    xtream_id: number;
-    [key: string]: unknown;
-}
-
 const XTREAM_CATCHUP_SCHEME = {
     LEGACY: 'legacy',
     REST: 'rest',

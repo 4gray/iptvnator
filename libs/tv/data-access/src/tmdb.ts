@@ -13,6 +13,7 @@ import {
     topCast,
     unifiedTvCast,
     type TmdbTvDetails,
+    type TmdbMovieDetails,
     extractYear,
     toTmdbLanguage,
     tmdbBackdropUrl,
@@ -22,6 +23,7 @@ import {
 import {
     pickSeasonMarkedTitle,
     resolveEnrichmentSeasonNumber,
+    parseFacetYear,
 } from '@iptvnator/shared/interfaces';
 import {
     artwork,
@@ -160,6 +162,32 @@ export class TvMetadata {
                                 : enrichedCreators(details as TmdbTvDetails),
                         authorRole:
                             item.kind === 'movie' ? 'Directors' : 'Creators',
+                        year: parseFacetYear(
+                            item.kind === 'movie'
+                                ? (details as TmdbMovieDetails).release_date
+                                : (details as TmdbTvDetails).first_air_date
+                        )?.toString(),
+                        genres: details.genres?.map((genre) => genre.name),
+                        countries: details.production_countries?.length
+                            ? details.production_countries.map(
+                                  (country) =>
+                                      country.name || country.iso_3166_1 || ''
+                              )
+                            : details.origin_country,
+                        durationMinutes:
+                            item.kind === 'movie'
+                                ? (details as TmdbMovieDetails).runtime
+                                : (
+                                      details as TmdbTvDetails
+                                  ).episode_run_time?.find(
+                                      (minutes) =>
+                                          Number.isFinite(minutes) &&
+                                          minutes > 0
+                                  ),
+                        rating:
+                            details.vote_count && details.vote_count > 0
+                                ? details.vote_average
+                                : undefined,
                     },
                 },
                 failed,

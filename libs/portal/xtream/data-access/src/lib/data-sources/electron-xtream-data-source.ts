@@ -310,13 +310,6 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         );
     }
 
-    async updateCategoryVisibility(
-        categoryIds: number[],
-        hidden: boolean
-    ): Promise<void> {
-        await this.dbService.updateCategoryVisibility(categoryIds, hidden);
-    }
-
     // =========================================================================
     // Content/Stream Operations
     // =========================================================================
@@ -703,22 +696,6 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
     clearSessionCache(playlistId: string): void {
         void playlistId;
         // Electron uses the DB as its cache layer; no in-memory state to evict.
-    }
-
-    async clearPlaylistContent(
-        playlistId: string
-    ): Promise<XtreamPendingRestoreState> {
-        const { clearElectronCatalogCache } =
-            await import('./xtream-deferred-restore');
-        return clearElectronCatalogCache(
-            {
-                db: this.dbService,
-                playback: this.playbackService,
-                pins: this.vodSourcePinService,
-                getPlaylist: (id) => this.getPlaylist(id),
-            },
-            playlistId
-        );
     }
 
     async restoreFavoriteSnapshots(
