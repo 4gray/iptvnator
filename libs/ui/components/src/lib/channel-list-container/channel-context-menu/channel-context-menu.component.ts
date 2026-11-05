@@ -34,6 +34,8 @@ export type ChannelContextMenuPoint = Pick<MouseEvent, 'clientX' | 'clientY'>;
 export class ChannelContextMenuComponent {
     readonly showMapEpg = input(false);
     readonly showDetails = input(false);
+    /** "Video from this channel, audio from another" (MPV only). */
+    readonly showSplitAudio = input(false);
     /**
      * The playlist to offer "View in …" for; no row while null. An empty
      * name (a playlist saved without one) still shows the row.
@@ -43,6 +45,7 @@ export class ChannelContextMenuComponent {
 
     readonly mapEpg = output<void>();
     readonly details = output<void>();
+    readonly splitAudio = output<void>();
     readonly openInPlaylist = output<void>();
     readonly removeFromHistory = output<void>();
 
@@ -51,6 +54,7 @@ export class ChannelContextMenuComponent {
         () =>
             this.showMapEpg() ||
             this.showDetails() ||
+            this.showSplitAudio() ||
             this.openInPlaylistName() !== null
     );
 
