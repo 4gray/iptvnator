@@ -213,6 +213,9 @@ export class VodDetailsPlaybackService {
             thumbnail: presentation.posterUrl,
             ...(position ? { startTime: position.positionSeconds } : {}),
             contentInfo,
+            userAgent: playlist.userAgent,
+            referer: playlist.referrer,
+            origin: playlist.origin,
         };
     }
 

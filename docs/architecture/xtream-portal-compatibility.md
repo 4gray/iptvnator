@@ -834,6 +834,18 @@ the shared constant instead of inlining the string again.
 
 ## Playback URL Formats
 
+Ordinary movie Play/Resume and series episode playback copy the initiating
+playlist's `userAgent`, `referrer` (as descriptor `referer`), and `origin` into
+`ResolvedPortalPlayback`. Inline playback and forced MPV/VLC launches consume
+that same descriptor; episode navigation resolves the headers again for the
+next episode. Missing overrides remain absent so the transport keeps its
+existing defaults. Multi-source alternatives retain their own source's headers.
+An explicit Origin reaches inline Electron requests even when it differs from
+the Referer's origin or no Referer is configured; the scoped bridge retains its
+Referer-derived fallback when no usable Origin override is supplied.
+The playback service specs and `xtream-playback-headers.e2e.ts` cover this
+handoff, including actual Electron media request headers.
+
 When account info includes `user_info.allowed_output_formats`, the current
 Xtream playlist keeps those formats for the active session. The default
 application format is `auto`: live stream URL construction chooses `m3u8` when
