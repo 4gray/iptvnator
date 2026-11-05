@@ -6,7 +6,10 @@ import {
     type HistoryReference,
     type HistorySnapshot,
 } from '@iptvnator/shared/interfaces/history-sync';
-import type { Playlist } from '@iptvnator/shared/interfaces';
+import {
+    normalizeStalkerDate,
+    type Playlist,
+} from '@iptvnator/shared/interfaces';
 import type { XtreamContentItem } from '@iptvnator/portal/xtream/data-access';
 import type { HistoryPlaylistAdapter } from './history-playlist-adapter';
 import {
@@ -48,7 +51,8 @@ export async function previewLocalHistory(
                   items: (await readRecent(source._id)).map((item) => ({
                       reference: xtreamFavoriteReference(item),
                       snapshot: xtreamFavoriteSnapshot(item),
-                      viewedAt: new Date(item.viewed_at ?? '').getTime() || 0,
+                      viewedAt:
+                          Date.parse(normalizeStalkerDate(item.viewed_at)) || 0,
                   })),
                   unresolved: 0,
               }

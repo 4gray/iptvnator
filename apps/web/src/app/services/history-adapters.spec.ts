@@ -698,4 +698,80 @@ describe('history provider projections', () => {
         );
         expect(raw.getContentByXtreamId).toHaveBeenCalledTimes(100);
     });
+    it('normalizes SQLite UTC archive times before the merged browsing cap', async () => {
+        const f = fixture('xtream');
+        for (let id = 1; id <= 100; id++)
+            f.read().base = applyHistoryOperation(f.read().base, {
+                kind: 'touch',
+                reference: {
+                    provider: 'xtream',
+                    kind: 'movie',
+                    id: String(id),
+                },
+                operationId: String(id),
+                deviceId: 'other',
+                baseRevision: 0,
+                viewedAt: Date.parse('2026-11-05T11:30:00Z') + id,
+            }).state;
+        const raw = {
+            getRecentItems: jest
+                .fn()
+                .mockResolvedValue([
+                    {
+                        id: 999,
+                        xtream_id: 999,
+                        type: 'movie',
+                        title: 'Synthetic UTC archive',
+                        viewed_at: '2026-11-05 12:00:00',
+                    },
+                ]),
+            getContentByXtreamId: jest.fn(async (id: number) => ({
+                id,
+                xtream_id: id,
+                type: 'movie',
+                title: 'Synthetic shared item',
+            })),
+        };
+        const result = await new HistoryXtreamAdapter(
+            f.client,
+            true,
+            locks
+        ).project(raw as never, 'source');
+        expect(result).toHaveLength(100);
+        expect(result[0]).toMatchObject({
+            xtream_id: 999,
+            viewed_at: '2026-11-05T12:00:00.000Z',
+        });
+    });
+    it('normalizes legacy Stalker archive times for projection and import', async () => {
+        const f = fixture('stalker');
+        const source = {
+            ...playlist,
+            macAddress: '00:1a:79:00:00:01',
+            recentlyViewed: [
+                {
+                    id: '41',
+                    title: 'Synthetic UTC archive',
+                    favoriteContentType: 'vod',
+                    added_at: '2026-11-05 12:00:00',
+                },
+            ],
+        } as Playlist;
+        f.read().base = applyHistoryOperation(f.read().base, {
+            kind: 'touch',
+            reference: { provider: 'stalker', kind: 'movie', id: '42' },
+            snapshot: { title: 'Synthetic shared item' },
+            operationId: 'shared',
+            deviceId: 'other',
+            baseRevision: 0,
+            viewedAt: Date.parse('2026-11-05T11:30:00Z'),
+        }).state;
+        const adapter = new HistoryPlaylistAdapter(f.client, async (p) => p);
+        expect((await adapter.local(source)).items[0].viewedAt).toBe(
+            Date.parse('2026-11-05T12:00:00Z')
+        );
+        expect(
+            (await adapter.project(source)).recentlyViewed?.[0]
+        ).toMatchObject({ id: '41' });
+    });
 });

@@ -1,3 +1,4 @@
+import { normalizeStalkerDate } from '@iptvnator/shared/interfaces';
 import { XtreamCollectionCatalog } from './xtream-collection-catalog';
 import type {
     IXtreamDataSource,
@@ -36,9 +37,15 @@ export class HistoryXtreamAdapter {
         const scope = this.client.contexts.get(id);
         if (this.locks.withholdsEverything()) return [];
         const lockVersion = this.locks.version();
-        let local = await raw.getRecentItems(
-            id,
-            this.sqlite ? { all: true } : undefined
+        let local = (
+            await raw.getRecentItems(
+                id,
+                this.sqlite ? { all: true } : undefined
+            )
+        ).map((item) =>
+            item.viewed_at
+                ? { ...item, viewed_at: normalizeStalkerDate(item.viewed_at) }
+                : item
         );
         if (this.sqlite && this.locks.active()) {
             const categories = await Promise.all(
@@ -181,8 +188,8 @@ export class HistoryXtreamAdapter {
         return [...mapped.values()]
             .sort(
                 (a, b) =>
-                    new Date(b.viewed_at ?? '').getTime() -
-                    new Date(a.viewed_at ?? '').getTime()
+                    (Date.parse(b.viewed_at ?? '') || 0) -
+                    (Date.parse(a.viewed_at ?? '') || 0)
             )
             .slice(0, 100);
     }

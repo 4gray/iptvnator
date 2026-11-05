@@ -76,6 +76,7 @@ function fixture() {
         );
     return {
         client,
+        raw,
         preview,
         record: () => record,
         generation: (v: string) => (generation = v),
@@ -84,6 +85,30 @@ function fixture() {
 }
 
 describe('explicit local history import', () => {
+    it('previews mixed SQLite and ISO times in UTC order', async () => {
+        const f = fixture();
+        f.raw.getRecentItems = async () => [
+            {
+                id: 1,
+                xtream_id: 41,
+                type: 'movie',
+                title: 'Synthetic UTC archive',
+                viewed_at: '2026-11-05 12:00:00',
+            },
+            {
+                id: 2,
+                xtream_id: 42,
+                type: 'series',
+                title: 'Synthetic ISO archive',
+                viewed_at: '2026-11-05T11:30:00Z',
+            },
+        ];
+        const preview = await f.preview();
+        expect(preview.sources[0].items.map((item) => item.viewedAt)).toEqual([
+            Date.parse('2026-11-05T12:00:00Z'),
+            Date.parse('2026-11-05T11:30:00Z'),
+        ]);
+    });
     it('does not enqueue during preview and imports parent-series identity in old-to-new order', async () => {
         const f = fixture();
         const preview = await f.preview();

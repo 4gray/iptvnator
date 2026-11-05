@@ -1,5 +1,6 @@
 import {
     createRandomId,
+    normalizeStalkerDate,
     type Playlist,
     type PlaylistBackupEntry,
     type XtreamBackupRecentlyViewedItem,
@@ -99,7 +100,9 @@ export async function projectHistoryBackup(
         userState: {
             ...entry.userState,
             recentlyViewed: [...mapped.values()].sort(
-                (a, b) => Date.parse(b.viewedAt) - Date.parse(a.viewedAt)
+                (a, b) =>
+                    (Date.parse(normalizeStalkerDate(b.viewedAt)) || 0) -
+                    (Date.parse(normalizeStalkerDate(a.viewedAt)) || 0)
             ),
         },
     };
@@ -141,7 +144,7 @@ export function createHistoryBackupRestorer(
                               Number(item.collectionItem?.['release_year']) ||
                               undefined,
                       }),
-                      viewedAt: Date.parse(item.viewedAt),
+                      viewedAt: Date.parse(normalizeStalkerDate(item.viewedAt)),
                   }))
                 : (
                       await adapter.local({

@@ -76,6 +76,44 @@ function fixture() {
     return { client, record: () => record, entry, request };
 }
 describe('durable history backup', () => {
+    it('keeps UTC ordering when exporting and restoring legacy timestamp strings', async () => {
+        const f = fixture();
+        f.entry.userState.recentlyViewed = [
+            {
+                contentType: 'movie',
+                xtreamId: 41,
+                viewedAt: '2026-11-05 12:00:00',
+            },
+            {
+                contentType: 'series',
+                xtreamId: 42,
+                viewedAt: '2026-11-05T11:30:00Z',
+            },
+        ];
+        const exported = (await projectHistoryBackup(
+            f.client,
+            {} as never,
+            source,
+            f.entry
+        )) as XtreamPlaylistBackupEntry;
+        expect(
+            exported.userState.recentlyViewed.map((item) => item.xtreamId)
+        ).toEqual([41, 42]);
+        await createHistoryBackupRestorer(
+            f.client,
+            {} as never,
+            async () => source
+        )('source', f.entry);
+        expect(
+            f
+                .record()
+                .archive?.filter((op) => op.kind === 'touch')
+                .map((op) => op.viewedAt)
+        ).toEqual([
+            Date.parse('2026-11-05T11:30:00Z'),
+            Date.parse('2026-11-05T12:00:00Z'),
+        ]);
+    });
     it('exports all shared entries and removals without a catalog or network, retaining unrelated local history', async () => {
         const f = fixture();
         for (let id = 1; id <= 105; id++)

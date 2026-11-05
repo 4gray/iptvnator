@@ -1259,3 +1259,8 @@ The shared-history browsing cap also counts eligible rows after lock and identit
 filtering. Locked newer entries cannot hide older unlocked ones. PWA hydration
 checks every represented content kind before projection; tombstones are applied
 to the complete local archive even when 100 eligible shared rows are already found.
+
+History projections, explicit-import previews and backup overlays normalize
+legacy SQLite UTC timestamps through the shared date normalizer before comparing
+them with ISO timestamps. The merged browsing cap therefore preserves genuinely
+newer archived entries outside UTC; local Stalker archive/import uses the same rule.

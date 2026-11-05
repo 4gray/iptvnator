@@ -1,5 +1,6 @@
 import {
     extractStalkerItemId,
+    normalizeStalkerDate,
     isM3uRecentlyViewedItem,
     type Playlist,
     type PlaylistRecentlyViewedItem,
@@ -58,7 +59,9 @@ export class HistoryPlaylistAdapter {
                     unresolved++;
                     continue;
                 }
-                const time = new Date(original.added_at ?? '').getTime();
+                const time = Date.parse(
+                    normalizeStalkerDate(original.added_at)
+                );
                 items.push({
                     reference: favorite.reference,
                     snapshot: favorite.snapshot,
@@ -140,8 +143,8 @@ export class HistoryPlaylistAdapter {
             ...playlist,
             recentlyViewed: [...mapped.values(), ...unresolved].sort(
                 (a, b) =>
-                    new Date(b.added_at ?? '').getTime() -
-                    new Date(a.added_at ?? '').getTime()
+                    (Date.parse(normalizeStalkerDate(b.added_at)) || 0) -
+                    (Date.parse(normalizeStalkerDate(a.added_at)) || 0)
             ),
         };
     }
