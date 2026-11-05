@@ -30,10 +30,10 @@ function themeContexts(): Record<string, string> {
         'utf8'
     );
     const context = (name: string): string => {
-        const start = palettes.indexOf(`@mixin ${name} {`);
+        const start = palettes.indexOf(`@mixin ${name}(`);
         expect(start).toBeGreaterThan(-1);
         return block(palettes, palettes.indexOf('{', start)).replace(
-            /@include (light|dark);/g,
+            /@include (light|dark)(?:\([^)]*\))?;/g,
             (_, base: string) => context(base)
         );
     };

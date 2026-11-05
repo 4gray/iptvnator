@@ -754,8 +754,8 @@
         "DELETE_ALL_WARNING": "هادشي غادي يحيد لوائح التشغيل من السيرفر لكاع الأجهزة."
     },
     "THEMES": {
-        "CREAM_THEME": "Cream",
-        "MOCHA_THEME": "Mocha",
+        "CREAM_THEME": "كريمي",
+        "MOCHA_THEME": "موكا",
         "SYSTEM_DESCRIPTION": "اختيار النظام كيتبع المظهر الفاتح أو الغامق ديال الجهاز.",
         "DARK_THEME": "داكن",
         "LIGHT_THEME": "فاتح",

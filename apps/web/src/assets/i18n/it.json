@@ -754,8 +754,8 @@
         "DELETE_ALL_WARNING": "Questo rimuove le playlist dal server per tutti i dispositivi."
     },
     "THEMES": {
-        "CREAM_THEME": "Cream",
-        "MOCHA_THEME": "Mocha",
+        "CREAM_THEME": "Crema",
+        "MOCHA_THEME": "Moka",
         "SYSTEM_DESCRIPTION": "Sistema segue l’aspetto chiaro o scuro del dispositivo.",
         "DARK_THEME": "Scuro",
         "LIGHT_THEME": "Chiaro",

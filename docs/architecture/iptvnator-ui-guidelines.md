@@ -1686,8 +1686,12 @@ it, and Discard restores the saved choice and its System listener when needed.
 
 App palette declarations live in `apps/web/src/_theme-palettes.scss`, included
 by `m3-theme.scss` for both body contexts and decorative preview contexts.
-`_warm-theme.scss` supplies the complete Material color ramps for Cream/Mocha;
-component-color mixins and system-level colors must both follow the preset.
+`_warm-theme.scss` supplies the Material color ramps for Cream/Mocha. Material
+component colors reference `--mat-sys-*` roles through one shared declaration
+block; each preset sets its system colors. The shared aliases are declared at
+each color boundary, since inheriting an alias from `html` would retain the
+light value. Samples emit only their seven displayed app roles from the same
+palette mixins, avoiding full duplicate theme payloads.
 Adding a built-in preset requires catalog metadata, app/Material colors,
 localized naming, and computed contrast/persistence coverage. Do not introduce
 per-component preset conditions or duplicate sample-only palettes. Typography,

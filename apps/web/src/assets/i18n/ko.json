@@ -754,8 +754,8 @@
         "DELETE_ALL_WARNING": "모든 기기에서 서버의 플레이리스트가 삭제됩니다."
     },
     "THEMES": {
-        "CREAM_THEME": "Cream",
-        "MOCHA_THEME": "Mocha",
+        "CREAM_THEME": "크림",
+        "MOCHA_THEME": "모카",
         "SYSTEM_DESCRIPTION": "시스템 설정은 기기의 밝은 화면 또는 어두운 화면 설정을 따릅니다.",
         "DARK_THEME": "어둡게",
         "LIGHT_THEME": "밝게",

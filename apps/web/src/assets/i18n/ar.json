@@ -754,8 +754,8 @@
         "DELETE_ALL_WARNING": "سيؤدي هذا إلى حذف قوائم التشغيل من الخادم لكل الأجهزة."
     },
     "THEMES": {
-        "CREAM_THEME": "Cream",
-        "MOCHA_THEME": "Mocha",
+        "CREAM_THEME": "كريمي",
+        "MOCHA_THEME": "موكا",
         "SYSTEM_DESCRIPTION": "يتبع خيار النظام المظهر الفاتح أو الداكن لجهازك.",
         "DARK_THEME": "داكن",
         "LIGHT_THEME": "فاتح",

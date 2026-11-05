@@ -32,6 +32,7 @@ $cream: mat.define-theme(
     (
         color: (
             theme-type: light,
+            use-system-variables: true,
             primary: $palette,
             tertiary: $palette,
         ),
@@ -41,6 +42,7 @@ $mocha: mat.define-theme(
     (
         color: (
             theme-type: dark,
+            use-system-variables: true,
             primary: $palette,
             tertiary: $palette,
         ),
