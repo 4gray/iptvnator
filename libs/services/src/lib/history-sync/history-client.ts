@@ -243,6 +243,8 @@ export class HistorySyncClient {
             this.current(scope);
             if (generation !== this.options.consent()) return;
             const record = await this.store.read(scope);
+            this.current(scope);
+            if (generation !== this.options.consent()) return;
             const head = record?.pending[0];
             if (!head || head.consent !== generation) return;
             const response = await this.options.request({

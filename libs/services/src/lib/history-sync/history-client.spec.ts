@@ -232,6 +232,53 @@ describe('history delivery and consent', () => {
         expect(visibleHistory((await f.client.state('source'))!)).toEqual([]);
         expect((await f.store.read(scope))?.pending).toHaveLength(0);
     });
+    it.each(['opt-out', 'consent', 'profile', 'source'] as const)(
+        'sends no request if %s changes during a pending queue read',
+        async (change) => {
+            const f = fixture();
+            await f.store.mutate(scope, () => ({
+                ...emptyHistoryRecord(),
+                pending: [
+                    {
+                        consent: 'first',
+                        operation: {
+                            kind: 'touch',
+                            reference,
+                            operationId: 'queued',
+                            deviceId: 'device',
+                            baseRevision: 0,
+                            viewedAt: 1,
+                        },
+                    },
+                ],
+            }));
+            const read = f.store.read.bind(f.store);
+            let release!: () => void;
+            const blocked = new Promise<void>((resolve) => (release = resolve));
+            jest.spyOn(f.store, 'read').mockImplementationOnce(
+                async (address) => {
+                    await blocked;
+                    return read(address);
+                }
+            );
+            const sending = f.client.flush('source');
+            expect(f.store.read).toHaveBeenCalledTimes(1);
+            if (change === 'opt-out') f.consent(null);
+            else if (change === 'consent') f.consent('replacement');
+            else if (change === 'profile') f.active(false);
+            else
+                f.client.contexts.set('source', {
+                    ...scope,
+                    sourceIncarnation: 'replacement',
+                });
+            release();
+            if (change === 'profile' || change === 'source')
+                await expect(sending).rejects.toThrow('superseded');
+            else await expect(sending).resolves.toBeUndefined();
+            expect(f.request).not.toHaveBeenCalled();
+            expect((await read(scope))?.pending).toHaveLength(1);
+        }
+    );
     it('late ack after opt-out cannot remove the queue or a new local action', async () => {
         const f = fixture();
         let release!: (v: unknown) => void;

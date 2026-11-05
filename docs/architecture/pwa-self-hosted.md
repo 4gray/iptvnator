@@ -1492,8 +1492,10 @@ The existing current-tab clear continues removing exactly its displayed rows;
 it does not silently clear other content types or sources.
 
 Disable persists new consent before asynchronous work and stops delivery/remote
-application. Existing sidecars remain readable; new local actions cannot be
-replaced by late acknowledgements. A new enable never replays the prior consent's
+application. Delivery rechecks consent and source/profile ownership after reading
+the pending queue and immediately before sending. Existing sidecars remain
+readable; new local actions cannot be replaced by late acknowledgements. A new
+enable never replays the prior consent's
 queue automatically: settings offer send or keep-local. A keep-local choice affects
 only earlier-consent work, preserving authorized current queues in this and other
 sources. Unsent successors lose references to predecessors kept local.
