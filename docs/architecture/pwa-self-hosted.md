@@ -1325,7 +1325,10 @@ renderer invalidation; a server update therefore changes the active heart withou
 navigation. Stalker removals carry the content kind and series origin, and live
 controls acknowledge membership only after local persistence. Xtream collection
 ordering remains in device-local app state (browser storage in PWA), outside the
-shared membership protocol.
+shared membership protocol. Browser global and playlist ordering use the existing
+profile-bound `USER_DATA_STORAGE`; server profiles never read or overwrite another
+profile's order. The unscoped standalone order is retained without being adopted
+by a server profile. Native ordering keeps its existing profile-scoped app state.
 
 Background collection refreshes use the page's guarded content-type selection.
 Receiving the first movie or series on an empty favorites page selects its type

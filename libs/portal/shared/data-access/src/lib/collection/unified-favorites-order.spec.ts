@@ -6,7 +6,10 @@ import {
     DatabaseService,
     PlaylistsService,
     RuntimeCapabilitiesService,
+    USER_DATA_STORAGE,
+    type UserDataStorage,
 } from '@iptvnator/services';
+import { createSourceProfileUserDataStorage } from '@iptvnator/services/source-sync/profile-user-data';
 import { FAVORITES_PLAYLIST_BRIDGE } from '@iptvnator/services/favorites-events';
 import { XTREAM_DATA_SOURCE } from '@iptvnator/portal/xtream/data-access';
 import {
@@ -21,8 +24,9 @@ const typedUid = (item: StalkerPortalItem) =>
     `stalker::synthetic-source::${favoriteReferenceKey(stalkerFavoriteReference(item)!)}`;
 function fixture(
     favorites: StalkerPortalItem[],
-    order: string[],
-    native = false
+    order: string[] | undefined,
+    native = false,
+    storage: UserDataStorage = localStorage
 ) {
     const document = {
         _id: 'synthetic-source',
@@ -30,8 +34,8 @@ function fixture(
         macAddress: 'synthetic-mac',
         favorites,
     };
-    const encoded = JSON.stringify(order);
-    localStorage.setItem(orderKey, encoded);
+    const encoded = JSON.stringify(order ?? []);
+    if (order) storage.setItem(orderKey, encoded);
     const original = window.electron;
     Object.defineProperty(window, 'electron', {
         configurable: true,
@@ -41,6 +45,7 @@ function fixture(
     TestBed.configureTestingModule({
         providers: [
             UnifiedFavoritesDataService,
+            { provide: USER_DATA_STORAGE, useValue: storage },
             {
                 provide: FAVORITES_PLAYLIST_BRIDGE,
                 useValue: {
@@ -96,11 +101,58 @@ function fixture(
         service: TestBed.inject(UnifiedFavoritesDataService),
         restore: () => {
             window.electron = original;
-            localStorage.removeItem(orderKey);
+            storage.removeItem(orderKey);
         },
     };
 }
 describe('legacy global Stalker favorite order', () => {
+    it('keeps browser ordering isolated across server profiles and reopening a profile without adopting the standalone order', async () => {
+        const favorites: StalkerPortalItem[] = [
+            { id: '1', favoriteContentType: 'vod' },
+            { id: '2', favoriteContentType: 'itv' },
+        ];
+        const legacy = JSON.stringify([
+            typedUid(favorites[1]),
+            typedUid(favorites[0]),
+        ]);
+        localStorage.setItem(orderKey, legacy);
+        const storageA = createSourceProfileUserDataStorage(
+            'iptvnator-server:synthetic-a'
+        );
+        const storageB = createSourceProfileUserDataStorage(
+            'iptvnator-server:synthetic-b'
+        );
+        const first = fixture(favorites, undefined, false, storageA);
+        let second: ReturnType<typeof fixture> | undefined;
+        let reopened: ReturnType<typeof fixture> | undefined;
+        try {
+            const rows = await first.service.getFavorites('all');
+            const orderA = [...rows].reverse();
+            await first.service.reorder(orderA, { scope: 'all' });
+            TestBed.resetTestingModule();
+            second = fixture(favorites, undefined, false, storageB);
+            await second.service.reorder(rows, { scope: 'all' });
+            expect(
+                (await first.service.getFavorites('all')).map((row) => row.uid)
+            ).toEqual(orderA.map((row) => row.uid));
+            expect(
+                (await second.service.getFavorites('all')).map((row) => row.uid)
+            ).toEqual(rows.map((row) => row.uid));
+            expect(localStorage.getItem(orderKey)).toBe(legacy);
+            TestBed.resetTestingModule();
+            reopened = fixture(favorites, undefined, false, storageA);
+            expect(
+                (await reopened.service.getFavorites('all')).map(
+                    (row) => row.uid
+                )
+            ).toEqual(orderA.map((row) => row.uid));
+        } finally {
+            reopened?.restore();
+            second?.restore();
+            first.restore();
+            localStorage.removeItem(orderKey);
+        }
+    });
     it.each([false, true])(
         'preserves historical placement among providers (native=%s)',
         async (native) => {

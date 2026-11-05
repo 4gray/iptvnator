@@ -14,6 +14,7 @@ import {
     DatabaseService,
     PlaylistsService,
     RuntimeCapabilitiesService,
+    USER_DATA_STORAGE,
 } from '@iptvnator/services';
 import {
     Channel,
@@ -61,6 +62,7 @@ export class UnifiedFavoritesDataService {
     private readonly translate = inject(TranslateService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly xtreamDataSource = inject(XTREAM_DATA_SOURCE);
+    private readonly userDataStorage = inject(USER_DATA_STORAGE);
 
     async getFavorites(
         scope: CollectionScope,
@@ -816,7 +818,7 @@ export class UnifiedFavoritesDataService {
             const raw =
                 this.runtime.supportsAppStateStorage && electron
                     ? await electron.dbGetAppState(GLOBAL_FAVORITES_ORDER_KEY)
-                    : localStorage.getItem(GLOBAL_FAVORITES_ORDER_KEY);
+                    : this.userDataStorage.getItem(GLOBAL_FAVORITES_ORDER_KEY);
             return raw ? (JSON.parse(raw) as string[]) : [];
         } catch {
             return [];
@@ -832,7 +834,7 @@ export class UnifiedFavoritesDataService {
                     JSON.stringify(uidOrder)
                 );
             else
-                localStorage.setItem(
+                this.userDataStorage.setItem(
                     GLOBAL_FAVORITES_ORDER_KEY,
                     JSON.stringify(uidOrder)
                 );

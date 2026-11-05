@@ -719,3 +719,28 @@ and reject a concurrently replaced context. The regression fails before repair;
 all 54 focused playlist/receiver/backup/adapter tests pass afterwards. Refresh the
 web coverage, app/spec types, production frontend and relevant E2E before the
 next committed local review. The existing feature release note covers the fixes.
+
+Local Codex round 22 reviews f8a5a3769 and finds one P2: the global browser
+favorites order uses an unscoped localStorage key across server profiles.
+A new public-service regression with the real profile-storage factory fails
+before repair: reordering B changes A and overwrites the standalone key.
+Use the existing injected USER_DATA_STORAGE for browser reads/writes; its
+source-profile binding already preserves independent server libraries and the
+legacy standalone key. No new key helper or store is needed; native app-state
+storage is unchanged. The regression also reopens A to verify persistence.
+Thirty focused collection tests pass after repair. Refresh owning coverage,
+types, lint, production frontend, favorites E2E and repeat the committed review.
+
+Round 22 fix validation: all 333 portal shared data-access tests pass; the
+36-project merged coverage passes unchanged gates at 85.62/77.46/83.91/86.12
+percent. App types, all 42 spec programs, owning lint, formatting, whitespace,
+guidance and release notes pass. Production frontend builds at 1,198,928 /
+1,200,301 initial bytes. Xtream and Stalker favorites E2E pass. The M3U journey
+once exhausts its overall timeout after the narrow-theme screenshots, without
+a step-specific failure; no failing trace was enabled for that first attempt.
+The unchanged M3U journey then passes with tracing in 12.8 seconds, followed by
+three consecutive traced repetitions (12.4/11.4/11.6 seconds). No assertion,
+timeout or retry policy is changed. Record this unreproduced local timeout in
+the PR evidence; final GitHub CI still has to pass. Commit the four-line storage
+repair and its regression, then run local Codex round 23. Greptile CLI remains
+unavailable under the repository exception.
