@@ -57,6 +57,7 @@ export class WorkspaceShellHeaderComponent {
     readonly searchPlaceholder = input('');
     readonly searchScopeLabel = input('');
     readonly searchStatusLabel = input('');
+    readonly canClearCategoryScope = input(false);
     readonly headerShortcut = input<WorkspaceHeaderAction | null>(null);
     readonly headerSidebarToggle = input<WorkspaceHeaderSidebarToggle | null>(
         null
@@ -143,6 +144,14 @@ export class WorkspaceShellHeaderComponent {
     readonly downloadsRequested = output<void>();
     readonly contextDrawerToggleRequested = output<void>();
     readonly accountInfoForPlaylistRequested = output<PlaylistMeta>();
+    readonly clearCategoryScopeRequested = output<void>();
+
+    onClearCategoryScope(event: MouseEvent): void {
+        event.preventDefault();
+        event.stopPropagation();
+        this.clearCategoryScopeRequested.emit();
+        this.searchInput()?.nativeElement.focus();
+    }
 
     focusSearchInput(options: { select?: boolean } = {}): void {
         const inputElement = this.searchInput()?.nativeElement;

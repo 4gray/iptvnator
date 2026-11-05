@@ -225,7 +225,10 @@ export class LiveStreamLayoutComponent
         (value ?? '').trim()
     );
     readonly showLiveChannelSidebar = computed(
-        () => !!this.selectedCategoryId() || !!this.workspaceSearchTerm()
+        () =>
+            !!this.selectedCategoryId() ||
+            !!this.workspaceSearchTerm() ||
+            !!this.activeStreamUrl()
     );
     private readonly pendingAutoOpenLiveItemId =
         this.liveAutoOpenState.pendingItemId;

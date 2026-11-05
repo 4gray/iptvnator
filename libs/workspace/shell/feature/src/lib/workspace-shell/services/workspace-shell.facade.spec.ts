@@ -141,6 +141,7 @@ describe('WorkspaceShellFacade', () => {
         parseUrl: jest.Mock;
         createUrlTree: jest.Mock;
         isActive: jest.Mock;
+        currentNavigation: () => null;
         lastSuccessfulNavigation: () => { trigger: string };
     };
     let workspaceActions: {
@@ -224,7 +225,11 @@ describe('WorkspaceShellFacade', () => {
             parseUrl: jest.fn((url: string) => createParseUrl(url)),
             createUrlTree: jest.fn(),
             isActive: jest.fn(),
-            lastSuccessfulNavigation: () => ({ trigger: navigationTrigger }),
+            currentNavigation: () => null,
+            lastSuccessfulNavigation: () => ({
+                trigger: navigationTrigger,
+                extras: {},
+            }),
         };
         workspaceActions = {
             openAddPlaylistDialog: jest.fn(),

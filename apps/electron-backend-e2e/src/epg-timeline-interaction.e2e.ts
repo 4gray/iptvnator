@@ -257,7 +257,12 @@ test('@epg @xtream @electron opens the programme dialog from a timeline block an
         await app.mainWindow.getByTestId('epg-view-mode-list').click();
         await saveSettings(app.mainWindow);
         await openWorkspaceSection(app.mainWindow, 'Live TV');
-        await clickCategoryByNameExact(app.mainWindow, fixture.categoryName);
+        // The category survives the settings visit; clicking it again clears it.
+        await expect(
+            app.mainWindow.locator(
+                'app-workspace-context-panel .category-item[aria-current="true"]'
+            )
+        ).toContainText(fixture.categoryName);
         await channelItemByTitle(app.mainWindow, fixture.stream.name ?? '')
             .first()
             .click();

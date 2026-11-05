@@ -16,14 +16,17 @@ import { parentalLockXtreamCategoryGuard } from './parental-lock-category.guard'
 
 function createRoute(
     playlistId: string,
-    categoryId: string,
+    categoryId: string | null,
     itemParams: Record<string, string> = {}
 ) {
     const parent = {
         paramMap: convertToParamMap({ id: playlistId }),
     } as ActivatedRouteSnapshot;
     const route = {
-        paramMap: convertToParamMap({ categoryId, ...itemParams }),
+        paramMap: convertToParamMap({
+            ...(categoryId === null ? {} : { categoryId }),
+            ...itemParams,
+        }),
     } as ActivatedRouteSnapshot;
     Object.defineProperty(route, 'pathFromRoot', {
         value: [parent, route],
@@ -87,7 +90,7 @@ describe('parentalLockXtreamCategoryGuard', () => {
 
     function run(
         section: 'live' | 'vod' | 'series',
-        categoryId: string,
+        categoryId: string | null,
         itemParams: Record<string, string> = {}
     ) {
         return TestBed.runInInjectionContext(() =>
@@ -135,6 +138,36 @@ describe('parentalLockXtreamCategoryGuard', () => {
 
         expect(dataSource.getContentByXtreamId).not.toHaveBeenCalled();
         expect(parentalLock.requestUnlock).not.toHaveBeenCalled();
+    });
+
+    it('allows the live root without checking a category or prompting for a PIN', async () => {
+        parentalLock.isXtreamCategoryLocked.mockReturnValue(true);
+
+        await expect(run('live', null)).resolves.toBe(true);
+
+        expect(parentalLock.initialize).not.toHaveBeenCalled();
+        expect(databaseService.getAllXtreamCategories).not.toHaveBeenCalled();
+        expect(parentalLock.isXtreamCategoryLocked).not.toHaveBeenCalled();
+        expect(parentalLock.requestUnlock).not.toHaveBeenCalled();
+    });
+
+    it('guards live category navigation and redirects a refused PIN to the live root', async () => {
+        parentalLock.isXtreamCategoryLocked.mockReturnValue(true);
+
+        await expect(run('live', '12')).resolves.not.toBe(true);
+
+        expect(parentalLock.isXtreamCategoryLocked).toHaveBeenCalledWith(
+            'playlist-1',
+            'live',
+            900
+        );
+        expect(parentalLock.requestUnlock).toHaveBeenCalledTimes(1);
+        expect(router.createUrlTree).toHaveBeenCalledWith([
+            '/workspace',
+            'xtreams',
+            'playlist-1',
+            'live',
+        ]);
     });
 
     it('passes through while the lock is inactive without touching the database', async () => {
