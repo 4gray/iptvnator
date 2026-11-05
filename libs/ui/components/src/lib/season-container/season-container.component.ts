@@ -60,6 +60,7 @@ import {
     buildWatchedEpisodePosition,
     resolveEpisodeInfo,
 } from './season-watch-toggle.util';
+import { pickRandomEpisode } from './pick-random-episode.util';
 import { dialogSize } from '../dialog-shell/dialog-size';
 
 const EPISODE_VIEW_MODE_KEY = 'iptvnator_episode_view_mode';
@@ -408,6 +409,13 @@ export class SeasonContainerComponent implements OnInit {
 
     selectEpisode(episode: XtreamSerieEpisode) {
         this.episodeClicked.emit(episode);
+    }
+
+    playRandomEpisode() {
+        const episode = pickRandomEpisode(this.seasons());
+        if (episode) {
+            this.selectEpisode(episode);
+        }
     }
 
     restartEpisode(episode: XtreamSerieEpisode) {
