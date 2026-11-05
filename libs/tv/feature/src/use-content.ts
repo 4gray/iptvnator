@@ -54,7 +54,9 @@ export function useContent(
         if (!pendingFocus.current) return;
         restoreFocus(
             pendingFocus.current,
-            'first-content',
+            route.view === 'favorites'
+                ? `favorites:${route.kind}`
+                : 'first-content',
             pendingScroll.current
         );
         pendingFocus.current = '';

@@ -424,6 +424,7 @@ test('a retained series-details retry cannot reopen the previous source', async 
     await nav(page, 'Movies');
     const sources = page.getByLabel('Active source', { exact: true });
     await chooseTv(page, 'Active source', { label: 'TV xtream · XTREAM' });
+    await nav(page, 'Home');
     await expect(page.locator('[data-focus="hero-resume"]')).toBeVisible();
     await expect(page.locator('.loading')).toBeHidden();
     const retry = page.getByRole('button', {
@@ -466,7 +467,7 @@ test('a retained series-details retry cannot reopen the previous source', async 
     await nav(page, 'Movies');
     await chooseTv(page, 'Active source', { label: 'TV m3u · M3U' });
     await expect(page.locator('.loading')).toBeHidden();
-    await expect(page.locator('.hero')).toBeVisible();
+    await expect(page.locator('.poster-grid')).toBeVisible();
     // An already queued click remains harmless after its original notice is retired.
     await retained!.evaluate((button: HTMLButtonElement) => button.click());
     await page.evaluate(

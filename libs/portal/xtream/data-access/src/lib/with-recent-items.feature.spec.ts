@@ -1,23 +1,9 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { signalStore } from '@ngrx/signals';
-import { of } from 'rxjs';
-import {
-    DatabaseService,
-    PlaylistsService,
-    RuntimeCapabilitiesService,
-} from '@iptvnator/services';
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { XTREAM_DATA_SOURCE } from './data-sources/xtream-data-source.interface';
 import { withRecentItems } from './with-recent-items';
-
-jest.mock('@iptvnator/portal/shared/util', () => ({
-    createLogger: () => ({
-        debug: jest.fn(),
-        info: jest.fn(),
-        warn: jest.fn(),
-        error: jest.fn(),
-    }),
-}));
 
 const TestRecentItemsStore = signalStore(withRecentItems());
 
@@ -25,14 +11,6 @@ describe('withRecentItems', () => {
     const originalElectron = window.electron;
     const runtime = { supportsXtreamSqliteDataSource: false };
     let store: InstanceType<typeof TestRecentItemsStore>;
-    let databaseService: {
-        clearGlobalRecentlyViewed: jest.Mock;
-        clearPlaylistRecentItems: jest.Mock;
-        getContentByXtreamId: jest.Mock;
-        getRecentItems: jest.Mock;
-        removeRecentItem: jest.Mock;
-        setContentMetadataIfMissing: jest.Mock;
-    };
     let dataSource: {
         addRecentItem: jest.Mock;
         clearRecentItems: jest.Mock;
@@ -40,10 +18,6 @@ describe('withRecentItems', () => {
         getRecentItems: jest.Mock;
         removeRecentItem: jest.Mock;
         setContentMetadataIfMissing: jest.Mock;
-    };
-    let playlistsService: {
-        clearPlaylistRecentlyViewed: jest.Mock;
-        getAllPlaylists: jest.Mock;
     };
 
     beforeEach(() => {
@@ -53,25 +27,6 @@ describe('withRecentItems', () => {
             configurable: true,
         });
 
-        databaseService = {
-            clearGlobalRecentlyViewed: jest.fn().mockResolvedValue(undefined),
-            clearPlaylistRecentItems: jest.fn().mockResolvedValue(undefined),
-            getContentByXtreamId: jest.fn(),
-            getRecentItems: jest.fn().mockResolvedValue([
-                {
-                    id: 3941697,
-                    title: 'Krypton',
-                    type: 'series',
-                    poster_url: 'https://example.com/krypton.png',
-                    backdrop_url: 'https://example.com/krypton-backdrop.png',
-                    viewed_at: '2026-04-21T20:42:27.000Z',
-                    xtream_id: 290,
-                    category_id: 17,
-                },
-            ]),
-            removeRecentItem: jest.fn().mockResolvedValue(undefined),
-            setContentMetadataIfMissing: jest.fn().mockResolvedValue(undefined),
-        };
         dataSource = {
             addRecentItem: jest.fn().mockResolvedValue(undefined),
             clearRecentItems: jest.fn().mockResolvedValue(undefined),
@@ -91,28 +46,13 @@ describe('withRecentItems', () => {
             removeRecentItem: jest.fn().mockResolvedValue(undefined),
             setContentMetadataIfMissing: jest.fn().mockResolvedValue(undefined),
         };
-        playlistsService = {
-            clearPlaylistRecentlyViewed: jest
-                .fn()
-                .mockReturnValue(of(undefined)),
-            getAllPlaylists: jest.fn().mockReturnValue(of([])),
-        };
-
         TestBed.configureTestingModule({
             providers: [
                 TestRecentItemsStore,
                 { provide: RuntimeCapabilitiesService, useValue: runtime },
                 {
-                    provide: DatabaseService,
-                    useValue: databaseService,
-                },
-                {
                     provide: XTREAM_DATA_SOURCE,
                     useValue: dataSource,
-                },
-                {
-                    provide: PlaylistsService,
-                    useValue: playlistsService,
                 },
             ],
         });
@@ -216,7 +156,6 @@ describe('withRecentItems', () => {
             'playlist-1',
             undefined
         );
-        expect(databaseService.getRecentItems).not.toHaveBeenCalled();
     });
 
     it('normalizes route-param Xtream IDs before using the PWA recent fallback', async () => {
@@ -331,10 +270,6 @@ describe('withRecentItems', () => {
             { backdropUrl: 'https://example.com/krypton-backdrop.png' }
         );
         expect(dataSource.addRecentItem).not.toHaveBeenCalled();
-        expect(databaseService.getContentByXtreamId).not.toHaveBeenCalled();
-        expect(
-            databaseService.setContentMetadataIfMissing
-        ).not.toHaveBeenCalled();
     });
 
     it('clears recent items through the active data source in PWA', async () => {
@@ -347,47 +282,6 @@ describe('withRecentItems', () => {
         await new Promise((resolve) => setTimeout(resolve, 0));
 
         expect(dataSource.clearRecentItems).toHaveBeenCalledWith('playlist-1');
-        expect(databaseService.clearPlaylistRecentItems).not.toHaveBeenCalled();
-        expect(store.recentItems()).toEqual([]);
-    });
-
-    it('clears Xtream recent items during global PWA clear', async () => {
-        Object.defineProperty(window, 'electron', {
-            value: undefined,
-            configurable: true,
-        });
-        playlistsService.getAllPlaylists.mockReturnValue(
-            of([
-                {
-                    _id: 'xtream-1',
-                    serverUrl: 'https://xtream.example.com',
-                },
-                {
-                    _id: 'm3u-1',
-                },
-                {
-                    _id: 'stalker-1',
-                    serverUrl: 'https://stalker.example.com',
-                    macAddress: '00:11:22:33:44:55',
-                },
-            ])
-        );
-
-        await store.clearGlobalRecentlyViewed();
-
-        expect(
-            databaseService.clearGlobalRecentlyViewed
-        ).not.toHaveBeenCalled();
-        expect(dataSource.clearRecentItems).toHaveBeenCalledWith('xtream-1');
-        expect(
-            playlistsService.clearPlaylistRecentlyViewed
-        ).toHaveBeenCalledWith('m3u-1');
-        expect(
-            playlistsService.clearPlaylistRecentlyViewed
-        ).toHaveBeenCalledWith('stalker-1');
-        expect(
-            playlistsService.clearPlaylistRecentlyViewed
-        ).not.toHaveBeenCalledWith('xtream-1');
         expect(store.recentItems()).toEqual([]);
     });
 
@@ -408,7 +302,6 @@ describe('withRecentItems', () => {
             { id: 3941697, type: 'series' },
             'playlist-1'
         );
-        expect(databaseService.removeRecentItem).not.toHaveBeenCalled();
         expect(store.recentItems()).toEqual([
             expect.objectContaining({
                 id: 3941697,
@@ -425,7 +318,6 @@ describe('withRecentItems', () => {
             3941697,
             'playlist-1'
         );
-        expect(databaseService.removeRecentItem).not.toHaveBeenCalled();
         expect(store.recentItems()).toEqual([
             expect.objectContaining({
                 id: 3941697,

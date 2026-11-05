@@ -129,5 +129,10 @@ describe('source transport identity revocation', () => {
         ).toBe(404);
         expect(json).not.toHaveBeenCalled();
         expect(sourceAuthorization(`${connection.apiUrl}/xtream`)).toEqual({});
+        expect(
+            (await requestSourceServer({ operation: 'get', id: 'source' }))
+                .status
+        ).toBe(409);
+        expect(globalThis.fetch).toHaveBeenCalledTimes(1);
     });
 });

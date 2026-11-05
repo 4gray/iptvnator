@@ -446,3 +446,17 @@ Regression coverage: `playlist-backup.service.validation.spec.ts`,
 `settings-backup.facade.spec.ts`, browser `backup-restore.e2e.ts`, and Electron
 `backup-roundtrip.e2e.ts`. Browser tests use isolated contexts and fictional
 archives; Electron tests use their own temporary data root.
+
+## Optional shared favorites in exports
+
+The Settings export action supplies a separate favorites projector when the
+selected profile has used favorites sync. It exports the durable visible copy,
+including shared removals and unresolved snapshot-only Xtream memberships, without
+reading/uploading the NAS as part of export. Original raw archives remain retained
+for explicit favorites preview/import. Archive restore updates local legacy data;
+it does not implicitly authorize per-item NAS writes. Use the independent
+favorites preview/import action to publish restored local memberships.
+After a successful entry restore, Settings reconciles matching retained local
+favorite choices against the restored memberships. An older opted-out removal
+cannot hide a restored item from preview. Omitted choices, server revisions and
+queued operations remain intact; restoration itself sends no favorites writes.

@@ -288,6 +288,16 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
         this.detailState.syncFromHistory();
     }
 
+    @HostListener('window:iptvnator-favorites-changed')
+    onFavoritesChanged(): void {
+        void this.loadData({
+            mode: this.mode(),
+            portalType: this.portalType(),
+            playlistId: this.playlistId(),
+            scope: this.effectiveScope(),
+        });
+    }
+
     onScopeChange(value: CollectionScope): void {
         this.scopeState.select(value);
     }

@@ -1,6 +1,6 @@
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
-import { inject } from '@angular/core';
+import { DestroyRef, inject } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import {
     type ContentMetadataPatch,
@@ -42,12 +42,51 @@ export const withFavorites = function () {
                 snackBar = inject(LazySnackBar),
                 translate = inject(TranslateService)
             ) => {
+                const sqlite = () => runtime.supportsXtreamSqliteDataSource;
                 let request = 0;
                 let activeTarget = '';
                 const publish = (owner: number, isFavorite: boolean) => {
                     if (owner === request) patchState(store, { isFavorite });
                 };
-                return {
+                let refresh: (() => Promise<void>) | undefined;
+                const changed = () => {
+                    void refresh?.().catch(() => undefined);
+                };
+                const changes = new AbortController();
+                window.addEventListener(
+                    'iptvnator-favorites-changed',
+                    changed,
+                    { signal: changes.signal }
+                );
+                inject(DestroyRef).onDestroy(() => changes.abort());
+                const resolveTarget = async (
+                    id: number,
+                    playlist: string,
+                    type: 'live' | 'movie' | 'series',
+                    identity?: ContentMetadataPatch
+                ) => {
+                    const content = await dataSource.getContentByXtreamId(
+                        id,
+                        playlist,
+                        type,
+                        ...(sqlite() && identity ? [identity] : [])
+                    );
+                    const portable =
+                        await dataSource.supportsPortableFavorites?.(playlist);
+                    const contentId =
+                        content?.id ?? (!sqlite() || portable ? id : null);
+                    return contentId == null
+                        ? null
+                        : {
+                              id: contentId,
+                              providerId: id,
+                              type,
+                              ...((!sqlite() || portable) && identity
+                                  ? { identity }
+                                  : {}),
+                          };
+                };
+                const methods = {
                     async toggleFavorite(
                         xtreamId: number | string,
                         playlistId: string,
@@ -55,7 +94,14 @@ export const withFavorites = function () {
                         backdropUrl?: string,
                         identity?: ContentMetadataPatch
                     ) {
-                        ++request;
+                        refresh = () =>
+                            methods.checkFavoriteStatus(
+                                xtreamId,
+                                playlistId,
+                                contentType,
+                                identity
+                            );
+                        const owner = ++request;
                         const normalizedXtreamId = Number(xtreamId);
                         const targetKey = favoriteTargetKey(
                             playlistId,
@@ -72,27 +118,18 @@ export const withFavorites = function () {
                             return false;
                         }
 
-                        const content = await dataSource.getContentByXtreamId(
+                        const target = await resolveTarget(
                             normalizedXtreamId,
                             playlistId,
                             contentType,
-                            ...(runtime.supportsXtreamSqliteDataSource &&
                             identity
-                                ? [identity]
-                                : [])
                         );
-                        const contentId =
-                            content?.id ??
-                            (!runtime.supportsXtreamSqliteDataSource
-                                ? normalizedXtreamId
-                                : null);
 
-                        if (contentId == null) {
+                        if (!target) {
                             // A typed identity filter can reject all existing copies.
                             // Preserve the conflict feedback without mutating a contrary row.
                             const candidate =
-                                identity &&
-                                runtime.supportsXtreamSqliteDataSource
+                                identity && sqlite()
                                     ? await dataSource.getContentByXtreamId(
                                           normalizedXtreamId,
                                           playlistId,
@@ -115,14 +152,6 @@ export const withFavorites = function () {
                             return false;
                         }
 
-                        const target = {
-                            id: contentId,
-                            type: contentType,
-                            ...(!runtime.supportsXtreamSqliteDataSource &&
-                            identity
-                                ? { identity }
-                                : {}),
-                        };
                         const currentStatus = await dataSource.isFavorite(
                             target,
                             playlistId
@@ -157,7 +186,7 @@ export const withFavorites = function () {
                             }
                         }
                         if (activeTarget === targetKey)
-                            publish(++request, nextStatus);
+                            publish(owner, nextStatus);
                         return nextStatus;
                     },
 
@@ -167,6 +196,13 @@ export const withFavorites = function () {
                         contentType: 'live' | 'movie' | 'series',
                         identity?: ContentMetadataPatch
                     ) {
+                        refresh = () =>
+                            methods.checkFavoriteStatus(
+                                xtreamId,
+                                playlistId,
+                                contentType,
+                                identity
+                            );
                         const owner = ++request;
                         const normalizedXtreamId = Number(xtreamId);
                         const targetKey = favoriteTargetKey(
@@ -185,41 +221,27 @@ export const withFavorites = function () {
                             return;
                         }
 
-                        const content = await dataSource.getContentByXtreamId(
+                        const target = await resolveTarget(
                             normalizedXtreamId,
                             playlistId,
                             contentType,
-                            ...(runtime.supportsXtreamSqliteDataSource &&
                             identity
-                                ? [identity]
-                                : [])
                         );
-                        const contentId =
-                            content?.id ??
-                            (!runtime.supportsXtreamSqliteDataSource
-                                ? normalizedXtreamId
-                                : null);
 
-                        if (contentId == null) {
+                        if (!target) {
                             publish(owner, false);
                             return;
                         }
 
                         const isFavorite = await dataSource.isFavorite(
-                            {
-                                id: contentId,
-                                type: contentType,
-                                ...(!runtime.supportsXtreamSqliteDataSource &&
-                                identity
-                                    ? { identity }
-                                    : {}),
-                            },
+                            target,
                             playlistId
                         );
 
                         publish(owner, isFavorite);
                     },
                 };
+                return methods;
             }
         )
     );

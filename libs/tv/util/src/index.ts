@@ -138,6 +138,7 @@ export interface UserData {
     backend: string;
     backendToken: string;
     favorites: Media[];
+    favoriteScope: 'all' | 'current';
     history: Progress[];
     positions: Record<string, Progress>;
     catalogSort: CatalogSortPreferences;
@@ -151,6 +152,7 @@ export const initialData = (): UserData => ({
     backend: '',
     backendToken: '',
     favorites: [],
+    favoriteScope: 'all',
     history: [],
     positions: {},
     catalogSort: { movie: 'recent', series: 'recent' },
@@ -214,6 +216,7 @@ export function recordProgress(data: UserData, progress: Progress): UserData {
 }
 export function hydrateUserData(saved: Partial<UserData>): UserData {
     const data = { ...initialData(), ...saved };
+    data.favoriteScope = saved.favoriteScope === 'current' ? 'current' : 'all';
     data.catalogSort = {
         movie: normalizeCatalogSort(saved.catalogSort?.movie),
         series: normalizeCatalogSort(saved.catalogSort?.series),

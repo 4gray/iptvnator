@@ -310,6 +310,8 @@ const electronApi: ElectronBridgeApi = {
         if (result?.error) throw new Error('SOURCE_SYNC.INCOMPATIBLE');
         return result;
     },
+    favoritesLocalRequest: (request) =>
+        ipcRenderer.invoke('DB_FAVORITES_LOCAL', request),
     activityLocalRequest: (request) =>
         ipcRenderer.invoke('DB_ACTIVITY_LOCAL', request),
     sourceSyncRequest: (request) =>
@@ -1070,18 +1072,21 @@ const electronApi: ElectronBridgeApi = {
         playlistId: string,
         contentType?: 'live' | 'movie' | 'series',
         identity?: ContentMetadataPatch,
-        categoryId?: number
+        categoryId?: number,
+        excludeLocked?: boolean
     ) =>
         ipcRenderer.invoke(
             'DB_GET_CONTENT_BY_XTREAM_ID',
             xtreamId,
             playlistId,
             contentType,
-            ...(categoryId !== undefined
-                ? [identity, categoryId]
-                : identity
-                  ? [identity]
-                  : [])
+            ...(excludeLocked
+                ? [identity, categoryId, true]
+                : categoryId !== undefined
+                  ? [identity, categoryId]
+                  : identity
+                    ? [identity]
+                    : [])
         ),
     dbSetContentMetadataIfMissing: (
         contentId: number,

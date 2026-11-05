@@ -23,6 +23,26 @@ describe('Electron Xtream catalog selection', () => {
         );
     });
 
+    it('forwards collection lock filtering', async () => {
+        const { dataSource, dbService } = setupElectronXtreamDataSource();
+        await dataSource.getContentByXtreamId(
+            42,
+            'synthetic-source',
+            'movie',
+            undefined,
+            undefined,
+            true
+        );
+        expect(dbService.getContentByXtreamId).toHaveBeenCalledWith(
+            42,
+            'synthetic-source',
+            'movie',
+            undefined,
+            undefined,
+            true
+        );
+    });
+
     it.each(Array.from({ length: 8 }, (_, mask) => mask))(
         'requests only enabled catalogs for selection mask %i',
         async (mask) => {

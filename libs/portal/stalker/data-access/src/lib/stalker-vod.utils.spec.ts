@@ -2,6 +2,7 @@ import { VodDetailsItem } from '@iptvnator/shared/interfaces';
 import { StalkerFavoriteItem } from './models';
 import {
     buildStalkerFavoritePayload,
+    matchesFavoriteById,
     firstNonBlankStalkerId,
     firstNonBlankStalkerIdText,
     buildStalkerSelectedVodItem,
@@ -16,6 +17,20 @@ import {
 } from './stalker-vod.utils';
 
 describe('stalker-vod.utils regressions', () => {
+    it('distinguishes known favorite kinds and series origins when checking a detail heart', () => {
+        const movie = { id: '42', favoriteContentType: 'vod' as const };
+        const regular = { id: '42', favoriteContentType: 'series' as const };
+        const lazy = {
+            id: '42',
+            favoriteContentType: 'vod' as const,
+            is_series: true,
+        };
+        expect(matchesFavoriteById(movie, '42', movie)).toBe(true);
+        expect(matchesFavoriteById(regular, '42', movie)).toBe(false);
+        expect(matchesFavoriteById(lazy, '42', regular)).toBe(false);
+        expect(matchesFavoriteById(lazy, '42', lazy)).toBe(true);
+    });
+
     describe('Stalker series flag contract', () => {
         it.each([true, 1, '1'])(
             'accepts %p and normalizes it to the positive marker',

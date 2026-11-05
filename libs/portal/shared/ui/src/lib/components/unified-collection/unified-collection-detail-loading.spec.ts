@@ -33,9 +33,11 @@ class DetailLoadingHostComponent {}
 
 describe('collection detail handoff loading', () => {
     const recentData = { getRecentItems: jest.fn() };
+    const favoritesData = { getFavorites: jest.fn() };
 
     beforeEach(async () => {
         recentData.getRecentItems.mockReset();
+        favoritesData.getFavorites.mockReset().mockResolvedValue([]);
         await TestBed.configureTestingModule({
             imports: [DetailLoadingHostComponent, TranslateModule.forRoot()],
             providers: [
@@ -60,7 +62,7 @@ describe('collection detail handoff loading', () => {
                 },
                 {
                     provide: UnifiedFavoritesDataService,
-                    useValue: { getFavorites: jest.fn().mockResolvedValue([]) },
+                    useValue: favoritesData,
                 },
                 { provide: UnifiedRecentDataService, useValue: recentData },
             ],
@@ -68,6 +70,42 @@ describe('collection detail handoff loading', () => {
     });
 
     afterEach(() => window.history.replaceState({}, document.title));
+
+    it.each(['movie', 'series'] as const)(
+        'selects the first shared %s received on an empty favorites page',
+        async (contentType) => {
+            const fixture = TestBed.createComponent(
+                UnifiedCollectionPageComponent
+            );
+            fixture.componentRef.setInput('mode', 'favorites');
+            fixture.detectChanges();
+            await fixture.whenStable();
+            expect(fixture.componentInstance.selectedContentType()).toBe(
+                'live'
+            );
+            const item: UnifiedCollectionItem = {
+                uid: `xtream::source::${contentType}:42`,
+                name: 'Synthetic shared favorite',
+                sourceType: 'xtream',
+                contentType,
+                playlistId: 'source',
+                playlistName: 'Synthetic source',
+                contentId: 42,
+            };
+            favoritesData.getFavorites.mockResolvedValueOnce([item]);
+
+            window.dispatchEvent(new Event('iptvnator-favorites-changed'));
+            await fixture.whenStable();
+
+            expect(fixture.componentInstance.selectedContentType()).toBe(
+                contentType
+            );
+            expect(fixture.componentInstance.currentTypeItems()).toEqual([
+                item,
+            ]);
+            expect(fixture.componentInstance.showContentToggle()).toBe(false);
+        }
+    );
 
     it.each([
         ['xtream', 'movie'],

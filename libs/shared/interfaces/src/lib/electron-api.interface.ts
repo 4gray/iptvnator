@@ -751,6 +751,9 @@ export interface ElectronBridgeApi {
     onAppMenuAction: (
         callback: (action: ElectronBridgeAppMenuAction) => void
     ) => () => void;
+    favoritesLocalRequest?: (
+        request: import('./favorites-sync/favorites-sync.contract').FavoriteLocalRequest
+    ) => Promise<unknown>;
     activityLocalRequest?: (
         request: import('./activity-sync/activity-sync.wire').ActivityLocalRequest
     ) => Promise<unknown>;
@@ -1232,7 +1235,8 @@ export interface ElectronBridgeApi {
         playlistId: string,
         contentType?: ElectronBridgePortalContentType,
         identity?: ContentMetadataPatch,
-        categoryId?: number
+        categoryId?: number,
+        excludeLocked?: boolean
     ) => Promise<ElectronBridgeXtreamContent | null>;
     dbSetContentMetadataIfMissing: (
         contentId: number,

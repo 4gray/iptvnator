@@ -231,8 +231,8 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
         toggleStalkerVodFavorite(event, {
             addToFavorites: (item, onDone) =>
                 this.catalog.addToFavorites(item, onDone),
-            removeFromFavorites: (favoriteId, onDone) =>
-                this.catalog.removeFromFavorites(favoriteId, onDone),
+            removeFromFavorites: (favoriteId, onDone, context) =>
+                this.catalog.removeFromFavorites(favoriteId, onDone, context),
             onComplete: () => {
                 this.favoritesRefresh.refresh();
             },

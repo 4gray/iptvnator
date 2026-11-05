@@ -267,6 +267,21 @@
             "@iptvnator/services/activity-sync": [
                 "libs/services/src/activity-sync.ts"
             ],
+            "@iptvnator/shared/interfaces/favorites-sync": [
+                "libs/shared/interfaces/src/favorites-sync.ts"
+            ],
+            "@iptvnator/shared/database/favorites-sync": [
+                "libs/shared/database/src/favorites-sync.ts"
+            ],
+            "@iptvnator/shared/m3u-utils/favorites": [
+                "libs/shared/m3u-utils/src/favorites.ts"
+            ],
+            "@iptvnator/services/favorites-events": [
+                "libs/services/src/favorites-events.ts"
+            ],
+            "@iptvnator/services/favorites-sync": [
+                "libs/services/src/favorites-sync.ts"
+            ],
             "@iptvnator/shared/interfaces/activity-sync": [
                 "libs/shared/interfaces/src/activity-sync.ts"
             ],

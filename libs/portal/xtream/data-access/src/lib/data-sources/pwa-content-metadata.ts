@@ -19,6 +19,36 @@ import {
 import type { XtreamCachedContentItem } from './pwa-cached-content';
 import { rememberColdFavoriteMetadata } from './pwa-cold-favorite';
 
+/** Catalog-only lookup keeps the original type order and prefers fully confirmed duplicates. */
+export function findPwaCachedContent(
+    cache: ReadonlyMap<string, readonly XtreamCachedContentItem[]>,
+    playlistId: string,
+    xtreamId: number,
+    types: readonly ('live' | 'movie' | 'series')[],
+    identity?: ContentMetadataPatch
+): XtreamContentItem | null {
+    const expected = {
+        tmdb_id: identity?.tmdbId,
+        release_year: identity?.releaseYear,
+    };
+    for (const type of types) {
+        let compatible: XtreamContentItem | null = null;
+        for (const item of cache.get(`${playlistId}-${type}-content`) ?? []) {
+            if (cachedContentIdentity(item, type) !== xtreamId) continue;
+            const candidate = item as XtreamContentItem;
+            if (collectionSnapshotMatchesContent(expected, candidate))
+                return candidate;
+            if (
+                !compatible &&
+                collectionSnapshotMatchesContent(expected, candidate, true)
+            )
+                compatible = candidate;
+        }
+        if (compatible) return compatible;
+    }
+    return null;
+}
+
 /** Provider rows are normalized only when a catalog is fetched or saved. */
 export function normalizePwaCatalogContent(
     items: readonly XtreamCachedContentItem[],

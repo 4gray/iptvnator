@@ -6,6 +6,7 @@ import type { ServerStorage } from './server-storage';
 import { storageErrorHandler } from './storage-route-errors';
 import { createUserStateRouter } from './user-state-router';
 import { createSourcesRouter } from './sources-router';
+import { createFavoriteRouter } from './favorites-router';
 import { createActivityRouter } from './activity-router';
 
 export const DEFAULT_MAX_DOCUMENT_BYTES = 64 * 1024 * 1024;
@@ -42,6 +43,7 @@ export function mountServerStorage(
     );
     if (options.storage) {
         app.use('/v1', createActivityRouter(options.storage));
+        app.use('/v1', createFavoriteRouter(options.storage));
         app.use(
             '/v1',
             createSourcesRouter(options.storage, options.maxDocumentBytes)

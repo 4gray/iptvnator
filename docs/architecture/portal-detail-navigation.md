@@ -511,3 +511,12 @@ If a future change proposes that Xtream favorites/recent should stay inline:
   detail host
 - verify history/back behavior, playlist preservation, and dashboard handoff
   behavior still make sense
+
+## Collection polling and nested playback
+
+A refresh of the same Xtream favorite/recent item preserves its nested detail
+injector, selected content and inline playback. The loaded source connection,
+provider kind/ID and known content identity define that
+lifetime; display-name and category hints do not reset it. A real source edit or
+identity change still creates a fresh detail context. Pending source loads keep
+the existing request-owner fence before applying any store changes.
