@@ -40,6 +40,15 @@
             hasSeasons() && !showSeasonEmptyState() && metaState() !== 'bare'
         ) {
             <div class="view-toggle" section-header-end>
+                <button
+                    mat-icon-button
+                    class="play-random-episode"
+                    [attr.aria-label]="'PORTALS.PLAY_RANDOM_EPISODE' | translate"
+                    [matTooltip]="'PORTALS.PLAY_RANDOM_EPISODE' | translate"
+                    (click)="playRandomEpisode()"
+                >
+                    <mat-icon>shuffle</mat-icon>
+                </button>
                 <mat-button-toggle-group
                     [value]="viewMode()"
                     (change)="setViewMode($event.value)"
