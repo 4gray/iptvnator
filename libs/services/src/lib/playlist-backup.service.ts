@@ -252,6 +252,8 @@ export class PlaylistBackupService {
                 const saved = await firstValueFrom(
                     this.playlistsService.restorePlaylist(nextPlaylist)
                 );
+                // A later restore failure must not make a persisted ID reusable.
+                existingIds.add(saved._id);
                 if (saved._id !== targetId) {
                     targetId = saved._id;
                     isMerge = true;
@@ -302,7 +304,6 @@ export class PlaylistBackupService {
                 } else {
                     summary.imported += 1;
                 }
-                existingIds.add(targetId);
             } catch (error) {
                 summary.failed += 1;
                 summary.errors.push(
