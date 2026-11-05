@@ -165,6 +165,40 @@ beforeAll(() =>
     })
 );
 describe('favorites delivery and consent boundaries', () => {
+    it.each([
+        { ...source, sourceId: 'synthetic-other' },
+        { ...source, sourceIncarnation: '' },
+        { ...source, provider: 'synthetic' },
+    ])(
+        'rejects invalid source verification without guessing a new link (%j)',
+        async (body) => {
+            const f = fixture();
+            f.options.request = async () => ({ status: 200, body }) as never;
+            expect(await f.client.context('source')).toEqual(source);
+            f.client.forget('source');
+            await expect(f.client.context('source')).rejects.toThrow(
+                'Invalid favorite source'
+            );
+            expect(await f.client.entries('source')).toEqual([]);
+            f.consent(null);
+            expect(() => f.client.generation()).toThrow();
+        }
+    );
+    it('retains the newest accepted verification when an older request confirms the same incarnation', async () => {
+        const f = fixture();
+        let finish!: (value: { status: number; body: typeof source }) => void;
+        let calls = 0;
+        f.options.request = () =>
+            ++calls === 1
+                ? (new Promise((resolve) => (finish = resolve)) as never)
+                : Promise.resolve({ status: 200, body: { ...source } });
+        const first = f.client.context('source');
+        const latest = await f.client.context('source');
+        finish({ status: 200, body: { ...source } });
+        expect(await first).toBe(latest);
+        expect(f.options.remember).toHaveBeenCalledTimes(1);
+    });
+
     it.each([500, 502, 503, 504, 599])(
         'queues an edit against a verified cached context on HTTP %s and delivers after recovery',
         async (status) => {

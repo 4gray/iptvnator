@@ -37,7 +37,7 @@ describe('opt-in favorites persistence in real SQLite', () => {
                         external: ['better-sqlite3'],
                         plugins: [
                             runtimeCoveragePlugin(
-                                /favorites-sqlite-|favorites-schema[.]ts$|favorites-storage[.]ts$/
+                                /favorites-sqlite-|favorites-schema[.]ts$|favorites-storage[.]ts$|favorites-sync-storage[.]ts$/
                             ),
                         ],
                         define: {

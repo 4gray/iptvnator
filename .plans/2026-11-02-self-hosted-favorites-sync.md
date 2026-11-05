@@ -861,3 +861,26 @@ initial bytes pass at 1,196,826 / 1,200,301. All three favorites PWA/Electron
 journeys pass again in 1.9 minutes, following the complete 26-flow pass. Update
 the canonical Xtream contract; the existing feature release note covers this
 repair. Commit and repeat the local gate before a single batch push.
+
+Local Codex round 28 accepts e86c089c2. Push once, reply to and resolve the three
+original Greptile threads, then request a fresh GitHub review. Greptile returns
+5/5 with no actionable findings on that exact revision. Fresh CI confirms i18n,
+unit/typechecks, lint, Docker, CodeQL, byte ratchet, journeys and all packaging;
+Web and Windows/Linux Electron E2E pass while the last macOS shard completes.
+Codecov's project/patch checks expose a real coverage gap (80.79% project and
+67.52% patch against 80.97%), despite the separate local coverage gates passing.
+
+Add focused runtime tests for first-enable download, consent refusal/races,
+offline edits, backup/Keep local/explicit import, conflict choice, active-view
+publication, lazy bridge use and listener teardown. Test malformed protocol
+inputs, worker IPC conflict/error boundaries, source ownership and M3U catalog
+invalidation/retry. Include the already-executed SQLite migration driver in its
+existing original-source subprocess instrumentation: its actual filename was
+missing from the matcher. No production code, threshold, baseline or exclusion
+changes. Updated owning suites pass: web 903, Electron 3,026, services 1,431,
+shared interfaces 877 and database 81 tests. The 36-project merged coverage is
+86.12% statements, 77.82% branches, 84.36% functions and 86.62% lines. All 42
+spec programs and owning lint pass. These are test-only changes; the existing
+feature note and already-verified production builds/E2E remain applicable.
+Commit and rerun the required local review gate, then verify fresh Codecov and
+CI results before calling the PR ready. Never suppress the failing status.
