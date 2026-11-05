@@ -665,7 +665,7 @@ between enabled row items and stops at either end; Up/Down leaves the row.
 Focus scrolls the item into view without opening or playing it. Pointer-only
 side arrows advance a visible group and focus the newly revealed item. They
 appear only when content overflows and disable at the corresponding edge.
-Arrows stay outside remote focus and do not overlap cards.
+Arrows stay outside remote and Tab focus and do not overlap cards.
 
 Horizontal native scrollbars are hidden; vertical lists and long text retain
 explicit dark WebKit scrollbars. The LG Chromium 68 target ignores

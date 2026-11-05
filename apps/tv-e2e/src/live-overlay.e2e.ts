@@ -100,6 +100,14 @@ test('expanded guide shows supplied days and descriptions, windows rows and keep
     await expect(guide.locator('[data-focus^="guide-day-"]')).toHaveCount(7);
     await page.setViewportSize({ width: 1280, height: 720 });
     await checkHorizontalRail(page, guide.locator('.programme-guide-days'));
+    const lastDate = guide.locator('.programme-guide-days button').last();
+    const firstProgramme = guide.locator('.programme-guide-row').first();
+    await lastDate.focus();
+    await page.keyboard.press('Tab');
+    await expect(firstProgramme).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(lastDate).toBeFocused();
+
     await page.setViewportSize({ width: 1920, height: 1080 });
     await guide.getByRole('button', { name: 'Now', exact: true }).click();
     await expect(
