@@ -63,7 +63,7 @@ export class HistoryXtreamAdapter {
         if (!this.sqlite) {
             const missing = new Set<'live' | 'movie' | 'series'>();
             const checked = new Set<'live' | 'movie' | 'series'>();
-            for (const { reference } of visibleHistory(state).slice(0, 100)) {
+            for (const { reference } of visibleHistory(state)) {
                 if (
                     reference.provider !== 'xtream' ||
                     checked.has(reference.kind)
@@ -98,19 +98,14 @@ export class HistoryXtreamAdapter {
                       item,
                   ])
         );
-        const active = new Set(
-            visibleHistory(state)
-                .slice(0, 100)
-                .map((item) => favoriteReferenceKey(item.reference))
-        );
-        for (const item of state.items) {
+        for (const item of state.items)
+            mapped.delete(favoriteReferenceKey(item.reference));
+        let accepted = 0;
+        for (const item of visibleHistory(state)) {
             const ref = item.reference;
             if (ref.provider !== 'xtream') continue;
+            if (accepted === 100) break;
             const key = favoriteReferenceKey(ref);
-            if (!active.has(key)) {
-                mapped.delete(key);
-                continue;
-            }
             const original = local.find(
                 (row) =>
                     favoriteReferenceKey(xtreamFavoriteReference(row)) === key
@@ -175,6 +170,7 @@ export class HistoryXtreamAdapter {
                 type: ref.kind,
                 viewed_at: new Date(item.viewedAt).toISOString(),
             });
+            accepted++;
         }
         this.client.current(scope);
         if (

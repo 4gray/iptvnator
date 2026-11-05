@@ -573,4 +573,129 @@ describe('history provider projections', () => {
         withholding = true;
         expect(await adapter.project(raw as never, 'source')).toEqual([]);
     });
+    it.each([true, false])(
+        'finds unlocked shared entries beyond the first 100 with sqlite=%s',
+        async (sqlite) => {
+            const f = fixture('xtream');
+            for (let id = 1; id <= 101; id++)
+                f.read().base = applyHistoryOperation(f.read().base, {
+                    kind: 'touch',
+                    reference: {
+                        provider: 'xtream',
+                        kind: id === 1 ? 'series' : 'movie',
+                        id: String(id),
+                    },
+                    operationId: String(id),
+                    deviceId: 'other',
+                    baseRevision: 0,
+                    viewedAt: id,
+                }).state;
+            let seriesWarm = sqlite;
+            const row = (id: number) => ({
+                id,
+                xtream_id: id,
+                type: id === 1 ? 'series' : 'movie',
+                title: 'Synthetic history item',
+                category_id: id === 1 ? 7 : 8,
+            });
+            const raw = {
+                getRecentItems: jest.fn().mockResolvedValue([]),
+                getAllCategories: jest.fn().mockResolvedValue([
+                    { id: 7, locked: false },
+                    { id: 8, locked: true },
+                ]),
+                getContentByXtreamId: jest.fn(
+                    async (
+                        id: number,
+                        _source: string,
+                        _kind: string,
+                        _hints: unknown,
+                        _session: unknown,
+                        excludeLocked: boolean
+                    ) =>
+                        id === 1
+                            ? seriesWarm
+                                ? row(id)
+                                : null
+                            : excludeLocked
+                              ? null
+                              : row(id)
+                ),
+                getPlaylist: jest.fn().mockResolvedValue({
+                    serverUrl: 'https://history.example',
+                    username: 'synthetic',
+                    password: 'synthetic',
+                }),
+                getContent: jest.fn(
+                    async (
+                        _source: string,
+                        _credentials: unknown,
+                        kind: string
+                    ) => {
+                        expect(kind).toBe('series');
+                        seriesWarm = true;
+                        return [row(1)];
+                    }
+                ),
+            };
+            const result = await new HistoryXtreamAdapter(f.client, sqlite, {
+                ...locks,
+                active: () => true,
+            }).project(raw as never, 'source');
+            expect(result).toEqual([
+                expect.objectContaining({ xtream_id: 1, type: 'series' }),
+            ]);
+            expect(raw.getContent).toHaveBeenCalledTimes(sqlite ? 0 : 1);
+        }
+    );
+    it('stops after 100 eligible entries while overlaying all known archive keys', async () => {
+        const f = fixture('xtream');
+        for (let id = 1; id <= 200; id++)
+            f.read().base = applyHistoryOperation(f.read().base, {
+                kind: 'touch',
+                reference: {
+                    provider: 'xtream',
+                    kind: 'movie',
+                    id: String(id),
+                },
+                operationId: String(id),
+                deviceId: 'other',
+                baseRevision: 0,
+                viewedAt: id,
+            }).state;
+        f.read().base = applyHistoryOperation(f.read().base, {
+            kind: 'remove',
+            reference: { provider: 'xtream', kind: 'movie', id: '999' },
+            operationId: 'remove',
+            deviceId: 'other',
+            baseRevision: 0,
+            viewedAt: 201,
+        }).state;
+        const raw = {
+            getRecentItems: jest.fn().mockResolvedValue([
+                {
+                    id: 999,
+                    xtream_id: 999,
+                    type: 'movie',
+                    title: 'Synthetic removed archive',
+                    viewed_at: new Date(1000).toISOString(),
+                },
+            ]),
+            getContentByXtreamId: jest.fn(async (id: number) => ({
+                id,
+                xtream_id: id,
+                type: 'movie',
+                title: 'Synthetic history item',
+            })),
+        };
+        const result = await new HistoryXtreamAdapter(
+            f.client,
+            true,
+            locks
+        ).project(raw as never, 'source');
+        expect(result.map((item) => item.xtream_id)).toEqual(
+            Array.from({ length: 100 }, (_, index) => 200 - index)
+        );
+        expect(raw.getContentByXtreamId).toHaveBeenCalledTimes(100);
+    });
 });

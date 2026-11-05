@@ -1254,3 +1254,8 @@ hidden-but-unlocked history. Unknown category ownership stays withheld; a
 full import preview retains the complete archive. Sparse received rows keep
 saved TMDB/year hints and title; unconfirmed catalog presentation cannot replace
 that protected snapshot. Fully confirming rows may refresh its presentation.
+
+The shared-history browsing cap also counts eligible rows after lock and identity
+filtering. Locked newer entries cannot hide older unlocked ones. PWA hydration
+checks every represented content kind before projection; tombstones are applied
+to the complete local archive even when 100 eligible shared rows are already found.
