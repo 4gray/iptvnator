@@ -38,7 +38,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         section: 'general',
         labelKey: 'SETTINGS.THEME',
         descriptionKey: 'SETTINGS.THEME_DESCRIPTION',
-        keywords: ['theme', 'dark', 'light', 'appearance', 'color'],
+        keywords: ['theme', 'dark', 'light', 'cream', 'mocha', 'appearance', 'color'],
     },
     {
         id: 'cover-size',

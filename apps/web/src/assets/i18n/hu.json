@@ -754,6 +754,9 @@
         "DELETE_ALL_WARNING": "A lejátszási listák törlődnek a kiszolgálóról, így egyik csatlakozó eszközön sem lesznek elérhetők."
     },
     "THEMES": {
+        "CREAM_THEME": "Cream",
+        "MOCHA_THEME": "Mocha",
+        "SYSTEM_DESCRIPTION": "A rendszerbeállítás az eszköz világos vagy sötét megjelenését követi.",
         "DARK_THEME": "Sötét",
         "LIGHT_THEME": "Világos",
         "SYSTEM_THEME": "Rendszer"

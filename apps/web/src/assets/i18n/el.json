@@ -754,6 +754,9 @@
         "DELETE_ALL_WARNING": "Αυτό αφαιρεί τις λίστες αναπαραγωγής από τον διακομιστή για κάθε συσκευή."
     },
     "THEMES": {
+        "CREAM_THEME": "Cream",
+        "MOCHA_THEME": "Mocha",
+        "SYSTEM_DESCRIPTION": "Η επιλογή συστήματος ακολουθεί τη φωτεινή ή σκοτεινή εμφάνιση της συσκευής σας.",
         "DARK_THEME": "Σκούρο",
         "LIGHT_THEME": "Ανοιχτό",
         "SYSTEM_THEME": "Σύστημα"

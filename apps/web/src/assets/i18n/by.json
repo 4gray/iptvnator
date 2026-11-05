@@ -754,6 +754,9 @@
         "DELETE_ALL_WARNING": "Плэйлісты будуць выдалены з сервера для ўсіх прылад."
     },
     "THEMES": {
+        "CREAM_THEME": "Cream",
+        "MOCHA_THEME": "Mocha",
+        "SYSTEM_DESCRIPTION": "Сістэмная тэма аўтаматычна выбірае светлае або цёмнае афармленне прылады.",
         "DARK_THEME": "Цёмная",
         "LIGHT_THEME": "Светлая",
         "SYSTEM_THEME": "Сістэмная"

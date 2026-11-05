@@ -754,6 +754,9 @@
         "DELETE_ALL_WARNING": "這會從伺服器上刪除播放清單，所有裝置都會受影響。"
     },
     "THEMES": {
+        "CREAM_THEME": "Cream",
+        "MOCHA_THEME": "Mocha",
+        "SYSTEM_DESCRIPTION": "系統主題跟隨裝置的淺色或深色外觀。",
         "DARK_THEME": "深色",
         "LIGHT_THEME": "淺色",
         "SYSTEM_THEME": "跟隨系統"

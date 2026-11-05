@@ -754,6 +754,9 @@
         "DELETE_ALL_WARNING": "すべてのデバイスで、サーバーからプレイリストが削除されます。"
     },
     "THEMES": {
+        "CREAM_THEME": "Cream",
+        "MOCHA_THEME": "Mocha",
+        "SYSTEM_DESCRIPTION": "システム設定では、デバイスのライト／ダーク表示に従います。",
         "DARK_THEME": "ダーク",
         "LIGHT_THEME": "ライト",
         "SYSTEM_THEME": "システム"

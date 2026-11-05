@@ -754,6 +754,9 @@
         "DELETE_ALL_WARNING": "Esto elimina las listas de reproducción del servidor para todos los dispositivos."
     },
     "THEMES": {
+        "CREAM_THEME": "Cream",
+        "MOCHA_THEME": "Mocha",
+        "SYSTEM_DESCRIPTION": "Sistema sigue la apariencia clara u oscura de tu dispositivo.",
         "DARK_THEME": "Oscuro",
         "LIGHT_THEME": "Claro",
         "SYSTEM_THEME": "Sistema"

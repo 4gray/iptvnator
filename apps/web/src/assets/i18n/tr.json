@@ -754,6 +754,9 @@
         "DELETE_ALL_WARNING": "Bu işlem oynatma listelerini tüm cihazlar için sunucudan kaldırır."
     },
     "THEMES": {
+        "CREAM_THEME": "Cream",
+        "MOCHA_THEME": "Mocha",
+        "SYSTEM_DESCRIPTION": "Sistem, cihazınızın açık veya koyu görünümünü izler.",
         "DARK_THEME": "Koyu",
         "LIGHT_THEME": "Açık",
         "SYSTEM_THEME": "Sistem"

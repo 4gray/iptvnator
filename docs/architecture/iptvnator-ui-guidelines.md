@@ -240,9 +240,11 @@ in the overlay chunk. Everything else is lazy by these rules:
   "focus was inside" in a microtask after such a `focusout`, which the close
   destroys the panel before. Both have specs that detach the view first.
 
-The app theme is the exclusive `.dark-theme` or `.light-theme` class that
-`SettingsService` puts on `<body>`; a "System" choice resolves the OS
-preference there and nowhere else. Component styles never use a
+The app mode is the exclusive `.dark-theme` or `.light-theme` class that
+`SettingsService` puts on `<body>`. Its `data-app-theme` attribute identifies
+the resolved palette: `light`, `dark`, `cream`, or `mocha`. Cream uses light
+mode and Mocha uses dark mode; a "System" choice resolves the OS preference
+to the original Light/Dark presets there and nowhere else. Component styles never use a
 `prefers-color-scheme` query, which follows the OS: with the app set to dark
 on a light OS it paints light colours
 into the dark theme. Read `--app-*` tokens, which switch with the class, or
@@ -1671,6 +1673,26 @@ consumers must not reset these with a later `font: inherit` shorthand. Different
 content rows retain their own typography and density.
 
 ## Theme Guidance
+
+The built-in catalog and theme-value normalization live in
+`libs/shared/interfaces/src/lib/theme-presets.ts`. Keep existing persisted
+identifiers stable. Unknown saved values normalize to System; partial settings
+updates that omit the theme preserve the saved choice.
+
+The palette picker uses the existing keyboard-accessible radio directives. Four
+named miniature samples use the same app tokens as the real theme; System is a
+separate row in the same group. Selection previews immediately, Save persists
+it, and Discard restores the saved choice and its System listener when needed.
+
+App palette declarations live in `apps/web/src/_theme-palettes.scss`, included
+by `m3-theme.scss` for both body contexts and decorative preview contexts.
+`_warm-theme.scss` supplies the complete Material color ramps for Cream/Mocha;
+component-color mixins and system-level colors must both follow the preset.
+Adding a built-in preset requires catalog metadata, app/Material colors,
+localized naming, and computed contrast/persistence coverage. Do not introduce
+per-component preset conditions or duplicate sample-only palettes. Typography,
+spacing, media artwork and the fixed over-video control palette stay unchanged.
+
 
 ### Light Theme
 
