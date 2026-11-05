@@ -61,7 +61,20 @@ for (const stage of ['snapshot', 'state'] as const) {
                                             command === 'status'));
                                 if (hold) {
                                     fixture.pending = true;
+                                    socket.once('close', () => {
+                                        fixture.pending = false;
+                                    });
                                     fixture.release = () => {
+                                        if (
+                                            !fixture.pending ||
+                                            socket.destroyed ||
+                                            socket.readableEnded ||
+                                            socket.writableEnded
+                                        ) {
+                                            throw new Error(
+                                                'Held RC reply expired before replacement'
+                                            );
+                                        }
                                         socket.write(
                                             stage === 'snapshot'
                                                 ? '> 77'
