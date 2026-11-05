@@ -1,4 +1,6 @@
 import {
+    DestroyRef,
+    inject,
     effect,
     Signal,
     signal,
@@ -6,6 +8,7 @@ import {
     WritableSignal,
 } from '@angular/core';
 import {
+    COLLECTION_RELOAD_STATE_KEY,
     buildCollectionViewState,
     buildOpenCollectionDetailItemState,
     COLLECTION_VIEW_STATE_KEY,
@@ -81,6 +84,37 @@ export function setupCollectionViewStateSync(options: {
     /** `undefined` wherever the scope toggle is not offered. */
     scope: Signal<CollectionScope | undefined>;
 }): CollectionViewStateSync {
+    if (window.location.protocol === 'file:') {
+        try {
+            sessionStorage.removeItem(COLLECTION_RELOAD_STATE_KEY);
+        } catch {
+            // Storage can be unavailable; keep the collection usable.
+        }
+        const saveOnReload = () => {
+            try {
+                const collectionViewState = getCollectionViewState(
+                    window.history.state
+                );
+                sessionStorage.removeItem(COLLECTION_RELOAD_STATE_KEY);
+                if (collectionViewState) {
+                    sessionStorage.setItem(
+                        COLLECTION_RELOAD_STATE_KEY,
+                        JSON.stringify({
+                            href: window.location.href,
+                            collectionViewState,
+                        })
+                    );
+                }
+            } catch {
+                // Reload remains usable when session storage is disabled or full.
+            }
+        };
+        window.addEventListener('pagehide', saveOnReload);
+        inject(DestroyRef).onDestroy(() =>
+            window.removeEventListener('pagehide', saveOnReload)
+        );
+    }
+
     const currentViewState = (): CollectionViewState => ({
         selectedContentType: options.selectedContentType(),
         scope: options.scope(),
