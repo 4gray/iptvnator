@@ -1284,6 +1284,15 @@ for (const theme of ['light', 'dark']) {
         });
         expect(Math.abs(headerGap)).toBeLessThanOrEqual(1);
         await category.focus();
+        await page.evaluate(axe.source);
+        const violations = await page.evaluate(async () => {
+            const engine = (
+                window as typeof window & { axe: typeof import('axe-core') }
+            ).axe;
+            return (await engine.run('app-workspace-context-category-view'))
+                .violations;
+        });
+        expect(violations).toEqual([]);
         await page.keyboard.press('ArrowRight');
         await expect(viewport).toBeFocused();
         await expect(page.locator('app-web-player-view')).toHaveCount(0);
@@ -1350,15 +1359,6 @@ for (const theme of ['light', 'dark']) {
             body: JSON.stringify({ theme, contrast }),
             contentType: 'application/json',
         });
-        await page.evaluate(axe.source);
-        const violations = await page.evaluate(async () => {
-            const engine = (
-                window as typeof window & { axe: typeof import('axe-core') }
-            ).axe;
-            return (await engine.run('app-workspace-context-category-view'))
-                .violations;
-        });
-        expect(violations).toEqual([]);
         await page.setViewportSize({ width: 1600, height: 1000 });
         await page.screenshot({
             path: testInfo.outputPath(`live-panels-${theme}.png`),
