@@ -114,6 +114,14 @@ async function buildWorker() {
                 sourcemap: isPerformance || !isProduction,
                 minify: isProduction || isPerformance,
                 alias: {
+                    '@iptvnator/shared/interfaces/history-sync': path.join(
+                        __dirname,
+                        '../../libs/shared/interfaces/src/history-sync.ts'
+                    ),
+                    '@iptvnator/shared/database/history-sync': path.join(
+                        __dirname,
+                        '../../libs/shared/database/src/history-sync.ts'
+                    ),
                     '@iptvnator/shared/interfaces/favorites-sync': path.join(
                         __dirname,
                         '../../libs/shared/interfaces/src/favorites-sync.ts'

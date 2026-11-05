@@ -131,7 +131,11 @@ export const withRecentItems = function () {
 
                                 if (contentId != null) {
                                     await dataSource.addRecentItem(
-                                        { id: contentId, type: contentType },
+                                        {
+                                            id: contentId,
+                                            type: contentType,
+                                            providerId: normalizedXtreamId,
+                                        },
                                         playlistId,
                                         backdropUrl,
                                         ...(playedContent

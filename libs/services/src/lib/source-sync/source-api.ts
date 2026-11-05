@@ -33,6 +33,10 @@ export function sourceRequestRoute(request: SourceServerRequest): {
             return { path: `/v1/sources/${id}`, method: 'DELETE' };
         case 'clear':
             return { path: '/v1/sources', method: 'DELETE' };
+        case 'history-read':
+            return { path: `/v1/history/sources/${id}`, method: 'GET' };
+        case 'history-apply':
+            return { path: '/v1/history/operations', method: 'POST' };
         case 'favorites-context':
             return { path: `/v1/favorites/sources/${id}`, method: 'GET' };
         case 'favorites-list':
@@ -144,10 +148,16 @@ export async function requestSourceServer(
                       }
                     : {}),
             },
-            ...((request.favorite ?? request.activity ?? request.source)
+            ...((request.history ??
+            request.favorite ??
+            request.activity ??
+            request.source)
                 ? {
                       body: JSON.stringify(
-                          request.favorite ?? request.activity ?? request.source
+                          request.history ??
+                              request.favorite ??
+                              request.activity ??
+                              request.source
                       ),
                   }
                 : {}),

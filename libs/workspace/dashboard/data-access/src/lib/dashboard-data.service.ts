@@ -1,3 +1,4 @@
+import { HISTORY_PLAYLIST_BRIDGE } from '@iptvnator/services/history-events';
 import { FAVORITES_PLAYLIST_BRIDGE } from '@iptvnator/services/favorites-events';
 import { observeActivityChanges } from '@iptvnator/services/activity-changes';
 import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
@@ -88,6 +89,7 @@ export type DashboardRecentlyAddedFilterKind = GlobalRecentlyAddedKind;
 
 @Injectable({ providedIn: 'root' })
 export class DashboardDataService {
+    private readonly history = inject(HISTORY_PLAYLIST_BRIDGE);
     private readonly favoriteSync = inject(FAVORITES_PLAYLIST_BRIDGE);
     private readonly store = inject(Store);
     private readonly dbService = inject(DatabaseService);
@@ -416,6 +418,14 @@ export class DashboardDataService {
     });
 
     constructor() {
+        const refreshHistory = () => void this.reloadGlobalRecentItems();
+        window.addEventListener('iptvnator-history-changed', refreshHistory);
+        inject(DestroyRef).onDestroy(() =>
+            window.removeEventListener(
+                'iptvnator-history-changed',
+                refreshHistory
+            )
+        );
         const refreshFavorites = () => void this.reloadGlobalFavorites();
         window.addEventListener(
             'iptvnator-favorites-changed',
@@ -502,7 +512,7 @@ export class DashboardDataService {
             this.globalRecentLoadingState.set(true);
         }
 
-        if (!this.hasPortalActivityStorage) {
+        if (!this.hasPortalActivityStorage || this.history.active()) {
             try {
                 const recentItems = await this.loadPwaXtreamGlobalRecentItems();
                 this.xtreamGlobalRecentItems.set(recentItems);

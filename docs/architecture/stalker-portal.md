@@ -2137,3 +2137,14 @@ without widening the strict `is_series` predicate.
 Portable references use the same `id`-before-`stream_id` precedence as existing
 Stalker display/navigation identity. Synthetic display fallbacks are never
 published as provider IDs.
+
+
+## Optional shared viewing history
+
+The [Recently Viewed opt-in](pwa-self-hosted.md#recently-viewed-synchronization)
+records only existing confirmed playback flows. Its portable references reuse
+favorites' typed movie/live/radio and regular/embedded/lazy series modes. Legacy
+command-bearing snapshots stay in the local playlist archive; the server receives
+only references and safe display hints. Received command-less rows reuse the
+existing provider resolver and parental checks when reopened. Remove and clear
+retain durable intent, independently of resume and watched synchronization.

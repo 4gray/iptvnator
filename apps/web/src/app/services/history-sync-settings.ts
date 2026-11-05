@@ -1,0 +1,110 @@
+import type { HistorySyncClient } from '@iptvnator/services/history-sync';
+import {
+    projectHistory,
+    visibleHistory,
+    type HistoryScope,
+    type HistoryReference,
+    type HistorySnapshot,
+} from '@iptvnator/shared/interfaces/history-sync';
+import type { Playlist } from '@iptvnator/shared/interfaces';
+import type { IXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
+import type { HistoryPlaylistAdapter } from './history-playlist-adapter';
+import {
+    xtreamFavoriteReference,
+    xtreamFavoriteSnapshot,
+} from './favorites-reference-adapters';
+export interface HistoryPreview {
+    instanceId: string;
+    generation: string;
+    sources: {
+        scope: HistoryScope;
+        items: {
+            reference: HistoryReference;
+            snapshot?: HistorySnapshot;
+            viewedAt: number;
+        }[];
+    }[];
+    unresolved: number;
+}
+export async function previewLocalHistory(
+    client: HistorySyncClient,
+    raw: IXtreamDataSource,
+    adapter: HistoryPlaylistAdapter,
+    sources: Playlist[],
+    read: (id: string) => Promise<Playlist>
+): Promise<HistoryPreview> {
+    const generation = client.options.consent();
+    if (!generation) throw new Error('History consent disabled');
+    const preview: HistoryPreview = {
+        instanceId: client.options.instanceId,
+        generation,
+        sources: [],
+        unresolved: 0,
+    };
+    for (const source of sources) {
+        const scope = await client.refresh(source._id);
+        const archive = source.serverUrl
+            ? {
+                  items: (await raw.getRecentItems(source._id)).map((item) => ({
+                      reference: xtreamFavoriteReference(item),
+                      snapshot: xtreamFavoriteSnapshot(item),
+                      viewedAt: new Date(item.viewed_at ?? '').getTime() || 0,
+                  })),
+                  unresolved: 0,
+              }
+            : await adapter.local(await read(source._id));
+        const local = await client.store.read(scope);
+        const original = archive.items.map((item) => ({
+            reference: item.reference,
+            snapshot: item.snapshot,
+            viewedAt: item.viewedAt,
+        }));
+        const merged = projectHistory({
+            base: {
+                revision: original.length,
+                cleared: 0,
+                items: original.map((item, index) => ({
+                    ...item,
+                    revision: index + 1,
+                    removedAt: 0,
+                    removed: false,
+                })),
+            },
+            pending: [],
+            local: local?.archive ?? [],
+        });
+        merged.revision = Math.max(merged.revision, original.length);
+        preview.sources.push({ scope, items: visibleHistory(merged) });
+        preview.unresolved += archive.unresolved;
+    }
+    if (generation !== client.options.consent())
+        throw new Error('History preview expired');
+    return preview;
+}
+export async function importLocalHistory(
+    client: HistorySyncClient,
+    preview: HistoryPreview
+): Promise<void> {
+    for (const source of preview.sources) {
+        const scope = await client.refresh(source.scope.sourceId);
+        if (
+            preview.instanceId !== client.options.instanceId ||
+            preview.generation !== client.options.consent() ||
+            scope.sourceIncarnation !== source.scope.sourceIncarnation
+        )
+            throw new Error('History preview expired');
+        for (const item of [...source.items].sort(
+            (a, b) => a.viewedAt - b.viewedAt
+        )) {
+            client.current(scope);
+            if (preview.generation !== client.options.consent())
+                throw new Error('History preview expired');
+            await client.command(scope.sourceId, {
+                kind: 'touch',
+                reference: item.reference,
+                snapshot: item.snapshot,
+            });
+        }
+        await client.flush(scope.sourceId);
+    }
+}

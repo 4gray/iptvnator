@@ -1,3 +1,4 @@
+import { HISTORY_PLAYLIST_BRIDGE } from '@iptvnator/services/history-events';
 import { inject, Injectable } from '@angular/core';
 import { normalizeXtreamContentTypes } from '@iptvnator/shared/interfaces';
 import { Store } from '@ngrx/store';
@@ -42,6 +43,7 @@ type PlaylistWithChannels = Omit<Playlist, 'playlist'> & {
 
 @Injectable({ providedIn: 'root' })
 export class UnifiedRecentDataService {
+    private readonly history = inject(HISTORY_PLAYLIST_BRIDGE);
     private readonly store = inject(Store);
     private readonly dbService = inject(DatabaseService);
     private readonly playlistsService = inject(PlaylistsService);
@@ -75,7 +77,11 @@ export class UnifiedRecentDataService {
             }
 
             await this.xtreamDataSource.removeRecentItem(
-                { id: item.contentId, type: item.contentType },
+                {
+                    id: item.contentId,
+                    type: item.contentType,
+                    providerId: item.xtreamId,
+                },
                 item.playlistId
             );
             return;
@@ -118,6 +124,7 @@ export class UnifiedRecentDataService {
             contentId: number;
             playlistId: string;
             contentType: UnifiedCollectionItem['contentType'];
+            xtreamId?: number;
         }[] = [];
         const groupedByPlaylist = new Map<string, (string | number)[]>();
 
@@ -128,6 +135,7 @@ export class UnifiedRecentDataService {
                         contentId: item.contentId,
                         playlistId: item.playlistId,
                         contentType: item.contentType,
+                        xtreamId: item.xtreamId,
                     });
                 }
                 continue;
@@ -163,7 +171,11 @@ export class UnifiedRecentDataService {
                 tasks.push(
                     ...xtreamBatch.map((item) =>
                         this.xtreamDataSource.removeRecentItem(
-                            { id: item.contentId, type: item.contentType },
+                            {
+                                id: item.contentId,
+                                type: item.contentType,
+                                providerId: item.xtreamId,
+                            },
                             item.playlistId
                         )
                     )
@@ -295,7 +307,11 @@ export class UnifiedRecentDataService {
                     );
                 } else {
                     await this.xtreamDataSource.addRecentItem(
-                        { id: contentId, type: item.contentType },
+                        {
+                            id: contentId,
+                            type: item.contentType,
+                            providerId: item.xtreamId,
+                        },
                         item.playlistId,
                         undefined,
                         playedContent
@@ -376,7 +392,9 @@ export class UnifiedRecentDataService {
     }
 
     private get hasPortalActivityStorage(): boolean {
-        return this.runtime.supportsPortalActivityStorage;
+        return (
+            this.runtime.supportsPortalActivityStorage && !this.history.active()
+        );
     }
 
     private async getXtreamGlobalRecent(): Promise<UnifiedCollectionItem[]> {

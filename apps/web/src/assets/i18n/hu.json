@@ -2382,7 +2382,7 @@
         "SHARED_HINT": "Ez a kiszolgáló közös megtekintési adatokat tárol. A hozzáféréssel rendelkező csatlakoztatott eszközök ugyanazokat a lejátszási állásokat és megtekintési jelöléseket láthatják és módosíthatják.",
         "ENABLE": "Lejátszási állások és megtekintési jelölések szinkronizálása",
         "IMPORT_HINT": "Bekapcsoláskor az alkalmazás fogadja a kiszolgálón tárolt megtekintési adatokat, és továbbítja az új műveleteket. A korábbi helyi adatokat csak az alábbi külön importálási művelettel töltheti fel.",
-        "LOCAL_HINT": "A nemrég megtekintett tartalmak és az EPG-beállítások helyben maradnak. A kedvencekhez külön hozzájárulás szükséges. A kikapcsolás megőrzi az előrehaladást ezen az eszközön és a szerveren.",
+        "LOCAL_HINT": "Az EPG-beállítások helyben maradnak. A kedvencek és az előzmények külön hozzájárulást igényelnek. Kikapcsoláskor a haladás az eszközön és a szerveren is megmarad.",
         "STATE_disabled": "A megtekintési adatok ezen az eszközön maradnak",
         "STATE_disabling": "A megtekintési adatok helyi mentése folyamatban. A szinkronizálás szünetel.",
         "STATE_initializing": "Megosztott megtekintési adatok betöltése…",
@@ -2411,7 +2411,7 @@
         "SHARED_HINT": "Közös kedvenctár. A szerverhez hozzáférő bárki megtekintheti és módosíthatja.",
         "ENABLE": "Kedvencek szinkronizálása ezzel a szerverrel",
         "IMPORT_HINT": "A bekapcsolás letölti a közös kedvenceket, és szinkronizálja az új műveleteket. A meglévő helyi kedvencek csak előnézet és importálás után töltődnek fel.",
-        "LOCAL_HINT": "A kikapcsolás megőrzi a helyi másolatot és a szerver adatait. A gyűjtemény sorrendje és a nemrég megtekintett tartalmak helyben maradnak.",
+        "LOCAL_HINT": "Kikapcsoláskor a helyi másolat és a szerveradatok megmaradnak. A gyűjtemény sorrendje helyi; az előzmények külön hozzájárulást igényelnek.",
         "ERROR": "Nem sikerült menteni vagy szinkronizálni a kedvenceket. Próbáld újra, ha a tárhely és a szerver elérhető.",
         "PREVIEW_IMPORT": "Helyi kedvencek importálásának előnézete",
         "PENDING": "Sorban álló kedvencmódosítások: {{count}}",
@@ -2436,5 +2436,24 @@
         "STATE_incompatible": "Ez a szerver nem támogatja a kedvencek szinkronizálását",
         "STATE_locked": "Jelentkezz be újra a kedvencek szinkronizálásához",
         "STATE_storage-error": "A kedvencek tárhelye nem érhető el; próbáld újra, ha a helyi tárhely hozzáférhető"
+    },
+    "HISTORY_SYNC": {
+        "TITLE": "Legutóbb megtekintett",
+        "SHARED_HINT": "A szerver összes eszköze ugyanazt az előzményt látja és módosítja minden megosztott forráson belül.",
+        "ENABLE": "Előzmények szinkronizálása ezen az eszközön",
+        "ENABLE_HINT": "Csak a megerősített lejátszásindítások kerülnek megosztásra. Bekapcsoláskor letöltődik a szerver előzménye; a régebbi helyi előzmény csak előnézet és importálás után kerül feltöltésre. Kikapcsoláskor a helyi és szerveradatok megmaradnak.",
+        "ERROR": "Az előzmények szinkronizálása sikertelen. A mentett helyi műveletek ezen az eszközön maradnak. Próbálja újra, ha a szerver elérhető.",
+        "PREVIEW": "Helyi előzmények importálásának előnézete",
+        "PARKED": "{{count}} művelet egy korábbi hozzájáruláshoz tartozik. Küldje el őket külön, vagy tartsa meg helyben.",
+        "LOCAL": "Egyes előzmények csak ezen az eszközön találhatók. Megosztásukhoz használja az előnézetet és az importálást.",
+        "IMPORT_PREVIEW": "{{count}} bejegyzés {{sources}} forrásból; {{unresolved}} bejegyzés nem volt megfeleltethető.",
+        "IMPORT_HINT": "Az importálás minden eszközzel megosztja az előzményt, és a bejegyzéseket eredeti sorrendjükben a megosztott előzmény elé helyezi.",
+        "STATE_disabled": "Az előzmények ezen az eszközön maradnak",
+        "STATE_initializing": "Megosztott előzmények betöltése",
+        "STATE_ready": "Előzmények szinkronizálva",
+        "STATE_pending": "Előzmények helyben mentve; küldésre várnak",
+        "STATE_offline": "Előzmények helyben mentve; a szerver nem érhető el",
+        "STATE_incompatible": "Ez a szerver nem támogatja az előzmények szinkronizálását",
+        "PENDING": "Sorban álló előzménymódosítások: {{count}}"
     }
 }

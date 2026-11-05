@@ -28,6 +28,8 @@ export default defineConfig({
         '**/source-sync.e2e.ts',
         '**/activity-sync.e2e.ts',
         '**/favorites-sync.e2e.ts',
+        '**/history-sync.e2e.ts',
+        '**/history-provider-sync.e2e.ts',
         '**/favorites-offline-first-edit.e2e.ts',
     ],
     timeout: 180000,

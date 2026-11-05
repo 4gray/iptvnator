@@ -1259,6 +1259,7 @@ export class VideoPlayerComponent
 
         this.historyGate.defer(
             {
+                sourceId: playlistId,
                 sessionKey: this.playbackSessionKey(),
                 streamUrls: [channel.url],
             },

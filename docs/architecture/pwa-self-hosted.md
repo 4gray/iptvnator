@@ -999,7 +999,7 @@ and Stalker live channels show their provider's programme guide.
 Connecting a source server synchronizes sources only. Settings → Server offers
 an independent, disabled-by-default consent for progress and watched marks.
 The UI explains that the server holds **one shared household activity**: anyone
-with access sees and changes the same activity. Favorites have their own independent opt-in. History and EPG stay
+with access sees and changes the same activity. Favorites and Recently Viewed each have an independent opt-in. EPG stays
 local. There are no per-person accounts or cross-provider content matching.
 
 Enabling receives server activity and uploads new actions. It never scans and
@@ -1254,7 +1254,8 @@ Settings → Server provides an independent, disabled-by-default favorites conse
 Connecting a server or enabling progress does not read/upload favorites. One shared
 library belongs to the server; there are no personal accounts or cross-provider
 matches. Membership is scoped by instance, source ID, persisted source incarnation
-and a typed portable reference. Order and Recently Viewed remain device-local.
+and a typed portable reference. Collection order remains device-local; Recently
+Viewed has its own independent consent below.
 
 `favorites-v1` advertises authenticated, uncached `/v1/favorites` routes matching
 the activity transport shape: source context, paginated source items, one-address
@@ -1432,3 +1433,74 @@ a later polling result; either conflict choice starts from that newest copy.
 Xtream backup projection overlays shared identity and conflict metadata on
 existing typed archive entries too, preserving local order and timestamps.
 The same identity-compatibility helper guards both visible projection and export.
+
+
+## Recently Viewed synchronization
+
+Settings → Server → Recently viewed enables `history-v1` separately from sources,
+favorites and progress/watched. All clients of an instance share one history
+within each shared source; there are no household accounts or cross-provider
+matches. Connecting or enabling another domain does not authorize history reads
+or uploads. Initial enable reads shared history and retains the original local
+archive. Older local rows enter the queue only through explicit preview/import.
+
+`HistorySyncClient` owns a source-scoped projection and ordered outbox. The browser
+uses a separate `iptvnator-history-v1:<instance>` IndexedDB database; Electron uses
+fixed `DB_HISTORY_LOCAL` read/CAS operations in the database worker. State and
+intent commit together. Native CAS captures its expected bytes before invoking
+a mutator, so in-place changes cannot cause a permanent retry conflict. Source
+incarnations reuse the delivered favorites/source lifecycle contract; a source
+retirement invalidates its offline context and pending playback confirmations.
+Source/profile changes fence delayed requests and storage retries. IndexedDB
+transaction ordering and worker CAS provide correctness without Web Locks.
+
+`GET /v1/history/sources/:id` returns the verified scope and current history.
+`POST /v1/history/operations` accepts a confirmed touch, a removal or an explicit
+source clear, with a stable operation/device ID and observed revision. Authentication,
+instance identity and current source incarnation are checked before writes.
+Server state and the immutable receipt decision commit in one SQLite transaction.
+Exact retries never repeat a touch; another body under the same ID is rejected.
+Receipt responses include the latest state, and clients never replace a newer
+polled base with an older acknowledgement. Receipts retain decisions and revisions,
+not a complete historical snapshot for every watch.
+
+A monotonic source revision assigns acceptance order. Server time supplies existing
+UI timestamps and increases even for touches within one millisecond. Removal
+revisions and a source clear barrier prevent obsolete offline touches from
+recreating deleted history. A same-device predecessor permits an intentional
+remove-then-watch queue; a rejected predecessor cannot grant a fresh revision.
+Rejected stale watches remain local and can be explicitly previewed/imported.
+No absence-based deletion, automatic pruning or receipt TTL is introduced.
+The native Xtream browsing cap remains 100; archival storage is retained.
+
+History continues to use `PlaybackHistoryGate`: confirmed inline progress or the
+existing external launch confirmation records a start. Downloaded progress,
+watched marks, opening a detail view and provider link resolution never manufacture
+history. Xtream collections retain their existing parent-series history; Stalker
+keeps regular, embedded and lazy series modes. Portable references reuse favorites:
+exact M3U URL hashes and typed provider IDs, with safe display hints. Stream URLs,
+commands, session tokens, credentials and artwork URLs are not sent as history
+metadata. M3U rows resolve only through URL membership in that shared source.
+
+Raw playlist/SQLite history remains the device archive. Projection overlays only
+known shared keys, so a remote clear cannot erase unrelated pre-enable local rows.
+An explicit clear on this device also hides its local archive. Local touches,
+removals and clears remain available for explicit import, preserving local order.
+The existing current-tab clear continues removing exactly its displayed rows;
+it does not silently clear other content types or sources.
+
+Disable persists new consent before asynchronous work and stops delivery/remote
+application. Existing sidecars remain readable; new local actions cannot be
+replaced by late acknowledgements. A new enable never replays the prior consent's
+queue automatically: settings offer send or keep-local. Disabled/new sources with
+no verified history context retain ordinary local persistence. Preview captures
+instance, consent and source incarnation, rechecking each imported action. Import
+is explicit and places imported rows above shared history in their prior order.
+
+Global collections and Dashboard use the same history projection in both runtimes;
+explicit native reads/deletes do not bypass it. History refresh first reuses
+the source service to verify transport after startup or an outage. History invalidation reuses the
+collection page's guarded reload, retaining nested detail/player ownership.
+Mixed-runtime tests are in `history-sync.e2e.ts` and `history-provider-sync.e2e.ts`
+under the isolated source-sync Playwright configuration. Protocol, real multi-tab
+IDB, native CAS and populated historical SQLite schemas have focused regressions.

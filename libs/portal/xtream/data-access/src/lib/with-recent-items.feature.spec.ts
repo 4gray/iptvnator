@@ -94,7 +94,7 @@ describe('withRecentItems', () => {
             { tmdbId: 100, releaseYear: 1995 }
         );
         expect(dataSource.addRecentItem).toHaveBeenCalledWith(
-            { id: 2, type: 'movie' },
+            { id: 2, type: 'movie', providerId: 42 },
             'p',
             undefined,
             playedContent
@@ -122,7 +122,7 @@ describe('withRecentItems', () => {
             'series'
         );
         expect(dataSource.addRecentItem).toHaveBeenCalledWith(
-            { id: 3941697, type: 'series' },
+            { id: 3941697, type: 'series', providerId: 290 },
             'playlist-1',
             undefined
         );
@@ -152,7 +152,7 @@ describe('withRecentItems', () => {
         await new Promise((resolve) => setTimeout(resolve, 0));
 
         expect(dataSource.addRecentItem).toHaveBeenCalledWith(
-            { id: 1767451, type: 'movie' },
+            { id: 1767451, type: 'movie', providerId: 1767451 },
             'playlist-1',
             undefined
         );
@@ -178,7 +178,7 @@ describe('withRecentItems', () => {
             'movie'
         );
         expect(dataSource.addRecentItem).toHaveBeenCalledWith(
-            { id: 1767451, type: 'movie' },
+            { id: 1767451, type: 'movie', providerId: 1767451 },
             'playlist-1',
             undefined
         );
@@ -201,7 +201,7 @@ describe('withRecentItems', () => {
         await new Promise((resolve) => setTimeout(resolve, 0));
 
         expect(dataSource.addRecentItem).toHaveBeenCalledWith(
-            { id: 3941697, type: 'series' },
+            { id: 3941697, type: 'series', providerId: 290 },
             'playlist-1',
             'https://example.com/krypton-backdrop.png'
         );
@@ -340,7 +340,7 @@ describe('withRecentItems', () => {
         });
         await new Promise((resolve) => setTimeout(resolve, 0));
         expect(dataSource.addRecentItem).toHaveBeenCalledWith(
-            { id: 42, type: 'movie' },
+            { id: 42, type: 'movie', providerId: 42 },
             'playlist-1',
             undefined,
             playedContent

@@ -371,7 +371,7 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
             'movie'
         );
         expect(xtreamDataSource.addRecentItem).toHaveBeenCalledWith(
-            { id: 77, type: 'movie' },
+            { id: 77, type: 'movie', providerId: ROUTE_VOD_ID },
             ROUTE_PLAYLIST,
             undefined,
             expect.objectContaining({
@@ -410,7 +410,11 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
             expect(xtreamDataSource.addRecentItem).toHaveBeenCalledTimes(saves);
             if (saves) {
                 expect(xtreamDataSource.addRecentItem).toHaveBeenCalledWith(
-                    { id: ROUTE_VOD_ID, type: 'movie' },
+                    {
+                        id: ROUTE_VOD_ID,
+                        type: 'movie',
+                        providerId: ROUTE_VOD_ID,
+                    },
                     ROUTE_PLAYLIST,
                     undefined,
                     expect.objectContaining({ title: 'Slow external launch' })

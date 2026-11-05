@@ -2382,7 +2382,7 @@
         "SHARED_HINT": "This server has one shared viewing activity. All connected devices with access can see and change the same progress and watched marks.",
         "ENABLE": "Synchronize progress and watched marks",
         "IMPORT_HINT": "Enabling receives server activity and sends new actions. Previous local activity is uploaded only through the separate import below.",
-        "LOCAL_HINT": "Recently viewed and EPG settings stay local. Favorites have separate consent. Disabling keeps progress on this device and the server.",
+        "LOCAL_HINT": "EPG settings stay local. Favorites and Recently Viewed have separate consent. Disabling keeps progress on this device and the server.",
         "STATE_disabled": "Activity stays on this device",
         "STATE_disabling": "Saving activity locally. Synchronization is paused.",
         "STATE_initializing": "Loading shared activity…",
@@ -2411,7 +2411,7 @@
         "SHARED_HINT": "One shared favorites library. Anyone with access to this server can see and change it.",
         "ENABLE": "Sync favorites with this server",
         "IMPORT_HINT": "Enabling downloads shared favorites and syncs new actions. Existing local favorites upload only after preview and import.",
-        "LOCAL_HINT": "Turning sync off keeps a local copy and server data. Collection order and Recently Viewed stay local.",
+        "LOCAL_HINT": "Turning sync off keeps a local copy and server data. Collection order stays local; Recently Viewed has separate consent.",
         "ERROR": "Favorites could not be saved or synchronized. Retry when storage and the server are available.",
         "PREVIEW_IMPORT": "Preview local favorites import",
         "PENDING": "Queued favorite changes: {{count}}",
@@ -2436,5 +2436,24 @@
         "STATE_incompatible": "This server does not support favorites synchronization",
         "STATE_locked": "Sign in again to synchronize favorites",
         "STATE_storage-error": "Favorites storage is unavailable; retry when local storage is accessible"
+    },
+    "HISTORY_SYNC": {
+        "TITLE": "Recently viewed",
+        "SHARED_HINT": "All devices using this server see and change one shared history within each shared source.",
+        "ENABLE": "Sync recently viewed on this device",
+        "ENABLE_HINT": "Only confirmed playback starts are shared. Enabling downloads server history; older local history is uploaded only after preview and import. Turning this off keeps local and server data.",
+        "ERROR": "History could not be synchronized. Saved local actions remain on this device. Retry when the server is available.",
+        "PREVIEW": "Preview local history import",
+        "PARKED": "{{count}} actions belong to an earlier consent. Send them explicitly or keep them local.",
+        "LOCAL": "Some history is kept only on this device. Preview and import it to share it.",
+        "IMPORT_PREVIEW": "{{count}} entries from {{sources}} sources; {{unresolved}} entries could not be matched.",
+        "IMPORT_HINT": "Import shares this history with all devices and places the imported entries above existing shared history in their original order.",
+        "STATE_disabled": "History stays on this device",
+        "STATE_initializing": "Loading shared history",
+        "STATE_ready": "History synchronized",
+        "STATE_pending": "History saved locally; delivery pending",
+        "STATE_offline": "History saved locally; server unavailable",
+        "STATE_incompatible": "This server does not support history synchronization",
+        "PENDING": "Queued history changes: {{count}}"
     }
 }

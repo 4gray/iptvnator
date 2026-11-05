@@ -2233,3 +2233,14 @@ tvg-id inference. Explicit favorite actions use the optional composition bridge;
 source/refresh writes never infer uploads from playlist snapshots. Original local
 favorites remain available for preview/import. Unmatched references remain
 unresolved; switching profiles does not transplant memberships or queued actions.
+
+
+## Optional shared recently-viewed history
+
+The [history consent](pwa-self-hosted.md#recently-viewed-synchronization) keeps
+exact URL-based membership and resolves received hashes against this source's
+current channel catalog. Duplicate URLs share one history entry; names, tvg-id and
+random local channel IDs do not establish a match. Playback-confirmation ownership
+is captured before waiting and retired with its source/profile. Legacy rows remain
+local until explicit preview/import; URL and credential-bearing metadata do not
+travel through the history API.

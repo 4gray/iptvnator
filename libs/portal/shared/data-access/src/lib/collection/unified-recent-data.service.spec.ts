@@ -302,7 +302,7 @@ describe('UnifiedRecentDataService', () => {
         } satisfies UnifiedCollectionItem;
         await service.recordLivePlayback(item);
         expect(xtreamDataSource.addRecentItem).toHaveBeenCalledWith(
-            { id: 290, type: 'live' },
+            { id: 290, type: 'live', providerId: 290 },
             'xtream-1',
             undefined,
             {
@@ -340,7 +340,7 @@ describe('UnifiedRecentDataService', () => {
             'movie'
         );
         expect(xtreamDataSource.addRecentItem).toHaveBeenCalledWith(
-            { id: 290, type: 'movie' },
+            { id: 290, type: 'movie', providerId: 290 },
             'xtream-1',
             undefined,
             { title: 'PWA Movie', posterUrl: undefined, categoryId: undefined }
@@ -372,7 +372,7 @@ describe('UnifiedRecentDataService', () => {
         } satisfies UnifiedCollectionItem);
 
         expect(xtreamDataSource.removeRecentItem).toHaveBeenCalledWith(
-            { id: 444, type: 'movie' },
+            { id: 444, type: 'movie', providerId: 290 },
             'xtream-1'
         );
         expect(dbService.removeRecentItem).not.toHaveBeenCalled();

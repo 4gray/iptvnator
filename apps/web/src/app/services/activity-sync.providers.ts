@@ -1,3 +1,5 @@
+import { historyProfileUsed } from './history-consent';
+import { invokeHistory } from './history-sync.providers';
 import { favoritesProfileUsed } from './favorites-consent';
 import { invokeFavorites } from './favorites-sync.providers';
 import {
@@ -44,6 +46,18 @@ export function activityDataSourceFactory(): IXtreamDataSource {
                 return (...args: unknown[]) =>
                     favoritesProfileUsed()
                         ? invokeFavorites(injector, target, method, args)
+                        : local(...args);
+            if (
+                [
+                    'getRecentItems',
+                    'addRecentItem',
+                    'removeRecentItem',
+                    'clearRecentItems',
+                ].includes(method)
+            )
+                return (...args: unknown[]) =>
+                    historyProfileUsed()
+                        ? invokeHistory(injector, target, method, args)
                         : local(...args);
             if (!method.includes('PlaybackPosition')) return local;
             return async (...args: unknown[]) => {

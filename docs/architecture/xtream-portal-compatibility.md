@@ -1189,7 +1189,8 @@ runtimes. Collection references can carry a portable `providerId` alongside the
 existing local row ID, including removal of a retained row with no catalog link.
 The shared snapshot cannot turn a known TMDB/year conflict into a playable catalog
 row. Global collections and dashboard use the same projection when this profile
-has used favorites sync; recently viewed and collection order stay local.
+has used favorites sync. Recently Viewed has a separate optional history sidecar;
+collection order stays local.
 Native collection actions select storage with `supportsPortableFavorites(playlistId)`
 for each source. After opt-out, a new/restored source without a verified favorites
 context keeps ordinary SQLite behavior, including favorite-ID removal of unlinked
@@ -1224,3 +1225,14 @@ confirming every saved identity field wins over an earlier compatible sparse row
 The pure lookup lives in the existing metadata module: an empty content cache
 returns immediately, and populated caches have already loaded that module during
 normalization, so membership actions never fetch a new lookup chunk.
+
+
+## Optional shared viewing history
+
+The [history opt-in](pwa-self-hosted.md#recently-viewed-synchronization) uses typed
+provider IDs captured by the confirmed playback writer. SQLite row IDs remain
+local. Both data-source and global/Dashboard consumers read the sidecar overlay;
+remove/batch/current-tab clear use that same path on Electron and PWA. Series
+history keeps the existing parent-series row. Remote progress does not create it.
+Known catalog identity conflicts and parental locks remain enforced when resolving
+received entries; history metadata never supplies playback URLs.

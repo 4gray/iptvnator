@@ -2382,7 +2382,7 @@
         "SHARED_HINT": "Erişimi olan tüm cihazlar aynı ilerlemeyi ve izlendi işaretlerini paylaşır.",
         "ENABLE": "İlerlemeyi ve izlendi işaretlerini eşitle",
         "IMPORT_HINT": "Etkinleştirme sunucu verilerini alır ve yeni işlemleri gönderir. Önceki yerel veriler yalnızca ayrı içe aktarmayla yüklenir.",
-        "LOCAL_HINT": "Son görüntülenenler ve EPG ayarları yerel kalır. Favoriler için ayrı onay gerekir. Devre dışı bırakmak ilerlemeyi bu cihazda ve sunucuda korur.",
+        "LOCAL_HINT": "EPG ayarları yerel kalır. Favoriler ve geçmiş ayrı onay gerektirir. Kapatmak ilerlemeyi cihazda ve sunucuda korur.",
         "STATE_disabled": "Etkinlik bu cihazda kalır",
         "STATE_disabling": "İzleme etkinliği bu cihaza kaydediliyor. Senkronizasyon duraklatıldı.",
         "STATE_initializing": "Paylaşılan etkinlik yükleniyor…",
@@ -2411,7 +2411,7 @@
         "SHARED_HINT": "Ortak bir favori kitaplığı. Bu sunucuya erişimi olan herkes kitaplığı görebilir ve değiştirebilir.",
         "ENABLE": "Favorileri bu sunucuyla eşitle",
         "IMPORT_HINT": "Etkinleştirme, ortak favorileri indirir ve yeni işlemleri eşitler. Mevcut yerel favoriler yalnızca önizleme ve içe aktarma sonrasında yüklenir.",
-        "LOCAL_HINT": "Devre dışı bırakma, yerel kopyayı ve sunucu verilerini korur. Koleksiyon sırası ve son görüntülenenler yerel kalır.",
+        "LOCAL_HINT": "Kapatmak yerel kopyayı ve sunucu verilerini korur. Koleksiyon sırası yerel kalır; geçmiş ayrı onay gerektirir.",
         "ERROR": "Favoriler kaydedilemedi veya eşitlenemedi. Depolama ve sunucu kullanılabilir olduğunda tekrar deneyin.",
         "PREVIEW_IMPORT": "Yerel favorileri içe aktarma önizlemesi",
         "PENDING": "Kuyruktaki favori değişiklikleri: {{count}}",
@@ -2436,5 +2436,24 @@
         "STATE_incompatible": "Bu sunucu favori eşitlemesini desteklemiyor",
         "STATE_locked": "Favorileri eşitlemek için yeniden oturum açın",
         "STATE_storage-error": "Favori depolaması kullanılamıyor; yerel depolamaya erişilebildiğinde tekrar deneyin"
+    },
+    "HISTORY_SYNC": {
+        "TITLE": "Son izlenenler",
+        "SHARED_HINT": "Bu sunucudaki tüm cihazlar, her paylaşılan kaynak için aynı geçmişi görür ve değiştirir.",
+        "ENABLE": "Bu cihazda geçmişi eşitle",
+        "ENABLE_HINT": "Yalnızca onaylanmış oynatma başlangıçları paylaşılır. Etkinleştirme sunucu geçmişini indirir; eski yerel geçmiş yalnızca önizleme ve içe aktarmadan sonra gönderilir. Kapatmak yerel ve sunucu verilerini korur.",
+        "ERROR": "Geçmiş eşitlenemedi. Kaydedilen yerel işlemler bu cihazda kalır. Sunucu kullanılabilir olduğunda yeniden deneyin.",
+        "PREVIEW": "Yerel geçmişi içe aktarmayı önizle",
+        "PARKED": "{{count}} işlem önceki bir onaya ait. Bunları açıkça gönderin veya yerel tutun.",
+        "LOCAL": "Geçmişin bir kısmı yalnızca bu cihazda tutuluyor. Paylaşmak için önizleyip içe aktarın.",
+        "IMPORT_PREVIEW": "{{sources}} kaynaktan {{count}} kayıt; {{unresolved}} kayıt eşleştirilemedi.",
+        "IMPORT_HINT": "İçe aktarma bu geçmişi tüm cihazlarla paylaşır ve kayıtları özgün sıralarıyla paylaşılan geçmişin üstüne yerleştirir.",
+        "STATE_disabled": "Geçmiş bu cihazda kalır",
+        "STATE_initializing": "Paylaşılan geçmiş yükleniyor",
+        "STATE_ready": "Geçmiş eşitlendi",
+        "STATE_pending": "Geçmiş yerel kaydedildi; gönderim bekliyor",
+        "STATE_offline": "Geçmiş yerel kaydedildi; sunucu kullanılamıyor",
+        "STATE_incompatible": "Bu sunucu geçmiş eşitlemeyi desteklemiyor",
+        "PENDING": "Kuyruktaki geçmiş değişiklikleri: {{count}}"
     }
 }

@@ -1,3 +1,4 @@
+import { HISTORY_PLAYLIST_BRIDGE } from '../history-events';
 import {
     FAVORITES_PLAYLIST_BRIDGE,
     mutateFavoritePlaylist,
@@ -82,6 +83,7 @@ export function resolvePlaylistParser(parserModule: PlaylistParserModule) {
     providedIn: 'root',
 })
 export class PlaylistsService {
+    private readonly historySync = inject(HISTORY_PLAYLIST_BRIDGE);
     private readonly favoriteSync = inject(FAVORITES_PLAYLIST_BRIDGE);
     private readonly healthEvidence = inject(SourceHealthEvidenceService, {
         optional: true,
@@ -509,7 +511,11 @@ export class PlaylistsService {
     }
 
     private projectFavoriteMetas(rows: Playlist[]) {
-        return Promise.all(rows.map((row) => this.favoriteSync.project(row)));
+        return Promise.all(
+            rows.map(async (row) =>
+                this.historySync.project(await this.favoriteSync.project(row))
+            )
+        );
     }
 
     getAllPlaylists() {
@@ -589,7 +595,9 @@ export class PlaylistsService {
         // mutation-internal reads keep using getPlaylistById to avoid re-entry.
         return this.serializePlaylistWrite(id, () =>
             firstValueFrom(this.getPlaylistById(id)).then((playlist) =>
-                this.favoriteSync.project(playlist)
+                this.favoriteSync
+                    .project(playlist)
+                    .then((row) => this.historySync.project(row))
             )
         );
     }
@@ -1371,6 +1379,7 @@ export class PlaylistsService {
         }
 
         return this.getPlaylistById(playlistId).pipe(
+            switchMap((playlist) => this.historySync.project(playlist)),
             map((item) => {
                 if (!item || !Array.isArray(item.recentlyViewed)) {
                     return [];
@@ -1393,6 +1402,13 @@ export class PlaylistsService {
             const playlist = await firstValueFrom(
                 this.getPlaylistById(playlistId)
             );
+            if (this.historySync.active()) {
+                const synced = await this.historySync.mutate(playlist, {
+                    kind: 'touch',
+                    item,
+                });
+                if (synced) return synced;
+            }
             const nowIso = new Date().toISOString();
             const recentItems = Array.isArray(playlist.recentlyViewed)
                 ? (playlist.recentlyViewed as PlaylistRecentlyViewedItem[])
@@ -1433,6 +1449,13 @@ export class PlaylistsService {
             const playlist = await firstValueFrom(
                 this.getPlaylistById(playlistId)
             );
+            if (this.historySync.active()) {
+                const synced = await this.historySync.mutate(playlist, {
+                    kind: 'remove',
+                    identities: [identity],
+                });
+                if (synced) return synced;
+            }
 
             return this.persistPlaylistMutation({
                 ...playlist,
@@ -1462,6 +1485,13 @@ export class PlaylistsService {
             const playlist = await firstValueFrom(
                 this.getPlaylistById(playlistId)
             );
+            if (this.historySync.active()) {
+                const synced = await this.historySync.mutate(playlist, {
+                    kind: 'remove',
+                    identities: [...identities],
+                });
+                if (synced) return synced;
+            }
 
             return this.persistPlaylistMutation({
                 ...playlist,
@@ -1486,6 +1516,12 @@ export class PlaylistsService {
             const playlist = await firstValueFrom(
                 this.getPlaylistById(playlistId)
             );
+            if (this.historySync.active()) {
+                const synced = await this.historySync.mutate(playlist, {
+                    kind: 'clear',
+                });
+                if (synced) return synced;
+            }
 
             return this.persistPlaylistMutation({
                 ...playlist,

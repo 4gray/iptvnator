@@ -1,0 +1,250 @@
+import { HistorySyncClient } from './history-client';
+import {
+    emptyHistoryRecord,
+    emptyHistoryState,
+    applyHistoryOperation,
+    visibleHistory,
+    type HistoryRecord,
+    type HistoryScope,
+    type HistoryStore,
+    type HistoryState,
+    type HistoryOperation,
+} from '@iptvnator/shared/interfaces/history-sync';
+const scope: HistoryScope = {
+    instanceId: 'nas',
+    sourceId: 'source',
+    sourceIncarnation: 'first',
+    provider: 'xtream',
+};
+const reference = {
+    provider: 'xtream' as const,
+    kind: 'movie' as const,
+    id: '42',
+};
+const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v));
+class Store implements HistoryStore {
+    records = new Map<string, HistoryRecord>();
+    async read(s: HistoryScope) {
+        return copy(this.records.get(s.sourceIncarnation) ?? null);
+    }
+    async mutate(
+        s: HistoryScope,
+        update: (v: HistoryRecord | null) => HistoryRecord
+    ) {
+        const value = copy(update(await this.read(s)));
+        this.records.set(s.sourceIncarnation, value);
+        return copy(value);
+    }
+}
+function fixture(store = new Store()) {
+    let consent: string | null = 'first';
+    let online = true;
+    let active = true;
+    let remote = emptyHistoryState();
+    let incarnation = 'first';
+    const receipts = new Map<
+        string,
+        { operation: HistoryOperation; state: HistoryState }
+    >();
+    const request = jest.fn(async (req) => {
+        if (!online) throw new Error('offline');
+        if (req.operation === 'history-read')
+            return {
+                status: 200,
+                body: {
+                    scope: { ...scope, sourceIncarnation: incarnation },
+                    state: copy(remote),
+                },
+            };
+        const operation = req.history.operation as HistoryOperation;
+        let saved = receipts.get(operation.operationId);
+        if (!saved) {
+            const applied = applyHistoryOperation(
+                remote,
+                operation,
+                false,
+                Date.now()
+            );
+            remote = applied.state;
+            saved = { operation, state: copy(remote) };
+            receipts.set(operation.operationId, saved);
+            return { status: 200, body: { ...applied, state: copy(remote) } };
+        }
+        return { status: 200, body: { applied: true, state: copy(remote) } };
+    });
+    const options = {
+        instanceId: 'nas',
+        deviceId: 'device',
+        consent: () => consent,
+        active: () => active,
+        request,
+        changed: jest.fn(),
+        remember: jest.fn(),
+        contexts: [scope],
+    };
+    return {
+        store,
+        request,
+        options,
+        client: new HistorySyncClient(store, options),
+        consent: (v: string | null) => (consent = v),
+        online: (v: boolean) => (online = v),
+        active: (v: boolean) => (active = v),
+        remote: (v: HistoryState) => (remote = v),
+        incarnation: (v: string) => (incarnation = v),
+    };
+}
+describe('history delivery and consent', () => {
+    it('enabling reads state without uploading existing local history', async () => {
+        const f = fixture();
+        await f.client.refresh('source');
+        expect(
+            f.request.mock.calls.every(([r]) => r.operation === 'history-read')
+        ).toBe(true);
+    });
+    it('persists a confirmed watch and intent before attempting network; recovers after restart', async () => {
+        const f = fixture();
+        f.online(false);
+        await f.client.command('source', { kind: 'touch', reference });
+        await expect(f.client.flush('source')).rejects.toThrow();
+        expect((await f.store.read(scope))?.pending).toHaveLength(1);
+        expect(visibleHistory((await f.client.state('source'))!)).toHaveLength(
+            1
+        );
+        f.online(true);
+        const restarted = new HistorySyncClient(f.store, f.options);
+        await restarted.flush('source');
+        expect((await f.store.read(scope))?.pending).toHaveLength(0);
+        expect(visibleHistory((await restarted.state('source'))!)).toHaveLength(
+            1
+        );
+    });
+    it('orders overlapping local watch and clear invocations even while the first write waits', async () => {
+        const f = fixture();
+        f.consent(null);
+        const mutate = f.store.mutate.bind(f.store);
+        let release!: () => void;
+        const blocked = new Promise<void>((resolve) => (release = resolve));
+        let calls = 0;
+        f.store.mutate = async (s, update) => {
+            if (++calls === 1) await blocked;
+            return mutate(s, update);
+        };
+        const watch = f.client.command('source', { kind: 'touch', reference });
+        const clear = f.client.command('source', { kind: 'clear' });
+        for (let i = 0; i < 8; i++) await Promise.resolve();
+        expect(calls).toBe(1);
+        release();
+        await Promise.all([watch, clear]);
+        expect(visibleHistory((await f.client.state('source'))!)).toEqual([]);
+    });
+    it('does not replay an older consent until the user explicitly chooses send', async () => {
+        const f = fixture();
+        f.online(false);
+        await f.client.command('source', { kind: 'touch', reference });
+        await f.client.flush('source').catch(() => undefined);
+        f.consent('new');
+        f.online(true);
+        f.request.mockClear();
+        await f.client.flush('source');
+        expect(f.request).not.toHaveBeenCalled();
+        await f.client.parked('source', true);
+        expect((await f.store.read(scope))?.pending).toHaveLength(0);
+    });
+    it('keeps paused queues locally and local removals survive re-enable', async () => {
+        const f = fixture();
+        f.online(false);
+        await f.client.command('source', { kind: 'touch', reference });
+        await f.client.flush('source').catch(() => undefined);
+        f.consent(null);
+        await f.client.command('source', { kind: 'remove', reference });
+        f.consent('new');
+        await f.client.parked('source', false);
+        expect(visibleHistory((await f.client.state('source'))!)).toEqual([]);
+        expect((await f.store.read(scope))?.pending).toHaveLength(0);
+    });
+    it('late ack after opt-out cannot remove the queue or a new local action', async () => {
+        const f = fixture();
+        let release!: (v: unknown) => void;
+        const blocked = new Promise((resolve) => (release = resolve));
+        const original = f.request.getMockImplementation()!;
+        f.request.mockImplementation(async (req) =>
+            req.operation === 'history-apply'
+                ? (blocked as never)
+                : original(req)
+        );
+        await f.client.command('source', { kind: 'touch', reference });
+        f.consent(null);
+        await f.client.command('source', { kind: 'clear' });
+        release({
+            status: 200,
+            body: {
+                applied: true,
+                state: applyHistoryOperation(emptyHistoryState(), {
+                    kind: 'touch',
+                    reference,
+                    operationId: 'server',
+                    deviceId: 'device',
+                    baseRevision: 0,
+                    viewedAt: 1,
+                }).state,
+            },
+        });
+        await f.client.flush('source');
+        const record = await f.store.read(scope);
+        expect(record?.pending).toHaveLength(1);
+        expect(record?.local).toHaveLength(1);
+        expect(visibleHistory((await f.client.state('source'))!)).toEqual([]);
+    });
+    it('an older acknowledgement does not overwrite a newer polled server base', async () => {
+        const f = fixture();
+        let release!: (v: unknown) => void;
+        f.request.mockImplementation(
+            async () => new Promise((resolve) => (release = resolve)) as never
+        );
+        await f.client.command('source', { kind: 'touch', reference });
+        await f.store.mutate(scope, (current) => ({
+            ...current!,
+            base: { revision: 10, cleared: 10, items: [] },
+        }));
+        release({
+            status: 200,
+            body: {
+                applied: true,
+                state: { revision: 1, cleared: 0, items: [] },
+            },
+        });
+        await f.client.flush('source');
+        expect((await f.store.read(scope))?.base.revision).toBe(10);
+    });
+    it('a source replacement isolates the old queue and profile changes reject writes', async () => {
+        const f = fixture();
+        f.online(false);
+        await f.client.command('source', { kind: 'touch', reference });
+        await f.client.flush('source').catch(() => undefined);
+        f.online(true);
+        f.incarnation('second');
+        await f.client.refresh('source');
+        await f.client.flush('source');
+        expect((await f.store.read(scope))?.pending).toHaveLength(1);
+        expect(visibleHistory((await f.client.state('source'))!)).toEqual([]);
+        f.active(false);
+        await expect(
+            f.client.command('source', { kind: 'clear' })
+        ).rejects.toThrow('superseded');
+    });
+    it('retains a rejected stale touch locally behind a remote clear', async () => {
+        const f = fixture();
+        f.online(false);
+        await f.client.command('source', { kind: 'touch', reference });
+        await f.client.flush('source').catch(() => undefined);
+        f.remote({ revision: 5, cleared: 5, items: [] });
+        f.online(true);
+        await f.client.refresh('source');
+        await f.client.flush('source');
+        expect((await f.store.read(scope))?.local).toHaveLength(1);
+        expect(visibleHistory((await f.client.state('source'))!)).toHaveLength(
+            1
+        );
+    });
+});
