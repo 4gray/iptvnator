@@ -1012,7 +1012,8 @@ describe('WebPlayerViewComponent', () => {
                 {
                     authorization: 'Bearer TOKEN123',
                     cookie: 'mac=00%3A1A%3A79%3A00%3A00%3A01; stb_lang=en_US',
-                }
+                },
+                undefined
             );
             expect(component.channel()).toBeUndefined();
 
@@ -1036,6 +1037,7 @@ describe('WebPlayerViewComponent', () => {
                 'PlainAgent/1.0',
                 undefined,
                 'https://example.com/live/plain.m3u8',
+                undefined,
                 undefined
             );
         });

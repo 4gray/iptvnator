@@ -25,12 +25,13 @@ function sanitizeCredentials(value: unknown): StreamCredentialHeaders | null {
 
 ipcMain.handle(
     'set-user-agent',
-    (_event, userAgent, referer, scopeUrl, credentials) => {
+    (_event, userAgent, referer, scopeUrl, credentials, origin) => {
         setUserAgent(
             userAgent,
             referer,
             scopeUrl,
-            sanitizeCredentials(credentials)
+            sanitizeCredentials(credentials),
+            origin
         );
         return true;
     }
@@ -44,12 +45,20 @@ ipcMain.handle(
  * @param credentials portal Cookie/Authorization for auth-gated streams;
  *   applied only to the exact origin of `scopeUrl` and only while the
  *   scoped override is active
+ * @param origin explicit Origin override; otherwise derived from referer
  */
 export function setUserAgent(
     userAgent?: string | null,
     referer?: string | null,
     scopeUrl?: string | null,
-    credentials?: StreamCredentialHeaders | null
+    credentials?: StreamCredentialHeaders | null,
+    origin?: string | null
 ): void {
-    configureRequestHeaderOverride(userAgent, referer, scopeUrl, credentials);
+    configureRequestHeaderOverride(
+        userAgent,
+        referer,
+        scopeUrl,
+        credentials,
+        origin
+    );
 }

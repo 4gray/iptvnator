@@ -49,6 +49,7 @@ import type {
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FullscreenEpisodePanelComponent {
+    readonly seasonTabs = viewChild(SeasonTabsComponent);
     readonly seasons = input.required<FullscreenEpisodePanelSeason[]>();
     /** The panel is slid in; the playing row is brought into view on the rise. */
     readonly open = input(false);

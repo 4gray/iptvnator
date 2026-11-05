@@ -260,7 +260,7 @@ export class SerialDetailsPlaybackService {
             Number(episode.id)
         );
         const { playback, episodeState } = buildSerialEpisodePlayback({
-            playlistId: playlist.id,
+            playlist,
             selectedItem,
             episode,
             streamUrl,

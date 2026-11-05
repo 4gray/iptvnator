@@ -1,3 +1,4 @@
+import type { XtreamPlaylistData } from '@iptvnator/portal/xtream/data-access';
 import type {
     PlayerContentInfo,
     ResolvedPortalPlayback,
@@ -10,7 +11,10 @@ import {
 import type { XtreamSerieDetailsView } from './serial-details-playback.service';
 
 export interface SerialEpisodePlaybackRequest {
-    readonly playlistId: string;
+    readonly playlist: Pick<
+        XtreamPlaylistData,
+        'id' | 'userAgent' | 'referrer' | 'origin'
+    >;
     readonly selectedItem: XtreamSerieDetailsView;
     readonly episode: XtreamSerieEpisode;
     readonly streamUrl: string;
@@ -32,7 +36,7 @@ export function buildSerialEpisodePlayback(
 ): SerialEpisodePlayback {
     const { episode, selectedItem } = request;
     const contentInfo: PlayerContentInfo = {
-        playlistId: request.playlistId,
+        playlistId: request.playlist.id,
         contentXtreamId: Number(episode.id),
         contentType: 'episode',
         seriesXtreamId: Number(selectedItem.series_id),
@@ -46,6 +50,9 @@ export function buildSerialEpisodePlayback(
         thumbnail: selectedItem.info.cover,
         startTime: request.startTime,
         contentInfo,
+        userAgent: request.playlist.userAgent,
+        referer: request.playlist.referrer,
+        origin: request.playlist.origin,
     };
 
     const episodeState = resolveSeriesPlaybackEpisodeState({

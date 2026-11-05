@@ -554,7 +554,9 @@ the panel the moment the last group disappears.
   24px segmented items) that replaces the dock while open. Picture-in-
   picture and recording stay in the compact dock — the mock shows only
   `tune` + fullscreen there, but those two are engine features a viewer
-  needs without opening anything.
+  needs without opening anything. At 200% zoom or on a short stage, the
+  whole sheet scrolls, including its header, so the body cannot collapse to
+  zero height. Wide panels retain the body as their sole scroll owner.
 - **Inside**: every choice is a `radio` in a `radiogroup`
   (`SettingsRadioGroupDirective` / `SettingsRadioDirective`). List groups
   (audio, subtitles, quality) are rows with a check mark and a cyan

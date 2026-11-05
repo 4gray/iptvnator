@@ -188,8 +188,11 @@ handler as the header Back.
   affordance returns to the originating collection, plus
   `stalkerReturnByHistory` so that return is a single history step rather than
   a fresh `navigateByUrl()`. The collection's active tab, scope and open inline
-  detail live only in `window.history.state` (`collectionViewState` /
-  `openCollectionDetailItem`); re-navigating starts a stateless entry, which
+  detail live in `window.history.state` (`collectionViewState` /
+  `openCollectionDetailItem`); packaged renderer reload recovery carries only
+  the validated tab/scope into the new document (see
+  [Workspace Shell](./workspace-shell.md)).
+  Re-navigating starts a stateless entry, which
   reopened the collection on its default `live` tab and left the portal page
   one browser Back away. The marker carries the handed-off item's identity
   rather than a bare `true`, because `openStalkerItem` is consumed on arrival

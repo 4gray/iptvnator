@@ -33,7 +33,6 @@ import {
     XtreamCollectionRef,
     xtreamCollectionId,
     mapCategoryTypeToDbType,
-    ProgressCallback,
     XtreamOperationOptions,
     XtreamCategoryFromDb,
     XtreamContentItem,
@@ -311,14 +310,6 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         );
     }
 
-    async saveCategories(
-        playlistId: string,
-        categories: XtreamCategory[],
-        type: DbCategoryType
-    ): Promise<void> {
-        await this.dbService.saveXtreamCategories(playlistId, categories, type);
-    }
-
     async updateCategoryVisibility(
         categoryIds: number[],
         hidden: boolean
@@ -470,26 +461,6 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         }
         if (!(await this.isEnabled(playlistId, type))) return [];
         return this.dbService.getXtreamContent(playlistId, type);
-    }
-
-    async saveContent(
-        playlistId: string,
-        streams:
-            | XtreamLiveStream[]
-            | XtreamVodStream[]
-            | XtreamSerieItem[]
-            | XtreamContentItem[],
-        type: 'live' | 'movie' | 'series',
-        onProgress?: ProgressCallback,
-        options?: XtreamOperationOptions
-    ): Promise<number> {
-        return this.dbService.saveXtreamContent(
-            playlistId,
-            streams as Parameters<DatabaseService['saveXtreamContent']>[1],
-            type,
-            onProgress,
-            options
-        );
     }
 
     // =========================================================================

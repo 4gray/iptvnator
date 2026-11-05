@@ -16,7 +16,11 @@
                                 ('PORTALS.ALL_ITEMS' | translate)
                         }}
                     </h2>
-                    <div class="category-subtitle">
+                    <div
+                        class="category-subtitle"
+                        role="status"
+                        aria-atomic="true"
+                    >
                         @let subtitle = categoryItemSubtitle();
                         {{ subtitle.key | translate: subtitle.params }}
                     </div>

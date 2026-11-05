@@ -61,6 +61,8 @@ export class ElectronStreamHeadersService {
             getHeaderValue(playback.headers, 'User-Agent');
         const referer =
             playback.referer ?? getHeaderValue(playback.headers, 'Referer');
+        const origin =
+            playback.origin ?? getHeaderValue(playback.headers, 'Origin');
         const cookie = getHeaderValue(playback.headers, 'Cookie');
         const authorization = getHeaderValue(playback.headers, 'Authorization');
 
@@ -70,7 +72,8 @@ export class ElectronStreamHeadersService {
                 userAgent,
                 referer,
                 playback.streamUrl,
-                cookie || authorization ? { authorization, cookie } : undefined
+                cookie || authorization ? { authorization, cookie } : undefined,
+                origin
             )
             .catch((error: unknown) => {
                 console.warn(

@@ -409,8 +409,13 @@ though tree shaking would drop it from a single bundle. The eager Xtream
 data layer and root shell therefore import `@iptvnator/portal/shared/util/logger`
 and `@iptvnator/portal/shared/util/tokens` (the portal DI tokens), not the
 `@iptvnator/portal/shared/util` barrel, whose navigation, keyboard-shortcut
-and download helpers (about 45 KB) belong to the lazy portal routes. A
-type-only import of a barrel uses `import type`, so it can never keep the
+and download helpers (about 45 KB) belong to the lazy portal routes.
+Packaged renderer reload recovery uses the pure
+`@iptvnator/portal/shared/util/collection-view-state` entry, which keeps its
+validator separate from other navigation code; the navigation barrel
+re-exports the same API for route consumers. Recovery itself loads only for
+an actual restore request, never on ordinary startup.
+A type-only import of a barrel uses `import type`, so it can never keep the
 barrel reachable. `renderer.initialBytes` in
 [performance journeys](performance-journeys.md) guards the result; to see why a
 module is eager, build with `pnpm nx build web --stats-json` and follow the

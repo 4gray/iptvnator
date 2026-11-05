@@ -32,6 +32,13 @@
             @let i = $any(item);
             @let title = channelTitle(i) || ('PORTALS.UNTITLED' | translate);
             <mat-card
+                [attr.data-catalog-focus-key]="
+                    i.id ??
+                    i.stream_id ??
+                    i.series_id ??
+                    i.xtream_id ??
+                    i.movie_id
+                "
                 [class.grid-card--logo]="variant() === 'logo'"
                 role="button"
                 tabindex="0"

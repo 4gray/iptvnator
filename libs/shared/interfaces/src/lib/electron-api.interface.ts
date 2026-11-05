@@ -903,7 +903,8 @@ export interface ElectronBridgeApi {
         userAgent?: string | null,
         referer?: string | null,
         scopeUrl?: string | null,
-        credentials?: ElectronBridgeStreamCredentials | null
+        credentials?: ElectronBridgeStreamCredentials | null,
+        origin?: string | null
     ) => Promise<boolean>;
     openInMpv: (
         url: string,

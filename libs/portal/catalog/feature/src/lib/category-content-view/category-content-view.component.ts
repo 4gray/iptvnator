@@ -51,6 +51,7 @@ import {
 import { createCatalogWatchFilter } from './catalog-watch-filter';
 import { createCatalogHideWatched } from './catalog-hide-watched';
 import { createCatalogItemSubtitle } from './catalog-item-subtitle';
+import { createCatalogReturnFocus } from './catalog-return-focus';
 
 interface CategoryContentItem {
     id?: number | string;
@@ -85,8 +86,9 @@ interface CategoryContentItem {
 export class CategoryContentViewComponent implements OnInit, OnDestroy {
     private readonly activatedRoute = inject(ActivatedRoute);
     private readonly destroyRef = inject(DestroyRef);
-    private readonly hostElement = inject(ElementRef<HTMLElement>);
+    private readonly host = inject(ElementRef<HTMLElement>);
     private readonly router = inject(Router);
+    private readonly focus = createCatalogReturnFocus(this.host.nativeElement);
     private readonly providerOnlyStalkerItemId = signal<string | null>(null);
     private readonly catalog = inject(
         PORTAL_CATALOG_FACADE
@@ -98,11 +100,11 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
 
     readonly hideWatched = createCatalogHideWatched(
         this.catalog,
-        this.hostElement.nativeElement
+        this.host.nativeElement
     );
     readonly watchFilter = createCatalogWatchFilter(
         this.catalog,
-        this.hostElement.nativeElement
+        this.host.nativeElement
     );
     readonly detailComponent = inject(PORTAL_CATALOG_DETAIL_COMPONENT);
     readonly contentType = this.catalog.contentType;
@@ -235,7 +237,7 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     } | null = null;
 
     constructor() {
-        const host = this.hostElement.nativeElement;
+        const host = this.host.nativeElement;
         host.addEventListener('scroll', this.trackGridScroll, {
             capture: true,
             passive: true,
@@ -290,6 +292,7 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
                 return;
             }
 
+            this.focus.recordReturnTrigger();
             if (
                 this.hasAttemptedScrollRestore ||
                 this.isPaginatedContentLoading() ||
@@ -301,7 +304,7 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
             this.hasAttemptedScrollRestore = true;
             const scrollTop =
                 this.catalog.consumeSavedScrollPosition?.() ?? null;
-            if (scrollTop === null || scrollTop <= 0) {
+            if ((scrollTop ?? 0) <= 0 && !this.focus.pending()) {
                 return;
             }
 
@@ -309,7 +312,9 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
             // window, one to apply the offset to the grown grid.
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
-                    this.gridElement()?.scrollTo?.({ top: scrollTop });
+                    if (scrollTop !== null)
+                        this.gridElement()?.scrollTo?.({ top: scrollTop });
+                    this.focus.restore();
                 });
             });
         });
@@ -368,6 +373,7 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     }
 
     onItemClick(item: CategoryContentItem): void {
+        this.focus.capture();
         // Snapshot the grid offset before the detail replaces the list.
         const grid = this.gridElement();
         if (grid) {
@@ -385,7 +391,7 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     }
 
     private gridElement(): HTMLElement | null {
-        return this.hostElement.nativeElement.querySelector(
+        return this.host.nativeElement.querySelector(
             'app-grid-list'
         ) as HTMLElement | null;
     }

@@ -64,14 +64,19 @@
         <div class="season-tabs__track" role="tablist">
             @for (seasonKey of seasonKeys(); track seasonKey) {
                 <button
+                    #tab
                     class="season-tabs__pill"
                     type="button"
                     role="tab"
+                    [id]="tabId(seasonKey)"
+                    [attr.aria-controls]="panelId"
+                    [attr.tabindex]="seasonKey === tabStop() ? 0 : -1"
                     [attr.aria-selected]="seasonKey === selectedSeason()"
                     [class.season-tabs__pill--active]="
                         seasonKey === selectedSeason()
                     "
                     (click)="selectSeason(seasonKey)"
+                    (keydown)="onTabKeydown($event, seasonKey)"
                 >
                     {{
                         'PORTALS.SEASON_TAB' | translate: { number: seasonKey }

@@ -162,15 +162,6 @@ export function mapCategoryTypeToDbType(type: CategoryType): DbCategoryType {
 }
 
 /**
- * Maps StreamType to DbCategoryType for content storage
- */
-export function mapStreamTypeToDbType(
-    type: StreamType
-): 'live' | 'movie' | 'series' {
-    return type;
-}
-
-/**
  * Progress callback for bulk operations
  */
 export type ProgressCallback = (count: number) => void;
@@ -274,15 +265,6 @@ export interface IXtreamDataSource {
     ): Promise<XtreamCategoryFromDb[]>;
 
     /**
-     * Save categories in bulk
-     */
-    saveCategories(
-        playlistId: string,
-        categories: XtreamCategory[],
-        type: DbCategoryType
-    ): Promise<void>;
-
-    /**
      * Update category visibility
      */
     updateCategoryVisibility(
@@ -329,21 +311,6 @@ export interface IXtreamDataSource {
         playlistId: string,
         type: StreamType
     ): Promise<XtreamContentItem[]>;
-
-    /**
-     * Save content in bulk
-     */
-    saveContent(
-        playlistId: string,
-        streams:
-            | XtreamLiveStream[]
-            | XtreamVodStream[]
-            | XtreamSerieItem[]
-            | XtreamContentItem[],
-        type: 'live' | 'movie' | 'series',
-        onProgress?: ProgressCallback,
-        options?: XtreamOperationOptions
-    ): Promise<number>;
 
     // =========================================================================
     // Search Operations

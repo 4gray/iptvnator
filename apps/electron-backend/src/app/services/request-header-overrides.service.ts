@@ -194,10 +194,12 @@ export function configureRequestHeaderOverride(
     userAgent?: string | null,
     referer?: string | null,
     scopeUrl?: string | null,
-    credentials?: StreamCredentialHeaders | null
+    credentials?: StreamCredentialHeaders | null,
+    origin?: string | null
 ): void {
     const normalizedUserAgent = normalizeHeaderValue(userAgent);
     const normalizedReferer = normalizeHeaderValue(referer);
+    const normalizedOrigin = normalizeHeaderValue(origin);
     const isScopedOverride = scopeUrl !== undefined && scopeUrl !== null;
     const scopeOrigin = getOrigin(scopeUrl);
     // Credentials are portal secrets: they require a scoped override whose
@@ -217,6 +219,7 @@ export function configureRequestHeaderOverride(
     if (
         !normalizedUserAgent &&
         !normalizedReferer &&
+        !normalizedOrigin &&
         !normalizedCookie &&
         !normalizedAuthorization
     ) {
@@ -230,7 +233,7 @@ export function configureRequestHeaderOverride(
 
     const refererOrigin = getOrigin(normalizedReferer);
     const override: HeaderOverride = {
-        origin: refererOrigin,
+        origin: normalizedOrigin ?? refererOrigin,
         referer: normalizedReferer,
         userAgent: normalizedUserAgent,
     };

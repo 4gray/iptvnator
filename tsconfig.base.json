@@ -40,6 +40,9 @@
             "@iptvnator/portal/shared/util": [
                 "libs/portal/shared/util/src/index.ts"
             ],
+            "@iptvnator/portal/shared/util/collection-view-state": [
+                "libs/portal/shared/util/src/lib/navigation/collection-view-state.ts"
+            ],
             "@iptvnator/portal/shared/util/logger": [
                 "libs/portal/shared/util/src/lib/logger.ts"
             ],

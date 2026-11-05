@@ -692,7 +692,8 @@ describe('PWA Xtream collection identity', () => {
                 tmdb_id: 200,
                 poster_url: 'new.jpg',
             } as XtreamContentItem;
-            await source.saveContent('p1', [replacement], 'movie');
+            api.getStreams.mockResolvedValueOnce([replacement]);
+            await source.getContent('p1', credentials, 'movie');
             await source.getFavorites('p1');
             // A replacement detail heart cannot remove or claim the original favorite.
             expect(
@@ -738,16 +739,15 @@ describe('PWA Xtream collection identity', () => {
                 credentials,
                 'movie'
             );
-            const original = cached as XtreamContentItem;
-            original.tmdb_id = 100;
+            const original = { ...cached, tmdb_id: 100 } as XtreamContentItem;
             const expected = { title: 'Replacement', tmdb_id: 200 };
-            await source.saveContent('p1', [original], 'movie');
+            source.clearSessionCache('p1');
+            api.getStreams.mockResolvedValueOnce([original]);
+            await source.getContent('p1', credentials, 'movie');
             await source.addRecentItem(ref, 'p1');
-            await source.saveContent(
-                'p1',
-                [{ ...original, ...expected }],
-                'movie'
-            );
+            source.clearSessionCache('p1');
+            api.getStreams.mockResolvedValueOnce([{ ...original, ...expected }]);
+            await source.getContent('p1', credentials, 'movie');
             await source.getRecentItems('p1');
             await source.removeRecentItem(ref, 'p1');
             if (quota) {
