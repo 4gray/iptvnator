@@ -50,6 +50,41 @@ describe('Xtream import session lifecycle', () => {
 
     afterEach(() => localStorage.clear());
 
+    it('starts all category reads in parallel and publishes each result to its own type', async () => {
+        const live = createDeferred<{ category_id: string }[]>();
+        const vod = createDeferred<{ category_id: string }[]>();
+        const series = createDeferred<{ category_id: string }[]>();
+        const requests = { live, vod, series };
+        dataSource.getCategories.mockImplementation(
+            (_playlist, _credentials, type: keyof typeof requests) =>
+                requests[type].promise
+        );
+
+        const task = store.fetchAllCategories();
+        expect(
+            dataSource.getCategories.mock.calls.map((call) => call[2])
+        ).toEqual(['live', 'vod', 'series']);
+        series.resolve([{ category_id: 'synthetic-series' }]);
+        live.resolve([{ category_id: 'synthetic-live' }]);
+        await Promise.resolve();
+        expect(store.liveCategories()).toEqual([]);
+        expect(store.serialCategories()).toEqual([]);
+        expect(store.isLoadingCategories()).toBe(true);
+
+        vod.resolve([{ category_id: 'synthetic-vod' }]);
+        await task;
+        expect(store.liveCategories()).toEqual([
+            { category_id: 'synthetic-live' },
+        ]);
+        expect(store.vodCategories()).toEqual([
+            { category_id: 'synthetic-vod' },
+        ]);
+        expect(store.serialCategories()).toEqual([
+            { category_id: 'synthetic-series' },
+        ]);
+        expect(store.isLoadingCategories()).toBe(false);
+    });
+
     it('publishes each type only after completion is persisted and before starting the next type', async () => {
         const completed = createDeferred<boolean>();
         const live = [{ stream_id: 1, name: 'Synthetic live' }];

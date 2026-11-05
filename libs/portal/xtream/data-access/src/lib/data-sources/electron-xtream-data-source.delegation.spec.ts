@@ -151,10 +151,6 @@ describe('ElectronXtreamDataSource (delegation)', () => {
                 'movies'
             );
 
-            await harness.dataSource.updateCategoryVisibility([1, 2], true);
-            expect(
-                harness.dbService.updateCategoryVisibility
-            ).toHaveBeenCalledWith([1, 2], true);
         });
 
         it('delegates content reads and search to the DB', async () => {

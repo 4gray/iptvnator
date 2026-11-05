@@ -1180,50 +1180,22 @@ export function withContent() {
                     patchState(store, { isLoadingCategories: true });
 
                     try {
-                        const requests = [
+                        const requests = importTypes.map((type) =>
                             dataSource.getCategories(
                                 ctx.playlistId,
                                 ctx.credentials,
-                                'live',
+                                type,
                                 {
                                     sessionId: options?.sessionId,
                                     signal: options?.signal,
                                     onPhaseChange: publishTypedImportPhase(
-                                        'live',
+                                        type,
                                         options?.sessionId,
                                         options?.signal
                                     ),
                                 }
-                            ),
-                            dataSource.getCategories(
-                                ctx.playlistId,
-                                ctx.credentials,
-                                'vod',
-                                {
-                                    sessionId: options?.sessionId,
-                                    signal: options?.signal,
-                                    onPhaseChange: publishTypedImportPhase(
-                                        'vod',
-                                        options?.sessionId,
-                                        options?.signal
-                                    ),
-                                }
-                            ),
-                            dataSource.getCategories(
-                                ctx.playlistId,
-                                ctx.credentials,
-                                'series',
-                                {
-                                    sessionId: options?.sessionId,
-                                    signal: options?.signal,
-                                    onPhaseChange: publishTypedImportPhase(
-                                        'series',
-                                        options?.sessionId,
-                                        options?.signal
-                                    ),
-                                }
-                            ),
-                        ];
+                            )
+                        );
                         const [live, vod, series] = await Promise.all(requests)
                             .catch(async (error: unknown) => {
                                 if (

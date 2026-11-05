@@ -270,37 +270,3 @@ export async function restoreCategoryVisibility(
     }
     return applied;
 }
-
-/** Legacy cache-snapshot API is cold work too; keep its existing semantics. */
-export async function clearElectronCatalogCache(
-    services: {
-        db: Pick<DatabaseService, 'deleteXtreamPlaylistContent'>;
-        playback: Pick<PlaybackPositionService, 'getAllPlaybackPositions'>;
-        pins: Pick<VodSourcePinService, 'listForPlaylist'>;
-        getPlaylist: (
-            id: string
-        ) => Promise<{ xtreamContentTypes?: XtreamContentType[] } | null>;
-    },
-    playlistId: string
-): Promise<XtreamPendingRestoreState> {
-    const playlist = await services.getPlaylist(playlistId);
-    const [result, playbackPositions, sourcePins] = await Promise.all([
-        services.db.deleteXtreamPlaylistContent(playlistId, {
-            contentTypes: playlist?.xtreamContentTypes,
-        }),
-        services.playback.getAllPlaybackPositions(playlistId),
-        services.pins.listForPlaylist(playlistId),
-    ]);
-
-    return {
-        hiddenCategories: result.hiddenCategories,
-        favorites: result.favorites,
-        recentlyViewed: result.recentlyViewed,
-        playbackPositions,
-        sourcePins: sourcePins.map((pin) => ({
-            matchKey: pin.matchKey,
-            contentId: pin.contentId,
-            ...(pin.updatedAt ? { updatedAt: pin.updatedAt } : {}),
-        })),
-    };
-}
