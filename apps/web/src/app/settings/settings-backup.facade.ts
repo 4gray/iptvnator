@@ -1,3 +1,5 @@
+import { favoritesProfileUsed } from '../services/favorites-consent';
+import { loadFavoritesRuntime } from '../services/favorites-sync.providers';
 import { activityEnabled } from '../services/activity-consent';
 import { loadActivityRuntime } from '../services/activity-sync.providers';
 import {
@@ -63,7 +65,13 @@ export class SettingsBackupFacade {
                         ? (
                               await loadActivityRuntime(this.environment)
                           ).exportPositions(sourceId, local)
-                        : local
+                        : local,
+                async (playlist, entry) =>
+                    favoritesProfileUsed()
+                        ? (
+                              await loadFavoritesRuntime(this.environment)
+                          ).exportFavorites(playlist, entry)
+                        : entry
             );
 
             if (this.runtime.supportsDesktopFileSave && window.electron) {
@@ -136,8 +144,14 @@ export class SettingsBackupFacade {
             this.importFailed.set(false);
 
             try {
+                const restoreFavorites = favoritesProfileUsed()
+                    ? (
+                          await loadFavoritesRuntime(this.environment)
+                      ).backupRestorer()
+                    : undefined;
                 const summary = await this.playlistBackupService.importBackup(
-                    await file.text()
+                    await file.text(),
+                    ...(restoreFavorites ? [restoreFavorites] : [])
                 );
                 this.injector
                     .get(XtreamStore, null)

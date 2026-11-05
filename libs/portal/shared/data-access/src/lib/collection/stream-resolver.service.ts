@@ -1,5 +1,5 @@
 import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, Injector } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { firstValueFrom } from 'rxjs';
 import { extractDrmFromRaw } from '@iptvnator/shared/m3u-utils';
@@ -21,6 +21,7 @@ import {
     epgProviderClockMs,
     isFullStalkerPortalPlaylist,
     Playlist,
+    StalkerPortalItem,
     isStalkerStreamCredentialSafe,
     ResolvedPortalPlayback,
     shortEpgWindowSize,
@@ -43,6 +44,7 @@ import {
     resolveStalkerStaticPlaybackUrl,
     StalkerPortalRepairService,
     StalkerSessionService,
+    StalkerFavoritePlaybackResolver,
     type StalkerLinkFlagSource,
 } from '@iptvnator/portal/stalker/data-access';
 import {
@@ -100,6 +102,7 @@ interface EpgLoadClock {
 @Injectable({ providedIn: 'root' })
 export class StreamResolverService {
     private readonly playlistsService = inject(PlaylistsService);
+    private readonly injector = inject(Injector);
     private readonly xtreamApi = inject(XtreamApiService);
     private readonly xtreamUrl = inject(XtreamUrlService);
     private readonly dataService = inject(DataService);
@@ -454,6 +457,17 @@ export class StreamResolverService {
             '';
         const macAddress =
             currentPlaylist?.macAddress ?? item.stalkerMacAddress ?? '';
+        if (currentPlaylist && !item.stalkerCmd) {
+            const row = await this.injector
+                .get(StalkerFavoritePlaybackResolver)
+                .resolve(currentPlaylist, {
+                    ...(item.stalkerItem as StalkerPortalItem | undefined),
+                    id: item.stalkerId,
+                    favoriteContentType:
+                        item.radio === 'true' ? 'radio' : 'itv',
+                });
+            item = { ...item, stalkerItem: row, stalkerCmd: row.cmd };
+        }
         // Favorites and Recently Viewed persist the raw catalog row, so the
         // temporary-link flags travel with the item and this route makes the
         // same decision the portal views make: an unflagged, directly playable

@@ -57,7 +57,8 @@ export function buildStalkerRecentlyViewedPayload(
 export function dispatchStalkerPlaylistMetaUpdate(
     ngrxStore: Store,
     playlistId: string | undefined,
-    changes: Pick<PlaylistMeta, 'favorites' | 'recentlyViewed'>
+    changes: Pick<PlaylistMeta, 'favorites' | 'recentlyViewed'>,
+    persist = true
 ): void {
     if (!playlistId) {
         return;
@@ -65,6 +66,7 @@ export function dispatchStalkerPlaylistMetaUpdate(
 
     ngrxStore.dispatch(
         PlaylistActions.updatePlaylistMeta({
+            ...(persist ? {} : { persist: false }),
             playlist: {
                 _id: playlistId,
                 ...changes,

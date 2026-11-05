@@ -34,6 +34,8 @@ export interface XtreamPlayedContent extends ContentMetadataPatch {
 
 /** SQLite row id on Electron; provider id on PWA. Always carry type for PWA. */
 export interface TypedXtreamCollectionRef {
+    /** Portable provider ID when a retained favorite has no catalog row. */
+    readonly providerId?: number;
     readonly id: number;
     readonly type: XtreamContentType;
     /** Expected identity of the rendered collection row, independent of catalog hydration. */
@@ -171,6 +173,9 @@ export interface XtreamOperationOptions {
  * Allows different implementations for Electron (DB-first) and PWA (API-only).
  */
 export interface IXtreamDataSource {
+    /** Only the consent-aware adapter may handle provider references without SQLite rows. */
+    supportsPortableFavorites?(playlistId: string): boolean | Promise<boolean>;
+
     // =========================================================================
     // Playlist Operations
     // =========================================================================
@@ -313,7 +318,11 @@ export interface IXtreamDataSource {
     /**
      * Get all favorites for a playlist
      */
-    getFavorites(playlistId: string): Promise<XtreamFavoriteItem[]>;
+    /** Cache-only archive reads keep membership actions independent of provider availability. */
+    getFavorites(
+        playlistId: string,
+        hydrate?: boolean
+    ): Promise<XtreamFavoriteItem[]>;
 
     /**
      * Add content to favorites.
@@ -388,7 +397,8 @@ export interface IXtreamDataSource {
         contentType?: 'live' | 'movie' | 'series',
         identity?: ContentMetadataPatch,
         /** SQLite-only local category restriction when verifying route context. */
-        categoryId?: number
+        categoryId?: number,
+        excludeLocked?: boolean
     ): Promise<XtreamContentItem | null>;
 
     /**

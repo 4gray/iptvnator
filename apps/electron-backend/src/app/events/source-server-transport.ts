@@ -42,11 +42,14 @@ export class SourceServerTransport {
                         Partial<ServerInstanceInfo> | undefined;
                     throw new Error(
                         probe.status === 200 &&
+                            typeof body?.instanceId === 'string' &&
                             body?.instanceId !== connection.instanceId
                             ? 'SOURCE_SYNC.INSTANCE_CHANGED'
-                            : probe.status === 401
+                            : probe.status === 401 || probe.status === 403
                               ? 'SOURCE_SYNC.LOCKED'
-                              : 'SOURCE_SYNC.OFFLINE'
+                              : probe.status >= 500
+                                ? 'SOURCE_SYNC.OFFLINE'
+                                : 'SOURCE_SYNC.INCOMPATIBLE'
                     );
                 }
             }
@@ -59,6 +62,7 @@ export class SourceServerTransport {
             );
             if (
                 response.status === 401 ||
+                response.status === 403 ||
                 response.status >= 500 ||
                 (response.status === 409 &&
                     (response.body as { code?: string })?.code ===

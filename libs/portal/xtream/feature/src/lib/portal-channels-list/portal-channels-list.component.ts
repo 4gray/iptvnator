@@ -27,8 +27,8 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
-import { Subscription } from 'rxjs';
-import { debounceTime } from 'rxjs/operators';
+import { EMPTY, fromEvent, merge, of, Subscription } from 'rxjs';
+import { catchError, debounceTime, filter, switchMap } from 'rxjs/operators';
 import {
     foldSearchText,
     buildXtreamEpgMappingKey,
@@ -337,17 +337,32 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
 
         const playlist = this.xtreamStore.currentPlaylist();
         if (playlist) {
-            this.favoritesService
-                .getFavorites(playlist.id)
-                .subscribe((favorites) => {
-                    favorites.forEach((fav) => {
-                        this.favorites.set(
-                            this.getFavoriteKey(fav.xtream_id, fav.type),
-                            true
-                        );
-                    });
-                    this.cdr.markForCheck();
-                });
+            this.subscriptions.add(
+                merge(
+                    of(null),
+                    fromEvent(window, 'iptvnator-favorites-changed'),
+                    this.favoriteMarks.changes$.pipe(
+                        filter((change) => change.playlistId === playlist.id)
+                    )
+                )
+                    .pipe(
+                        switchMap(() =>
+                            this.favoritesService
+                                .getFavorites(playlist.id)
+                                .pipe(catchError(() => EMPTY))
+                        )
+                    )
+                    .subscribe((favorites) => {
+                        this.favorites.clear();
+                        favorites.forEach((fav) => {
+                            this.favorites.set(
+                                this.getFavoriteKey(fav.xtream_id, fav.type),
+                                true
+                            );
+                        });
+                        this.cdr.markForCheck();
+                    })
+            );
             // A toggle in another list instance (the sidebar and the
             // fullscreen channel panel render this component side by side)
             // must reach this instance's hearts too.

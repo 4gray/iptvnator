@@ -57,7 +57,6 @@ export class UnifiedCollectionDataService {
         this.request.asReadonly();
 
     private requestId = 0;
-
     /**
      * Replace the collection with the rows the request resolves to. Returns
      * the loaded rows, or `null` when the load was superseded by a newer one
@@ -198,6 +197,16 @@ export class UnifiedCollectionDataService {
                 params.portalType
             );
             const uids = new Set(favorites.map((item) => item.uid));
+            const memberships = new Set(
+                favorites.map((item) => this.favoritesData.membershipUid(item))
+            );
+            for (const item of recentItems) {
+                if (
+                    item.sourceType === 'stalker' &&
+                    memberships.has(this.favoritesData.membershipUid(item))
+                )
+                    uids.add(item.uid);
+            }
             await Promise.all(
                 recentItems.map(async (item) => {
                     if (item.sourceType !== 'xtream' || !uids.has(item.uid))

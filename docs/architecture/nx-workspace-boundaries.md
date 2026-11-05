@@ -532,3 +532,8 @@ The CI lint job runs affected projects on pull requests and all projects on
 master pushes. Root config or lockfile changes affect every project, so module
 boundaries, legacy-alias restrictions, and max-lines enforcement apply across
 the workspace.
+
+
+`@iptvnator/shared/m3u-utils/favorites` keeps global M3U favorites aggregation
+outside the eager utility barrel. The explicit favorites action helper imports
+it lazily; ordinary source inventory/bootstrap does not need that projection.

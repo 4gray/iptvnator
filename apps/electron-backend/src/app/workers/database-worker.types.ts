@@ -3,6 +3,7 @@ import type { DbWorkerSqlStatementsMessage } from './database-worker-sql-stateme
 
 export const DB_WORKER_OPERATIONS = [
     'DB_ACTIVITY_LOCAL',
+    'DB_FAVORITES_LOCAL',
     'DB_HAS_CATEGORIES',
     'DB_GET_CATEGORIES',
     'DB_SAVE_CATEGORIES',

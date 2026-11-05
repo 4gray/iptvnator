@@ -39,10 +39,9 @@ export function retireChangedActivitySource(
         if (document) {
             const source = sourceFromPlaylist(
                 document as unknown as Playlist,
-                false
+                true
             );
-            if (source.kind === 'xtream' || source.kind === 'stalker')
-                fingerprint = activitySourceFingerprint(source);
+            fingerprint = activitySourceFingerprint(source);
         }
     } catch {
         // Invalid or unsupported replacement identities cannot retain an old activity scope.

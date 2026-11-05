@@ -1,6 +1,6 @@
+import { aggregateFavoriteChannels } from './favorite-playlist.utils';
 import { Channel, Playlist } from '@iptvnator/shared/interfaces';
 import {
-    aggregateFavoriteChannels,
     createPlaylistObject,
     extractM3uEpgUrls,
     filterPlaylistEpgUrlsForFetch,

@@ -53,6 +53,7 @@ describe('UnifiedFavoritesDataService', () => {
         select: jest.Mock;
     };
     let playlistsService: {
+        preparePortalFavoriteActions: jest.Mock;
         addPortalFavorite: jest.Mock;
         getPlaylistById: jest.Mock;
         transformPlaylistFavorites: jest.Mock;
@@ -139,6 +140,9 @@ describe('UnifiedFavoritesDataService', () => {
         });
 
         playlistsService = {
+            preparePortalFavoriteActions: jest
+                .fn()
+                .mockResolvedValue(undefined),
             addPortalFavorite: jest.fn().mockReturnValue(of({})),
             getPlaylistById: jest.fn(),
             // Faithful default: read the playlist through the configured
@@ -579,6 +583,7 @@ describe('UnifiedFavoritesDataService', () => {
         expect(store.dispatch).toHaveBeenCalledWith(
             expect.objectContaining({
                 type: '[Playlists] Update Playlist Meta',
+                persist: false,
                 playlist: expect.objectContaining({
                     _id: 'm3u-1',
                     favorites: [
@@ -783,7 +788,12 @@ describe('UnifiedFavoritesDataService', () => {
             xtreamId: 101,
             xtreamIdentity: { tmdbId: 200, releaseYear: 2026 },
         };
-        const ref = { id: 101, type: 'movie', identity: item.xtreamIdentity };
+        const ref = {
+            id: 101,
+            providerId: 101,
+            type: 'movie',
+            identity: item.xtreamIdentity,
+        };
         await service.isXtreamFavorite(item);
         expect(xtreamDataSource.isFavorite).toHaveBeenCalledWith(
             ref,
@@ -834,7 +844,7 @@ describe('UnifiedFavoritesDataService', () => {
             'movie'
         );
         expect(xtreamDataSource.addFavorite).toHaveBeenCalledWith(
-            { id: 101, type: 'movie' },
+            { id: 101, providerId: 101, type: 'movie' },
             'xtream-1',
             'movie.png'
         );
@@ -860,7 +870,7 @@ describe('UnifiedFavoritesDataService', () => {
         } satisfies UnifiedCollectionItem);
 
         expect(xtreamDataSource.removeFavorite).toHaveBeenCalledWith(
-            { id: 1010, type: 'movie' },
+            { id: 1010, providerId: 101, type: 'movie' },
             'xtream-1'
         );
         expect(electronApi.dbRemoveFavorite).not.toHaveBeenCalled();
@@ -986,6 +996,7 @@ describe('UnifiedFavoritesDataService', () => {
         expect(store.dispatch).toHaveBeenCalledWith(
             expect.objectContaining({
                 type: '[Playlists] Update Playlist Meta',
+                persist: false,
                 playlist: expect.objectContaining({
                     _id: 'm3u-1',
                     favorites: ['https://example.com/3.m3u8'],

@@ -2222,3 +2222,14 @@ of them and `enqueueAll` queues the batch, because stopping at the first match
 would silently drop the rest of the selection. Adding an exec code to
 `linux.executableArgs` would suppress the `%U` but also pass that code to the
 app as a real argument, so it is not an option.
+
+
+## Optional shared favorites
+
+The [self-hosted favorites contract](pwa-self-hosted.md#favorites-synchronization)
+keeps M3U URL-based membership: duplicate URLs share a favorite. Version 1 hashes
+the exact URL and resolves legacy IDs through the local catalog, without title or
+tvg-id inference. Explicit favorite actions use the optional composition bridge;
+source/refresh writes never infer uploads from playlist snapshots. Original local
+favorites remain available for preview/import. Unmatched references remain
+unresolved; switching profiles does not transplant memberships or queued actions.

@@ -34,6 +34,7 @@ import { materializeSource } from './source-materializer';
 import { migrateLegacyPlaylistActivity } from './legacy-playlist-activity';
 import { recoverPendingStatelessBackend } from './pending-source-discovery';
 import { SourceCleanupQueue } from './source-cleanup-queue';
+import { retireFavoriteSourceContext } from '../favorites-sync/favorites-source-contexts';
 
 @Injectable({ providedIn: 'root' })
 export class SourceSyncService {
@@ -86,15 +87,16 @@ export class SourceSyncService {
         const local = native
             ? { ...native }
             : indexedDbDocumentStore(this.db, sourceProfileName());
-        this.cleanupQueue = new SourceCleanupQueue(
-            local,
-            this.cleanups.map((cleanup) => (id) => {
+        this.cleanupQueue = new SourceCleanupQueue(local, [
+            (id) =>
+                retireFavoriteSourceContext(this.connection!.instanceId, id),
+            ...this.cleanups.map((cleanup) => (id: string) => {
                 // Cleanup may await settings, whose EPG reconciliation reads this
                 // store. Release that wait; ready=false still rejects partial reads.
                 this.backend.finishServerInitialization();
                 return cleanup(id);
-            })
-        );
+            }),
+        ]);
         const mutate = local.dbMutateAppPlaylist;
         if (mutate)
             local.dbMutateAppPlaylist = (id, update) =>
@@ -109,7 +111,8 @@ export class SourceSyncService {
             (request) => this.request(request),
             (source, current) => materializeSource(source, current, this.data),
             this.connection.instanceId,
-            (id, revision) => this.cleanupQueue!.prune(id, revision)
+            (id, revision) => this.cleanupQueue!.prune(id, revision),
+            (id) => retireFavoriteSourceContext(this.connection!.instanceId, id)
         );
         this.backend.installServerStore(this.store);
         let initialRefresh: Promise<void> | undefined;
@@ -170,13 +173,14 @@ export class SourceSyncService {
                         )
                     )
                         return;
-                    assertSourceInstance(probe.body);
-                    if (probe.body.instanceId !== this.connection!.instanceId) {
+                    if (
+                        this.connection!.instanceId.startsWith('pending:') &&
+                        !window.electron?.sourceSyncConnection
+                    ) {
+                        assertSourceInstance(probe.body);
                         if (
-                            this.connection!.instanceId.startsWith(
-                                'pending:'
-                            ) &&
-                            !window.electron?.sourceSyncConnection
+                            probe.body.instanceId !==
+                            this.connection!.instanceId
                         ) {
                             saveBrowserSourceConnection(
                                 {
@@ -191,7 +195,6 @@ export class SourceSyncService {
                             location.reload();
                             return;
                         }
-                        throw new Error('SOURCE_SYNC.INSTANCE_CHANGED');
                     }
                     verifySourceInstance(probe.body, this.connection, epoch);
                     const response = await this.request({

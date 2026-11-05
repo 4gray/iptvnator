@@ -237,8 +237,12 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
         this.stalkerStore.addToFavorites(item, onDone);
     }
 
-    removeFromFavorites(favoriteId: string, onDone?: () => void): void {
-        this.stalkerStore.removeFromFavorites(favoriteId, onDone);
+    removeFromFavorites(
+        favoriteId: string,
+        onDone?: () => void,
+        context?: import('@iptvnator/shared/interfaces').StalkerPortalItem
+    ): void {
+        this.stalkerStore.removeFromFavorites(favoriteId, onDone, context);
     }
 
     fetchMovieFileId(itemId: string): Promise<string | null> {

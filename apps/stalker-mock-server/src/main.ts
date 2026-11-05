@@ -275,6 +275,14 @@ const GATED_STREAM_FIXTURES: Record<string, string> = {
     ),
 };
 
+// Progressive radio media works in the same bare audio element as a portal MP3.
+app.get('/stream/audio.mp4', (_req, res) => {
+    res.sendFile(GATED_STREAM_FIXTURES['audio.mp4'], {
+        dotfiles: 'allow',
+        headers: { 'Content-Type': 'audio/mp4' },
+    });
+});
+
 app.get('/stream/issue1844/:show/:episode.mp4', (_req, res) => {
     res.sendFile(GATED_STREAM_FIXTURES['video.mp4'], {
         dotfiles: 'allow',

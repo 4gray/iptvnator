@@ -106,6 +106,7 @@ export class XtreamCollectionDetailComponent implements ViewInPortalHandoff {
     readonly detailInjector = signal<Injector | null>(null);
 
     private initRequestId = 0;
+    private preparedIdentity: string | null = null;
 
     constructor() {
         effect(() => {
@@ -128,6 +129,7 @@ export class XtreamCollectionDetailComponent implements ViewInPortalHandoff {
         const requestId = ++this.initRequestId;
 
         if (!item) {
+            this.preparedIdentity = null;
             this.detailComponent.set(null);
             this.detailInjector.set(null);
             return;
@@ -135,6 +137,7 @@ export class XtreamCollectionDetailComponent implements ViewInPortalHandoff {
 
         const xtreamId = this.resolveXtreamId(item);
         if (!xtreamId) {
+            this.preparedIdentity = null;
             this.detailComponent.set(null);
             this.detailInjector.set(null);
             return;
@@ -146,12 +149,28 @@ export class XtreamCollectionDetailComponent implements ViewInPortalHandoff {
         }
 
         if (!playlist?.serverUrl || !playlist.username || !playlist.password) {
+            this.preparedIdentity = null;
             this.detailComponent.set(null);
             this.detailInjector.set(null);
             return;
         }
 
         const xtreamPlaylist = this.toXtreamPlaylist(playlist);
+        const identity = JSON.stringify([
+            xtreamPlaylist.id,
+            item.contentType,
+            xtreamId,
+            item.xtreamIdentity?.tmdbId,
+            item.xtreamIdentity?.releaseYear,
+            xtreamPlaylist.serverUrl,
+            xtreamPlaylist.username,
+            xtreamPlaylist.password,
+            xtreamPlaylist.userAgent ?? '',
+            xtreamPlaylist.referrer ?? '',
+            xtreamPlaylist.origin ?? '',
+        ]);
+        if (identity === this.preparedIdentity && this.detailInjector()) return;
+        this.preparedIdentity = identity;
         this.xtreamStore.setPlaylistId(xtreamPlaylist.id);
         this.xtreamStore.setCurrentPlaylist(xtreamPlaylist);
         this.xtreamStore.setSelectedContentType(

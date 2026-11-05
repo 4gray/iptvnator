@@ -1,6 +1,7 @@
 import { AsyncPipe } from '@angular/common';
 import {
     Component,
+    DestroyRef,
     inject,
     input,
     ChangeDetectionStrategy,
@@ -28,7 +29,12 @@ type FavoriteButtonItem = StalkerSelectedVodItem & {
     templateUrl: './stalker-favorites-button.component.html',
     styleUrls: ['./stalker-favorites-button.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [AsyncPipe, DetailIconButtonComponent, MatIconModule, TranslateModule],
+    imports: [
+        AsyncPipe,
+        DetailIconButtonComponent,
+        MatIconModule,
+        TranslateModule,
+    ],
 })
 export class FavoritesButtonComponent {
     private playlistService = inject(PlaylistsService);
@@ -50,15 +56,37 @@ export class FavoritesButtonComponent {
         }),
         map((favorites) =>
             favorites.some((favorite) =>
-                matchesFavoriteById(favorite, this.itemId())
+                matchesFavoriteById(
+                    favorite,
+                    this.itemId(),
+                    this.favoriteContext()
+                )
             )
         )
     );
 
+    constructor() {
+        const refresh = () => this.favoritesChanged$.next();
+        window.addEventListener('iptvnator-favorites-changed', refresh);
+        inject(DestroyRef).onDestroy(() =>
+            window.removeEventListener('iptvnator-favorites-changed', refresh)
+        );
+    }
+
+    private favoriteContext() {
+        return {
+            ...this.item(),
+            favoriteContentType: this.stalkerStore.selectedContentType() as
+                'vod' | 'series',
+            id: this.itemId(),
+        };
+    }
     removeFromFavorites() {
-        this.stalkerStore.removeFromFavorites(this.itemId(), () => {
-            this.favoritesChanged$.next();
-        });
+        this.stalkerStore.removeFromFavorites(
+            this.itemId(),
+            () => this.favoritesChanged$.next(),
+            this.favoriteContext()
+        );
     }
 
     addToFavorites() {

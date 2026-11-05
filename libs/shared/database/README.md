@@ -47,6 +47,16 @@ database worker through the fixed `DB_ACTIVITY_LOCAL` IPC. NAS routes use a
 separate server store and persisted source incarnations. See the
 [self-hosted activity contract](../../../docs/architecture/pwa-self-hosted.md#viewing-activity-synchronization).
 
+## Favorites-sync storage
+
+`@iptvnator/shared/database/favorites-sync` provides separate additive local
+projection/outbox tables and server state/receipt tables. Constructors preserve
+all historical favorites, catalogs, playlists, history and activity tables.
+Membership changes and local sync intent commit together; server removals retain
+a persistent revision. Electron uses the worker-only `DB_FAVORITES_LOCAL` CAS
+bridge. The owning runtime verifies instance, consent and source incarnation.
+See [the favorites contract](../../../docs/architecture/pwa-self-hosted.md#favorites-synchronization).
+
 ## Database Location
 
 The SQLite database is stored at `<data root>/databases/iptvnator.db`. The data

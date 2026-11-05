@@ -1,10 +1,11 @@
+import { stalkerSessionFingerprint } from '@iptvnator/shared/interfaces/stalker-session';
 import {
     buildStalkerStateItem,
     toStalkerCategoryId,
     UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
 import { isStalkerSeriesFlag } from '@iptvnator/portal/stalker/data-access';
-import { StalkerPortalItem } from '@iptvnator/shared/interfaces';
+import { Playlist, StalkerPortalItem } from '@iptvnator/shared/interfaces';
 
 /** Catalog section a collection item is rendered as. */
 export type StalkerDetailCategory = 'vod' | 'series';
@@ -90,4 +91,25 @@ export function resolveStalkerCollectionSelectedCategory(
     }
 
     return categoryId ?? toStalkerCategoryId(detailMode.selectedContentType);
+}
+
+/** A display refresh must not reset hydrated seasons or an active playback owner. */
+export function stalkerCollectionPreparationKey(
+    item: UnifiedCollectionItem,
+    playlist: Playlist
+): string {
+    const raw = resolveStalkerCollectionItem(item);
+    const mode = resolveStalkerCollectionDetailMode(item, raw);
+    return JSON.stringify([
+        playlist._id,
+        item.uid,
+        String(item.stalkerId ?? ''),
+        mode.category,
+        mode.hasEmbeddedSeries,
+        mode.needsSeriesFetch,
+        stalkerSessionFingerprint(playlist),
+        playlist.userAgent ?? '',
+        playlist.referrer ?? '',
+        playlist.origin ?? '',
+    ]);
 }

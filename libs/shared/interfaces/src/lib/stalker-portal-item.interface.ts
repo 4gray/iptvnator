@@ -6,6 +6,8 @@
  * (unlike M3U playlists, which use a simple `string[]` of channel URLs).
  */
 export interface StalkerPortalItem {
+    /** Local collection discriminator, independent of a provider category ID. */
+    favoriteContentType?: 'itv' | 'radio' | 'vod' | 'series';
     id?: string | number;
     stream_id?: string | number;
     series_id?: string | number;

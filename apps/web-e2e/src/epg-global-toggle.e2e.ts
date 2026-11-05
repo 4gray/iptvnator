@@ -36,6 +36,7 @@ for (const provider of ['xtream', 'stalker'] as const) {
     test(`@epg @settings @web @${provider} global opt-out preserves logos and stops guides across reload`, async ({
         page,
     }) => {
+        test.setTimeout(60_000);
         const requests: string[] = [];
         page.on('request', (request) => {
             const action = new URL(request.url()).searchParams.get('action');
@@ -78,6 +79,14 @@ for (const provider of ['xtream', 'stalker'] as const) {
                 mac: '00:1A:79:6E:00:01',
             });
         await page.getByRole('link', { name: /live tv/i }).click();
+        const livePath =
+            provider === 'xtream' ? /\/live(?:[/?#]|$)/ : /\/itv(?:[/?#]|$)/;
+        await expect(page).toHaveURL(livePath);
+        const categories = page.getByRole('heading', {
+            name: 'Live Categories',
+            exact: true,
+        });
+        await expect(categories).toBeVisible();
         const category =
             provider === 'xtream'
                 ? page
@@ -103,6 +112,8 @@ for (const provider of ['xtream', 'stalker'] as const) {
         ).toHaveCount(0);
         const liveUrl = page.url();
         await page.reload();
+        await expect(page).toHaveURL(livePath);
+        await expect(categories).toBeVisible();
         await category.click();
         await expect(channel).toHaveClass(/compact/);
         await expect(channel.locator('.channel-logo')).toHaveAttribute(
@@ -113,6 +124,8 @@ for (const provider of ['xtream', 'stalker'] as const) {
 
         await setEpg(page, true);
         await page.goto(liveUrl);
+        await expect(page).toHaveURL(livePath);
+        await expect(categories).toBeVisible();
         await category.click();
         await expect(channel).not.toHaveClass(/compact/);
         await expect.poll(() => requests.length).toBeGreaterThan(0);

@@ -5,6 +5,7 @@ import {
     type ContentMetadataPatch,
 } from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
+import { unlockedCategoryCondition } from '../parental-lock-state';
 import { selectContentFields } from './content-fields';
 
 /** Typed lookup prefers a fully confirming duplicate; legacy calls retain their old semantics. */
@@ -14,11 +15,13 @@ export async function getContentByXtreamId(
     playlistId: string,
     contentType?: 'live' | 'movie' | 'series',
     identity?: ContentMetadataPatch,
-    categoryId?: number
+    categoryId?: number,
+    excludeLocked?: boolean
 ) {
     const conditions = [
         eq(schema.content.xtreamId, xtreamId),
         eq(schema.categories.playlistId, playlistId),
+        ...(excludeLocked ? [unlockedCategoryCondition()] : []),
     ];
     if (contentType) conditions.push(eq(schema.content.type, contentType));
     if (categoryId !== undefined) {

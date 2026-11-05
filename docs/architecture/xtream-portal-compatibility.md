@@ -395,7 +395,9 @@ catalog replay, rather than another client's source-definition update.
 Electron category/content cache reads and imports honor the selection. Ordinary
 catalog search and recently-added SQL exclude disabled types; collection and
 identity reads deliberately do not. Disabling a type retains its cached rows so
-Favorites/history remain playable, with a disabled-type indication. It does not
+Favorites/history remain playable, with a disabled-type indication. Portable
+favorites preserve that indication in global and playlist collections on SQLite
+clients; PWA clients retain their all-catalog behavior. Disabling a type does not
 delete playback positions or offline files. Saved metadata includes the selection
 in startup projections without parsing large M3U payloads, and backups preserve
 it, including an explicit empty array.
@@ -1177,3 +1179,48 @@ dates, and falls back to `last_modified` for series without a usable `added`
 value. It does not infer addition time from release dates or IDs. TV applies
 this timestamp before client pagination; see [TV application](tv-application.md).
 The Angular selection store's sort behavior is unchanged.
+
+
+## Optional shared favorites
+
+The [self-hosted favorites opt-in](pwa-self-hosted.md#favorites-synchronization)
+projects typed provider membership through the selected data source in both
+runtimes. Collection references can carry a portable `providerId` alongside the
+existing local row ID, including removal of a retained row with no catalog link.
+The shared snapshot cannot turn a known TMDB/year conflict into a playable catalog
+row. Global collections and dashboard use the same projection when this profile
+has used favorites sync; recently viewed and collection order stay local.
+Native collection actions select storage with `supportsPortableFavorites(playlistId)`
+for each source. After opt-out, a new/restored source without a verified favorites
+context keeps ordinary SQLite behavior, including favorite-ID removal of unlinked
+rows. Bulk removal shares the single-item path; mixed collection reordering updates
+only native source positions while retaining the complete local collection order.
+Received PWA references resolve through the needed typed catalogs before their
+collection cards become playable. Reuse the data source's cache and visibility
+filtering, share concurrent loads, index requested rows once per typed catalog,
+and keep snapshots unavailable on provider
+failure so a later read can retry. Re-read membership after catalog loading and
+discard results from retired source incarnations. Membership writes stay cache-only.
+SQLite lookups retain saved/requested TMDB and provider-year hints when selecting
+between duplicate rows; a compatible row does not erase an explicit identity conflict.
+Shared SQLite projections request category-lock filtering; ordinary identity
+lookups used by the PIN guard remain unfiltered. While locked, unresolved category
+ownership is withheld too. Unreadable lock state or a lock version change during
+projection returns no rows. Single-item hearts and edits project only their target,
+without catalog lookups for other memberships. A playlist-only portable reorder
+replaces its existing global-order slots and preserves other sources' positions.
+Capture source incarnation, profile and consent before reading either archive or
+catalog. Recheck ownership before publishing a projection and before committing
+a membership action, including lookups after a native projection has completed.
+Action/status paths call `getFavorites(playlistId, false)` to read the PWA archive
+without hydrating older unresolved entries. Ordinary collection reads retain
+hydration by default; reference/snapshot conversion stays in the shared provider
+reference adapters used by preview and backup.
+PWA cache-only identity lookup also applies TMDB/year hints, preferring fully
+confirmed duplicates over compatible rows with missing metadata and rejecting
+contradictions. Without hints, the previous first-row/type order is retained.
+Received PWA favorites use the same preference when hydrating a catalog: a row
+confirming every saved identity field wins over an earlier compatible sparse row.
+The pure lookup lives in the existing metadata module: an empty content cache
+returns immediately, and populated caches have already loaded that module during
+normalization, so membership actions never fetch a new lookup chunk.
