@@ -50,6 +50,8 @@ import {
     VLC_REUSE_INSTANCE,
     store,
 } from '../services/store.service';
+import * as runtime from './external-player-runtime';
+import * as vlcRc from './vlc-rc';
 import { openMpvPlayer } from './mpv-session.service';
 import { openVlcPlayer } from './vlc-session.service';
 
@@ -111,17 +113,16 @@ async function openMpv(): Promise<ChildProcess> {
     return proc;
 }
 
-async function openVlc(): Promise<ChildProcess> {
+async function openVlc(info = contentInfo): Promise<ChildProcess> {
     const proc = createMockChildProcess();
     spawnMock.mockReturnValueOnce(proc);
     const opening = openVlcPlayer({
         title: 'Movie',
         url: 'https://example.com/movie.mp4',
-        contentInfo,
+        contentInfo: info,
     });
-    while (spawnMock.mock.calls.length === 0) {
-        await jest.advanceTimersByTimeAsync(0);
-    }
+    await jest.advanceTimersByTimeAsync(0);
+    expect(proc.listenerCount('spawn')).toBeGreaterThan(0);
     proc.emit('spawn');
     await opening;
     return proc;
@@ -149,6 +150,7 @@ describe('external player position polling lifetime', () => {
     });
 
     afterEach(() => {
+        jest.clearAllTimers();
         jest.useRealTimers();
         jest.restoreAllMocks();
     });
@@ -193,5 +195,180 @@ describe('external player position polling lifetime', () => {
         await jest.advanceTimersByTimeAsync(30_000);
 
         expect(createConnectionMock).not.toHaveBeenCalled();
+    });
+});
+
+function deferred<T>() {
+    let resolve!: (value: T) => void;
+    let reject!: (reason: Error) => void;
+    const promise = new Promise<T>((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+    return { promise, resolve, reject };
+}
+
+describe('VLC in-flight polling ownership', () => {
+    const snapshot = { positionSeconds: 42, durationSeconds: 120 };
+    const nextContent = { ...contentInfo, contentXtreamId: 8 };
+    let processes: ChildProcess[];
+    let updates: jest.SpyInstance;
+    let snapshots: jest.SpyInstance;
+    let states: jest.SpyInstance;
+
+    async function open(info = contentInfo) {
+        const proc = await openVlc(info);
+        processes.push(proc);
+        return proc;
+    }
+
+    async function expectNextSessionPolling() {
+        await jest.advanceTimersByTimeAsync(3_500);
+        expect(updates).toHaveBeenCalledWith(
+            runtime.externalPlayerSessions.getActiveSessionId(),
+            nextContent,
+            snapshot
+        );
+    }
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        jest.useFakeTimers();
+        processes = [];
+        snapshots = jest
+            .spyOn(vlcRc, 'getVlcPlaybackSnapshot')
+            .mockResolvedValue(snapshot);
+        states = jest
+            .spyOn(vlcRc, 'getVlcPlaybackState')
+            .mockResolvedValue('stopped');
+        updates = jest
+            .spyOn(runtime, 'sendPlaybackPositionUpdate')
+            .mockImplementation();
+        (createServer as unknown as jest.Mock).mockImplementation(() => ({
+            unref: jest.fn(),
+            on: jest.fn(),
+            listen: (_port: number, _host: string, cb: () => void) => cb(),
+            address: () => ({ port: 43210 }),
+            close: (cb?: () => void) => cb?.(),
+        }));
+        mockStoreValues({
+            [VLC_PLAYER_PATH]: '/usr/bin/vlc',
+            [VLC_REUSE_INSTANCE]: false,
+        });
+    });
+
+    afterEach(() => {
+        processes.forEach(exitProcess);
+        jest.clearAllTimers();
+        jest.useRealTimers();
+        jest.restoreAllMocks();
+    });
+
+    it('drops a snapshot awaited by the replaced session', async () => {
+        const pending = deferred<typeof snapshot>();
+        snapshots.mockReturnValueOnce(pending.promise);
+        const old = await open();
+        await jest.advanceTimersByTimeAsync(3_500);
+        await open(nextContent);
+        pending.resolve(snapshot);
+        await jest.advanceTimersByTimeAsync(0);
+        exitProcess(old);
+        expect(updates).not.toHaveBeenCalled();
+        await expectNextSessionPolling();
+    });
+
+    it('does not query state after an obsolete null snapshot', async () => {
+        const pending = deferred<null>();
+        snapshots.mockReturnValueOnce(pending.promise);
+        await open();
+        await jest.advanceTimersByTimeAsync(3_500);
+        await open(nextContent);
+        pending.resolve(null);
+        await jest.advanceTimersByTimeAsync(0);
+        expect(states).not.toHaveBeenCalled();
+        await expectNextSessionPolling();
+    });
+
+    it('ignores an obsolete stopped reply without closing the old session or cancelling the new delay', async () => {
+        const pending = deferred<string>();
+        snapshots.mockResolvedValueOnce(null);
+        states.mockReturnValueOnce(pending.promise);
+        await open();
+        const oldId = runtime.externalPlayerSessions.getActiveSessionId()!;
+        await jest.advanceTimersByTimeAsync(3_500);
+        expect(states).toHaveBeenCalledTimes(1);
+        await open(nextContent);
+        pending.resolve('stopped');
+        await jest.advanceTimersByTimeAsync(0);
+        expect(runtime.externalPlayerSessions.getSession(oldId)?.status).toBe(
+            'opened'
+        );
+        await expectNextSessionPolling();
+    });
+
+    it.each(['snapshot', 'state'])(
+        'ignores an obsolete %s rejection',
+        async (stage) => {
+            const pending = deferred<never>();
+            if (stage === 'snapshot')
+                snapshots.mockReturnValueOnce(pending.promise);
+            else {
+                snapshots.mockResolvedValueOnce(null);
+                states.mockReturnValueOnce(pending.promise);
+            }
+            await open();
+            await jest.advanceTimersByTimeAsync(3_500);
+            await open(nextContent);
+            pending.reject(new Error('Synthetic RC failure'));
+            await jest.advanceTimersByTimeAsync(0);
+            await expectNextSessionPolling();
+        }
+    );
+
+    it('keeps the new polling delay when the replaced child exits', async () => {
+        const old = await open();
+        await open(nextContent);
+        exitProcess(old);
+        await expectNextSessionPolling();
+    });
+
+    it('drops an in-flight snapshot after the current child exits', async () => {
+        const pending = deferred<typeof snapshot>();
+        snapshots.mockReturnValueOnce(pending.promise);
+        const proc = await open();
+        await jest.advanceTimersByTimeAsync(3_500);
+        exitProcess(proc);
+        pending.resolve(snapshot);
+        await jest.advanceTimersByTimeAsync(10_000);
+        expect(updates).not.toHaveBeenCalled();
+        expect(snapshots).toHaveBeenCalledTimes(1);
+    });
+
+    it('invalidates a pending poll when a launch error retries without RC', async () => {
+        jest.spyOn(console, 'error').mockImplementation();
+        const pending = deferred<typeof snapshot>();
+        snapshots.mockReturnValueOnce(pending.promise);
+        const proc = await open();
+        await jest.advanceTimersByTimeAsync(3_500);
+        const retry = createMockChildProcess();
+        processes.push(retry);
+        spawnMock.mockReturnValueOnce(retry);
+        proc.emit('error', new Error('Synthetic RC launch failure'));
+        retry.emit('spawn');
+        pending.resolve(snapshot);
+        await jest.advanceTimersByTimeAsync(10_000);
+        expect(updates).not.toHaveBeenCalled();
+        expect(snapshots).toHaveBeenCalledTimes(1);
+    });
+
+    it('still closes and stops the current session on a stopped reply', async () => {
+        snapshots.mockResolvedValue(null);
+        await open();
+        const id = runtime.externalPlayerSessions.getActiveSessionId()!;
+        await jest.advanceTimersByTimeAsync(10_000);
+        expect(runtime.externalPlayerSessions.getSession(id)?.status).toBe(
+            'closed'
+        );
+        expect(snapshots).toHaveBeenCalledTimes(1);
     });
 });
