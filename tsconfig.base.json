@@ -18,6 +18,9 @@
         "baseUrl": ".",
         "paths": {
             "@iptvnator/shared/tmdb": ["libs/shared/tmdb/src/index.ts"],
+            "@iptvnator/shared/tmdb/credits": [
+                "libs/shared/tmdb/src/lib/tmdb-credits.ts"
+            ],
             "@iptvnator/shared/tmdb/season": [
                 "libs/shared/tmdb/src/lib/tmdb-season-client.ts"
             ],
