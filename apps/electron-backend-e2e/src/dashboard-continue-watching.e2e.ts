@@ -140,6 +140,139 @@ async function playFirstEpisode(page: Page): Promise<void> {
 }
 
 test.describe('Dashboard Continue Watching', () => {
+    for (const action of ['detail', 'resume'] as const) {
+        test(`@dashboard @xtream @electron keeps series identity on ${action} when an unrelated episode ID collides`, async ({
+            dataDir,
+            request,
+        }) => {
+            test.setTimeout(180_000);
+            await resetMockServers(request, ['xtream']);
+            const fixture = await fetchXtreamSeriesFixture(request, {
+                username: defaultXtreamUsername,
+                password: defaultXtreamPassword,
+            });
+            const app = await launchElectronApp(dataDir);
+            const page = app.mainWindow;
+            await routePlayableStreams(page);
+            try {
+                await addXtreamPortal(page, { name: 'Series Identity Source' });
+                await waitForXtreamWorkspaceReady(page);
+                await page
+                    .getByRole('link', { name: 'Series', exact: true })
+                    .click();
+                await clickCategoryByNameExact(page, fixture.categoryName);
+                const title = await clickFirstGridListCard(page);
+                await page.waitForURL(
+                    /\/workspace\/xtreams\/[^/]+\/series\/[^/]+\/[^/]+$/
+                );
+                const [, playlistId, seriesId] =
+                    new URL(page.url()).pathname.match(
+                        /\/workspace\/xtreams\/([^/]+)\/series\/[^/]+\/([^/]+)$/
+                    ) ?? [];
+                expect(playlistId).toBeTruthy();
+                expect(Number(seriesId)).toBeGreaterThan(0);
+                await startAndConfirmPlayback(page, () =>
+                    playFirstEpisode(page)
+                );
+                await expect
+                    .poll(() =>
+                        page.evaluate(
+                            async (id) =>
+                                (
+                                    await window.electron.dbGetAllPlaybackPositions(
+                                        id
+                                    )
+                                ).some((row) => row.contentType === 'episode'),
+                            playlistId
+                        )
+                    )
+                    .toBe(true);
+                const played = await page.evaluate(
+                    async (id) =>
+                        (
+                            await window.electron.dbGetAllPlaybackPositions(id)
+                        ).find((row) => row.contentType === 'episode'),
+                    playlistId
+                );
+                if (!played) throw new Error('Expected a saved episode');
+                expect(played.seriesXtreamId).toBe(Number(seriesId));
+                expect(played.contentXtreamId).not.toBe(Number(seriesId));
+                await page.getByTestId('workspace-header-back').click();
+                await expect(page.locator('app-web-player-view')).toHaveCount(
+                    0
+                );
+
+                const foreignSeries = fixture.items.find(
+                    (item) => Number(item.series_id) !== Number(seriesId)
+                );
+                if (!foreignSeries) throw new Error('Expected another series');
+                // Real persisted rows: the foreign episode is newer, or wins
+                // the same-second tie by episode order on the broken lookup.
+                await page.evaluate(
+                    async ({ id, own, foreignId, seriesId }) => {
+                        await window.electron.dbSavePlaybackPosition(id, {
+                            ...own,
+                            positionSeconds: 5,
+                            durationSeconds: 1200,
+                        });
+                        await window.electron.dbSavePlaybackPosition(id, {
+                            contentType: 'episode',
+                            contentXtreamId: seriesId,
+                            seriesXtreamId: foreignId,
+                            seasonNumber: 9,
+                            episodeNumber: 9,
+                            positionSeconds: 240,
+                            durationSeconds: 1200,
+                        });
+                    },
+                    {
+                        id: playlistId,
+                        own: played,
+                        foreignId: Number(foreignSeries.series_id),
+                        seriesId: Number(seriesId),
+                    }
+                );
+
+                await goToDashboard(page);
+                const card = railCard(page, title);
+                await expect(card).toHaveCount(1, { timeout: 20_000 });
+                if (action === 'detail') {
+                    await card.click();
+                } else {
+                    await card
+                        .locator(`[data-test-id="${RAIL}-card-actions"]`)
+                        .click();
+                    await page
+                        .getByRole('menuitem', { name: /resume episode/i })
+                        .click();
+                }
+                await expect
+                    .poll(() =>
+                        page.evaluate(
+                            () =>
+                                window.history.state?.openCollectionDetailItem
+                                    ?.item?.xtreamId
+                        )
+                    )
+                    .toBe(Number(seriesId));
+                if (action === 'detail') {
+                    await expect(
+                        page.locator('app-serial-details')
+                    ).toBeVisible();
+                    await expect(
+                        page.locator('app-web-player-view')
+                    ).toHaveCount(0);
+                } else {
+                    await expect(
+                        page.locator('.player-shell__episode-meta')
+                    ).toContainText('S01E01', { timeout: 30_000 });
+                }
+            } finally {
+                await closeElectronApp(app);
+            }
+        });
+    }
+
     test('@dashboard @persistence @electron leaves finished movies off Continue Watching and keeps them in the history', async ({
         dataDir,
         request,

@@ -337,8 +337,11 @@ all, and none inside the hero.
        item belongs in the VOD catalog) while its progress lives in episode
        rows. The mappers give both it and a lazy Ministra `is_series` row
        (already typed `series`) `watch_kind: 'series'`. Series lookup uses
-       keyed maps for both direct episode ids and parent series ids; card
-       renders must not scan the full playback-position map. A series'
+       keyed maps for both direct episode ids and parent series ids. A matching
+       parent-series position takes priority; direct episode lookup is only a
+       fallback for legacy episode-keyed history. A newer unrelated episode
+       whose id equals the series id must not override its progress or navigation
+       target. Card renders must not scan the full playback-position map. A series'
        newest row is the latest `updatedAt`; rows saved in the same second
        (SQLite keeps whole seconds, and "Mark season watched" stamps a
        season at once) go to the later episode, as `getSeriesNextUp` breaks
