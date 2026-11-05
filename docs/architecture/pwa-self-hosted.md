@@ -1280,6 +1280,10 @@ Metadata-only edits retain the context. Runtime and cross-tab retirement notices
 invalidate memory without rewriting another tab's context cache; old durable
 records remain retained. An unverified replacement uses ordinary local favorites
 until its new context is verified.
+Notices identify the retired incarnation, so delayed delivery cannot remove an
+already verified replacement. A retirement also expires the old runtime client's
+in-flight work. Only a client with current ownership can restore a verified context to the cache;
+observers preserve those links, including a reverified unchanged incarnation.
 Retirement follows the guarded merge: rejected stale writes and reuse of a
 sibling's completed projection do not invalidate its valid context. Repeated
 identical imports already queued in the current consent generation are no-ops;

@@ -823,3 +823,30 @@ flows pass on the combined base in 6.1 minutes. No baseline, threshold or retry
 policy changes. The existing feature note covers the fixes. Record this
 validation in the local merge and run a fresh committed Codex round 26 before
 pushing. Greptile CLI remains unavailable; cloud Codex account quota is unchanged.
+
+Local Codex round 26 reviews 4668bede1 and reproduces a delayed cross-tab
+retirement notice deleting an already verified replacement. The new regression
+fails before repair. Include the retired incarnation in the notice and invalidate
+only matching live memory; observers never rewrite the shared context cache.
+The producer's cache removal is conditional on the captured incarnation too.
+A second real-runtime-client regression fails before repair when a context
+response started before retirement restores the obsolete link. Capture the
+retirement marker in client ownership and renew an expired runtime client;
+reject late responses and writes from the expired client. Preserve verified
+contexts already restored to the current shared cache, including an unchanged
+incarnation across another retirement and an offline restart.
+Keep other source contexts and all durable records. Cover delayed notices,
+observer non-writing behavior, in-flight ownership and disabled-source fallback;
+refresh owning unit coverage, app/spec types, lint, production frontend and all
+26 mixed E2E before the next committed review. No public protocol, schema,
+threshold, retry policy or consent generation is changed.
+
+Round 26 repair validation on top of 4668bede1: web 890 and services 1,422
+unit tests pass; merged 36-project coverage is 85.73% statements, 77.56%
+branches, 84.04% functions and 86.24% lines with unchanged gates. App types,
+all 42 spec programs, owning lint (zero errors), guidance, 257 release notes,
+formatting and whitespace pass. Production frontend builds and initial bytes
+remain 1,196,828 / 1,200,301. All 26 mixed PWA/Electron flows pass in 5.9 minutes
+with isolated ports and no retries. Existing feature release note applies.
+Commit this verified repair and run Codex round 27; Greptile CLI exception
+remains applicable. GitHub results must be checked on the final pushed revision.

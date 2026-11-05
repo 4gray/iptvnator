@@ -3,6 +3,7 @@ import {
     IndexedDbFavoriteLocalStore,
     ElectronFavoriteLocalStore,
     favoriteSourceContextsKey,
+    favoriteSourceRetirementKey,
 } from '@iptvnator/services/favorites-sync';
 import { requestSourceServer } from '@iptvnator/services/source-sync';
 import { sourceConnection } from '@iptvnator/services/source-sync/connection';
@@ -27,6 +28,8 @@ export function createFavoritesRuntimeClient(
         throw new Error('Favorite storage unavailable');
 
     const key = favoriteSourceContextsKey(instanceId);
+    const retirementKey = favoriteSourceRetirementKey(instanceId);
+    const epoch = localStorage.getItem(retirementKey);
     const saved: unknown = JSON.parse(localStorage.getItem(key) ?? '[]');
     const contexts: FavoriteSourceContext[] = Array.isArray(saved)
         ? saved.filter(
@@ -44,7 +47,9 @@ export function createFavoritesRuntimeClient(
         : new IndexedDbFavoriteLocalStore(instanceId);
     const client = new FavoritesSyncClient(local, {
         instanceId,
-        profileActive: () => sourceConnection()?.instanceId === instanceId,
+        profileActive: () =>
+            sourceConnection()?.instanceId === instanceId &&
+            localStorage.getItem(retirementKey) === epoch,
         deviceId: consent.deviceId,
         contexts,
         request: requestSourceServer,
@@ -53,9 +58,13 @@ export function createFavoritesRuntimeClient(
                 ? readFavoritesConsent()!.generation
                 : null,
         remember: (value) => {
-            if (sourceConnection()?.instanceId !== instanceId)
+            const serialized = JSON.stringify(value);
+            if (
+                sourceConnection()?.instanceId !== instanceId ||
+                localStorage.getItem(retirementKey) !== epoch
+            )
                 throw new Error('Favorite profile changed');
-            localStorage.setItem(key, JSON.stringify(value));
+            localStorage.setItem(key, serialized);
         },
         changed,
     });

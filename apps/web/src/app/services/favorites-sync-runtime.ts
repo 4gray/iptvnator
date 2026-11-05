@@ -106,7 +106,9 @@ export class FavoritesSyncRuntime {
     }
     private ensureClient(): FavoritesSyncClient {
         if (
-            this.client?.options.instanceId !== sourceConnection()?.instanceId
+            this.client?.options.instanceId !==
+                sourceConnection()?.instanceId ||
+            this.client?.options.profileActive?.() === false
         ) {
             this.sourceNames.clear();
             const created = createFavoritesRuntimeClient(

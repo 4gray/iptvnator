@@ -8,6 +8,57 @@ import type { FavoriteLocalStore } from '@iptvnator/shared/interfaces/favorites-
 
 afterEach(() => localStorage.clear());
 
+it('invalidates matching live memory without rewriting a shared context cache', () => {
+    const f = fixture();
+    retireFavoriteSourceContext('synthetic-instance', 'synthetic-source');
+    const key = `${f.key}:retired`;
+    const notice = localStorage.getItem(key)!;
+    const cache = JSON.stringify([
+        f.contexts[1],
+        { ...f.contexts[1], sourceId: 'synthetic-new-source' },
+    ]);
+    localStorage.setItem(f.key, cache);
+    const write = jest.spyOn(Storage.prototype, 'setItem');
+    const stop = observeFavoriteSourceRetirement(() => f.client);
+    try {
+        window.dispatchEvent(
+            new StorageEvent('storage', { key, newValue: notice })
+        );
+        expect(f.client.contexts.has('synthetic-source')).toBe(false);
+        expect(localStorage.getItem(f.key)).toBe(cache);
+        expect(write).not.toHaveBeenCalled();
+    } finally {
+        stop();
+        write.mockRestore();
+    }
+});
+
+it('preserves a newly verified replacement when another tab receives an older retirement notice', () => {
+    const f = fixture();
+    retireFavoriteSourceContext('synthetic-instance', 'synthetic-source');
+    const notice = localStorage.getItem(`${f.key}:retired`)!;
+    const replacement = { ...f.contexts[0], sourceIncarnation: 'new' };
+    f.client.contexts.set(replacement.sourceId, replacement);
+    const cache = JSON.stringify([replacement, f.contexts[1]]);
+    localStorage.setItem(f.key, cache);
+    const stop = observeFavoriteSourceRetirement(() => f.client);
+    try {
+        window.dispatchEvent(
+            new StorageEvent('storage', {
+                key: `${f.key}:retired`,
+                newValue: notice,
+            })
+        );
+        expect(f.client.contexts.get(replacement.sourceId)).toEqual(
+            replacement
+        );
+        expect(localStorage.getItem(f.key)).toBe(cache);
+        expect(f.remember).not.toHaveBeenCalled();
+    } finally {
+        stop();
+    }
+});
+
 function fixture() {
     const contexts = ['synthetic-source', 'synthetic-other'].map(
         (sourceId) => ({
