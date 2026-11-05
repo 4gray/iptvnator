@@ -548,8 +548,14 @@ The TV adapter enriches the Home feature and selected movie/series details for
 all providers, including episode features with saved parent titles. Artwork,
 description and displayed cast/directors/creators come from the shared merge
 helpers; provider identity, stream ID/extension pairs, episode hierarchy and
-playback commands stay authoritative. Movie directors and series creators have
-distinct labels; a TV series has no invented show-level director.
+playback commands stay authoritative. Movie directors and series creators lead
+one horizontal cast row, with role
+labels and duplicate people removed; a TV series has no invented show-level
+director. Read-only detail chips show available year, genres, countries, playlist
+category, duration and TMDB rating. Catalog adapters attach category names without
+changing category IDs. TMDB fields come from the existing detail response; missing
+metadata falls back to supplied provider year, genres and countries, and unknown
+values and internal category IDs stay hidden.
 The selected season loads through shared `TmdbSeasonClient`, with the existing
 language cache/fallback and explicit single-season title-marker correction.
 Episodes match by number within that season. TMDB fills descriptions/stills and
