@@ -615,9 +615,18 @@ export class UnifiedFavoritesDataService {
                 const rows =
                     await this.xtreamDataSource.getFavorites(playlistId);
                 return this.applyOrder(
-                    rows.map((row) =>
-                        this.mapXtreamContentItem(row, playlistId, meta?.title)
-                    ),
+                    rows.map((row) => ({
+                        ...this.mapXtreamContentItem(
+                            row,
+                            playlistId,
+                            meta?.title
+                        ),
+                        catalogDisabled:
+                            this.runtime.supportsXtreamSqliteDataSource &&
+                            !normalizeXtreamContentTypes(
+                                meta?.xtreamContentTypes
+                            ).includes(xtreamContentType(row.type)),
+                    })),
                     await this.getSavedOrder()
                 );
             }

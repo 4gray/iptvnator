@@ -395,7 +395,9 @@ catalog replay, rather than another client's source-definition update.
 Electron category/content cache reads and imports honor the selection. Ordinary
 catalog search and recently-added SQL exclude disabled types; collection and
 identity reads deliberately do not. Disabling a type retains its cached rows so
-Favorites/history remain playable, with a disabled-type indication. It does not
+Favorites/history remain playable, with a disabled-type indication. Portable
+favorites preserve that indication in global and playlist collections on SQLite
+clients; PWA clients retain their all-catalog behavior. Disabling a type does not
 delete playback positions or offline files. Saved metadata includes the selection
 in startup projections without parsing large M3U payloads, and backups preserve
 it, including an explicit empty array.

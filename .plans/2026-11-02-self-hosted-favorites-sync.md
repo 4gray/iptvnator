@@ -850,3 +850,14 @@ remain 1,196,828 / 1,200,301. All 26 mixed PWA/Electron flows pass in 5.9 minute
 with isolated ports and no retries. Existing feature release note applies.
 Commit this verified repair and run Codex round 27; Greptile CLI exception
 remains applicable. GitHub results must be checked on the final pushed revision.
+
+Local Codex round 27 on 6431ddde8 finds a missing disabled-catalog indication
+in portable Xtream collections. Preserve the existing per-row catalog selection
+check behind the SQLite capability. Synthetic global/playlist cases reproduce
+before repair and pass afterwards; PWA remains all-catalog and all retained rows
+stay available. All 337 owning tests, owning lint/types and the unchanged merged
+coverage gates pass (85.73 / 77.57 / 84.04 / 86.24). Production frontend and
+initial bytes pass at 1,196,826 / 1,200,301. All three favorites PWA/Electron
+journeys pass again in 1.9 minutes, following the complete 26-flow pass. Update
+the canonical Xtream contract; the existing feature release note covers this
+repair. Commit and repeat the local gate before a single batch push.

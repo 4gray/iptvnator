@@ -32,12 +32,24 @@ describe('source-scoped Xtream favorite storage after opt-out', () => {
     let reorder: jest.Mock;
     let portableRemove: jest.Mock;
     let portable: jest.Mock;
+    let getFavorites: jest.Mock;
+    let select: jest.Mock;
+    let capabilities: {
+        supportsPortalActivityStorage: boolean;
+        supportsXtreamSqliteDataSource: boolean;
+    };
     let service: UnifiedFavoritesDataService;
     beforeEach(() => {
         remove = jest.fn(async () => undefined);
         reorder = jest.fn(async () => ({ success: true }));
         portableRemove = jest.fn(async () => undefined);
         portable = jest.fn(async (id: string) => id === 'synthetic-known');
+        getFavorites = jest.fn(async () => []);
+        select = jest.fn(() => of([]));
+        capabilities = {
+            supportsPortalActivityStorage: true,
+            supportsXtreamSqliteDataSource: true,
+        };
         Object.defineProperty(window, 'electron', {
             configurable: true,
             writable: true,
@@ -55,9 +67,9 @@ describe('source-scoped Xtream favorite storage after opt-out', () => {
                 },
                 {
                     provide: RuntimeCapabilitiesService,
-                    useValue: { supportsPortalActivityStorage: true },
+                    useValue: capabilities,
                 },
-                { provide: Store, useValue: { select: () => of([]) } },
+                { provide: Store, useValue: { select } },
                 { provide: PlaylistsService, useValue: {} },
                 { provide: DatabaseService, useValue: {} },
                 {
@@ -68,6 +80,7 @@ describe('source-scoped Xtream favorite storage after opt-out', () => {
                     provide: XTREAM_DATA_SOURCE,
                     useValue: {
                         supportsPortableFavorites: portable,
+                        getFavorites,
                         removeFavorite: portableRemove,
                     },
                 },
@@ -79,6 +92,45 @@ describe('source-scoped Xtream favorite storage after opt-out', () => {
         window.electron = original;
         localStorage.clear();
     });
+    it.each([
+        { native: true, scope: 'all' as const },
+        { native: true, scope: 'playlist' as const },
+        { native: false, scope: 'all' as const },
+        { native: false, scope: 'playlist' as const },
+    ])(
+        'preserves catalog selection for portable favorites ($scope, native=$native)',
+        async ({ native, scope }) => {
+            capabilities.supportsXtreamSqliteDataSource = native;
+            select.mockReturnValue(
+                of([
+                    {
+                        _id: 'synthetic-known',
+                        title: 'Synthetic selected source',
+                        serverUrl: 'https://synthetic.test',
+                        xtreamContentTypes: ['movie'],
+                    },
+                ])
+            );
+            getFavorites.mockResolvedValue(
+                ['live', 'movie', 'series'].map((type, index) => ({
+                    id: index + 1,
+                    xtream_id: index + 11,
+                    title: `Synthetic retained item ${index}`,
+                    type,
+                }))
+            );
+            const rows = await service.getFavorites(
+                scope,
+                'synthetic-known',
+                'xtream'
+            );
+            expect(rows).toHaveLength(3);
+            expect(rows.map((row) => row.catalogDisabled)).toEqual(
+                native ? [true, false, true] : [false, false, false]
+            );
+            expect(getFavorites).toHaveBeenCalledWith('synthetic-known');
+        }
+    );
     it.each(['remove', 'clear'] as const)(
         'uses favorite ID for %s on a new source without sync context',
         async (action) => {
