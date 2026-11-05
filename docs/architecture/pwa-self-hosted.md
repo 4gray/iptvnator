@@ -1247,7 +1247,8 @@ Local display titles replace control characters with spaces and are capped at
 512 characters when creating a shared snapshot; the retained archive is unchanged.
 Incoming wire snapshots still use strict validation.
 Playlist membership actions capture source incarnation, profile and consent before
-projection or URL hashing. Recheck before each shared/local write, archive save,
+projection or URL hashing. Verify an uncached source context before preparing its
+first synchronized action. Recheck before each shared/local write, archive save,
 order update and final publication; enabling sync never authorizes an earlier
 local action. Playlist and Xtream adapters share this ownership guard.
 M3U projections reuse one URL/hash index per source revision, update timestamp,

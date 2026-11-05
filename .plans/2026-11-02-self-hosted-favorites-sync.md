@@ -702,3 +702,20 @@ baselines, dependencies or archive data change; the existing unreleased feature
 note covers these fixes. Physical Synology, packaged Windows/Linux and optional
 vendored Embedded MPV remain unavailable. Commit and repeat the local review;
 Greptile CLI remains unavailable under the documented exception.
+
+PR follow-up validation after merging master f96fe643e: all 36 unit projects
+pass in 3m36s; merged coverage is 85.62/77.45/83.91/86.12 percent. All 25 mixed
+PWA/Electron flows pass in 6.2 minutes. Production web/Electron/workers build,
+initial bytes are 1,198,926 / 1,200,301. App types, all 42 spec programs, affected
+lint, i18n, guidance, eight skills and 254 release notes pass. The revised EPG
+journey passes five repetitions per provider (10/10) before the base merge.
+Four pre-existing formatting failures reproduce on master unchanged; current
+fixes pass formatting. No baseline or threshold is relaxed.
+
+A final regression using the real client shows the first successful membership
+for an uncached source could create its own context and then fail the new guard.
+Verify that initial context before preparing edits, retain its generation check
+and reject a concurrently replaced context. The regression fails before repair;
+all 54 focused playlist/receiver/backup/adapter tests pass afterwards. Refresh the
+web coverage, app/spec types, production frontend and relevant E2E before the
+next committed local review. The existing feature release note covers the fixes.

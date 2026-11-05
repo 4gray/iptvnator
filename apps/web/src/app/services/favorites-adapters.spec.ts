@@ -206,7 +206,7 @@ describe('favorite provider references and projections', () => {
         async (provider) => {
             const set = jest.fn();
             const client = {
-                contexts: new Map(),
+                contexts: new Map([['source', { sourceIncarnation: 'first' }]]),
                 options: { consent: () => 'consent' },
                 entries: async () => [],
                 set,

@@ -7,6 +7,7 @@ import {
 } from '@iptvnator/shared/interfaces/favorites-sync';
 import {
     captureFavoriteOwner,
+    FavoriteSupersededError,
     type FavoritesSyncClient,
 } from '@iptvnator/services/favorites-sync';
 import {
@@ -154,8 +155,19 @@ export class FavoritesPlaylistAdapter {
             favorites: NonNullable<Playlist['favorites']>
         ) => Promise<void>
     ): Promise<Playlist> {
-        const assertCurrent = captureFavoriteOwner(this.client, playlist._id);
         const enabled = this.enabled();
+        // Verify a new source before set() creates its context in the middle of this action.
+        if (enabled && !this.client.contexts.has(playlist._id)) {
+            const generation = this.client.generation();
+            const context = await this.client.context(playlist._id, generation);
+            this.client.current(generation);
+            if (
+                this.client.contexts.get(playlist._id)?.sourceIncarnation !==
+                context.sourceIncarnation
+            )
+                throw new FavoriteSupersededError();
+        }
+        const assertCurrent = captureFavoriteOwner(this.client, playlist._id);
         const projected = await this.project(playlist);
         const before = await this.local(projected);
         const nextFavorites = transform(projected.favorites ?? []);

@@ -1,9 +1,10 @@
 import { webcrypto } from 'node:crypto';
 import type { Playlist } from '@iptvnator/shared/interfaces';
-import type { FavoritesSyncClient } from '@iptvnator/services/favorites-sync';
+import { FavoritesSyncClient } from '@iptvnator/services/favorites-sync';
 import {
     m3uFavoriteReference,
     type FavoriteEntry,
+    type FavoriteLocalStore,
 } from '@iptvnator/shared/interfaces/favorites-sync';
 import { FavoritesPlaylistAdapter } from './favorites-playlist-adapter';
 import { FavoritesLocalOrder } from './favorites-local-order';
@@ -120,6 +121,50 @@ describe('M3U favorite URL index', () => {
 });
 
 describe('playlist favorite action ownership', () => {
+    it('finishes the first online favorite for a source without a cached context', async () => {
+        const url = 'https://synthetic.test/first';
+        const source = {
+            _id: 'source',
+            favorites: [],
+            items: [{ url, name: 'Synthetic first channel' }],
+        } as unknown as Playlist;
+        const rows: FavoriteEntry[] = [];
+        const store: FavoriteLocalStore = {
+            read: async () => rows[0]?.record ?? null,
+            entries: async () => rows,
+            pending: async () => rows.flatMap((row) => row.record.pending),
+            mutate: async (address, update) => {
+                const record = update(rows[0]?.record ?? null);
+                rows.splice(0, rows.length, { address, record });
+                return record;
+            },
+        };
+        const client = new FavoritesSyncClient(store, {
+            instanceId: 'synthetic-instance',
+            deviceId: 'synthetic-device',
+            consent: () => 'first-consent',
+            request: async (input) =>
+                input.operation === 'favorites-context'
+                    ? {
+                          status: 200,
+                          body: {
+                              sourceId: 'source',
+                              sourceIncarnation: 'first',
+                              provider: 'm3u',
+                          },
+                      }
+                    : { status: 503, body: {} },
+            remember: jest.fn(),
+            changed: jest.fn(),
+        });
+        const adapter = new FavoritesPlaylistAdapter(client, () => true);
+        await expect(
+            adapter.mutate(source, () => [url])
+        ).resolves.toMatchObject({ favorites: [url] });
+        expect(rows).toHaveLength(1);
+        expect(rows[0].record.state.member).toBe(true);
+        expect(rows[0].record.pending).toHaveLength(1);
+    });
     function fixture(enabled = true) {
         let consent: string | null = enabled ? 'first-consent' : null;
         let active = true;
