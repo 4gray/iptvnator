@@ -1,6 +1,7 @@
 import type { DownloadItem } from '@iptvnator/services';
 
 export interface DownloadLibraryRow {
+    readonly seasonUnknown?: boolean;
     readonly item: DownloadItem;
     readonly episodeLabel: string;
     readonly sourceName: string;
@@ -31,6 +32,7 @@ export interface DownloadEpisodeCardViewModel extends DownloadItemLibraryEntityB
 }
 
 export interface DownloadSeriesCardViewModel extends DownloadLibraryEntityBase {
+    readonly seasonUnknown?: boolean;
     readonly kind: 'series';
     readonly representative: DownloadItem;
     readonly members: readonly DownloadItem[];
@@ -47,7 +49,7 @@ export type DownloadLibraryEntity =
     | DownloadEpisodeCardViewModel
     | DownloadSeriesCardViewModel;
 
-const STANDARD_EPISODE_TITLE = /^(.+?) - S\d{2}E\d{2} - /;
+const STANDARD_EPISODE_TITLE = /^(.+?) - (?:S\d{2,})?E\d{2,} - /;
 const MALFORMED_DOWNLOAD_ID_CLASS = {
     NAN: '0:nan',
     NEGATIVE_INFINITY: '1:negative-infinity',
@@ -180,12 +182,20 @@ function createSeriesEntity(
         .find((title) => title !== undefined);
     const legacyTitle =
         members.find((item) => item.title.trim().length > 0)?.title ?? '';
-    const seasons = members
-        .map(({ seasonNumber }) => seasonNumber)
-        .filter(isUsableDownloadOrderNumber);
+    const seasonUnknown = rows.some(
+        (row) =>
+            row.seasonUnknown ||
+            row.item.metadataSnapshot?.episode?.seasonUnknown
+    );
+    const seasons = seasonUnknown
+        ? []
+        : members
+              .map(({ seasonNumber }) => seasonNumber)
+              .filter(isUsableDownloadOrderNumber);
 
     return {
         kind: 'series',
+        ...(seasonUnknown ? { seasonUnknown: true } : {}),
         key: `series:${representative.playlistId}:${seriesXtreamId}`,
         representative,
         members,

@@ -53,6 +53,44 @@ describe('Channel scroll focus', () => {
         category.checkVisibility = () => true;
     });
 
+    it('falls back to the captured main landmark after its pane is destroyed', async () => {
+        const main = document.createElement('main');
+        main.tabIndex = -1;
+        document.body.append(main);
+        main.append(fixture.nativeElement);
+        pane.querySelector<HTMLElement>('.favorite-button')!.focus();
+        fixture.destroy();
+        pane.remove();
+        await Promise.resolve();
+        expect(document.activeElement).toBe(main);
+        main.remove();
+    });
+
+    it('moves focus to the next row, then the pane when the last row disappears', async () => {
+        const first = pane.querySelector('.channel-list-item')!;
+        const second = first.cloneNode(true) as HTMLElement;
+        pane.append(second);
+        pane.querySelector<HTMLElement>('.favorite-button')!.focus();
+        first.remove();
+        await Promise.resolve();
+        expect(document.activeElement).toBe(
+            second.querySelector('.channel-content')
+        );
+        second.remove();
+        await Promise.resolve();
+        expect(document.activeElement).toBe(pane);
+    });
+
+    it('does not steal input focus after an asynchronous row removal', async () => {
+        const row = pane.querySelector('.channel-list-item')!;
+        pane.querySelector<HTMLElement>('.favorite-button')!.focus();
+        const input = pane.querySelector('input')!;
+        input.focus();
+        row.remove();
+        await Promise.resolve();
+        expect(document.activeElement).toBe(input);
+    });
+
     it('transfers focus both ways without clicks or scroll resets', () => {
         const click = jest.fn();
         pane.addEventListener('click', click);

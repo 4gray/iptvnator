@@ -55,6 +55,20 @@ Ownership follows the workspace boundaries:
 - reusable presentation: `libs/portal/shared/ui`
 - pure provider-neutral contracts/helpers: `libs/portal/shared/util`
 
+Catalog writes belong to the runtime loaders behind `getCategories` and
+`getContent`; `IXtreamDataSource` does not expose separate bulk-save methods.
+Electron loaders keep writing through the worker-backed `DatabaseService`;
+PWA loaders normalize API responses into their session caches. Tests load PWA
+catalogs through those same API-backed readers instead of seeding a second
+public write path.
+
+Content initialization runs one sequential import sequence for enabled live,
+VOD and series types, in that order. Each type persists completion before
+publishing rows or starting the next type. Publication retains its distinct
+state fields and renderer performance phase; cancellation and progress callbacks
+remain scoped to their owning session. Empty-catalog reuse and refill semantics
+are unchanged.
+
 Persisted Xtream identity is playlist-scoped and content-type-aware:
 `playlist_id + content.type + xtream_id`. Mixed collection keys likewise
 include type plus provider ID because live, movie, and series IDs can collide.
@@ -819,6 +833,18 @@ real browser or a VLC-style client passes. Keep all three request sites using
 the shared constant instead of inlining the string again.
 
 ## Playback URL Formats
+
+Ordinary movie Play/Resume and series episode playback copy the initiating
+playlist's `userAgent`, `referrer` (as descriptor `referer`), and `origin` into
+`ResolvedPortalPlayback`. Inline playback and forced MPV/VLC launches consume
+that same descriptor; episode navigation resolves the headers again for the
+next episode. Missing overrides remain absent so the transport keeps its
+existing defaults. Multi-source alternatives retain their own source's headers.
+An explicit Origin reaches inline Electron requests even when it differs from
+the Referer's origin or no Referer is configured; the scoped bridge retains its
+Referer-derived fallback when no usable Origin override is supplied.
+The playback service specs and `xtream-playback-headers.e2e.ts` cover this
+handoff, including actual Electron media request headers.
 
 When account info includes `user_info.allowed_output_formats`, the current
 Xtream playlist keeps those formats for the active session. The default

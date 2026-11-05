@@ -8,6 +8,7 @@ import {
     StalkerVodSeriesSeason,
     StalkerVodSource,
 } from './models';
+import { hasSeasonRangeInTitle } from './stalker-season-range.util';
 import { isStalkerSeriesFlag } from '@iptvnator/shared/interfaces';
 
 const naturalSeasonCollator = new Intl.Collator(undefined, {
@@ -289,9 +290,14 @@ export function mapRegularSeriesEpisodes(
     fallbackPoster?: string,
     rawTitle?: string | null,
     parentSeriesId?: string | number,
-    activityMode: 'regular' | 'embedded' = 'regular'
+    activityMode: 'regular' | 'embedded' = 'regular',
+    providerTitles: readonly (string | null | undefined)[] = [rawTitle]
 ): Record<string, XtreamSerieEpisode[]> {
     const mapped: Record<string, XtreamSerieEpisode[]> = {};
+    const seasonUnknown =
+        activityMode === 'embedded' &&
+        seasons.length === 1 &&
+        providerTitles.some(hasSeasonRangeInTitle);
 
     seasons.forEach((season, index) => {
         const seasonKey = String(
@@ -334,6 +340,7 @@ export function mapRegularSeriesEpisodes(
                           },
                       }
                     : {}),
+                ...(seasonUnknown ? { seasonUnknown: true } : {}),
                 originalCmd: season.cmd,
             } as StalkerMappedEpisode;
         });

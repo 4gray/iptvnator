@@ -256,6 +256,7 @@ function episode(value: DownloadEpisodeMetadata): DownloadEpisodeMetadata {
     const plot = text(value.plot);
     const stillUrl = artworkUrl(value.stillUrl);
     return {
+        ...(value.seasonUnknown === true ? { seasonUnknown: true } : {}),
         ...(title === undefined ? {} : { title }),
         ...(plot === undefined ? {} : { plot }),
         ...(stillUrl === undefined ? {} : { stillUrl }),

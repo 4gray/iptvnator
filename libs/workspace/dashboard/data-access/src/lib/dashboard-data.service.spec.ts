@@ -1284,7 +1284,7 @@ describe('DashboardDataService', () => {
     });
 
     it('resolves episode progress for a Stalker embedded-VOD show stored without is_series', async () => {
-        // Real stored shape (RUcolor-style portal): the recent entry keeps
+        // Synthetic embedded-VOD fixture: the recent entry keeps
         // the `series[]` episode array and a numeric VOD category, but no
         // `is_series` flag. It must keep routing as a movie while its
         // progress, badge, and resume handoff come from the episode rows
@@ -1293,19 +1293,19 @@ describe('DashboardDataService', () => {
             ...createDefaultPlaylists(),
             {
                 _id: 'stalker-embedded',
-                title: 'RUcolor.tv',
+                title: 'Synthetic portal',
                 count: 1,
                 importDate: '2026-01-01T00:00:00.000Z',
                 autoRefresh: false,
                 macAddress: '00:11:22:33:44:55',
                 recentlyViewed: [
                     {
-                        id: '17572',
+                        id: '900202',
                         title: 'Fake (10 episodes)',
                         category_id: '7',
-                        cmd: '/media/17572.mpg',
+                        cmd: '/media/900202.mpg',
                         series: [1, 2, 3, 4, 5, 6, 7, 8],
-                        added_at: '2026-09-19T16:13:50.000Z',
+                        added_at: '2025-02-01T00:00:00.000Z',
                     },
                 ],
             },
@@ -1316,20 +1316,20 @@ describe('DashboardDataService', () => {
                     ? [
                           {
                               playlistId,
-                              contentXtreamId: 1750797719,
+                              contentXtreamId: 900203,
                               contentType: 'episode',
-                              seriesXtreamId: 17572,
+                              seriesXtreamId: 900202,
                               seasonNumber: 1,
                               episodeNumber: 2,
                               positionSeconds: 2673,
                               durationSeconds: 2761,
-                              updatedAt: '2026-09-17T10:55:35.000Z',
+                              updatedAt: '2025-02-02T00:00:00.000Z',
                           },
                           {
                               playlistId,
-                              contentXtreamId: 1750797722,
+                              contentXtreamId: 900204,
                               contentType: 'episode',
-                              seriesXtreamId: 17572,
+                              seriesXtreamId: 900202,
                               seasonNumber: 1,
                               episodeNumber: 5,
                               positionSeconds: 2306,
@@ -1370,8 +1370,8 @@ describe('DashboardDataService', () => {
                             contentType: 'movie',
                         }),
                         seriesResume: {
-                            seriesXtreamId: 17572,
-                            contentXtreamId: 1750797722,
+                            seriesXtreamId: 900202,
+                            contentXtreamId: 900204,
                             seasonNumber: 1,
                             episodeNumber: 5,
                         },

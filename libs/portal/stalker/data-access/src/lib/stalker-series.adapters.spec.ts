@@ -6,6 +6,7 @@ import {
     mapVodSeriesSeasonsToVm,
 } from './stalker-series.adapters';
 import { StalkerSelectedVodItem } from './models';
+import { pickSeasonMarkedTitle } from '@iptvnator/shared/interfaces';
 
 type EpisodeWithMetadata = {
     custom_sid?: string;
@@ -17,10 +18,85 @@ type EpisodeWithMetadata = {
 
 describe('stalker-series.adapters', () => {
     it.each([
-        'The Gentlemen s02',
-        'The Gentlemen season2',
-        'The Gentlemen (s02)',
-        'The Gentlemen (season 2)',
+        ['Show S01', 'Show (1-9 season)', 1],
+        ['Show Seasons 1-9', 'Show (1-9 season)', 9],
+        ['Show Seasons 1-9', 'Show S01', 1],
+    ] as const)(
+        'detects ranges across titles while preserving historical coordinates: %s / %s',
+        (name, original, season) => {
+            const titles = [name, original];
+            const episodes = mapRegularSeriesEpisodes(
+                [
+                    {
+                        id: '900001',
+                        name: 'Episodes',
+                        cmd: '/media/900001.mpg',
+                        series: [189],
+                    },
+                ],
+                undefined,
+                pickSeasonMarkedTitle(...titles),
+                900001,
+                'embedded',
+                titles
+            );
+            expect(episodes[String(season)][0]).toMatchObject({
+                season,
+                episode_num: 189,
+                seasonUnknown: true,
+            });
+        }
+    );
+    it('marks flat range collections without changing playback or episode identities', () => {
+        const seasons = [
+            {
+                id: '900001',
+                name: 'Episodes',
+                cmd: '/media/900001.mpg',
+                series: [1, 2, 189],
+            },
+        ];
+        const old = mapRegularSeriesEpisodes(
+            seasons,
+            undefined,
+            'Show (9 season)',
+            900001,
+            'embedded'
+        )['9'];
+        const episodes = Object.values(
+            mapRegularSeriesEpisodes(
+                seasons,
+                undefined,
+                'Synthetic Series Alpha (1-9 season)',
+                900001,
+                'embedded'
+            )
+        )[0];
+        expect(episodes.map((e) => e.id)).toEqual(old.map((e) => e.id));
+        expect(episodes.map((e) => e.activityIdentity)).toEqual(
+            old.map((e) => e.activityIdentity)
+        );
+        expect(
+            episodes.map((e) => (e as EpisodeWithMetadata).originalCmd)
+        ).toEqual(old.map((e) => (e as EpisodeWithMetadata).originalCmd));
+        expect(episodes.every((e) => e.seasonUnknown)).toBe(true);
+        expect(episodes.map((e) => e.season)).toEqual(old.map((e) => e.season));
+        const structured = mapRegularSeriesEpisodes(
+            seasons,
+            undefined,
+            'Show (1-9 season)',
+            900001,
+            'regular'
+        );
+        expect(Object.values(structured)[0].some((e) => e.seasonUnknown)).toBe(
+            false
+        );
+    });
+    it.each([
+        'Synthetic Series Beta s02',
+        'Synthetic Series Beta season2',
+        'Synthetic Series Beta (s02)',
+        'Synthetic Series Beta (season 2)',
         'Пример (2 сезон)',
         'Пример (сезон 2)',
         'Пример s02',
