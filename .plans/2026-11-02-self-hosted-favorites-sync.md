@@ -409,6 +409,32 @@ containers are removed. Physical Synology, packaged Windows/Linux and optional
 vendored Embedded MPV remain unavailable. A committed-branch review follows;
 Greptile CLI remains unavailable under the documented exception.
 
+## PR CI and review follow-up, 2026-11-05
+
+At 86da663c7, CI stops before unit tests on the i18n gate: new favorites strings
+and the revised activity-consent hint are English in all 20 translated locales.
+Translate those values directly; preserve placeholders and baseline thresholds.
+The full i18n validation passes with no new baseline exceptions.
+
+Greptile identifies delayed playlist mutations crossing source/consent changes
+and a hydrated PWA duplicate with missing year winning over a fully confirmed
+row. Five new regressions fail before the fixes. Reuse the Xtream ownership guard
+for playlist actions, checking each write and publication; prefer fully confirming
+received duplicate rows before compatible sparse fallbacks. Web 878 and services
+1,411 tests pass. App types, all 42 spec programs and three affected lint targets
+pass. The 36-project merged coverage passes unchanged gates at
+85.58/77.42/83.88/86.08 percent.
+
+The CI Web E2E artifact shows a category click on the previous Movies view after
+clicking Live TV, and a retry exhausted the 30-second multi-reload test budget.
+The unchanged test passes three local repetitions before repair. Wait explicitly
+for the live route and categories after navigation/reload, and give the whole
+multi-reload journey 60 seconds while retaining every channel/logo/EPG assertion.
+Electron on every CI platform, Docker, packaging, CodeQL and performance gates
+already pass. Cloud Codex review exhausted account quota; use local Codex CLI
+without changing billing or credits. Greptile CLI remains unavailable under the
+documented exception; request the GitHub round after the reviewed fix is pushed.
+
 Round 20 reviews 4020931cf and confirms two provider-identity gaps. Stalker saves
 stream-first IDs but receiving command lookup compares only the raw row ID. PWA
 cache lookup ignores TMDB/year hints and chooses an incompatible duplicate even

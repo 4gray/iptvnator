@@ -138,6 +138,13 @@ it('hydrates a cold PWA receiver once per type across concurrent reads', async (
     const load = jest.fn(async () => {
         loaded = true;
         return [
+            {
+                ...candidate,
+                id: 89,
+                category_id: 5,
+                title: 'Synthetic partial duplicate',
+                release_year: undefined,
+            },
             { ...candidate, id: 88, category_id: 4, tmdb_id: 200 },
             candidate,
         ];

@@ -206,6 +206,8 @@ describe('favorite provider references and projections', () => {
         async (provider) => {
             const set = jest.fn();
             const client = {
+                contexts: new Map(),
+                options: { consent: () => 'consent' },
                 entries: async () => [],
                 set,
             } as unknown as FavoritesSyncClient;

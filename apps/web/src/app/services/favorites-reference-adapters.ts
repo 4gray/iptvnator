@@ -180,16 +180,17 @@ export function hasXtreamFavoriteIdentityConflict(
     candidate?: Pick<
         XtreamFavoriteItem,
         'tmdb_id' | 'release_year' | 'catalog_missing_reason'
-    > | null
+    > | null,
+    requireConfirmation = false
 ): boolean {
     return !!(
         snapshot?.identityConflict ||
         candidate?.catalog_missing_reason === 'identity_conflict' ||
         (snapshot?.tmdbId &&
-            candidate?.tmdb_id != null &&
-            snapshot.tmdbId !== String(candidate.tmdb_id)) ||
+            (requireConfirmation || candidate?.tmdb_id != null) &&
+            snapshot.tmdbId !== String(candidate?.tmdb_id)) ||
         (snapshot?.releaseYear &&
-            candidate?.release_year != null &&
-            snapshot.releaseYear !== String(candidate.release_year))
+            (requireConfirmation || candidate?.release_year != null) &&
+            snapshot.releaseYear !== String(candidate?.release_year))
     );
 }

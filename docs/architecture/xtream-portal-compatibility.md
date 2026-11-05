@@ -1180,6 +1180,8 @@ reference adapters used by preview and backup.
 PWA cache-only identity lookup also applies TMDB/year hints, preferring fully
 confirmed duplicates over compatible rows with missing metadata and rejecting
 contradictions. Without hints, the previous first-row/type order is retained.
+Received PWA favorites use the same preference when hydrating a catalog: a row
+confirming every saved identity field wins over an earlier compatible sparse row.
 The pure lookup lives in the existing metadata module: an empty content cache
 returns immediately, and populated caches have already loaded that module during
 normalization, so membership actions never fetch a new lookup chunk.

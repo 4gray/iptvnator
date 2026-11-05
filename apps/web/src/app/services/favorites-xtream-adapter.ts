@@ -10,7 +10,7 @@ import {
     type FavoriteReference,
 } from '@iptvnator/shared/interfaces/favorites-sync';
 import {
-    FavoriteSupersededError,
+    captureFavoriteOwner,
     type FavoritesSyncClient,
 } from '@iptvnator/services/favorites-sync';
 import {
@@ -45,7 +45,7 @@ export class FavoritesXtreamAdapter {
         hydrate = false,
         target?: XtreamRef
     ): Promise<XtreamFavoriteItem[]> {
-        const assertCurrent = this.owner(sourceId);
+        const assertCurrent = captureFavoriteOwner(this.client, sourceId);
         if (this.locks.withholdsEverything()) return [];
         const lockVersion = this.locks.version();
         const matchesTarget = (ref: XtreamRef) =>
@@ -136,6 +136,14 @@ export class FavoritesXtreamAdapter {
                 candidate =
                     matches.find(
                         (row) =>
+                            !hasXtreamFavoriteIdentityConflict(
+                                snapshot,
+                                row,
+                                true
+                            )
+                    ) ??
+                    matches.find(
+                        (row) =>
                             !hasXtreamFavoriteIdentityConflict(snapshot, row)
                     ) ??
                     matches[0] ??
@@ -199,22 +207,6 @@ export class FavoritesXtreamAdapter {
             this.locks.version() !== lockVersion
             ? []
             : [...mapped.values()];
-    }
-    private owner(sourceId: string): () => void {
-        const incarnation =
-            this.client.contexts.get(sourceId)?.sourceIncarnation;
-        const consent = this.client.options.consent();
-        const assertCurrent = () => {
-            if (
-                this.client.options.profileActive?.() === false ||
-                this.client.options.consent() !== consent ||
-                this.client.contexts.get(sourceId)?.sourceIncarnation !==
-                    incarnation
-            )
-                throw new FavoriteSupersededError();
-        };
-        assertCurrent();
-        return assertCurrent;
     }
     private async catalog(
         raw: IXtreamDataSource,
@@ -290,7 +282,7 @@ export class FavoritesXtreamAdapter {
         if (method === 'getFavorites')
             return this.project(raw, String(args[0]), true);
         const [target, sourceId] = args as [XtreamCollectionRef, string];
-        const assertCurrent = this.owner(sourceId);
+        const assertCurrent = captureFavoriteOwner(this.client, sourceId);
         const ref = await this.reference(raw, sourceId, target);
         assertCurrent();
         const rows = await this.project(raw, sourceId, false, ref);

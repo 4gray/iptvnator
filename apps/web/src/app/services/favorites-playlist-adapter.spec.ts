@@ -6,6 +6,8 @@ import {
     type FavoriteEntry,
 } from '@iptvnator/shared/interfaces/favorites-sync';
 import { FavoritesPlaylistAdapter } from './favorites-playlist-adapter';
+import { FavoritesLocalOrder } from './favorites-local-order';
+import { FavoriteSupersededError } from '@iptvnator/services/favorites-sync';
 
 beforeAll(() =>
     Object.defineProperty(globalThis, 'crypto', {
@@ -114,5 +116,104 @@ describe('M3U favorite URL index', () => {
             ).favorites
         ).toEqual([]);
         expect(digest).toHaveBeenCalledTimes(3);
+    });
+});
+
+describe('playlist favorite action ownership', () => {
+    function fixture(enabled = true) {
+        let consent: string | null = enabled ? 'first-consent' : null;
+        let active = true;
+        const context = { sourceIncarnation: 'first' };
+        const client = {
+            options: { consent: () => consent, profileActive: () => active },
+            contexts: new Map([['source', context]]),
+            entries: async () => [],
+            set: jest.fn(async () => undefined),
+            setLocal: jest.fn(async () => undefined),
+        } as unknown as FavoritesSyncClient;
+        const order = {
+            read: () => ['synthetic-order'],
+            write: jest.fn(),
+        } as unknown as FavoritesLocalOrder;
+        const source = {
+            _id: 'source',
+            favorites: [],
+        } as unknown as Playlist;
+        return {
+            client,
+            order,
+            source,
+            replace: () => {
+                context.sourceIncarnation = 'second';
+            },
+            retire: () => {
+                active = false;
+            },
+            consent: () => {
+                consent = consent ? null : 'second-consent';
+            },
+        };
+    }
+    it.each(['replace', 'retire', 'consent'] as const)(
+        'rejects a delayed playlist action after %s without saving membership, archive or order',
+        async (change) => {
+            const f = fixture(change !== 'consent');
+            let finish!: () => void;
+            const wait = new Promise<void>((resolve) => (finish = resolve));
+            const catalog = jest.fn(async (source: Playlist) => {
+                await wait;
+                return source;
+            });
+            const persist = jest.fn();
+            const adapter = new FavoritesPlaylistAdapter(
+                f.client,
+                () => f.client.options.consent() !== null,
+                catalog,
+                f.order
+            );
+            const action = adapter.mutate(
+                f.source,
+                () => ['https://synthetic.test/one', 'unresolved'],
+                persist
+            );
+            await Promise.resolve();
+            expect(catalog).toHaveBeenCalledTimes(1);
+            f[change]();
+            finish();
+            await expect(action).rejects.toBeInstanceOf(
+                FavoriteSupersededError
+            );
+            expect(f.client.set).not.toHaveBeenCalled();
+            expect(f.client.setLocal).not.toHaveBeenCalled();
+            expect(persist).not.toHaveBeenCalled();
+            expect(f.order.write).not.toHaveBeenCalled();
+        }
+    );
+    it('stops the remaining writes and local publication when a source changes during the first save', async () => {
+        const f = fixture();
+        jest.mocked(f.client.set).mockImplementationOnce(async () =>
+            f.replace()
+        );
+        const persist = jest.fn();
+        const adapter = new FavoritesPlaylistAdapter(
+            f.client,
+            () => true,
+            undefined,
+            f.order
+        );
+        await expect(
+            adapter.mutate(
+                f.source,
+                () => [
+                    'https://synthetic.test/one',
+                    'https://synthetic.test/two',
+                    'unresolved',
+                ],
+                persist
+            )
+        ).rejects.toBeInstanceOf(FavoriteSupersededError);
+        expect(f.client.set).toHaveBeenCalledTimes(1);
+        expect(persist).not.toHaveBeenCalled();
+        expect(f.order.write).not.toHaveBeenCalled();
     });
 });

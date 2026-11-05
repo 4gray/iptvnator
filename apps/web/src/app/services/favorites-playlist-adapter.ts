@@ -5,7 +5,10 @@ import {
     m3uFavoriteReference,
     type FavoriteEntry,
 } from '@iptvnator/shared/interfaces/favorites-sync';
-import type { FavoritesSyncClient } from '@iptvnator/services/favorites-sync';
+import {
+    captureFavoriteOwner,
+    type FavoritesSyncClient,
+} from '@iptvnator/services/favorites-sync';
 import {
     playlistFavorite,
     stalkerFavorite,
@@ -151,6 +154,8 @@ export class FavoritesPlaylistAdapter {
             favorites: NonNullable<Playlist['favorites']>
         ) => Promise<void>
     ): Promise<Playlist> {
+        const assertCurrent = captureFavoriteOwner(this.client, playlist._id);
+        const enabled = this.enabled();
         const projected = await this.project(playlist);
         const before = await this.local(projected);
         const nextFavorites = transform(projected.favorites ?? []);
@@ -164,10 +169,28 @@ export class FavoritesPlaylistAdapter {
         const next = new Map(
             after.items.map((item) => [favoriteKey(item), item])
         );
+        const write = async (item: LocalFavorite, member: boolean) => {
+            assertCurrent();
+            if (enabled)
+                await this.client.set(
+                    playlist._id,
+                    item.reference,
+                    member,
+                    item.snapshot
+                );
+            else
+                await this.client.setLocal(
+                    playlist._id,
+                    item.reference,
+                    member,
+                    item.snapshot
+                );
+        };
         for (const [key, item] of old)
-            if (!next.has(key)) await this.write(playlist._id, item, false);
+            if (!next.has(key)) await write(item, false);
         for (const [key, item] of next)
-            if (!old.has(key)) await this.write(playlist._id, item, true);
+            if (!old.has(key)) await write(item, true);
+        assertCurrent();
         const knownBefore = new Set(before.items.map((item) => item.original));
         const knownAfter = new Set(after.items.map((item) => item.original));
         const unknownBefore = (projected.favorites ?? []).filter(
@@ -187,29 +210,12 @@ export class FavoritesPlaylistAdapter {
                 ...unknownAfter,
             ];
             await persistLocal(favorites);
+            assertCurrent();
             retained = { ...playlist, favorites };
         }
         this.order?.write(playlist._id, after.items.map(favoriteKey));
-        return this.project(retained);
-    }
-    private async write(
-        sourceId: string,
-        item: LocalFavorite,
-        member: boolean
-    ) {
-        if (this.enabled())
-            await this.client.set(
-                sourceId,
-                item.reference,
-                member,
-                item.snapshot
-            );
-        else
-            await this.client.setLocal(
-                sourceId,
-                item.reference,
-                member,
-                item.snapshot
-            );
+        const result = await this.project(retained);
+        assertCurrent();
+        return result;
     }
 }
