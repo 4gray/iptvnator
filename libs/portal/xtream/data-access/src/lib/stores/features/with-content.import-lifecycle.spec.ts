@@ -50,6 +50,55 @@ describe('Xtream import session lifecycle', () => {
 
     afterEach(() => localStorage.clear());
 
+    it('publishes each type only after completion is persisted and before starting the next type', async () => {
+        const completed = createDeferred<boolean>();
+        const live = [{ stream_id: 1, name: 'Synthetic live' }];
+        const movie = [{ stream_id: 2, name: 'Synthetic movie' }];
+        const series = [{ series_id: 3, name: 'Synthetic series' }];
+        dataSource.getContent.mockImplementation(
+            (_playlist, _credentials, type) => {
+                if (type === 'live') return Promise.resolve(live);
+                if (type === 'movie') {
+                    expect(store.liveStreams()).toEqual(live);
+                    return Promise.resolve(movie);
+                }
+                expect(store.vodStreams()).toEqual(movie);
+                return Promise.resolve(series);
+            }
+        );
+        databaseService.setXtreamImportStatus.mockImplementation(
+            (_playlist, type, status) =>
+                type === 'live' && status === 'completed'
+                    ? completed.promise
+                    : Promise.resolve(true)
+        );
+        const task = store.initializeContent();
+        await waitForCondition(() =>
+            databaseService.setXtreamImportStatus.mock.calls.some(
+                ([, type, status]) => type === 'live' && status === 'completed'
+            )
+        );
+        expect(dataSource.getContent.mock.calls.map((call) => call[2])).toEqual(
+            ['live']
+        );
+        expect(store.liveStreams()).toEqual([]);
+        completed.resolve(true);
+        await task;
+        expect(dataSource.getContent.mock.calls.map((call) => call[2])).toEqual(
+            ['live', 'movie', 'series']
+        );
+        expect(
+            databaseService.setXtreamImportStatus.mock.calls
+                .filter(([, , status]) => status === 'completed')
+                .map(([, type]) => type)
+        ).toEqual(['live', 'movie', 'series']);
+        expect(store.liveStreams()).toEqual(live);
+        expect(store.vodStreams()).toEqual(movie);
+        expect(store.vodStreamsPlaylistId()).toBe('playlist-1');
+        expect(store.serialStreams()).toEqual(series);
+        expect(store.isContentInitialized()).toBe(true);
+    });
+
     it('defers lock-driven category reloads until the active import finishes', async () => {
         const content = createDeferred<[]>();
         dataSource.getContent.mockReturnValueOnce(content.promise);

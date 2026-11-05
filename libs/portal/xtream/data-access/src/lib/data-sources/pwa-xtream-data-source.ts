@@ -31,7 +31,6 @@ import {
     XTREAM_CONTENT_TYPES,
     IXtreamDataSource,
     XtreamCollectionRef,
-    ProgressCallback,
     XtreamOperationOptions,
     XtreamCategoryFromDb,
     XtreamContentItem,
@@ -475,16 +474,6 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         return [];
     }
 
-    async saveCategories(
-        playlistId: string,
-        categories: XtreamCategory[],
-        type: DbCategoryType
-    ): Promise<void> {
-        // In PWA mode, we just cache in memory
-        const cacheKey = `${playlistId}-${type}-categories`;
-        this.categoryCache.set(cacheKey, categories);
-    }
-
     async updateCategoryVisibility(
         categoryIds: number[],
         hidden: boolean
@@ -572,33 +561,6 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         void playlistId;
         void type;
         return [];
-    }
-
-    async saveContent(
-        playlistId: string,
-        streams:
-            | XtreamLiveStream[]
-            | XtreamVodStream[]
-            | XtreamSerieItem[]
-            | XtreamContentItem[],
-        type: 'live' | 'movie' | 'series',
-        onProgress?: ProgressCallback,
-        options?: XtreamOperationOptions
-    ): Promise<number> {
-        void options;
-        // In PWA mode, we just cache normalized API items in memory.
-        const cacheKey = `${playlistId}-${type}-content`;
-        const normalizedStreams = await this.normalizeContentItems(
-            streams,
-            type
-        );
-        this.contentCache.set(cacheKey, normalizedStreams);
-
-        if (onProgress) {
-            onProgress(normalizedStreams.length);
-        }
-
-        return normalizedStreams.length;
     }
 
     private async normalizeContentItems(
@@ -1260,14 +1222,6 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             }
         });
         contentKeysToDelete.forEach((key) => this.contentCache.delete(key));
-    }
-
-    /**
-     * Clear all in-memory caches
-     */
-    clearAllCaches(): void {
-        this.categoryCache.clear();
-        this.contentCache.clear();
     }
 }
 
