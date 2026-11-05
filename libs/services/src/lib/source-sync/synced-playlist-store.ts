@@ -8,6 +8,7 @@ import {
     applySourceDefinition,
     sameSource,
     sourceFromPlaylist,
+    sourceFingerprint,
 } from '@iptvnator/shared/interfaces/source-definition';
 import {
     PlaylistWriteConflict,
@@ -42,7 +43,8 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
         private readonly pruneSource?: (
             id: string,
             revision: string | undefined
-        ) => Promise<boolean>
+        ) => Promise<boolean>,
+        private readonly retireSource?: (id: string) => void
     ) {}
 
     exclusive<T>(operation: () => Promise<T>): Promise<T> {
@@ -70,6 +72,7 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
     ): Promise<Playlist> {
         const current = await this.local.dbGetAppPlaylist(source.id);
         const next = await this.materialize(source, current ?? initial);
+        this.retireChangedSource(current, source);
         next.sourceSyncBase = source;
         next.sourceSyncRevision = revision;
         const merge = (latest: Playlist | null) => {
@@ -187,6 +190,7 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
             );
             next.sourceSyncBase = accepted;
             next.sourceSyncRevision = revision;
+            this.retireChangedSource(current, accepted);
             // A local mutation based on an older snapshot cannot revert a remote edit.
             const merge = (latest: Playlist | null): Playlist => {
                 if (!latest && playlist.sourceSyncBase)
@@ -252,6 +256,20 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
                     this.pendingSources.delete(row._id);
             return { success: true };
         });
+
+    private retireChangedSource(
+        current: Playlist | null,
+        source: SourceDefinition
+    ): void {
+        if (
+            this.retireSource &&
+            (!current ||
+                sourceFingerprint(
+                    current.sourceSyncBase ?? sourceFromPlaylist(current, true)
+                ) !== sourceFingerprint(source))
+        )
+            this.retireSource(source.id);
+    }
 
     private async pruneObserved(id: string, revision: string | undefined) {
         if (this.pruneSource) return this.pruneSource(id, revision);

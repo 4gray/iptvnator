@@ -5,6 +5,17 @@ import {
 } from '@iptvnator/shared/interfaces/favorites-sync';
 import type { FavoritesSyncClient } from './favorites-sync-client';
 import { FavoriteSupersededError } from './favorites-sync-errors';
+export async function refreshFavoriteSources(
+    client: FavoritesSyncClient,
+    sourceIds: string[]
+): Promise<void> {
+    const ids = new Set(sourceIds);
+    for (const id of client.contexts.keys())
+        if (!ids.has(id)) client.forget(id);
+    for (const id of ids) await client.refresh(id, false);
+    await client.flush();
+}
+
 export async function deliverFavorites(
     this: FavoritesSyncClient
 ): Promise<void> {

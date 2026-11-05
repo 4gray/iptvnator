@@ -1,5 +1,25 @@
-import type { FavoritesSyncClient } from '@iptvnator/services/favorites-sync';
+import {
+    FavoriteRequestError,
+    type FavoritesSyncClient,
+} from '@iptvnator/services/favorites-sync';
 import type { FavoriteEntry } from '@iptvnator/shared/interfaces/favorites-sync';
+export function favoriteFailureState(error: unknown, locked: boolean): string {
+    const storage =
+        /storage|quota|indexeddb|database/i.test(
+            error instanceof Error ? error.message : ''
+        ) ||
+        ['QuotaExceededError', 'SecurityError'].includes(
+            error instanceof Error ? error.name : ''
+        );
+    return locked ||
+        (error instanceof FavoriteRequestError && error.status === 401)
+        ? 'locked'
+        : error instanceof FavoriteRequestError && error.status === 404
+          ? 'incompatible'
+          : storage
+            ? 'storage-error'
+            : 'offline';
+}
 export async function readFavoriteSummary(
     client: FavoritesSyncClient,
     generation?: string

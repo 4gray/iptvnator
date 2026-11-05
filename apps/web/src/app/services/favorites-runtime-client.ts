@@ -2,6 +2,7 @@ import {
     FavoritesSyncClient,
     IndexedDbFavoriteLocalStore,
     ElectronFavoriteLocalStore,
+    favoriteSourceContextsKey,
 } from '@iptvnator/services/favorites-sync';
 import { requestSourceServer } from '@iptvnator/services/source-sync';
 import { sourceConnection } from '@iptvnator/services/source-sync/connection';
@@ -25,7 +26,7 @@ export function createFavoritesRuntimeClient(
     if (!instanceId || !consent || !capabilities.supportsFavoritesStorage)
         throw new Error('Favorite storage unavailable');
 
-    const key = `iptvnator-server:${instanceId}:favorites-contexts-v1`;
+    const key = favoriteSourceContextsKey(instanceId);
     const saved: unknown = JSON.parse(localStorage.getItem(key) ?? '[]');
     const contexts: FavoriteSourceContext[] = Array.isArray(saved)
         ? saved.filter(

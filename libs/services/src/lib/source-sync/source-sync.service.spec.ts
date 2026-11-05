@@ -160,6 +160,46 @@ describe('source synchronization lifecycle', () => {
     });
     afterEach(() => TestBed.resetTestingModule());
 
+    it('retires persisted favorite context on source replacement while retaining unrelated contexts and metadata-only edits', async () => {
+        inventory = [source];
+        await service.initialize();
+        await service.refresh();
+        const key = 'iptvnator-server:nas:favorites-contexts-v1';
+        const contexts = [
+            { sourceId: 'a', sourceIncarnation: 'old', provider: 'xtream' },
+            {
+                sourceId: 'synthetic-other',
+                sourceIncarnation: 'other',
+                provider: 'm3u',
+            },
+        ];
+        localStorage.setItem(key, JSON.stringify(contexts));
+        inventory = [{ ...source, title: 'Synthetic renamed source' }];
+        revision = '"inventory-2"';
+        await service.refresh();
+        expect(JSON.parse(localStorage.getItem(key)!)).toEqual(contexts);
+        inventory = [{ ...source, username: 'synthetic-replacement-account' }];
+        revision = '"inventory-3"';
+        await service.refresh();
+        expect(rows.get('a')?.username).toBe('synthetic-replacement-account');
+        expect(JSON.parse(localStorage.getItem(key)!)).toEqual([contexts[1]]);
+    });
+
+    it('does not reuse an orphaned favorite context when a source ID is recreated without a local row', async () => {
+        const key = 'iptvnator-server:nas:favorites-contexts-v1';
+        localStorage.setItem(
+            key,
+            JSON.stringify([
+                { sourceId: 'a', sourceIncarnation: 'old', provider: 'xtream' },
+            ])
+        );
+        inventory = [{ ...source, username: 'synthetic-recreated-account' }];
+        await service.initialize();
+        await service.refresh();
+        expect(rows.get('a')?.username).toBe('synthetic-recreated-account');
+        expect(JSON.parse(localStorage.getItem(key)!)).toEqual([]);
+    });
+
     it.each([
         {
             rejected: { ...instance, instanceId: 'synthetic-replacement' },

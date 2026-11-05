@@ -1272,6 +1272,14 @@ ownership. IndexedDB uses readwrite transactions and does not require Web Locks.
 Offline intents survive restart. Profiles and source incarnations never inherit
 old pending work. The source lifecycle shared with activity now covers M3U too;
 activity itself remains limited to its existing supported provider types.
+Batch refresh receives every source's context and memberships before flushing the
+global outbox, so a retired intent for a later source cannot block its discovery.
+Source projection invalidates persisted and live favorite contexts before a
+changed connection becomes locally writable, even while favorites sync is off.
+Metadata-only edits retain the context. Runtime and cross-tab retirement notices
+invalidate memory without rewriting another tab's context cache; old durable
+records remain retained. An unverified replacement uses ordinary local favorites
+until its new context is verified.
 Network failures and HTTP 5xx can queue edits against a previously verified source
 context. Without that context, or after a rejected access/source request, no edit
 is queued; consent, profile and source ownership fences still apply.

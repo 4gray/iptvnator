@@ -1,4 +1,7 @@
-import { readFavoriteSummary } from './favorites-runtime-summary';
+import {
+    readFavoriteSummary,
+    favoriteFailureState,
+} from './favorites-runtime-summary';
 import { createRandomId } from '@iptvnator/shared/interfaces';
 import { refreshFavoriteViews } from './favorites-view-refresh';
 import { projectFavoriteBackup } from './favorites-backup-projection';
@@ -34,8 +37,9 @@ import {
 import { sourceConnection } from '@iptvnator/services/source-sync/connection';
 import {
     FavoritesSyncClient,
-    FavoriteRequestError,
     FavoriteSupersededError,
+    refreshFavoriteSources,
+    observeFavoriteSourceRetirement,
 } from '@iptvnator/services/favorites-sync';
 import {
     ElectronXtreamDataSource,
@@ -81,6 +85,7 @@ export class FavoritesSyncRuntime {
     readonly conflicts = signal<FavoriteEntry[]>([]);
     readonly lastSync = signal<Date | null>(null);
     constructor() {
+        const stopRetiring = observeFavoriteSourceRetirement(() => this.client);
         const refresh = () => {
             this.enabled.set(favoritesEnabled());
             if (this.enabled()) void this.refresh();
@@ -92,6 +97,7 @@ export class FavoritesSyncRuntime {
             if (!document.hidden && favoritesEnabled()) void this.refresh();
         }, 5000);
         inject(DestroyRef).onDestroy(() => {
+            stopRetiring();
             clearInterval(this.timer);
             for (const event of ['online', 'focus', 'storage'])
                 window.removeEventListener(event, refresh);
@@ -218,10 +224,10 @@ export class FavoritesSyncRuntime {
             const client = this.ensureClient();
             await this.sources.refresh();
             const sources = await this.sourceRows();
-            for (const id of client.contexts.keys())
-                if (!sources.some((source) => source._id === id))
-                    client.forget(id);
-            for (const source of sources) await client.refresh(source._id);
+            await refreshFavoriteSources(
+                client,
+                sources.map((source) => source._id)
+            );
             const summary = await this.summary();
             if (!summary) return;
             this.lastSync.set(new Date());
@@ -237,21 +243,8 @@ export class FavoritesSyncRuntime {
     }
     private reportFailure(error: unknown): void {
         if (error instanceof FavoriteSupersededError) return;
-        const message = error instanceof Error ? error.message : '';
-        const storage =
-            /storage|quota|indexeddb|database/i.test(message) ||
-            ['QuotaExceededError', 'SecurityError'].includes(
-                error instanceof Error ? error.name : ''
-            );
         this.state.set(
-            this.sources.state() === 'locked' ||
-                (error instanceof FavoriteRequestError && error.status === 401)
-                ? 'locked'
-                : error instanceof FavoriteRequestError && error.status === 404
-                  ? 'incompatible'
-                  : storage
-                    ? 'storage-error'
-                    : 'offline'
+            favoriteFailureState(error, this.sources.state() === 'locked')
         );
         this.error.set(true);
     }

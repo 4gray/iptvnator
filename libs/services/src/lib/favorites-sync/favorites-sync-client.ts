@@ -120,12 +120,12 @@ export class FavoritesSyncClient {
             throw error;
         }
     }
-    forget(sourceId: string): void {
+    forget(sourceId: string, persist = true): void {
         const next = (this.contextRequests.get(sourceId) ?? 0) + 1;
         this.contextRequests.set(sourceId, next);
         this.acceptedContexts.set(sourceId, next);
         this.contexts.delete(sourceId);
-        this.options.remember([...this.contexts.values()]);
+        if (persist) this.options.remember([...this.contexts.values()]);
     }
     address(
         source: FavoriteSourceContext,
@@ -248,7 +248,7 @@ export class FavoritesSyncClient {
             this.options.changed();
         }
     }
-    async refresh(sourceId: string): Promise<void> {
+    async refresh(sourceId: string, deliver = true): Promise<void> {
         const generation = this.generation();
         const source = await this.context(sourceId, generation);
         let cursor: string | undefined;
@@ -300,7 +300,7 @@ export class FavoritesSyncClient {
                 throw new Error('Invalid favorite cursor');
             if (cursor) seen.add(cursor);
         } while (cursor);
-        await this.flush();
+        if (deliver) await this.flush();
         this.options.changed();
     }
     async entries(sourceId: string) {

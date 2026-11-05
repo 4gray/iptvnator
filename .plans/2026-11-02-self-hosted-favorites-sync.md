@@ -744,3 +744,32 @@ timeout or retry policy is changed. Record this unreproduced local timeout in
 the PR evidence; final GitHub CI still has to pass. Commit the four-line storage
 repair and its regression, then run local Codex round 23. Greptile CLI remains
 unavailable under the repository exception.
+
+Local Codex round 23 reviews e8d6e5a01 and reproduces two lifecycle gaps:
+refreshing A flushes B's stale outbox before B can discover its replacement;
+and a disabled profile keeps an old context after a source identity edit,
+so later local choices disappear when that incarnation is retired on re-enable.
+Both new public-runtime/source-service regressions fail with the old behavior
+and pass after repair. Refresh the whole source set without delivery, then flush
+once. Source projections retire cached contexts before changed identities become
+locally writable; deletion uses the existing durable cleanup queue. Metadata-only
+edits keep their context. A shared observer invalidates in-memory clients and
+in-flight requests, including explicit cross-tab retirement notices. Ordinary
+context-cache writes do not imply a retirement. No durable favorite records are
+deleted, and a replacement without a verified context uses ordinary local
+persistence while sync is off. New observer tests cover cache persistence before
+runtime startup, unrelated sources/profiles, listener teardown and cross-tab
+notifications. Reuse the existing context key; move state classification into
+the existing runtime-summary module to keep runtime/client below 400 lines.
+
+Round 23 lifecycle validation: both regressions fail with the old behavior.
+Web 888 and services 1,416 tests pass before the additional ID-reuse regression;
+merged coverage is 85.66/77.49/83.96/86.16 percent with unchanged gates. All 42
+spec programs and app types pass after correcting an optional test-request field.
+Production frontend stays at 1,198,928 / 1,200,301 bytes. All 25 mixed
+PWA/Electron journeys pass in 5.8 minutes. A further regression reproduces an
+orphaned cached context when a source ID is recreated without a local row;
+retire that context before creation too. Refresh the affected unit/type/lint/
+build gates and the focused first-offline/ID-reuse journeys before committing.
+The existing feature release note covers these lifecycle fixes. No thresholds,
+baselines, retries or assertions are weakened.
