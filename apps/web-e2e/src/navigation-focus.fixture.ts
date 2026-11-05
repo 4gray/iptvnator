@@ -40,7 +40,7 @@ export async function expectNavigationFocus(row: Locator): Promise<number> {
             }
         }
         const probe = document.createElement('span');
-        probe.style.color = 'var(--app-focus-ring)';
+        probe.style.setProperty('color', 'var(--app-focus-ring)', 'important');
         element.append(probe);
         const token = getComputedStyle(probe).color;
         probe.remove();
