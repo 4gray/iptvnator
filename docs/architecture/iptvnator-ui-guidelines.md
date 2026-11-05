@@ -479,6 +479,10 @@ inputs, overlays, and resize handles—requires `app-region: no-drag`. The share
 directive-generated `.resize-handle` sets this centrally in `resizable.scss`.
 The shared live-layout sidebar reserves 8 px at its right edge so the inward
 half of the 12 px resize handle cannot cover the channel scrollbar.
+The outer sidebar owns the single pane divider; nested channel lists add no
+edge border. The header background and bottom separator extend across the
+resize gutter, while its controls keep their inset. Narrow layouts remove
+the gutter together with the resize handle.
 
 ## Resizable Sidebar Widths
 
@@ -522,6 +526,10 @@ host by its padding and border on the first move.
   decorative border on something focusable: any outline outranks the
   fallback, so the element loses its ring (use `border` or a spread
   `box-shadow`, as the selected season tab does).
+- Shared navigation rows draw the keyboard ring inside their edge, over
+  the selection border when selected. Lists keep 2px of top inset so the
+  selected row's 1px lift cannot clip its border; group lists retain that
+  inset too. Selection tint and `aria-current` remain when focus moves away.
 - **Removing the outline.** A component rule that sets `outline: none` also
   outranks the fallback, so it must show focus another way: a search field's
   wrapper takes a token border on `:focus-within`, optionally with a soft
