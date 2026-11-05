@@ -664,7 +664,7 @@
         "APP_UPDATE_DOWNLOADING": "버전 {{version}} 다운로드 중…",
         "APP_UPDATE_DOWNLOADED": "버전 {{version}} 설치 준비 완료",
         "APP_UPDATE_MANUAL_AVAILABLE": "버전 {{version}}을(를) 수동으로 설치할 수 있습니다",
-        "APP_UPDATE_ERROR": "업데이트 확인 실패",
+        "APP_UPDATE_ERROR": "앱 업데이트 실패",
         "APP_UPDATE_CHECK": "다시 확인",
         "APP_UPDATE_DOWNLOAD": "업데이트",
         "APP_UPDATE_INSTALL": "애플리케이션 다시 시작",
@@ -1250,6 +1250,9 @@
         "TWITTER_TOOLTIP": "Twitter에 공유"
     },
     "UPDATE_AVAILABLE": "업데이트 가능",
+    "PWA_UPDATE_READY": "업데이트가 준비되었습니다. 새로고침하면 재생이 중지됩니다.",
+    "PWA_UPDATE_FAILED": "앱 업데이트를 다운로드하지 못했습니다. 현재 버전을 계속 사용할 수 있습니다.",
+    "PWA_RELOAD_REQUIRED": "앱 파일을 사용할 수 없습니다. 인터넷 연결 후 새로고침하여 복구하세요. 재생이 중지됩니다.",
     "REFRESH": "새로 고치다",
     "XTREAM": {
         "PLAY": "재생",

@@ -664,7 +664,7 @@
         "APP_UPDATE_DOWNLOADING": "Téléchargement de la version {{version}}…",
         "APP_UPDATE_DOWNLOADED": "La version {{version}} est prête à être installée",
         "APP_UPDATE_MANUAL_AVAILABLE": "La version {{version}} est disponible pour une installation manuelle",
-        "APP_UPDATE_ERROR": "La recherche de mise à jour a échoué",
+        "APP_UPDATE_ERROR": "Échec de la mise à jour de l’application",
         "APP_UPDATE_CHECK": "Vérifier à nouveau",
         "APP_UPDATE_DOWNLOAD": "Mettre à jour",
         "APP_UPDATE_INSTALL": "Redémarrer l’application",
@@ -1250,6 +1250,9 @@
         "TWITTER_TOOLTIP": "Partager sur Twitter"
     },
     "UPDATE_AVAILABLE": "Mise à jour disponible",
+    "PWA_UPDATE_READY": "Une mise à jour est prête. Le rechargement arrête la lecture.",
+    "PWA_UPDATE_FAILED": "La mise à jour n’a pas pu être téléchargée. Vous pouvez continuer à utiliser cette version.",
+    "PWA_RELOAD_REQUIRED": "Les fichiers de l’application sont indisponibles. Rechargez une fois la connexion rétablie. La lecture s’arrêtera.",
     "REFRESH": "Actualiser",
     "XTREAM": {
         "PLAY": "Lire",

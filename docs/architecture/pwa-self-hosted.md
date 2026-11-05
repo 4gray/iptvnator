@@ -76,6 +76,40 @@ pnpm nx reset
 pnpm nx build web --configuration=pwa --skip-nx-cache
 ```
 
+## Application updates and offline recovery
+
+The global update panel loads `PwaUpdateService` once per enabled browser app lifetime. It
+announces only `VERSION_READY` as ready, offers Retry after installation or
+check failures, and rechecks once when the browser returns online. A manifest
+fetch failure resolves false without a version event, so Retry is restored in
+that case; a successful `NO_NEW_VERSION_DETECTED` clears an obsolete failure
+notice while preserving pending reloads. Refresh is
+explicit, warns that playback stops, and retains the browser's unsaved-settings
+beforeunload confirmation. Later check or candidate failures retain an already
+pending Refresh action. The deferred card uses the desktop notification's layout
+and remains reachable after a cancelled reload or a settings-save toast.
+Unrecoverable cache errors request a reload without claiming a new version is
+ready. Notifications use the normal translation pipeline;
+the English fallback dictionary is prefetched with the app shell so a first
+offline reload retains readable recovery controls. Electron does not start
+these subscriptions.
+
+Angular service worker 22.2.2 is pinned with
+`patches/@angular__service-worker@22.2.2.patch`. A failed candidate download
+previously moved the driver to `EXISTING_CLIENTS_ONLY`, making a subsequent
+offline navigation return an empty 504 even though the installed version was
+healthy. The patch retains the previous driver state after a failed candidate;
+it does not change candidate hash verification, initial installation or the
+degradation of a corrupt installed version. Retire it when an upstream worker
+passes the same regressions without the patch.
+
+`pnpm nx run web-e2e:test-service-worker` exercises the installed Driver methods.
+`pnpm nx run web-e2e:pwa-updates` builds the production PWA and uses its real
+worker, with isolated HTTP fixtures for manifest/candidate 503 and hash mismatch,
+offline reload, successful retry, persisted sources/theme and unsaved-settings
+cancellation.
+The normal dev-server E2E suite is not a substitute for this worker check.
+
 ## Xtream request cancellation
 
 Xtream import signals travel as a separate, renderer-local argument to

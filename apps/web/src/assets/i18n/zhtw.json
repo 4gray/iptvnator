@@ -664,7 +664,7 @@
         "APP_UPDATE_DOWNLOADING": "正在下載版本 {{version}}…",
         "APP_UPDATE_DOWNLOADED": "版本 {{version}} 已準備好安裝",
         "APP_UPDATE_MANUAL_AVAILABLE": "版本 {{version}} 可手動安裝",
-        "APP_UPDATE_ERROR": "檢查更新失敗",
+        "APP_UPDATE_ERROR": "應用程式更新失敗",
         "APP_UPDATE_CHECK": "再次檢查",
         "APP_UPDATE_DOWNLOAD": "更新",
         "APP_UPDATE_INSTALL": "重新啟動應用程式",
@@ -1250,6 +1250,9 @@
         "TWITTER_TOOLTIP": "在 Twitter 上分享"
     },
     "UPDATE_AVAILABLE": "有可用的更新",
+    "PWA_UPDATE_READY": "更新已就緒。重新載入將停止播放。",
+    "PWA_UPDATE_FAILED": "無法下載應用程式更新。您可以繼續使用目前版本。",
+    "PWA_RELOAD_REQUIRED": "應用程式檔案無法使用。請在網路恢復後重新載入。播放將停止。",
     "REFRESH": "重新整理",
     "XTREAM": {
         "PLAY": "播放",

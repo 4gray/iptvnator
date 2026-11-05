@@ -164,6 +164,12 @@
             },
             "defaultConfiguration": "production"
         },
+        "build-pwa": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "pnpm nx run web:build:pwa"
+            }
+        },
         "build-e2e": {
             "executor": "nx:run-commands",
             "options": {

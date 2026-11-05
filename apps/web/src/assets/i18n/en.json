@@ -664,7 +664,7 @@
         "APP_UPDATE_DOWNLOADING": "Downloading version {{version}}…",
         "APP_UPDATE_DOWNLOADED": "Version {{version}} is ready to install",
         "APP_UPDATE_MANUAL_AVAILABLE": "Version {{version}} is available for manual installation",
-        "APP_UPDATE_ERROR": "Update check failed",
+        "APP_UPDATE_ERROR": "Application update failed",
         "APP_UPDATE_CHECK": "Check again",
         "APP_UPDATE_DOWNLOAD": "Update",
         "APP_UPDATE_INSTALL": "Restart application",
@@ -1250,6 +1250,9 @@
         "TWITTER_TOOLTIP": "Share on Twitter"
     },
     "UPDATE_AVAILABLE": "Update available",
+    "PWA_UPDATE_READY": "An update is ready. Reloading stops playback.",
+    "PWA_UPDATE_FAILED": "The application update could not be downloaded. You can keep using this version.",
+    "PWA_RELOAD_REQUIRED": "Application files are unavailable. Reload when online to recover. Playback will stop.",
     "REFRESH": "Refresh",
     "XTREAM": {
         "PLAY": "Play",
