@@ -7,7 +7,7 @@ import {
     type HistorySnapshot,
 } from '@iptvnator/shared/interfaces/history-sync';
 import type { Playlist } from '@iptvnator/shared/interfaces';
-import type { IXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
+import type { XtreamContentItem } from '@iptvnator/portal/xtream/data-access';
 import type { HistoryPlaylistAdapter } from './history-playlist-adapter';
 import {
     xtreamFavoriteReference,
@@ -28,7 +28,7 @@ export interface HistoryPreview {
 }
 export async function previewLocalHistory(
     client: HistorySyncClient,
-    raw: IXtreamDataSource,
+    readRecent: (id: string) => Promise<XtreamContentItem[]>,
     adapter: HistoryPlaylistAdapter,
     sources: Playlist[],
     read: (id: string) => Promise<Playlist>
@@ -45,7 +45,7 @@ export async function previewLocalHistory(
         const scope = await client.refresh(source._id);
         const archive = source.serverUrl
             ? {
-                  items: (await raw.getRecentItems(source._id)).map((item) => ({
+                  items: (await readRecent(source._id)).map((item) => ({
                       reference: xtreamFavoriteReference(item),
                       snapshot: xtreamFavoriteSnapshot(item),
                       viewedAt: new Date(item.viewed_at ?? '').getTime() || 0,

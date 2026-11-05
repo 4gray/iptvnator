@@ -9,7 +9,7 @@ import {
     type HistoryScope,
 } from '@iptvnator/shared/interfaces/history-sync';
 import { m3uFavoriteReference } from '@iptvnator/shared/interfaces/favorites-sync';
-import type { Playlist } from '@iptvnator/shared/interfaces';
+import type { Playlist, StalkerPortalItem } from '@iptvnator/shared/interfaces';
 function fixture(provider: HistoryScope['provider']) {
     const scope: HistoryScope = {
         instanceId: 'nas',
@@ -298,5 +298,38 @@ describe('history provider projections', () => {
         );
         expect(f.read().pending).toEqual([]);
         expect(f.read().local).toHaveLength(1);
+    });
+    it('removes only the selected Stalker kind and series mode when provider IDs collide', async () => {
+        const f = fixture('stalker');
+        const references = [
+            { provider: 'stalker', kind: 'movie', id: '42' },
+            { provider: 'stalker', kind: 'live', id: '42' },
+            { provider: 'stalker', kind: 'series', id: '42', mode: 'regular' },
+            { provider: 'stalker', kind: 'series', id: '42', mode: 'lazy' },
+        ] as const;
+        for (const reference of references)
+            f.read().base = applyHistoryOperation(f.read().base, {
+                kind: 'touch',
+                reference,
+                baseRevision: 0,
+                viewedAt: 1,
+                operationId: 'remote',
+                deviceId: 'remote',
+            }).state;
+        const source = { ...playlist, macAddress: '00:1a:79:00:00:01' };
+        const adapter = new HistoryPlaylistAdapter(f.client, async (p) => p);
+        const rows = (await adapter.project(source))
+            .recentlyViewed! as StalkerPortalItem[];
+        await expect(
+            adapter.mutate(source, { kind: 'remove', identities: ['42'] })
+        ).rejects.toThrow('ambiguous');
+        const movie = rows.find(
+            (item) => item.favoriteContentType === 'vod' && !item.is_series
+        )!;
+        await adapter.mutate(source, { kind: 'remove', identities: [movie] });
+        expect((await adapter.project(source)).recentlyViewed).toHaveLength(3);
+        const lazy = rows.find((item) => item.is_series)!;
+        await adapter.mutate(source, { kind: 'remove', identities: [lazy] });
+        expect((await adapter.project(source)).recentlyViewed).toHaveLength(2);
     });
 });

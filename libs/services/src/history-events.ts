@@ -2,10 +2,11 @@ import { InjectionToken } from '@angular/core';
 import type {
     Playlist,
     PlaylistRecentlyViewedItem,
+    PlaylistRecentIdentity,
 } from '@iptvnator/shared/interfaces';
 export type HistoryPlaylistAction =
     | { kind: 'touch'; item: PlaylistRecentlyViewedItem }
-    | { kind: 'remove'; identities: (string | number)[] }
+    | { kind: 'remove'; identities: PlaylistRecentIdentity[] }
     | { kind: 'clear' };
 export interface HistoryPlaylistBridge {
     active(): boolean;

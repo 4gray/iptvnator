@@ -36,6 +36,7 @@ import {
     Playlist,
     PlaylistMetaUpdate,
     PlaylistRecentlyViewedItem,
+    PlaylistRecentIdentity,
     PlaylistUpdateState,
     StalkerPortalItem,
     normalizeStalkerDate,
@@ -1439,39 +1440,16 @@ export class PlaylistsService {
 
     removeFromPlaylistRecentlyViewed(
         playlistId: string,
-        identity: string | number
+        identity: PlaylistRecentIdentity
     ) {
-        if (!playlistId) {
-            throw new Error('Playlist ID is required');
-        }
-
-        return this.serializePlaylistWrite(playlistId, async () => {
-            const playlist = await firstValueFrom(
-                this.getPlaylistById(playlistId)
-            );
-            if (this.historySync.active()) {
-                const synced = await this.historySync.mutate(playlist, {
-                    kind: 'remove',
-                    identities: [identity],
-                });
-                if (synced) return synced;
-            }
-
-            return this.persistPlaylistMutation({
-                ...playlist,
-                recentlyViewed: (
-                    playlist.recentlyViewed as PlaylistRecentlyViewedItem[]
-                )?.filter(
-                    (item) =>
-                        !this.matchesPlaylistRecentIdentity(item, identity)
-                ),
-            });
-        });
+        return this.removeFromPlaylistRecentlyViewedBatch(playlistId, [
+            identity,
+        ]);
     }
 
     removeFromPlaylistRecentlyViewedBatch(
         playlistId: string,
-        identities: ReadonlyArray<string | number>
+        identities: ReadonlyArray<PlaylistRecentIdentity>
     ) {
         if (!playlistId) {
             throw new Error('Playlist ID is required');
@@ -1493,15 +1471,38 @@ export class PlaylistsService {
                 if (synced) return synced;
             }
 
+            // Typed history matching stays off the renderer's initial loading path.
+            const typed = identities.some(
+                (identity) => typeof identity === 'object'
+            )
+                ? await import('./playlist-favorites')
+                : null;
             return this.persistPlaylistMutation({
                 ...playlist,
                 recentlyViewed: (
                     playlist.recentlyViewed as PlaylistRecentlyViewedItem[]
                 )?.filter(
                     (item) =>
-                        !identities.some((identity) =>
-                            this.matchesPlaylistRecentIdentity(item, identity)
-                        )
+                        !identities.some((identity) => {
+                            if (typeof identity !== 'object')
+                                return this.matchesPlaylistRecentIdentity(
+                                    item,
+                                    identity
+                                );
+                            if (isM3uRecentlyViewedItem(identity))
+                                return (
+                                    isM3uRecentlyViewedItem(item) &&
+                                    item.url === identity.url
+                                );
+                            if (isM3uRecentlyViewedItem(item)) return false;
+                            return (
+                                typed!.removePortalFavorite(
+                                    [item],
+                                    extractStalkerItemId(identity),
+                                    identity
+                                ).length === 0
+                            );
+                        })
                 ),
             });
         });
@@ -1552,7 +1553,10 @@ export class PlaylistsService {
         return this.addPlaylistRecentlyViewed(playlistId, item);
     }
 
-    removeFromPortalRecentlyViewed(portalId: string, id: string | number) {
+    removeFromPortalRecentlyViewed(
+        portalId: string,
+        id: PlaylistRecentIdentity
+    ) {
         return this.removeFromPlaylistRecentlyViewed(portalId, id);
     }
 

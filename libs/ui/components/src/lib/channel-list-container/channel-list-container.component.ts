@@ -709,6 +709,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
 
         this.store.dispatch(
             PlaylistActions.updatePlaylistMeta({
+                persist: false,
                 playlist: {
                     _id: playlistId,
                     recentlyViewed: updatedPlaylist?.recentlyViewed ?? [],

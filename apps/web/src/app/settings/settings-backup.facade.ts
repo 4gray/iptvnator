@@ -70,14 +70,14 @@ export class SettingsBackupFacade {
                         : local,
                 async (playlist, entry) => {
                     const favorites = favoritesProfileUsed()
-                        ? (
+                        ? await (
                               await loadFavoritesRuntime(this.environment)
                           ).exportFavorites(playlist, entry)
-                        : Promise.resolve(entry);
+                        : entry;
                     return historyProfileUsed()
                         ? (
                               await loadHistoryRuntime(this.environment)
-                          ).exportHistory(playlist, await favorites)
+                          ).exportHistory(playlist, favorites)
                         : favorites;
                 }
             );

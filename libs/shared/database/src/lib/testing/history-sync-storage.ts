@@ -116,6 +116,38 @@ async function main() {
             }).applied,
             true
         );
+        const barriers = { ...scope, sourceId: 'independent-items' };
+        const otherReference = { ...reference, id: '43' };
+        server.apply(barriers, {
+            ...operation('remove', 'barrier-b'),
+            reference: otherReference,
+        });
+        server.apply(barriers, operation('touch', 'unrelated-a'));
+        assert.equal(
+            server.apply(barriers, {
+                ...operation('touch', 'stale-b'),
+                reference: otherReference,
+                after: 'unrelated-a',
+            }).applied,
+            false
+        );
+        server.apply(barriers, operation('remove', 'unrelated-remove-a'));
+        assert.equal(
+            server.apply(barriers, {
+                ...operation('touch', 'stale-b-after-remove-a'),
+                reference: otherReference,
+                after: 'unrelated-remove-a',
+            }).applied,
+            false
+        );
+        assert.equal(
+            server.apply(barriers, {
+                ...operation('touch', 'intentional-b'),
+                reference: otherReference,
+                after: 'barrier-b',
+            }).applied,
+            true
+        );
         assert.throws(() =>
             server.apply(
                 { ...scope, sourceIncarnation: 'second' },

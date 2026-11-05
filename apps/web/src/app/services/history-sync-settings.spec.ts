@@ -69,7 +69,7 @@ function fixture() {
     const preview = () =>
         previewLocalHistory(
             client,
-            raw as never,
+            raw.getRecentItems as never,
             {} as never,
             [source] as never,
             async () => source as never
@@ -123,6 +123,30 @@ describe('explicit local history import', () => {
         await f.client.command('source', { kind: 'clear' }, true);
         const preview = await f.preview();
         expect(preview.sources[0].items).toEqual([]);
+        expect(f.record().pending).toEqual([]);
+    });
+    it('previews every archive row beyond the native browsing limit', async () => {
+        const f = fixture();
+        const read = jest.fn(async () =>
+            Array.from({ length: 105 }, (_, index) => ({
+                id: index + 1,
+                xtream_id: index + 1,
+                type: 'movie',
+                title: 'Synthetic archived item',
+                viewed_at: new Date(index + 1).toISOString(),
+            }))
+        );
+        const preview = await previewLocalHistory(
+            f.client,
+            read as never,
+            {} as never,
+            [
+                { _id: 'source', serverUrl: 'https://synthetic.invalid' },
+            ] as never,
+            async () => ({}) as never
+        );
+        expect(preview.sources[0].items).toHaveLength(105);
+        expect(read).toHaveBeenCalledWith('source');
         expect(f.record().pending).toEqual([]);
     });
 });

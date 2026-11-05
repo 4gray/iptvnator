@@ -150,7 +150,25 @@ export class HistorySyncClient {
             this.current(scope);
             const record = current ?? emptyHistoryRecord();
             const previous =
-                record.pending[record.pending.length - 1]?.operation;
+                input.kind === 'touch'
+                    ? [...record.pending]
+                          .reverse()
+                          .find(
+                              ({ operation }) =>
+                                  operation.deviceId ===
+                                      this.options.deviceId &&
+                                  (operation.kind === 'clear' ||
+                                      (operation.kind === 'remove' &&
+                                          operation.reference &&
+                                          input.reference &&
+                                          favoriteReferenceKey(
+                                              operation.reference
+                                          ) ===
+                                              favoriteReferenceKey(
+                                                  input.reference
+                                              )))
+                          )?.operation
+                    : undefined;
             const operation = parseHistoryOperation({
                 ...input,
                 operationId,

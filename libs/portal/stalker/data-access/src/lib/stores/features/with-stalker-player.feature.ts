@@ -108,7 +108,8 @@ export function withStalkerPlayer() {
                                 {
                                     recentlyViewed:
                                         updatedPlaylist?.recentlyViewed,
-                                }
+                                },
+                                false
                             );
                         });
                 };

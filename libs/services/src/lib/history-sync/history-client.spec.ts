@@ -95,6 +95,23 @@ function fixture(store = new Store()) {
     };
 }
 describe('history delivery and consent', () => {
+    it('chains a rewatch only to its relevant remove or source clear, skipping unrelated touches', async () => {
+        const f = fixture();
+        f.online(false);
+        const other = { ...reference, id: '43' };
+        await f.client.command('source', { kind: 'remove', reference });
+        await f.client.command('source', { kind: 'touch', reference: other });
+        await f.client.command('source', { kind: 'touch', reference });
+        const pending = (await f.store.read(scope))!.pending;
+        expect(pending[1].operation.after).toBeUndefined();
+        expect(pending[2].operation.after).toBe(
+            pending[0].operation.operationId
+        );
+        await f.client.command('source', { kind: 'clear' });
+        await f.client.command('source', { kind: 'touch', reference: other });
+        const next = (await f.store.read(scope))!.pending;
+        expect(next[4].operation.after).toBe(next[3].operation.operationId);
+    });
     it('enabling reads state without uploading existing local history', async () => {
         const f = fixture();
         await f.client.refresh('source');

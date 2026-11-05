@@ -1,3 +1,4 @@
+import { stalkerFavoriteReference } from '@iptvnator/shared/interfaces/favorites-sync';
 import { HISTORY_PLAYLIST_BRIDGE } from '@iptvnator/services/history-events';
 import { inject, Injectable } from '@angular/core';
 import { normalizeXtreamContentTypes } from '@iptvnator/shared/interfaces';
@@ -22,6 +23,7 @@ import {
     Playlist,
     PlaylistMeta,
     PlaylistRecentlyViewedItem,
+    PlaylistRecentIdentity,
     PlaylistUpdateState,
     StalkerPortalItem,
 } from '@iptvnator/shared/interfaces';
@@ -101,7 +103,7 @@ export class UnifiedRecentDataService {
         const updatedPlaylist = await firstValueFrom(
             this.playlistsService.removeFromPortalRecentlyViewed(
                 item.playlistId,
-                item.stalkerId ?? item.uid.split('::')[2]
+                item.stalkerItem ?? item.stalkerId ?? item.uid.split('::')[2]
             )
         );
         this.dispatchPlaylistRecentUpdate(item.playlistId, updatedPlaylist);
@@ -126,7 +128,7 @@ export class UnifiedRecentDataService {
             contentType: UnifiedCollectionItem['contentType'];
             xtreamId?: number;
         }[] = [];
-        const groupedByPlaylist = new Map<string, (string | number)[]>();
+        const groupedByPlaylist = new Map<string, PlaylistRecentIdentity[]>();
 
         for (const item of items) {
             if (item.sourceType === 'xtream') {
@@ -144,7 +146,9 @@ export class UnifiedRecentDataService {
             const identity =
                 item.sourceType === 'm3u'
                     ? (item.streamUrl ?? item.uid.split('::')[2])
-                    : (item.stalkerId ?? item.uid.split('::')[2]);
+                    : (item.stalkerItem ??
+                      item.stalkerId ??
+                      item.uid.split('::')[2]);
 
             if (!identity) {
                 continue;
@@ -699,7 +703,15 @@ export class UnifiedRecentDataService {
             const imageUrl = extractStalkerItemPoster(item) || null;
 
             return {
-                uid: buildCollectionUid('stalker', meta._id, stalkerId),
+                uid: buildCollectionUid(
+                    'stalker',
+                    meta._id,
+                    this.history.active()
+                        ? JSON.stringify(
+                              stalkerFavoriteReference(item) ?? stalkerId
+                          )
+                        : stalkerId
+                ),
                 name: extractStalkerItemTitle(item),
                 contentType,
                 sourceType: 'stalker' as const,
@@ -756,6 +768,7 @@ export class UnifiedRecentDataService {
     ): void {
         this.store.dispatch(
             PlaylistActions.updatePlaylistMeta({
+                persist: false,
                 playlist: {
                     _id: playlistId,
                     recentlyViewed: updatedPlaylist?.recentlyViewed ?? [],

@@ -951,7 +951,7 @@ export class DashboardDataService {
 
     async removeGlobalRecentItem(item: GlobalRecentItem): Promise<void> {
         if (item.source === 'xtream') {
-            if (this.hasPortalActivityStorage) {
+            if (this.hasPortalActivityStorage && !this.history.active()) {
                 await this.dbService.removeRecentItem(
                     item.id as number,
                     item.playlist_id
@@ -961,6 +961,7 @@ export class DashboardDataService {
                     {
                         id: Number(item.id),
                         type: item.type as 'live' | 'movie' | 'series',
+                        providerId: Number(item.xtream_id),
                     },
                     item.playlist_id
                 );
@@ -973,12 +974,13 @@ export class DashboardDataService {
             const updatedPlaylist = await firstValueFrom(
                 this.playlistsService.removeFromPortalRecentlyViewed(
                     item.playlist_id,
-                    item.id
+                    item.stalker_item ?? item.id
                 )
             );
 
             this.store.dispatch(
                 PlaylistActions.updatePlaylistMeta({
+                    persist: false,
                     playlist: {
                         _id: item.playlist_id,
                         recentlyViewed: updatedPlaylist?.recentlyViewed ?? [],
@@ -998,6 +1000,7 @@ export class DashboardDataService {
 
             this.store.dispatch(
                 PlaylistActions.updatePlaylistMeta({
+                    persist: false,
                     playlist: {
                         _id: item.playlist_id,
                         recentlyViewed: updatedPlaylist?.recentlyViewed ?? [],

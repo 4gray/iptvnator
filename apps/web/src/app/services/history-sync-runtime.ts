@@ -20,6 +20,7 @@ import { firstValueFrom } from 'rxjs';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import {
     PlaylistsService,
+    DatabaseService,
     RuntimeCapabilitiesService,
     ParentalLockService,
 } from '@iptvnator/services';
@@ -62,6 +63,7 @@ import { FavoritesM3uCatalog } from './favorites-m3u-catalog';
 export class HistorySyncRuntime {
     private readonly capabilities = inject(RuntimeCapabilitiesService);
     private readonly playlists = inject(PlaylistsService);
+    private readonly database = inject(DatabaseService);
     private readonly locks = inject(ParentalLockService);
     private readonly sources = inject(SourceSyncService);
     private readonly store = inject(Store);
@@ -332,7 +334,10 @@ export class HistorySyncRuntime {
     async previewImport(): Promise<HistoryPreview> {
         return previewLocalHistory(
             this.ensure(),
-            this.raw,
+            (id) =>
+                this.capabilities.supportsXtreamSqliteDataSource
+                    ? this.database.getRecentItemsOrThrow(id)
+                    : this.raw.getRecentItems(id),
             this.adapter!,
             await this.rows(),
             (id) => firstValueFrom(this.playlists.getPlaylistById(id))

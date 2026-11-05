@@ -149,8 +149,43 @@ for (const provider of ['xtream', 'stalker'] as const)
             expect(current.items[0].viewedAt).toBeGreaterThan(
                 first.items[0].viewedAt
             );
+            if (provider === 'stalker') {
+                const received = await read();
+                const response = await fetch(
+                    `${server.apiUrl}/v1/history/operations`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-IPTVnator-Instance-Id': instanceId,
+                        },
+                        body: JSON.stringify({
+                            scope: received.scope,
+                            operation: {
+                                kind: 'touch',
+                                operationId: 'synthetic-collision',
+                                deviceId: 'synthetic-fixture',
+                                baseRevision: received.state.revision,
+                                viewedAt: Date.now(),
+                                reference: {
+                                    provider: 'stalker',
+                                    kind: 'live',
+                                    id: current.items[0].reference.id,
+                                },
+                                snapshot: { title: 'Synthetic collision' },
+                            },
+                        }),
+                    }
+                );
+                expect(response.ok).toBe(true);
+            }
             await openSources(native);
             await openGlobalRecent(native);
+            if (provider === 'stalker')
+                await native
+                    .locator('.content-toggle mat-button-toggle')
+                    .filter({ hasText: 'Movies' })
+                    .click();
             await clearCurrentUnifiedCollection(native);
             await expect
                 .poll(async () => {
@@ -160,7 +195,16 @@ for (const provider of ['xtream', 'stalker'] as const)
                             !item.removed && item.revision > state.cleared
                     ).length;
                 })
-                .toBe(0);
+                .toBe(provider === 'stalker' ? 1 : 0);
+            if (provider === 'stalker') {
+                const { state } = await read();
+                expect(
+                    state.items.filter(
+                        (item: { removed: boolean; revision: number }) =>
+                            !item.removed && item.revision > state.cleared
+                    )[0].reference.kind
+                ).toBe('live');
+            }
             await openGlobalRecent(page);
             await expect(contentCardByTitle(page, title)).toHaveCount(0, {
                 timeout: 30000,

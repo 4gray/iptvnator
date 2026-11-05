@@ -3,6 +3,7 @@ import {
     isM3uRecentlyViewedItem,
     type Playlist,
     type PlaylistRecentlyViewedItem,
+    type PlaylistRecentIdentity,
     type M3uRecentlyViewedItem,
 } from '@iptvnator/shared/interfaces';
 import type { HistorySyncClient } from '@iptvnator/services/history-sync';
@@ -15,6 +16,7 @@ import {
 import {
     favoriteReferenceKey,
     m3uFavoriteReference,
+    stalkerFavoriteReference,
 } from '@iptvnator/shared/interfaces/favorites-sync';
 import {
     playlistFavorite,
@@ -187,6 +189,28 @@ export class HistoryPlaylistAdapter {
         });
         return value;
     }
+    private matches(
+        item: LocalHistoryItem,
+        identity: PlaylistRecentIdentity
+    ): boolean {
+        if (typeof identity === 'object') {
+            if (isM3uRecentlyViewedItem(identity))
+                return (
+                    isM3uRecentlyViewedItem(item.original) &&
+                    identity.url === item.original.url
+                );
+            const reference = stalkerFavoriteReference(identity);
+            return (
+                !!reference &&
+                favoriteReferenceKey(reference) ===
+                    favoriteReferenceKey(item.reference)
+            );
+        }
+        return isM3uRecentlyViewedItem(item.original)
+            ? String(identity) === item.original.url
+            : String(identity).split(':')[0] ===
+                  extractStalkerItemId(item.original).split(':')[0];
+    }
     async mutate(
         playlist: Playlist,
         action: HistoryPlaylistAction
@@ -213,18 +237,19 @@ export class HistoryPlaylistAdapter {
                     ? { ...playlist, recentlyViewed: [action.item] }
                     : await this.project(playlist);
             const local = await this.local(projected);
+            if (action.kind === 'remove')
+                for (const id of action.identities)
+                    if (
+                        typeof id !== 'object' &&
+                        local.items.filter((item) => this.matches(item, id))
+                            .length > 1
+                    )
+                        throw new Error('History identity ambiguous');
             const items =
                 action.kind === 'touch'
                     ? local.items
                     : local.items.filter((item) =>
-                          action.identities.some((id) =>
-                              isM3uRecentlyViewedItem(item.original)
-                                  ? String(id) === item.original.url
-                                  : String(id).split(':')[0] ===
-                                    extractStalkerItemId(item.original).split(
-                                        ':'
-                                    )[0]
-                          )
+                          action.identities.some((id) => this.matches(item, id))
                       );
             if (action.kind === 'touch' && !items.length) return null;
             for (const item of items) {

@@ -1468,7 +1468,9 @@ A monotonic source revision assigns acceptance order. Server time supplies exist
 UI timestamps and increases even for touches within one millisecond. Removal
 revisions and a source clear barrier prevent obsolete offline touches from
 recreating deleted history. A same-device predecessor permits an intentional
-remove-then-watch queue; a rejected predecessor cannot grant a fresh revision.
+remove-then-watch queue; only a same-item removal or a source clear can advance
+its observed barrier. Unrelated or rejected predecessors cannot grant a fresh
+revision.
 Rejected stale watches remain local and can be explicitly previewed/imported.
 No absence-based deletion, automatic pruning or receipt TTL is introduced.
 The native Xtream browsing cap remains 100; archival storage is retained.
@@ -1498,7 +1500,9 @@ instance, consent and source incarnation, rechecking each imported action. Impor
 is explicit and places imported rows above shared history in their prior order.
 
 Global collections and Dashboard use the same history projection in both runtimes;
-explicit native reads/deletes do not bypass it. History refresh first reuses
+explicit native reads/deletes do not bypass it. Completion notifications update
+UI metadata with `persist: false`, preserving the raw archive. Native import
+preview reads all archived rows rather than the browsing limit. History refresh first reuses
 the source service to verify transport after startup or an outage. History invalidation reuses the
 collection page's guarded reload, retaining nested detail/player ownership.
 Mixed-runtime tests are in `history-sync.e2e.ts` and `history-provider-sync.e2e.ts`

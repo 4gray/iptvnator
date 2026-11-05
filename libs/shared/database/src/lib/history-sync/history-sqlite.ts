@@ -1,3 +1,4 @@
+import { favoriteReferenceKey } from '@iptvnator/shared/interfaces/favorites-sync';
 import type Database from 'better-sqlite3';
 import {
     historyScopeKey,
@@ -103,7 +104,7 @@ export class SqliteHistoryServerStore {
             if (operation.after) {
                 const predecessor = this.db
                     .prepare(
-                        'SELECT revision, scope_key, applied FROM history_server_receipts WHERE receipt_key = ?'
+                        'SELECT revision, scope_key, applied, command FROM history_server_receipts WHERE receipt_key = ?'
                     )
                     .get(
                         JSON.stringify([
@@ -112,11 +113,27 @@ export class SqliteHistoryServerStore {
                             operation.after,
                         ])
                     ) as
-                    | { revision: number; scope_key: string; applied: number }
+                    | {
+                          revision: number;
+                          scope_key: string;
+                          applied: number;
+                          command: string;
+                      }
                     | undefined;
                 if (!predecessor || predecessor.scope_key !== key)
                     throw new Error('History predecessor unavailable');
-                if (predecessor.applied)
+                const prior = JSON.parse(
+                    predecessor.command
+                )[1] as HistoryOperation;
+                if (
+                    predecessor.applied &&
+                    (prior.kind === 'clear' ||
+                        (prior.kind === 'remove' &&
+                            prior.reference &&
+                            operation.reference &&
+                            favoriteReferenceKey(prior.reference) ===
+                                favoriteReferenceKey(operation.reference)))
+                )
                     baseRevision = Math.max(baseRevision, predecessor.revision);
             }
             const state = this.readKey(key);
