@@ -109,7 +109,7 @@ describe('EpgTimelineTrackComponent', () => {
             const element: HTMLElement = fixture.nativeElement.querySelector(
                 '.epg-timeline__block-title'
             );
-            expect(element.classList.contains('is-upright')).toBe(upright);
+            expect(element.hasAttribute('data-upright')).toBe(upright);
             expect(element.textContent?.trim()).toBe(title);
         }
     );
@@ -124,10 +124,32 @@ describe('EpgTimelineTrackComponent', () => {
             const element: HTMLElement = fixture.nativeElement.querySelector(
                 '.epg-timeline__block-title'
             );
-            expect(element.classList.contains('is-upright')).toBe(
+            expect(element.hasAttribute('data-upright')).toBe(
                 title !== 'Test programme'
             );
         }
+    });
+
+    it('avoids no-op class mutations when rendering a non-CJK title', () => {
+        const observer = new MutationObserver(() => undefined);
+        observer.observe(fixture.nativeElement, {
+            attributes: true,
+            attributeOldValue: true,
+            attributeFilter: ['class'],
+            subtree: true,
+        });
+        fixture.componentRef.setInput('items', [renderBlock()]);
+        fixture.detectChanges();
+
+        const noOpTitleWrites = observer.takeRecords().filter((record) => {
+            const element = record.target as HTMLElement;
+            return (
+                element.classList.contains('epg-timeline__block-title') &&
+                record.oldValue === element.getAttribute('class')
+            );
+        });
+        observer.disconnect();
+        expect(noOpTitleWrites).toHaveLength(0);
     });
 
     it('shows a popover for a non-wide block on enter', () => {

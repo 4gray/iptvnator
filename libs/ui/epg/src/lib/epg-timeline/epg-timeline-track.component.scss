@@ -256,7 +256,7 @@
         -webkit-line-clamp: initial;
 
         // Native vertical scripts already read top-to-bottom with upright glyphs.
-        &.is-upright {
+        &[data-upright] {
             transform: none;
         }
     }

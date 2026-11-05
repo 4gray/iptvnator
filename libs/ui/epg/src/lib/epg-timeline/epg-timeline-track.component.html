@@ -67,8 +67,8 @@
                 </div>
                 <div
                     class="epg-timeline__block-title"
-                    [class.is-upright]="
-                        hasVerticalTitleScript(item.block.program.title)
+                    [attr.data-upright]="
+                        hasVerticalTitleScript(item.block.program.title) ? '' : null
                     "
                 >
                     {{ item.block.program.title }}

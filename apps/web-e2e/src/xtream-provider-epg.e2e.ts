@@ -24,6 +24,11 @@ test('@xtream @epg PWA keeps CJK narrow titles upright without rotating other sc
     page,
 }) => {
     await page.setViewportSize({ width: 1800, height: 1000 });
+    // CI's WenQuanYi Zen Hei has zero vertical advances for Han glyphs.
+    // Noto CJK is installed by the web E2E workflow; other hosts use fallback.
+    await page.addStyleTag({
+        content: `[data-upright] { font-family: 'Noto Sans CJK SC', sans-serif; }`,
+    });
     const titles = [
         { title: '测试甲乙', upright: true },
         { title: '測試甲乙', upright: true },
@@ -113,16 +118,26 @@ test('@xtream @epg PWA keeps CJK narrow titles upright without rotating other sc
                 const text = element.firstChild;
                 if (!text)
                     throw new Error('Expected a programme title text node');
-                const firstIndex = (text.textContent ?? '').search(/\S/);
+                const characters = Array.from(
+                    (text.textContent ?? '').matchAll(
+                        /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/gu
+                    )
+                );
+                const [first, second] = characters;
+                if (!first || !second)
+                    throw new Error('Expected two native vertical characters');
                 const range = document.createRange();
-                range.setStart(text, firstIndex);
-                range.setEnd(text, firstIndex + 1);
+                range.setStart(text, first.index);
+                range.setEnd(text, first.index + first[0].length);
                 const firstTop = range.getBoundingClientRect().top;
-                range.setStart(text, firstIndex + 1);
-                range.setEnd(text, firstIndex + 2);
+                range.setStart(text, second.index);
+                range.setEnd(text, second.index + second[0].length);
                 return range.getBoundingClientRect().top - firstTop;
             });
-            expect(direction).toBeGreaterThan(0);
+            expect(
+                direction,
+                `Vertical character order in ${title}`
+            ).toBeGreaterThan(0);
         }
         const longLabel = timeline
             .getByRole('button', { name: titles[6].title, exact: true })
