@@ -1509,7 +1509,9 @@ UI metadata with `persist: false`, preserving the raw archive. Native import
 preview and projection read all archived rows before applying the browsing limit.
 Projection filters locked categories first; archival import stays complete.
 History refresh first reuses the source service to verify transport after startup
-or an outage. History invalidation reuses the
+or an outage. Verified contexts are persisted in canonical source-ID order, so
+unchanged polling cannot trigger reciprocal storage-event refreshes between tabs
+with different context insertion orders. History invalidation reuses the
 collection page's guarded reload, retaining nested detail/player ownership.
 Mixed-runtime tests are in `history-sync.e2e.ts` and `history-provider-sync.e2e.ts`
 under the isolated source-sync Playwright configuration. Protocol, real multi-tab

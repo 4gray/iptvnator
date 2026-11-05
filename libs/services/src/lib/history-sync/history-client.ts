@@ -39,6 +39,11 @@ export class HistorySyncClient {
         for (const scope of options.contexts ?? [])
             this.contexts.set(scope.sourceId, parseHistoryScope(scope));
     }
+    private rememberContexts(): void {
+        this.options.remember(
+            [...this.contexts.keys()].sort().map((id) => this.contexts.get(id)!)
+        );
+    }
     current(scope?: HistoryScope): void {
         if (
             !this.options.active() ||
@@ -66,7 +71,7 @@ export class HistorySyncClient {
         if (response.status !== 200) {
             if ([404, 409].includes(response.status)) {
                 this.contexts.delete(sourceId);
-                this.options.remember([...this.contexts.values()]);
+                this.rememberContexts();
             }
             throw new Error(
                 response.status >= 500
@@ -86,7 +91,7 @@ export class HistorySyncClient {
         )
             throw new Error('History response scope mismatch');
         this.contexts.set(sourceId, scope);
-        this.options.remember([...this.contexts.values()]);
+        this.rememberContexts();
         await this.store.mutate(scope, (current) => {
             this.current(scope);
             if (this.options.consent() !== generation)

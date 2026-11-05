@@ -164,6 +164,37 @@ describe('history delivery and consent', () => {
         );
         expect((await f.store.read(scope))?.pending[0].consent).toBe('first');
     });
+    it('persists stable context order across discovery, polling and retirement', async () => {
+        const f = fixture();
+        const alpha = { ...scope, sourceId: 'alpha' };
+        const zeta = { ...scope, sourceId: 'zeta' };
+        f.client.contexts.clear();
+        f.client.contexts.set('zeta', zeta);
+        f.client.contexts.set('alpha', alpha);
+        await f.client.refresh('source');
+        expect(f.options.remember).toHaveBeenLastCalledWith([
+            alpha,
+            scope,
+            zeta,
+        ]);
+        f.client.contexts.delete('zeta');
+        f.client.contexts.set('zeta', zeta);
+        f.remote({ revision: 2, cleared: 2, items: [] });
+        await f.client.refresh('source');
+        expect(f.options.remember).toHaveBeenLastCalledWith([
+            alpha,
+            scope,
+            zeta,
+        ]);
+        expect((await f.store.read(scope))?.base.revision).toBe(2);
+        f.request.mockImplementation(
+            async () => ({ status: 404, body: {} }) as never
+        );
+        await expect(f.client.refresh('source')).rejects.toThrow('unavailable');
+        expect(f.options.remember).toHaveBeenLastCalledWith([alpha, zeta]);
+        await expect(f.client.refresh('source')).rejects.toThrow('unavailable');
+        expect(f.options.remember).toHaveBeenLastCalledWith([alpha, zeta]);
+    });
     it('enabling reads state without uploading existing local history', async () => {
         const f = fixture();
         await f.client.refresh('source');
