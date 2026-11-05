@@ -183,6 +183,7 @@ describe('history provider projections', () => {
         });
         const raw = {
             getRecentItems: jest.fn().mockResolvedValue([]),
+            getCachedCategories: jest.fn().mockResolvedValue([]),
             getContentByXtreamId: jest.fn().mockResolvedValue({
                 id: 99,
                 type: 'movie',
@@ -420,5 +421,151 @@ describe('history provider projections', () => {
                 'unverified',
             ])
         ).toBe(false);
+    });
+    it('retains saved identity and presentation until a sparse catalog row confirms them', async () => {
+        const f = fixture('xtream');
+        const reference = {
+            provider: 'xtream',
+            kind: 'movie',
+            id: '42',
+        } as const;
+        f.read().base = applyHistoryOperation(f.read().base, {
+            kind: 'touch',
+            reference,
+            snapshot: {
+                title: 'Synthetic saved',
+                tmdbId: '100',
+                releaseYear: '2024',
+            },
+            operationId: 'remote',
+            deviceId: 'remote',
+            baseRevision: 0,
+            viewedAt: 1,
+        }).state;
+        const raw = {
+            getRecentItems: jest.fn().mockResolvedValue([]),
+            getContentByXtreamId: jest.fn().mockResolvedValue({
+                id: 9,
+                xtream_id: 42,
+                type: 'movie',
+                category_id: 7,
+                title: 'Synthetic unconfirmed',
+                poster_url: 'https://synthetic.invalid/new.jpg',
+            }),
+        };
+        const adapter = new HistoryXtreamAdapter(f.client, true, locks);
+        expect(await adapter.project(raw as never, 'source')).toEqual([
+            expect.objectContaining({
+                title: 'Synthetic saved',
+                tmdb_id: 100,
+                release_year: 2024,
+                poster_url: '',
+            }),
+        ]);
+        raw.getRecentItems.mockResolvedValue([
+            {
+                id: 9,
+                xtream_id: 42,
+                type: 'movie',
+                category_id: 7,
+                title: 'Synthetic unconfirmed archive',
+                poster_url: 'https://synthetic.invalid/new.jpg',
+            },
+        ]);
+        expect(await adapter.project(raw as never, 'source')).toEqual([
+            expect.objectContaining({
+                title: 'Synthetic saved',
+                tmdb_id: 100,
+                release_year: 2024,
+                poster_url: '',
+            }),
+        ]);
+        raw.getRecentItems.mockResolvedValue([]);
+        raw.getContentByXtreamId.mockResolvedValue({
+            id: 9,
+            xtream_id: 42,
+            type: 'movie',
+            category_id: 7,
+            title: 'Synthetic confirmed',
+            poster_url: 'https://synthetic.invalid/new.jpg',
+            tmdb_id: 100,
+            release_year: 2024,
+        } as never);
+        expect(await adapter.project(raw as never, 'source')).toEqual([
+            expect.objectContaining({
+                title: 'Synthetic confirmed',
+                poster_url: 'https://synthetic.invalid/new.jpg',
+                tmdb_id: 100,
+                release_year: 2024,
+            }),
+        ]);
+    });
+    it('applies sidecar removals before the native 100-row browsing cap', async () => {
+        const f = fixture('xtream');
+        const rows = Array.from({ length: 101 }, (_, index) => ({
+            id: index + 1,
+            xtream_id: index + 1,
+            type: 'movie',
+            title: 'Synthetic archive',
+            viewed_at: new Date(1000 - index).toISOString(),
+        }));
+        for (let id = 1; id <= 100; id++)
+            f.read().base = applyHistoryOperation(f.read().base, {
+                kind: 'remove',
+                reference: {
+                    provider: 'xtream',
+                    kind: 'movie',
+                    id: String(id),
+                },
+                operationId: String(id),
+                deviceId: 'other',
+                baseRevision: 0,
+                viewedAt: 2000,
+            }).state;
+        const raw = {
+            getRecentItems: jest.fn(
+                async (_id: string, options?: { all: true }) =>
+                    options?.all ? rows : rows.slice(0, 100)
+            ),
+        };
+        const result = await new HistoryXtreamAdapter(
+            f.client,
+            true,
+            locks
+        ).project(raw as never, 'source');
+        expect(result).toEqual([expect.objectContaining({ xtream_id: 101 })]);
+        expect(raw.getRecentItems).toHaveBeenCalledWith('source', {
+            all: true,
+        });
+    });
+    it('filters complete native archives through cached allowed categories', async () => {
+        const f = fixture('xtream');
+        const rows = [7, 8].map((category_id) => ({
+            id: category_id,
+            xtream_id: category_id,
+            type: 'movie',
+            title: 'Synthetic archive',
+            category_id,
+        }));
+        const raw = {
+            getRecentItems: jest.fn().mockResolvedValue(rows),
+            getCachedCategories: jest.fn().mockResolvedValue([{ id: 7 }]),
+        };
+        let withholding = false;
+        const adapter = new HistoryXtreamAdapter(f.client, true, {
+            ...locks,
+            active: () => true,
+            withholdsEverything: () => withholding,
+        });
+        expect(await adapter.project(raw as never, 'source')).toEqual([
+            rows[0],
+        ]);
+        expect(raw.getCachedCategories.mock.calls).toEqual([
+            ['source', 'live'],
+            ['source', 'vod'],
+            ['source', 'series'],
+        ]);
+        withholding = true;
+        expect(await adapter.project(raw as never, 'source')).toEqual([]);
     });
 });

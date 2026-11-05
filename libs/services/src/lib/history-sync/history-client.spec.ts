@@ -112,6 +112,58 @@ describe('history delivery and consent', () => {
         const next = (await f.store.read(scope))!.pending;
         expect(next[4].operation.after).toBe(next[3].operation.operationId);
     });
+    it('keeping a parked source local leaves another source current queue untouched', async () => {
+        const f = fixture();
+        f.online(false);
+        const other = {
+            ...scope,
+            sourceId: 'other-source',
+            sourceIncarnation: 'other-incarnation',
+        };
+        f.client.contexts.set(other.sourceId, other);
+        await f.client.command('source', { kind: 'touch', reference });
+        f.consent('new');
+        await f.client.command(other.sourceId, { kind: 'touch', reference });
+        await f.client.parked('source', false);
+        await f.client.parked(other.sourceId, false);
+        expect((await f.store.read(scope))?.pending).toHaveLength(0);
+        expect((await f.store.read(other))?.pending).toHaveLength(1);
+    });
+    it('keeps current-generation successors queued when an older removal stays local', async () => {
+        const f = fixture();
+        f.online(false);
+        await f.client.command('source', { kind: 'remove', reference });
+        f.consent('new');
+        await f.client.command('source', { kind: 'touch', reference });
+        await f.client.parked('source', false);
+        const record = await f.store.read(scope);
+        expect(record?.pending).toHaveLength(1);
+        expect(record?.pending[0].operation.after).toBeUndefined();
+        expect(record?.local).toEqual([]);
+        await f.client.flush('source').catch(() => undefined);
+        f.online(true);
+        await f.client.flush('source');
+        expect(visibleHistory((await f.client.state('source'))!)).toHaveLength(
+            1
+        );
+    });
+    it('does not apply an old keep-local choice after consent changes during storage work', async () => {
+        const f = fixture();
+        f.online(false);
+        await f.client.command('source', { kind: 'touch', reference });
+        f.consent('new');
+        const mutate = f.store.mutate.bind(f.store);
+        jest.spyOn(f.store, 'mutate').mockImplementationOnce(
+            async (scope, update) => {
+                f.consent('newer');
+                return mutate(scope, update);
+            }
+        );
+        await expect(f.client.parked('source', false)).rejects.toThrow(
+            'consent changed'
+        );
+        expect((await f.store.read(scope))?.pending[0].consent).toBe('first');
+    });
     it('enabling reads state without uploading existing local history', async () => {
         const f = fixture();
         await f.client.refresh('source');

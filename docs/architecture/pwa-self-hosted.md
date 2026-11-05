@@ -1494,16 +1494,20 @@ it does not silently clear other content types or sources.
 Disable persists new consent before asynchronous work and stops delivery/remote
 application. Existing sidecars remain readable; new local actions cannot be
 replaced by late acknowledgements. A new enable never replays the prior consent's
-queue automatically: settings offer send or keep-local. Disabled/new sources with
-no verified history context retain ordinary local persistence. Preview captures
+queue automatically: settings offer send or keep-local. A keep-local choice affects
+only earlier-consent work, preserving authorized current queues in this and other
+sources. Unsent successors lose references to predecessors kept local.
+Disabled/new sources with no verified history context retain ordinary local persistence. Preview captures
 instance, consent and source incarnation, rechecking each imported action. Import
 is explicit and places imported rows above shared history in their prior order.
 
 Global collections and Dashboard use the same history projection in both runtimes;
 explicit native reads/deletes do not bypass it. Completion notifications update
 UI metadata with `persist: false`, preserving the raw archive. Native import
-preview reads all archived rows rather than the browsing limit. History refresh first reuses
-the source service to verify transport after startup or an outage. History invalidation reuses the
+preview and projection read all archived rows before applying the browsing limit.
+Projection filters locked categories first; archival import stays complete.
+History refresh first reuses the source service to verify transport after startup
+or an outage. History invalidation reuses the
 collection page's guarded reload, retaining nested detail/player ownership.
 Mixed-runtime tests are in `history-sync.e2e.ts` and `history-provider-sync.e2e.ts`
 under the isolated source-sync Playwright configuration. Protocol, real multi-tab

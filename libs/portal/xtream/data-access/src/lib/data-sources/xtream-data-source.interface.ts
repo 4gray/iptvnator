@@ -361,7 +361,10 @@ export interface IXtreamDataSource {
     /**
      * Get recently viewed items for a playlist
      */
-    getRecentItems(playlistId: string): Promise<XtreamContentItem[]>;
+    getRecentItems(
+        playlistId: string,
+        options?: { all: true }
+    ): Promise<XtreamContentItem[]>;
 
     /**
      * Add item to recently viewed. See `addFavorite` for `backdropUrl`.

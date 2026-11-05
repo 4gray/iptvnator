@@ -36,13 +36,29 @@ export class HistoryXtreamAdapter {
         const scope = this.client.contexts.get(id);
         if (this.locks.withholdsEverything()) return [];
         const lockVersion = this.locks.version();
-        const local = await raw.getRecentItems(id);
+        let local = await raw.getRecentItems(
+            id,
+            this.sqlite ? { all: true } : undefined
+        );
+        if (this.sqlite && this.locks.active()) {
+            const categories = await Promise.all(
+                (['live', 'vod', 'series'] as const).map((kind) =>
+                    raw.getCachedCategories(id, kind)
+                )
+            );
+            const allowed = new Set<number>();
+            for (const rows of categories)
+                for (const row of rows) allowed.add(row.id);
+            local = local.filter((row) => allowed.has(Number(row.category_id)));
+        }
         let state = await this.client.state(id);
         if (!state)
             return this.locks.withholdsEverything() ||
                 this.locks.version() !== lockVersion
                 ? []
-                : local;
+                : this.sqlite
+                  ? local.slice(0, 100)
+                  : local;
         if (!this.sqlite) {
             const missing = new Set<'live' | 'movie' | 'series'>();
             const checked = new Set<'live' | 'movie' | 'series'>();
@@ -94,12 +110,12 @@ export class HistoryXtreamAdapter {
                 mapped.delete(key);
                 continue;
             }
+            const original = local.find(
+                (row) =>
+                    favoriteReferenceKey(xtreamFavoriteReference(row)) === key
+            );
             const candidate =
-                local.find(
-                    (row) =>
-                        favoriteReferenceKey(xtreamFavoriteReference(row)) ===
-                        key
-                ) ??
+                original ??
                 (await raw.getContentByXtreamId(
                     Number(ref.id),
                     id,
@@ -123,6 +139,11 @@ export class HistoryXtreamAdapter {
                 mapped.delete(key);
                 continue;
             }
+            const unconfirmed = hasXtreamFavoriteIdentityConflict(
+                item.snapshot,
+                candidate,
+                true
+            );
             mapped.set(key, {
                 ...(candidate ?? {
                     id: Number(ref.id),
@@ -133,6 +154,22 @@ export class HistoryXtreamAdapter {
                     poster_url: '',
                     catalog_status: 'unknown',
                 }),
+                ...(unconfirmed
+                    ? {
+                          poster_url: '',
+                          backdrop_url: undefined,
+                          original_title: undefined,
+                      }
+                    : {}),
+                ...(item.snapshot?.tmdbId
+                    ? { tmdb_id: Number(item.snapshot.tmdbId) }
+                    : {}),
+                ...(item.snapshot?.releaseYear
+                    ? { release_year: Number(item.snapshot.releaseYear) }
+                    : {}),
+                title: unconfirmed
+                    ? (item.snapshot?.title ?? '')
+                    : candidate?.title?.trim() || item.snapshot?.title || '',
                 xtream_id: Number(ref.id),
                 type: ref.kind,
                 viewed_at: new Date(item.viewedAt).toISOString(),

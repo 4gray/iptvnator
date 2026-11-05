@@ -20,7 +20,6 @@ import { firstValueFrom } from 'rxjs';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import {
     PlaylistsService,
-    DatabaseService,
     RuntimeCapabilitiesService,
     ParentalLockService,
 } from '@iptvnator/services';
@@ -63,11 +62,11 @@ import { FavoritesM3uCatalog } from './favorites-m3u-catalog';
 export class HistorySyncRuntime {
     private readonly capabilities = inject(RuntimeCapabilitiesService);
     private readonly playlists = inject(PlaylistsService);
-    private readonly database = inject(DatabaseService);
     private readonly locks = inject(ParentalLockService);
     private readonly sources = inject(SourceSyncService);
     private readonly store = inject(Store);
-    private readonly raw = this.capabilities.supportsXtreamSqliteDataSource
+    private readonly raw: IXtreamDataSource = this.capabilities
+        .supportsXtreamSqliteDataSource
         ? inject(ElectronXtreamDataSource)
         : inject(PwaXtreamDataSource);
     private client?: HistorySyncClient;
@@ -170,10 +169,12 @@ export class HistorySyncRuntime {
         return this.adapter!.project(playlist);
     }
     async mutate(playlist: Playlist, action: HistoryPlaylistAction) {
-        this.ensure();
+        const client = this.ensure();
+        const scope = client.contexts.get(playlist._id);
         try {
             const result = await this.adapter!.mutate(playlist, action);
             await this.summary();
+            client.current(scope);
             return result;
         } catch {
             this.error.set(true);
@@ -181,10 +182,23 @@ export class HistorySyncRuntime {
         }
     }
     async invoke(raw: IXtreamDataSource, method: string, args: unknown[]) {
-        this.ensure();
+        const client = this.ensure();
+        const id = String(
+            args[
+                [
+                    'getRecentItems',
+                    'clearRecentItems',
+                    'supportsPortableHistory',
+                ].includes(method)
+                    ? 0
+                    : 1
+            ]
+        );
+        const scope = client.contexts.get(id);
         try {
             const result = await this.xtream!.invoke(raw, method, args);
             await this.summary();
+            client.current(scope);
             return result;
         } catch {
             this.error.set(true);
@@ -336,7 +350,7 @@ export class HistorySyncRuntime {
             this.ensure(),
             (id) =>
                 this.capabilities.supportsXtreamSqliteDataSource
-                    ? this.database.getRecentItemsOrThrow(id)
+                    ? this.raw.getRecentItems(id, { all: true })
                     : this.raw.getRecentItems(id),
             this.adapter!,
             await this.rows(),

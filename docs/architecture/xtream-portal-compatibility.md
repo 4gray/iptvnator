@@ -1246,3 +1246,10 @@ rechecks history and locks before publication; membership writes remain cache-on
 PWA cache lookups honor the existing `excludeLocked` collection flag, filtering
 candidate duplicates before identity selection and withholding unknown category
 ownership. Default lookups remain unfiltered for the PIN guard.
+
+History uses the existing uncapped native archive read through the data source
+before applying sidecar removals and the final 100-row browsing limit. Locked
+collections resolve allowed native categories before publishing these rows; a
+full import preview retains the complete archive. Sparse received rows keep
+saved TMDB/year hints and title; unconfirmed catalog presentation cannot replace
+that protected snapshot. Fully confirming rows may refresh its presentation.

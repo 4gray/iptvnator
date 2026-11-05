@@ -531,8 +531,13 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
     // Recently Viewed Operations
     // =========================================================================
 
-    async getRecentItems(playlistId: string): Promise<XtreamContentItem[]> {
-        return this.dbService.getRecentItems(playlistId);
+    async getRecentItems(
+        playlistId: string,
+        options?: { all: true }
+    ): Promise<XtreamContentItem[]> {
+        return options?.all
+            ? this.dbService.getRecentItemsOrThrow(playlistId)
+            : this.dbService.getRecentItems(playlistId);
     }
 
     async addRecentItem(

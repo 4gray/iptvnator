@@ -305,9 +305,18 @@ export class HistorySyncClient {
     async parked(sourceId: string, send: boolean): Promise<void> {
         const scope = await this.scope(sourceId);
         const generation = this.options.consent();
+        const snapshot = await this.store.read(scope);
+        this.current(scope);
+        if (!snapshot?.pending.some((p) => p.consent !== generation)) return;
         await this.store.mutate(scope, (current) => {
             this.current(scope);
             const record = current ?? emptyHistoryRecord();
+            if (generation !== this.options.consent())
+                throw new Error('History consent changed');
+            const parked = record.pending.filter(
+                (p) => p.consent !== generation
+            );
+            if (!parked.length) return record;
             if (send) {
                 if (!generation || generation !== this.options.consent())
                     throw new Error('History consent changed');
@@ -319,34 +328,63 @@ export class HistorySyncClient {
                     })),
                 };
             }
-            const all = [
-                ...record.pending.map((p) => p.operation),
-                ...record.local,
-            ];
+            const parkedIds = new Set(
+                parked.map((p) => p.operation.operationId)
+            );
+            const pending = record.pending
+                .filter((p) => p.consent === generation)
+                .map((p) => {
+                    if (!p.operation.after || !parkedIds.has(p.operation.after))
+                        return p;
+                    // The parked head blocked delivery, so this successor has never been sent.
+                    const operation = { ...p.operation };
+                    delete operation.after;
+                    return { ...p, operation };
+                });
+            const all = parked.map((p) => p.operation);
             const references = new Map(
                 [
                     ...record.base.items.map((item) => item.reference),
-                    ...all.reduce<NonNullable<HistoryOperation['reference']>[]>(
-                        (refs, op) =>
-                            op.reference ? [...refs, op.reference] : refs,
-                        []
-                    ),
+                    ...[...all, ...record.local].reduce<
+                        NonNullable<HistoryOperation['reference']>[]
+                    >((refs, op) => {
+                        if (op.reference) refs.push(op.reference);
+                        return refs;
+                    }, []),
                 ].map((ref) => [favoriteReferenceKey(ref), ref])
             );
-            const local = all.reduce<HistoryOperation[]>(
-                (kept, op) =>
-                    op.kind === 'clear'
-                        ? [...references.values()].map((reference) => ({
-                              ...op,
-                              kind: 'remove',
-                              reference,
-                          }))
-                        : retainLocalHistory(kept, op),
-                []
+            const converted = all
+                .reduce<HistoryOperation[]>(
+                    (kept, op) =>
+                        op.kind === 'clear'
+                            ? [...references.values()].map((reference) => ({
+                                  ...op,
+                                  kind: 'remove',
+                                  reference,
+                              }))
+                            : retainLocalHistory(kept, op),
+                    []
+                )
+                .filter(
+                    (op) =>
+                        !pending.some(
+                            (p) =>
+                                p.operation.kind === 'clear' ||
+                                (p.operation.reference &&
+                                    op.reference &&
+                                    favoriteReferenceKey(
+                                        p.operation.reference
+                                    ) === favoriteReferenceKey(op.reference))
+                        )
+                );
+            const local = [...converted, ...record.local].reduce(
+                retainLocalHistory,
+                [] as HistoryOperation[]
             );
-            return { ...record, pending: [], local };
+            return { ...record, pending, local };
         });
         this.options.changed();
-        await this.flush(sourceId);
+        if (send) await this.flush(sourceId);
+        else void this.flush(sourceId).catch(() => undefined);
     }
 }
