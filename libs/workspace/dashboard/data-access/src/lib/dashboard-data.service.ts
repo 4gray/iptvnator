@@ -72,7 +72,6 @@ import { createDashboardContinueWatching } from './dashboard-continue-watching';
 import {
     emptyDashboardPlaybackPositionMaps,
     loadDashboardPlaybackPositions,
-    newestPlaybackPosition,
     playbackPositionMapKey,
     seriesPlaybackPositionMapKey,
 } from './dashboard-playback-positions';
@@ -345,7 +344,8 @@ export class DashboardDataService {
             this.playbackPositionMaps().newestBySeries.get(
                 seriesPlaybackPositionMapKey(item.playlist_id, xtreamId)
             ) ?? null;
-        return newestPlaybackPosition(episodePosition, seriesPosition);
+        // Episode and series ids can collide; parent ownership beats recency.
+        return seriesPosition ?? episodePosition;
     }
 
     /**
