@@ -520,4 +520,37 @@ describe('favorites delivery and consent boundaries', () => {
         expect(f.states.get(favoriteAddressKey(address))?.revision).toBe(1);
         expect(f.receipts.size).toBe(1);
     });
+    it('deduplicates identical offline imports before delivery without creating a conflict with itself', async () => {
+        const f = fixture();
+        f.online(false);
+        await f.client.set(
+            'source',
+            ref,
+            true,
+            {
+                title: 'Synthetic imported item',
+                tmdbId: '100',
+                releaseYear: '2024',
+            },
+            true
+        );
+        await f.client.set(
+            'source',
+            ref,
+            true,
+            {
+                releaseYear: '2024',
+                tmdbId: '100',
+                title: 'Synthetic imported item',
+            },
+            true
+        );
+        expect((await f.local.read(address))?.pending).toHaveLength(1);
+        f.online(true);
+        await f.client.refresh('source');
+        const saved = await f.local.read(address);
+        expect(saved?.pending).toHaveLength(0);
+        expect(saved?.conflict).toBeUndefined();
+        expect(f.states.get(favoriteAddressKey(address))?.revision).toBe(1);
+    });
 });

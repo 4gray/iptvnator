@@ -44,6 +44,7 @@ describe('typed shared Stalker favorites collection', () => {
             },
             playlistsService: {
                 getPlaylistById: () => of(source),
+                preparePortalFavoriteActions: async () => undefined,
                 transformPlaylistFavorites,
                 removeFromPortalFavorites,
             },

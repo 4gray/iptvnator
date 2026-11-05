@@ -72,7 +72,6 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
     ): Promise<Playlist> {
         const current = await this.local.dbGetAppPlaylist(source.id);
         const next = await this.materialize(source, current ?? initial);
-        this.retireChangedSource(current, source);
         next.sourceSyncBase = source;
         next.sourceSyncRevision = revision;
         const merge = (latest: Playlist | null) => {
@@ -90,6 +89,7 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
                     return latest;
                 throw new PlaylistWriteConflict(source.id);
             }
+            this.retireChangedSource(latest, source);
             return latest ? retainSourceProjection(next, latest) : next;
         };
         const projected = this.local.dbMutateAppPlaylist
@@ -190,7 +190,6 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
             );
             next.sourceSyncBase = accepted;
             next.sourceSyncRevision = revision;
-            this.retireChangedSource(current, accepted);
             // A local mutation based on an older snapshot cannot revert a remote edit.
             const merge = (latest: Playlist | null): Playlist => {
                 if (!latest && playlist.sourceSyncBase)
@@ -204,13 +203,19 @@ export class SyncedPlaylistStore implements PlaylistDocumentStore {
                         next,
                         metadataOnly
                     );
-                return latest?.sourceSyncBase &&
+                const projected =
+                    latest?.sourceSyncBase &&
                     baseline &&
                     sameSource(source, baseline) &&
                     (!sameSource(latest.sourceSyncBase, baseline) ||
                         latest.sourceSyncPending !== playlist.sourceSyncPending)
-                    ? retainSourceProjection(latest, next)
-                    : next;
+                        ? retainSourceProjection(latest, next)
+                        : next;
+                this.retireChangedSource(
+                    latest,
+                    sourceFromPlaylist(projected, true)
+                );
+                return projected;
             };
             if (this.local.dbMutateAppPlaylist)
                 next = await this.local.dbMutateAppPlaylist(

@@ -744,6 +744,7 @@ export class UnifiedFavoritesDataService {
         if (!meta.favorites?.length) return [];
         let playlist: Playlist | undefined;
         try {
+            await this.playlistsService.preparePortalFavoriteActions();
             playlist = (await firstValueFrom(
                 this.playlistsService.getPlaylistById(meta._id)
             )) as Playlist | undefined;

@@ -53,6 +53,7 @@ describe('UnifiedFavoritesDataService', () => {
         select: jest.Mock;
     };
     let playlistsService: {
+        preparePortalFavoriteActions: jest.Mock;
         addPortalFavorite: jest.Mock;
         getPlaylistById: jest.Mock;
         transformPlaylistFavorites: jest.Mock;
@@ -139,6 +140,9 @@ describe('UnifiedFavoritesDataService', () => {
         });
 
         playlistsService = {
+            preparePortalFavoriteActions: jest
+                .fn()
+                .mockResolvedValue(undefined),
             addPortalFavorite: jest.fn().mockReturnValue(of({})),
             getPlaylistById: jest.fn(),
             // Faithful default: read the playlist through the configured

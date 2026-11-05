@@ -773,3 +773,39 @@ retire that context before creation too. Refresh the affected unit/type/lint/
 build gates and the focused first-offline/ID-reuse journeys before committing.
 The existing feature release note covers these lifecycle fixes. No thresholds,
 baselines, retries or assertions are weakened.
+
+Local Codex round 24 reviews c0a6e3b7b and reproduces three remaining gaps:
+retirement runs before stale-write validation, unified Stalker collection reads
+do not warm the removal chunk, and identical offline imports enqueue two adds
+that conflict with each other on delivery. Three unit regressions fail before
+repair and pass afterwards: reject a stale activity write without retirement,
+reuse a sibling projection without retirement, and reconnect two identical
+imports with one queued operation and no conflict. Move retirement into the
+guarded merge and compare the actual projected identity; deduplicate canonical
+snapshot/membership imports only after checking parked consent.
+
+Warm the existing action module through PlaylistsService before unified Stalker
+rows are published. A new synthetic browser E2E seeds a local favorite, enters
+unified favorites directly in a fresh document, blocks late JavaScript and
+favorites requests, removes the first item and verifies IndexedDB and reload.
+The old reader fails with the favorite still stored; the fixed reader passes
+in 4.4 seconds. An initial application compile found unsupported Array.at;
+replace it with indexing without changing the configured library target.
+That failed compile is not validation; rerun the old-reader proof with a clean
+build and the full 26-case mixed PWA/Electron suite. Current services 1,420,
+web 888 and portal shared data-access tests pass; merged coverage passes at
+85.66/77.49/83.96/86.16 percent. App/spec types, owning lint and production web
+build pass; initial bytes are 1,199,002 / 1,200,301. No baselines, thresholds,
+assertions or retry policy change. The existing unreleased feature note covers
+these fixes; commit the final checks before the next local Codex review.
+
+Round 24 final validation: the old unified reader fails again on a clean
+application build, keeping one favorite after offline removal; the repaired
+reader passes, and all 26 mixed PWA/Electron flows pass in 5.6 minutes.
+The final guarded-merge spec passes with its original default lock namespace.
+Services 1,420, web 888 and portal shared data-access coverage pass; the
+36-project merge stays at 85.66/77.49/83.96/86.16 percent. App types, all 42
+spec programs, four owning lint targets, formatting, whitespace, guidance,
+release notes and the production frontend pass. Initial bytes are 1,199,002 /
+1,200,301. Commit and run local Codex round 25; the Greptile CLI exception
+still applies, and the GitHub reviewer/CI must run after the final clean push.

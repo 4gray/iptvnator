@@ -1280,6 +1280,10 @@ Metadata-only edits retain the context. Runtime and cross-tab retirement notices
 invalidate memory without rewriting another tab's context cache; old durable
 records remain retained. An unverified replacement uses ordinary local favorites
 until its new context is verified.
+Retirement follows the guarded merge: rejected stale writes and reuse of a
+sibling's completed projection do not invalidate its valid context. Repeated
+identical imports already queued in the current consent generation are no-ops;
+their first delivery cannot conflict with a duplicate from the same import.
 Network failures and HTTP 5xx can queue edits against a previously verified source
 context. Without that context, or after a rejected access/source request, no edit
 is queued; consent, profile and source ownership fences still apply.
@@ -1337,6 +1341,9 @@ shared membership protocol. Browser global and playlist ordering use the existin
 profile-bound `USER_DATA_STORAGE`; server profiles never read or overwrite another
 profile's order. The unscoped standalone order is retained without being adopted
 by a server profile. Native ordering keeps its existing profile-scoped app state.
+Unified Stalker collection reads warm the existing playlist-favorites action
+module before publishing rows, so a first offline removal needs no late script
+request on HTTP/LAN clients without service-worker caching.
 
 Background collection refreshes use the page's guarded content-type selection.
 Receiving the first movie or series on an empty favorites page selects its type

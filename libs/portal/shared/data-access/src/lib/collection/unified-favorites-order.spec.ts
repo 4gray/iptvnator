@@ -76,7 +76,10 @@ function fixture(
             },
             {
                 provide: PlaylistsService,
-                useValue: { getPlaylistById: () => of(document) },
+                useValue: {
+                    getPlaylistById: () => of(document),
+                    preparePortalFavoriteActions: async () => undefined,
+                },
             },
             { provide: DatabaseService, useValue: {} },
             {

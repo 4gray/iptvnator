@@ -168,3 +168,114 @@ for (const enabled of [false, true])
             await server.close();
         }
     });
+
+test('persists the first offline Stalker removal after opening unified favorites directly @stalker @web @persistence', async ({
+    browser,
+}) => {
+    const server = await startSourceSyncServer();
+    const context = await browser.newContext({ serviceWorkers: 'block' });
+    const sourceId = 'synthetic-offline-stalker';
+    try {
+        const { instanceId } = await (
+            await fetch(`${server.apiUrl}/v1/instance`)
+        ).json();
+        expect(
+            (
+                await fetch(`${server.apiUrl}/v1/sources/${sourceId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'If-None-Match': '*',
+                        'X-IPTVnator-Instance-Id': instanceId,
+                    },
+                    body: JSON.stringify({
+                        id: sourceId,
+                        title: 'Synthetic offline Stalker source',
+                        kind: 'stalker',
+                        portalUrl: `http://localhost:${process.env['MOCK_PORT'] ?? '3417'}/portal.php`,
+                        macAddress: '00:1A:79:12:34:56',
+                    }),
+                })
+            ).status
+        ).toBe(201);
+        const page = await context.newPage();
+        await page.route('**/assets/app-config.js', (route) =>
+            route.fulfill({
+                contentType: 'application/javascript',
+                body: `window.__IPTVNATOR_CONFIG__ = ${JSON.stringify({ BACKEND_URL: server.apiUrl })};`,
+            })
+        );
+        let scriptsAvailable = true;
+        await page.route('**/*.js', (route) =>
+            scriptsAvailable ? route.fallback() : route.abort()
+        );
+        await page.goto(`${frontendUrl}/workspace/sources`);
+        await expect(
+            sourceRowByTitle(page, 'Synthetic offline Stalker source')
+        ).toBeVisible();
+        const localCount = (seed = false) =>
+            page.evaluate(
+                ({ instanceId, sourceId, seed }) =>
+                    new Promise<number>((resolve, reject) => {
+                        const request = indexedDB.open(
+                            `iptvnator-server:${instanceId}`
+                        );
+                        request.onerror = () => reject(request.error);
+                        request.onsuccess = () => {
+                            const db = request.result;
+                            const transaction = db.transaction(
+                                'playlists',
+                                seed ? 'readwrite' : 'readonly'
+                            );
+                            const store = transaction.objectStore('playlists');
+                            const get = store.get(sourceId);
+                            let count = -1;
+                            get.onsuccess = () => {
+                                const row = get.result;
+                                if (seed) {
+                                    row.favorites = [
+                                        {
+                                            id: '42',
+                                            title: 'Synthetic offline movie',
+                                            favoriteContentType: 'vod',
+                                        },
+                                    ];
+                                    store.put(row);
+                                }
+                                count = row.favorites?.length ?? 0;
+                            };
+                            transaction.oncomplete = () => {
+                                db.close();
+                                resolve(count);
+                            };
+                            transaction.onerror = () => {
+                                db.close();
+                                reject(transaction.error);
+                            };
+                        };
+                    }),
+                { instanceId, sourceId, seed }
+            );
+        expect(await localCount(true)).toBe(1);
+        await page.goto(`${frontendUrl}/workspace/global-favorites`);
+        const remove = page.getByRole('button', {
+            name: 'Remove from favorites',
+            exact: true,
+        });
+        await expect(remove).toHaveCount(1);
+        scriptsAvailable = false;
+        await page.route(`${server.apiUrl}/v1/favorites/**`, (route) =>
+            route.abort()
+        );
+        await remove.click();
+        await expect.poll(() => localCount()).toBe(0);
+        await expect(remove).toHaveCount(0);
+        scriptsAvailable = true;
+        await page.reload();
+        await expect(remove).toHaveCount(0);
+        expect(await localCount()).toBe(0);
+    } finally {
+        await context.close();
+        await server.close();
+    }
+});

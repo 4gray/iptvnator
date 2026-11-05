@@ -1,6 +1,7 @@
 import {
     latestFavoriteBase,
     localFavoriteRecord,
+    keepFavoriteImport,
 } from './favorites-client-state';
 import { createRandomId } from '@iptvnator/shared/interfaces';
 import { deliverFavorites } from './favorites-sync-delivery';
@@ -205,8 +206,6 @@ export class FavoritesSyncClient {
                 throw new FavoriteSupersededError();
             const base = current?.base ?? emptyFavoriteState();
             const pending = current?.pending ?? [];
-            if (importing && current && base.member && !pending.length)
-                return current;
             // A parked queue is never silently authorized by a newer explicit action.
             if (
                 pending.some(
@@ -214,6 +213,8 @@ export class FavoritesSyncClient {
                 )
             )
                 throw new Error('Favorite queue requires choice');
+            if (importing && keepFavoriteImport(current, member, snapshot))
+                return current;
             const expectedRevision = importing
                 ? 0
                 : (current?.state.revision ?? base.revision);

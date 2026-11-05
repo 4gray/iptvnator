@@ -1101,6 +1101,10 @@ export class PlaylistsService {
         );
     }
 
+    preparePortalFavoriteActions() {
+        return import('./playlist-favorites');
+    }
+
     getPortalFavorites(portalId: string) {
         if (!portalId) {
             throw new Error('Portal ID is required');
@@ -1109,7 +1113,7 @@ export class PlaylistsService {
         return this.getPlaylistById(portalId).pipe(
             switchMap(async (playlist) => {
                 const { sortedPortalFavorites } =
-                    await import('./playlist-favorites');
+                    await this.preparePortalFavoriteActions();
                 return sortedPortalFavorites(
                     await this.favoriteSync.project(playlist)
                 );
@@ -1126,7 +1130,7 @@ export class PlaylistsService {
         favoriteId: number | string,
         context?: StalkerPortalItem
     ) {
-        return from(import('./playlist-favorites')).pipe(
+        return from(this.preparePortalFavoriteActions()).pipe(
             switchMap(({ removePortalFavorite }) =>
                 this.favoriteMutation(portalId, (current) =>
                     removePortalFavorite(current, favoriteId, context)
