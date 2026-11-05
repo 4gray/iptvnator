@@ -1465,7 +1465,10 @@ polled base with an older acknowledgement. Receipts retain decisions and revisio
 not a complete historical snapshot for every watch.
 
 A monotonic source revision assigns acceptance order. Server time supplies existing
-UI timestamps and increases even for touches within one millisecond. Removal
+UI timestamps and increases even for touches within one millisecond. Pending
+commands project optimistically above the known server base; local-only choices
+retain their recorded viewing times as that base advances. A newer shared watch
+of the same item can advance its time; removals and clears cannot. Removal
 revisions and a source clear barrier prevent obsolete offline touches from
 recreating deleted history. A same-device predecessor permits an intentional
 remove-then-watch queue; only a same-item removal or a source clear can advance

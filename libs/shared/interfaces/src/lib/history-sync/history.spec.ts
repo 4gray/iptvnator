@@ -1,6 +1,7 @@
 import {
     applyHistoryOperation,
     emptyHistoryState,
+    projectHistory,
     visibleHistory,
 } from './history.reducer';
 import {
@@ -9,7 +10,11 @@ import {
     assertHistoryState,
     assertHistoryRecord,
 } from './history.validation';
-import type { HistoryOperation, HistoryState } from './history.contract';
+import type {
+    HistoryOperation,
+    HistoryState,
+    HistoryRecord,
+} from './history.contract';
 const ref = { provider: 'xtream' as const, kind: 'movie' as const, id: '42' };
 const op = (
     kind: HistoryOperation['kind'],
@@ -71,6 +76,74 @@ describe('history barriers and validation', () => {
                 applyHistoryOperation(cleared, op('touch'), true).state
             )
         ).toHaveLength(1);
+    });
+    it('keeps local watch times stable while pending watches stay optimistic', () => {
+        const shared = { ...op('touch'), reference: { ...ref, id: '43' } };
+        const pending = {
+            ...op('touch'),
+            reference: { ...ref, id: '44' },
+            viewedAt: 50,
+        };
+        const record: HistoryRecord = {
+            base: applyHistoryOperation(emptyHistoryState(), shared, false, 200)
+                .state,
+            pending: [],
+            local: [op('touch')],
+        };
+        const rows = () =>
+            visibleHistory(projectHistory(record)).map(
+                ({ reference, viewedAt }) => [
+                    reference.provider === 'm3u'
+                        ? reference.urlHash
+                        : reference.id,
+                    viewedAt,
+                ]
+            );
+        expect(rows()).toEqual([
+            ['43', 200],
+            ['42', 100],
+        ]);
+        record.base = applyHistoryOperation(
+            record.base,
+            shared,
+            false,
+            300
+        ).state;
+        expect(rows()).toEqual([
+            ['43', 300],
+            ['42', 100],
+        ]);
+        record.base = applyHistoryOperation(
+            record.base,
+            op('clear'),
+            false,
+            400
+        ).state;
+        record.pending = [{ consent: 'consent', operation: pending }];
+        expect(rows()).toEqual([
+            ['44', 301],
+            ['42', 100],
+        ]);
+    });
+    it('retains a newer shared watch of the same item without borrowing removal times', () => {
+        const record: HistoryRecord = {
+            base: applyHistoryOperation(
+                emptyHistoryState(),
+                op('touch'),
+                false,
+                300
+            ).state,
+            pending: [],
+            local: [op('touch')],
+        };
+        expect(visibleHistory(projectHistory(record))[0].viewedAt).toBe(300);
+        record.base = applyHistoryOperation(
+            record.base,
+            op('remove'),
+            false,
+            400
+        ).state;
+        expect(visibleHistory(projectHistory(record))[0].viewedAt).toBe(100);
     });
     it('bounds wire metadata and rejects unsafe scopes/references', () => {
         expect(() =>

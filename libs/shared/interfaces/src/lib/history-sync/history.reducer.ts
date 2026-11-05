@@ -20,19 +20,28 @@ export function applyHistoryOperation(
     state: HistoryState,
     operation: HistoryOperation,
     force = false,
-    now = operation.viewedAt
+    now?: number
 ): HistoryResult {
-    if (force)
-        now = state.items.reduce(
-            (latest, item) => Math.max(latest, item.viewedAt + 1),
-            now
-        );
+    now ??= force
+        ? state.items.reduce(
+              (latest, item) => Math.max(latest, item.viewedAt + 1),
+              operation.viewedAt
+          )
+        : operation.viewedAt;
     const key = operation.reference
         ? favoriteReferenceKey(operation.reference)
         : '';
     const previous = state.items.find(
         (item) => favoriteReferenceKey(item.reference) === key
     );
+    if (
+        force &&
+        operation.kind === 'touch' &&
+        previous &&
+        !previous.removed &&
+        previous.revision > state.cleared
+    )
+        now = Math.max(now, previous.viewedAt);
     if (
         !force &&
         operation.kind === 'touch' &&
@@ -75,9 +84,15 @@ export function applyHistoryOperation(
     };
 }
 export function projectHistory(record: HistoryRecord): HistoryState {
-    return [...record.pending.map((p) => p.operation), ...record.local].reduce(
-        (state, op) => applyHistoryOperation(state, op, true).state,
+    const pending = record.pending.reduce(
+        (state, { operation }) =>
+            applyHistoryOperation(state, operation, true).state,
         record.base
+    );
+    return record.local.reduce(
+        (state, op) =>
+            applyHistoryOperation(state, op, true, op.viewedAt).state,
+        pending
     );
 }
 export const visibleHistory = (state: HistoryState) =>
