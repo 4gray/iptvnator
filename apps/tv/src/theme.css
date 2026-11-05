@@ -6,6 +6,7 @@
     --tv-accent: #8ee5c2;
     --app-focus-ring-color: var(--tv-accent);
     --tv-line: #2a3832;
+    --tv-scroll-thumb: #526b5c;
     color-scheme: dark;
     font-family: 'Trebuchet MS', sans-serif;
     font-size: 22px;
@@ -14,6 +15,16 @@
 }
 * {
     box-sizing: border-box;
+}
+::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+::-webkit-scrollbar-track {
+    background: var(--tv-bg);
+}
+::-webkit-scrollbar-thumb {
+    background: var(--tv-scroll-thumb);
 }
 body {
     margin: 0;
@@ -832,14 +843,6 @@ main.live-page {
     overflow-y: scroll;
     overflow-x: hidden;
     padding: 8px;
-}
-.channels::-webkit-scrollbar,
-.programme-list::-webkit-scrollbar {
-    width: 12px;
-}
-.channels::-webkit-scrollbar-thumb,
-.programme-list::-webkit-scrollbar-thumb {
-    background: #40554a;
 }
 .channel-pane-header {
     flex-shrink: 0;

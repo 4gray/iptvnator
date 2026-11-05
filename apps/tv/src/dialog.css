@@ -99,18 +99,6 @@
 .tv-description-more {
     margin-bottom: 20px;
 }
-.tv-picker-options::-webkit-scrollbar,
-.tv-description-text::-webkit-scrollbar {
-    width: 12px;
-}
-.tv-picker-options::-webkit-scrollbar-track,
-.tv-description-text::-webkit-scrollbar-track {
-    background: var(--tv-bg);
-}
-.tv-picker-options::-webkit-scrollbar-thumb,
-.tv-description-text::-webkit-scrollbar-thumb {
-    background: var(--tv-muted);
-}
 @media (max-width: 1400px) {
     .tv-dialog-backdrop {
         padding: 40px;

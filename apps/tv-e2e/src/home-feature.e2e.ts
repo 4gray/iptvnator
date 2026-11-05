@@ -1,4 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
+import { checkHorizontalRail } from './horizontal-rail';
 import { chooseTv, addSource, nav, start, xtream } from './helpers';
 
 async function watch(page: Page, index: number, episode = false) {
@@ -696,4 +697,42 @@ test('browser Back on loading Home keeps its catalog requests alive', async ({
     } finally {
         release();
     }
+});
+
+test('Home rails hide native scrollbars and support pointer paging and directional focus', async ({
+    page,
+}) => {
+    await start(page);
+    await addSource(page, 'xtream', {
+        username: 'marketing',
+        password: 'marketing',
+    });
+    await nav(page, 'Home');
+    const row = page
+        .locator('.rail')
+        .filter({ has: page.locator('.poster-card:not(.channel-card)') })
+        .first();
+    await expect(row.locator('.poster-card')).toHaveCount(12);
+    for (const width of [1920, 1280]) {
+        await page.setViewportSize({ width, height: 1080 });
+        await checkHorizontalRail(page, row);
+        await row.locator('.poster-card').first().focus();
+        await page.keyboard.press('ArrowDown');
+        await expect(row.locator('.poster-card').first()).not.toBeFocused();
+        await row.locator('..').screenshot({
+            path: `../../dist/tv-verification/home-rail-${width}.png`,
+        });
+        await expect(
+            page.locator('.detail-hero,video[src],video source')
+        ).toHaveCount(0);
+        expect(
+            await page
+                .locator('main')
+                .evaluate(
+                    (element) => element.scrollWidth <= element.clientWidth
+                )
+        ).toBe(true);
+    }
+    await page.setViewportSize({ width: 3840, height: 2160 });
+    await expect(row.locator('..').locator('.rail-arrow')).toHaveCount(0);
 });

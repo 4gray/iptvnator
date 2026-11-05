@@ -1,7 +1,12 @@
 import { useEffect, useMemo } from 'preact/hooks';
 import { mapPersonFilmography, mapPersonProfile } from '@iptvnator/shared/tmdb';
 import { TvMetadata } from '@iptvnator/tv/data-access';
-import { Empty, Poster, VirtualCollection } from '@iptvnator/tv/ui';
+import {
+    Empty,
+    HorizontalRail,
+    Poster,
+    VirtualCollection,
+} from '@iptvnator/tv/ui';
 import type { TvModel } from './use-tv';
 import { PersonAvatar } from './person-avatar';
 import { usePerson } from './use-person';
@@ -143,15 +148,21 @@ export function PersonPage({
                         </div>
                     ) : null}
                     {lookup.state?.result?.status === 'choices' ? (
-                        <div class="rail" aria-label="Available versions">
-                            {lookup.state.result.items.map((item) => (
-                                <Poster
-                                    key={item.id}
-                                    item={item}
-                                    open={tv.open}
-                                />
-                            ))}
-                        </div>
+                        <HorizontalRail label="Available versions">
+                            <div
+                                class="rail"
+                                aria-label="Available versions"
+                                data-tv-horizontal
+                            >
+                                {lookup.state.result.items.map((item) => (
+                                    <Poster
+                                        key={item.id}
+                                        item={item}
+                                        open={tv.open}
+                                    />
+                                ))}
+                            </div>
+                        </HorizontalRail>
                     ) : null}
                     <VirtualCollection
                         items={credits}

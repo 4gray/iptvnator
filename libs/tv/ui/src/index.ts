@@ -8,3 +8,4 @@ export { ResumeCard } from './resume-card';
 export { Hero } from './hero';
 export { TvSelect, type TvOption } from './select';
 export { TvDescription } from './description';
+export { HorizontalRail } from './horizontal-rail';

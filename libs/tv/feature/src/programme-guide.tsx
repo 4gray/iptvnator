@@ -1,3 +1,4 @@
+import { HorizontalRail } from '@iptvnator/tv/ui';
 import {
     GuideProgram,
     guidePrograms,
@@ -131,43 +132,52 @@ function ProgrammeSchedule({ rows }: { rows: GuideProgram[] }) {
     const current = selected.start <= now && selected.end > now;
     return (
         <>
-            <div class="programme-guide-days" aria-label="Programme dates">
-                <button
-                    data-focus="guide-now"
-                    onClick={() => {
-                        setNow(Date.now());
-                        choose(programmeNow(rows, Date.now()) ?? rows[0], true);
-                    }}
+            <HorizontalRail label="Programme dates">
+                <div
+                    class="programme-guide-days"
+                    aria-label="Programme dates"
+                    data-tv-horizontal
                 >
-                    Now
-                </button>
-                {dayStart > 0 ? (
                     <button
-                        aria-label="Earlier dates"
-                        onClick={() => choose(days[dayStart - 1])}
+                        data-focus="guide-now"
+                        onClick={() => {
+                            setNow(Date.now());
+                            choose(
+                                programmeNow(rows, Date.now()) ?? rows[0],
+                                true
+                            );
+                        }}
                     >
-                        ‹
+                        Now
                     </button>
-                ) : null}
-                {days.slice(dayStart, dayStart + 7).map((row) => (
-                    <button
-                        key={row.day}
-                        data-focus={`guide-day-${row.day}`}
-                        aria-pressed={row.day === selected.day}
-                        onClick={() => choose(row)}
-                    >
-                        {date(row.start)}
-                    </button>
-                ))}
-                {dayStart + 7 < days.length ? (
-                    <button
-                        aria-label="Later dates"
-                        onClick={() => choose(days[dayStart + 7])}
-                    >
-                        ›
-                    </button>
-                ) : null}
-            </div>
+                    {dayStart > 0 ? (
+                        <button
+                            aria-label="Earlier dates"
+                            onClick={() => choose(days[dayStart - 1])}
+                        >
+                            ‹
+                        </button>
+                    ) : null}
+                    {days.slice(dayStart, dayStart + 7).map((row) => (
+                        <button
+                            key={row.day}
+                            data-focus={`guide-day-${row.day}`}
+                            aria-pressed={row.day === selected.day}
+                            onClick={() => choose(row)}
+                        >
+                            {date(row.start)}
+                        </button>
+                    ))}
+                    {dayStart + 7 < days.length ? (
+                        <button
+                            aria-label="Later dates"
+                            onClick={() => choose(days[dayStart + 7])}
+                        >
+                            ›
+                        </button>
+                    ) : null}
+                </div>
+            </HorizontalRail>
             <div class="programme-guide-body">
                 <div
                     class="programme-guide-schedule"
