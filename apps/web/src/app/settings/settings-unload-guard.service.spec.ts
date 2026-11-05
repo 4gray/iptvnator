@@ -143,18 +143,17 @@ describe('SettingsUnloadGuardService', () => {
     });
 
     describe('updater-driven app quit (Electron)', () => {
-        it('suspends both protection layers for the quit', () => {
+        it('suspends DOM unload protection while main remains armed until installation', () => {
             activateInElectron();
             form.markAsDirty();
 
             service.suspendForAppQuit();
 
-            // The main-process mirror is disarmed...
+            // Main owns the atomic cancellation/bypass when install IPC arrives.
             expect(electronStub.setWindowCloseGuard).toHaveBeenLastCalledWith(
-                false
+                true
             );
-            // ...and the DOM layer no longer cancels the unload, so the
-            // updater's window close passes without turning into a reload.
+            // Only the DOM layer stands down before that IPC.
             const event = dispatchBeforeUnload();
             expect(event.defaultPrevented).toBe(false);
         });
@@ -226,7 +225,14 @@ describe('SettingsUnloadGuardService', () => {
                 decide(proceed);
                 await install;
 
-                expect(electronStub.cancelWindowClose).toHaveBeenCalledWith(1);
+                if (proceed)
+                    expect(
+                        electronStub.cancelWindowClose
+                    ).not.toHaveBeenCalled();
+                else
+                    expect(electronStub.cancelWindowClose).toHaveBeenCalledWith(
+                        1
+                    );
                 expect(electronStub.confirmWindowClose).not.toHaveBeenCalled();
                 expect(service.reloadPage).not.toHaveBeenCalled();
                 expect(electronStub.installAppUpdate).toHaveBeenCalledTimes(
@@ -235,33 +241,39 @@ describe('SettingsUnloadGuardService', () => {
             }
         );
 
-        it('settles every intercepted close cancellation before installing', async () => {
-            const cancelled: (() => void)[] = [];
-            electronStub.cancelWindowClose.mockImplementation(
-                () =>
-                    new Promise<void>((resolve) => {
-                        cancelled.push(resolve);
-                    })
+        it('queues native close notifications during install IPC and reconsiders them after failure', async () => {
+            let finish!: (status: unknown) => void;
+            electronStub.installAppUpdate.mockReturnValue(
+                new Promise((resolve) => {
+                    finish = resolve;
+                })
             );
+            host.confirmClose
+                .mockResolvedValueOnce(true)
+                .mockResolvedValueOnce(false);
             activateInElectron();
+            form.markAsDirty();
             const install = TestBed.inject(
                 AppUpdateInstallService
             ).installAppUpdate();
+            await flushAsyncWork();
+            expect(electronStub.setWindowCloseGuard).toHaveBeenLastCalledWith(
+                true
+            );
             closeRequestCallback?.(1);
             await flushAsyncWork();
-            expect(electronStub.cancelWindowClose).toHaveBeenCalledWith(1);
-            expect(electronStub.installAppUpdate).not.toHaveBeenCalled();
-
-            closeRequestCallback?.(2);
-            cancelled[0]();
-            await flushAsyncWork();
-            expect(electronStub.cancelWindowClose).toHaveBeenLastCalledWith(2);
-            expect(electronStub.installAppUpdate).not.toHaveBeenCalled();
-            cancelled[1]();
-            await install;
             expect(host.confirmClose).toHaveBeenCalledTimes(1);
-            expect(electronStub.installAppUpdate).toHaveBeenCalledTimes(1);
             expect(electronStub.confirmWindowClose).not.toHaveBeenCalled();
+            finish({
+                currentVersion: '0.23.0',
+                status: 'error',
+                supportedSelfUpdate: true,
+            });
+            await install;
+            await flushAsyncWork();
+            expect(host.confirmClose).toHaveBeenCalledTimes(2);
+            expect(electronStub.cancelWindowClose).toHaveBeenCalledWith(1);
+            expect(dispatchBeforeUnload().defaultPrevented).toBe(true);
         });
 
         it('does not start an installation while a close decision is already pending', async () => {

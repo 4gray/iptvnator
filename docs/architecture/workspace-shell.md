@@ -1073,10 +1073,12 @@ Both the About action and the global update notification install through
 `AppUpdateInstallService`. Registered settings guards first run the existing
 Save/Discard/Cancel decision; cancellation or a failed save sends no install
 IPC and keeps protection armed. Concurrent install intents share one decision.
-The same unload-guard decision also owns competing native close/reload requests;
-intercepted closes are cancelled before installation can disarm the guard.
-Only after approval are guards suspended, with protection restored on a failed
-install. The global notification retains download errors with an announced
+The same unload-guard decision also owns competing native close/reload requests.
+After approval only DOM unload protection is suspended; the main-process guard
+stays armed until install IPC atomically clears pending closes and prepares the
+updater's close bypass. Failed installation restores DOM protection and revisits
+close requests received while waiting. The global notification retains download
+errors with an announced
 message and a Check again action instead of disappearing. A retry keeps the
 known release while checking and on failure; a new verdict replaces it, and
 changing channels still clears the previous channel's release. A no-update

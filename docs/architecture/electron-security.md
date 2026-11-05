@@ -115,6 +115,13 @@ packaged startup check after IPC registration; it never downloads during that
 check. After a successful download, the renderer may show a restart/install
 action backed by `quitAndInstall()`.
 
+The renderer suspends only its DOM unload handler during installation. The
+main-process window guard stays armed until install IPC: `prepareQuit` clears
+pending close intents and prepares one close bypass in the same synchronous call
+before `quitAndInstall()`. An install failure revokes an unused bypass. Renderer
+receipt of close notifications is not used as evidence that main has no pending
+close.
+
 Self-update is supported only for packaged macOS builds, Windows NSIS builds,
 and Linux AppImage builds. Other Linux packages still point users to the latest
 GitHub Release through `manualDownloadUrl` because Snap, Flatpak, DEB, RPM, and

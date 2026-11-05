@@ -78,15 +78,17 @@ pnpm nx build web --configuration=pwa --skip-nx-cache
 
 ## Application updates and offline recovery
 
-The browser transport creates `PwaUpdateService` once per app lifetime. It
+The global update panel loads `PwaUpdateService` once per enabled browser app lifetime. It
 announces only `VERSION_READY` as ready, offers Retry after installation or
 check failures, and rechecks once when the browser returns online. A manifest
 fetch failure resolves false without a version event, so Retry is restored in
 that case; a successful `NO_NEW_VERSION_DETECTED` check stays silent. Refresh is
 explicit, warns that playback stops, and retains the browser's unsaved-settings
 beforeunload confirmation. Later check or candidate failures retain an already
-pending Refresh action. Unrecoverable cache errors request a reload without
-claiming a new version is ready. Notifications wait for their translations;
+pending Refresh action. The deferred card uses the desktop notification's layout
+and remains reachable after a cancelled reload or a settings-save toast.
+Unrecoverable cache errors request a reload without claiming a new version is
+ready. Notifications use the normal translation pipeline;
 the English fallback dictionary is prefetched with the app shell so a first
 offline reload retains readable recovery controls. Electron does not start
 these subscriptions.

@@ -1446,6 +1446,11 @@ abort signals are
 never serialized across IPC. Keep that boundary when adding browser transport
 behavior rather than increasing the initial-byte baseline.
 
+The global notification panel uses the same `shouldEnableServiceWorker()`
+contract as registration to load the PWA card. Its coordinator, translation
+rendering and Material button stay in that deferred browser chunk; Electron
+does not load them at boot. Recovery controls persist independently of temporary snack-bars.
+
 The bundler keeps each module in one chunk, so one eager import of any
 export carries the module's whole code: providing
 `MAT_FORM_FIELD_DEFAULT_OPTIONS` in `app.config.ts` alone put the 54 KB

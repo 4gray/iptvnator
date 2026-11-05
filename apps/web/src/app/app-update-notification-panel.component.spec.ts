@@ -5,6 +5,9 @@ import {
     TestBed,
 } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
+import { SwUpdate } from '@angular/service-worker';
+import { PwaUpdateNotificationComponent } from './pwa-update-notification.component';
+import { PwaUpdateService } from './services/pwa-update.service';
 import { By } from '@angular/platform-browser';
 import { TranslateModule } from '@ngx-translate/core';
 import {
@@ -53,6 +56,7 @@ describe('AppUpdateNotificationPanelComponent', () => {
                 TranslateModule.forRoot(),
             ],
             providers: [
+                { provide: SwUpdate, useValue: { isEnabled: false } },
                 {
                     provide: MatDialog,
                     useValue: { open: jest.fn() },
@@ -235,7 +239,10 @@ describe('AppUpdateNotificationPanelComponent', () => {
                 AppUpdateNotificationPanelComponent,
                 TranslateModule.forRoot(),
             ],
-            providers: [{ provide: MatDialog, useValue: { open: jest.fn() } }],
+            providers: [
+                { provide: MatDialog, useValue: { open: jest.fn() } },
+                { provide: SwUpdate, useValue: { isEnabled: false } },
+            ],
             deferBlockBehavior: DeferBlockBehavior.Manual,
         }).compileComponents();
         fixture = TestBed.createComponent(AppUpdateNotificationPanelComponent);
@@ -254,6 +261,16 @@ describe('AppUpdateNotificationPanelComponent', () => {
         expect(
             fixture.nativeElement.querySelector('app-update-notification-card')
         ).toBeNull();
+
+        fixture.componentInstance.reloadWindow = jest.fn();
+        const [, browserBlock] = await fixture.getDeferBlocks();
+        await browserBlock.render(DeferBlockState.Error);
+        const refresh = fixture.nativeElement.querySelector(
+            '[role="alert"] a'
+        ) as HTMLAnchorElement;
+        expect(refresh.textContent).toContain('REFRESH');
+        refresh.click();
+        expect(fixture.componentInstance.reloadWindow).toHaveBeenCalledTimes(1);
     });
 
     it('labels unsupported platform action as a GitHub release link', async () => {
@@ -283,5 +300,54 @@ describe('AppUpdateNotificationPanelComponent', () => {
             'noreferrer'
         );
         open.mockRestore();
+    });
+});
+
+describe('PwaUpdateNotificationComponent', () => {
+    let fixture: ComponentFixture<PwaUpdateNotificationComponent>;
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [
+                PwaUpdateNotificationComponent,
+                TranslateModule.forRoot(),
+            ],
+            providers: [{ provide: SwUpdate, useValue: { isEnabled: false } }],
+        }).compileComponents();
+        fixture = TestBed.createComponent(PwaUpdateNotificationComponent);
+        fixture.detectChanges();
+    });
+    it('keeps browser Refresh reachable when a reload leaves the page alive', async () => {
+        const updates = TestBed.inject(PwaUpdateService);
+        updates.reloadWindow = jest.fn();
+        updates.notice.set('ready');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const button = fixture.nativeElement.querySelector(
+            '[data-test-id="pwa-update-notification"] button'
+        ) as HTMLButtonElement;
+        expect(button.textContent).toContain('REFRESH');
+        button.click();
+        fixture.detectChanges();
+        button.click();
+        expect(updates.reloadWindow).toHaveBeenCalledTimes(2);
+        expect(button.isConnected).toBe(true);
+    });
+
+    it.each([
+        ['failed', 'PWA_UPDATE_FAILED'],
+        ['unrecoverable', 'PWA_RELOAD_REQUIRED'],
+    ] as const)('renders the browser %s notice', async (state, message) => {
+        const updates = TestBed.inject(PwaUpdateService);
+        updates.notice.set(state);
+        updates.checking.set(true);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const panel = fixture.nativeElement.querySelector(
+            '[data-test-id="pwa-update-notification"]'
+        );
+        expect(panel.textContent).toContain(message);
+        expect(
+            (panel.querySelector('button') as HTMLButtonElement).disabled
+        ).toBe(state === 'failed');
     });
 });

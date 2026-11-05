@@ -34,7 +34,6 @@ import {
 import { getRuntimeBackendUrl } from './runtime-config';
 import { isSourceBackendRequest } from '@iptvnator/services/source-sync/connection';
 import { ProviderTargetClient } from './provider-target-client';
-import { PwaUpdateService } from './pwa-update.service';
 
 /**
  * How long to wait for the backend to forget a host before giving up.
@@ -85,11 +84,6 @@ export class PwaService extends DataService {
      * protocol-relative `//xtream` (another host).
      */
     corsProxyUrl = this.backendUrl.replace(/\/+$/, '');
-
-    constructor() {
-        super();
-        inject(PwaUpdateService);
-    }
 
     getAppVersion(): string {
         return AppConfig.version;

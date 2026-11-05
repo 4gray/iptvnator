@@ -77,7 +77,7 @@ test('retains the offline library after failed updates and protects unsaved sett
         fixture.state.updated = true;
         fixture.state.failIndex = true;
         expect(await checkWorker(page)).toBe(false);
-        const notice = page.locator('mat-snack-bar-container').last();
+        const notice = page.locator('[data-test-id="pwa-update-notification"]');
         await expect(notice).toContainText('could not be downloaded');
         await page.screenshot({
             path: info.outputPath('update-failed-dark.png'),
@@ -97,15 +97,12 @@ test('retains the offline library after failed updates and protects unsaved sett
         await page.evaluate(() => window.dispatchEvent(new Event('online')));
         await expect(notice).toContainText('could not be downloaded');
         fixture.state.failManifest = true;
-        await notice.evaluate((element) =>
-            element.setAttribute('data-audit-notice', 'failed')
-        );
         await notice
             .getByRole('button', { name: 'Retry', exact: true })
             .click();
         await expect(
-            page.locator('mat-snack-bar-container[data-audit-notice]')
-        ).toHaveCount(0);
+            notice.getByRole('button', { name: 'Retry', exact: true })
+        ).toBeEnabled();
         await expect(notice).toContainText('could not be downloaded');
         await expect(
             notice.getByRole('button', { name: 'Retry', exact: true })
@@ -117,13 +114,7 @@ test('retains the offline library after failed updates and protects unsaved sett
             .click();
         await expect(notice).toContainText('An update is ready');
         fixture.state.failManifest = true;
-        await notice.evaluate((element) =>
-            element.setAttribute('data-audit-notice', 'ready')
-        );
         await page.evaluate(() => window.dispatchEvent(new Event('online')));
-        await expect(
-            page.locator('mat-snack-bar-container[data-audit-notice]')
-        ).toHaveCount(0);
         await expect(notice).toContainText('An update is ready');
         fixture.state.failManifest = false;
         expect(await checkWorker(page)).toBe(false);
@@ -139,21 +130,28 @@ test('retains the offline library after failed updates and protects unsaved sett
         expect(prompt.type()).toBe('beforeunload');
         await prompt.dismiss();
         await refreshClick;
+        await expect(
+            notice.getByRole('button', { name: 'Refresh', exact: true })
+        ).toBeVisible();
         expect(
             await page.evaluate(() => Reflect.get(window, 'auditDocument'))
         ).toBe(true);
         await expect(
             page.locator('[data-test-id="save-settings"]')
         ).toBeVisible();
+        await page.setViewportSize({ width: 480, height: 900 });
         await page.locator('[data-test-id="save-settings"]').click();
         await expect(
             page.locator('[data-test-id="save-settings"]')
         ).toBeHidden();
-        await page.reload();
+        await notice
+            .getByRole('button', { name: 'Refresh', exact: true })
+            .click();
         await expect(page.locator('meta[name="audit-update"]')).toHaveAttribute(
             'content',
             'b'
         );
+        await page.setViewportSize({ width: 1280, height: 720 });
         await page.getByRole('link', { name: 'Sources', exact: true }).click();
         await expect(rows).toHaveCount(1);
         await expect(page.locator('body')).not.toHaveClass(/dark-theme/);
@@ -168,7 +166,7 @@ test('retains the offline library after failed updates and protects unsaved sett
             path: info.outputPath('hash-mismatch-retains-library-light.png'),
         });
     } finally {
-        await context.setOffline(false);
+        if (!page.isClosed()) await context.setOffline(false);
         await fixture.close();
     }
 });
