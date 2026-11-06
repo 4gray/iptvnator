@@ -103,7 +103,7 @@ describe('history barriers and validation', () => {
             ['43', 200],
             ['42', 100],
         ]);
-        record.base = applyHistoryOperation(
+        record['base'] = applyHistoryOperation(
             record.base,
             shared,
             false,
@@ -113,13 +113,13 @@ describe('history barriers and validation', () => {
             ['43', 300],
             ['42', 100],
         ]);
-        record.base = applyHistoryOperation(
+        record['base'] = applyHistoryOperation(
             record.base,
             op('clear'),
             false,
             400
         ).state;
-        record.pending = [{ consent: 'consent', operation: pending }];
+        record['pending'] = [{ consent: 'consent', operation: pending }];
         expect(rows()).toEqual([
             ['44', 301],
             ['42', 100],
@@ -137,7 +137,7 @@ describe('history barriers and validation', () => {
             local: [op('touch')],
         };
         expect(visibleHistory(projectHistory(record))[0].viewedAt).toBe(300);
-        record.base = applyHistoryOperation(
+        record['base'] = applyHistoryOperation(
             record.base,
             op('remove'),
             false,
@@ -211,6 +211,108 @@ describe('history barriers and validation', () => {
                 { ...state, revision: Number.MAX_SAFE_INTEGER },
                 op('touch')
             )
+        ).toThrow();
+    });
+    it.each([
+        ['missing scope', () => parseHistoryScope(null)],
+        [
+            'unsupported command',
+            () =>
+                parseHistoryOperation({ ...op('touch'), kind: 'unsupported' }),
+        ],
+        [
+            'unrepresentable date',
+            () =>
+                parseHistoryOperation({
+                    ...op('touch'),
+                    viewedAt: 8640000000000001,
+                }),
+        ],
+        [
+            'clear metadata',
+            () =>
+                parseHistoryOperation({
+                    ...op('clear'),
+                    snapshot: { title: 'Synthetic unexpected metadata' },
+                }),
+        ],
+        ['missing state', () => assertHistoryState(null as never)],
+        [
+            'removal after revision',
+            () =>
+                assertHistoryState({
+                    revision: 1,
+                    cleared: 0,
+                    items: [
+                        {
+                            reference: ref,
+                            viewedAt: 1,
+                            revision: 1,
+                            removedAt: 2,
+                            removed: false,
+                        },
+                    ],
+                }),
+        ],
+        [
+            'nonboolean removal',
+            () =>
+                assertHistoryState({
+                    revision: 1,
+                    cleared: 0,
+                    items: [
+                        {
+                            reference: ref,
+                            viewedAt: 1,
+                            revision: 1,
+                            removedAt: 0,
+                            removed: 'yes',
+                        },
+                    ],
+                } as never),
+        ],
+    ])('rejects untrusted %s payloads', (_name, validate) => {
+        expect(validate).toThrow();
+    });
+    it.each([
+        'base provider',
+        'hideArchive',
+        'archive',
+        'pending',
+        'local',
+        'pending provider',
+        'local provider',
+        'archive provider',
+    ])('rejects invalid persisted %s before accepting a record', (failure) => {
+        const scope = {
+            instanceId: 'synthetic-nas',
+            sourceId: 'synthetic-source',
+            sourceIncarnation: 'first',
+            provider: 'xtream',
+        } as const;
+        const alien = {
+            ...op('touch'),
+            reference: { provider: 'm3u', version: 1, urlHash: 'a'.repeat(64) },
+        };
+        const record = {
+            base: emptyHistoryState(),
+            pending: [],
+            local: [],
+        } as unknown as Record<string, unknown>;
+        if (failure === 'base provider')
+            record['base'] = applyHistoryOperation(
+                emptyHistoryState(),
+                alien as HistoryOperation
+            ).state;
+        else if (failure === 'pending provider')
+            record['pending'] = [
+                { consent: 'synthetic-consent', operation: alien },
+            ];
+        else if (failure === 'local provider') record['local'] = [alien];
+        else if (failure === 'archive provider') record['archive'] = [alien];
+        else record[failure] = failure === 'hideArchive' ? 'unexpected' : {};
+        expect(() =>
+            assertHistoryRecord(scope, record as unknown as HistoryRecord)
         ).toThrow();
     });
 });

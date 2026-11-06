@@ -92,6 +92,9 @@ export async function projectHistoryBackup(
                 ...(item.snapshot?.releaseYear
                     ? { release_year: Number(item.snapshot.releaseYear) }
                     : {}),
+                ...(item.snapshot?.identityConflict
+                    ? { catalog_missing_reason: 'identity_conflict' }
+                    : {}),
             },
         });
     }
@@ -143,6 +146,12 @@ export function createHistoryBackupRestorer(
                           release_year:
                               Number(item.collectionItem?.['release_year']) ||
                               undefined,
+                          catalog_missing_reason:
+                              item.collectionItem?.[
+                                  'catalog_missing_reason'
+                              ] === 'identity_conflict'
+                                  ? 'identity_conflict'
+                                  : undefined,
                       }),
                       viewedAt: Date.parse(normalizeStalkerDate(item.viewedAt)),
                   }))

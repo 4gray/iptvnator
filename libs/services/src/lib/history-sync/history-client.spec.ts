@@ -394,4 +394,89 @@ describe('history delivery and consent', () => {
             1
         );
     });
+    it.each([404, 409, 503])(
+        'retires unavailable sources but keeps verified offline queues for HTTP %s',
+        async (status) => {
+            const f = fixture();
+            f.request.mockImplementation(
+                async () => ({ status, body: {} }) as never
+            );
+            await expect(f.client.refresh('source')).rejects.toThrow(
+                status === 503 ? 'offline' : 'unavailable'
+            );
+            expect(f.client.contexts.has('source')).toBe(status === 503);
+            if (status === 503) {
+                await f.client.command('source', { kind: 'touch', reference });
+                await f.client.flush('source').catch(() => undefined);
+                expect((await f.store.read(scope))?.pending).toHaveLength(1);
+            } else expect(f.options.remember).toHaveBeenLastCalledWith([]);
+        }
+    );
+    it.each(['sourceId', 'instanceId'] as const)(
+        'rejects a server response for a different %s before storing it',
+        async (field) => {
+            const f = fixture();
+            f.request.mockImplementation(
+                async () =>
+                    ({
+                        status: 200,
+                        body: {
+                            scope: { ...scope, [field]: 'synthetic-other' },
+                            state: emptyHistoryState(),
+                        },
+                    }) as never
+            );
+            await expect(f.client.refresh('source')).rejects.toThrow(
+                'scope mismatch'
+            );
+            expect(f.options.remember).not.toHaveBeenCalled();
+            expect(await f.store.read(scope)).toBeNull();
+        }
+    );
+    it('does not roll back a newer cached server revision during refresh', async () => {
+        const f = fixture();
+        await f.store.mutate(scope, () => ({
+            ...emptyHistoryRecord(),
+            base: { revision: 10, cleared: 10, items: [] },
+        }));
+        await f.client.refresh('source');
+        expect((await f.store.read(scope))?.base.revision).toBe(10);
+    });
+    it.each(['http', 'receipt', 'state'] as const)(
+        'retains the queued intent when the server returns an invalid %s',
+        async (failure) => {
+            const f = fixture();
+            f.request.mockImplementation(
+                async () =>
+                    ({
+                        status: failure === 'http' ? 500 : 200,
+                        body: {
+                            applied:
+                                failure === 'receipt' ? 'unexpected' : true,
+                            state:
+                                failure === 'state'
+                                    ? { revision: -1, cleared: 0, items: [] }
+                                    : emptyHistoryState(),
+                        },
+                    }) as never
+            );
+            await f.client.command('source', { kind: 'touch', reference });
+            await expect(f.client.flush('source')).rejects.toThrow();
+            expect((await f.store.read(scope))?.pending).toHaveLength(1);
+            expect(
+                visibleHistory((await f.client.state('source'))!)
+            ).toHaveLength(1);
+        }
+    );
+    it('rejects a cross-provider command before writing or sending it', async () => {
+        const f = fixture();
+        await expect(
+            f.client.command('source', {
+                kind: 'touch',
+                reference: { provider: 'stalker', kind: 'movie', id: '42' },
+            })
+        ).rejects.toThrow('provider mismatch');
+        expect(await f.store.read(scope)).toBeNull();
+        expect(f.request).not.toHaveBeenCalled();
+    });
 });

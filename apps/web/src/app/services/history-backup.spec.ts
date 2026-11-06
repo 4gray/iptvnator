@@ -1,3 +1,4 @@
+import { HistoryXtreamAdapter } from './history-xtream-adapter';
 import {
     createHistoryBackupRestorer,
     projectHistoryBackup,
@@ -114,6 +115,70 @@ describe('durable history backup', () => {
             Date.parse('2026-11-05T12:00:00Z'),
         ]);
     });
+    it.each(['shared', 'archive'] as const)(
+        'retains %s identity conflicts through export and restore',
+        async (origin) => {
+            const f = fixture();
+            if (origin === 'shared')
+                f.record().base = applyHistoryOperation(f.record().base, {
+                    ...op(42),
+                    snapshot: {
+                        title: 'Synthetic rejected item',
+                        identityConflict: true,
+                    },
+                }).state;
+            else
+                f.entry.userState.recentlyViewed = [
+                    {
+                        contentType: 'movie',
+                        xtreamId: 42,
+                        viewedAt: new Date(100).toISOString(),
+                        collectionItem: {
+                            type: 'movie',
+                            xtream_id: 42,
+                            title: 'Synthetic rejected item',
+                            catalog_missing_reason: 'identity_conflict',
+                        },
+                    },
+                ];
+            const exported = (await projectHistoryBackup(
+                f.client,
+                {} as never,
+                source,
+                f.entry
+            )) as XtreamPlaylistBackupEntry;
+            expect(
+                exported.userState.recentlyViewed[0].collectionItem
+            ).toMatchObject({ catalog_missing_reason: 'identity_conflict' });
+            await createHistoryBackupRestorer(
+                f.client,
+                {} as never,
+                async () => source
+            )('source', exported);
+            expect(
+                visibleHistory(projectHistory(f.record()))[0].snapshot
+                    ?.identityConflict
+            ).toBe(true);
+            const raw = {
+                getRecentItems: async () => [],
+                getContentByXtreamId: async () => ({
+                    id: 42,
+                    xtream_id: 42,
+                    type: 'movie',
+                    category_id: 7,
+                    title: 'Synthetic reused ID',
+                }),
+            };
+            const adapter = new HistoryXtreamAdapter(f.client, true, {
+                active: () => false,
+                withholdsEverything: () => false,
+                version: () => 0,
+            });
+            expect(await adapter.project(raw as never, 'source')).toEqual([]);
+            expect(f.request).not.toHaveBeenCalled();
+            expect(f.record().pending).toEqual([]);
+        }
+    );
     it('exports all shared entries and removals without a catalog or network, retaining unrelated local history', async () => {
         const f = fixture();
         for (let id = 1; id <= 105; id++)
