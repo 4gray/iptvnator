@@ -762,6 +762,8 @@
     "THEMES": {
         "CREAM_THEME": "クリーム",
         "MOCHA_THEME": "モカ",
+        "NIGHT_OWL_THEME": "夜のフクロウ",
+        "BLACK_OLED_THEME": "OLEDブラック",
         "SYSTEM_DESCRIPTION": "システム設定では、デバイスのライト／ダーク表示に従います。",
         "DARK_THEME": "ダーク",
         "LIGHT_THEME": "ライト",

@@ -126,7 +126,7 @@
     }
 }
 
-@mixin dark($preview: false) {
+@mixin dark($preview: false, $variant: false) {
     --app-shell-bg: #0d0f12;
     --app-rail-bg: #111318;
     --app-content-bg: #161a22;
@@ -135,7 +135,7 @@
     --app-muted-color: #a1aabd;
     --app-selection-color: #78adff;
 
-    @if not $preview {
+    @if not $preview and not $variant {
         // ── Dark graphite theme ────────────────────────────────────────────
         // Inspired by both Slack (sidebar distinction) and GitButler (data density)
         // Key principle: clearly distinct surface layers using graphite steps
@@ -292,7 +292,8 @@
 }
 
 @mixin mocha($preview: false) {
-    @include dark($preview);
+    // The mode class declares shared roles on this same body element.
+    @include dark($preview, $variant: true);
     --app-shell-bg: #171310;
     --app-rail-bg: #1e1916;
     --app-content-bg: #251f1b;
@@ -330,5 +331,77 @@
         --app-rating-color: #edc485;
         --app-popover-shadow: 0 24px 70px rgba(15, 10, 6, 0.6);
         --app-popover-backdrop: rgba(15, 10, 6, 0.5);
+    }
+}
+
+@mixin night-owl($preview: false) {
+    // The mode class declares shared roles on this same body element.
+    @include dark($preview, $variant: true);
+    --app-shell-bg: #011627;
+    --app-rail-bg: #0b2232;
+    --app-content-bg: #071d2b;
+    --app-widget-bg: #102a3a;
+    --app-heading-color: #d6deeb;
+    --app-muted-color: #a5b8ca;
+    --app-selection-color: #82aaff;
+
+    @if not $preview {
+        --app-header-bg: #0b2232;
+        --app-widget-header-bg: #102a3a;
+        --app-card-hover-bg: #17384b;
+        --app-on-surface: #d6deeb;
+        --app-body-color: #b8c8d9;
+        --app-eyebrow-color: #a5b8ca;
+        --app-selection-text-color: #b3ccff;
+        --app-selection-on-color: #011627;
+        --app-focus-ring: #a7c5ff;
+        --app-provider-xtream: #82aaff;
+        --app-accent-gradient: linear-gradient(
+            135deg,
+            rgba(130, 170, 255, 0.12),
+            rgba(127, 219, 202, 0.07)
+        );
+        --app-hero-surface: rgba(16, 42, 58, 0.9);
+        --app-cta-bg: #d6deeb;
+        --app-cta-fg: #011627;
+        --app-cta-hover-bg: #edf3fc;
+        --app-cta-meta-fg: #43586c;
+        --app-popover-backdrop: rgba(1, 22, 39, 0.5);
+    }
+}
+
+@mixin black-oled($preview: false) {
+    // The mode class declares shared roles on this same body element.
+    @include dark($preview, $variant: true);
+    --app-shell-bg: #000000;
+    --app-rail-bg: #080808;
+    --app-content-bg: #000000;
+    --app-widget-bg: #121212;
+    --app-heading-color: #dedede;
+    --app-muted-color: #a3a3a3;
+    --app-selection-color: #8ab4f8;
+
+    @if not $preview {
+        --app-header-bg: #080808;
+        --app-widget-header-bg: #121212;
+        --app-card-hover-bg: #1c1c1c;
+        --app-on-surface: #dedede;
+        --app-body-color: #b8b8b8;
+        --app-eyebrow-color: #a3a3a3;
+        --app-selection-text-color: #aecbfa;
+        --app-selection-on-color: #000000;
+        --app-focus-ring: #aecbfa;
+        --app-provider-xtream: #8ab4f8;
+        --app-accent-gradient: linear-gradient(
+            135deg,
+            rgba(138, 180, 248, 0.08),
+            rgba(138, 180, 248, 0.03)
+        );
+        --app-hero-surface: #121212;
+        --app-cta-bg: #dedede;
+        --app-cta-fg: #000000;
+        --app-cta-hover-bg: #eeeeee;
+        --app-cta-meta-fg: #505050;
+        --app-popover-backdrop: rgba(0, 0, 0, 0.5);
     }
 }

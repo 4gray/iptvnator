@@ -762,6 +762,8 @@
     "THEMES": {
         "CREAM_THEME": "Krém",
         "MOCHA_THEME": "Mokka",
+        "NIGHT_OWL_THEME": "Éjjeli bagoly",
+        "BLACK_OLED_THEME": "OLED-fekete",
         "SYSTEM_DESCRIPTION": "A „Rendszer” téma az eszköz világos vagy sötét megjelenítési módjához igazodik.",
         "DARK_THEME": "Sötét",
         "LIGHT_THEME": "Világos",

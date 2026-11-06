@@ -762,6 +762,8 @@
     "THEMES": {
         "CREAM_THEME": "Крэмавая",
         "MOCHA_THEME": "Мока",
+        "NIGHT_OWL_THEME": "Начная сава",
+        "BLACK_OLED_THEME": "Чорны OLED",
         "SYSTEM_DESCRIPTION": "Сістэмная тэма аўтаматычна выбірае светлае або цёмнае афармленне прылады.",
         "DARK_THEME": "Цёмная",
         "LIGHT_THEME": "Светлая",
