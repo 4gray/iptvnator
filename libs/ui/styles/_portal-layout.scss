@@ -39,6 +39,14 @@
             min-width 0.18s ease,
             border-color 0.18s ease;
 
+        @media (min-width: 641px) {
+            .sidebar-header {
+                // Paint over the resize gutter while keeping controls clear of it.
+                margin-inline-end: -8px;
+                padding-inline-end: 20px;
+            }
+        }
+
         &.sidebar-collapsed {
             // Beats the inline width set by the resizable directive while
             // preserving it so uncollapsing snaps back to the previous size.
