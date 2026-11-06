@@ -756,6 +756,8 @@
     "THEMES": {
         "CREAM_THEME": "奶油",
         "MOCHA_THEME": "摩卡",
+        "NIGHT_OWL_THEME": "夜猫子",
+        "BLACK_OLED_THEME": "OLED 纯黑",
         "SYSTEM_DESCRIPTION": "系统主题跟随设备的浅色或深色外观。",
         "DARK_THEME": "深色",
         "LIGHT_THEME": "浅色",

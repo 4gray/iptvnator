@@ -756,6 +756,8 @@
     "THEMES": {
         "CREAM_THEME": "크림",
         "MOCHA_THEME": "모카",
+        "NIGHT_OWL_THEME": "밤의 올빼미",
+        "BLACK_OLED_THEME": "OLED 블랙",
         "SYSTEM_DESCRIPTION": "시스템 설정은 기기의 밝은 화면 또는 어두운 화면 설정을 따릅니다.",
         "DARK_THEME": "어둡게",
         "LIGHT_THEME": "밝게",

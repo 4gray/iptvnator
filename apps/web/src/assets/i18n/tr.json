@@ -756,6 +756,8 @@
     "THEMES": {
         "CREAM_THEME": "Krem",
         "MOCHA_THEME": "Moka",
+        "NIGHT_OWL_THEME": "Gece kuşu",
+        "BLACK_OLED_THEME": "OLED siyahı",
         "SYSTEM_DESCRIPTION": "Sistem, cihazınızın açık veya koyu görünümünü izler.",
         "DARK_THEME": "Koyu",
         "LIGHT_THEME": "Açık",

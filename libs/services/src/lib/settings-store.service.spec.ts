@@ -230,7 +230,12 @@ describe('SettingsStore dashboard rail settings', () => {
         expect(store.language()).toBe('pt-PT');
     });
 
-    it.each(['CREAM_THEME', 'MOCHA_THEME'])(
+    it.each([
+        'CREAM_THEME',
+        'MOCHA_THEME',
+        'NIGHT_OWL_THEME',
+        'BLACK_OLED_THEME',
+    ])(
         'preserves saved theme %s through unrelated partial updates',
         async (theme) => {
             storedSettings = { theme: theme as Theme };

@@ -63,7 +63,12 @@ describe('SettingsComponent form', () => {
         window.electron = originalElectron;
     });
 
-    it.each(['CREAM_THEME', 'MOCHA_THEME'])(
+    it.each([
+        'CREAM_THEME',
+        'MOCHA_THEME',
+        'NIGHT_OWL_THEME',
+        'BLACK_OLED_THEME',
+    ])(
         'previews %s from the palette picker and restores the saved theme on Discard',
         (value) => {
             const service = TestBed.inject(SettingsService);

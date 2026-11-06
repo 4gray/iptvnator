@@ -24,7 +24,7 @@ function block(source: string, start: number): string {
 }
 
 /** Expand the palette mixins so inherited tokens are checked per preset. */
-function themeContexts(): Record<string, string> {
+function themeContexts(preview = false): Record<string, string> {
     const palettes = readFileSync(
         resolve(process.cwd(), 'apps/web/src/_theme-palettes.scss'),
         'utf8'
@@ -32,15 +32,24 @@ function themeContexts(): Record<string, string> {
     const context = (name: string): string => {
         const start = palettes.indexOf(`@mixin ${name}(`);
         expect(start).toBeGreaterThan(-1);
-        return block(palettes, palettes.indexOf('{', start)).replace(
+        let source = block(palettes, palettes.indexOf('{', start));
+        if (preview) {
+            const fullOnly = source.indexOf('@if not $preview');
+            if (fullOnly !== -1) source = source.slice(0, fullOnly);
+        }
+        return source.replace(
             /@include (light|dark)(?:\([^)]*\))?;/g,
             (_, base: string) => context(base)
         );
     };
     expect(THEME).toContain('@include palettes.cream');
     expect(THEME).toContain('@include palettes.mocha');
+    expect(THEME).toContain('@include palettes.night-owl');
+    expect(THEME).toContain('@include palettes.black-oled');
     return Object.fromEntries(
-        ['light', 'dark', 'cream', 'mocha'].map((name) => [name, context(name)])
+        ['light', 'dark', 'cream', 'mocha', 'night-owl', 'black-oled'].map(
+            (name) => [name, context(name)]
+        )
     );
 }
 
@@ -144,6 +153,46 @@ describe('m3-theme focus ring token', () => {
 });
 
 describe('theme preset text palettes', () => {
+    it('limits decorative previews to the seven actual app colors they draw', () => {
+        const contexts = themeContexts();
+        for (const [name, preview] of Object.entries(themeContexts(true))) {
+            const tokens = new Map(
+                [
+                    ...preview.matchAll(/(--app-[\w-]+):\s*(#[0-9a-f]{6});/gi),
+                ].map((match) => [match[1], match[2]])
+            );
+            expect(tokens.size).toBe(7);
+            for (const [token, value] of tokens) {
+                expect(value).toBe(hexToken(contexts[name], token));
+            }
+            expect(preview).not.toContain('var(');
+        }
+    });
+
+    it('keeps new dark preset text readable over the strongest composited selection tint', () => {
+        for (const [name, context] of Object.entries(themeContexts()).filter(
+            ([name]) => name === 'night-owl' || name === 'black-oled'
+        )) {
+            const selection = hexToken(context, '--app-selection-color');
+            const text = hexToken(context, '--app-selection-text-color');
+            const tint = 28;
+            for (const surface of [
+                '--app-content-bg',
+                '--app-widget-bg',
+                '--app-card-hover-bg',
+            ]) {
+                expect({
+                    name,
+                    surface,
+                    readable:
+                        contrast(
+                            text,
+                            mix(selection, tint, hexToken(context, surface))
+                        ) >= 4.5,
+                }).toEqual({ name, surface, readable: true });
+            }
+        }
+    });
     it('keeps normal text readable on every app surface', () => {
         for (const [name, context] of Object.entries(themeContexts())) {
             for (const surface of [
@@ -172,7 +221,7 @@ describe('theme preset text palettes', () => {
         }
     });
 
-    it('preserves the original Light and Dark surface and selection colors', () => {
+    it('preserves the existing four presets’ surface and selection colors', () => {
         const contexts = themeContexts();
         expect(
             [
@@ -190,5 +239,18 @@ describe('theme preset text palettes', () => {
                 '--app-selection-color',
             ].map((name) => hexToken(contexts['dark'], name))
         ).toEqual(['#0d0f12', '#161a22', '#1e2330', '#78adff']);
+        for (const [name, colors] of [
+            ['cream', ['#e9e1d4', '#f3eee4', '#fcf8f0', '#8a5a3b']],
+            ['mocha', ['#171310', '#251f1b', '#302823', '#d5ad89']],
+        ] as const) {
+            expect(
+                [
+                    '--app-shell-bg',
+                    '--app-content-bg',
+                    '--app-widget-bg',
+                    '--app-selection-color',
+                ].map((token) => hexToken(contexts[name], token))
+            ).toEqual(colors);
+        }
     });
 });

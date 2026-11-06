@@ -756,6 +756,8 @@
     "THEMES": {
         "CREAM_THEME": "Кремовая",
         "MOCHA_THEME": "Мокка",
+        "NIGHT_OWL_THEME": "Ночная сова",
+        "BLACK_OLED_THEME": "Чёрный OLED",
         "SYSTEM_DESCRIPTION": "Системная тема автоматически переключается между светлой и тёмной.",
         "DARK_THEME": "Тёмная",
         "LIGHT_THEME": "Светлая",

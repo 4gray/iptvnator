@@ -756,6 +756,8 @@
     "THEMES": {
         "CREAM_THEME": "Κρεμ",
         "MOCHA_THEME": "Μόκα",
+        "NIGHT_OWL_THEME": "Νυχτοπούλι",
+        "BLACK_OLED_THEME": "Μαύρο OLED",
         "SYSTEM_DESCRIPTION": "Η επιλογή συστήματος ακολουθεί τη φωτεινή ή σκοτεινή εμφάνιση της συσκευής σας.",
         "DARK_THEME": "Σκούρο",
         "LIGHT_THEME": "Ανοιχτό",

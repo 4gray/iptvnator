@@ -756,6 +756,8 @@
     "THEMES": {
         "CREAM_THEME": "Crème",
         "MOCHA_THEME": "Mokka",
+        "NIGHT_OWL_THEME": "Nachtuil",
+        "BLACK_OLED_THEME": "OLED-zwart",
         "SYSTEM_DESCRIPTION": "Systeem volgt de lichte of donkere weergave van je apparaat.",
         "DARK_THEME": "Donker",
         "LIGHT_THEME": "Licht",

@@ -756,6 +756,8 @@
     "THEMES": {
         "CREAM_THEME": "كريمي",
         "MOCHA_THEME": "موكا",
+        "NIGHT_OWL_THEME": "بومة الليل",
+        "BLACK_OLED_THEME": "كحل OLED",
         "SYSTEM_DESCRIPTION": "اختيار النظام كيتبع المظهر الفاتح أو الغامق ديال الجهاز.",
         "DARK_THEME": "داكن",
         "LIGHT_THEME": "فاتح",
