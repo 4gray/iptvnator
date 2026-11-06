@@ -17,6 +17,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { LiveChannelFailoverService } from '@iptvnator/playback/data-access';
 import { injectTranslationTick } from '@iptvnator/services';
 import {
     EmbeddedMpvAudioTrack,
@@ -37,6 +38,7 @@ import { EmbeddedMpvControlsAdapter } from './embedded-mpv-controls.adapter';
 import { EmbeddedMpvDockPanelComponent } from './embedded-mpv-dock-panel.component';
 import { EmbeddedMpvDockPanelState } from './embedded-mpv-dock-panels';
 import { EmbeddedMpvLegacyInteractions } from './embedded-mpv-legacy-interactions';
+import { EmbeddedMpvLiveFailover } from './embedded-mpv-live-failover';
 import { EmbeddedMpvOverlayVisibilityService } from './embedded-mpv-overlay-visibility.service';
 import { EmbeddedMpvSessionController } from './embedded-mpv-session-controller';
 import { EmbeddedMpvShortcuts } from './embedded-mpv-shortcuts';
@@ -116,6 +118,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
      */
     private readonly translationsTick = injectTranslationTick();
     readonly controller = inject(EmbeddedMpvSessionController);
+    private readonly failover = inject(LiveChannelFailoverService);
     readonly sharedControls = inject(EmbeddedMpvControlsAdapter);
     private readonly shortcuts = new EmbeddedMpvShortcuts();
     readonly menus = new EmbeddedMpvMenuState();
@@ -140,7 +143,10 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     /** Catch-up programmes first, else the file's chapters; see the helper. */
     readonly controlsTimelineSegments = computed(
         () =>
-            embeddedMpvTimelineSegments(this.timelineSegments(), this.session()),
+            embeddedMpvTimelineSegments(
+                this.timelineSegments(),
+                this.session()
+            ),
         { equal: sameTimelineSegments }
     );
     readonly stalled = this.controller.stalled;
@@ -213,9 +219,48 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
             Boolean(this.fullscreenSurface()?.requestFullscreen) &&
             Boolean(document.exitFullscreen)
     );
+    /** Live channel failover progress (retry, source hop), when active. */
+    readonly failoverLabel = computed(() => {
+        this.translationsTick();
+        const status = this.failover.status();
+        if (!status || !this.isLivePlayback() || !this.failover.enabled()) {
+            return '';
+        }
+        switch (status.kind) {
+            case 'retrying':
+                return this.translate.instant(
+                    'EMBEDDED_MPV.PLAYER.FAILOVER_RETRYING',
+                    status
+                );
+            case 'searching':
+                return this.translate.instant(
+                    'EMBEDDED_MPV.PLAYER.FAILOVER_SEARCHING',
+                    { channel: status.channelName }
+                );
+            case 'hopping':
+                return this.translate.instant(
+                    'EMBEDDED_MPV.PLAYER.FAILOVER_HOPPING',
+                    {
+                        index: status.index,
+                        total: status.total,
+                        source: status.sourceName,
+                        channel: status.channelName,
+                    }
+                );
+            case 'exhausted':
+                return this.translate.instant(
+                    'EMBEDDED_MPV.PLAYER.FAILOVER_EXHAUSTED',
+                    { channel: status.channelName }
+                );
+        }
+    });
     readonly statusLabel = computed(() => {
         this.translationsTick();
         const session = this.session();
+        const failoverLabel = this.failoverLabel();
+        if (failoverLabel && session?.status !== 'playing') {
+            return failoverLabel;
+        }
         if (session?.reconnect) {
             return this.translate.instant('EMBEDDED_MPV.PLAYER.RECONNECTING', {
                 attempt: session.reconnect.attempt,
@@ -359,6 +404,8 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     private readonly recordingTick = signal(Date.now());
     private readonly recordingMessage = signal<string | null>(null);
     private readonly legacyInteractions: EmbeddedMpvLegacyInteractions;
+    /** Kept for its effects; see `EmbeddedMpvLiveFailover`. */
+    private readonly liveFailover: EmbeddedMpvLiveFailover;
 
     private readonly onFullscreenChange = () => {
         this.syncFullscreenState();
@@ -378,6 +425,13 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     }
 
     constructor() {
+        this.liveFailover = new EmbeddedMpvLiveFailover({
+            playback: this.playback,
+            session: this.session,
+            isLive: this.isLivePlayback,
+            isSupported: this.isSupported,
+            retry: () => this.controller.retry(),
+        });
         this.legacyInteractions = new EmbeddedMpvLegacyInteractions({
             isAvailable: () => !this.isFrameCopyEngine(),
             playerRoot: () => this.playerRoot()?.nativeElement ?? null,
@@ -861,6 +915,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
 
     retry(): void {
         this.controller.retry();
+        this.liveFailover.restart();
     }
 
     // These helpers run inside the template's reactive context, so the

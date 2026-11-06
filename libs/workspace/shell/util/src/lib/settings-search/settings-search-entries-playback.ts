@@ -74,6 +74,15 @@ export const PLAYBACK_SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] =
             fallbackId: 'video-player',
         },
         {
+            id: 'live-channel-failover',
+            section: 'playback',
+            labelKey: 'SETTINGS.LIVE_CHANNEL_FAILOVER',
+            descriptionKey: 'SETTINGS.LIVE_CHANNEL_FAILOVER_DESCRIPTION',
+            keywords: ['failover', 'fallback', 'channel', 'source', 'retry'],
+            requires: ['desktop'],
+            fallbackId: 'video-player',
+        },
+        {
             id: 'mpv-player-path',
             section: 'playback',
             labelKey: 'SETTINGS.MPV_PLAYER_PATH_LABEL',

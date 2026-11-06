@@ -240,7 +240,8 @@
     font-variant-numeric: tabular-nums;
 }
 
-.embedded-mpv-player__recording-status {
+.embedded-mpv-player__recording-status,
+.embedded-mpv-player__failover-status {
     display: flex;
     align-items: center;
     gap: 6px;
@@ -250,7 +251,8 @@
     font-variant-numeric: tabular-nums;
 }
 
-.embedded-mpv-player__recording-status mat-icon {
+.embedded-mpv-player__recording-status mat-icon,
+.embedded-mpv-player__failover-status mat-icon {
     flex: 0 0 auto;
     width: 16px;
     height: 16px;
@@ -258,7 +260,8 @@
     color: var(--embedded-mpv-accent);
 }
 
-.embedded-mpv-player__recording-status span {
+.embedded-mpv-player__recording-status span,
+.embedded-mpv-player__failover-status span {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;

@@ -9,3 +9,4 @@ export * from './lib/playback-recommendation-policy';
 export * from './lib/playback-session-key';
 export * from './lib/playback-source-routing';
 export * from './lib/playback-target-capabilities';
+export * from './lib/live-channel-match';

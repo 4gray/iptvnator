@@ -25,6 +25,7 @@ export * from './lib/epg-source-reference.util';
 export * from './lib/external-player-arguments.utils';
 export * from './lib/embedded-mpv-extra-options.util';
 export * from './lib/external-player-session.interface';
+export * from './lib/live-failover.constants';
 export * from './lib/global-search-result.interface';
 export * from './lib/host-connectivity.util';
 export * from './lib/indexed-db.config';
