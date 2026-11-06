@@ -1,5 +1,8 @@
+import { useLayoutEffect } from 'preact/hooks';
+import { restoreFocus } from '@iptvnator/tv/ui';
 import type { RefObject } from 'preact';
-import { mediaTitle } from '@iptvnator/tv/util';
+import type { VodSequence } from './use-vod-sequence';
+import { episodeCode, mediaTitle } from '@iptvnator/tv/util';
 import type { TvModel } from './use-tv';
 import type { useLiveOverlay } from './live-overlay';
 import type { useSeriesDetails } from './use-series-details';
@@ -11,6 +14,7 @@ export function NativePlayerView({
     overlay,
     seriesDetails,
     openPlaylist,
+    vod,
 }: {
     tv: TvModel;
     video: RefObject<HTMLVideoElement>;
@@ -18,9 +22,18 @@ export function NativePlayerView({
     overlay: ReturnType<typeof useLiveOverlay>;
     seriesDetails: ReturnType<typeof useSeriesDetails>;
     openPlaylist: () => void;
+    vod: VodSequence;
 }) {
     const current = tv.playing;
     const element = video.current;
+    useLayoutEffect(() => {
+        if (!element?.ended || !vod.next || !tv.fullscreen) return;
+        let owns = true;
+        restoreFocus('player-next', '', undefined, () => owns);
+        return () => {
+            owns = false;
+        };
+    }, [element?.ended, vod.next?.id, tv.fullscreen]);
     const sourceName =
         tv.data.sources.find((source) => source.id === current?.sourceId)
             ?.name ?? 'Source unavailable';
@@ -82,13 +95,50 @@ export function NativePlayerView({
                         {current?.kind === 'episode' ? (
                             <p>{current.title}</p>
                         ) : null}
+                        {element?.ended && current?.kind === 'episode' ? (
+                            <p role="status">
+                                Episode finished.{' '}
+                                {vod.next
+                                    ? 'Choose Next episode to continue.'
+                                    : vod.busy
+                                      ? 'Finding the next episode…'
+                                      : vod.failed
+                                        ? 'Next episode is unavailable.'
+                                        : 'No next episode was supplied.'}
+                            </p>
+                        ) : null}
+                        {current?.kind === 'episode' && vod.failed ? (
+                            <button onClick={vod.retry}>
+                                Retry next episode
+                            </button>
+                        ) : null}
                         <div class="actions">
+                            {vod.next ? (
+                                <button
+                                    class={element?.ended ? 'primary' : ''}
+                                    data-focus="player-next"
+                                    disabled={vod.activating}
+                                    onClick={vod.playNext}
+                                >
+                                    Next episode · {episodeCode(vod.next)} →
+                                </button>
+                            ) : null}
                             <button
                                 data-focus="player-toggle"
                                 class="primary"
-                                onClick={() => tv.player.current?.toggle()}
+                                onClick={() =>
+                                    element?.ended &&
+                                    current &&
+                                    current.kind !== 'live'
+                                        ? tv.startOver(current)
+                                        : tv.player.current?.toggle()
+                                }
                             >
-                                {element?.paused ? 'Play ▶' : 'Pause Ⅱ'}
+                                {element?.ended && current?.kind !== 'live'
+                                    ? 'Watch again ▶'
+                                    : element?.paused
+                                      ? 'Play ▶'
+                                      : 'Pause Ⅱ'}
                             </button>
                             {current?.kind === 'episode' ? (
                                 <button

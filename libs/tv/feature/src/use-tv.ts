@@ -12,7 +12,12 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { useProvider } from './use-provider';
 import { useSourceNavigation } from './use-source-navigation';
 import { useTvRemote } from './use-tv-remote';
-import { LatestRequest, Media, Source } from '@iptvnator/tv/util';
+import {
+    LatestRequest,
+    Media,
+    Source,
+    resumeSeconds,
+} from '@iptvnator/tv/util';
 import { focusKey, platformBack, restoreFocus } from '@iptvnator/tv/ui';
 export function useTv(video: { current: HTMLVideoElement | null }) {
     const [route, setRoute] = useState(firstRoute);
@@ -168,7 +173,8 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         category = route.category,
         origin: string | NavigationOrigin = focusKey(),
         signal?: AbortSignal,
-        retryResolution?: () => void
+        retryResolution?: () => void,
+        forceRestart = false
     ) {
         if (!ready || item.sourceId !== data.activeId || signal?.aborted)
             return false;
@@ -176,7 +182,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
             typeof origin === 'string' ? playerOrigin.capture(origin) : origin;
         playback.current.cancel();
         failedResolution.current = undefined;
-        if (playing?.id === item.id && item.kind === 'live') {
+        if (!forceRestart && playing?.id === item.id && item.kind === 'live') {
             if (!fullscreen) {
                 playerOrigin.remember(originAtStart);
                 setFullscreen(true);
@@ -215,9 +221,8 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
             await player.current!.play(
                 item,
                 resolved,
-                p && (!p.duration || p.duration - p.seconds > 15)
-                    ? p.seconds
-                    : 0
+                resumeSeconds(p),
+                p?.revision ?? 0
             );
             return lane.owns(job);
         } catch {
@@ -228,7 +233,9 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
                     origin: originAtStart,
                 };
                 setError(
-                    'Playback could not be resolved. Check the source and retry.',
+                    forceRestart
+                        ? 'Playback could not be restarted.'
+                        : 'Playback could not be resolved. Check the source and retry.',
                     retryResolution ?? retryPlayback,
                     'Retry playback'
                 );
@@ -240,43 +247,27 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
     }
     function retryPlayback() {
         if (!ready) return;
-        if (failedResolution.current) {
+        const failed = failedResolution.current;
+        const item = failed?.item ?? playing;
+        if (!failed && playing) player.current?.stop();
+        if (item)
             void play(
-                failedResolution.current.item,
-                failedResolution.current.category,
-                failedResolution.current.origin
+                item,
+                failed?.category ?? playingCategory.current,
+                failed?.origin ?? playerOrigin.current,
+                undefined,
+                undefined,
+                true
             );
-            return;
-        }
-        if (playing) {
-            const item = playing;
-            player.current?.stop();
-            const job = playback.current.start();
-            provider.current
-                ?.resolve(item, job.signal)
-                .then((resolved) => {
-                    if (playback.current.owns(job)) {
-                        setError('');
-                        setPlaying(item);
-                        const p = repo.current!.data.positions[item.id];
-                        void player.current?.play(
-                            item,
-                            resolved,
-                            p && (!p.duration || p.duration - p.seconds > 15)
-                                ? p.seconds
-                                : 0
-                        );
-                    }
-                })
-                .catch(() => {
-                    if (playback.current.owns(job))
-                        setError(
-                            'Playback could not be restarted.',
-                            retryPlayback,
-                            'Retry playback'
-                        );
-                });
-        }
+    }
+    async function startOver(item: Media) {
+        const origin = fullscreen
+            ? playerOrigin.current
+            : playerOrigin.capture(focusKey());
+        const job = playback.current.start();
+        if ((await user.watch(item, 'reset')) && playback.current.owns(job))
+            return play(item, route.category, origin);
+        return false;
     }
     function back() {
         if (fullscreen) {
@@ -316,6 +307,16 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         stop: stopRemote,
         fullscreen,
         player: player.current,
+        resume: () => {
+            const current = player.current;
+            if (
+                current?.video.ended &&
+                current.item &&
+                current.item.kind !== 'live'
+            )
+                void startOver(current.item);
+            else current?.resume();
+        },
     });
     const switchSource = createSourceSwitcher({
         stop,
@@ -387,6 +388,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         open,
         openPerson,
         play,
+        startOver,
         back,
         stop,
         saveSource,

@@ -1510,3 +1510,31 @@ main.live-page {
     padding: 18px 24px;
     margin-bottom: 24px;
 }
+
+/* Episode actions are siblings of playback, with one stable virtual row height. */
+.detail-page .episode-grid {
+    grid-auto-rows: 330px;
+}
+.detail-page .rich-episodes .episode-grid {
+    grid-auto-rows: 550px;
+}
+.episode-entry {
+    min-width: 0;
+}
+.episode-entry .episode {
+    width: 100%;
+}
+.episode-entry > .tv-select {
+    margin-top: 8px;
+    width: 100%;
+}
+.watch-status {
+    display: block;
+    color: var(--tv-muted);
+    font-size: 18px;
+}
+.watch-status progress {
+    display: block;
+    width: 100%;
+    margin: 8px 0;
+}

@@ -363,6 +363,29 @@ Timeout preserves the previous saved position. Retry playback reads that
 position again, including records whose duration was unknown; completed items
 still restart. Stop/source replacement cancels the retry timer. Positive timeline
 seeks use the same confirmation path; explicit seek-to-zero starts over.
+
+Movie/episode labels, progress, resume and continuation use one browser-only
+policy matching desktop: rounded playback percentage at or above 90 is watched.
+Nonfinite/unknown durations do not imply completion. Confirmed `ended` records
+explicit completion even without duration, preserving raw seconds and duration;
+subsequent pause/stop checkpoints retain it. Additive optional watched/reset and
+revision fields remain in schema-1 progress records. Manual Mark watched,
+Mark unwatched/Reset and Start over commit before UI publication and retain raw
+positions, unrelated history/favorites and unknown snapshot fields. Every manual
+action increments the item's revision, fencing old session ticks and save retries.
+Start over uses the normal fresh playback resolver after the reset commits.
+
+Series Details focuses a primary Start/Resume/Continue action naming the actual
+season/episode. Episode actions are siblings of playback controls in the existing
+TV picker, never nested buttons. The player validates successors against exact
+source/parent/episode identity in provider-supplied order. Next episode is visible
+during playback and focused on completion, including season transitions; no IDs
+or media files are inferred from episode numbers. `ended` never resolves or starts
+a successor automatically. Next resolves a fresh link only on activation, keeps
+the mounted video element and originating page focus, and Back/source changes
+cancel pending resolution. Missing parent, failed lookup and unavailable final
+successors retain the current episode, with retry where appropriate.
+
 Remote Stop (413) tears down the stream and returns focus to its origin or
 channel. Back from catalog-origin fullscreen Live returns to the ongoing preview instead.
 
@@ -430,7 +453,8 @@ Until the initial snapshot is successfully read, the repository rejects all
 writes and editing/navigation is hidden behind a storage recovery screen.
 Retry reading saved data reloads the original snapshot without clearing it.
 Aborted read transactions reject instead of leaving startup pending.
-History begins on `playing`, then saves every 10 seconds, on pause/leave/hide.
+Playback history begins on `playing`, then saves every 10 seconds, on pause/leave/hide.
+Explicit VOD watched/reset actions also record local activity.
 Recent history is bounded to 200 entries; playback positions are retained
 independently, so an older title still resumes. Additive reads recover positions
 from older TV snapshots that only contain history. Closing an OS process can lose the interval
@@ -485,10 +509,15 @@ Home focus keys include the rail identity, so copies of a title in different rai
 restore to the initiating placement. Catalog preview rails remain
 explicitly labeled with the selected source; full catalogs stay source-scoped.
 The source picker belongs to catalog/detail/settings screens, while Home displays
-All sources. A series contributes its latest watched episode; a completed latest
-episode does not revive older unfinished episodes. Unknown-duration positions
-remain resumable. The Continue watching rail retains up to eight titles using
-the same grouping. Previous/Next controls wrap on OK or pointer click; there is
+All sources. A series contributes one continuation derived from its latest
+activity. Known sequences advance to the next supplied unwatched episode after
+completion, across season boundaries, without reviving an older gap. Season-0
+extras do not displace regular seasons; an extras-only series uses its supplied
+run. A caught-up series offers explicit replay in Details. Unknown-duration
+positions remain resumable. The Continue watching rail retains up to eight titles
+using the same grouping. Retained history from a removed source remains visible
+as unavailable; it cannot launch through another source or gain a new successor.
+Previous/Next controls wrap on OK or pointer click; there is
 no automatic rotation or playback on focus. Changing the featured title cancels
 pending Home activation, series details and playback-address resolution before
 updating the visible selection. Home owns resolution retries too; changing title
@@ -501,9 +530,14 @@ parent works even outside the Home catalog preview after relaunch. Historical
 entries retain Details and resolve their exact parent in the current provider,
 using the saved series name to narrow catalog queries. Only a matching
 source/parent identity can open; title similarity never synthesizes a parent.
-Named unfinished entries recover context in the background on Home. Lookups
-are bounded to 20 pages per catalog and 15 seconds, preserve playback data,
-and offer an explicit retry through Details when recovery is unavailable.
+Recent episode entries recover exact parent context and supplied sequences on
+Home, sequentially for at most three parents in the active source. Parents are
+deduplicated, successful sequences have a session cache capped at twelve, and
+route/source/provider changes cancel the lane. Named historical entries can use
+exact parent lookup, bounded to 20 pages per catalog and 15 seconds for the lane;
+unnamed entries never trigger an unfiltered portal scan. Lookup failure leaves
+Home usable and Details retains explicit retry. Other sources are activated only
+by deliberate existing Home actions; Home never scans every portal.
 Fullscreen episode playback also has Series details: it saves/stops playback and
 opens the parent episode list. Exiting fullscreen cancels a pending parent lookup;
 its late response cannot navigate away from Home.

@@ -7,6 +7,7 @@ export function useTvRemote(state: {
     stop: () => void;
     fullscreen: boolean;
     player: NativePlayer | undefined;
+    resume: () => void;
 }) {
     const latest = useRef(state);
     latest.current = state;
@@ -17,7 +18,7 @@ export function useTvRemote(state: {
                 () => latest.current.fullscreen,
                 (code) => {
                     const p = latest.current.player;
-                    if (code === 415) p?.resume();
+                    if (code === 415) latest.current.resume();
                     if (code === 19) p?.pause();
                     if (code === 413) latest.current.stop();
                     if (code === 412) p?.seek(-10);

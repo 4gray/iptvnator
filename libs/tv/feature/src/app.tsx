@@ -3,6 +3,7 @@ import { usePlayerPlaylist } from './use-player-playlist';
 import { HomeSourceStatus } from './home-source-status';
 import { LiveOverlay, useLiveOverlay } from './live-overlay';
 import { useLiveBrowse } from './use-live-browse';
+import { useVodSequence } from './use-vod-sequence';
 import { useHomeFeature } from './use-home-feature';
 import { PageHeader } from './page-header';
 import { Favorites } from './favorites';
@@ -66,7 +67,13 @@ export function TvApp({ buildInfo }: { buildInfo: TvBuildInfo }) {
         };
     });
     const r = tv.route;
-    const feature = useHomeFeature(tv, homeActions.leave);
+    const vod = useVodSequence(tv);
+    const feature = useHomeFeature(
+        tv,
+        homeActions.leave,
+        vod.lists,
+        vod.revision
+    );
     const cinematic = r.view === 'home' || r.view === 'detail';
     const metadata = useMetadata(
         r.view === 'detail'
@@ -252,6 +259,7 @@ export function TvApp({ buildInfo }: { buildInfo: TvBuildInfo }) {
                 controlsVisible={controlsVisible}
                 overlay={overlay}
                 seriesDetails={seriesDetails}
+                vod={vod}
                 openPlaylist={playlist.open}
             />
             <LiveOverlay tv={tv} browse={browse} overlay={overlay} />

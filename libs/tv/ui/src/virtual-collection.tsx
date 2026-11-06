@@ -204,13 +204,17 @@ export function VirtualCollection<T extends { id: string }>({
             data-loaded={items.length}
             onKeyDown={(event) => {
                 const target = event.target as HTMLElement;
+                const entryIndex =
+                    target.dataset.virtualIndex ??
+                    target.closest<HTMLElement>('[data-episode-index]')?.dataset
+                        .episodeIndex;
                 const down = event.key === 'ArrowDown' || event.keyCode === 40;
                 const up = event.key === 'ArrowUp' || event.keyCode === 38;
                 const right =
                     event.key === 'ArrowRight' || event.keyCode === 39;
                 const left = event.key === 'ArrowLeft' || event.keyCode === 37;
-                if ((right || left) && target.dataset.virtualIndex) {
-                    const index = Number(target.dataset.virtualIndex);
+                if ((right || left) && entryIndex) {
+                    const index = Number(entryIndex);
                     const next = index + (right ? 1 : -1);
                     const sameRow =
                         Math.floor(index / windowed.columns) ===
@@ -227,9 +231,9 @@ export function VirtualCollection<T extends { id: string }>({
                         destination.scrollIntoView({ block: 'nearest' });
                     }
                 }
-                if ((down || up) && target.dataset.virtualIndex) {
+                if ((down || up) && entryIndex) {
                     const next =
-                        Number(target.dataset.virtualIndex) +
+                        Number(entryIndex) +
                         (down ? windowed.columns : -windowed.columns);
                     if (next >= 0 && next < items.length) {
                         event.preventDefault();

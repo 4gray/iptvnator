@@ -1,4 +1,10 @@
-import { Media, Progress, mediaTitle } from '@iptvnator/tv/util';
+import {
+    Media,
+    Progress,
+    mediaTitle,
+    watchLabel,
+    watchState,
+} from '@iptvnator/tv/util';
 import { TvIcon } from './icon';
 export function ResumeCard({
     progress,
@@ -49,18 +55,22 @@ export function ResumeCard({
                 ) : null}
                 <span class="resume-position">
                     {item.season ? `S${item.season} · E${item.episode} · ` : ''}
-                    {Math.floor(seconds / 60)} min watched
+                    {watchState(progress) === 'in-progress'
+                        ? `${Math.floor(seconds / 60)} min watched`
+                        : 'Next episode'}
                 </span>
-                <progress
-                    aria-label={`${mediaTitle(item)}: viewing progress`}
-                    max={knownDuration ? duration : undefined}
-                    value={
-                        knownDuration
-                            ? Math.min(Math.max(seconds, 0), duration)
-                            : undefined
-                    }
-                />
-                <span class="resume-action">Resume →</span>
+                {watchState(progress) === 'in-progress' ? (
+                    <progress
+                        aria-label={`${mediaTitle(item)}: viewing progress`}
+                        max={knownDuration ? duration : undefined}
+                        value={
+                            knownDuration
+                                ? Math.min(Math.max(seconds, 0), duration)
+                                : undefined
+                        }
+                    />
+                ) : null}
+                <span class="resume-action">{watchLabel(progress)} →</span>
             </span>
         </button>
     );

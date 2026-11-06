@@ -101,6 +101,10 @@ for (const index of [72, 180])
         await page.locator('.episode').first().focus();
         for (let next = columns; next <= index; next += columns) {
             await page.keyboard.press('ArrowDown');
+            await expect(
+                page.locator('.episode-entry .tv-select:focus')
+            ).toHaveCount(1);
+            await page.keyboard.press('ArrowDown');
             await expect(page.locator('.episode:focus')).toHaveAttribute(
                 'data-virtual-index',
                 String(next)
