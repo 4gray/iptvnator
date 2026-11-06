@@ -308,7 +308,8 @@ source-action lifecycle and fresh resolution; a cross-source switch may stop vid
 while connecting. Removed or changed source/account connections invalidate the
 corresponding candidate. The pair is session-only: history is not treated as a
 current playing channel after launch. Pending Previous can be canceled with Back;
-modal Back closes its overlay first. Existing Left/drawer, media and system keys
+the visible Back and Go to playlist controls also retire it before leaving fullscreen.
+Modal Back closes its overlay first. Existing Left/drawer, media and system keys
 are unchanged; no Channel +/- hardware support or autoplay is added.
 
 Expand guide in preview and Programme in fullscreen open the single-channel guide.
@@ -391,6 +392,8 @@ revision fields remain in schema-1 progress records. Manual Mark watched,
 Mark unwatched/Reset and Start over commit before UI publication and retain raw
 positions, unrelated history/favorites and unknown snapshot fields. Every manual
 action increments the item's revision, fencing old session ticks and save retries.
+Playback captures that revision before resolving a stream, so a delayed launch
+cannot overwrite a manual action committed while resolution was pending.
 Start over uses the normal fresh playback resolver after the reset commits.
 
 Series Details focuses a primary Start/Resume/Continue action naming the actual

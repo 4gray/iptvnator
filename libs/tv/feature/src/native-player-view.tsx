@@ -13,6 +13,7 @@ export function NativePlayerView({
     controlsVisible,
     overlay,
     seriesDetails,
+    back,
     openPlaylist,
     vod,
     previousChannel,
@@ -22,6 +23,7 @@ export function NativePlayerView({
     controlsVisible: boolean;
     overlay: ReturnType<typeof useLiveOverlay>;
     seriesDetails: ReturnType<typeof useSeriesDetails>;
+    back: () => void;
     openPlaylist: () => void;
     vod: VodSequence;
     previousChannel: { play: () => void; pending: boolean };
@@ -55,7 +57,7 @@ export function NativePlayerView({
                     hidden={!!overlay.panel}
                 >
                     <div class="player-top">
-                        <button data-focus="player-back" onClick={tv.back}>
+                        <button data-focus="player-back" onClick={back}>
                             ← Back
                         </button>
                         {current?.kind === 'live' ? (

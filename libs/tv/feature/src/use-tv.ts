@@ -193,6 +193,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         }
         const lane = playback.current;
         const job = lane.start();
+        const revision = repo.current!.data.positions[item.id]?.revision ?? 0;
         const cancel = () => {
             if (lane.owns(job)) lane.cancel();
         };
@@ -223,7 +224,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
                 item,
                 resolved,
                 resumeSeconds(p),
-                p?.revision ?? 0
+                revision
             );
             return lane.owns(job);
         } catch {
@@ -234,7 +235,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
                     origin: originAtStart,
                 };
                 setError(
-                    forceRestart
+                    forceRestart && playing?.id === item.id
                         ? 'Playback could not be restarted.'
                         : 'Playback could not be resolved. Check the source and retry.',
                     retryResolution ?? retryPlayback,

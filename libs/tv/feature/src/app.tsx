@@ -260,7 +260,14 @@ export function TvApp({ buildInfo }: { buildInfo: TvBuildInfo }) {
                 overlay={overlay}
                 seriesDetails={seriesDetails}
                 vod={vod}
-                openPlaylist={playlist.open}
+                back={() => {
+                    homeActions.leave();
+                    tv.back();
+                }}
+                openPlaylist={() => {
+                    homeActions.leave();
+                    playlist.open();
+                }}
                 previousChannel={{
                     pending: homeActions.pending,
                     play: () =>
