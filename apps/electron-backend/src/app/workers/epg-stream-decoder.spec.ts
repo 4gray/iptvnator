@@ -12,6 +12,13 @@ const xmltvFixture =
     '<programme channel="test" start="20260912090000 +0000" stop="20260912100000 +0000">' +
     '<title>Test Bulletin</title></programme></tv>';
 
+// xz has no Node core compressor, so an `xz -9` of the exact fixture above is
+// embedded as base64 (zlib can make the gzip/deflate/brotli fixtures inline).
+const xzFixture = Buffer.from(
+    '/Td6WFoAAATm1rRGBMCpAfEBIQEcAAAAAAAAAJkYdwPgAPAAoV0AHg/LhxHYzmaRD4Meyv17M9R/6bfaKDF2JWYgTSoJbYm6XYkb766123dItF5p9QuGX+PSpT+jeyPjMNuxZJ2QiMkLnHk6beI3Thlldi/myMIuQecJpVYtA2e8++lUypL1Zn7dUgwIeHZ95FL/yha8hTP4O0nKaa69OpQzSfBQ494+YL+Wl0rfKciBl/is9b0/+ZzGEnDKjTIjj4nq5RvMzXgAAAAAv1cEI8VXNo4AAcUB8QEAAJ9pCICxxGf7AgAAAAAEWVo=',
+    'base64'
+);
+
 async function collectDecodedText(stream: Readable): Promise<string> {
     return (await collectDecodedBytes(stream)).toString('utf-8');
 }
@@ -48,6 +55,7 @@ function parseChannelCount(xml: string): number {
 describe('createDecodedEpgStream', () => {
     it.each([
         ['gzip file', gzipSync(xmltvFixture), {}, true],
+        ['xz file', xzFixture, {}, true],
         [
             'HTTP deflate',
             deflateSync(xmltvFixture),
@@ -109,6 +117,15 @@ describe('createDecodedEpgStream', () => {
             );
             expect(result).toEqual(gzipSync(xmltvFixture));
         }
+    });
+
+    it('decompresses an xz EPG file detected by magic bytes (#744)', async () => {
+        const decodedText = await collectDecodedText(
+            optionalFileStream(Readable.from([xzFixture]))
+        );
+
+        expect(decodedText).toBe(xmltvFixture);
+        expect(parseChannelCount(decodedText)).toBe(1);
     });
 
     it('decodes a gzip file inside HTTP gzip before XMLTV parsing (#1586)', async () => {

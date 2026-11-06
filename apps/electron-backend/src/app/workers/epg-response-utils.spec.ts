@@ -13,6 +13,24 @@ describe('shouldGunzipEpgResponse', () => {
         ).toBe(true);
     });
 
+    it('returns true for original .xz URLs', () => {
+        expect(
+            shouldGunzipEpgResponse('https://example.com/guide.xml.xz', {
+                headers: new Headers(),
+                url: 'https://example.com/guide.xml.xz',
+            })
+        ).toBe(true);
+    });
+
+    it('returns true for xz mime types', () => {
+        expect(
+            shouldGunzipEpgResponse('https://example.com/guide', {
+                headers: new Headers([['content-type', 'application/x-xz']]),
+                url: 'https://example.com/guide',
+            })
+        ).toBe(true);
+    });
+
     it('returns true when a redirect lands on a .gz URL', () => {
         expect(
             shouldGunzipEpgResponse('http://epg.vcboy.com', {

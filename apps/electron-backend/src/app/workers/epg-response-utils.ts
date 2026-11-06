@@ -35,6 +35,18 @@ function hasGzipPath(url: string | null | undefined): boolean {
     }
 }
 
+function hasXzPath(url: string | null | undefined): boolean {
+    if (!url) {
+        return false;
+    }
+
+    try {
+        return new URL(url).pathname.toLowerCase().endsWith('.xz');
+    } catch {
+        return url.toLowerCase().endsWith('.xz');
+    }
+}
+
 export function getEpgResponseContentEncoding(
     headers: HeaderReader
 ): EpgResponseContentEncoding | null {
@@ -61,21 +73,29 @@ export function getEpgResponseContentEncodings(
 }
 
 /**
- * Detect whether an EPG response should be gunzipped.
- * Some providers redirect plain-looking URLs to a `.gz` payload.
+ * Detect whether an EPG response is a compressed file (gzip `.gz` or xz
+ * `.xz`) that must be decompressed before XMLTV parsing.
+ * Some providers redirect plain-looking URLs to a compressed payload.
  */
 export function shouldGunzipEpgResponse(
     originalUrl: string,
     response: { headers: HeaderReader; url?: string }
 ): boolean {
-    if (hasGzipPath(originalUrl) || hasGzipPath(response.url)) {
+    if (
+        hasGzipPath(originalUrl) ||
+        hasGzipPath(response.url) ||
+        hasXzPath(originalUrl) ||
+        hasXzPath(response.url)
+    ) {
         return true;
     }
 
     const contentType = getHeaderValue(response.headers, 'content-type');
     if (
         contentType &&
-        /(application\/gzip|application\/x-gzip)/i.test(contentType)
+        /(application\/gzip|application\/x-gzip|application\/x-xz|application\/xz)/i.test(
+            contentType
+        )
     ) {
         return true;
     }
@@ -84,7 +104,11 @@ export function shouldGunzipEpgResponse(
         response.headers,
         'content-disposition'
     );
-    if (contentDisposition?.toLowerCase().includes('.gz')) {
+    if (
+        contentDisposition &&
+        (contentDisposition.toLowerCase().includes('.gz') ||
+            contentDisposition.toLowerCase().includes('.xz'))
+    ) {
         return true;
     }
 
