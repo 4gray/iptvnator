@@ -28,6 +28,10 @@ import {
     unwrap,
 } from './stalker-series';
 import { ProviderTransport } from './transport';
+
+/** How long one guide row waits for the shared bulk guide before asking per channel. */
+const BULK_WAIT_MS = 3000;
+
 export class StalkerProvider implements ProviderClient {
     readonly capabilities = {
         live: true,
@@ -160,7 +164,9 @@ export class StalkerProvider implements ProviderClient {
     async epg(item: Media, signal: AbortSignal) {
         let bulk: Record<string, unknown> = {};
         try {
-            bulk = await this.bulk.get(signal);
+            // A large portal's 7-day guide can outlast a guide row's
+            // deadline: after a short wait, ask for this channel instead.
+            bulk = (await this.bulk.getWithin(signal, BULK_WAIT_MS)) ?? {};
         } catch (error) {
             if (signal.aborted || (error as Error)?.name === 'AbortError')
                 throw new DOMException('Aborted', 'AbortError');
