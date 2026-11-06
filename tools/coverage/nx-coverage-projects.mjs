@@ -4,6 +4,7 @@ import path from 'node:path';
 export async function readResolvedProjects() {
     const { createProjectGraphAsync } = await import('@nx/devkit');
     const graph = await createProjectGraphAsync({ exitOnError: false });
+    // Nx has already applied target defaults and expanded cwd/command tokens.
     return Object.fromEntries(
         Object.entries(graph.nodes).map(([name, node]) => [name, node.data])
     );

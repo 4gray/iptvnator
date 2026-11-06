@@ -59,12 +59,19 @@ it('collects coverage and separate JUnit failures for inferred Jest and explicit
                 },
             ],
             targetDefaults: {
-                test: {
-                    inputs: [
-                        'default',
-                        '{workspaceRoot}/tools/release/fixture.mjs',
-                    ],
-                },
+                test: [
+                    {
+                        filter: { plugin: '@nx/jest/plugin' },
+                        inputs: [
+                            'default',
+                            '{workspaceRoot}/tools/release/fixture.mjs',
+                        ],
+                        options: {
+                            cwd: '{workspaceRoot}',
+                            command: 'jest --config {projectRoot}/jest.config.cjs',
+                        },
+                    },
+                ],
             },
         });
         mkdirSync(path.join(root, 'tools/coverage'), { recursive: true });
@@ -164,6 +171,16 @@ it('collects coverage and separate JUnit failures for inferred Jest and explicit
                 coverage[path.join(root, project.sourceRoot, 'runtime.ts')];
             assert.ok(entry, `missing ${project.name} source coverage`);
             assert.ok(Object.values(entry.s).some((count) => count > 0));
+            const xml = readFileSync(
+                path.join(root, 'coverage', project.root, 'junit.xml'),
+                'utf8'
+            );
+            const report = new JSDOM(xml, { contentType: 'text/xml' }).window
+                .document;
+            assert.equal(
+                report.getElementsByTagName('testcase')[0].getAttribute('classname'),
+                path.join(project.sourceRoot, 'runtime.spec.ts')
+            );
         }
         for (const script of [
             'check-coverage-policy.mjs',
