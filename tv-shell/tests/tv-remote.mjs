@@ -494,6 +494,36 @@ console.log('9. under the Android bridge: the screen follows playback, error cod
         wrapper.remove(); // Chromium pauses a removed media element; its events no longer reach the document
         await wait(400);
         out.leavingRemoved = recent();
+        const engineVideo = document.createElement('video');
+        const source = new MediaSource();
+        const opened = new Promise((resolve) => source.addEventListener('sourceopen', resolve, { once: true }));
+        engineVideo.src = URL.createObjectURL(source);
+        document.body.appendChild(engineVideo);
+        await opened;
+        const request = new XMLHttpRequest();
+        request.open('GET', provider + '/live/synthetic-account/synthetic-secret/unsupported.m3u8');
+        const diagnostic = document.createElement('section');
+        recent = since();
+        document.body.appendChild(diagnostic);
+        const issue = (code) => diagnostic.dispatchEvent(new CustomEvent('iptvnator:playback-issue', { bubbles: true, detail: { code } }));
+        issue('network-error');
+        await wait(150);
+        out.engineNetworkError = recent();
+        issue('unsupported-codec');
+        await wait(150);
+        out.engineFormatError = recent().filter((call) => call.startsWith('onPlaybackError '));
+        out.engineNativeErrorAbsent = engineVideo.error === null;
+        issue('unsupported-codec');
+        await wait(150);
+        out.engineDuplicateError = recent().filter((call) => call.startsWith('onPlaybackError '));
+        engineVideo.dispatchEvent(new Event('loadstart'));
+        issue('unsupported-codec');
+        await wait(150);
+        out.engineInsertedError = recent().filter((call) => call.startsWith('onPlaybackError '));
+        diagnostic.remove();
+        engineVideo.removeAttribute('src');
+        engineVideo.load();
+        engineVideo.remove();
         return out;
     }, PROVIDER);
     check(r.playing.includes('setKeepScreenOn true'), 'playback keeps the screen on: ' + r.playing.join(' | '));
@@ -503,6 +533,12 @@ console.log('9. under the Android bridge: the screen follows playback, error cod
     check(r.attached === true && r.detached === false, 'a detached player is no longer the media the remote controls');
     check(r.leavingPlaying.includes('setKeepScreenOn true') && r.leavingRemoved.includes('setKeepScreenOn false'),
         'leaving a playing page lets the screen sleep: ' + r.leavingPlaying.join(' | ') + ' then ' + r.leavingRemoved.join(' | '));
+    check(!r.engineNetworkError.some((call) => call.startsWith('onPlaybackError ')),
+        'engine-level network errors do not offer the external player');
+    check(r.engineNativeErrorAbsent && r.engineFormatError.length === 1 && r.engineFormatError[0].endsWith(' 4'),
+        'an engine codec failure offers the external player without a native media error');
+    check(r.engineDuplicateError.length === 1, 'the same engine failure offers the external player once');
+    check(r.engineInsertedError.length === 2, 'a new load attempt can offer one prompt even when its codec diagnostic is unchanged');
     const bridgeFailures = [];
     bridged.on('console', (message) => {
         if (message.text().startsWith('[tvshell]')) bridgeFailures.push(message.text());

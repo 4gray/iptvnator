@@ -169,6 +169,27 @@ describe('PlaybackDiagnosticPanelComponent', () => {
         fixture.componentRef.setInput('externalStates', externalStates());
     });
 
+    it('publishes only the issue code after render, including repeated codes on new issues', () => {
+        const events: unknown[] = [];
+        fixture.nativeElement.addEventListener(
+            'iptvnator:playback-issue',
+            (event: CustomEvent) => events.push(event.detail)
+        );
+        fixture.detectChanges();
+        TestBed.tick();
+        expect(events).toEqual([{ code: DIAGNOSTIC.code }]);
+        fixture.componentRef.setInput('diagnostic', {
+            ...DIAGNOSTIC,
+            sourceUrl: 'https://synthetic.example/next.m3u8',
+        });
+        fixture.detectChanges();
+        TestBed.tick();
+        expect(events).toEqual([
+            { code: DIAGNOSTIC.code },
+            { code: DIAGNOSTIC.code },
+        ]);
+    });
+
     it('keeps the focused external button mounted through launch and started states', () => {
         const players: PlaybackRecommendationTarget[] = [];
         component.playerRequested.subscribe((target) => players.push(target));

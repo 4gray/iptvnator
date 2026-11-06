@@ -1156,6 +1156,14 @@
                 syncKeepScreenOn(type === 'playing');
             }, true);
         });
+        document.addEventListener('iptvnator:playback-issue', function (event) {
+            var code = event.detail && event.detail.code;
+            if (code !== 'unsupported-codec' && code !== 'unsupported-container' && code !== 'media-decode-error') return;
+            var url = api.currentStreamUrl();
+            var root = currentVideo && currentVideo.closest ? currentVideo.closest('.video-js') : null;
+            if (!url || !armPrompt(url, root)) return;
+            native('onPlaybackError', url, document.title || '', '4');
+        });
         // video.js never sets the <video> src when no tech accepts the source
         // (raw .ts streams): it flags its root with `vjs-error` instead.
         var vjsObserver = new MutationObserver(function (mutations) {

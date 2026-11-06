@@ -234,11 +234,38 @@ describe('GridListComponent row windowing', () => {
         expect(grid().style.paddingBottom).toBe(`${(100 - 46) * PITCH}px`);
     });
 
+    it('renders a restored offset before the return-focus lookup runs', async () => {
+        await create(movies(200));
+        host.scrollTo = jest.fn((options?: ScrollToOptions | number) => {
+            host.scrollTop =
+                typeof options === 'object' ? (options.top ?? 0) : 0;
+        });
+
+        fixture.componentInstance.restoreScrollPosition(
+            GRID_OFFSET + 40 * PITCH
+        );
+
+        const card = cards().find(
+            (item) => item.getAttribute('aria-label') === 'Movie 160'
+        );
+        expect(card).toBeDefined();
+        card?.focus({ preventScroll: true });
+        expect(document.activeElement).toBe(card);
+    });
+
     it('honours the kill switch', async () => {
         localStorage.setItem(GRID_WINDOW_KILL_SWITCH_KEY, 'off');
         await create(movies(200));
 
         expect(cards()).toHaveLength(200);
         expect(grid().getAttribute('style')).toBeNull();
+    });
+
+    it('ignores a restoration callback after the grid is destroyed', async () => {
+        await create(movies(200));
+        host.scrollTo = jest.fn();
+        const component = fixture.componentInstance;
+        fixture.destroy();
+        expect(() => component.restoreScrollPosition(4000)).not.toThrow();
     });
 });

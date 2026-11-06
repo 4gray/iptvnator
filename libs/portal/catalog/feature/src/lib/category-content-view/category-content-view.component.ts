@@ -11,6 +11,7 @@ import {
     OnInit,
     signal,
     untracked,
+    viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs/operators';
@@ -87,6 +88,7 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     private readonly activatedRoute = inject(ActivatedRoute);
     private readonly destroyRef = inject(DestroyRef);
     private readonly host = inject(ElementRef<HTMLElement>);
+    private readonly gridList = viewChild(GridListComponent);
     private readonly router = inject(Router);
     private readonly focus = createCatalogReturnFocus(this.host.nativeElement);
     private readonly providerOnlyStalkerItemId = signal<string | null>(null);
@@ -313,7 +315,7 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
                     if (scrollTop !== null)
-                        this.gridElement()?.scrollTo?.({ top: scrollTop });
+                        this.gridList()?.restoreScrollPosition(scrollTop);
                     this.focus.restore();
                 });
             });

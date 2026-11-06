@@ -558,6 +558,8 @@ are announced without moving focus from the search field. Opening a catalog
 card saves its identity in that list's history entry. Returning from details
 restores the card after scroll restoration, or the workspace main landmark
 if the card disappeared; an active input or dialog keeps focus.
+Catalog scroll restoration uses `GridListComponent.restoreScrollPosition()` so
+the TV window is rendered before the synchronous card-focus lookup.
 
 Shared season tabs have one Tab stop, wrapping Left/Right navigation
 (following text direction), Home/End, and an associated episode `tabpanel`.

@@ -34,6 +34,8 @@ export interface GridWindowView<T> {
     /** Spacer heights for the grid's padding; null when windowing is off. */
     readonly topPx: Signal<number | null>;
     readonly bottomPx: Signal<number | null>;
+    /** Render the current offset before a synchronous focus lookup. */
+    synchronize(): void;
     /** `@for` track key: `$index` when off, the item's identity when on. */
     trackKey(index: number, item: T): unknown;
 }
@@ -55,6 +57,7 @@ export function createGridWindow<T extends object>(
             rendered: items,
             topPx: off,
             bottomPx: off,
+            synchronize: () => undefined,
             trackKey: (index) => index,
         };
     }
@@ -112,15 +115,17 @@ export function createGridWindow<T extends object>(
     // Before the remote layer handles the next key on the grid, bring the
     // window up to the current offset so the next row is already there.
     const cdr = inject(ChangeDetectorRef);
-    const beforeKey = (event: Event): void => {
-        if (!host.contains(event.target as Node | null)) {
-            return;
-        }
+    const destroyRef = inject(DestroyRef);
+    const synchronize = (): void => {
+        if (destroyRef.destroyed) return;
         const previous = range();
         scrollTop.set(host.scrollTop);
         if (!sameGridWindow(previous, range())) {
             cdr.detectChanges();
         }
+    };
+    const beforeKey = (event: Event): void => {
+        if (host.contains(event.target as Node | null)) synchronize();
     };
     const view = host.ownerDocument.defaultView;
     const resizeObserver =
@@ -130,7 +135,7 @@ export function createGridWindow<T extends object>(
     resizeObserver?.observe(host);
     host.addEventListener('scroll', onScroll, { passive: true });
     view?.addEventListener('keydown', beforeKey, { capture: true });
-    inject(DestroyRef).onDestroy(() => {
+    destroyRef.onDestroy(() => {
         resizeObserver?.disconnect();
         host.removeEventListener('scroll', onScroll);
         view?.removeEventListener('keydown', beforeKey, { capture: true });
@@ -152,6 +157,7 @@ export function createGridWindow<T extends object>(
         rendered,
         topPx: spacer('topPx'),
         bottomPx: spacer('bottomPx'),
+        synchronize,
         trackKey: (index, item) => {
             const keyed = item as KeyedItem;
             return (

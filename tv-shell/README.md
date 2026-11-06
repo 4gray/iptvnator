@@ -23,6 +23,12 @@ APK
 
 ## What it does
 
+Returning from a deep catalog position synchronizes the TV grid before restoring
+card focus. Shared playback diagnostics publish `iptvnator:playback-issue` with only a code;
+the shell uses unsupported-codec/container and decode errors to offer an external
+player even when the engine does not raise a native media error. Network errors
+remain excluded and duplicate diagnostics share the existing per-load prompt limit.
+
 Parser fixtures use synthetic catalog metadata before the reference parser
 generates expected output. Run `node --test tv-shell/tests/*.test.mjs` for the
 fixture privacy and reference-backend redirect identity checks; the APK workflow

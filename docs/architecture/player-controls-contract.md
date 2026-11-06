@@ -110,6 +110,12 @@ ownership when the session, playback, engine, or component changes.
 
 ## Diagnostics And Recovery Ownership Boundary
 
+The diagnostic panel publishes a bubbling `iptvnator:playback-issue` DOM event
+after rendering each issue, with only its bounded `code` in the detail. It contains
+no stream URL or provider credentials; the TV
+shell uses format/decode codes for its external-player offer without treating
+network failures as unsupported media.
+
 `PlayerController` remains a sibling of playback diagnostics and recovery
 recommendations. It owns engine-neutral playback state, capabilities, and
 commands for the shared controls; it does not classify errors, call

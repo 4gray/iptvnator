@@ -1,6 +1,7 @@
 import {
     ChangeDetectionStrategy,
     Component,
+    ElementRef,
     computed,
     inject,
     input,
@@ -114,6 +115,7 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class GridListComponent {
+    private readonly host: HTMLElement = inject(ElementRef).nativeElement;
     private readonly failedArtworkUrls = signal<ReadonlySet<string>>(new Set());
     private readonly settingsStore = inject(SettingsStore);
     private readonly coverTitles = inject(CoverTitlesService);
@@ -205,6 +207,11 @@ export class GridListComponent {
     readonly skeletonRows = computed(() =>
         Array.from({ length: 12 }, (_, index) => index)
     );
+
+    restoreScrollPosition(top: number): void {
+        this.host.scrollTo({ top });
+        this.gridWindow.synchronize();
+    }
 
     protected hasArtworkFailed(poster: string): boolean {
         return this.failedArtworkUrls().has(poster);
