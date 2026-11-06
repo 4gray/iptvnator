@@ -3,20 +3,22 @@
     "$schema": "../../../node_modules/nx/schemas/project-schema.json",
     "sourceRoot": "libs/shared/testing/src",
     "projectType": "library",
-    "tags": [
-        "scope:shared",
-        "domain:shared-runtime",
-        "type:util"
-    ],
+    "tags": ["scope:shared", "domain:shared-runtime", "type:util"],
     "targets": {
         "lint": {
-            "executor": "@nx/eslint:lint"
+            "inputs": [
+                "default",
+                "^default",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/.eslintignore",
+                "{workspaceRoot}/eslint.config.mjs",
+                "{workspaceRoot}/tools/eslint-rules/**/*",
+                "{workspaceRoot}/tools/eslint/**/*"
+            ]
         },
         "build": {
             "executor": "@nx/js:tsc",
-            "outputs": [
-                "{options.outputPath}"
-            ],
+            "outputs": ["{options.outputPath}"],
             "options": {
                 "outputPath": "dist/libs/shared/testing",
                 "main": "libs/shared/testing/src/index.ts",

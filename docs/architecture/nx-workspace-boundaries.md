@@ -56,9 +56,25 @@ Omit `pnpm nx migrate --run-migrations` when the first command reports that no
 migrations exist. Major Nx updates always use this manual workflow and the
 resulting PR runs the full CI pipeline.
 
+Nx 24.0.4 uses inferred Jest and ESLint tasks instead of the removed
+`@nx/jest:jest` and `@nx/eslint:lint` executors. The Jest plugin includes only
+the projects migrated from that executor; Angular ESM command targets retain
+their existing runner, environment and workspace-root configuration. Preserve
+the scoped `test` defaults for the Jest plugin, including its `ci` configuration,
+and the per-project lint inputs carried forward by the converter. Jest commands
+retain the workspace working directory and pass their project config explicitly,
+so subprocess fixtures and file-based contracts keep their previous paths.
+The marketing-fixtures target retains its `.cts` config through a command override.
+Shared ESLint config patterns have an explicit workspace base path so inferred
+project-local lint commands preserve existing rule scopes and baseline entries.
+Coverage tooling reads resolved Nx project targets, including inferred tasks;
+raw `project.json` alone is no longer a complete target inventory.
+`affected.legacy` keeps the previous project-level affected selection during
+this toolchain migration.
+
 ## Angular 22 Toolchain Compatibility
 
-Angular framework/Material 22.1 and CLI/build 22.1 use Nx 23.2 and TypeScript
+Angular 22 and CLI/build 22.2.5 use Nx 24.0.4 and TypeScript
 6.0. Framework and CLI patch numbers may differ; keep framework packages aligned
 in both dependency sections and all official Nx packages on one exact version.
 Use `.nvmrc` for development/CI (Node 24.22.1); supported LTS Node ranges are
@@ -87,7 +103,9 @@ Third-party packages need scoped compatibility bridges in
 
 - `nx-electron@22.0.0` still declares Nx 22 peers. Its existing package-layout
   patch also changes the removed `@nx/js/src/utils/buildable-libs-utils` import
-  to `@nx/js/internal`. A package extension supplies its undeclared runtime
+  to `@nx/js/internal`. Scoped peer allowances select Nx 24.0.4; revalidate them
+  with the executor/package tests and real Electron builds on upgrades.
+  A package extension supplies its undeclared runtime
   dependency `webpack-node-externals`. The packaging suite loads every executor
   and checks the single application manifest. Remove these bridges only after
   the upstream package declares and implements the current Nx APIs.
