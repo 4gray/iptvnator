@@ -16,6 +16,7 @@ import {
     expect,
     launchElectronApp,
     openSettings,
+    openSettingsSection,
     resetMockServers,
     saveSettings,
     test,
@@ -101,6 +102,7 @@ async function selectDownloadCoverSize(
     size: 'small' | 'medium' | 'large'
 ): Promise<void> {
     await openSettings(page);
+    await openSettingsSection(page, 'appearance');
     await page.getByTestId(`cover-size-${size}`).click();
     // Cover size is staged like every other setting now — it reaches the
     // store (and the document dataset) only once the save lands.
