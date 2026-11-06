@@ -243,7 +243,7 @@ export class RemoteControlEvents {
     }
 
     /**
-     * Change to the next channel
+     * Change to the previous channel in the playback list
      */
     private changeChannelUp(): void {
         console.log('Channel UP requested');
@@ -251,7 +251,7 @@ export class RemoteControlEvents {
     }
 
     /**
-     * Change to the previous channel
+     * Change to the next channel in the playback list
      */
     private changeChannelDown(): void {
         console.log('Channel DOWN requested');

@@ -16,6 +16,7 @@
         @if (runtimeLabel(); as runtime) {
             <app-meta-chip>{{ runtime }}</app-meta-chip>
         }
+        <app-age-rating-chip [certifications]="certifications()" />
         @if (genres(); as genreList) {
             <app-meta-chip>{{ genreList }}</app-meta-chip>
         }

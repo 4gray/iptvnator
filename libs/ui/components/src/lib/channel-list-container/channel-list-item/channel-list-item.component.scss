@@ -1,3 +1,5 @@
+@use '../../../../../styles/focus-ring';
+
 :host {
     display: block;
     width: 100%;
@@ -36,7 +38,7 @@
             var(--app-selection-surface)
         );
         border-color: var(--app-selection-border);
-        color: var(--app-selection-color);
+        color: var(--app-selection-text-color);
         box-shadow:
             inset 0 0 0 1px var(--app-selection-border),
             0 12px 20px -18px var(--app-selection-glow);
@@ -71,8 +73,7 @@
     app-region: no-drag;
 
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color);
-        outline-offset: 2px;
+        @include focus-ring.focus-ring-declarations;
         border-radius: 4px;
     }
 
@@ -298,6 +299,14 @@
 }
 
 .channel-list-item.active {
+    // The tint already supplies hierarchy. Fading the selected foreground
+    // again makes programme text and times fail contrast in both themes.
+    .epg-title,
+    .epg-time,
+    .epg-placeholder {
+        opacity: 1;
+    }
+
     .epg-title,
     .epg-time,
     .epg-placeholder,

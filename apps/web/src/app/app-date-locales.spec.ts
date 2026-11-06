@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { TranslateService } from '@ngx-translate/core';
 import { normalizeDateLocale } from '@iptvnator/pipes';
 import { Language } from '@iptvnator/shared/interfaces';
+import { PREFERRED_LANGUAGE_STORAGE_KEY } from './app-language-preference';
 import {
     APP_DATE_LOCALE_LOADERS,
     AppDateLocaleService,
@@ -63,6 +64,19 @@ describe('registerAppDateLocale', () => {
         await expect(registerAppDateLocale('xx', {})).resolves.toBeUndefined();
     });
 
+    it('uses distinct Portuguese regional date formats and maps legacy pt to Brazil', async () => {
+        await registerAppDateLocale('pt-PT');
+        await registerAppDateLocale('pt-BR');
+        await registerAppDateLocale('pt');
+        expect(formatDate(sampleDate, 'short', 'pt-PT')).toBe(
+            '15/01/24, 13:05'
+        );
+        expect(formatDate(sampleDate, 'short', 'pt-BR')).toBe(
+            '15/01/2024 13:05'
+        );
+        expect(normalizeDateLocale('pt')).toBe('pt-BR');
+    });
+
     it('bundles a loader for every supported language except English', () => {
         const expectedLocales = Object.values(Language)
             .filter((language) => language !== Language.ENGLISH)
@@ -89,6 +103,8 @@ describe('AppDateLocaleService', () => {
     let translate: { use: jest.Mock };
     let service: AppDateLocaleService;
 
+    afterEach(() => localStorage.removeItem(PREFERRED_LANGUAGE_STORAGE_KEY));
+
     beforeEach(() => {
         translate = { use: jest.fn() };
         TestBed.configureTestingModule({
@@ -111,13 +127,37 @@ describe('AppDateLocaleService', () => {
         expect(formatDate(sampleDate, 'MMMM', 'hu')).toBe('január');
     });
 
+    it('updates the normalized cold-start hint synchronously before switching the UI', async () => {
+        const portugal = service.use('pt_PT');
+        expect(localStorage.getItem(PREFERRED_LANGUAGE_STORAGE_KEY)).toBe(
+            'pt-PT'
+        );
+        expect(translate.use).not.toHaveBeenCalled();
+        await portugal;
+
+        const brazil = service.use('pt');
+        expect(localStorage.getItem(PREFERRED_LANGUAGE_STORAGE_KEY)).toBe(
+            'pt-BR'
+        );
+        await brazil;
+        expect(translate.use).toHaveBeenLastCalledWith('pt-BR');
+    });
+
     it('applies only the language requested last when switches overlap', async () => {
-        await Promise.all([
-            service.use(Language.ITALIAN),
-            service.use(Language.TURKISH),
-        ]);
+        const first = service.use(Language.ITALIAN);
+        expect(localStorage.getItem(PREFERRED_LANGUAGE_STORAGE_KEY)).toBe(
+            Language.ITALIAN
+        );
+        const last = service.use(Language.TURKISH);
+        expect(localStorage.getItem(PREFERRED_LANGUAGE_STORAGE_KEY)).toBe(
+            Language.TURKISH
+        );
+        await Promise.all([first, last]);
 
         expect(translate.use).toHaveBeenCalledTimes(1);
         expect(translate.use).toHaveBeenCalledWith(Language.TURKISH);
+        expect(localStorage.getItem(PREFERRED_LANGUAGE_STORAGE_KEY)).toBe(
+            Language.TURKISH
+        );
     });
 });

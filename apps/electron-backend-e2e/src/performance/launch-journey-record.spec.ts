@@ -51,9 +51,12 @@ function measurement(
             domContentLoadedEpochMs: 1_300,
             loadEventEndEpochMs: 1_400.26,
         },
+        phases: {},
         preStart: { domMutations: 0, lastMutationEpochMs: null },
         schemaVersion: 1,
         sentinel: { epochMs: 2_601, status: 'sent' },
+        shiftCount: 0,
+        shifts: [],
         settle: {
             domMutations: 37,
             epochMs: 3_180.06,
@@ -64,6 +67,8 @@ function measurement(
                     sources: [
                         {
                             deltaHeight: 0,
+                            deltaWidth: 0,
+                            deltaX: 0,
                             deltaY: -240,
                             node: 'section.dashboard-rail',
                         },
@@ -92,6 +97,8 @@ function measurement(
         callsByMethod: { dbGetAppPlaylists: 1, getSettings: 13 },
         inFlightByMethod: {},
         installedEpochMs: 1_100,
+        log: [],
+        logDropped: 0,
         malformedEvents: 0,
         processStartEpochMs: 900,
         senderIds: [1],
@@ -112,6 +119,7 @@ function measurement(
             blankLoadedEpochMs: 1_050,
             errors: [],
             gatedEpochMs: 1_020,
+            didFinishLoadHeldOnBlank: 1,
             gatedMethod: 'loadFile',
             passThroughLoads: 0,
             readyToShowHeldOnBlank: 1,
@@ -185,6 +193,7 @@ test('maps the probe, IPC capture and main counters to exact counters and spawn-
         'main.startupPhases': 9,
     });
     assert.equal(record.evidence['rendererGateReadyToShowHeldOnBlank'], 1);
+    assert.equal(record.evidence['rendererGateDidFinishLoadHeldOnBlank'], 1);
     assert.deepEqual(record.evidence['epochs'], {
         firstCard: 2_600.04,
         firstCardPaint: 2_650,
@@ -208,6 +217,8 @@ test('maps the probe, IPC capture and main counters to exact counters and spawn-
                 sources: [
                     {
                         deltaHeight: 0,
+                        deltaWidth: 0,
+                        deltaX: 0,
                         deltaY: -240,
                         node: 'section.dashboard-rail',
                     },

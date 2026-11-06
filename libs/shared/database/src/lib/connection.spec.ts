@@ -486,6 +486,9 @@ describe('database schema statements', () => {
         ).runMigrations;
         const sqlite = {
             exec: jest.fn(),
+            pragma: jest.fn((statement: string) =>
+                statement === 'foreign_keys' ? 1 : []
+            ),
             prepare: jest.fn((statement: string) => {
                 if (statement.includes('SELECT value FROM app_state')) {
                     return {
@@ -556,6 +559,9 @@ describe('database schema statements', () => {
             }
         ).runMigrations;
         const sqlite = {
+            pragma: jest.fn((statement: string) =>
+                statement === 'foreign_keys' ? 1 : []
+            ),
             exec: jest.fn((statement: string) => {
                 if (statement.includes('idx_epg_programs_source')) {
                     callOrder.push('epg-source-index');

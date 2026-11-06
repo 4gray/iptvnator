@@ -1,0 +1,13 @@
+@use '../styles/skeleton-shimmer' as shimmer;
+
+@include shimmer.keyframes;
+
+// The primary action's footprint: a 44px pill about as wide as "Play" with
+// its episode line.
+:host {
+    @include shimmer.block(10px);
+
+    width: 168px;
+    height: 44px;
+    flex: none;
+}

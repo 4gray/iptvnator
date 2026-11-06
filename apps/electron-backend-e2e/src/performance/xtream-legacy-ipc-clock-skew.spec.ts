@@ -13,7 +13,8 @@ describe('Xtream legacy IPC clock skew', () => {
         const request = input.mainCapture.requests.find(
             ({ operation }) => operation === 'DB_UPSERT_APP_PLAYLIST'
         );
-        assert.equal(typeof request?.responseEpochMs, 'number');
+        assert.ok(request);
+        assert.equal(typeof request.responseEpochMs, 'number');
         const updateSuccessEpoch = (sourceEpochMs: number) => ({
             ...input,
             mainCapture: {
@@ -22,7 +23,7 @@ describe('Xtream legacy IPC clock skew', () => {
                     ...input.mainCapture.capture,
                     timeline: input.mainCapture.capture.timeline.map((record) =>
                         record.type === 'preload-performance-success' &&
-                        record.ipcCallId === request?.ipcCallId &&
+                        record.ipcCallId === request.ipcCallId &&
                         record.operation === request.operation
                             ? { ...record, sourceEpochMs }
                             : record
@@ -32,7 +33,7 @@ describe('Xtream legacy IPC clock skew', () => {
         });
 
         const normalized = assembleXtreamRawIteration(
-            updateSuccessEpoch(Number(request?.responseEpochMs) - 0.25)
+            updateSuccessEpoch(Number(request.responseEpochMs) - 0.25)
         );
         const response = normalized.phaseCapture.ipcSpans.find(
             ({ boundary, method }) =>
@@ -45,7 +46,7 @@ describe('Xtream legacy IPC clock skew', () => {
         assert.throws(
             () =>
                 assembleXtreamRawIteration(
-                    updateSuccessEpoch(Number(request?.responseEpochMs) - 1)
+                    updateSuccessEpoch(Number(request.responseEpochMs) - 1)
                 ),
             /xtream-iteration-assembly-invalid/
         );

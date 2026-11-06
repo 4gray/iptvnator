@@ -32,7 +32,7 @@ function expectedLabels(locale: Locale): string[] {
     ];
 }
 
-/** Below the 640px phone breakpoint the row stacks by design. */
+/** Below the dialog shell's 480px phone breakpoint the row stacks by design. */
 const PHONE_VIEWPORT = { width: 360, height: 740 };
 
 /**

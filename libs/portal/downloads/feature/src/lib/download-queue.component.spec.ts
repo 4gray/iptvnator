@@ -238,7 +238,7 @@ describe('DownloadQueueComponent', () => {
         ).map((button) => button.dataset['testAction']);
         expect(status?.textContent).toContain('File missing');
         expect(status?.querySelector('mat-icon')?.textContent?.trim()).toBe(
-            'file_off'
+            'error_outline'
         );
         expect(renderedActions).toEqual(['redownload']);
         expect(host.querySelector('[data-test-action="play"]')).toBeNull();

@@ -5,6 +5,7 @@
     "prefix": "lib",
     "projectType": "library",
     "tags": ["scope:playlist", "domain:playlist-import", "type:feature"],
+    "implicitDependencies": ["ui-styles"],
     "targets": {
         "test": {
             "executor": "@nx/jest:jest",

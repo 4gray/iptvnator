@@ -1,3 +1,5 @@
+import { normalizeContentMetadataIdentity } from './content-metadata-identity';
+
 /**
  * Presentation and identity facts an Xtream detail view learns about a
  * catalog item and hands back to the `content` row it came from.
@@ -43,30 +45,9 @@ export interface ContentMetadataPatch {
     originalTitle?: string;
 }
 
-/**
- * `extractYear` only ever reads `19xx`/`20xx`, so anything outside that range
- * reached us some other way and is not a release year.
- */
-const MIN_RELEASE_YEAR = 1900;
-const MAX_RELEASE_YEAR = 2099;
-
 function readText(value: unknown): string | undefined {
     const text = typeof value === 'string' ? value.trim() : '';
     return text || undefined;
-}
-
-function readPositiveInteger(value: unknown): number | undefined {
-    const parsed = Number(value);
-    return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
-}
-
-function readReleaseYear(value: unknown): number | undefined {
-    const parsed = readPositiveInteger(value);
-    return parsed !== undefined &&
-        parsed >= MIN_RELEASE_YEAR &&
-        parsed <= MAX_RELEASE_YEAR
-        ? parsed
-        : undefined;
 }
 
 /**
@@ -89,9 +70,8 @@ export function normalizeContentMetadataPatch(
     const normalized: ContentMetadataPatch = {};
     const backdropUrl = readText(patch.backdropUrl);
     if (backdropUrl) normalized.backdropUrl = backdropUrl;
-    const tmdbId = readPositiveInteger(patch.tmdbId);
+    const { tmdbId, releaseYear } = normalizeContentMetadataIdentity(patch);
     if (tmdbId !== undefined) normalized.tmdbId = tmdbId;
-    const releaseYear = readReleaseYear(patch.releaseYear);
     if (releaseYear !== undefined) normalized.releaseYear = releaseYear;
     const originalTitle = readText(patch.originalTitle);
     if (originalTitle) normalized.originalTitle = originalTitle;

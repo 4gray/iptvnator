@@ -1,3 +1,5 @@
+@use '../../../../styles/focus-ring';
+
 :host {
     display: block;
     min-width: 0;
@@ -83,8 +85,7 @@
 }
 
 .embedded-mpv-dock-panel__chip:focus-visible {
-    outline: 2px solid var(--embedded-mpv-accent);
-    outline-offset: 1px;
+    @include focus-ring.focus-ring-declarations($offset: 1px);
 }
 
 .embedded-mpv-dock-panel__chip--selected {

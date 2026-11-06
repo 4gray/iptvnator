@@ -3,6 +3,7 @@ import {
     getHandler,
     MANAGED_PATH_STATE,
     mockBroadcastDownloadUpdate,
+    mockLstat,
     mockLstatSync,
     mockManagedPath,
     mockOpenPath,
@@ -17,6 +18,67 @@ describe('downloads events: pause, resume, and reveal', () => {
     beforeEach(async () => {
         await setupDownloadsEventsHarness();
     });
+
+    it.each([
+        'cmd',
+        'exe',
+        'bat',
+        'ps1',
+        'lnk',
+        'url',
+        'html',
+        'desktop',
+        'mp4.exe',
+    ])(
+        'refuses OS playback of an existing managed .%s download',
+        async (extension) => {
+            mockManagedPath(MANAGED_PATH_STATE.MANAGED);
+            mockLstat.mockReturnValue({
+                isFile: () => true,
+                isSymbolicLink: () => false,
+            });
+            await expect(
+                getHandler('DOWNLOADS_PLAY_FILE')(
+                    null,
+                    `/downloads/Movie.${extension}`
+                )
+            ).resolves.toEqual({
+                error: 'Unsupported download media type',
+                success: false,
+            });
+            expect(mockOpenPath).not.toHaveBeenCalled();
+        }
+    );
+
+    it.each(['DOWNLOADS_PLAY_FILE', 'DOWNLOADS_REVEAL_FILE'])(
+        'keeps %s responsive when a filesystem probe never answers',
+        async (channel) => {
+            jest.useFakeTimers();
+            try {
+                mockManagedPath(MANAGED_PATH_STATE.MANAGED);
+                mockLstat.mockReturnValue(new Promise(() => undefined));
+                mockLstatSync.mockImplementation(() => {
+                    throw new Error(
+                        'Synchronous filesystem access is forbidden'
+                    );
+                });
+                const response = getHandler(channel)(
+                    null,
+                    '/downloads/slow-nas.mp4'
+                );
+                await jest.advanceTimersByTimeAsync(1001);
+                await expect(response).resolves.toEqual({ success: true });
+                expect(mockLstatSync).not.toHaveBeenCalled();
+                expect(
+                    channel === 'DOWNLOADS_PLAY_FILE'
+                        ? mockOpenPath
+                        : mockShowItemInFolder
+                ).toHaveBeenCalledWith('/downloads/slow-nas.mp4');
+            } finally {
+                jest.useRealTimers();
+            }
+        }
+    );
 
     it('maps a successful runtime pause to a success response', async () => {
         mockPauseDownload.mockResolvedValue(true);
@@ -110,15 +172,15 @@ describe('downloads events: pause, resume, and reveal', () => {
             });
 
             expectManagedPathLookup(lookup, filePath);
-            expect(mockLstatSync).not.toHaveBeenCalled();
+            expect(mockLstat).not.toHaveBeenCalled();
             expect(mockOpenPath).not.toHaveBeenCalled();
             expect(mockShowItemInFolder).not.toHaveBeenCalled();
         });
 
         it('rejects a managed database path that is missing from disk', async () => {
             const lookup = mockManagedPath(MANAGED_PATH_STATE.MANAGED);
-            mockLstatSync.mockImplementation(() => {
-                throw new Error('ENOENT');
+            mockLstat.mockImplementation(() => {
+                throw Object.assign(new Error('missing'), { code: 'ENOENT' });
             });
 
             await expect(getHandler(channel)(null, filePath)).resolves.toEqual({
@@ -127,8 +189,8 @@ describe('downloads events: pause, resume, and reveal', () => {
             });
 
             expectManagedPathLookup(lookup, filePath);
-            expect(mockLstatSync).toHaveBeenCalledTimes(1);
-            expect(mockLstatSync).toHaveBeenCalledWith(filePath);
+            expect(mockLstat).toHaveBeenCalledTimes(1);
+            expect(mockLstat).toHaveBeenCalledWith(filePath);
             expect(mockOpenPath).not.toHaveBeenCalled();
             expect(mockShowItemInFolder).not.toHaveBeenCalled();
         });
@@ -150,7 +212,7 @@ describe('downloads events: pause, resume, and reveal', () => {
             ],
         ])('rejects a managed %s', async (_label, stats) => {
             const lookup = mockManagedPath(MANAGED_PATH_STATE.MANAGED);
-            mockLstatSync.mockReturnValue(stats);
+            mockLstat.mockReturnValue(stats);
 
             await expect(getHandler(channel)(null, filePath)).resolves.toEqual({
                 error: 'File not found',
@@ -158,7 +220,7 @@ describe('downloads events: pause, resume, and reveal', () => {
             });
 
             expectManagedPathLookup(lookup, filePath);
-            expect(mockLstatSync).toHaveBeenCalledWith(filePath);
+            expect(mockLstat).toHaveBeenCalledWith(filePath);
             expect(mockOpenPath).not.toHaveBeenCalled();
             expect(mockShowItemInFolder).not.toHaveBeenCalled();
         });
@@ -188,7 +250,7 @@ describe('downloads events: pause, resume, and reveal', () => {
             }
 
             expectManagedPathLookup(lookup, filePath);
-            expect(mockLstatSync).not.toHaveBeenCalled();
+            expect(mockLstat).not.toHaveBeenCalled();
             expect(mockOpenPath).not.toHaveBeenCalled();
             expect(mockShowItemInFolder).not.toHaveBeenCalled();
         });
@@ -197,7 +259,7 @@ describe('downloads events: pause, resume, and reveal', () => {
     it('reveals a managed file that exists on disk', async () => {
         const filePath = '/downloads/reveal-success.mp4';
         const lookup = mockManagedPath(MANAGED_PATH_STATE.MANAGED);
-        mockLstatSync.mockReturnValue({
+        mockLstat.mockReturnValue({
             isFile: () => true,
             isSymbolicLink: () => false,
         });
@@ -207,8 +269,8 @@ describe('downloads events: pause, resume, and reveal', () => {
         ).resolves.toEqual({ success: true });
 
         expectManagedPathLookup(lookup, filePath);
-        expect(mockLstatSync).toHaveBeenCalledTimes(1);
-        expect(mockLstatSync).toHaveBeenCalledWith(filePath);
+        expect(mockLstat).toHaveBeenCalledTimes(1);
+        expect(mockLstat).toHaveBeenCalledWith(filePath);
         expect(mockShowItemInFolder).toHaveBeenCalledTimes(1);
         expect(mockShowItemInFolder).toHaveBeenCalledWith(filePath);
         expect(mockOpenPath).not.toHaveBeenCalled();
@@ -217,7 +279,7 @@ describe('downloads events: pause, resume, and reveal', () => {
     it('waits for the native shell before reporting a managed file as played', async () => {
         const filePath = '/downloads/play-success.mp4';
         const lookup = mockManagedPath(MANAGED_PATH_STATE.MANAGED);
-        mockLstatSync.mockReturnValue({
+        mockLstat.mockReturnValue({
             isFile: () => true,
             isSymbolicLink: () => false,
         });
@@ -237,8 +299,8 @@ describe('downloads events: pause, resume, and reveal', () => {
         await new Promise<void>((resolve) => setImmediate(resolve));
 
         expectManagedPathLookup(lookup, filePath);
-        expect(mockLstatSync).toHaveBeenCalledTimes(1);
-        expect(mockLstatSync).toHaveBeenCalledWith(filePath);
+        expect(mockLstat).toHaveBeenCalledTimes(1);
+        expect(mockLstat).toHaveBeenCalledWith(filePath);
         expect(mockOpenPath).toHaveBeenCalledTimes(1);
         expect(mockOpenPath).toHaveBeenCalledWith(filePath);
         expect(mockShowItemInFolder).not.toHaveBeenCalled();
@@ -251,7 +313,7 @@ describe('downloads events: pause, resume, and reveal', () => {
     it('returns the native shell error when playback fails but the file remains available', async () => {
         const filePath = '/downloads/play-shell-error.mp4';
         const lookup = mockManagedPath(MANAGED_PATH_STATE.MANAGED);
-        mockLstatSync.mockReturnValue({
+        mockLstat.mockReturnValue({
             isFile: () => true,
             isSymbolicLink: () => false,
         });
@@ -265,19 +327,19 @@ describe('downloads events: pause, resume, and reveal', () => {
         });
 
         expectManagedPathLookup(lookup, filePath);
-        expect(mockLstatSync).toHaveBeenCalledTimes(2);
+        expect(mockLstat).toHaveBeenCalledTimes(2);
     });
 
     it('reports a file-disappeared race when the native shell cannot open the path', async () => {
         const filePath = '/downloads/play-disappeared.mp4';
         const lookup = mockManagedPath(MANAGED_PATH_STATE.MANAGED);
-        mockLstatSync
+        mockLstat
             .mockReturnValueOnce({
                 isFile: () => true,
                 isSymbolicLink: () => false,
             })
             .mockImplementationOnce(() => {
-                throw new Error('ENOENT');
+                throw Object.assign(new Error('missing'), { code: 'ENOENT' });
             });
         mockOpenPath.mockResolvedValue('The file does not exist');
 
@@ -289,6 +351,6 @@ describe('downloads events: pause, resume, and reveal', () => {
         });
 
         expectManagedPathLookup(lookup, filePath);
-        expect(mockLstatSync).toHaveBeenCalledTimes(2);
+        expect(mockLstat).toHaveBeenCalledTimes(2);
     });
 });

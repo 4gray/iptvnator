@@ -1,11 +1,15 @@
 import { computed, inject, Injectable } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
-import { startWith } from 'rxjs';
-import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
+import {
+    StalkerStore,
+    stalkerCategoryLabelText,
+} from '@iptvnator/portal/stalker/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    RuntimeCapabilitiesService,
+    injectTranslationTick,
+} from '@iptvnator/services';
 import { WorkspaceSearchCapability } from '@iptvnator/workspace/shell/util';
 import { SettingsSearchService } from '@iptvnator/workspace/shell/util/settings-search';
 import {
@@ -18,6 +22,7 @@ import {
     resolveSearchScopeLabel,
 } from './helpers/workspace-shell-search-labels';
 import { isWorkspaceGlobalSearchablePlaylist } from './helpers/workspace-shell-searchable-playlists';
+import { clearCategoryScope } from '../../workspace-context-panel/workspace-context-panel-route.utils';
 import { WorkspaceShellRouteStateService } from './workspace-shell-route-state.service';
 import { WorkspaceShellSearchSyncService } from './workspace-shell-search-sync.service';
 
@@ -32,10 +37,7 @@ export class WorkspaceShellSearchService {
     private readonly searchSync = inject(WorkspaceShellSearchSyncService);
     private readonly settingsSearch = inject(SettingsSearchService);
 
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
 
     readonly searchQuery = this.searchSync.searchQuery;
     readonly appliedSearchQuery = this.searchSync.appliedSearchQuery;
@@ -156,9 +158,16 @@ export class WorkspaceShellSearchService {
                 context,
                 section,
                 translate: (key, params) => this.translateText(key, params),
-                xtreamCategory: this.xtreamStore.getSelectedCategory(),
-                stalkerCategoryName:
-                    this.stalkerStore.getSelectedCategoryName(),
+                // No selected category means the grid lists every item.
+                xtreamCategory: this.xtreamStore.selectedCategoryId()
+                    ? this.xtreamStore.getSelectedCategory()
+                    : { name: this.translateText('PORTALS.ALL_ITEMS') },
+                // This computed reads the language tick, so the every-item
+                // genre is translated in the current language.
+                stalkerCategoryName: stalkerCategoryLabelText(
+                    this.stalkerStore.getSelectedCategoryLabel(),
+                    (key) => this.translateText(key)
+                ),
             }),
             statusLabel: isDegradedStalkerLive
                 ? this.translateText(SEARCH_LOADED_ONLY_STATUS)
@@ -177,6 +186,68 @@ export class WorkspaceShellSearchService {
     readonly searchStatusLabel = computed(
         () => this.searchCapability().statusLabel
     );
+    readonly canClearCategoryScope = computed(() => {
+        const route = this.routeState.currentRoute();
+        const context = route.context;
+        if (route.kind !== 'portal' || !context) {
+            return false;
+        }
+
+        if (context.provider === 'xtreams') {
+            return (
+                (route.section === 'vod' ||
+                    route.section === 'series' ||
+                    route.section === 'live') &&
+                this.xtreamStore.selectedCategoryId() !== null
+            );
+        }
+
+        if (context.provider === 'stalker') {
+            const stalkerCat = this.stalkerStore.selectedCategoryId();
+            return (
+                (route.section === 'vod' ||
+                    route.section === 'series' ||
+                    route.section === 'itv' ||
+                    route.section === 'radio') &&
+                !!stalkerCat &&
+                stalkerCat !== '*'
+            );
+        }
+
+        return false;
+    });
+
+    clearCategoryScope(): void {
+        const route = this.routeState.currentRoute();
+        const context = route.context;
+        const section = route.section;
+        if (!context || !this.canClearCategoryScope()) {
+            return;
+        }
+
+        if (context.provider === 'xtreams') {
+            clearCategoryScope({
+                router: this.router,
+                provider: 'xtreams',
+                store: this.xtreamStore,
+                playlistId: context.playlistId,
+                section,
+                searchQuery: this.searchQuery(),
+            });
+            return;
+        }
+
+        if (context.provider === 'stalker') {
+            clearCategoryScope({
+                router: this.router,
+                provider: 'stalker',
+                store: this.stalkerStore,
+                playlistId: context.playlistId,
+                section,
+                searchQuery: this.searchQuery(),
+            });
+        }
+    }
 
     onSearchInput(value: string): void {
         this.searchSync.onSearchInput(value);

@@ -28,7 +28,7 @@ test('hero: generic download CTA, self-host link and project facts', async () =>
   assert.match(primary, /Download for desktop/);
   assert.match(html, /data-hero-secondary[^>]*>\s*All platforms/);
   assert.match(html, /href="\/iptvnator\/download\/docker\/"[^>]*>\s*Self-host the web app/);
-  assert.match(html, /<dd[^>]*>19<\/dd>/, 'languages fact');
+  assert.match(html, /<dd[^>]*>20<\/dd>/, 'languages fact');
   assert.match(html, /<dd[^>]*>MIT<\/dd>/, 'license fact');
   assert.doesNotMatch(html, /img\.shields\.io/, 'no badge images');
   assert.doesNotMatch(html, /border-dashed/, 'no dashed borders anywhere on the home page');
@@ -95,6 +95,7 @@ test('browser: the download CTA and the Detected row follow the visitor OS, phon
     t.skip('no Chromium available for the browser half');
     return;
   }
+  const { expect } = await import('@playwright/test');
   const { server, origin } = await serveDist();
   const readState = (page) =>
     page.evaluate(() => ({
@@ -110,10 +111,16 @@ test('browser: the download CTA and the Detected row follow the visitor OS, phon
       const errors = [];
       page.on('pageerror', (error) => errors.push(String(error)));
       await page.goto(`${origin}${BASE}/`, { waitUntil: 'networkidle' });
-      const state = await readState(page);
-      assert.equal(state.primary, `/iptvnator/download/${platform}/`, `${platform}: primary CTA target`);
-      assert.equal(state.label, `Download for ${agent.label}`, `${platform}: primary CTA label`);
-      assert.deepEqual(state.detected, [platform], `${platform}: detected row`);
+      // Hero and download rows initialize in separate module scripts.
+      // Network idleness does not guarantee both have updated the DOM.
+      await expect.poll(() => readState(page), {
+        message: `${platform}: platform-specific UI is initialized`,
+        timeout: 5000,
+      }).toEqual({
+        primary: `/iptvnator/download/${platform}/`,
+        label: `Download for ${agent.label}`,
+        detected: [platform],
+      });
       assert.deepEqual(errors, []);
       await page.close();
     }
@@ -147,10 +154,7 @@ test('browser: the download CTA and the Detected row follow the visitor OS, phon
     // only after the asynchronous `navigator.clipboard.writeText` resolves,
     // which is after `click()` has already returned, so the check has to wait
     // for the change instead of reading the label synchronously (a loaded CI
-    // runner otherwise still sees "Copy"). `launchBrowser()` succeeding proves
-    // `@playwright/test` is importable, so this import cannot break the local
-    // no-Chromium skip above.
-    const { expect } = await import('@playwright/test');
+    // runner otherwise still sees "Copy").
     const context = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] });
     const page = await context.newPage();
     await page.goto(`${origin}${BASE}/`, { waitUntil: 'networkidle' });

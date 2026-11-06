@@ -281,6 +281,26 @@ describe('StalkerCollectionDetailComponent', () => {
         fixture?.destroy();
     });
 
+    it('does not repoint the portal after a pending collection load outlives its view', async () => {
+        const pending = new Subject<Playlist>();
+        playlistsService.getPlaylistById.mockReturnValue(pending);
+        fixture.componentRef.setInput('item', buildCollectionItem({}));
+        fixture.detectChanges();
+        TestBed.tick();
+        expect(playlistsService.getPlaylistById).toHaveBeenCalled();
+
+        fixture.destroy();
+        const destination = { ...playlist, _id: 'destination' };
+        await stalkerStore.setCurrentPlaylist(destination);
+        stalkerStore.setSelectedItem({ id: 'destination-item' });
+        pending.next(playlist);
+        pending.complete();
+        for (let i = 0; i < 10; i++) await Promise.resolve();
+
+        expect(currentPlaylist()).toBe(destination);
+        expect(selectedItem()).toEqual({ id: 'destination-item' });
+    });
+
     it('opens legacy VOD is_series favorites through the lazy VOD-series flow', async () => {
         fixture.componentRef.setInput(
             'item',
@@ -318,6 +338,50 @@ describe('StalkerCollectionDetailComponent', () => {
                 vodDetailsItem: null,
             })
         );
+    });
+
+    it('retains hydrated lazy-series state during metadata polls and resets on a source edit', async () => {
+        const item = buildCollectionItem({
+            uid: 'stalker::stalker-1::series:lazy:42',
+            stalkerId: '42',
+            contentType: 'series',
+            stalkerItem: {
+                id: '42',
+                favoriteContentType: 'vod',
+                is_series: '1',
+                title: 'Synthetic lazy series',
+            },
+        });
+        fixture.componentRef.setInput('item', item);
+        await settleDetail(fixture);
+        const hydrated = {
+            ...(selectedItem() as object),
+            series: [
+                {
+                    id: 'synthetic-season',
+                    episodes: [{ id: 'synthetic-episode' }],
+                },
+            ],
+        };
+        selectedItem.set(hydrated);
+        await settleDetail(fixture);
+        const calls = stalkerStore.setCurrentPlaylist.mock.calls.length;
+        fixture.componentRef.setInput('item', {
+            ...item,
+            name: 'Synthetic refreshed title',
+        });
+        await settleDetail(fixture);
+        expect(stalkerStore.setCurrentPlaylist).toHaveBeenCalledTimes(calls);
+        expect(selectedItem()).toBe(hydrated);
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({ ...playlist, macAddress: '00:1A:79:00:00:02' })
+        );
+        fixture.componentRef.setInput('item', { ...item });
+        await settleDetail(fixture);
+        expect(stalkerStore.setCurrentPlaylist).toHaveBeenCalledTimes(
+            calls + 1
+        );
+        expect(selectedItem()).not.toBe(hydrated);
     });
 
     it('keeps regular Stalker series favorites in regular series mode', async () => {

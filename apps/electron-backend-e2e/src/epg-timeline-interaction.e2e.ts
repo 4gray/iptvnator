@@ -17,6 +17,7 @@ import {
 } from './electron-test-fixtures';
 import {
     fetchXtreamEpgFixture,
+    fetchXtreamLiveFixture,
     fetchStalkerCategoryFixture,
 } from './portal-mock-fixtures';
 
@@ -256,7 +257,12 @@ test('@epg @xtream @electron opens the programme dialog from a timeline block an
         await app.mainWindow.getByTestId('epg-view-mode-list').click();
         await saveSettings(app.mainWindow);
         await openWorkspaceSection(app.mainWindow, 'Live TV');
-        await clickCategoryByNameExact(app.mainWindow, fixture.categoryName);
+        // The category survives the settings visit; clicking it again clears it.
+        await expect(
+            app.mainWindow.locator(
+                'app-workspace-context-panel .category-item[aria-current="true"]'
+            )
+        ).toContainText(fixture.categoryName);
         await channelItemByTitle(app.mainWindow, fixture.stream.name ?? '')
             .first()
             .click();
@@ -330,6 +336,7 @@ test('@epg @xtream @electron stacks the programme dialog actions on a phone', as
     ) as {
         WORKSPACE: { SHELL: { RAIL_LIVE: string } };
         EPG: {
+            PREVIOUS_DAY: string;
             PROGRAM_DIALOG: { SHOW_PROGRAM_DETAILS: string };
             TIMELINE: { WATCH_FROM_START: string };
         };
@@ -364,6 +371,15 @@ test('@epg @xtream @electron stacks the programme dialog actions on a phone', as
             .first()
             .click();
         const guide = app.mainWindow.locator('app-epg-list-view');
+        await expect(guide.locator('[data-when="now"]').first()).toBeVisible();
+        // The mock's 30-minute slots run relative to now, so in the first half
+        // hour after UTC midnight today holds only the programme on air: step
+        // back a day for a finished one.
+        if ((await guide.locator('[data-when="past"]').count()) === 0) {
+            await guide
+                .getByRole('button', { name: fr.EPG.PREVIOUS_DAY })
+                .click();
+        }
         await expect(guide.locator('[data-when="past"]').first()).toBeVisible();
 
         // The window cannot shrink below its desktop minimum, so emulate a
@@ -458,6 +474,103 @@ test('@epg @stalker @theme @electron applies live themes to the shared Stalker g
             await app.mainWindow.screenshot({
                 path: test.info().outputPath(`stalker-${theme}.png`),
             });
+        }
+    } finally {
+        await closeElectronApp(app);
+    }
+});
+
+/** Title of the programme block holding keyboard focus, if any. */
+async function focusedTimelineBlockTitle(page: Page): Promise<string | null> {
+    return page.evaluate(() => {
+        const block = document.activeElement?.closest(
+            'app-epg-timeline .epg-timeline__block'
+        );
+        return (
+            block
+                ?.querySelector('.epg-timeline__block-title')
+                ?.textContent?.trim() ?? null
+        );
+    });
+}
+
+/** Two frames: the focus scroll's measure, then the re-rendered blocks. */
+async function nextFrames(page: Page): Promise<void> {
+    await page.evaluate(
+        () =>
+            new Promise((resolve) =>
+                requestAnimationFrame(() => requestAnimationFrame(resolve))
+            )
+    );
+}
+
+test('@epg @xtream @electron reaches programmes beyond the rendered range with Tab', async ({
+    dataDir,
+    request,
+}) => {
+    // The ribbon renders only the programmes near the visible range; keyboard
+    // focus scrolls a block into view, which renders its neighbours before
+    // the next key press. A generated schedule (240 half-hour slots) is far
+    // wider than that range.
+    test.setTimeout(180000);
+    await resetMockServers(request, ['xtream']);
+    const credentials = { username: 'minimal', password: 'minimal' };
+    const fixture = await fetchXtreamLiveFixture(request, credentials);
+    const app = await launchElectronApp(dataDir);
+
+    try {
+        await app.mainWindow.route('https://test-streams.mux.dev/**', () => {
+            // Keep the external demo request pending; guide data is local.
+        });
+        await addXtreamPortal(app.mainWindow, {
+            name: 'Xtream Timeline Keyboard',
+            ...credentials,
+        });
+        await waitForXtreamWorkspaceReady(app.mainWindow);
+        await openWorkspaceSection(app.mainWindow, 'Live TV');
+        await clickCategoryByNameExact(app.mainWindow, fixture.categoryName);
+        const channelRow = channelItemByTitle(
+            app.mainWindow,
+            fixture.items[0]?.name ?? ''
+        ).first();
+        await expect(channelRow).toBeVisible({ timeout: 20000 });
+        await channelRow.click();
+
+        const timeline = app.mainWindow.locator('app-epg-timeline');
+        const nowBlock = timeline.locator('.epg-timeline__block.is-now');
+        await expect(nowBlock).toBeVisible({ timeout: 20000 });
+        const titles = timeline.locator('.epg-timeline__block-title');
+        const initial = new Set(
+            (await titles.allInnerTexts()).map((title) => title.trim())
+        );
+        expect(initial.size).toBeLessThan(120);
+
+        // Walk well past the rendered range in both directions: ten
+        // programmes that were not in the DOM when the walk started.
+        for (const key of ['Tab', 'Shift+Tab']) {
+            // The previous walk moved the window away from now.
+            await timeline.locator('.epg-timeline__jump').click();
+            await expect(nowBlock).toBeVisible();
+            await nowBlock.focus();
+            const reached = new Set<string>();
+            for (let press = 0; press < 400 && reached.size < 10; press++) {
+                await app.mainWindow.keyboard.press(key);
+                await nextFrames(app.mainWindow);
+                const inRibbon = await app.mainWindow.evaluate(
+                    () =>
+                        !!document.activeElement?.closest(
+                            'app-epg-timeline .epg-timeline__ribbon'
+                        )
+                );
+                expect(inRibbon, `${key} press ${press} left the ribbon`).toBe(
+                    true
+                );
+                const title = await focusedTimelineBlockTitle(app.mainWindow);
+                if (title && !initial.has(title)) {
+                    reached.add(title);
+                }
+            }
+            expect(reached.size, `${key} programmes beyond the range`).toBe(10);
         }
     } finally {
         await closeElectronApp(app);

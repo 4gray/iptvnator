@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
@@ -41,8 +41,8 @@ describe('ElectronService performance phases', () => {
                     useValue: { openConfirmDialog: jest.fn() },
                 },
                 {
-                    provide: MatSnackBar,
-                    useValue: { open: jest.fn() },
+                    provide: LazySnackBar,
+                    useValue: { open: jest.fn().mockResolvedValue(null) },
                 },
                 {
                     provide: SettingsStore,

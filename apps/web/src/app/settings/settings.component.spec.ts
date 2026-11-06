@@ -3,7 +3,10 @@ import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { of } from 'rxjs';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
-import { selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
+import {
+    selectAllPlaylistsMeta,
+    selectPlaylistsLoadingFlag,
+} from '@iptvnator/m3u-state';
 import {
     EmbeddedMpvSupport,
     PlaylistMeta,
@@ -69,6 +72,25 @@ describe('SettingsComponent', () => {
         mockStore.refreshState();
         fixture.detectChanges();
     }
+
+    it('keeps settings visible but disables backup and parental actions without sources', async () => {
+        mockStore.overrideSelector(selectPlaylistsLoadingFlag, false);
+        mockStore.refreshState();
+        fixture.detectChanges();
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="settings-library-unavailable"]'
+            )
+        ).not.toBeNull();
+        setSettingsSection('backup');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const buttons = Array.from(
+            fixture.nativeElement.querySelectorAll('#backup button')
+        ) as HTMLButtonElement[];
+        expect(buttons.length).toBeGreaterThan(1);
+        expect(buttons.every((button) => button.disabled)).toBe(true);
+    });
 
     it('should create and init component', () => {
         expect(component).toBeTruthy();
@@ -239,7 +261,7 @@ describe('SettingsComponent', () => {
     });
 
     it('enables the global wipe action only once a playlist exists', () => {
-        setSettingsSection('reset');
+        setSettingsSection('backup');
         fixture.detectChanges();
 
         const deleteButton = () =>
@@ -389,6 +411,50 @@ describe('SettingsComponent', () => {
                     .players()
                     .some((player) => player.id === VideoPlayer.VLC)
             ).toBe(false);
+        });
+
+        it('shows the EPG page with only its display settings in the browser PWA', () => {
+            fixture.destroy();
+            epgBridge.supportsImport = false;
+            epgBridge.supportsDataManagement = false;
+            window.electron = undefined as unknown as typeof window.electron;
+
+            const pwaFixture = TestBed.createComponent(SettingsComponent);
+            const pwaComponent = pwaFixture.componentInstance;
+            stubSettingsSideEffects(pwaComponent);
+            pwaFixture.detectChanges();
+            // The page itself must render without an `epgUrl` array.
+            setSettingsSection('epg');
+            pwaFixture.detectChanges();
+
+            const pwaPage = pwaFixture.nativeElement as HTMLElement;
+            for (const id of ['epg-view-mode', 'epg-offset']) {
+                expect(
+                    pwaPage.querySelector(`[data-setting-id="${id}"]`)
+                ).not.toBeNull();
+            }
+            for (const id of [
+                'epg-sources',
+                'prefer-uploaded-epg',
+                'epg-clear-data',
+            ]) {
+                expect(
+                    pwaPage.querySelector(`[data-setting-id="${id}"]`)
+                ).toBeNull();
+            }
+            expect(pwaComponent.supportsEpg).toBe(false);
+            expect(pwaComponent.form.supportsEpgDisplay).toBe(true);
+            expect(
+                pwaComponent.sectionNav.map((section) => section.id)
+            ).toContain('epg');
+            expect(
+                pwaComponent.settingsForm.get('epgOffsetMinutes')
+            ).not.toBeNull();
+            expect(pwaComponent.settingsForm.get('epgViewMode')).not.toBeNull();
+            expect(pwaComponent.settingsForm.get('epgUrl')).toBeNull();
+            expect(
+                pwaComponent.settingsForm.get('preferUploadedEpgOverXtream')
+            ).toBeNull();
         });
 
         it('keeps external player choices when launch support exists without path settings', () => {

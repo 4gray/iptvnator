@@ -1,3 +1,4 @@
+import { EpgPreferencesService } from './epg-preferences.service';
 import { EpgSourceSettingsService } from './epg-source-settings.service';
 import { Injector } from '@angular/core';
 import { StorageMap } from '@ngx-pwa/local-storage';
@@ -46,6 +47,7 @@ describe('SettingsStore dashboard rail settings', () => {
 
         injector = Injector.create({
             providers: [
+                EpgPreferencesService,
                 SettingsStore,
                 EpgSourceSettingsService,
                 {
@@ -54,6 +56,214 @@ describe('SettingsStore dashboard rail settings', () => {
                 },
             ],
         });
+    });
+
+    it('defaults EPG on for old settings and preserves sources on opt-out', async () => {
+        storedSettings = { epgUrl: ['https://example.org/guide.xml'] };
+        const store = injector.get(SettingsStore);
+        await store.loadSettings();
+        const preferences = injector.get(EpgPreferencesService);
+        expect(store.getSettings().epgEnabled).toBe(true);
+        expect(preferences.enabled()).toBe(true);
+        await store.updateSettings({ epgEnabled: false });
+        expect(preferences.enabled()).toBe(false);
+        expect(store.epgUrl()).toEqual(['https://example.org/guide.xml']);
+        expect(storage.set).toHaveBeenLastCalledWith(
+            STORE_KEY.Settings,
+            expect.objectContaining({
+                epgEnabled: false,
+                epgUrl: ['https://example.org/guide.xml'],
+            })
+        );
+        const reconcile = jest
+            .spyOn(injector.get(EpgSourceSettingsService), 'synchronize')
+            .mockImplementation(async () => {
+                expect(preferences.enabled()).toBe(false);
+            });
+        await store.updateSettings({ epgEnabled: true });
+        expect(reconcile).toHaveBeenCalledWith([
+            'https://example.org/guide.xml',
+        ]);
+        expect(preferences.enabled()).toBe(true);
+    });
+
+    it.each([false, true])(
+        'uses the latest committed EPG save after an earlier enable finishes (later write fails: %s)',
+        async (failNewWrite) => {
+            storedSettings = { epgEnabled: false };
+            const store = injector.get(SettingsStore);
+            await store.loadSettings();
+            const preferences = injector.get(EpgPreferencesService);
+            let releaseReconciliation!: () => void;
+            let reconciliationStarted!: () => void;
+            const started = new Promise<void>((resolve) => {
+                reconciliationStarted = resolve;
+            });
+            const barrier = new Promise<void>((resolve) => {
+                releaseReconciliation = resolve;
+            });
+            jest.spyOn(
+                injector.get(EpgSourceSettingsService),
+                'synchronize'
+            ).mockImplementation(() => {
+                reconciliationStarted();
+                return barrier;
+            });
+            const enabling = store.updateSettings({ epgEnabled: true });
+            await started;
+            expect(preferences.enabled()).toBe(false);
+            if (failNewWrite) {
+                const failedWrite = new Subject<void>();
+                storage.set.mockReturnValueOnce(failedWrite);
+                const disabling = store.updateSettings({ epgEnabled: false });
+                failedWrite.error(new Error('Synthetic write failure'));
+                await expect(disabling).rejects.toThrow(
+                    'Synthetic write failure'
+                );
+            } else {
+                await store.updateSettings({ epgEnabled: false });
+            }
+            releaseReconciliation();
+            await enabling;
+            expect(store.getSettings().epgEnabled).toBe(failNewWrite);
+            expect(preferences.enabled()).toBe(failNewWrite);
+            const load = jest.fn().mockResolvedValue(['synthetic programme']);
+            await preferences.run(load, []);
+            expect(load).toHaveBeenCalledTimes(failNewWrite ? 1 : 0);
+        }
+    );
+
+    it('reconciles the latest committed sources after an older native opt-out acknowledgement', async () => {
+        const store = injector.get(SettingsStore);
+        await store.loadSettings();
+        const originalBridge = window.electron;
+        let releaseDisable!: () => void;
+        let disableStarted!: () => void;
+        const started = new Promise<void>((resolve) => {
+            disableStarted = resolve;
+        });
+        const barrier = new Promise<void>((resolve) => {
+            releaseDisable = resolve;
+        });
+        window.electron = {
+            ...originalBridge,
+            setEpgEnabled: jest.fn((enabled: boolean) => {
+                if (enabled) return Promise.resolve();
+                disableStarted();
+                return barrier;
+            }),
+        } as typeof window.electron;
+        const reconcile = jest
+            .spyOn(injector.get(EpgSourceSettingsService), 'synchronize')
+            .mockResolvedValue(undefined);
+        try {
+            const disabling = store.updateSettings({
+                epgEnabled: false,
+                epgUrl: ['https://example.org/earlier-guide.xml'],
+            });
+            await started;
+            await store.updateSettings({
+                epgEnabled: true,
+                epgUrl: ['https://example.org/latest-guide.xml'],
+            });
+            releaseDisable();
+            await disabling;
+            expect(reconcile).toHaveBeenLastCalledWith([
+                'https://example.org/latest-guide.xml',
+            ]);
+            expect(store.epgUrl()).toEqual([
+                'https://example.org/latest-guide.xml',
+            ]);
+            expect(injector.get(EpgPreferencesService).enabled()).toBe(true);
+        } finally {
+            releaseDisable();
+            window.electron = originalBridge;
+        }
+    });
+
+    it('keeps the committed EPG preference when persistence fails', async () => {
+        const store = injector.get(SettingsStore);
+        await store.loadSettings();
+        storage.set.mockReturnValue(new Subject<void>());
+        const pending = store.updateSettings({ epgEnabled: false });
+        expect(injector.get(EpgPreferencesService).enabled()).toBe(true);
+        const writing = storage.set.mock.results[0].value as Subject<void>;
+        writing.error(new Error('storage failed'));
+        await expect(pending).rejects.toThrow('storage failed');
+        expect(injector.get(EpgPreferencesService).enabled()).toBe(true);
+        expect(store.getSettings().epgEnabled).toBe(true);
+    });
+
+    it('preserves an explicit age-rating country across saved settings reloads', async () => {
+        storedSettings = { ageRatingCountry: 'DE' };
+        const store = injector.get(SettingsStore);
+        await store.loadSettings();
+        expect(store.getSettings().ageRatingCountry).toBe('DE');
+        await store.updateSettings({ theme: Theme.DarkTheme });
+        expect(storage.set).toHaveBeenLastCalledWith(
+            STORE_KEY.Settings,
+            expect.objectContaining({ ageRatingCountry: 'DE' })
+        );
+    });
+
+    it('migrates legacy Portuguese without losing unrelated settings', async () => {
+        storedSettings = {
+            language: 'pt' as Language,
+            theme: Theme.DarkTheme,
+            epgUrl: ['saved-guide'],
+        };
+        const store = injector.get(SettingsStore);
+        await store.loadSettings();
+        expect(store.language()).toBe('pt-BR');
+        expect(store.theme()).toBe(Theme.DarkTheme);
+        expect(store.epgUrl()).toEqual(['saved-guide']);
+        await store.updateSettings({ showDashboard: false });
+        expect(storage.set).toHaveBeenLastCalledWith(
+            STORE_KEY.Settings,
+            expect.objectContaining({
+                language: 'pt-BR',
+                theme: Theme.DarkTheme,
+                epgUrl: ['saved-guide'],
+            })
+        );
+        await store.updateSettings({ language: 'pt-PT' as Language });
+        expect(store.language()).toBe('pt-PT');
+    });
+
+    it.each(['CREAM_THEME', 'MOCHA_THEME'])(
+        'preserves saved theme %s through unrelated partial updates',
+        async (theme) => {
+            storedSettings = { theme: theme as Theme };
+            const store = injector.get(SettingsStore);
+            await store.loadSettings();
+            expect(store.theme()).toBe(theme);
+            await store.updateSettings({ showCaptions: true });
+            expect(storage.set).toHaveBeenLastCalledWith(
+                STORE_KEY.Settings,
+                expect.objectContaining({ theme })
+            );
+        }
+    );
+
+    it.each(['UNKNOWN_THEME', null, undefined])(
+        'normalizes invalid saved theme %p to System',
+        async (theme) => {
+            storedSettings = { theme: theme as unknown as Theme };
+            const store = injector.get(SettingsStore);
+            await store.loadSettings();
+            expect(store.theme()).toBe(Theme.SystemTheme);
+        }
+    );
+
+    it('normalizes an invalid theme update before persisting it', async () => {
+        const store = injector.get(SettingsStore);
+        await store.loadSettings();
+        await store.updateSettings({ theme: 'UNKNOWN_THEME' as Theme });
+        expect(store.theme()).toBe(Theme.SystemTheme);
+        expect(storage.set).toHaveBeenLastCalledWith(
+            STORE_KEY.Settings,
+            expect.objectContaining({ theme: Theme.SystemTheme })
+        );
     });
 
     it('reconciles only after persistence and restores the previous EPG list on a failed save', async () => {
@@ -609,6 +819,7 @@ describe('SettingsStore storage failure reporting', () => {
 
         injector = Injector.create({
             providers: [
+                EpgPreferencesService,
                 SettingsStore,
                 EpgSourceSettingsService,
                 {

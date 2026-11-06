@@ -31,7 +31,7 @@ async function restoreSerializableApi(): Promise<CutoffApi> {
     const module = await cutoffModulePromise;
     assert.ok(module, 'database worker post-GC cutoff module must exist');
     const factory = module.createDatabaseWorkerPostGcCutoffApi;
-    assert.equal(typeof factory, 'function');
+    assert.ok(typeof factory === 'function');
 
     const source = factory.toString();
     assert.doesNotMatch(source, /__name/);

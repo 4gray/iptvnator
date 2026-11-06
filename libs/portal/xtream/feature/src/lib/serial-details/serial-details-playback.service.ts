@@ -1,3 +1,4 @@
+import { observeActivityChanges } from '@iptvnator/services/activity-changes';
 import {
     computed,
     DestroyRef,
@@ -23,7 +24,6 @@ import {
     ExternalPlayerName,
     ExternalPlayerSession,
     PlaybackPositionData,
-    PlayerContentInfo,
     ResolvedPortalPlayback,
     XtreamSerieDetails,
     XtreamSerieEpisode,
@@ -37,10 +37,12 @@ import {
     getSeriesPlaybackNavigation,
     inlineSeriesEpisodeState,
     type PlaybackFallbackRequest,
-    resolveSeriesPlaybackEpisodeState,
     type SeriesPlaybackEpisodeState,
 } from '@iptvnator/ui/playback';
-import { injectXtreamRecentHistory } from '../xtream-recent-history';
+import {
+    injectXtreamRecentHistory,
+    xtreamPlayedDetail,
+} from '../xtream-recent-history';
 import { XTREAM_SERIES_RESUME_TARGET } from './serial-details-resume-target.token';
 import {
     externalEpisodeSessionIds,
@@ -53,6 +55,8 @@ import {
     SerialDetailsSeasonWatchService,
     type SerialDetailsWatchScope,
 } from './serial-details-season-watch.service';
+import { SerialDetailsWatchToggles } from './serial-details-watch-toggles';
+import { buildSerialEpisodePlayback } from './serial-episode-playback';
 
 export type XtreamSerieDetailsView = XtreamSerieDetails & {
     readonly series_id: number;
@@ -97,6 +101,15 @@ export class SerialDetailsPlaybackService {
     );
     private readonly playbackPositionState =
         new SerialDetailsPlaybackPositionState();
+    private readonly watchToggles = new SerialDetailsWatchToggles({
+        playbackPositions: this.playbackPositions,
+        seasonWatch: this.seasonWatch,
+        state: this.playbackPositionState,
+        playlistId: () => this.currentPlaylistId(),
+        seriesXtreamId: () => Number(this.selectedItem()?.series_id ?? 0),
+        reloadStorePositions: (playlistId) =>
+            this.xtreamStore.loadAllPositions(playlistId),
+    });
     private lastSaveTime = 0;
 
     readonly inlinePlayback = signal<ResolvedPortalPlayback | null>(null);
@@ -133,6 +146,14 @@ export class SerialDetailsPlaybackService {
     );
 
     constructor() {
+        inject(DestroyRef).onDestroy(
+            observeActivityChanges(() => {
+                const id = this.currentPlaylistId();
+                const seriesId = Number(this.selectedItem()?.series_id);
+                if (id && seriesId)
+                    void this.loadSeriesPlaybackPositions(id, seriesId);
+            })
+        );
         // A launch still closing its predecessor must not outlive the page.
         inject(DestroyRef).onDestroy(() => this.bindings.set(null));
         effect(() => {
@@ -203,17 +224,22 @@ export class SerialDetailsPlaybackService {
         this.activeEpisodeId.set(null);
     }
 
-    /** `player` forces MPV/VLC (the "…" menu); history and the launch position are recorded either way. */
+    /**
+     * `player` forces MPV/VLC (the "…" menu); history and the launch position
+     * are recorded either way. `fromStart` ignores the saved position (the
+     * episode menu's "Play from beginning").
+     */
     playEpisode(
         episode: XtreamSerieEpisode,
-        player?: ExternalPlayerName
+        player?: ExternalPlayerName,
+        fromStart = false
     ): Promise<ExternalPlayerSession | void> | void {
         // A forced launch still settling owns the next start: the latest
         // choice made meanwhile replaces its player once it settled.
         const owner = this.launchOwner();
         if (!player && owner && this.forcedLaunchPending()) {
             queueEpisodeChoice(this, owner, episode, (queued) =>
-                this.playEpisode(queued)
+                this.playEpisode(queued, undefined, fromStart)
             );
             return;
         }
@@ -228,33 +254,17 @@ export class SerialDetailsPlaybackService {
             xtreamId: this.route.snapshot.params['serialId'],
             contentType: 'series',
             backdropUrl: selectedItem.info?.backdrop_path?.[0],
+            playedContent: xtreamPlayedDetail(selectedItem.info),
         });
-        const contentInfo: PlayerContentInfo = {
-            playlistId: playlist.id,
-            contentXtreamId: Number(episode.id),
-            contentType: 'episode',
-            seriesXtreamId: Number(selectedItem.series_id),
-            seasonNumber: Number(episode.season),
-            episodeNumber: Number(episode.episode_num),
-        };
-
         const position = this.episodePlaybackPositions().get(
             Number(episode.id)
         );
-
-        const playback: ResolvedPortalPlayback = {
+        const { playback, episodeState } = buildSerialEpisodePlayback({
+            playlist,
+            selectedItem,
+            episode,
             streamUrl,
-            title: episode.title,
-            thumbnail: selectedItem.info.cover,
-            startTime: position?.positionSeconds,
-            contentInfo,
-        };
-
-        const episodeState = resolveSeriesPlaybackEpisodeState({
-            episodesBySeason: selectedItem.episodes,
-            currentEpisodeId: episode.id,
-            fallbackSeasonNumber: Number(episode.season),
-            fallbackEpisodeNumber: Number(episode.episode_num),
+            startTime: fromStart ? 0 : position?.positionSeconds,
         });
         return this.startPlayback(playback, episodeState, player);
     }
@@ -322,68 +332,17 @@ export class SerialDetailsPlaybackService {
         );
     }
 
-    async handlePlaybackToggleRequested(
+    handlePlaybackToggleRequested(
         request: SeasonContainerPlaybackToggleRequest
     ): Promise<void> {
-        const playlistId = this.currentPlaylistId();
-        if (!playlistId) {
-            return;
-        }
-
-        if (request.nextPosition) {
-            await this.playbackPositions.savePlaybackPosition(
-                playlistId,
-                request.nextPosition
-            );
-            this.playbackPositionState.update(request.nextPosition);
-        } else {
-            await this.playbackPositions.clearPlaybackPosition(
-                playlistId,
-                request.contentXtreamId,
-                'episode'
-            );
-            this.playbackPositionState.remove(request.contentXtreamId);
-        }
-        await this.refreshStorePositions(playlistId);
+        return this.watchToggles.toggleEpisode(request);
     }
 
-    async handleWatchToggleRequested(
+    handleWatchToggleRequested(
         request: SeasonContainerSeriesPlaybackToggleRequest,
         scope: SerialDetailsWatchScope
     ): Promise<void> {
-        const playlistId = this.currentPlaylistId();
-        const seriesXtreamId = Number(this.selectedItem()?.series_id ?? 0);
-        const persisted = await this.seasonWatch.handle(
-            request,
-            playlistId,
-            this.playbackPositionState,
-            () =>
-                this.currentPlaylistId() === playlistId &&
-                Number(this.selectedItem()?.series_id ?? 0) === seriesXtreamId,
-            scope
-        );
-        if (persisted) {
-            await this.refreshStorePositions(playlistId);
-        }
-    }
-
-    /**
-     * The catalog reads series progress from XtreamStore, whose positions
-     * load once per playlist (XtreamCatalogFacadeService.initialize), so a
-     * toggle must push the change back or badges go stale on return. Skipped
-     * after a playlist switch — the store then holds the other playlist.
-     */
-    private async refreshStorePositions(playlistId: string): Promise<void> {
-        if (this.currentPlaylistId() !== playlistId) {
-            return;
-        }
-        try {
-            await this.xtreamStore.loadAllPositions(playlistId);
-        } catch (error) {
-            // The toggle itself succeeded; a failed refresh keeps the store
-            // populated-but-stale, which beats wiping it with a bad read.
-            this.logger.warn('Store position refresh failed', error);
-        }
+        return this.watchToggles.toggleBatch(request, scope);
     }
 
     async loadSeriesPlaybackPositions(

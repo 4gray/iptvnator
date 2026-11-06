@@ -137,7 +137,7 @@ test('accepts the complete parseable initial-import diagnostic artifact set', as
     const module = await diagnosticArtifactsModulePromise;
     assert.ok(module, 'initial-import diagnostic validator must exist');
     const validate = module.validateInitialImportDiagnosticArtifacts;
-    assert.equal(typeof validate, 'function');
+    assert.ok(typeof validate === 'function');
     const directory = await mkdtemp(
         join(tmpdir(), 'iptvnator-initial-import-diagnostic-')
     );
@@ -145,7 +145,7 @@ test('accepts the complete parseable initial-import diagnostic artifact set', as
     try {
         await writeValidArtifacts(directory);
         await assert.doesNotReject(() =>
-            validate?.(capture(directory), directory)
+            validate(capture(directory), directory)
         );
     } finally {
         await rm(directory, { force: true, recursive: true });
@@ -156,7 +156,7 @@ test('fails closed for malformed or missing required process artifacts', async (
     const module = await diagnosticArtifactsModulePromise;
     assert.ok(module);
     const validate = module.validateInitialImportDiagnosticArtifacts;
-    assert.equal(typeof validate, 'function');
+    assert.ok(typeof validate === 'function');
     const directory = await mkdtemp(
         join(tmpdir(), 'iptvnator-initial-import-invalid-')
     );
@@ -165,7 +165,7 @@ test('fails closed for malformed or missing required process artifacts', async (
         await writeValidArtifacts(directory);
         await writeFile(join(directory, 'renderer.trace.json'), '{');
         await assert.rejects(
-            () => validate?.(capture(directory), directory),
+            () => validate(capture(directory), directory),
             /initial-import-diagnostic-artifact-invalid:renderer-trace/
         );
 
@@ -181,7 +181,7 @@ test('fails closed for malformed or missing required process artifacts', async (
             },
         };
         await assert.rejects(
-            () => validate?.(missingMainProfile, directory),
+            () => validate(missingMainProfile, directory),
             /initial-import-diagnostic-artifact-missing:main-cpu-profile/
         );
     } finally {
@@ -193,7 +193,7 @@ test('rejects escaped paths and symlinks instead of reading outside the iteratio
     const module = await diagnosticArtifactsModulePromise;
     assert.ok(module);
     const validate = module.validateInitialImportDiagnosticArtifacts;
-    assert.equal(typeof validate, 'function');
+    assert.ok(typeof validate === 'function');
     const directory = await mkdtemp(
         join(tmpdir(), 'iptvnator-initial-import-contained-')
     );
@@ -215,7 +215,7 @@ test('rejects escaped paths and symlinks instead of reading outside the iteratio
             JSON.stringify(CPU_PROFILE)
         );
         await assert.rejects(
-            () => validate?.(escapedCapture, directory),
+            () => validate(escapedCapture, directory),
             /initial-import-diagnostic-artifact-path-invalid:main-cpu-profile/
         );
 
@@ -226,7 +226,7 @@ test('rejects escaped paths and symlinks instead of reading outside the iteratio
             rendererProfilePath
         );
         await assert.rejects(
-            () => validate?.(capture(directory), directory),
+            () => validate(capture(directory), directory),
             /initial-import-diagnostic-artifact-path-invalid:renderer-cpu-profile/
         );
     } finally {
@@ -239,7 +239,7 @@ test('requires exactly one database profile and rejects every playlist-worker pr
     const module = await diagnosticArtifactsModulePromise;
     assert.ok(module);
     const validate = module.validateInitialImportDiagnosticArtifacts;
-    assert.equal(typeof validate, 'function');
+    assert.ok(typeof validate === 'function');
     const directory = await mkdtemp(
         join(tmpdir(), 'iptvnator-initial-import-workers-')
     );
@@ -251,7 +251,7 @@ test('requires exactly one database profile and rejects every playlist-worker pr
             JSON.stringify(CPU_PROFILE)
         );
         await assert.rejects(
-            () => validate?.(capture(directory), directory),
+            () => validate(capture(directory), directory),
             /initial-import-diagnostic-database-profile-cardinality-invalid/
         );
 
@@ -261,7 +261,7 @@ test('requires exactly one database profile and rejects every playlist-worker pr
             JSON.stringify(CPU_PROFILE)
         );
         await assert.rejects(
-            () => validate?.(capture(directory), directory),
+            () => validate(capture(directory), directory),
             /initial-import-diagnostic-playlist-profile-unexpected/
         );
     } finally {
@@ -273,7 +273,7 @@ test('requires a structurally valid database worker heap snapshot', async () => 
     const module = await diagnosticArtifactsModulePromise;
     assert.ok(module);
     const validate = module.validateInitialImportDiagnosticArtifacts;
-    assert.equal(typeof validate, 'function');
+    assert.ok(typeof validate === 'function');
     const directory = await mkdtemp(
         join(tmpdir(), 'iptvnator-initial-import-worker-snapshot-')
     );
@@ -293,7 +293,7 @@ test('requires a structurally valid database worker heap snapshot', async () => 
             },
         };
         await assert.rejects(
-            () => validate?.(missingSnapshot, directory),
+            () => validate(missingSnapshot, directory),
             /initial-import-diagnostic-artifact-missing:database-heap-snapshot/
         );
 
@@ -302,7 +302,7 @@ test('requires a structurally valid database worker heap snapshot', async () => 
             JSON.stringify({ snapshot: {}, nodes: [], edges: [] })
         );
         await assert.rejects(
-            () => validate?.(capture(directory), directory),
+            () => validate(capture(directory), directory),
             /initial-import-diagnostic-artifact-invalid:database-heap-snapshot/
         );
     } finally {
@@ -314,7 +314,7 @@ test('rejects escaped and symlinked database worker heap snapshots', async () =>
     const module = await diagnosticArtifactsModulePromise;
     assert.ok(module);
     const validate = module.validateInitialImportDiagnosticArtifacts;
-    assert.equal(typeof validate, 'function');
+    assert.ok(typeof validate === 'function');
     const directory = await mkdtemp(
         join(tmpdir(), 'iptvnator-initial-import-worker-contained-')
     );
@@ -342,7 +342,7 @@ test('rejects escaped and symlinked database worker heap snapshots', async () =>
             },
         };
         await assert.rejects(
-            () => validate?.(escapedSnapshot, directory),
+            () => validate(escapedSnapshot, directory),
             /initial-import-diagnostic-artifact-path-invalid:database-heap-snapshot/
         );
 
@@ -350,7 +350,7 @@ test('rejects escaped and symlinked database worker heap snapshots', async () =>
         await unlink(snapshotPath);
         await symlink(outsideSnapshotPath, snapshotPath);
         await assert.rejects(
-            () => validate?.(capture(directory), directory),
+            () => validate(capture(directory), directory),
             /initial-import-diagnostic-artifact-path-invalid:database-heap-snapshot/
         );
     } finally {
@@ -363,7 +363,7 @@ test('rejects extra database snapshots and every playlist-worker snapshot', asyn
     const module = await diagnosticArtifactsModulePromise;
     assert.ok(module);
     const validate = module.validateInitialImportDiagnosticArtifacts;
-    assert.equal(typeof validate, 'function');
+    assert.ok(typeof validate === 'function');
     const directory = await mkdtemp(
         join(tmpdir(), 'iptvnator-initial-import-worker-snapshot-count-')
     );
@@ -375,7 +375,7 @@ test('rejects extra database snapshots and every playlist-worker snapshot', asyn
             JSON.stringify(HEAP_SNAPSHOT)
         );
         await assert.rejects(
-            () => validate?.(capture(directory), directory),
+            () => validate(capture(directory), directory),
             /initial-import-diagnostic-database-snapshot-cardinality-invalid/
         );
 
@@ -385,7 +385,7 @@ test('rejects extra database snapshots and every playlist-worker snapshot', asyn
             JSON.stringify(HEAP_SNAPSHOT)
         );
         await assert.rejects(
-            () => validate?.(capture(directory), directory),
+            () => validate(capture(directory), directory),
             /initial-import-diagnostic-playlist-snapshot-unexpected/
         );
     } finally {

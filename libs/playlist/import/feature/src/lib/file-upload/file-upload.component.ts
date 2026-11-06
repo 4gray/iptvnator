@@ -3,6 +3,7 @@ import {
     EventEmitter,
     Output,
     inject,
+    input,
     signal,
     ChangeDetectionStrategy,
 } from '@angular/core';
@@ -18,7 +19,7 @@ const KB = 1024;
     imports: [DragDropFileUploadDirective, MatIconModule, TranslatePipe],
     selector: 'app-file-upload',
     templateUrl: './file-upload.component.html',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrls: ['./file-upload.component.scss'],
 })
 export class FileUploadComponent {
@@ -28,6 +29,7 @@ export class FileUploadComponent {
     @Output() fileRejected = new EventEmitter<string>();
     @Output() closeDialog = new EventEmitter<void>();
 
+    readonly autoImportEpg = input(true);
     readonly selectedFile = signal<File | null>(null);
     readonly isDragging = signal(false);
     readonly isImporting = signal(false);
@@ -78,7 +80,10 @@ export class FileUploadComponent {
         if (!file || this.isImporting()) return;
 
         this.isImporting.set(true);
-        const result = await this.importService.importFile(file);
+        const result = await this.importService.importFile(
+            file,
+            this.autoImportEpg()
+        );
         this.isImporting.set(false);
 
         if (result.ok === true) {
@@ -109,7 +114,9 @@ export class FileUploadComponent {
         if (this.isImporting()) return;
 
         this.isImporting.set(true);
-        const result = await this.importService.importFromNativeDialog();
+        const result = await this.importService.importFromNativeDialog(
+            this.autoImportEpg()
+        );
         this.isImporting.set(false);
 
         if (result.ok === true) {
@@ -118,7 +125,8 @@ export class FileUploadComponent {
         }
 
         if (result.reason !== 'cancelled') {
-            this.fileRejected.emit('selected playlist');
+            // The native dialog does not report a file name.
+            this.fileRejected.emit('');
         }
     }
 }

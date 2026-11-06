@@ -1,3 +1,5 @@
+@use '../../../../../../ui/styles/focus-ring';
+
 // Height-capped by the overlay to the space below the anchor: the embedded
 // panel's own list scrolls, header and footer stay put.
 :host {
@@ -55,7 +57,6 @@
     }
 
     &:focus-visible {
-        outline: 2px solid var(--mat-sys-primary);
-        outline-offset: -2px;
+        @include focus-ring.focus-ring-declarations($offset: -2px);
     }
 }

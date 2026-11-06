@@ -11,10 +11,14 @@
     .content-card__activation {
         border-radius: inherit;
         outline: none;
+
+        &[aria-disabled='true'] {
+            cursor: default;
+        }
     }
 
     &:has(> .content-card__activation:focus-visible) {
-        @include grid.focus-ring-declarations;
+        @include grid.card-focus-ring-declarations;
     }
 
     .remove-button {

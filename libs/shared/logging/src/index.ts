@@ -1,7 +1,11 @@
 export {
+    isSensitiveKey,
+    looksLikeSearchParams,
     REDACTED_VALUE,
     redactSensitiveData,
 } from './lib/redact-sensitive-data';
+export { decodeFully, findXtreamAccount } from './lib/url-credential-parts';
+export type { XtreamAccountScan } from './lib/url-credential-parts';
 export type { RedactionOptions } from './lib/redact-sensitive-data';
 export {
     SQL_TRACE_STATEMENT_TYPE,

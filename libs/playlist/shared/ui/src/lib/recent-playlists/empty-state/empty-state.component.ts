@@ -11,7 +11,7 @@ import type { PlaylistType } from '../../add-playlist-menu/playlist-type';
 import { SOURCE_TYPE_ICONS } from '@iptvnator/shared/interfaces';
 
 export type EmptyStateType =
-    'welcome-dashboard' | 'welcome-sources' | 'no-results' | 'no-data';
+    'welcome-dashboard' | 'welcome-sources' | 'no-data';
 
 interface FeatureCard {
     icon: string;
@@ -101,9 +101,8 @@ const SOURCE_CARDS: readonly SourceCard[] = [
         './empty-state.welcome-dashboard.scss',
         './empty-state.welcome-sources.scss',
         './empty-state.responsive.scss',
-        './empty-state.themes.scss',
     ],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [MatButtonModule, MatIcon, TranslatePipe],
 })
 export class EmptyStateComponent {

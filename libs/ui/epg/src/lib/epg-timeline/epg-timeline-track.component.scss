@@ -1,4 +1,5 @@
 @use '../epg-theme' as *;
+@use '../../../../styles/focus-ring';
 
 :host {
     box-sizing: border-box;
@@ -79,8 +80,7 @@
     }
 
     &:focus-visible {
-        outline: 2px solid $accent-blue;
-        outline-offset: 1px;
+        @include focus-ring.focus-ring-declarations($offset: 1px);
         z-index: 5;
     }
 
@@ -254,6 +254,11 @@
         color: $text-secondary;
         display: block;
         -webkit-line-clamp: initial;
+
+        // Native vertical scripts already read top-to-bottom with upright glyphs.
+        &[data-upright] {
+            transform: none;
+        }
     }
 
     &.is-now .epg-timeline__block-title,
@@ -484,7 +489,7 @@
     width: 248px;
     background: $surface-1;
     border: 1px solid $line-strong;
-    border-radius: var(--r-md, 10px);
+    border-radius: 10px;
     box-shadow: var(--app-widget-shadow);
     padding: 13px 14px;
     pointer-events: none;

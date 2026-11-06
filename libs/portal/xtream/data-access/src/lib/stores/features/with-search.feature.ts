@@ -35,6 +35,7 @@ export interface SearchState {
     searchResults: XtreamSearchResultItem[];
     globalSearchResults: GlobalSearchResult[];
     isSearching: boolean;
+    searchError: boolean;
 }
 
 type SearchContentParams = {
@@ -61,6 +62,7 @@ const initialSearchState: SearchState = {
     searchResults: [],
     globalSearchResults: [],
     isSearching: false,
+    searchError: false,
 };
 
 /**
@@ -116,12 +118,16 @@ export function withSearch() {
                         patchState(store, {
                             searchResults: [],
                             isSearching: false,
+                            searchError: false,
                         });
                         return [];
                     }
                     lastSearch = { term: searchTerm, types, excludeHidden };
 
-                    patchState(store, { isSearching: true });
+                    patchState(store, {
+                        isSearching: true,
+                        searchError: false,
+                    });
 
                     try {
                         const results = await dataSource.searchContent(
@@ -156,6 +162,7 @@ export function withSearch() {
                         patchState(store, {
                             searchResults: [],
                             isSearching: false,
+                            searchError: true,
                         });
                         return [];
                     }
@@ -169,7 +176,10 @@ export function withSearch() {
                  */
                 clearSearchResults(): void {
                     searchRequestVersion++;
-                    patchState(store, { searchResults: [] });
+                    patchState(store, {
+                        searchResults: [],
+                        searchError: false,
+                    });
                 },
 
                 /**
@@ -192,6 +202,7 @@ export function withSearch() {
                         searchResults: results,
                         globalSearchResults: results,
                         isSearching: false,
+                        searchError: false,
                     });
                 },
 
@@ -199,7 +210,21 @@ export function withSearch() {
                  * Set the searching state
                  */
                 setIsSearching(value: boolean): void {
-                    patchState(store, { isSearching: value });
+                    patchState(store, {
+                        isSearching: value,
+                        ...(value ? { searchError: false } : {}),
+                    });
+                },
+
+                setSearchError(): void {
+                    searchRequestVersion++;
+                    lastSearch = null;
+                    patchState(store, {
+                        searchResults: [],
+                        globalSearchResults: [],
+                        isSearching: false,
+                        searchError: true,
+                    });
                 },
 
                 /**

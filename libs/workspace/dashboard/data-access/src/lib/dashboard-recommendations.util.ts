@@ -52,7 +52,10 @@ export type RecommendationCandidate = Omit<
  * gating that key on a title-derived 2049 would fail to exclude the very
  * film the user just watched (TMDB calls it 2017). Only Stalker rows
  * carry a real date (`info.releasedate`); everything else yields `null`,
- * which keeps the exact tier excluding unconditionally.
+ * which keeps the exact tier excluding unconditionally. So does a date the
+ * TMDB merge filled in itself (`tmdb_supplied_release_date`): it is the
+ * year of whatever TMDB matched, and a namesake match would otherwise stop
+ * the watched title from excluding itself.
  *
  * The base tier is different by construction — its key exists only
  * because a trailing year was stripped off — so it keeps using that year.
@@ -63,6 +66,9 @@ export function trustedReleaseYear(
     const info = (
         item.stalker_item as { info?: Record<string, unknown> } | undefined
     )?.info;
+    if (info?.['tmdb_supplied_release_date'] === true) {
+        return null;
+    }
     const releaseDate = info?.['releasedate'];
     return typeof releaseDate === 'string' ? extractYear(releaseDate) : null;
 }

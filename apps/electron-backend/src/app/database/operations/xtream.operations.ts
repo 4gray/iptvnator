@@ -1,7 +1,16 @@
+import { reconcileFavoriteIdentity } from './favorite-catalog';
+import { restoreXtreamFavorites } from './favorite-restore';
+import {
+    readHistoryRecovery,
+    replayRecoveredHistory,
+} from './xtream-history-recovery';
+export { restoreXtreamFavorites } from './favorite-restore';
 import { and, eq, inArray } from 'drizzle-orm';
 import * as schema from '@iptvnator/shared/database/schema';
 import {
     XTREAM_DATABASE_PERFORMANCE_PHASE,
+    normalizeXtreamContentTypes,
+    type XtreamContentType,
     type XtreamBackupFavoriteItem,
     type XtreamBackupHiddenCategory,
     type XtreamBackupRecentlyViewedItem,
@@ -49,7 +58,8 @@ interface XtreamDeletionCollection {
 
 async function collectXtreamDeletionRows(
     db: AppDatabase,
-    playlistId: string
+    playlistId: string,
+    types?: XtreamContentType[]
 ): Promise<XtreamDeletionCollection> {
     const categories = await db
         .select({
@@ -61,7 +71,15 @@ async function collectXtreamDeletionRows(
         .from(schema.categories)
         .where(eq(schema.categories.playlistId, playlistId));
 
-    const categoryIds = categories.map((category) => category.id);
+    const enabled = normalizeXtreamContentTypes(types);
+    const allCategoryIds = categories.map((category) => category.id);
+    const categoryIds = categories
+        .filter((category) =>
+            enabled.includes(
+                category.type === 'movies' ? 'movie' : category.type
+            )
+        )
+        .map((category) => category.id);
     const hiddenCategories = categories
         .filter((category) => category.hidden)
         .map((category) => ({
@@ -69,37 +87,11 @@ async function collectXtreamDeletionRows(
             categoryType: category.type,
         }));
 
-    let favorites: XtreamBackupFavoriteItem[] = [];
+    const favorites: XtreamBackupFavoriteItem[] = [];
     let recentlyViewed: XtreamBackupRecentlyViewedItem[] = [];
     let contentRowCounts: CategoryRowCount[] = [];
 
-    if (categoryIds.length > 0) {
-        const favoritedContent = await db
-            .select({
-                xtreamId: schema.content.xtreamId,
-                contentType: schema.content.type,
-                addedAt: schema.favorites.addedAt,
-                position: schema.favorites.position,
-            })
-            .from(schema.favorites)
-            .innerJoin(
-                schema.content,
-                eq(schema.favorites.contentId, schema.content.id)
-            )
-            .where(
-                and(
-                    eq(schema.favorites.playlistId, playlistId),
-                    inArray(schema.content.categoryId, categoryIds)
-                )
-            );
-
-        favorites = favoritedContent.map((favorite) => ({
-            xtreamId: favorite.xtreamId,
-            contentType: favorite.contentType,
-            addedAt: favorite.addedAt ?? undefined,
-            position: favorite.position,
-        }));
-
+    if (allCategoryIds.length > 0) {
         const recentlyViewedContent = await db
             .select({
                 xtreamId: schema.content.xtreamId,
@@ -114,7 +106,7 @@ async function collectXtreamDeletionRows(
             .where(
                 and(
                     eq(schema.recentlyViewed.playlistId, playlistId),
-                    inArray(schema.content.categoryId, categoryIds)
+                    inArray(schema.content.categoryId, allCategoryIds)
                 )
             );
 
@@ -124,10 +116,12 @@ async function collectXtreamDeletionRows(
             viewedAt: item.viewedAt || new Date().toISOString(),
         }));
 
-        contentRowCounts = await countContentRowsByCategory(
-            db,
-            inArray(schema.categories.id, categoryIds)
-        );
+        if (categoryIds.length > 0) {
+            contentRowCounts = await countContentRowsByCategory(
+                db,
+                inArray(schema.categories.id, categoryIds)
+            );
+        }
     }
 
     return {
@@ -179,24 +173,38 @@ export async function deleteXtreamContent(
     db: AppDatabase,
     playlistId: string,
     control?: OperationControl,
-    capturePhase?: DatabaseOperationPerformancePhaseCapture
+    capturePhase?: DatabaseOperationPerformancePhaseCapture,
+    types?: XtreamContentType[]
 ): Promise<{
     success: boolean;
     favorites: XtreamBackupFavoriteItem[];
     recentlyViewed: XtreamBackupRecentlyViewedItem[];
     hiddenCategories: XtreamBackupHiddenCategory[];
 }> {
+    await checkpointOperation(control);
+    reconcileFavoriteIdentity(db, eq(schema.favorites.playlistId, playlistId));
+    await db
+        .update(schema.appState)
+        .set({ value: 'idle' })
+        .where(
+            inArray(
+                schema.appState.key,
+                normalizeXtreamContentTypes(types).map(
+                    (type) => `xtream-import-status:${playlistId}:${type}`
+                )
+            )
+        );
     const collection = capturePhase
         ? await capturePhase.captureAsync(
               XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_XTREAM_DELETE_COLLECT_USER_DATA,
-              () => collectXtreamDeletionRows(db, playlistId),
+              () => collectXtreamDeletionRows(db, playlistId, types),
               (result) => ({
                   itemCount:
                       sumCategoryRowCounts(result.contentRowCounts) +
                       result.categoryIds.length,
               })
           )
-        : await collectXtreamDeletionRows(db, playlistId);
+        : await collectXtreamDeletionRows(db, playlistId, types);
 
     if (capturePhase) {
         await capturePhase.captureAsync(
@@ -222,7 +230,8 @@ async function getContentIdentityMap(
     identities: Array<{
         contentType: XtreamBackupFavoriteItem['contentType'];
         xtreamId: number;
-    }>
+    }>,
+    control?: OperationControl
 ): Promise<Map<string, number>> {
     const xtreamIds = Array.from(
         new Set(identities.map((item) => item.xtreamId))
@@ -232,30 +241,35 @@ async function getContentIdentityMap(
         return new Map();
     }
 
-    const content = await db
-        .select({
-            id: schema.content.id,
-            xtreamId: schema.content.xtreamId,
-            contentType: schema.content.type,
-        })
-        .from(schema.content)
-        .innerJoin(
-            schema.categories,
-            eq(schema.content.categoryId, schema.categories.id)
-        )
-        .where(
-            and(
-                eq(schema.categories.playlistId, playlistId),
-                inArray(schema.content.xtreamId, xtreamIds)
+    const result = new Map<string, number>();
+    for (const ids of chunkValues(xtreamIds, DEFAULT_BATCH_SIZE)) {
+        await checkpointOperation(control);
+        const content = await db
+            .select({
+                id: schema.content.id,
+                xtreamId: schema.content.xtreamId,
+                contentType: schema.content.type,
+            })
+            .from(schema.content)
+            .innerJoin(
+                schema.categories,
+                eq(schema.content.categoryId, schema.categories.id)
             )
-        );
+            .where(
+                and(
+                    eq(schema.categories.playlistId, playlistId),
+                    inArray(schema.content.xtreamId, ids)
+                )
+            );
 
-    return new Map(
-        content.map((item: ContentIdentity) => [
-            toContentIdentityKey(item.contentType, item.xtreamId),
-            item.id,
-        ])
-    );
+        for (const item of content as ContentIdentity[]) {
+            result.set(
+                toContentIdentityKey(item.contentType, item.xtreamId),
+                item.id
+            );
+        }
+    }
+    return result;
 }
 
 export async function restoreXtreamUserData(
@@ -264,72 +278,44 @@ export async function restoreXtreamUserData(
     favorites: XtreamBackupFavoriteItem[],
     recentlyViewed: XtreamBackupRecentlyViewedItem[],
     control?: OperationControl
-): Promise<{ success: boolean }> {
-    await checkpointOperation(control);
-    await db
-        .delete(schema.favorites)
-        .where(eq(schema.favorites.playlistId, playlistId));
+): Promise<{
+    success: boolean;
+    resolvedHistory: Pick<
+        XtreamBackupRecentlyViewedItem,
+        'contentType' | 'xtreamId'
+    >[];
+}> {
+    await restoreXtreamFavorites(db, playlistId, favorites, control);
 
+    await checkpointOperation(control);
+    const recovered = replayRecoveredHistory(db, playlistId);
+    if (recovered !== null) {
+        // Capture the transaction's proof before progress can yield to another
+        // history mutation or acknowledgment. The caller owns these copies even
+        // if the user removes a restored row before the response arrives.
+        const resolvedHistory =
+            readHistoryRecovery(db, playlistId)?.resolved ?? [];
+        await reportOperationProgress(control, {
+            phase: 'restoring-recently-viewed',
+            current: recovered,
+            total: recovered,
+            increment: recovered,
+        });
+        return { success: true, resolvedHistory };
+    }
+    const contentByIdentity = await getContentIdentityMap(
+        db,
+        playlistId,
+        recentlyViewed.map((item) => ({
+            contentType: item.contentType,
+            xtreamId: item.xtreamId,
+        })),
+        control
+    );
     await checkpointOperation(control);
     await db
         .delete(schema.recentlyViewed)
         .where(eq(schema.recentlyViewed.playlistId, playlistId));
-
-    const contentByIdentity = await getContentIdentityMap(db, playlistId, [
-        ...favorites.map((item) => ({
-            contentType: item.contentType,
-            xtreamId: item.xtreamId,
-        })),
-        ...recentlyViewed.map((item) => ({
-            contentType: item.contentType,
-            xtreamId: item.xtreamId,
-        })),
-    ]);
-
-    const favoriteValues = favorites
-        .map((item, index) => {
-            const contentId = contentByIdentity.get(
-                toContentIdentityKey(item.contentType, item.xtreamId)
-            );
-
-            if (!contentId) {
-                return null;
-            }
-
-            return {
-                contentId,
-                playlistId,
-                addedAt: item.addedAt ?? new Date().toISOString(),
-                position: item.position ?? index,
-            };
-        })
-        .filter(
-            (
-                value
-            ): value is {
-                contentId: number;
-                playlistId: string;
-                addedAt: string;
-                position: number | null;
-            } => value !== null
-        );
-
-    let restoredFavorites = 0;
-    const totalFavorites = favoriteValues.length;
-
-    for (const chunk of chunkValues(favoriteValues, DEFAULT_BATCH_SIZE)) {
-        await checkpointOperation(control);
-        await db.transaction((tx) => {
-            tx.insert(schema.favorites).values(chunk).run();
-        });
-        restoredFavorites += chunk.length;
-        await reportOperationProgress(control, {
-            phase: 'restoring-favorites',
-            current: restoredFavorites,
-            total: totalFavorites,
-            increment: chunk.length,
-        });
-    }
 
     const recentlyViewedValues = recentlyViewed
         .map((item) => {
@@ -374,5 +360,14 @@ export async function restoreXtreamUserData(
         });
     }
 
-    return { success: true };
+    return {
+        success: true,
+        resolvedHistory: recentlyViewed
+            .filter((item) =>
+                contentByIdentity.has(
+                    toContentIdentityKey(item.contentType, item.xtreamId)
+                )
+            )
+            .map(({ contentType, xtreamId }) => ({ contentType, xtreamId })),
+    };
 }

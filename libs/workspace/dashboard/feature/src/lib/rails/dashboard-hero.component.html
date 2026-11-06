@@ -2,7 +2,9 @@
     <section
         class="hero"
         data-test-id="dashboard-hero"
-        aria-roledescription="carousel"
+        [attr.aria-roledescription]="
+            'WORKSPACE.DASHBOARD.HERO_ROLE_CAROUSEL' | translate
+        "
         tabindex="0"
         [attr.aria-label]="'WORKSPACE.DASHBOARD.HERO_LABEL' | translate"
         [class.hero--paused]="paused()"
@@ -26,14 +28,7 @@
                     [class.hero__backdrop--live]="slide.contentType === 'live'"
                     [style.--hero-hue]="slide.accentHue"
                 >
-                    <span
-                        class="hero__backdrop-fallback"
-                        [style.background]="
-                            slide.contentType === 'live'
-                                ? null
-                                : slide.fallbackBackdropBackground
-                        "
-                    ></span>
+                    <span class="hero__backdrop-fallback"></span>
                     @if (slide.backdropUrl; as backdropUrl) {
                         <img
                             class="hero__backdrop-image"
@@ -65,22 +60,29 @@
             <span class="hero__scrim"></span>
         </div>
 
-        @for (slide of [active]; track slide.id) {
+        <!-- Every slide is laid out, in one grid cell, so the hero is as
+             tall as its tallest slide and a rotation never resizes it (or
+             moves the rails below). Only the active slide is shown; the
+             others are inert and carry no test hooks. -->
+        @for (slide of slides(); track slide.id) {
+            @let current = $index === activeIndex();
             <div
                 class="hero__content"
                 role="group"
-                aria-roledescription="slide"
-                data-test-id="dashboard-hero-slide"
+                [attr.aria-roledescription]="
+                    'WORKSPACE.DASHBOARD.HERO_ROLE_SLIDE' | translate
+                "
+                [attr.data-test-id]="current ? 'dashboard-hero-slide' : null"
+                [attr.inert]="current ? null : ''"
                 [attr.data-hero-kind]="slide.kind"
                 [attr.aria-label]="
                     'WORKSPACE.DASHBOARD.HERO_SLIDE_POSITION'
                         | translate
                             : {
-                                  index: activeIndex() + 1,
+                                  index: $index + 1,
                                   count: slides().length,
                               }
                 "
-                [attr.aria-live]="canRotate() && !paused() ? 'off' : 'polite'"
             >
                 <p class="hero__eyebrow">
                     <span
@@ -92,9 +94,14 @@
                     <span>{{ slide.reasonLabelKey | translate }}</span>
                 </p>
 
-                <h1 class="hero__title">{{ slide.title }}</h1>
+                <h2 class="hero__title">{{ slide.title }}</h2>
 
-                <p class="hero__meta" data-test-id="dashboard-hero-badges">
+                <p
+                    class="hero__meta"
+                    [attr.data-test-id]="
+                        current ? 'dashboard-hero-badges' : null
+                    "
+                >
                     @if (slide.episodeBadge) {
                         <app-meta-chip class="hero__pill">{{
                             slide.episodeBadge
@@ -135,7 +142,9 @@
                 @if (slide.programmeTitle) {
                     <p
                         class="hero__programme"
-                        data-test-id="dashboard-hero-live-epg"
+                        [attr.data-test-id]="
+                            current ? 'dashboard-hero-live-epg' : null
+                        "
                     >
                         {{ slide.programmeTitle }}
                     </p>
@@ -154,6 +163,13 @@
                         aria-valuemin="0"
                         aria-valuemax="100"
                         [attr.aria-valuenow]="slide.progress"
+                        [attr.aria-label]="slide.programmeTitle ?? slide.title"
+                        [attr.aria-valuetext]="
+                            slide.contentType === 'live'
+                                ? null
+                                : ('WORKSPACE.DASHBOARD.PERCENT_WATCHED'
+                                  | translate: { value: slide.progress })
+                        "
                     >
                         <i [style.--hero-progress]="slide.progress"></i>
                     </span>
@@ -163,7 +179,7 @@
                     @let primary = slide.primaryAction;
                     <a
                         class="hero__button hero__button--primary"
-                        [attr.data-test-id]="primary.testId"
+                        [attr.data-test-id]="current ? primary.testId : null"
                         [routerLink]="primary.link"
                         [state]="primary.state ?? {}"
                     >
@@ -183,7 +199,9 @@
                     @if (slide.secondaryAction; as secondary) {
                         <a
                             class="hero__button hero__button--secondary"
-                            [attr.data-test-id]="secondary.testId"
+                            [attr.data-test-id]="
+                                current ? secondary.testId : null
+                            "
                             [routerLink]="secondary.link"
                             [state]="secondary.state ?? {}"
                         >
@@ -196,6 +214,22 @@
                 </div>
             </div>
         }
+        <!-- Outside the @for: a live region has to be in the page before
+             its text changes, or the change is not announced. Silent while
+             the slides rotate on their own. -->
+        <p
+            class="visually-hidden"
+            data-test-id="dashboard-hero-announcement"
+            aria-atomic="true"
+            [attr.aria-live]="canRotate() && !paused() ? 'off' : 'polite'"
+        >
+            {{
+                'WORKSPACE.DASHBOARD.HERO_SLIDE_POSITION'
+                    | translate
+                        : { index: activeIndex() + 1, count: slides().length }
+            }}
+            {{ active.title }}
+        </p>
 
         @if (slides().length > 1) {
             <div class="hero__controls">

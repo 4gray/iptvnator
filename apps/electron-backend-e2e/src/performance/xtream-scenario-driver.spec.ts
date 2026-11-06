@@ -157,15 +157,18 @@ describe('Xtream Playwright scenario driver', () => {
     });
 
     it('does not require a misleading portal-status badge before refresh or delete', async () => {
-        for (const [scenarioId, selector, confirmLabel] of [
+        for (const [scenarioId, selector, confirmClick] of [
             [
                 XTREAM_SCENARIO_ID.REFRESH_LARGE,
-                '.refresh-btn',
-                'Refresh playlist',
+                '.source-row__refresh',
+                'name=Refresh playlist;exact=true',
             ],
-            [XTREAM_SCENARIO_ID.DELETE_LARGE, '.delete-btn', 'Remove playlist'],
+            [
+                XTREAM_SCENARIO_ID.DELETE_LARGE,
+                '.source-row__more',
+                '.source-removal-toast__close',
+            ],
         ] as const) {
-            const confirmClick = `name=${confirmLabel};exact=true`;
             const fake = new FakePage();
             const prepared = await prepareXtreamScenario(
                 fake.asPage(),
@@ -186,6 +189,54 @@ describe('Xtream Playwright scenario driver', () => {
             await prepared.trigger();
             assert.equal(fake.clicksMatching(confirmClick), 1);
         }
+    });
+
+    it('arms the playlist delete before its commit click and ends on its completion', async () => {
+        const fake = new FakePage();
+        const completed = {
+            active: false,
+            operation: 'delete-playlist',
+            operationId: 'delete-playlist-1',
+            playlistId: 'playlist-1',
+            startedEpochMs: 100,
+            terminalEpochMs: 150,
+            terminalStatus: 'completed',
+        };
+        fake.operationSnapshot = completed;
+        const prepared = await prepareXtreamScenario(
+            fake.asPage(),
+            scenarioOptions(XTREAM_SCENARIO_ID.DELETE_LARGE)
+        );
+        // Preparation stops at the open menu: Remove would start the Undo
+        // window, which commits on its own before a slow capture setup ends.
+        assert.equal(fake.clicksMatching('filter(Remove playlist)'), 0);
+        await prepared.trigger();
+        assert.equal(fake.clicksMatching('filter(Remove playlist)'), 1);
+        const armIndex = fake.log.indexOf('evaluate:install-operation');
+        const clickIndex = fake.log.findIndex(
+            (entry) =>
+                entry.startsWith('click:') &&
+                entry.includes('.source-removal-toast__close')
+        );
+        assert.ok(armIndex >= 0, 'the delete window is armed');
+        assert.ok(armIndex < clickIndex, 'before the commit click');
+
+        await prepared.waitForTerminal();
+        assert.ok(
+            fake.log.indexOf('waitForFunction:operation-terminal') > clickIndex
+        );
+
+        const failed = new FakePage();
+        failed.operationSnapshot = { ...completed, terminalStatus: 'error' };
+        const failing = await prepareXtreamScenario(
+            failed.asPage(),
+            scenarioOptions(XTREAM_SCENARIO_ID.DELETE_LARGE)
+        );
+        await failing.trigger();
+        await assert.rejects(
+            () => failing.waitForTerminal(),
+            /xtream-delete-did-not-complete/
+        );
     });
 
     it('arms cancellation after preparation and immediately before the final Add trigger', async () => {

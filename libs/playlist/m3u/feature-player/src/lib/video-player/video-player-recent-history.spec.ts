@@ -91,7 +91,6 @@ describe('VideoPlayerComponent — recently viewed history', () => {
                         params: of({ id: playlistId(), view: 'all' }),
                         queryParams: of({}),
                         snapshot: {
-                            data: { layout: 'workspace' },
                             queryParams: {},
                         },
                     },

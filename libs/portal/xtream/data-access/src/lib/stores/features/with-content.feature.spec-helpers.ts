@@ -9,6 +9,7 @@ import {
     DatabaseService,
     XtreamPendingRestoreService,
     XtreamPendingRestoreSnapshot,
+    RuntimeCapabilitiesService,
 } from '@iptvnator/services';
 import {
     XTREAM_DATA_SOURCE,
@@ -140,6 +141,10 @@ export function createContentTestProviders(
 ) {
     return [
         store,
+        {
+            provide: RuntimeCapabilitiesService,
+            useValue: { supportsXtreamSqliteDataSource: true },
+        },
         { provide: XTREAM_DATA_SOURCE, useValue: mocks.dataSource },
         { provide: DatabaseService, useValue: mocks.databaseService },
         { provide: XtreamApiService, useValue: mocks.xtreamApiService },

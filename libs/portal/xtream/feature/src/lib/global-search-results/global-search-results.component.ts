@@ -6,7 +6,7 @@ import { SearchResultsComponent } from '../search-results/search-results.compone
     selector: 'app-global-search-results',
     imports: [SearchResultsComponent],
     providers: [XtreamStore],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     template: '<app-search-results/>',
 })
 export class GlobalSearchResultsComponent {}

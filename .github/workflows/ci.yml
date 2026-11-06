@@ -98,7 +98,7 @@ jobs:
                   fetch-depth: 0
 
             - name: Install pnpm
-              uses: pnpm/action-setup@v6.0.10
+              uses: pnpm/action-setup@v6.1.0
 
             - name: Setup Node.js
               uses: actions/setup-node@v7
@@ -134,13 +134,15 @@ jobs:
         permissions:
             contents: read
             pull-requests: read
+            # Codecov Bundle Analysis authenticates with GitHub OIDC.
+            id-token: write
 
         steps:
             - name: Checkout code
               uses: actions/checkout@v7
 
             - name: Install pnpm
-              uses: pnpm/action-setup@v6.0.10
+              uses: pnpm/action-setup@v6.1.0
 
             - name: Setup Node.js
               uses: actions/setup-node@v7
@@ -229,6 +231,19 @@ jobs:
                   CI: true
                   NX_TASKS_RUNNER_DYNAMIC_OUTPUT: false
 
+            # The standalone analyzer supports Angular's esbuild output.
+            # Keep its Linux/macOS-only package out of the workspace install.
+            - name: Upload renderer bundle analysis to Codecov
+              if: >-
+                  github.event_name != 'pull_request' ||
+                  (github.event.pull_request.head.repo.full_name == github.repository &&
+                  github.event.pull_request.user.login != 'dependabot[bot]')
+              continue-on-error: true
+              timeout-minutes: 3
+              run: >-
+                  pnpm dlx @codecov/bundle-analyzer@2.0.1 dist/apps/web
+                  --config-file=tools/performance/codecov-bundle.json
+
             # Fails when renderer.initialBytes exceeds value + slack committed
             # in tools/performance/journey-baselines.json. Baselines only move
             # down, with the printed measurement as evidence; the contract is
@@ -278,7 +293,7 @@ jobs:
                       exit 0
                   fi
                   relevant="$(git diff --name-only HEAD^1 HEAD |
-                      grep -vE '\.md$|^docs/|^\.plans/|^\.codex/|^\.claude/|^\.changes/|^apps/website/' || true)"
+                      grep -vE '\.md$|^docs/|^\.plans/|^\.agents/|^\.codex/|^\.claude/|^\.changes/|^apps/website/' || true)"
                   if [ -n "$relevant" ]; then
                       echo "Journey-relevant changes:"
                       echo "$relevant"
@@ -296,12 +311,15 @@ jobs:
         if: needs.performance-journeys-scope.outputs.run == 'true'
         runs-on: ubuntu-latest
         # The electron-performance build is the bulk of the time; each journey
-        # (launch, open-source, playback) is six fresh Electron processes plus
-        # one seeding run.
+        # (launch, open-source, playback, search) is six fresh Electron
+        # processes plus one seeding run. The large-library launch journey
+        # (launch-large) is left to the weekly performance-ratchet.yml.
         timeout-minutes: 30
-        # Warn-only for the first two weeks of plan item B3: a failure is
-        # visible on the run but does not fail the workflow.
-        continue-on-error: true
+        # Counter regressions fail this workflow (plan item B3, #1926).
+        # This policy takes effect on master when #1926 is merged.
+        # Evidence: all 71 master runs from 2026-10-06 to 2026-10-12 passed,
+        # with no enforced counter varying between iterations (see Ratchet
+        # in docs/architecture/performance-journeys.md).
         env:
             NX_SKIP_NX_CACHE: true
 
@@ -310,7 +328,7 @@ jobs:
               uses: actions/checkout@v7
 
             - name: Install pnpm
-              uses: pnpm/action-setup@v6.0.10
+              uses: pnpm/action-setup@v6.1.0
 
             - name: Setup Node.js
               uses: actions/setup-node@v7
@@ -324,7 +342,41 @@ jobs:
             # Electron dependency check, the xvfb run, the summary lookup and
             # the job-summary report; shared with performance-ratchet.yml.
             - name: Run the performance journeys
+              id: journeys
               uses: ./.github/actions/performance-journeys
+
+            # Only the counters identical in every measured iteration of
+            # recent master runs; their entries say whether a counter is
+            # validated against wall-clock or a guard only (see Ratchet in
+            # docs/architecture/performance-journeys.md). Here and not in the
+            # composite action, so the weekly tightening still measures a run
+            # that would fail it. tools/performance tests keep this list equal
+            # to the journey entries of journey-baselines.json. It also runs
+            # when a later step of the action (the job-summary report) failed
+            # after the summary was written, so the counters are still checked.
+            - name: Check the journey counters against the baselines
+              if: ${{ !cancelled() && steps.journeys.outputs.summary != '' }}
+              env:
+                  SUMMARY: ${{ steps.journeys.outputs.summary }}
+              run: >-
+                  node tools/performance/check-journey-ratchet.mjs
+                  --summary "$SUMMARY"
+                  --only launch/renderer.ipcCallsToFirstCard
+                  --only launch/renderer.domMutationsToFirstCard
+                  --only launch/main.modulesRegisteredBeforeWindow
+                  --only launch/renderer.layoutShiftScore
+                  --only launch/renderer.layoutShiftScoreSettled
+                  --only launch/renderer.cdTicksToFirstCard
+                  --only launch/renderer.cdTicksIdle30s
+                  --only open-source/main.mockHttpRequestsToSettled
+                  --only open-source/renderer.ipcCallsToFirstPage
+                  --only open-source/renderer.layoutShiftScore
+                  --only open-source/renderer.cdTicksToFirstPage
+                  --only playback/renderer.domMutationsToPlaying
+                  --only playback/renderer.httpRequestsToPlaying
+                  --only playback/renderer.layoutShiftScore
+                  --only search/renderer.ipcCallsPerSearch
+                  --only search/renderer.sqlStatementsPerSearch
 
             - name: Upload journey summaries
               if: always()
@@ -349,7 +401,7 @@ jobs:
               uses: actions/checkout@v7
 
             - name: Install pnpm
-              uses: pnpm/action-setup@v6.0.10
+              uses: pnpm/action-setup@v6.1.0
 
             - name: Setup Node.js
               uses: actions/setup-node@v7
@@ -359,6 +411,9 @@ jobs:
 
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
+
+            - name: Install Chromium for IndexedDB unit contracts
+              run: pnpm exec playwright install --with-deps chromium
 
             - name: Validate agent guidance
               run: pnpm run agents:validate
@@ -372,6 +427,12 @@ jobs:
             - name: Validate electron-builder keychain password patch
               run: pnpm run deps:electron-builder:test
 
+            - name: Validate service worker update recovery
+              run: pnpm nx run web-e2e:test-service-worker
+
+            - name: Validate mpegts.js loader abort patch
+              run: pnpm run deps:mpegts:test
+
             - name: Validate the font weight scale
               run: pnpm run styles:font-weights:validate
 
@@ -380,6 +441,36 @@ jobs:
 
             - name: Validate Angular Material token overrides
               run: pnpm run styles:material-tokens:validate
+
+            # The global :focus-visible fallback, and one ring colour for
+            # every component (tools/nx/check-focus-ring-colour.mjs).
+            - name: Validate the keyboard focus ring
+              run: pnpm run styles:focus-visible:validate
+
+            # The icon font renders an unknown ligature name as plain text.
+            - name: Validate Material icon names
+              run: pnpm run styles:icon-ligatures:validate
+
+            # A var() read nothing declares always falls back, and a
+            # prefers-color-scheme query follows the OS, not the app theme.
+            - name: Validate theme references
+              run: pnpm run styles:theme-references:validate
+
+            # A tooltip is not an accessible name: an icon-only <button> needs
+            # aria-label, an aria-label binding or aria-labelledby.
+            - name: Validate icon-only button names
+              run: pnpm run a11y:icon-buttons:validate
+
+            # Form-field defaults are provided per lazy component: the root
+            # token import would load Material form-field and @angular/forms
+            # on startup (tools/nx/check-form-field-defaults.mjs).
+            - name: Validate form-field defaults
+              run: pnpm run ui:form-field-defaults:validate
+
+            # m3-theme.scss themes only the Material components the app
+            # imports; a new import without a theme entry renders unthemed.
+            - name: Validate the Material theme scope
+              run: pnpm run styles:material-theme-scope:validate
 
             # Nx rejects a non-parallel task with continuous dependencies, and
             # the Playwright plugin infers serve dependencies only when CI is
@@ -393,10 +484,11 @@ jobs:
             - name: Typecheck Jest spec programs
               run: pnpm run typecheck:spec:test && pnpm run typecheck:spec
 
-            # Fails on missing or extra keys and on values identical to
-            # English that tools/i18n/identical-en-baseline.json does not list.
-            # The baseline only changes through a reviewed
-            # `pnpm run i18n:baseline:update`; CI never rewrites it.
+            # Fails on missing or extra keys, on values identical to English
+            # that tools/i18n/identical-en-baseline.json does not list, and on
+            # keys the renderer uses but en.json lacks. The baseline only
+            # changes through a reviewed `pnpm run i18n:baseline:update`; CI
+            # never rewrites it.
             - name: Check i18n drift and untranslated values
               run: pnpm run i18n:validate
 
@@ -470,6 +562,7 @@ jobs:
                       jest-transform-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'tsconfig.base.json', 'jest.preset.js', 'jest.web-esm.workspace.ts', 'apps/web/jest.config.ts') }}-
 
             - name: Run Tier A unit coverage suite
+              id: unit-coverage
               if: steps.scope.outputs.run == 'true'
               run: pnpm run coverage:ci
               env:
@@ -506,16 +599,30 @@ jobs:
                   name: unit-coverage
                   path: |
                       coverage/merged/
+                      coverage/**/junit.xml
                   retention-days: 14
 
+            - name: Upload unit test results to Codecov
+              if: ${{ !cancelled() && hashFiles('coverage/**/junit.xml') != '' }}
+              uses: codecov/codecov-action@v7
+              with:
+                  report_type: test_results
+                  directory: ./coverage
+                  flags: unit
+                  name: iptvnator-unit-tests
+                  override_branch: ${{ github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]' && format('dependabot:{0}', github.head_ref) || '' }}
+                  token: ${{ secrets.CODECOV_TOKEN }}
+
             - name: Upload unit coverage to Codecov
-              if: always() && steps.scope.outputs.run == 'true'
+              if: ${{ !cancelled() && steps.unit-coverage.outcome == 'success' }}
               uses: codecov/codecov-action@v7
               with:
                   files: ./coverage/merged/lcov.info,./coverage/merged/cobertura-coverage.xml
                   flags: unit
                   name: iptvnator-unit
-                  fail_ci_if_error: false
-                  handle_no_reports_found: true
+                  # Dependabot cannot read Actions secrets. Like fork uploads,
+                  # its PR reports use a prefixed, tokenless Codecov branch.
+                  override_branch: ${{ github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]' && format('dependabot:{0}', github.head_ref) || '' }}
+                  fail_ci_if_error: true
                   disable_search: true
                   token: ${{ secrets.CODECOV_TOKEN }}

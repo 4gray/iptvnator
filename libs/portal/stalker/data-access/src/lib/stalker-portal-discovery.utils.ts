@@ -161,7 +161,8 @@ export function classifyStalkerProbeResponse(
  * but `ipcRenderer.invoke` strips every custom property from a rejected
  * value and re-wraps the message, so in the renderer the numeric `status`
  * field usually does NOT survive and the code must be parsed back out of
- * the message text.
+ * the message text. Only a 401/403 arrives resolved and is rebuilt by
+ * `ElectronService` with its `status` (see `portal-request-failure.util.ts`).
  */
 export function getStalkerRequestErrorStatus(
     error: unknown

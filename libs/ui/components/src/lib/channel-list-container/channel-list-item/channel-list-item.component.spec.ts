@@ -52,6 +52,24 @@ describe('ChannelListItemComponent', () => {
         expect(clicked).not.toHaveBeenCalled();
     });
 
+    it('keeps visible programme metadata in the main button accessible name', () => {
+        fixture.componentRef.setInput('name', 'News');
+        fixture.componentRef.setInput('epgProgram', {
+            start: '2026-11-02T19:00:00Z',
+            stop: '2026-11-02T20:00:00Z',
+            channel: '1',
+            title: 'Evening bulletin',
+            desc: null,
+            category: null,
+        });
+        fixture.detectChanges();
+        const button = fixture.nativeElement.querySelector(
+            'button.channel-content'
+        ) as HTMLButtonElement;
+        expect(button.getAttribute('aria-label')).toBeNull();
+        expect(button.textContent).toContain('Evening bulletin');
+    });
+
     it('formats preview times from timestamp fields when raw strings are offset', () => {
         const startTimestamp = Math.floor(
             Date.parse('2026-04-05T05:30:00.000Z') / 1000
@@ -177,6 +195,40 @@ describe('ChannelListItemComponent', () => {
 
         slot.click();
         expect(programmeDialog.open).not.toHaveBeenCalled();
+    });
+
+    it('keeps one name on the favorite toggle and reports its state', () => {
+        fixture.componentRef.setInput('name', 'Starred');
+        fixture.componentRef.setInput('showFavoriteButton', true);
+        fixture.detectChanges();
+        const toggle = fixture.nativeElement.querySelector('.favorite-button');
+        expect(toggle.getAttribute('aria-label')).toBe('CHANNELS.FAVORITE');
+        expect(toggle.getAttribute('aria-pressed')).toBe('false');
+
+        fixture.componentRef.setInput('isFavorite', true);
+        fixture.detectChanges();
+        expect(toggle.getAttribute('aria-label')).toBe('CHANNELS.FAVORITE');
+        expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    });
+
+    it('names the icon-only row actions after their tooltips', () => {
+        fixture.componentRef.setInput('name', 'Recent');
+        fixture.componentRef.setInput('showAuxActionButton', true);
+        fixture.componentRef.setInput(
+            'auxActionTooltip',
+            'Remove from history'
+        );
+        fixture.detectChanges();
+
+        const buttons: HTMLButtonElement[] = Array.from(
+            fixture.nativeElement.querySelectorAll('.action-buttons button')
+        );
+        expect(
+            buttons.map((button) => button.getAttribute('aria-label'))
+        ).toEqual([
+            'Remove from history',
+            'EPG.PROGRAM_DIALOG.SHOW_PROGRAM_DETAILS',
+        ]);
     });
 
     it('renders the catch-up badge only when catch-up is available', () => {

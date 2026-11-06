@@ -12,7 +12,14 @@ import {
     CollectionSourceType,
     UnifiedCollectionItem,
 } from '../collection/unified-collection-item.interface';
-import { CollectionScope } from '../collection/scope-toggle.service';
+import { COLLECTION_VIEW_STATE_KEY } from './collection-view-state';
+export {
+    buildCollectionViewState,
+    COLLECTION_VIEW_STATE_KEY,
+    COLLECTION_RELOAD_STATE_KEY,
+    getCollectionViewState,
+} from './collection-view-state';
+export type { CollectionViewState } from './collection-view-state';
 
 export interface WorkspaceNavigationTarget {
     link: string[];
@@ -29,7 +36,6 @@ export const OPEN_STALKER_LIVE_POSTER_STATE_KEY = 'openStalkerLivePoster';
 export const OPEN_COLLECTION_DETAIL_STATE_KEY = 'openCollectionDetailItem';
 export const OPEN_STALKER_ITEM_STATE_KEY = 'openStalkerItem';
 export const STALKER_RETURN_TO_STATE_KEY = 'stalkerReturnTo';
-export const COLLECTION_VIEW_STATE_KEY = 'collectionViewState';
 
 export interface OpenLiveCollectionItemState {
     contentType: 'live';
@@ -50,11 +56,6 @@ export interface SeriesResumeTarget {
     contentXtreamId: number;
     seasonNumber: number;
     episodeNumber: number;
-}
-
-export interface CollectionViewState {
-    selectedContentType?: CollectionContentType;
-    scope?: CollectionScope;
 }
 
 export function getRecentItemNavigation(
@@ -268,43 +269,13 @@ export function buildGlobalCollectionDetailNavigationTarget(
             mode === 'favorites' ? 'global-favorites' : 'global-recent',
         ],
         state: {
+            // The active playlist can differ from the dashboard/cross-portal item.
+            // Validate its current availability against all saved rows.
+            [COLLECTION_VIEW_STATE_KEY]: { scope: 'all' },
             [OPEN_COLLECTION_DETAIL_STATE_KEY]:
                 buildOpenCollectionDetailItemState(item, seriesResume),
         },
     };
-}
-
-export function buildCollectionViewState(params: {
-    selectedContentType?: CollectionContentType | null;
-    scope?: CollectionScope | null;
-}): CollectionViewState | null {
-    const selectedContentType = normalizeCollectionContentType(
-        params.selectedContentType
-    );
-    const scope = normalizeCollectionScope(params.scope);
-
-    if (!selectedContentType && !scope) {
-        return null;
-    }
-
-    return {
-        ...(selectedContentType ? { selectedContentType } : {}),
-        ...(scope ? { scope } : {}),
-    };
-}
-
-export function getCollectionViewState(
-    state: unknown
-): CollectionViewState | null {
-    const record = toStateRecord(state);
-    const candidate = toStateRecord(record?.[COLLECTION_VIEW_STATE_KEY]);
-
-    return buildCollectionViewState({
-        selectedContentType: candidate?.[
-            'selectedContentType'
-        ] as CollectionContentType | null,
-        scope: candidate?.['scope'] as CollectionScope | null,
-    });
 }
 
 export function buildOpenCollectionDetailItemState(
@@ -624,20 +595,6 @@ function normalizeReturnToState(
     return null;
 }
 
-function normalizeCollectionContentType(
-    value: CollectionContentType | null | undefined
-): CollectionContentType | null {
-    return value === 'live' || value === 'movie' || value === 'series'
-        ? value
-        : null;
-}
-
-function normalizeCollectionScope(
-    value: CollectionScope | null | undefined
-): CollectionScope | null {
-    return value === 'playlist' || value === 'all' ? value : null;
-}
-
 function normalizeCollectionSourceType(
     value: unknown
 ): CollectionSourceType | null {
@@ -671,6 +628,8 @@ function buildDashboardCollectionDetailItem(
             posterUrl: item.poster_url ?? null,
             xtreamId: toOptionalNumber(item.xtream_id),
             contentId: toOptionalNumber(item.id),
+            favoriteId: item.favorite_id,
+            catalogStatus: item.catalogStatus,
             categoryId: item.category_id,
             addedAt: 'added_at' in item ? item.added_at : undefined,
             viewedAt: 'viewed_at' in item ? item.viewed_at : undefined,
@@ -840,6 +799,13 @@ function normalizeCollectionDetailItem(
         logo: toOptionalPathSegment(record['logo']) ?? null,
         xtreamId: toOptionalNumber(record['xtreamId']),
         contentId: toOptionalNumber(record['contentId']),
+        favoriteId: toOptionalNumber(record['favoriteId']),
+        catalogStatus:
+            record['catalogStatus'] === 'missing' ||
+            record['catalogStatus'] === 'unknown' ||
+            record['catalogStatus'] === 'present'
+                ? record['catalogStatus']
+                : undefined,
         stalkerId: toOptionalPathSegment(record['stalkerId']),
         stalkerCmd: toOptionalPathSegment(record['stalkerCmd']),
         stalkerPortalUrl: toOptionalPathSegment(record['stalkerPortalUrl']),

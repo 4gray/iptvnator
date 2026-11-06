@@ -61,28 +61,11 @@
     }
 </div>
 
-<div
-    aria-hidden="true"
-    class="channel-context-menu-anchor"
-    [style.left]="contextMenuPosition().x"
-    [style.top]="contextMenuPosition().y"
-    [matMenuTriggerFor]="channelContextMenu"
-    #contextMenuTrigger="matMenuTrigger"
-></div>
-
-<mat-menu #channelContextMenu="matMenu">
-    @if (supportsEpgMapping) {
-        <button mat-menu-item (click)="openEpgMapping()">
-            <mat-icon>settings_remote</mat-icon>
-            <span>{{ 'CHANNELS.MAP_EPG' | translate }}</span>
-        </button>
-    }
-    <button mat-menu-item (click)="openChannelDetails()">
-        <mat-icon>info</mat-icon>
-        <span>{{ 'CHANNELS.SHOW_DETAILS' | translate }}</span>
-    </button>
-    <button mat-menu-item (click)="removeContextMenuChannel()">
-        <mat-icon>delete</mat-icon>
-        <span>{{ 'WORKSPACE.DASHBOARD.REMOVE_FROM_HISTORY' | translate }}</span>
-    </button>
-</mat-menu>
+<app-channel-context-menu
+    [showMapEpg]="supportsEpgMapping"
+    [showDetails]="true"
+    [showRemoveFromHistory]="true"
+    (mapEpg)="openEpgMapping()"
+    (details)="openChannelDetails()"
+    (removeFromHistory)="removeContextMenuChannel()"
+/>

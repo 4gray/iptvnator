@@ -64,16 +64,12 @@
                         <span>{{ 'DOWNLOADS.NO_FOLDER' | translate }}</span>
                     }
                 </div>
-                <button
-                    mat-stroked-button
-                    type="button"
-                    (click)="changeFolder()"
-                >
+                <button mat-flat-button type="button" (click)="changeFolder()">
                     {{ 'DOWNLOADS.CHANGE_FOLDER' | translate }}
                 </button>
                 @if (model().hasClearable) {
                     <button
-                        mat-stroked-button
+                        mat-flat-button
                         type="button"
                         data-test-id="downloads-clear-finished"
                         [disabled]="isClearing()"
@@ -97,27 +93,29 @@
             data-test-id="downloads-filters"
             [attr.aria-label]="'DOWNLOADS.FILTER.LABEL' | translate"
         >
-            @for (category of categories(); track category.category_id) {
-                <button
-                    type="button"
-                    class="downloads__filter"
-                    [class.is-selected]="
-                        selectedCategoryId() === category.category_id
-                    "
-                    [attr.aria-pressed]="
-                        selectedCategoryId() === category.category_id
-                    "
-                    [attr.data-test-id]="
-                        'downloads-filter-' + category.category_id
-                    "
-                    (click)="setFilter(category.category_id)"
-                >
-                    <span>{{ category.category_name }}</span>
-                    <span class="downloads__filter-count">{{
-                        category.count
-                    }}</span>
-                </button>
-            }
+            <div class="downloads__filter-track">
+                @for (category of categories(); track category.category_id) {
+                    <button
+                        type="button"
+                        class="downloads__filter"
+                        [class.is-selected]="
+                            selectedCategoryId() === category.category_id
+                        "
+                        [attr.aria-pressed]="
+                            selectedCategoryId() === category.category_id
+                        "
+                        [attr.data-test-id]="
+                            'downloads-filter-' + category.category_id
+                        "
+                        (click)="setFilter(category.category_id)"
+                    >
+                        <span>{{ category.category_name }}</span>
+                        <span class="downloads__filter-count">{{
+                            category.count
+                        }}</span>
+                    </button>
+                }
+            </div>
         </nav>
     }
 

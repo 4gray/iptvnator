@@ -9,11 +9,11 @@ import { ApplicationRef } from '@angular/core';
  *
  * Angular's own hook, `ɵsetProfiler`, is reachable only through the dev-mode
  * `window.ng` global, which the optimized build does not publish. Every
- * tick, whether scheduled by zone.js (`onMicrotaskEmpty`), the zoneless
- * scheduler or an explicit `ApplicationRef.tick()`, goes through the
- * internal `ApplicationRef._tick`, which is also where Angular emits the
- * profiler's `ChangeDetectionStart`. Counting its calls therefore matches
- * the profiler's count and stays comparable across the zoneless migration.
+ * tick, whether scheduled by the zoneless scheduler, an `afterNextRender`
+ * hook or an explicit `ApplicationRef.tick()`, goes through the internal
+ * `ApplicationRef._tick`, which is also where Angular emits the profiler's
+ * `ChangeDetectionStart`. Counting its calls therefore matches the
+ * profiler's count; it did so under zone.js too, before the zoneless flip.
  * Contract: docs/architecture/performance-journeys.md.
  */
 export const CHANGE_DETECTION_TICK_COUNTER_KEY = '__iptvnatorCdTicks';

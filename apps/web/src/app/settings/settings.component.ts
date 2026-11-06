@@ -1,8 +1,14 @@
+import { Store } from '@ngrx/store';
+import {
+    PlaylistActions,
+    selectPlaylistsLoadingFlag,
+} from '@iptvnator/m3u-state';
 import {
     Component,
     computed,
     effect,
     ElementRef,
+    HostListener,
     inject,
     OnDestroy,
     OnInit,
@@ -21,19 +27,33 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
     EpgSourceReconciliationError,
     RuntimeCapabilitiesService,
+    ServerStorageStatusService,
+    injectTranslationTick,
 } from '@iptvnator/services';
 import { VodSourceDiscoveryService } from '@iptvnator/portal/shared/data-access';
-import { Language, StreamFormat } from '@iptvnator/shared/interfaces';
+import { dialogSize } from '@iptvnator/ui/components/dialog-size';
+import {
+    ELECTRON_BRIDGE_APP_UPDATE_STATUSES,
+    Language,
+    StreamFormat,
+} from '@iptvnator/shared/interfaces';
 import { firstValueFrom, map } from 'rxjs';
 import { BUILD_COMMIT } from '../../environments/build-commit';
 import { SettingsAboutSectionComponent } from './settings-about-section.component';
 import { SettingsAppUpdateFacade } from './settings-app-update.facade';
 import { SettingsBackupSectionComponent } from './settings-backup-section.component';
+import {
+    sectionOfSettingsPath,
+    SETTINGS_RESTART_CONTROLS,
+} from './settings-change-tracking';
 import { SettingsDashboardSectionComponent } from './settings-dashboard-section.component';
 import { SettingsEmbeddedMpvFacade } from './settings-embedded-mpv.facade';
 import { SettingsEpgFacade } from './settings-epg.facade';
 import { SettingsEpgSectionComponent } from './settings-epg-section.component';
-import { SettingsFormFacade } from './settings-form.facade';
+import {
+    SettingsFormFacade,
+    SettingsRuntimeUpdateError,
+} from './settings-form.facade';
 import { SettingsGeneralSectionComponent } from './settings-general-section.component';
 import { SettingsSection } from './settings.models';
 import {
@@ -51,7 +71,7 @@ import { SettingsParentalLockSectionComponent } from './settings-parental-sectio
 import { SettingsPlaybackSectionComponent } from './settings-playback-section.component';
 import { SettingsRemoteControlFacade } from './settings-remote-control.facade';
 import { SettingsRemoteControlSectionComponent } from './settings-remote-control-section.component';
-import { SettingsResetSectionComponent } from './settings-reset-section.component';
+import { SettingsServerSectionComponent } from './settings-server-section.component';
 import { SettingsSearchFacade } from './settings-search.facade';
 import { SettingsSearchResultsComponent } from './settings-search-results.component';
 import { SettingsTmdbSectionComponent } from './settings-tmdb-section.component';
@@ -61,6 +81,7 @@ import {
 } from './settings-unsaved-changes-dialog.component';
 import { SettingsLeaveConfirmation } from './settings-unsaved-changes.guard';
 import { SettingsUnloadGuardService } from './settings-unload-guard.service';
+import { waitForSettingsUiFeedbackFrame } from './settings-ui-feedback';
 import { SettingsBackupFacade } from './settings-backup.facade';
 import { SettingsPlaylistResetFacade } from './settings-playlist-reset.facade';
 import { SettingsSnackbarService } from './settings-snackbar.service';
@@ -98,12 +119,12 @@ export const SETTINGS_DEFAULT_SECTION = 'general';
         SettingsParentalLockSectionComponent,
         SettingsPlaybackSectionComponent,
         SettingsRemoteControlSectionComponent,
-        SettingsResetSectionComponent,
         SettingsSearchResultsComponent,
+        SettingsServerSectionComponent,
         SettingsTmdbSectionComponent,
+        SettingsServerSectionComponent,
     ],
-    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     providers: [
         SettingsAppUpdateFacade,
         SettingsBackupFacade,
@@ -125,6 +146,14 @@ export class SettingsComponent
     readonly backup = inject(SettingsBackupFacade);
     readonly embeddedMpv = inject(SettingsEmbeddedMpvFacade);
     readonly epg = inject(SettingsEpgFacade);
+    private readonly libraryStore = inject(Store);
+    readonly libraryReady = this.libraryStore.selectSignal(
+        selectPlaylistsLoadingFlag
+    );
+    retryLibrary(): void {
+        this.libraryStore.dispatch(PlaylistActions.loadPlaylists());
+    }
+
     readonly form = inject(SettingsFormFacade);
     readonly parentalLock = inject(SettingsParentalLockFacade);
     readonly playlistReset = inject(SettingsPlaylistResetFacade);
@@ -159,6 +188,9 @@ export class SettingsComponent
         this.runtime.supportsExternalPlayerPathSettings;
     readonly supportsVodMultiSource = this.vodSourceDiscovery.isAvailable;
     readonly supportsRemoteControl = this.runtime.supportsRemoteControl;
+    readonly supportsServerStorage = inject(
+        ServerStorageStatusService
+    ).isActive();
     readonly supportsStartupWindowMode = this.runtime.supportsStartupWindowMode;
     readonly supportsPortalConnectivityGuard =
         this.runtime.supportsPortalConnectivityGuard;
@@ -180,6 +212,39 @@ export class SettingsComponent
     /** Git commit the app was built from (CI builds only) */
     readonly buildCommit = BUILD_COMMIT;
 
+    /** Staged leaf values that differ from the saved settings */
+    readonly changeCount = computed(() => this.form.changedPaths().length);
+
+    /** Save bar text: a count once something actually differs */
+    readonly unsavedMessageKey = computed(() => {
+        const count = this.changeCount();
+        if (count === 1) return 'SETTINGS.UNSAVED_CHANGES_ONE';
+        return count > 1
+            ? 'SETTINGS.UNSAVED_CHANGES_COUNT'
+            : 'SETTINGS.UNSAVED_CHANGES';
+    });
+
+    /** Re-reads translated text after a language switch */
+    private readonly languageTick = injectTranslationTick();
+
+    /** Rows whose saved change waits for a restart, as one readable list */
+    readonly restartPendingLabels = computed(() => {
+        this.languageTick();
+        return this.form
+            .restartPendingControls()
+            .map((control) =>
+                this.translate.instant(SETTINGS_RESTART_CONTROLS[control])
+            )
+            .join(', ');
+    });
+
+    /** The Save button advertises the platform's save chord */
+    readonly saveShortcutLabel = /mac|iphone|ipad/i.test(
+        navigator.platform || navigator.userAgent
+    )
+        ? '⌘S'
+        : 'Ctrl+S';
+
     readonly themeOptions = SETTINGS_THEME_OPTIONS;
     readonly coverSizeOptions = SETTINGS_COVER_SIZE_OPTIONS;
     readonly startupBehaviorOptions = SETTINGS_STARTUP_BEHAVIOR_OPTIONS;
@@ -188,8 +253,9 @@ export class SettingsComponent
     readonly epgViewModeOptions = SETTINGS_EPG_VIEW_MODE_OPTIONS;
 
     readonly sectionNavItems: SettingsSection[] = buildSettingsSectionNavItems({
-        supportsEpg: this.supportsEpg,
+        supportsEpg: this.form.supportsEpgDisplay,
         supportsRemoteControl: this.supportsRemoteControl,
+        supportsServerStorage: this.supportsServerStorage,
     });
 
     get sectionNav(): SettingsSection[] {
@@ -243,6 +309,63 @@ export class SettingsComponent
             activeSection: this.activeSection,
             ready: this.formReady.asReadonly(),
         });
+
+        // The navigation marks pages with staged edits and shows the
+        // installed version (with an update badge) beside About.
+        effect(() => {
+            const sections = new Set<string>();
+            for (const path of this.form.changedPaths()) {
+                const section = sectionOfSettingsPath(path);
+                if (section) sections.add(section);
+            }
+            this.settingsCtx.setDirtySections(sections);
+        });
+        // The frame-copy opt-in may not be what the engine runs (it was not
+        // available at launch): the restart notice compares against that.
+        effect(() => {
+            if (this.embeddedMpv.support()) {
+                this.form.setRunningValue(
+                    'embeddedMpvFrameCopy',
+                    this.embeddedMpv.frameCopyActive()
+                );
+            }
+        });
+        effect(() => {
+            const status = this.appUpdate.status()?.status;
+            this.settingsCtx.setVersion(this.appUpdate.version() || null);
+            this.settingsCtx.setUpdateAvailable(
+                status === ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Available ||
+                    status === ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded
+            );
+        });
+    }
+
+    /**
+     * Cmd/Ctrl+S saves the staged edits. The browser's own save-page dialog
+     * is suppressed on every settings page, also while nothing is staged.
+     * While the page is inert (the phone drawer is open over it) or an
+     * overlay with a backdrop is up (the unsaved-changes dialog, a select
+     * panel), the chord belongs to that surface, not to the obscured form:
+     * saving under the leave dialog would make its Discard keep the edits.
+     */
+    @HostListener('document:keydown', ['$event'])
+    onSaveShortcut(event: KeyboardEvent): void {
+        const host = this.hostElement.nativeElement;
+        if (
+            event.defaultPrevented ||
+            !(event.metaKey || event.ctrlKey) ||
+            event.altKey ||
+            event.shiftKey ||
+            event.key.toLowerCase() !== 's' ||
+            host.closest('[inert]') ||
+            host.ownerDocument.querySelector('.cdk-overlay-backdrop')
+        ) {
+            return;
+        }
+        event.preventDefault();
+        if (!this.settingsForm.pristine && this.settingsForm.valid) {
+            this.onSubmit();
+        }
     }
 
     /**
@@ -273,6 +396,13 @@ export class SettingsComponent
     ngOnDestroy(): void {
         this.appUpdate.dispose();
         this.settingsCtx.reset();
+    }
+
+    /** Switches section page in place, like the sidebar links do */
+    openSection(sectionId: string): void {
+        void this.router.navigate(['/workspace/settings', sectionId], {
+            replaceUrl: true,
+        });
     }
 
     /** Picks a recording folder in the desktop shell and stages it in the form */
@@ -311,7 +441,7 @@ export class SettingsComponent
                     { canSave: boolean },
                     SettingsUnsavedChangesChoice
                 >(SettingsUnsavedChangesDialogComponent, {
-                    width: '440px',
+                    ...dialogSize('sm'),
                     data: { canSave: this.settingsForm.valid },
                 })
                 .afterClosed()
@@ -331,28 +461,24 @@ export class SettingsComponent
         return false;
     }
 
-    /** @returns whether the write actually landed */
+    /** @returns whether saved/applied settings include every current edit */
     private async persistSettings(): Promise<boolean> {
         try {
             await this.form.save(() => this.applyChangedSettings());
-            return true;
+            return this.settingsForm.pristine;
         } catch (error) {
+            if (error instanceof SettingsRuntimeUpdateError) {
+                this.settingsSnackbar.runtimeUpdateFailure(error.message);
+                return false;
+            }
             if (error instanceof EpgSourceReconciliationError) {
                 this.settingsSnackbar.open(
                     this.translate.instant('SETTINGS.EPG_DATA_CLEAR_FAILED')
                 );
                 return false;
             }
-            // The store already applied the change in memory, so without
-            // this the save looks successful until the next restart. The
-            // unsaved-changes bar stays visible so it can be retried.
-            //
-            // The Electron-side pushes in SettingsFormFacade.save() stay in
-            // the success branch on purpose: main keeps its own copy of the
-            // player paths and remote-control state, and applying half the
-            // form while telling the user nothing was saved is worse than
-            // applying none of it. Once settings live in the main process
-            // (issue #1273) this split disappears.
+            // A failed storage write still patches the in-memory store. Keep
+            // edits available for retry and explain they will not survive restart.
             this.settingsSnackbar.storageFailure('save');
             return false;
         }
@@ -381,35 +507,21 @@ export class SettingsComponent
     }
 
     async exportData(): Promise<void> {
-        await this.backup.exportData(() => this.waitForUiFeedbackFrame());
+        if (this.playlistReset.isRemovingAllPlaylists()) return;
+        await this.backup.exportData(waitForSettingsUiFeedbackFrame);
     }
 
     importData(): void {
+        if (this.playlistReset.isRemovingAllPlaylists()) return;
         this.backup.importData(() => this.form.hydrateFromStore());
     }
 
     removeAll(): void {
-        this.playlistReset.confirmAndRemoveAll(() =>
-            this.waitForUiFeedbackFrame()
-        );
+        if (this.backup.isBusy()) return;
+        this.playlistReset.confirmAndRemoveAll(waitForSettingsUiFeedbackFrame);
     }
 
     private isNavigableSection(sectionId: string): boolean {
         return this.sectionNav.some((section) => section.id === sectionId);
-    }
-
-    /**
-     * Lets the browser paint the pending busy state before a long running
-     * task blocks the main thread.
-     */
-    private async waitForUiFeedbackFrame(): Promise<void> {
-        if (typeof window.requestAnimationFrame !== 'function') {
-            await Promise.resolve();
-            return;
-        }
-
-        await new Promise<void>((resolve) => {
-            window.requestAnimationFrame(() => resolve());
-        });
     }
 }

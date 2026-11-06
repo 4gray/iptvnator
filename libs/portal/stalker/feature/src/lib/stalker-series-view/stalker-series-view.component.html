@@ -44,6 +44,9 @@
                     }
                 </app-meta-chip>
             }
+            <app-age-rating-chip
+                [certifications]="serial.info.tmdb_certifications"
+            />
             @if (hero.genreChips().length) {
                 <app-meta-chip>
                     @for (genre of hero.genreChips(); track genre.label) {
@@ -111,6 +114,8 @@
                     testId="series-quick-start"
                     (pressed)="playQuickStartEpisode()"
                 />
+            } @else if (episodeListLoading()) {
+                <app-detail-action-skeleton />
             }
             @if (heroPresenter.trailerEmbedUrl()) {
                 <app-detail-action-button
@@ -127,12 +132,12 @@
                 [item]="serial"
             />
             <app-vod-more-menu
+                [tmdbMatch]="tmdbMatch()"
                 [sections]="menu.sections()"
                 [label]="'PORTALS.DETAIL.MORE_ACTIONS' | translate"
                 testId="series-more-menu"
                 (selected)="menu.run($event)"
             />
-            <app-view-in-portal-action />
         </ng-template>
 
         @if (inlinePlayback(); as playback) {
@@ -170,6 +175,9 @@
                 [seriesId]="toSeriesId(serial.id)"
                 [playlistId]="stalkerStore.currentPlaylist()?._id ?? ''"
                 [seriesTitle]="serial.info.name"
+                [seriesDescription]="serial.info.description"
+                [seriesPosterUrl]="serial.info.movie_image"
+                [metadataLoading]="seasonMetadataLoading()"
                 [playbackPositions]="episodePlaybackPositions()"
                 [openingEpisodeId]="openingEpisodeId()"
                 [activeEpisodeId]="activeEpisodeId()"
@@ -180,18 +188,14 @@
                 [seasonPosters]="seasonPosters()"
                 [downloadsEnabled]="!providerOnly()"
                 [downloadAdapter]="episodeDownloadAdapter()"
-                [isLoading]="
-                    isVodSeriesSeasonsLoading() ||
-                    isCurrentSeasonLoading(
-                        $safeNavigationMigration(
-                            seasonContainer?.selectedSeason()
-                        )
-                    )
-                "
+                [isLoading]="episodeListLoading()"
                 [seasonWatchBatchRunning]="seasonWatchBatchRunning()"
                 [hasUnloadedSeasons]="hasUnloadedVodSeasons()"
+                [seasonLoadStates]="vodSeasonLoadStates()"
+                [unloadedSeasonKeys]="unloadedVodSeasonKeys()"
                 (seasonSelected)="onSeasonSelected($event)"
                 (episodeClicked)="onEpisodeClicked($event)"
+                (episodeRestartRequested)="onEpisodeRestartRequested($event)"
                 (playbackToggleRequested)="
                     handlePlaybackToggleRequestedFromUi($event)
                 "

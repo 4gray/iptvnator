@@ -1,8 +1,15 @@
 import { TestBed } from '@angular/core/testing';
-import { PARENTAL_LOCK_STORE_KEY } from '@iptvnator/shared/interfaces';
+import {
+    PARENTAL_LOCK_STORE_KEY,
+    PARENTAL_LOCK_PIN_KEY,
+} from '@iptvnator/shared/interfaces';
 import { DatabaseService } from '../database-electron.service';
 import { RuntimeCapabilitiesService } from '../runtime-capabilities.service';
 import { ParentalLockStorageService } from './parental-lock-storage';
+let mockProfilePrefix = '';
+jest.mock('../source-sync/source-profile-storage', () => ({
+    sourceProfileStorageKey: (key: string) => `${mockProfilePrefix}${key}`,
+}));
 
 describe('ParentalLockStorageService.readLocks', () => {
     const runtime = { supportsAppStateStorage: false };
@@ -16,6 +23,7 @@ describe('ParentalLockStorageService.readLocks', () => {
 
     beforeEach(() => {
         localStorage.clear();
+        mockProfilePrefix = '';
         runtime.supportsAppStateStorage = false;
         databaseService.readAppState.mockReset();
         TestBed.configureTestingModule({
@@ -30,6 +38,46 @@ describe('ParentalLockStorageService.readLocks', () => {
 
     it('reads an absent store as empty', async () => {
         await expect(service.readLocks()).resolves.toEqual({});
+    });
+    it('adopts the previous browser PIN and locks before reading a source profile', async () => {
+        mockProfilePrefix = 'iptvnator-server:nas:';
+        const locks = { p: { xtream: [], stalker: [], m3u: ['Adult'] } };
+        localStorage.setItem(PARENTAL_LOCK_PIN_KEY, 'existing-pin-hash');
+        localStorage.setItem(PARENTAL_LOCK_STORE_KEY, JSON.stringify(locks));
+        await expect(service.readPinHash()).resolves.toEqual({
+            hash: 'existing-pin-hash',
+        });
+        await expect(service.readLocks()).resolves.toEqual(locks);
+        expect(
+            localStorage.getItem(`${mockProfilePrefix}${PARENTAL_LOCK_PIN_KEY}`)
+        ).toBe('existing-pin-hash');
+        await expect(service.writeLocks({})).resolves.toBe(true);
+        await expect(service.readLocks()).resolves.toEqual({});
+        expect(localStorage.getItem(PARENTAL_LOCK_STORE_KEY)).toBe(
+            JSON.stringify(locks)
+        );
+    });
+    it('keeps newer profile protection and fails closed on a partial migration', async () => {
+        mockProfilePrefix = 'iptvnator-server:nas:';
+        localStorage.setItem(PARENTAL_LOCK_PIN_KEY, 'old');
+        localStorage.setItem(
+            `${mockProfilePrefix}${PARENTAL_LOCK_PIN_KEY}`,
+            'new'
+        );
+        await expect(service.readPinHash()).resolves.toEqual({ hash: 'new' });
+        localStorage.clear();
+        localStorage.setItem(PARENTAL_LOCK_PIN_KEY, 'old');
+        const write = jest
+            .spyOn(Storage.prototype, 'setItem')
+            .mockImplementation(() => {
+                throw new Error('QuotaExceededError');
+            });
+        try {
+            await expect(service.readPinHash()).resolves.toBeNull();
+        } finally {
+            write.mockRestore();
+        }
+        await expect(service.readPinHash()).resolves.toEqual({ hash: 'old' });
     });
 
     it('normalizes a stored store', async () => {

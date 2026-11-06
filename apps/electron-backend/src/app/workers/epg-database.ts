@@ -2,6 +2,7 @@ import type BetterSqlite3 from 'better-sqlite3';
 import { getIptvnatorDatabasePath } from '@iptvnator/shared/database/path-utils';
 import type { ParsedChannel, ParsedProgram } from './epg-streaming-parser';
 import { restoreSurvivingChannelMetadata } from './epg-source-metadata';
+import { EpgImportStaging } from './epg-import-staging';
 
 /**
  * Database helper for worker-owned EPG operations.
@@ -104,8 +105,8 @@ export class EpgDatabase {
     /**
      * Insert a batch of channels. When `clearTodayAndFuture` is true, the
      * selective delete (today+future and older-than-7-days) runs inside the
-     * same transaction so a parse failure after the delete atomically rolls
-     * back both — no gap left in the schedule.
+     * same transaction as this batch. Streaming imports use createImport()
+     * to keep all batches and source replacement in one final transaction.
      */
     insertChannels(
         channels: ParsedChannel[],
@@ -152,7 +153,11 @@ export class EpgDatabase {
     /**
      * Insert programs for channels already seen during the current parse.
      */
-    insertPrograms(programs: ParsedProgram[], sourceUrl: string): number {
+    insertPrograms(
+        programs: ParsedProgram[],
+        sourceUrl: string,
+        strict = false
+    ): number {
         let insertedCount = 0;
 
         const insertMany = this.db.transaction((programs: ParsedProgram[]) => {
@@ -180,7 +185,8 @@ export class EpgDatabase {
                         sourceUrl
                     );
                     insertedCount++;
-                } catch {
+                } catch (error) {
+                    if (strict) throw error;
                     // Skip individual failures such as FK constraint errors.
                 }
             }
@@ -188,6 +194,17 @@ export class EpgDatabase {
 
         insertMany(programs);
         return insertedCount;
+    }
+
+    createImport(sourceUrl: string): EpgImportStaging {
+        return new EpgImportStaging(
+            this.db,
+            (channels, clear) =>
+                this.insertChannels(channels, sourceUrl, clear),
+            (programmes) => {
+                this.insertPrograms(programmes, sourceUrl, true);
+            }
+        );
     }
 
     close(): void {

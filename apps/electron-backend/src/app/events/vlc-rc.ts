@@ -13,6 +13,17 @@ export function buildVlcEnqueueCommands(options: {
 }): string[] {
     const inputOptions: string[] = [];
 
+    // The reused process was launched with a global `--start-time=<resume>`,
+    // which VLC applies to every later input too. A per-input start time (0
+    // when nothing is resumed) keeps each item at its own offset.
+    const startTime =
+        typeof options.startTime === 'number' &&
+        Number.isFinite(options.startTime) &&
+        options.startTime >= 0
+            ? Math.floor(options.startTime)
+            : 0;
+    inputOptions.push(`:start-time=${startTime}`);
+
     if (options.userAgent) {
         inputOptions.push(`:http-user-agent=${options.userAgent}`);
     }
@@ -35,8 +46,8 @@ export function buildVlcEnqueueCommands(options: {
             ? `${options.url} ${inputOptions.join(' ')}`
             : options.url;
     const commands = ['clear', `add ${inputLine}`];
-    if (options.startTime && Number.isFinite(options.startTime)) {
-        commands.push(`seek ${Math.floor(options.startTime)}`);
+    if (startTime > 0) {
+        commands.push(`seek ${startTime}`);
     }
     return commands;
 }

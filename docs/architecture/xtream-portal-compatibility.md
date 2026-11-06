@@ -1,5 +1,35 @@
 # Xtream Portal Compatibility
 
+## Movie catalog watch-status filter
+
+The Movies catalog's Refine menu can select All, Unwatched, In progress or
+Watched. This is a catalog-only Xtream VOD capability; series, live channels,
+Stalker, collections and the separate search pages do not expose it. The
+catalog's own query, category, minimum rating and sort combine with the status.
+The Refine panel opens at its final geometry: entrance scaling must not move
+submenu triggers beneath a stationary pointer and activate a neighbouring menu.
+
+Classification reuses `resolvePortalWatchState`, including its rounded
+percentage and 90% completion threshold. A manual watched mark uses the same
+persisted full-progress position. A position without a known duration remains
+Unwatched under the existing classification; the filter does not infer viewing
+outside the application. Positions belong to a playlist, content type and
+provider ID, never the local SQLite row ID or a matching title in another source.
+
+The selection store filters the full catalog before taking the render-window
+slice. Result count, window growth and `hasMore` use that same selection. It
+uses the existing batch position reader in both Electron and PWA, without
+per-card position reads or a new persistence format. Loading, failed reads,
+successful empty history and an empty filtered result are distinct states.
+Active filtering waits for positions owned by the current source; Retry reloads
+them, while clearing the status leaves the other refinements intact.
+
+The status survives category changes and detail round trips within Movies,
+and clears on source/content-type changes or an application reload. Detail
+return refreshes the position map so manual marks, progress resets and browser
+playback affect the next catalog view. Scroll snapshots include the status;
+see [Portal Detail Navigation](portal-detail-navigation.md).
+
 This document captures the Xtream Codes compatibility rules shared by the
 Electron and PWA paths.
 
@@ -9,10 +39,8 @@ Electron and PWA paths.
 `RuntimeCapabilitiesService.supportsXtreamSqliteDataSource` proves that the
 complete SQLite-backed Xtream bridge is available. Otherwise it selects
 `PwaXtreamDataSource`. A generic Electron or `window.electron` check is not the
-data-source capability contract. Older favorites/recent branches that still
-probe `window.electron` directly are migration debt, not an alternate runtime
-selection rule; changes in those paths should follow the selected data source
-and explicit capabilities.
+data-source capability contract. Favorites and recent-item operations likewise
+follow the selected data source and explicit capabilities.
 
 Ownership follows the workspace boundaries:
 
@@ -25,6 +53,33 @@ Ownership follows the workspace boundaries:
 - reusable presentation: `libs/portal/shared/ui`
 - pure provider-neutral contracts/helpers: `libs/portal/shared/util`
 
+Catalog writes belong to the runtime loaders behind `getCategories` and
+`getContent`; `IXtreamDataSource` does not expose separate bulk-save methods.
+Electron loaders keep writing through the worker-backed `DatabaseService`;
+PWA loaders normalize API responses into their session caches. Tests load PWA
+catalogs through those same API-backed readers instead of seeding a second
+public write path.
+
+Destructive refresh belongs to `XtreamRefreshFlowService`; the data-source
+contract has no separate clear-and-snapshot entry point. Browser backup tests
+use `PwaXtreamBackupStorage` export/restore to preserve typed collection identity,
+saved snapshots and artwork. Category visibility writes remain owned by the
+category-management flow through `DatabaseService`, with no PWA no-op wrapper.
+Global recent-item collection reads and clears belong to
+`UnifiedRecentDataService`; `withRecentItems` retains playlist-local history and
+played-content metadata work only.
+
+Category initialization starts live, VOD and series reads in parallel, then
+publishes the results together. A failed session waits for every sibling
+category request to settle before releasing its busy hold and cleaning up.
+
+Content initialization runs one sequential import sequence for enabled live,
+VOD and series types, in that order. Each type persists completion before
+publishing rows or starting the next type. Publication retains its distinct
+state fields and renderer performance phase; cancellation and progress callbacks
+remain scoped to their owning session. Empty-catalog reuse and refill semantics
+are unchanged.
+
 Persisted Xtream identity is playlist-scoped and content-type-aware:
 `playlist_id + content.type + xtream_id`. Mixed collection keys likewise
 include type plus provider ID because live, movie, and series IDs can collide.
@@ -36,6 +91,555 @@ See [Nx Workspace Boundaries](./nx-workspace-boundaries.md),
 [SQLite DB Worker](./sqlite-db-worker.md),
 [Portal Detail Navigation](./portal-detail-navigation.md), and
 [VOD Multi-Source](./vod-multi-source.md).
+
+Catalog category titles accept the desktop `name`/`title` fields and the raw
+PWA `category_name` field in `XtreamCatalogFacadeService`. The all-items title
+remains a view-owned localized fallback when no category is selected; the
+shared catalog header does not normalize provider payloads itself.
+
+## Cached Catalog Status And Scroll Ownership
+
+When an initialized catalog remains available, Xtream shows one status strip
+above the routed pane for `unavailable`, `expired` and `inactive` accounts.
+Connection failures use the theme's warning colors; expired/inactive accounts
+use its error colors. A pending explicit check uses a neutral surface and
+disables repeated checks; an active account has no strip. Status text, icons
+and a polite live region accompany the colors. The strip explains that saved
+catalog entries remain visible while playback may be unavailable.
+
+Check again resets the host connectivity guard in both runtimes and calls
+the store's account-status probe. It does not retry content initialization,
+clear the catalog or start an import. A source change during the guard reset
+cancels that check; the store's existing connection checks reject stale account
+responses. Without usable cached content, the existing blocked error/retry
+screen remains responsible for initialization failures and cancelled imports.
+
+The content gate and playlist collection routes share a full-height column:
+the strip takes its natural height and `.xtream-route-content` fills the rest
+with a zero minimum height. The route retains its own scroll owner, including
+the VOD/series grid, Live TV panes, Recently added page and detail shell.
+The workspace `main` must not acquire a second outer scrollbar when the strip
+appears, wraps or disappears. The strip has no separate corner radius or gap
+before the route header.
+
+## Durable Electron Favorites
+
+SQLite favorites are user-owned records keyed by playlist, normalized content
+kind (`live`, `movie`, `series`), and provider ID. The nullable catalog link uses
+`ON DELETE SET NULL`; only explicit favorite removal/clear or playlist deletion
+removes a saved record. Refresh and import-cache cleanup never replay canonical
+favorites from a temporary snapshot. The two Refresh entry points continue to
+share `XtreamRefreshFlowService` and its per-playlist single-flight guard.
+
+Favorite rows retain a durable `favorite_id`, saved title/artwork, added date
+and order. Their `id`/`category_id` may be null; consumers must not invent a
+catalog ID. Remove/reorder can use the stable favorite ID while detail toggles
+resolve any category row through the same typed provider identity. Completed
+imports reconnect valid identities. Display snapshots are replaced only after
+the returning row confirms every saved TMDB ID/year; incomplete identity keeps
+the saved title/artwork in collections and backups. Restore applies the same
+confirmation guard before filling gaps in saved metadata from catalog rows.
+When detail enrichment confirms the remaining identity fields, it immediately
+copies the returning title, artwork and metadata into the saved snapshot without
+waiting for another import. Blank catalog fields retain their saved values.
+Conflicting known TMDB IDs or release years prevent automatic reconnection;
+changed provider IDs never reconnect by title. Electron persists known conflicts in
+`favorites.identity_conflict`, separately from catalog absence. Completed imports,
+detail enrichment and destructive cache refresh reconcile this evidence; only a
+candidate confirming every saved TMDB/year clears it. Sparse returns remain compatible
+when no conflict was observed. Backup snapshots carry known conflicts across runtimes,
+and explicit favorite removal/re-add starts independent ownership.
+Adding a conflicting replacement returns an explicit failure and retains the
+older favorite. Detail and recent-collection toggles stay inactive and explain
+that the older entry must be removed from Favorites before the replacement can
+be saved. Collection hearts change only after the storage write succeeds.
+Recent collections also check the current catalog row's favorite status through
+the data source when loading: a retained favorite's matching provider key alone
+cannot mark an incompatible replacement as saved.
+
+Manual TMDB corrections retain the provider's identity claims separately from
+display metadata, so correcting a match keeps existing favorites usable without
+weakening these checks. See [manual matching](tmdb-metadata-enrichment.md#manual-match-correction)
+for the retained identity marker and persistence rules.
+
+`catalog_status` is `present`, `missing`, or `unknown`. Only a completed import
+of the relevant type can prove absence. Failed, cancelled and in-progress
+imports remain unknown. Collections and dashboard rails retain unresolved rows
+with saved titles/status and removal/order controls; they suppress playback,
+details, downloads and EPG requests that depend on catalog resolution. History
+navigation rechecks current collection state. Removing a live row or making it
+unavailable closes its active detail and invalidates pending selection work,
+including a retained player during a channel switch. Unresolved records are not
+promoted to dashboard hero slides, including Continue Watching and the most-recent fallback.
+Unavailable live candidates are excluded before EPG lookup, candidate limits and
+slot reservation; Recent rail projections and EPG cards retain availability and cannot
+borrow cached programmes. Unavailable series are excluded before continuation candidate
+selection, so watched/season-zero positions cannot schedule replacement episode requests;
+history and saved positions remain intact. Parental locks still gate display: an
+unresolved category cannot prove that it is unlocked, so those records remain
+stored but are withheld while locks apply. For duplicate category copies, ordinary
+reads choose an unlocked compatible row before resolving the catalog link; a
+locked earlier copy cannot hide a later unlocked copy. Detail favorite status, mutations and Recent recording carry the displayed normalized
+TMDB/year through the worker lookup. That lookup excludes known conflicts and ranks
+full confirmation before sparse compatible duplicates; omitted identity keeps legacy
+lookup behavior. Async detail status ownership includes identity as well as typed provider
+ID, so a late toggle cannot update a different displayed replacement. Fully confirming duplicates
+rank before sparse compatible rows, with the catalog row ID breaking ties, so a
+confirmed return can refresh saved artwork in reads, completed imports and exports. Backup reads remain
+unfiltered.
+
+Legacy pending favorites are converted before destructive refresh, import
+requests and ordinary collection reads, even if portal-status preflight is
+offline. Ordinary collection reads isolate failed conversions per playlist and
+still read healthy database favorites, retaining pending state for retry. This
+also applies when localStorage access or key enumeration fails. Backup reads
+remain strict and fail if storage access or conversion fails. Backup merges convert any
+older pending favorites before parking the incoming archive. Favorite inserts and a replay receipt commit together;
+retries cannot resurrect a subsequently removed favorite. Deliberate backup import creates a
+fresh receipt ID, which stays internal and is never exported. Identity-only old
+backups use a labelled saved-item fallback until catalog metadata returns.
+Backups include unresolved snapshots and locked records through a dedicated
+unfiltered read; a failed favorites read fails export rather than producing an
+empty collection. New backup imports materialize favorites before waiting for
+an online catalog. Existing history, hidden-category and playback-position
+restore contracts remain separate.
+In server-storage mode the same shared import/replay boundary waits for a fresh
+user-data read and earlier writes, then confirms the restored lists and required
+snapshots with the server before consuming pending state. Restore receipts remain
+client metadata in the atomic cache blob, never server playlist entries. Hydration
+preserves them and shrinks favorite ownership on remote removals. Local write completion is separate from server confirmation: an unconfirmed receipt
+retains its replacement target until the server accepts it. Retry and pending export use
+that target, rather than a conflict-merged list. Explicit favorite/history/position edits
+update the target atomically with their list and receipt, preserving removals and re-adds.
+Only confirmed receipts may shrink ownership from later remote removals. Receipt-bearing
+writes reject browser quota failures rather than acknowledge only in memory; ordinary
+receipt-free server caches retain their existing memory fallback.
+
+Browser imports convert desktop favorite snapshots into typed collection-cache
+rows so saved titles and artwork remain visible offline. Browser exports include
+the normalized nested favorite snapshots as well as their optional collection
+cache, preserving metadata when the archive returns to Electron.
+The backup boundary normalizes numeric-string TMDB IDs and years from older
+browser snapshots with the shared metadata rules, preserving identity checks
+after Electron restore. Nulls remain null; unusable placeholders are omitted.
+Once all three browser catalogs have loaded successfully, a saved typed item
+absent from those catalogs is retained with `missing` status. Favorites and
+Recent persist that status across reload and disable catalog-dependent actions;
+partial or failed hydration cannot establish absence. Returning compatible
+catalog evidence can make the saved item available again without changing its
+favorite date/order or an independent Recent snapshot's identity. Browser snapshots
+record whether missing status came from absence or a known identity conflict.
+A sparse returning typed row clears proven absence while retaining the saved
+presentation and identity. It cannot clear a known conflict or an older missing
+status whose cause is unknown; those still require identity confirmation. Favorite-status checks and stale detail-heart
+mutations use the same retained-conflict rule; explicit removal with the saved original
+identity remains available from Favorites. This
+evidence survives reload and browser backup/restore for Favorites and Recent.
+Favorite snapshot backups include allowlisted availability evidence in pending
+state too, so retrying a failed snapshot write cannot enable a known conflict.
+Older browser cache evidence is promoted only for the same typed identity and
+compatible saved metadata; legacy optional-cache-only imports remain optional.
+Duplicate category rows are ranked against the original collection snapshot:
+fully confirming rows take precedence over compatible sparse rows, which take
+precedence over conflicting rows. Favorite and Recent choose independently.
+Catalog hydration keeps the saved snapshot separate from current provider rows.
+Only a row confirming every saved TMDB ID/year may refresh that snapshot;
+missing, partially confirmed or conflicting identity retains the original title,
+artwork and metadata. Identity numbers use the shared Electron metadata normalizer: numeric strings
+match numbers, and empty/zero placeholders are unknown. After confirmation,
+blank catalog fields retain saved values. The favorite's added date and order always belong to user state.
+Favorites and Recent reads/writes share this resolution. Recent/detail backdrop
+writes check the actual catalog evidence, never the resolved collection row
+which already carries saved identity. Browsing, reload and re-export therefore
+cannot replace an imported snapshot merely because a provider reused its ID.
+A known browser identity conflict marks the retained snapshot unavailable, so
+collection and dashboard detail actions cannot open the replacement under the
+saved title. This survives reload and clears only when the saved identity is
+confirmed again. Legacy numeric aliases are deduplicated separately, with the
+canonical typed snapshot taking precedence; stored copies never count as catalog
+confirmation. Recent collection and dashboard mappings carry the same conflict
+status into their detail guards. Explicit removal remains available. After removal, deliberately
+favoriting the current item may replace the old snapshot (including legacy key
+aliases); that replacement must persist before the new reference is saved, so
+storage failure cannot silently resurrect the old title. Ordinary optional
+snapshot-cache writes retain their existing quota behavior. The explicit browser
+favorite and Recent writers, cold-detail favorite preparation, catalog normalization,
+playback-position operations and pending-state serialization load on demand.
+After loading, each mutation reads fresh storage and completes its writes
+synchronously so concurrent additions are not lost; Recent snapshots and viewing
+dates still share one atomic write.
+Browser collection actions carry the rendered row's saved TMDB/year identity,
+independent of whether the catalog has hydrated. Status, add and remove compare
+that identity with the retained favorite; removal rechecks storage so a stale
+Recent heart cannot delete a different favorite. Explicit removal of the original
+row still works while the provider is showing a conflicting replacement.
+Movie/series detail hearts carry the displayed detail identity too, and metadata
+arrival refreshes their status after metadata persistence, without accepting stale
+lookup results or an old detail completing after navigation. After
+explicit removal, a cold Recent save uses its independently stored matching
+snapshot; it persists that snapshot before the favorite reference. Missing
+compatible metadata or a required snapshot-write failure rejects the save.
+Cold detail enrichment updates the matching independent Recent snapshot without
+treating it as catalog evidence or rewriting the retained favorite. This lets a
+sparse Recent item gain its detail identity before a new favorite is saved.
+For a cold Favorites-only detail, compatible enrichment stays in a bounded,
+data-source-local candidate until the user explicitly removes and re-adds the
+favorite. It never confirms catalog availability or mutates the retained snapshot
+just by opening details. A changed stored snapshot invalidates the candidate;
+re-adding persists its enriched snapshot before the favorite reference, so quota
+failure leaves the item removed and retryable rather than restoring stale identity.
+When a replacement favorite needs the shared snapshot, any Recent entry still
+using the previous snapshot first receives its own copy, preserving the watched
+identity and date. Failure to save that copy aborts the replacement. Sparse catalog
+rows may refresh category routing even before confirming all saved identity fields;
+protected presentation stays unchanged, and known conflicts still block actions.
+Detail metadata fills missing identity and presentation fields in the current PWA
+catalog row and reconciles each compatible saved snapshot separately. Identity-only
+patches also persist, so an initially sparse favorite gains protection before a
+later provider-ID reuse. A conflicting detail response cannot enrich another known
+identity; independent Recent snapshots never backfill a retained favorite.
+When a provider ID appears in multiple catalog categories, detail enrichment fills
+only compatible missing metadata in each original row. The initial detail candidate
+is selected against the normalized patch identity before saved snapshots are
+enriched; a conflicting last duplicate cannot discard identity learned in details. It preserves each row's
+category, title, poster, rating and other provider fields; conflicting rows are
+left untouched rather than replaced by one resolved catalog object.
+Favorite status and save guards choose raw catalog duplicates against the saved or
+explicitly displayed identity as well. This selection hint cannot create catalog
+evidence when no actual row exists, and an unrelated duplicate cannot veto a
+matching heart action.
+Saving a new cold detail favorite may hydrate and enrich its matching catalog
+rows, but does not rewrite independent Recent entries. Optional history
+enrichment cannot block the explicit favorite write when browser storage is full.
+Playback captures the displayed title, artwork and normalized detail identity before
+waiting for confirmation. That metadata travels with the captured playlist even if
+navigation or catalog changes happen before the save. Shared live playback from
+Favorites and Recent forwards the selected row’s metadata through the same
+confirmed-playback boundary as the portal live view. New playback keeps its own
+typed `collectionItem` on the Recent entry; a cold catalog never gives the older
+independent Recent snapshot a new timestamp for a different played identity. Its metadata and viewing date are
+saved atomically, independently of any retained favorite, and remain available
+after reload, export/restore and deferred retries. Reading Recent never copies
+that independent snapshot into the favorite cache. Older Recent entries still
+use the shared cache; compatible optional caches keep their quota behavior.
+Initial browser imports and deferred retries share `PwaXtreamBackupStorage`;
+`PwaXtreamBackupStateService` supplies its injected storage for the importer.
+Both write the lists first and require the nested favorite snapshots to persist
+before consuming pending state. A quota or storage failure keeps the archive
+parked for another attempt, including when the provider returns an empty catalog.
+Each browser list write stores its restore receipt in the same JSON blob, under
+`__iptvnator_xtream_restore_receipts__` outside the playlist arrays. Ordinary
+list edits preserve that internal metadata, so retries skip completed list writes
+and cannot undo later removals, reordering, history updates or playback progress.
+A bounded per-playlist receipt remembers the imported keys still owned by the
+archive. Explicit removal shrinks that set atomically, requiring no extra quota
+space for a tombstone; a later re-add owns its current snapshot. Catalog hydration and
+detail/cache normalization never count as an explicit replacement. Automatic Recent
+reads/enrichment cannot append remote history to an unconfirmed server restore target;
+they may only detach metadata for a legacy row already owned by that target. Actual
+Play, removals and reordering remain explicit user edits. Remaining
+metadata retries therefore preserve genuine user replacements without discarding
+parked archived identity after an ordinary read. Pending exports combine current
+applied lists with authoritative archived snapshots, dates and positions for
+untouched imported favorites; receipts never enter the exported manifest.
+When legacy Recent shares a required imported favorite snapshot, its metadata
+is copied into the Recent entry with the viewing date before snapshot replay.
+Removing or replacing that favorite cannot erase the history’s only metadata.
+Legacy optional-cache-only imports keep their best-effort behavior. Saved
+unavailable evidence can pass to an independent Recent snapshot only when both
+snapshots confirm the same normalized identity in both directions. Only status
+is copied; a different played identity retains its own metadata and availability.
+Unavailable live Recent rows keep their individual history-removal menu action;
+catalog-dependent playlist navigation, EPG mapping and details remain gated. A deliberate new
+import gets a fresh ID and can intentionally apply the archive again.
+Legacy browser-only `collectionItems` remain an optional cache. If a combined
+write exceeds quota, restoration retries only the required favorite fields;
+optional rows or extra cache fields cannot block metadata that fits. Optional cache fields enrich a required snapshot only when every saved TMDB/year
+field is confirmed by the normalized cache identity; conflicting or partial
+identity evidence cannot supply artwork or new identity fields. The same
+fallback applies when copying a required favorite into legacy Recent. A failed
+required-only write still keeps pending state.
+The PWA retry loads that storage implementation on demand through a local module.
+Collection identity lookups index only requested provider IDs per cached array,
+including all typed/category duplicates. Recent heart checks reuse that index
+instead of repeatedly scanning the catalog. Catalog refresh or detail enrichment
+replaces the array and therefore invalidates its index; loading completeness
+still comes from the original caches, never the requested subset.
+
+Both Xtream data-source and portal-activity capabilities require the pending
+favorite conversion bridge; activity reads also require playlist lookup. The
+SQLite capability also requires the unfiltered favorite backup reader. An
+unsupported atomic restore performs no favorite writes: a fresh archive stays
+parked, while an older pending restore is retained without being overwritten.
+Subsequent collection reads and early catalog imports must enforce the same
+preflight before replaying those favorites. Ordinary reads still return existing
+SQLite records. Exports that need to materialize parked favorites fail while
+atomic restore is unsupported; exports with no pending favorites remain available.
+
+Records already deleted by an older build cannot be recovered without a
+surviving pending state or backup. Opening an Xtream section may initialize
+content when its cache is not ready; startup imports and explicit refresh use
+the same durable persistence invariant. This does not add a refresh scheduler.
+
+## Desktop catalog selection
+
+Desktop source metadata optionally carries `xtreamContentTypes` using `live`,
+`movie`, and `series`. Missing means all types (legacy behavior); `[]` means
+load no catalogs. Add/Edit expose independent checkboxes only with the complete
+Xtream SQLite capability. PWA imports keep their existing all-catalog behavior.
+Catalog choices belong to the device's source profile. Canonical shared-source
+definitions exclude `xtreamContentTypes`; remote title/connection updates retain
+the device's existing choice. The local editor owns re-enabling and deferred
+catalog replay, rather than another client's source-definition update.
+
+Electron category/content cache reads and imports honor the selection. Ordinary
+catalog search and recently-added SQL exclude disabled types; collection and
+identity reads deliberately do not. Disabling a type retains its cached rows so
+Favorites/history remain playable, with a disabled-type indication. Portable
+favorites preserve that indication in global and playlist collections on SQLite
+clients; PWA clients retain their all-catalog behavior. Disabling a type does not
+delete playback positions or offline files. Saved metadata includes the selection
+in startup projections without parsing large M3U payloads, and backups preserve
+it, including an explicit empty array.
+
+`XtreamSelectedCatalogRefreshService` refreshes newly enabled types on Save,
+fetching their category/content arrays before deleting their old cache. The editor
+prepares durable recovery after fetching, then confirms metadata persistence
+through `beforeReplace` before replacing any cached state.
+The callback returns accepted metadata. Before deleting any cache, the refresh
+compares its normalized connection with the connection used to fetch the arrays.
+A concurrent shared-source connection change aborts replacement; the accepted
+metadata stays authoritative and opening the source retries against its current
+connection. Old arrays must never become a completed cache for the new endpoint.
+Native completion and recovery acknowledgment compare the fetched connection
+with the current playlist inside their SQLite transaction. If a shared projection
+changes it during writes or replay, every catalog replaced by that scan is
+invalidated, including types completed earlier; pending recovery and its journal
+remain available for retry. The editor rereads authoritative metadata after a
+shared failure and rehydrates a changed connection without publishing its older
+accepted projection or reusing stale form credentials.
+An accepted mismatch before replacement also invalidates selected retained
+caches and keeps recovery; their older completed markers cannot authorize reuse
+on the new endpoint. Registering the native journal flushes its prepared DOM
+snapshot before metadata acceptance, including this early cleanup path.
+Terminal save errors also check the connection without writing recovery state;
+a coincident projection invalidates earlier completed types from that scan.
+Standalone saves persist the edited User-Agent before native completion checks,
+whose column-first header lookup follows the authoritative playlist codec.
+The active route waits for the edit-time activity hold before bootstrapping metadata published by
+source-server synchronization, so an ongoing scan is never treated as an
+interrupted import. Navigation queued during that wait uses its latest route.
+A rejected save cleans its prepared recovery and leaves the original cache and
+history intact. An accepted save is reused if later cache work fails, without
+a second authoritative write. Recovery captures the complete source history in
+SQLite, not the ordinary
+100-entry browsing projection. The optional `dbGetRecentItems` `{ all: true }`
+request crosses preload/main/worker; ordinary reads remain capped at 100. The
+cache-recovery snapshot sets internal `preservePlaybackPositions: true`: catalog
+replacement does not delete positions, so retry must retain current progress,
+new entries and explicit removals, including those from untouched catalogs.
+Explicit backup import clears that policy and keeps authoritative replacement.
+Cache recovery also registers `xtream-history-recovery:<playlistId>` in the
+profile's SQLite `app_state` before deleting content. Before acknowledging
+recovery, both bootstrap and edit-time refresh consume dormant history copies
+whose identities exist in current native history or in its removal tombstones.
+The live-row read precedes the journal read so concurrent removals are covered.
+A sticky native clear marker filters against current post-clear journal entries
+and timestamps; newer watches whose content is missing again remain deferred.
+Unavailable identities and hidden-category choices remain parked; generation
+ownership still protects a newer archive. The worker captures live
+history atomically with registration, then journals watch updates, individual
+and batch removals, and source/global history clears in their write transactions.
+Replay reads that journal in one transaction, so later user actions win over
+the parked JSON snapshot. Tombstones prevent deferred archive entries from
+undoing removals or clears. Deferred history ownership uses a generation token,
+so an older import cannot consume a newly parked archive. Resolved history replaces the owned deferred
+history before replay; hidden choices remain parked until applied. The journal is
+acknowledged only after deferred completion, and source deletion removes it. The
+app-state IPC flushes the updated deferred DOM state before clearing a native
+history journal; a flush failure leaves the journal/tombstones intact. Source and
+global history-clear IPCs also flush dormant history changes before native
+clearing, including when no active journal exists. Source-scoped native clearing
+uses a content subquery, avoiding one bound parameter per catalog row. Individual/batch removals
+participate in active journal transactions and do not mutate dormant DOM records. Category imports
+already apply the parked hidden flags, so cache retry preserves live visibility
+instead of resetting it like an explicit backup restore. Only completed catalogs
+can override archived visibility; default flags on partially imported rows must
+not erase parked hidden categories.
+Ordinary Refresh prepares the same cache policy and native journal before
+catalog deletion. A pre-existing explicit archive keeps its authoritative state;
+a cache retry retains its current flags and still-dormant owned history.
+Older cache-only pending records without a journal/ownership token are upgraded
+before bootstrap imports (and before export). Only unfinished catalog types seed
+archival history; completed retained catalogs keep their current rows/removals.
+An existing journal is reused so its tombstones remain authoritative. Every
+explicit archive replay retries the journal reset first; a reset failure leaves
+the archive pending and prevents backup history from being replaced by an older
+cache journal.
+The read-only progress signal reports the current type, network/local phase and
+worker save counts. The editor stays modal with its close button hidden and uses
+the same shared `ImportProgressComponent` as the workspace scanning overlay;
+disable-only edits do not show scanning. This path does not advertise cancellation
+it cannot perform.
+Connected desktop sources use the same refresh path, including already cached
+catalogs. Their metadata save goes through the authoritative server-aware playlist
+service and dispatches the returned revision without a second persistence effect.
+Edit-time requests honor the source's custom User-Agent, just like ordinary
+imports. Catalog visibility checks use reactive playlist metadata already held by
+NgRx, so each category/content/cache check does not repeat a playlist IPC read.
+When the requested source is not in that metadata, the data source reads SQLite;
+there is no separate long-lived selection cache to invalidate after edits.
+Checkboxes and section selection share the sidebar's Movies → Live TV → Series
+order. After a successful edit-time scan, navigate to the first newly enabled
+type in that order; a single newly enabled type always opens itself. Initial
+imports, manual refreshes and reopening a source from Sources choose the first
+enabled type in the same order. Browser source navigation remains unchanged.
+Failed scans and disable-only edits do not trigger the edit-time navigation. Cache
+delete carries an optional type scope through the worker bridge, snapshots all
+history/hidden-category state, and deletes only the requested catalogs. Ordinary
+Refresh supplies the source's enabled types. Disabled catalog rows remain intact;
+restore still sees the complete source's user state. Import completion and progress
+exclude intentionally skipped types.
+
+Failed edit-time writes clear only unfinished catalog types and retain their
+pending user-state snapshot. Native save transactions commit in batches, so a
+partially written catalog must be removed before bootstrap can retry it. Completed
+types survive a failure in another type or in user-state replay. An existing
+pending restore blocks a new edit before metadata persistence. Recovery prepared
+for a rejected `beforeReplace` callback is removed only if its pending revision
+still belongs to that attempt.
+Native deletion resets existing statuses to `idle` before deleting any rows.
+Edit preparation durably stages unfinished markers before accepting metadata,
+including a shared connection change returned by acceptance. Marker failure
+aborts acceptance. Rejected edits
+conditionally restore the previous markers only while the original connection
+still owns the cache; rollback failure retains recovery without deleting rows.
+Accepted staged edits authorize cleanup even when deletion fails before reaching
+the worker. An unchanged connection may restore healthy prior markers only when
+strict reads prove every staged marker is still `importing`: native deletion
+resets them to `idle` before mutating rows. An unknown or reset marker cannot
+authorize restoring completion. Direct refreshes without metadata acceptance
+authorize cleanup after native invalidation succeeds.
+Replacement saves re-arm `importing` after deletion; failed preparation keeps
+healthy rows intact. Interrupted deletion retains pending recovery for bootstrap cleanup. The deletion IPC flushes the sender session’s DOM storage
+before native work, so an immediate process exit cannot drop the parked snapshot.
+A failed/false completion-status write keeps the type unfinished and recovery
+pending; it must not acknowledge the journal or snapshot.
+This applies to route bootstrap retries as well as edit-time scans. PWA imports
+do not write native completion markers.
+The native journal records identities resolved by its latest replay in the same
+transaction as history restoration. Watches add their identity atomically;
+removals and clears retain that proof. Each replay replaces the proof so rows
+lost in a later interrupted deletion remain dormant. Completion uses this proof
+alongside current rows and tombstones, including a remove/rewatch between the
+renderer’s separate history and journal reads.
+Explicit category visibility writes update SQLite rows and their typed override
+ledger in one transaction. Recovery and export honor these overrides even for
+disabled unfinished catalogs, while untouched partial-import defaults remain
+non-authoritative. Category reimport applies the same explicit choices.
+Full-history backups resolve native content identities in bounded batches before
+clearing existing recent history. A lookup failure preserves the previous rows;
+backups larger than SQLite’s parameter limit remain importable.
+Explicit backup replay returns exact typed history identities from the successful
+native operation, including retained rows in disabled unfinished catalogs. Both
+immediate and pending restore paths consume those dormant copies and flush DOM
+storage; missing identities and unavailable hidden flags remain parked.
+Startup clears leftover `importing` caches, including
+`idle` caches with a pending cache-recovery record after interrupted deletion.
+Bootstrap also clears leftover failed/cancelled type caches before reading or
+reimporting categories. If cleanup still fails, retry stops before provider or
+save work, retaining pending history. Completed warm caches keep their existing
+read path; cold category-import code is loaded only when needed. Failed-import
+cleanup also loads only on the error path, keeping the startup payload bounded.
+
+The native content saver persists `importing` before its first content commit,
+including a first import with no previous marker. Process exit between commits
+therefore leaves an unfinished type for bootstrap cleanup; unfinished rows do
+not qualify as a usable offline catalog. Warm reads do not change completion.
+Both runtimes reject non-array category/content responses, including account
+error objects; only an actual empty array proves a successful empty response.
+Import options carry a renderer-local abort signal through cache reads, provider
+responses and persistence boundaries. Existing session/operation IPC cancellation
+still interrupts active Electron work. Category failure aborts sibling work and
+waits for every request to settle before cleanup and releasing the source hold.
+Phase callbacks belong to their import session and cannot revive a terminated run.
+Browser imports propagate that signal to their HTTP subscriptions, including
+pending target-registration waits; see [PWA request cancellation](./pwa-self-hosted.md#xtream-request-cancellation).
+Only session-owned bootstrap category loads may clear unfinished cache rows;
+ordinary category/detail readers cannot interpret a live `importing` marker as
+abandoned work. Lock-driven category reloads wait until initialization settles.
+Cancelable or session-owned requests do not share promises with independent
+readers, so cancelling an import cannot cancel a concurrent detail recovery.
+When a completed empty type gains content during a sessionless cache refill,
+the data source records completion after persistence. Cancellation or a failed
+completion write leaves its unfinished marker intact. A refill cannot finalize
+a type already marked unfinished by another owner; bootstrap completion stays
+with the import session.
+
+Fresh desktop backup restores separate dormant catalog-dependent history and
+hidden choices from the active import snapshot. Offline restore readiness checks
+only selected catalogs; completed retained caches can also accept their saved
+state. Unavailable types remain dormant, and an empty selection needs no catalog
+cache before its independent user state can restore. A cached route for an empty
+or disabled scope settles its loading flags without reading catalog data. Enabled types initialize normally;
+unloaded types retain durable restore data for re-export and later re-enabling.
+Replay merges with current source history and does not overwrite later progress,
+favorite removals or source-pin edits. See [backup restoration](./playlist-backup-restore.md).
+
+See [isolated Linux testing](../development/xtream-content-selection-testing.md)
+for the development build and manual validation checklist.
+
+## PWA Collection Persistence
+
+Collection operations carry `{ id, type }`: `id` remains the SQLite row ID
+on Electron and the provider ID on PWA. Electron unwraps the row ID at its
+existing database boundary. Typed lookups, favorite toggles, recent updates,
+removals, backdrops and backup/restore retain the content type. A favorite toggle
+reads persisted status for its exact typed target instead of borrowing the last
+detail's favorite state. Live history uses the same confirmed-playback gate as
+VOD and series: inline playback confirms its playlist-scoped session key, while
+external playback confirms its URL. The initiating playlist and typed identity
+remain captured across delayed confirmation. Selection without playback or a
+resolved URL does not update history. See the
+[playback-history contract](./embedded-inline-playback.md#recently-viewed-confirmation).
+
+PWA keeps the existing localStorage keys. `xtream-favorites` contains ordered
+`type:id` keys (for example `movie:42`); `xtream-recent-items` uses the same
+keys in each entry's `id`, retaining `viewedAt` and backdrop metadata.
+`xtream-collection-items` stores snapshots under those typed keys while each
+snapshot's `id` and `xtream_id` remain numeric provider IDs. Hydration fetches
+only the required content types; snapshots support collection reads offline.
+Typed add/remove/status operations use synchronous local migration and never
+wait for unrelated catalog hydration. `PwaCollectionStorage` owns that local
+migration and snapshot persistence; the data source owns provider hydration for
+collection loading and legacy numeric callers that still need identity evidence.
+
+Legacy numeric and numeric-string references migrate lazily. A valid legacy
+snapshot supplies its saved content type; otherwise all three catalogs must
+be loaded successfully and exactly one type must match (repeated rows within
+that same type are one identity). A partial catalog,
+failed hydration, missing item or colliding ID never chooses a type. Such
+references remain stored but hidden until identity can be resolved or the
+user explicitly adds a typed item. Legacy numeric snapshot entries remain as
+migration evidence for the other collection. Already-overwritten snapshots
+cannot recover information lost by an older version. Ambiguous references
+cannot be included in typed backup exports; the original browser storage is
+retained. Migration merges into current storage after hydration, preserving
+concurrent additions/removals, and duplicate recent references keep the newest
+timestamp.
+
+Migration writes and snapshot-cache writes are best effort when browser storage
+is full. Reads still resolve the retained legacy evidence in memory. Typed
+status and mutations match original numeric references through that evidence;
+removal filters the original stored keys without first expanding the remaining
+keys. Typed favorite-status checks never write storage. Additions save the
+requested reference before attempting optional migration or snapshot copies, so
+those copies cannot consume space needed by the requested save. Recent aliases
+are deduplicated in memory before the 50-item limit, keeping the newest timestamp
+and its original saved key until optional migration. Favorite/recent
+writes requested by the user still propagate storage failures. A new reference
+that fits can be saved without its optional snapshot and hydrated on a later
+collection load.
 
 ## Connection Input
 
@@ -57,6 +661,14 @@ Rules:
 The Xtream import form may extract `username` and `password` from full
 `get.php` or `player_api.php` URLs, but stored playlist metadata should keep
 the normalized `serverUrl` plus trimmed credentials.
+
+The playlist editor validates Xtream server URLs with that same normalizer and
+requires nonblank username/password fields. Inline errors identify each invalid
+field; Save and Test are disabled until the connection input is valid. These
+validators apply only to Xtream: M3U metadata and optional Stalker credentials
+keep their own rules. Saving valid edits or changing a title never requires a
+successful network test. Stored sources with missing credentials still show both
+credential inputs so the user can repair them.
 
 ### Explicit protocol discovery
 
@@ -99,6 +711,22 @@ evidence. PWA URL/DNS-policy refusals and Electron URL/redirect-policy errors ar
 connection failures, never reported as provider HTTP statuses or used to
 authorize HTTP. Older backends without the envelope cannot authorize HTTP discovery.
 Provider JSON remains nested in `payload` and cannot provide this evidence.
+
+Electron resolves two more outcomes instead of rejecting them, because Electron
+logs every rejected `ipcMain.handle` promise as a handler error with a stack
+trace: a cancelled request (`XTREAM_CANCEL_SESSION`, a cancelled or expired
+source-health probe) and an HTTP 401/403. Both return a
+`{ portalRequestFailure }` envelope
+(`libs/shared/interfaces/src/lib/portal-request-failure.util.ts`, classified in
+`apps/electron-backend/src/app/events/portal-request-outcome.ts`) that
+`ElectronService.forwardXtreamRequest` turns back into what its callers already
+handle: health probes get an `AbortError` or an `HTTP Error <code>` Error
+carrying `status`; catalog calls get the usual `{ type: ERROR, status, message }`
+result — status 499 and no snackbar for a cancellation, the real 401/403
+(previously lost as `[object Object]`) for a refusal. The main process logs a
+refusal as one credential-free `console.warn` (unless `suppressErrorLog`), a
+cancellation only under `IPTVNATOR_TRACE_IPC`, and everything else as before
+at error level with a rejection.
 
 The saved base drives catalog refresh, provider EPG, live/VOD/series/catch-up URL
 construction and fresh Favorites/Recent resolution. The routed Xtream session
@@ -145,7 +773,58 @@ targets. Those targets are validated when registered and revalidated before the
 `/xtream` proxy request, including protocol, URL credentials, DNS resolution,
 and private-network checks.
 
+## Provider EPG
+
+The global `Settings.epgEnabled` opt-out gates short/full provider requests and
+XMLTV fallbacks, including collections and dashboard previews. Turning it off
+retires queue state and pending answers and hides programme UI; provider channel
+logos remain visible. See the
+[shared preference contract](m3u-playlist-module.md#global-epg-preference).
+Channel lists attach guide-result, viewport and refresh listeners based on the
+runtime capability, independently of the saved preference. Each callback gates
+work on the current preference, so hydration or re-enabling cannot strand an
+already mounted list without programme previews.
+
+Xtream EPG comes from the portal itself. `get_short_epg` feeds the
+channel-row previews (`EpgQueueService`: three items, two requests in flight)
+and the collection previews (`StreamResolverService`). `get_simple_data_table`,
+falling back to the legacy `get_simple_date_table`, feeds the live EPG panel
+(`withEpg().loadEpg()`) and the collection detail panel. All of them use the
+ordinary `XTREAM_REQUEST` transport, so they are gated on
+`RuntimeCapabilitiesService.supportsProviderEpg`. It is true in the browser
+PWA, where `PwaService` forwards to the backend `/xtream` proxy, and in
+Electron when the `xtreamRequest` and `stalkerRequest` preload methods exist.
+Both runtimes send the EPG actions as silent background requests (no error
+snackbar) through the same per-host connectivity guard as the catalog. Only
+connection-level failures count, so a panel that answers EPG requests slowly
+or with an error status cannot fast-fail playback.
+
+The local XMLTV parts keep the XMLTV capabilities and stay off in the PWA:
+the `epg_channel_id` fallback and `preferUploadedEpgOverXtream`
+(`XtreamXmltvFallbackService`), and manual EPG mapping (`supportsEpgMapping`).
+The PWA hides the catch-up actions of the EPG panel (watch, copy, download):
+`RuntimeCapabilitiesService.supportsProviderCatchUp` is false there until a
+manual check against a real provider shows that the browser players play the
+REST MPEG-TS timeshift URL the PWA falls back to (see Catch-Up Playback URLs).
+It gates `archivePlaybackAvailable` (Live TV) and `timelineArchiveAvailable`
+(Favorites/Recent); the desktop app keeps all three actions.
+
 ## User-Agent
+
+Xtream account, catalog, detail, EPG, and source-health API requests carry the
+playlist's trimmed `userAgent` separately from provider query parameters.
+Credentials built for selected-channel and channel-list EPG, account dialogs,
+PWA collections/category loading, category guards, and dashboard episode lookups
+retain that value. Dashboard episode request identity includes the User-Agent so
+an edited value retries a blocked lookup without waiting for the old cooldown.
+Add/Edit connection tests use the current form value. Electron chooses a nonblank
+override before `XTREAM_CLIENT_USER_AGENT`. The PWA proxy
+accepts the override as a control parameter, removes it from the provider query,
+and sends it as `User-Agent`. Blank overrides retain each transport's fallback.
+Passive status caches and in-flight checks include the normalized User-Agent, so
+changing it cannot reuse a refusal from the previous client identity.
+The shared source-status service forwards the same override for browser-build
+status indicators in the Sources page and playlist switcher, including rechecks.
 
 Electron's `XTREAM_REQUEST` and stream-probe handlers plus fresh Xtream movie
 and series-episode download requests share the exported
@@ -160,13 +839,25 @@ same IPTV-player fallback, while a still-identifiable Stalker row remains
 unchanged. Some Xtream
 panels sit behind a WAF (e.g. Cloudflare) configured to challenge
 generic/incomplete browser-looking User-Agents while allowlisting known IPTV
-player clients; a player-style User-Agent (currently a VLC signature) avoids
+player clients; a player-style User-Agent (currently a VLC signature) can avoid
 that challenge page, whereas a browser-looking but non-browser TLS/HTTP client
 (axios/curl with a Chrome or empty User-Agent) can be blocked even though a
 real browser or a VLC-style client passes. Keep all three request sites using
 the shared constant instead of inlining the string again.
 
 ## Playback URL Formats
+
+Ordinary movie Play/Resume and series episode playback copy the initiating
+playlist's `userAgent`, `referrer` (as descriptor `referer`), and `origin` into
+`ResolvedPortalPlayback`. Inline playback and forced MPV/VLC launches consume
+that same descriptor; episode navigation resolves the headers again for the
+next episode. Missing overrides remain absent so the transport keeps its
+existing defaults. Multi-source alternatives retain their own source's headers.
+An explicit Origin reaches inline Electron requests even when it differs from
+the Referer's origin or no Referer is configured; the scoped bridge retains its
+Referer-derived fallback when no usable Origin override is supplied.
+The playback service specs and `xtream-playback-headers.e2e.ts` cover this
+handoff, including actual Electron media request headers.
 
 When account info includes `user_info.allowed_output_formats`, the current
 Xtream playlist keeps those formats for the active session. The default
@@ -236,11 +927,19 @@ throwing during playback.
 
 VOD playback uses the standard
 `/movie/{username}/{password}/{streamId}.{containerExtension}` URL after
-resolving the stream id and container extension as one source. Fields from
+resolving the stream id and container extension as one source. A provider's
+explicit absolute HTTP(S) `direct_source` is also a complete source when paired
+with a positive stream id; its address is used verbatim for playback and
+download, including when the extension is null, missing or blank. Other URL
+schemes and relative addresses are ignored. Fields from
 `movie_data` take priority, with the top-level catalog fields used as a
 fallback when extended metadata is absent or incomplete. A source requires a
-positive integer id and a non-empty container extension; otherwise URL
-construction returns an empty string.
+positive integer id and either a non-empty container extension or a valid direct
+address; otherwise URL construction returns an empty string. No container is
+guessed. Each candidate must belong to the requested provider stream id, and a
+catalog candidate with conflicting known TMDB/year identity cannot supply
+playback fields or presentation. This does not change durable favorite identity
+or make an unavailable saved favorite available.
 
 The Electron catalog cache does not persist the container extension. If the
 merged detail response and cached row still cannot resolve a source, the detail
@@ -261,7 +960,9 @@ lookup completes, then a successful result upgrades that same fallback
 reactively with playback actions. Detail, recovered, and cached
 playback fields remain separate candidates: the first complete pair wins, so
 two incomplete rows can never synthesize a source. A failed lookup leaves the
-already-rendered item safely unplayable. Detail requests are generation- and
+already-rendered item safely unplayable. A second identical `get_vod_info`
+request is not issued automatically after a fresh incomplete response; reopening
+the detail retries through the normal loader. Detail requests are generation- and
 playlist-guarded, and detail teardown invalidates the active generation, so a
 late response cannot replace a newer selection or repopulate a closed detail.
 In-memory VOD category and stream arrays record the playlist that populated
@@ -269,12 +970,31 @@ them. Cross-portal Favorites/Recent details ignore arrays owned by another
 playlist, so colliding Xtream ids cannot suppress recovery or contribute a
 foreign playback extension, title, poster, category, or recommendation.
 
+Null or absent detail payloads normalize to empty metadata before source recovery.
+Catalog identity checks use provider-stated years; a release date filled by TMDB
+cannot veto an otherwise matching playback source.
 Metadata availability and VOD playability are independent. An empty or sparse
 `get_vod_info` response keeps the curated fallback detail page, but that page
-offers the same Play/Resume, Favorite, and Download actions when the source
-resolves. An unresolved source exposes no actions. Playback and download
+offers the same Play/Resume and Download actions when the source resolves.
+Favorite and Watched are independent of stream availability and retain their
+typed playlist/provider identity and existing persistence/playback guards. An
+unresolved source keeps Play disabled with a translated explanation covering
+playback and download; it cannot launch a player or enqueue an empty address.
+A downloaded local copy remains playable. Playback and download
 descriptors also fall back to the catalog title and poster after `info` and
 `movie_data`.
+
+A new PWA favorite from a cold detail hydrates only its typed catalog when
+needed. When the initial detail backfill ran before catalog hydration, the
+explicit save applies that metadata to the compatible current row. Retained
+Favorite/Recent snapshots keep the existing identity, conflict and quota
+protection; adding a favorite cannot rewrite an older saved movie implicitly.
+
+Provider stand-ins in `get_vod_info` / `get_series_info` (`N/A`, `-`, an
+unrated `0` score) are emptied before the response becomes the store
+selection (`stores/xtream-detail-metadata.ts`), since both detail routes bind
+`info` fields directly. A `get_vod_info` response made only of stand-ins
+therefore counts as sparse and gets the fallback page above.
 
 ## Catch-Up Playback URLs
 
@@ -405,3 +1125,102 @@ deduplicated list, `hasMoreContent` derives from accumulated length vs
 and the facade maps page 0 to the skeleton and later pages to the tail
 spinner. These catalog/search surfaces use incremental loading instead of
 page buttons.
+
+A failed initial search is distinct from a successful empty result. The search
+store exposes an error state to the shared search layout; Retry retains the
+query, content-type filters and hidden-category choice. New searches clear the
+error, and obsolete failures cannot replace newer results. Global search uses
+the same recovery surface without resetting the user's query or filters.
+
+## Forced external launches from detail pages
+
+The "…" menu's MPV/VLC launch follows the shared rules in
+[Forced External Launches From Detail Pages](./embedded-inline-playback.md#forced-external-launches-from-detail-pages).
+The movie page's pin and reset rules are in
+[VOD Multi-Source](./vod-multi-source.md#menu-launch-and-reset-follow-the-primary-button).
+
+The series page keeps its launch state at module level in
+`serial-details-external-launch.ts`, so it outlives a recreated page:
+
+- The owner is `playlist:series` (`launchOwner()`). It changes when the page
+  shows another series and is null once the page is gone.
+- Forced launches of one owner run on one chain. A later launch waits for the
+  earlier one to settle, closes the owner's running episode session and then
+  launches. Each step rechecks the owner, and a launch that resolves after the
+  page left the owner closes the session it opened.
+- The duplicate guard is keyed by page token plus episode. The token
+  (`pageToken()`) is owner, page instance and visit, so a launch left behind
+  by an earlier visit of the same series does not swallow a launch from the
+  reopened page; that launch queues on the owner's chain.
+- While a forced launch of the owner is pending (`forcedLaunchPending`), a
+  start that does not force a player is queued instead of started. One choice
+  is kept per owner, the latest wins, and it carries the host and `start` of
+  the page that made it. Once the chain settles, the player the launch opened
+  is closed first while the owner stays pending. The choice is dropped when
+  that page no longer shows the owner or the close was not confirmed.
+- The pending flag also disables the menu's external-player row and the
+  season and series watched actions, and counts as active playback for "Reset
+  progress".
+- The launch-position marker and a launch-failure message apply only while
+  the page token is unchanged.
+
+Regression coverage: `serial-details-external-launch.spec.ts` (chain,
+duplicate guard, queued choice), `serial-details-playback.service.spec.ts`
+(page token, the queued start, the launch-position marker),
+`serial-details-menu.service.spec.ts` (launch-failure message, the rows held
+while a launch is pending) and, for the external-player and reset rows,
+`libs/ui/components/src/lib/detail-ui/series-hero.state.spec.ts`.
+
+## Framework-free TV catalog recency
+
+The provider client entrypoint exports `xtreamCatalogTimestamp` for the TV
+adapter. It uses the shared recently-added epoch validator, accepts ISO provider
+dates, and falls back to `last_modified` for series without a usable `added`
+value. It does not infer addition time from release dates or IDs. TV applies
+this timestamp before client pagination; see [TV application](tv-application.md).
+The Angular selection store's sort behavior is unchanged.
+
+
+## Optional shared favorites
+
+The [self-hosted favorites opt-in](pwa-self-hosted.md#favorites-synchronization)
+projects typed provider membership through the selected data source in both
+runtimes. Collection references can carry a portable `providerId` alongside the
+existing local row ID, including removal of a retained row with no catalog link.
+The shared snapshot cannot turn a known TMDB/year conflict into a playable catalog
+row. Global collections and dashboard use the same projection when this profile
+has used favorites sync; recently viewed and collection order stay local.
+Native collection actions select storage with `supportsPortableFavorites(playlistId)`
+for each source. After opt-out, a new/restored source without a verified favorites
+context keeps ordinary SQLite behavior, including favorite-ID removal of unlinked
+rows. Bulk removal shares the single-item path; mixed collection reordering updates
+only native source positions while retaining the complete local collection order.
+Received PWA references resolve through the needed typed catalogs before their
+collection cards become playable. Reuse the data source's cache and visibility
+filtering, share concurrent loads, index requested rows once per typed catalog,
+and keep snapshots unavailable on provider
+failure so a later read can retry. Re-read membership after catalog loading and
+discard results from retired source incarnations. Membership writes stay cache-only.
+SQLite lookups retain saved/requested TMDB and provider-year hints when selecting
+between duplicate rows; a compatible row does not erase an explicit identity conflict.
+Shared SQLite projections request category-lock filtering; ordinary identity
+lookups used by the PIN guard remain unfiltered. While locked, unresolved category
+ownership is withheld too. Unreadable lock state or a lock version change during
+projection returns no rows. Single-item hearts and edits project only their target,
+without catalog lookups for other memberships. A playlist-only portable reorder
+replaces its existing global-order slots and preserves other sources' positions.
+Capture source incarnation, profile and consent before reading either archive or
+catalog. Recheck ownership before publishing a projection and before committing
+a membership action, including lookups after a native projection has completed.
+Action/status paths call `getFavorites(playlistId, false)` to read the PWA archive
+without hydrating older unresolved entries. Ordinary collection reads retain
+hydration by default; reference/snapshot conversion stays in the shared provider
+reference adapters used by preview and backup.
+PWA cache-only identity lookup also applies TMDB/year hints, preferring fully
+confirmed duplicates over compatible rows with missing metadata and rejecting
+contradictions. Without hints, the previous first-row/type order is retained.
+Received PWA favorites use the same preference when hydrating a catalog: a row
+confirming every saved identity field wins over an earlier compatible sparse row.
+The pure lookup lives in the existing metadata module: an empty content cache
+returns immediately, and populated caches have already loaded that module during
+normalization, so membership actions never fetch a new lookup chunk.

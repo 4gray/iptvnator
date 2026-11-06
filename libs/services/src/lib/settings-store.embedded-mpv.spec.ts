@@ -1,3 +1,4 @@
+import { EpgPreferencesService } from './epg-preferences.service';
 import { Injector } from '@angular/core';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { of } from 'rxjs';
@@ -59,6 +60,7 @@ describe('SettingsStore saved Embedded MPV selection', () => {
         testWindow.electron = { getEmbeddedMpvSupport };
         injector = Injector.create({
             providers: [
+                EpgPreferencesService,
                 SettingsStore,
                 EpgSourceSettingsService,
                 { provide: StorageMap, useValue: storage },

@@ -1,0 +1,165 @@
+@use '@angular/material' as mat;
+
+:host {
+    display: contents;
+}
+
+.workspace-loading-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background:
+        radial-gradient(
+            circle at top,
+            rgba(99, 120, 255, 0.12),
+            transparent 34%
+        ),
+        rgba(8, 10, 16, 0.68);
+    backdrop-filter: blur(14px);
+    z-index: 1000;
+}
+
+.workspace-loading-overlay__card {
+    --sync-secondary: color-mix(
+        in srgb,
+        var(--app-on-surface) 78%,
+        var(--app-widget-bg)
+    );
+    --sync-accent: color-mix(
+        in srgb,
+        var(--app-selection-color) 60%,
+        var(--app-on-surface)
+    );
+
+    width: min(440px, 100%);
+    display: grid;
+    gap: 14px;
+    padding: 24px 24px 20px;
+    border-radius: 24px;
+    border: 1px solid var(--app-separator);
+    // Keep a bounded glass tint without letting the scrim own text contrast.
+    background: color-mix(in srgb, var(--app-widget-bg) 96%, transparent);
+    color: var(--app-on-surface);
+    box-shadow:
+        0 24px 64px rgba(0, 0, 0, 0.32),
+        0 1px 0 rgba(255, 255, 255, 0.05) inset;
+    text-align: center;
+    animation: workspace-loading-overlay-enter 180ms ease-out;
+
+    h3 {
+        margin: 0;
+        font-size: 1.55rem;
+        font-weight: 600;
+        letter-spacing: -0.03em;
+        color: var(--app-heading-color);
+    }
+}
+
+.workspace-loading-overlay--inline {
+    position: static;
+    padding: 0;
+    background: none;
+    backdrop-filter: none;
+
+    .workspace-loading-overlay__card {
+        width: 100%;
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        background: none;
+        animation: none;
+    }
+}
+
+.workspace-loading-overlay__header {
+    display: grid;
+    gap: 10px;
+    justify-items: center;
+}
+
+.workspace-loading-overlay__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--app-separator);
+    background: var(--app-hover-overlay);
+    color: var(--sync-secondary);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.workspace-loading-overlay__badge--remote {
+    border-color: var(--app-selection-border);
+    background: var(--app-selection-surface);
+    color: var(--sync-accent);
+}
+
+.workspace-loading-overlay__phase,
+.workspace-loading-overlay__detail,
+.workspace-loading-overlay__progress-copy {
+    margin: 0;
+}
+
+.workspace-loading-overlay__phase {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--app-on-surface);
+}
+
+.workspace-loading-overlay__detail {
+    max-width: 32ch;
+    justify-self: center;
+    color: var(--sync-secondary);
+    line-height: 1.45;
+}
+
+.workspace-loading-overlay__progress-copy {
+    max-width: 30ch;
+    justify-self: center;
+    line-height: 1.45;
+    font-variant-numeric: tabular-nums;
+    color: var(--sync-secondary);
+    text-wrap: balance;
+}
+
+.workspace-loading-overlay__action {
+    @include mat.button-overrides(
+        (
+            outlined-label-text-color: var(--sync-accent),
+            outlined-label-text-weight: 600,
+            outlined-outline-color: var(--sync-secondary),
+            outlined-state-layer-color: var(--app-on-surface),
+            outlined-disabled-label-text-color: var(--sync-secondary),
+            outlined-disabled-outline-color: var(--app-separator),
+        )
+    );
+
+    justify-self: center;
+    min-width: 180px;
+    border-radius: 999px;
+}
+
+:host ::ng-deep .workspace-loading-overlay__card .mat-mdc-progress-bar {
+    overflow: hidden;
+    border-radius: 999px;
+}
+
+@keyframes workspace-loading-overlay-enter {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.985);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}

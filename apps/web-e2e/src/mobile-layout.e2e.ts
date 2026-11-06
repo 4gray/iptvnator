@@ -1,9 +1,8 @@
 import type { Locator, Page } from '@playwright/test';
-import { expect, test } from './fixtures';
+import { expect, test } from './pwa-mock.fixture';
 import {
     addXtreamPortal,
     interceptPwaProviderRequests,
-    resetPwaMockServers,
 } from './sources-pwa.helpers';
 
 /**
@@ -138,7 +137,7 @@ test.describe('portrait phone 375x812', () => {
         // No footer Back any more; the list scrolls and ends inside the
         // panel instead of painting past it (#1326).
         await expect(panel.locator('button:has-text("Back")')).toHaveCount(0);
-        const listBox = await boxOf(panel.locator('.settings-sections-list'));
+        const listBox = await boxOf(panel.locator('.settings-nav'));
         expect(listBox.y + listBox.height).toBeLessThanOrEqual(
             panelBox.y + panelBox.height + 1
         );
@@ -160,11 +159,10 @@ test.describe('portrait phone 375x812', () => {
 // ---------------------------------------------------------------------------
 
 test.describe('xtream portal routes on a phone', () => {
-    test.beforeEach(async ({ page, request }) => {
-        await resetPwaMockServers(request);
+    test.beforeEach(async ({ page, pwaMocks }) => {
         await interceptPwaProviderRequests(page);
         await page.goto('/');
-        await addXtreamPortal(page, 'Mobile Layout Portal');
+        await addXtreamPortal(page, 'Mobile Layout Portal', pwaMocks);
     });
 
     test('@mobile @xtream vod route keeps the context panel in a drawer behind the header toggle', async ({

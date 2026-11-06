@@ -4,6 +4,17 @@ import {
     PlayerContentInfo,
 } from '@iptvnator/shared/interfaces';
 
+/** Launch order when both carry it, else the start time. */
+function startedBefore(
+    session: ExternalPlayerSession,
+    other: ExternalPlayerSession
+): boolean {
+    if (session.launchOrder !== undefined && other.launchOrder !== undefined) {
+        return session.launchOrder < other.launchOrder;
+    }
+    return Date.parse(session.startedAt) < Date.parse(other.startedAt);
+}
+
 @Injectable({
     providedIn: 'root',
 })
@@ -105,17 +116,25 @@ export class ExternalPlaybackService {
         const current = this.activeSession();
         const restoresCurrentReplacement =
             current?.id === session.restoredFromSessionId;
+        // A launching update means a new launch only when it did not start
+        // before the current one: an older launch still settling (MPV runs
+        // launches one at a time) must not take the dock back from it.
+        const isLatestLaunch =
+            session.status === 'launching' &&
+            (!current ||
+                current.id === session.id ||
+                !startedBefore(session, current));
 
         if (
             !current ||
             current.id === session.id ||
-            session.status === 'launching' ||
+            isLatestLaunch ||
             restoresCurrentReplacement
         ) {
             this.activeSession.set(session);
         }
 
-        if (session.status === 'launching' || restoresCurrentReplacement) {
+        if (isLatestLaunch || restoresCurrentReplacement) {
             this.dismissedSessionId.set(null);
         }
     }

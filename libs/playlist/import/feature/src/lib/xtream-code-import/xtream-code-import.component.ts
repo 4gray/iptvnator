@@ -5,7 +5,9 @@ import {
     inject,
     viewChild,
     ChangeDetectionStrategy,
+    ElementRef,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import {
     AbstractControl,
     FormControl,
@@ -22,14 +24,22 @@ import { MatInputModule } from '@angular/material/input';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
-import { createXtreamConnectionTestState } from '@iptvnator/services';
+import {
+    createXtreamConnectionTestState,
+    RuntimeCapabilitiesService,
+} from '@iptvnator/services';
+import { XtreamContentSelectionComponent } from '@iptvnator/ui/components';
 import { PasswordVisibilityToggleDirective } from '@iptvnator/ui/components/password-visibility-toggle';
 import {
     createRandomId,
     extractXtreamCredentialsFromUrl,
     normalizeXtreamServerUrl,
+    XtreamContentType,
+    XTREAM_CONTENT_TYPES,
     Playlist,
 } from '@iptvnator/shared/interfaces';
+import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
+import { RevealDetailsDirective } from '@iptvnator/ui/components/reveal-details';
 
 function xtreamServerUrlValidator(
     control: AbstractControl
@@ -49,6 +59,7 @@ function xtreamServerUrlValidator(
 
 @Component({
     imports: [
+        XtreamContentSelectionComponent,
         FormsModule,
         MatFormFieldModule,
         MatIcon,
@@ -57,10 +68,12 @@ function xtreamServerUrlValidator(
         PasswordVisibilityToggleDirective,
         ReactiveFormsModule,
         TranslatePipe,
+        RevealDetailsDirective,
     ],
     selector: 'app-xtream-code-import',
+    providers: [provideFormFieldDefaults()],
     templateUrl: './xtream-code-import.component.html',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styles: [
         `
             :host {
@@ -84,19 +97,34 @@ export class XtreamCodeImportComponent {
         title: new FormControl('', [Validators.required]),
         password: new FormControl('', [Validators.required]),
         username: new FormControl('', [Validators.required]),
+        userAgent: new FormControl(''),
         serverUrl: new FormControl('', [
             Validators.required,
             Validators.pattern(this.URL_REGEX),
             xtreamServerUrlValidator,
         ]),
         importDate: new FormControl(new Date().toISOString()),
+        xtreamContentTypes: new FormControl<XtreamContentType[]>(
+            [...XTREAM_CONTENT_TYPES],
+            { nonNullable: true }
+        ),
     });
 
     readonly store = inject(Store);
+    readonly userAgent = toSignal(this.form.controls.userAgent.valueChanges, {
+        initialValue: '',
+    });
+    readonly runtime = inject(RuntimeCapabilitiesService);
     readonly connectionTest = createXtreamConnectionTestState(this.form);
     private readonly passwordToggle = viewChild(
         PasswordVisibilityToggleDirective
     );
+    private readonly titleInput =
+        viewChild<ElementRef<HTMLInputElement>>('titleInput');
+
+    focusTitle(): void {
+        this.titleInput()?.nativeElement.focus();
+    }
 
     get isTestingConnection(): boolean {
         return this.connectionTest.testing();
@@ -114,8 +142,10 @@ export class XtreamCodeImportComponent {
             title: '',
             password: '',
             username: '',
+            userAgent: '',
             serverUrl: '',
             importDate: new Date().toISOString(),
+            xtreamContentTypes: [...XTREAM_CONTENT_TYPES],
         });
     }
 
@@ -134,6 +164,8 @@ export class XtreamCodeImportComponent {
                     password: connection.password,
                     serverUrl: connection.serverUrl,
                     username: connection.username,
+                    userAgent:
+                        this.form.controls.userAgent.value?.trim() || undefined,
                 } as Playlist,
             })
         );

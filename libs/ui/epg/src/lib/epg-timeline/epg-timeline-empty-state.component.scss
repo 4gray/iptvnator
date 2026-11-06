@@ -1,4 +1,5 @@
 @use '../epg-theme' as *;
+@use '../../../../styles/app-controls' as controls;
 
 :host {
     /* Fill the area below the toolbar and centre within THAT, instead of a fixed
@@ -68,8 +69,15 @@
         justify-content: center;
         flex-wrap: wrap;
 
-        mat-icon {
-            margin-right: 6px;
-        }
+    }
+}
+
+.epg-empty__actions {
+    .mat-mdc-unelevated-button:not(.epg-empty__secondary) {
+        @include controls.accent-button;
+    }
+
+    .epg-empty__secondary {
+        @include controls.secondary-button;
     }
 }

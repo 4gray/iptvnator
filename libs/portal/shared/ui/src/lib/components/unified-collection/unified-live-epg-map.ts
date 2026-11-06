@@ -1,3 +1,7 @@
+import {
+    EpgPreferencesService,
+    RuntimeCapabilitiesService,
+} from '@iptvnator/services';
 import { effect, inject, Signal, signal, untracked } from '@angular/core';
 import { StreamResolverService } from '@iptvnator/portal/shared/data-access';
 import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
@@ -21,6 +25,7 @@ export function createUnifiedLiveEpgMap(options: {
     offsetMinutes: Signal<number>;
 }): UnifiedLiveEpgMap {
     const streamResolver = inject(StreamResolverService);
+    const preferences = inject(EpgPreferencesService);
     const programs = signal<Map<string, EpgProgram | null>>(new Map());
     let requestId = 0;
 
@@ -29,8 +34,12 @@ export function createUnifiedLiveEpgMap(options: {
         // under a previous display offset or item set — must not overwrite
         // the refreshed result when it completes last.
         const currentRequestId = ++requestId;
+        if (!preferences.enabled()) {
+            programs.set(new Map());
+            return;
+        }
         void streamResolver.loadEpgForItems(items).then((epgMap) => {
-            if (currentRequestId === requestId) {
+            if (preferences.enabled() && currentRequestId === requestId) {
                 programs.set(epgMap);
             }
         });
@@ -40,6 +49,13 @@ export function createUnifiedLiveEpgMap(options: {
     // the older load. The first run only records the initial value.
     let appliedOffsetMinutes: number | null = null;
     effect(() => {
+        const enabled = preferences.enabled();
+        if (!enabled) {
+            requestId++;
+            programs.set(new Map());
+            appliedOffsetMinutes = null;
+            return;
+        }
         const offsetMinutes = options.offsetMinutes();
         if (appliedOffsetMinutes === offsetMinutes) {
             return;
@@ -58,6 +74,23 @@ export function createUnifiedLiveEpgMap(options: {
         clear(): void {
             requestId += 1;
             programs.set(new Map());
+        },
+    };
+}
+
+/** Live surfaces use effective guides; settings still expose raw capabilities. */
+export function createUnifiedLiveEpgVisibility() {
+    const preferences = inject(EpgPreferencesService);
+    const runtime = inject(RuntimeCapabilitiesService);
+    return {
+        get xmltv(): boolean {
+            return preferences.enabled() && runtime.supportsEpg;
+        },
+        get provider(): boolean {
+            return preferences.enabled() && runtime.supportsProviderEpg;
+        },
+        get any(): boolean {
+            return this.xmltv || this.provider;
         },
     };
 }

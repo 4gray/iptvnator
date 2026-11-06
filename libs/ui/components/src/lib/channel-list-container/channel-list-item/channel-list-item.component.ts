@@ -43,6 +43,8 @@ export class ChannelListItemComponent {
     readonly isDraggable = input(false);
     readonly logo = input<string | null | undefined>('');
     readonly name = input('');
+    readonly disabled = input(false);
+    readonly statusLabel = input('');
     readonly displayName = computed(() =>
         applyChannelNameStrip(
             this.name(),
@@ -125,6 +127,7 @@ export class ChannelListItemComponent {
     }
 
     onClick(event?: MouseEvent): void {
+        if (this.disabled()) return;
         if ((event?.detail ?? 1) > 1) {
             return;
         }
@@ -137,6 +140,7 @@ export class ChannelListItemComponent {
     }
 
     onDoubleClick(): void {
+        if (this.disabled()) return;
         this.activated.emit();
     }
 

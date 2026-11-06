@@ -92,7 +92,24 @@ export class PlaybackPositionService {
     getAllPlaybackPositionsOrThrow(
         playlistId: string
     ): Promise<PlaybackPositionData[]> {
-        return this.playbackPositionBridge.getAllPlaybackPositions(playlistId);
+        return this.playbackPositionBridge.getAllPlaybackPositionsOrThrow(
+            playlistId
+        );
+    }
+
+    assertSupportsAtomicReplacement(): void {
+        this.playbackPositionBridge.assertSupportsAtomicReplacement();
+    }
+
+    /** Replace a backup snapshot atomically; failures must remain retryable. */
+    replaceAllPlaybackPositions(
+        playlistId: string,
+        items: PlaybackPositionData[]
+    ): Promise<void> {
+        return this.playbackPositionBridge.replaceAllPlaybackPositions(
+            playlistId,
+            items
+        );
     }
 
     async clearAllPlaybackPositions(playlistId: string): Promise<void> {

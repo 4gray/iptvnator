@@ -5,7 +5,10 @@
  */
 export type SettingsSearchRequirement =
     | 'desktop'
+    /** XMLTV sources: import and data management (desktop today). */
     | 'epg'
+    /** Any guide, XMLTV or a portal's own: the EPG page's display rows. */
+    | 'epg-display'
     | 'remote-control'
     | 'startup-window-mode'
     | 'portal-connectivity-guard'
@@ -14,11 +17,16 @@ export type SettingsSearchRequirement =
     | 'vod-multi-source'
     /** Probed lazily; false until `ensureEmbeddedMpvSupportLoaded` resolves. */
     | 'embedded-mpv'
-    | 'embedded-mpv-frame-copy';
+    | 'embedded-mpv-frame-copy'
+    /** The PWA runs against self-hosted server storage. */
+    | 'server-storage';
 
 export type SettingsSearchCapabilities = Readonly<
     Record<SettingsSearchRequirement, boolean>
 >;
+
+/** Settings navigation groups; About has none and sits in the footer. */
+export type SettingsNavGroup = 'app' | 'library' | 'devices' | 'data';
 
 /** One routed settings section page (`/workspace/settings/:id`). */
 export interface SettingsSectionDefinition {
@@ -27,6 +35,8 @@ export interface SettingsSectionDefinition {
     readonly navLabelKey: string;
     readonly icon: string;
     readonly requires?: readonly SettingsSearchRequirement[];
+    /** Navigation group; omitted for sections pinned to the footer. */
+    readonly group?: SettingsNavGroup;
 }
 
 /**

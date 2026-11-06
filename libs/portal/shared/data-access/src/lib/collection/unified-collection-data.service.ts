@@ -57,7 +57,6 @@ export class UnifiedCollectionDataService {
         this.request.asReadonly();
 
     private requestId = 0;
-
     /**
      * Replace the collection with the rows the request resolves to. Returns
      * the loaded rows, or `null` when the load was superseded by a newer one
@@ -89,7 +88,7 @@ export class UnifiedCollectionDataService {
             const favoriteUids =
                 params.mode === 'favorites'
                     ? new Set(items.map((item) => item.uid))
-                    : await this.loadFavoriteUidSet(params);
+                    : await this.loadFavoriteUidSet(params, items);
             if (requestId !== this.requestId) {
                 return null;
             }
@@ -188,7 +187,8 @@ export class UnifiedCollectionDataService {
     }
 
     private async loadFavoriteUidSet(
-        params: CollectionLoadRequest
+        params: CollectionLoadRequest,
+        recentItems: UnifiedCollectionItem[]
     ): Promise<ReadonlySet<string>> {
         try {
             const favorites = await this.favoritesData.getFavorites(
@@ -196,7 +196,30 @@ export class UnifiedCollectionDataService {
                 params.playlistId,
                 params.portalType
             );
-            return new Set(favorites.map((item) => item.uid));
+            const uids = new Set(favorites.map((item) => item.uid));
+            const memberships = new Set(
+                favorites.map((item) => this.favoritesData.membershipUid(item))
+            );
+            for (const item of recentItems) {
+                if (
+                    item.sourceType === 'stalker' &&
+                    memberships.has(this.favoritesData.membershipUid(item))
+                )
+                    uids.add(item.uid);
+            }
+            await Promise.all(
+                recentItems.map(async (item) => {
+                    if (item.sourceType !== 'xtream' || !uids.has(item.uid))
+                        return;
+                    // Favorites can retain an older, incompatible movie with this UID.
+                    // Let the owning data source check this exact recent catalog row.
+                    const matches = await this.favoritesData
+                        .isXtreamFavorite(item)
+                        .catch(() => false);
+                    if (!matches) uids.delete(item.uid);
+                })
+            );
+            return uids;
         } catch {
             return new Set<string>();
         }

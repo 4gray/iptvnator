@@ -5,6 +5,7 @@
     "prefix": "lib",
     "projectType": "library",
     "tags": ["scope:portal", "domain:portal-shared", "type:feature"],
+    "implicitDependencies": ["ui-styles"],
     "targets": {
         "test": {
             "executor": "@nx/jest:jest",

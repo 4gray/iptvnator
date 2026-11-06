@@ -1,4 +1,7 @@
-import { PlaybackPositionData, XtreamSerieEpisode } from '@iptvnator/shared/interfaces';
+import {
+    PlaybackPositionData,
+    XtreamSerieEpisode,
+} from '@iptvnator/shared/interfaces';
 import {
     SERIES_QUICK_START_ACTION_KIND,
     formatSeriesEpisodeCode,
@@ -39,6 +42,25 @@ function position(
 }
 
 describe('getSeriesQuickStartAction', () => {
+    it('uses absolute episode labels while retaining the legacy position for a flat collection', () => {
+        const target = { ...episode(189, 9, 189), seasonUnknown: true };
+        const action = getSeriesQuickStartAction({
+            seasons: { '9': [target] },
+            playbackPositions: new Map([
+                [
+                    189,
+                    position(189, {
+                        seasonNumber: 9,
+                        episodeNumber: 189,
+                        positionSeconds: 20,
+                    }),
+                ],
+            ]),
+        });
+        expect(action?.kind).toBe(SERIES_QUICK_START_ACTION_KIND.Resume);
+        expect(action?.episodeLabel).toBe('E189 · Episode 189');
+        expect(action?.episode).toBe(target);
+    });
     it('returns the first episode when there are no playback positions', () => {
         const firstEpisode = episode(101, 1, 1);
 
@@ -119,9 +141,7 @@ describe('getSeriesQuickStartAction', () => {
             ]),
         });
 
-        expect(action?.kind).toBe(
-            SERIES_QUICK_START_ACTION_KIND.PlayRecent
-        );
+        expect(action?.kind).toBe(SERIES_QUICK_START_ACTION_KIND.PlayRecent);
         expect(action?.labelKey).toBe('XTREAM.PLAY_EPISODE');
         expect(action?.labelParams).toEqual({ episode: 8 });
         expect(action?.episodeLabel).toBe('S01E08 \u00b7 Episode 8');
@@ -175,6 +195,155 @@ describe('getSeriesQuickStartAction', () => {
         expect(action?.kind).toBe(SERIES_QUICK_START_ACTION_KIND.PlayNext);
         expect(action?.episodeLabel).toBe('S02E01 · Episode 1');
         expect(action?.episode).toBe(nextSeasonEpisode);
+    });
+
+    describe('after the episode watched last', () => {
+        const watchedAt = (
+            id: number,
+            hour: number
+        ): [number, PlaybackPositionData] => [
+            id,
+            position(id, {
+                positionSeconds: 95,
+                updatedAt: `2026-05-10T${hour}:00:00.000Z`,
+            }),
+        ];
+
+        it('goes on from a later season the user started with', () => {
+            const action = getSeriesQuickStartAction({
+                seasons: {
+                    '1': [episode(101, 1, 1), episode(102, 1, 2)],
+                    '2': [episode(201, 2, 1), episode(202, 2, 2)],
+                },
+                playbackPositions: new Map([watchedAt(201, 10)]),
+            });
+
+            expect(action?.kind).toBe(SERIES_QUICK_START_ACTION_KIND.PlayNext);
+            expect(action?.episodeLabel).toBe('S02E02 · Episode 2');
+        });
+
+        it('does not lead into the specials of season 0', () => {
+            const action = getSeriesQuickStartAction({
+                seasons: {
+                    '0': [episode(1, 0, 1)],
+                    '1': [episode(101, 1, 1), episode(102, 1, 2)],
+                },
+                playbackPositions: new Map([watchedAt(101, 10)]),
+            });
+
+            expect(action?.episodeLabel).toBe('S01E02 · Episode 2');
+        });
+
+        it('moves past an episode left unfinished before it', () => {
+            const action = getSeriesQuickStartAction({
+                seasons: {
+                    '1': [
+                        episode(101, 1, 1),
+                        episode(102, 1, 2),
+                        episode(103, 1, 3),
+                    ],
+                },
+                playbackPositions: new Map([
+                    [
+                        101,
+                        position(101, {
+                            positionSeconds: 40,
+                            updatedAt: '2026-05-10T09:00:00.000Z',
+                        }),
+                    ],
+                    watchedAt(102, 10),
+                ]),
+            });
+
+            expect(action?.kind).toBe(SERIES_QUICK_START_ACTION_KIND.PlayNext);
+            expect(action?.episodeLabel).toBe('S01E03 · Episode 3');
+        });
+
+        it('resumes the next episode where it was left', () => {
+            const action = getSeriesQuickStartAction({
+                seasons: {
+                    '1': [episode(101, 1, 1), episode(102, 1, 2)],
+                },
+                playbackPositions: new Map([
+                    [
+                        102,
+                        position(102, {
+                            positionSeconds: 40,
+                            updatedAt: '2026-05-10T09:00:00.000Z',
+                        }),
+                    ],
+                    watchedAt(101, 10),
+                ]),
+            });
+
+            expect(action?.kind).toBe(SERIES_QUICK_START_ACTION_KIND.Resume);
+            expect(action?.episodeLabel).toBe('S01E02 · Episode 2');
+            expect(action?.position?.positionSeconds).toBe(40);
+        });
+
+        it('offers an episode skipped before the finale once the finale is watched', () => {
+            const action = getSeriesQuickStartAction({
+                seasons: {
+                    '1': [
+                        episode(101, 1, 1),
+                        episode(102, 1, 2),
+                        episode(103, 1, 3),
+                    ],
+                },
+                playbackPositions: new Map([
+                    watchedAt(101, 10),
+                    watchedAt(103, 11),
+                ]),
+            });
+
+            expect(action?.kind).toBe(SERIES_QUICK_START_ACTION_KIND.PlayNext);
+            expect(action?.episodeLabel).toBe('S01E02 · Episode 2');
+        });
+
+        it('completes once the run is watched, even with specials left', () => {
+            const action = getSeriesQuickStartAction({
+                seasons: {
+                    '0': [episode(1, 0, 1)],
+                    '1': [episode(101, 1, 1), episode(102, 1, 2)],
+                },
+                playbackPositions: new Map([
+                    watchedAt(101, 10),
+                    watchedAt(102, 11),
+                ]),
+            });
+
+            expect(action?.kind).toBe(SERIES_QUICK_START_ACTION_KIND.Completed);
+            expect(action?.disabled).toBe(true);
+        });
+
+        it('starts a series with its first regular episode, not an extra', () => {
+            const action = getSeriesQuickStartAction({
+                seasons: {
+                    '0': [episode(1, 0, 1)],
+                    '1': [episode(101, 1, 1), episode(102, 1, 2)],
+                },
+                playbackPositions: new Map(),
+            });
+
+            expect(action?.kind).toBe(SERIES_QUICK_START_ACTION_KIND.PlayFirst);
+            expect(action?.episode.id).toBe('101');
+        });
+
+        it('goes back to the run after an extra', () => {
+            const action = getSeriesQuickStartAction({
+                seasons: {
+                    '0': [episode(1, 0, 1), episode(2, 0, 2)],
+                    '1': [episode(101, 1, 1), episode(102, 1, 2)],
+                },
+                playbackPositions: new Map([
+                    watchedAt(101, 10),
+                    watchedAt(1, 11),
+                ]),
+            });
+
+            expect(action?.kind).toBe(SERIES_QUICK_START_ACTION_KIND.PlayNext);
+            expect(action?.episode.id).toBe('102');
+        });
     });
 
     it('returns a disabled completed action when every episode is watched', () => {
@@ -280,6 +449,9 @@ describe('getSeriesQuickStartAction', () => {
 });
 
 describe('formatSeriesEpisodeCode', () => {
+    it('does not invent a season for absolute episode numbers', () => {
+        expect(formatSeriesEpisodeCode(1, 189, true)).toBe('E189');
+    });
     it('formats season and episode numbers with two digit minimums', () => {
         expect(formatSeriesEpisodeCode(1, 2)).toBe('S01E02');
         expect(formatSeriesEpisodeCode(12, 14)).toBe('S12E14');

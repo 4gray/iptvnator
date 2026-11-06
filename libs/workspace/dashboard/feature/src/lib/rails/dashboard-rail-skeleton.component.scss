@@ -1,0 +1,126 @@
+// Same boxes as `dashboard-rail.component.scss`, from the shared geometry
+// partial; only the fills differ. Text is stood in for by line boxes of the
+// real line height with a shorter shimmer bar centred in each.
+@use 'dashboard-rail-geometry' as geometry;
+@use '../../../../../../ui/styles/skeleton-shimmer' as shimmer;
+
+@include shimmer.keyframes;
+
+:host {
+    display: block;
+    @include geometry.host-tokens;
+}
+
+.rail-skeleton {
+    @include geometry.stack;
+}
+
+.rail-skeleton__header {
+    @include geometry.header-box;
+    justify-content: flex-start;
+}
+
+.rail-skeleton__title {
+    @include shimmer.block(6px);
+    width: 180px;
+    max-width: 60%;
+    height: 16px;
+}
+
+.rail-skeleton__track {
+    @include geometry.track-box;
+    overflow: hidden;
+
+    &[data-layout='channel'] {
+        @include geometry.channel-track-tokens;
+    }
+}
+
+// ── Cover cards ────────────────────────────────────────────────────────────
+.rail-skeleton__card {
+    @include geometry.card-box;
+    @include geometry.card-stack;
+}
+
+.rail-skeleton__art {
+    @include geometry.art-frame;
+    @include shimmer.block(var(--rail-radius));
+}
+
+.rail-skeleton__meta {
+    @include geometry.meta-stack;
+}
+
+.rail-skeleton__line {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+
+    &--title {
+        height: geometry.line-box(
+            geometry.$card-title-font-size,
+            geometry.$card-title-line-height
+        );
+    }
+
+    &--meta {
+        height: geometry.line-box(
+            geometry.$card-meta-font-size,
+            geometry.$card-meta-line-height
+        );
+    }
+
+    &--channel-name {
+        height: geometry.line-box(
+            geometry.$channel-name-font-size,
+            geometry.$channel-name-line-height
+        );
+    }
+
+    &--channel-now {
+        height: geometry.line-box(
+            geometry.$channel-now-font-size,
+            geometry.$channel-now-line-height
+        );
+    }
+}
+
+.rail-skeleton__bar {
+    @include shimmer.block(999px);
+    width: 82%;
+    height: 9px;
+
+    &--short {
+        width: 56%;
+        height: 8px;
+    }
+
+    &--progress {
+        flex: 1;
+        height: 3px;
+    }
+}
+
+// ── Channel cards ──────────────────────────────────────────────────────────
+.rail-skeleton__card--channel {
+    @include geometry.channel-card-box;
+    @include geometry.channel-stack;
+    background: var(--app-widget-bg, #1e2330);
+}
+
+.rail-skeleton__channel-row {
+    @include geometry.channel-row;
+}
+
+.rail-skeleton__channel-logo {
+    @include geometry.channel-logo-box;
+    @include shimmer.block(8px);
+}
+
+.rail-skeleton__channel-meta {
+    @include geometry.channel-meta-stack;
+}
+
+.rail-skeleton__channel-progress-row {
+    @include geometry.channel-progress-row-box;
+}

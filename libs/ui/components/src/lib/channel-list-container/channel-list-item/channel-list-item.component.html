@@ -16,7 +16,7 @@
     <button
         type="button"
         class="channel-content"
-        [attr.aria-label]="displayName()"
+        [attr.aria-disabled]="disabled() || null"
     >
         <div class="channel-logo-shell" aria-hidden="true">
             @if (showLogoFallback()) {
@@ -27,14 +27,14 @@
                     class="channel-logo"
                     [src]="logo()"
                     (error)="onLogoError($event)"
-                    alt="Channel Logo"
+                    alt=""
                 />
             }
         </div>
         <div class="channel-details">
             <div class="channel-name-row">
                 <div class="channel-name">{{ displayName() }}</div>
-                @if (catchupAvailable()) {
+                @if (showEpg() && catchupAvailable()) {
                     <mat-icon
                         class="catchup-badge"
                         data-test-id="catchup-badge"
@@ -50,7 +50,9 @@
                     }}</span>
                 }
             </div>
-            @if (showEpg()) {
+            @if (statusLabel()) {
+                <div class="epg-title">{{ statusLabel() }}</div>
+            } @else if (showEpg()) {
                 @if (epgProgram(); as program) {
                     <div class="epg-title">
                         {{ program.title }}
@@ -101,6 +103,8 @@
                             : 'CHANNELS.ADD_FAVORITE'
                         ) | translate
                     "
+                    [attr.aria-label]="'CHANNELS.FAVORITE' | translate"
+                    [attr.aria-pressed]="isFavorite()"
                     (click)="onFavoriteClick($event)"
                 >
                     <mat-icon>{{
@@ -113,6 +117,7 @@
                     mat-icon-button
                     class="favorite-button"
                     [matTooltip]="auxActionTooltip()"
+                    [attr.aria-label]="auxActionTooltip()"
                     (click)="onAuxActionClick($event)"
                 >
                     <mat-icon>{{ auxActionIcon() }}</mat-icon>
@@ -128,6 +133,9 @@
                     [disabled]="!epgProgram()"
                     [attr.aria-hidden]="!epgProgram()"
                     [matTooltip]="
+                        'EPG.PROGRAM_DIALOG.SHOW_PROGRAM_DETAILS' | translate
+                    "
+                    [attr.aria-label]="
                         'EPG.PROGRAM_DIALOG.SHOW_PROGRAM_DETAILS' | translate
                     "
                     (click)="onProgramInfoClick($event)"

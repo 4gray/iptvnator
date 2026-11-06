@@ -336,6 +336,7 @@ describe('Xtream raw iteration assembler', () => {
         );
         const rendererTerminalEpochMs =
             input.rendererCapture.probe.uiPaintedEpochMs;
+        assert.ok(rendererTerminalEpochMs !== null);
 
         const result = assembleXtreamRawIteration({
             ...input,

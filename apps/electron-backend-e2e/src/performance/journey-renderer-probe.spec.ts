@@ -341,6 +341,8 @@ test('keeps summing shifts without recent input after the first-card cutoff unti
                 [
                     {
                         deltaHeight: 0,
+                        deltaWidth: 0,
+                        deltaX: 0,
                         deltaY: -240,
                         node: 'lib-dashboard-rail[data-test-id="dashboard-favorites-rail"]',
                     },
@@ -569,6 +571,115 @@ test('counts ticks and mutations in the idle window that opens at the settle poi
     assert.doesNotThrow(() => assertJourneyRendererProbeState(state));
 });
 
+const RAILS_PHASE = {
+    absentSelectors: ['[data-test-id$="-rail-skeleton"]'],
+    name: 'railsSettled',
+    requiredSelectors: [
+        '[data-test-id="dashboard-continue-watching-rail-card"]',
+    ],
+    sentinelId: '__rails-settled__',
+    timeoutMs: 150,
+} as const;
+
+function renderRail(fixture: Fixture, testId: string): HTMLElement {
+    const { document } = fixture.window;
+    const rail = document.createElement('section');
+    rail.setAttribute('data-test-id', testId);
+    const card = document.createElement('div');
+    card.setAttribute('data-test-id', `${testId}-card`);
+    rail.append(card);
+    document.querySelector('main.workspace-content')?.append(rail);
+    return rail;
+}
+
+test('a phase is stamped at the first batch after the card that meets it, with its sentinel', async () => {
+    const fixture = createFixture({ phases: [RAILS_PHASE] });
+    const { document } = fixture.window;
+    assert.deepEqual(fixture.state().phases, {
+        railsSettled: {
+            afterFirstCardMs: null,
+            domMutations: 0,
+            epochMs: null,
+            missing: [],
+            sentinelStatus: 'not-sent',
+            status: 'pending',
+        },
+    });
+    const skeleton = document.createElement('section');
+    skeleton.setAttribute(
+        'data-test-id',
+        'dashboard-continue-watching-rail-skeleton'
+    );
+    document.querySelector('main.workspace-content')?.append(skeleton);
+    renderFirstCard(fixture);
+    await settle();
+    assert.ok(fixture.state().terminal);
+    assert.equal(fixture.state().phases['railsSettled']?.status, 'pending');
+    assert.deepEqual(fixture.bridgeCalls, [JOURNEY_IPC_SENTINEL_ID]);
+
+    // The rail arrives while its skeleton is still up: not settled.
+    renderRail(fixture, 'dashboard-continue-watching-rail');
+    await settle();
+    assert.equal(fixture.state().phases['railsSettled']?.status, 'pending');
+    skeleton.remove();
+    await settle();
+    const state = fixture.state();
+    const phase = state.phases['railsSettled'];
+    assert.equal(phase?.status, 'reached');
+    assert.equal(phase?.sentinelStatus, 'sent');
+    assert.ok((phase?.epochMs ?? 0) >= (state.terminal?.epochMs ?? Infinity));
+    assert.equal(
+        phase?.afterFirstCardMs,
+        (phase?.epochMs ?? 0) - (state.terminal?.epochMs ?? 0)
+    );
+    // The rail's insertion and the skeleton removal, after the card.
+    assert.equal(phase?.domMutations, 2);
+    assert.deepEqual(fixture.bridgeCalls, [
+        JOURNEY_IPC_SENTINEL_ID,
+        '__rails-settled__',
+    ]);
+    // First-card counters are untouched by the later activity: the
+    // skeleton, the splash removal, the rail and its card.
+    assert.equal(state.counters.domMutations, 4);
+    assert.doesNotThrow(() => assertJourneyRendererProbeState(state));
+});
+
+test('a phase already met at the first card is stamped at the terminal batch', async () => {
+    const fixture = createFixture({ phases: [RAILS_PHASE] });
+    renderRail(fixture, 'dashboard-continue-watching-rail');
+    renderFirstCard(fixture);
+    await settle();
+    const state = fixture.state();
+    const phase = state.phases['railsSettled'];
+    assert.equal(phase?.status, 'reached');
+    assert.equal(phase?.afterFirstCardMs, 0);
+    assert.equal(phase?.domMutations, 0);
+});
+
+test('a phase not met in time reports the selectors still unmet', async () => {
+    const fixture = createFixture({ phases: [RAILS_PHASE] });
+    renderFirstCard(fixture);
+    await settle();
+    assert.equal(fixture.state().phases['railsSettled']?.status, 'pending');
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    const phase = fixture.state().phases['railsSettled'];
+    assert.equal(phase?.status, 'timeout');
+    assert.deepEqual(phase?.missing, [
+        '[data-test-id="dashboard-continue-watching-rail-card"]',
+    ]);
+    assert.equal(phase?.sentinelStatus, 'not-sent');
+    assert.deepEqual(fixture.bridgeCalls, [JOURNEY_IPC_SENTINEL_ID]);
+});
+
+test('launch options carry phases only when given', () => {
+    assert.equal(createLaunchJourneyProbeOptions(null).phases, undefined);
+    assert.deepEqual(
+        createLaunchJourneyProbeOptions(null, [RAILS_PHASE]).phases,
+        [RAILS_PHASE]
+    );
+    assert.deepEqual(createFixture().state().phases, {});
+});
+
 test('launch options add the idle window only when asked', () => {
     assert.equal(createLaunchJourneyProbeOptions(null).idle, undefined);
     assert.deepEqual(
@@ -588,7 +699,7 @@ test('launch options target the workspace source cards and the shared sentinel',
     assert.equal(options.splashId, 'initial-splash');
     assert.equal(options.routeFragment, '/workspace');
     assert.match(options.cardSelector, /dashboard-recent-sources-rail-card/);
-    assert.match(options.cardSelector, /app-playlist-item/);
+    assert.match(options.cardSelector, /app-source-row/);
     assert.deepEqual(options.settle, {
         capMs: JOURNEY_SETTLE_CAP_MS,
         quietMs: JOURNEY_SETTLE_QUIET_MS,
@@ -798,6 +909,13 @@ test('drops performance entries from before the click and keeps recent-input shi
         {
             entryType: 'layout-shift',
             hadRecentInput: true,
+            sources: [
+                {
+                    currentRect: { height: 40, width: 300, x: 48, y: 152 },
+                    node: fixture.card,
+                    previousRect: { height: 40, width: 320, x: 0, y: 100 },
+                },
+            ],
             startTime: now(),
             value: 0.25,
         },
@@ -823,6 +941,25 @@ test('drops performance entries from before the click and keeps recent-input shi
     assert.equal(state.final, true);
     assert.equal(state.counters.layoutShiftScore, 0.125);
     assert.equal(state.counters.recentInputLayoutShiftScore, 0.25);
+    // Each counted shift keeps its nodes; the pre-click ones are not listed.
+    assert.deepEqual(
+        state.shifts.map((shift) => [
+            shift.hadRecentInput,
+            shift.value,
+            shift.sources.map((source) => [
+                source.deltaX,
+                source.deltaY,
+                source.deltaWidth,
+            ]),
+        ]),
+        [
+            [true, 0.25, [[48, 52, -20]]],
+            [false, 0.125, []],
+        ]
+    );
+    assert.equal(state.shiftCount, 2);
+    assert.ok(state.shifts.every((shift) => shift.sinceStartMs >= 0));
+    assert.match(state.shifts[0]?.sources[0]?.node ?? '', /^[a-z-]+/);
     // J2 has no settle window: the observers close at the cutoff.
     assert.equal(state.settle.status, 'disabled');
     assert.equal(state.counters.layoutShiftScoreSettled, 0);
@@ -869,6 +1006,8 @@ test('rejects a click start whose sentinel could not be sent', async () => {
     const started = {
         ...state,
         sentinel: { epochMs: 1, status: 'sent' as const },
+        shiftCount: 0,
+        shifts: [],
     };
     assert.throws(
         () => assertJourneyRendererProbeState(started),
@@ -891,7 +1030,7 @@ test('open-source options start at the portal card and end on the source route',
         options.startClick?.selector ?? '',
         /dashboard-recent-sources-rail-card/
     );
-    assert.match(options.startClick?.selector ?? '', /app-playlist-item/);
+    assert.match(options.startClick?.selector ?? '', /app-source-row/);
     assert.equal(options.routeFragment, '/workspace/xtreams/');
     assert.match(options.cardSelector, /app-grid-list mat-card/);
     assert.match(options.cardSelector, /channel-item/);

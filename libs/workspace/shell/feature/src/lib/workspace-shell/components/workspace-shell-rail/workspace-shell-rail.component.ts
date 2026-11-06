@@ -1,11 +1,9 @@
-import { DOCUMENT } from '@angular/common';
 import {
     ChangeDetectionStrategy,
     Component,
-    effect,
+    computed,
     inject,
     input,
-    signal,
 } from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
@@ -15,6 +13,10 @@ import {
     PortalRailLink,
     PortalRailSection,
 } from '@iptvnator/portal/shared/util';
+import {
+    type ServerConnectionState,
+    ServerStorageStatusService,
+} from '@iptvnator/services';
 import { WorkspaceShellRailLinksComponent } from '../workspace-shell-rail-links/workspace-shell-rail-links.component';
 
 @Component({
@@ -41,28 +43,24 @@ export class WorkspaceShellRailComponent {
     readonly railProviderClass = input('rail-context-region');
     readonly isSettingsRoute = input(false);
 
-    /**
-     * The page zoom factor. App zoom (`webFrame.setZoomLevel`) scales CSS
-     * pixels but not the native traffic lights, so the macOS top inset is
-     * kept in window pixels when zoomed out. Chromium reports the window in
-     * window pixels and the viewport in CSS pixels, and fires `resize` when
-     * the zoom changes.
-     */
-    protected readonly zoomFactor = signal(1);
-
-    constructor() {
-        const view = inject(DOCUMENT).defaultView;
-        effect((onCleanup) => {
-            if (!this.isMacOS() || !view) return;
-            const update = () =>
-                this.zoomFactor.set(
-                    view.innerWidth > 0 && view.outerWidth > 0
-                        ? view.outerWidth / view.innerWidth
-                        : 1
-                );
-            update();
-            view.addEventListener('resize', update);
-            onCleanup(() => view.removeEventListener('resize', update));
-        });
-    }
+    /** Self-hosted server storage: hidden while `inactive`. */
+    readonly serverState = inject(ServerStorageStatusService).state;
+    readonly serverIcon = computed(() => SERVER_ICONS[this.serverState()]);
+    readonly serverLabelKey = computed(
+        () => SERVER_LABEL_KEYS[this.serverState()]
+    );
 }
+
+const SERVER_ICONS: Record<ServerConnectionState, string> = {
+    inactive: 'dns',
+    online: 'dns',
+    offline: 'cloud_off',
+    unauthorized: 'lock',
+};
+
+const SERVER_LABEL_KEYS: Record<ServerConnectionState, string> = {
+    inactive: 'SERVER_STORAGE.STATUS_ONLINE',
+    online: 'SERVER_STORAGE.STATUS_ONLINE',
+    offline: 'SERVER_STORAGE.STATUS_OFFLINE',
+    unauthorized: 'SERVER_STORAGE.STATUS_UNAUTHORIZED',
+};

@@ -28,6 +28,10 @@ import {
 } from '@iptvnator/services';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import { foldSearchText } from '@iptvnator/shared/interfaces';
+import {
+    DialogFooterDirective,
+    DialogShellComponent,
+} from '@iptvnator/ui/components';
 
 export interface CategoryManagementDialogData {
     playlistId: string;
@@ -44,6 +48,8 @@ interface CategoryWithSelection extends XCategoryFromDb {
 @Component({
     selector: 'app-category-management-dialog',
     imports: [
+        DialogFooterDirective,
+        DialogShellComponent,
         MatDialogModule,
         MatButtonModule,
         MatCheckboxModule,
@@ -240,8 +246,11 @@ export class CategoryManagementDialogComponent implements OnInit {
                 await this.saveVisibility(categories);
             } catch (error) {
                 this.logger.error('Error saving category visibility', error);
-                // No translation key exists for this message yet.
-                this.showSaveFailure('Failed to save category visibility');
+                this.showSaveFailure(
+                    this.translate.instant(
+                        'XTREAM.CATEGORY_MANAGEMENT.SAVE_FAILED'
+                    )
+                );
                 return;
             }
             if (!(await this.saveLocks(categories))) {
@@ -265,10 +274,24 @@ export class CategoryManagementDialogComponent implements OnInit {
         const toHide = categories.filter((c) => !c.selected).map((c) => c.id);
         const toShow = categories.filter((c) => c.selected).map((c) => c.id);
         if (toHide.length > 0) {
-            await this.dbService.updateCategoryVisibility(toHide, true);
+            if (
+                !(await this.dbService.updateCategoryVisibility(
+                    toHide,
+                    true,
+                    true
+                ))
+            )
+                throw new Error('Saving explicit category visibility failed.');
         }
         if (toShow.length > 0) {
-            await this.dbService.updateCategoryVisibility(toShow, false);
+            if (
+                !(await this.dbService.updateCategoryVisibility(
+                    toShow,
+                    false,
+                    true
+                ))
+            )
+                throw new Error('Saving explicit category visibility failed.');
         }
     }
 

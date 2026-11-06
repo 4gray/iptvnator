@@ -8,10 +8,29 @@ import {
     XtreamPendingRestoreState,
 } from '@iptvnator/shared/interfaces';
 import { PlaylistBackupService } from './playlist-backup.service';
+import { XtreamDeferredCatalogRestoreService } from './xtream-deferred-catalog-restore.service';
+import { PwaXtreamBackupStateService } from './pwa-xtream-backup-state.service';
+import {
+    createBrowserUserDataStorage,
+    UserDataStorage,
+} from './user-data-storage';
 import {
     XtreamPendingRestoreService,
     XtreamPendingRestoreSnapshot,
 } from './xtream-pending-restore.service';
+
+/**
+ * The browser build's Xtream backup state over `storage` — jsdom's
+ * localStorage unless a spec passes its own — without Angular DI.
+ */
+export function createPwaXtreamBackupState(
+    storage: UserDataStorage = createBrowserUserDataStorage()
+): PwaXtreamBackupStateService {
+    return Object.assign(
+        Object.create(PwaXtreamBackupStateService.prototype) as object,
+        { storage }
+    ) as unknown as PwaXtreamBackupStateService;
+}
 
 /**
  * Shared factory for PlaylistBackupService specs. Instantiates the service
@@ -28,6 +47,7 @@ export function createPlaylistBackupService(
     let pendingSnapshot: XtreamPendingRestoreSnapshot | null = null;
     let lastConsumedRevision: number | null = null;
     const pendingRestoreService = {
+        getOrThrow: jest.fn(() => pendingSnapshot?.state ?? null),
         set: jest.fn(
             (
                 playlistId: string,
@@ -74,7 +94,7 @@ export function createPlaylistBackupService(
 
     Object.assign(service as object, {
         playlistsService: {
-            addPlaylist: jest.fn((playlist: Playlist) => of(playlist)),
+            restorePlaylist: jest.fn((playlist: Playlist) => of(playlist)),
             getAllData: jest.fn(() => of([])),
             getRawPlaylistById: jest.fn(() => of('#EXTM3U')),
             handlePlaylistParsing: jest.fn(
@@ -99,16 +119,27 @@ export function createPlaylistBackupService(
             updateSettings: jest.fn().mockResolvedValue(undefined),
         },
         databaseService: {
+            readAppState: jest.fn().mockResolvedValue({ value: null }),
+            setAppState: jest.fn().mockResolvedValue(true),
             getAllXtreamCategories: jest.fn().mockResolvedValue([]),
-            getFavorites: jest.fn().mockResolvedValue([]),
-            getRecentItems: jest.fn().mockResolvedValue([]),
+            getFavoritesOrThrow: jest.fn().mockResolvedValue([]),
+            getRecentItemsOrThrow: jest.fn().mockResolvedValue([]),
             getXtreamImportStatus: jest.fn().mockResolvedValue('idle'),
             hasXtreamCategories: jest.fn().mockResolvedValue(false),
             hasXtreamContent: jest.fn().mockResolvedValue(false),
-            restoreXtreamUserData: jest.fn().mockResolvedValue(undefined),
+            restoreXtreamFavoriteSnapshots: jest
+                .fn()
+                .mockResolvedValue(undefined),
+            restoreXtreamUserData: jest.fn().mockResolvedValue({
+                success: true,
+                resolvedHistory: [],
+            }),
             updateCategoryVisibility: jest.fn().mockResolvedValue(true),
         },
         playbackPositionService: {
+            assertSupportsAtomicReplacement: jest.fn(),
+            getAllPlaybackPositionsOrThrow: jest.fn().mockResolvedValue([]),
+            replaceAllPlaybackPositions: jest.fn().mockResolvedValue(undefined),
             getAllPlaybackPositions: jest.fn().mockResolvedValue([]),
             clearAllPlaybackPositions: jest.fn().mockResolvedValue(undefined),
             savePlaybackPosition: jest.fn().mockResolvedValue(undefined),
@@ -120,6 +151,7 @@ export function createPlaylistBackupService(
             clearForPlaylist: jest.fn().mockResolvedValue(true),
         },
         pendingRestoreService,
+        deferredRestore: new XtreamDeferredCatalogRestoreService(),
         parentalLock: {
             initialize: jest.fn().mockResolvedValue(undefined),
             locksReadable: jest.fn(() => true),
@@ -127,6 +159,13 @@ export function createPlaylistBackupService(
             requestUnlock: jest.fn().mockResolvedValue(true),
             locksFor: jest.fn(() => ({ xtream: [], stalker: [], m3u: [] })),
             replacePlaylistLocks: jest.fn().mockResolvedValue(true),
+        },
+        pwaXtream: createPwaXtreamBackupState(),
+        // Specs pick the runtime by setting or deleting `window.electron`.
+        runtime: {
+            get supportsXtreamSqliteDataSource() {
+                return !!(window as unknown as { electron?: unknown }).electron;
+            },
         },
         ...overrides,
     });
@@ -149,6 +188,8 @@ export interface FakeXtreamContentRow {
     added_at?: string;
     position?: number | null;
     viewed_at?: string;
+    title?: string;
+    poster_url?: string;
 }
 
 /**
@@ -177,11 +218,17 @@ export function createStatefulBackupCollaborators(
     state: FakeBackupBackendState
 ) {
     let lastParsedRawM3u: string | null = null;
+    const favoriteReceipts = new Set<string>();
+    const stalkerPositions = new Map<string, PlaybackPositionData[]>();
+    const isStalker = (id: string) =>
+        state.playlists.some(
+            (playlist) => playlist._id === id && !!playlist.portalUrl
+        );
 
     return {
         playlistsService: {
             getAllData: () => of(state.playlists.map((item) => ({ ...item }))),
-            addPlaylist: (playlist: Playlist) => {
+            restorePlaylist: (playlist: Playlist) => {
                 const index = state.playlists.findIndex(
                     (item) => item._id === playlist._id
                 );
@@ -231,6 +278,8 @@ export function createStatefulBackupCollaborators(
             },
         },
         databaseService: {
+            readAppState: async () => ({ value: null }),
+            setAppState: async () => true,
             getAllXtreamCategories: async (
                 playlistId: string,
                 type: 'live' | 'movies' | 'series'
@@ -241,9 +290,9 @@ export function createStatefulBackupCollaborators(
                             row.playlist_id === playlistId && row.type === type
                     )
                     .map((row) => ({ ...row })),
-            getFavorites: async () =>
+            getFavoritesOrThrow: async () =>
                 state.xtreamFavorites.map((row) => ({ ...row })),
-            getRecentItems: async () =>
+            getRecentItemsOrThrow: async () =>
                 state.xtreamRecent.map((row) => ({ ...row })),
             getXtreamImportStatus: async () => 'completed',
             hasXtreamCategories: async () => true,
@@ -260,29 +309,77 @@ export function createStatefulBackupCollaborators(
 
                 return true;
             },
-            restoreXtreamUserData: async (
+            restoreXtreamFavoriteSnapshots: async (
                 _playlistId: string,
                 favorites: XtreamBackupFavoriteItem[],
+                restoreId?: string
+            ) => {
+                const receipt = restoreId ?? JSON.stringify(favorites);
+                if (!favorites.length || favoriteReceipts.has(receipt)) return;
+                favoriteReceipts.add(receipt);
+                const additions = favorites.filter(
+                    (item) =>
+                        !state.xtreamFavorites.some(
+                            (row) =>
+                                row.xtream_id === item.xtreamId &&
+                                row.type === item.contentType
+                        )
+                );
+                state.xtreamFavorites.push(
+                    ...additions.map((item) => ({
+                        xtream_id: item.xtreamId,
+                        type: item.contentType,
+                        ...(item.snapshot
+                            ? {
+                                  title: item.snapshot.title,
+                                  poster_url:
+                                      item.snapshot.posterUrl ?? undefined,
+                              }
+                            : {}),
+                        ...(item.addedAt !== undefined
+                            ? { added_at: item.addedAt }
+                            : {}),
+                        ...(item.position !== undefined
+                            ? { position: item.position }
+                            : {}),
+                    }))
+                );
+            },
+            restoreXtreamUserData: async (
+                _playlistId: string,
+                _favorites: XtreamBackupFavoriteItem[],
                 recentlyViewed: XtreamBackupRecentlyViewedItem[]
             ) => {
-                state.xtreamFavorites = favorites.map((item) => ({
-                    xtream_id: item.xtreamId,
-                    type: item.contentType,
-                    ...(item.addedAt !== undefined
-                        ? { added_at: item.addedAt }
-                        : {}),
-                    ...(item.position !== undefined
-                        ? { position: item.position }
-                        : {}),
-                }));
                 state.xtreamRecent = recentlyViewed.map((item) => ({
                     xtream_id: item.xtreamId,
                     type: item.contentType,
                     viewed_at: item.viewedAt,
                 }));
+                return {
+                    success: true,
+                    resolvedHistory: state.xtreamRecent.map((row) => ({
+                        contentType: row.type,
+                        xtreamId: row.xtream_id,
+                    })),
+                };
             },
         },
         playbackPositionService: {
+            assertSupportsAtomicReplacement: jest.fn(),
+            getAllPlaybackPositionsOrThrow: async (id: string) =>
+                (isStalker(id)
+                    ? (stalkerPositions.get(id) ?? [])
+                    : state.playbackPositions
+                ).map((item) => ({ ...item })),
+            replaceAllPlaybackPositions: async (
+                playlistId: string,
+                positions: PlaybackPositionData[]
+            ) => {
+                const saved = positions.map((item) => ({ ...item }));
+                if (isStalker(playlistId))
+                    stalkerPositions.set(playlistId, saved);
+                else state.playbackPositions = saved;
+            },
             getAllPlaybackPositions: async () =>
                 state.playbackPositions.map((item) => ({ ...item })),
             clearAllPlaybackPositions: async () => {
@@ -296,6 +393,16 @@ export function createStatefulBackupCollaborators(
             },
         },
         vodSourcePinService: {
+            isAvailable: true,
+            replaceForPlaylist: async (
+                playlistId: string,
+                pins: VodSourcePin[]
+            ) => {
+                state.sourcePins = state.sourcePins
+                    .filter((pin) => pin.playlistId !== playlistId)
+                    .concat(pins.map((pin) => ({ ...pin })));
+                return true;
+            },
             listForPlaylistOrThrow: async (playlistId: string) =>
                 state.sourcePins
                     .filter((pin) => pin.playlistId === playlistId)

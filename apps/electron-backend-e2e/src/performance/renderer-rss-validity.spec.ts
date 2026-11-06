@@ -77,7 +77,7 @@ test('validates only measured renderer RSS runs and preserves the exact summary 
     const module = await validityModulePromise;
     assert.ok(module, 'generic renderer RSS validity helper must exist');
     const assess = module.assessRendererRssValidity;
-    assert.equal(typeof assess, 'function');
+    assert.ok(typeof assess === 'function');
 
     const result = assess([
         iteration('warmup-invalid', 'warmup', { identity: null }),
@@ -102,7 +102,7 @@ test('fails every incomplete measured capture without losing its raw reason and 
     const module = await validityModulePromise;
     assert.ok(module);
     const assess = module.assessRendererRssValidity;
-    assert.equal(typeof assess, 'function');
+    assert.ok(typeof assess === 'function');
 
     const result = assess([
         iteration('run-no-identity', 'measured', { identity: null }),
@@ -147,7 +147,7 @@ test('requires at least one measured run', async () => {
     const module = await validityModulePromise;
     assert.ok(module);
     const assess = module.assessRendererRssValidity;
-    assert.equal(typeof assess, 'function');
+    assert.ok(typeof assess === 'function');
 
     assert.deepEqual(assess([iteration('warmup-01', 'warmup')]), {
         invalidMeasuredRuns: [],

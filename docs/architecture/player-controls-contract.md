@@ -8,16 +8,20 @@ Embedded MPV rendering and native-view bounds behavior remain documented in
 ## Current status
 
 The Settings player selector probes external MPV/VLC using the same launch
-context as playback. A missing executable disables its option but leaves
-configuration accessible. PATH and standard install locations are checked
+context as playback. A missing executable labels its option without disabling
+selection or changing the saved player. The selected external player's path
+editor sits directly below the selector; unused external-player configuration
+stays hidden. Its status announces checking, found, missing or unknown, with
+a manual recheck button. PATH and standard install locations are checked
 without spawning a process. Discovery uses asynchronous filesystem I/O with a
 1.5-second total budget and at most two outstanding filesystem operations,
 reserving at least one worker from the configured libuv pool for other work.
 With a single worker, detection returns unknown without filesystem I/O.
 An inaccessible UNC path, other inconclusive I/O error or timed-out shell PATH lookup returns unknown
 and leaves the option selectable. Flatpak host availability and older bridges remain
-unknown rather than being incorrectly disabled. Reopening the selector or
-editing settings refreshes the check; stale responses are ignored.
+unknown. Reopening the selector, editing either executable path or pressing
+the recheck button refreshes the check; unrelated form edits do not. Path edits
+immediately invalidate the previous result, and stale responses are ignored.
 
 The shared-controls preference checkbox is visible only when HTML5, Video.js
 or ArtPlayer is selected in Settings → Playback.
@@ -123,6 +127,18 @@ keyboard ownership and exits only the resolved fullscreen owner's DOM
 fullscreen (the host-supplied `fullscreenTarget`, else its own shell) so the
 recovery actions remain reachable. Clearing the diagnostic restores those paths; it
 does not make the controls contract an owner of the recovery lifecycle.
+
+Video.js HLS has a separate nonterminal waiting notice. After 15 seconds of
+unpaused waiting with insufficient buffered data, it explains the delay and
+offers Retry through the host's current playback binding. VHS keeps its own
+automatic retries; the notice neither emits a terminal diagnostic nor pauses
+the engine. Playback progress, pause, error, end, source replacement and teardown
+clear it. A current binding can request another retry after a later wait;
+callbacks from retired bindings cannot retry a newer source, including before
+the replacement renders after playback inputs change. Both the native
+Video.js controls and shared-controls mode keep this action available. The
+`data-vjs-player` intake wrapper contains the notice so native Video.js
+fullscreen includes it as well.
 
 ## Why this exists
 
@@ -300,9 +316,11 @@ It owns only transient presentation behavior:
 - `ControlsShortcuts` — document keyboard routing;
 - `ControlsSurface` — pointer/click/double-click surface interactions;
 - `ControlsTimeline` — scrub state and timeline projections;
-- `ControlsTimelineHover` — the time under the pointer over the timeline;
+- `ControlsTimelineLabel` — where the timeline label points: the time under
+  a hovering pointer, else the slider value while the keyboard or a drag
+  moves it, plus the pure `clampTimelineLabelLeft` placement;
 - `app-player-timeline` — presentation of the timeline row (current time,
-  segment track, knob, hover label, remaining time / LIVE, recording
+  segment track, knob, label, remaining time / LIVE, recording
   status); scrub `input`/`change` events go back to the controls component,
   which owns reveal and seeking;
 - `ControlsLayout` — the compact/wide dock mode from the host's width;
@@ -326,7 +344,10 @@ primary action and progress, cyan `#5cd6ff` for "something is on", violet
 `#6b7384` text ramp, and two reds: `--pc-live` `#d32f2f` fills the LIVE
 badge (white label 5.0:1), and `--pc-danger` `#ff5252` colours the active
 record glyph and the recording status (6.2:1 on the glass over a black
-frame). They are literal on purpose: the overlay is
+frame). The seek bar's unplayed track is the opaque `--pc-timeline-track`
+`#313437` and its segment separators are `--pc-timeline-separator` white,
+so their contrast does not depend on the frame (see Timeline segments).
+They are literal on purpose: the overlay is
 theme-independent (see the UI guidelines' player theme boundary), and the
 app's `--app-selection-color` is a different blue that would fight the video.
 Watch progress reads `--pc-progress`, the accent blue declared by the
@@ -339,13 +360,20 @@ one colour in every player surface (UI guidelines, "Watch progress colour").
   a white knob ringed in translucent blue) · remaining time as `−7:03`
   (`formatRemainingTime`; the LIVE badge replaces it on live streams and
   `--:--` stands in while no duration is known) · the recording status.
+  The badge text is the translated `LIVE_BADGE`, and both it and the
+  `--:--` placeholder (`UNKNOWN_TIME_TEXT`) are `role="img"` elements named
+  `LIVE_STREAM` / `DURATION_UNKNOWN`: a name on a role-less span is never
+  announced, and the dashes are not words.
   The `<input type="range">` stays as the interaction and accessibility
   layer, invisible and full-size over the drawn track: dragging, arrow
   keys, `aria-valuetext` and the focus ring (drawn on the track through
   `:has(:focus-visible)`) all belong to it, so scrubbing semantics are
   unchanged. Hovering the bar with a mouse shows a white marker and a
-  `1:40` label above the pointer (`ControlsTimelineHover`); touch never
-  hovers and a non-seekable timeline never labels.
+  `1:40` label above the pointer. Keyboard focus on the slider
+  (`:focus-visible`, or any seek key) and a drag preview — the only way
+  touch, which never hovers, gets it — show the same label at the slider
+  value instead, without the marker (`ControlsTimelineLabel`; a hovering
+  pointer wins). A non-seekable timeline never labels.
 - **Control row**: `minmax(0,1fr) auto minmax(0,1fr)`. Left: the volume
   button, with the slider **inline** (72px) in the wide mode and behind
   the hover/tap popover in the compact mode — inline, the button is a
@@ -371,13 +399,12 @@ one colour in every player surface (UI guidelines, "Watch progress colour").
 
 ### Timeline segments
 
-The track is drawn as a row of segments, one flex item per segment with
-`flex-grow` equal to its share of the duration and its own accent fill, so
+The track is drawn as a row of segments, each with its own accent fill, so
 a film's chapters or a catch-up recording's programmes read directly off
 the bar. Each segment is placed absolutely at its time position (`left` =
-start percent, `width` = share minus the 3px gap every segment but the
+start percent, `width` = share minus the 2px gap every segment but the
 last keeps), so a drawn boundary sits exactly where the linear seek input
-and the hover label change segment; a segment shorter than the gap
+and the label change segment; a segment shorter than the gap
 collapses instead of pushing its neighbours. The optional `timelineSegments` input
 (`PlayerTimelineSegment { startSeconds, endSeconds, title }`) supplies
 them; `normalizeTimelineSegments` (`controls-timeline-segments.ts`) clamps
@@ -386,8 +413,51 @@ the previous end and fills every gap with an untitled segment so the row
 always covers `[0, duration]`. Without segments — live playback, VOD and
 series — the row is one untitled segment, which is the plain bar.
 `ControlsTimeline` owns the normalized list and the per-segment fill for the
-current scrub or playback value; the hover label becomes `Chapter 2 · 12:40`
-over a titled segment. mpv's chapter list is not a producer yet.
+current scrub or playback value; the label becomes `Chapter 2 · 12:40`
+over a titled segment.
+
+Boundaries hold 3:1 over any frame. Segments only round the bar's two
+ends, and every gap (2px, `TIMELINE_SEGMENT_GAP_PX`) is filled by a
+separator (`separatorLeft`, never left of the track's start, where a
+boundary in the bar's first pixels would put it) in
+`--pc-timeline-separator` white: 12.5:1 on
+the opaque `--pc-timeline-track`, 3.2:1 on the `--pc-progress` fill, which
+keeps 4.0:1 on the track. The former translucent track with see-through
+gaps measured 1.3–1.6:1 at its boundaries, and its fill fell to 1.1:1 over
+a bright frame (`player-controls.palette.spec.ts` pins the ratios).
+
+The names reach every user, whichever source drew the segments. The
+slider's `aria-valuetext` is the translated `TIMELINE_SEGMENT_POSITION`
+(`{{title}} · {{time}}`) whenever the scrub or playback value — the
+keyboard's target included — lies in a titled segment
+(`ControlsTimeline.segmentTitle`), and the plain time otherwise. The visible
+label (`aria-hidden`; it mirrors the valuetext) is two parts: the title
+ellipsizes at `min(320px, 60cqw)` and the time never truncates. The
+stylesheet centres it on its anchor; once laid out,
+`PlayerTimelineComponent` moves it by its measured width
+(`clampTimelineLabelLeft`, an `afterRenderEffect`) so it stays 8px inside
+the player (`.player-controls-host`) — past the bar's ends when needed, as
+the bar is narrower than the player. A `ResizeObserver` on the bar and the
+player re-places it when only the size changes (a paused player whose
+slider the keyboard holds, in a narrowed window). `xtream-catchup-timeline-label.e2e.ts`
+tabs to the bar with a 120-character programme title at 1280 and 800px, in
+both themes and in de and ru.
+
+**Chapter producer.** Embedded MPV reports the file's own chapters: the
+addons and the frame-copy helper observe mpv `chapter-list` and publish it
+as `EmbeddedMpvSession.chapters` (`{ timeSeconds, title? }`, validated in
+main by `normalizeEmbeddedMpvChapters`). `buildChapterTimelineSegments`
+(`chapter-timeline-segments.ts`) runs each chapter from its start to the
+next one's, the last to the duration, orders them and drops repeated or
+out-of-range starts; an untitled chapter becomes an untitled segment, and
+no chapters or no finite duration yields `null`.
+`EmbeddedMpvPlayerComponent.controlsTimelineSegments`
+(`embeddedMpvTimelineSegments`) passes the host's segments when it
+supplies any and the chapter segments otherwise, so catch-up programmes
+always win; `sameTimelineSegments` keeps a re-polled, unchanged list from
+counting as a change. The Linux native-view `mpv --wid` backend reads no
+chapters, and the web engines report none (streamed HLS/DASH carries no
+chapter track), so their VOD and series stay one plain bar.
 
 **Catch-up producer.** Archive playback of a live channel passes the EPG
 programmes overlapping its archive window.
@@ -434,8 +504,9 @@ episode: `upNextThresholdSeconds` is 4% of the duration clamped to
 `timelineSegments` carry a closing-credits chapter in the last third
 (`creditsStartSeconds`: "Credits", "Outro", "Ending", an anime `ED`, and a
 few localized names), the card appears when it starts instead, at most
-5 min before the end. No engine reports file chapters today, so in practice
-the adaptive lead applies. The countdown shows whole minutes, and seconds
+5 min before the end. Embedded MPV under the frame-copy engine supplies
+file chapters (see the chapter producer above); every other engine, and a
+file without a credits chapter, uses the adaptive lead. The countdown shows whole minutes, and seconds
 in the last minute. A
 still that fails to load falls back to the label tile. A
 click emits `nextEpisodeRequested` directly — not through the
@@ -499,7 +570,9 @@ the panel the moment the last group disappears.
   24px segmented items) that replaces the dock while open. Picture-in-
   picture and recording stay in the compact dock — the mock shows only
   `tune` + fullscreen there, but those two are engine features a viewer
-  needs without opening anything.
+  needs without opening anything. At 200% zoom or on a short stage, the
+  whole sheet scrolls, including its header, so the body cannot collapse to
+  zero height. Wide panels retain the body as their sole scroll owner.
 - **Inside**: every choice is a `radio` in a `radiogroup`
   (`SettingsRadioGroupDirective` / `SettingsRadioDirective`). List groups
   (audio, subtitles, quality) are rows with a check mark and a cyan
@@ -890,7 +963,7 @@ be.
   the shared ≥90 % `watched` rule; the playing row is the one whose id equals
   `contentInfo.contentXtreamId`.
 - Body: `app-fullscreen-episode-panel` stamps `SeasonTabsComponent` (the
-  detail page's tabs: pills up to six seasons, a dropdown beyond, watched
+  detail page's tabs: segmented tabs up to four seasons, a menu beyond, watched
   check marks, the "Back to playing episode" chip) over the selected season's
   rows: a 16:9 still or, without one, a large numeral tile so the no-TMDB
   case still looks designed; the `S01E03` label, runtime, watched check or
@@ -990,6 +1063,10 @@ control captures the keyboard: Space and Enter activate it again, and
 `ControlsShortcuts` yields to any interactive element in the key's path, so
 after a click on the fullscreen button Space left fullscreen instead of
 pausing and the seek, volume, and mute keys did nothing.
+Dialog and alertdialog ancestors also retain playback keys: their focused
+reading regions use Space and arrows for scrolling, without pausing, seeking
+or changing the volume of a mounted background player. Escape keeps its
+existing popover-dismissal path and remains available to the dialog.
 `ControlsSurface.wasPointerClick` attributes the click by its `pointerType`
 (non-empty for a pointer; empty for Enter/Space activation and
 `element.click()`), and a legacy `MouseEvent` click by a recent press inside
@@ -1673,7 +1750,7 @@ libs/ui/playback/src/lib/player-controls/
 ├── controls-feedback.ts
 ├── controls-format.utils.ts
 ├── controls-layout.ts
-├── controls-timeline-hover.ts
+├── controls-timeline-label.ts
 ├── controls-timeline-segments.ts
 ├── controls-settings.ts
 ├── controls-settings-groups.ts
@@ -1853,6 +1930,9 @@ radio layout; title/group scrolling is CSS-only. It supports play/pause, mute,
 and volume, including the volume keys in 5% steps. Volume shares the video
 players' `volume` localStorage key. The template, SCSS and TypeScript component
 live together; routing/integration stays in the M3U player template.
+When focus is inside a dialog or alertdialog, its reading region owns the
+arrows and M key. Radio leaves those events unconsumed and does not change or
+persist background volume; keyboard volume control resumes after dismissal.
 
 ### Display sleep during playback
 

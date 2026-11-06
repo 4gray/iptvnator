@@ -197,6 +197,328 @@ describe('EmbeddedMpvReconnectCoordinator', () => {
         expect(reload).not.toHaveBeenCalled();
     });
 
+    it('treats a VOD EOF well before the end as a drop and resumes there (#1902)', () => {
+        startPlaying(VOD);
+        coordinator.observe(
+            SESSION,
+            state,
+            'playing',
+            'playing',
+            1_260,
+            undefined,
+            2_700
+        );
+
+        // The server closed the connection 21 min into a 45 min episode.
+        const info = coordinator.observe(
+            SESSION,
+            state,
+            'ended',
+            'playing',
+            1_261,
+            undefined,
+            2_700
+        );
+
+        expect(info?.attempt).toBe(1);
+        // The poll keeps reading the same EOF until the attempt fires.
+        expect(
+            coordinator.observe(
+                SESSION,
+                state,
+                'ended',
+                'ended',
+                1_261,
+                undefined,
+                2_700
+            )
+        ).toBe(info);
+        jest.advanceTimersByTime(2_000);
+        expect(reload).toHaveBeenCalledTimes(1);
+        expect(reload).toHaveBeenLastCalledWith(SESSION, {
+            ...VOD,
+            startTime: 1_260,
+        });
+    });
+
+    it('keeps a VOD EOF at the end, or with no known duration, as the end', () => {
+        startPlaying(VOD);
+        coordinator.observe(
+            SESSION,
+            state,
+            'playing',
+            'playing',
+            2_670,
+            undefined,
+            2_700
+        );
+        // 4 s short of a duration rounded down to whole seconds.
+        expect(
+            coordinator.observe(
+                SESSION,
+                state,
+                'ended',
+                'playing',
+                2_696,
+                undefined,
+                2_700
+            )
+        ).toBeNull();
+        // A long film's closing seconds fall inside the 1 % margin.
+        state = createEmbeddedMpvReconnectState(true);
+        startPlaying(VOD);
+        expect(
+            coordinator.observe(
+                SESSION,
+                state,
+                'ended',
+                'playing',
+                7_150,
+                undefined,
+                7_200
+            )
+        ).toBeNull();
+        // Without a duration nothing says the EOF came early.
+        state = createEmbeddedMpvReconnectState(true);
+        startPlaying(VOD);
+        expect(
+            coordinator.observe(
+                SESSION,
+                state,
+                'ended',
+                'playing',
+                600,
+                undefined,
+                null
+            )
+        ).toBeNull();
+        jest.advanceTimersByTime(60_000);
+        expect(reload).not.toHaveBeenCalled();
+    });
+
+    it('accepts the end when the reload cannot get past where it resumed', () => {
+        startPlaying(VOD);
+        coordinator.observe(
+            SESSION,
+            state,
+            'playing',
+            'playing',
+            2_400,
+            undefined,
+            2_700
+        );
+        // The duration was estimated from the bitrate; the file ends at 2 401 s.
+        expect(
+            coordinator.observe(
+                SESSION,
+                state,
+                'ended',
+                'playing',
+                2_401,
+                undefined,
+                2_700
+            )?.attempt
+        ).toBe(1);
+        jest.advanceTimersByTime(2_000);
+        expect(reload).toHaveBeenLastCalledWith(SESSION, {
+            ...VOD,
+            startTime: 2_400,
+        });
+
+        coordinator.observe(SESSION, state, 'loading', 'ended');
+        expect(
+            coordinator.observe(
+                SESSION,
+                state,
+                'ended',
+                'loading',
+                2_401,
+                undefined,
+                2_700
+            )
+        ).toBeNull();
+        expect(
+            coordinator.observe(
+                SESSION,
+                state,
+                'ended',
+                'ended',
+                2_401,
+                undefined,
+                2_700
+            )
+        ).toBeNull();
+        jest.advanceTimersByTime(60_000);
+        expect(reload).toHaveBeenCalledTimes(1);
+    });
+
+    it('reconnects again when the resumed episode drops further on', () => {
+        startPlaying(VOD);
+        coordinator.observe(
+            SESSION,
+            state,
+            'playing',
+            'playing',
+            600,
+            undefined,
+            2_700
+        );
+        coordinator.observe(
+            SESSION,
+            state,
+            'ended',
+            'playing',
+            600,
+            undefined,
+            2_700
+        );
+        jest.advanceTimersByTime(2_000);
+        coordinator.observe(SESSION, state, 'loading', 'ended');
+        coordinator.observe(
+            SESSION,
+            state,
+            'playing',
+            'loading',
+            601,
+            undefined,
+            2_700
+        );
+        coordinator.observe(
+            SESSION,
+            state,
+            'playing',
+            'playing',
+            900,
+            undefined,
+            2_700
+        );
+
+        expect(
+            coordinator.observe(
+                SESSION,
+                state,
+                'ended',
+                'playing',
+                901,
+                undefined,
+                2_700
+            )?.attempt
+        ).toBe(2);
+        jest.advanceTimersByTime(4_000);
+        expect(reload).toHaveBeenLastCalledWith(SESSION, {
+            ...VOD,
+            startTime: 900,
+        });
+    });
+
+    it('keeps retrying an early EOF when the addon refuses the reload', () => {
+        startPlaying(VOD);
+        coordinator.observe(
+            SESSION,
+            state,
+            'playing',
+            'playing',
+            1_200,
+            undefined,
+            2_700
+        );
+        coordinator.observe(
+            SESSION,
+            state,
+            'ended',
+            'playing',
+            1_200,
+            undefined,
+            2_700
+        );
+        reload.mockImplementationOnce(() => {
+            throw new Error('addon exploded');
+        });
+        jest.advanceTimersByTime(2_000);
+
+        // The refused reload left the original EOF in the snapshot: it is
+        // still the drop, not a reload that ended where it resumed.
+        expect(
+            coordinator.observe(
+                SESSION,
+                state,
+                'ended',
+                'ended',
+                1_200,
+                undefined,
+                2_700
+            )?.attempt
+        ).toBe(2);
+        jest.advanceTimersByTime(4_000);
+        expect(reload).toHaveBeenCalledTimes(2);
+    });
+
+    it('judges an EOF after a user seek on its position alone', () => {
+        startPlaying(VOD);
+        coordinator.observe(
+            SESSION,
+            state,
+            'playing',
+            'playing',
+            1_200,
+            undefined,
+            2_700
+        );
+        coordinator.observe(
+            SESSION,
+            state,
+            'ended',
+            'playing',
+            1_200,
+            undefined,
+            2_700
+        );
+        jest.advanceTimersByTime(2_000);
+        coordinator.observe(SESSION, state, 'loading', 'ended');
+        coordinator.observe(
+            SESSION,
+            state,
+            'playing',
+            'loading',
+            1_201,
+            undefined,
+            2_700
+        );
+
+        // Back to 10 min; the connection drops again a few minutes later.
+        coordinator.onUserSeek(state);
+        coordinator.observe(
+            SESSION,
+            state,
+            'playing',
+            'playing',
+            600,
+            undefined,
+            2_700
+        );
+        coordinator.observe(
+            SESSION,
+            state,
+            'playing',
+            'playing',
+            1_202,
+            undefined,
+            2_700
+        );
+
+        expect(
+            coordinator.observe(
+                SESSION,
+                state,
+                'ended',
+                'playing',
+                1_203,
+                undefined,
+                2_700
+            )?.attempt
+        ).toBe(2);
+    });
+
     it('resumes a VOD reload where it dropped but keeps live at the live edge', () => {
         startPlaying(VOD);
         coordinator.observe(SESSION, state, 'playing', 'playing', 95);

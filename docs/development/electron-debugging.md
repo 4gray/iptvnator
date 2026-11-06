@@ -24,7 +24,7 @@ IPTVNATOR_TRACE_STARTUP=1 pnpm nx serve electron-backend
 ```
 
 - Narrower trace flags:
-    - `IPTVNATOR_TRACE_IPC=1` traces renderer `window.electron.*` bridge calls
+    - `IPTVNATOR_TRACE_IPC=1` traces renderer `window.electron.*` bridge calls and reports cancelled Stalker/Xtream portal requests, which are otherwise not logged (an HTTP 401/403 is always one `Refused` warning; other failures stay errors)
     - `IPTVNATOR_TRACE_DB=1` traces DB worker requests and request-scoped DB events
     - `IPTVNATOR_TRACE_SQL=1` traces SQLite statements in the main process and DB worker
     - `IPTVNATOR_TRACE_WINDOW=1` traces BrowserWindow lifecycle and unresponsive events
@@ -96,7 +96,16 @@ count. A window launched through `launchElectronApp` therefore always reports
 even when hidden or minimized. Tests of hidden-window behavior launch through
 `apps/electron-backend-e2e/src/electron-unautomated-launch.ts`, which spawns
 the app without Playwright and evaluates over raw CDP sockets
-(`window-visibility.e2e.ts` is the example).
+(`window-visibility.e2e.ts` is the example). The helper matches the packaged
+renderer directory, including routed URLs: Angular may replace `index.html`
+with `/workspace/dashboard` before CDP discovers the page. On macOS the
+visibility tests wait for native window focus and the first native `show`
+notification before hiding or minimizing. The unautomated launcher observes
+`show`/`hide` from window creation, before CDP connects: `isVisible()`, focus,
+and the renderer's initial `visible` state can precede Cocoa's first visible
+occlusion notification. Hiding in that gap can coalesce away the transition.
+Run these tests with an unlocked desktop session so
+native focus and visibility transitions can complete.
 
 The Linux portable build uploads `packaged-frame-copy-smoke` reports and traces
 even when the smoke fails. Check the paused-frame screenshot and trace before

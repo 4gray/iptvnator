@@ -4,7 +4,11 @@ import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 
 export enum SortBy {
     DATE_ADDED = 'date',
+    /** Last refresh, falling back to the import date. */
+    UPDATED = 'updated',
     NAME = 'name',
+    /** Channel count; only M3U playlists store one. */
+    CHANNELS = 'channels',
     CUSTOM = 'custom',
 }
 
@@ -16,9 +20,21 @@ export enum SortOrder {
 export interface SortOptions {
     by: SortBy;
     order: SortOrder;
+    /**
+     * Lists that know source health put the sources that do not respond
+     * first, keeping this order within each part.
+     */
+    failingFirst?: boolean;
 }
 
+const SORT_BY_VALUES = new Set<string>(Object.values(SortBy));
+
 const SORT_OPTIONS_STORAGE_KEY = 'iptvnator-sort-options';
+
+function updatedAt(playlist: PlaylistMeta): number {
+    const time = playlist.updateDate ?? new Date(playlist.importDate).getTime();
+    return Number.isFinite(time) ? time : 0;
+}
 
 @Injectable({
     providedIn: 'root',
@@ -53,13 +69,17 @@ export class SortService {
 
             // Validate that the saved options match our expected types
             if (
-                (parsedOptions.by === SortBy.DATE_ADDED ||
-                    parsedOptions.by === SortBy.NAME ||
-                    parsedOptions.by === SortBy.CUSTOM) &&
+                SORT_BY_VALUES.has(parsedOptions.by) &&
                 (parsedOptions.order === SortOrder.ASC ||
                     parsedOptions.order === SortOrder.DESC)
             ) {
-                return parsedOptions;
+                return {
+                    by: parsedOptions.by,
+                    order: parsedOptions.order,
+                    ...(parsedOptions.failingFirst === true
+                        ? { failingFirst: true }
+                        : {}),
+                };
             }
 
             return defaultOptions;
@@ -83,9 +103,16 @@ export class SortService {
         }
     }
 
+    /**
+     * @param nameOf The name a list shows for a source, for Name order: a
+     * list that shows a source by its host must sort it by its host, not by
+     * a stored title such as `get.php?username=…`.
+     */
     sortPlaylists(
         playlists: PlaylistMeta[],
-        options: SortOptions
+        options: SortOptions,
+        nameOf: (playlist: PlaylistMeta) => string = (playlist) =>
+            playlist.title
     ): PlaylistMeta[] {
         const { by, order } = options;
 
@@ -93,13 +120,17 @@ export class SortService {
             let comparison = 0;
 
             if (by === SortBy.NAME) {
-                comparison = a.title
+                comparison = nameOf(a)
                     .toLowerCase()
-                    .localeCompare(b.title.toLowerCase());
+                    .localeCompare(nameOf(b).toLowerCase());
             } else if (by === SortBy.DATE_ADDED) {
                 const dateA = new Date(a.importDate).getTime();
                 const dateB = new Date(b.importDate).getTime();
                 comparison = dateA - dateB;
+            } else if (by === SortBy.UPDATED) {
+                comparison = updatedAt(a) - updatedAt(b);
+            } else if (by === SortBy.CHANNELS) {
+                comparison = (a.count ?? 0) - (b.count ?? 0);
             } else if (by === SortBy.CUSTOM) {
                 // Sort by position field (lower position comes first)
                 const posA = a.position ?? Number.MAX_SAFE_INTEGER;

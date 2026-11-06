@@ -7,8 +7,11 @@
                 mat-icon-button
                 class="all-channels-sort-button"
                 [matMenuTriggerFor]="channelSortMenu"
-                [matTooltip]="'Sort: ' + allChannelsSortLabel()"
-                aria-label="Sort channels"
+                [matTooltip]="
+                    ('WORKSPACE.SORT_LABEL' | translate) +
+                    (allChannelsSortLabelKey() | translate)
+                "
+                [attr.aria-label]="'CHANNELS.SORT_CHANNELS' | translate"
             >
                 <mat-icon>sort_by_alpha</mat-icon>
             </button>
@@ -25,26 +28,32 @@
         </div>
 
         <mat-menu #channelSortMenu="matMenu">
-            <button mat-menu-item (click)="setAllChannelsSortMode('server')">
+            <button
+                mat-menu-item
+                [appMenuItemRadio]="allChannelsSortMode() === 'server'"
+                (click)="setAllChannelsSortMode('server')"
+            >
+                <mat-icon appMenuItemRadioCheck>check</mat-icon>
                 <mat-icon>drag_indicator</mat-icon>
-                <span>Playlist Order</span>
-                @if (allChannelsSortMode() === 'server') {
-                    <mat-icon>check</mat-icon>
-                }
+                <span>{{ 'CHANNELS.SORT_PLAYLIST_ORDER' | translate }}</span>
             </button>
-            <button mat-menu-item (click)="setAllChannelsSortMode('name-asc')">
+            <button
+                mat-menu-item
+                [appMenuItemRadio]="allChannelsSortMode() === 'name-asc'"
+                (click)="setAllChannelsSortMode('name-asc')"
+            >
+                <mat-icon appMenuItemRadioCheck>check</mat-icon>
                 <mat-icon>sort_by_alpha</mat-icon>
-                <span>Name A-Z</span>
-                @if (allChannelsSortMode() === 'name-asc') {
-                    <mat-icon>check</mat-icon>
-                }
+                <span>{{ 'WORKSPACE.SORT_NAME_ASC' | translate }}</span>
             </button>
-            <button mat-menu-item (click)="setAllChannelsSortMode('name-desc')">
+            <button
+                mat-menu-item
+                [appMenuItemRadio]="allChannelsSortMode() === 'name-desc'"
+                (click)="setAllChannelsSortMode('name-desc')"
+            >
+                <mat-icon appMenuItemRadioCheck>check</mat-icon>
                 <mat-icon>sort_by_alpha</mat-icon>
-                <span>Name Z-A</span>
-                @if (allChannelsSortMode() === 'name-desc') {
-                    <mat-icon>check</mat-icon>
-                }
+                <span>{{ 'WORKSPACE.SORT_NAME_DESC' | translate }}</span>
             </button>
         </mat-menu>
     </header>
@@ -108,24 +117,9 @@
     }
 </div>
 
-<div
-    aria-hidden="true"
-    class="channel-context-menu-anchor"
-    [style.left]="contextMenuPosition().x"
-    [style.top]="contextMenuPosition().y"
-    [matMenuTriggerFor]="channelContextMenu"
-    #contextMenuTrigger="matMenuTrigger"
-></div>
-
-<mat-menu #channelContextMenu="matMenu">
-    @if (supportsEpgMapping) {
-        <button mat-menu-item (click)="openEpgMapping()">
-            <mat-icon>settings_remote</mat-icon>
-            <span>{{ 'CHANNELS.MAP_EPG' | translate }}</span>
-        </button>
-    }
-    <button mat-menu-item (click)="openChannelDetails()">
-        <mat-icon>info</mat-icon>
-        <span>{{ 'CHANNELS.SHOW_DETAILS' | translate }}</span>
-    </button>
-</mat-menu>
+<app-channel-context-menu
+    [showMapEpg]="supportsEpgMapping"
+    [showDetails]="true"
+    (mapEpg)="openEpgMapping()"
+    (details)="openChannelDetails()"
+/>

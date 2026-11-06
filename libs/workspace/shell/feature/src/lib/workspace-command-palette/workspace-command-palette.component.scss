@@ -25,6 +25,12 @@
     padding: 0 14px;
     min-height: 44px;
     cursor: text;
+
+    // The field draws no outline of its own, so the row shows its focus: an
+    // underline in the focus ring colour (inset: the shell clips its edges).
+    &:focus-within {
+        box-shadow: inset 0 -2px 0 var(--app-focus-ring);
+    }
 }
 
 .palette-search__icon {

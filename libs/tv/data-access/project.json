@@ -1,0 +1,11 @@
+{
+    "name": "tv-data-access",
+    "projectType": "library",
+    "sourceRoot": "libs/tv/data-access/src",
+    "tags": ["scope:tv", "domain:tv", "type:data-access"],
+    "targets": {
+        "lint": {
+            "command": "eslint \"libs/tv/data-access/**/*.{ts,tsx}\""
+        }
+    }
+}

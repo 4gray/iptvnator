@@ -52,7 +52,7 @@ test('accepts one parseable diagnostic playlist-worker profile inside the iterat
         'diagnostic playlist worker capture validator must exist'
     );
     const validate = module.validateDiagnosticPlaylistWorkerCapture;
-    assert.equal(typeof validate, 'function');
+    assert.ok(typeof validate === 'function');
     const directory = await mkdtemp(
         join(tmpdir(), 'iptvnator-diagnostic-worker-')
     );
@@ -67,7 +67,7 @@ test('accepts one parseable diagnostic playlist-worker profile inside the iterat
             JSON.stringify({ nodes: [{ id: 1 }], samples: [1] })
         );
         await assert.doesNotReject(() =>
-            validate?.(mainCapture({ profilePath }), directory)
+            validate(mainCapture({ profilePath }), directory)
         );
     } finally {
         await rm(directory, { force: true, recursive: true });
@@ -78,19 +78,19 @@ test('fails closed for missing, escaped, malformed, or contaminated diagnostic a
     const module = await diagnosticCaptureModulePromise;
     assert.ok(module);
     const validate = module.validateDiagnosticPlaylistWorkerCapture;
-    assert.equal(typeof validate, 'function');
+    assert.ok(typeof validate === 'function');
     const directory = await mkdtemp(
         join(tmpdir(), 'iptvnator-diagnostic-worker-invalid-')
     );
 
     try {
         await assert.rejects(
-            () => validate?.(mainCapture({ profilePath: null }), directory),
+            () => validate(mainCapture({ profilePath: null }), directory),
             /diagnostic-playlist-worker-profile-missing/
         );
         await assert.rejects(
             () =>
-                validate?.(
+                validate(
                     mainCapture({
                         profilePath: join(
                             directory,
@@ -109,7 +109,7 @@ test('fails closed for missing, escaped, malformed, or contaminated diagnostic a
         await writeFile(malformedPath, '{"nodes":[]}');
         await assert.rejects(
             () =>
-                validate?.(
+                validate(
                     mainCapture({ profilePath: malformedPath }),
                     directory
                 ),
@@ -117,7 +117,7 @@ test('fails closed for missing, escaped, malformed, or contaminated diagnostic a
         );
         await assert.rejects(
             () =>
-                validate?.(
+                validate(
                     mainCapture({
                         profilePath: malformedPath,
                         timelineType:
@@ -129,7 +129,7 @@ test('fails closed for missing, escaped, malformed, or contaminated diagnostic a
         );
         await assert.rejects(
             () =>
-                validate?.(
+                validate(
                     mainCapture({
                         profilePath: malformedPath,
                         snapshotPath: join(

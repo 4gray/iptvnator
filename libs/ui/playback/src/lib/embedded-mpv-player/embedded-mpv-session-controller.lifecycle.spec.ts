@@ -5,6 +5,7 @@ import {
     EmbeddedMpvSession,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { EmbeddedMpvSessionController } from './embedded-mpv-session-controller';
 
 describe('EmbeddedMpvSessionController (lifecycle & support edges)', () => {
@@ -68,6 +69,7 @@ describe('EmbeddedMpvSessionController (lifecycle & support edges)', () => {
         });
 
         TestBed.configureTestingModule({
+            imports: [TranslateModule.forRoot()],
             providers: [EmbeddedMpvSessionController],
         });
     });
@@ -83,10 +85,10 @@ describe('EmbeddedMpvSessionController (lifecycle & support edges)', () => {
         setBridge(undefined);
         const controller = TestBed.inject(EmbeddedMpvSessionController);
 
+        // No English reason: the player falls back to its translated text.
         expect(controller.support()).toEqual({
             supported: false,
             platform: 'unknown',
-            reason: 'Embedded MPV requires the Electron desktop build.',
         });
     });
 
@@ -206,6 +208,64 @@ describe('EmbeddedMpvSessionController (lifecycle & support edges)', () => {
 
         expect(controller.session()?.error).toBe('libmpv not found');
         expect(electron.createEmbeddedMpvSession).not.toHaveBeenCalled();
+    });
+
+    describe('its own failure messages', () => {
+        beforeEach(() => {
+            const translate = TestBed.inject(TranslateService);
+            translate.setTranslation('de', {
+                EMBEDDED_MPV: {
+                    PLAYER: {
+                        NOT_AVAILABLE: 'Eingebettetes MPV ist nicht verfügbar.',
+                        FRAME_VIEW_FAILED:
+                            'Die MPV-Videoansicht konnte nicht starten.',
+                    },
+                },
+            });
+            translate.use('de');
+        });
+
+        it('are translated when prepare reports unsupported without a reason', async () => {
+            electron.prepareEmbeddedMpv.mockResolvedValueOnce({
+                supported: false,
+                platform: 'darwin',
+            });
+            const controller = TestBed.inject(EmbeddedMpvSessionController);
+
+            controller.startSession(createHost(), createPlayback(), 0.5);
+            await waitFor(
+                () => controller.session()?.status === 'error',
+                'error session to be set'
+            );
+
+            expect(controller.session()?.error).toBe(
+                'Eingebettetes MPV ist nicht verfügbar.'
+            );
+        });
+
+        it('are translated when the frame view fails to attach', async () => {
+            const frameCopySupport = createSupport('frame-copy');
+            electron.getEmbeddedMpvSupport.mockResolvedValueOnce(
+                frameCopySupport
+            );
+            electron.prepareEmbeddedMpv.mockResolvedValueOnce(frameCopySupport);
+            electron.attachEmbeddedMpvFrameView.mockResolvedValueOnce(false);
+            const controller = TestBed.inject(EmbeddedMpvSessionController);
+
+            await waitFor(
+                () => controller.support() === frameCopySupport,
+                'frame-copy support probe to resolve'
+            );
+            controller.startSession(createHost(), createPlayback(), 0.5);
+            await waitFor(
+                () => controller.session()?.status === 'error',
+                'error session to be set'
+            );
+
+            expect(controller.session()?.error).toBe(
+                'Die MPV-Videoansicht konnte nicht starten.'
+            );
+        });
     });
 
     it('retry clears session state, stall flag, and bumps the retry token', () => {

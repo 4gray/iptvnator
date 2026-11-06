@@ -97,3 +97,45 @@ test('reports expected targets the plugin no longer infers', () => {
         ['web-e2e:e2e-ci--src/basic.e2e.ts']
     );
 });
+
+test('split TV E2E targets require both packaged clients on a clean checkout', async () => {
+    const node = (name, targets) => ({
+        name,
+        type: 'app',
+        data: { root: `apps/${name}`, targets },
+    });
+    const build = {
+        executor: 'nx:run-commands',
+        options: { command: 'build' },
+    };
+    for (const includePhone of [false, true]) {
+        const graph = {
+            nodes: {
+                tv: node('tv', { build }),
+                'tv-setup': node('tv-setup', { build }),
+                'tv-e2e': node('tv-e2e', {
+                    'e2e-ci--src/phone-setup.e2e.ts': {
+                        executor: 'nx:run-commands',
+                        options: { command: 'playwright test' },
+                        metadata: playwright,
+                        dependsOn: [
+                            {
+                                projects: includePhone
+                                    ? ['tv', 'tv-setup']
+                                    : ['tv'],
+                                target: 'build',
+                            },
+                        ],
+                    },
+                }),
+            },
+            dependencies: { tv: [], 'tv-setup': [], 'tv-e2e': [] },
+        };
+        const failures = await findInvalidTaskGraphs(graph);
+        if (includePhone) assert.deepEqual(failures, []);
+        else {
+            assert.equal(failures.length, 1);
+            assert.match(failures[0].message, /tv-setup:build/);
+        }
+    }
+});

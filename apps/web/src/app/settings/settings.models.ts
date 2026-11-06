@@ -5,6 +5,7 @@ import {
     StartupBehavior,
     StartupWindowMode,
     Theme,
+    ThemePreset,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 
@@ -13,11 +14,13 @@ export interface SettingsSection {
     label: string;
     icon: string;
     visible: boolean;
+    /** Navigation group; absent for sections pinned to the nav footer. */
+    group?: string;
 }
 
 export interface ThemeOption {
     value: Theme;
-    icon: string;
+    presetId?: ThemePreset['id'];
     labelKey: string;
 }
 

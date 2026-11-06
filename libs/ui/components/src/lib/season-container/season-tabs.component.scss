@@ -1,3 +1,5 @@
+@use '../../../../styles/app-controls' as controls;
+
 :host {
     display: block;
     min-width: 0;
@@ -7,84 +9,40 @@
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 4px;
+
+    // Up to four seasons are tabs in the kit's segmented control: 26px
+    // segments in a 32px track. Past four the toolbar picker, a small
+    // secondary button with a chevron, opens the season menu instead. Both
+    // are as tall as the list/grid switch at the header's far edge.
+    &__track {
+        @include controls.segmented-track;
+    }
 
     &__pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 8px 16px;
-        border: none;
-        border-radius: 999px;
-        background: transparent;
-        color: var(--text-secondary, rgba(255, 255, 255, 0.7));
-        font-size: 13px;
-        font-family: inherit;
-        cursor: pointer;
         transition:
             background 150ms ease,
             color 150ms ease;
-
-        &:hover {
-            background: var(--tag-bg, rgba(255, 255, 255, 0.08));
-        }
+        @include controls.segment;
 
         &--active {
-            background: var(--tag-bg, rgba(255, 255, 255, 0.1));
-            color: var(--text-primary, #fff);
-            font-weight: 600;
-            outline: 1px solid var(--tag-border, rgba(255, 255, 255, 0.2));
+            @include controls.segment-selected;
         }
     }
 
     &__dropdown {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        padding: 8px 10px 8px 16px;
-        border: 1px solid var(--tag-border, rgba(255, 255, 255, 0.2));
-        border-radius: 999px;
-        background: transparent;
-        color: var(--text-primary, #fff);
-        font-size: 13px;
-        font-weight: 600;
-        font-family: inherit;
-        cursor: pointer;
-
-        // The trigger hugs its thumbnail: less inset on the picture side and
-        // vertically, so the pill grows only as much as the 42px poster needs.
-        &--with-thumb {
-            gap: 8px;
-            padding: 4px 10px 4px 4px;
-        }
+        @include controls.secondary-button(sm);
     }
 
-    // Season thumbnail in the dropdown (trigger + menu rows). Poster ratio at
-    // 28×42 — small enough to keep the 48px menu row height Material sets.
-    &__thumb {
-        flex: none;
-        width: 28px;
-        height: 42px;
-        object-fit: cover;
-        border-radius: 3px;
-        background: var(--tag-bg, rgba(255, 255, 255, 0.08));
-
-        &--menu {
-            margin-right: 12px;
-        }
-    }
-
-    &__menu-count {
-        margin-left: 12px;
-        color: var(--text-muted, rgba(255, 255, 255, 0.5));
-        font-size: 12px;
+    &__chevron {
+        @include controls.trigger-chevron;
     }
 
     &__done {
         font-size: 15px;
         width: 15px;
         height: 15px;
-        color: var(--accent-success, #4ade80);
+        color: var(--app-success-color, #4ade80);
     }
 
     &__back-to-playing {
@@ -112,8 +70,43 @@
             height: 16px;
         }
     }
+}
 
-    &__menu-item--selected {
-        font-weight: 700;
+// The season menu takes the global kit panel; its rows carry two columns,
+// the season name and its "N episodes · M watched" count. The chosen row is a
+// `menuitemradio` and gets the kit's selected tint.
+.season-tabs__menu-item {
+    // Material wraps the projected text in a span that must take the row.
+    ::ng-deep .mat-mdc-menu-item-text {
+        flex: 1 1 auto;
+        min-width: 0;
     }
+
+    &[aria-checked='true'] .season-tabs__menu-count {
+        color: inherit;
+    }
+}
+
+.season-tabs__menu-row {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    width: 100%;
+}
+
+.season-tabs__menu-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    color: inherit;
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.season-tabs__menu-count {
+    flex: none;
+    color: var(--app-muted-color);
+    font-size: 11.5px;
+    font-variant-numeric: tabular-nums;
 }

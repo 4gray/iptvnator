@@ -1,27 +1,19 @@
+@use '../../../../styles/app-controls' as controls;
+
 :host {
     display: block;
     width: 100%;
+    container: inline-player / inline-size;
 }
 
 .player-shell {
     display: grid;
-    gap: 14px;
-    padding: 18px;
+    gap: 16px;
+    padding: 16px;
     margin-top: 8px;
-    border-radius: 18px;
-    border: 1px solid rgba(20, 20, 20, 0.08);
-    background:
-        linear-gradient(
-            180deg,
-            rgba(255, 255, 255, 0.78),
-            rgba(255, 250, 245, 0.92)
-        ),
-        rgba(255, 250, 245, 0.9);
-    box-shadow:
-        0 20px 56px rgba(25, 20, 20, 0.12),
-        inset 0 1px 0 rgba(255, 255, 255, 0.8);
-    // No backdrop-filter here: blurring over a live video viewport forces an
-    // expensive re-blur every frame and makes the browse↔watch morph stutter.
+    border-radius: 16px;
+    border: 1px solid var(--app-widget-border);
+    background: var(--app-widget-bg);
 }
 
 .player-shell__header {
@@ -33,15 +25,15 @@
 }
 
 .player-shell__eyebrow {
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: rgba(26, 26, 26, 0.58);
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.4;
+    color: var(--app-muted-color);
 }
 
 .player-shell__title-row {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 12px;
     align-items: center;
     justify-content: space-between;
@@ -49,23 +41,24 @@
 }
 
 .player-shell__heading {
-    flex: 1;
+    display: grid;
+    gap: 4px;
     min-width: 0;
 }
 
 .player-shell__title {
     margin: 0;
-    font-size: clamp(1.05rem, 1vw + 0.9rem, 1.4rem);
-    font-weight: 700;
-    line-height: 1.2;
-    color: #161616;
+    font-size: clamp(1.05rem, 1vw + 0.9rem, 1.25rem);
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--app-heading-color);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .player-shell__episode-meta {
-    color: rgba(26, 26, 26, 0.64);
+    color: var(--app-muted-color);
     font-size: 0.95rem;
     font-weight: 600;
 }
@@ -73,32 +66,24 @@
 .player-shell__actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 8px;
     justify-content: flex-end;
     align-items: center;
+    min-width: 0;
 }
 
-// The sources chip sits between a plain text button (Copy Stream URL) and an
-// outlined one (Close player). It is a peer of the latter, so it borrows that
-// shape — outlined pill, transparent fill, Material's 40px button height —
-// rather than carrying the filled surface it wears in the detail hero.
-.player-shell__actions ::ng-deep app-vod-sources-chip .sources-chip {
-    min-height: 40px;
-    padding: 0 16px;
-    border: 1px solid var(--mat-sys-outline, rgb(255 255 255 / 24%));
-    border-radius: 20px;
-    background: transparent;
-    color: inherit;
-    font-size: 0.875rem;
-    font-weight: 500;
-    transition:
-        background-color 140ms ease,
-        border-color 140ms ease;
+.player-shell__actions > .mat-mdc-icon-button {
+    @include controls.ghost-icon-button(40px, 18px);
+    app-region: no-drag;
+}
 
-    &:hover {
-        background: rgb(255 255 255 / 8%);
-        border-color: rgb(255 255 255 / 38%);
-    }
+.player-shell__actions > .mat-mdc-unelevated-button {
+    @include controls.secondary-button;
+    app-region: no-drag;
+}
+
+.player-shell__actions > button {
+    flex-shrink: 0;
 }
 
 // The viewport is the "theater stage": it spans the full content width and,
@@ -174,37 +159,13 @@
     pointer-events: none;
 }
 
-:host-context(.dark-theme) .player-shell {
-    border-color: rgba(255, 255, 255, 0.12);
-    background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent),
-        rgba(12, 12, 12, 0.72);
-    box-shadow:
-        0 24px 80px rgba(0, 0, 0, 0.28),
-        inset 0 1px 0 rgba(255, 255, 255, 0.08);
-}
-
-:host-context(.dark-theme) .player-shell__eyebrow {
-    color: rgba(255, 255, 255, 0.6);
-}
-
-:host-context(.dark-theme) .player-shell__title {
-    color: #fff;
-}
-
-:host-context(.dark-theme) .player-shell__episode-meta {
-    color: rgba(255, 255, 255, 0.68);
-}
-
-@media (max-width: 900px) {
+@container inline-player (max-width: 600px) {
     .player-shell {
         padding: 14px;
     }
 
     .player-shell__title-row {
-        flex-direction: column;
-        // Centered, the nowrap heading took its full text width and spilled
-        // past both card edges; stretched, the title ellipsizes in the card.
+        grid-template-columns: minmax(0, 1fr);
         align-items: stretch;
     }
 

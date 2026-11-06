@@ -1,3 +1,5 @@
+@use '../../../../styles/focus-ring';
+
 :host {
     display: block;
     height: 100%;
@@ -341,8 +343,7 @@
 }
 
 .embedded-mpv-player__slider:focus-visible {
-    outline: 2px solid var(--embedded-mpv-accent);
-    outline-offset: 4px;
+    @include focus-ring.focus-ring-declarations($offset: 4px);
     border-radius: 4px;
 }
 
@@ -466,8 +467,7 @@
 }
 
 .embedded-mpv-player__controls button[mat-icon-button]:focus-visible {
-    outline: 2px solid var(--embedded-mpv-accent);
-    outline-offset: -2px;
+    @include focus-ring.focus-ring-declarations($offset: -2px);
 }
 
 // These surfaces cover video, so their foreground and scrim stay paired.

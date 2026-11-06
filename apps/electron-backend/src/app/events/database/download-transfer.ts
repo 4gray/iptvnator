@@ -29,6 +29,10 @@ import type {
     DownloadTask,
     TransferProgress,
 } from './download-task';
+import {
+    DOWNLOAD_IDLE_TIMEOUT_MS,
+    watchDownloadInactivity,
+} from './download-idle-timeout';
 
 import {
     classifyRangeNotSatisfiable,
@@ -125,6 +129,8 @@ export async function transferToPartialFile(
                 method: 'GET',
                 responseType: 'stream',
                 signal: abortController.signal,
+                timeout: DOWNLOAD_IDLE_TIMEOUT_MS,
+                transitional: { clarifyTimeoutError: true },
                 validateStatus: (status) => status >= 200 && status < 300,
             },
             { allowPrivateNetworks: true }
@@ -319,6 +325,10 @@ export async function transferToPartialFile(
         });
     });
 
+    const stopIdleTimeout = watchDownloadInactivity(
+        readable,
+        DOWNLOAD_IDLE_TIMEOUT_MS
+    );
     try {
         await (overlapVerifier
             ? pipeline(readable, overlapVerifier.stream, output)
@@ -412,6 +422,7 @@ export async function transferToPartialFile(
         }
         throw error;
     } finally {
+        stopIdleTimeout();
         abortController.signal.removeEventListener('abort', abortStream);
     }
 

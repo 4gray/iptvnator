@@ -65,8 +65,10 @@ test('@epg @xtream @electron draws the catch-up programme on the seek bar', asyn
         const bar = player.locator('.player-controls__timeline-bar');
         await bar.hover();
         await expect(
-            player.locator('[data-test-id="player-controls-timeline-label"]')
-        ).toContainText(`${PAST_PROGRAM} ·`);
+            player.locator(
+                '[data-test-id="player-controls-timeline-label-title"]'
+            )
+        ).toHaveText(PAST_PROGRAM);
 
         await row.click();
         await expect(titledSegments).toHaveCount(0, { timeout: 20000 });

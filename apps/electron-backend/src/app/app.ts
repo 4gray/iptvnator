@@ -1,6 +1,7 @@
 import { app, BrowserWindow, Menu, screen, session, shell } from 'electron';
 import {
     ElectronBridgeWindowState,
+    MACOS_TRAFFIC_LIGHTS_POSITION,
     WINDOW_STATE_CHANGED,
 } from '@iptvnator/shared/interfaces';
 import { join, resolve } from 'path';
@@ -15,6 +16,10 @@ import {
     trace,
     traceStartupPhase,
 } from './services/debug-trace';
+import {
+    MAIN_WINDOW_BACKGROUND_COLOR,
+    showMainWindowWhenLoaded,
+} from './services/main-window-first-show';
 import { attachMainWindowPerformanceCounters } from './services/performance-counters';
 import {
     STARTUP_WINDOW_MODE,
@@ -40,6 +45,7 @@ import {
     requestFullScreen,
     trackNativeFullScreen,
 } from './services/native-fullscreen-transitions';
+import { attachWindowBackGestures } from './services/window-back-gestures';
 
 const externalBrowserProtocols = new Set(['http:', 'https:']);
 const trustedDevRendererHosts = new Set([
@@ -397,7 +403,7 @@ export default class App {
             return {
                 titleBarStyle: 'hidden',
                 titleBarOverlay: true,
-                trafficLightPosition: { x: 16, y: 20 },
+                trafficLightPosition: { ...MACOS_TRAFFIC_LIGHTS_POSITION },
             };
         }
 
@@ -512,6 +518,9 @@ export default class App {
             width: width,
             height: height,
             show: false,
+            // The splash colour: the window can be shown before its first
+            // paint (main-window-first-show.ts).
+            backgroundColor: MAIN_WINDOW_BACKGROUND_COLOR,
             webPreferences: getMainWindowWebPreferences(),
             ...savedWindowBounds,
             // Fullscreen is a constructor option: the window is created
@@ -535,6 +544,9 @@ export default class App {
         );
         attachWindowTrace(App.mainWindow);
         App.attachWindowStateEvents(App.mainWindow);
+        // Mouse Back buttons and Browser Back (Windows/Linux) and the
+        // trackpad swipe (macOS) run the workspace header's Back.
+        attachWindowBackGestures(App.mainWindow);
         // Seeds the F11 tracker's fullscreen state now, while no transition
         // can be in flight; from here on it follows the window's events.
         trackNativeFullScreen(App.mainWindow);
@@ -543,15 +555,17 @@ export default class App {
             App.mainWindow.center();
         }
 
-        // if main window is ready to show, close the splash window and show the main window
-        App.mainWindow.once('ready-to-show', () => {
+        // Shown at ready-to-show or did-finish-load, whichever comes first
+        // (see main-window-first-show.ts).
+        const mainWindow = App.mainWindow;
+        showMainWindowWhenLoaded(mainWindow, () => {
             // maximize() on a hidden window shows it (Electron docs), so it
-            // has to wait for ready-to-show like show() does — any earlier
-            // and a blank window flashes before the renderer paints.
+            // waits for the document like show() does — any earlier and a
+            // blank window flashes before the splash is there.
             if (startupWindowMode === 'maximized') {
-                App.mainWindow.maximize();
+                mainWindow.maximize();
             }
-            App.mainWindow.show();
+            mainWindow.show();
             // macOS ignores the constructor's `fullscreen` while the window
             // is hidden — an NSWindow can only toggle fullscreen once it is
             // on screen — so the request is repeated after show() wherever
@@ -562,9 +576,9 @@ export default class App {
             // asking for it again.
             if (
                 startupWindowMode === 'fullscreen' &&
-                !App.mainWindow.isFullScreen()
+                !mainWindow.isFullScreen()
             ) {
-                requestFullScreen(App.mainWindow, true);
+                requestFullScreen(mainWindow, true);
             }
         });
 

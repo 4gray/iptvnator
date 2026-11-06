@@ -155,8 +155,9 @@ test('rejects incomplete and internally inconsistent terminal evidence', async (
 
 test('keeps a completed delete inside the identified refresh lifecycle until store terminal', async () => {
     const module = await modulePromise;
-    assert.ok(module?.assertXtreamBackgroundRefreshActive);
-    assert.ok(module.XTREAM_RENDERER_STATE_KEY);
+    const assertRefreshActive = module?.assertXtreamBackgroundRefreshActive;
+    assert.ok(assertRefreshActive);
+    assert.ok(module?.XTREAM_RENDERER_STATE_KEY);
     const stateKey = module.XTREAM_RENDERER_STATE_KEY;
     const target = globalThis as unknown as Record<string, unknown>;
     const identity = {
@@ -171,17 +172,13 @@ test('keeps a completed delete inside the identified refresh lifecycle until sto
     };
     target[stateKey] = backgroundRefreshState(identity);
     try {
-        await assert.doesNotReject(() =>
-            module.assertXtreamBackgroundRefreshActive?.(page, identity)
-        );
+        await assert.doesNotReject(() => assertRefreshActive(page, identity));
         target[stateKey] = {
             ...backgroundRefreshState(identity),
             storeTerminalEpochMs: 200,
         };
         await assert.rejects(
-            () =>
-                module.assertXtreamBackgroundRefreshActive?.(page, identity) ??
-                Promise.resolve(),
+            () => assertRefreshActive(page, identity),
             /xtream-background-refresh-not-active/
         );
         target[stateKey] = backgroundRefreshState({
@@ -189,9 +186,7 @@ test('keeps a completed delete inside the identified refresh lifecycle until sto
             operationId: 'different-operation',
         });
         await assert.rejects(
-            () =>
-                module.assertXtreamBackgroundRefreshActive?.(page, identity) ??
-                Promise.resolve(),
+            () => assertRefreshActive(page, identity),
             /xtream-background-refresh-not-active/
         );
     } finally {

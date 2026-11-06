@@ -1,6 +1,20 @@
+import { statSync } from 'node:fs';
 import { connect } from 'node:net';
+import { join } from 'node:path';
 import express from 'express';
-import { resetAll } from './data-store.js';
+import {
+    getPortalData,
+    getVodDetails,
+    getSeriesInfo,
+    resetAll,
+} from './data-store.js';
+import {
+    DROPPING_EPISODE_CUT_RATIO,
+    DROPPING_EPISODE_REFUSE_MS,
+    resetDroppingEpisodes,
+    streamDroppingEpisode,
+} from './dropping-episode.js';
+import { LONG_PROGRAMME_TITLE } from './scenarios.js';
 import {
     createXtreamMockApp,
     parseXtreamMockServerEnvironment,
@@ -45,10 +59,178 @@ jest.mock('@faker-js/faker', () => {
 
 jest.setTimeout(60_000);
 
+const DROPPING_EPISODE_URL = '/series/streamdrop/streamdrop/80000.mkv';
+const droppingFixtureSize = statSync(
+    join(process.cwd(), 'apps/xtream-mock-server/src/fixtures/episode.mkv')
+).size;
+const droppingCut = Math.floor(
+    droppingFixtureSize * DROPPING_EPISODE_CUT_RATIO
+);
+
+/** Bytes received before the body ended, and whether it ended cleanly. */
+async function readDroppingBody(
+    response: Response
+): Promise<{ bytes: number; complete: boolean }> {
+    const reader = response.body?.getReader();
+    let bytes = 0;
+    try {
+        for (;;) {
+            const chunk = await reader?.read();
+            if (!chunk || chunk.done) {
+                return { bytes, complete: true };
+            }
+            bytes += chunk.value.length;
+        }
+    } catch {
+        return { bytes, complete: false };
+    }
+}
+
 describe('Xtream mock server factory', () => {
     afterEach(() => {
         resetAll();
+        resetDroppingEpisodes();
         jest.restoreAllMocks();
+    });
+
+    it('scoped HTTP reset preserves another active account and every detail cache', async () => {
+        const running = await startLoopbackServer(
+            createXtreamMockApp({ host: '127.0.0.1', port: 0 })
+        );
+        const accounts = [
+            ['minimal', 'minimal'],
+            ['minimal', 'minimal:other'],
+        ];
+        const snapshots = accounts.map(([username, password]) => {
+            const portal = getPortalData(username, password);
+            const vodId = portal.vodStreams[0].stream_id;
+            const seriesId = portal.seriesItems[0].series_id;
+            return {
+                portal,
+                vodId,
+                seriesId,
+                vod: getVodDetails(username, password, vodId),
+                series: getSeriesInfo(username, password, seriesId),
+            };
+        });
+        try {
+            // Both accounts are already active. Reset A while B continues its journey.
+            const [reset, read] = await Promise.all([
+                fetch(
+                    `${running.origin}/reset?username=minimal&password=minimal`,
+                    { method: 'POST' }
+                ),
+                fetch(
+                    `${running.origin}/player_api.php?username=minimal&password=minimal%3Aother&action=get_vod_streams`
+                ),
+            ]);
+            expect(reset.status).toBe(200);
+            expect(read.status).toBe(200);
+            const [a, b] = snapshots;
+            expect(
+                getPortalData(...(accounts[1] as [string, string])) === b.portal
+            ).toBe(true);
+            expect(
+                getVodDetails(...(accounts[1] as [string, string]), b.vodId) ===
+                    b.vod
+            ).toBe(true);
+            expect(
+                getSeriesInfo(
+                    ...(accounts[1] as [string, string]),
+                    b.seriesId
+                ) === b.series
+            ).toBe(true);
+            expect(
+                getPortalData(...(accounts[0] as [string, string])) === a.portal
+            ).toBe(false);
+            expect(
+                getVodDetails(...(accounts[0] as [string, string]), a.vodId) ===
+                    a.vod
+            ).toBe(false);
+            expect(
+                getSeriesInfo(
+                    ...(accounts[0] as [string, string]),
+                    a.seriesId
+                ) === a.series
+            ).toBe(false);
+        } finally {
+            await running.close();
+        }
+    });
+
+    it('rejects incomplete, empty and repeated reset credentials without clearing state', async () => {
+        const running = await startLoopbackServer(
+            createXtreamMockApp({ host: '127.0.0.1', port: 0 })
+        );
+        const portal = getPortalData('minimal', 'minimal');
+        try {
+            for (const query of [
+                'username=minimal',
+                'password=minimal',
+                'username=&password=minimal',
+                'username=minimal&password=',
+                'username=minimal&username=other&password=minimal',
+            ]) {
+                expect(
+                    (
+                        await fetch(`${running.origin}/reset?${query}`, {
+                            method: 'POST',
+                        })
+                    ).status
+                ).toBe(400);
+                expect(getPortalData('minimal', 'minimal') === portal).toBe(
+                    true
+                );
+            }
+            expect(
+                (await fetch(`${running.origin}/reset`, { method: 'POST' }))
+                    .status
+            ).toBe(200);
+            expect(getPortalData('minimal', 'minimal') === portal).toBe(false);
+        } finally {
+            await running.close();
+        }
+    });
+
+    it('keeps delimiter-bearing credential tuples distinct', () => {
+        const a = getPortalData('synthetic:account', 'secret');
+        const b = getPortalData('synthetic', 'account:secret');
+        expect(a === b).toBe(false);
+        const id = a.vodStreams[0].stream_id;
+        expect(getVodDetails('synthetic:account', 'secret', id)).not.toBe(
+            getVodDetails('synthetic', 'account:secret', id)
+        );
+    });
+
+    it('scoped reset rearms only the owning account stream and preserves concurrent refusals', async () => {
+        const app = createXtreamMockApp({ host: '127.0.0.1', port: 0 });
+        // Exercise identical episode IDs for different credential tuples.
+        app.get('/probe/:username/:password/:streamId', streamDroppingEpisode);
+        const running = await startLoopbackServer(app);
+        const a = `${running.origin}/probe/synthetic/one/80000.mkv`;
+        const b = `${running.origin}/probe/synthetic/two/80000.mkv`;
+        jest.spyOn(Date, 'now').mockReturnValue(123_000);
+        try {
+            const cuts = await Promise.all(
+                [a, b].map(async (url) => readDroppingBody(await fetch(url)))
+            );
+            expect(cuts.map((cut) => cut.complete)).toEqual([false, false]);
+            const [reset, retry] = await Promise.all([
+                fetch(
+                    `${running.origin}/reset?username=synthetic&password=one`,
+                    { method: 'POST' }
+                ),
+                fetch(b, { headers: { range: `bytes=${droppingCut}-` } }),
+            ]);
+            expect(reset.status).toBe(200);
+            expect(retry.status).toBe(403);
+            expect((await fetch(b)).status).toBe(403);
+            expect((await readDroppingBody(await fetch(a))).complete).toBe(
+                false
+            );
+        } finally {
+            await running.close();
+        }
     });
 
     it('serves the synthetic manifest-success/segment-failure and TS alternatives locally', async () => {
@@ -71,6 +253,37 @@ describe('Xtream mock server factory', () => {
             expect(bytes.length).toBeGreaterThan(188);
             expect(bytes[0]).toBe(0x47);
             expect(bytes[188]).toBe(0x47);
+        } finally {
+            await running.close();
+        }
+    });
+
+    it('serves the long-title EPG scenario beside the unchanged epg one', async () => {
+        const running = await startLoopbackServer(
+            createXtreamMockApp({ host: '127.0.0.1', port: 0 })
+        );
+        const titles = async (user: string) => {
+            const response = await fetch(
+                `${running.origin}/player_api.php?username=${user}&password=${user}&action=get_simple_data_table&stream_id=10000`
+            );
+            const body = (await response.json()) as {
+                epg_listings: { title: string }[];
+            };
+            return body.epg_listings.map((listing) =>
+                Buffer.from(listing.title, 'base64').toString('utf8')
+            );
+        };
+        try {
+            expect(LONG_PROGRAMME_TITLE).toHaveLength(120);
+            expect(await titles('epglong')).toEqual([
+                LONG_PROGRAMME_TITLE,
+                'Global Headlines',
+                'Market Wrap',
+                'Overnight Update',
+                'Late Edition',
+                'After Midnight',
+            ]);
+            expect((await titles('epg'))[0]).toBe('Earlier Bulletin');
         } finally {
             await running.close();
         }
@@ -160,7 +373,9 @@ describe('Xtream mock server factory', () => {
             expect(xml).toContain('<tv ');
             expect(xml).toContain('<display-name>Aurora News</display-name>');
             expect(xml).toContain('channel="aurora-news.fictional"');
-            expect(xml).toContain(`${running.origin}/assets/marketing/logo/aurora-news.svg`);
+            expect(xml).toContain(
+                `${running.origin}/assets/marketing/logo/aurora-news.svg`
+            );
             expect(xml).not.toMatch(/https?:\/\/(?!127\.0\.0\.1|localhost)/);
         } finally {
             await running.close();
@@ -227,9 +442,9 @@ describe('Xtream mock server factory', () => {
             }
             // Movies must finish quickly while episodes stay slow enough to
             // keep a progress row in frame.
-            expect(
-                Number(movie.headers.get('content-length'))
-            ).toBeGreaterThan(Number(episode.headers.get('content-length')));
+            expect(Number(movie.headers.get('content-length'))).toBeGreaterThan(
+                Number(episode.headers.get('content-length'))
+            );
 
             expect(ordinaryMovie.status).toBe(302);
         } finally {
@@ -264,6 +479,71 @@ describe('Xtream mock server factory', () => {
             expect(ordinarySeries.headers.get('location')).toBe(
                 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8'
             );
+        } finally {
+            await running.close();
+        }
+    });
+
+    it('drops stream-drop episodes a third of the way in, refuses the retry, then serves ranges again', async () => {
+        const running = await startLoopbackServer(
+            createXtreamMockApp({ host: '127.0.0.1', port: 0 })
+        );
+        try {
+            const first = await fetch(
+                `${running.origin}${DROPPING_EPISODE_URL}`,
+                {
+                    headers: { range: 'bytes=0-' },
+                }
+            );
+            expect(first.status).toBe(206);
+            expect(Number(first.headers.get('content-length'))).toBe(
+                droppingFixtureSize
+            );
+            expect(await readDroppingBody(first)).toEqual({
+                bytes: droppingCut,
+                complete: false,
+            });
+
+            // ffmpeg's own reconnect right after the drop.
+            const retry = await fetch(
+                `${running.origin}${DROPPING_EPISODE_URL}`,
+                {
+                    headers: { range: `bytes=${droppingCut}-` },
+                }
+            );
+            expect(retry.status).toBe(403);
+            await retry.body?.cancel();
+
+            const later = Date.now() + DROPPING_EPISODE_REFUSE_MS + 1;
+            jest.spyOn(Date, 'now').mockReturnValue(later);
+            const resumed = await fetch(
+                `${running.origin}${DROPPING_EPISODE_URL}`,
+                {
+                    headers: { range: `bytes=${droppingCut}-` },
+                }
+            );
+            expect(resumed.status).toBe(206);
+            expect(resumed.headers.get('content-range')).toBe(
+                `bytes ${droppingCut}-${droppingFixtureSize - 1}/${droppingFixtureSize}`
+            );
+            expect(await readDroppingBody(resumed)).toEqual({
+                bytes: droppingFixtureSize - droppingCut,
+                complete: true,
+            });
+
+            // A reset arms the drop again for the next test.
+            expect(
+                (await fetch(`${running.origin}/reset`, { method: 'POST' }))
+                    .status
+            ).toBe(200);
+            const afterReset = await fetch(
+                `${running.origin}${DROPPING_EPISODE_URL}`
+            );
+            expect(afterReset.status).toBe(200);
+            expect(await readDroppingBody(afterReset)).toEqual({
+                bytes: droppingCut,
+                complete: false,
+            });
         } finally {
             await running.close();
         }

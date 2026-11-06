@@ -28,7 +28,7 @@
             class="rail__chev rail__chev--left"
             [class.rail__chev--visible]="canScrollLeft()"
             (click)="scrollBy(-1)"
-            aria-label="Scroll left"
+            [attr.aria-label]="'PORTALS.SCROLL_LEFT' | translate"
             tabindex="-1"
         >
             <mat-icon>chevron_left</mat-icon>
@@ -48,7 +48,7 @@
             class="rail__chev rail__chev--right"
             [class.rail__chev--visible]="canScrollRight()"
             (click)="scrollBy(1)"
-            aria-label="Scroll right"
+            [attr.aria-label]="'PORTALS.SCROLL_RIGHT' | translate"
             tabindex="-1"
         >
             <mat-icon>chevron_right</mat-icon>

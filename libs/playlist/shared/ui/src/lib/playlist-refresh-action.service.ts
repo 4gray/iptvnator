@@ -64,7 +64,13 @@ export class PlaylistRefreshActionService {
     readonly refreshPreparation = this.refreshPreparationState.asReadonly();
 
     canRefresh(playlist: PlaylistMeta | null): boolean {
-        if (!playlist || this.activity.isBusy(playlist._id)) {
+        // The same guards as refresh(): one refresh runs at a time, so an
+        // offer made meanwhile would be a silent no-op.
+        if (
+            !playlist ||
+            this.isRefreshing() ||
+            this.activity.isBusy(playlist._id)
+        ) {
             return false;
         }
 
@@ -94,14 +100,32 @@ export class PlaylistRefreshActionService {
         ) {
             void this.refreshM3u(playlist);
         } else if (playlist.url) {
-            this.dataService.sendIpcEvent(PLAYLIST_UPDATE, {
-                id: playlist._id,
-                title: playlist.title,
-                url: playlist.url,
-                ...(playlist.userAgent
-                    ? { userAgent: playlist.userAgent }
-                    : {}),
+            void this.refreshViaBackend(playlist, playlist.url);
+        }
+    }
+
+    /**
+     * The browser build refreshes through the backend, which reports its own
+     * success or failure; the source stays busy until it has answered.
+     */
+    private async refreshViaBackend(
+        item: PlaylistMeta,
+        url: string
+    ): Promise<void> {
+        this.m3uRefreshId.set(item._id);
+        this.isRefreshing.set(true);
+        const release = this.activity.begin([item._id]);
+        try {
+            await this.dataService.sendIpcEvent(PLAYLIST_UPDATE, {
+                id: item._id,
+                title: item.title,
+                url,
+                ...(item.userAgent ? { userAgent: item.userAgent } : {}),
             });
+        } finally {
+            this.m3uRefreshId.set(null);
+            this.isRefreshing.set(false);
+            release();
         }
     }
 
@@ -148,6 +172,8 @@ export class PlaylistRefreshActionService {
 
         this.m3uRefreshId.set(item._id);
         this.isRefreshing.set(true);
+        // Seen by the Sources page and the removal guard as well.
+        const release = this.activity.begin([item._id]);
         if (isActiveM3uRoute) {
             this.store.dispatch(
                 ChannelActions.setChannelsLoading({ loading: true })
@@ -214,6 +240,7 @@ export class PlaylistRefreshActionService {
             }
             this.m3uRefreshId.set(null);
             this.isRefreshing.set(false);
+            release();
         }
     }
 
@@ -244,14 +271,8 @@ export class PlaylistRefreshActionService {
         }
 
         const ref = this.snackBar.open(
-            this.translateWithFallback(
-                'HOME.URL_UPLOAD.ERROR_INVALID_TLS',
-                'Certificate for this playlist host is invalid.'
-            ),
-            this.translateWithFallback(
-                'HOME.URL_UPLOAD.TRUST_TLS_HOST',
-                'Trust host'
-            ),
+            this.translate.instant('HOME.URL_UPLOAD.ERROR_INVALID_TLS'),
+            this.translate.instant('HOME.URL_UPLOAD.TRUST_TLS_HOST'),
             { duration: 10000 }
         );
         ref.onAction().subscribe(() => {
@@ -266,9 +287,8 @@ export class PlaylistRefreshActionService {
     ): void {
         if (!host) {
             this.snackBar.open(
-                this.translateWithFallback(
-                    'HOME.URL_UPLOAD.ERROR_TLS_HOST_UNKNOWN',
-                    'Could not determine the playlist host. Please retry manually.'
+                this.translate.instant(
+                    'HOME.URL_UPLOAD.ERROR_TLS_HOST_UNKNOWN'
                 ),
                 this.translate.instant('CLOSE'),
                 { duration: 5000 }
@@ -277,17 +297,14 @@ export class PlaylistRefreshActionService {
         }
 
         this.dialogService.openConfirmDialog({
-            title: this.translateWithFallback(
-                'HOME.URL_UPLOAD.TRUST_TLS_HOST_TITLE',
-                'Trust invalid certificate?'
+            title: this.translate.instant(
+                'HOME.URL_UPLOAD.TRUST_TLS_HOST_TITLE'
             ),
-            message: this.translateWithFallback(
-                'HOME.URL_UPLOAD.TRUST_TLS_HOST_WARNING',
-                'Only continue if you trust this playlist host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.'
+            message: this.translate.instant(
+                'HOME.URL_UPLOAD.TRUST_TLS_HOST_WARNING'
             ),
-            confirmLabel: this.translateWithFallback(
-                'HOME.URL_UPLOAD.TRUST_TLS_HOST',
-                'Trust host'
+            confirmLabel: this.translate.instant(
+                'HOME.URL_UPLOAD.TRUST_TLS_HOST'
             ),
             width: '420px',
             onConfirm: () => {
@@ -308,11 +325,6 @@ export class PlaylistRefreshActionService {
         await this.settingsStore.updateSettings({
             trustedInsecureTlsHosts: Array.from(trustedHosts),
         });
-    }
-
-    private translateWithFallback(key: string, fallback: string): string {
-        const translated = this.translate.instant(key);
-        return translated === key ? fallback : translated;
     }
 
     private updateRefreshPreparationFromEvent(

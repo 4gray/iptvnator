@@ -41,6 +41,7 @@ import {
     installJourneyRendererProbe,
     JOURNEY_IDLE_WINDOW_MS,
     waitForJourneyRendererProbe,
+    type JourneyRendererProbePhaseOptions,
 } from '../performance/journey-renderer-probe';
 import {
     assertJourneyRendererGate,
@@ -64,7 +65,8 @@ export const JOURNEY_RENDERER_GATE_PATH = resolve(
     '../performance/journey-renderer-gate.cjs'
 );
 
-function launchOptions(
+/** The process options every journey launch and seed uses. */
+export function journeyLaunchOptions(
     env: Record<string, string> = {}
 ): LaunchElectronAppOptions {
     return {
@@ -106,7 +108,10 @@ export async function seedLaunchJourneyProfile(
         join(tmpdir(), 'iptvnator-journey-launch-seed-')
     );
     try {
-        const app = await launchElectronApp(templateDirectory, launchOptions());
+        const app = await launchElectronApp(
+            templateDirectory,
+            journeyLaunchOptions()
+        );
         try {
             await importM3uPlaylistFromUrl(
                 app.mainWindow,
@@ -136,10 +141,15 @@ export function removeLaunchJourneyProfile(directory: string): Promise<void> {
 /**
  * How a journey launch is instrumented: the process flags, plus J1's idle
  * window after the settle point (null skips it, so a journey that continues
- * from the launch does not wait 30 s before its own start).
+ * from the launch does not wait 30 s before its own start). `phases` stamps
+ * moments after the first card (`launch-large`), and `instrument` runs in
+ * the main process after the IPC capture is installed and before the gate
+ * is released, for a capture of the journey's own.
  */
 export interface LaunchJourneyOptions extends JourneyLaunchInstrumentation {
     readonly idleWindowMs: number | null;
+    readonly instrument?: (electronApp: ElectronApplication) => Promise<void>;
+    readonly phases?: readonly JourneyRendererProbePhaseOptions[];
 }
 
 /** The running app after J1 ended, for journeys that continue from there. */
@@ -190,7 +200,7 @@ export async function runLaunchJourney<T>(
         await cp(templateDirectory, dataDirectory, { recursive: true });
         const env = buildElectronLaunchEnvironment(
             dataDirectory,
-            launchOptions(journeyLaunchEnvironment(instrumentation))
+            journeyLaunchOptions(journeyLaunchEnvironment(instrumentation))
         );
         const args = buildElectronLaunchArgs([
             '-r',
@@ -201,7 +211,8 @@ export async function runLaunchJourney<T>(
         captureElectronProcess(electronApp);
         try {
             const probeOptions = createLaunchJourneyProbeOptions(
-                instrumentation.idleWindowMs
+                instrumentation.idleWindowMs,
+                instrumentation.phases
             );
             // The gate parks the window on about:blank, so this resolves
             // before the real document exists.
@@ -218,6 +229,7 @@ export async function runLaunchJourney<T>(
                 sentinelMethod: probeOptions.sentinelMethod,
                 stateKey: JOURNEY_MAIN_IPC_STATE_KEY,
             });
+            await instrumentation.instrument?.(electronApp);
             await readJourneyRendererGate(
                 electronApp,
                 JOURNEY_RENDERER_GATE_KEY,

@@ -12,8 +12,13 @@
  *   never silently disable the ratchet.
  * - A measurement below its baseline prints a "can tighten" hint. Baselines
  *   are lowered by hand, with the measured output as evidence, never raised.
+ *   An entry with `"autoTighten": false` gets no hint: its slack covers a band
+ *   of normal values, so one low run is no evidence for a lower `value`.
  * - Checking nothing is a failure: an empty baselines file, or `--only`
  *   naming an entry that does not exist, must not exit 0.
+ * - An optional `note` (a string) says why an entry is enforced, such as a
+ *   guard whose link to wall-clock is not validated (Principle 3). It is
+ *   printed with a failure, so the author sees what the counter stands for.
  *
  * `--only <journey>/<counter>` (repeatable) restricts the check to the named
  * baselines, so a script that measures one counter can check that counter
@@ -34,10 +39,11 @@ export const DEFAULT_BASELINES_PATH =
 /** The PR label that lets check-baseline-direction.mjs accept a weakening. */
 export const BASELINE_INCREASE_LABEL = 'perf-baseline-increase';
 
+// Three decimals: journey summaries round layout-shift scores to three.
 function formatNumber(value) {
     return Number.isInteger(value)
         ? value.toLocaleString('en-US')
-        : value.toLocaleString('en-US', { maximumFractionDigits: 2 });
+        : value.toLocaleString('en-US', { maximumFractionDigits: 3 });
 }
 
 function isPlainObject(value) {
@@ -80,6 +86,17 @@ export function validateBaselines(baselines) {
             ) {
                 throw new Error(
                     `Baseline ${label} has an invalid "slack" (must be an integer >= 0).`
+                );
+            }
+            if (entry.note !== undefined && typeof entry.note !== 'string') {
+                throw new Error(`Baseline ${label} has a non-string "note".`);
+            }
+            if (
+                entry.autoTighten !== undefined &&
+                typeof entry.autoTighten !== 'boolean'
+            ) {
+                throw new Error(
+                    `Baseline ${label} has a non-boolean "autoTighten".`
                 );
             }
             if (
@@ -185,12 +202,17 @@ export function compareToBaselines({ baselines, summary, only = [] }) {
             const limitText = describeLimit(entry, unit);
 
             if (measured > limit) {
+                const note = entry.note ? ` Note: ${entry.note}` : '';
                 result.failures.push(
-                    `${label}: ${formatNumber(measured)}${unit} exceeds ${limitText} by ${formatNumber(measured - limit)}${unit}. Bring the value back down; baselines only move down. If the growth is a deliberate trade-off, raise the baseline in ${DEFAULT_BASELINES_PATH}, make the case in the PR, and ask a maintainer to add the ${BASELINE_INCREASE_LABEL} label.`
+                    `${label}: ${formatNumber(measured)}${unit} exceeds ${limitText} by ${formatNumber(measured - limit)}${unit}. Bring the value back down; baselines only move down. If the growth is a deliberate trade-off, raise the baseline in ${DEFAULT_BASELINES_PATH}, make the case in the PR, and ask a maintainer to add the ${BASELINE_INCREASE_LABEL} label.${note}`
                 );
             } else if (entry.slack && measured > entry.value) {
                 result.passed.push(
                     `${label}: ${formatNumber(measured)}${unit} within ${limitText}; uses ${formatNumber(measured - entry.value)} of ${formatNumber(limit - entry.value)}${unit} slack.`
+                );
+            } else if (measured < entry.value && entry.autoTighten === false) {
+                result.passed.push(
+                    `${label}: ${formatNumber(measured)}${unit} within ${limitText}; below the baseline, but autoTighten is false: lower it by hand only when the top of its band fell too (docs/architecture/performance-journeys.md).`
                 );
             } else if (measured < entry.value) {
                 result.tightenable.push(

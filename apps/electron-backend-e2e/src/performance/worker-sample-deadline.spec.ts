@@ -84,7 +84,7 @@ async function restoreSerializableApi(): Promise<WorkerSampleDeadlineApi> {
     const module = await modulePromise;
     assert.ok(module, 'worker sample deadline module must exist');
     const factory = module.createWorkerSampleDeadlineApi;
-    assert.equal(typeof factory, 'function');
+    assert.ok(typeof factory === 'function');
 
     const source = factory.toString();
     assert.doesNotMatch(source, /__name/);
@@ -127,7 +127,7 @@ test('ignores an already queued deadline callback after successful completion', 
     const operation = deferred<number>();
     const sampleKey = {};
     const applied: number[] = [];
-    let queuedTimeout: (() => void) | null = null;
+    let queuedTimeout = null as (() => void) | null;
     let timeoutCount = 0;
     const timers: WorkerSampleDeadlineTimers = {
         clearTimeout(): void {

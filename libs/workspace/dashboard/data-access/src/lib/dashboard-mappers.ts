@@ -1,4 +1,8 @@
 import {
+    favoriteReferenceKey,
+    stalkerFavoriteReference,
+} from '@iptvnator/shared/interfaces/favorites-sync';
+import {
     GlobalFavoriteItem as DbGlobalFavoriteItem,
     GlobalRecentlyAddedItem as DbGlobalRecentlyAddedItem,
     GlobalRecentItem as DbGlobalRecentItem,
@@ -60,13 +64,15 @@ export function mapDbFavoriteToItem(
     item: DbGlobalFavoriteItem
 ): PortalFavoriteItem {
     return {
-        id: item.id,
+        id: item.id ?? `favorite:${item.favorite_id}`,
+        favorite_id: item.favorite_id,
+        catalogStatus: item.catalog_status,
         title: item.title,
         type: normalizeActivityType(item.type),
         playlist_id: item.playlist_id,
         playlist_name: item.playlist_name,
         added_at: normalizeStalkerDate(item.added_at),
-        category_id: item.category_id,
+        category_id: item.category_id ?? '',
         xtream_id: item.xtream_id,
         poster_url: item.poster_url,
         backdrop_url: item.backdrop_url ?? undefined,
@@ -124,7 +130,20 @@ export function buildStalkerFavoriteItems(
 
             const mapped = favorites.map((item, index) => {
                 const raw = (item ?? {}) as Record<string, unknown>;
-                const id = extractStalkerItemId(raw, playlist._id, index);
+                const providerId = extractStalkerItemId(
+                    raw,
+                    playlist._id,
+                    index
+                );
+                const reference =
+                    raw['favoriteContentType'] &&
+                    item &&
+                    typeof item === 'object'
+                        ? stalkerFavoriteReference(item)
+                        : null;
+                const id = reference
+                    ? favoriteReferenceKey(reference)
+                    : providerId;
 
                 return {
                     id,
@@ -134,7 +153,7 @@ export function buildStalkerFavoriteItems(
                     playlist_name: playlist.title || defaultPlaylistName,
                     added_at: normalizeStalkerDate(raw['added_at']),
                     category_id: String(raw['category_id'] ?? ''),
-                    xtream_id: id,
+                    xtream_id: providerId,
                     poster_url: extractStalkerItemPoster(raw),
                     // Same source as the recent-items mapper: Stalker keeps
                     // the enriched backdrop inside the stored entry.

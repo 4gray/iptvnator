@@ -1,3 +1,5 @@
+import { PLAYBACK_ACTIVITY_EVENTS } from '@iptvnator/services/activity-events';
+import { announceActivityChange } from '@iptvnator/services/activity-changes';
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -10,6 +12,7 @@ import {
 } from '@iptvnator/portal/shared/util';
 import {
     StalkerStore,
+    StalkerEpisodeResolver,
     type StalkerVodSource,
     type VodSeriesSeasonVm,
 } from '@iptvnator/portal/stalker/data-access';
@@ -76,10 +79,7 @@ function createSeason(
         isExpanded: false,
     };
 }
-function createProviderEpisode(
-    id = 'provider-episode-1',
-    episodeNumber = 1
-) {
+function createProviderEpisode(id = 'provider-episode-1', episodeNumber = 1) {
     return {
         id,
         series_number: episodeNumber,
@@ -106,8 +106,7 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
     let repositoryRows: PlaybackPositionData[];
     let repositoryOrder: string[];
     let runtimePositionListener:
-        | ((position: PlaybackPositionData) => void)
-        | undefined;
+        ((position: PlaybackPositionData) => void) | undefined;
     const selectedContentType = signal<'series' | 'vod'>('vod');
     const selectedItem = signal<StalkerVodSource | null>(
         createVodItem(SERIES_A_ID)
@@ -227,9 +226,7 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
             .mockImplementation(clearPlaybackPosition);
         onPlaybackPositionUpdate.mockReset();
         onPlaybackPositionUpdate.mockImplementation(
-            (
-                listener: (position: PlaybackPositionData) => void
-            ) => {
+            (listener: (position: PlaybackPositionData) => void) => {
                 runtimePositionListener = listener;
                 return jest.fn();
             }
@@ -239,13 +236,23 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
             imports: [StalkerSeriesViewComponent],
             providers: [
                 {
+                    provide: StalkerEpisodeResolver,
+                    useValue: {
+                        resolveCommand: async (
+                            _playlist: unknown,
+                            episode: { originalId?: string }
+                        ) => `/media/file_${episode.originalId}.mpg`,
+                        resolveDownload: async () =>
+                            'https://cdn.example.test/episode.mpg',
+                    },
+                },
+                {
                     provide: StalkerStore,
                     useValue: {
                         selectedItem,
                         selectedContentType,
                         currentPlaylist,
-                        getSerialSeasonsResource: () =>
-                            serialSeasonsResource(),
+                        getSerialSeasonsResource: () => serialSeasonsResource(),
                         getVodSeriesSeasonsResource: () =>
                             vodSeriesSeasonsResource(),
                         isVodSeriesSeasonsLoading: signal(false),
@@ -367,17 +374,15 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
 
         await settle();
 
-        expect(
-            fixture.componentInstance.episodePlaybackPositions().size
-        ).toBe(0);
+        expect(fixture.componentInstance.episodePlaybackPositions().size).toBe(
+            0
+        );
         const season = fixture.componentInstance.vodSeriesSeasons()[0];
         await fixture.componentInstance.loadEpisodesForSeason(season);
         await settle();
 
         expect(
-            Number(
-                fixture.componentInstance.mappedSeasons()['1'][0].id
-            )
+            Number(fixture.componentInstance.mappedSeasons()['1'][0].id)
         ).toBe(SCOPED_A_ID);
         expect(
             fixture.componentInstance
@@ -429,7 +434,7 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
             fixture.componentInstance
                 .episodePlaybackPositions()
                 .get(SCOPED_A_ID)
-        ).toBe(watchedPosition);
+        ).toEqual({ ...watchedPosition, updatedAt: expect.any(String) });
 
         const seasons = fixture.componentInstance.vodSeriesSeasons();
         fixture.componentInstance.vodSeriesSeasons.set(
@@ -444,9 +449,7 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
             nextPosition: createPosition({ positionSeconds: 99 }),
         });
         expect(
-            repositoryOrder.filter(
-                (entry) => entry === `clear:${LEGACY_ID}`
-            )
+            repositoryOrder.filter((entry) => entry === `clear:${LEGACY_ID}`)
         ).toHaveLength(1);
     });
 
@@ -477,7 +480,7 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
             fixture.componentInstance
                 .episodePlaybackPositions()
                 .get(SCOPED_A_ID)
-        ).toBe(newerPosition);
+        ).toEqual({ ...newerPosition, updatedAt: expect.any(String) });
 
         const latestPosition = createPosition({ positionSeconds: 80 });
         await fixture.componentInstance.handlePlaybackToggleRequested({
@@ -515,15 +518,14 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
         expect(errorLog).toHaveBeenCalled();
         expect(clearPlaybackPositionOrThrow).not.toHaveBeenCalled();
         expect(
-            fixture.componentInstance.episodePlaybackPositions()
+            fixture.componentInstance
+                .episodePlaybackPositions()
                 .get(SCOPED_A_ID)?.positionSeconds
         ).toBe(22);
     });
 
     it('ignores a deferred series-A response after selection changes to series B', async () => {
-        const seriesAResponse = createDeferred<
-            PlaybackPositionData[]
-        >();
+        const seriesAResponse = createDeferred<PlaybackPositionData[]>();
         const seriesBLegacy = createPosition({
             contentXtreamId: LEGACY_ID,
             seriesXtreamId: SERIES_B_ID,
@@ -569,9 +571,9 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
                 .episodePlaybackPositions()
                 .get(scopedSeriesBId)?.positionSeconds
         ).toBe(77);
-        expect(
-            fixture.componentInstance.episodePlaybackPositions().size
-        ).toBe(1);
+        expect(fixture.componentInstance.episodePlaybackPositions().size).toBe(
+            1
+        );
     });
 
     it('clears the previous playlist progress when the same series ID is selected', async () => {
@@ -589,8 +591,7 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
                 playlistId === PLAYLIST_ID
                     ? repositoryRows.filter(
                           (position) =>
-                              position.seriesXtreamId ===
-                              seriesXtreamId
+                              position.seriesXtreamId === seriesXtreamId
                       )
                     : []
         );
@@ -605,9 +606,9 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
         currentPlaylist.set({ _id: 'playlist-2' });
         await settle();
 
-        expect(
-            fixture.componentInstance.episodePlaybackPositions().size
-        ).toBe(0);
+        expect(fixture.componentInstance.episodePlaybackPositions().size).toBe(
+            0
+        );
         expect(getSeriesPlaybackPositions).toHaveBeenLastCalledWith(
             SECOND_PLAYLIST_ID,
             SERIES_A_ID
@@ -781,9 +782,7 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
                 repositoryOrder.push('save:start');
                 await saveCompletion.promise;
                 repositoryRows = repositoryRows.filter(
-                    (row) =>
-                        row.contentXtreamId !==
-                        position.contentXtreamId
+                    (row) => row.contentXtreamId !== position.contentXtreamId
                 );
                 repositoryRows.push(position);
                 repositoryOrder.push('save:end');
@@ -818,15 +817,11 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
         await Promise.all([pendingSave, pendingClear]);
         await settle();
 
-        expect(repositoryOrder).toEqual([
-            'save:start',
-            'save:end',
-            'clear',
-        ]);
+        expect(repositoryOrder).toEqual(['save:start', 'save:end', 'clear']);
         expect(repositoryRows).toEqual([]);
-        expect(
-            fixture.componentInstance.episodePlaybackPositions().size
-        ).toBe(0);
+        expect(fixture.componentInstance.episodePlaybackPositions().size).toBe(
+            0
+        );
     });
 
     it('serializes a slow clear before a later save so the save wins', async () => {
@@ -854,9 +849,7 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
             ): Promise<void> => {
                 repositoryOrder.push('save');
                 repositoryRows = repositoryRows.filter(
-                    (row) =>
-                        row.contentXtreamId !==
-                        position.contentXtreamId
+                    (row) => row.contentXtreamId !== position.contentXtreamId
                 );
                 repositoryRows.push(position);
             }
@@ -879,17 +872,13 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
         await Promise.all([pendingClear, pendingSave]);
         await settle();
 
-        expect(repositoryOrder).toEqual([
-            'clear:start',
-            'clear:end',
-            'save',
-        ]);
+        expect(repositoryOrder).toEqual(['clear:start', 'clear:end', 'save']);
         expect(repositoryRows).toEqual([savedPosition]);
         expect(
             fixture.componentInstance
                 .episodePlaybackPositions()
                 .get(SCOPED_A_ID)
-        ).toBe(savedPosition);
+        ).toEqual({ ...savedPosition, updatedAt: expect.any(String) });
     });
 
     it('does not let a load started before a save overwrite the saved position', async () => {
@@ -940,9 +929,9 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
         await settle();
 
         expect(repositoryRows).toEqual([]);
-        expect(
-            fixture.componentInstance.episodePlaybackPositions().size
-        ).toBe(0);
+        expect(fixture.componentInstance.episodePlaybackPositions().size).toBe(
+            0
+        );
     });
 
     it('reloads unrelated episode rows after a save invalidates a pending load', async () => {
@@ -962,9 +951,7 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
         await settle();
 
         expect(getSeriesPlaybackPositions).toHaveBeenCalledTimes(3);
-        expect(
-            fixture.componentInstance.episodePlaybackPositions()
-        ).toEqual(
+        expect(fixture.componentInstance.episodePlaybackPositions()).toEqual(
             new Map([
                 [savedPosition.contentXtreamId, savedPosition],
                 [secondPosition.contentXtreamId, secondPosition],
@@ -992,9 +979,7 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
         await settle();
 
         expect(getSeriesPlaybackPositions).toHaveBeenCalledTimes(3);
-        expect(
-            fixture.componentInstance.episodePlaybackPositions()
-        ).toEqual(
+        expect(fixture.componentInstance.episodePlaybackPositions()).toEqual(
             new Map([
                 [firstPosition.contentXtreamId, firstPosition],
                 [secondPosition.contentXtreamId, secondPosition],
@@ -1051,9 +1036,7 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
         });
 
         expect(
-            repositoryOrder.filter(
-                (entry) => entry === `clear:${LEGACY_ID}`
-            )
+            repositoryOrder.filter((entry) => entry === `clear:${LEGACY_ID}`)
         ).toHaveLength(1);
         expect(
             fixture.componentInstance
@@ -1085,7 +1068,7 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
             fixture.componentInstance
                 .episodePlaybackPositions()
                 .get(SCOPED_A_ID)
-        ).toBe(runtimePosition);
+        ).toEqual({ ...runtimePosition, updatedAt: expect.any(String) });
     });
 
     it('clears confirmed legacy before scoped watched state without resurrection after refetch', async () => {
@@ -1113,18 +1096,18 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
             `clear:${SCOPED_A_ID}`,
         ]);
         expect(repositoryRows).toEqual([]);
-        expect(
-            fixture.componentInstance.episodePlaybackPositions().size
-        ).toBe(0);
+        expect(fixture.componentInstance.episodePlaybackPositions().size).toBe(
+            0
+        );
 
         currentPlaylist.set(null);
         await settle();
         currentPlaylist.set({ _id: PLAYLIST_ID });
         await settle();
 
-        expect(
-            fixture.componentInstance.episodePlaybackPositions().size
-        ).toBe(0);
+        expect(fixture.componentInstance.episodePlaybackPositions().size).toBe(
+            0
+        );
         expect(getSeriesPlaybackPositions).toHaveBeenCalledTimes(2);
     });
 
@@ -1203,4 +1186,28 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
 
     // Season-level bulk toggle coverage lives in
     // stalker-series-view.season-watch.spec.ts.
+    it('clears the open series after an authoritative empty activity refresh', async () => {
+        repositoryRows = [
+            createPosition({
+                positionSeconds: 0,
+                durationSeconds: undefined,
+                watched: true,
+            }),
+        ];
+        await startWithLoadedEpisode();
+        expect(
+            fixture.componentInstance
+                .episodePlaybackPositions()
+                .get(SCOPED_A_ID)?.watched
+        ).toBe(true);
+        const activity = TestBed.inject(PLAYBACK_ACTIVITY_EVENTS);
+        const active = jest.spyOn(activity, 'active').mockReturnValue(true);
+        repositoryRows = [];
+        announceActivityChange();
+        await settle();
+        expect(fixture.componentInstance.episodePlaybackPositions().size).toBe(
+            0
+        );
+        active.mockRestore();
+    });
 });

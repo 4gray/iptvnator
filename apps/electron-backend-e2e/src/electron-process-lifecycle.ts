@@ -1,10 +1,15 @@
 import type { ChildProcess } from 'node:child_process';
 import { terminateElectronProcess } from './electron-process-termination';
 
-type ElectronChildProcess = Pick<
+// Only the exit subscription is used; picking ChildProcess's own once and
+// removeListener would demand that every listener host returns a ChildProcess.
+interface ElectronChildProcess extends Pick<
     ChildProcess,
-    'exitCode' | 'kill' | 'once' | 'pid' | 'removeListener' | 'signalCode'
->;
+    'exitCode' | 'kill' | 'pid' | 'signalCode'
+> {
+    once(event: 'exit', listener: () => void): unknown;
+    removeListener(event: 'exit', listener: () => void): unknown;
+}
 
 export interface ClosableElectronApplication {
     close(): Promise<void>;

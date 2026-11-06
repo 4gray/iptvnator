@@ -1,12 +1,9 @@
 import {
     Component,
     computed,
-    effect,
     inject,
     input,
     output,
-    signal,
-    untracked,
     ChangeDetectionStrategy,
 } from '@angular/core';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -16,6 +13,7 @@ import {
     createExternalPlaybackButtonState,
 } from '@iptvnator/portal/shared/util';
 import {
+    AgeRatingChipComponent,
     CastCrewRowComponent,
     DetailActionButtonComponent,
     DetailActionsTemplateDirective,
@@ -27,7 +25,6 @@ import {
     PortalDetailShellComponent,
     SimilarRailComponent,
     TrailerDialogService,
-    ViewInPortalActionComponent,
     VodMoreMenuComponent,
     scrollToCastCrewRow,
     type SimilarRailItem,
@@ -39,7 +36,10 @@ import {
     ResolvedPortalPlayback,
     TmdbEnrichedCastMember,
     VodDetailsItem,
+    getVodId,
     getVodNumericId,
+    getXtreamVodInfo,
+    isStalkerSeriesItem,
     normalizeVodDetails,
     youtubeEmbedUrl,
 } from '@iptvnator/shared/interfaces';
@@ -50,12 +50,19 @@ import {
     RuntimeCapabilitiesService,
     SettingsStore,
     TmdbEnrichmentService,
+    injectTranslationTick,
+    type TmdbMatchContext,
 } from '@iptvnator/services';
 import { VOD_DETAILS_MENU_ACTION } from './vod-details-presentation';
 import { createVodDetailsHeroState } from './vod-details-hero.state';
+import {
+    buildVodActorRoute,
+    findSimilarByRailKey,
+} from './vod-details-navigation.util';
 import type { PlaybackFallbackRequest } from '@iptvnator/playback/util';
 import { PortalInlinePlayerComponent } from '../portal-inline-player/portal-inline-player.component';
-import { createVodDownloadState } from './vod-download-state.util';
+import { createVodLocalDownloadState } from './vod-download-state.util';
+import { createVodSimilarInPortals } from './vod-similar-in-portals.state';
 
 /**
  * Unified VOD details component for both Xtream and Stalker portals.
@@ -80,8 +87,9 @@ import { createVodDownloadState } from './vod-download-state.util';
     selector: 'app-vod-details',
     templateUrl: './vod-details.component.html',
     styleUrls: ['../styles/detail-view.scss'],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        AgeRatingChipComponent,
         CastCrewRowComponent,
         DetailActionButtonComponent,
         DetailActionsTemplateDirective,
@@ -92,7 +100,6 @@ import { createVodDownloadState } from './vod-download-state.util';
         MetaChipComponent,
         PortalDetailShellComponent,
         SimilarRailComponent,
-        ViewInPortalActionComponent,
         VodMoreMenuComponent,
         PortalInlinePlayerComponent,
         TranslatePipe,
@@ -202,6 +209,7 @@ export class VodDetailsComponent {
     private readonly router = inject(Router);
     private readonly settingsStore = inject(SettingsStore);
     private readonly translate = inject(TranslateService);
+    private readonly languageTick = injectTranslationTick();
     private readonly trailerDialog = inject(TrailerDialogService);
 
     // ============ Computed State ============
@@ -211,6 +219,42 @@ export class VodDetailsComponent {
 
     /** Normalized metadata for display */
     readonly normalizedMeta = computed(() => normalizeVodDetails(this.item()));
+    readonly tmdbMatch = computed<TmdbMatchContext | null>(() => {
+        const item = this.item();
+        const itemId = String(getVodId(item) ?? '').trim();
+        if (
+            !item.playlistId ||
+            !itemId ||
+            (item.type !== 'stalker' && item.type !== 'xtream')
+        )
+            return null;
+        return {
+            identity: {
+                provider: item.type,
+                ...(item.type === 'stalker' ? { catalog: 'vod' as const } : {}),
+                playlistId: item.playlistId,
+                mediaType:
+                    item.type === 'stalker' &&
+                    (item.data.info.tmdb_media_type === 'tv' ||
+                        isStalkerSeriesItem(
+                            item.data as typeof item.data & {
+                                is_series?: unknown;
+                                series?: unknown;
+                            }
+                        ))
+                        ? 'tv'
+                        : 'movie',
+                itemId: String(itemId),
+            },
+            title: this.normalizedMeta().title,
+            tmdbId:
+                Number(
+                    item.type === 'stalker'
+                        ? item.data.info.tmdb_id
+                        : getXtreamVodInfo(item.data)?.tmdb_id
+                ) || null,
+        };
+    });
 
     readonly trailerEmbedUrl = computed(() =>
         youtubeEmbedUrl(this.normalizedMeta().youtubeTrailer)
@@ -231,38 +275,12 @@ export class VodDetailsComponent {
      * TMDB recommendations found in the user's OTHER portals (batched DB
      * match, Electron only). Loaded async — the section appears when
      * resolved; staleness-guarded against item changes in flight.
+     * Filtered on read: a relock hides matches cached while unlocked.
      */
-    private readonly similarInPortalsMatched = signal<CrossPortalSimilarItem[]>(
-        []
+    readonly similarInPortals = createVodSimilarInPortals(
+        this.normalizedMeta,
+        this.crossPortalSimilar
     );
-    /** Filtered on read: a relock hides matches cached while unlocked. */
-    readonly similarInPortals = computed(() =>
-        this.crossPortalSimilar.visible(this.similarInPortalsMatched())
-    );
-
-    private readonly loadSimilarInPortals = effect(() => {
-        const meta = this.normalizedMeta();
-        const recommendations = meta.tmdbRecommendations;
-        untracked(() => {
-            this.similarInPortalsMatched.set([]);
-            if (
-                !recommendations?.length ||
-                !this.crossPortalSimilar.isAvailable
-            ) {
-                return;
-            }
-            void this.crossPortalSimilar
-                .matchRecommendations(recommendations, 'movie')
-                .then((items) => {
-                    if (
-                        this.normalizedMeta().tmdbRecommendations ===
-                        recommendations
-                    ) {
-                        this.similarInPortalsMatched.set(items);
-                    }
-                });
-        });
-    });
 
     openSimilarInPortals(item: CrossPortalSimilarItem): void {
         void this.router.navigate(this.crossPortalSimilar.buildLink(item));
@@ -276,19 +294,14 @@ export class VodDetailsComponent {
         () => (this.playbackPosition() ?? 0) > 0 && !this.isWatched()
     );
 
-    private readonly downloadState = createVodDownloadState(
-        this.downloadsService,
-        this.item
-    );
-    readonly isDownloaded = computed(
-        () => !this.providerOnly() && this.downloadState.isDownloaded()
-    );
-    readonly isDownloading = computed(
-        () => !this.providerOnly() && this.downloadState.isDownloading()
-    );
-    readonly isPausedDownload = computed(
-        () => !this.providerOnly() && this.downloadState.isPausedDownload()
-    );
+    private readonly localDownload = createVodLocalDownloadState({
+        downloadsService: this.downloadsService,
+        item: this.item,
+        providerOnly: this.providerOnly,
+    });
+    readonly isDownloaded = this.localDownload.isDownloaded;
+    readonly isDownloading = this.localDownload.isDownloading;
+    readonly isPausedDownload = this.localDownload.isPausedDownload;
 
     private readonly externalButton = createExternalPlaybackButtonState({
         session: this.externalPlayback,
@@ -325,6 +338,7 @@ export class VodDetailsComponent {
         similarInPortals: this.similarInPortals,
         configuredPlayer: this.settingsStore.player,
         translate: this.translate,
+        language: this.languageTick,
     });
 
     runMenuAction(actionId: string): void {
@@ -360,11 +374,7 @@ export class VodDetailsComponent {
     readonly scrollToCast = scrollToCastCrewRow;
 
     openSimilarRailItem(item: SimilarRailItem): void {
-        const match = this.similarInPortals().find(
-            (candidate) =>
-                `x${candidate.match.playlistId}-${candidate.match.xtreamId}` ===
-                item.key
-        );
+        const match = findSimilarByRailKey(this.similarInPortals(), item.key);
         if (match) {
             this.openSimilarInPortals(match);
         }
@@ -450,20 +460,10 @@ export class VodDetailsComponent {
 
     /** Handle back navigation - emit event for parent to handle */
     openActor(member: TmdbEnrichedCastMember): void {
-        if (!member.tmdbPersonId) {
-            return;
+        const commands = buildVodActorRoute(this.item(), member);
+        if (commands) {
+            void this.router.navigate(commands);
         }
-        const item = this.item();
-        const basePath =
-            item.type === 'stalker'
-                ? '/workspace/stalker'
-                : '/workspace/xtreams';
-        void this.router.navigate([
-            basePath,
-            item.playlistId,
-            'actor',
-            member.tmdbPersonId,
-        ]);
     }
 
     goBack(): void {
@@ -494,13 +494,8 @@ export class VodDetailsComponent {
     }
 
     /** Resume the paused download of this VOD */
-    async resumePausedDownload(): Promise<void> {
-        const item = this.item();
-        await this.downloadsService.resumeDownloadByContent(
-            getVodNumericId(item),
-            item.playlistId,
-            'vod'
-        );
+    resumePausedDownload(): Promise<void> {
+        return this.localDownload.resumePausedDownload();
     }
 
     onInlineTimeUpdate(event: { currentTime: number; duration: number }): void {
@@ -526,18 +521,7 @@ export class VodDetailsComponent {
     }
 
     /** Play from local downloaded file */
-    async playFromLocal(): Promise<void> {
-        const item = this.item();
-        const vodId = getVodNumericId(item);
-
-        const filePath = this.downloadsService.getDownloadedFilePath(
-            vodId,
-            item.playlistId,
-            'vod'
-        );
-
-        if (filePath) {
-            await this.downloadsService.playDownload(filePath);
-        }
+    playFromLocal(): Promise<void> {
+        return this.localDownload.playFromLocal();
     }
 }

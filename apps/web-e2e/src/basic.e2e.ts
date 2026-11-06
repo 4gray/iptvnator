@@ -65,7 +65,9 @@ test('@web @auto-detect pasted provider message prefills the Xtream form', async
                 '├◉𝙿𝙰𝚂𝚂➤ e2epass'
         );
 
-    const candidate = dialog.locator('[data-test-id="auto-detect-candidate"]').first();
+    const candidate = dialog
+        .locator('[data-test-id="auto-detect-candidate"]')
+        .first();
     await expect(candidate).toBeVisible();
     await expect(candidate.getByText('e2euser')).toBeVisible();
     // The card must never print the password in clear.
@@ -108,7 +110,9 @@ test('@web @auto-detect keeps the pasted message when switching methods', async 
     const message = 'Portal: http://stb.example.com/c/\nMAC: 00:1A:79:12:34:56';
     await dialog.locator('[data-test-id="auto-detect-textarea"]').fill(message);
 
-    const candidate = dialog.locator('[data-test-id="auto-detect-candidate"]').first();
+    const candidate = dialog
+        .locator('[data-test-id="auto-detect-candidate"]')
+        .first();
     await expect(candidate.getByText('00:1A:79:12:34:56')).toBeVisible();
     await candidate.locator('[data-test-id="auto-detect-use"]').click();
 
@@ -123,9 +127,9 @@ test('@web @auto-detect keeps the pasted message when switching methods', async 
 
     // Returning to auto-detect must not cost the user their paste.
     await dialog.getByRole('radio', { name: /Auto-detect/i }).click();
-    await expect(dialog.locator('[data-test-id="auto-detect-textarea"]')).toHaveValue(
-        message
-    );
+    await expect(
+        dialog.locator('[data-test-id="auto-detect-textarea"]')
+    ).toHaveValue(message);
 });
 
 test('@web @m3u reads an existing v1 IndexedDB playlist after application upgrade', async ({
@@ -295,6 +299,63 @@ test('@web keyboard shortcuts help opens from question mark', async ({
     await expect(dialog.getByText('Open command palette')).toBeVisible();
     await expect(dialog.getByText('Toggle sidebar')).toBeVisible();
     await expect(dialog.getByText('Mute audio')).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+});
+
+test('@web keyboard shortcuts header fits a phone width', async ({ page }) => {
+    // The shell's header-end slot (the platform chip) wraps under the
+    // heading on narrow windows; neither may run into the close button or
+    // past the panel.
+    // The phone layout folds the header's shortcuts button away, so the
+    // dialog opens at desktop width and the window shrinks around it.
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Open keyboard shortcuts' }).click();
+    const dialog = page.getByRole('dialog');
+    const heading = dialog.getByRole('heading', { name: 'Keyboard shortcuts' });
+    await expect(heading).toBeVisible();
+    await page.setViewportSize({ width: 360, height: 740 });
+    await expect
+        .poll(() => dialog.evaluate((el) => el.getBoundingClientRect().width))
+        .toBeLessThanOrEqual(328);
+    const chip = dialog.locator('.app-dialog__header-end');
+    const close = dialog.getByRole('button', {
+        name: 'Close dialog',
+        exact: true,
+    });
+    await expect(close).toBeVisible();
+
+    const bounds = await dialog.evaluate((el) => {
+        const rect = el.getBoundingClientRect();
+        return {
+            left: rect.left,
+            right: rect.right,
+            overflow: el.scrollWidth - el.clientWidth,
+        };
+    });
+    expect(bounds.overflow).toBeLessThanOrEqual(0);
+    for (const part of [heading, chip, close]) {
+        const rect = await part.evaluate((el) => {
+            const r = el.getBoundingClientRect();
+            return { left: r.left, right: r.right, top: r.top };
+        });
+        expect(rect.left).toBeGreaterThanOrEqual(bounds.left);
+        expect(rect.right).toBeLessThanOrEqual(bounds.right);
+    }
+    const box = (part: typeof heading) =>
+        part.evaluate((el) => {
+            const r = el.getBoundingClientRect();
+            return { x: r.x, y: r.y, width: r.width, height: r.height };
+        });
+    const headingBox = await box(heading);
+    const chipBox = await box(chip);
+    const closeBox = await box(close);
+    // The chip sits below the heading; the close button stays beside it.
+    expect(chipBox.y).toBeGreaterThanOrEqual(
+        headingBox.y + headingBox.height - 1
+    );
+    expect(closeBox.x).toBeGreaterThan(headingBox.x + headingBox.width - 1);
 
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();

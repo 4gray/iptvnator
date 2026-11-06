@@ -1,6 +1,11 @@
 import {
+    afterRenderEffect,
+    afterNextRender,
+    Injector,
     Component,
     computed,
+    DestroyRef,
+    ElementRef,
     effect,
     inject,
     signal,
@@ -8,6 +13,9 @@ import {
     viewChild,
     ChangeDetectionStrategy,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { NavigationStart, Router } from '@angular/router';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatButtonModule } from '@angular/material/button';
 import {
     MAT_DIALOG_DATA,
@@ -18,11 +26,19 @@ import { MatIcon } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import {
+    DialogFooterDirective,
+    DialogFooterStartDirective,
+    DialogShellComponent,
+} from '@iptvnator/ui/components';
+import {
+    RadioGroupDirective,
+    RadioOptionDirective,
+} from '@iptvnator/ui/components/radio-group';
 import { PlaylistType } from '@iptvnator/playlist/shared/ui';
 import { PlaylistActions } from '@iptvnator/m3u-state';
-import { DataService } from '@iptvnator/services';
+import { EpgPreferencesService } from '@iptvnator/services';
 import {
-    PLAYLIST_PARSE_BY_URL,
     ProviderImportCandidate,
     SOURCE_TYPE_ICONS,
 } from '@iptvnator/shared/interfaces';
@@ -31,12 +47,13 @@ import { FileUploadComponent } from '../file-upload/file-upload.component';
 import { StalkerPortalImportComponent } from '../stalker-portal-import/stalker-portal-import.component';
 import { TextImportComponent } from '../text-import/text-import.component';
 import { UrlUploadComponent } from '../url-upload/url-upload.component';
+import { UrlXtreamSuggestion } from '../url-upload/url-xtream-suggestion';
 import { XtreamCodeImportComponent } from '../xtream-code-import/xtream-code-import.component';
+import { createUrlPlaylistImport } from './url-playlist-import';
+import { createImportDrafts } from './import-drafts';
 
 /**
- * Flat 5-method option model — replaces the prior category × subtype matrix
- * (M3U/Xtream/Stalker × URL/File/Text) which created 9 combinations of which
- * only 5 were real. Now each entry IS a method, no nesting.
+ * Flat connection-method model: each entry selects one form without nesting.
  */
 export interface PlaylistMethodOption {
     value: PlaylistType;
@@ -58,9 +75,15 @@ const METHOD_BY_CANDIDATE_KIND: Record<
 
 @Component({
     imports: [
+        RadioGroupDirective,
+        RadioOptionDirective,
         AutoImportComponent,
+        DialogFooterDirective,
+        DialogFooterStartDirective,
+        DialogShellComponent,
         FileUploadComponent,
         MatButtonModule,
+        MatCheckboxModule,
         MatDialogModule,
         MatIcon,
         StalkerPortalImportComponent,
@@ -72,11 +95,11 @@ const METHOD_BY_CANDIDATE_KIND: Record<
     selector: 'app-add-playlist',
     templateUrl: './add-playlist-dialog.component.html',
     styleUrl: './add-playlist-dialog.component.scss',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     encapsulation: ViewEncapsulation.None,
 })
 export class AddPlaylistDialogComponent {
-    private dataService = inject(DataService);
+    private readonly injector = inject(Injector);
     private dialogRef = inject(MatDialogRef<AddPlaylistDialogComponent>);
     private store = inject(Store);
     private snackBar = inject(MatSnackBar);
@@ -91,8 +114,24 @@ export class AddPlaylistDialogComponent {
     readonly xtreamImport = viewChild(XtreamCodeImportComponent);
     readonly stalkerImport = viewChild(StalkerPortalImportComponent);
     readonly autoImport = viewChild(AutoImportComponent);
+    private readonly drafts = createImportDrafts({
+        url: this.urlUpload,
+        xtream: this.xtreamImport,
+        stalker: this.stalkerImport,
+        text: this.textImport,
+        file: this.fileUpload,
+    });
 
     readonly method = signal<PlaylistType>('url');
+    readonly autoImportEpg = signal(true);
+    readonly epgEnabled = inject(EpgPreferencesService).enabled;
+    readonly isM3uImport = computed(() =>
+        ['url', 'file', 'text'].includes(this.method())
+    );
+    readonly canReturnToM3u = signal(false);
+    readonly urlImport = createUrlPlaylistImport();
+    private readonly urlFeedback =
+        viewChild<ElementRef<HTMLElement>>('urlFeedback');
 
     /**
      * Candidate picked in the auto-detect surface, waiting for its target
@@ -101,9 +140,7 @@ export class AddPlaylistDialogComponent {
      * the prefill is applied by an effect that re-runs once the child's
      * viewChild signal resolves, then clears this.
      */
-    private readonly pendingPrefill = signal<ProviderImportCandidate | null>(
-        null
-    );
+    private readonly pendingPrefill = signal<UrlXtreamSuggestion | null>(null);
 
     /**
      * Survives the auto-detect surface being destroyed by a method switch, so
@@ -161,12 +198,45 @@ export class AddPlaylistDialogComponent {
      * buttons key off this; keeping the name avoids churn in 5 case branches.
      */
     readonly playlistType = computed<PlaylistType>(() => this.method());
+    readonly selectedMethod = computed(() =>
+        this.methodOptions.find((option) => option.value === this.method())!
+    );
 
     constructor() {
         if (this.data?.type) {
             this.method.set(this.data.type);
         }
-        effect(() => this.applyPendingPrefill());
+        effect(() => {
+            this.drafts.restore();
+            this.applyPendingPrefill();
+        });
+        afterRenderEffect(() => {
+            if (this.urlImport.errorKey())
+                this.urlFeedback()?.nativeElement.scrollIntoView?.({
+                    block: 'nearest',
+                });
+        });
+        const cancel = () => {
+            this.urlImport.cancel();
+            this.stalkerImport()?.cancelPendingImport?.();
+            this.drafts.clearAll();
+        };
+        inject(DestroyRef).onDestroy(cancel);
+        this.dialogRef
+            .beforeClosed()
+            .pipe(takeUntilDestroyed())
+            .subscribe(cancel);
+        inject(Router, { optional: true })
+            ?.events.pipe(takeUntilDestroyed())
+            .subscribe((event) => {
+                if (
+                    event instanceof NavigationStart &&
+                    (this.urlImport.pending() ||
+                        this.stalkerImport()?.isLoading())
+                ) {
+                    this.closeDialog();
+                }
+            });
     }
 
     /**
@@ -175,9 +245,33 @@ export class AddPlaylistDialogComponent {
      * and the behavioral probes (portal discovery, connection test) stay in
      * charge of what actually gets persisted.
      */
-    onCandidateSelected(candidate: ProviderImportCandidate): void {
+    onCandidateSelected(candidate: UrlXtreamSuggestion, fromM3u = false): void {
         this.pendingPrefill.set(candidate);
-        this.method.set(METHOD_BY_CANDIDATE_KIND[candidate.kind]);
+        this.selectMethod(METHOD_BY_CANDIDATE_KIND[candidate.kind]);
+        this.drafts.discard(METHOD_BY_CANDIDATE_KIND[candidate.kind]);
+        this.canReturnToM3u.set(fromM3u);
+        if (candidate.kind === 'xtream') {
+            afterNextRender(() => this.xtreamImport()?.focusTitle(), {
+                injector: this.injector,
+            });
+        }
+    }
+
+    backToM3u(): void {
+        this.selectMethod('url');
+        afterNextRender(() => this.urlUpload()?.focusUrl(), {
+            injector: this.injector,
+        });
+    }
+
+    selectMethod(method: PlaylistType): void {
+        if (method === this.method()) return;
+        this.drafts.capture(this.method());
+        this.urlImport.cancel();
+        this.urlImport.clearError();
+        this.stalkerImport()?.cancelPendingImport?.();
+        this.method.set(method);
+        this.drafts.request(method);
     }
 
     private applyPendingPrefill(): void {
@@ -223,6 +317,9 @@ export class AddPlaylistDialogComponent {
                     serverUrl: candidate.serverUrl ?? '',
                     username: candidate.username ?? '',
                     password: candidate.password ?? '',
+                    ...(candidate.userAgent
+                        ? { userAgent: candidate.userAgent }
+                        : {}),
                 });
                 break;
             }
@@ -260,36 +357,33 @@ export class AddPlaylistDialogComponent {
 
     rejectFile(filename: string): void {
         this.snackBar.open(
-            this.translateService.instant('HOME.FILE_UPLOAD.REJECTED', {
-                filename,
-            })
+            filename
+                ? this.translateService.instant('HOME.FILE_UPLOAD.REJECTED', {
+                      filename,
+                  })
+                : this.translateService.instant(
+                      'HOME.FILE_UPLOAD.REJECTED_UNNAMED'
+                  )
         );
     }
 
     /**
-     * Sends url of the playlist to the renderer process and preserves the
-     * existing fallback title behavior when the optional name is blank.
+     * Acquires a definition without import side effects. Only this dialog's
+     * current operation may dispatch it; a failed acquisition keeps the draft.
      */
-    submitUrlPlaylist(): void {
-        const formValue = this.urlUpload()?.form?.getRawValue();
-        const playlistUrl = formValue?.playlistUrl?.trim();
-
-        if (!playlistUrl) {
-            return;
-        }
-
-        const playlistName = this.normalizeOptionalValue(
-            formValue?.playlistName
+    async submitUrlPlaylist(): Promise<void> {
+        const form = this.urlUpload()?.form;
+        if (!form?.valid || this.urlImport.pending()) return;
+        const draft = form.getRawValue();
+        form.disable();
+        await this.urlImport.submit(
+            { ...draft, autoImportEpg: this.autoImportEpg() },
+            () => this.closeDialog(),
+            () => {
+                void this.submitUrlPlaylist();
+            }
         );
-
-        const userAgent = this.normalizeOptionalValue(formValue?.userAgent);
-
-        this.dataService.sendIpcEvent(PLAYLIST_PARSE_BY_URL, {
-            url: playlistUrl,
-            ...(playlistName ? { title: playlistName } : {}),
-            ...(userAgent ? { userAgent } : {}),
-        });
-        this.closeDialog();
+        form.enable();
     }
 
     /**
@@ -300,6 +394,7 @@ export class AddPlaylistDialogComponent {
         this.store.dispatch(
             PlaylistActions.parsePlaylist({
                 uploadType: 'TEXT',
+                ...(this.autoImportEpg() ? {} : { autoImportEpg: false }),
                 playlist,
                 title: this.translateService.instant('HOME.IMPORTED_AS_TEXT'),
             })
@@ -308,6 +403,8 @@ export class AddPlaylistDialogComponent {
     }
 
     clearCurrentForm(): void {
+        this.urlImport.clearError();
+        if (this.isM3uImport()) this.autoImportEpg.set(true);
         switch (this.playlistType()) {
             case 'url':
                 this.urlUpload()?.clearForm();
@@ -331,6 +428,7 @@ export class AddPlaylistDialogComponent {
     }
 
     isClearDisabled(): boolean {
+        if (this.urlImport.pending()) return true;
         switch (this.playlistType()) {
             case 'file':
                 return (
@@ -347,11 +445,9 @@ export class AddPlaylistDialogComponent {
     }
 
     closeDialog(): void {
+        this.drafts.clearAll();
+        this.urlImport.cancel();
+        this.stalkerImport()?.cancelPendingImport?.();
         this.dialogRef.close();
-    }
-
-    private normalizeOptionalValue(value?: string | null): string | undefined {
-        const normalizedValue = value?.trim();
-        return normalizedValue ? normalizedValue : undefined;
     }
 }

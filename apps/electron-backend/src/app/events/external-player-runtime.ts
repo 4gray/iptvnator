@@ -1,7 +1,10 @@
 import {
+    ElectronBridgePlayerError,
     EXTERNAL_PLAYER_SESSION_UPDATE,
+    ExternalPlayerErrorCode,
     ExternalPlayerSession,
     PlayerContentInfo,
+    tagExternalPlayerError,
 } from '@iptvnator/shared/interfaces';
 import App from '../app';
 import { isExternalPlayerTraceEnabled, trace } from '../services/debug-trace';
@@ -45,49 +48,58 @@ export function buildPlayerStartError(
             : `Make sure ${player} is installed and the path '${launchContext.playerPath}' is correct.`;
 
     return new Error(
-        `Failed to start ${player} player: ${error.message}. ${guidance}`
+        tagExternalPlayerError(
+            'start-failed',
+            `Failed to start ${player} player: ${error.message}. ${guidance}`
+        )
     );
+}
+
+/**
+ * Maps player output to a code the renderer translates. Returns null for
+ * output no code describes; the renderer then shows the raw output.
+ */
+export function classifyPlayerError(
+    error: string
+): ExternalPlayerErrorCode | null {
+    if (error.includes('Failed to open')) {
+        return 'stream-open-failed';
+    }
+    if (
+        error.includes('Protocol not found') ||
+        error.includes('Unsupported protocol')
+    ) {
+        return 'unsupported-protocol';
+    }
+    if (
+        error.includes('Connection refused') ||
+        error.includes('Could not connect')
+    ) {
+        return 'connection-failed';
+    }
+    if (error.includes('403') || error.includes('Forbidden')) {
+        return 'access-denied';
+    }
+    if (error.includes('404') || error.includes('Not Found')) {
+        return 'stream-not-found';
+    }
+    if (error.includes('Timed out') || error.includes('timeout')) {
+        return 'timed-out';
+    }
+    return null;
 }
 
 export function sendPlayerErrorNotification(
     player: 'MPV' | 'VLC',
-    error: string
+    error: string,
+    code: ExternalPlayerErrorCode | null = classifyPlayerError(error)
 ): void {
     if (!App.mainWindow || App.mainWindow.isDestroyed()) {
         return;
     }
 
-    let userMessage = error;
-
-    if (error.includes('Failed to open')) {
-        userMessage =
-            'Failed to open stream. The URL may be invalid or the server is not responding.';
-    } else if (
-        error.includes('Protocol not found') ||
-        error.includes('Unsupported protocol')
-    ) {
-        userMessage =
-            'Unsupported stream protocol. Please check the stream URL.';
-    } else if (
-        error.includes('Connection refused') ||
-        error.includes('Could not connect')
-    ) {
-        userMessage =
-            'Cannot connect to the stream server. Please check your internet connection.';
-    } else if (error.includes('403') || error.includes('Forbidden')) {
-        userMessage =
-            'Access denied. The stream may require valid credentials or headers.';
-    } else if (error.includes('404') || error.includes('Not Found')) {
-        userMessage = 'Stream not found. The URL may be incorrect or expired.';
-    } else if (error.includes('Timed out') || error.includes('timeout')) {
-        userMessage = 'Connection timed out. The server is not responding.';
-    }
-
-    App.mainWindow.webContents.send('player-error', {
-        player,
-        error: userMessage,
-        originalError: error,
-    });
+    const payload: ElectronBridgePlayerError = { player, code, error };
+    App.mainWindow.webContents.send('player-error', payload);
 }
 
 export function sendPlaybackPositionUpdate(

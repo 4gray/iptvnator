@@ -1,3 +1,4 @@
+import { EpgPreferencesService } from './epg-preferences.service';
 import { Injector } from '@angular/core';
 import { firstValueFrom, of, Subject, throwError } from 'rxjs';
 import { EpgSourceSettingsService } from './epg-source-settings.service';
@@ -19,6 +20,7 @@ describe('EPG source settings synchronization', () => {
         } as unknown as typeof window.electron;
         const injector = Injector.create({
             providers: [
+                EpgPreferencesService,
                 EpgSourceSettingsService,
                 {
                     provide: PlaylistsService,
@@ -49,12 +51,88 @@ describe('EPG source settings synchronization', () => {
         );
     });
 
+    it('resumes only fetch-eligible sources without discarding ownership of historical local paths', async () => {
+        const declaredLocal = '/tmp/playlist-declared-guide.xml';
+        const manualLocal = '/tmp/user-selected-guide.xml';
+        const globalLocal = '/tmp/settings-guide.xml';
+        const remote = 'https://example.com/guide.xml';
+        window.electron = {
+            reconcileEpgSources: jest.fn().mockResolvedValue({ success: true }),
+        } as unknown as typeof window.electron;
+        const injector = Injector.create({
+            providers: [
+                EpgPreferencesService,
+                EpgSourceSettingsService,
+                {
+                    provide: PlaylistsService,
+                    useValue: {
+                        getAllPlaylists: () =>
+                            of([
+                                {
+                                    epgUrls: [
+                                        declaredLocal,
+                                        manualLocal,
+                                        remote,
+                                    ],
+                                    manualEpgUrls: [manualLocal],
+                                },
+                            ]),
+                    },
+                },
+            ],
+        });
+        const service = injector.get(EpgSourceSettingsService);
+        await service.synchronize([globalLocal]);
+
+        expect(service.getFetchableSourceUrls()).toEqual([
+            globalLocal,
+            manualLocal,
+            remote,
+        ]);
+        expect(service.retainCurrentSources([declaredLocal], 0)).toEqual([
+            declaredLocal,
+        ]);
+    });
+
+    it('restores a reused native worker during bootstrap without a separate enable command', async () => {
+        let nativeEnabled = false;
+        const setEpgEnabled = jest.fn().mockResolvedValue(undefined);
+        const reconcileEpgSources = jest.fn(
+            async (_urls: string[], enabled?: boolean) => {
+                if (enabled !== undefined) nativeEnabled = enabled;
+                return { success: true };
+            }
+        );
+        window.electron = {
+            reconcileEpgSources,
+            setEpgEnabled,
+        } as unknown as typeof window.electron;
+        const injector = Injector.create({
+            providers: [
+                EpgPreferencesService,
+                EpgSourceSettingsService,
+                {
+                    provide: PlaylistsService,
+                    useValue: { getAllPlaylists: () => of([]) },
+                },
+            ],
+        });
+        const preferences = injector.get(EpgPreferencesService);
+        preferences.beginLoad();
+        await injector.get(EpgSourceSettingsService).synchronize([], true);
+        await preferences.apply(true);
+        expect(nativeEnabled).toBe(true);
+        expect(reconcileEpgSources).toHaveBeenCalledWith([], true);
+        expect(setEpgEnabled).not.toHaveBeenCalled();
+    });
+
     it('invalidates possibly partially deleted data and reports reconciliation failure', async () => {
         window.electron = {
             reconcileEpgSources: jest.fn().mockRejectedValue(new Error('disk')),
         } as unknown as typeof window.electron;
         const injector = Injector.create({
             providers: [
+                EpgPreferencesService,
                 EpgSourceSettingsService,
                 {
                     provide: PlaylistsService,
@@ -88,6 +166,7 @@ describe('EPG source settings synchronization', () => {
         } as unknown as typeof window.electron;
         const injector = Injector.create({
             providers: [
+                EpgPreferencesService,
                 EpgSourceSettingsService,
                 {
                     provide: PlaylistsService,
@@ -121,6 +200,7 @@ describe('EPG source settings synchronization', () => {
         } as unknown as typeof window.electron;
         const injector = Injector.create({
             providers: [
+                EpgPreferencesService,
                 EpgSourceSettingsService,
                 { provide: PlaylistsService, useValue: { getAllPlaylists } },
             ],
@@ -156,6 +236,7 @@ describe('EPG source settings synchronization', () => {
         } as unknown as typeof window.electron;
         const injector = Injector.create({
             providers: [
+                EpgPreferencesService,
                 EpgSourceSettingsService,
                 {
                     provide: PlaylistsService,

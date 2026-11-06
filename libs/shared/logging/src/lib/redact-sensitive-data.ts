@@ -1,3 +1,5 @@
+import { decodeFully, findXtreamAccount } from './url-credential-parts';
+
 export const REDACTED_VALUE = '[Redacted]';
 
 const CIRCULAR_VALUE = '[Circular]';
@@ -54,13 +56,6 @@ const SENSITIVE_KEY_SUFFIXES = [
     'username',
 ];
 
-const XTREAM_CREDENTIAL_PATH_SEGMENTS = new Set([
-    'live',
-    'movie',
-    'series',
-    'timeshift',
-]);
-
 export interface RedactionOptions {
     maxDepth?: number;
     maxArrayItems?: number;
@@ -76,10 +71,12 @@ interface ResolvedRedactionOptions {
 }
 
 function normalizeKey(key: string): string {
-    return key.toLowerCase().replace(/[^a-z0-9]/g, '');
+    return decodeFully(key)
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
 }
 
-function isSensitiveKey(key: string): boolean {
+export function isSensitiveKey(key: string): boolean {
     const normalized = normalizeKey(key);
     return (
         SENSITIVE_KEY_NAMES.has(normalized) ||
@@ -144,11 +141,8 @@ function redactUrl(
     }
 
     const pathSegments = redacted.pathname.split('/');
-    for (let index = 0; index < pathSegments.length - 2; index += 1) {
-        if (XTREAM_CREDENTIAL_PATH_SEGMENTS.has(pathSegments[index])) {
-            pathSegments[index + 1] = REDACTED_VALUE;
-            pathSegments[index + 2] = REDACTED_VALUE;
-        }
+    for (const index of findXtreamAccount(pathSegments).segments) {
+        pathSegments[index] = REDACTED_VALUE;
     }
     redacted.pathname = pathSegments.join('/');
 
@@ -196,7 +190,7 @@ function redactEmbeddedSensitivePairs(value: string): string {
     );
 }
 
-function looksLikeSearchParams(value: string): boolean {
+export function looksLikeSearchParams(value: string): boolean {
     return /^[^=&\s]+=[^&]*(?:&[^=&\s]+=[^&]*)*$/u.test(value);
 }
 

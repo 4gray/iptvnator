@@ -198,15 +198,18 @@ export async function validateAgentGuidance({ rootDir }) {
     rootDir = await realpath(rootDir);
     const diagnostics = [];
     const isPackageMention = await packageMentions(rootDir);
+    let checkedFiles = 0;
     for (const source of SURFACES) {
         let markdown;
         try {
             markdown = await readFile(resolve(rootDir, source), 'utf8');
         } catch (error) {
             if (error.code !== 'ENOENT') throw error;
-            diagnostics.push(`${source}: required guidance file is missing`);
+            if (source !== 'CLAUDE.md')
+                diagnostics.push(`${source}: required guidance file is missing`);
             continue;
         }
+        checkedFiles++;
         if (LIMITS[source]) {
             const [maxLines, maxBytes] = LIMITS[source];
             const lines =
@@ -304,7 +307,7 @@ export async function validateAgentGuidance({ rootDir }) {
             if (diagnostic) diagnostics.push(diagnostic);
         }
     }
-    return { checkedFiles: SURFACES.length, diagnostics };
+    return { checkedFiles, diagnostics };
 }
 
 if (

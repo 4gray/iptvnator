@@ -7,6 +7,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
+import { ServerStorageStatusService } from '@iptvnator/services';
 import { WorkspaceShellRailComponent } from './workspace-shell-rail.component';
 
 @Component({
@@ -84,48 +85,6 @@ describe('WorkspaceShellRailComponent', () => {
         ).not.toBeNull();
     });
 
-    describe('macOS zoom inset', () => {
-        const setWindowWidths = (outer: number, inner: number) => {
-            Object.defineProperty(window, 'outerWidth', {
-                configurable: true,
-                value: outer,
-            });
-            Object.defineProperty(window, 'innerWidth', {
-                configurable: true,
-                value: inner,
-            });
-        };
-        const zoomVar = () =>
-            (
-                fixture.nativeElement.querySelector('.app-rail') as HTMLElement
-            ).style.getPropertyValue('--rail-zoom-factor');
-
-        afterEach(() => setWindowWidths(1024, 1024));
-
-        it('publishes the page zoom factor on macOS and follows resize', () => {
-            setWindowWidths(1200, 1200);
-            fixture.componentRef.setInput('isMacOS', true);
-            fixture.detectChanges();
-            TestBed.tick();
-            fixture.detectChanges();
-            expect(zoomVar()).toBe('1');
-
-            // Zoomed out to 50%: the viewport holds twice the CSS pixels.
-            setWindowWidths(1200, 2400);
-            window.dispatchEvent(new Event('resize'));
-            fixture.detectChanges();
-            expect(zoomVar()).toBe('0.5');
-        });
-
-        it('leaves the inset alone off macOS', () => {
-            setWindowWidths(1200, 2400);
-            fixture.detectChanges();
-            TestBed.tick();
-            fixture.detectChanges();
-            expect(zoomVar()).toBe('');
-        });
-    });
-
     it('has no brand mark duplicating the first workspace link', () => {
         fixture.detectChanges();
 
@@ -134,5 +93,45 @@ describe('WorkspaceShellRailComponent', () => {
             fixture.nativeElement.querySelector('.app-rail')?.firstElementChild
                 ?.tagName
         ).toBe('APP-WORKSPACE-SHELL-RAIL-LINKS');
+    });
+
+    describe('server status', () => {
+        const instance = {
+            service: 'iptvnator',
+            apiVersion: 1,
+            instanceId: 'i',
+            storage: 'server',
+            auth: 'none',
+        } as const;
+        const indicator = (): HTMLElement | null =>
+            fixture.nativeElement.querySelector(
+                '[data-test-id="rail-server-status"]'
+            );
+
+        it('hides the indicator without server storage', () => {
+            fixture.detectChanges();
+
+            expect(indicator()).toBeNull();
+        });
+
+        it('shows the connection state and links to Settings → Server', () => {
+            const status = TestBed.inject(ServerStorageStatusService);
+            status.activate(instance, () => undefined);
+            fixture.detectChanges();
+
+            expect(indicator()?.dataset['state']).toBe('online');
+            expect(indicator()?.getAttribute('href')).toBe(
+                '/workspace/settings/server'
+            );
+
+            status.reportOffline();
+            fixture.detectChanges();
+
+            expect(indicator()?.dataset['state']).toBe('offline');
+            expect(indicator()?.textContent).toContain('cloud_off');
+            expect(indicator()?.getAttribute('aria-label')).toBe(
+                'SERVER_STORAGE.STATUS_OFFLINE'
+            );
+        });
     });
 });

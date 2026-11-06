@@ -207,6 +207,22 @@ describe('selectDashboardHeroLiveCandidates', () => {
         ).toEqual(['favorite:1', 'favorite:2', 'favorite:3', 'recent:5']);
     });
 
+    it('excludes unavailable rows before candidate limits and deduplication', () => {
+        const unavailable = [1, 2, 3].map((id) => ({
+            ...favorite(id, 'live'),
+            catalogStatus: 'missing' as const,
+        }));
+        expect(
+            selectDashboardHeroLiveCandidates(
+                [...unavailable, favorite(4, 'live')],
+                [
+                    { ...recent(5, 'live'), catalogStatus: 'unknown' },
+                    recent(6, 'live'),
+                ]
+            ).map(({ item }) => item.id)
+        ).toEqual([4, 6]);
+    });
+
     it('ignores non-live rows', () => {
         expect(
             selectDashboardHeroLiveCandidates([favorite(1, 'movie')], [])

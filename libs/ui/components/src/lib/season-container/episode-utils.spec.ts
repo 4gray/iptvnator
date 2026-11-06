@@ -1,8 +1,4 @@
-import {
-    episodeRuntimeSeconds,
-    formatEpisodePositionText,
-    parseDuration,
-} from './episode-progress.util';
+import { episodeRuntimeSeconds, parseDuration } from './episode-progress.util';
 
 describe('episodeRuntimeSeconds', () => {
     it('prefers the provider seconds over the formatted string', () => {
@@ -29,28 +25,5 @@ describe('episode-progress.util', () => {
         expect(parseDuration('2h 05min')).toBe(7500);
         expect(parseDuration(120)).toBe(120);
         expect(parseDuration(undefined)).toBe(0);
-    });
-
-    it('formats remaining time when duration is known', () => {
-        expect(
-            formatEpisodePositionText({
-                contentXtreamId: 1,
-                contentType: 'episode',
-                positionSeconds: 60,
-                durationSeconds: 360,
-            })
-        ).toBe('05:00 left');
-    });
-
-    it('returns null for watched or missing positions', () => {
-        expect(formatEpisodePositionText(undefined)).toBeNull();
-        expect(
-            formatEpisodePositionText({
-                contentXtreamId: 1,
-                contentType: 'episode',
-                positionSeconds: 350,
-                durationSeconds: 360,
-            })
-        ).toBeNull();
     });
 });

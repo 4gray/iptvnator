@@ -7,6 +7,7 @@ import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
 import { Observable, of } from 'rxjs';
 import { PlaylistActions } from '@iptvnator/m3u-state';
+import { PlaylistInfoComponent } from '@iptvnator/playlist/shared/ui';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     DatabaseService,
@@ -88,6 +89,19 @@ describe('PlaylistErrorViewComponent removal', () => {
         data.onConfirm();
         return data;
     }
+
+    it('opens the editor with a viewport height cap from the error view', () => {
+        const component = setup();
+        component.openPlaylistDetails();
+
+        expect(TestBed.inject(MatDialog).open).toHaveBeenCalledWith(
+            PlaylistInfoComponent,
+            expect.objectContaining({
+                data: XTREAM_PLAYLIST,
+                maxHeight: 'calc(100vh - 32px)',
+            })
+        );
+    });
 
     it('asks with a named destructive action', () => {
         const component = setup();

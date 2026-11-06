@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslateModule, TranslatePipe } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
 import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
 import { SearchLayoutComponent } from './search-layout.component';
@@ -10,7 +10,8 @@ describe('SearchLayoutComponent', () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            imports: [SearchLayoutComponent],
+            // The search form inside renders the real pipe.
+            imports: [SearchLayoutComponent, TranslateModule.forRoot()],
         })
             .overrideComponent(SearchLayoutComponent, {
                 remove: { imports: [TranslatePipe] },
@@ -36,6 +37,36 @@ describe('SearchLayoutComponent', () => {
         return fixture.debugElement.query(By.css('.results-container'))
             .nativeElement as HTMLElement;
     }
+
+    it('distinguishes a failed search from no matches and offers retry', () => {
+        fixture.componentRef.setInput('searchTerm', 'matrix');
+        fixture.componentRef.setInput('hasError', true);
+        const retry = jest.fn();
+        // Subscribe after rendering so a missing retry control also fails.
+        fixture.detectChanges();
+
+        const alert = fixture.nativeElement.querySelector('[role="alert"]');
+        expect(alert?.textContent).toContain('PORTALS.SEARCH_VIEW.ERROR_TITLE');
+        expect(fixture.nativeElement.textContent).not.toContain(
+            'PORTALS.EMPTY_LIST_VIEW.NO_SEARCH_RESULTS'
+        );
+        fixture.componentInstance.retryClick.subscribe(retry);
+        alert.querySelector('button').click();
+        expect(retry).toHaveBeenCalledTimes(1);
+
+        fixture.componentRef.setInput('isLoading', true);
+        fixture.detectChanges();
+        expect(
+            fixture.nativeElement.querySelector('[role="alert"]')
+        ).toBeNull();
+
+        fixture.componentRef.setInput('isLoading', false);
+        fixture.componentRef.setInput('hasError', false);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.textContent).toContain(
+            'PORTALS.EMPTY_LIST_VIEW.NO_SEARCH_RESULTS'
+        );
+    });
 
     function setScrollMetrics(
         element: HTMLElement,
@@ -154,8 +185,9 @@ describe('SearchLayoutComponent', () => {
         });
         const scrollTo = jest.fn(
             (options: { top: number }) =>
-                ((resultsContainer as unknown as { scrollTop: number }).scrollTop =
-                    options.top)
+                ((
+                    resultsContainer as unknown as { scrollTop: number }
+                ).scrollTop = options.top)
         );
         Object.defineProperty(resultsContainer, 'scrollTo', {
             configurable: true,

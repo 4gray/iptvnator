@@ -2,7 +2,10 @@ import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { VodSourceDiscoveryService } from '@iptvnator/portal/shared/data-access';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    RuntimeCapabilitiesService,
+    ServerStorageStatusService,
+} from '@iptvnator/services';
 import { EMBEDDED_MPV_SUPPORT_RECHECK_MS } from '@iptvnator/shared/interfaces';
 import { SETTINGS_SEARCH_ENTRIES } from './settings-search-entries';
 import { SETTINGS_SECTION_DEFINITIONS } from './settings-search-sections';
@@ -23,6 +26,8 @@ interface RuntimeStub {
     isElectron: boolean;
     supportsEpgImport: boolean;
     supportsEpgDataManagement: boolean;
+    supportsEpg: boolean;
+    supportsProviderEpg: boolean;
     supportsRemoteControl: boolean;
     supportsStartupWindowMode: boolean;
     supportsPortalConnectivityGuard: boolean;
@@ -31,16 +36,22 @@ interface RuntimeStub {
     supportsEmbeddedMpv: boolean;
 }
 
-function setup(runtime: Partial<RuntimeStub> = {}) {
+function setup(runtime: Partial<RuntimeStub> = {}, serverStorage = false) {
     const router = { navigate: jest.fn().mockResolvedValue(true) };
     TestBed.configureTestingModule({
         providers: [
+            {
+                provide: ServerStorageStatusService,
+                useValue: { isActive: () => serverStorage },
+            },
             {
                 provide: RuntimeCapabilitiesService,
                 useValue: {
                     isElectron: false,
                     supportsEpgImport: false,
                     supportsEpgDataManagement: false,
+                    supportsEpg: false,
+                    supportsProviderEpg: false,
                     supportsRemoteControl: false,
                     supportsStartupWindowMode: false,
                     supportsPortalConnectivityGuard: false,
@@ -119,6 +130,21 @@ describe('SettingsSearchService', () => {
         expect(service.search('guide')).toEqual([]);
     });
 
+    it('offers only the EPG display rows where a portal guide exists without XMLTV', () => {
+        const { service } = setup({ supportsProviderEpg: true });
+
+        const sections = service.visibleSections().map(({ id }) => id);
+        const entries = service.visibleEntries().map(({ id }) => id);
+
+        expect(sections).toContain('epg');
+        expect(entries).toEqual(
+            expect.arrayContaining(['epg-view-mode', 'epg-offset'])
+        );
+        expect(entries).not.toContain('epg-sources');
+        expect(entries).not.toContain('prefer-uploaded-epg');
+        expect(entries).not.toContain('epg-clear-data');
+    });
+
     it('offers the desktop rows that need no probe on a capable runtime', () => {
         const { service } = setup(DESKTOP);
 
@@ -131,7 +157,22 @@ describe('SettingsSearchService', () => {
         // Embedded MPV rows wait for the support probe.
         expect(entries).not.toContain('embedded-mpv-extra-options');
         expect(entries).not.toContain('embedded-mpv-frame-copy');
+        // Connecting a server is available before any connection exists.
+        expect(entries).toContain('source-server');
         expect(entries.length).toBe(SETTINGS_SEARCH_ENTRIES.length - 4);
+    });
+
+    it('offers the server section and rows with server storage', () => {
+        const { service } = setup({}, true);
+
+        expect(service.visibleSections().map(({ id }) => id)).toContain(
+            'server'
+        );
+        expect(service.visibleEntries().map(({ id }) => id)).toEqual(
+            expect.arrayContaining([
+                'source-server',
+            ])
+        );
     });
 
     describe('embedded MPV probe', () => {

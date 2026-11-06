@@ -1,4 +1,5 @@
 @use '../epg-theme' as *;
+@use '../../../../styles/focus-ring';
 
 /* This app has no global border-box reset; the timeline relies on it. */
 .epg-timeline,
@@ -190,8 +191,7 @@
     }
 
     &:focus-visible {
-        outline: 2px solid $accent-blue;
-        outline-offset: 1px;
+        @include focus-ring.focus-ring-declarations($offset: 1px);
     }
 }
 

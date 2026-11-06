@@ -1,4 +1,3 @@
-import { Location } from '@angular/common';
 import {
     ChangeDetectionStrategy,
     Component,
@@ -20,7 +19,11 @@ import {
     pickTitleMatch,
 } from '@iptvnator/services';
 import { CatalogTitleMatch } from '@iptvnator/shared/interfaces';
-import { createLatestRequestGuard } from '@iptvnator/portal/shared/util';
+import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
+import {
+    createLatestRequestGuard,
+    workspacePortalCommands,
+} from '@iptvnator/portal/shared/util';
 import {
     ActorViewComponent,
     ActorViewItem,
@@ -53,7 +56,7 @@ import {
 export class StalkerActorRouteComponent {
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
-    private readonly location = inject(Location);
+    private readonly backNavigation = inject(WorkspaceBackNavigationService);
     private readonly tmdbEnrichment = inject(TmdbEnrichmentService);
     private readonly titleMatch = inject(CatalogTitleMatchService);
 
@@ -139,8 +142,11 @@ export class StalkerActorRouteComponent {
         );
     }
 
+    /** History Back; the portal's default section when it opened the session. */
     goBack(): void {
-        this.location.back();
+        this.backNavigation.back(() =>
+            workspacePortalCommands(this.route, 'stalker')
+        );
     }
 
     /** The portal ':id' param lives on an ancestor route */

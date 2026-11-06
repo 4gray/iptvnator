@@ -21,6 +21,11 @@ const EN = JSON.parse(
     readFileSync(join(SETTINGS_DIR, '../../assets/i18n/en.json'), 'utf8')
 );
 
+/**
+ * Reveal anchors: any element carrying `data-setting-id` (rows, but also
+ * the About cards and footer), plus every `setting-item` row so a titled
+ * row without an anchor is caught too.
+ */
 function readTemplateRows(): TemplateRow[] {
     const rows: TemplateRow[] = [];
     const files = readdirSync(SETTINGS_DIR).filter((file) =>
@@ -31,7 +36,9 @@ function readTemplateRows(): TemplateRow[] {
         const html = readFileSync(join(SETTINGS_DIR, file), 'utf8');
         // Row containers only: `setting-item` itself, not `__meta` etc.
         const starts = [
-            ...html.matchAll(/<div\b[^>]*class="setting-item(?:\s[^"]*)?"/g),
+            ...html.matchAll(
+                /<\w+\b(?:[^>]*class="setting-item(?:\s[^"]*)?"|[^>]*data-setting-id=")/g
+            ),
         ];
         starts.forEach((match, index) => {
             const end = starts[index + 1]?.index ?? html.length;
@@ -43,11 +50,11 @@ function readTemplateRows(): TemplateRow[] {
                 id: tag.match(/data-setting-id="([^"]+)"/)?.[1] ?? null,
                 labelKey:
                     chunk.match(
-                        /<h4[^>]*>\s*\{\{\s*'(SETTINGS\.[A-Z0-9_]+)'/
+                        /<h4[^>]*>\s*\{\{\s*'(SETTINGS\.[A-Z0-9_.]+)'/
                     )?.[1] ?? null,
                 descriptionKey:
                     meta.match(
-                        /<p[^>]*>\s*\{\{\s*'(SETTINGS\.[A-Z0-9_]+)'/
+                        /<p[^>]*>\s*\{\{\s*'(SETTINGS\.[A-Z0-9_.]+)'/
                     )?.[1] ?? null,
             });
         });

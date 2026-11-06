@@ -41,6 +41,7 @@ export const DEFAULT_SETTINGS: Settings = {
     vlcReuseInstance: false,
     remoteControl: false,
     remoteControlPort: 8765,
+    epgEnabled: true,
     epgUrl: [],
     downloadFolder: '',
     recordingFolder: '',
@@ -57,6 +58,7 @@ export const DEFAULT_SETTINGS: Settings = {
     trustedPrivateNetworkEpgUrls: [],
     trustedInsecureTlsHosts: [],
     tmdb: DEFAULT_TMDB_SETTINGS,
+    ageRatingCountry: 'auto',
     parentalLockEnabled: false,
     parentalLockRelockMinutes: DEFAULT_PARENTAL_LOCK_RELOCK_MINUTES,
 };

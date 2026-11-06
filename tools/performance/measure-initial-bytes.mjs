@@ -1,7 +1,10 @@
 /**
  * Measures the bytes a browser fetches before the Angular app can bootstrap:
  * `index.html` itself plus every same-origin script, stylesheet and
- * `modulepreload` chunk it references. This is the J1 ("launch to usable")
+ * `modulepreload` chunk it references, and every chunk those modules import
+ * statically. Angular emits at most ten `modulepreload` hints, so a larger
+ * startup graph has chunks only the module imports name; the browser still
+ * fetches them before bootstrap. This is the J1 ("launch to usable")
  * counter `renderer.initialBytes` from docs/architecture/performance-journeys.md.
  *
  * The number is read from the built output, not estimated from source, so it
@@ -17,6 +20,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { parse } from 'parse5';
+import ts from 'typescript';
 
 export const DEFAULT_DIST_DIR = 'dist/apps/web';
 export const INITIAL_BYTES_COUNTER = 'renderer.initialBytes';
@@ -104,6 +108,37 @@ export function extractInitialResources(html) {
     return resources;
 }
 
+/**
+ * Relative specifiers of the static `import` and `export … from`
+ * declarations in an emitted ES module, read from a parsed syntax tree, so
+ * text that only looks like an import (a string, template literal or comment)
+ * never counts. Static declarations are top-level statements only; a dynamic
+ * `import("…")` loads later and is an expression, not a declaration. Bare
+ * and absolute specifiers never point into the build.
+ */
+export function extractStaticImports(source) {
+    const tree = ts.createSourceFile(
+        'module.js',
+        source,
+        ts.ScriptTarget.Latest,
+        false,
+        ts.ScriptKind.JS
+    );
+    const specifiers = new Set();
+    for (const statement of tree.statements) {
+        if (
+            (ts.isImportDeclaration(statement) ||
+                ts.isExportDeclaration(statement)) &&
+            statement.moduleSpecifier &&
+            ts.isStringLiteral(statement.moduleSpecifier) &&
+            /^\.{1,2}\//.test(statement.moduleSpecifier.text)
+        ) {
+            specifiers.add(statement.moduleSpecifier.text);
+        }
+    }
+    return [...specifiers];
+}
+
 async function sizeOf(filePath) {
     const stats = await stat(filePath);
     return stats.size;
@@ -141,18 +176,66 @@ export async function measureInitialBytes({ distDir, readSize = sizeOf }) {
         );
     }
 
+    // Follow the static import graph of every counted script. Like the
+    // index.html references, imports count once per request URL: the browser
+    // fetches `chunk.js?v=1` and `chunk.js` as two modules. A file's own
+    // imports are read once, whichever URL loaded it.
+    const countedUrls = new Set(resources.map((resource) => resource.url));
+    const scanned = new Set();
+    const queue = resources
+        .filter((resource) => /\.m?js$/.test(resource.path))
+        .map(({ url, path: file }) => ({ url, file }));
+    const unresolved = [];
+    while (queue.length > 0) {
+        const importer = queue.shift();
+        if (scanned.has(importer.file)) continue;
+        scanned.add(importer.file);
+        const source = await readFile(
+            path.join(distDir, importer.file),
+            'utf8'
+        );
+        const base = path.posix.dirname(importer.url.replace(/\?.*$/, ''));
+        for (const specifier of extractStaticImports(source)) {
+            const url = path.posix
+                .normalize(path.posix.join(base, specifier))
+                .replace(/#.*$/, '');
+            if (countedUrls.has(url)) continue;
+            countedUrls.add(url);
+            const file = url.replace(/\?.*$/, '');
+            const absolute = path.join(distDir, file);
+            if (!existsSync(absolute)) {
+                unresolved.push(`${file} (imported by ${importer.file})`);
+                continue;
+            }
+            resources.push({
+                path: file,
+                url,
+                kind: 'staticImport',
+                bytes: await readSize(absolute),
+            });
+            queue.push({ url, file });
+        }
+    }
+    if (unresolved.length > 0) {
+        throw new Error(
+            `Startup modules import files that are not in ${distDir}: ${unresolved.join(', ')}`
+        );
+    }
+
     const totals = {
         indexHtml: indexBytes,
         script: 0,
         stylesheet: 0,
         modulepreload: 0,
+        staticImport: 0,
     };
     for (const resource of resources) totals[resource.kind] += resource.bytes;
     const initialBytes =
         totals.indexHtml +
         totals.script +
         totals.stylesheet +
-        totals.modulepreload;
+        totals.modulepreload +
+        totals.staticImport;
 
     return {
         distDir,
@@ -201,6 +284,7 @@ export function formatReport(measurement) {
         `scripts        ${formatBytes(measurement.totals.script).padStart(11)}`,
         `stylesheets    ${formatBytes(measurement.totals.stylesheet).padStart(11)}`,
         `modulepreload  ${formatBytes(measurement.totals.modulepreload).padStart(11)}`,
+        `static imports ${formatBytes(measurement.totals.staticImport).padStart(11)}`,
         `${INITIAL_BYTES_COUNTER} = ${formatBytes(measurement.totals.initialBytes)} bytes (${measurement.resources.length} files + index.html)`,
     ];
     return lines.join('\n');

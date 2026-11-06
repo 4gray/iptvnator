@@ -50,6 +50,15 @@ below is reached as `/workspace/stalker/:id/…`.
 
 `/workspace/stalker/:id` itself redirects to `vod`.
 
+## Framework-free artwork
+
+`libs/portal/stalker/data-access/src/lib/stalker-artwork.utils.ts` owns the
+existing portal-root `makeAbsoluteUrl` helper, re-exported by the Angular content
+mapper for compatibility. The client sub-entrypoint exports
+`resolveStalkerArtwork` for TV: it resolves relative screenshot/logo paths,
+tries nonblank candidates in order and rejects unsafe URL schemes or embedded
+credentials. Artwork normalization does not change MAG identity or media URLs.
+
 ## Runtime Architecture
 
 1. Angular Stalker screens call methods/resources in `StalkerStore`.
@@ -196,6 +205,34 @@ plain-text body). Status-less TIMEOUTS also continue (a single handler can
 hang); only connection-level failures (refused, unresolvable host) abort
 discovery, since every candidate shares the host.
 
+For a new source, the Add dialog owns the discovery result. Cancel, dismissal,
+navigation or destroying its import form aborts further discovery/authentication
+steps and suppresses persistence and feedback from late completions. An HTTP
+request already on the wire still drains normally; cancellation never pretends
+to undo a provider-side identity change. The existing persisted-source Edit
+contract below remains different because it must retain remotely pinned identity.
+
+The catalog distinguishes a failed first page from a successfully empty category
+and from an append error. Initial failures keep the selected category and filters,
+show a persistent error with Retry, and do not report zero items. Retry resets the
+host connectivity guard before reloading the same resource. Repeated clicks join
+the reset; a source, category, type, query or page change retires that retry.
+
+**Protocol hashing on LAN HTTP.** The SHA-1 prehash used by `handshake` and
+`get_profile`, and the opt-in MAC-derived SHA-256 device IDs, share
+`hashStalkerProtocolValue()` in shared interfaces. HTTPS/Electron use native
+Web Crypto; when `crypto.subtle` is absent, the helper lazily imports the same
+algorithms from `@noble/hashes`. Both paths return identical uppercase hex.
+An available native digest failure still propagates. This does not alter
+persisted identities, generate IDs automatically, or provide HTTP encryption.
+Prehash generation loads the helper through `loadStalkerProtocolHash()` in
+shared interfaces only when authentication starts. Device-ID derivation loads it
+only after validating a MAC. Eager identity normalization and auth-service
+construction therefore do not load hashing during startup. The helper checks
+`crypto` without `globalThis` to retain the TV client's Chromium 68 support.
+The loader's relative dynamic import uses the emitted `.js` extension so the
+same shared barrel also resolves under the backends' NodeNext configuration.
+
 The playlist-info Edit dialog compares URL, MAC, username/password, serial,
 device IDs and signatures as one connection identity. A metadata-only edit
 does not run discovery; its queued write omits every connection/mode field so
@@ -242,7 +279,12 @@ barrier and row reservation before its persisted-source preflight; contention
 or unavailable PWA locking declines repair without discovery, while an acquired
 reservation stays held through its conditional row transform. The reservation
 blocks every new authentication (including a URL edit with the same normalized
-fingerprint) and repair, and drains any work already in flight.
+fingerprint) and repair, and drains any work already in flight. Delete All
+drains the playlist writes queued before it, then takes the exclusive reset;
+later writes wait for the delete before they join their playlist's queue, so
+no queue holds work blocked on the reset, except a write under a reservation
+this tab holds (`holdsPlaylistAuthority`), which joins at once since the
+reset waits for that reservation.
 When Save follows a lazy repair in the same tab, Edit publishes its local
 authentication owner first, drains that repair through the actual Web Lock
 request completion, and only then requests the row reservation itself. Repair
@@ -284,6 +326,11 @@ The shared playlist UI exposes only
 `resolved | auth-rejected | unreachable` result contract. The web composition
 layer implements the token with Stalker data-access; the UI library must not
 import Stalker discovery directly.
+
+Open Stalker workspace routes also listen for completed source-sync projections.
+They read the persisted row and compare connection fields with the active store.
+A changed connection reinitializes the session and category catalog under the
+route session's existing generation/queue guard; a rename keeps the session.
 
 **Lazy repair (existing playlists).** The flag is frozen in the DB, so
 records persisted by the old guess stay broken without repair — but a large
@@ -349,6 +396,12 @@ mock's tolerant `/portal.php`, strict `/server/load.php`, and
 
 ## Store and Data Flow
 
+A failed first search page shows an explicit error and Retry in the shared
+search layout, retaining the term and selected content type. Retry resets the
+host connectivity guard before reloading the same page. Successful empty
+responses keep the ordinary no-matches state; failed appends retain loaded rows
+and their existing tail retry. New query/source identities clear obsolete errors.
+
 Stalker store is now feature-composed:
 
 - Facade: `libs/portal/stalker/data-access/src/lib/stalker.store.ts`
@@ -393,11 +446,83 @@ Internal structure to preserve:
   `isCategoryResourceFailed()` / `isPaginatedContentFailed()` for explicit
   error handling.
 
+Category arrays belong to `categoryPlaylistKey`, not just the content type.
+Every category reader checks that owner; a portal switch clears all four
+section caches before loading the destination. Aborted or foreign-portal
+responses (including errors and radio fallbacks) cannot write into the active
+cache. `resetCategories()` only clears: the route session calls it on a
+portal switch before the destination is resolved and on teardown, where a
+request would go to the portal being left. When a handoff had already put
+the destination in the store, the owner does not change and the resource
+would not reload by itself, so the session calls `reloadCategories()` once
+it has installed that playlist. This contract applies to collection details as well as routed
+catalogs, because both use the root Stalker store.
+
+The store adds an every-item genre (`category_id: '*'`) in front of a
+portal's list when the portal sends none. That entry holds no translated
+name: its `category_name` is empty and its `labelKey` is
+`PORTALS.ALL_CATEGORIES` (`PORTALS.ALL_RADIO` for radio). The category lists
+render the key with the translate pipe. `getSelectedCategoryLabel()` returns
+`{ name, labelKey }` for the selected genre. Text consumers (live header,
+fullscreen panel title, catalog title, search scope) turn it into a string
+with `stalkerCategoryLabelText()` inside a computed that reads
+`injectTranslationTick()`. The root store outlives a runtime language switch, so a name
+translated at load time would keep the old language until the next reload.
+
 Failure-handling rule:
 
 - Failed category or content requests must degrade into empty/error UI state,
   not `undefined` collections or renderer exceptions. The workspace Stalker
   context panel and live layout rely on this guarantee.
+
+Detail metadata rule:
+
+- `createStalkerInfo()` (`stalker-vod.utils.ts`) is the mapping both detail
+  templates read: the series view binds `info` directly and the shared VOD
+  view reads it through `normalizeStalkerVod()`. Each field takes the first
+  usable candidate, and portal stand-ins (`N/A`, `-`, an unrated `0` score)
+  become `''` there — see the placeholder rule in
+  [Embedded Inline Playback](./embedded-inline-playback.md). It runs before
+  TMDB enrichment, which keeps a non-empty provider rating and release date,
+  so a surviving stand-in would also block the TMDB value.
+- It also runs AFTER enrichment: the series view re-normalizes the store item
+  on every render, so it carries every `tmdb_*` field over. The key list
+  (`TMDB_ENRICHMENT_KEYS`) is typed as a `Record` over `StalkerVodInfo`'s
+  `tmdb_*` keys, so a new enrichment field fails to compile until it is listed
+  there instead of silently vanishing from the view (as the genre and country
+  Discover chips once did).
+
+## Catalog Refine
+
+Stalker VOD categories (including All items and category search) offer **Hide
+watched** in Refine. The default is off; the preference survives category/search
+and inline-detail round trips within the active portal, and resets when the
+portal or route session is replaced. Existing progress classification (90%
+completion, including manual marks) hides only movies; started movies and all
+three supported series shapes remain visible. Initial progress read failures
+leave activation disabled with Retry. Refresh failures retain the last snapshot
+and show a retry notice; newer player updates beat in-flight snapshot reads.
+Accepted throttled inline-player writes feed the same catalog snapshot as
+external-player events, so returning from inline completion immediately hides
+that movie without re-reading the whole progress history.
+Catalog entry also refreshes local progress so watched toggles and inline
+playback in Favorites/Recent are reflected when returning to Movies; retained
+provider pages are not refetched for that refresh.
+
+`StalkerCatalogFacadeService` derives the visible list from retained raw pages;
+provider totals, deduplication and exhaustion remain store-owned. Counts say how
+many loaded items are shown versus the category total, not a filtered total.
+`stalker-catalog-watch-filter.ts` scans sequentially through up to three provider
+pages without visible additions per load-more request, then pauses with **Load
+more**. A delayed first page containing only hidden movies starts that same
+bounded scan after loading, including when the filter carries into another
+category. Clearing the filter restores retained rows without refetching. Filtered
+empty states distinguish partial results from exhausted results; append errors
+retain Retry for the same page. A new selection identity cancels continuation,
+and inline details suspend automatic page requests. If sparse visible additions
+trip the shared infinite-scroll height guard before a scrollbar exists, the
+catalog also pauses with **Load more**. The guard emits a notification without
+changing its budget; Xtream's existing status filter is unchanged.
 
 ## Stalker Identity Policy
 
@@ -409,6 +534,13 @@ without being typed is the explicit import-time opt-in described under
 "Deriving device IDs from the MAC" below, which writes into the visible fields
 first. (The fixed MAG250 description `get_profile` reports is separate: it
 describes the emulated box, not the account — see "Reported device profile".)
+
+Import and Edit keep serial, device IDs, signatures and optional credentials
+in an “Additional provider settings” disclosure. Its controls stay mounted:
+folding it never clears or disables values. Prefilled/invalid values reveal it,
+as does import authentication feedback; clearing the last optional value does
+not close an editor the user is working in. Device-ID derivation remains an
+explicit import-only opt-in inside that disclosure.
 
 - User-provided `sn`, `device_id`, `device_id2`, `signature`, and `signature2`
   values are trimmed, persisted under the canonical `stalker*` playlist fields,
@@ -484,7 +616,8 @@ the format at all, so a large share of working installations use a non-Infomir
 MAC. Refusing one would stop those users adding or editing a portal that works
 for them. The mock encodes the same split (`enforceMacFormat` is set only on
 the strict endpoint; `/portal.php` ignores it), and `AUTH_REJECTED_MAC` in
-`stalker.e2e.ts` depends on it — a non-Infomir MAC that must reach the strict
+`stalker-portal.fixture.ts` (used by `stalker.e2e.ts`) depends on it — a
+non-Infomir MAC that must reach the strict
 endpoint and be refused _there_, not in the form.
 
 In the edit dialog **both** passes — blur and submit — normalize only a MAC the
@@ -576,7 +709,7 @@ later empty value as a permanent lockout. Therefore:
   the permanent lockout. The identity toggle is therefore locked while
   `isLoading()` rather than the submission being re-snapshotted: the UI must
   not imply an opt-out that cannot exist;
-- an unusable MAC (or a runtime without WebCrypto) derives nothing rather than
+- an unusable MAC derives nothing rather than
   hashing a typo into a permanent binding;
 - the playlist-info edit dialog offers no derivation. It shows
   `DEVICE_ID_PINNED_WARNING` instead once a device ID has actually reached the
@@ -634,6 +767,9 @@ outgrew the `max-lines` budget; never re-add it to the baseline):
 - `stalker-token-cache.ts` — the in-run token and pending-auth state, tagged
   with the identity fingerprint each session was negotiated for.
 - `stalker-session-store.ts` — the session persisted on the playlist row.
+- `@iptvnator/shared/interfaces/stalker-session` — canonical identity/session
+  fingerprints, also used by source-sync reconciliation. The former data-access
+  exports re-export these functions and preserve the persisted format.
 - `stalker-response-classification.ts` + `stalker-portal-error.ts` — failure
   detection and the typed `StalkerPortalError` the UI layers render.
 
@@ -740,6 +876,31 @@ classifier accepts both shapes plus the legacy `{ js: '<body>' }` envelope.
 `makeAuthenticatedRequest` retries once with fresh authentication and
 otherwise throws `StalkerPortalError('auth-failed')` carrying the body.
 
+### Cancelled requests and HTTP 401/403 over IPC
+
+Electron prints `Error occurred in handler for 'STALKER_REQUEST'` — with a
+stack trace — for every `ipcMain.handle` promise that rejects, so the main
+process resolves two routine outcomes instead of throwing them: a request whose
+abort signal fired (a source-health probe the renderer cancelled or let
+expire) and an HTTP 401/403 (the endpoint answered and refused — an auth gate
+in front of a discovery candidate, an expired account). Both come back as a
+`{ portalRequestFailure }` envelope
+(`libs/shared/interfaces/src/lib/portal-request-failure.util.ts`, classified
+in `apps/electron-backend/src/app/events/portal-request-outcome.ts`).
+`ElectronService.fetchStalkerData` is the only reader of the raw bridge result
+and rethrows the envelope as the error the Stalker layers already classify: an
+`AbortError` for the cancellation (debug log, no snackbar), or an
+`HTTP Error <code>: <statusText>` Error that carries a numeric `status`, so
+`getStalkerRequestErrorStatus` no longer has to parse it out of the message.
+A cancelled request therefore never resolves into an empty answer. In the main
+process the refusal is one `console.warn` through `formatPortalRequestError`
+and `redactSensitiveData` (host and pathname, never the MAC, token or query
+string); the cancellation is logged only under `IPTVNATOR_TRACE_IPC`. Every
+other failure — 404, 5xx, network errors, the connectivity guard's fast-fail —
+still rejects with the message contracts above and keeps its `console.error`.
+`apps/electron-backend-e2e/src/portal-request-logging.e2e.ts` pins both
+outcomes for both portals against the real main-process log.
+
 ### Error surfacing
 
 `StalkerPortalError.portalText` holds the portal's own words. The import
@@ -844,6 +1005,16 @@ profile is decoded (clamped to 30–3600 s against garbage), and otherwise uses
 the documented 120 s default. Failing to ping never invalidates the session —
 it only affects the portal's admin-panel "online" reporting — so ping failures
 are logged and never retried or escalated.
+
+The statement about online reporting describes reference middleware, not every
+provider fork. Stalkinator's `f854c63a` fix and the TV investigation document a
+provider whose Live media host rejects signed URLs until watchdog activation.
+Do not diagnose a media-host 403 as solely a codec/header problem or assume a
+successful `create_link` proves the portal playback session is active. The TV
+adapter uses the Live lifecycle described in
+[TV application](./tv-application.md#provider-contract); real LG observations
+and remaining limits are in
+[the investigation](../development/tv-live-playback-investigation.md).
 
 The periodic ping ticks in a dedicated worker (`createBackgroundInterval`,
 an inline blob worker allowed by the renderer CSP's `worker-src 'self' blob:`).
@@ -1273,8 +1444,8 @@ The Stalker live route and radio route intentionally share
   `create_link` with `type=radio`, skips EPG loading, and renders the same
   `AudioPlayerComponent` layout instead of the Stalker VOD detail layout.
 - Some Stalker portals do not expose radio categories. Radio category loading
-  falls back to a synthetic `PORTALS.ALL_RADIO` category with
-  `category_id: '*'` so the station list can still be loaded.
+  falls back to a synthetic every-item category (`category_id: '*'`,
+  `labelKey: 'PORTALS.ALL_RADIO'`) so the station list can still be loaded.
 - A category click in the shell context panel only re-filters the channel
   sidebar; the selected channel or station keeps playing (Xtream live #936 and
   M3U group parity). `onStalkerCategoryClicked` therefore must NOT
@@ -1437,12 +1608,31 @@ records. Both accept the same closed set: boolean `true`, numeric `1`, or string
 
 - Item is opened under VOD, but already contains episodes.
 - `StalkerSeriesViewComponent` creates a pseudo-season and renders episodes directly.
+- When the raw title carries a season range such as `(1-9 season)` or
+  `S01-S09`, that single flat list has no known season boundaries. Mapped
+  episodes carry `seasonUnknown: true`: season tabs and season-code prefixes
+  are hidden, season-level TMDB requests/overlays are skipped and loading is
+  settled normally. Show-level enrichment still applies. No automatic split
+  is inferred from TMDB. Numeric grouping, episode IDs, commands and activity
+  identities retain their historical values for progress/download matching;
+  the number is an internal coordinate, not a claimed season.
+- Range matching stays local to the lazy Stalker adapter. The shared numeric
+  season-marker helpers are used by title normalization at startup; placing the
+  range parser there also pulls it into the initial bundle.
 
 3. VOD with `is_series=1` (Ministra plugin behavior):
 
 - Treated as series flow from VOD context.
 - Seasons are fetched lazily.
 - Episodes are fetched on season select.
+- Lazy VOD season and episode lists collect all `get_ordered_list` pages
+  sequentially through `executeStalkerRequest`, then sort the complete list.
+  Provider IDs are deduplicated; declared totals/pages or the server page size
+  determine completion. Legacy array replies without paging metadata stay
+  single-response lists. Empty early pages, malformed replies, repeated pages
+  and the 1000-page safety bound fail the load rather than publish a partial
+  list. Navigation retires the collection before another page or state write;
+  an HTTP request already in flight may still finish. Other seasons stay lazy.
 - The season resource depends on the VOD item id and series mode, so a TMDB
   metadata patch does not reload seasons or discard loaded episodes. Pending
   episode requests belong to the exact loading season VM; replies from an old
@@ -1462,14 +1652,43 @@ records. Both accept the same closed set: boolean `true`, numeric `1`, or string
   instead of showing the completed state. After a lazy load, quick start is
   recomputed from the mapped episodes before playback so provider episode
   ordering cannot start the wrong episode.
+- Extras (season 0) follow the shared next-episode rule (`getSeriesNextUp`):
+  while the series has other seasons they never become the quick-start target,
+  and the lazy load before playback picks the first regular season the portal
+  has not answered for (an empty answer counts as loaded:
+  `isVodSeasonHydrationPending`), never an unloaded Specials season. Only when
+  every regular season came back empty do extras count as the run.
 - For unloaded VOD-series seasons, the CTA target label is derived from season
   metadata and rendered as `SxxE01` until episode details are loaded.
 - Lazy VOD-series episodes use scoped tracking IDs derived from the parent
   series ID, provider episode ID, season key, and episode number. The season
   key follows the mapping fallback (`season_number`, then name, then ID).
+- Lazy VOD playback and new downloads resolve commands through
+  `StalkerEpisodeResolver`. The mapper preserves an episode's own `cmd` and
+  provider `movie_id` (season `video_id`), `season_id`, and `episode_id`
+  separately from display numbers and tracking IDs. An explicit episode
+  command wins; otherwise `get_ordered_list` with all three coordinates
+  returns media files. The first usable video file in provider order wins
+  among quality/language variants. Subtitle, foreign-owner, missing-command,
+  malformed, and empty responses never fall back to an invented
+  `/media/file_<episode_id>.mpg` or the saved parent command. File resolution
+  and `create_link` use the existing authenticated/repair request pipeline.
+  For file rows with `protocol: custom`, their raw URL-valued command must
+  become `/media/file_<file.id>.mpg` before `create_link`, matching Ministra's
+  reference player. Only a valid returned file ID is accepted; the episode ID
+  is never substituted.
+  The framework-free `resolveStalkerEpisodeCommand` helper owns this selection
+  for both the Angular service and TV; each caller supplies its authenticated,
+  cancellable request pipeline.
+- The extra file lookup is covered by the pending playback ownership guard:
+  changes to the selected source/show, episode command, or provider
+  coordinates discard its result before inline or external playback starts.
 - The previous season/episode hash remains available only as a compatibility
   alias in `legacyTrackingId`. The scoped ID is the in-memory episode key, and
   new playback positions always use it.
+- The open catalog observes shared-activity invalidation and reloads its position
+  maps. Subscriptions end with the facade; superseded reads, cleared playlists
+  and destroyed facades cannot repopulate those maps.
 - Quick-start actions preserve both their translation key and interpolation
   parameters when adapted for the Stalker CTA. Dropping `labelParams` exposes
   the raw `{{episode}}` placeholder.
@@ -1484,8 +1703,8 @@ Series inline playback behavior is shared across all three modes:
 
 - `StalkerSeriesViewComponent` maps every mode into `mappedSeasons()` and uses
   two episode identities. A pending playback request keeps an exact,
-  request-local provider command or episode ID so command rotation and hash
-  collisions reject stale completion. Once mounted, the component freezes only
+  request-local provider command or lazy episode ID/command/provider
+  coordinates so command rotation and hash collisions reject stale completion. Once mounted, the component freezes only
   the credential-free structural identity and session key (source, normalized
   parent, mode, season key, season number, and episode number).
 - The mounted structural identity is re-resolved against the current
@@ -1523,6 +1742,16 @@ series' positions and mapped episodes are available:
 - On the next position write, IPTVnator persists the scoped row through the
   strict, failure-propagating persistence boundary before removing a confirmed
   legacy row. If the scoped write fails, the legacy row remains intact.
+- Shared activity resets remain exact zero-position rows in series reads and
+  when mirrored to local storage. They take precedence over compatible legacy
+  progress; the guarded alias remains available for normal migration cleanup.
+  The first reset also sends resolved scoped tracking and season metadata, so a
+  client that has not opened the series can mirror the correct zero row.
+  A zero duration distinguishes these zero-position barriers in the local
+  mirror; ordinary launches at zero with unknown duration remain activity.
+  Next-up excludes the barriers from played activity without removing exact
+  rows needed for guarded reconciliation. Backups retain these barrier rows so
+  restoring alongside a legacy alias cannot resurrect its prior watched mark.
 - This is an on-read/on-write compatibility path, not a database schema
   migration or a bulk rewrite of saved positions.
 
@@ -1530,6 +1759,14 @@ The VOD-series contract is cross-surface:
 
 - Favorites and recently viewed records preserve the raw `is_series` flag and
   VOD origin so reopening still uses the lazy Ministra resources.
+- The #1844 file-resolution fix needs no schema or saved-entry migration.
+  Existing favorites/recent snapshots with the lazy `is_series` marker reopen
+  the parent and load fresh seasons/episodes, including snapshots holding an
+  old synthesized parent `cmd`. Scoped and legacy progress IDs are unchanged.
+  Progress recorded while the wrong video was playing cannot be reliably
+  repaired automatically and is preserved. Existing download URLs and files
+  are also preserved: cancel/remove an affected old entry and enqueue a new
+  download from the series; Retry/Resume reuses the old stored URL.
 - `extractStalkerItemType()` normalizes those activity records to dashboard
   type `series`.
 - The dashboard resolves episode progress by the parent `seriesXtreamId` and
@@ -1557,6 +1794,69 @@ Core decision logic and normalization are centralized in:
 
 - `libs/portal/stalker/data-access/src/lib/stalker-vod.utils.ts`
 - `libs/portal/stalker/data-access/src/lib/models/*.ts`
+
+## Forced External Launches
+
+"Open in external player" needs a `create_link` round trip before it reaches
+MPV/VLC. The shared rules are in
+[Forced External Launches From Detail Pages](./embedded-inline-playback.md#forced-external-launches-from-detail-pages);
+the Stalker keys and queues are:
+
+Series (`StalkerSeriesViewComponent`, `stalker-series-launch-queue.ts`):
+
+- Pending starts and the launch queue's held choices are keyed by
+  `playlist:series` (`currentSeriesKey`). The view is reused across series
+  and provider ids collide across playlists, so one series settling never
+  drops what another holds.
+- A start is pending for its series from the click until it settles. A forced
+  launch stays pending through the close of the previous player, the launch
+  and the release of a held choice. The pending flag disables the hero button
+  and the menu's external-player and watched rows.
+- Before launching, an episode of the same series still running externally is
+  closed (`replaceOwnedExternalSession`). The request is rechecked after that
+  close and after the launch IPC; a superseded launch closes the session it
+  opened.
+- An episode chosen while a forced launch of its series is mid-flight is held
+  (`StalkerSeriesLaunchQueue.hold`); the latest choice per series wins. On
+  release it is dropped when the series is no longer shown. Otherwise
+  `replacePlayer` closes what the launch opened before the choice starts, and
+  an unconfirmed close drops the choice.
+- An episode chosen while a watched or reset batch runs is held in one slot
+  tagged with its series; the last choice wins. When the batch settles it
+  goes through the usual gates only if that series is still shown: episode
+  identities overlap across series.
+
+Movies (`createStalkerVodDetailActions`, used by the catalog detail, the
+collection detail and search):
+
+- A repeat for the same `playlist:movie` while its launch is in flight is
+  ignored, also after leaving the movie and returning to it. Launches of
+  other movies are not held back.
+- The launch joins the host's starts (`beginPendingStart`): it supersedes an
+  earlier start, is dropped once a later one begins, and keeps Play, Start
+  over, the watched toggle and the menu rows disabled until it settles.
+- The resolved stream is discarded when the movie is no longer selected or a
+  newer start took over. Movie and series ids collide, so the catalog and
+  collection details include the content type in the selection check; in
+  search, a switch to a series changes the playback owner instead, which
+  supersedes the launch. Otherwise the movie's own external
+  session is replaced, the host's `beforeExternalLaunch` hook runs (the
+  catalog and collection details close their inline player there), and the
+  launch is sent. A launch that resolves after either condition changed
+  closes the session it opened; one that fails by then is not reported.
+- "Reset progress" counts as a pending start of the movie until the write
+  lands, so a start made meanwhile cannot resume from the row being cleared.
+- The pending start is owner-scoped (`createPendingPlaybackStart`). Each host
+  retires it when the selection leaves the owner; that clears the pending
+  flag, not the repeat guard of a launch still in flight.
+
+Regression coverage: `stalker-series-launch-queue.spec.ts`,
+`stalker-series-view.component.spec.ts`,
+`stalker-series-view.season-watch.spec.ts`,
+`stalker-vod-detail-actions.spec.ts`,
+`stalker-vod-playback-controller.spec.ts` and, in
+`libs/portal/shared/util/src/lib/`, `pending-playback-start.spec.ts` and
+`replace-owned-external-session.spec.ts`.
 
 ## Favorites and Recently Viewed
 
@@ -1623,7 +1923,7 @@ snapshot-first + background re-fetch contract:
 ## Backup and Restore
 
 Versioned playlist backups include Stalker connection metadata plus playlist-
-scoped favorites/recent snapshots.
+scoped favorites/recent snapshots and portable playback positions.
 
 Exported fields:
 
@@ -1643,7 +1943,12 @@ the connection:
 - `stalkerWatchdogTimeout` / `stalkerTimeslot` (the cadence the profile
   advertised)
 - `stalkerAccountInfo`
-- playback positions in backup v1
+
+Playback positions are an optional v1 field: new backups include local/shared
+progress, watched marks and exact episode reset barriers. Older archives without
+this field keep existing positions; an empty array explicitly clears them.
+Restore writes the collection locally and remaps its playlist ID, without sending
+activity to the server.
 
 Import rule:
 
@@ -1780,3 +2085,55 @@ lifetime. The health consumer bounds only its own wait; its deadline and closing
 a status surface never cancel or shorten authentication shared with playback.
 Profile/account reads have request-owned cancellation. Outer profile challenge
 statuses are not subscription statuses. Missing account dates stay unknown.
+
+
+## Optional shared favorites
+
+The [self-hosted favorites opt-in](pwa-self-hosted.md#favorites-synchronization)
+uses independent typed membership for live, radio, movie and series. Series
+references retain regular, embedded and lazy origins; snapshots retain only safe
+display metadata and embedded episode numbers. They never transport cmd or session
+credentials. New local favorites record `favoriteContentType` independently of a
+numeric provider category ID; ambiguous historical rows stay local for preview.
+Projection reconstructs route/type hints without inventing playback coordinates.
+Legacy embedded episode hints accept positive safe integers and numeric strings,
+skipping invalid values without changing the archive. An empty, non-array or oversized
+result (more than 2,000 episodes) remains unresolved locally; incoming snapshots
+continue to use strict validation.
+
+Received shared favorites contain no command. `StalkerFavoritePlaybackResolver`
+looks up the exact typed provider ID through `executeStalkerRequest` on the
+receiving device before movie/live/radio playback. Live lookup first uses
+`get_all_channels`; bounded paged lookup covers unsupported bulk endpoints and
+VOD/radio/series. A title is only a search hint; it never substitutes for ID and
+series-origin equality. Fresh category metadata still passes parental locking.
+Command lookup also reads `info.name` from normalized VOD selections, retaining
+the saved title search before the bounded unfiltered scan.
+It accepts both the persisted stream-first ID and the legacy row ID, preserving
+kind and series-origin checks. Matching rows across the searched pages must agree
+on one provider identity and command; conflicting aliases are unavailable. The
+resolved item retains the requested favorite ID and rechecks local parental locks.
+An ID matching only a legacy row alias cannot be accepted from a title-filtered
+result: its unfiltered scan must finish within the existing 20-page bound. An
+incomplete scan or a conflicting canonical stream identity remains unavailable.
+Resolved commands remain local and never enter a shared snapshot. The global
+collection detail host reuses an open detail for the same item during polling,
+so background membership updates cannot cancel an in-flight playback request.
+
+Removing a typed target also removes its historical untyped ID copy, consistent
+with legacy heart matching. Known typed rows with another kind or series origin
+remain intact even when the provider reuses the same numeric ID.
+
+Dashboard favorites with the new typed marker also use kind and series origin
+for their card identity. Their provider ID remains separate for navigation and
+explicit removal; historical untyped card identities remain unchanged.
+
+Collection polling also preserves the hydrated Stalker selection and season
+resources for the same source identity and series mode. A real connection edit
+still resets the context. Shared references honor legacy embedded/lazy markers
+before the old `series` category, and accept the existing string radio marker
+without widening the strict `is_series` predicate.
+
+Portable references use the same `id`-before-`stream_id` precedence as existing
+Stalker display/navigation identity. Synthetic display fallbacks are never
+published as provider IDs.

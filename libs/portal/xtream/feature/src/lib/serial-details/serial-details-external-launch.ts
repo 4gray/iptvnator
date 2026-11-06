@@ -198,10 +198,11 @@ function closeOwnedEpisodeSession(
  * still running externally is closed first: with instance reuse off a
  * second detached player would start beside it. When that close fails, or
  * the user moved on while it ran, the running player stays and nothing new
- * launches. A repeat of the same episode before its launch settled
- * (Electron publishes the session only afterwards) is ignored; another
- * episode of the series waits for that launch to settle and then replaces
- * it like any later start.
+ * launches. A repeat of the same episode before its launch settled is
+ * ignored (the session cannot stand in for this guard: Electron publishes
+ * it only once the launch IPC arrives, as `launching` until that resolves);
+ * another episode of the series waits for that launch to settle and then
+ * replaces it like any later start.
  */
 export async function openEpisodeExternally(
     host: SeriesExternalLaunchHost,

@@ -1,20 +1,25 @@
+import { normalizeContentMetadataPatch } from '@iptvnator/shared/interfaces';
 import { inject, Injector, signal } from '@angular/core';
 import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import {
     type IXtreamDataSource,
+    type XtreamPlayedContent,
+    type XtreamDetailMetadataSource,
+    xtreamDetailContentMetadata,
     XTREAM_DATA_SOURCE,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
 
 export interface XtreamRecentItemRequest {
     readonly xtreamId: number | string;
-    readonly contentType: 'movie' | 'series';
+    readonly contentType: 'live' | 'movie' | 'series';
     readonly backdropUrl?: string;
+    readonly playedContent?: XtreamPlayedContent;
 }
 
 /**
- * Records a movie or series as recently viewed once `streamUrl` has really
+ * Records Xtream content as recently viewed once `streamUrl` has really
  * played — inline for a couple of seconds, or launched in MPV/VLC — so a
  * source that fails straight away never reaches history or the dashboard
  * hero. The playlist is captured when playback starts, so navigating to
@@ -29,18 +34,25 @@ export interface XtreamRecentItemRequest {
  */
 export function injectXtreamRecentHistory(): (
     streamUrl: string,
-    request: XtreamRecentItemRequest
+    request: XtreamRecentItemRequest,
+    sessionKey?: string
 ) => void {
     const gate = inject(PlaybackHistoryGate);
     const store = inject(XtreamStore);
     const injector = inject(Injector);
 
-    return (streamUrl, request) => {
+    return (streamUrl, request, sessionKey) => {
         const playlist = signal(store.currentPlaylist()).asReadonly();
-        gate.defer({ streamUrls: [streamUrl] }, () => {
+        const captured = {
+            ...request,
+            ...(request.playedContent
+                ? { playedContent: { ...request.playedContent } }
+                : {}),
+        };
+        gate.defer({ sessionKey, streamUrls: [streamUrl] }, () => {
             const playlistId = playlist()?.id;
             if (store.currentPlaylist()?.id === playlistId) {
-                store.addRecentItem({ ...request, playlist });
+                store.addRecentItem({ ...captured, playlist });
             } else if (playlistId) {
                 void saveWithoutListRefresh(
                     injector.get(XTREAM_DATA_SOURCE),
@@ -49,7 +61,7 @@ export function injectXtreamRecentHistory(): (
                     !injector.get(RuntimeCapabilitiesService)
                         .supportsXtreamSqliteDataSource,
                     playlistId,
-                    request
+                    captured
                 );
             }
         });
@@ -67,19 +79,66 @@ async function saveWithoutListRefresh(
     dataSource: IXtreamDataSource,
     keysByXtreamId: boolean,
     playlistId: string,
-    { xtreamId, contentType, backdropUrl }: XtreamRecentItemRequest
+    {
+        xtreamId,
+        contentType,
+        backdropUrl,
+        playedContent,
+    }: XtreamRecentItemRequest
 ): Promise<void> {
     const id = Number(xtreamId);
     if (!Number.isFinite(id) || id <= 0) {
         return;
     }
+    const identity = playedContent
+        ? normalizeContentMetadataPatch({
+              tmdbId: playedContent.tmdbId ?? undefined,
+              releaseYear: playedContent.releaseYear ?? undefined,
+          })
+        : null;
     const content = await dataSource.getContentByXtreamId(
         id,
         playlistId,
-        contentType
+        contentType,
+        ...(!keysByXtreamId && identity ? [identity] : [])
     );
     const contentId = content?.id ?? (keysByXtreamId ? id : null);
     if (contentId != null) {
-        await dataSource.addRecentItem(contentId, playlistId, backdropUrl);
+        await dataSource.addRecentItem(
+            { id: contentId, type: contentType },
+            playlistId,
+            backdropUrl,
+            ...(playedContent ? ([playedContent] as const) : [])
+        );
     }
+}
+
+/** Capture displayed detail metadata before playback confirmation or navigation. */
+export function xtreamPlayedDetail(
+    info:
+        | (XtreamDetailMetadataSource & {
+              name?: string;
+              cover?: string;
+              movie_image?: string;
+              cover_big?: string;
+              category_id?: string;
+          })
+        | null
+        | undefined,
+    fallbackTitle?: string,
+    fallbackPoster?: string | null
+): XtreamPlayedContent | undefined {
+    const title = info?.name || fallbackTitle;
+    if (!title) return undefined;
+    return {
+        ...xtreamDetailContentMetadata(info),
+        title,
+        posterUrl:
+            info?.cover ||
+            info?.movie_image ||
+            info?.cover_big ||
+            fallbackPoster ||
+            undefined,
+        categoryId: info?.category_id,
+    };
 }

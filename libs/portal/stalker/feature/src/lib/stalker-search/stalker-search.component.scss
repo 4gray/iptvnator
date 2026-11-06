@@ -1,3 +1,4 @@
+@use '../../../../../../ui/styles/app-controls' as controls;
 @use '../../../../../shared/ui/src/lib/styles/content-grid' as grid;
 
 :host {
@@ -26,4 +27,8 @@
     gap: 12px;
     padding: 18px 0 6px;
     color: var(--mat-sys-error, inherit);
+}
+
+.search-append-error button {
+    @include controls.secondary-button;
 }

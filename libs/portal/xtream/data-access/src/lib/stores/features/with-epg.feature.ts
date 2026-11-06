@@ -13,6 +13,7 @@ import {
     epgProviderClockMs,
 } from '@iptvnator/shared/interfaces';
 import {
+    EpgPreferencesService,
     EpgSourceSettingsService,
     RuntimeCapabilitiesService,
     SettingsStore,
@@ -111,7 +112,13 @@ export function withEpg() {
             const settingsStore = inject(SettingsStore);
             const sources = inject(EpgSourceSettingsService);
 
-            const supportsEpg = (): boolean => runtime.supportsEpg;
+            // Provider EPG needs only the portal transport (Electron IPC or
+            // the PWA's backend proxy). The XMLTV parts — the manual mapping
+            // lookup below and XtreamXmltvFallbackService — keep their own
+            // capability checks and stay off in the PWA.
+            const preferences = inject(EpgPreferencesService);
+            const supportsProviderEpg = (): boolean =>
+                preferences.enabled() && runtime.supportsProviderEpg;
 
             /**
              * Helper to get credentials from parent store
@@ -129,6 +136,7 @@ export function withEpg() {
                     serverUrl: playlist.serverUrl,
                     username: playlist.username,
                     password: playlist.password,
+                    userAgent: playlist.userAgent?.trim() || undefined,
                     serverTimezone: playlist.serverTimezone,
                 };
             };
@@ -154,7 +162,7 @@ export function withEpg() {
                  */
                 async loadEpg(): Promise<EpgItem[]> {
                     const sourceRevision = sources.revision();
-                    if (!supportsEpg()) {
+                    if (!supportsProviderEpg()) {
                         patchState(store, {
                             epgItems: [],
                             isLoadingEpg: false,
@@ -233,7 +241,7 @@ export function withEpg() {
                     streamId: number,
                     epgChannelId?: string | null
                 ): Promise<EpgItem[]> {
-                    if (!supportsEpg()) {
+                    if (!supportsProviderEpg()) {
                         return [];
                     }
 

@@ -1,3 +1,7 @@
+jest.mock('./playlist.operations', () => ({
+    setAppState: jest.fn().mockResolvedValue({ success: true }),
+}));
+
 const andMock = jest.fn((...conditions: unknown[]) => ({
     kind: 'and',
     conditions,
@@ -953,9 +957,10 @@ describe('content.operations', () => {
         const conditions = where.mock.calls[0][0].conditions as Array<{
             kind: string;
         }>;
-        expect(conditions).toHaveLength(4);
-        expect(conditions[2]).toEqual(expect.objectContaining({ kind: 'or' }));
-        expect(conditions[3]).toEqual(expect.objectContaining({ kind: 'and' }));
+        expect(conditions).toHaveLength(5);
+        expect(conditions[0]).toEqual(expect.objectContaining({ kind: 'sql' }));
+        expect(conditions[3]).toEqual(expect.objectContaining({ kind: 'or' }));
+        expect(conditions[4]).toEqual(expect.objectContaining({ kind: 'and' }));
 
         const patterns = sqlMock.mock.calls
             .flatMap(([, ...values]) => values)

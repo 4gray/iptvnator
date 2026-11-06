@@ -100,7 +100,6 @@ describe('VideoPlayerComponent — guide gating', () => {
                         params: of({ id: playlistId(), view: 'all' }),
                         queryParams: of({}),
                         snapshot: {
-                            data: { layout: 'workspace' },
                             queryParams: {},
                         },
                     },

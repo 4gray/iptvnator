@@ -14,6 +14,29 @@ const CORS_HEADERS = {
     'access-control-allow-origin': APP_ORIGIN,
 } as const;
 
+/** Pin standalone provider specs to the mocked stateless backend in every build. */
+export async function configureMockProviderBackend(page: Page): Promise<void> {
+    await page.route('**/assets/app-config.js', (route) =>
+        route.fulfill({
+            contentType: 'application/javascript',
+            body: `window.__IPTVNATOR_CONFIG__ = { BACKEND_URL: ${JSON.stringify(BACKEND_ORIGIN)} };`,
+        })
+    );
+    await page.route(`${BACKEND_ORIGIN}/v1/instance`, (route) =>
+        route.fulfill({
+            contentType: 'application/json',
+            headers: CORS_HEADERS,
+            body: JSON.stringify({
+                service: 'iptvnator',
+                apiVersion: 1,
+                instanceId: null,
+                storage: 'none',
+                auth: 'none',
+            }),
+        })
+    );
+}
+
 export async function interceptProviderTargetRegistration(
     page: Page
 ): Promise<Map<string, string>> {

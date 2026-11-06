@@ -113,9 +113,6 @@ describe('LiveStreamLayoutComponent parental lock', () => {
                             queryParamMap: convertToParamMap({}),
                         },
                         queryParamMap: of(convertToParamMap({})),
-                        pathFromRoot: [
-                            { snapshot: { data: { layout: 'workspace' } } },
-                        ],
                     },
                 },
                 {

@@ -1,3 +1,4 @@
+<app-source-sync-status />
 <app-startup-status #startup [routeReady]="routeReady()" />
 <div [style.display]="startup.complete() ? 'contents' : 'none'">
     <router-outlet (activate)="routeReady.set(true)" />

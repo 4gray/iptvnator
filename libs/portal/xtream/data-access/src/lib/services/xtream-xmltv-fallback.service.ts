@@ -5,7 +5,11 @@ import {
     epgProviderClockMs,
 } from '@iptvnator/shared/interfaces';
 import { createLogger } from '@iptvnator/portal/shared/util/logger';
-import { EpgSourceSettingsService, SettingsStore } from '@iptvnator/services';
+import {
+    EpgPreferencesService,
+    EpgSourceSettingsService,
+    SettingsStore,
+} from '@iptvnator/services';
 
 type ElectronEpgBridge = {
     getChannelPrograms?: (channelId: string) => Promise<EpgProgram[]>;
@@ -20,6 +24,7 @@ export class XtreamXmltvFallbackService {
     private readonly logger = createLogger('XtreamXmltvFallback');
     private readonly settingsStore = inject(SettingsStore);
     private readonly sources = inject(EpgSourceSettingsService);
+    private readonly preferences = inject(EpgPreferencesService);
 
     /**
      * `DataService.isElectron` is intentionally not consulted here: it
@@ -45,6 +50,7 @@ export class XtreamXmltvFallbackService {
     async getProgramsForChannel(
         epgChannelId: string | null | undefined
     ): Promise<EpgItem[]> {
+        if (!this.preferences.enabled()) return [];
         const revision = this.sources.revision();
         const id = (epgChannelId ?? '').trim();
         if (!id) return [];
@@ -65,6 +71,7 @@ export class XtreamXmltvFallbackService {
     async getCurrentProgramsBatch(
         epgChannelIds: ReadonlyArray<string | null | undefined>
     ): Promise<Record<string, EpgItem>> {
+        if (!this.preferences.enabled()) return {};
         const revision = this.sources.revision();
         const fn = this.bridge?.getCurrentProgramsBatch;
         if (typeof fn !== 'function') return {};

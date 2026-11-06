@@ -1,6 +1,9 @@
 import { spawn } from 'child_process';
 import { AddressInfo, createServer } from 'net';
-import { PlayerContentInfo } from '@iptvnator/shared/interfaces';
+import {
+    PlayerContentInfo,
+    readExternalPlayerErrorCode,
+} from '@iptvnator/shared/interfaces';
 import {
     VLC_PLAYER_ARGUMENTS,
     VLC_PLAYER_PATH,
@@ -57,6 +60,9 @@ let vlcPollingInterval: NodeJS.Timeout | null = null;
 // Kept so a player that exits before the first poll cannot leave an orphaned
 // interval behind.
 let vlcPollingDelay: NodeJS.Timeout | null = null;
+// Invalidate replies already awaiting RC when polling stops or is replaced.
+let vlcPollingGeneration = 0;
+let vlcPollingSessionId: string | null = null;
 
 function getVlcPath(options: PlayerPathOptions = {}): string {
     return (
@@ -65,7 +71,10 @@ function getVlcPath(options: PlayerPathOptions = {}): string {
     );
 }
 
-function stopVlcPositionPolling(): void {
+function stopVlcPositionPolling(sessionId?: string): void {
+    if (sessionId !== undefined && sessionId !== vlcPollingSessionId) return;
+    vlcPollingGeneration += 1;
+    vlcPollingSessionId = null;
     if (vlcPollingDelay) {
         clearTimeout(vlcPollingDelay);
         vlcPollingDelay = null;
@@ -84,12 +93,16 @@ function startVlcPositionPolling(
     onStopped?: () => void
 ): void {
     stopVlcPositionPolling();
+    vlcPollingSessionId = sessionId;
+    const generation = vlcPollingGeneration;
+    const isCurrent = () => generation === vlcPollingGeneration;
 
     vlcPollingDelay = setTimeout(() => {
         vlcPollingDelay = null;
         vlcPollingInterval = setInterval(async () => {
             try {
                 const snapshot = await getVlcPlaybackSnapshot(port);
+                if (!isCurrent()) return;
 
                 if (snapshot) {
                     onSnapshot?.(snapshot);
@@ -102,12 +115,13 @@ function startVlcPositionPolling(
                 }
 
                 const playbackState = await getVlcPlaybackState(port);
+                if (!isCurrent()) return;
                 if (playbackState === 'stopped') {
                     onStopped?.();
-                    stopVlcPositionPolling();
+                    stopVlcPositionPolling(sessionId);
                 }
             } catch {
-                stopVlcPositionPolling();
+                if (isCurrent()) stopVlcPositionPolling(sessionId);
             }
         }, 2000);
     }, 1500);
@@ -133,9 +147,10 @@ export function setVlcReuseInstance(reuseInstance: boolean): void {
     store.set(VLC_REUSE_INSTANCE, reuseInstance);
 
     if (!reuseInstance) {
+        const sessionId = reusableVlcProcess.currentSessionId();
         reusableVlcProcess.stopStored(
             'clean up vlc process after disabling reuse',
-            stopVlcPositionPolling,
+            () => stopVlcPositionPolling(sessionId ?? undefined),
             true
         );
     }
@@ -147,9 +162,10 @@ export function setVlcReuseInstance(reuseInstance: boolean): void {
  * playing after quit.
  */
 export function shutdownVlcSession(): void {
+    const sessionId = reusableVlcProcess.currentSessionId();
     reusableVlcProcess.stopStored(
         'kill reused vlc process on app shutdown',
-        stopVlcPositionPolling
+        () => stopVlcPositionPolling(sessionId ?? undefined)
     );
 }
 
@@ -237,7 +253,10 @@ export async function openVlcPlayer({
                 startTime,
                 state: reuseState,
                 startPositionPolling: startVlcPositionPolling,
-                stopPositionPolling: stopVlcPositionPolling,
+                stopPositionPolling: () =>
+                    stopVlcPositionPolling(
+                        previousProcessSessionId ?? undefined
+                    ),
             });
             if (reused) return reused;
         }
@@ -357,7 +376,13 @@ export async function openVlcPlayer({
                         if (current?.status !== 'closed') {
                             externalPlayerSessions.markError(
                                 session.id,
-                                launchError.message
+                                launchError.message,
+                                {
+                                    code:
+                                        readExternalPlayerErrorCode(
+                                            launchError
+                                        ) ?? undefined,
+                                }
                             );
                         }
                     } else {
@@ -514,6 +539,7 @@ export async function openVlcPlayer({
                         session.id
                     );
                     reusableVlcProcess.clear(proc);
+                    stopVlcPositionPolling(processSessionId);
                     if (closeRequested) {
                         void requestedClose?.then(() => {
                             // A spawn failure reports `close` without an
@@ -539,7 +565,8 @@ export async function openVlcPlayer({
                     } else {
                         externalPlayerSessions.markError(
                             processSessionId,
-                            `Failed to start VLC player: ${err.message}`
+                            `Failed to start VLC player: ${err.message}`,
+                            { code: 'start-failed' }
                         );
                         rejectSpawn(
                             buildPlayerStartError('VLC', err, vlcLaunchContext)
@@ -554,7 +581,7 @@ export async function openVlcPlayer({
                         session.id
                     );
                     reusableVlcProcess.clear(proc);
-                    stopVlcPositionPolling();
+                    stopVlcPositionPolling(processSessionId);
 
                     if (
                         !closeRequested &&
@@ -579,7 +606,7 @@ export async function openVlcPlayer({
                         traceExternalPlayer(
                             'retry vlc without rc interface after exit'
                         );
-                        stopVlcPositionPolling();
+                        stopVlcPositionPolling(processSessionId);
                         const retryArgs = playerArgs.filter(
                             (arg) =>
                                 !arg.includes('--extraintf') &&
@@ -596,11 +623,13 @@ export async function openVlcPlayer({
                         );
                         sendPlayerErrorNotification(
                             'VLC',
-                            `VLC player closed unexpectedly (exit code: ${code})`
+                            `VLC player closed unexpectedly (exit code: ${code})`,
+                            'closed-unexpectedly'
                         );
                         externalPlayerSessions.markError(
                             processSessionId,
-                            `VLC player closed unexpectedly (exit code: ${code})`
+                            `VLC player closed unexpectedly (exit code: ${code})`,
+                            { code: 'closed-unexpectedly' }
                         );
                         resolveSpawn();
                         return;
@@ -634,6 +663,7 @@ export async function openVlcPlayer({
             session.id,
             error instanceof Error ? error.message : String(error),
             {
+                code: readExternalPlayerErrorCode(error) ?? undefined,
                 canClose:
                     freshTeardownUnconfirmed ||
                     (reuseState.teardownUnconfirmed &&

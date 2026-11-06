@@ -1,3 +1,4 @@
+import { XtreamDeferredCatalogRestoreService } from '@iptvnator/services/xtream-catalog-restore';
 import { TestBed } from '@angular/core/testing';
 import {
     PLAYLIST_DELETE_CLEANUP,
@@ -23,7 +24,10 @@ describe('provideXtreamDataSource', () => {
         supportsXtreamSqliteDataSource: boolean;
     };
 
-    function configure(supportsXtreamSqliteDataSource: boolean): void {
+    function configure(
+        supportsXtreamSqliteDataSource: boolean,
+        factory?: () => IXtreamDataSource
+    ): void {
         electronSource = {
             deletePlaylist: jest.fn().mockResolvedValue(undefined),
         } as Partial<IXtreamDataSource> as IXtreamDataSource;
@@ -36,7 +40,7 @@ describe('provideXtreamDataSource', () => {
 
         TestBed.configureTestingModule({
             providers: [
-                ...provideXtreamDataSource(),
+                ...provideXtreamDataSource(factory),
                 {
                     provide: RuntimeCapabilitiesService,
                     useValue: runtime,
@@ -97,6 +101,10 @@ describe('provideXtreamDataSource', () => {
 
     it('skips browser sidecar cleanup for SQLite-backed Xtream storage', async () => {
         configure(true);
+        const clear = jest.spyOn(
+            TestBed.inject(XtreamDeferredCatalogRestoreService),
+            'clear'
+        );
         const [cleanup] = TestBed.inject(
             PLAYLIST_DELETE_CLEANUP
         ) as PlaylistDeleteCleanup[];
@@ -105,6 +113,7 @@ describe('provideXtreamDataSource', () => {
 
         expect(electronSource.deletePlaylist).not.toHaveBeenCalled();
         expect(pwaSource.deletePlaylist).not.toHaveBeenCalled();
+        expect(clear).toHaveBeenCalledWith('playlist-1');
     });
 
     it('runs browser sidecar cleanup when SQLite-backed Xtream storage is unavailable', async () => {
@@ -117,5 +126,18 @@ describe('provideXtreamDataSource', () => {
 
         expect(pwaSource.deletePlaylist).toHaveBeenCalledWith('playlist-1');
         expect(electronSource.deletePlaylist).not.toHaveBeenCalled();
+    });
+    it('uses the supplied runtime factory for injection and browser cleanup', async () => {
+        const source = {
+            deletePlaylist: jest.fn(async () => undefined),
+        } as unknown as IXtreamDataSource;
+        configure(false, () => source);
+        expect(TestBed.inject(XTREAM_DATA_SOURCE)).toBe(source);
+        const [cleanup] = TestBed.inject(
+            PLAYLIST_DELETE_CLEANUP
+        ) as PlaylistDeleteCleanup[];
+        await cleanup('source');
+        expect(source.deletePlaylist).toHaveBeenCalledWith('source');
+        expect(pwaSource.deletePlaylist).not.toHaveBeenCalled();
     });
 });

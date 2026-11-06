@@ -1,3 +1,5 @@
+@use '../../../../styles/focus-ring';
+
 :host {
     display: flex;
     flex-direction: column;
@@ -39,8 +41,7 @@
     }
 
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color, #78adff);
-        outline-offset: 2px;
+        @include focus-ring.focus-ring-declarations;
         border-radius: 2px;
     }
 }

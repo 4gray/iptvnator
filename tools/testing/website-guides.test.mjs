@@ -16,6 +16,14 @@ const SITE = 'https://4gray.github.io/iptvnator';
 
 const GUIDES = [
   {
+    slug: 'player-controls-guide',
+    screenshots: ['blog/feature-guides/screenshots/guide-player-subtitles-dark.png'],
+  },
+  {
+    slug: 'library-organization-guide',
+    screenshots: ['blog/feature-guides/screenshots/guide-library-watched-dark.png'],
+  },
+  {
     slug: 'stable-nightly-updates-guide',
     screenshots: ['blog/feature-guides/screenshots/guide-update-channel-dark.png'],
   },
@@ -94,6 +102,21 @@ const GUIDES = [
   },
 ];
 
+/** Guides still marked `draft: true`: built, and therefore checked, only with PUBLIC_INCLUDE_DRAFTS. */
+const DRAFT_ONLY_GUIDES = [
+  {
+    slug: 'self-hosted-server-storage-guide',
+    screenshots: [
+      'blog/guides/screenshots/guide-server-settings-dark.png',
+      'blog/guides/screenshots/guide-server-migration-dark.png',
+    ],
+  },
+];
+
+if (process.env.PUBLIC_INCLUDE_DRAFTS === 'true') {
+  GUIDES.push(...DRAFT_ONLY_GUIDES);
+}
+
 const readDist = (relativePath) => readFile(new URL(relativePath, distRoot), 'utf8');
 
 const FEATURE_GUIDE_SHOTS = {
@@ -126,7 +149,7 @@ const HUB_GROUPS = ['getting-started', 'live-tv-epg', 'playback', 'library', 'up
 const DRAFT_GUIDES = [
   'm3u-programme-guide', 'stable-nightly-updates-guide', 'fullscreen-channel-episode-guide',
   'player-controls-guide', 'stream-info-diagnostics-guide', 'playlist-backup-restore-guide',
-  'library-organization-guide',
+  'library-organization-guide', 'self-hosted-server-storage-guide',
 ];
 
 test('guides hub groups working article links by task and keeps draft visibility consistent', async () => {
@@ -233,7 +256,7 @@ for (const guide of GUIDES) {
     assert.ok(faq, 'Expected a FAQPage entry.');
     assert.ok(faq.mainEntity.length >= 5, 'Expected at least five FAQ questions.');
     assert.match(html, /Frequently asked questions/);
-    assert.match(html, new RegExp(`<link rel="canonical" href="${SITE}/blog/${guide.slug}/"`));
+    assert.ok(html.includes(`<link rel="canonical" href="${SITE}/blog/${guide.slug}/"`));
   });
 
   test(`${guide.slug}: links to the download hub and ships its screenshots`, async () => {
@@ -241,7 +264,7 @@ for (const guide of GUIDES) {
     assert.match(html, /href="\/iptvnator\/download\/"/);
 
     for (const screenshot of guide.screenshots) {
-      assert.match(html, new RegExp(`src="/iptvnator/${screenshot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`));
+      assert.ok(html.includes(`src="/iptvnator/${screenshot}"`));
       await access(new URL(screenshot, distRoot));
     }
   });

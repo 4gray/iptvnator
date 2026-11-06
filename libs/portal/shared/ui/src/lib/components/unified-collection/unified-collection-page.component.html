@@ -5,15 +5,45 @@
         [ngTemplateOutlet]="detailTemplate()?.templateRef ?? null"
         [ngTemplateOutletContext]="detailContext"
     />
+} @else if (isDetailPending()) {
+    <app-portal-detail-shell [isLoading]="true" [backAvailable]="false" />
 } @else if (isLoading()) {
     <div class="collection-header">
         <span class="collection-title">{{ title() | translate }}</span>
-        <div class="collection-header-toggles">
-            <span class="toggle-placeholder"></span>
+        <div class="collection-header-actions" aria-hidden="true">
+            <span class="header-action-placeholder"></span>
+        </div>
+        <div class="collection-header-toggles" aria-hidden="true" inert>
+            <mat-button-toggle-group
+                class="content-toggle toggle-placeholder"
+                disabled
+                hideSingleSelectionIndicator
+            >
+                <mat-button-toggle>{{
+                    'PORTALS.LIVE_TV' | translate
+                }}</mat-button-toggle>
+                <mat-button-toggle>{{
+                    'PORTALS.MOVIES' | translate
+                }}</mat-button-toggle>
+                <mat-button-toggle>{{
+                    'PORTALS.SERIES' | translate
+                }}</mat-button-toggle>
+            </mat-button-toggle-group>
             @if (showScopeToggle()) {
-                <span
-                    class="toggle-placeholder toggle-placeholder--scope"
-                ></span>
+                <mat-button-toggle-group
+                    class="scope-toggle toggle-placeholder"
+                    disabled
+                    hideSingleSelectionIndicator
+                >
+                    <mat-button-toggle>
+                        <mat-icon>playlist_play</mat-icon>
+                        <span>{{ 'PORTALS.THIS_PLAYLIST' | translate }}</span>
+                    </mat-button-toggle>
+                    <mat-button-toggle>
+                        <mat-icon>public</mat-icon>
+                        <span>{{ 'PORTALS.ALL_PLAYLISTS' | translate }}</span>
+                    </mat-button-toggle>
+                </mat-button-toggle-group>
             }
         </div>
     </div>
@@ -21,7 +51,7 @@
         <div class="skeleton-list">
             <app-channel-list-skeleton
                 [count]="12"
-                [showEpg]="supportsEpg"
+                [showEpg]="skeletonShowsEpg()"
                 [actionCount]="1"
             />
         </div>
@@ -48,53 +78,83 @@
     <div class="collection-header">
         <span class="collection-title">{{ title() | translate }}</span>
 
-        @if (showFavSortButton()) {
-            <button
-                type="button"
-                mat-icon-button
-                class="favorites-sort-button"
-                [matMenuTriggerFor]="favoritesSortMenu"
-                [matTooltip]="
-                    ('WORKSPACE.SORT_LABEL' | translate) +
-                    (favSortLabelKey() | translate)
-                "
-                [attr.aria-label]="'WORKSPACE.SORT_LABEL' | translate"
-            >
-                <mat-icon>sort_by_alpha</mat-icon>
-            </button>
-            <mat-menu #favoritesSortMenu="matMenu">
-                @for (option of favSortOptions; track option.mode) {
-                    <button mat-menu-item (click)="setFavSortMode(option.mode)">
-                        <mat-icon>{{ option.icon }}</mat-icon>
-                        <span>{{ option.translationKey | translate }}</span>
-                        @if (favSortMode() === option.mode) {
-                            <mat-icon class="sort-check">check</mat-icon>
-                        }
-                    </button>
-                }
-            </mat-menu>
-        }
+        <div class="collection-header-actions">
+            @if (showFavSortButton()) {
+                <button
+                    type="button"
+                    mat-icon-button
+                    class="favorites-sort-button"
+                    [matMenuTriggerFor]="favoritesSortMenu"
+                    [matTooltip]="
+                        ('WORKSPACE.SORT_LABEL' | translate) +
+                        (favSortLabelKey() | translate)
+                    "
+                    [attr.aria-label]="
+                        ('WORKSPACE.SORT_LABEL' | translate) +
+                        (favSortLabelKey() | translate)
+                    "
+                >
+                    <mat-icon>sort_by_alpha</mat-icon>
+                </button>
+                <mat-menu #favoritesSortMenu="matMenu">
+                    @for (option of favSortOptions; track option.mode) {
+                        <button
+                            mat-menu-item
+                            [appMenuItemRadio]="favSortMode() === option.mode"
+                            (click)="setFavSortMode(option.mode)"
+                        >
+                            <mat-icon appMenuItemRadioCheck>check</mat-icon>
+                            <mat-icon>{{ option.icon }}</mat-icon>
+                            <span>{{ option.translationKey | translate }}</span>
+                        </button>
+                    }
+                </mat-menu>
+            }
 
-        @if (showSidebarToggle()) {
-            <button
-                type="button"
-                mat-icon-button
-                class="collection-sidebar-toggle"
-                [attr.aria-label]="
-                    (isSidebarCollapsed()
-                        ? 'LAYOUT.SHOW_CHANNELS_LIST'
-                        : 'LAYOUT.HIDE_CHANNELS_LIST'
-                    ) | translate
-                "
-                [matTooltip]="'LAYOUT.TOGGLE_SIDEBAR_TOOLTIP' | translate"
-                [attr.aria-pressed]="isSidebarCollapsed()"
-                (click)="toggleSidebar()"
-            >
-                <mat-icon>{{
-                    isSidebarCollapsed() ? 'chevron_right' : 'chevron_left'
-                }}</mat-icon>
-            </button>
-        }
+            @if (showSidebarToggle()) {
+                <button
+                    type="button"
+                    mat-icon-button
+                    class="collection-sidebar-toggle"
+                    [attr.aria-label]="
+                        (isSidebarCollapsed()
+                            ? 'LAYOUT.SHOW_CHANNELS_LIST'
+                            : 'LAYOUT.HIDE_CHANNELS_LIST'
+                        ) | translate
+                    "
+                    [matTooltip]="'LAYOUT.TOGGLE_SIDEBAR_TOOLTIP' | translate"
+                    [attr.aria-pressed]="isSidebarCollapsed()"
+                    (click)="toggleSidebar()"
+                >
+                    <mat-icon>{{
+                        isSidebarCollapsed() ? 'chevron_right' : 'chevron_left'
+                    }}</mat-icon>
+                </button>
+            }
+            @if (currentTypeItems().length > 0) {
+                <button
+                    type="button"
+                    mat-icon-button
+                    (click)="clearAllCurrent()"
+                    [matTooltip]="
+                        clearButtonTooltipKey()
+                            | translate
+                                : {
+                                      type: currentTypeLabelKey() | translate,
+                                  }
+                    "
+                    [attr.aria-label]="
+                        clearButtonTooltipKey()
+                            | translate
+                                : {
+                                      type: currentTypeLabelKey() | translate,
+                                  }
+                    "
+                >
+                    <mat-icon>delete_sweep</mat-icon>
+                </button>
+            }
+        </div>
 
         <div class="collection-header-toggles">
             @if (showContentToggle()) {
@@ -131,41 +191,13 @@
                 >
                     <mat-button-toggle value="playlist">
                         <mat-icon>playlist_play</mat-icon>
-                        <span class="toggle-label">{{
-                            'PORTALS.THIS_PLAYLIST' | translate
-                        }}</span>
+                        <span>{{ 'PORTALS.THIS_PLAYLIST' | translate }}</span>
                     </mat-button-toggle>
                     <mat-button-toggle value="all">
                         <mat-icon>public</mat-icon>
-                        <span class="toggle-label">{{
-                            'PORTALS.ALL_PLAYLISTS' | translate
-                        }}</span>
+                        <span>{{ 'PORTALS.ALL_PLAYLISTS' | translate }}</span>
                     </mat-button-toggle>
                 </mat-button-toggle-group>
-            }
-
-            @if (currentTypeItems().length > 0) {
-                <button
-                    type="button"
-                    mat-icon-button
-                    (click)="clearAllCurrent()"
-                    [matTooltip]="
-                        clearButtonTooltipKey()
-                            | translate
-                                : {
-                                      type: currentTypeLabelKey() | translate,
-                                  }
-                    "
-                    [attr.aria-label]="
-                        clearButtonTooltipKey()
-                            | translate
-                                : {
-                                      type: currentTypeLabelKey() | translate,
-                                  }
-                    "
-                >
-                    <mat-icon>delete_sweep</mat-icon>
-                </button>
             }
         </div>
 

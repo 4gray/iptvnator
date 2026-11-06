@@ -171,6 +171,26 @@ describe('VodDetailsMenuService', () => {
         expect(vodPlaybackPosition()).toBeNull();
     });
 
+    it('handles a failed badge refresh after resetting persisted progress', async () => {
+        const warn = jest
+            .spyOn(console, 'warn')
+            .mockImplementation(() => undefined);
+        const refresh = Promise.reject(new Error('position read failed'));
+        // Keep the RED test focused on the missing caller handler, with no
+        // unhandled rejection escaping into the test runner.
+        void refresh.catch(() => undefined);
+        loadAllPositions.mockReturnValueOnce(refresh);
+        await service.run(VOD_MENU_ACTION.ResetProgress);
+        await Promise.resolve();
+        expect(warn).toHaveBeenCalledWith(
+            '[VodDetailsMenu]',
+            'Failed to refresh playback positions',
+            expect.anything()
+        );
+        expect(pendingResets()).toEqual([]);
+        warn.mockRestore();
+    });
+
     it('holds every start while the reset is still writing', async () => {
         primaryPosition.set({
             playlistId: 'playlist-1',

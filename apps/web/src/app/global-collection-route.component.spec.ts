@@ -1,6 +1,7 @@
-import { Component, input, output, signal } from '@angular/core';
+import { Component, input, output, signal, Type } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { TranslateModule } from '@ngx-translate/core';
 import {
     SeriesResumeTarget,
     UnifiedCollectionItem,
@@ -66,7 +67,7 @@ describe('GlobalCollectionDetailHostComponent', () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            imports: [WrapperComponent],
+            imports: [WrapperComponent, TranslateModule.forRoot()],
         }).compileComponents();
 
         fixture = TestBed.createComponent(WrapperComponent);
@@ -103,6 +104,43 @@ describe('GlobalCollectionDetailHostComponent', () => {
 
         expect(queryDetail()).toBeNull();
     });
+
+    it.each(['xtream', 'stalker'] as const)(
+        'keeps the detail skeleton visible while the %s module loads',
+        async (sourceType) => {
+            const host = fixture.debugElement.query(
+                By.directive(GlobalCollectionDetailHostComponent)
+            ).componentInstance as GlobalCollectionDetailHostComponent;
+            let resolveComponent!: (component: Type<unknown>) => void;
+            jest.spyOn(
+                host as unknown as {
+                    loadDetailComponent: () => Promise<Type<unknown>>;
+                },
+                'loadDetailComponent'
+            ).mockReturnValueOnce(
+                new Promise((resolve) => (resolveComponent = resolve))
+            );
+            fixture.componentInstance.item.set({
+                ...xtreamSeriesItem,
+                sourceType,
+            });
+            fixture.detectChanges();
+            expect(
+                fixture.nativeElement.querySelector(
+                    '[data-test-id="hero-skeleton"]'
+                )
+            ).not.toBeNull();
+
+            resolveComponent(MockXtreamCollectionDetailComponent);
+            await stabilize();
+            expect(queryDetail()).not.toBeNull();
+            expect(
+                fixture.nativeElement.querySelector(
+                    '[data-test-id="hero-skeleton"]'
+                )
+            ).toBeNull();
+        }
+    );
 
     it('ignores sources without a collection detail component', async () => {
         fixture.componentInstance.item.set({
@@ -166,6 +204,42 @@ describe('GlobalCollectionDetailHostComponent', () => {
             detail?.componentInstance as MockStalkerCollectionDetailComponent;
         expect(instance.item()?.stalkerId).toBe('17672');
         expect(instance.seriesResume()).toEqual(seriesResume);
+    });
+
+    it('preserves playback state when polling refreshes the same detail', async () => {
+        fixture.componentInstance.item.set(xtreamSeriesItem);
+        await stabilize();
+        const original = queryDetail()?.componentInstance;
+        const refreshed = {
+            ...xtreamSeriesItem,
+            name: 'Synthetic refreshed title',
+        };
+        fixture.componentInstance.item.set(refreshed);
+        await stabilize();
+        expect(queryDetail()?.componentInstance).toBe(original);
+        expect(original.item()).toBe(refreshed);
+        fixture.componentInstance.item.set({
+            ...refreshed,
+            uid: 'xtream::xtream-1::series:104',
+            xtreamId: 104,
+        });
+        await stabilize();
+        expect(queryDetail()?.componentInstance).not.toBe(original);
+    });
+
+    it('replaces a detail when the same provider ID has a different known identity', async () => {
+        fixture.componentInstance.item.set({
+            ...xtreamSeriesItem,
+            xtreamIdentity: { tmdbId: 101, releaseYear: 2024 },
+        });
+        await stabilize();
+        const original = queryDetail()?.componentInstance;
+        fixture.componentInstance.item.set({
+            ...xtreamSeriesItem,
+            xtreamIdentity: { tmdbId: 102, releaseYear: 2025 },
+        });
+        await stabilize();
+        expect(queryDetail()?.componentInstance).not.toBe(original);
     });
 
     it('re-emits close requests and clears the detail with the item', async () => {

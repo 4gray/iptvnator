@@ -1,0 +1,50 @@
+@use 'sass:map';
+@use '@angular/material' as mat;
+
+// The orange family's secondary is a muted brown; retain its complete M3
+// neutral/error ramps while aligning the surface tones with the app palettes.
+$palette: map.merge(
+    mat.$orange-palette,
+    map.get(mat.$orange-palette, secondary)
+);
+$palette: map.merge(
+    $palette,
+    (
+        neutral: map.merge(
+                map.get($palette, neutral),
+                (
+                    4: #171310,
+                    6: #1e1916,
+                    10: #251f1b,
+                    12: #302823,
+                    17: #382f29,
+                    22: #40352d,
+                    90: #e9e1d4,
+                    94: #f3eee4,
+                    96: #f7f1e7,
+                    98: #fcf8f0,
+                )
+            ),
+    )
+);
+
+$cream: mat.define-theme(
+    (
+        color: (
+            theme-type: light,
+            use-system-variables: true,
+            primary: $palette,
+            tertiary: $palette,
+        ),
+    )
+);
+$mocha: mat.define-theme(
+    (
+        color: (
+            theme-type: dark,
+            use-system-variables: true,
+            primary: $palette,
+            tertiary: $palette,
+        ),
+    )
+);

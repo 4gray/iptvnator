@@ -28,7 +28,11 @@ import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
-import { ResizableDirective } from '@iptvnator/ui/components';
+import {
+    MenuItemRadioCheckDirective,
+    MenuItemRadioDirective,
+    ResizableDirective,
+} from '@iptvnator/ui/components';
 import {
     GridListComponent,
     InfiniteScrollDirective,
@@ -39,11 +43,10 @@ import {
     createLivePanelsController,
     PORTAL_PLAYER,
     PortalChannelSortMode,
-    getPortalChannelSortModeLabel,
+    getPortalChannelSortModeLabelKey,
     getAdjacentChannelItem,
     getChannelItemByNumber,
     isTypingInInput,
-    isWorkspaceLayoutRoute,
     LiveEpgPanelState,
     persistLiveEpgPanelState,
     persistPortalChannelSortMode,
@@ -96,6 +99,7 @@ import {
 } from '../portal-channels-list/portal-channels-list.component';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import {
+    EpgPreferencesService,
     DatabaseService,
     ParentalLockService,
     RecordingsService,
@@ -104,6 +108,7 @@ import {
 } from '@iptvnator/services';
 import { LiveStreamAutoOpenStateService } from './live-stream-auto-open-state.service';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
+import { injectXtreamRecentHistory } from '../xtream-recent-history';
 
 import {
     XtreamLiveChannelNavigationService,
@@ -134,6 +139,8 @@ const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
         MatMenuModule,
         MatProgressSpinnerModule,
         MatTooltipModule,
+        MenuItemRadioCheckDirective,
+        MenuItemRadioDirective,
         NgTemplateOutlet,
         GridListComponent,
         InfiniteScrollDirective,
@@ -155,6 +162,7 @@ export class LiveStreamLayoutComponent
     private readonly router = inject(Router);
     private readonly favoritesService = inject(FavoritesService);
     private readonly xtreamStore = inject(XtreamStore);
+    private readonly recordRecentItem = injectXtreamRecentHistory();
     readonly archiveContextKey = computed(() =>
         JSON.stringify([
             this.xtreamStore.currentPlaylist()?.id,
@@ -169,6 +177,7 @@ export class LiveStreamLayoutComponent
     private readonly archiveCopy = inject(EpgArchiveCopyService);
     private readonly xtreamUrlService = inject(XtreamUrlService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly epgPreferences = inject(EpgPreferencesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly parentalLock = inject(ParentalLockService);
@@ -207,18 +216,19 @@ export class LiveStreamLayoutComponent
             this.xtreamStore.selectItemsFromSelectedCategory() as XtreamChannelListItem[]
     );
     readonly isElectron = this.runtime.isElectron;
-    readonly supportsEpg = this.runtime.supportsEpg;
-    readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.route);
-    private readonly routeSearchTerm = queryParamSignal(
-        this.route,
-        'q',
-        (value) => (value ?? '').trim()
-    );
-    readonly workspaceSearchTerm = computed(() =>
-        this.isWorkspaceLayout ? this.routeSearchTerm() : ''
+    get supportsProviderEpg(): boolean {
+        return (
+            this.epgPreferences.enabled() && this.runtime.supportsProviderEpg
+        );
+    }
+    readonly workspaceSearchTerm = queryParamSignal(this.route, 'q', (value) =>
+        (value ?? '').trim()
     );
     readonly showLiveChannelSidebar = computed(
-        () => !!this.selectedCategoryId() || !!this.workspaceSearchTerm()
+        () =>
+            !!this.selectedCategoryId() ||
+            !!this.workspaceSearchTerm() ||
+            !!this.activeStreamUrl()
     );
     private readonly pendingAutoOpenLiveItemId =
         this.liveAutoOpenState.pendingItemId;
@@ -320,6 +330,7 @@ export class LiveStreamLayoutComponent
     readonly archivePlaybackAvailable = computed(() => {
         const selectedItem = this.selectedLiveItem();
         return (
+            this.runtime.supportsProviderCatchUp &&
             Number(selectedItem?.tv_archive ?? 0) === 1 &&
             this.controlledArchiveDays() > 0
         );
@@ -381,8 +392,8 @@ export class LiveStreamLayoutComponent
     readonly showReturnToLive = computed(
         () => this.activeCatchupProgram() !== null
     );
-    readonly liveChannelSortLabel = computed(() =>
-        getPortalChannelSortModeLabel(this.liveChannelSortMode())
+    readonly liveChannelSortLabelKey = computed(() =>
+        getPortalChannelSortModeLabelKey(this.liveChannelSortMode())
     );
     readonly liveRootItems = computed(
         () =>
@@ -394,10 +405,6 @@ export class LiveStreamLayoutComponent
     readonly liveRootItemCount = computed(
         () => this.xtreamStore.selectItemsFromSelectedCategory().length
     );
-    readonly liveRootSubtitle = computed(() => {
-        const count = this.liveRootItemCount();
-        return `${count} ${count === 1 ? 'channel' : 'channels'}`;
-    });
     readonly liveRootHasMore = this.xtreamStore.hasMoreContent;
 
     readonly selectedCategoryInfo = computed(() => {
@@ -413,8 +420,9 @@ export class LiveStreamLayoutComponent
         );
         const count = this.categoryItemCounts()?.get(categoryId) ?? 0;
 
+        // A null name falls back to a translated label in the template.
         return {
-            name: category?.category_name ?? category?.name ?? 'Channels',
+            name: category?.category_name ?? category?.name ?? null,
             count,
         };
     });
@@ -694,6 +702,25 @@ export class LiveStreamLayoutComponent
             thumbnail: item.poster_url ?? item.stream_icon ?? null,
             isLive: true,
         });
+        if (startPlayback && streamUrl) {
+            this.recordRecentItem(
+                streamUrl,
+                {
+                    xtreamId: item.xtream_id,
+                    contentType: 'live',
+                    playedContent: {
+                        title: item.title ?? item.name ?? '',
+                        posterUrl: item.poster_url ?? item.stream_icon,
+                        categoryId: item.category_id,
+                        tmdbId: item.tmdb_id ?? undefined,
+                        releaseYear: item.release_year ?? undefined,
+                    },
+                },
+                this.usesEmbeddedPlayer()
+                    ? this.playbackSessionKey()
+                    : undefined
+            );
+        }
         if (this.usesEmbeddedPlayer() || !startPlayback) {
             return;
         }
@@ -959,6 +986,7 @@ export class LiveStreamLayoutComponent
                 serverUrl: playlist.serverUrl,
                 username: playlist.username,
                 password: playlist.password,
+                userAgent: playlist.userAgent?.trim() || undefined,
             },
             item.xtream_id,
             startTimestamp,

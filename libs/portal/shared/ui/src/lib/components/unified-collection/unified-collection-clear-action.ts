@@ -84,8 +84,6 @@ export function createClearCollectionAction(options: {
 }
 
 export interface ClearCollectionViewCommandHost {
-    /** Only the workspace shell renders a command palette to register into. */
-    isWorkspaceLayout: boolean;
     mode: Signal<CollectionMode>;
     selectedContentType: Signal<CollectionContentType>;
     /** Rows the command would clear; with none there is nothing to offer. */
@@ -110,7 +108,7 @@ export function setupClearCollectionViewCommand(
     });
 
     effect((onCleanup) => {
-        if (!host.isWorkspaceLayout || host.currentTypeItems().length === 0) {
+        if (host.currentTypeItems().length === 0) {
             return;
         }
 

@@ -7,37 +7,52 @@
         <div class="groups-loading-layout" aria-hidden="true">
             <aside class="groups-loading-nav">
                 <header class="groups-loading-nav__header">
-                    <h2 class="groups-loading-nav__title">
-                        {{ 'CHANNELS.GROUPS' | translate }}
-                    </h2>
+                    <div class="groups-loading-nav__header-row">
+                        <h2 class="groups-loading-nav__title">
+                            {{ 'CHANNELS.GROUPS' | translate }}
+                        </h2>
+                    </div>
                 </header>
 
-                <div class="groups-loading-nav__list">
+                <div class="nav-list groups-loading-nav__list">
                     @for (row of groupRows; track row) {
-                        <div class="groups-loading-nav__item">
+                        <div class="nav-item groups-loading-nav__item">
                             <span
-                                class="grid-skeleton-line groups-loading-nav__label"
-                                [style.width.%]="groupLabelWidths[row]"
-                            ></span>
+                                class="nav-item-label groups-loading-nav__label"
+                            >
+                                <span
+                                    class="grid-skeleton-line"
+                                    [style.width.%]="groupLabelWidths[row]"
+                                ></span>
+                            </span>
                             <span
-                                class="grid-skeleton-line groups-loading-nav__count"
-                            ></span>
+                                class="nav-item-meta groups-loading-nav__count"
+                            >
+                                <span class="grid-skeleton-line"></span>
+                            </span>
                         </div>
                     }
                 </div>
             </aside>
 
             <section class="groups-loading-content">
-                <header class="groups-loading-content__header">
-                    <div class="groups-loading-content__meta">
-                        <span
-                            class="grid-skeleton-line groups-loading-content__title"
-                        ></span>
-                        <span
-                            class="grid-skeleton-line groups-loading-content__subtitle"
-                        ></span>
-                    </div>
-                </header>
+                @if (showHeader()) {
+                    <header class="groups-loading-content__header">
+                        <div class="groups-loading-content__meta">
+                            <span class="groups-loading-content__title">
+                                <span class="grid-skeleton-line"></span>
+                            </span>
+                            <span class="groups-loading-content__subtitle">
+                                <span class="grid-skeleton-line"></span>
+                            </span>
+                        </div>
+                        @for (slot of headerActionSlots; track slot) {
+                            <span
+                                class="list-skeleton-star loading-header-action"
+                            ></span>
+                        }
+                    </header>
+                }
 
                 <div class="groups-loading-content__list">
                     <app-channel-list-skeleton
@@ -49,12 +64,29 @@
             </section>
         </div>
     } @else {
-        <div class="channels-loading-state">
-            <div class="channels-loading-state__copy">
-                <div class="channels-loading-state__title">
-                    {{ 'CHANNELS.LOADING' | translate }}
-                </div>
-            </div>
+        <div class="channels-loading-state" aria-hidden="true">
+            @if (showHeader()) {
+                <header class="channels-loading-header">
+                    <div
+                        class="channels-loading-header__row"
+                        [class.channels-loading-header__row--actions]="
+                            hasHeaderActions()
+                        "
+                    >
+                        <span class="channels-loading-header__title">
+                            <span class="grid-skeleton-line"></span>
+                        </span>
+                        @if (hasHeaderActions()) {
+                            @for (slot of headerActionSlots; track slot) {
+                                <span
+                                    class="list-skeleton-star loading-header-action"
+                                ></span>
+                            }
+                        }
+                    </div>
+                </header>
+                <div class="channels-loading-divider"></div>
+            }
 
             <div class="channels-loading-state__list">
                 <app-channel-list-skeleton

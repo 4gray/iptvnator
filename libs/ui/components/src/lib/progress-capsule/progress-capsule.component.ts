@@ -4,6 +4,7 @@ import {
     input,
     ChangeDetectionStrategy,
 } from '@angular/core';
+import { PORTAL_WATCHED_PROGRESS_PERCENT } from '@iptvnator/portal/shared/util';
 
 @Component({
     selector: 'app-progress-capsule',
@@ -19,8 +20,7 @@ import {
             ></div>
         </div>
     `,
-    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styles: [
         `
             .progress-capsule {
@@ -54,5 +54,7 @@ import {
 })
 export class ProgressCapsuleComponent {
     readonly progress = input.required<number>();
-    readonly isWatched = computed(() => this.progress() >= 90);
+    readonly isWatched = computed(
+        () => this.progress() >= PORTAL_WATCHED_PROGRESS_PERCENT
+    );
 }

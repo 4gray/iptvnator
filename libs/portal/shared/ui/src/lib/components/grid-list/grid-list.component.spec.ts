@@ -1,6 +1,7 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
 import { SettingsStore } from '@iptvnator/services';
@@ -24,6 +25,24 @@ describe('grid list rating helpers', () => {
                 rating_imdb: '7.243',
             })
         ).toBe('7.2');
+    });
+
+    it('shows no badge for a provider stand-in or an unrated zero', () => {
+        for (const value of ['N/A', 'n/a', '-', '0', '0.0', 0]) {
+            expect(formatGridRating(value)).toBeUndefined();
+        }
+    });
+
+    it('falls back to the generic rating when imdb rating is a stand-in', () => {
+        expect(
+            resolveGridRating({
+                rating: '6.5',
+                rating_imdb: 'N/A',
+            })
+        ).toBe('6.5');
+        expect(resolveGridRating({ rating: '0', rating_imdb: '-' })).toBe(
+            undefined
+        );
     });
 
     it('falls back to the generic rating when imdb rating is blank', () => {
@@ -57,6 +76,87 @@ describe('GridListComponent', () => {
             .compileComponents();
 
         fixture = TestBed.createComponent(GridListComponent);
+    });
+
+    it('renders optional live programme metadata and keeps it hidden when EPG is off', () => {
+        fixture.componentRef.setInput('variant', 'logo');
+        fixture.componentRef.setInput('type', 'live');
+        fixture.componentRef.setInput('showEpg', true);
+        fixture.componentRef.setInput('items', [
+            {
+                id: '1',
+                name: 'News',
+                epgProgress: 40,
+                epgProgram: {
+                    start: '2026-11-02T19:00:00Z',
+                    stop: '2026-11-02T20:00:00Z',
+                    title: 'Evening bulletin',
+                    channel: '1',
+                    desc: null,
+                    category: null,
+                },
+            },
+        ]);
+        fixture.detectChanges();
+        expect(
+            fixture.nativeElement.querySelector('.grid-epg-title')?.textContent
+        ).toContain('Evening bulletin');
+        expect(
+            fixture.nativeElement.querySelector('.grid-epg-progress-fill')
+                ?.style.width
+        ).toBe('40%');
+        expect(
+            fixture.nativeElement
+                .querySelector('mat-card')
+                .getAttribute('aria-label')
+        ).toBeNull();
+        fixture.componentRef.setInput('showEpg', false);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('.grid-epg')).toBeNull();
+    });
+
+    it('reserves the programme block after the channel title while loading', () => {
+        fixture.componentRef.setInput('variant', 'logo');
+        fixture.componentRef.setInput('showEpg', true);
+        fixture.componentRef.setInput('isLoading', true);
+        fixture.detectChanges();
+        const skeleton = fixture.nativeElement.querySelector(
+            '.grid-skeleton-card'
+        ) as HTMLElement;
+        expect(
+            skeleton.querySelector('.grid-skeleton-title')?.nextElementSibling
+                ?.className
+        ).toBe('grid-skeleton-epg');
+    });
+
+    it('honours optional double-click playback while keyboard activation remains immediate', () => {
+        const activate = jest.fn();
+        fixture.componentInstance.itemClicked.subscribe(activate);
+        fixture.componentRef.setInput('activateOnDoubleClick', true);
+        fixture.componentRef.setInput('items', [{ id: '1', name: 'News' }]);
+        fixture.detectChanges();
+        const card = fixture.nativeElement.querySelector(
+            'mat-card'
+        ) as HTMLElement;
+        card.dispatchEvent(new MouseEvent('click', { detail: 1 }));
+        expect(activate).not.toHaveBeenCalled();
+        card.click();
+        expect(activate).toHaveBeenCalledTimes(1);
+        card.dispatchEvent(new MouseEvent('dblclick'));
+        card.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+        expect(activate).toHaveBeenCalledTimes(3);
+    });
+
+    it.each([
+        [{ rating: '7.5', rating_imdb: '8.2' }, 'XTREAM.IMDB_RATING'],
+        [{ rating: '7.5' }, 'XTREAM.RATING'],
+        [{ rating: '7.5', rating_imdb: '  ' }, 'XTREAM.RATING'],
+    ])('labels a rating according to its available source: %j', (item, key) => {
+        fixture.componentRef.setInput('items', [{ name: 'Movie', ...item }]);
+        fixture.detectChanges();
+
+        const rating = fixture.debugElement.query(By.css('.rating'));
+        expect(rating.injector.get(MatTooltip).message).toBe(key);
     });
 
     it('renders live logo cards with stream icons', () => {
@@ -196,9 +296,7 @@ describe('GridListComponent', () => {
         // The icon is aria-hidden — the status must also exist as
         // visually-hidden text for assistive technology.
         const srText = badge.query(By.css('.visually-hidden'));
-        expect(srText.nativeElement.textContent).toContain(
-            'CATCHUP_AVAILABLE'
-        );
+        expect(srText.nativeElement.textContent).toContain('CATCHUP_AVAILABLE');
     });
 
     it('hides the catch-up badge for live cards without a playable archive', () => {
@@ -253,7 +351,7 @@ describe('GridListComponent', () => {
         fixture.detectChanges();
 
         const title = fixture.debugElement.query(By.css('.title'));
-        expect(title.nativeElement.textContent.trim()).toBe('No name');
+        expect(title.nativeElement.textContent.trim()).toBe('PORTALS.UNTITLED');
     });
 });
 
@@ -301,9 +399,7 @@ describe('GridListComponent with strip country prefix enabled', () => {
     });
 
     it('keeps VOD titles untouched', () => {
-        fixture.componentRef.setInput('items', [
-            { title: 'US | Some Movie' },
-        ]);
+        fixture.componentRef.setInput('items', [{ title: 'US | Some Movie' }]);
         fixture.componentRef.setInput('type', 'vod');
 
         fixture.detectChanges();
@@ -358,9 +454,7 @@ describe('GridListComponent posters-only wall', () => {
             'grid-list--posters-only'
         );
         expect(fixture.debugElement.query(By.css('.title'))).toBeNull();
-        expect(overlay().nativeElement.textContent.trim()).toBe(
-            'Blade Runner'
-        );
+        expect(overlay().nativeElement.textContent.trim()).toBe('Blade Runner');
         expect(overlay().nativeElement.classList).not.toContain(
             'cover-title-overlay--pinned'
         );
@@ -524,5 +618,32 @@ describe('GridListComponent keyboard access', () => {
 
         expect(clicked).toHaveBeenCalledTimes(2);
         expect(space.defaultPrevented).toBe(true);
+    });
+    it('distinguishes paused partial results from exhausted filtered results and emits recovery actions', () => {
+        fixture.componentRef.setInput('items', []);
+        fixture.componentRef.setInput('refinementActive', true);
+        fixture.componentRef.setInput('sourceHasMore', true);
+        fixture.componentRef.setInput('loadMorePaused', true);
+        const resume = jest.fn();
+        const clear = jest.fn();
+        fixture.componentInstance.continueLoading.subscribe(resume);
+        fixture.componentInstance.clearRefinement.subscribe(clear);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.textContent).toContain(
+            'WORKSPACE.REFINE_HIDE_WATCHED_PARTIAL'
+        );
+        fixture.nativeElement.querySelector('.grid-list__tail button').click();
+        fixture.nativeElement.querySelector('.grid-filter-clear').click();
+        expect(resume).toHaveBeenCalledTimes(1);
+        expect(clear).toHaveBeenCalledTimes(1);
+        fixture.componentRef.setInput('sourceHasMore', false);
+        fixture.componentRef.setInput('loadMorePaused', false);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.textContent).toContain(
+            'WORKSPACE.REFINE_HIDE_WATCHED_EMPTY'
+        );
+        expect(
+            fixture.nativeElement.querySelector('.grid-list__tail')
+        ).toBeNull();
     });
 });

@@ -1,10 +1,16 @@
+import { announceActivityChange } from '@iptvnator/services/activity-changes';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import {
+    type StalkerCategoryLabel,
+    StalkerStore,
+} from '@iptvnator/portal/stalker/data-access';
 import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util';
 import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { StalkerCatalogFacadeService } from './stalker-catalog-facade.service';
+import { StalkerWorkspaceRouteSession } from './stalker-workspace-route-session.service';
 
 describe('StalkerCatalogFacadeService', () => {
     const playlist = {
@@ -72,6 +78,8 @@ describe('StalkerCatalogFacadeService', () => {
             ),
         };
         stalkerStoreMock = {
+            isContentRetrying: signal(false),
+            isPaginatedContentFailed: signal(null),
             selectedContentType: signal<'vod' | 'series' | 'itv'>('vod'),
             page: signal(0),
             selectedCategoryId: signal<string | null>('5'),
@@ -83,7 +91,7 @@ describe('StalkerCatalogFacadeService', () => {
             hasContentAppendError: signal(false),
             isPaginatedContentLoading: signal(false),
             currentPlaylist: signal(playlist),
-            getSelectedCategoryName: jest.fn(() => null),
+            getSelectedCategoryLabel: signal({ name: '', labelKey: null }),
             setSelectedCategory: jest.fn(),
             clearSelectedItem: jest.fn(),
             setSearchPhrase: jest.fn(),
@@ -99,8 +107,13 @@ describe('StalkerCatalogFacadeService', () => {
         };
 
         TestBed.configureTestingModule({
+            imports: [TranslateModule.forRoot()],
             providers: [
                 StalkerCatalogFacadeService,
+                {
+                    provide: StalkerWorkspaceRouteSession,
+                    useValue: { isReady: signal(true) },
+                },
                 {
                     provide: StalkerStore,
                     useValue: stalkerStoreMock,
@@ -117,6 +130,162 @@ describe('StalkerCatalogFacadeService', () => {
         });
     });
 
+    it('refreshes an open filtered catalog after shared activity and unsubscribes on destruction', async () => {
+        const catalog = [{ id: '17359', name: 'Synthetic catalog item' }];
+        (
+            stalkerStoreMock['getPaginatedContent'] as ReturnType<
+                typeof signal<typeof catalog>
+            >
+        ).set(catalog);
+        const service = TestBed.inject(StalkerCatalogFacadeService);
+        TestBed.tick();
+        await Promise.resolve();
+        service.hideWatched.setEnabled(true);
+        expect(service.hideWatched.enabled()).toBe(true);
+        expect(service.paginatedContent()).toEqual(catalog);
+        const refresh = jest.spyOn(service, 'refreshPositions');
+        playbackPositions.getAllPlaybackPositions.mockResolvedValue([
+            {
+                contentType: 'vod',
+                contentXtreamId: 17359,
+                positionSeconds: 100,
+                durationSeconds: 100,
+            },
+        ]);
+        announceActivityChange();
+        expect(refresh).toHaveBeenCalledWith(playlist._id);
+        await refresh.mock.results[0].value;
+        expect(service.getItemProgress({ id: '17359' })).toEqual({
+            progress: 100,
+            watchState: 'watched',
+        });
+        expect(service.paginatedContent()).toEqual([]);
+        playbackPositions.getAllPlaybackPositions.mockResolvedValue([]);
+        announceActivityChange();
+        await refresh.mock.results[1].value;
+        expect(service.getItemProgress({ id: '17359' }).watchState).toBe(
+            'unwatched'
+        );
+        expect(service.paginatedContent()).toEqual(catalog);
+        const calls =
+            playbackPositions.getAllPlaybackPositions.mock.calls.length;
+        TestBed.resetTestingModule();
+        announceActivityChange();
+        expect(playbackPositions.getAllPlaybackPositions).toHaveBeenCalledTimes(
+            calls
+        );
+    });
+    it('keeps the newest activity refresh when an older response finishes last', async () => {
+        const service = TestBed.inject(StalkerCatalogFacadeService);
+        TestBed.tick();
+        await Promise.resolve();
+        let finishOld!: (positions: PlaybackPositionData[]) => void;
+        playbackPositions.getAllPlaybackPositions
+            .mockImplementationOnce(
+                () =>
+                    new Promise((resolve) => {
+                        finishOld = resolve;
+                    })
+            )
+            .mockResolvedValueOnce([
+                {
+                    contentType: 'vod',
+                    contentXtreamId: 17359,
+                    positionSeconds: 100,
+                    durationSeconds: 100,
+                },
+            ]);
+        const refresh = jest.spyOn(service, 'refreshPositions');
+        announceActivityChange();
+        announceActivityChange();
+        expect(refresh).toHaveBeenCalledTimes(2);
+        await refresh.mock.results[1].value;
+        finishOld([
+            {
+                contentType: 'vod',
+                contentXtreamId: 17359,
+                positionSeconds: 10,
+                durationSeconds: 100,
+            },
+        ]);
+        await refresh.mock.results[0].value;
+        expect(service.getItemProgress({ id: '17359' }).watchState).toBe(
+            'watched'
+        );
+    });
+    it('ignores a pending positions response after its playlist is cleared', async () => {
+        const service = TestBed.inject(StalkerCatalogFacadeService);
+        TestBed.tick();
+        await Promise.resolve();
+        let finish!: (positions: PlaybackPositionData[]) => void;
+        playbackPositions.getAllPlaybackPositions.mockImplementationOnce(
+            () =>
+                new Promise((resolve) => {
+                    finish = resolve;
+                })
+        );
+        const loading = service.refreshPositions(playlist._id);
+        (
+            stalkerStoreMock['currentPlaylist'] as ReturnType<
+                typeof signal<typeof playlist | null>
+            >
+        ).set(null);
+        TestBed.tick();
+        finish([
+            {
+                contentType: 'vod',
+                contentXtreamId: 17359,
+                positionSeconds: 100,
+                durationSeconds: 100,
+            },
+        ]);
+        await loading;
+        expect(service.getItemProgress({ id: '17359' }).watchState).toBe(
+            'unwatched'
+        );
+    });
+
+    it('re-labels the every-item genre after a runtime language switch', () => {
+        const translate = TestBed.inject(TranslateService);
+        translate.setTranslation('en', {
+            PORTALS: { ALL_CATEGORIES: 'All categories' },
+        });
+        translate.setTranslation('ru', {
+            PORTALS: { ALL_CATEGORIES: 'Все категории' },
+        });
+        translate.use('en');
+        (
+            stalkerStoreMock['getSelectedCategoryLabel'] as ReturnType<
+                typeof signal<StalkerCategoryLabel>
+            >
+        ).set({ name: '', labelKey: 'PORTALS.ALL_CATEGORIES' });
+        const service = TestBed.inject(StalkerCatalogFacadeService);
+
+        expect(service.selectedCategoryTitle()).toBe('All categories');
+
+        translate.use('ru');
+
+        expect(service.selectedCategoryTitle()).toBe('Все категории');
+    });
+
+    it('leaves the every-item title to the view while no category is selected', () => {
+        const service = TestBed.inject(StalkerCatalogFacadeService);
+        const categoryId = stalkerStoreMock['selectedCategoryId'] as ReturnType<
+            typeof signal<string | null>
+        >;
+        (
+            stalkerStoreMock['getSelectedCategoryLabel'] as ReturnType<
+                typeof signal<StalkerCategoryLabel>
+            >
+        ).set({ name: 'News', labelKey: null });
+
+        expect(service.selectedCategoryTitle()).toBe('News');
+
+        categoryId.set(null);
+
+        expect(service.selectedCategoryTitle()).toBeNull();
+    });
+
     it('delegates category search query updates to the Stalker store', () => {
         const service = TestBed.inject(StalkerCatalogFacadeService);
 
@@ -124,6 +293,51 @@ describe('StalkerCatalogFacadeService', () => {
 
         expect(stalkerStoreMock.setSearchPhrase).toHaveBeenCalledWith('matrix');
     });
+
+    it.each([true, false])(
+        'reloads persisted watch changes on catalog re-entry (initially watched: %s)',
+        async (initiallyWatched) => {
+            const watched: PlaybackPositionData = {
+                playlistId: playlist._id,
+                contentType: 'vod',
+                contentXtreamId: 42,
+                positionSeconds: 100,
+                durationSeconds: 100,
+            };
+            const items = [{ id: '42' }];
+            stalkerStoreMock['getPaginatedContent'] = signal(items);
+            playbackPositions.getAllPlaybackPositions.mockResolvedValue(
+                initiallyWatched ? [watched] : []
+            );
+            const service = TestBed.inject(StalkerCatalogFacadeService);
+            TestBed.tick();
+            await Promise.resolve();
+            TestBed.tick();
+            service.hideWatched.setEnabled(true);
+            expect(service.paginatedContent()).toEqual(
+                initiallyWatched ? [] : items
+            );
+
+            // Favorites/Recent save to persistence without a catalog event.
+            playbackPositions.getAllPlaybackPositions.mockResolvedValue(
+                initiallyWatched ? [] : [watched]
+            );
+            service.initialize('5');
+            await Promise.resolve();
+            TestBed.tick();
+            expect(service.paginatedContent()).toEqual(
+                initiallyWatched ? items : []
+            );
+            expect(service.hideWatched.enabled()).toBe(true);
+            expect(
+                playbackPositions.getAllPlaybackPositions
+            ).toHaveBeenCalledTimes(2);
+            expect(
+                stalkerStoreMock['setSelectedCategory']
+            ).toHaveBeenCalledWith('5');
+            expect(stalkerStoreMock['nextPage']).not.toHaveBeenCalled();
+        }
+    );
 
     it.each([true, 1, '1'] as const)(
         'normalizes supported is_series flag %p when selecting an item',

@@ -22,6 +22,7 @@ export interface SeriesPlaybackEpisodeState<TEpisode> {
 }
 
 export interface SeriesPlaybackEpisodeLike {
+    seasonUnknown?: boolean;
     id: string | number;
     season?: string | number;
     episode_num?: string | number;
@@ -39,9 +40,10 @@ export interface ResolveSeriesPlaybackEpisodeStateOptions<
 
 export function formatSeriesEpisodeLabel(
     seasonNumber: number,
-    episodeNumber: number
+    episodeNumber: number,
+    seasonUnknown = false
 ): string {
-    return `S${padSeriesNumber(seasonNumber)}E${padSeriesNumber(episodeNumber)}`;
+    return `${seasonUnknown ? '' : `S${padSeriesNumber(seasonNumber)}`}E${padSeriesNumber(episodeNumber)}`;
 }
 
 /** The episode state of an inline playback, when it plays an episode of these seasons. */
@@ -127,7 +129,8 @@ export function getSeriesEpisodeMetadata<
     return {
         label: formatSeriesEpisodeLabel(
             state.seasonNumber,
-            state.episodeNumber
+            state.episodeNumber,
+            state.episode.seasonUnknown
         ),
         seasonNumber: state.seasonNumber,
         episodeNumber: state.episodeNumber,

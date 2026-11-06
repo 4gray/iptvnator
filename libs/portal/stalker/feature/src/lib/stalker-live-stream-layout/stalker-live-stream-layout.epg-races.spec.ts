@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
-import { of } from 'rxjs';
+import { EMPTY, of, Subject } from 'rxjs';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
     LiveLayoutSidebarStateService,
@@ -61,8 +61,9 @@ describe('StalkerLiveStreamLayoutComponent EPG fallback races', () => {
     const resolveItvPlayback = jest.fn();
     const fetchChannelEpg = jest.fn();
     const hasItvEpgMappingOverride = jest.fn(() => false);
+    const getPortalFavorites = jest.fn(() => of([] as typeof channels));
     const store = {
-        getSelectedCategoryName: signal('All'),
+        getSelectedCategoryLabel: signal({ name: 'All', labelKey: null }),
         currentPlaylist: playlist,
         selectedContentType,
         selectedCategoryId: signal<string | null>('all'),
@@ -129,6 +130,10 @@ describe('StalkerLiveStreamLayoutComponent EPG fallback races', () => {
         );
         hasItvEpgMappingOverride.mockReset();
         hasItvEpgMappingOverride.mockReturnValue(false);
+        store.ensureBulkItvEpg.mockClear();
+        getPortalFavorites.mockReset().mockReturnValue(of([]));
+        store.addToFavorites.mockReset();
+        store.removeFromFavorites.mockReset();
         await TestBed.configureTestingModule({
             imports: [StalkerLiveStreamLayoutComponent],
             providers: [
@@ -136,14 +141,15 @@ describe('StalkerLiveStreamLayoutComponent EPG fallback races', () => {
                 {
                     provide: RuntimeCapabilitiesService,
                     useValue: {
-                        supportsEpg: true,
+                        // Provider EPG only, no XMLTV flag — as in the PWA.
+                        supportsProviderEpg: true,
                         isElectron: true,
                         supportsEpgMapping: false,
                     },
                 },
                 {
                     provide: PlaylistsService,
-                    useValue: { getPortalFavorites: () => of([]) },
+                    useValue: { getPortalFavorites },
                 },
                 {
                     provide: SettingsStore,
@@ -177,7 +183,12 @@ describe('StalkerLiveStreamLayoutComponent EPG fallback races', () => {
                 { provide: MatSnackBar, useValue: { open: jest.fn() } },
                 {
                     provide: TranslateService,
-                    useValue: { instant: (key: string) => key },
+                    useValue: {
+                        instant: (key: string) => key,
+                        onLangChange: EMPTY,
+                        onDefaultLangChange: EMPTY,
+                        onTranslationChange: EMPTY,
+                    },
                 },
             ],
         })
@@ -191,6 +202,59 @@ describe('StalkerLiveStreamLayoutComponent EPG fallback races', () => {
     });
 
     afterEach(() => fixture.destroy());
+
+    it('ignores a favorite read superseded by a newer synchronization read', () => {
+        const older = new Subject<typeof channels>();
+        const newer = new Subject<typeof channels>();
+        getPortalFavorites
+            .mockReturnValueOnce(older)
+            .mockReturnValueOnce(newer);
+        window.dispatchEvent(new Event('iptvnator-favorites-changed'));
+        window.dispatchEvent(new Event('iptvnator-favorites-changed'));
+        newer.next([]);
+        older.next([
+            { ...channels[0], category_id: 'itv' } as (typeof channels)[number],
+        ]);
+        expect(component.favorites.has(channels[0].id)).toBe(false);
+        component.toggleFavorite(channels[0]);
+        expect(store.addToFavorites).toHaveBeenCalled();
+        expect(store.removeFromFavorites).not.toHaveBeenCalled();
+    });
+
+    it.each([false, true])(
+        'keeps an acknowledged local toggle over an older favorite read (remove=%s)',
+        (removing) => {
+            const older = new Subject<typeof channels>();
+            getPortalFavorites.mockReturnValueOnce(older);
+            window.dispatchEvent(new Event('iptvnator-favorites-changed'));
+            if (removing) component.favorites.set(channels[0].id, true);
+            component.toggleFavorite(channels[0]);
+            const mutation = removing
+                ? store.removeFromFavorites
+                : store.addToFavorites;
+            mutation.mock.calls[0][1]();
+            older.next(
+                removing
+                    ? [
+                          {
+                              ...channels[0],
+                              category_id: 'itv',
+                          } as (typeof channels)[number],
+                      ]
+                    : []
+            );
+            expect(component.favorites.has(channels[0].id)).toBe(!removing);
+        }
+    );
+
+    it('loads the bulk guide from provider EPG alone, as in the browser PWA', async () => {
+        for (let i = 0; i < 3; i += 1) {
+            fixture.detectChanges();
+            await fixture.whenStable();
+        }
+
+        expect(store.ensureBulkItvEpg).toHaveBeenCalledWith(168);
+    });
 
     it('drops the previous channel fallback from the panel as soon as the selection moves', async () => {
         await component.playChannel(channels[0]);

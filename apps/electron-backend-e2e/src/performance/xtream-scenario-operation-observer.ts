@@ -2,11 +2,16 @@ import type { Page } from '@playwright/test';
 
 const OPERATION_STATE_KEY = '__iptvnatorXtreamScenarioOperationWindow';
 const DELETE_OPERATION = 'delete-xtream-content';
+/** A content delete before a refresh, or a whole playlist's delete. */
+export type XtreamObservedOperation =
+    typeof DELETE_OPERATION | 'delete-playlist';
 const OPERATION_TIMEOUT_MS = 120_000;
 
-export interface XtreamOperationWindowSnapshot {
+export interface XtreamOperationWindowSnapshot<
+    Operation extends XtreamObservedOperation = typeof DELETE_OPERATION,
+> {
     readonly active: boolean;
-    readonly operation: typeof DELETE_OPERATION;
+    readonly operation: Operation;
     readonly operationId: string;
     readonly playlistId: string;
     readonly startedEpochMs: number;
@@ -14,16 +19,21 @@ export interface XtreamOperationWindowSnapshot {
     readonly terminalStatus: 'cancelled' | 'completed' | 'error' | null;
 }
 
-export interface XtreamOperationWindow {
-    assertActive(): Promise<XtreamOperationWindowSnapshot>;
+export interface XtreamOperationWindow<
+    Operation extends XtreamObservedOperation = typeof DELETE_OPERATION,
+> {
+    assertActive(): Promise<XtreamOperationWindowSnapshot<Operation>>;
     dispose(): Promise<void>;
-    waitForActive(): Promise<XtreamOperationWindowSnapshot>;
-    waitForTerminal(): Promise<XtreamOperationWindowSnapshot>;
+    waitForActive(): Promise<XtreamOperationWindowSnapshot<Operation>>;
+    waitForTerminal(): Promise<XtreamOperationWindowSnapshot<Operation>>;
 }
 
-export async function installXtreamOperationWindow(
-    page: Page
-): Promise<XtreamOperationWindow> {
+export async function installXtreamOperationWindow<
+    Operation extends XtreamObservedOperation = typeof DELETE_OPERATION,
+>(
+    page: Page,
+    operation: Operation = DELETE_OPERATION as Operation
+): Promise<XtreamOperationWindow<Operation>> {
     await page.evaluate(
         ({ command, operation, stateKey }) => {
             interface State {
@@ -104,20 +114,20 @@ export async function installXtreamOperationWindow(
         },
         {
             command: 'install-operation',
-            operation: DELETE_OPERATION,
+            operation,
             stateKey: OPERATION_STATE_KEY,
         }
     );
     return {
-        assertActive: () => assertOperationActive(page),
+        assertActive: () => assertOperationActive(page, operation),
         dispose: () => disposeOperationState(page),
         async waitForActive() {
             await waitForOperationState(page, 'operation-active');
-            return assertOperationActive(page);
+            return assertOperationActive(page, operation);
         },
         async waitForTerminal() {
             await waitForOperationState(page, 'operation-terminal');
-            return readOperationSnapshot(page);
+            return readOperationSnapshot(page, operation);
         },
     };
 }
@@ -144,19 +154,21 @@ async function waitForOperationState(
     );
 }
 
-async function assertOperationActive(
-    page: Page
-): Promise<XtreamOperationWindowSnapshot> {
-    const snapshot = await readOperationSnapshot(page);
+async function assertOperationActive<Operation extends XtreamObservedOperation>(
+    page: Page,
+    operation: Operation
+): Promise<XtreamOperationWindowSnapshot<Operation>> {
+    const snapshot = await readOperationSnapshot(page, operation);
     if (!snapshot.active || snapshot.terminalEpochMs !== null) {
         throw new Error('xtream-background-action-outside-delete-window');
     }
     return snapshot;
 }
 
-async function readOperationSnapshot(
-    page: Page
-): Promise<XtreamOperationWindowSnapshot> {
+async function readOperationSnapshot<Operation extends XtreamObservedOperation>(
+    page: Page,
+    operation: Operation
+): Promise<XtreamOperationWindowSnapshot<Operation>> {
     const value = await page.evaluate(
         ({ stateKey }) => {
             const target = globalThis as unknown as Record<string, unknown>;
@@ -183,7 +195,7 @@ async function readOperationSnapshot(
         },
         { command: 'snapshot-operation', stateKey: OPERATION_STATE_KEY }
     );
-    if (!isOperationSnapshot(value)) {
+    if (!isOperationSnapshot(value, operation)) {
         throw new Error('xtream-operation-window-invalid');
     }
     return value;
@@ -202,16 +214,17 @@ async function disposeOperationState(page: Page): Promise<void> {
     );
 }
 
-function isOperationSnapshot(
-    value: unknown
-): value is XtreamOperationWindowSnapshot {
+function isOperationSnapshot<Operation extends XtreamObservedOperation>(
+    value: unknown,
+    operation: Operation
+): value is XtreamOperationWindowSnapshot<Operation> {
     if (!isRecord(value)) return false;
     const active = value['active'];
     const startedEpochMs = value['startedEpochMs'];
     const terminalEpochMs = value['terminalEpochMs'];
     const terminalStatus = value['terminalStatus'];
     return (
-        value['operation'] === DELETE_OPERATION &&
+        value['operation'] === operation &&
         typeof active === 'boolean' &&
         finitePositive(startedEpochMs) &&
         nonEmptyString(value['operationId']) &&

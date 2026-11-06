@@ -7,6 +7,10 @@ import {
 } from './content.operations';
 import { createRecordingOperationPhaseCapture } from './performance-phase-capture.test-helpers';
 
+jest.mock('./playlist.operations', () => ({
+    setAppState: jest.fn().mockResolvedValue({ success: true }),
+}));
+
 function createContentDb(streamCount: number, timeline: string[]) {
     const existingWhere = jest.fn().mockResolvedValue([{ count: 0 }]);
     const categoriesWhere = jest
@@ -258,7 +262,15 @@ describe('content import performance phases', () => {
         const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
             callback({ delete: deleteRows })
         );
-        const db = { select, transaction } as unknown as AppDatabase;
+        const db = {
+            select,
+            transaction,
+            update: jest.fn(() => ({
+                set: jest.fn(() => ({
+                    where: jest.fn(() => ({ run: jest.fn() })),
+                })),
+            })),
+        } as unknown as AppDatabase;
         const recording = createRecordingOperationPhaseCapture();
 
         await clearXtreamImportCache(
@@ -288,7 +300,15 @@ describe('content import performance phases', () => {
         const from = jest.fn(() => ({ where }));
         const select = jest.fn(() => ({ from }));
         const transaction = jest.fn();
-        const db = { select, transaction } as unknown as AppDatabase;
+        const db = {
+            select,
+            transaction,
+            update: jest.fn(() => ({
+                set: jest.fn(() => ({
+                    where: jest.fn(() => ({ run: jest.fn() })),
+                })),
+            })),
+        } as unknown as AppDatabase;
         const recording = createRecordingOperationPhaseCapture();
 
         await expect(

@@ -1,6 +1,7 @@
 import {
     afterRenderEffect,
     Component,
+    DestroyRef,
     ElementRef,
     inject,
     output,
@@ -28,6 +29,7 @@ import { PlaylistActions } from '@iptvnator/m3u-state';
 import {
     legacyTransformStalkerPortalUrl,
     normalizeStalkerPortalInputUrl,
+    parseStalkerDate,
     STALKER_WATCHDOG_DEFAULT_PERIOD_SECONDS,
     StalkerPortalDiscoveryService,
     normalizeStalkerPortalIdentity,
@@ -49,6 +51,8 @@ import {
     toStalkerImportFeedback,
     toStalkerPlaylistIdentityFields,
 } from './stalker-import-identity';
+import { RevealDetailsDirective } from '@iptvnator/ui/components/reveal-details';
+import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 
 /**
  * A MAC and the device IDs that belong to exactly it. Kept together because
@@ -63,6 +67,7 @@ interface StalkerSettledIdentity {
 
 @Component({
     imports: [
+        RevealDetailsDirective,
         FormsModule,
         MatCheckboxModule,
         MatFormFieldModule,
@@ -74,38 +79,10 @@ interface StalkerSettledIdentity {
         TranslatePipe,
     ],
     selector: 'app-stalker-portal-import',
+    providers: [provideFormFieldDefaults()],
     templateUrl: './stalker-portal-import.component.html',
-    changeDetection: ChangeDetectionStrategy.Eager,
-    styles: [
-        `
-            :host {
-                display: flex;
-                margin: 10px;
-                justify-content: center;
-            }
-
-            form {
-                width: 100%;
-            }
-
-            .loading-container {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            }
-
-            .derive-device-ids {
-                margin: 4px 0 12px;
-            }
-
-            .derive-device-ids__note {
-                margin: 4px 0 0;
-                color: var(--mat-sys-on-surface-variant);
-                font-size: 12px;
-                line-height: 1.45;
-            }
-        `,
-    ],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    styleUrl: './stalker-portal-import.component.scss',
 })
 export class StalkerPortalImportComponent {
     readonly addClicked = output<void>();
@@ -134,6 +111,8 @@ export class StalkerPortalImportComponent {
     });
 
     private readonly portalDiscovery = inject(StalkerPortalDiscoveryService);
+    private readonly destroyRef = inject(DestroyRef);
+    private importController: AbortController | null = null;
     private readonly store = inject(Store);
     private readonly snackBar = inject(MatSnackBar);
     readonly translate = inject(TranslateService);
@@ -160,6 +139,7 @@ export class StalkerPortalImportComponent {
     private deriveGeneration = 0;
 
     constructor() {
+        this.destroyRef.onDestroy(() => this.cancelPendingImport());
         // Like the Xtream connection test: a message describes the values it
         // was produced for, so any edit makes it stale.
         this.form.valueChanges
@@ -175,6 +155,22 @@ export class StalkerPortalImportComponent {
                 });
             }
         });
+    }
+
+    get hasAdvancedOptions(): boolean {
+        const c = this.form.controls;
+        return (
+            Boolean(this.feedback()) ||
+            [
+                c.serialNumber,
+                c.deviceId1,
+                c.deviceId2,
+                c.signature1,
+                c.signature2,
+                c.username,
+                c.password,
+            ].some((control) => Boolean(control.value) || control.invalid)
+        );
     }
 
     /**
@@ -371,12 +367,18 @@ export class StalkerPortalImportComponent {
         });
     }
 
+    cancelPendingImport(): void {
+        this.importController?.abort();
+    }
+
     async addPlaylist() {
         if (!this.form.valid || this.isLoading()) {
             return;
         }
 
         this.isLoading.set(true);
+        const controller = new AbortController();
+        this.importController = controller;
         this.feedback.set(null);
         // The identity is frozen for the duration: an edit made now cannot
         // reach the portal (discovery has the snapshot) and cannot be undone
@@ -392,6 +394,7 @@ export class StalkerPortalImportComponent {
             // from `getRawValue()` below would let an edit that landed during
             // the digest pair a new MAC with the old MAC's IDs.
             const identity = await this.settleMacAddressIdentity();
+            if (controller.signal.aborted) return;
             const macAddress = identity.macAddress;
 
             // Authoritative for the rest of the import, and deliberately so:
@@ -423,12 +426,14 @@ export class StalkerPortalImportComponent {
                 macAddress,
                 stalkerIdentity,
                 {
+                    signal: controller.signal,
                     credentials: {
                         username: formValue.username ?? '',
                         password: formValue.password ?? '',
                     },
                 }
             );
+            if (controller.signal.aborted || this.destroyRef.destroyed) return;
 
             let portalUrl: string;
             let isFullStalkerPortal: boolean;
@@ -462,10 +467,13 @@ export class StalkerPortalImportComponent {
                     };
                 }
 
-                if (stalkerAccountInfo?.expireDate) {
-                    const expireDate = new Date(
-                        stalkerAccountInfo.expireDate * 1000
-                    );
+                // The raw value may be a date string or an "unlimited"
+                // sentinel (-1, "0"), so read it like every other consumer.
+                const expiresAt = parseStalkerDate(
+                    stalkerAccountInfo?.expireDate
+                );
+                if (expiresAt) {
+                    const expireDate = new Date(expiresAt * 1000);
                     this.snackBar.open(
                         this.translate.instant(
                             'HOME.STALKER_PORTAL.VALIDATED_EXPIRES',

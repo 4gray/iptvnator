@@ -11,6 +11,7 @@ import {
 } from '@iptvnator/portal/shared/util';
 import {
     StalkerStore,
+    StalkerEpisodeResolver,
     type StalkerMappedEpisode,
     type StalkerVodSource,
 } from '@iptvnator/portal/stalker/data-access';
@@ -85,6 +86,17 @@ describe('StalkerSeriesViewComponent playback session key', () => {
             imports: [StalkerSeriesViewComponent],
             providers: [
                 {
+                    provide: StalkerEpisodeResolver,
+                    useValue: {
+                        resolveCommand: async (
+                            _playlist: unknown,
+                            episode: { originalId?: string }
+                        ) => `/media/file_${episode.originalId}.mpg`,
+                        resolveDownload: async () =>
+                            'https://cdn.example.test/episode.mpg',
+                    },
+                },
+                {
                     provide: StalkerStore,
                     useValue: {
                         selectedItem,
@@ -154,6 +166,54 @@ describe('StalkerSeriesViewComponent playback session key', () => {
     });
 
     afterEach(() => fixture.destroy());
+
+    it.each(['selection', 'command', 'season coordinates'] as const)(
+        'discards a pending lazy file lookup when %s changes',
+        async (change) => {
+            setLazySeries('50001', 'provider-episode');
+            fixture.detectChanges();
+            // Populate episodes after the initial selection effect resets seasons.
+            setLazySeries('50001', 'provider-episode');
+            fixture.detectChanges();
+            await fixture.whenStable();
+            const pending = deferred<string>();
+            const lookup = jest
+                .spyOn(TestBed.inject(StalkerEpisodeResolver), 'resolveCommand')
+                .mockReturnValue(pending.promise);
+            const component = fixture.componentInstance;
+            const selected = Object.values(component.mappedSeasons())[0][0];
+            component.onEpisodeClicked(selected);
+            await Promise.resolve();
+            expect(lookup).toHaveBeenCalledWith(currentPlaylist(), selected);
+            if (change === 'selection') {
+                selectedItem.set({
+                    id: '50002',
+                    is_series: true,
+                    info: { name: 'Other show' },
+                });
+            } else {
+                component.vodSeriesSeasons.update((seasons) =>
+                    seasons.map((season) => ({
+                        ...season,
+                        ...(change === 'season coordinates'
+                            ? { id: 'another-provider-season' }
+                            : {}),
+                        episodes: season.episodes.map((episode) => ({
+                            ...episode,
+                            ...(change === 'command'
+                                ? { cmd: '/media/new-file.mpg' }
+                                : {}),
+                        })),
+                    }))
+                );
+            }
+            fixture.detectChanges();
+            pending.resolve('/media/file_201.mpg');
+            await fixture.whenStable();
+            expect(resolveVodPlayback).not.toHaveBeenCalled();
+            expect(component.inlinePlayback()).toBeNull();
+        }
+    );
 
     async function playFirstEpisode(): Promise<StalkerMappedEpisode> {
         fixture.detectChanges();

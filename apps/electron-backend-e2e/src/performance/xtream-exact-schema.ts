@@ -321,16 +321,14 @@ export function isExactXtreamProcessIdentity(value: unknown): boolean {
         'startupAttemptCount',
         'startupRetryReasons',
     ] as const;
+    if (!isExactRecord(value, keys)) return false;
     const startupAttemptCount = isPositiveSafeInteger(
-        isExactRecord(value, keys) ? value['startupAttemptCount'] : null
+        value['startupAttemptCount']
     )
         ? Number(value['startupAttemptCount'])
         : 0;
-    const startupRetryReasons = isExactRecord(value, keys)
-        ? value['startupRetryReasons']
-        : null;
+    const startupRetryReasons = value['startupRetryReasons'];
     return (
-        isExactRecord(value, keys) &&
         isPositiveSafeInteger(value['captureGeneration']) &&
         isPositiveSafeInteger(value['electronPid']) &&
         value['freshProcess'] === true &&

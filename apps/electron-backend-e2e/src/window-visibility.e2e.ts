@@ -27,8 +27,9 @@ const setWindowState = (
     );
 
 /**
- * The app creates its window with `show: false` and shows it on
- * `ready-to-show`; a `hide()` sent earlier would be undone by that `show()`.
+ * The app creates its window with `show: false` and shows it at
+ * `ready-to-show` or `did-finish-load`, whichever comes first; a `hide()`
+ * sent earlier would be undone by that `show()`.
  */
 async function waitUntilShown(app: UnautomatedElectronApp): Promise<void> {
     await expect
@@ -40,6 +41,23 @@ async function waitUntilShown(app: UnautomatedElectronApp): Promise<void> {
             { timeout: 30_000 }
         )
         .toBe(true);
+    if (process.platform === 'darwin') {
+        // Focus and isVisible() can precede Cocoa's first visible occlusion
+        // notification. Hiding in that gap can coalesce away the transition,
+        // leaving the renderer's initial (show:false) visibility at visible.
+        await app.evaluateInMain(`
+            electron.app.focus({ steal: true });
+            electron.BrowserWindow.getAllWindows()[0].focus();
+        `);
+        await expect
+            .poll(() =>
+                app.evaluateInMain<boolean>(
+                    'return electron.BrowserWindow.getAllWindows()[0].isFocused();'
+                )
+            )
+            .toBe(true);
+    }
+    await expect.poll(() => app.isWindowNativelyVisible()).toBe(true);
     await expect.poll(() => visibility(app)).toBe('visible');
 }
 
@@ -64,11 +82,13 @@ test.describe('Main window visibility', () => {
             await expect
                 .poll(() => visibility(app), { timeout: 10_000 })
                 .toBe('hidden');
+            await expect.poll(() => app.isWindowNativelyVisible()).toBe(false);
 
             await setWindowState(app, 'show');
             await expect
                 .poll(() => visibility(app), { timeout: 10_000 })
                 .toBe('visible');
+            await expect.poll(() => app.isWindowNativelyVisible()).toBe(true);
         } finally {
             await app.close();
         }

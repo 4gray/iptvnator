@@ -68,6 +68,10 @@ describe('SettingsPlaybackSectionComponent', () => {
         'keeps the %s path editor mounted after a successful probe while editing',
         (player) => {
             fixture.componentRef.setInput(
+                'form',
+                createForm(player === 'mpv' ? VideoPlayer.MPV : VideoPlayer.VLC)
+            );
+            fixture.componentRef.setInput(
                 'supportsExternalPlayerPathSettings',
                 true
             );
@@ -132,7 +136,7 @@ describe('SettingsPlaybackSectionComponent', () => {
         }
     });
 
-    it('disables only confirmed missing players and exposes configuration', () => {
+    it('keeps missing players selectable without exposing unused configuration', async () => {
         fixture.componentRef.setInput(
             'supportsExternalPlayerPathSettings',
             true
@@ -150,10 +154,121 @@ describe('SettingsPlaybackSectionComponent', () => {
         ).toBe(false);
         expect(
             fixture.nativeElement.querySelector('#mpvPlayerPath')
-        ).not.toBeNull();
-        expect(fixture.nativeElement.textContent).toContain(
-            'SETTINGS.EXTERNAL_PLAYER_INSTALL_HINT'
+        ).toBeNull();
+        expect(queryByTestId('mpv-player-arguments-setting')).toBeNull();
+        fixture.nativeElement
+            .querySelector('[data-test-id="select-video-player"]')
+            .click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const mpv = document.body.querySelector<HTMLElement>(
+            '[data-test-id="mpv"]'
+        ) as HTMLElement;
+        expect(mpv.getAttribute('aria-disabled')).toBe('false');
+        expect(mpv.textContent).toContain(
+            'SETTINGS.EXTERNAL_PLAYER_UNAVAILABLE'
         );
+        mpv.click();
+        fixture.detectChanges();
+        expect(fixture.componentInstance.form().value.player).toBe(
+            VideoPlayer.MPV
+        );
+        const rows = fixture.nativeElement.querySelectorAll(
+            '.settings-card .setting-item'
+        );
+        expect(rows[1].getAttribute('data-setting-id')).toBe('mpv-player-path');
+        expect(
+            fixture.nativeElement.querySelector('#vlcPlayerPath')
+        ).toBeNull();
+    });
+
+    describe('availability checks', () => {
+        let previous: PropertyDescriptor | undefined;
+        let probe: jest.Mock;
+
+        beforeEach(() => {
+            previous = Object.getOwnPropertyDescriptor(window, 'electron');
+            probe = jest.fn().mockResolvedValue({ mpv: true, vlc: null });
+            Object.defineProperty(window, 'electron', {
+                configurable: true,
+                value: { getExternalPlayerAvailability: probe },
+            });
+            fixture.componentRef.setInput(
+                'supportsExternalPlayerPathSettings',
+                true
+            );
+            fixture.componentRef.setInput('form', createForm(VideoPlayer.MPV));
+        });
+
+        afterEach(() => {
+            if (previous) Object.defineProperty(window, 'electron', previous);
+            else Reflect.deleteProperty(window, 'electron');
+        });
+
+        it('checks only path edits and immediately clears stale results', async () => {
+            fixture.detectChanges();
+            await fixture.componentInstance.refreshExternalAvailability();
+            expect(fixture.componentInstance.externalAvailability().mpv).toBe(
+                true
+            );
+            probe.mockClear();
+            const form = fixture.componentInstance.form();
+            form.controls.player.setValue(VideoPlayer.VLC);
+            form.controls.mpvReuseInstance.setValue(false);
+            await new Promise((resolve) => setTimeout(resolve, 350));
+            expect(probe).not.toHaveBeenCalled();
+            form.controls.mpvPlayerPath.setValue('/synthetic/players/mpv');
+            expect(fixture.componentInstance.externalAvailability()).toEqual({
+                mpv: null,
+                vlc: null,
+            });
+            expect(fixture.componentInstance.checkingExternalPlayers()).toBe(
+                true
+            );
+            await new Promise((resolve) => setTimeout(resolve, 350));
+            expect(probe).toHaveBeenCalledTimes(1);
+            expect(probe).toHaveBeenCalledWith({
+                mpv: '/synthetic/players/mpv',
+                vlc: '',
+            });
+            expect(fixture.componentInstance.checkingExternalPlayers()).toBe(
+                false
+            );
+        });
+
+        it('announces found, missing and unknown results and allows a manual recheck', async () => {
+            fixture.detectChanges();
+            await fixture.whenStable();
+            await fixture.componentInstance.refreshExternalAvailability();
+            fixture.detectChanges();
+            const status = queryByTestId(
+                'external-player-status'
+            ) as HTMLElement;
+            expect(status.getAttribute('role')).toBe('status');
+            expect(status.textContent).toContain(
+                'SETTINGS.EXTERNAL_PLAYER_FOUND'
+            );
+            probe.mockResolvedValue({ mpv: false, vlc: null });
+            (queryByTestId('check-external-players') as HTMLElement).click();
+            fixture.detectChanges();
+            expect(status.textContent).toContain(
+                'SETTINGS.EXTERNAL_PLAYER_CHECKING'
+            );
+            await fixture.whenStable();
+            fixture.detectChanges();
+            expect(status.textContent).toContain(
+                'SETTINGS.EXTERNAL_PLAYER_INSTALL_HINT'
+            );
+            probe.mockRejectedValue(new Error('Synthetic unavailable bridge'));
+            await fixture.componentInstance.refreshExternalAvailability();
+            fixture.detectChanges();
+            expect(status.textContent).toContain(
+                'SETTINGS.EXTERNAL_PLAYER_UNKNOWN'
+            );
+            expect(fixture.componentInstance.checkingExternalPlayers()).toBe(
+                false
+            );
+        });
     });
 
     it('keeps unknown availability and built-in players selectable', () => {
@@ -270,31 +385,31 @@ describe('SettingsPlaybackSectionComponent', () => {
         }
     );
 
-    it('binds the shared web controls checkbox to the settings form', () => {
+    it('binds the shared web controls switch to the settings form', () => {
         const form = createForm();
         form.controls['webPlayerSharedControls'].setValue(true);
         fixture.componentRef.setInput('form', form);
         fixture.detectChanges();
 
-        const checkbox = (
+        const toggle = (
             fixture.nativeElement as HTMLElement
-        ).querySelector<HTMLInputElement>(
-            '[data-test-id="web-player-shared-controls-toggle"] input[type="checkbox"]'
+        ).querySelector<HTMLButtonElement>(
+            '[data-test-id="web-player-shared-controls-toggle"] button[role="switch"]'
         );
 
-        expect(checkbox?.checked).toBe(true);
+        expect(toggle?.getAttribute('aria-checked')).toBe('true');
     });
 
-    it('labels the rendered native shared web controls checkbox', () => {
+    it('labels the rendered shared web controls switch', () => {
         fixture.detectChanges();
 
-        const checkbox = (
+        const toggle = (
             fixture.nativeElement as HTMLElement
-        ).querySelector<HTMLInputElement>(
-            '[data-test-id="web-player-shared-controls-toggle"] input[type="checkbox"]'
+        ).querySelector<HTMLButtonElement>(
+            '[data-test-id="web-player-shared-controls-toggle"] button[role="switch"]'
         );
 
-        expect(checkbox?.getAttribute('aria-label')).toBe(
+        expect(toggle?.getAttribute('aria-label')).toBe(
             WEB_PLAYER_SHARED_CONTROLS_LABEL
         );
     });
@@ -561,6 +676,7 @@ function createForm(player = VideoPlayer.VideoJs): FormGroup {
         webPlayerSharedControls: new FormControl(false),
         playerAmbientMode: new FormControl(false),
         detailTrailerBackdrop: new FormControl(false),
+        showCaptions: new FormControl(false),
         playerUpNextRail: new FormControl(true),
         playerUpNextCard: new FormControl(true),
         fullscreenChannelPanel: new FormControl(true),

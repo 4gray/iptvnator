@@ -1,3 +1,4 @@
+import type { StalkerRequestOptions } from './stalker-request-options';
 import { Injectable, inject } from '@angular/core';
 import { DataService, resetHostConnectivityGuard } from '@iptvnator/services';
 import { STALKER_REQUEST } from '@iptvnator/shared/interfaces';
@@ -148,7 +149,10 @@ export class StalkerPortalDiscoveryService {
         rawUrl: string,
         macAddress: string,
         identity: StalkerPortalIdentity = {},
-        options: { credentials?: StalkerPortalCredentials } = {}
+        options: StalkerRequestOptions & {
+            credentials?: StalkerPortalCredentials;
+            signal?: AbortSignal;
+        } = {}
     ): Promise<StalkerPortalDiscoveryOutcome> {
         const candidates = buildStalkerEndpointCandidates(rawUrl);
         let authRejection: StalkerPortalDiscoveryRejection | null = null;
@@ -159,10 +163,12 @@ export class StalkerPortalDiscoveryService {
         await resetHostConnectivityGuard(this.dataService, rawUrl);
 
         for (const candidate of candidates) {
+            if (options.signal?.aborted) return { status: 'unreachable' };
             let probeResponse: unknown;
             try {
                 probeResponse = await this.probeContent(candidate, macAddress);
             } catch (error) {
+                if (options.signal?.aborted) return { status: 'unreachable' };
                 const status = getStalkerRequestErrorStatus(error);
                 if (status === 401 || status === 403) {
                     // The endpoint exists but sits behind an HTTP auth gate —
@@ -173,7 +179,7 @@ export class StalkerPortalDiscoveryService {
                         candidate,
                         macAddress,
                         identity,
-                        options.credentials
+                        options
                     );
                     if (outcome.status === 'resolved') {
                         return outcome;
@@ -212,6 +218,7 @@ export class StalkerPortalDiscoveryService {
                 return authRejection ?? { status: 'unreachable' };
             }
 
+            if (options.signal?.aborted) return { status: 'unreachable' };
             switch (classifyStalkerProbeResponse(probeResponse)) {
                 case 'data':
                     return {
@@ -224,7 +231,7 @@ export class StalkerPortalDiscoveryService {
                         candidate,
                         macAddress,
                         identity,
-                        options.credentials
+                        options
                     );
                     if (outcome.status === 'resolved') {
                         return outcome;
@@ -256,7 +263,10 @@ export class StalkerPortalDiscoveryService {
         candidate: string,
         macAddress: string,
         identity: StalkerPortalIdentity,
-        credentials?: StalkerPortalCredentials
+        options: StalkerRequestOptions & {
+            credentials?: StalkerPortalCredentials;
+            signal?: AbortSignal;
+        }
     ): Promise<
         StalkerPortalEndpointResolution | StalkerPortalDiscoveryRejection
     > {
@@ -264,12 +274,19 @@ export class StalkerPortalDiscoveryService {
         // portal call, so a timed-out attempt never sends the `get_profile`
         // that would adopt the MAC's token behind the next candidate's back.
         const abandon = new AbortController();
+        const cancel = () => abandon.abort();
+        options.signal?.addEventListener('abort', cancel, { once: true });
+        if (options.signal?.aborted) cancel();
         // Kept so a timed-out attempt can be drained rather than raced.
         const pending = this.stalkerSession.authenticate(
             candidate,
             macAddress,
             identity,
-            { credentials, signal: abandon.signal }
+            {
+                credentials: options.credentials,
+                signal: abandon.signal,
+                ...(options.silent ? { silent: true } : {}),
+            }
         );
         try {
             const auth = await withTimeout(pending, AUTH_TIMEOUT_MS, () =>
@@ -335,6 +352,8 @@ export class StalkerPortalDiscoveryService {
                           abandonedAuthenticationSettled,
                       }),
             };
+        } finally {
+            options.signal?.removeEventListener('abort', cancel);
         }
     }
 

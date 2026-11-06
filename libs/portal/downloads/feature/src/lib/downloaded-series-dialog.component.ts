@@ -17,6 +17,10 @@ import type {
     DownloadItemActionType,
 } from './download-actions';
 import type { DownloadSeriesCardViewModel } from './download-library.viewmodel';
+import {
+    DialogHeaderEndDirective,
+    DialogShellComponent,
+} from '@iptvnator/ui/components';
 
 const EMPTY_PENDING_IDS: ReadonlySet<number> = new Set();
 
@@ -24,6 +28,8 @@ const EMPTY_PENDING_IDS: ReadonlySet<number> = new Set();
     selector: 'app-downloaded-series-dialog',
     standalone: true,
     imports: [
+        DialogHeaderEndDirective,
+        DialogShellComponent,
         MatButtonModule,
         MatDialogModule,
         MatIconModule,
@@ -44,6 +50,13 @@ export class DownloadedSeriesDialogComponent {
     );
     readonly itemAction = output<DownloadItemAction>();
     protected readonly currentMembers = computed(() => this.members()());
+    private readonly seasonUnknown = computed(
+        () =>
+            this.group.seasonUnknown ||
+            this.currentMembers().some(
+                (item) => item.metadataSnapshot?.episode?.seasonUnknown
+            )
+    );
 
     protected emitAction(
         type: DownloadItemActionType,
@@ -73,7 +86,7 @@ export class DownloadedSeriesDialogComponent {
         ) {
             return '';
         }
-        return `S${String(item.seasonNumber).padStart(2, '0')}E${String(
+        return `${this.seasonUnknown() ? '' : `S${String(item.seasonNumber).padStart(2, '0')}`}E${String(
             item.episodeNumber
         ).padStart(2, '0')}`;
     }

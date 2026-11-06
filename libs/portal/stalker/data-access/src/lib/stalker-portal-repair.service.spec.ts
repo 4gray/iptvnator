@@ -258,6 +258,17 @@ describe('StalkerPortalRepairService', () => {
     });
 
     describe('repairPortal', () => {
+        it('passes a background guide failure policy into endpoint discovery', async () => {
+            discover.mockResolvedValue({ status: 'unreachable' });
+            await service.repairPortal(MISCLASSIFIED, { silent: true });
+            expect(discover).toHaveBeenCalledWith(
+                MISCLASSIFIED.portalUrl,
+                MISCLASSIFIED.macAddress,
+                expect.anything(),
+                expect.objectContaining({ silent: true })
+            );
+        });
+
         it('does not preflight or discover while another tab owns the playlist authority', async () => {
             const request = jest.fn(
                 async <T>(

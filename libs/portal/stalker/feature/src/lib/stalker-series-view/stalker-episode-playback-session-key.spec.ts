@@ -182,7 +182,13 @@ describe('createStalkerEpisodePlaybackSessionKey', () => {
         if (!identityA) throw new Error('Expected a captured request identity');
 
         expect(identityA.originalEpisodeIdentity).toBe(
-            'provider|episode:token-a'
+            JSON.stringify([
+                'provider|episode:token-a',
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+            ])
         );
         expect(keyB).toBe(identityA.sessionKey);
         expect(keyB).not.toContain('provider|episode:token-a');

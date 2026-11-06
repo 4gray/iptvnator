@@ -32,6 +32,43 @@ describe('PortalStatusService', () => {
         );
     });
 
+    it('keeps cached and in-flight status separate for different User-Agents', async () => {
+        dataService.sendIpcEvent.mockImplementation((_type, payload) =>
+            Promise.resolve({
+                payload: {
+                    user_info: {
+                        status:
+                            payload.userAgent ===
+                            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                                ? 'Active'
+                                : 'Expired',
+                    },
+                },
+            })
+        );
+        const [first, second] = await Promise.all([
+            service.checkPortalStatus('http://example.com', 'user', 'pass'),
+            service.checkPortalStatus('http://example.com', 'user', 'pass', {
+                userAgent:
+                    ' Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ',
+            }),
+        ]);
+        expect(first).toBe('expired');
+        expect(second).toBe('active');
+        expect(dataService.sendIpcEvent).toHaveBeenCalledTimes(2);
+        expect(
+            service.getCachedStatus('http://example.com', 'user', 'pass')
+        ).toBe('expired');
+        expect(
+            service.getCachedStatus(
+                'http://example.com',
+                'user',
+                'pass',
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            )
+        ).toBe('active');
+    });
+
     it('marks portal status checks as silent background probes', async () => {
         const futureExpDate = String(
             Math.floor(Date.now() / 1000) + 60 * 60 * 24

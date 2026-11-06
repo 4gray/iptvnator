@@ -1,16 +1,17 @@
 <section class="rail">
-    <header class="rail__header">
-        <h3 class="rail__title" [attr.id]="headingId()">{{ title() }}</h3>
-        @if (count() !== null) {
-            <span class="rail__count">{{ count() }}</span>
-        }
-        <ng-content select="[rail-header]" />
+    <app-detail-section-header
+        [title]="title()"
+        [count]="count()"
+        [headingId]="headingId()"
+    >
         @if (overflowing()) {
-            <div class="rail__arrows">
+            <div class="rail__arrows" section-header-end>
                 <button
                     type="button"
                     class="rail__arrow"
-                    [attr.aria-label]="'PORTALS.DETAIL.SCROLL_PREVIOUS' | translate"
+                    [attr.aria-label]="
+                        'PORTALS.DETAIL.SCROLL_PREVIOUS' | translate
+                    "
                     (click)="scrollBy(-1)"
                 >
                     <mat-icon aria-hidden="true">chevron_left</mat-icon>
@@ -25,7 +26,7 @@
                 </button>
             </div>
         }
-    </header>
+    </app-detail-section-header>
     <div #scroller class="rail__scroller">
         <ng-content />
     </div>

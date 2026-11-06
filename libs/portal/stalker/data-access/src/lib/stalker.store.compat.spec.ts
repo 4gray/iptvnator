@@ -118,7 +118,7 @@ describe('StalkerStore API compatibility smoke', () => {
             'getCategoryResource',
             'isCategoryResourceLoading',
             'isCategoryResourceFailed',
-            'getSelectedCategoryName',
+            'getSelectedCategoryLabel',
         ];
 
         for (const computedName of expectedComputed) {
@@ -139,6 +139,7 @@ describe('StalkerStore API compatibility smoke', () => {
             'clearSelectedItem',
             'setCategories',
             'resetCategories',
+            'reloadCategories',
             'setItvChannels',
             'setSearchPhrase',
             'fetchVodSeriesEpisodes',

@@ -24,16 +24,15 @@ describe('UnifiedLiveTabComponent remote control', () => {
     let fixture: ComponentFixture<UnifiedLiveTabComponent>;
     let component: UnifiedLiveTabComponent;
     let channelChangeCallback:
-        | ((data: { direction: 'up' | 'down' }) => void)
-        | undefined;
+        ((data: { direction: 'up' | 'down' }) => void) | undefined;
     let remoteCommandCallback:
-        | ((command: { type: string; number?: number }) => void)
-        | undefined;
+        ((command: { type: string; number?: number }) => void) | undefined;
     let unsubscribeChannelChange: jest.Mock;
     let unsubscribeCommand: jest.Mock;
     let updateRemoteControlStatus: jest.Mock;
     let streamResolver: {
         resolveLiveDetail: jest.Mock;
+        loadEpgItems: jest.Mock;
         resolveM3uPlaybackDetail: jest.Mock;
         loadEpgForItems: jest.Mock;
     };
@@ -121,6 +120,14 @@ describe('UnifiedLiveTabComponent remote control', () => {
 
         openStreamOnDoubleClick = signal(false);
         streamResolver = {
+            loadEpgItems: jest.fn(
+                async () =>
+                    (
+                        await streamResolver.resolveLiveDetail.mock.results.at(
+                            -1
+                        )?.value
+                    )?.epgItems ?? []
+            ),
             resolveLiveDetail: jest.fn().mockImplementation(async () => ({
                 epgMode: 'portal',
                 playback: {
@@ -208,6 +215,47 @@ describe('UnifiedLiveTabComponent remote control', () => {
         expect(component.activeUid()).toBe('xtream::pl-1::2');
         expect(portalPlayer.openResolvedPlayback).toHaveBeenCalledTimes(1);
     });
+
+    it.each(['missing', 'unknown'] as const)(
+        'skips %s favorites in both directions while retaining visible numbering',
+        async (catalogStatus) => {
+            await configure();
+            await setItems([
+                buildItem('xtream::pl-1::1', 'Alpha'),
+                { ...buildItem('xtream::pl-1::2', 'Bravo'), catalogStatus },
+                buildItem('xtream::pl-1::3', 'Charlie'),
+            ]);
+            await activate('xtream::pl-1::1');
+            for (const [direction, expectedUid, expectedNumber] of [
+                ['down', 'xtream::pl-1::3', 3],
+                ['down', 'xtream::pl-1::1', 1],
+                ['up', 'xtream::pl-1::3', 3],
+                ['up', 'xtream::pl-1::1', 1],
+            ] as const) {
+                channelChangeCallback?.({ direction });
+                fixture.detectChanges();
+                await fixture.whenStable();
+                expect(component.activeUid()).toBe(expectedUid);
+                expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
+                    expect.objectContaining({ channelNumber: expectedNumber })
+                );
+            }
+            remoteCommandCallback?.({
+                type: 'channel-select-number',
+                number: 2,
+            });
+            fixture.detectChanges();
+            await fixture.whenStable();
+            expect(component.activeUid()).toBe('xtream::pl-1::1');
+            remoteCommandCallback?.({
+                type: 'channel-select-number',
+                number: 3,
+            });
+            fixture.detectChanges();
+            await fixture.whenStable();
+            expect(component.activeUid()).toBe('xtream::pl-1::3');
+        }
+    );
 
     it('wraps upward from the first visible channel to the last', async () => {
         await configure();
@@ -335,7 +383,10 @@ function buildItem(
         ...(sourceType === 'xtream'
             ? { xtreamId: Number(sourceItemId) }
             : sourceType === 'stalker'
-              ? { stalkerId: sourceItemId, stalkerCmd: `ffmpeg http://s/${sourceItemId}` }
+              ? {
+                    stalkerId: sourceItemId,
+                    stalkerCmd: `ffmpeg http://s/${sourceItemId}`,
+                }
               : { streamUrl: `https://example.com/${sourceItemId}.m3u8` }),
     } as UnifiedCollectionItem;
 }

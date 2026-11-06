@@ -1,0 +1,178 @@
+<app-dialog-shell
+    icon="manage_search"
+    [heading]="'TMDB_MATCH.TITLE' | translate"
+    [subtitle]="data.title"
+    [showClose]="!saving()"
+>
+    <div class="match-current">
+        <mat-icon aria-hidden="true">link</mat-icon>
+        <div>
+            <span>{{ 'TMDB_MATCH.CURRENT' | translate }}</span>
+            <strong>{{
+                (currentMode === 'manual'
+                    ? 'TMDB_MATCH.CURRENT_MANUAL'
+                    : modeLabels[currentMode]
+                ) | translate
+            }}</strong>
+            @if (previous?.mode === 'manual') {
+                <p>{{ currentTitle }}</p>
+            }
+        </div>
+    </div>
+
+    <div
+        class="match-modes"
+        role="group"
+        [attr.aria-label]="'TMDB_MATCH.SOURCE' | translate"
+    >
+        @for (value of modes; track value) {
+            <button
+                type="button"
+                [class.is-active]="mode() === value"
+                [attr.aria-pressed]="mode() === value"
+                [disabled]="saving()"
+                (click)="setMode(value)"
+            >
+                {{ modeLabels[value] | translate }}
+            </button>
+        }
+    </div>
+
+    @if (mode() === 'manual') {
+        <p class="match-help">{{ 'TMDB_MATCH.SEARCH_HELP' | translate }}</p>
+        <mat-form-field appearance="outline" class="match-search">
+            <mat-label>{{
+                (data.identity.mediaType === 'tv'
+                    ? 'TMDB_MATCH.SEARCH_TV'
+                    : 'TMDB_MATCH.SEARCH_MOVIE'
+                ) | translate
+            }}</mat-label>
+            <mat-icon matPrefix aria-hidden="true">search</mat-icon>
+            <input
+                matInput
+                [ngModel]="query()"
+                (ngModelChange)="setQuery($event)"
+                [disabled]="saving()"
+                (keydown.enter)="search()"
+                autocomplete="off"
+            />
+        </mat-form-field>
+
+        <div class="match-results" [attr.aria-busy]="loading()">
+            @if (loading()) {
+                <div class="match-status" role="status">
+                    {{ 'TMDB_MATCH.LOADING' | translate }}
+                </div>
+                @for (row of [1, 2]; track row) {
+                    <div class="match-skeleton" aria-hidden="true">
+                        <div></div>
+                        <span></span>
+                    </div>
+                }
+            } @else if (error() !== 'search') {
+                @for (row of results(); track row.id) {
+                    <button
+                        type="button"
+                        class="match-result"
+                        [class.is-selected]="isSelected(row.id)"
+                        [attr.aria-pressed]="isSelected(row.id)"
+                        [disabled]="saving()"
+                        (click)="select(row)"
+                        [attr.data-testid]="'tmdb-match-result-' + row.id"
+                    >
+                        <span class="match-poster">
+                            @if (
+                                poster(row.poster_path) &&
+                                !failedPosters().has(row.id)
+                            ) {
+                                <img
+                                    [src]="poster(row.poster_path)"
+                                    alt=""
+                                    loading="lazy"
+                                    (error)="posterFailed(row.id)"
+                                />
+                            } @else {
+                                <mat-icon aria-hidden="true">movie</mat-icon>
+                            }
+                        </span>
+                        <span class="match-info"
+                            ><strong>{{ title(row) }}</strong>
+                            @if (originalTitle(row); as original) {
+                                <span>{{ original }}</span>
+                            }
+                            <span class="match-facts">{{ facts(row) }}</span>
+                            @if (currentId === row.id) {
+                                <span class="match-current-label">{{
+                                    'TMDB_MATCH.CURRENT_RESULT' | translate
+                                }}</span>
+                            }
+                            @if (row.overview) {
+                                <span class="match-overview">{{
+                                    row.overview
+                                }}</span>
+                            }
+                        </span>
+                        <mat-icon class="match-check" aria-hidden="true">{{
+                            isSelected(row.id)
+                                ? 'check_circle'
+                                : 'radio_button_unchecked'
+                        }}</mat-icon>
+                    </button>
+                } @empty {
+                    <div class="match-empty" role="status">
+                        <mat-icon aria-hidden="true">search_off</mat-icon>
+                        <strong>{{
+                            (searched()
+                                ? 'TMDB_MATCH.EMPTY'
+                                : 'TMDB_MATCH.SEARCH_HINT'
+                            ) | translate
+                        }}</strong>
+                        <p>{{ 'TMDB_MATCH.EMPTY_HELP' | translate }}</p>
+                    </div>
+                }
+            }
+        </div>
+    } @else {
+        <div class="match-explanation">
+            <mat-icon aria-hidden="true">{{
+                mode() === 'auto' ? 'refresh' : 'link_off'
+            }}</mat-icon>
+            <h3>{{ modeLabels[mode()] | translate }}</h3>
+            <p>
+                {{
+                    (mode() === 'auto'
+                        ? 'TMDB_MATCH.AUTO_HELP'
+                        : 'TMDB_MATCH.PROVIDER_HELP'
+                    ) | translate
+                }}
+            </p>
+        </div>
+    }
+
+    @if (error(); as failure) {
+        <div class="match-error" role="alert">
+            <mat-icon aria-hidden="true">error_outline</mat-icon>
+            <span>{{
+                (failure === 'search'
+                    ? 'TMDB_MATCH.SEARCH_ERROR'
+                    : 'TMDB_MATCH.SAVE_ERROR'
+                ) | translate
+            }}</span>
+            @if (failure === 'search') {
+                <button mat-button (click)="search()">
+                    {{ 'TMDB_MATCH.RETRY' | translate }}
+                </button>
+            }
+        </div>
+    }
+    <div appDialogFooter>
+        <button mat-button [disabled]="saving()" (click)="cancel()">
+            {{ 'TMDB_MATCH.CANCEL' | translate }}
+        </button>
+        <button mat-flat-button [disabled]="!canSave()" (click)="save()">
+            {{
+                (saving() ? 'TMDB_MATCH.SAVING' : 'TMDB_MATCH.SAVE') | translate
+            }}
+        </button>
+    </div>
+</app-dialog-shell>

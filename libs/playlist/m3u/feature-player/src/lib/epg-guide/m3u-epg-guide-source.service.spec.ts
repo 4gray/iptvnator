@@ -2,7 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { Subject } from 'rxjs';
+import { EMPTY, Subject } from 'rxjs';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { ChannelActions } from '@iptvnator/m3u-state';
 import { SettingsStore } from '@iptvnator/services';
@@ -96,6 +96,8 @@ describe('M3uEpgGuideSourceService', () => {
                             return translateStub.instant;
                         },
                         onLangChange,
+                        onDefaultLangChange: EMPTY,
+                        onTranslationChange: EMPTY,
                     },
                 },
             ],

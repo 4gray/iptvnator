@@ -1,3 +1,6 @@
+import { enrichedCast, topCast } from '@iptvnator/shared/tmdb/credits';
+import { extractTmdbCertifications } from '@iptvnator/shared/tmdb/certifications';
+
 import {
     Component,
     computed,
@@ -12,10 +15,9 @@ import {
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import type { PlaybackFallbackRequest } from '@iptvnator/playback/util';
 import {
-    enrichedCast,
     tmdbBackdropUrl,
     tmdbPosterUrl,
-    topCast,
+    injectTranslationTick,
 } from '@iptvnator/services';
 import {
     Channel,
@@ -23,6 +25,7 @@ import {
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import {
+    AgeRatingChipComponent,
     CastCrewRowComponent,
     DetailActionButtonComponent,
     DetailActionsTemplateDirective,
@@ -59,6 +62,7 @@ import {
     selector: 'app-m3u-vod-detail',
     providers: [M3uVodMetadataService],
     imports: [
+        AgeRatingChipComponent,
         CastCrewRowComponent,
         DetailActionButtonComponent,
         DetailActionsTemplateDirective,
@@ -71,12 +75,14 @@ import {
         TranslatePipe,
     ],
     templateUrl: './m3u-vod-detail.component.html',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrls: ['./m3u-vod-detail.component.scss'],
 })
 export class M3uVodDetailComponent {
     private readonly metadata = inject(M3uVodMetadataService);
     private readonly translate = inject(TranslateService);
+    /** Read by the worded labels below, so a language switch re-words them. */
+    private readonly languageTick = injectTranslationTick();
 
     readonly channel = input.required<Channel>();
     /** Parent-owned playback payload (headers/DRM already resolved). */
@@ -117,6 +123,10 @@ export class M3uVodDetailComponent {
     }
 
     readonly tmdb = computed(() => this.metadata.state().details);
+    readonly certifications = computed(() => {
+        const details = this.tmdb();
+        return details ? extractTmdbCertifications(details, 'movie') : [];
+    });
 
     /**
      * What the hero decides its layout for, once per entry. Keyed like the
@@ -149,12 +159,14 @@ export class M3uVodDetailComponent {
             .join(', ')
     );
     readonly runtimeLabel = computed(() => {
+        this.languageTick();
         const label = formatDurationLabel((this.tmdb()?.runtime ?? 0) * 60);
         return label ? this.translate.instant(label.key, label.params) : '';
     });
-    readonly kindLabel = computed(() =>
-        this.translate.instant('WORKSPACE.DASHBOARD.TYPE_MOVIE')
-    );
+    readonly kindLabel = computed(() => {
+        this.languageTick();
+        return this.translate.instant('WORKSPACE.DASHBOARD.TYPE_MOVIE');
+    });
     readonly rating = computed(() => {
         const details = this.tmdb();
         const average = details?.vote_average ?? 0;

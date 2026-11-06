@@ -1,5 +1,11 @@
-import { computed, inject } from '@angular/core';
-import { signalStore, withComputed, withMethods } from '@ngrx/signals';
+import { observeActivityChanges } from '@iptvnator/services/activity-changes';
+import { DestroyRef } from '@angular/core';
+import { inject } from '@angular/core';
+import {
+    signalStore,
+    withMethods,
+    withHooks,
+} from '@ngrx/signals';
 import {
     XtreamSerieDetails,
     XtreamVodDetails,
@@ -21,17 +27,13 @@ import {
     withPortal,
     withSearch,
     withSelection,
+    tmdbSeasonMetadataKey,
+    tmdbShowMetadataKey,
+    withTmdbEpisodeMetadata,
 } from './features';
-import {
-    enrichSerialSeasonWithTmdb,
-    enrichSerialSelectionWithTmdb,
-    enrichVodSelectionWithTmdb,
-} from './xtream-tmdb-enrichment';
-import {
-    applyRecoveredXtreamVodCatalogItem,
-    createXtreamDetailsRequestGuard,
-    resolveXtreamVodDetailsSelection,
-} from './xtream-details-request';
+
+import { createXtreamDetailsRequestGuard } from './xtream-details-request-guard';
+import { stripXtreamSerieInfoPlaceholders } from './xtream-detail-metadata';
 
 /** Facade composing the Xtream feature stores and cross-feature workflows. */
 export const XtreamStore = signalStore(
@@ -40,22 +42,14 @@ export const XtreamStore = signalStore(
     // Compose all features
     withPortal(),
     withContent(),
+    withPlaybackPositions(),
     withSelection(),
     withSearch(),
     withEpg(),
     withPlayer(),
     withFavorites(),
     withRecentItems(),
-    withPlaybackPositions(),
-
-    withComputed((store) => ({
-        /**
-         * Get global recent items (from withRecentItems)
-         */
-        globalRecentItems: computed(() => {
-            return store.recentItems();
-        }),
-    })),
+    withTmdbEpisodeMetadata(),
 
     // Cross-feature methods & orchestration
     withMethods((store) => {
@@ -66,6 +60,15 @@ export const XtreamStore = signalStore(
         const detailsRequestGuard = createXtreamDetailsRequestGuard(
             () => store.currentPlaylist()?.id
         );
+        const enrichDetails = (
+            isCurrent: () => boolean,
+            enrich: (
+                helpers: typeof import('./xtream-tmdb-enrichment')
+            ) => Promise<void>
+        ): Promise<void> =>
+            import('./xtream-tmdb-enrichment')
+                .then((helpers) => (isCurrent() ? enrich(helpers) : undefined))
+                .catch((error) => logger.warn('TMDB unavailable', error));
         return {
             cancelDetailsRequest(): void {
                 detailsRequestGuard.invalidate();
@@ -91,6 +94,7 @@ export const XtreamStore = signalStore(
                 store.resetPortal();
                 store.resetContent();
                 store.resetSelection();
+                store.resetPlaybackPositions();
                 store.resetSearchResults();
                 store.clearEpg();
                 store.resetPlayer();
@@ -113,7 +117,9 @@ export const XtreamStore = signalStore(
                 await store.initializeContent();
                 const playlist = store.currentPlaylist();
                 if (playlist) {
-                    store.loadAllPositions(playlist.id);
+                    void store.loadAllPositions(playlist.id).catch((error) => {
+                        logger.warn('Failed to load playback positions', error);
+                    });
                 }
             },
 
@@ -139,6 +145,7 @@ export const XtreamStore = signalStore(
                     serverUrl: playlist.serverUrl,
                     username: playlist.username,
                     password: playlist.password,
+                    userAgent: playlist.userAgent?.trim() || undefined,
                 };
 
                 store.setIsLoadingDetails(true);
@@ -146,7 +153,15 @@ export const XtreamStore = signalStore(
                 store.setSelectedItem(null);
                 xtreamApiService
                     .getVodInfo(credentials, params.vodId)
-                    .then((vodDetails: XtreamVodDetails) => {
+                    .then(async (vodDetails: XtreamVodDetails) => {
+                        if (!isCurrentRequest()) return;
+
+                        const {
+                            resolveXtreamVodDetailsSelection,
+                            applyRecoveredXtreamVodCatalogItem,
+                        } = await import('./xtream-details-request');
+                        // Cancellation, a newer detail or another playlist can
+                        // take ownership while the detail chunk is loading.
                         if (!isCurrentRequest()) return;
 
                         const { recovery, selection } =
@@ -169,11 +184,13 @@ export const XtreamStore = signalStore(
                         if (!isCurrentRequest()) return;
                         store.setSelectedCategory(params.categoryId);
                         store.setSelectedItem(selection);
-                        void enrichVodSelectionWithTmdb(
-                            store,
-                            tmdbEnrichment,
-                            params.vodId,
-                            isCurrentRequest
+                        void enrichDetails(isCurrentRequest, (helpers) =>
+                            helpers.enrichVodSelectionWithTmdb(
+                                store,
+                                tmdbEnrichment,
+                                params.vodId,
+                                isCurrentRequest
+                            )
                         );
 
                         if (!recovery) {
@@ -239,6 +256,7 @@ export const XtreamStore = signalStore(
                     serverUrl: playlist.serverUrl,
                     username: playlist.username,
                     password: playlist.password,
+                    userAgent: playlist.userAgent?.trim() || undefined,
                 };
 
                 store.setIsLoadingDetails(true);
@@ -251,13 +269,22 @@ export const XtreamStore = signalStore(
                         store.setSelectedCategory(params.categoryId);
                         store.setSelectedItem({
                             ...serialDetails,
+                            info: stripXtreamSerieInfoPlaceholders(
+                                serialDetails?.info
+                            ),
                             series_id: params.serialId,
                         });
-                        void enrichSerialSelectionWithTmdb(
-                            store,
-                            tmdbEnrichment,
-                            params.serialId,
-                            isCurrentRequest
+                        store.resetTmdbSeasonMetadata(params.serialId);
+                        void store.trackTmdbEpisodeMetadata(
+                            tmdbShowMetadataKey(params.serialId),
+                            enrichDetails(isCurrentRequest, (helpers) =>
+                                helpers.enrichSerialSelectionWithTmdb(
+                                    store,
+                                    tmdbEnrichment,
+                                    params.serialId,
+                                    isCurrentRequest
+                                )
+                            )
                         );
                     })
                     .catch((error: unknown) => {
@@ -286,15 +313,71 @@ export const XtreamStore = signalStore(
                 if (!playlistId) {
                     return;
                 }
-                void enrichSerialSeasonWithTmdb(
-                    store,
-                    tmdbEnrichment,
-                    seasonKey,
-                    () => store.currentPlaylist()?.id === playlistId
+                const seriesId = (
+                    store.selectedItem() as { series_id?: string | number }
+                )?.series_id;
+                const isCurrent = () =>
+                    store.currentPlaylist()?.id === playlistId &&
+                    String(store.selectedItem()?.series_id) ===
+                        String(seriesId);
+                const work = enrichDetails(isCurrent, (helpers) =>
+                    helpers.enrichSerialSeasonWithTmdb(
+                        store,
+                        tmdbEnrichment,
+                        seasonKey,
+                        isCurrent
+                    )
+                );
+                void (seriesId === undefined
+                    ? work
+                    : store.trackTmdbEpisodeMetadata(
+                          tmdbSeasonMetadataKey(seriesId, seasonKey),
+                          work,
+                          { keepSettled: true }
+                      ));
+            },
+
+            /**
+             * True while a TMDB lookup that could still fill the selected
+             * series' `seasonKey` episodes is outstanding: the show-level
+             * match, or — once matched — that season's episode enrichment
+             * not yet settled. False with TMDB off or without a match.
+             */
+            isTmdbEpisodeMetadataPending(seasonKey: string): boolean {
+                const item = store.selectedItem() as {
+                    series_id?: string | number;
+                    info?: { tmdb_id?: number | null } | unknown[];
+                } | null;
+                const seriesId = item?.series_id;
+                if (seriesId === undefined || !tmdbEnrichment.isEnabled()) {
+                    return false;
+                }
+                const status = store.tmdbEpisodeMetadata();
+                if (status[tmdbShowMetadataKey(seriesId)] === 'pending') {
+                    return true;
+                }
+                const info = item?.info;
+                if (!info || Array.isArray(info) || !info.tmdb_id) {
+                    return false;
+                }
+                return (
+                    status[tmdbSeasonMetadataKey(seriesId, seasonKey)] !==
+                    'settled'
                 );
             },
         };
-    })
+    }),
+    withHooks((store) => ({
+        onInit() {
+            inject(DestroyRef).onDestroy(
+                observeActivityChanges(() => {
+                    const id = store.currentPlaylist()?.id;
+                    if (id)
+                        void store.loadAllPositions(id).catch(() => undefined);
+                })
+            );
+        },
+    }))
 );
 
 // Type alias for the store

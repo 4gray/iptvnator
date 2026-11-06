@@ -1,0 +1,90 @@
+import { TestBed } from '@angular/core/testing';
+import { Router } from '@angular/router';
+import { AppMaintenanceService } from './app-maintenance.service';
+
+describe('AppMaintenanceService', () => {
+    const original = window.electron;
+    let navigate: jest.Mock;
+    beforeEach(() => {
+        navigate = jest.fn().mockResolvedValue(true);
+        TestBed.configureTestingModule({
+            providers: [
+                { provide: Router, useValue: { navigateByUrl: navigate } },
+            ],
+        });
+    });
+    afterEach(() => {
+        TestBed.resetTestingModule();
+        window.electron = original;
+    });
+
+    it('keeps settings available in a browser or partial bridge', async () => {
+        window.electron = undefined!;
+        const service = TestBed.inject(AppMaintenanceService);
+        expect(service.canCheckForUpdates).toBe(false);
+        await service.openSettings();
+        await service.checkForUpdates();
+        expect(navigate).toHaveBeenCalledTimes(1);
+        expect(navigate).toHaveBeenCalledWith('/workspace/settings');
+    });
+
+    it('does not offer updates through an incomplete bridge', () => {
+        window.electron = {
+            checkForAppUpdate: jest.fn(),
+        } as unknown as typeof original;
+        expect(TestBed.inject(AppMaintenanceService).canCheckForUpdates).toBe(
+            false
+        );
+    });
+
+    it('routes a manual check to About so all updater outcomes are visible', async () => {
+        const check = jest.fn().mockResolvedValue({ status: 'not-available' });
+        window.electron = {
+            checkForAppUpdate: check,
+            getAppUpdateStatus: jest.fn().mockResolvedValue({ status: 'idle' }),
+        } as unknown as typeof original;
+        await TestBed.inject(AppMaintenanceService).checkForUpdates();
+        expect(navigate).toHaveBeenCalledWith('/workspace/settings/about');
+        expect(check).toHaveBeenCalledTimes(1);
+    });
+
+    it('checks again when About is already open', async () => {
+        Object.defineProperty(TestBed.inject(Router), 'url', {
+            value: '/workspace/settings/about',
+        });
+        navigate.mockResolvedValue(false);
+        const check = jest.fn().mockResolvedValue({});
+        window.electron = {
+            checkForAppUpdate: check,
+            getAppUpdateStatus: jest.fn().mockResolvedValue({ status: 'idle' }),
+        } as unknown as typeof original;
+        await TestBed.inject(AppMaintenanceService).checkForUpdates();
+        expect(check).toHaveBeenCalledTimes(1);
+        expect(navigate).not.toHaveBeenCalled();
+    });
+
+    it.each(['downloading', 'downloaded'])(
+        'keeps an update that is %s intact',
+        async (status) => {
+            const check = jest.fn();
+            window.electron = {
+                checkForAppUpdate: check,
+                getAppUpdateStatus: jest.fn().mockResolvedValue({ status }),
+            } as unknown as typeof original;
+            await TestBed.inject(AppMaintenanceService).checkForUpdates();
+            expect(navigate).toHaveBeenCalledWith('/workspace/settings/about');
+            expect(check).not.toHaveBeenCalled();
+        }
+    );
+
+    it('respects a cancelled navigation and does not check behind an unsaved form', async () => {
+        navigate.mockResolvedValue(false);
+        const check = jest.fn();
+        window.electron = {
+            checkForAppUpdate: check,
+            getAppUpdateStatus: jest.fn().mockResolvedValue({ status: 'idle' }),
+        } as unknown as typeof original;
+        await TestBed.inject(AppMaintenanceService).checkForUpdates();
+        expect(check).not.toHaveBeenCalled();
+    });
+});

@@ -1,3 +1,14 @@
+import { detailCacheKey, portalIdentityKey } from './account-identity.js';
+import {
+    portalCache,
+    vodDetailsCache,
+    seriesInfoCache,
+} from './portal-caches.js';
+export {
+    resetAll,
+    resetAccount,
+    getDetailCacheCardinalityForTesting,
+} from './portal-caches.js';
 import { faker } from '@faker-js/faker';
 import { generateCategories } from './generators/categories.generator.js';
 import {
@@ -31,7 +42,11 @@ import {
     buildPerformanceSeriesInfo,
     buildPerformanceVodDetails,
 } from './generators/performance.generator.js';
-import { getScenario, ScenarioConfig } from './scenarios.js';
+import {
+    getScenario,
+    LONG_PROGRAMME_TITLE,
+    ScenarioConfig,
+} from './scenarios.js';
 
 export interface PortalData {
     scenario: ScenarioConfig;
@@ -43,10 +58,6 @@ export interface PortalData {
     seriesItems: RawSeriesItem[];
     epgListingsByStreamId: Map<number, RawEpgListing[]>;
 }
-
-const portalCache = new Map<string, PortalData>();
-const vodDetailsCache = new Map<string, RawVodDetails>();
-const seriesInfoCache = new Map<string, RawSeriesInfo>();
 
 function generatePortalData(username: string, password: string): PortalData {
     const scenario = getScenario(username, password);
@@ -100,7 +111,11 @@ function generatePortalData(username: string, password: string): PortalData {
     const vodStreams = generateVodStreams(vodCategories, itemsPerCategory);
     const seriesItems = generateSeriesItems(seriesCategories, itemsPerCategory);
     if (scenario.epgFixture === 'timezone-focus') {
-        const timezoneFixture = buildTimezoneFixture();
+        const timezoneFixture = buildTimezoneFixture(
+            scenario.longProgrammeTitle
+                ? LONG_PROGRAMME_TITLE
+                : 'Earlier Bulletin'
+        );
         liveCategories = timezoneFixture.liveCategories;
         liveStreams = timezoneFixture.liveStreams;
         timezoneFixture.epgListingsByStreamId.forEach((listings, streamId) => {
@@ -132,7 +147,7 @@ function generatePortalData(username: string, password: string): PortalData {
 }
 
 export function getPortalData(username: string, password: string): PortalData {
-    const key = `${username}:${password}`;
+    const key = portalIdentityKey(username, password);
     if (!portalCache.has(key)) {
         portalCache.set(key, generatePortalData(username, password));
     }
@@ -224,32 +239,9 @@ export function getShortEpgListings(
     return listings.slice(startIndex, startIndex + Math.max(1, limit));
 }
 
-export function resetAll(): void {
-    portalCache.clear();
-    vodDetailsCache.clear();
-    seriesInfoCache.clear();
-}
-
-/** Test-only cache sizes; never exposes credential-bearing keys or fixture data. */
-export function getDetailCacheCardinalityForTesting(): Readonly<{
-    vodDetails: number;
-    seriesInfo: number;
-}> {
-    return {
-        vodDetails: vodDetailsCache.size,
-        seriesInfo: seriesInfoCache.size,
-    };
-}
-
-function detailCacheKey(
-    username: string,
-    password: string,
-    itemId: number
-): string {
-    return `${username}:${password}:${itemId}`;
-}
-
-function buildTimezoneFixture(): Pick<
+function buildTimezoneFixture(
+    pastTitle: string
+): Pick<
     PortalData,
     'liveCategories' | 'liveStreams' | 'epgListingsByStreamId'
 > {
@@ -304,7 +296,7 @@ function buildTimezoneFixture(): Pick<
     ];
 
     const epgListingsByStreamId = new Map<number, RawEpgListing[]>();
-    epgListingsByStreamId.set(10_000, buildTimezoneNewsEpg(10_000));
+    epgListingsByStreamId.set(10_000, buildTimezoneNewsEpg(10_000, pastTitle));
     epgListingsByStreamId.set(10_001, []);
     epgListingsByStreamId.set(10_002, []);
 
@@ -315,7 +307,10 @@ function buildTimezoneFixture(): Pick<
     };
 }
 
-function buildTimezoneNewsEpg(streamId: number): RawEpgListing[] {
+function buildTimezoneNewsEpg(
+    streamId: number,
+    pastTitle: string
+): RawEpgListing[] {
     const now = Math.floor(Date.now() / 1000);
     const roundedNow = now - (now % (15 * 60));
     const nextUtcMidnight = getFutureUtcMidnight(now);
@@ -325,7 +320,7 @@ function buildTimezoneNewsEpg(streamId: number): RawEpgListing[] {
     const listings = [
         {
             id: `${streamId}-past`,
-            title: 'Earlier Bulletin',
+            title: pastTitle,
             description:
                 'Past schedule item used to anchor current-program detection.',
             startTimestamp: roundedNow - 75 * 60,

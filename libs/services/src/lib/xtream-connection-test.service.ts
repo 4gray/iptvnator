@@ -12,6 +12,7 @@ import { resetHostConnectivityGuard } from './host-connectivity-reset';
 import { PortalStatusService } from './portal-status.service';
 
 export interface XtreamTestConnection {
+    userAgent?: string;
     serverUrl: string;
     username: string;
     password: string;
@@ -36,6 +37,7 @@ export class XtreamConnectionTestService {
         allowHttpFallback = false
     ): Promise<XtreamConnectionTestResult> {
         const normalized = {
+            userAgent: connection.userAgent?.trim() || undefined,
             serverUrl: normalizeXtreamServerUrl(connection.serverUrl),
             username: connection.username.trim(),
             password: connection.password.trim(),
@@ -81,6 +83,9 @@ export class XtreamConnectionTestService {
                         connectionFailure?: XtreamConnectionFailure;
                     }>('XTREAM_REQUEST', {
                         url: connection.serverUrl,
+                        ...(connection.userAgent
+                            ? { userAgent: connection.userAgent }
+                            : {}),
                         params: {
                             username: connection.username,
                             password: connection.password,
@@ -122,7 +127,8 @@ export class XtreamConnectionTestService {
                     connection.serverUrl,
                     connection.username,
                     connection.password,
-                    accountResponse
+                    accountResponse,
+                    connection.userAgent
                 );
         }
     }

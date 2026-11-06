@@ -94,6 +94,31 @@ describe('mergeEpisodesWithTmdb', () => {
         expect(info.duration_secs).toBe(3300);
     });
 
+    it('fills a missing runtime from TMDB but keeps a provider runtime', () => {
+        const withRuntime = { ...tmdbEpisode, runtime: 46 };
+        const [filled] = mergeEpisodesWithTmdb(
+            [providerEpisode()],
+            [withRuntime]
+        );
+        const [zeroString] = mergeEpisodesWithTmdb(
+            [providerEpisode({ info: { duration: '00:00:00' } as never })],
+            [withRuntime]
+        );
+        const [kept] = mergeEpisodesWithTmdb(
+            [providerEpisode({ info: { duration_secs: 2520 } as never })],
+            [withRuntime]
+        );
+        const [noTmdbRuntime] = mergeEpisodesWithTmdb(
+            [providerEpisode()],
+            [{ ...tmdbEpisode, runtime: null }]
+        );
+
+        expect(filled.info).toMatchObject({ duration_secs: 2760 });
+        expect(zeroString.info).toMatchObject({ duration_secs: 2760 });
+        expect(kept.info).toMatchObject({ duration_secs: 2520 });
+        expect(noTmdbRuntime.info).not.toHaveProperty('duration_secs');
+    });
+
     it('passes through episodes without a TMDB counterpart', () => {
         const episode = providerEpisode({ episode_num: 99 });
         const [merged] = mergeEpisodesWithTmdb([episode], [tmdbEpisode]);

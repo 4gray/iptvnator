@@ -329,7 +329,7 @@ function derivePhases(
     );
     const response = findTimeline(main.timeline, 'playlist-response');
     const playlistRequest = findTimeline(main.timeline, 'playlist-request');
-    const playlistId = playlistRequest?.playlistId;
+    const playlistId = playlistRequest?.playlistId ?? undefined;
     const dbGetRequest = findPlaylistDbRecord(
         main.timeline,
         'db-request',

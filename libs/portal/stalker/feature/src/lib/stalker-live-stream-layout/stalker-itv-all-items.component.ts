@@ -2,24 +2,52 @@ import {
     ChangeDetectionStrategy,
     Component,
     computed,
+    effect,
+    ElementRef,
     input,
+    inject,
     linkedSignal,
     output,
+    signal,
+    viewChild,
 } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatIcon } from '@angular/material/icon';
+import { MatTooltip } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
     GridListComponent,
     InfiniteScrollDirective,
+    PlaylistErrorViewComponent,
 } from '@iptvnator/portal/shared/ui';
 import {
     StalkerItvChannel,
     StalkerItvLoadProgress,
 } from '@iptvnator/portal/stalker/data-access';
-import { foldSearchText } from '@iptvnator/shared/interfaces';
+import { EpgProgram, foldSearchText } from '@iptvnator/shared/interfaces';
+import {
+    ChannelListItemComponent,
+    ChannelListSkeletonComponent,
+} from '@iptvnator/ui/components';
+import { SettingsStore } from '@iptvnator/services';
 
 /** Initial render window and per-`loadMore` growth over the cached list. */
 const RENDER_CHUNK = 50;
+const VIEW_MODE_KEY = 'stalker-itv-overview-view';
+const VIEW_MODE = { grid: 'grid', list: 'list' } as const;
+type ViewMode = (typeof VIEW_MODE)[keyof typeof VIEW_MODE];
+
+function restoreViewMode(): ViewMode {
+    try {
+        return localStorage.getItem(VIEW_MODE_KEY) === VIEW_MODE.list
+            ? VIEW_MODE.list
+            : VIEW_MODE.grid;
+    } catch {
+        return VIEW_MODE.grid;
+    }
+}
 
 /**
  * "All channels" grid shown in the Live TV main area before a category is
@@ -35,62 +63,60 @@ const RENDER_CHUNK = 50;
         InfiniteScrollDirective,
         MatProgressSpinnerModule,
         TranslatePipe,
+        MatButtonModule,
+        MatButtonToggleModule,
+        MatIcon,
+        MatTooltip,
+        ChannelListItemComponent,
+        ChannelListSkeletonComponent,
+        PlaylistErrorViewComponent,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-        <div class="category-content-header">
-            <div class="category-meta">
-                <h2 class="category-title">
-                    {{ 'PORTALS.ALL_CATEGORIES' | translate }}
-                </h2>
-                @if (loading()) {
-                    <span class="all-items-progress" role="status">
-                        <mat-spinner diameter="14" />
-                        @if (progress(); as loadProgress) {
-                            <span class="all-items-progress__count">
-                                {{ loadProgress.loaded }}/{{
-                                    loadProgress.total
-                                }}
-                            </span>
-                        }
-                    </span>
-                } @else if (filteredChannels().length > 0) {
-                    <span class="category-subtitle"
-                        >{{ filteredChannels().length }}
-                        {{
-                            (filteredChannels().length === 1
-                                ? 'PORTALS.ITEM'
-                                : 'PORTALS.ITEMS'
-                            ) | translate
-                        }}</span
-                    >
-                }
-            </div>
-        </div>
-        <app-grid-list
-            class="all-items-grid app-scrollbar"
-            appInfiniteScroll
-            [infiniteHasMore]="hasMoreItems()"
-            [infiniteItemCount]="visibleGridItems().length"
-            [infiniteResetKey]="searchTerm()"
-            (infiniteLoadMore)="loadMore()"
-            [isLoading]="loading()"
-            [items]="visibleGridItems()"
-            [searchTerm]="searchTerm()"
-            [variant]="'logo'"
-            [type]="'live'"
-            (itemClicked)="onItemClicked($event)"
-        />
-    `,
+    templateUrl: './stalker-itv-all-items.component.html',
     styleUrl: './stalker-itv-all-items.component.scss',
 })
 export class StalkerItvAllItemsComponent {
+    protected readonly settingsStore = inject(SettingsStore);
     readonly channels = input<StalkerItvChannel[]>([]);
     readonly loading = input(false);
     readonly progress = input<StalkerItvLoadProgress | null>(null);
     readonly searchTerm = input('');
+    readonly sidebarCollapsed = input(false);
+    readonly showEpg = input(false);
+    readonly epgLoading = input(false);
+    readonly epgPrograms = input<ReadonlyMap<string | number, EpgProgram>>(
+        new Map()
+    );
+    readonly epgProgress = input<ReadonlyMap<string | number, number>>(
+        new Map()
+    );
 
     readonly channelActivated = output<StalkerItvChannel>();
+    readonly restorePanels = output<void>();
+    readonly visibleChannelsChanged = output<StalkerItvChannel[]>();
+    readonly previewRefreshRequested = output<void>();
+    readonly viewMode = signal<ViewMode>(restoreViewMode());
+    readonly restoreButton = viewChild('restoreButton', {
+        read: ElementRef<HTMLButtonElement>,
+    });
+    private readonly scrollContainer =
+        viewChild<ElementRef<HTMLElement>>('scrollContainer');
+
+    constructor() {
+        effect(() => this.visibleChannelsChanged.emit(this.visibleChannels()));
+    }
+
+    setViewMode(mode: string): void {
+        if (mode !== VIEW_MODE.grid && mode !== VIEW_MODE.list) return;
+        this.viewMode.set(mode);
+        try {
+            localStorage.setItem(VIEW_MODE_KEY, mode);
+        } catch {
+            // A display preference remains usable when browser storage is blocked.
+        }
+        const container = this.scrollContainer()?.nativeElement;
+        if (container) container.scrollTop = 0;
+    }
 
     /** Resets to the first chunk whenever the source list or search changes. */
     readonly renderLimit = linkedSignal({
@@ -119,20 +145,24 @@ export class StalkerItvAllItemsComponent {
         () => this.filteredChannels().length > this.renderLimit()
     );
 
+    readonly visibleChannels = computed(() =>
+        this.filteredChannels().slice(0, this.renderLimit())
+    );
+
     /** The visible window, mapped so GridListComponent can resolve the logo. */
     readonly visibleGridItems = computed(() =>
-        this.filteredChannels()
-            .slice(0, this.renderLimit())
-            .map((channel) => {
-                // GridListItem forbids null is_series; Stalker payloads may
-                // carry it — drop the nullish form (same as toPlayableChannel).
-                const { is_series, ...rest } = channel;
-                return {
-                    ...rest,
-                    ...(is_series == null ? {} : { is_series }),
-                    stream_icon: channel.logo,
-                };
-            })
+        this.visibleChannels().map((channel) => {
+            // GridListItem forbids null is_series; Stalker payloads may
+            // carry it — drop the nullish form (same as toPlayableChannel).
+            const { is_series, ...rest } = channel;
+            return {
+                ...rest,
+                ...(is_series == null ? {} : { is_series }),
+                stream_icon: channel.logo,
+                epgProgram: this.epgPrograms().get(String(channel.id)),
+                epgProgress: this.epgProgress().get(String(channel.id)) ?? 0,
+            };
+        })
     );
 
     loadMore(): void {
@@ -144,6 +174,15 @@ export class StalkerItvAllItemsComponent {
     }
 
     onItemClicked(item: unknown): void {
-        this.channelActivated.emit(item as StalkerItvChannel);
+        if (!item || typeof item !== 'object' || !('id' in item)) return;
+        const channel = this.channels().find(
+            (channel) => String(channel.id) === String(item.id)
+        );
+        if (channel) this.channelActivated.emit(channel);
+    }
+
+    onChannelClicked(channel: StalkerItvChannel): void {
+        if (!this.settingsStore.openStreamOnDoubleClick())
+            this.channelActivated.emit(channel);
     }
 }

@@ -60,6 +60,40 @@ Do not add broad protocol allow-lists for renderer navigation. If a new
 desktop-only flow needs to open a URL outside IPTVnator, route it through the
 default browser unless the app window is deliberately meant to host that URL.
 
+## Desktop Maintenance Commands
+
+Native application menu commands use the push-only `APP:MENU_ACTION` channel.
+The preload accepts only `settings` and `check-for-updates`, retains the latest
+command until Angular subscribes, and exposes an unsubscribe function. The
+renderer chooses the settings route through Angular's router and retains its
+unsaved-changes guards; the native menu never supplies an arbitrary URL. Menu
+clicks during initial loading wait for the preload, and a command with no live
+window reactivates the application before delivery. The frameless title-bar
+button invokes the payload-free `APP:MENU_OPEN` handler, which resolves the
+live sender window and opens the fixed application menu; renderers cannot
+provide menu entries or commands.
+
+## Window Back Gestures
+
+`apps/electron-backend/src/app/services/window-back-gestures.ts` forwards the
+main window's `app-command` `browser-backward` (Windows/Linux) and `swipe`
+left (macOS) to the renderer on the push-only channel `WINDOW:BACK_REQUESTED`
+(`WINDOW_BACK_REQUESTED`). The payload is the source name (`app-command` or
+`swipe`); the preload's `onWindowBackRequested` forwards only those two
+values and returns an unsubscribe. There is no renderer → main surface and no
+`ipcMain` handler: the renderer decides whether Back runs, and the main
+process never navigates the window. Forward commands are not forwarded.
+On Linux the Browser Back key is consumed in the window's
+`before-input-event` and sent once per press on the same channel, because
+Electron there raises `app-command` for both its keydown and keyup.
+Electron's Chromium would also traverse history on an unprevented mouse Back
+press, even to entries from before a reload (which reloads the app), so the
+renderer prevents every mouse Back press while it subscribes.
+Renderer code subscribes only behind
+`RuntimeCapabilitiesService.supportsWindowBackGestures`. The renderer
+contract is "Platform gestures" in
+[Header Back](./workspace-shell.md#header-back).
+
 ## Desktop Auto Updates
 
 Desktop application updates are owned by the Electron main process. Renderer
@@ -80,6 +114,13 @@ actions explicitly ask to download and install. The main process starts one
 packaged startup check after IPC registration; it never downloads during that
 check. After a successful download, the renderer may show a restart/install
 action backed by `quitAndInstall()`.
+
+The renderer suspends only its DOM unload handler during installation. The
+main-process window guard stays armed until install IPC: `prepareQuit` clears
+pending close intents and prepares one close bypass in the same synchronous call
+before `quitAndInstall()`. An install failure revokes an unused bypass. Renderer
+receipt of close notifications is not used as evidence that main has no pending
+close.
 
 Self-update is supported only for packaged macOS builds, Windows NSIS builds,
 and Linux AppImage builds. Other Linux packages still point users to the latest
@@ -128,7 +169,7 @@ policy.
 Inline playback can request temporary `User-Agent`, `Referer`, and `Origin`
 header overrides — and, for auth-gated portal streams, `Cookie` and
 `Authorization` credentials — through `window.electron.setUserAgent(userAgent,
-referer, scopeUrl, credentials?)`.
+referer, scopeUrl, credentials?, origin?)`.
 
 The Electron backend handles that IPC in `apps/electron-backend/src/app/events/shared.events.ts`
 and delegates to `apps/electron-backend/src/app/services/request-header-overrides.service.ts`.
@@ -151,11 +192,16 @@ a narrower call would overwrite the credentialed override.
 
 Rules:
 
-- empty playlist-level `userAgent` and `referer` clear all active overrides
+- empty playlist-level header overrides clear all active overrides
 - empty channel-level values with a `scopeUrl` clear only the scoped channel
   override, preserving playlist-level defaults
 - channel playback should pass the stream URL as `scopeUrl`
 - scoped overrides apply only to the active stream origin and referer origin
+- an explicit `origin` header value takes precedence over the origin derived
+  from `referer`, including when only `origin` is configured; absent or rejected
+  values preserve the Referer-derived fallback
+- the explicit Origin header value does not add a destination to the scope;
+  it cannot widen credential or request-header access to another host
 - playlist-level user agents and referrers may call the bridge without a
   `scopeUrl`; that is intentionally broader because playlist settings apply to
   the whole M3U playlist
@@ -200,6 +246,16 @@ end-to-end contract against a mock stream that answers 403 without the portal
 credentials.
 
 ## Main-Process Remote Requests
+
+Source synchronization uses a narrow typed preload surface and a persisted
+server selection. Its main-process adapter builds versioned API paths from
+named operations and permits an explicitly configured LAN server. Requests use
+the validated Axios transport with certificate checks and no redirects, so a
+NAS token cannot be replayed to a redirected provider or other host. Tokens are
+stored through OS-protected `safeStorage`, with a process-only fallback when
+protected storage is unavailable. The persisted connection file contains no
+plaintext token. Desktop source profiles are selected before opening any
+database connection; changing the profile restarts the app.
 
 Renderer-triggered HTTP requests must pass through the URL policy in
 `apps/electron-backend/src/app/events/url-safety.ts`. The policy rejects
@@ -284,5 +340,9 @@ Renderer IPC payloads are not filesystem authorization.
   returned by `DOWNLOADS_GET_DEFAULT_FOLDER`, so renderer-managed settings
   cannot substitute an arbitrary host path.
 - Downloads do not overwrite an existing destination file.
+- Download filenames use a media-extension allowlist. New downloads, retained
+  retry/resume paths and missing-file re-downloads reject unsupported types; Play checks the same allowlist
+  before OS opening, including records created by older releases. Provider
+  endpoints without a media extension use `.mp4`.
 - Reveal and playback handlers accept only file paths recorded in IPTVnator's
   downloads database.

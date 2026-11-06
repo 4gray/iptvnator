@@ -301,7 +301,7 @@ async function installRendererProbe(
             const epoch = (): number =>
                 performance.timeOrigin + performance.now();
             const sourceRow = (): Element | undefined =>
-                Array.from(document.querySelectorAll('app-playlist-item')).find(
+                Array.from(document.querySelectorAll('app-source-row')).find(
                     (element) => element.textContent?.includes(title)
                 );
             const state = {
@@ -330,7 +330,7 @@ async function installRendererProbe(
                 const row = sourceRow();
                 const message =
                     row
-                        ?.querySelector('.busy-state__message')
+                        ?.querySelector('.source-row__busy-message')
                         ?.textContent?.trim()
                         .toLowerCase() ?? '';
                 for (const phase of ['fetch', 'pars', 'sav']) {
@@ -345,9 +345,10 @@ async function installRendererProbe(
                     state.cancelClickEpochMs !== null &&
                     state.uiSettledEpochMs === null &&
                     row !== undefined &&
-                    row.querySelector('.busy-state__message') === null &&
-                    row.querySelector('.action-spinner') === null &&
-                    row.querySelector('.cancel-btn') === null
+                    row.querySelector('.source-row__busy-message') === null &&
+                    row.querySelector('.source-row__refresh mat-spinner') ===
+                        null &&
+                    row.querySelector('.source-row__cancel') === null
                 ) {
                     state.uiSettledEpochMs = epoch();
                     state.uiPaintFrameRequestId = requestAnimationFrame(() => {
@@ -421,7 +422,9 @@ async function installRendererProbe(
                     event.phase === 'parsing' &&
                     state.cancelClickEpochMs === null
                 ) {
-                    const button = sourceRow()?.querySelector('.cancel-btn');
+                    const button = sourceRow()?.querySelector(
+                        '.source-row__cancel'
+                    );
                     state.cancelButtonFound =
                         button instanceof HTMLButtonElement;
                     if (button instanceof HTMLButtonElement) {

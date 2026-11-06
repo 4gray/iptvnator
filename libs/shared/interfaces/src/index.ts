@@ -1,4 +1,7 @@
 export * from './lib/app-update-channel.util';
+export * from './lib/xtream-content-selection';
+export * from './lib/xtream-history-recovery';
+export type { XtreamCategoryVisibility } from './lib/xtream-category-visibility';
 export * from './lib/channel-drm.interface';
 export * from './lib/channel.interface';
 export * from './lib/channel.model';
@@ -9,6 +12,7 @@ export * from './lib/embedded-mpv-session.interface';
 export * from './lib/embedded-mpv-support-watch.util';
 export * from './lib/subtitle-style.util';
 export * from './lib/zoom-level.util';
+export * from './lib/macos-traffic-lights';
 export * from './lib/electron-api.interface';
 export * from './lib/epg-channel-metadata.model';
 export * from './lib/epg-channel-with-programs.interface';
@@ -47,7 +51,11 @@ export * from './lib/portal-activity-item.interface';
 export * from './lib/portal-debug.interface';
 export * from './lib/playlist-display-label.util';
 export * from './lib/portal-playback.interface';
-export * from './lib/provider-import-detection.util';
+export type {
+    ProviderImportCandidate,
+    ProviderImportConfidence,
+    ProviderImportKind,
+} from './lib/provider-import-detection.util';
 export * from './lib/source-type-icons.util';
 export * from './lib/provider-overview.util';
 export * from './lib/random-id.util';
@@ -64,6 +72,7 @@ export * from './lib/store-keys.enum';
 export * from './lib/stream-format.enum';
 export * from './lib/catalog-title-match.interface';
 export * from './lib/theme.enum';
+export * from './lib/theme-presets';
 export * from './lib/season-marker.util';
 export * from './lib/search-text-fold.util';
 export * from './lib/stalker-account-info-dialog-data.interface';
@@ -80,6 +89,7 @@ export * from './lib/xtream-live-stream.interface';
 export * from './lib/xtream-response.interface';
 export * from './lib/xtream-portal.utils';
 export * from './lib/xtream-restore-state.util';
+export * from './lib/xtream-favorite.interface';
 export * from './lib/xtream-server-timezone.util';
 export * from './lib/xtream-recently-added.utils';
 export * from './lib/xtream-performance-marker.interface';
@@ -92,6 +102,7 @@ export * from './lib/xtream-vod-stream.interface';
 export * from './lib/stalker-item.normalizer';
 export * from './lib/stalker-item-tmdb-hints';
 export * from './lib/stalker-identity.utils';
+export * from './lib/stalker-protocol-hash.loader';
 export * from './lib/stalker-mac-address.util';
 export * from './lib/stalker-request-identity.util';
 export * from './lib/stalker-stb-profile.const';
@@ -102,11 +113,23 @@ export * from './lib/stalker-serial-details.interface';
 export * from './lib/stalker-vod-details.interface';
 
 // Unified VOD details (discriminated union + adapters)
+export * from './lib/provider-metadata.util';
 export * from './lib/vod-details-adapters';
 export * from './lib/vod-details-item.interface';
 
 export * from './lib/catchup-download.interface';
 
 export * from './lib/xtream-connection-test';
+export * from './lib/portal-request-failure.util';
 
 export * from './lib/source-health';
+export * from './lib/source-reachability';
+export * from './lib/server-storage.contract';
+export * from './lib/source-sync.interface';
+
+export { sourceIdentity } from './lib/playlist-source-identity.util';
+
+export type {
+    ContentCertification,
+    AgeRatingDisplay,
+} from './lib/content-certification';

@@ -1,0 +1,63 @@
+<section
+    class="rail-skeleton"
+    aria-hidden="true"
+    aria-busy="true"
+    [attr.data-layout]="layout()"
+    [attr.data-test-id]="testId()"
+>
+    <div class="rail-skeleton__header">
+        <span class="rail-skeleton__title"></span>
+    </div>
+
+    <div class="rail-skeleton__track" [attr.data-layout]="layout()">
+        @for (slot of slots; track slot) {
+            @if (layout() === 'channel') {
+                <div class="rail-skeleton__card rail-skeleton__card--channel">
+                    <div class="rail-skeleton__channel-row">
+                        <span class="rail-skeleton__channel-logo"></span>
+                        <span class="rail-skeleton__channel-meta">
+                            <span
+                                class="rail-skeleton__line rail-skeleton__line--channel-name"
+                            >
+                                <span class="rail-skeleton__bar"></span>
+                            </span>
+                            <span
+                                class="rail-skeleton__line rail-skeleton__line--channel-now"
+                            >
+                                <span
+                                    class="rail-skeleton__bar rail-skeleton__bar--short"
+                                ></span>
+                            </span>
+                        </span>
+                    </div>
+                    <div class="rail-skeleton__channel-progress-row">
+                        <span
+                            class="rail-skeleton__bar rail-skeleton__bar--progress"
+                        ></span>
+                    </div>
+                </div>
+            } @else {
+                <div class="rail-skeleton__card">
+                    <span
+                        class="rail-skeleton__art"
+                        [style.aspect-ratio]="aspectRatio()"
+                    ></span>
+                    <span class="rail-skeleton__meta">
+                        <span
+                            class="rail-skeleton__line rail-skeleton__line--title"
+                        >
+                            <span class="rail-skeleton__bar"></span>
+                        </span>
+                        <span
+                            class="rail-skeleton__line rail-skeleton__line--meta"
+                        >
+                            <span
+                                class="rail-skeleton__bar rail-skeleton__bar--short"
+                            ></span>
+                        </span>
+                    </span>
+                </div>
+            }
+        }
+    </div>
+</section>

@@ -187,6 +187,8 @@ export interface Settings {
      * show, so recognition never runs.
      */
     m3uVodDetails?: boolean;
+    /** Global programme guide opt-out; missing means enabled. */
+    epgEnabled?: boolean;
     epgUrl: string[];
     streamFormat: StreamFormat;
     openStreamOnDoubleClick: boolean;
@@ -276,8 +278,9 @@ export interface Settings {
      * Display-only correction, in whole minutes, for guides whose provider
      * labels programme times with the wrong timezone. Clamped to ±720 by
      * `normalizeEpgOffsetMinutes`; the two equivalent ways of applying it are
-     * documented in `epg-display-offset.util.ts`. Electron only in practice
-     * (the control is gated behind `supportsEpg`, like `epgViewMode`).
+     * documented in `epg-display-offset.util.ts`. Shown wherever a guide
+     * exists, XMLTV or a portal's own (`SettingsFormFacade.supportsEpgDisplay`),
+     * like `epgViewMode`.
      */
     epgOffsetMinutes?: number;
     /** Per-rail dashboard visibility preferences. Missing keys default on. */
@@ -307,6 +310,8 @@ export interface Settings {
      * Disabled by default because enrichment sends content titles to TMDB.
      */
     tmdb?: TmdbSettings;
+    /** ISO country for age classifications; auto follows the UI language. */
+    ageRatingCountry?: string;
     /**
      * Parental lock: locked categories disappear from the whole app until
      * the PIN is entered. Off by default; may only be on while a PIN exists

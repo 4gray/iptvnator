@@ -15,6 +15,12 @@ import type {
 
 export type ExternalPlaybackButtonState = 'idle' | 'launching' | 'stop';
 
+/** Translation key and params for the primary button's label. */
+export interface ExternalPlaybackButtonLabel {
+    readonly key: string;
+    readonly params: { readonly player: string };
+}
+
 export interface ExternalPlaybackButtonStateConfig {
     /** The currently active external player session, if any. */
     session: Signal<ExternalPlayerSession | null>;
@@ -41,7 +47,7 @@ export interface ExternalPlaybackButtonStateApi {
      * playing a different movie must not turn this page's Play into Stop.
      */
     matchedSession: Signal<ExternalPlayerSession | null>;
-    primaryLabel: Signal<string | null>;
+    primaryLabel: Signal<ExternalPlaybackButtonLabel | null>;
     primaryIcon: Signal<string>;
     isLaunchPending: Signal<boolean>;
     isStopAction: Signal<boolean>;
@@ -91,20 +97,20 @@ export function createExternalPlaybackButtonState(
         return owned ? session : null;
     });
 
-    const primaryLabel = computed(() => {
+    const primaryLabel = computed<ExternalPlaybackButtonLabel | null>(() => {
         const session = matchedSession();
         if (!session) {
             return null;
         }
 
-        const player = session.player.toUpperCase();
+        const params = { player: session.player.toUpperCase() };
         switch (session.status) {
             case 'launching':
-                return `Opening in ${player}...`;
+                return { key: 'EXTERNAL_PLAYER.OPENING_IN', params };
             case 'opened':
             case 'playing':
             case 'error':
-                return `Stop ${player}`;
+                return { key: 'EXTERNAL_PLAYER.STOP', params };
             default:
                 return null;
         }

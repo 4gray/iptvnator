@@ -10,6 +10,7 @@ import {
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import {
+    EpgPreferencesService,
     DataService,
     EpgSourceSettingsService,
     RuntimeCapabilitiesService,
@@ -111,7 +112,8 @@ export function withStalkerEpg() {
                 portalRepair = inject(StalkerPortalRepairService),
                 runtime = inject(RuntimeCapabilitiesService),
                 epgBridge = inject(EpgRuntimeBridgeService),
-                sources = inject(EpgSourceSettingsService)
+                sources = inject(EpgSourceSettingsService),
+                preferences = inject(EpgPreferencesService)
             ) => {
                 const storeContext = store as typeof store &
                     StalkerEpgFeatureStoreContract;
@@ -120,7 +122,11 @@ export function withStalkerEpg() {
                     stalkerSession,
                     portalRepair,
                 };
-                const supportsEpg = (): boolean => runtime.supportsEpg;
+                // Portal EPG needs only the Stalker transport (Electron IPC or
+                // the PWA's backend proxy). Manual mappings read uploaded
+                // XMLTV and keep the XMLTV gate in applyMappedItvEpg.
+                const supportsProviderEpg = (): boolean =>
+                    preferences.enabled() && runtime.supportsProviderEpg;
 
                 // Manual EPG mapping overrides (uploaded XMLTV programs keyed
                 // by the normalized Stalker channel id). Kept outside the
@@ -161,10 +167,15 @@ export function withStalkerEpg() {
                     >,
                     queryParams: Record<string, string>
                 ): Promise<StalkerEpgResponse> => {
-                    return executeStalkerRequest<StalkerEpgResponse>(
-                        requestDeps,
-                        playlist,
-                        queryParams
+                    return preferences.run(
+                        () =>
+                            executeStalkerRequest<StalkerEpgResponse>(
+                                requestDeps,
+                                playlist,
+                                queryParams,
+                                { silent: true }
+                            ),
+                        { js: [] }
                     );
                 };
 
@@ -172,7 +183,7 @@ export function withStalkerEpg() {
                     channelId: number | string,
                     size: number
                 ): Promise<EpgItem[]> => {
-                    if (!supportsEpg()) {
+                    if (!supportsProviderEpg()) {
                         return [];
                     }
 
@@ -230,7 +241,7 @@ export function withStalkerEpg() {
 
                         const playlistId = String(playlist._id);
                         const generation = cacheGeneration;
-                        if (!supportsEpg()) {
+                        if (!supportsProviderEpg()) {
                             patchState(store, {
                                 bulkItvEpgByChannel: {},
                                 bulkItvEpgLoaded: true,
@@ -304,7 +315,11 @@ export function withStalkerEpg() {
                     async applyMappedItvEpg(
                         channelIds: ReadonlyArray<string | number>
                     ): Promise<void> {
-                        if (!epgBridge.supportsEpgMapping || !supportsEpg()) {
+                        if (
+                            !preferences.enabled() ||
+                            !epgBridge.supportsEpgMapping ||
+                            !runtime.supportsEpg
+                        ) {
                             return;
                         }
                         const playlist = storeContext.currentPlaylist();
@@ -473,8 +488,12 @@ export function withStalkerEpg() {
                         const context = store as typeof store &
                             StalkerEpgFeatureStoreContract;
                         const selectedId = context.selectedItvId();
+                        const hadGuide =
+                            store.bulkItvEpgLoaded() ||
+                            store.isLoadingBulkItvEpg();
                         store.clearBulkItvEpgCache();
-                        void store.ensureBulkItvEpg();
+                        if (selectedId || hadGuide)
+                            void store.ensureBulkItvEpg();
                         if (selectedId)
                             void store.applyMappedItvEpg([selectedId]);
                     });

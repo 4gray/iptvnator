@@ -19,7 +19,6 @@
                     "base": "dist/apps/web",
                     "browser": ""
                 },
-                "polyfills": ["zone.js"],
                 "tsConfig": "apps/web/tsconfig.app.json",
                 "inlineStyleLanguage": "scss",
                 "serviceWorker": "ngsw-config.json",
@@ -120,7 +119,13 @@
                     "serviceWorker": false,
                     "optimization": false,
                     "extractLicenses": false,
-                    "sourceMap": true
+                    "sourceMap": true,
+                    "fileReplacements": [
+                        {
+                            "replace": "apps/web/src/environments/store-devtools.providers.ts",
+                            "with": "apps/web/src/environments/store-devtools.providers.dev.ts"
+                        }
+                    ]
                 },
                 "electron-performance": {
                     "baseHref": "./",
@@ -148,10 +153,22 @@
                     "serviceWorker": false,
                     "optimization": false,
                     "extractLicenses": false,
-                    "sourceMap": true
+                    "sourceMap": true,
+                    "fileReplacements": [
+                        {
+                            "replace": "apps/web/src/environments/store-devtools.providers.ts",
+                            "with": "apps/web/src/environments/store-devtools.providers.dev.ts"
+                        }
+                    ]
                 }
             },
             "defaultConfiguration": "production"
+        },
+        "build-pwa": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "pnpm nx run web:build:pwa"
+            }
         },
         "build-e2e": {
             "executor": "nx:run-commands",

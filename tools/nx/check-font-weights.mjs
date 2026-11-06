@@ -757,6 +757,11 @@ function capOnly(term) {
     return Boolean(term.cap) && !offScale;
 }
 
+/** What a finding reports (see `describeFinding`): one key, one message. */
+function findingKey({ file, line, name, value, cap, computed }) {
+    return JSON.stringify([file, line, name, value, cap, computed]);
+}
+
 /** A string literal in code, whole: its quote and its text. */
 const STRING_LITERAL = /^\s*(['"`])([\s\S]*)\1\s*$/;
 
@@ -940,6 +945,8 @@ export function scanWeights(file, written, modules = {}) {
     return {
         ...running,
         findings: union(running.findings, after.findings),
+        // A variable a weight reads is followed from either reading.
+        references: union(running.references, after.references),
         deferred: union(running.deferred, after.deferred),
         // A call meets the families of either reading.
         includeCalls: new Map(
@@ -2362,7 +2369,13 @@ export function findIndirectWeights(scans) {
             );
         }
     }
-    return findings;
+    // A definition several references reach (two rules reading one Sass
+    // variable, or both readings of a keyframe) is reported once.
+    return [
+        ...new Map(
+            findings.map((finding) => [findingKey(finding), finding])
+        ).values(),
+    ];
 }
 
 /**
@@ -2448,13 +2461,11 @@ export function findWorkspaceWeights(sources) {
         ...scans.flatMap((scan) => scan.findings),
         ...findIndirectWeights(scans),
     ];
-    const keyOf = ({ file, line, name, value, cap, computed }) =>
-        JSON.stringify([file, line, name, value, cap, computed]);
-    const seen = new Set(all.filter((f) => !f.landed).map(keyOf));
+    const seen = new Set(all.filter((f) => !f.landed).map(findingKey));
     const findings = [];
     for (const { landed, ...finding } of all) {
         if (landed) {
-            const key = keyOf(finding);
+            const key = findingKey(finding);
             if (seen.has(key)) continue;
             seen.add(key);
         }

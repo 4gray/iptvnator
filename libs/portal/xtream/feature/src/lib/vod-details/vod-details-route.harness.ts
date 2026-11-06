@@ -207,6 +207,8 @@ export async function configureVodDetailsRouteTestBed(
                 provide: SettingsStore,
                 useValue: {
                     theme: signal('dark'),
+                    language: signal('en'),
+                    ageRatingCountry: signal('auto'),
                     player: stubs.selectedPlayer,
                     updateSettings: stubs.updateSettings,
                 },

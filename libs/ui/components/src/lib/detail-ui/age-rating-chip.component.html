@@ -1,0 +1,12 @@
+<app-meta-chip data-test-id="age-rating-chip">
+    <button
+        type="button"
+        class="meta-chip__facet"
+        [matTooltip]="description()"
+        [attr.aria-label]="description()"
+        #explanation="matTooltip"
+        (click)="explanation.toggle()"
+    >
+        {{ label() }}
+    </button>
+</app-meta-chip>

@@ -237,7 +237,7 @@ async function openRemoteControlSettings(page: Page): Promise<void> {
     await section.waitFor({ state: 'visible', timeout: 15_000 });
 
     const toggle = section.locator(
-        '[data-test-id="remote-control-enabled"] input[type="checkbox"]'
+        '[data-test-id="remote-control-enabled"] [role="switch"]'
     );
 
     if (!(await toggle.isChecked())) {
@@ -327,7 +327,7 @@ async function openSettingsTmdb(page: Page): Promise<void> {
     await section.waitFor({ state: 'visible', timeout: 15_000 });
 
     const toggle = section.locator(
-        '[data-test-id="tmdb-enabled"] input[type="checkbox"]'
+        '[data-test-id="tmdb-enabled"] [role="switch"]'
     );
 
     if (!(await toggle.isChecked())) {

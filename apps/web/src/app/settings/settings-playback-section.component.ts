@@ -4,17 +4,19 @@ import {
     input,
     output,
     signal,
+    computed,
     effect,
     ViewEncapsulation,
     ChangeDetectionStrategy,
 } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
 import {
     StreamFormat,
@@ -22,24 +24,28 @@ import {
     reportsPlaybackFailures,
 } from '@iptvnator/shared/interfaces';
 import { SettingsPlayerOption } from './settings.models';
+import { markSectionForCheckOnFormEvents } from './settings-section-form-render';
+import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
+import { merge } from 'rxjs';
 
 @Component({
     selector: 'app-settings-playback-section',
+    providers: [provideFormFieldDefaults()],
     imports: [
         CommonModule,
         MatButtonModule,
-        MatCheckboxModule,
         MatFormFieldModule,
         MatIconModule,
         MatInputModule,
         MatSelectModule,
+        MatSlideToggleModule,
+        MatTooltipModule,
         ReactiveFormsModule,
         TranslateModule,
     ],
     templateUrl: './settings-playback-section.component.html',
     encapsulation: ViewEncapsulation.None,
-    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styles: [':host { display: contents; }'],
 })
 export class SettingsPlaybackSectionComponent {
@@ -55,6 +61,7 @@ export class SettingsPlaybackSectionComponent {
     ].join('\n');
 
     readonly form = input.required<FormGroup>();
+
     readonly players = input.required<SettingsPlayerOption[]>();
     readonly streamFormatEnum = input.required<typeof StreamFormat>();
     readonly isDesktop = input(false);
@@ -77,20 +84,28 @@ export class SettingsPlaybackSectionComponent {
         mpv: null,
         vlc: null,
     });
+    readonly checkingExternalPlayers = signal(false);
+    readonly canCheckExternalPlayers = computed(
+        () =>
+            this.supportsExternalPlayerPathSettings() &&
+            !!window.electron?.getExternalPlayerAvailability
+    );
     private availabilityRequest = 0;
 
     constructor() {
+        markSectionForCheckOnFormEvents(this.form);
         effect((onCleanup) => {
             const form = this.form();
-            if (
-                !this.supportsExternalPlayerPathSettings() ||
-                !window.electron?.getExternalPlayerAvailability
-            )
-                return;
+            if (!this.canCheckExternalPlayers()) return;
             void this.refreshExternalAvailability();
             let timer: ReturnType<typeof setTimeout>;
-            const subscription = form.valueChanges.subscribe(() => {
+            const subscription = merge(
+                form.controls.mpvPlayerPath.valueChanges,
+                form.controls.vlcPlayerPath.valueChanges
+            ).subscribe(() => {
                 this.availabilityRequest++;
+                this.externalAvailability.set({ mpv: null, vlc: null });
+                this.checkingExternalPlayers.set(true);
                 clearTimeout(timer);
                 timer = setTimeout(
                     () => void this.refreshExternalAvailability(),
@@ -107,8 +122,9 @@ export class SettingsPlaybackSectionComponent {
 
     async refreshExternalAvailability(): Promise<void> {
         const probe = window.electron?.getExternalPlayerAvailability;
-        if (!probe) return;
+        if (!this.canCheckExternalPlayers() || !probe) return;
         const request = ++this.availabilityRequest;
+        this.checkingExternalPlayers.set(true);
         const value = this.form().getRawValue();
         try {
             const result = await probe({
@@ -120,7 +136,24 @@ export class SettingsPlaybackSectionComponent {
         } catch {
             if (request === this.availabilityRequest)
                 this.externalAvailability.set({ mpv: null, vlc: null });
+        } finally {
+            if (request === this.availabilityRequest)
+                this.checkingExternalPlayers.set(false);
         }
+    }
+
+    externalPlayerStatusKey(): string {
+        if (this.checkingExternalPlayers())
+            return 'SETTINGS.EXTERNAL_PLAYER_CHECKING';
+        const player: VideoPlayer = this.form().value.player;
+        const available =
+            player === VideoPlayer.MPV || player === VideoPlayer.VLC
+                ? this.externalAvailability()[player]
+                : null;
+        if (available === true) return 'SETTINGS.EXTERNAL_PLAYER_FOUND';
+        return available === false
+            ? 'SETTINGS.EXTERNAL_PLAYER_INSTALL_HINT'
+            : 'SETTINGS.EXTERNAL_PLAYER_UNKNOWN';
     }
 
     externalPlayerUnavailable(player: VideoPlayer): boolean {
@@ -167,5 +200,9 @@ export class SettingsPlaybackSectionComponent {
     isExternalPlayerSelected(): boolean {
         const player = this.form().value.player;
         return player === VideoPlayer.MPV || player === VideoPlayer.VLC;
+    }
+
+    isEmbeddedMpvSelected(): boolean {
+        return this.form().value.player === VideoPlayer.EmbeddedMpv;
     }
 }

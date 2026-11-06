@@ -39,9 +39,14 @@ export default class EpgEvents {
      * Bootstrap EPG events
      */
     static bootstrapEpgEvents(): Electron.IpcMain {
+        ipcMain.handle('EPG_SET_ENABLED', (_event, enabled: boolean) =>
+            epgWorkerService.setEnabled(enabled !== false)
+        );
         ipcMain.handle(
             'EPG_RECONCILE_SOURCES',
-            async (_event, args: { urls: string[] }) => {
+            async (_event, args: { urls: string[]; epgEnabled?: boolean }) => {
+                if (typeof args.epgEnabled === 'boolean')
+                    await epgWorkerService.setEnabled(args.epgEnabled);
                 await reconcileEpgSources(args.urls);
                 return { success: true };
             }
@@ -131,8 +136,7 @@ export default class EpgEvents {
                 const url = typeof args === 'string' ? args : args.url;
                 const options =
                     typeof args === 'string' ? undefined : args.options;
-                epgWorkerService.deleteFetchedUrl(url);
-                return await this.handleFetchEpg([url], options);
+                return await handleFetchEpg([url], options, true);
             }
         );
 

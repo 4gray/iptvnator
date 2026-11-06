@@ -230,6 +230,67 @@ describe('DashboardLiveEpgPresenter', () => {
         expect(portal.setPinnedKeys).toHaveBeenLastCalledWith([]);
     });
 
+    it('preserves unavailable evidence before direct hero XMLTV lookup', () => {
+        const unavailable = {
+            id: 'gone',
+            title: 'Das Erste HD',
+            type: 'live',
+            source: 'xtream',
+            playlist_id: 'a',
+            category_id: '1',
+            xtream_id: 42,
+            catalogStatus: 'missing',
+        } as PortalActivityItem;
+        getCurrentProgramsForChannels.mockReturnValue(
+            of(new Map([['Das Erste HD', program('Wrong match')]]))
+        );
+        favoriteLiveItems.set([unavailable]);
+        setup([]);
+        expect(presenter.heroLiveCandidates()).toEqual([]);
+        expect(presenter.heroDetailsFor(unavailable)).toBeNull();
+        expect(portal.setPinnedKeys).toHaveBeenLastCalledWith([]);
+        expect(getCurrentProgramsForChannels).not.toHaveBeenCalled();
+    });
+
+    it('does not borrow a matching XMLTV programme for an unavailable hero item', () => {
+        const unavailable = {
+            id: 'gone',
+            title: 'Das Erste HD',
+            type: 'live',
+            source: 'xtream',
+            playlist_id: 'a',
+            category_id: '1',
+            xtream_id: 42,
+            catalogStatus: 'missing',
+        } as PortalActivityItem;
+        getCurrentProgramsForChannels.mockReturnValue(
+            of(new Map([['Das Erste HD', program('Wrong match')]]))
+        );
+        setup([
+            card({
+                id: 'other',
+                title: 'Das Erste HD',
+                epgPlaylistId: 'a',
+                liveEpgSourceKey: 'xtream::a::7',
+            }),
+        ]);
+        expect(getCurrentProgramsForChannels).toHaveBeenCalled();
+        expect(presenter.heroDetailsFor(unavailable)).toBeNull();
+    });
+
+    it('does not consult cached portal programmes for unavailable cards', () => {
+        portal.programFor.mockReturnValue(program('Cached unavailable'));
+        expect(
+            presenter.detailsFor(
+                card({
+                    catalogStatus: 'missing',
+                    liveEpgSourceKey: 'xtream::a::42',
+                })
+            )
+        ).toBeNull();
+        expect(portal.programFor).not.toHaveBeenCalled();
+    });
+
     it('looks up hero candidates even when no live rail is connected', () => {
         getCurrentProgramsForChannels.mockImplementation(() =>
             of(

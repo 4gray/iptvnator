@@ -42,6 +42,19 @@ interface StalkerEpisodeStateLookupOptions {
     readonly episodesBySeason: Record<string, readonly XtreamSerieEpisode[]>;
 }
 
+function lazyRequestIdentity(
+    episode: StalkerMappedEpisode
+): string | undefined {
+    if (!episode.originalId) return undefined;
+    return JSON.stringify([
+        episode.originalId,
+        episode.originalCmd,
+        episode.vodEpisode?.movieId,
+        episode.vodEpisode?.seasonId,
+        episode.vodEpisode?.episodeId,
+    ]);
+}
+
 function present(value: unknown): value is string | number {
     return (
         (typeof value === 'string' && value.trim().length > 0) ||
@@ -63,7 +76,7 @@ export function captureStalkerEpisodePlaybackSessionIdentity({
     const episode = episodeState.episode as StalkerMappedEpisode;
     const originalIdentity =
         seriesMode === STALKER_SERIES_DOWNLOAD_MODES.LazyVod
-            ? episode.originalId
+            ? lazyRequestIdentity(episode)
             : episode.originalCmd;
     if (
         !present(originalIdentity) ||
@@ -177,7 +190,7 @@ export function resolveStalkerEpisodeStateByIdentity({
             const mapped = candidate as StalkerMappedEpisode;
             const originalIdentity =
                 identity.seriesMode === STALKER_SERIES_DOWNLOAD_MODES.LazyVod
-                    ? mapped.originalId
+                    ? lazyRequestIdentity(mapped)
                     : mapped.originalCmd;
             return (
                 originalIdentity === identity.originalEpisodeIdentity &&

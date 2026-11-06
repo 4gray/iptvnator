@@ -7,6 +7,8 @@ import {
     withState,
 } from '@ngrx/signals';
 import {
+    normalizeXtreamContentTypes,
+    XtreamContentType,
     XtreamCategory,
     XtreamLiveStream,
     XtreamSerieItem,
@@ -23,6 +25,8 @@ import {
     DbOperationEvent,
     isDbAbortError,
     resetHostConnectivityGuard,
+    SourceActivityService,
+    RuntimeCapabilitiesService,
     XtreamPendingRestoreService,
     XtreamImportStatus,
 } from '@iptvnator/services';
@@ -158,7 +162,12 @@ const initialContentState: ContentState = {
 export function withContent() {
     const logger = createLogger('withContent');
     type ParentPortalStoreLike = {
-        currentPlaylist?: () => (XtreamCredentials & { id?: string }) | null;
+        currentPlaylist?: () =>
+            | (XtreamCredentials & {
+                  id?: string;
+                  xtreamContentTypes?: XtreamContentType[];
+              })
+            | null;
         playlistId?: () => string | null;
         portalStatus?: () => PortalStatusType;
         checkPortalStatus?: () => Promise<PortalStatusType>;
@@ -219,6 +228,13 @@ export function withContent() {
 
         withMethods((store) => {
             const dataSource = inject(XTREAM_DATA_SOURCE);
+            const runtime = inject(RuntimeCapabilitiesService);
+            const usesSqlite = runtime.supportsXtreamSqliteDataSource;
+            const isEnabled = (type: ContentType): boolean =>
+                !usesSqlite ||
+                normalizeXtreamContentTypes(
+                    getPortalStore().currentPlaylist?.()?.xtreamContentTypes
+                ).includes(type === 'vod' ? 'movie' : type);
             /**
              * A filtered reload was requested (parental lock changed) while
              * the initial hydration was still publishing rows it read under
@@ -244,9 +260,11 @@ export function withContent() {
             const dataService = inject(DataService);
             const databaseService = inject(DatabaseService);
             const pendingRestoreService = inject(XtreamPendingRestoreService);
+            const sourceActivity = inject(SourceActivityService);
             const xtreamApiService = inject(XtreamApiService);
             const importTypes: ContentType[] = ['live', 'vod', 'series'];
             let activeInitializationPromise: Promise<void> | null = null;
+            let activeImportAbortController: AbortController | null = null;
             // Types that actually contacted the provider (or saved remote
             // data) in the current initialization. Cancellation cleanup must
             // only clear these: a type served entirely from the local cache
@@ -301,11 +319,11 @@ export function withContent() {
                     case 'live':
                     case 'vod':
                     case 'series':
-                        return [scope];
+                        return isEnabled(scope) ? [scope] : [];
                     case 'search':
                     case 'recently-added':
                     default:
-                        return importTypes;
+                        return importTypes.filter(isEnabled);
                 }
             };
 
@@ -340,8 +358,8 @@ export function withContent() {
                     }
 
                     return {
-                        isLoadingCategories: true,
-                        isLoadingContent: true,
+                        isLoadingCategories: types.length > 0,
+                        isLoadingContent: types.length > 0,
                         isImporting: false,
                         isContentInitialized: options?.preserveInitialized
                             ? state.isContentInitialized
@@ -435,6 +453,7 @@ export function withContent() {
                         serverUrl: playlist.serverUrl,
                         username: playlist.username,
                         password: playlist.password,
+                        userAgent: playlist.userAgent?.trim() || undefined,
                     },
                 };
             };
@@ -463,6 +482,8 @@ export function withContent() {
                 }
 
                 const types = getTypesForCacheScope(scope);
+                if (types.length === 0)
+                    return importTypes.every((type) => !isEnabled(type));
 
                 if (
                     scope === 'search' ||
@@ -744,8 +765,16 @@ export function withContent() {
             };
 
             const publishTypedImportPhase =
-                (type: ContentType) =>
+                (
+                    type: ContentType,
+                    sessionId?: string,
+                    signal?: AbortSignal
+                ) =>
                 (phase: string): void => {
+                    if (
+                        signal?.aborted ||
+                        (sessionId && store.activeImportSessionId() !== sessionId)
+                    ) return;
                     if (phase !== 'loading-cached') {
                         sessionRemoteWorkTypes.add(type);
                     }
@@ -826,45 +855,17 @@ export function withContent() {
                 type: ContentType,
                 status: XtreamImportStatus
             ): Promise<void> => {
+                if (!usesSqlite) return;
                 const importType = type === 'vod' ? 'movie' : type;
-                await databaseService.setXtreamImportStatus(
+                const saved = await databaseService.setXtreamImportStatus(
                     playlistId,
                     importType,
                     status
                 );
-            };
-
-            const clearImportCache = async (
-                playlistId: string,
-                type: ContentType
-            ): Promise<void> => {
-                const importType = type === 'vod' ? 'movie' : type;
-                await databaseService.clearXtreamImportCache(
-                    playlistId,
-                    importType
-                );
-            };
-
-            const finalizePendingImportTypes = async (
-                playlistId: string,
-                completedTypes: Set<ContentType>,
-                status: XtreamImportStatus
-            ): Promise<void> => {
-                for (const type of importTypes) {
-                    if (completedTypes.has(type)) {
-                        continue;
-                    }
-
-                    // Only types that performed remote/save work this session
-                    // can hold partial data. A type still pending because it
-                    // was being read from the local cache keeps its healthy
-                    // catalog instead of being cleared into a redownload.
-                    if (!sessionRemoteWorkTypes.has(type)) {
-                        continue;
-                    }
-
-                    await setImportStatus(playlistId, type, status);
-                    await clearImportCache(playlistId, type);
+                if (!saved && status === 'completed') {
+                    throw new Error(
+                        'Could not persist catalog completion status.'
+                    );
                 }
             };
 
@@ -877,7 +878,7 @@ export function withContent() {
                         ...state.contentLoadStateByType,
                     };
 
-                    for (const type of importTypes) {
+                    for (const type of importTypes.filter(isEnabled)) {
                         if (completedTypes.has(type)) {
                             continue;
                         }
@@ -924,6 +925,8 @@ export function withContent() {
                     'xtream-import-session'
                 );
 
+                const importController = new AbortController();
+                activeImportAbortController = importController;
                 sessionRemoteWorkTypes.clear();
                 patchState(store, {
                     isImporting: false,
@@ -937,9 +940,9 @@ export function withContent() {
                     activeImportSessionId: importSessionId,
                     activeImportOperationIds: [],
                     contentLoadStateByType: {
-                        live: 'loading',
-                        vod: 'loading',
-                        series: 'loading',
+                        live: isEnabled('live') ? 'loading' : 'ready',
+                        vod: isEnabled('vod') ? 'loading' : 'ready',
+                        series: isEnabled('series') ? 'loading' : 'ready',
                     },
                 });
 
@@ -959,16 +962,28 @@ export function withContent() {
                             initialRestoreSnapshot !== null,
                     });
 
+                    // Legacy favorites become durable before any network request,
+                    // even if the provider stays offline through this import.
+                    if (initialRestoreSnapshot) {
+                        await dataSource.restoreFavoriteSnapshots?.(
+                            ctx.playlistId,
+                            initialRestoreSnapshot.state
+                        );
+                        throwIfImportCancelled(importSessionId);
+                    }
+
                     // Electron content persistence maps remote category IDs
                     // to internal DB category rows, so categories must exist
                     // before content import starts.
                     await methods.fetchAllCategories({
                         sessionId: importSessionId,
+                        signal: importController.signal,
                     });
                     throwIfImportCancelled(importSessionId);
                     await methods.fetchAllContent({
                         importSessionId,
                         sessionId: importSessionId,
+                        signal: importController.signal,
                         completedTypes,
                     });
                     throwIfImportCancelled(importSessionId);
@@ -1052,10 +1067,15 @@ export function withContent() {
                     // it published; read them again under the current lock.
                     await runDeferredReload();
                 } catch (error) {
-                    if (store.isImporting()) {
+                    if (store.isImporting() && usesSqlite) {
+                        const { finalizePendingImportTypes } =
+                            await import('./xtream-import-failure');
                         await finalizePendingImportTypes(
+                            databaseService,
                             ctx.playlistId,
+                            importTypes,
                             completedTypes,
+                            sessionRemoteWorkTypes,
                             isDbAbortError(error) ? 'cancelled' : 'failed'
                         );
                     }
@@ -1080,6 +1100,10 @@ export function withContent() {
                         logger.error('Error initializing content', error);
                     }
                 } finally {
+                    importController.abort();
+                    if (activeImportAbortController === importController) {
+                        activeImportAbortController = null;
+                    }
                     measureRendererPerformancePhase(
                         RENDERER_PERFORMANCE_PHASE.XTREAM_IMPORT_TERMINAL,
                         () =>
@@ -1112,9 +1136,15 @@ export function withContent() {
                     return activeInitializationPromise;
                 }
 
+                // Deletion and refreshes wait for the import's writes.
+                const playlistId = getCredentialsFromStore()?.playlistId;
+                const release = playlistId
+                    ? sourceActivity.begin([playlistId])
+                    : undefined;
                 const initializationPromise = executeContentInitialization(
                     ignoreBlockedState
                 ).finally(() => {
+                    release?.();
                     if (activeInitializationPromise === initializationPromise) {
                         activeInitializationPromise = null;
                     }
@@ -1142,6 +1172,7 @@ export function withContent() {
                  */
                 async fetchAllCategories(options?: {
                     sessionId?: string;
+                    signal?: AbortSignal;
                 }): Promise<void> {
                     const ctx = getCredentialsFromStore();
                     if (!ctx) return;
@@ -1149,38 +1180,38 @@ export function withContent() {
                     patchState(store, { isLoadingCategories: true });
 
                     try {
-                        const [live, vod, series] = await Promise.all([
+                        const requests = importTypes.map((type) =>
                             dataSource.getCategories(
                                 ctx.playlistId,
                                 ctx.credentials,
-                                'live',
+                                type,
                                 {
                                     sessionId: options?.sessionId,
-                                    onPhaseChange:
-                                        publishTypedImportPhase('live'),
+                                    signal: options?.signal,
+                                    onPhaseChange: publishTypedImportPhase(
+                                        type,
+                                        options?.sessionId,
+                                        options?.signal
+                                    ),
                                 }
-                            ),
-                            dataSource.getCategories(
-                                ctx.playlistId,
-                                ctx.credentials,
-                                'vod',
-                                {
-                                    sessionId: options?.sessionId,
-                                    onPhaseChange:
-                                        publishTypedImportPhase('vod'),
+                            )
+                        );
+                        const [live, vod, series] = await Promise.all(requests)
+                            .catch(async (error: unknown) => {
+                                if (
+                                    options?.sessionId &&
+                                    store.activeImportSessionId() === options.sessionId
+                                ) {
+                                    activeImportAbortController?.abort();
+                                    await xtreamApiService.cancelSession(options.sessionId);
                                 }
-                            ),
-                            dataSource.getCategories(
-                                ctx.playlistId,
-                                ctx.credentials,
-                                'series',
-                                {
-                                    sessionId: options?.sessionId,
-                                    onPhaseChange:
-                                        publishTypedImportPhase('series'),
-                                }
-                            ),
-                        ]);
+                                // Cleanup waits for every category writer in this session.
+                                await Promise.all(requests.map((request) =>
+                                    request.catch(() => undefined)
+                                ));
+                                throw error;
+                            });
+                        throwIfImportCancelled(options?.sessionId);
 
                         // This span ends after synchronous store publication;
                         // the renderer probe owns paint observation.
@@ -1219,6 +1250,7 @@ export function withContent() {
                 async fetchAllContent(options?: {
                     importSessionId?: string;
                     sessionId?: string;
+                    signal?: AbortSignal;
                     completedTypes?: Set<ContentType>;
                 }): Promise<void> {
                     const ctx = getCredentialsFromStore();
@@ -1248,126 +1280,90 @@ export function withContent() {
                     };
 
                     try {
-                        throwIfImportCancelled(options?.importSessionId);
-                        setActiveImportProgress('live');
-                        const liveOperationId =
-                            databaseService.createOperationId(
-                                'db-save-content'
+                        for (const type of importTypes) {
+                            throwIfImportCancelled(options?.importSessionId);
+                            if (!isEnabled(type)) continue;
+                            setActiveImportProgress(type);
+                            const operationId =
+                                databaseService.createOperationId(
+                                    'db-save-content'
+                                );
+                            registerImportOperation(operationId);
+                            const content = await dataSource.getContent(
+                                ctx.playlistId,
+                                ctx.credentials,
+                                toStreamType(type),
+                                onProgress,
+                                onTotal,
+                                {
+                                    operationId,
+                                    sessionId: options?.sessionId,
+                                    signal: options?.signal,
+                                    onEvent: (event) => {
+                                        if (
+                                            !options?.importSessionId ||
+                                            store.activeImportSessionId() ===
+                                                options.importSessionId
+                                        )
+                                            trackImportEvent(event);
+                                    },
+                                    onPhaseChange: publishTypedImportPhase(
+                                        type,
+                                        options?.sessionId,
+                                        options?.signal
+                                    ),
+                                }
                             );
-                        registerImportOperation(liveOperationId);
-
-                        const live = (await dataSource.getContent(
-                            ctx.playlistId,
-                            ctx.credentials,
-                            'live',
-                            onProgress,
-                            onTotal,
-                            {
-                                operationId: liveOperationId,
-                                sessionId: options?.sessionId,
-                                onEvent: trackImportEvent,
-                                onPhaseChange: publishTypedImportPhase('live'),
-                            }
-                        )) as XtreamLiveStream[];
-                        throwIfImportCancelled(options?.importSessionId);
-                        await setImportStatus(
-                            ctx.playlistId,
-                            'live',
-                            'completed'
-                        );
-                        options?.completedTypes?.add('live');
-                        measureRendererPerformancePhase(
-                            RENDERER_PERFORMANCE_PHASE.XTREAM_PUBLISH_LIVE,
-                            () =>
-                                patchState(store, {
-                                    liveStreams: reloadAfterInitialization
-                                        ? []
-                                        : live,
-                                }),
-                            () => ({ items: live.length })
-                        );
-                        updateContentTypeLoadState('live', 'ready');
-
-                        throwIfImportCancelled(options?.importSessionId);
-                        setActiveImportProgress('vod');
-                        const vodOperationId =
-                            databaseService.createOperationId(
-                                'db-save-content'
+                            throwIfImportCancelled(options?.importSessionId);
+                            await setImportStatus(
+                                ctx.playlistId,
+                                type,
+                                'completed'
                             );
-                        registerImportOperation(vodOperationId);
-                        const vod = (await dataSource.getContent(
-                            ctx.playlistId,
-                            ctx.credentials,
-                            'movie',
-                            onProgress,
-                            onTotal,
-                            {
-                                operationId: vodOperationId,
-                                sessionId: options?.sessionId,
-                                onEvent: trackImportEvent,
-                                onPhaseChange: publishTypedImportPhase('vod'),
-                            }
-                        )) as XtreamVodStream[];
-                        throwIfImportCancelled(options?.importSessionId);
-                        await setImportStatus(
-                            ctx.playlistId,
-                            'vod',
-                            'completed'
-                        );
-                        options?.completedTypes?.add('vod');
-                        measureRendererPerformancePhase(
-                            RENDERER_PERFORMANCE_PHASE.XTREAM_PUBLISH_VOD,
-                            () =>
-                                patchState(store, {
-                                    vodStreams: reloadAfterInitialization
-                                        ? []
-                                        : vod,
-                                    vodStreamsPlaylistId: ctx.playlistId,
-                                }),
-                            () => ({ items: vod.length })
-                        );
-                        updateContentTypeLoadState('vod', 'ready');
-
-                        throwIfImportCancelled(options?.importSessionId);
-                        setActiveImportProgress('series');
-                        const seriesOperationId =
-                            databaseService.createOperationId(
-                                'db-save-content'
+                            options?.completedTypes?.add(type);
+                            const phase =
+                                type === 'live'
+                                    ? RENDERER_PERFORMANCE_PHASE.XTREAM_PUBLISH_LIVE
+                                    : type === 'vod'
+                                      ? RENDERER_PERFORMANCE_PHASE.XTREAM_PUBLISH_VOD
+                                      : RENDERER_PERFORMANCE_PHASE.XTREAM_PUBLISH_SERIES;
+                            measureRendererPerformancePhase(
+                                phase,
+                                () => {
+                                    switch (type) {
+                                        case 'live':
+                                            patchState(store, {
+                                                liveStreams:
+                                                    reloadAfterInitialization
+                                                        ? []
+                                                        : (content as XtreamLiveStream[]),
+                                            });
+                                            break;
+                                        case 'vod':
+                                            patchState(store, {
+                                                vodStreams:
+                                                    reloadAfterInitialization
+                                                        ? []
+                                                        : (content as XtreamVodStream[]),
+                                                vodStreamsPlaylistId:
+                                                    ctx.playlistId,
+                                            });
+                                            break;
+                                        case 'series':
+                                            patchState(store, {
+                                                serialStreams:
+                                                    reloadAfterInitialization
+                                                        ? []
+                                                        : (content as XtreamSerieItem[]),
+                                                isLoadingContent: false,
+                                            });
+                                    }
+                                },
+                                () => ({ items: content.length })
                             );
-                        registerImportOperation(seriesOperationId);
-                        const series = (await dataSource.getContent(
-                            ctx.playlistId,
-                            ctx.credentials,
-                            'series',
-                            onProgress,
-                            onTotal,
-                            {
-                                operationId: seriesOperationId,
-                                sessionId: options?.sessionId,
-                                onEvent: trackImportEvent,
-                                onPhaseChange:
-                                    publishTypedImportPhase('series'),
-                            }
-                        )) as XtreamSerieItem[];
-                        throwIfImportCancelled(options?.importSessionId);
-                        await setImportStatus(
-                            ctx.playlistId,
-                            'series',
-                            'completed'
-                        );
-                        options?.completedTypes?.add('series');
-                        measureRendererPerformancePhase(
-                            RENDERER_PERFORMANCE_PHASE.XTREAM_PUBLISH_SERIES,
-                            () =>
-                                patchState(store, {
-                                    serialStreams: reloadAfterInitialization
-                                        ? []
-                                        : series,
-                                    isLoadingContent: false,
-                                }),
-                            () => ({ items: series.length })
-                        );
-                        updateContentTypeLoadState('series', 'ready');
+                            updateContentTypeLoadState(type, 'ready');
+                        }
+                        patchState(store, { isLoadingContent: false });
                     } catch (error) {
                         if (!isDbAbortError(error)) {
                             logger.error('Error fetching content', error);
@@ -1500,6 +1496,7 @@ export function withContent() {
                         return;
                     }
 
+                    activeImportAbortController?.abort();
                     patchState(store, {
                         isCancellingImport: true,
                         contentInitBlockReason: 'cancelled',
@@ -1560,6 +1557,14 @@ export function withContent() {
                 ): Promise<void> {
                     const ctx = getCredentialsFromStore();
                     if (!ctx) return;
+                    if (
+                        activeInitializationPromise &&
+                        !store.isContentInitialized()
+                    ) {
+                        reloadAfterInitialization = true;
+                        deferredPublishGuard = shouldPublishArg;
+                        return;
+                    }
                     const shouldPublish = publishWhileCurrent(
                         ctx.playlistId,
                         shouldPublishArg
@@ -1716,6 +1721,7 @@ export function withContent() {
                  * Reset content state
                  */
                 resetContent(): void {
+                    activeImportAbortController?.abort();
                     cachedHydrationGeneration += 1;
                     activeCachedHydrationPromises.clear();
                     patchState(store, initialContentState);

@@ -1,0 +1,13 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "lib": ["ES2018", "DOM"],
+        "target": "ES2018",
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "types": ["vite/client", "node"],
+        "strict": true,
+        "emitDecoratorMetadata": false
+    },
+    "include": ["src/**/*.ts", "vite.config.ts"]
+}

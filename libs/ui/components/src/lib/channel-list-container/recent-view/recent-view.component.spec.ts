@@ -81,7 +81,7 @@ describe('RecentViewComponent', () => {
 
     it('stores context-menu coordinates and opens channel details for the selected recent channel', async () => {
         const openMenuSpy = jest
-            .spyOn(component.contextMenuTrigger(), 'openMenu')
+            .spyOn(component.channelContextMenu(), 'open')
             .mockImplementation();
 
         component.onChannelContextMenu(primaryChannel, {
@@ -91,11 +91,9 @@ describe('RecentViewComponent', () => {
         await Promise.resolve();
 
         expect(component.contextMenuChannel()).toBe(primaryChannel);
-        expect(component.contextMenuPosition()).toEqual({
-            x: '104px',
-            y: '156px',
-        });
-        expect(openMenuSpy).toHaveBeenCalled();
+        expect(openMenuSpy).toHaveBeenCalledWith(
+            expect.objectContaining({ clientX: 104, clientY: 156 })
+        );
 
         component.openChannelDetails();
 
@@ -103,8 +101,8 @@ describe('RecentViewComponent', () => {
             ChannelDetailsDialogComponent,
             expect.objectContaining({
                 data: primaryChannel,
-                maxWidth: '720px',
-                width: 'calc(100vw - 32px)',
+                maxWidth: 'calc(100vw - 32px)',
+                width: '760px',
             })
         );
     });
@@ -112,10 +110,7 @@ describe('RecentViewComponent', () => {
     it('emits the selected channel URL when removing from the context menu', async () => {
         const removed = jest.fn();
         component.removeRecent.subscribe(removed);
-        jest.spyOn(
-            component.contextMenuTrigger(),
-            'openMenu'
-        ).mockImplementation();
+        jest.spyOn(component.channelContextMenu(), 'open').mockImplementation();
 
         component.onChannelContextMenu(primaryChannel, {
             clientX: 104,

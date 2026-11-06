@@ -1,3 +1,5 @@
+@use '../../../../../../../../ui/styles/focus-ring';
+
 :host {
     display: block;
     min-width: 0;
@@ -7,8 +9,12 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    height: 56px;
+    // The shell's header band: 56px, taller on macOS when zoomed out.
+    height: 100%;
     padding: 0 24px;
+    // macOS: app zoom does not scale the traffic lights, so zoomed out the
+    // leading controls keep their 100 % distance from them (see the shell).
+    padding-inline-start: max(24px, var(--workspace-header-lights-inset, 0px));
     border-bottom: 1px solid var(--mat-sys-outline-variant);
     background: var(--app-header-bg, var(--mat-sys-surface-container-low));
     app-region: drag;
@@ -26,6 +32,19 @@
     flex-shrink: 0;
     margin-inline-start: -8px;
     app-region: no-drag;
+    // Fades in while the controls after it slide aside (LayoutSlideDirective)
+    // instead of showing under the switcher that is still moving away.
+    animation: header-back-enter 180ms ease;
+
+    @media (prefers-reduced-motion: reduce) {
+        animation: none;
+    }
+}
+
+@keyframes header-back-enter {
+    from {
+        opacity: 0;
+    }
 }
 
 // Above the phone breakpoint the context panel is always visible beside the
@@ -54,9 +73,9 @@
     app-region: no-drag;
 
     &:focus-within {
-        border-color: var(--mat-sys-primary);
+        border-color: var(--app-focus-ring);
         box-shadow: 0 0 0 3px
-            color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+            color-mix(in srgb, var(--app-focus-ring) 12%, transparent);
     }
 
     mat-icon {
@@ -95,6 +114,54 @@
 
     .search-chip--scope {
         color: var(--mat-sys-on-surface);
+    }
+
+    .search-chip--dismissible {
+        padding-inline-end: 6px;
+        gap: 4px;
+        font-family: inherit;
+        cursor: pointer;
+        app-region: no-drag;
+        transition:
+            background-color 0.15s ease,
+            border-color 0.15s ease,
+            color 0.15s ease;
+
+        mat-icon {
+            font-size: 13px;
+            width: 13px;
+            height: 13px;
+            color: inherit;
+        }
+
+        &:hover,
+        &:focus-visible {
+            color: var(--app-on-surface);
+            background: color-mix(
+                in srgb,
+                var(--app-on-surface) 14%,
+                var(--mat-sys-surface-container-high)
+            );
+        }
+
+        &:hover {
+            border-color: color-mix(
+                in srgb,
+                var(--app-on-surface) 38%,
+                transparent
+            );
+        }
+
+        &:focus-visible {
+            border-color: var(--app-focus-ring);
+            @include focus-ring.focus-ring-declarations($offset: 1px);
+        }
+    }
+
+    .search-chip__label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .search-chip--status {
@@ -178,8 +245,8 @@
         }
 
         &:focus-visible {
-            outline: 2px solid var(--mat-sys-primary);
-            outline-offset: 1px;
+            border-color: var(--app-focus-ring);
+            @include focus-ring.focus-ring-declarations($offset: 1px);
         }
     }
 }
@@ -272,7 +339,7 @@
     width: 18px;
     height: 2px;
     border-radius: 1px;
-    background: rgba(255, 255, 255, 0.08);
+    background: color-mix(in srgb, var(--app-on-surface) 8%, transparent);
     overflow: hidden;
     pointer-events: none;
     z-index: 10;
@@ -318,6 +385,10 @@
 @media (max-width: 780px) {
     .workspace-header {
         padding-inline: 10px;
+        padding-inline-start: max(
+            10px,
+            var(--workspace-header-lights-inset, 0px)
+        );
         gap: 10px;
     }
 

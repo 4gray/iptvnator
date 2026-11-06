@@ -98,7 +98,7 @@ async function restoreSerializableFactory(): Promise<RendererWindowRssSessionFac
     const module = await sessionModulePromise;
     assert.ok(module, 'renderer window RSS session module must exist');
     const factory = module.createRendererWindowRssSessionApi;
-    assert.equal(typeof factory, 'function');
+    assert.ok(typeof factory === 'function');
 
     const source = factory.toString();
     const restoredFactory = Function(

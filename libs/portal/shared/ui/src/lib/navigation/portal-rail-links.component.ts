@@ -22,7 +22,7 @@ import {
     selector: 'app-portal-rail-links',
     imports: [MatIcon, MatListModule, MatTooltip, RouterLink, RouterLinkActive],
     templateUrl: './portal-rail-links.component.html',
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrl: './portal-rail-links.component.scss',
 })
 export class PortalRailLinksComponent {

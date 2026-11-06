@@ -1,4 +1,5 @@
 import {
+    discoverCatalogSection,
     discoverFacetKey,
     hasDiscoverFacet,
     parseDiscoverParams,
@@ -91,6 +92,17 @@ describe('hasDiscoverFacet', () => {
         expect(hasDiscoverFacet(parseDiscoverParams({ country: 'US' }))).toBe(
             true
         );
+    });
+});
+
+describe('discoverCatalogSection', () => {
+    it('maps movies to the VOD section and TV to series', () => {
+        expect(
+            discoverCatalogSection(parseDiscoverParams({ type: 'movie' }))
+        ).toBe('vod');
+        expect(
+            discoverCatalogSection(parseDiscoverParams({ type: 'tv' }))
+        ).toBe('series');
     });
 });
 

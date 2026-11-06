@@ -7,6 +7,9 @@ import { merge } from 'rxjs';
 /** UI language codes that are not valid BCP 47 tags. */
 const DOCUMENT_LANGUAGE_OVERRIDES: Readonly<Record<string, string>> = {
     by: 'be',
+    pt: 'pt-BR',
+    'pt-br': 'pt-BR',
+    'pt-pt': 'pt-PT',
     zhtw: 'zh-TW',
 };
 
@@ -16,11 +19,11 @@ const DOCUMENT_LANGUAGE_OVERRIDES: Readonly<Record<string, string>> = {
  * `text-transform` (Turkish dotted İ, Greek accents in uppercase labels).
  */
 export function toDocumentLanguage(appLanguage?: string | null): string {
-    const code = appLanguage?.trim();
+    const code = appLanguage?.trim().replace(/_/g, '-');
     if (!code) {
         return 'en';
     }
-    return DOCUMENT_LANGUAGE_OVERRIDES[code] ?? code;
+    return DOCUMENT_LANGUAGE_OVERRIDES[code.toLowerCase()] ?? code;
 }
 
 /**

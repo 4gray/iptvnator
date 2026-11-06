@@ -12,11 +12,15 @@
                 (click)="categoryClicked.emit(item)"
             >
                 <span class="nav-item-label">
-                    {{
-                        item.category_name ||
-                            $any(item).name ||
-                            'No category name'
-                    }}
+                    @if (item.labelKey) {
+                        {{ item.labelKey | translate }}
+                    } @else {
+                        {{
+                            item.category_name ||
+                                $any(item).name ||
+                                ('PORTALS.UNNAMED_CATEGORY' | translate)
+                        }}
+                    }
                 </span>
                 @if (showCounts()) {
                     <div class="item-count app-count-badge">
@@ -42,7 +46,7 @@
 } @else {
     <div class="category-empty-state">
         <app-playlist-error-view
-            [title]="'No categories available'"
+            [title]="'PORTALS.NO_CATEGORIES' | translate"
             [showIllustration]="false"
             [showActionButtons]="false"
             [viewType]="'EMPTY_CATEGORY'"

@@ -16,7 +16,9 @@ describe('playlistDisplayLabel', () => {
         // The default :80 is dropped by URL normalization, which reads better
         // anyway; a non-default port is kept (see the case above).
         expect(
-            playlistDisplayLabel('http://marveltv.info:80 usr== Tl24uy0xGi pas=== pNt9PQMmL2')
+            playlistDisplayLabel(
+                'http://marveltv.info:80 usr== Tl24uy0xGi pas=== pNt9PQMmL2'
+            )
         ).toBe('marveltv.info');
     });
 
@@ -67,7 +69,9 @@ describe('playlistDisplayLabel', () => {
 describe('playlistNameHasCredentials', () => {
     it('detects query-string credentials', () => {
         expect(
-            playlistNameHasCredentials('http://x.tv/get.php?username=a&password=b')
+            playlistNameHasCredentials(
+                'http://x.tv/get.php?username=a&password=b'
+            )
         ).toBe(true);
     });
 
@@ -80,5 +84,14 @@ describe('playlistNameHasCredentials', () => {
     it('is false for an ordinary name', () => {
         expect(playlistNameHasCredentials('cord-cutter')).toBe(false);
         expect(playlistNameHasCredentials('http://plain.tv:8080')).toBe(false);
+    });
+
+    it('answers the same for the same name on every call', () => {
+        const name = 'Portal usr== abc pas== def';
+        expect([1, 2, 3].map(() => playlistNameHasCredentials(name))).toEqual([
+            true,
+            true,
+            true,
+        ]);
     });
 });

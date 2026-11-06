@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import {
     xtreamMockServer,
+    stalkerMockServer,
     addStalkerPortal,
     addXtreamPortal,
     closeElectronApp,
@@ -50,6 +51,8 @@ const stalkerSourceName = 'Bravo Stalker Portal';
 const editableLocalSourceDisplayName = 'editable-local-source';
 const deletableLocalSourceDisplayName = 'deletable-local-source';
 const refreshLocalSourceDisplayName = 'refresh-local-source';
+const editedXtreamUrl = xtreamMockServer.replace('localhost', '127.0.0.1');
+const editedStalkerUrl = `${stalkerMockServer.replace('localhost', '127.0.0.1')}/portal.php`;
 
 test.describe('Electron Sources View', () => {
     test('detects HTTP on Test connection and persists it for refresh, EPG and playback', async ({
@@ -97,14 +100,18 @@ test.describe('Electron Sources View', () => {
             await openSources(page);
             dialog = await openSourceEditor(page, title);
             await dialog.locator('[formControlName="password"]').fill('');
-            await dialog
-                .getByRole('button', {
+            await dialog.locator('[formControlName="password"]').blur();
+            await expect(
+                dialog.getByRole('button', {
                     name: 'Test HTTPS and HTTP',
                     exact: true,
                 })
-                .click();
-            await expect(dialog.getByRole('status')).toContainText(
-                'Enter a username and password'
+            ).toBeDisabled();
+            await expect(
+                dialog.getByRole('button', { name: 'Save', exact: true })
+            ).toBeDisabled();
+            await expect(dialog.locator('mat-error')).toHaveText(
+                'Enter a password.'
             );
             await dialog
                 .locator('[formControlName="password"]')
@@ -404,7 +411,7 @@ https://streams.example.test/url-omega.m3u8
             );
             await updateSourceDialog(dialog, {
                 password: 'pass1',
-                serverUrl: 'http://127.0.0.1:3211',
+                serverUrl: editedXtreamUrl,
                 title: 'Edited Xtream Source',
                 username: 'user1',
             });
@@ -416,7 +423,7 @@ https://streams.example.test/url-omega.m3u8
             );
             await updateSourceDialog(dialog, {
                 macAddress: '00:1A:79:00:00:99',
-                portalUrl: 'http://127.0.0.1:3210/portal.php',
+                portalUrl: editedStalkerUrl,
                 title: 'Edited Stalker Source',
             });
             await saveSourceDialog(app.mainWindow, dialog);
@@ -440,7 +447,7 @@ https://streams.example.test/url-omega.m3u8
             );
             await expectSourceDialogValues(dialog, {
                 password: 'pass1',
-                serverUrl: 'http://127.0.0.1:3211',
+                serverUrl: editedXtreamUrl,
                 title: 'Edited Xtream Source',
                 username: 'user1',
             });
@@ -454,7 +461,7 @@ https://streams.example.test/url-omega.m3u8
             );
             await expectSourceDialogValues(dialog, {
                 macAddress: '00:1A:79:00:00:99',
-                portalUrl: 'http://127.0.0.1:3210/portal.php',
+                portalUrl: editedStalkerUrl,
                 title: 'Edited Stalker Source',
             });
             await dialog
@@ -486,7 +493,7 @@ https://streams.example.test/url-omega.m3u8
             );
             await expectSourceDialogValues(dialog, {
                 password: 'pass1',
-                serverUrl: 'http://127.0.0.1:3211',
+                serverUrl: editedXtreamUrl,
                 title: 'Edited Xtream Source',
                 username: 'user1',
             });
@@ -500,7 +507,7 @@ https://streams.example.test/url-omega.m3u8
             );
             await expectSourceDialogValues(dialog, {
                 macAddress: '00:1A:79:00:00:99',
-                portalUrl: 'http://127.0.0.1:3210/portal.php',
+                portalUrl: editedStalkerUrl,
                 title: 'Edited Stalker Source',
             });
         } finally {
@@ -717,14 +724,14 @@ https://streams.example.test/url-omega.m3u8
 
             await expect(
                 sourceRowByTitle(app.mainWindow, 'Delete Me Stalker').locator(
-                    'app-source-health-indicator [data-state]'
+                    '.source-tile__dot[data-state]'
                 )
-            ).toHaveAttribute('data-state', 'active', { timeout: 20000 });
+            ).toHaveAttribute('data-state', 'ok', { timeout: 20000 });
             await expect(
                 sourceRowByTitle(app.mainWindow, 'Delete Me Xtream').locator(
-                    'app-source-health-indicator [data-state]'
+                    '.source-tile__dot[data-state]'
                 )
-            ).toHaveAttribute('data-state', 'active', { timeout: 20000 });
+            ).toHaveAttribute('data-state', 'ok', { timeout: 20000 });
 
             await deleteSource(app.mainWindow, deletableLocalSourceDisplayName);
             await expect(
@@ -785,11 +792,29 @@ https://streams.example.test/original-url.m3u8
         try {
             await dropM3uPlaylistOntoWorkspace(app.mainWindow, localFilePath);
             await waitForM3uCatalog(app.mainWindow);
+            // Refresh for the active source lives in its switcher row menu.
+            await app.mainWindow
+                .getByTestId('playlist-switcher-trigger')
+                .click();
+            const currentRow = app.mainWindow.locator(
+                'app-playlist-switcher-panel [role="option"][aria-current="true"]'
+            );
+            await currentRow.locator('.source-row__more').click();
             await expect(
-                app.mainWindow.locator(
-                    'app-playlist-switcher .trigger-refresh-button'
-                )
+                app.mainWindow.getByRole('menuitem', {
+                    name: 'Refresh playlist',
+                })
             ).toBeVisible();
+            await app.mainWindow.keyboard.press('Escape');
+            // Material retains the nested menu overlay during its exit animation.
+            // Wait for detachment before sending Escape to the switcher beneath it.
+            await expect(
+                app.mainWindow.getByRole('menu', { includeHidden: true })
+            ).toHaveCount(0);
+            await app.mainWindow.keyboard.press('Escape');
+            await expect(
+                app.mainWindow.locator('app-playlist-switcher-panel')
+            ).toHaveCount(0);
 
             await goToDashboard(app.mainWindow);
             const sourceCard = app.mainWindow
@@ -822,8 +847,8 @@ https://streams.example.test/original-url.m3u8
             await expect(
                 sourceRowByTitle(app.mainWindow, refreshLocalSourceDisplayName)
                     .first()
-                    .locator('.refresh-btn')
-            ).toBeVisible();
+                    .locator('.source-row__refresh')
+            ).toBeAttached();
 
             writeTemporaryM3uFile(dataDir, 'refresh-local-source.m3u', [
                 {
@@ -865,8 +890,8 @@ https://streams.example.test/refreshed-url.m3u8
             await expect(
                 sourceRowByTitle(app.mainWindow, 'refresh-url-source.m3u')
                     .first()
-                    .locator('.meta')
-            ).toContainText('Updated:');
+                    .locator('.source-row__meta')
+            ).toContainText('updated');
             await waitForSourceRowIdle(
                 app.mainWindow,
                 'refresh-url-source.m3u'
@@ -876,9 +901,11 @@ https://streams.example.test/refreshed-url.m3u8
                 'refresh-url-source.m3u'
             ).first();
             await expect(
-                refreshedUrlRow.locator('.playlist-item')
-            ).not.toHaveClass(/is-busy/);
-            await expect(refreshedUrlRow.locator('.refresh-btn')).toBeEnabled();
+                refreshedUrlRow.locator('.source-row')
+            ).not.toHaveClass(/source-row--busy/);
+            await expect(
+                refreshedUrlRow.locator('.source-row__refresh')
+            ).toBeEnabled();
             await refreshedUrlRow
                 .getByText('refresh-url-source.m3u', { exact: true })
                 .click();
@@ -904,8 +931,8 @@ https://streams.example.test/refreshed-url.m3u8
             await expect(
                 sourceRowByTitle(app.mainWindow, 'Refresh Xtream Source')
                     .first()
-                    .locator('.meta')
-            ).toContainText('Updated:');
+                    .locator('.source-row__meta')
+            ).toContainText('updated');
         } finally {
             await closeElectronApp(app);
             await urlServer.close();

@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <title>Add a source · IPTVnator TV</title>
+        <script type="module" src="./src/main.ts"></script>
+    </head>
+    <body>
+        <main>
+            <header>
+                <span class="brand">iptvnator</span><span>TV EDITION</span>
+            </header>
+            <p class="eyebrow">YOUR PHONE. YOUR SCREEN.</p>
+            <h1>A new source<br />for your TV.</h1>
+            <p class="intro">
+                Paste the details here, then confirm on your television.
+            </p>
+            <div class="status" role="status" aria-live="polite">
+                Connecting to your TV…
+            </div>
+            <form hidden autocomplete="off">
+                <label
+                    >Source type<select name="provider">
+                        <option value="xtream">Xtream</option>
+                        <option value="stalker">Stalker / Ministra</option>
+                        <option value="m3u">M3U playlist</option>
+                    </select></label
+                >
+                <label
+                    >Name<input
+                        name="name"
+                        required
+                        maxlength="100"
+                        placeholder="My subscription"
+                /></label>
+                <label
+                    ><span id="url-label">Provider URL</span
+                    ><input
+                        name="url"
+                        type="url"
+                        required
+                        maxlength="4096"
+                        placeholder="https://provider.example"
+                        autocapitalize="none"
+                        spellcheck="false"
+                /></label>
+                <div data-providers="xtream stalker">
+                    <label
+                        >Username<input
+                            name="username"
+                            maxlength="512"
+                            autocapitalize="none"
+                            spellcheck="false"
+                    /></label>
+                    <label
+                        >Password<input
+                            name="password"
+                            type="password"
+                            maxlength="512"
+                    /></label>
+                </div>
+                <div data-providers="stalker" hidden>
+                    <label
+                        >MAC address<input
+                            name="macAddress"
+                            placeholder="00:1A:79:00:00:01"
+                            maxlength="32"
+                            autocapitalize="none"
+                            spellcheck="false"
+                    /></label>
+                    <details>
+                        <summary>
+                            Existing MAG identity / optional account details
+                        </summary>
+                        <p>
+                            Use the identity supplied by your provider. Leave
+                            unused fields empty.
+                        </p>
+                        <label
+                            >Serial number<input
+                                name="serialNumber"
+                                maxlength="512"
+                        /></label>
+                        <label
+                            >Device ID<input name="deviceId1" maxlength="512"
+                        /></label>
+                        <label
+                            >Device ID 2<input name="deviceId2" maxlength="512"
+                        /></label>
+                        <label
+                            >Signature<input name="signature1" maxlength="512"
+                        /></label>
+                        <label
+                            >Signature 2<input
+                                name="signature2"
+                                maxlength="512"
+                        /></label>
+                    </details>
+                </div>
+                <button type="submit">Send to TV</button>
+                <p class="note">
+                    Your details pass through this IPTVnator backend and are
+                    saved on your TV after confirmation. This link expires in
+                    five minutes.
+                </p>
+            </form>
+            <footer>ONE SOURCE. A WHOLE EVENING.</footer>
+        </main>
+    </body>
+</html>

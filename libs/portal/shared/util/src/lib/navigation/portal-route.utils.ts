@@ -25,17 +25,6 @@ const PORTAL_SECTIONS = new Set<PortalRailSection>([
     'vod',
 ]);
 
-export function isWorkspaceLayoutRoute(route: ActivatedRoute): boolean {
-    const routeChain =
-        Array.isArray(route.pathFromRoot) && route.pathFromRoot.length > 0
-            ? route.pathFromRoot
-            : [route];
-
-    return routeChain.some(
-        (currentRoute) => currentRoute.snapshot.data['layout'] === 'workspace'
-    );
-}
-
 export function queryParamSignal<T = string>(
     route: ActivatedRoute,
     key: string,
@@ -115,6 +104,27 @@ export function resolveCurrentPortalPlaylistId(
     }
 
     return extractPortalPlaylistId(routerUrl, provider);
+}
+
+/**
+ * Router commands for the workspace portal that `route` belongs to (the `:id`
+ * param of an ancestor), or for one of its sections. Without a section the
+ * portal's route config redirects to its default section. Null outside a
+ * portal route.
+ */
+export function workspacePortalCommands(
+    route: ActivatedRoute,
+    provider: PortalProvider,
+    section?: PortalRailSection
+): string[] | null {
+    const playlistId = resolveCurrentRouteParam(route, 'id');
+    if (!playlistId) {
+        return null;
+    }
+
+    return section
+        ? ['/workspace', provider, playlistId, section]
+        : ['/workspace', provider, playlistId];
 }
 
 function resolveCurrentRouteParam(

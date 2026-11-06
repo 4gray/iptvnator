@@ -4,10 +4,9 @@ import {
     computed,
     inject,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { startWith } from 'rxjs';
+import { injectTranslationTick } from '@iptvnator/services';
 import {
     ContentCardComponent,
     ContentRailShellComponent,
@@ -45,28 +44,27 @@ const RECENTLY_ADDED_ITEMS_LIMIT = 30;
 })
 export class RecentlyAddedComponent {
     private readonly xtreamStore = inject(XtreamStore);
+    private readonly getVisibleContentByType =
+        this.xtreamStore.getVisibleContentByType();
     private readonly router = inject(Router);
     private readonly activatedRoute = inject(ActivatedRoute);
     private readonly translate = inject(TranslateService);
     // Re-compute translated labels when the active language changes.
-    private readonly languageTick = toSignal(
-        this.translate.onLangChange.pipe(startWith(null)),
-        { initialValue: null }
-    );
+    private readonly languageTick = injectTranslationTick();
 
     readonly recentlyAddedLive = computed(() =>
         this.getRecentlyAdded(
-            this.xtreamStore.liveStreams() as RecentlyAddedItem[]
+            this.getVisibleContentByType('live') as RecentlyAddedItem[]
         )
     );
     readonly recentlyAddedVod = computed(() =>
         this.getRecentlyAdded(
-            this.xtreamStore.vodStreams() as RecentlyAddedItem[]
+            this.getVisibleContentByType('vod') as RecentlyAddedItem[]
         )
     );
     readonly recentlyAddedSeries = computed(() =>
         this.getRecentlyAdded(
-            this.xtreamStore.serialStreams() as RecentlyAddedItem[],
+            this.getVisibleContentByType('series') as RecentlyAddedItem[],
             true
         )
     );

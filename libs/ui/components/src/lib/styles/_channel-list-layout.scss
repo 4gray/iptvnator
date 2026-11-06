@@ -1,0 +1,99 @@
+// Boxes shared by the channel list views (`all-channels-view`, `groups-view`,
+// the favorites/recent context header of `channel-list-container`) and their
+// loading skeleton (`channel-list-loading-state`). The skeleton draws its
+// placeholders inside the same boxes, so its headers and first row sit where
+// the loaded list puts them. They had drifted: the M3U list moved down by
+// 19px when a playlist finished loading.
+@use '../../../../styles/panel-header' as panel;
+
+/// Material 3 icon button: the actions in the "All channels" header.
+$header-action-size: 40px;
+/// The groups rail's compact header actions.
+$groups-nav-action-size: 28px;
+
+// ── "All channels" and the favorites/recent context header ─────────────────
+@mixin list-header-box {
+    padding: 12px 16px 8px;
+    flex-shrink: 0;
+}
+
+/// The title row; a row that holds the icon actions is as tall as they are.
+@mixin list-header-row($actions: false) {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    @if $actions {
+        min-height: $header-action-size;
+    }
+}
+
+@mixin list-header-title-type {
+    margin: 0;
+    font-size: 0.94rem;
+    font-weight: 600;
+}
+
+@mixin list-divider {
+    height: 1px;
+    background: var(--mat-sys-outline-variant);
+    margin: 0 0 6px;
+    opacity: 0.6;
+    flex-shrink: 0;
+}
+
+// ── Groups view ────────────────────────────────────────────────────────────
+@mixin groups-nav-header-box {
+    padding: 4px 6px 12px;
+    flex-shrink: 0;
+    display: flex;
+    gap: 10px;
+    flex-direction: column;
+}
+
+@mixin groups-nav-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: $groups-nav-action-size;
+}
+
+@mixin groups-nav-title-type {
+    margin: 0;
+    font-size: 0.94rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+/// The channel header beside the groups rail. Padding, gap and separator are
+/// the values `.sidebar .sidebar-header` (portal-sidebar) has always given
+/// it; the rule that includes this must outrank that selector, so the box
+/// comes from here for the view and its skeleton alike. The panel header's
+/// 52px minimum applies to the content box: the header is 69px tall.
+@mixin groups-content-header-box {
+    @include panel.standard-panel-header(
+        $padding: 8px 12px,
+        $gap: 8px,
+        $border-color: var(--app-separator)
+    );
+}
+
+/// Group title above its channel count.
+@mixin groups-content-meta-stacked {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+}
+
+// ── Placeholders ───────────────────────────────────────────────────────────
+/// An empty line box in the element's own font: a placeholder standing in
+/// for one line of text is exactly as tall as that line. The visible bar is
+/// a positioned child, so it never changes the line's height.
+@mixin empty-line-box {
+    position: relative;
+
+    &::before {
+        content: '\200b';
+    }
+}

@@ -50,12 +50,11 @@ export {
 async function waitForPathIfBareName(
     player: ExternalPlayerName,
     configuredPath: string | undefined
-): Promise<boolean> {
+): Promise<void> {
     const context = resolveLaunchContext(player, configuredPath);
     if (context.mode !== 'flatpak-host' && !/[\\/]/.test(context.playerPath)) {
-        return (await waitForLoginShellPath()) !== false;
+        await waitForLoginShellPath();
     }
-    return true;
 }
 
 export default class PlayerEvents {

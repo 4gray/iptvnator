@@ -68,6 +68,16 @@ export function hasDiscoverFacet(facets: DiscoverRouteParams): boolean {
 }
 
 /**
+ * The catalog section whose titles a Discover page lists. Its Back leads
+ * there when the page opened the session.
+ */
+export function discoverCatalogSection(
+    facets: DiscoverRouteParams
+): 'vod' | 'series' {
+    return facets.type === 'tv' ? 'series' : 'vod';
+}
+
+/**
  * Stable identity of one facet set. Used as the staleness-guard token by
  * the route containers (facets change via query params on the same route
  * instance, so a late response must be dropped by key, not by instance).

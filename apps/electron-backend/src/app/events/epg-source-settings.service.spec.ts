@@ -176,6 +176,36 @@ describe('committed EPG source reconciliation', () => {
         expect(epgWorkerService.clearEpgDataForSource).not.toHaveBeenCalled();
     });
 
+    it('accepts a completed server-profile projection without claiming a legacy migration ran', async () => {
+        const previous = process.env.IPTVNATOR_SOURCE_PROFILE;
+        process.env.IPTVNATOR_SOURCE_PROFILE = 'a'.repeat(64);
+        const db = await getDatabase();
+        const originalSelect = db.select;
+        const receipt = jest.fn().mockResolvedValueOnce([]).mockResolvedValueOnce([{ value: '1' }]);
+        db.select = (() => ({ from: (table: unknown) => table === appState ? { where: receipt } : originalSelect().from(table as never) })) as never;
+        try {
+            await reconcileEpgSources([]);
+            expect(receipt).toHaveBeenCalledTimes(2);
+            expect(epgWorkerService.clearEpgDataForSource).toHaveBeenCalled();
+        } finally {
+            if (previous === undefined) delete process.env.IPTVNATOR_SOURCE_PROFILE;
+            else process.env.IPTVNATOR_SOURCE_PROFILE = previous;
+        }
+    });
+
+    it('does not prune an incomplete server-profile projection', async () => {
+        const previous = process.env.IPTVNATOR_SOURCE_PROFILE;
+        process.env.IPTVNATOR_SOURCE_PROFILE = 'b'.repeat(64);
+        rows.set(appState, []);
+        try {
+            await expect(reconcileEpgSources([])).rejects.toThrow('migrated playlists');
+            expect(epgWorkerService.clearEpgDataForSource).not.toHaveBeenCalled();
+        } finally {
+            if (previous === undefined) delete process.env.IPTVNATOR_SOURCE_PROFILE;
+            else process.env.IPTVNATOR_SOURCE_PROFILE = previous;
+        }
+    });
+
     it('does not guess ownership when persisted playlist source metadata is invalid', async () => {
         rows.set(playlists, [{ type: 'm3u-url', urls: '{broken' }]);
         await expect(reconcileEpgSources([])).rejects.toThrow();

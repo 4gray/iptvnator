@@ -1,6 +1,9 @@
 import { InjectionToken, Signal } from '@angular/core';
 import { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
-import type { PortalWatchState } from './portal-watch-state';
+import type {
+    PortalWatchState,
+    PortalWatchStateFilter,
+} from './portal-watch-state';
 
 export type PortalCatalogProvider = 'xtream' | 'stalker';
 
@@ -32,18 +35,37 @@ export interface PortalCatalogItemProgress {
     watchState?: PortalWatchState;
 }
 
+/** Optional exclusion filter for server-paged catalogs; source totals stay raw. */
+export interface PortalCatalogHideWatched {
+    readonly enabled: Signal<boolean>;
+    readonly loadState: Signal<'idle' | 'loading' | 'ready' | 'error'>;
+    readonly hasSnapshot: Signal<boolean>;
+    readonly paused: Signal<boolean>;
+    readonly resumeVersion: Signal<number>;
+    setEnabled(value: boolean): void;
+    retryPositions(): void;
+    pauseAutomaticLoading(): void;
+    continueLoading(): void;
+}
+
 export interface PortalCatalogFacade<
     TCategory = unknown,
     TItem = unknown,
     TSelectedItem = unknown,
 > {
     readonly provider: PortalCatalogProvider;
+    /** Arrival state may be consumed only after the destination portal is installed. */
+    readonly routeReady?: Signal<boolean>;
     readonly contentType: Signal<string | null | undefined>;
     readonly selectedCategory: Signal<TCategory | null | undefined>;
     readonly paginatedContent: Signal<readonly TItem[] | undefined>;
     readonly selectedItem: Signal<TSelectedItem | null | undefined>;
     readonly isPaginatedContentLoading: Signal<boolean>;
-    readonly selectedCategoryTitle: Signal<string>;
+    /**
+     * Null while no provider category is selected and the catalog lists every
+     * item; the view shows its own translated "All items" title then.
+     */
+    readonly selectedCategoryTitle: Signal<string | null>;
     readonly categoryItemCount: Signal<number>;
     readonly contentSortMode: Signal<PortalCatalogSortMode | null>;
     readonly playlist: Signal<PortalCatalogPlaylistMeta | null>;
@@ -56,6 +78,9 @@ export interface PortalCatalogFacade<
     readonly isAppending: Signal<boolean>;
     /** True when the latest append failed; the tail shows a retry action. */
     readonly appendError: Signal<boolean>;
+    /** First-page failure, distinct from a successfully empty category. */
+    readonly contentError?: Signal<boolean>;
+    retryContent?(): void;
     loadMore(): void;
     retryAppend(): void;
     /**
@@ -73,6 +98,15 @@ export interface PortalCatalogFacade<
      */
     readonly supportsRatingSort?: boolean;
     readonly minRating?: Signal<number | null>;
+    /** Optional Movies-only watch status filter. Null selects every movie. */
+    readonly supportsWatchStateFilter?: boolean;
+    readonly watchStateFilter?: Signal<PortalWatchStateFilter>;
+    readonly watchFilterLoadState?: Signal<
+        'idle' | 'loading' | 'ready' | 'error'
+    >;
+    setWatchStateFilter?(value: PortalWatchStateFilter): void;
+    retryWatchFilterPositions?(): void;
+    readonly hideWatched?: PortalCatalogHideWatched;
 
     initialize(categoryId?: string | null): void;
     setSearchQuery?(query: string): void;

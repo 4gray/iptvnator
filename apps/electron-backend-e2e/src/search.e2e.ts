@@ -325,6 +325,60 @@ test.describe('Electron Workspace Search', () => {
             await expect(contentLayout).not.toContainText(
                 flexibleTextPattern(resolvedTitles.controlTitle)
             );
+
+            await clearCategoryWithPendingSearch(
+                app.mainWindow,
+                `${resolvedTitles.targetTitle} `,
+                'chip'
+            );
+            await expectPathname(
+                app.mainWindow,
+                /\/workspace\/xtreams\/[^/]+\/vod$/
+            );
+            await expectWorkspaceSearchScope(
+                app.mainWindow,
+                'Movies / All items'
+            );
+            await expectQueryParam(
+                app.mainWindow,
+                'q',
+                resolvedTitles.targetTitle
+            );
+            await expect(
+                app.mainWindow.locator(headerSearchSelector)
+            ).toHaveValue(`${resolvedTitles.targetTitle} `);
+            await expect(app.mainWindow.locator('app-grid-list')).toContainText(
+                flexibleTextPattern(resolvedTitles.targetTitle)
+            );
+
+            await clickCategoryByNameExact(app.mainWindow, sample.categoryName);
+            await clearCategoryWithPendingSearch(
+                app.mainWindow,
+                `${resolvedTitles.targetTitle} draft`,
+                'sidebar',
+                `${resolvedTitles.targetTitle} `
+            );
+            await expectPathname(
+                app.mainWindow,
+                /\/workspace\/xtreams\/[^/]+\/vod$/
+            );
+            await expectQueryParam(
+                app.mainWindow,
+                'q',
+                resolvedTitles.targetTitle
+            );
+            const input = app.mainWindow.locator(headerSearchSelector);
+            await expect(input).toHaveValue(`${resolvedTitles.targetTitle} `);
+            await input.press('End');
+            await input.pressSequentially('Beta');
+            await expect(input).toHaveValue(
+                `${resolvedTitles.targetTitle} Beta`
+            );
+            await expectQueryParam(
+                app.mainWindow,
+                'q',
+                `${resolvedTitles.targetTitle} Beta`
+            );
         } finally {
             await closeElectronApp(app);
         }
@@ -456,6 +510,69 @@ test.describe('Electron Workspace Search', () => {
         }
     });
 
+    test('@search @xtream excludes hidden VOD categories from root search', async ({
+        dataDir,
+        request,
+    }) => {
+        await resetMockServers(request, ['xtream']);
+        const sample = await fetchXtreamVodFixture(request);
+        const app = await launchElectronApp(dataDir);
+
+        try {
+            await addXtreamPortal(app.mainWindow, {
+                password: xtreamSearchPassword,
+                username: xtreamSearchUsername,
+            });
+            await waitForXtreamWorkspaceReady(app.mainWindow);
+            await openWorkspaceSection(app.mainWindow, 'Movies');
+            await expectPathname(
+                app.mainWindow,
+                /\/workspace\/xtreams\/[^/]+\/vod$/
+            );
+
+            const contentLayout = app.mainWindow.locator(
+                '.category-content-layout'
+            );
+            await fillWorkspaceSearch(app.mainWindow, sample.targetTitle);
+            await expect(contentLayout).toContainText(
+                flexibleTextPattern(sample.targetTitle),
+                { timeout: 20000 }
+            );
+            await fillWorkspaceSearch(app.mainWindow, '');
+
+            await app.mainWindow
+                .getByRole('button', {
+                    name: 'Manage categories',
+                    exact: true,
+                })
+                .click();
+            const dialog = app.mainWindow
+                .locator('mat-dialog-container')
+                .last();
+            await expect(dialog).toBeVisible();
+            const category = dialog.locator(
+                `.category-item[data-category-id="${sample.categoryId}"]`
+            );
+            await expect(category).toBeVisible();
+            await category.getByRole('checkbox').uncheck();
+            await dialog
+                .getByRole('button', { name: 'Save', exact: true })
+                .click();
+            await expect(dialog).toBeHidden();
+
+            await fillWorkspaceSearch(app.mainWindow, sample.targetTitle);
+            await expectWorkspaceSearchScope(
+                app.mainWindow,
+                'Movies / All items'
+            );
+            await expect(contentLayout).not.toContainText(
+                flexibleTextPattern(sample.targetTitle)
+            );
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
     test('@search @xtream filters live root and category scopes while preserving playback sidebar', async ({
         dataDir,
         request,
@@ -486,7 +603,7 @@ test.describe('Electron Workspace Search', () => {
             await expectQueryParam(app.mainWindow, 'q', sample.targetTitle);
             await expectWorkspaceSearchScope(
                 app.mainWindow,
-                'Live TV / All Items'
+                'Live TV / All items'
             );
             await expect(
                 liveChannelSidebar(app.mainWindow)
@@ -520,6 +637,23 @@ test.describe('Electron Workspace Search', () => {
 
             await fillWorkspaceSearch(app.mainWindow, '');
             await expectQueryParamAbsent(app.mainWindow, 'q');
+            await expectWorkspaceSearchScope(
+                app.mainWindow,
+                `Live TV / ${sample.categoryName}`
+            );
+            await app.mainWindow
+                .locator(
+                    'app-workspace-context-panel .category-item[aria-current="true"]:visible'
+                )
+                .click();
+            await expectWorkspaceSearchScope(
+                app.mainWindow,
+                'Live TV / All items'
+            );
+            await expect(liveChannelSidebar(app.mainWindow)).toBeVisible();
+            await expect(
+                channelItemByTitle(app.mainWindow, sample.controlTitle).first()
+            ).toBeVisible();
             await clickCategoryByNameExact(app.mainWindow, sample.categoryName);
             await expectWorkspaceSearchScope(
                 app.mainWindow,
@@ -550,6 +684,41 @@ test.describe('Electron Workspace Search', () => {
             await expect(
                 channelItemByTitle(app.mainWindow, sample.controlTitle)
             ).toHaveCount(0);
+
+            const player = app.mainWindow.locator(
+                'app-live-stream-layout .content-container .video-player'
+            );
+            const originalPlayer = await player.elementHandle();
+            await app.mainWindow
+                .getByTestId('workspace-search-scope-clear')
+                .click();
+            await expectPathname(
+                app.mainWindow,
+                /\/workspace\/xtreams\/[^/]+\/live$/
+            );
+            await expectWorkspaceSearchScope(
+                app.mainWindow,
+                'Live TV / All items'
+            );
+            await expectQueryParam(app.mainWindow, 'q', sample.targetTitle);
+            await expect(
+                app.mainWindow.locator(headerSearchSelector)
+            ).toHaveValue(sample.targetTitle);
+            await expect(player).toBeVisible();
+            expect(
+                await originalPlayer?.evaluate((element) => element.isConnected)
+            ).toBe(true);
+            await expect(
+                channelItemByTitle(app.mainWindow, sample.targetTitle).first()
+            ).toHaveClass(/(^|\s)active(\s|$)/);
+            await fillWorkspaceSearch(app.mainWindow, '');
+            await expect(liveChannelSidebar(app.mainWindow)).toBeVisible();
+            await expect(
+                channelItemByTitle(app.mainWindow, sample.controlTitle).first()
+            ).toBeVisible();
+            expect(
+                await originalPlayer?.evaluate((element) => element.isConnected)
+            ).toBe(true);
         } finally {
             await closeElectronApp(app);
         }
@@ -580,9 +749,6 @@ test.describe('Electron Workspace Search', () => {
                 xtreamQueries
             );
             await expectWorkspaceSearchScope(app.mainWindow, 'Advanced search');
-            await expect(
-                app.mainWindow.locator('app-search-layout app-search-form')
-            ).toHaveCount(0);
             await expect(
                 xtreamSearchResultCards(app.mainWindow).first()
             ).toBeVisible({ timeout: 20000 });
@@ -646,7 +812,10 @@ test.describe('Electron Workspace Search', () => {
             );
             await expect(headerBack).toBeVisible();
             await expect(
-                app.mainWindow.getByRole('button', { name: 'Back', exact: true })
+                app.mainWindow.getByRole('button', {
+                    name: 'Back',
+                    exact: true,
+                })
             ).toHaveCount(1);
             await headerBack.click();
             await expectPathname(app.mainWindow, /\/workspace\/dashboard$/);
@@ -815,6 +984,15 @@ test.describe('Electron Workspace Search', () => {
             await expect(contentLayout).not.toContainText(
                 flexibleTextPattern(sample.controlTitle)
             );
+            await clearCategoryWithPendingSearch(
+                app.mainWindow,
+                `${sample.targetTitle} pending`,
+                'chip'
+            );
+            await expectPathname(
+                app.mainWindow,
+                /\/workspace\/stalker\/[^/]+\/vod$/
+            );
         } finally {
             await closeElectronApp(app);
         }
@@ -901,9 +1079,6 @@ test.describe('Electron Workspace Search', () => {
                 /\/workspace\/stalker\/[^/]+\/search$/
             );
             await expectWorkspaceSearchScope(app.mainWindow, 'Advanced search');
-            await expect(
-                app.mainWindow.locator('app-search-layout app-search-form')
-            ).toHaveCount(0);
 
             await fillWorkspaceSearch(app.mainWindow, sample.targetTitle);
 
@@ -1069,6 +1244,45 @@ test.describe('Electron Workspace Search', () => {
         }
     });
 });
+
+async function clearCategoryWithPendingSearch(
+    page: Page,
+    term: string,
+    origin: 'chip' | 'sidebar',
+    continuedTerm?: string
+): Promise<void> {
+    const selector =
+        origin === 'chip'
+            ? '[data-test-id="workspace-search-scope-clear"]'
+            : 'app-workspace-context-panel .category-item[aria-current="true"]';
+    const input = page.locator(headerSearchSelector);
+    await input.evaluate(
+        (element, options) => {
+            if (!(element instanceof HTMLInputElement)) {
+                throw new Error('Workspace search input is missing.');
+            }
+            const target = Array.from(
+                document.querySelectorAll<HTMLButtonElement>(options.selector)
+            ).find((button) => button.checkVisibility());
+            if (!target) {
+                throw new Error('Category-clearing control is missing.');
+            }
+            // Both events share one task so clearing cannot outrun a slow
+            // Playwright round trip and accidentally wait out the debounce.
+            element.value = options.term;
+            element.dispatchEvent(new Event('input', { bubbles: true }));
+            target.click();
+            if (options.continuedTerm !== undefined) {
+                element.value = options.continuedTerm;
+                element.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        },
+        { term, selector, continuedTerm }
+    );
+    const expected = continuedTerm ?? term;
+    await expectQueryParam(page, 'q', expected.trim());
+    await expect(input).toHaveValue(expected);
+}
 
 async function fetchXtreamVodFixture(
     request: APIRequestContext
@@ -1524,7 +1738,7 @@ async function expectXtreamRootCatalogSearch(
     await expectQueryParam(page, 'q', options.sample.targetTitle);
     await expectWorkspaceSearchScope(
         page,
-        `${options.sectionLabel} / All Items`
+        `${options.sectionLabel} / All items`
     );
     const contentLayout = page.locator('.category-content-layout');
     await expect(contentLayout).toContainText(

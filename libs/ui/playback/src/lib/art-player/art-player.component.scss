@@ -1,4 +1,8 @@
+@use '../player-controls/player-palette' as palette;
+
 :host {
+    // Vendor chrome over video takes the player's focus ring.
+    @include palette.focus-ring-token;
     display: block;
     width: 100%;
     height: 100%;

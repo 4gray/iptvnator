@@ -29,6 +29,7 @@ import {
 } from '@iptvnator/epg/data-access';
 import {
     selectAllPlaylistsMeta,
+    selectPlaylistsLoadingFlag,
     selectIsEpgAvailable,
 } from '@iptvnator/m3u-state';
 import {
@@ -92,6 +93,7 @@ export const DEFAULT_SETTINGS = {
     fullscreenChannelPanel: true,
     vodAutoFailover: false,
     m3uVodDetails: true,
+    ageRatingCountry: 'auto',
     streamFormat: StreamFormat.AutoStreamFormat,
     openStreamOnDoubleClick: false,
     language: Language.ENGLISH,
@@ -111,6 +113,7 @@ export const DEFAULT_SETTINGS = {
     vlcReuseInstance: false,
     remoteControl: false,
     remoteControlPort: 8765,
+    epgEnabled: true,
     epgUrl: [] as string[],
     recordingFolder: '',
     embeddedMpvFrameCopy: false,
@@ -181,15 +184,17 @@ export function setSettingsSection(section: string): void {
 
 /** Sets the header search term (`q`) the settings page searches for. */
 export function setSettingsSearchQuery(query: string): void {
-    (
-        TestBed.inject(ActivatedRoute) as unknown as MockActivatedRoute
-    ).setQuery(query);
+    (TestBed.inject(ActivatedRoute) as unknown as MockActivatedRoute).setQuery(
+        query
+    );
 }
 
 export class MockSettingsStore {
     private _settings = signal(DEFAULT_SETTINGS);
 
     getSettings = () => this._settings();
+    language = () => this._settings().language;
+    ageRatingCountry = () => this._settings().ageRatingCountry;
 
     getTrustOptions = () => ({
         trustedPrivateNetworkEpgUrls:
@@ -346,6 +351,7 @@ export function settingsTestProviders(
         { provide: ActivatedRoute, useClass: MockActivatedRoute },
         provideMockStore({
             selectors: [
+                { selector: selectPlaylistsLoadingFlag, value: true },
                 { selector: selectAllPlaylistsMeta, value: [] },
                 { selector: selectIsEpgAvailable, value: false },
             ],

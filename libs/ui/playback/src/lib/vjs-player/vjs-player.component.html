@@ -1,12 +1,25 @@
 <div #playerRoot class="vjs-player-shell">
-    <video
-        #target
-        class="video-js"
-        muted
-        playsinline
-        preload="none"
-        data-setup='{"liveui": true, "muted": false}'
-    ></video>
+    <div data-vjs-player>
+        <video
+            #target
+            class="video-js"
+            muted
+            playsinline
+            preload="none"
+            data-setup='{"liveui": true, "muted": false}'
+        ></video>
+
+        @if (hlsWait.visible() && interactionEnabled()) {
+            <div class="vjs-hls-wait" role="status" aria-live="polite">
+                <mat-icon aria-hidden="true">sync</mat-icon>
+                <p>{{ 'PLAYBACK_DIAGNOSTICS.HLS_WAIT' | translate }}</p>
+                <button type="button" (click)="retryRequested.emit()">
+                    <mat-icon aria-hidden="true">refresh</mat-icon>
+                    {{ 'RETRY' | translate }}
+                </button>
+            </div>
+        }
+    </div>
 
     @if (sharedControls) {
         <app-player-controls

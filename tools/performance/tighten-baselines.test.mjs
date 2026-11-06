@@ -93,6 +93,66 @@ test('a counter below its value in every run drops to the largest run', () => {
     assert.match(direction.lowered[0], /1,064 -> 1,059 bytes/);
 });
 
+test('a journey-run entry keeps its note and is lowered to three decimals', () => {
+    const score = {
+        value: 0.222,
+        unit: 'score',
+        slack: 0,
+        note: 'guard only, not validated',
+        updatedAt: '2026-10-04',
+        evidencePr: 1,
+        measuredWith: 'pnpm run perf:journeys',
+    };
+    const baselines = {
+        version: 1,
+        journeys: {
+            ...baselinesFile().journeys,
+            'open-source': { 'renderer.layoutShiftScore': score },
+            playback: { 'renderer.layoutShiftScore': { ...score, value: 0 } },
+        },
+    };
+    // The weekly job merges each runner's initial-bytes and journey summaries.
+    const runs = [0.221, 0.22, 0.221].map((value, index) =>
+        mergeRunSummaries(
+            [
+                bytesRun(1000),
+                {
+                    journeys: {
+                        'open-source': {
+                            counters: { 'renderer.layoutShiftScore': value },
+                        },
+                        playback: {
+                            counters: { 'renderer.layoutShiftScore': 0 },
+                        },
+                    },
+                },
+            ],
+            `run ${index + 1}`
+        )
+    );
+    const result = tighten(baselines, runs);
+    assert.deepEqual(
+        result.baselines.journeys['open-source']['renderer.layoutShiftScore'],
+        {
+            ...score,
+            value: 0.221,
+            updatedAt: '2026-10-05',
+            measuredWith:
+                '.github/workflows/performance-ratchet.yml, max of 3 runs',
+            evidenceRun: RUN_URL,
+        }
+    );
+    assert.deepEqual(
+        result.baselines.journeys.playback,
+        baselines.journeys.playback,
+        'a counter already at 0 is kept'
+    );
+    assert.match(
+        formatReport(result),
+        /\| `open-source\/renderer\.layoutShiftScore` \| 0\.222 score \| 0\.221 \| 0\.22 \| 0\.221 \| lowered to 0\.221 score \|/
+    );
+});
+
 test('one run at or above the value keeps the baseline untouched', () => {
     for (const measured of [1000, 1010]) {
         const baselines = baselinesFile();
@@ -105,6 +165,22 @@ test('one run at or above the value keeps the baseline untouched', () => {
         assert.deepEqual(result.tightened, []);
         assert.match(result.rows[0].reason, /not below 1,000 in every run/);
     }
+});
+
+test('an entry with autoTighten false is kept even when every run is lower', () => {
+    // Its slack covers a band of normal values; lowering value to the largest
+    // of three runs could put the limit below the top of that band.
+    const baselines = baselinesFile();
+    baselines.journeys.launch['renderer.initialBytes'].autoTighten = false;
+    const result = tighten(baselines, [
+        bytesRun(990),
+        bytesRun(995),
+        bytesRun(980),
+    ]);
+    assert.deepEqual(result.baselines, baselines);
+    assert.deepEqual(result.tightened, []);
+    assert.match(result.rows[0].reason, /autoTighten is false/);
+    assert.deepEqual(result.rows[0].measured, [990, 995, 980]);
 });
 
 test('an entry missing or non-numeric in any run is kept', () => {
@@ -123,6 +199,26 @@ test('an entry missing or non-numeric in any run is kept', () => {
     ]);
     assert.deepEqual(invalid.tightened, []);
     assert.match(invalid.rows[0].reason, /run 3 measured "980"/);
+});
+
+test('an opted-out counter still reports unstable iterations for manual review', () => {
+    const baselines = baselinesFile();
+    baselines.journeys.launch['renderer.initialBytes'].autoTighten = false;
+    const unstableRun = bytesRun(995);
+    unstableRun.journeys.launch.counterStability = {
+        'renderer.initialBytes': { stable: false, values: [990, 995, 992] },
+    };
+    const result = tighten(baselines, [
+        bytesRun(990),
+        unstableRun,
+        bytesRun(980),
+    ]);
+    assert.deepEqual(result.baselines, baselines);
+    assert.deepEqual(result.tightened, []);
+    assert.match(
+        formatReport(result),
+        /kept: unstable in run 2 \(iterations 990, 995, 992\)/
+    );
 });
 
 test('a counter marked unstable in any run is skipped with the iterations', () => {

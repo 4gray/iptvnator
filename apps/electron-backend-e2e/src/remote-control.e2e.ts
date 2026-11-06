@@ -34,6 +34,38 @@ type RemoteControlStatus = {
 };
 
 test.describe('Electron Remote Control', () => {
+    test('@remote-control @electron rejects foreign-origin commands and keeps local JSON commands working', async ({
+        dataDir,
+        request,
+    }) => {
+        const remotePort = await reserveFreePort();
+        const app = await launchElectronApp(dataDir);
+        try {
+            await openSettings(app.mainWindow);
+            await enableRemoteControl(app.mainWindow, remotePort);
+            await saveSettings(app.mainWindow);
+            await waitForRemoteControlServer(request, remotePort);
+            const forbiddenHeaders: Record<string, string>[] = [
+                { Origin: 'http://unrelated.example.test' },
+                { Origin: 'null' },
+                { 'Content-Type': 'text/plain' },
+            ];
+            for (const headers of forbiddenHeaders) {
+                const response = await request.post(
+                    remoteControlUrl(remotePort, '/channel/up'),
+                    {
+                        headers,
+                        data: {},
+                    }
+                );
+                expect(response.status()).toBe(403);
+            }
+            await postRemoteCommand(request, remotePort, '/channel/up');
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
     for (const mode of ['xtream', 'stalker', 'radio'] as const) {
         test(`@remote-control @electron ${mode} keeps playback order while browsing and reveals the playing channel`, async ({
             dataDir,
@@ -96,7 +128,7 @@ test.describe('Electron Remote Control', () => {
                         })
                         .click();
                     await page
-                        .getByRole('menuitem', { name: 'Name Z-A' })
+                        .getByRole('menuitemradio', { name: 'Name Z-A' })
                         .click();
                     await expect
                         .poll(() =>
@@ -135,7 +167,7 @@ test.describe('Electron Remote Control', () => {
                         })
                         .click();
                     await page
-                        .getByRole('menuitem', { name: 'Name A-Z' })
+                        .getByRole('menuitemradio', { name: 'Name A-Z' })
                         .click();
                 }
                 await fillWorkspaceSearch(page, '__no_playing_channel__');
@@ -458,7 +490,9 @@ async function waitForRemoteStatus(
     port: number,
     predicate: (status: RemoteControlStatus) => boolean
 ): Promise<RemoteControlStatus> {
-    let latestStatus: RemoteControlStatus | null = null;
+    // Typed through an assertion so the poll callback's writes stay visible
+    // to the return below instead of narrowing to the initial null.
+    let latestStatus = null as RemoteControlStatus | null;
 
     try {
         await expect
@@ -479,7 +513,10 @@ async function waitForRemoteStatus(
         );
     }
 
-    return latestStatus as RemoteControlStatus;
+    if (!latestStatus) {
+        throw new Error('Remote status poll passed without a status payload');
+    }
+    return latestStatus;
 }
 
 async function getRemoteStatus(

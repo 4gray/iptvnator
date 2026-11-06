@@ -1,0 +1,26 @@
+:host {
+    display: flex;
+    margin: 10px;
+    justify-content: center;
+}
+
+form {
+    width: 100%;
+}
+
+.loading-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.derive-device-ids {
+    margin: 4px 0 12px;
+}
+
+.derive-device-ids__note {
+    margin: 4px 0 0;
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 12px;
+    line-height: 1.45;
+}

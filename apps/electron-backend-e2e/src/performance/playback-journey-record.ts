@@ -2,6 +2,7 @@ import {
     journeyActivityBeforeClick,
     type JourneyClickSettle,
 } from './journey-click-settle';
+import { computeJourneyIpcSerialDepth } from './journey-ipc-serial-depth';
 import type { JourneyMainIpcCaptureState } from './journey-main-ipc-capture';
 import {
     countJourneyMockRoutes,
@@ -23,6 +24,7 @@ export const PLAYBACK_JOURNEY_COUNTER = {
     DOM_MUTATIONS: 'renderer.domMutationsToPlaying',
     HTTP_REQUESTS: 'renderer.httpRequestsToPlaying',
     IPC_CALLS: 'renderer.ipcCallsToPlaying',
+    IPC_SERIAL_DEPTH: 'renderer.ipcSerialDepthToPlaying',
     LAYOUT_SHIFT_SCORE: 'renderer.layoutShiftScore',
     LONG_TASKS: 'renderer.longTasks',
 } as const;
@@ -37,12 +39,13 @@ export const PLAYBACK_JOURNEY_WALL_CLOCK = {
 /** How long requests after `playing` are observed, for evidence only. */
 export const PLAYBACK_JOURNEY_AFTER_PLAYING_WINDOW_MS = 1_000;
 
+/**
+ * Counters the plan lists for J3 that this harness cannot measure. Every one
+ * is measured now; the list stays so a future gap is reported, not faked.
+ */
 export const PLAYBACK_JOURNEY_UNAVAILABLE_COUNTERS: Readonly<
     Record<string, string>
-> = Object.freeze({
-    'renderer.ipcSerialDepthToPlaying':
-        'The serial-depth helper is being added for J1 in a separate thread and is not on master yet; J3 adopts it once it lands.',
-});
+> = Object.freeze({});
 
 export interface PlaybackJourneyMeasurement {
     /** Logo requests to picsum.photos cancelled in the main process. */
@@ -148,6 +151,7 @@ export function toPlaybackIterationRecord(
             `playback-journey-record-cd-ticks-${renderer.capabilities.changeDetectionTicks}`
         );
     }
+    const serialDepth = computeJourneyIpcSerialDepth(ipc.timeline);
     return Object.freeze({
         counters: Object.freeze({
             [PLAYBACK_JOURNEY_COUNTER.CD_TICKS]: cdTicks,
@@ -155,6 +159,7 @@ export function toPlaybackIterationRecord(
                 renderer.counters.domMutations,
             [PLAYBACK_JOURNEY_COUNTER.HTTP_REQUESTS]: http.toPlaying.length,
             [PLAYBACK_JOURNEY_COUNTER.IPC_CALLS]: ipc.callsBeforeSentinel,
+            [PLAYBACK_JOURNEY_COUNTER.IPC_SERIAL_DEPTH]: serialDepth.depth,
             // The click's 500 ms input window covers the start of the
             // journey, so shifts flagged hadRecentInput are included, as
             // in J2.
@@ -196,6 +201,13 @@ export function toPlaybackIterationRecord(
             }),
             ipcCallsAfterPlaying: ipc.callsAfterSentinel,
             ipcCallsByMethod: ipc.callsByMethod,
+            ipcSerialDepth: serialDepth,
+            ipcTimelineAmbiguousCompletions: ipc.ambiguousTimelineCompletions,
+            // `+method` for a start, `-method` for a completion.
+            ipcTimeline: ipc.timeline.map(
+                ({ method, phase }) =>
+                    `${phase === 'start' ? '+' : '-'}${method}`
+            ),
             layoutShift: Object.freeze({
                 recentInput: roundThousandth(
                     renderer.counters.recentInputLayoutShiftScore

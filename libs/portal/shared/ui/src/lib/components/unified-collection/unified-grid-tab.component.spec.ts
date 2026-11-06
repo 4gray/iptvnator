@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
-import { of } from 'rxjs';
+import { EMPTY, of } from 'rxjs';
 import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 import { SettingsStore } from '@iptvnator/services';
 import { UnifiedGridTabComponent } from './unified-grid-tab.component';
@@ -38,6 +38,8 @@ describe('UnifiedGridTabComponent posters-only wall', () => {
                     provide: TranslateService,
                     useValue: {
                         onLangChange: of(),
+                        onDefaultLangChange: EMPTY,
+                        onTranslationChange: EMPTY,
                         currentLang: 'en',
                         defaultLang: 'en',
                     },
@@ -59,6 +61,29 @@ describe('UnifiedGridTabComponent posters-only wall', () => {
 
         fixture = TestBed.createComponent(UnifiedGridTabComponent);
         fixture.componentRef.setInput('items', ITEMS);
+    });
+
+    it('retains the title and removal action while blocking an unavailable favorite', () => {
+        const item = {
+            ...ITEMS[0],
+            catalogStatus: 'missing',
+        } as UnifiedCollectionItem;
+        fixture.componentRef.setInput('items', [item]);
+        fixture.detectChanges();
+        const selected = jest.fn();
+        const removed = jest.fn();
+        fixture.componentInstance.itemSelected.subscribe(selected);
+        fixture.componentInstance.removeItem.subscribe(removed);
+
+        fixture.componentInstance.onCardClick(item);
+        fixture.componentInstance.onRemove(item);
+
+        expect(selected).not.toHaveBeenCalled();
+        expect(removed).toHaveBeenCalledWith(item);
+        expect(fixture.nativeElement.textContent).toContain(
+            'WORKSPACE.GLOBAL_FAVORITES.CATALOG_MISSING'
+        );
+        expect(fixture.debugElement.query(By.css('.card-info'))).not.toBeNull();
     });
 
     const cardInfos = () => fixture.debugElement.queryAll(By.css('.card-info'));

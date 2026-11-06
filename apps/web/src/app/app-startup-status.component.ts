@@ -5,21 +5,25 @@ import {
     inject,
     input,
 } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { NgTemplateOutlet } from '@angular/common';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { AppStartupRecoveryComponent } from './app-startup-recovery.component';
+import { NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
+import { filter, map } from 'rxjs';
 import {
     PlaylistActions,
     selectPlaylistsLoadFailed,
     selectPlaylistsLoadingFlag,
 } from '@iptvnator/m3u-state';
+import { SERVER_SIGN_IN_PATH } from '@iptvnator/services';
 
 /** The first route also waits for settings and XMLTV source reconciliation. */
 @Component({
     selector: 'app-startup-status',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [MatButtonModule, MatProgressSpinnerModule, TranslatePipe],
+    imports: [AppStartupRecoveryComponent, NgTemplateOutlet, TranslatePipe],
     template: `
         @if (!complete()) {
             <section
@@ -45,7 +49,40 @@ import {
                     />
                 </svg>
                 @if (!failed()) {
-                    <mat-spinner diameter="32" aria-hidden="true" />
+                    <div class="startup-spinner" aria-hidden="true">
+                        <div class="startup-spinner__container">
+                            <div class="startup-spinner__layer">
+                                <div
+                                    class="startup-spinner__clipper startup-spinner__clipper--left"
+                                >
+                                    <svg
+                                        viewBox="0 0 25.2 25.2"
+                                        focusable="false"
+                                    >
+                                        <circle r="11" cx="50%" cy="50%" />
+                                    </svg>
+                                </div>
+                                <div class="startup-spinner__gap">
+                                    <svg
+                                        viewBox="0 0 25.2 25.2"
+                                        focusable="false"
+                                    >
+                                        <circle r="11" cx="50%" cy="50%" />
+                                    </svg>
+                                </div>
+                                <div
+                                    class="startup-spinner__clipper startup-spinner__clipper--right"
+                                >
+                                    <svg
+                                        viewBox="0 0 25.2 25.2"
+                                        focusable="false"
+                                    >
+                                        <circle r="11" cx="50%" cy="50%" />
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 }
                 <h1>
                     {{
@@ -62,66 +99,41 @@ import {
                     }}
                 </p>
                 @if (failed()) {
-                    <button mat-flat-button type="button" (click)="retry()">
-                        {{ 'RETRY' | translate }}
-                    </button>
+                    <!--
+                        Material's button loads with the failure branch so the
+                        first screen does not carry the button chunk. A native
+                        button retries while the chunk downloads and stays when
+                        the load fails.
+                    -->
+                    @defer (on immediate) {
+                        <app-startup-recovery />
+                    } @placeholder {
+                        <ng-container [ngTemplateOutlet]="nativeRetry" />
+                    } @error {
+                        <ng-container [ngTemplateOutlet]="nativeRetry" />
+                    }
+                    <ng-template #nativeRetry>
+                        <button
+                            class="startup-button"
+                            type="button"
+                            (click)="retry()"
+                        >
+                            {{ 'RETRY' | translate }}
+                        </button>
+                        <button
+                            type="button"
+                            class="startup-button startup-secondary"
+                            data-test-id="startup-open-settings"
+                            (click)="openSettings()"
+                        >
+                            {{ 'WORKSPACE.SHELL.OPEN_SETTINGS' | translate }}
+                        </button>
+                    </ng-template>
                 }
             </section>
         }
     `,
-    styles: `
-        :host {
-            display: contents;
-        }
-        section {
-            app-region: drag;
-            position: relative;
-            isolation: isolate;
-            overflow: clip;
-            min-height: 100dvh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            padding: 48px 24px;
-            box-sizing: border-box;
-            background: var(--app-content-bg);
-            color: var(--app-heading-color);
-            text-align: center;
-        }
-        .startup-watermark {
-            position: absolute;
-            right: -14%;
-            bottom: -34%;
-            width: clamp(420px, 76vw, 960px);
-            height: auto;
-            opacity: 0.07;
-            transform: rotate(-14deg);
-            mask-image: linear-gradient(135deg, transparent 15%, #000 78%);
-            pointer-events: none;
-            z-index: 0;
-        }
-        section > :not(svg) {
-            position: relative;
-            z-index: 1;
-        }
-        h1 {
-            margin: 0;
-            font-size: 18px;
-            font-weight: 500;
-        }
-        p {
-            margin: 0;
-            max-width: 420px;
-            color: var(--app-body-color);
-            line-height: 1.5;
-        }
-        button {
-            margin-top: 8px;
-            app-region: no-drag;
-        }
-    `,
+    styleUrl: './app-startup-status.component.scss',
 })
 export class AppStartupStatusComponent {
     private readonly store = inject(Store);
@@ -130,8 +142,30 @@ export class AppStartupStatusComponent {
         selectPlaylistsLoadingFlag
     );
     readonly failed = this.store.selectSignal(selectPlaylistsLoadFailed);
+    private readonly router = inject(Router);
+    openSettings(): void {
+        void this.router.navigateByUrl('/workspace/settings');
+    }
+    private readonly url = toSignal(
+        this.router.events.pipe(
+            filter((event) => event instanceof NavigationEnd),
+            map((event) => event.urlAfterRedirects)
+        ),
+        { initialValue: this.router.url }
+    );
+    /**
+     * Sign-in and all settings remain reachable while the source inventory
+     * is pending or failed, so recovery never depends on a provider download.
+     */
+    private readonly onRecoveryPage = computed(
+        () =>
+            this.url().startsWith(SERVER_SIGN_IN_PATH) ||
+            this.url().split(/[?#]/)[0] === '/workspace/settings' ||
+            this.url().startsWith('/workspace/settings/')
+    );
     readonly complete = computed(
-        () => this.routeReady() && this.sourcesReady()
+        () =>
+            this.routeReady() && (this.sourcesReady() || this.onRecoveryPage())
     );
 
     retry(): void {

@@ -226,6 +226,35 @@ scenarios, transports, actions, categories, occurrences, and delays
 (`0..5000` ms) use closed validation. Duplicate IDs/matches and already-past
 occurrences fail closed.
 
+### Normal-mode test isolation
+
+`POST /reset?username=<u>&password=<p>` evicts only that credential tuple:
+portal data (including EPG), VOD details, eagerly/lazily cached series details,
+and the account's stream-drop bookkeeping. Both parameters must be non-empty
+single strings; incomplete, empty, or repeated identities return `400` without
+clearing anything. Cache keys encode credential tuples, so colons and common
+prefixes cannot make two accounts share entries. Stream-drop state includes
+both credentials and episode ID; a reset detaches pending cut callbacks so
+they cannot repopulate the new account state.
+
+Web specs use scoped resets. The PWA source consumers use
+`apps/web-e2e/src/pwa-mock.fixture.ts`: each test receives a unique
+`pwa-<32 lowercase hex digits>:pass1` account, mapped to the existing
+`user1:pass1` scenario and seed. Setup and teardown reset only its resources;
+teardown closes the browser context before releasing them. Existing serial
+Xtream suites retain their scenario credentials and read-only catalogs, but
+scope setup resets to those credentials rather than clearing unrelated
+accounts. Browser local/IndexedDB storage remains per context. The separate
+server-storage suite keeps its existing per-run backend directory and serial
+library lifecycle; this fixture never resets that backend.
+
+`pwa-mock-isolation.e2e.ts` runs two parallel scenarios with deliberately
+overlapping session lifetimes and an awaited scoped reset inside each journey.
+It verifies the other Stalker session/favorite survives. The mock unit suite
+additionally pins all three Xtream cache identities and same-episode stream
+refusals across a concurrent reset/read. These deterministic regressions prove
+isolation; they do not establish that shared resets caused a past flaky run.
+
 The legacy unauthenticated `POST /reset` remains available in normal mode. It
 returns `410` while the control plane is enabled, preventing cache invalidation
 that would leave the controller's prepared manifest stale. Performance runs
@@ -401,9 +430,11 @@ sometimes only respond to that misspelled action.
 | `series:series`           | 2002  | live:3, vod:4, series:15   | 30        | active         |
 | `minimal:minimal`         | 3003  | 2 each                     | 5         | active         |
 | `epg:epg`                 | 6006  | live:2, vod:1, series:1    | 3         | active         |
+| `epglong:epglong`         | 6006  | live:2, vod:1, series:1    | 3         | active         |
 | `tzoffset:tzoffset`       | 6006  | live:2, vod:1, series:1    | 3         | active         |
 | `emptyvod:emptyvod`       | 7007  | 2 each                     | 5         | active         |
 | `marketing:marketing`     | 8020  | live:4, vod:4, series:4    | curated   | active         |
+| `streamdrop:streamdrop`   | 8181  | series:1                   | 1         | active         |
 | `expired:expired`         | 4004  | 4 each                     | 10        | Expired        |
 | `inactive:inactive`       | 5005  | 4 each                     | 10        | Disabled       |
 | `<any other>`             | hash  | 6 each                     | 30        | active         |
@@ -421,20 +452,39 @@ That deliberate mismatch lets Electron tests verify the renderer uses timestamp
 fields for sorting, current-program selection, progress bars, and local clock
 labels instead of trusting provider-local strings.
 
+Timeshift URLs of `epg` and `epglong` play the local MPEG-TS clip
+(`src/fixtures/live.mpegts`). `epglong:epglong` is the same fixture with
+`LONG_PROGRAMME_TITLE`, a 120-character title, on the past programme, for
+the catch-up seek bar's label bounds; `epg:epg` keeps its short titles,
+which other tests assert verbatim.
+
+### `streamdrop:streamdrop` fixture details
+
+Its three episodes play the local 60 s Matroska clip
+(`src/fixtures/episode.mkv`, generation command in the fixtures README) with
+byte ranges, but `dropping-episode.ts` cuts the first response that reaches
+35 % of the file and answers 403 for the next 4 s, so ffmpeg's own HTTP
+reconnect fails and mpv reports EOF mid-episode. `POST /reset` re-arms the
+drop. The Electron E2E `embedded-mpv-series-stream-drop.e2e.ts` uses it to
+check that Embedded MPV resumes the episode instead of autoplaying the next
+one (issue #1902).
+
 ### `marketing:marketing` fixture details
 
 This scenario is reserved for release screenshots and marketing materials:
 
 - VOD and series data use 65 curated fictional titles instead of faker-generated
   titles or real media metadata
-- the core 30-title generated artwork pack keeps matched posters and backdrops;
-  35 additional movie-poster showcase titles use approved local poster PNGs and
-  the deterministic SVG fallback for their missing backdrops; the newest 20
-  appear first in the VOD catalog
+- the cinematic pack adds six backdrops, two series posters and two episode
+  stills to the existing original artwork; the newest 20 movie-poster showcase
+  entries appear first in the VOD catalog; missing artwork retains SVG fallback
 - showcase metadata comes from the provider-neutral
   `@iptvnator/shared/marketing-fixtures` catalog shared with the Stalker mock
-- posters and backdrops are served from committed PNG files in
-  `apps/xtream-mock-server/public/marketing/{poster,backdrop}/`
+- posters, backdrops and episode stills are served from committed PNG files in
+  `apps/xtream-mock-server/public/marketing/{poster,backdrop,episode}/`
+- cinematic prompts and provenance live in `cinematic-artwork.json` under that
+  asset root; the [cinematic demo guide](../development/cinematic-demo.md)
+  documents the disposable profile, synthetic cache, capture and validation
 - `tools/release/generate-marketing-artwork.ts` generates the PNGs with
   `gpt-image-2` only when `OPENAI_API_KEY` is present; it also writes the
   prompt/asset manifest at `apps/xtream-mock-server/public/marketing/manifest.json`
@@ -445,8 +495,11 @@ This scenario is reserved for release screenshots and marketing materials:
   `tools/release/capture-release-screenshots.ts` consumes the local mock server
   assets and never calls OpenAI; its guards additionally verify that the
   service answering on the mock port really is this fixture server
+- `marketing-stories.ts` supplies individual names and plots for the cinematic
+  series across three seasons; season covers reuse each series poster and
+  episodes use original stills or the matching series backdrop
 - the SVG renderer in `marketing.generator.ts` remains the fallback for missing
-  assets, live logos, season covers, and episode thumbnails
+  assets and live logos
 
 ### `performance:performance` fixture details
 

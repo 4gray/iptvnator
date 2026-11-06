@@ -1,10 +1,14 @@
-import type { ElectronApplication, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
 import { configureLiveFormat } from '../xtream-live-format.fixture';
 import {
     JOURNEY_CLICK_QUIET_MS,
     waitForJourneyClickQuiet,
 } from '../performance/journey-click-settle';
+import {
+    blockJourneyExternalArtwork,
+    readJourneyExternalArtworkCancelled,
+} from '../performance/journey-external-artwork';
 import {
     detachJourneyMainIpcCapture,
     installJourneyMainIpcCapture,
@@ -47,14 +51,6 @@ export const PLAYBACK_JOURNEY_MAIN_IPC_STATE_KEY =
     '__iptvnatorJourneyPlaybackMainIpcCapture';
 export const PLAYBACK_JOURNEY_PORTAL_NAME = 'Journey live portal';
 const ERROR_PREFIX = 'playback-journey';
-const EXTERNAL_ARTWORK_STATE_KEY = '__iptvnatorJourneyExternalArtwork';
-/**
- * The generated live catalog's channel and category logos point at
- * picsum.photos. They are cancelled in the main process, so no request of
- * the journey leaves the machine and a logo never loads, or fails, at a
- * different moment on a runner with a different network.
- */
-const EXTERNAL_ARTWORK_URLS = ['*://picsum.photos/*', '*://*.picsum.photos/*'];
 
 /** Seeds J2's profile with the local-media portal and the HTML5 player. */
 export const PLAYBACK_JOURNEY_SEED: LaunchJourneySeedOptions = {
@@ -67,45 +63,6 @@ export const PLAYBACK_JOURNEY_SEED: LaunchJourneySeedOptions = {
         username: 'live-fallback',
     },
 };
-
-async function blockExternalArtwork(
-    electronApp: ElectronApplication
-): Promise<void> {
-    await electronApp.evaluate(
-        ({ session }, input) => {
-            const target = globalThis as unknown as Record<string, unknown>;
-            if (target[input.key] !== undefined) {
-                throw new Error('playback-journey-artwork-block-installed');
-            }
-            const state = { cancelled: 0 };
-            target[input.key] = state;
-            // The app registers no onBeforeRequest listener of its own
-            // (only onBeforeSendHeaders), so this replaces nothing.
-            session.defaultSession.webRequest.onBeforeRequest(
-                { urls: input.urls },
-                (_details, callback) => {
-                    state.cancelled += 1;
-                    callback({ cancel: true });
-                }
-            );
-        },
-        { key: EXTERNAL_ARTWORK_STATE_KEY, urls: EXTERNAL_ARTWORK_URLS }
-    );
-}
-
-async function readCancelledExternalArtwork(
-    electronApp: ElectronApplication
-): Promise<number> {
-    return electronApp.evaluate(
-        (_electron, key) =>
-            (
-                (globalThis as unknown as Record<string, unknown>)[key] as {
-                    cancelled: number;
-                }
-            ).cancelled,
-        EXTERNAL_ARTWORK_STATE_KEY
-    );
-}
 
 /** Dashboard card → live section → first category, as a user would. */
 async function openLiveCategory(page: Page, timeoutMs: number): Promise<void> {
@@ -143,7 +100,7 @@ export async function measurePlaybackJourney(
     if (!startClick) {
         throw new Error('playback-journey-probe-without-start');
     }
-    await blockExternalArtwork(electronApp);
+    await blockJourneyExternalArtwork(electronApp);
     await openLiveCategory(mainWindow, timeoutMs);
     const channel = mainWindow.locator(startClick.selector).first();
     await channel.waitFor({ state: 'visible', timeout: timeoutMs });
@@ -199,7 +156,7 @@ export async function measurePlaybackJourney(
     );
     return {
         externalArtworkCancelled:
-            await readCancelledExternalArtwork(electronApp),
+            await readJourneyExternalArtworkCancelled(electronApp),
         http: {
             afterPlaying: sinceSpawn.filter(
                 (entry) =>

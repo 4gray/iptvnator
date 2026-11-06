@@ -33,6 +33,8 @@ const INTERACTIVE_SELECTOR = [
     '[role="button"]',
     '[role="checkbox"]',
     '[role="combobox"]',
+    '[role="dialog"]',
+    '[role="alertdialog"]',
     '[role="link"]',
     '[role="listbox"]',
     '[role^="menuitem"]',
@@ -174,9 +176,9 @@ export class ControlsShortcuts {
 
     /**
      * Ignore modified playback keys so app/native shortcuts retain ownership,
-     * and ignore events originating from an interactive control anywhere in
-     * the composed path. Escape is handled before this check so it can still
-     * close controls popovers while a modifier key is held.
+     * and ignore events originating from a dialog or interactive control
+     * anywhere in the composed path. Escape is handled before this check so
+     * it can still close controls popovers while a modifier key is held.
      */
     private shouldIgnore(event: KeyboardEvent): boolean {
         if (event.metaKey || event.ctrlKey || event.altKey) {

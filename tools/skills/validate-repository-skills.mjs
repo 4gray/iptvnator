@@ -1,9 +1,9 @@
-import { access, readdir, readFile } from 'node:fs/promises';
+import { access, lstat, readdir, readFile, readlink } from 'node:fs/promises';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const SKILLS_ROOT = '.codex/skills';
-const MIRRORED_SKILLS = ['release-cut', 'release-notes'];
+const SKILLS_ROOT = '.agents/skills';
+const REQUIRED_SKILLS = ['release-cut', 'release-notes'];
 const PATH_PREFIXES = [
     'apps/',
     'libs/',
@@ -84,9 +84,7 @@ function parseFrontmatter(markdown) {
 
 function countWords(markdown) {
     const trimmedMarkdown = markdown.trim();
-    return trimmedMarkdown === ''
-        ? 0
-        : trimmedMarkdown.split(/\s+/u).length;
+    return trimmedMarkdown === '' ? 0 : trimmedMarkdown.split(/\s+/u).length;
 }
 
 function findLiteralRepositoryPaths(markdown) {
@@ -128,20 +126,10 @@ function isPathWithinRoot(rootDir, absolutePath) {
     );
 }
 
-async function readFileIfPresent(path) {
-    try {
-        return await readFile(path);
-    } catch (error) {
-        if (error?.code === 'ENOENT') return undefined;
-        throw error;
-    }
-}
-
 async function validateSkill({ rootDir, directoryName }) {
     const relativePath = `${SKILLS_ROOT}/${directoryName}/SKILL.md`;
     const markdown = await readFile(resolve(rootDir, relativePath), 'utf8');
-    const { fields: frontmatter, continuedFields } =
-        parseFrontmatter(markdown);
+    const { fields: frontmatter, continuedFields } = parseFrontmatter(markdown);
     const diagnostics = [];
 
     if (frontmatter.name !== directoryName) {
@@ -196,33 +184,42 @@ async function validateSkill({ rootDir, directoryName }) {
     return diagnostics;
 }
 
-async function validateReleaseMirrors(rootDir) {
+async function validateClaudeLinks(rootDir, skillDirectories) {
     const diagnostics = [];
 
-    for (const skillName of MIRRORED_SKILLS) {
-        const codexPath = `.codex/skills/${skillName}/SKILL.md`;
-        const claudePath = `.claude/skills/${skillName}/SKILL.md`;
-        const [codexContents, claudeContents] = await Promise.all([
-            readFileIfPresent(resolve(rootDir, codexPath)),
-            readFileIfPresent(resolve(rootDir, claudePath)),
-        ]);
+    for (const skillName of REQUIRED_SKILLS) {
+        if (!skillDirectories.includes(skillName)) {
+            diagnostics.push(
+                `${SKILLS_ROOT}/${skillName}/SKILL.md: required release skill is missing`
+            );
+        }
+    }
 
-        if (codexContents === undefined) {
+    for (const skillName of skillDirectories) {
+        const claudePath = `.claude/skills/${skillName}`;
+        const absolutePath = resolve(rootDir, claudePath);
+        const expectedTarget = `../../${SKILLS_ROOT}/${skillName}`;
+        let entry;
+        try {
+            entry = await lstat(absolutePath);
+        } catch (error) {
+            if (error?.code !== 'ENOENT' && error?.code !== 'ENOTDIR')
+                throw error;
             diagnostics.push(
-                `${codexPath}: required release skill mirror is missing`
+                `${claudePath}: required shared skill symlink is missing`
             );
+            continue;
         }
-        if (claudeContents === undefined) {
+        if (!entry.isSymbolicLink()) {
             diagnostics.push(
-                `${claudePath}: required release skill mirror is missing`
+                `${claudePath}: must be a directory symlink to ${expectedTarget}`
             );
-        }
-        if (
-            codexContents !== undefined &&
-            claudeContents !== undefined &&
-            !codexContents.equals(claudeContents)
+        } else if (
+            (await readlink(absolutePath)).split(sep).join('/') !== expectedTarget
         ) {
-            diagnostics.push(`${codexPath}: differs from ${claudePath}`);
+            diagnostics.push(
+                `${claudePath}: symlink must target ${expectedTarget}`
+            );
         }
     }
 
@@ -230,9 +227,11 @@ async function validateReleaseMirrors(rootDir) {
 }
 
 export async function validateRepositorySkills({ rootDir }) {
-    const directoryEntries = (await readdir(resolve(rootDir, SKILLS_ROOT), {
-        withFileTypes: true,
-    }))
+    const directoryEntries = (
+        await readdir(resolve(rootDir, SKILLS_ROOT), {
+            withFileTypes: true,
+        })
+    )
         .filter((entry) => entry.isDirectory())
         .sort((left, right) => compareNames(left.name, right.name));
     const skillDirectories = [];
@@ -249,12 +248,10 @@ export async function validateRepositorySkills({ rootDir }) {
     }
 
     for (const directoryName of skillDirectories) {
-        diagnostics.push(
-            ...(await validateSkill({ rootDir, directoryName }))
-        );
+        diagnostics.push(...(await validateSkill({ rootDir, directoryName })));
     }
 
-    diagnostics.push(...(await validateReleaseMirrors(rootDir)));
+    diagnostics.push(...(await validateClaudeLinks(rootDir, skillDirectories)));
 
     return {
         checkedSkills: skillDirectories.length,

@@ -67,6 +67,15 @@ Registered endpoints:
 - `POST /api/remote-control/volume/toggle-mute`
 - `GET /api/remote-control/status`
 
+Command POSTs require `application/json` (an optional charset is accepted).
+Before dispatching any API request, including status reads, the HTTP server
+rejects cross-site browser requests and origins other than its own
+`http://<host>:<port>`. The Host must name the
+listening interface, localhost, or the machine's hostname/mDNS name at the
+actual listener port; arbitrary DNS aliases are rejected to prevent DNS
+rebinding. JSON clients without an Origin header remain supported on the
+trusted LAN. Rejected requests return JSON HTTP 403 and never reach IPC.
+
 IPC emitted to renderer:
 
 - `CHANNEL_CHANGE` payload: `{ direction: 'up' | 'down' }`
@@ -91,6 +100,19 @@ Status ingestion from renderer:
 - Main handler: `apps/electron-backend/src/app/events/settings.events.ts`
 - On `SETTINGS_UPDATE`, reads `remoteControl` and `remoteControlPort`, persists to store, and calls:
     - `httpServer.updateSettings(enabled, port)`
+- Listener transitions are awaited and serialized. Bind errors reject the
+  settings update without leaving a running listener; subsequent updates can
+  retry. Startup logs an unavailable port without an unhandled rejection.
+  Disabling the server or changing ports closes active HTTP connections so an
+  unfinished request body cannot hold the settings queue open.
+- The settings form awaits the backend update before confirming success. An
+  apply failure keeps the form available for retry and explains that the saved
+  preferences could not be applied, separately from a storage-write failure.
+  Edits made while a save is pending remain dirty after the submitted values
+  are saved; save-and-leave stays on settings when newer changes remain.
+  Overlapping saves use a revision guard: older completions cannot overwrite
+  the latest saved snapshot, mirror older values to Electron after a cleanup
+  wait, or report stale failures after a newer save.
 
 ## Preload Bridge
 
@@ -155,6 +177,20 @@ Stalker reuses the already-resolved playing item as a temporary normal row when
 it lies beyond loaded provider pages. This row is deduplicated once it arrives
 in provider results and discarded on browsing or playback changes; returning
 never crawls the catalog. Raw provider rows alone extend the playback queue.
+
+## Translation and navigation labels
+
+The remote follows the phone browser's first supported language, independently
+of desktop settings. It loads `pt-PT` for Portugal and other explicit Portuguese
+regions, and `pt-BR` for Brazil or bare `pt` (the legacy Brazilian default).
+Portuguese tags accept case and underscore variants; `<html lang>` uses the
+canonical region of the loaded translation. The translation list is tested
+against the shipped catalogue files.
+
+Channel up means the previous row in the captured playback list; channel down
+means the next row, with wrapping at either end. The UI uses ↑/↓ and matching
+previous/next accessible labels, rather than suggesting that up increments the
+channel number. Endpoint names and playback order remain stable.
 
 ## Shared helpers
 
@@ -279,6 +315,9 @@ Implemented behavior:
 - Channel up/down and number select navigate `visibleChannels()` — the
   search-filtered, mode-conditionally sorted list derived by the same
   `deriveVisibleFavoriteChannels` helper the rendered sidebar uses
+- Up/down skips favorites marked missing or unknown. Number select and status
+  retain the full visible list's numbering; selecting an unavailable row by
+  number does nothing.
 - Remote actions play via the same path as an explicit double-click
   (`activateItem(item, false, true)`), so external MPV/VLC starts
   immediately
@@ -318,6 +357,11 @@ Implemented UI behavior:
 - Numeric keypad (`0-9`, `DEL`, `CLR`, `OK`)
 - Volume controls (`VOL-`, `MUTE/UNMUTE`, `VOL+`)
 - Status card (portal, channel name/number, current program)
+- Labels and errors come from the shared `REMOTE_CONTROL.*` translation keys.
+  The phone never sees the desktop language setting, so the app shell picks
+  the first browser language with a translation
+  (`resolveRemoteControlLanguage`, English otherwise) and sets `<html lang>`
+  to it. Ukrainian browser preferences (`uk` and `uk-UA`) load `uk.json`.
 - Polls `/status` every 2s
 - Uses action wrapper to refresh status after command execution
 

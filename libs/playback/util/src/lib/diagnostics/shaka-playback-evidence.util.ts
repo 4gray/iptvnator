@@ -51,7 +51,7 @@ export function createShakaPlaybackEvidence(
     return httpStatus === undefined ? evidence : { ...evidence, httpStatus };
 }
 
-/** Public error.data request-type slots in Shaka 5.2.4; no URL inspection. */
+/** Public error.data request-type slots in Shaka 5.2.12; no URL inspection. */
 function getNetworkStage(error: Partial<ShakaErrorLike> | null | undefined) {
     if (
         error?.category !== SHAKA_ERROR_CATEGORY.NETWORK ||

@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test } from './fixtures';
-import { pressTab, waitForScrollIdle } from './e2e-helpers';
+import { pressTab, waitForScrollIdle, setSwitch } from './e2e-helpers';
 
 /**
  * The M3U movie-recognition workflow end to end: a playlist entry whose URL
@@ -59,6 +59,16 @@ async function serveTmdb(page: Page): Promise<void> {
                 overview: 'Paul Atreides arrives on Arrakis.',
                 release_date: '2021-09-15',
                 runtime: 155,
+                release_dates: {
+                    results: [
+                        {
+                            iso_3166_1: 'US',
+                            release_dates: [
+                                { certification: 'PG-13', type: 4 },
+                            ],
+                        },
+                    ],
+                },
                 vote_average: 7.8,
                 vote_count: 9000,
                 genres: [{ id: 878, name: 'Science Fiction' }],
@@ -100,12 +110,15 @@ async function selectPlayer(
 
 async function enableTmdb(page: Page): Promise<void> {
     await page.goto('/workspace/settings/tmdb');
-    await page.locator('[data-test-id="tmdb-enabled"] input').check();
+    await setSwitch(
+        page.locator('[data-test-id="tmdb-enabled"] [role="switch"]'),
+        true
+    );
     await page.locator('[data-test-id="tmdb-api-key"]').fill('e2e-key');
     // The M3U recognition toggle only appears once TMDB itself is on, and it
     // ships enabled — assert rather than click, so a changed default fails.
     await expect(
-        page.locator('[data-test-id="tmdb-m3u-vod-details"] input')
+        page.locator('[data-test-id="tmdb-m3u-vod-details"] [role="switch"]')
     ).toBeChecked();
     await saveSettings(page);
 }
@@ -222,9 +235,12 @@ async function configureMetadata(
     if (mode === 'disabled') return;
     await enableTmdb(page);
     if (mode === 'details-disabled') {
-        await page
-            .locator('[data-test-id="tmdb-m3u-vod-details"] input')
-            .uncheck();
+        await setSwitch(
+            page.locator(
+                '[data-test-id="tmdb-m3u-vod-details"] [role="switch"]'
+            ),
+            false
+        );
         await saveSettings(page);
     }
 }
@@ -356,6 +372,12 @@ test('@web @m3u @tmdb recognized movies open the VOD detail view', async ({
     ).toBeVisible();
     await expect(about.getByText('Denis Villeneuve')).toBeVisible();
     await expect(about.getByText('Science Fiction')).toBeVisible();
+    await expect(about.locator('[data-test-id="age-rating-chip"]')).toHaveText(
+        'PG-13 · US'
+    );
+    await about.screenshot({
+        path: test.info().outputPath('m3u-age-rating-watch.png'),
+    });
 
     // A live channel keeps the classic layout.
     await sidebarEntry(page, 'Live One').click();

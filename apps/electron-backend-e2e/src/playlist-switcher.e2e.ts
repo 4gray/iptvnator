@@ -30,6 +30,7 @@ import {
     writeTemporaryM3uFile,
     xtreamMockServer,
 } from './electron-test-fixtures';
+import { waitForMenuFocus } from './menu-keyboard';
 import {
     routePlayableStreams,
     startAndConfirmPlayback,
@@ -245,44 +246,41 @@ test.describe('Electron Playlist Switcher', () => {
             await waitForM3uCatalog(app.mainWindow);
 
             await openPlaylistFavorites(app.mainWindow);
-            await expect(channelItemByTitle(app.mainWindow, localAChannelName)).toHaveCount(
-                1
-            );
-            await expect(channelItemByTitle(app.mainWindow, localBChannelName)).toHaveCount(
-                0
-            );
+            await expect(
+                channelItemByTitle(app.mainWindow, localAChannelName)
+            ).toHaveCount(1);
+            await expect(
+                channelItemByTitle(app.mainWindow, localBChannelName)
+            ).toHaveCount(0);
 
             await switchPlaylistFromHeader(app.mainWindow, localBDisplayName);
             await expectPathname(
                 app.mainWindow,
                 /\/workspace\/global-favorites$/
             );
-            await expect(channelItemByTitle(app.mainWindow, localBChannelName)).toHaveCount(
-                1
-            );
-            await expect(channelItemByTitle(app.mainWindow, localAChannelName)).toHaveCount(
-                0
-            );
+            await expect(
+                channelItemByTitle(app.mainWindow, localBChannelName)
+            ).toHaveCount(1);
+            await expect(
+                channelItemByTitle(app.mainWindow, localAChannelName)
+            ).toHaveCount(0);
 
             await openPlaylistRecent(app.mainWindow);
-            await expect(channelItemByTitle(app.mainWindow, localBChannelName)).toHaveCount(
-                1
-            );
-            await expect(channelItemByTitle(app.mainWindow, localAChannelName)).toHaveCount(
-                0
-            );
+            await expect(
+                channelItemByTitle(app.mainWindow, localBChannelName)
+            ).toHaveCount(1);
+            await expect(
+                channelItemByTitle(app.mainWindow, localAChannelName)
+            ).toHaveCount(0);
 
             await switchPlaylistFromHeader(app.mainWindow, localADisplayName);
-            await expectPathname(
-                app.mainWindow,
-                /\/workspace\/global-recent$/
-            );
-            await expect(channelItemByTitle(app.mainWindow, localAChannelName)).toHaveCount(
-                1
-            );
-            await expect(channelItemByTitle(app.mainWindow, localBChannelName)).toHaveCount(
-                0
-            );
+            await expectPathname(app.mainWindow, /\/workspace\/global-recent$/);
+            await expect(
+                channelItemByTitle(app.mainWindow, localAChannelName)
+            ).toHaveCount(1);
+            await expect(
+                channelItemByTitle(app.mainWindow, localBChannelName)
+            ).toHaveCount(0);
         } finally {
             await closeElectronApp(app);
         }
@@ -319,7 +317,9 @@ test.describe('Electron Playlist Switcher', () => {
                 username: xtreamStressUsername,
             });
 
-            const overlay = app.mainWindow.locator('.workspace-loading-overlay');
+            const overlay = app.mainWindow.locator(
+                '.workspace-loading-overlay'
+            );
             await expect(overlay).toBeVisible({ timeout: 15000 });
             await waitForDbOperationEvent(app.mainWindow, {
                 operation: 'save-content',
@@ -428,17 +428,171 @@ test.describe('Electron Playlist Switcher', () => {
             await switchPlaylistFromHeader(app.mainWindow, offlineXtreamName);
             await waitForXtreamCatalog(app.mainWindow);
             await expectXtreamUnavailableWarning(app.mainWindow);
-            await expect(app.mainWindow.locator('.xtream-content-gate')).toHaveCount(
-                0
-            );
+            await expect(
+                app.mainWindow.locator('.xtream-content-gate')
+            ).toHaveCount(0);
 
             app = await restartElectronApp(app, dataDir);
 
             await waitForXtreamCatalog(app.mainWindow);
             await expectXtreamUnavailableWarning(app.mainWindow);
-            await expect(app.mainWindow.locator('.xtream-content-gate')).toHaveCount(
-                0
+            await expect(
+                app.mainWindow.locator('.xtream-content-gate')
+            ).toHaveCount(0);
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
+    test('runs from the keyboard: Cmd/Ctrl+P, filter, arrows, Enter and Escape', async ({
+        dataDir,
+        request,
+    }) => {
+        await resetMockServers(request, ['xtream']);
+        const localAPath = writeTemporaryM3uFile(dataDir, localAFileName, [
+            {
+                groupTitle: 'News',
+                name: 'Switcher Local A',
+                url: 'https://streams.example.test/switcher-local-a.m3u8',
+            },
+        ]);
+        const localBPath = writeTemporaryM3uFile(dataDir, localBFileName, [
+            {
+                groupTitle: 'Sports',
+                name: 'Switcher Local B',
+                url: 'https://streams.example.test/switcher-local-b.m3u8',
+            },
+        ]);
+        const app = await launchElectronApp(dataDir);
+        const page = app.mainWindow;
+
+        try {
+            await importM3uPlaylistFromNativeDialog(app, localAPath);
+            await importM3uPlaylistFromNativeDialog(app, localBPath);
+            await addXtreamPortal(page, { name: xtreamAName });
+            await waitForXtreamCatalog(page);
+
+            const trigger = page.getByTestId('playlist-switcher-trigger');
+            const panel = page.locator('app-playlist-switcher-panel');
+            const search = panel.locator('input[role="combobox"]');
+            await expect(playlistSwitcherTitle(page)).toContainText(
+                xtreamAName
             );
+
+            await page.keyboard.press('ControlOrMeta+p');
+            await expect(search).toBeFocused();
+            // No list shows a credential: the Xtream row names the account
+            // on purpose, never its password.
+            await expect(panel).not.toContainText(defaultXtreamPassword);
+            await expect(panel).not.toContainText('password=');
+
+            await page.keyboard.type('switcher-local');
+            await expect(switcherOptions(page)).toHaveCount(2);
+            // A search highlights its first match; ↓ moves on, ↑ wraps.
+            const options = switcherOptions(page);
+            const firstId = (await options.nth(0).getAttribute('id')) ?? '';
+            const secondId = (await options.nth(1).getAttribute('id')) ?? '';
+            await expect(search).toHaveAttribute(
+                'aria-activedescendant',
+                firstId
+            );
+            await page.keyboard.press('ArrowDown');
+            await expect(search).toHaveAttribute(
+                'aria-activedescendant',
+                secondId
+            );
+            await page.keyboard.press('ArrowDown');
+            await expect(search).toHaveAttribute(
+                'aria-activedescendant',
+                firstId
+            );
+            await page.keyboard.press('ArrowUp');
+            await expect(search).toHaveAttribute(
+                'aria-activedescendant',
+                secondId
+            );
+            const targetName =
+                (
+                    await options
+                        .nth(1)
+                        .locator('.source-row__name')
+                        .textContent()
+                )?.trim() ?? '';
+            await page.keyboard.press('Enter');
+
+            await expect(panel).toHaveCount(0);
+            await waitForM3uCatalog(page);
+            await expect(playlistSwitcherTitle(page)).toContainText(targetName);
+
+            // Escape closes and puts focus back on the trigger.
+            await page.keyboard.press('ControlOrMeta+p');
+            await expect(search).toBeFocused();
+            await page.keyboard.press('Escape');
+            await expect(panel).toHaveCount(0);
+            await expect(trigger).toBeFocused();
+
+            // In a short window only the list shrinks and scrolls; the
+            // search field and the type filter keep their height.
+            const viewport = page.viewportSize();
+            await page.setViewportSize({
+                width: viewport?.width ?? 1280,
+                height: 320,
+            });
+            await page.keyboard.press('ControlOrMeta+p');
+            await expect(search).toBeFocused();
+            const chrome = await panel.evaluate((host) => {
+                const height = (element: Element | null) =>
+                    element?.getBoundingClientRect().height ?? 0;
+                const list = host.querySelector('.switcher__list');
+                return {
+                    search: height(host.querySelector('.switcher__search')),
+                    toggles: Array.from(
+                        host.querySelectorAll('.mat-button-toggle'),
+                        height
+                    ),
+                    listScrolls:
+                        !!list && list.scrollHeight > list.clientHeight,
+                };
+            });
+            expect(chrome.search, JSON.stringify(chrome)).toBeCloseTo(36, 0);
+            expect(chrome.toggles.length, JSON.stringify(chrome)).toBe(3);
+            for (const toggle of chrome.toggles) {
+                expect(toggle, JSON.stringify(chrome)).toBeGreaterThanOrEqual(
+                    30
+                );
+            }
+            expect(chrome.listScrolls, JSON.stringify(chrome)).toBe(true);
+            await page.keyboard.press('Escape');
+            await expect(panel).toHaveCount(0);
+            if (viewport) await page.setViewportSize(viewport);
+
+            // A delete from the keyboard: the popover closes, since its
+            // focus trap would keep Tab from Undo; Undo takes the focus and
+            // gives it back to the trigger.
+            await page.keyboard.press('ControlOrMeta+p');
+            await expect(search).toBeFocused();
+            await page.keyboard.press('ArrowDown');
+            await page.keyboard.press('Shift+F10');
+            const rowMenu = await waitForMenuFocus(page);
+            await page.keyboard.press('End');
+            await expect(
+                rowMenu.getByRole('menuitem', { name: /Remove/ })
+            ).toBeFocused();
+            await page.keyboard.press('Enter');
+            await expect(panel).toHaveCount(0);
+            const undo = page.locator('.source-removal-toast__undo');
+            await expect(undo).toBeFocused();
+            await page.keyboard.press('Enter');
+            await expect(undo).toHaveCount(0);
+            await expect(trigger).toBeFocused();
+
+            await openSources(page);
+            await expect(
+                page.locator('app-workspace-sources app-source-row')
+            ).toHaveCount(3);
+            await expect(
+                page.locator('app-workspace-sources')
+            ).not.toContainText(defaultXtreamPassword);
         } finally {
             await closeElectronApp(app);
         }
@@ -446,12 +600,12 @@ test.describe('Electron Playlist Switcher', () => {
 });
 
 async function openPlaylistSwitcher(page: Page): Promise<void> {
-    await page
-        .locator('app-playlist-switcher .playlist-switcher-trigger')
-        .click();
-    await expect(
-        page.locator('.cdk-overlay-pane .playlist-item').first()
-    ).toBeVisible();
+    await page.getByTestId('playlist-switcher-trigger').click();
+    await expect(switcherOptions(page).first()).toBeVisible();
+}
+
+function switcherOptions(page: Page) {
+    return page.locator('app-playlist-switcher-panel [role="option"]');
 }
 
 async function switchPlaylistFromHeader(
@@ -459,16 +613,11 @@ async function switchPlaylistFromHeader(
     title: string
 ): Promise<void> {
     await openPlaylistSwitcher(page);
-    const item = page
-        .locator('.cdk-overlay-pane .playlist-item')
-        .filter({ hasText: title })
-        .first();
+    const item = switcherOptions(page).filter({ hasText: title }).first();
 
     await expect(item).toBeVisible();
     await item.click();
-    await expect(page.locator('.cdk-overlay-pane .playlist-item')).toHaveCount(
-        0
-    );
+    await expect(page.locator('app-playlist-switcher-panel')).toHaveCount(0);
 }
 
 async function expectPathname(page: Page, pattern: RegExp): Promise<void> {
@@ -503,16 +652,21 @@ async function selectSettingsOption(
 }
 
 async function expectXtreamUnavailableWarning(page: Page): Promise<void> {
-    await expect(
-        page.getByTestId('xtream-offline-warning')
-    ).toBeVisible({ timeout: 20000 });
+    await expect(page.getByTestId('xtream-offline-warning')).toBeVisible({
+        timeout: 20000,
+    });
 }
 
-async function toggleFavoriteForChannel(page: Page, title: string): Promise<void> {
+async function toggleFavoriteForChannel(
+    page: Page,
+    title: string
+): Promise<void> {
     const item = channelItemByTitle(page, title).first();
 
     await expect(item).toBeVisible({ timeout: 20000 });
     await item.hover();
     await item.locator('.favorite-button').first().click();
-    await expect(item.locator('.favorite-button mat-icon').first()).toHaveText(/star/);
+    await expect(item.locator('.favorite-button mat-icon').first()).toHaveText(
+        /star/
+    );
 }

@@ -36,7 +36,10 @@ describe('Electron legacy playlist migration', () => {
         ) as PlaylistsService;
         Object.assign(service, {
             dbService,
-            runtime: { supportsSqlite: true },
+            storageBackend: {
+                kind: () => 'electron',
+                documentStore: () => window.electron,
+            },
             electronMigrationPromise: null,
         });
         return { playlists, dbService, electron, service };

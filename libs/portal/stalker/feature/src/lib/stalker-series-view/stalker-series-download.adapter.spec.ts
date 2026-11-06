@@ -1,4 +1,5 @@
 import type { XtreamSerieEpisode } from '@iptvnator/shared/interfaces';
+import { resolveEpisodeDownload } from '@iptvnator/portal/shared/util';
 import { createStalkerSeriesDownloadAdapter } from './stalker-series-download.adapter';
 
 const EPISODE_POSTER_URL = 'https://images.example.test/stills/the-call.jpg';
@@ -71,10 +72,45 @@ function options(
         seriesId: 50001,
         seriesMode: 'regular-series' as const,
         resolveUrl,
+        resolveLazyUrl: jest
+            .fn()
+            .mockResolvedValue('https://cdn.example.test/lazy.mpg'),
     };
 }
 
 describe('createStalkerSeriesDownloadAdapter', () => {
+    it('keeps download identity and suppresses a false season in new titles', async () => {
+        const adapter = createStalkerSeriesDownloadAdapter(options());
+        const known = adapter.createCandidate(episode(), '2');
+        const unknown = adapter.createCandidate(
+            episode({ seasonUnknown: true }),
+            '2'
+        );
+        expect(unknown?.identity).toEqual(known?.identity);
+        const prepared = await unknown?.prepare();
+        expect(prepared?.title).toBe('Signal House - E03 - The Call');
+        expect(prepared?.metadataSnapshot?.episode?.seasonUnknown).toBe(true);
+    });
+    it('still finds an existing flat collection download with its historical season coordinate', () => {
+        const adapter = createStalkerSeriesDownloadAdapter({
+            ...options(),
+            seriesMode: 'embedded-vod',
+        });
+        const candidate = adapter.createCandidate(
+            episode({ season: 9, seasonUnknown: true }),
+            '9'
+        );
+        if (!candidate) throw new Error('Expected flat episode candidate');
+        const old = {
+            ...candidate.identity,
+            id: 1,
+            status: 'completed' as const,
+        };
+        expect(resolveEpisodeDownload(candidate.identity, [old])).toEqual({
+            kind: 'match',
+            download: old,
+        });
+    });
     it.each([
         ['regular-series', 'stalker-regular-series'],
         ['embedded-vod', 'stalker-embedded-vod'],
@@ -122,7 +158,8 @@ describe('createStalkerSeriesDownloadAdapter', () => {
         const resolveUrl = jest
             .fn()
             .mockResolvedValue('https://cdn.example.test/episode.mpg');
-        const adapter = createStalkerSeriesDownloadAdapter(options(resolveUrl));
+        const config = options(resolveUrl);
+        const adapter = createStalkerSeriesDownloadAdapter(config);
         const first = adapter.createCandidate(
             episode({
                 id: '62001',
@@ -151,8 +188,12 @@ describe('createStalkerSeriesDownloadAdapter', () => {
         await expect(second?.prepare()).resolves.toEqual(
             expect.objectContaining({ xtreamId: 62002 })
         );
-        expect(resolveUrl).toHaveBeenNthCalledWith(1, '/media/file_777.mpg', 3);
-        expect(resolveUrl).toHaveBeenNthCalledWith(2, '/media/file_777.mpg', 3);
+        expect(resolveUrl).not.toHaveBeenCalled();
+        expect(config.resolveLazyUrl).toHaveBeenCalledTimes(2);
+        expect(config.resolveLazyUrl.mock.calls[0][0]).toMatchObject({
+            originalId: '777',
+            id: '62001',
+        });
     });
 
     it('prepares the complete Stalker episode request and versioned snapshot', async () => {
@@ -243,8 +284,9 @@ describe('createStalkerSeriesDownloadAdapter', () => {
             const resolveUrl = jest
                 .fn()
                 .mockResolvedValue('https://cdn.example.test/episode.mpg');
+            const config = options(resolveUrl);
             const candidate = createStalkerSeriesDownloadAdapter(
-                options(resolveUrl)
+                config
             ).createCandidate(
                 episode({
                     id: '63001',
@@ -259,12 +301,18 @@ describe('createStalkerSeriesDownloadAdapter', () => {
             await expect(candidate?.prepare()).resolves.toEqual(
                 expect.objectContaining({ xtreamId: 63001 })
             );
-            expect(resolveUrl).toHaveBeenCalledWith(
-                customSid === 'vod-series'
-                    ? '/media/file_501.mpg'
-                    : originalCmd,
-                7
-            );
+            if (customSid === 'vod-series') {
+                expect(resolveUrl).not.toHaveBeenCalled();
+                expect(config.resolveLazyUrl).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        originalId: '501',
+                        episode_num: 7,
+                    })
+                );
+            } else {
+                expect(resolveUrl).toHaveBeenCalledWith(originalCmd, 7);
+                expect(config.resolveLazyUrl).not.toHaveBeenCalled();
+            }
         }
     );
 

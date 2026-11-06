@@ -1,8 +1,9 @@
 import { inject, Injectable } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { Router } from '@angular/router';
 import { EpgService } from '@iptvnator/epg/data-access';
 import {
+    applyPlaylistEpgImportPreference,
     isDashChannel,
     isDashStreamUrl,
     normalizeEpgUrls,
@@ -32,8 +33,10 @@ import {
     EpgSourceSettingsService,
     PlaylistsService,
     SettingsStore,
+    RuntimeCapabilitiesService,
 } from '@iptvnator/services';
 import {
+    getXtreamContentRoute,
     OPEN_MPV_PLAYER,
     OPEN_VLC_PLAYER,
     Channel,
@@ -72,11 +75,12 @@ export class PlaylistEffects {
     private dataService = inject(DataService);
     private epgService = inject(EpgService);
     private router = inject(Router);
-    private snackBar = inject(MatSnackBar);
+    private snackBar = inject(LazySnackBar);
     private storage = inject(StorageMap);
     private store = inject(Store);
     private translate = inject(TranslateService);
     private settingsStore = inject(SettingsStore);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private epgSources = inject(EpgSourceSettingsService);
     private readonly playlistScopedEpgFetchKeys = new Map<string, string>();
 
@@ -89,11 +93,23 @@ export class PlaylistEffects {
                     this.store.select(selectActivePlaylistId)
                 ),
                 filter(([, , playlistId]) => !!playlistId),
-                switchMap(([, favorites, playlistId]) =>
-                    this.playlistsService.updateFavorites(playlistId, favorites)
-                ),
+                // The toggle, applied to the favorites as stored at write
+                // time: another device's changes to other channels stay, also
+                // when a conflict makes the write run again on a fresh read.
+                mergeMap(([{ channel }, favorites, playlistId]) => {
+                    const added = favorites.includes(channel.url);
+                    return this.playlistsService.transformPlaylistFavorites(
+                        playlistId,
+                        (current) => {
+                            const others = current.filter(
+                                (favorite) => favorite !== channel.url
+                            );
+                            return added ? [...others, channel.url] : others;
+                        }
+                    );
+                }),
                 tap(() => {
-                    this.snackBar.open(
+                    void this.snackBar.open(
                         this.translate.instant('CHANNELS.FAVORITES_UPDATED'),
                         undefined,
                         { duration: 2000 }
@@ -110,10 +126,13 @@ export class PlaylistEffects {
                 ofType(FavoritesActions.setFavorites),
                 withLatestFrom(this.store.select(selectActivePlaylistId)),
                 filter(([, playlistId]) => !!playlistId),
-                switchMap(([action, playlistId]) =>
-                    this.playlistsService.setFavorites(
+                // The new order, applied to the favorites as stored at write
+                // time: another device's additions stay, its removals hold.
+                mergeMap(([action, playlistId]) =>
+                    this.playlistsService.transformPlaylistFavorites(
                         playlistId,
-                        action.channelIds
+                        (current) =>
+                            reorderFavorites(current, action.channelIds)
                     )
                 )
             );
@@ -132,7 +151,7 @@ export class PlaylistEffects {
                     action.program,
                     activeChannel,
                     () =>
-                        this.snackBar.open(
+                        void this.snackBar.open(
                             this.translate.instant(
                                 'EPG.TIMELINE.CATCHUP_FAILED'
                             ),
@@ -261,8 +280,11 @@ export class PlaylistEffects {
 
     loadPlaylists$ = createEffect(() => {
         return this.actions$.pipe(
-            ofType(PlaylistActions.loadPlaylists),
-            switchMap(() =>
+            ofType(
+                PlaylistActions.loadPlaylists,
+                PlaylistActions.loadSharedPlaylists
+            ),
+            switchMap((action) =>
                 defer(() => this.playlistsService.getAllPlaylists()).pipe(
                     // Recreate the storage request once for transient failures.
                     // A final failure is state, not an empty source inventory.
@@ -282,6 +304,10 @@ export class PlaylistEffects {
                     map((playlists) =>
                         PlaylistActions.loadPlaylistsSuccess({
                             playlists,
+                            ...(action.type ===
+                            PlaylistActions.loadSharedPlaylists.type
+                                ? { authoritative: true }
+                                : {}),
                         })
                     ),
                     catchError(() => of(PlaylistActions.loadPlaylistsFailure()))
@@ -342,11 +368,12 @@ export class PlaylistEffects {
                 ofType(PlaylistActions.updatePlaylist),
                 switchMap((action) =>
                     persistPlaylistUpdate(this.playlistsService, action).pipe(
-                        tap(() => {
-                            this.fetchPlaylistScopedEpg(action.playlist, {
-                                force: action.refreshEpg === true,
-                            });
-                        })
+                        tap((persisted) =>
+                            this.publishRefresh(
+                                persisted,
+                                action.refreshEpg === true
+                            )
+                        )
                     )
                 )
             );
@@ -359,12 +386,19 @@ export class PlaylistEffects {
             ofType(PlaylistActions.parsePlaylist),
             mergeMap((action) =>
                 from(
-                    this.playlistsService.handlePlaylistParsing(
-                        action.uploadType,
-                        action.playlist,
-                        action.title,
-                        action.path
-                    )
+                    this.playlistsService
+                        .handlePlaylistParsing(
+                            action.uploadType,
+                            action.playlist,
+                            action.title,
+                            action.path
+                        )
+                        .then((playlist) =>
+                            applyPlaylistEpgImportPreference(
+                                playlist,
+                                action.autoImportEpg
+                            )
+                        )
                 )
             ),
             map((playlist) =>
@@ -395,9 +429,36 @@ export class PlaylistEffects {
                     return this.playlistsService
                         .addPlaylist(action.playlist)
                         .pipe(
-                            tap(() => {
-                                this.fetchPlaylistScopedEpg(action.playlist);
-                                this.navigateToPlaylist(action.playlist);
+                            tap((saved) => {
+                                const playlist = saved as Playlist;
+                                this.fetchPlaylistScopedEpg(playlist);
+                                this.navigateToPlaylist(playlist);
+                                if (playlist._id !== action.playlist._id) {
+                                    this.store.dispatch(
+                                        PlaylistActions.playlistRemovalCommitted(
+                                            { playlistId: action.playlist._id }
+                                        )
+                                    );
+                                }
+                                if (
+                                    playlist.sourceSyncBase ||
+                                    playlist._id !== action.playlist._id
+                                ) {
+                                    this.store.dispatch(
+                                        PlaylistActions.loadSharedPlaylists()
+                                    );
+                                }
+                            }),
+                            catchError(() => {
+                                this.store.dispatch(
+                                    PlaylistActions.playlistRemovalCommitted({
+                                        playlistId: action.playlist._id,
+                                    })
+                                );
+                                this.store.dispatch(
+                                    PlaylistActions.loadPlaylists()
+                                );
+                                return EMPTY;
                             })
                         );
                 })
@@ -410,6 +471,14 @@ export class PlaylistEffects {
         () => {
             return this.actions$.pipe(
                 ofType(PlaylistActions.updatePlaylistMeta),
+                tap((action) => {
+                    if (
+                        action.persist === false &&
+                        this.hasPlaylistScopedEpgSourceChange(action.playlist)
+                    ) {
+                        this.fetchPlaylistScopedEpg(action.playlist);
+                    }
+                }),
                 filter((action) => action.persist !== false),
                 switchMap((action) =>
                     this.playlistsService
@@ -469,7 +538,7 @@ export class PlaylistEffects {
                         .pipe(
                             tap((persisted) => {
                                 persisted.forEach((playlist) =>
-                                    this.fetchPlaylistScopedEpg(playlist)
+                                    this.publishRefresh(playlist)
                                 );
                             })
                         )
@@ -509,7 +578,15 @@ export class PlaylistEffects {
 
     private navigateToPlaylist(playlist: Playlist): void {
         if (playlist.serverUrl) {
-            void this.router.navigate(['/workspace', 'xtreams', playlist._id]);
+            const section = this.runtime.supportsXtreamSqliteDataSource
+                ? getXtreamContentRoute(playlist.xtreamContentTypes)
+                : null;
+            void this.router.navigate([
+                '/workspace',
+                'xtreams',
+                playlist._id,
+                ...(section ? [section] : []),
+            ]);
             return;
         }
 
@@ -519,6 +596,17 @@ export class PlaylistEffects {
         }
 
         void this.router.navigate(['/workspace', 'playlists', playlist._id]);
+    }
+
+    private publishRefresh(playlist: Playlist, force = false): void {
+        if (playlist.playlist)
+            this.store.dispatch(
+                PlaylistActions.hydrateSharedPlaylist({
+                    playlistId: playlist._id,
+                    playlist,
+                })
+            );
+        this.fetchPlaylistScopedEpg(playlist, { force });
     }
 
     private fetchPlaylistScopedEpg(
@@ -581,4 +669,18 @@ export class PlaylistEffects {
     private getGlobalEpgUrls(): string[] {
         return normalizeEpgUrls(this.settingsStore.getSettings().epgUrl ?? []);
     }
+}
+
+/**
+ * `current` in the order of `order`: entries `order` no longer has stay out
+ * of its part, entries it never had (added elsewhere) follow it.
+ */
+export function reorderFavorites<T>(
+    current: readonly T[],
+    order: readonly T[]
+): T[] {
+    const present = new Set(current);
+    const ordered = order.filter((id) => present.has(id));
+    const placed = new Set(ordered);
+    return [...ordered, ...current.filter((id) => !placed.has(id))];
 }

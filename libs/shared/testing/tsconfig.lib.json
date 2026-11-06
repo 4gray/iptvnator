@@ -1,0 +1,21 @@
+{
+    "extends": "../../../tsconfig.base.json",
+    "compilerOptions": {
+        "module": "commonjs",
+        "moduleResolution": "node",
+        "outDir": "../../../dist/out-tsc",
+        "declaration": true,
+        "types": [
+            "node"
+        ],
+        "ignoreDeprecations": "6.0"
+    },
+    "files": [],
+    "include": [
+        "src/**/*.ts"
+    ],
+    "exclude": [
+        "src/**/*.spec.ts",
+        "src/**/*.test.ts"
+    ]
+}

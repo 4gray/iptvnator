@@ -12,7 +12,10 @@ import { Router, RouterLink } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
-import { PlaylistInfoComponent } from '@iptvnator/playlist/shared/ui';
+import {
+    PlaylistInfoComponent,
+    playlistInfoDialogConfig,
+} from '@iptvnator/playlist/shared/ui';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     PlaylistDeleteActionService,
@@ -25,7 +28,7 @@ import { DialogService } from '@iptvnator/ui/components';
     selector: 'app-playlist-error-view',
     templateUrl: './playlist-error-view.component.html',
     styleUrls: ['./playlist-error-view.component.scss'],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [MatButtonModule, MatIconModule, RouterLink, TranslateModule],
 })
 export class PlaylistErrorViewComponent {
@@ -50,9 +53,12 @@ export class PlaylistErrorViewComponent {
     );
 
     openPlaylistDetails() {
-        this.dialog.open(PlaylistInfoComponent, {
-            data: this.currentPlaylist(),
-        });
+        const playlist = this.currentPlaylist();
+        if (!playlist) return;
+        this.dialog.open(
+            PlaylistInfoComponent,
+            playlistInfoDialogConfig(playlist)
+        );
     }
 
     removeClicked(): void {

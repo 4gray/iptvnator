@@ -160,6 +160,21 @@ Screenshots come only from the capture script running against the mock servers.
 Never publish one taken from a real playlist or account — streams, logos and
 metadata are copyrighted, and credentials must never reach a published image.
 
+For the release 0.25 dashboard and detail showcase, run
+`pnpm release:screenshots --cinematic --release v0-25` after the standard
+capture. This overlays four screenshot pairs using committed original artwork
+and a synthetic offline metadata cache. The default capture keeps enrichment
+disabled; the explicit preset accepts only its invalid fixture key and retains
+the external-request and personal-database guards. Saved prompts, the interactive
+`pnpm demo:cinematic` / `pnpm demo:cinematic:live` launchers and validation commands are in the
+[cinematic demo guide](../development/cinematic-demo.md).
+
+`pnpm release:preview:themes` additionally composes the saved dark/light
+dashboard captures into a diagonal theme comparison for README or release
+previews. It writes lossless PNG/WebP files and source hashes to the release's
+`previews/` directory, preserving the captured screenshots and README. This is
+a local image-composition command; it starts no app, remote image API or CI job.
+
 The same script also produces the evergreen screenshots of the website guides.
 Manifest shots that carry `"group": "guides"` are skipped by a release run and
 captured only with `pnpm release:screenshots --group guides`, which publishes
@@ -253,6 +268,16 @@ value correctly would be a standing trap.
 An asset no rule claims is reported as a `NOTE:` and does **not** fail the run:
 a new build target should surface for a human to notice, not block a release
 until the rules catch up.
+
+## Linux CI package installation
+
+The Linux packaging dependency step replaces the runner's Ubuntu `mirror+file`
+source with the official HTTPS archive, preserving suites, components and signing
+keys. This avoids returning to a stalled Azure mirror during index downloads.
+APT requests use a 30-second timeout and one retry. The update must succeed for
+every source (`--error-on=any`) before installation starts; update and install
+have independent five- and ten-minute process limits with a ten-second kill
+grace period. Packaging and test gates remain unchanged.
 
 ## AppImage external-manager metadata
 

@@ -1,0 +1,11 @@
+{
+    "name": "tv-util",
+    "projectType": "library",
+    "sourceRoot": "libs/tv/util/src",
+    "tags": ["scope:tv", "domain:tv", "type:util"],
+    "targets": {
+        "lint": {
+            "command": "eslint \"libs/tv/util/**/*.{ts,tsx}\""
+        }
+    }
+}

@@ -1,7 +1,8 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { TranslateService } from '@ngx-translate/core';
-import { Subject } from 'rxjs';
+import { EMPTY, Subject } from 'rxjs';
+import { isPortalPlaybackWatched } from '@iptvnator/portal/shared/util';
 import type {
     PlaybackPositionData,
     PortalActivityItem,
@@ -24,15 +25,15 @@ import type { DashboardLiveEpgDetails } from './dashboard-live-epg.utils';
 
 const series: PortalRecentItem = {
     id: 1,
-    title: 'Big Pharma',
+    title: 'Synthetic Series Beta',
     type: 'movie',
     watch_kind: 'series',
     source: 'stalker',
     playlist_id: 'p1',
-    playlist_name: 'rucolor',
+    playlist_name: 'Synthetic portal',
     category_id: '1',
     xtream_id: 11,
-    poster_url: 'https://img/pharma-poster.jpg',
+    poster_url: 'https://images.example.test/pharma-poster.jpg',
     viewed_at: '2026-09-02',
 };
 const watchedMovie: PortalRecentItem = {
@@ -45,18 +46,18 @@ const watchedMovie: PortalRecentItem = {
 };
 const channel: PortalFavoriteItem = {
     id: 3,
-    title: 'Match TV',
+    title: 'Synthetic Sports',
     type: 'live',
     source: 'xtream',
     playlist_id: 'p2',
     category_id: '5',
     xtream_id: 33,
-    poster_url: 'https://img/match-logo.png',
+    poster_url: 'https://images.example.test/match-logo.png',
     added_at: '2026-08-01',
 };
 const favoriteFilm: PortalFavoriteItem = {
     id: 4,
-    title: 'Burnley',
+    title: 'Synthetic Film Gamma',
     type: 'series',
     source: 'xtream',
     playlist_id: 'p2',
@@ -74,7 +75,7 @@ const import1: PortalAddedItem = {
     playlist_id: 'p3',
     category_id: '2',
     xtream_id: 55,
-    backdrop_url: 'https://img/parallel-wide.jpg',
+    backdrop_url: 'https://images.example.test/parallel-wide.jpg',
     added_at: '2026-09-03',
 };
 
@@ -99,6 +100,7 @@ describe('DashboardHeroSlidesPresenter', () => {
     let favoritesLoading: ReturnType<typeof signal<boolean>>;
     let addedLoading: ReturnType<typeof signal<boolean>>;
     let liveAwaiting: ReturnType<typeof signal<boolean>>;
+    let positionsSettled: ReturnType<typeof signal<boolean>>;
     const positions = new Map<string | number, PlaybackPositionData>([
         [
             1,
@@ -136,6 +138,17 @@ describe('DashboardHeroSlidesPresenter', () => {
                         globalRecentItems: recentItems,
                         globalRecentVodItems: () =>
                             recentItems().filter((i) => i.type !== 'live'),
+                        continueWatchingSettled: () => positionsSettled(),
+                        continueWatchingItems: () =>
+                            positionsSettled()
+                                ? recentItems().filter(
+                                      (i) =>
+                                          i.type !== 'live' &&
+                                          !isPortalPlaybackWatched(
+                                              positions.get(i.id) ?? null
+                                          )
+                                  )
+                                : [],
                         globalFavoriteItems: favorites,
                         xtreamRecentlyAddedItems: addedItems,
                         getPlaybackPositionForItem: (
@@ -187,6 +200,8 @@ describe('DashboardHeroSlidesPresenter', () => {
                     provide: TranslateService,
                     useValue: {
                         onLangChange: new Subject(),
+                        onDefaultLangChange: EMPTY,
+                        onTranslationChange: EMPTY,
                         instant: (key: string, params?: object) =>
                             params ? `${key} ${JSON.stringify(params)}` : key,
                     },
@@ -209,19 +224,69 @@ describe('DashboardHeroSlidesPresenter', () => {
         favoritesLoading = signal(false);
         addedLoading = signal(false);
         liveAwaiting = signal(false);
+        positionsSettled = signal(true);
     });
 
     afterEach(() => {
         jest.useRealTimers();
     });
 
+    it('leaves unavailable saved films in the collection rather than promoting them to a playable hero', () => {
+        favorites.set([{ ...favoriteFilm, catalogStatus: 'missing' }]);
+        expect(
+            create()
+                .slides()
+                .some((slide) => slide.kind === 'favorite')
+        ).toBe(false);
+    });
+
+    it.each([false, true])(
+        'excludes unavailable history from resume and fallback hero inputs (watched: %s)',
+        (watched) => {
+            recentItems.set([
+                {
+                    ...(watched ? watchedMovie : series),
+                    source: 'xtream',
+                    catalogStatus: 'missing',
+                },
+            ]);
+            favorites.set([]);
+            addedItems.set([]);
+            candidates.set([]);
+            tmdbEnabled.set(true);
+            const presenter = create();
+            TestBed.tick();
+            expect(presenter.slides()).toEqual([]);
+            expect(getExtras).not.toHaveBeenCalled();
+        }
+    );
+
+    it('does not look up or reserve a hero slot for an unavailable live candidate', () => {
+        candidates.set([
+            {
+                origin: 'favorite',
+                item: { ...channel, catalogStatus: 'missing' },
+            },
+        ]);
+        favorites.set([
+            favoriteFilm,
+            { ...favoriteFilm, id: 40, xtream_id: 400, title: 'Another film' },
+        ]);
+        const presenter = create();
+        expect(presenter.slides()).toHaveLength(4);
+        expect(presenter.slides().some((slide) => slide.kind === 'live')).toBe(
+            false
+        );
+        expect(liveDetails).not.toHaveBeenCalled();
+    });
+
     it('builds the rotation from resume, live, favourite and import slides', () => {
         const slides = create().slides();
 
         expect(slides.map((slide) => [slide.kind, slide.title])).toEqual([
-            ['continue', 'Big Pharma'],
-            ['live', 'Match TV'],
-            ['favorite', 'Burnley'],
+            ['continue', 'Synthetic Series Beta'],
+            ['live', 'Synthetic Sports'],
+            ['favorite', 'Synthetic Film Gamma'],
             ['added', 'Parallel Stories'],
         ]);
         // A (nearly) finished film is not something to continue.
@@ -233,7 +298,9 @@ describe('DashboardHeroSlidesPresenter', () => {
     it('drops a season marker from a series title and leaves movies and live titles alone', () => {
         // The rotation holds four slides: only the series, the live channel
         // and a favorite movie compete here (the finished film never does).
-        recentItems.set([{ ...series, title: 'Big Pharma (1 сезон)' }]);
+        recentItems.set([
+            { ...series, title: 'Synthetic Series Beta (1 сезон)' },
+        ]);
         favorites.set([
             { ...favoriteFilm, id: 9, type: 'movie', title: 'Film Season 2' },
         ]);
@@ -243,8 +310,8 @@ describe('DashboardHeroSlidesPresenter', () => {
         ]);
         const presenter = create();
         const titles = presenter.slides().map((slide) => slide.title);
-        expect(titles).toContain('Big Pharma');
-        expect(titles).not.toContain('Big Pharma (1 сезон)');
+        expect(titles).toContain('Synthetic Series Beta');
+        expect(titles).not.toContain('Synthetic Series Beta (1 сезон)');
         expect(titles).toContain('Film Season 2');
         expect(titles).toContain('Sport S01');
     });
@@ -253,13 +320,15 @@ describe('DashboardHeroSlidesPresenter', () => {
         // A favorite with no playback row: the marker is the only thing
         // telling two per-season catalog entries of the show apart.
         recentItems.set([]);
-        favorites.set([{ ...favoriteFilm, title: 'Burnley (2 сезон)' }]);
+        favorites.set([
+            { ...favoriteFilm, title: 'Synthetic Film Gamma (2 сезон)' },
+        ]);
         addedItems.set([]);
         candidates.set([]);
         const [slide] = create().slides();
 
         expect(slide.episodeBadge).toBeNull();
-        expect(slide.title).toBe('Burnley (2 сезон)');
+        expect(slide.title).toBe('Synthetic Film Gamma (2 сезон)');
     });
 
     it('resumes an unfinished series and offers a detail-only way in', () => {
@@ -270,7 +339,7 @@ describe('DashboardHeroSlidesPresenter', () => {
             reasonLabelKey: 'WORKSPACE.DASHBOARD.CONTINUE_WATCHING',
             episodeBadge:
                 'WORKSPACE.DASHBOARD.SEASON_EPISODE_BADGE {"season":1,"episode":3}',
-            source: 'rucolor',
+            source: 'Synthetic portal',
             progress: 33,
             // No 16:9 backdrop: the poster becomes the blurred stage.
             backdropSource: 'poster',
@@ -347,7 +416,9 @@ describe('DashboardHeroSlidesPresenter', () => {
             year: 2024,
         };
         getExtras.mockImplementation((item: PortalActivityItem) =>
-            Promise.resolve(item.title === 'Big Pharma' ? extras : null)
+            Promise.resolve(
+                item.title === 'Synthetic Series Beta' ? extras : null
+            )
         );
         const presenter = create();
         TestBed.tick();
@@ -375,7 +446,7 @@ describe('DashboardHeroSlidesPresenter', () => {
         tmdbEnabled.set(true);
         getExtras.mockImplementation((item: PortalActivityItem) =>
             Promise.resolve(
-                item.title === 'Big Pharma'
+                item.title === 'Synthetic Series Beta'
                     ? {
                           backdropUrl: null,
                           rating: '7.5',
@@ -423,7 +494,9 @@ describe('DashboardHeroSlidesPresenter', () => {
 
     it('falls back to the generated stage when an image fails to load', () => {
         const presenter = create();
-        presenter.markImageFailed('https://img/pharma-poster.jpg');
+        presenter.markImageFailed(
+            'https://images.example.test/pharma-poster.jpg'
+        );
 
         expect(presenter.slides()[0]).toMatchObject({
             backdropUrl: undefined,
@@ -477,6 +550,26 @@ describe('DashboardHeroSlidesPresenter', () => {
         addedLoading.set(true);
 
         expect(create().loading()).toBe(false);
+    });
+
+    it('keeps the skeleton until playback positions tell finished titles apart', () => {
+        // History only: until the positions arrive the newest row could be a
+        // finished title, so neither a resume slide nor the history fallback
+        // may stand in for the slide that follows.
+        recentItems.set([watchedMovie, series]);
+        favorites.set([]);
+        candidates.set([]);
+        addedItems.set([]);
+        positionsSettled.set(false);
+        const presenter = create();
+        expect(presenter.slides()).toEqual([]);
+        expect(presenter.loading()).toBe(true);
+
+        positionsSettled.set(true);
+        expect(
+            presenter.slides().map((slide) => [slide.kind, slide.title])
+        ).toEqual([['continue', 'Synthetic Series Beta']]);
+        expect(presenter.loading()).toBe(false);
     });
 
     describe('with a live channel as the only candidate', () => {

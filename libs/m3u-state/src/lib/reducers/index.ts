@@ -3,7 +3,6 @@ import { initialState, PlaylistState } from '../state';
 import { channelReducers } from './channel.reducers';
 import { epgReducers } from './epg.reducers';
 import { favoritesReducers } from './favorites.reducers';
-import { filterReducers } from './filter.reducers';
 import { playlistReducers } from './playlist.reducers';
 
 export const playlistReducer = createReducer(
@@ -11,8 +10,7 @@ export const playlistReducer = createReducer(
     ...epgReducers,
     ...channelReducers,
     ...playlistReducers,
-    ...favoritesReducers,
-    ...filterReducers
+    ...favoritesReducers
 );
 
 // Selectors

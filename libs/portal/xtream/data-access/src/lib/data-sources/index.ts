@@ -1,4 +1,4 @@
-import { inject, Provider } from '@angular/core';
+import { inject, Injector, Provider } from '@angular/core';
 import {
     PLAYLIST_DELETE_CLEANUP,
     RuntimeCapabilitiesService,
@@ -34,13 +34,15 @@ export function xtreamDataSourceFactory(): IXtreamDataSource {
  * Provider for the Xtream data source.
  * Add this to your app providers to enable the data source abstraction.
  */
-export function provideXtreamDataSource(): Provider[] {
+export function provideXtreamDataSource(
+    factory: () => IXtreamDataSource = xtreamDataSourceFactory
+): Provider[] {
     return [
         ElectronXtreamDataSource,
         PwaXtreamDataSource,
         {
             provide: XTREAM_DATA_SOURCE,
-            useFactory: xtreamDataSourceFactory,
+            useFactory: factory,
         },
         {
             provide: PLAYLIST_DELETE_CLEANUP,
@@ -48,13 +50,18 @@ export function provideXtreamDataSource(): Provider[] {
             useFactory: () => {
                 const dataSource = inject(XTREAM_DATA_SOURCE);
                 const runtime = inject(RuntimeCapabilitiesService);
+                const injector = inject(Injector);
 
-                return (playlistId: string) => {
+                return async (playlistId: string) => {
                     if (runtime.supportsXtreamSqliteDataSource) {
-                        // Electron playlist deletion must use DatabaseService so
-                        // SQLite content and sidecars are cleaned together; do
-                        // not invoke this cleanup path through PlaylistsService.
-                        return Promise.resolve();
+                        // Authoritative playlist deletion already removed SQLite rows.
+                        // Remove only the dormant renderer-side restore record here.
+                        const { XtreamDeferredCatalogRestoreService } =
+                            await import('./xtream-deferred-restore');
+                        injector
+                            .get(XtreamDeferredCatalogRestoreService)
+                            .clear(playlistId);
+                        return;
                     }
 
                     return dataSource.deletePlaylist(playlistId);

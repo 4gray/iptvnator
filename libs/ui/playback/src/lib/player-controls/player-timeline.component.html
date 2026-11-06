@@ -1,12 +1,15 @@
+@let position = formatTime(timeline().value());
+@let positionTitle = timeline().segmentTitle();
 <span class="player-controls__time player-controls__time--current">{{
-    formatTime(timeline().value())
+    position
 }}</span>
 @if (seekable()) {
     <div
+        #bar
         class="player-controls__timeline-bar"
         [class.player-controls__timeline-bar--disabled]="!canSeek()"
-        (pointermove)="hover().move($event)"
-        (pointerleave)="hover().clear()"
+        (pointermove)="label().move($event)"
+        (pointerleave)="label().clear()"
     >
         <div class="player-controls__timeline-track" aria-hidden="true">
             @for (segment of timeline().segments(); track $index) {
@@ -24,6 +27,12 @@
                         [style.width.%]="timeline().fillPercent(segment)"
                     ></div>
                 </div>
+                @if (segment.separatorLeft; as separatorLeft) {
+                    <div
+                        class="player-controls__timeline-separator"
+                        [style.left]="separatorLeft"
+                    ></div>
+                }
             }
         </div>
         @if (canSeek()) {
@@ -33,19 +42,33 @@
                 aria-hidden="true"
             ></div>
         }
-        @if (hover().percent() !== null) {
+        @if (label().markerPercent() !== null) {
             <div
                 class="player-controls__timeline-marker"
-                [style.left.%]="hover().percent()"
+                [style.left.%]="label().markerPercent()"
                 aria-hidden="true"
             ></div>
+        }
+        @if (label().text(); as text) {
             <div
+                #labelElement
                 class="player-controls__timeline-label"
-                [style.--hover-x.%]="hover().percent()"
+                [style.--anchor-x.%]="label().percent()"
                 data-test-id="player-controls-timeline-label"
                 aria-hidden="true"
             >
-                {{ hover().label() }}
+                @if (text.title) {
+                    <span
+                        class="player-controls__timeline-label-title"
+                        data-test-id="player-controls-timeline-label-title"
+                        >{{ text.title }}</span
+                    >
+                }
+                <span
+                    class="player-controls__timeline-label-time"
+                    data-test-id="player-controls-timeline-label-time"
+                    >{{ text.time }}</span
+                >
             </div>
         }
         <input
@@ -59,7 +82,15 @@
             [attr.aria-label]="
                 'EMBEDDED_MPV.PLAYER.PLAYBACK_POSITION' | translate
             "
-            [attr.aria-valuetext]="formatTime(timeline().value())"
+            [attr.aria-valuetext]="
+                positionTitle
+                    ? ('EMBEDDED_MPV.PLAYER.TIMELINE_SEGMENT_POSITION'
+                      | translate: { title: positionTitle, time: position })
+                    : position
+            "
+            (focus)="label().focus($event)"
+            (blur)="label().blur()"
+            (keydown)="label().keydown($event)"
             (input)="scrubInput.emit($event)"
             (change)="scrubCommit.emit($event)"
         />
@@ -76,13 +107,19 @@
 } @else if (isLive()) {
     <span
         class="player-controls__live-badge"
+        role="img"
         [attr.aria-label]="'EMBEDDED_MPV.PLAYER.LIVE_STREAM' | translate"
     >
         <span class="player-controls__live-dot" aria-hidden="true"></span>
-        LIVE
+        {{ 'EMBEDDED_MPV.PLAYER.LIVE_BADGE' | translate }}
     </span>
 } @else {
-    <span class="player-controls__time player-controls__time--end">--:--</span>
+    <span
+        class="player-controls__time player-controls__time--end"
+        role="img"
+        [attr.aria-label]="'EMBEDDED_MPV.PLAYER.DURATION_UNKNOWN' | translate"
+        >{{ unknownTime }}</span
+    >
 }
 @if (recordingStatus(); as status) {
     <div

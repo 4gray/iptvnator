@@ -10,15 +10,21 @@ Related architecture docs:
 
 ## Overview
 
+All paths below honor the global `Settings.epgEnabled` opt-out. When off, bulk
+and short guide requests, mappings and previews are skipped and programme UI is
+hidden. Preference changes retire cached/pending answers; channel artwork from
+the portal is preserved. The shared contract is in
+[Global EPG preference](m3u-playlist-module.md#global-epg-preference).
+
 Stalker now uses two EPG paths with different purposes:
 
 - The active channel EPG panel uses `get_epg_info` as a bulk endpoint, fetches a
   7-day window once per playlist session, caches programs by channel id, and
   renders the selected channel through the shared `app-epg-timeline` component.
-- Channel rows read the bulk cache first. The bulk EPG load is triggered
-  **eagerly when a category's channels first render** (a constructor effect in
+- Channel rows and the all-channels overview read the bulk cache first. The bulk EPG load is triggered
+  **eagerly when the overview cache or a category's channels become available** (a constructor effect in
   `StalkerLiveStreamLayoutComponent` calls `ensureBulkItvEpg(168)` once ITV
-  channels are present) — not only after the first channel is played — so the
+  channels or cached overview channels are present) — not only after the first channel is played — so the
   row "now playing" previews and the EPG panel populate immediately. Rows derive
   their current program and progress bar from the cached bulk map; rows the
   settled bulk guide cannot answer fall back to throttled per-channel
@@ -36,6 +42,31 @@ Stalker now uses two EPG paths with different purposes:
 
 This keeps the live list cheap while giving the active panel the same
 date-navigator UI used in the M3U/Xtream flows.
+
+### All-channels overview
+
+Before category selection, the overview offers grid and list presentations of
+the same filtered, windowed channel source. Grid is the default; the validated
+`stalker-itv-overview-view` local-storage preference remembers list/grid without
+affecting the catalogue or EPG cache. Switching modes keeps the query and render
+window and returns the shared scroll pane to the top.
+The overview retains the stream-on-double-click preference without leaving the
+overview on the first pointer click; double-click and keyboard activation always
+request playback explicitly, including for external players.
+
+The overview emits its rendered window to the live layout's existing preview
+pipeline, including mapped-guide ownership and the throttled short-guide
+fallback. Program/progress maps are replaced on updates so the OnPush overview
+receives new references; the same 30-second clock refreshes programme boundaries
+and progress in both presentations. Scrolling reuses the throttled preview
+refresh, rather than creating a second provider queue. Global EPG opt-out hides
+metadata in both modes and keeps the existing no-request behavior.
+
+The overview owns its restore button in header flow; the floating player restore
+is excluded while this view is displayed. The header button also participates in
+the existing panel focus handoff. Loading uses compact 72px-high logo placeholders
+or the shared channel-row skeleton, with matching EPG space and reduced-motion
+support.
 
 ## Architecture
 
@@ -296,10 +327,39 @@ EPG requests follow the standard Stalker request path:
 | Portal type           | Auth path                                          |
 | --------------------- | -------------------------------------------------- |
 | Full Stalker portal   | `StalkerSessionService.makeAuthenticatedRequest()` |
-| Simple Stalker portal | generic IPC request path via Electron              |
+| Simple Stalker portal | `DataService.sendIpcEvent(STALKER_REQUEST)`        |
 
-No EPG-specific backend transport was needed; the Electron Stalker request
-handler forwards portal params directly.
+Both `get_epg_info` and `get_short_epg` are background work and pass
+`{ silent: true }` through `executeStalkerRequest`. Direct and authenticated
+requests, auth renewal (handshake, profile and status-2 login) and portal-repair
+retries retain that option. A repair initiated by a background guide also
+passes it through endpoint discovery and its authentication confirmation. Authentication still coalesces by playlist/session
+identity, not by presentation policy; foreground callers keep their ordinary
+notification policy when they initiate the shared token request. Electron
+and PWA transports still reject failures so bulk/short fallback logic works,
+but do not open error snackbars for each failed preview. Raw authentication
+requests and login orchestration stay in `stalker-auth.api.ts`, with pure
+contracts and helpers in `stalker-auth.types.ts` and `stalker-auth.utils.ts`.
+The collection
+resolver's short-EPG requests use the same option.
+
+No EPG-specific transport exists. `STALKER_REQUEST` goes through the Electron
+Stalker request handler on the desktop and through `PwaService` and the web
+backend's `/stalker` proxy in the browser PWA. EPG actions are not treated
+differently from catalog requests, including by the per-host
+[connectivity guard](./host-connectivity-guard.md).
+
+## Runtime gating
+
+Portal EPG needs only the Stalker transport, so it is gated on
+`RuntimeCapabilitiesService.supportsProviderEpg`: true in the browser PWA and
+in Electron when the `xtreamRequest` and `stalkerRequest` preload methods
+exist. The gate covers `fetchChannelEpg`, `ensureBulkItvEpg`, the layout's
+eager bulk load, row previews, the EPG panel and its empty state
+(`provider-no-epg` means "no transport"), and the collection resolver's
+`loadStalkerEpgItems` / `loadStalkerEpgBatch`. Manual mapping overlays read
+uploaded XMLTV and stay behind `supportsEpgMapping` and `supportsEpg`, so the
+PWA shows the portal EPG without mapping.
 
 ## Fallback Behavior
 
@@ -357,8 +417,8 @@ right-click a channel in the ITV sidebar (or in global favorites) and pick
 - The collection views (global favorites/recent) resolve the same keys in
   `StreamResolverService` (`loadStalkerEpgItems` for the detail panel,
   `loadStalkerEpgBatch` + `prefetchEpgMappings` for row previews).
-- Everything is gated behind `supportsEpgMapping`, so the PWA never shows
-  the menu entry.
+- Everything is gated behind `supportsEpgMapping` (the store overlay also
+  behind `supportsEpg`), so the PWA never shows the menu entry.
 
 ## Future Enhancements
 

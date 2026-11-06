@@ -48,6 +48,7 @@
                     }
                 </app-meta-chip>
             }
+            <app-age-rating-chip [certifications]="info.tmdb_certifications" />
             @if (hero.genreChips().length) {
                 <app-meta-chip>
                     @for (genre of hero.genreChips(); track genre.label) {
@@ -71,9 +72,10 @@
                 </app-meta-chip>
             }
             @if (info.episode_run_time) {
-                <app-meta-chip
-                    >{{ info.episode_run_time }} min/ep</app-meta-chip
-                >
+                <app-meta-chip>{{
+                    'XTREAM.EPISODE_RUN_TIME_MINUTES'
+                        | translate: { minutes: info.episode_run_time }
+                }}</app-meta-chip>
             }
             @for (country of hero.countryChips(); track country.label) {
                 <app-meta-chip>
@@ -140,12 +142,12 @@
                 (pressed)="toggleFavorite()"
             />
             <app-vod-more-menu
+                [tmdbMatch]="tmdbMatch()"
                 [sections]="menu.sections()"
                 [label]="'PORTALS.DETAIL.MORE_ACTIONS' | translate"
                 testId="series-more-menu"
                 (selected)="menu.run($event)"
             />
-            <app-view-in-portal-action />
         </ng-template>
 
         @if (inlinePlayback(); as playback) {
@@ -181,6 +183,9 @@
             [seriesId]="item.series_id"
             [playlistId]="currentPlaylistId()"
             [seriesTitle]="info.name"
+            [seriesDescription]="info.plot"
+            [seriesPosterUrl]="info.cover"
+            [metadataLoading]="seasonMetadataLoading()"
             [playbackPositions]="episodePlaybackPositions()"
             [downloadAdapter]="episodeDownloadAdapter()"
             [downloadsEnabled]="!providerOnly()"
@@ -193,6 +198,7 @@
             [seasonPosters]="seasonPosters()"
             [seasonWatchBatchRunning]="seasonWatchBatchRunning()"
             (episodeClicked)="playEpisode($event)"
+            (episodeRestartRequested)="playEpisodeFromStart($event)"
             (playbackToggleRequested)="handlePlaybackToggleRequested($event)"
             (seasonPlaybackToggleRequested)="
                 handleSeasonPlaybackToggleRequested($event)
@@ -222,5 +228,14 @@
         (backClicked)="goBack()"
     />
 } @else {
-    <app-portal-detail-shell [isLoading]="true" (backClicked)="goBack()" />
+    <app-portal-detail-shell [isLoading]="true" (backClicked)="goBack()">
+        <!-- The episodes section's place under the hero skeleton, so the
+             page does not grow downwards when the series arrives. -->
+        <section detail-episodes data-test-id="episodes-skeleton-section">
+            <app-detail-section-header
+                [title]="'PORTALS.DETAIL.EPISODES' | translate"
+            />
+            <app-episode-skeleton [layout]="savedEpisodeViewMode" [count]="4" />
+        </section>
+    </app-portal-detail-shell>
 }

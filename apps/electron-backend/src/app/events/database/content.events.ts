@@ -36,11 +36,7 @@ handleWorkerRequest(
         kind: 'all' | 'vod' | 'series' = 'all',
         limit = 200,
         playlistType?:
-            | 'xtream'
-            | 'stalker'
-            | 'm3u-file'
-            | 'm3u-text'
-            | 'm3u-url'
+            'xtream' | 'stalker' | 'm3u-file' | 'm3u-text' | 'm3u-url'
     ) => ({
         kind,
         limit,
@@ -58,16 +54,12 @@ ipcMain.handle(
         operationId?: string
     ) => {
         try {
-            return await requestWorkerWithEvents(
-                event,
-                'DB_SAVE_CONTENT',
-                {
-                    playlistId,
-                    streams,
-                    type,
-                    operationId,
-                }
-            );
+            return await requestWorkerWithEvents(event, 'DB_SAVE_CONTENT', {
+                playlistId,
+                streams,
+                type,
+                operationId,
+            });
         } catch (error) {
             console.error('Error handling DB_SAVE_CONTENT:', error);
             throw error;
@@ -88,11 +80,17 @@ handleWorkerRequest(
     (
         xtreamId: number,
         playlistId: string,
-        contentType?: 'live' | 'movie' | 'series'
+        contentType?: 'live' | 'movie' | 'series',
+        identity?: ContentMetadataPatch,
+        categoryId?: number,
+        excludeLocked?: boolean
     ) => ({
         xtreamId,
         playlistId,
         contentType,
+        ...(identity ? { identity } : {}),
+        ...(categoryId !== undefined ? { categoryId } : {}),
+        ...(excludeLocked === true ? { excludeLocked: true } : {}),
     })
 );
 

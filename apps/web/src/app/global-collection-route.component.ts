@@ -1,6 +1,7 @@
 import {
     ChangeDetectionStrategy,
     Component,
+    ComponentRef,
     EnvironmentInjector,
     OnDestroy,
     Type,
@@ -10,12 +11,14 @@ import {
     inject,
     input,
     output,
+    signal,
     untracked,
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import { EmptyStateComponent } from '@iptvnator/playlist/shared/ui';
+import { PortalDetailShellComponent } from '@iptvnator/ui/components';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     UnifiedCollectionDetailDirective,
@@ -64,18 +67,30 @@ function providerToPortalType(provider: PortalProvider): UnifiedPortalType {
 
 @Component({
     selector: 'app-global-collection-detail-host',
-    template: '',
+    imports: [PortalDetailShellComponent],
+    template: `
+        @if (isLoading()) {
+            <app-portal-detail-shell
+                [isLoading]="true"
+                [backAvailable]="false"
+            />
+        }
+    `,
+    styles: ':host { display: contents; }',
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class GlobalCollectionDetailHostComponent implements OnDestroy {
     readonly item = input<UnifiedCollectionItem | null>(null);
     readonly seriesResume = input<SeriesResumeTarget | null>(null);
     readonly closeRequested = output<void>();
+    readonly isLoading = signal(false);
 
     private readonly viewContainer = inject(ViewContainerRef);
     private readonly environmentInjector = inject(EnvironmentInjector);
     private closeSubscription: { unsubscribe(): void } | null = null;
     private renderRequestId = 0;
+    private detailRef: ComponentRef<unknown> | null = null;
+    private detailKey: string | null = null;
 
     constructor() {
         effect(() => {
@@ -97,8 +112,26 @@ export class GlobalCollectionDetailHostComponent implements OnDestroy {
         item: UnifiedCollectionItem | null,
         seriesResume: SeriesResumeTarget | null
     ): Promise<void> {
+        const key = item
+            ? JSON.stringify([
+                  item.sourceType,
+                  item.playlistId,
+                  item.uid,
+                  item.contentType,
+                  item.xtreamIdentity?.tmdbId,
+                  item.xtreamIdentity?.releaseYear,
+              ])
+            : null;
+        if (key && key === this.detailKey && this.detailRef) {
+            this.detailRef.setInput('item', item);
+            this.detailRef.setInput('seriesResume', seriesResume);
+            return;
+        }
         const requestId = ++this.renderRequestId;
         this.clearDetail();
+        this.isLoading.set(
+            item?.sourceType === 'xtream' || item?.sourceType === 'stalker'
+        );
 
         if (!item) {
             return;
@@ -112,11 +145,14 @@ export class GlobalCollectionDetailHostComponent implements OnDestroy {
         const componentRef = this.viewContainer.createComponent(componentType, {
             environmentInjector: this.environmentInjector,
         });
+        this.detailRef = componentRef;
+        this.detailKey = key;
         componentRef.setInput('item', item);
         // Both portal details accept the one-shot resume handoff (Xtream
         // series, Stalker embedded-VOD / lazy is_series shows).
         componentRef.setInput('seriesResume', seriesResume);
         this.subscribeToClose(componentRef.instance);
+        this.isLoading.set(false);
     }
 
     private async loadDetailComponent(
@@ -151,6 +187,8 @@ export class GlobalCollectionDetailHostComponent implements OnDestroy {
     private clearDetail(): void {
         this.closeSubscription?.unsubscribe();
         this.closeSubscription = null;
+        this.detailRef = null;
+        this.detailKey = null;
         this.viewContainer.clear();
     }
 }

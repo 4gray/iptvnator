@@ -6,18 +6,26 @@ import {
     XtreamBackupSourcePin,
 } from './playlist-backup.interface';
 import { PlaybackPositionData } from './playback-position.interface';
+import { normalizeContentMetadataIdentity } from './content-metadata-identity';
+import type { XtreamFavoriteSnapshot } from './xtream-favorite.interface';
 
 export interface XtreamPendingRestoreState {
     hiddenCategories: XtreamBackupHiddenCategory[];
     favorites: XtreamBackupFavoriteItem[];
     recentlyViewed: XtreamBackupRecentlyViewedItem[];
     playbackPositions: PlaybackPositionData[];
+    /** Internal cache recovery leaves live positions authoritative; never exported. */
+    preservePlaybackPositions?: true;
+    /** Internal deferred-generation ownership; never accepted from an archive. */
+    catalogSnapshot?: { key: string; generation: string | null };
     /**
      * Optional: absent from archives and persisted entries written before
      * multi-source existed. The normalizer preserves that absence so restore
      * can distinguish "no opinion" from an authoritative empty collection.
      */
     sourcePins?: XtreamBackupSourcePin[];
+    /** Internal replay receipt; never exported in an archive. */
+    favoritesRestoreId?: string;
 }
 
 export function getXtreamPendingRestoreStorageKey(playlistId: string): string {
@@ -31,11 +39,15 @@ const XTREAM_BACKUP_CATEGORY_TYPES: readonly XtreamBackupCategoryType[] = [
 ];
 
 interface RestoreStateCandidate {
+    collectionItems?: unknown;
     hiddenCategories?: unknown;
     favorites?: unknown;
     recentlyViewed?: unknown;
     playbackPositions?: unknown;
+    preservePlaybackPositions?: unknown;
+    catalogSnapshot?: unknown;
     sourcePins?: unknown;
+    favoritesRestoreId?: unknown;
 }
 
 interface RestoreEntryCandidate {
@@ -135,15 +147,39 @@ export function normalizeXtreamPendingRestoreState(
 
     return {
         hiddenCategories,
-        favorites: withNumericXtreamId<XtreamBackupFavoriteItem>(
-            toArray(candidate.favorites)
+        favorites: normalizeFavorites(
+            candidate.favorites,
+            candidate.collectionItems
         ),
+        ...(typeof candidate.favoritesRestoreId === 'string' &&
+        candidate.favoritesRestoreId.length > 0 &&
+        candidate.favoritesRestoreId.length <= 200
+            ? { favoritesRestoreId: candidate.favoritesRestoreId }
+            : {}),
         recentlyViewed: withNumericXtreamId<XtreamBackupRecentlyViewedItem>(
             toArray(candidate.recentlyViewed)
         ),
         playbackPositions: toArray(candidate.playbackPositions).filter(
             (item): item is PlaybackPositionData => isRecord(item)
         ),
+        ...(candidate.preservePlaybackPositions === true
+            ? { preservePlaybackPositions: true as const }
+            : {}),
+        ...(isRecord(candidate.catalogSnapshot) &&
+        typeof candidate.catalogSnapshot['key'] === 'string' &&
+        (typeof candidate.catalogSnapshot['generation'] === 'string' ||
+            candidate.catalogSnapshot['generation'] === null)
+            ? {
+                  catalogSnapshot: {
+                      key: candidate.catalogSnapshot['key'],
+                      generation:
+                          typeof candidate.catalogSnapshot['generation'] ===
+                          'string'
+                              ? candidate.catalogSnapshot['generation']
+                              : null,
+                  },
+              }
+            : {}),
         // Absent stays ABSENT. Materializing `[]` here would make an older
         // archive — which says nothing about pins — look like one that says
         // "there are none", and restore would clear the user's pins.
@@ -183,4 +219,107 @@ function normalizeSourcePins(value: unknown): XtreamBackupSourcePin[] {
     }
 
     return pins;
+}
+
+/** Allowlisted saved metadata and availability evidence, never a raw provider response. */
+function normalizeFavorites(
+    value: unknown,
+    collectionItems: unknown
+): XtreamBackupFavoriteItem[] {
+    const cache = new Map(
+        toArray(collectionItems)
+            .filter(isRecord)
+            .map((item) => [
+                `${item['type']}:${normalizeXtreamBackupId(item['xtream_id'])}`,
+                item,
+            ])
+    );
+    return withNumericXtreamId<XtreamBackupFavoriteItem>(toArray(value))
+        .filter((item) =>
+            ['live', 'movie', 'series'].includes(item.contentType)
+        )
+        .map((item) => {
+            const snapshot = normalizeFavoriteSnapshot(item.snapshot);
+            const stored = cache.get(`${item.contentType}:${item.xtreamId}`);
+            if (snapshot && !snapshot.catalogStatus && stored) {
+                const identity = normalizeContentMetadataIdentity({
+                    tmdbId: stored['tmdb_id'],
+                    releaseYear: stored['release_year'],
+                });
+                // Old browser archives kept availability only in the optional cache.
+                // Promote it before parking pending state, but never from another identity.
+                if (
+                    (snapshot.tmdbId == null ||
+                        snapshot.tmdbId === identity.tmdbId) &&
+                    (snapshot.releaseYear == null ||
+                        snapshot.releaseYear === identity.releaseYear)
+                )
+                    copySnapshotAvailability(
+                        snapshot,
+                        stored['catalog_status'],
+                        stored['catalog_missing_reason']
+                    );
+            }
+            return {
+                contentType: item.contentType,
+                xtreamId: item.xtreamId,
+                ...(typeof item.addedAt === 'string'
+                    ? { addedAt: item.addedAt }
+                    : {}),
+                ...(item.position === null ||
+                (typeof item.position === 'number' &&
+                    Number.isFinite(item.position))
+                    ? { position: item.position }
+                    : {}),
+                ...(snapshot ? { snapshot } : {}),
+            };
+        });
+}
+
+function normalizeFavoriteSnapshot(
+    value: unknown
+): XtreamFavoriteSnapshot | undefined {
+    if (
+        !isRecord(value) ||
+        typeof value['title'] !== 'string' ||
+        !value['title'].trim()
+    )
+        return undefined;
+    const snapshot: XtreamFavoriteSnapshot = { title: value['title'].trim() };
+    for (const key of ['posterUrl', 'backdropUrl', 'originalTitle'] as const) {
+        const field = value[key];
+        if (typeof field === 'string') snapshot[key] = field;
+        else if (field === null) snapshot[key] = null;
+    }
+    const identity = normalizeContentMetadataIdentity(value);
+    for (const key of ['tmdbId', 'releaseYear'] as const) {
+        const field = value[key];
+        const normalized =
+            typeof field === 'number' || typeof field === 'string'
+                ? identity[key]
+                : undefined;
+        if (normalized !== undefined) snapshot[key] = normalized;
+        else if (field === null) snapshot[key] = null;
+    }
+    copySnapshotAvailability(
+        snapshot,
+        value['catalogStatus'],
+        value['catalogMissingReason']
+    );
+    return snapshot;
+}
+
+function copySnapshotAvailability(
+    snapshot: XtreamFavoriteSnapshot,
+    status: unknown,
+    reason: unknown
+): void {
+    if (status !== 'present' && status !== 'missing' && status !== 'unknown')
+        return;
+    snapshot.catalogStatus = status;
+    if (
+        status === 'missing' &&
+        (reason === 'absent' || reason === 'identity_conflict')
+    )
+        snapshot.catalogMissingReason = reason;
 }

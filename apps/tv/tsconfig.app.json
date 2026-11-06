@@ -1,0 +1,22 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "target": "ES2018",
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "jsx": "react-jsx",
+        "jsxImportSource": "preact",
+        "strict": true,
+        "types": ["vite/client", "node"],
+        "emitDecoratorMetadata": false,
+        "experimentalDecorators": false,
+        "allowSyntheticDefaultImports": true
+    },
+    "include": [
+        "src/**/*",
+        "../../libs/tv/**/*.ts",
+        "../../libs/tv/**/*.tsx",
+        "vite.config.ts"
+    ],
+    "exclude": ["../../libs/tv/testing"]
+}

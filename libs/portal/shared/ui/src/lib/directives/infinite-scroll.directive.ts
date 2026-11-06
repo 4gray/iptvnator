@@ -56,6 +56,8 @@ export class InfiniteScrollDirective {
     /** Identity of the rendered list; a change resets the auto-fill budget. */
     readonly infiniteResetKey = input('');
     readonly infiniteLoadMore = output<void>();
+    /** The render-height guard stopped auto-fill; owners may offer manual paging. */
+    readonly infiniteAutoFillStalled = output<void>();
 
     private isWithinNearEndThreshold = false;
     private autoFillStalls = 0;
@@ -146,6 +148,7 @@ export class InfiniteScrollDirective {
         }
 
         if (this.autoFillStalls >= MAX_AUTO_FILL_STALLS) {
+            this.infiniteAutoFillStalled.emit();
             return;
         }
 

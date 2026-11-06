@@ -25,11 +25,12 @@ import {
 import { EpgService } from '@iptvnator/epg/data-access';
 import {
     epgProviderClockMs,
+    isCatalogUnavailable,
     normalizeDashboardRailsSettings,
     type EpgProgram,
     type PortalActivityItem,
 } from '@iptvnator/shared/interfaces';
-import { SettingsStore } from '@iptvnator/services';
+import { EpgPreferencesService, SettingsStore } from '@iptvnator/services';
 import { normalizeEpgUrls } from '@iptvnator/shared/m3u-utils';
 import {
     buildDashboardPortalLiveEpgKey,
@@ -93,6 +94,7 @@ const emptyAnswer = (scopeKey: string): ScopeAnswer => ({
 export class DashboardLiveEpgPresenter {
     private readonly data = inject(DashboardDataService);
     private readonly epgService = inject(EpgService);
+    private readonly epgPreferences = inject(EpgPreferencesService);
     private readonly settingsStore = inject(SettingsStore);
     /** Xtream/Stalker cards are answered by their portal, not by XMLTV. */
     private readonly portal = inject(DashboardPortalLiveEpgPresenter);
@@ -143,10 +145,12 @@ export class DashboardLiveEpgPresenter {
     );
 
     private readonly lookupGroups = computed(() =>
-        buildLiveEpgLookupGroups(
-            [...this.heroLiveCards(), ...(this.cards()?.() ?? [])],
-            (card) => this.sourceUrlsForCard(card)
-        )
+        !this.epgPreferences.enabled()
+            ? []
+            : buildLiveEpgLookupGroups(
+                  [...this.heroLiveCards(), ...(this.cards()?.() ?? [])],
+                  (card) => this.sourceUrlsForCard(card)
+              )
     );
 
     /** The lookup groups the XMLTV batch below last answered. */
@@ -306,7 +310,8 @@ export class DashboardLiveEpgPresenter {
 
     /** `null` when nothing is known about the card's current programme. */
     detailsFor(card: DashboardRailCard | null): DashboardLiveEpgDetails | null {
-        if (!card) {
+        if (!this.epgPreferences.enabled()) return null;
+        if (!card || isCatalogUnavailable(card)) {
             return null;
         }
         // A portal answer wins. Its `null` ("asked, nothing on air") and
@@ -392,6 +397,7 @@ function buildDashboardLiveEpgCard(
     return {
         id: `hero-live-${item.playlist_id}-${item.xtream_id ?? item.id}`,
         title: item.title,
+        catalogStatus: item.catalogStatus,
         icon: 'live_tv',
         contentType: 'live',
         link: [],

@@ -17,6 +17,9 @@ describe('document language', () => {
         ['by', 'be'],
         ['zhtw', 'zh-TW'],
         ['tr', 'tr'],
+        ['pt', 'pt-BR'],
+        ['pt-PT', 'pt-PT'],
+        ['PT_br', 'pt-BR'],
         ['', 'en'],
         [undefined, 'en'],
     ])('maps %p to <html lang="%s">', (appLanguage, expected) => {

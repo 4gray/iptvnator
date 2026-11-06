@@ -106,7 +106,6 @@ describe('ChannelListContainerComponent', () => {
 
         const route = {
             snapshot: {
-                data: { layout: 'workspace' },
                 paramMap: convertToParamMap({}),
                 queryParamMap: convertToParamMap({}),
                 params: {},
@@ -115,7 +114,6 @@ describe('ChannelListContainerComponent', () => {
             pathFromRoot: [
                 {
                     snapshot: {
-                        data: { layout: 'workspace' },
                         paramMap: convertToParamMap({}),
                         params: {},
                     },

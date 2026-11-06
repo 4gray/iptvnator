@@ -1,12 +1,4 @@
 @media (max-width: 480px) {
-    .no-results-state {
-        padding: 30px 20px;
-
-        .illustration {
-            width: 100px;
-            height: 100px;
-        }
-    }
 
     .no-data-state {
         padding: 40px 20px;
@@ -19,10 +11,6 @@
 }
 
 @media (max-height: 700px) {
-    .no-results-state {
-        padding: 24px 20px;
-        .illustration-container { margin-bottom: 16px; }
-    }
 
     .no-data-state {
         padding: 32px 24px;
@@ -30,12 +18,3 @@
     }
 }
 
-@media (max-height: 550px) {
-    .no-results-state {
-        padding: 16px 20px;
-        .illustration-container { margin-bottom: 12px; }
-        .illustration { width: 80px; height: 80px; }
-        .title { font-size: 1.125rem; }
-        .description { font-size: 0.8125rem; }
-    }
-}

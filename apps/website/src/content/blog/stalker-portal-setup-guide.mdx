@@ -94,8 +94,9 @@ setups, so IPTVnator no longer guesses:
    that address, and if a provider migrates the portal, IPTVnator re-probes once on the
    first failure and repairs the stored connection.
 
-On a full portal the profile also carries your subscription facts, and IPTVnator confirms
-the import with "Portal validated" and the expiry date. A portal that cannot be reached
+On a full portal the profile also carries your subscription facts. When they include an
+expiry date, IPTVnator confirms the import with "Portal validated" and that date; an account
+without a fixed expiry is added without that notice. A portal that cannot be reached
 during the import is still added when the address looks like a panel, with a notice that it
 was added without validation, so a temporarily offline provider does not block you; the next
 successful request completes the setup.

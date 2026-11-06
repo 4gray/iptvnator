@@ -1,15 +1,16 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ElectronBridgeWindowState } from '@iptvnator/shared/interfaces';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { WindowControlsComponent } from './window-controls.component';
 
 describe('WindowControlsComponent', () => {
     let fixture: ComponentFixture<WindowControlsComponent>;
     let stateChangeCallback:
-        | ((state: ElectronBridgeWindowState) => void)
-        | undefined;
+        ((state: ElectronBridgeWindowState) => void) | undefined;
 
     const unsubscribe = jest.fn();
     const electronMock = {
+        showApplicationMenu: jest.fn(),
         getWindowState: jest.fn(),
         onWindowStateChange: jest.fn(),
         minimizeWindow: jest.fn(),
@@ -42,8 +43,22 @@ describe('WindowControlsComponent', () => {
         (window as { electron?: unknown }).electron = electronMock;
 
         await TestBed.configureTestingModule({
-            imports: [WindowControlsComponent],
+            imports: [WindowControlsComponent, TranslateModule.forRoot()],
         }).compileComponents();
+
+        const translate = TestBed.inject(TranslateService);
+        translate.setTranslation('de', {
+            MENU: { OPEN: 'Menü öffnen' },
+            WORKSPACE: {
+                SHELL: {
+                    WINDOW_MINIMIZE: 'Minimieren',
+                    WINDOW_MAXIMIZE: 'Maximieren',
+                    WINDOW_RESTORE: 'Wiederherstellen',
+                    WINDOW_CLOSE: 'Schließen',
+                },
+            },
+        });
+        translate.use('de');
 
         fixture = TestBed.createComponent(WindowControlsComponent);
         fixture.detectChanges();
@@ -62,7 +77,22 @@ describe('WindowControlsComponent', () => {
         expect(electronMock.getWindowState).toHaveBeenCalled();
     });
 
+    it('labels every button in the active language', () => {
+        for (const [testId, label] of [
+            ['window-menu', 'Menü öffnen'],
+            ['window-minimize', 'Minimieren'],
+            ['window-maximize', 'Maximieren'],
+            ['window-close', 'Schließen'],
+        ]) {
+            expect(query(testId)?.getAttribute('aria-label')).toBe(label);
+            expect(query(testId)?.getAttribute('title')).toBe(label);
+        }
+    });
+
     it('calls the bridge methods when the buttons are clicked', () => {
+        query('window-menu')?.click();
+        expect(electronMock.showApplicationMenu).toHaveBeenCalledTimes(1);
+
         query('window-minimize')?.click();
         expect(electronMock.minimizeWindow).toHaveBeenCalledTimes(1);
 
@@ -80,7 +110,7 @@ describe('WindowControlsComponent', () => {
         expect(query('window-restore-glyph')).not.toBeNull();
         expect(query('window-maximize-glyph')).toBeNull();
         expect(query('window-maximize')?.getAttribute('aria-label')).toBe(
-            'Restore'
+            'Wiederherstellen'
         );
     });
 
@@ -110,6 +140,17 @@ describe('WindowControlsComponent', () => {
                 'is-hidden'
             )
         ).toBe(false);
+    });
+
+    it('hides the menu trigger when its specific bridge is unavailable', () => {
+        fixture.destroy();
+        (window as { electron?: unknown }).electron = {
+            ...electronMock,
+            showApplicationMenu: undefined,
+        };
+        fixture = TestBed.createComponent(WindowControlsComponent);
+        fixture.detectChanges();
+        expect(query('window-menu')).toBeNull();
     });
 
     it('unsubscribes from window state changes on destroy', () => {

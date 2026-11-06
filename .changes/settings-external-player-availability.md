@@ -3,6 +3,4 @@ type: fix
 area: settings
 ---
 
-Unavailable external MPV/VLC options are disabled with installation guidance. Configure the executable in Settings or add it to PATH. Checks refresh on opening the selector or editing paths. Discovery is asynchronous and bounded; slow paths leave the option selectable.
-
-This optional alpha contribution is tested on Windows only; other platforms are unverified.
+Settings shows when external MPV or VLC cannot be found while keeping both selectable. The selected player's path and availability status appear next to the player choice, with a button to check again; editing a path also refreshes the check.

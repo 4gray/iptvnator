@@ -9,7 +9,10 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialogModule, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
+import { ServerStorageStatusService } from '@iptvnator/services';
+import { DialogFooterDirective, DialogShellComponent } from '@iptvnator/ui/components';
 import { SOURCE_TYPE_ICONS } from '@iptvnator/shared/interfaces';
+import { PlaylistStorageBackend } from '@iptvnator/services';
 
 export interface SettingsDeleteAllPlaylistsDialogData {
     summary: {
@@ -31,10 +34,11 @@ type SettingsDeleteSummaryItem = {
     selector: 'app-settings-delete-all-playlists-dialog',
     templateUrl: './settings-delete-all-playlists-dialog.component.html',
     styleUrls: ['./settings-delete-all-playlists-dialog.component.scss'],
-    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         CommonModule,
+        DialogFooterDirective,
+        DialogShellComponent,
         MatButtonModule,
         MatDialogModule,
         MatIconModule,
@@ -42,8 +46,11 @@ type SettingsDeleteSummaryItem = {
     ],
 })
 export class SettingsDeleteAllPlaylistsDialogComponent {
+    readonly sharedLibrary = inject(PlaylistStorageBackend).kind() === 'server';
     readonly dialogData =
         inject<SettingsDeleteAllPlaylistsDialogData>(MAT_DIALOG_DATA);
+    /** Self-hosted server storage: the playlists go for every device. */
+    readonly clearsServer = inject(ServerStorageStatusService).isActive;
 
     readonly summaryItems = computed<SettingsDeleteSummaryItem[]>(() => [
         {

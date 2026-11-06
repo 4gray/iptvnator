@@ -1,33 +1,15 @@
-<header class="downloaded-series-dialog__header">
-    <div>
-        <span class="downloaded-series-dialog__eyebrow">
-            {{ 'DOWNLOADS.DOWNLOADED_EPISODES' | translate }}
-        </span>
-        <h2 mat-dialog-title>{{ group.title }}</h2>
-        <p>
-            {{
-                episodeCountKey(currentMembers().length)
-                    | translate: { count: currentMembers().length }
-            }}
-            @if (group.sourceName.trim()) {
-                <span aria-hidden="true">·</span>
-                {{ group.sourceName }}
-            }
-        </p>
-    </div>
-    <button
-        mat-icon-button
-        type="button"
-        mat-dialog-close
-        data-test-id="downloaded-series-close"
-        [aria-label]="'CLOSE' | translate"
-        [matTooltip]="'CLOSE' | translate"
-    >
-        <mat-icon aria-hidden="true">close</mat-icon>
-    </button>
-</header>
-
-<mat-dialog-content>
+<app-dialog-shell
+    icon="download_done"
+    [heading]="group.title"
+    [subtitle]="
+        (episodeCountKey(currentMembers().length)
+            | translate: { count: currentMembers().length }) +
+        (group.sourceName.trim() ? ' · ' + group.sourceName : '')
+    "
+>
+    <span appDialogHeaderEnd class="downloaded-series-dialog__eyebrow">
+        {{ 'DOWNLOADS.DOWNLOADED_EPISODES' | translate }}
+    </span>
     <ol class="downloaded-series-dialog__list">
         @for (member of currentMembers(); track member.id) {
             <li
@@ -114,4 +96,4 @@
             </li>
         }
     </ol>
-</mat-dialog-content>
+</app-dialog-shell>

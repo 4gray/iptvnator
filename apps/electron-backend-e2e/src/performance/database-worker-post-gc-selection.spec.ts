@@ -59,7 +59,7 @@ async function restoreSerializableSelector(): Promise<Selector> {
     const module = await selectionModulePromise;
     assert.ok(module, 'database worker post-GC selector module must exist');
     const factory = module.createDatabaseWorkerPostGcSelectionApi;
-    assert.equal(typeof factory, 'function');
+    assert.ok(typeof factory === 'function');
     const source = factory.toString();
     assert.doesNotMatch(source, /__name/);
 

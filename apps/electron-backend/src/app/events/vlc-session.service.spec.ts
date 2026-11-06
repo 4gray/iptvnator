@@ -126,11 +126,24 @@ describe('vlc-session.service helpers and launch args', () => {
                 })
             ).toEqual([
                 'clear',
-                'add http://srv/1 :http-user-agent=UA/1.0 ' +
+                'add http://srv/1 :start-time=12 :http-user-agent=UA/1.0 ' +
                     ':http-referrer=https://ref.example ' +
                     ':http-header=X-A: padded :meta-title=My Title',
                 'seek 12',
             ]);
+        });
+
+        it('starts every reuse load at zero unless an offset is requested', () => {
+            // A reused VLC was launched with --start-time=<resume>, which it
+            // applies to every later input; the per-input start keeps a
+            // next episode, or "Play from beginning", at zero.
+            expect(buildVlcEnqueueCommands({ url: 'http://srv/5' })).toEqual([
+                'clear',
+                'add http://srv/5 :start-time=0',
+            ]);
+            expect(
+                buildVlcEnqueueCommands({ url: 'http://srv/5', startTime: 0 })
+            ).toEqual(['clear', 'add http://srv/5 :start-time=0']);
         });
 
         it('falls back to origin as referrer and omits empty options', () => {
@@ -141,12 +154,12 @@ describe('vlc-session.service helpers and launch args', () => {
                 })
             ).toEqual([
                 'clear',
-                'add http://srv/2 :http-referrer=https://origin.example ' +
+                'add http://srv/2 :start-time=0 :http-referrer=https://origin.example ' +
                     ':http-header=Origin: https://origin.example',
             ]);
             expect(buildVlcEnqueueCommands({ url: 'http://srv/3' })).toEqual([
                 'clear',
-                'add http://srv/3',
+                'add http://srv/3 :start-time=0',
             ]);
         });
 
@@ -160,7 +173,7 @@ describe('vlc-session.service helpers and launch args', () => {
                 })
             ).toEqual([
                 'clear',
-                'add http://srv/4 :http-referrer=https://ref.example ' +
+                'add http://srv/4 :start-time=0 :http-referrer=https://ref.example ' +
                     ':http-header=Origin: https://explicit.example',
             ]);
         });

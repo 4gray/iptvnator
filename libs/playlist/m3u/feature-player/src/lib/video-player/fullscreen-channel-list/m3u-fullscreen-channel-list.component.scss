@@ -1,3 +1,5 @@
+@use '../../../../../../../ui/styles/focus-ring';
+
 // Rendered only inside the fullscreen channel panel, which is always dark
 // (it carries the `dark-theme` context), so the colours are tuned for that
 // surface rather than for both themes.
@@ -53,8 +55,7 @@
 }
 
 .m3u-fullscreen-channel-list__view:focus-visible {
-    outline: 2px solid var(--app-selection-color, #78adff);
-    outline-offset: 1px;
+    @include focus-ring.focus-ring-declarations($offset: 1px);
 }
 
 .m3u-fullscreen-channel-list__view--active,

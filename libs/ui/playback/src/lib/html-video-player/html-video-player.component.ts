@@ -71,7 +71,7 @@ const debugHtmlPlayer = createDevLogger('HtmlVideoPlayer');
         SeriesPlaybackNavigationControlsComponent,
     ],
     providers: [WebVideoControlsAdapter],
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     standalone: true,
 })
 export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {

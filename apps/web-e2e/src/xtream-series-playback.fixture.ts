@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { expect } from './fixtures';
-import { setInputValue } from './e2e-helpers';
+import { setInputValue, setSwitch } from './e2e-helpers';
 import {
     getRegisteredProviderUrl,
     interceptProviderTargetRegistration,
@@ -94,12 +94,25 @@ export async function addXtreamPortal(
  * mock itself (the mock ignores the url parameter).
  */
 export async function routeEpisodeClip(page: Page): Promise<void> {
+    await routePlaybackClip(page, 'series');
+}
+
+/** A local movie clip keeps history tests independent of the external HLS stub. */
+export async function routeMovieClip(page: Page): Promise<void> {
+    await routePlaybackClip(page, 'movie');
+}
+
+async function routePlaybackClip(
+    page: Page,
+    contentType: 'series' | 'movie'
+): Promise<void> {
     const episodeClip = readFileSync(
         join(__dirname, 'fixtures/playback/episode.webm')
     );
     await page.route(
         (url) =>
-            url.origin === MOCK_SERVER && url.pathname.startsWith('/series/'),
+            url.origin === MOCK_SERVER &&
+            url.pathname.startsWith(`/${contentType}/`),
         async (route) => {
             // Chromium's media pipeline seeks through byte ranges; a plain
             // 200 to a Range request clamps every seek to the start, which
@@ -180,12 +193,12 @@ export async function selectWebPlayer(
     await page.goto('/workspace/settings/playback');
     await page.locator('[data-test-id="select-video-player"]').click();
     await page.getByRole('option', { name: engine, exact: true }).click();
-    const toggle = page.locator(
-        '[data-test-id="web-player-shared-controls-toggle"]'
+    await setSwitch(
+        page.locator(
+            '[data-test-id="web-player-shared-controls-toggle"] [role="switch"]'
+        ),
+        sharedControls
     );
-    if ((await toggle.locator('input').isChecked()) !== sharedControls) {
-        await toggle.click();
-    }
     const saveButton = page.getByRole('button', { name: 'Save changes' });
     await saveButton.click();
     await expect(saveButton).toBeHidden();
@@ -225,7 +238,7 @@ export async function playFirstSeriesEpisode(
     await expect(seriesCard).toBeVisible({ timeout: 10_000 });
     await seriesCard.click();
 
-    const episodeCards = page.locator('.episode-card');
+    const episodeCards = page.locator('.episode-item');
     await expect(episodeCards).toHaveCount(8, { timeout: 15_000 });
     await episodeCards.first().click();
 

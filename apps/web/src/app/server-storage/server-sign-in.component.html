@@ -1,0 +1,65 @@
+<main class="server-sign-in">
+    <form class="server-sign-in__card" (submit)="submit($event)">
+        <img
+            class="server-sign-in__logo"
+            src="./assets/icons/icon-tv-256.png"
+            alt=""
+            width="40"
+            height="40"
+        />
+        <h1>{{ 'SERVER_STORAGE.SIGN_IN_TITLE' | translate }}</h1>
+        <p>{{ 'SERVER_STORAGE.SIGN_IN_DESCRIPTION' | translate }}</p>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>{{
+                'SERVER_STORAGE.SIGN_IN_TOKEN_LABEL' | translate
+            }}</mat-label>
+            <input
+                matInput
+                id="server-access-token"
+                autocomplete="current-password"
+                [type]="tokenToggle.inputType()"
+                [value]="token()"
+                (input)="edit($any($event.target).value)"
+                data-test-id="server-sign-in-token"
+            />
+            <button
+                mat-icon-button
+                matSuffix
+                appPasswordVisibilityToggle
+                #tokenToggle="appPasswordVisibilityToggle"
+                [attr.aria-label]="'HOME.SHOW_PASSWORD' | translate"
+            >
+                <mat-icon>{{ tokenToggle.icon() }}</mat-icon>
+            </button>
+            <mat-hint>{{ 'SERVER_STORAGE.SIGN_IN_HINT' | translate }}</mat-hint>
+        </mat-form-field>
+
+        <p
+            class="server-sign-in__feedback"
+            role="status"
+            data-test-id="server-sign-in-feedback"
+        >
+            @switch (feedback()) {
+                @case ('rejected') {
+                    {{ 'SERVER_STORAGE.SIGN_IN_REJECTED' | translate }}
+                }
+                @case ('unreachable') {
+                    {{ 'SERVER_STORAGE.SIGN_IN_UNREACHABLE' | translate }}
+                }
+                @case ('storage') {
+                    {{ 'SERVER_STORAGE.SIGN_IN_STORAGE' | translate }}
+                }
+            }
+        </p>
+
+        <button
+            mat-flat-button
+            type="submit"
+            [disabled]="busy() || !token().trim()"
+            data-test-id="server-sign-in-submit"
+        >
+            {{ 'SERVER_STORAGE.SIGN_IN_CONTINUE' | translate }}
+        </button>
+    </form>
+</main>

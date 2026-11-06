@@ -47,10 +47,20 @@ describe('PlaylistsService inventory reads', () => {
             PlaylistsService.prototype
         ) as PlaylistsService;
         Object.assign(service, {
+            favoriteSync: {
+                active: () => false,
+                project: async <T>(row: T) => row,
+                mutate: async () => null,
+            },
             dbService: { getAll: jest.fn(() => of([])) },
-            runtime: { supportsSqlite: true },
+            storageBackend: {
+                kind: () => 'electron',
+                documentStore: () => window.electron,
+            },
             electronMigrationPromise: null,
             playlistWriteQueues: new Map(),
+            deletingAll: Promise.resolve(),
+            resets: 0,
         });
         const settle = async (index: number, playlists: Playlist[]) => {
             // The read starts after the memoized migration's awaits.

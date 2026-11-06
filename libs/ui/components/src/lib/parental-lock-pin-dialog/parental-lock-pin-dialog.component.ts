@@ -17,7 +17,6 @@ import {
     MatDialogRef,
 } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
@@ -27,6 +26,10 @@ import {
     PARENTAL_LOCK_PIN_MAX_LENGTH,
     PARENTAL_LOCK_PIN_MIN_LENGTH,
 } from '@iptvnator/shared/interfaces';
+import { provideFormFieldDefaults } from '../form-field-defaults/form-field-defaults';
+import { DialogShellComponent } from '../dialog-shell/dialog-shell.component';
+import { DialogFooterDirective } from '../dialog-shell/dialog-shell.directives';
+import { dialogSize } from '../dialog-shell/dialog-size';
 
 export type ParentalLockPinDialogMode = 'unlock' | 'set';
 
@@ -59,15 +62,17 @@ export interface ParentalLockPinDialogData {
  */
 @Component({
     selector: 'app-parental-lock-pin-dialog',
+    providers: [provideFormFieldDefaults()],
     templateUrl: './parental-lock-pin-dialog.component.html',
     styleUrl: './parental-lock-pin-dialog.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        DialogFooterDirective,
+        DialogShellComponent,
         FormsModule,
         MatButtonModule,
         MatDialogModule,
         MatFormFieldModule,
-        MatIconModule,
         MatInputModule,
         TranslatePipe,
     ],
@@ -165,9 +170,8 @@ export class ParentalLockPinDialogComponent {
         data: ParentalLockPinDialogData
     ): MatDialogRef<ParentalLockPinDialogComponent, string | undefined> {
         return dialog.open(ParentalLockPinDialogComponent, {
+            ...dialogSize('sm'),
             data,
-            width: '400px',
-            maxWidth: 'calc(100vw - 32px)',
             autoFocus: 'input',
             restoreFocus: true,
         });

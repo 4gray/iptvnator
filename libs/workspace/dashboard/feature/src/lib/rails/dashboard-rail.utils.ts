@@ -8,6 +8,7 @@ import {
 import type {
     DashboardRailAction,
     DashboardRailCard,
+    DashboardRailLayout,
 } from './dashboard-rail.component';
 import type { DashboardRailsSettings } from '@iptvnator/shared/interfaces';
 
@@ -160,6 +161,11 @@ type DashboardLiveFavoriteRailSettings = Pick<
 
 export interface DashboardRecentContentSkeletonInput {
     readonly continueWatchingCount: number;
+    /**
+     * Continue Watching waits for the history and, to tell finished titles
+     * apart, for their playback positions; the live rail only for the history.
+     */
+    readonly continueWatchingLoading: boolean;
     readonly globalRecentLoading: boolean;
     readonly recentLiveCount: number;
 }
@@ -168,14 +174,30 @@ export function shouldShowRecentContentSkeleton(
     rails: DashboardRecentRailSettings,
     input: DashboardRecentContentSkeletonInput
 ): boolean {
-    if (!input.globalRecentLoading) {
-        return false;
-    }
-
     return (
-        (rails.continueWatching && input.continueWatchingCount === 0) ||
-        (rails.recentlyWatchedLive && input.recentLiveCount === 0)
+        (rails.continueWatching &&
+            input.continueWatchingLoading &&
+            input.continueWatchingCount === 0) ||
+        (rails.recentlyWatchedLive &&
+            input.globalRecentLoading &&
+            input.recentLiveCount === 0)
     );
+}
+
+/**
+ * The recent-content skeleton holds the place of the recent rail it waits
+ * for: Continue Watching (posters) while that rail is still loading with no
+ * cards, recently watched live (channel cards) otherwise.
+ */
+export function recentContentSkeletonLayout(
+    rails: DashboardRecentRailSettings,
+    input: DashboardRecentContentSkeletonInput
+): DashboardRailLayout {
+    return rails.continueWatching &&
+        input.continueWatchingLoading &&
+        input.continueWatchingCount === 0
+        ? 'cover'
+        : 'channel';
 }
 
 export interface DashboardLiveFavoritesSkeletonInput {

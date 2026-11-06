@@ -1,27 +1,71 @@
 <form [formGroup]="form">
     <mat-form-field class="w-full">
         <mat-label>{{ 'HOME.URL_UPLOAD.PLAYLIST_URL' | translate }}</mat-label>
-        <input type="url" matInput formControlName="playlistUrl" />
+        <input #urlInput type="url" matInput formControlName="playlistUrl" />
         <mat-error>{{
             'HOME.URL_UPLOAD.URL_VALIDATION_ERROR' | translate
         }}</mat-error>
     </mat-form-field>
+    <div aria-live="polite">
+        @if (xtreamSuggestion()) {
+            <div class="xtream-suggestion" data-test-id="xtream-url-suggestion">
+                <div>
+                    <p class="xtream-suggestion__title">
+                        {{
+                            'HOME.URL_UPLOAD.XTREAM_SUGGESTION_TITLE'
+                                | translate
+                        }}
+                    </p>
+                    <p class="xtream-suggestion__description">
+                        {{
+                            'HOME.URL_UPLOAD.XTREAM_SUGGESTION_DESCRIPTION'
+                                | translate
+                        }}
+                    </p>
+                </div>
+                <button
+                    mat-button
+                    type="button"
+                    [disabled]="form.disabled"
+                    (click)="useXtream()"
+                >
+                    {{ 'HOME.URL_UPLOAD.SET_UP_XTREAM' | translate }}
+                </button>
+            </div>
+        }
+    </div>
     <mat-form-field class="w-full">
         <mat-label>{{ 'HOME.XTREAM_PLAYLIST.TITLE' | translate }}</mat-label>
         <input type="text" matInput formControlName="playlistName" />
     </mat-form-field>
-    <mat-form-field class="w-full">
-        <mat-label>{{
-            'HOME.PLAYLISTS.INFO_DIALOG.USER_AGENT' | translate
-        }}</mat-label>
-        <input type="text" matInput formControlName="userAgent" />
-        <mat-hint>{{
-            'HOME.PLAYLISTS.INFO_DIALOG.CUSTOM_USER_AGENT' | translate
-        }}</mat-hint>
-    </mat-form-field>
+    <details
+        class="app-dialog-disclosure"
+        data-test-id="url-advanced-settings"
+        [appRevealDetails]="!!userAgent().trim()"
+    >
+        <summary>
+            {{ 'HOME.ADD_PLAYLIST.ADDITIONAL_SETTINGS' | translate }}
+        </summary>
+        <div class="app-dialog-disclosure__fields">
+            <mat-form-field class="w-full">
+                <mat-label>{{
+                    'HOME.PLAYLISTS.INFO_DIALOG.USER_AGENT' | translate
+                }}</mat-label>
+                <input type="text" matInput formControlName="userAgent" />
+                <mat-hint>{{
+                    'HOME.PLAYLISTS.INFO_DIALOG.CUSTOM_USER_AGENT' | translate
+                }}</mat-hint>
+            </mat-form-field>
+        </div>
+    </details>
     @if (!isDesktop) {
-        <p class="cors-note">
-            {{ 'HOME.URL_UPLOAD.CORS_NOTE' | translate }}
-        </p>
+        <details class="app-dialog-disclosure url-server-info">
+            <summary>
+                {{ 'HOME.URL_UPLOAD.SERVER_SUMMARY' | translate }}
+            </summary>
+            <p class="cors-note">
+                {{ 'HOME.URL_UPLOAD.CORS_NOTE' | translate }}
+            </p>
+        </details>
     }
 </form>

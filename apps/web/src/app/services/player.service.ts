@@ -1,5 +1,5 @@
+import { PLAYBACK_ACTIVITY_EVENTS } from '@iptvnator/services/activity-events';
 import { Injectable, inject } from '@angular/core';
-import { MatDialog } from '@angular/material/dialog';
 import { DataService } from '@iptvnator/services';
 import {
     ExternalPlayerSession,
@@ -10,13 +10,18 @@ import {
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import type { ExternalPlayerName } from '@iptvnator/shared/interfaces';
+import { LazyMatDialog } from '@iptvnator/ui/components/lazy-dialog';
+import { dialogSize } from '@iptvnator/ui/components/dialog-size';
 import { SettingsStore } from './settings-store.service';
 
 @Injectable({
     providedIn: 'root',
 })
 export class PlayerService {
-    private dialog = inject(MatDialog);
+    private readonly activity = inject(PLAYBACK_ACTIVITY_EVENTS, {
+        optional: true,
+    });
+    private lazyDialog = inject(LazyMatDialog);
     private dataService = inject(DataService);
     private settingsStore = inject(SettingsStore);
 
@@ -85,12 +90,16 @@ export class PlayerService {
     /**
      * Loaded on demand: the dialog's Material checkbox brings @angular/forms,
      * and this service is created with the app, so a static import would put
-     * both on the initial path. Playback does not wait for the dialog.
+     * both, and Material's dialog, on the initial path. Playback does not
+     * wait for the dialog.
      */
     private showExternalPlayerInfoDialog(): void {
-        this.loadExternalPlayerInfoDialog()
-            .then(({ ExternalPlayerInfoDialogComponent }) =>
-                this.dialog.open(ExternalPlayerInfoDialogComponent)
+        Promise.all([
+            this.lazyDialog.resolve(),
+            this.loadExternalPlayerInfoDialog(),
+        ])
+            .then(([dialog, { ExternalPlayerInfoDialogComponent }]) =>
+                dialog.open(ExternalPlayerInfoDialogComponent, dialogSize('sm'))
             )
             .catch((error: unknown) => {
                 // Informational only: playback is already starting.
@@ -109,6 +118,14 @@ export class PlayerService {
         playback: ResolvedPortalPlayback,
         player: ExternalPlayerName
     ): Promise<ExternalPlayerSession | void> {
+        if (playback.contentInfo)
+            void this.activity
+                ?.begin(
+                    playback.contentInfo,
+                    playback.startTime,
+                    playback.title
+                )
+                .catch(() => undefined);
         const ipcEvent = player === 'mpv' ? OPEN_MPV_PLAYER : OPEN_VLC_PLAYER;
 
         return await this.dataService.sendIpcEvent<ExternalPlayerSession>(

@@ -4,6 +4,7 @@ import test from 'node:test';
 
 interface GateState {
     blankLoadedEpochMs: number | null;
+    didFinishLoadHeldOnBlank: number;
     errors: string[];
     gatedEpochMs: number | null;
     gatedMethod: string | null;
@@ -155,13 +156,13 @@ test('records a failed about:blank navigation and still loads after release', as
 function createEmittingBrowserWindow(log: string[]) {
     class EmittingBrowserWindow extends EventEmitter {
         url = '';
-        webContents = {
+        webContents = Object.assign(new EventEmitter(), {
             getURL: () => this.url,
             loadURL: async (url: string) => {
                 this.url = url;
                 log.push(`webContents.loadURL:${url}`);
             },
-        };
+        });
         async loadFile(file: string): Promise<void> {
             this.url = `file:///${file}`;
             log.push(`loadFile:${file}`);
@@ -199,6 +200,47 @@ test('holds ready-to-show while the window shows about:blank, then lets the real
         'app:ready-to-show',
     ]);
     assert.equal(api.state.readyToShowHeldOnBlank, 1);
+});
+
+test('keeps did-finish-load of about:blank from the app listeners, not from later ones', async () => {
+    const log: string[] = [];
+    const EmittingBrowserWindow = createEmittingBrowserWindow(log);
+    const api = gateModule.installJourneyRendererGate(
+        EmittingBrowserWindow as unknown as {
+            prototype: Record<string, unknown>;
+        },
+        {},
+        { timeoutMs: 60_000 }
+    );
+    const window = new EmittingBrowserWindow();
+    // The app shows its window at the first did-finish-load.
+    window.webContents.once('did-finish-load', () =>
+        log.push('app:did-finish-load')
+    );
+    const load = window.loadFile('index.html');
+    await settle();
+    // Registered after the gated load, like Electron's own listener that
+    // resolves loadURL(about:blank).
+    window.webContents.on('did-finish-load', () =>
+        log.push('electron:did-finish-load')
+    );
+    window.webContents.emit('did-finish-load');
+    assert.equal(api.state.didFinishLoadHeldOnBlank, 1);
+
+    api.release();
+    await load;
+    window.webContents.emit('did-finish-load');
+    window.webContents.emit('did-finish-load');
+
+    assert.deepEqual(log, [
+        'webContents.loadURL:about:blank',
+        'electron:did-finish-load',
+        'loadFile:index.html',
+        'app:did-finish-load',
+        'electron:did-finish-load',
+        'electron:did-finish-load',
+    ]);
+    assert.equal(api.state.didFinishLoadHeldOnBlank, 1);
 });
 
 test('taps ipcMain.handle for the counters channel and passes registrations through', async () => {

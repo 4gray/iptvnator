@@ -158,7 +158,7 @@ async function restoreSerializableApi(): Promise<ProbeApi> {
     const module = await probeModulePromise;
     assert.ok(module, 'database worker post-GC probe module must exist');
     const factory = module.createDatabaseWorkerPostGcProbeApi;
-    assert.equal(typeof factory, 'function');
+    assert.ok(typeof factory === 'function');
 
     const source = factory.toString();
     assert.doesNotMatch(source, /__name/);
@@ -351,18 +351,20 @@ test('times out once with an injectable deadline and ignores every later termina
     const api = await restoreSerializableApi();
     const harness = createProbeHarness();
     let terminateCalls = 0;
+    // A real worker also exposes terminate(); the probe must never call it.
+    const worker = {
+        postMessage(): void {
+            // Keep the one-shot probe pending until its bounded deadline.
+        },
+        terminate(): void {
+            terminateCalls += 1;
+        },
+    };
     const resultPromise = api.probe({
         createMessageChannel: harness.createMessageChannel,
         timeoutMs: 37,
         timers: harness.timers,
-        worker: {
-            postMessage(): void {
-                // Keep the one-shot probe pending until its bounded deadline.
-            },
-            terminate(): void {
-                terminateCalls += 1;
-            },
-        },
+        worker,
     });
     const timer = harness.timers.scheduled[0];
     assert.ok(timer);

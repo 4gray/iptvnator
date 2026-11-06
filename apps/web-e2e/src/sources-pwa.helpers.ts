@@ -1,23 +1,25 @@
-import type { APIRequestContext, Locator, Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { expect } from './fixtures';
-import { postWithRetry, setInputValue } from './e2e-helpers';
+import { setInputValue } from './e2e-helpers';
 import {
+    configureMockProviderBackend,
     getRegisteredProviderUrl,
     interceptProviderTargetRegistration,
 } from './provider-target-route';
 
+import {
+    STALKER_PORTAL_URL,
+    STALKER_MOCK_SERVER,
+    XTREAM_MOCK_SERVER,
+    type PwaMockIdentity,
+} from './pwa-mock-state';
+export {
+    STALKER_MOCK_SERVER,
+    STALKER_PORTAL_URL,
+    XTREAM_MOCK_SERVER,
+} from './pwa-mock-state';
+
 const BACKEND_ORIGIN = 'http://localhost:3000';
-const XTREAM_MOCK_PORT = process.env['XTREAM_MOCK_PORT'] ?? '3211';
-const STALKER_MOCK_PORT = process.env['MOCK_PORT'] ?? '3210';
-
-export const XTREAM_MOCK_SERVER = `http://localhost:${XTREAM_MOCK_PORT}`;
-export const STALKER_MOCK_SERVER = `http://localhost:${STALKER_MOCK_PORT}`;
-export const STALKER_PORTAL_URL = `${STALKER_MOCK_SERVER}/portal.php`;
-export const EDITED_MAC = '00:1A:79:5F:00:03';
-
-// Dedicated MACs (see EDITED_MAC): never share a MAC with stalker.e2e.ts,
-// whose parallel worker would otherwise have its state reset mid-test.
-const DEFAULT_MAC = '00:1A:79:5F:00:02';
 const M3U_PLAYLIST_URL = `${XTREAM_MOCK_SERVER}/playlist.m3u`;
 
 type RuntimeErrors = {
@@ -31,29 +33,11 @@ type SourceDialogField =
     | 'portalUrl'
     | 'serverUrl'
     | 'title'
-    | 'username';
+    | 'username'
+    | 'userAgent';
 
-/**
- * Reset the fixtures this suite uses. The Stalker reset is scoped to the MACs
- * touched here: that mock is shared with stalker.e2e.ts, which runs in a
- * parallel Playwright worker, and a global reset would destroy its portal
- * sessions mid-test.
- */
-export async function resetPwaMockServers(
-    request: APIRequestContext
-): Promise<void> {
-    await postWithRetry(request, `${XTREAM_MOCK_SERVER}/reset`);
-    for (const mac of [DEFAULT_MAC, EDITED_MAC]) {
-        await postWithRetry(
-            request,
-            `${STALKER_MOCK_SERVER}/reset?macAddress=${encodeURIComponent(mac)}`
-        );
-    }
-}
-
-export async function interceptPwaProviderRequests(
-    page: Page
-): Promise<void> {
+export async function interceptPwaProviderRequests(page: Page): Promise<void> {
+    await configureMockProviderBackend(page);
     const providerTargets = await interceptProviderTargetRegistration(page);
 
     await page.route(`${BACKEND_ORIGIN}/parse**`, async (route) => {
@@ -115,15 +99,16 @@ export async function interceptPwaProviderRequests(
 
 export async function addXtreamPortal(
     page: Page,
-    title: string
+    title: string,
+    identity: PwaMockIdentity
 ): Promise<void> {
     await openAddPlaylistDialog(page);
     const dialog = page.locator('mat-dialog-container');
     await dialog.getByRole('radio', { name: /Xtream credentials/i }).click();
     await setInputValue(dialog.locator('#title'), title);
     await setInputValue(dialog.locator('#serverUrl'), XTREAM_MOCK_SERVER);
-    await setInputValue(dialog.locator('#username'), 'user1');
-    await setInputValue(dialog.locator('#password'), 'pass1');
+    await setInputValue(dialog.locator('#username'), identity.username);
+    await setInputValue(dialog.locator('#password'), identity.password);
 
     const addButton = dialog.getByRole('button', {
         name: 'Add playlist',
@@ -162,14 +147,18 @@ export async function addM3uUrlPlaylist(
 
 export async function addStalkerPortal(
     page: Page,
-    title: string
+    title: string,
+    identity: PwaMockIdentity
 ): Promise<void> {
     await openAddPlaylistDialog(page);
     const dialog = page.locator('mat-dialog-container');
     await dialog.getByRole('radio', { name: /Stalker portal/i }).click();
     await setInputValue(dialog.locator('input#title'), title);
     await setInputValue(dialog.locator('input#portalUrl'), STALKER_PORTAL_URL);
-    await setInputValue(dialog.locator('input#macAddress'), DEFAULT_MAC);
+    await setInputValue(
+        dialog.locator('input#macAddress'),
+        identity.macAddress
+    );
 
     const addButton = dialog.getByRole('button', {
         name: 'Add playlist',
@@ -190,7 +179,10 @@ export async function openSources(page: Page): Promise<void> {
 }
 
 export function sourceRowByTitle(page: Page, title: string): Locator {
-    return page.locator('app-playlist-item').filter({ hasText: title }).first();
+    return page
+        .locator('app-workspace-sources app-source-row')
+        .filter({ hasText: title })
+        .first();
 }
 
 export async function openSourceEditor(
@@ -200,7 +192,7 @@ export async function openSourceEditor(
     const row = sourceRowByTitle(page, title);
     await expect(row).toBeVisible({ timeout: 15_000 });
     await row.hover();
-    await row.locator('.edit-btn').click();
+    await row.locator('.source-row__edit').click();
     const dialog = page.locator('mat-dialog-container').last();
     await expect(dialog).toBeVisible();
     return dialog;
@@ -255,7 +247,9 @@ export async function expectSourceDialogValues(
 export async function expectElectronBridgeUnavailable(
     page: Page
 ): Promise<void> {
-    await expect.poll(() => page.evaluate(() => window.electron)).toBeUndefined();
+    await expect
+        .poll(() => page.evaluate(() => window.electron))
+        .toBeUndefined();
 }
 
 export function collectRuntimeErrors(page: Page): RuntimeErrors {
@@ -276,14 +270,13 @@ export function collectRuntimeErrors(page: Page): RuntimeErrors {
     return errors;
 }
 
-export function expectNoElectronDbRuntimeErrors(
-    errors: RuntimeErrors
-): void {
+export function expectNoElectronDbRuntimeErrors(errors: RuntimeErrors): void {
     const electronDbErrorPattern =
         /window\.electron|Cannot read properties of undefined.*db|db(UpdatePlaylist|SetAppState|GetContentByXtreamId|GetAllCategories|UpdateCategoryVisibility|GlobalSearch)|DB_(UPDATE_PLAYLIST|SET_APP_STATE|GET_CONTENT_BY_XTREAM_ID|GET_ALL_CATEGORIES|UPDATE_CATEGORY_VISIBILITY|GLOBAL_SEARCH)|updateXtreamPlaylistDetails|globalSearchContent/i;
-    const matchingErrors = [...errors.consoleErrors, ...errors.pageErrors].filter(
-        (message) => electronDbErrorPattern.test(message)
-    );
+    const matchingErrors = [
+        ...errors.consoleErrors,
+        ...errors.pageErrors,
+    ].filter((message) => electronDbErrorPattern.test(message));
 
     expect(matchingErrors).toEqual([]);
 }

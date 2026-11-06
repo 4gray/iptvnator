@@ -75,6 +75,28 @@ describe('XtreamCodeImportComponent', () => {
         expect(component.form.get('password')?.value).toBe('pass');
     });
 
+    it('carries the custom User-Agent through testing and the saved Xtream source', async () => {
+        component.form.patchValue({
+            title: 'Portal',
+            serverUrl: 'http://example.com',
+            username: 'user',
+            password: 'pass',
+            userAgent: '  VLC/3.0.21  ',
+        });
+        await component.testConnection();
+        expect(connectionTestService.test).toHaveBeenCalledWith(
+            expect.objectContaining({ userAgent: '  VLC/3.0.21  ' }),
+            expect.any(Function),
+            false
+        );
+        component.addPlaylist();
+        expect(store.dispatch).toHaveBeenCalledWith(
+            PlaylistActions.addPlaylist({
+                playlist: expect.objectContaining({ userAgent: 'VLC/3.0.21' }),
+            })
+        );
+    });
+
     it('normalizes full Xtream playlist URLs when adding a portal', () => {
         component.form.patchValue({
             title: 'Portal',
@@ -227,6 +249,26 @@ describe('XtreamCodeImportComponent form', () => {
                 .trim() ?? ''
         );
     }
+
+    it('outlines its fields with a dynamic subscript without a root provider', () => {
+        // The root injector no longer provides MAT_FORM_FIELD_DEFAULT_OPTIONS
+        // (it pulled Material's form field and @angular/forms into startup);
+        // the form carries provideFormFieldDefaults() itself.
+        const { root } = render();
+        const fields = Array.from(root.querySelectorAll('mat-form-field'));
+
+        expect(fields.length).toBeGreaterThan(0);
+        for (const field of fields) {
+            expect(field.classList).toContain(
+                'mat-form-field-appearance-outline'
+            );
+            expect(
+                field.querySelector(
+                    '.mat-mdc-form-field-subscript-dynamic-size'
+                )
+            ).not.toBeNull();
+        }
+    });
 
     it('labels the name field like the other add-source forms', () => {
         const { root } = render();

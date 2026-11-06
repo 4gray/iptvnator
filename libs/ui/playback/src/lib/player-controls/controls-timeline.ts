@@ -1,5 +1,6 @@
 import { Signal, computed, signal } from '@angular/core';
 import {
+    findTimelineSegment,
     normalizeTimelineSegments,
     segmentFillPercent,
     type TimelineSegmentView,
@@ -48,6 +49,14 @@ export class ControlsTimeline {
     /** The drawn track: host segments over the duration, else one segment. */
     readonly segments = computed<TimelineSegmentView[]>(() =>
         normalizeTimelineSegments(this.hostSegments(), this.duration())
+    );
+
+    /**
+     * Title of the segment holding the current (scrub or playback) value —
+     * the programme or chapter the slider names in its `aria-valuetext`.
+     */
+    readonly segmentTitle = computed(
+        () => findTimelineSegment(this.segments(), this.value())?.title ?? null
     );
 
     /** Played share of one segment for the current (scrub or playback) value. */

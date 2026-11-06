@@ -12,6 +12,8 @@ export interface JourneyRendererGateState {
     readonly gatedEpochMs: number | null;
     readonly gatedMethod: string | null;
     readonly passThroughLoads: number;
+    /** `did-finish-load` events kept from the app's listeners on about:blank. */
+    readonly didFinishLoadHeldOnBlank: number;
     /** `ready-to-show` events dropped while the window was on about:blank. */
     readonly readyToShowHeldOnBlank: number;
     readonly releasedEpochMs: number | null;

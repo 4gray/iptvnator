@@ -5,3 +5,4 @@ export * from './with-player.feature';
 export * from './with-portal.feature';
 export * from './with-search.feature';
 export * from './with-selection.feature';
+export * from './with-tmdb-episode-metadata.feature';

@@ -45,11 +45,17 @@ const PLAYABLE_STREAM_HOSTS = [
 ];
 const XTREAM_MEDIA_PATH = /^\/(live|movie|series)\//;
 
-export async function routePlayableStreams(page: Page): Promise<void> {
+export async function routePlayableStreams(
+    page: Page,
+    additionalXtreamOrigins: readonly string[] = []
+): Promise<void> {
     await page.route(
         (url) =>
             PLAYABLE_STREAM_HOSTS.includes(url.origin) ||
-            (url.origin === new URL(xtreamMockServer).origin &&
+            ([
+                new URL(xtreamMockServer).origin,
+                ...additionalXtreamOrigins,
+            ].includes(url.origin) &&
                 XTREAM_MEDIA_PATH.test(url.pathname)),
         (route) => fulfillPlayableStream(route)
     );

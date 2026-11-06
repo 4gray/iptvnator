@@ -48,6 +48,7 @@ import { StalkerInlineDetailComponent } from './stalker-inline-detail/stalker-in
 import { STALKER_SERIES_RESUME_TARGET } from './stalker-series-view/stalker-series-resume';
 import {
     resolveStalkerCollectionDetailMode,
+    stalkerCollectionPreparationKey,
     resolveStalkerCollectionItem,
     resolveStalkerCollectionSelectedCategory,
     StalkerDetailCategory,
@@ -193,6 +194,7 @@ export class StalkerCollectionDetailComponent implements ViewInPortalHandoff {
     );
 
     private initRequestId = 0;
+    private preparedIdentity: string | null = null;
     private currentPlaybackOwnerKey = '';
 
     constructor() {
@@ -258,6 +260,7 @@ export class StalkerCollectionDetailComponent implements ViewInPortalHandoff {
     }
 
     ngOnDestroy(): void {
+        ++this.initRequestId;
         restoreStalkerCollectionStoreState(
             this.stalkerStore,
             this.originalState
@@ -337,11 +340,15 @@ export class StalkerCollectionDetailComponent implements ViewInPortalHandoff {
             return;
         }
 
+        const identity = stalkerCollectionPreparationKey(item, playlist);
+        if (identity === this.preparedIdentity && this.itemDetails()) return;
+        if (this.preparedIdentity) this.closeInlinePlayer();
         await this.stalkerStore.setCurrentPlaylist(playlist);
         if (requestId !== this.initRequestId) {
             return;
         }
 
+        this.preparedIdentity = identity;
         const stalkerItem = resolveStalkerCollectionItem(item);
         const detailMode = resolveStalkerCollectionDetailMode(
             item,
@@ -412,6 +419,7 @@ export class StalkerCollectionDetailComponent implements ViewInPortalHandoff {
     }
 
     private clearLocalDetailState(): void {
+        this.preparedIdentity = null;
         const cleared = clearStalkerDetailViewState();
         this.itemDetails.set(cleared.itemDetails);
         this.vodDetailsItem.set(cleared.vodDetailsItem);

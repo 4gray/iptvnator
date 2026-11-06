@@ -1,8 +1,5 @@
 export type KeyboardShortcutGroupId =
-    | 'global'
-    | 'navigation'
-    | 'playback'
-    | 'dialogs';
+    'global' | 'navigation' | 'playback' | 'dialogs';
 
 export interface PlatformShortcutChord {
     mac: readonly string[];
@@ -10,9 +7,7 @@ export interface PlatformShortcutChord {
 }
 
 export type KeyboardShortcutChord =
-    | string
-    | readonly string[]
-    | PlatformShortcutChord;
+    string | readonly string[] | PlatformShortcutChord;
 
 export interface KeyboardShortcutDefinition {
     id: string;
@@ -74,6 +69,14 @@ export const APP_KEYBOARD_SHORTCUTS: readonly KeyboardShortcutDefinition[] = [
         order: 10,
     },
     {
+        id: 'open-playlist-switcher',
+        group: 'global',
+        labelKey: 'WORKSPACE.SHORTCUTS.ITEMS.OPEN_PLAYLIST_SWITCHER',
+        icon: 'playlist_play',
+        keys: [commandChord('P')],
+        order: 15,
+    },
+    {
         id: 'open-global-search',
         group: 'global',
         labelKey: 'WORKSPACE.SHORTCUTS.ITEMS.OPEN_GLOBAL_SEARCH',
@@ -130,6 +133,16 @@ export const APP_KEYBOARD_SHORTCUTS: readonly KeyboardShortcutDefinition[] = [
         keys: [commandChord('0')],
         order: 70,
         electronOnly: true,
+    },
+    {
+        // The header's Back, like the browser chord on each platform. The
+        // mouse Back button and the macOS trackpad swipe run it too.
+        id: 'navigate-back',
+        group: 'navigation',
+        labelKey: 'WORKSPACE.SHORTCUTS.ITEMS.GO_BACK',
+        icon: 'arrow_back',
+        keys: [{ mac: ['Cmd', '['], other: ['Alt', 'ArrowLeft'] }],
+        order: 0,
     },
     {
         id: 'toggle-sidebar',

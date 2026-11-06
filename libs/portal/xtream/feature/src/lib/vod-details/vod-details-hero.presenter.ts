@@ -5,22 +5,26 @@ import {
     formatRemainingLabel,
     parseDurationSeconds,
     playbackProgressPercent,
+    type ExternalPlaybackButtonLabel,
     shortCountryList,
     shortCountryName,
     type RemainingTimeLabel,
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import type {
-    PlaybackPositionData,
-    TmdbCountryFacet,
-    TmdbEnrichedCastMember,
-    TmdbGenreFacet,
-    XtreamVodInfo,
+import {
+    youtubeEmbedUrl,
+    type PlaybackPositionData,
+    type TmdbCountryFacet,
+    type TmdbEnrichedCastMember,
+    type TmdbGenreFacet,
+    type XtreamVodInfo,
 } from '@iptvnator/shared/interfaces';
+import { SettingsStore, injectTranslationTick } from '@iptvnator/services';
 import type { CrossPortalSimilarItem } from '@iptvnator/services';
 import {
     castMembersFromNames,
     splitPeopleNames,
+    TrailerDialogService,
     type DetailActionButtonState,
     type SimilarRailItem,
 } from '@iptvnator/ui/components';
@@ -48,23 +52,32 @@ interface VodDetailsHeroBindings {
     readonly position: Signal<PlaybackPositionData | null>;
     readonly hasPlaybackPosition: Signal<boolean>;
     readonly isOfflinePrimary: Signal<boolean>;
-    readonly externalLabel: Signal<string | null>;
+    readonly externalLabel: Signal<ExternalPlaybackButtonLabel | null>;
     readonly externalIcon: Signal<string>;
     readonly externalState: Signal<DetailActionButtonState>;
     readonly formatPosition: () => string;
     readonly similarItems: Signal<readonly SimilarCatalogItem[]>;
     readonly similarInPortals: Signal<readonly CrossPortalSimilarItem[]>;
+    readonly openSimilar: (item: SimilarCatalogItem) => void;
+    readonly openSimilarInPortals: (item: CrossPortalSimilarItem) => void;
 }
 
 /**
  * Presentation of the Xtream movie hero: the kind label, the chips, the
- * primary button's two lines, the resume bar, the credits and the Similar
- * rail, all derived from the route's selected movie.
+ * primary button's two lines, the resume bar, the credits, the trailer and
+ * the Similar rail, all derived from the route's selected movie.
  */
 @Injectable()
 export class VodDetailsHeroPresenter {
     private readonly translate = inject(TranslateService);
+    /**
+     * Read by every computed that words a label, so a UI language switch
+     * (or translations landing after the first render) re-words the hero.
+     */
+    private readonly languageTick = injectTranslationTick();
     private readonly xtreamStore = inject(XtreamStore);
+    private readonly settingsStore = inject(SettingsStore);
+    private readonly trailerDialog = inject(TrailerDialogService);
     private readonly bindings = signal<VodDetailsHeroBindings | null>(null);
 
     bind(bindings: VodDetailsHeroBindings): void {
@@ -74,6 +87,7 @@ export class VodDetailsHeroPresenter {
     private readonly info = computed(() => this.bindings()?.info() ?? null);
 
     readonly kindLabel = computed(() => {
+        this.languageTick();
         const kind = this.translate.instant('WORKSPACE.DASHBOARD.TYPE_MOVIE');
         const source = this.xtreamStore.currentPlaylist()?.name?.trim();
         return source ? `${kind} · ${source}` : kind;
@@ -84,9 +98,10 @@ export class VodDetailsHeroPresenter {
         return info?.duration_secs || parseDurationSeconds(info?.duration);
     });
 
-    readonly durationLabel = computed(() =>
-        this.label(formatDurationLabel(this.durationSeconds()))
-    );
+    readonly durationLabel = computed(() => {
+        this.languageTick();
+        return this.label(formatDurationLabel(this.durationSeconds()));
+    });
 
     /** One chip per TMDB genre facet, else the provider's list split up. */
     readonly genreChips = computed<VodHeroGenreChip[]>(() => {
@@ -126,6 +141,7 @@ export class VodDetailsHeroPresenter {
     });
 
     readonly primaryAction = computed<VodHeroPrimaryAction>(() => {
+        this.languageTick();
         const bindings = this.bindings();
         const state = bindings?.externalState() ?? 'idle';
         const icon = bindings?.isOfflinePrimary()
@@ -133,7 +149,15 @@ export class VodDetailsHeroPresenter {
             : (bindings?.externalIcon() ?? 'play_arrow');
         const externalLabel = bindings?.externalLabel();
         if (externalLabel) {
-            return { label: externalLabel, meta: null, icon, state };
+            return {
+                label: this.translate.instant(
+                    externalLabel.key,
+                    externalLabel.params
+                ),
+                meta: null,
+                icon,
+                state,
+            };
         }
         if (bindings?.isOfflinePrimary()) {
             return {
@@ -207,6 +231,45 @@ export class VodDetailsHeroPresenter {
         );
         return [...local, ...crossPortal];
     });
+
+    readonly trailerEmbedUrl = computed(() =>
+        youtubeEmbedUrl(this.info()?.youtube_trailer)
+    );
+    /** Settings → Playback → Play trailers in details background. */
+    readonly trailerBackdropUrl = computed(() =>
+        this.settingsStore.detailTrailerBackdrop?.() === true
+            ? this.trailerEmbedUrl()
+            : null
+    );
+
+    openTrailer(): void {
+        const embedUrl = this.trailerEmbedUrl();
+        const title = this.info()?.name;
+        if (embedUrl) {
+            this.trailerDialog.open({ embedUrl, title: title ?? '' });
+        }
+    }
+
+    openSimilarRailItem(item: SimilarRailItem): void {
+        const bindings = this.bindings();
+        const local = bindings
+            ?.similarItems()
+            .find((candidate) => `c${candidate.id}` === item.key);
+        if (local) {
+            bindings?.openSimilar(local);
+            return;
+        }
+        const crossPortal = bindings
+            ?.similarInPortals()
+            .find(
+                (candidate) =>
+                    `x${candidate.match.playlistId}-${candidate.match.xtreamId}` ===
+                    item.key
+            );
+        if (crossPortal) {
+            bindings?.openSimilarInPortals(crossPortal);
+        }
+    }
 
     private label(label: RemainingTimeLabel | null): string | null {
         return label ? this.translate.instant(label.key, label.params) : null;

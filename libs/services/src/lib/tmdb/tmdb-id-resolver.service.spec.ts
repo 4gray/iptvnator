@@ -35,14 +35,14 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
 
     // The services Jest target has no @angular/core/testing — build the
     // service in a plain injection context instead of TestBed.
-    function createService(): TmdbIdResolverService {
+    function createService(appLanguage = 'en'): TmdbIdResolverService {
         const injector = Injector.create({
             providers: [
                 {
                     provide: TmdbRuntimeService,
                     useValue: {
                         apiKey: () => 'key',
-                        appLanguage: () => 'en',
+                        appLanguage: () => appLanguage,
                     },
                 },
                 {
@@ -88,11 +88,119 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
         expect(searchTv).toHaveBeenCalledWith('Лейка', null, 'ru-RU', 'key');
         expect(cacheSet).toHaveBeenCalledWith({
             mediaType: 'tv',
-            lookupKey: 'title:лейка|year:2026|v4',
+            lookupKey: 'title:лейка|year:2026|v5',
             language: 'ru-RU',
             tmdbId: 101101,
             payload: null,
         });
+    });
+
+    it('resolves Ukrainian titles using Ukrainian search results and cache entries', async () => {
+        searchMovie.mockImplementation(async (_query, _year, language) => [
+            {
+                id: 900001,
+                title: language === 'uk-UA' ? 'Синтетичний фільм Альфа' : 'Синтетический фильм Альфа',
+                original_title: 'Synthetic Movie Alpha',
+                release_date: '1999-03-31',
+            },
+        ]);
+        const service = createService('uk');
+
+        const id = await service.resolveBySearch('movie', {
+            title: 'Синтетичний фільм Альфа',
+            year: 1999,
+        });
+
+        expect(id).toBe(900001);
+        expect(searchMovie).toHaveBeenCalledTimes(1);
+        expect(searchMovie).toHaveBeenCalledWith(
+            'Синтетичний фільм Альфа',
+            null,
+            'uk-UA',
+            'key'
+        );
+        expect(cacheGet).toHaveBeenCalledWith(
+            'movie',
+            'title:синтетичний фільм альфа|year:1999|v5',
+            'uk-UA'
+        );
+        expect(cacheSet).toHaveBeenCalledWith({
+            mediaType: 'movie',
+            lookupKey: 'title:синтетичний фільм альфа|year:1999|v5',
+            language: 'uk-UA',
+            tmdbId: 900001,
+            payload: null,
+        });
+    });
+
+    it.each(['movie', 'tv'] as const)(
+        'retries Russian titles in a Ukrainian %s catalog after a Ukrainian miss',
+        async (mediaType) => {
+            const search = mediaType === 'movie' ? searchMovie : searchTv;
+            search.mockImplementation(async (_query, _year, language) => [
+                {
+                    id: 900001,
+                    title: language === 'uk-UA' ? 'Синтетичний фільм Альфа' : 'Синтетический фильм Альфа',
+                    name: language === 'uk-UA' ? 'Синтетичний фільм Альфа' : 'Синтетический фильм Альфа',
+                    original_title: 'Synthetic Movie Alpha',
+                    original_name: 'Synthetic Movie Alpha',
+                    release_date: '1999-03-31',
+                    first_air_date: '1999-03-31',
+                },
+            ]);
+            const service = createService('uk');
+
+            expect(
+                await service.resolveBySearch(mediaType, {
+                    title: 'Синтетический фильм Альфа',
+                    year: 1999,
+                })
+            ).toBe(900001);
+            expect(search.mock.calls.map((call) => call[2])).toEqual([
+                'uk-UA',
+                'ru-RU',
+            ]);
+            expect(
+                cacheSet.mock.calls.map(([row]) => [row.language, row.tmdbId])
+            ).toEqual([
+                ['uk-UA', null],
+                ['ru-RU', 900001],
+            ]);
+        }
+    );
+
+    it('uses the Russian cached match after a cached Ukrainian miss', async () => {
+        cacheGet.mockImplementation(async (_type, _key, language) => ({
+            tmdbId: language === 'uk-UA' ? null : 900001,
+        }));
+        const service = createService('uk');
+        const cacheService = (service as unknown as { cache: TmdbCacheService })
+            .cache;
+        jest.spyOn(cacheService, 'isFresh').mockReturnValue(true);
+
+        expect(
+            await service.resolveBySearch('movie', {
+                title: 'Синтетический фильм Альфа',
+                year: 1999,
+            })
+        ).toBe(900001);
+        expect(cacheGet.mock.calls.map((call) => call[2])).toEqual([
+            'uk-UA',
+            'ru-RU',
+        ]);
+        expect(searchMovie).not.toHaveBeenCalled();
+        expect(cacheSet).not.toHaveBeenCalled();
+    });
+
+    it('does not retry another language after a transient search error', async () => {
+        searchMovie.mockRejectedValue(new Error('temporarily unavailable'));
+        const service = createService('uk');
+
+        await expect(
+            service.resolveBySearch('movie', { title: 'Синтетический фильм Альфа', year: 1999 })
+        ).rejects.toThrow('temporarily unavailable');
+        expect(searchMovie).toHaveBeenCalledTimes(1);
+        expect(cacheSet).not.toHaveBeenCalled();
     });
 
     it('caches the miss under the current key, not the folded one', async () => {
@@ -113,7 +221,7 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
         );
         expect(cacheSet).toHaveBeenCalledWith(
             expect.objectContaining({
-                lookupKey: 'title:пробный выпуск|year:2026|v4',
+                lookupKey: 'title:пробный выпуск|year:2026|v5',
                 tmdbId: null,
             })
         );
@@ -134,7 +242,7 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
         expect(id).toBe(101101);
         expect(cacheGet).toHaveBeenCalledWith(
             'tv',
-            'title:лейка|year:2026|v4',
+            'title:лейка|year:2026|v5',
             'ru-RU'
         );
         expect(searchTv).not.toHaveBeenCalled();
@@ -158,8 +266,8 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
         expect(
             cacheSet.mock.calls.map(([row]) => [row.lookupKey, row.tmdbId])
         ).toEqual([
-            ['title:леика|year:2026|v4', null],
-            ['title:лейка|year:2026|v4', 101101],
+            ['title:леика|year:2026|v5', null],
+            ['title:лейка|year:2026|v5', 101101],
         ]);
     });
 
@@ -168,7 +276,7 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
         // "леика". Item B shares the original title but displays "Лейка":
         // the cached miss must not suppress B's own second variant.
         cacheGet.mockImplementation(async (_type: string, key: string) =>
-            key === 'title:леика|year:2026|v4' ? { tmdbId: null } : null
+            key === 'title:леика|year:2026|v5' ? { tmdbId: null } : null
         );
         const service = createService();
         const cacheService = (service as unknown as { cache: TmdbCacheService })
@@ -187,8 +295,8 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
         expect(searchTv).toHaveBeenCalledTimes(1);
         expect(searchTv).toHaveBeenCalledWith('Лейка', null, 'ru-RU', 'key');
         expect(cacheGet.mock.calls.map(([, key]) => key)).toEqual([
-            'title:леика|year:2026|v4',
-            'title:лейка|year:2026|v4',
+            'title:леика|year:2026|v5',
+            'title:лейка|year:2026|v5',
         ]);
     });
 

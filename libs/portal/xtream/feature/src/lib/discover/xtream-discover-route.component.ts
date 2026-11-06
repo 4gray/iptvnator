@@ -1,4 +1,3 @@
-import { Location } from '@angular/common';
 import {
     ChangeDetectionStrategy,
     Component,
@@ -18,10 +17,15 @@ import {
     pickTitleMatch,
 } from '@iptvnator/services';
 import { CatalogTitleMatch } from '@iptvnator/shared/interfaces';
-import { createLatestRequestGuard } from '@iptvnator/portal/shared/util';
+import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
+import {
+    createLatestRequestGuard,
+    workspacePortalCommands,
+} from '@iptvnator/portal/shared/util';
 import {
     DiscoverViewComponent,
     TitleResultsScope,
+    discoverCatalogSection,
     discoverFacetKey,
     hasDiscoverFacet,
     parseDiscoverParams,
@@ -65,7 +69,7 @@ interface DiscoverItem extends DiscoverTitle {
 export class XtreamDiscoverRouteComponent {
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
-    private readonly location = inject(Location);
+    private readonly backNavigation = inject(WorkspaceBackNavigationService);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly tmdbEnrichment = inject(TmdbEnrichmentService);
     private readonly titleMatch = inject(CatalogTitleMatchService);
@@ -185,8 +189,18 @@ export class XtreamDiscoverRouteComponent {
         this.openPortalSearch(item.title);
     }
 
+    /**
+     * History Back; the catalog section this page lists when it opened the
+     * session.
+     */
     goBack(): void {
-        this.location.back();
+        this.backNavigation.back(() =>
+            workspacePortalCommands(
+                this.route,
+                'xtreams',
+                discoverCatalogSection(this.facets())
+            )
+        );
     }
 
     private openPortalSearch(title: string): void {

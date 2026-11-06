@@ -162,7 +162,7 @@ describe('vlc-session.service process lifecycle', () => {
             expect(spawnMock).toHaveBeenCalledTimes(1);
             expect(rcWrites).toEqual([
                 'clear\n',
-                'add https://example.com/two.m3u8 ' +
+                'add https://example.com/two.m3u8 :start-time=0 ' +
                     ':http-referrer=https://ref.example :meta-title=Second\n',
             ]);
             expect(session.status).toBe('opened');
@@ -299,9 +299,7 @@ describe('vlc-session.service process lifecycle', () => {
             } finally {
                 sockets[0].emit('data', Buffer.from('> 12'));
                 while (sockets.length < 2) {
-                    await new Promise<void>((resolve) =>
-                        setImmediate(resolve)
-                    );
+                    await new Promise<void>((resolve) => setImmediate(resolve));
                 }
                 sockets[1].emit('data', Buffer.from('> 120'));
                 await closing;
@@ -494,11 +492,7 @@ describe('vlc-session.service process lifecycle', () => {
                 () => ({
                     unref: jest.fn(),
                     on: jest.fn(),
-                    listen: (
-                        _port: number,
-                        _host: string,
-                        cb: () => void
-                    ) => {
+                    listen: (_port: number, _host: string, cb: () => void) => {
                         releasePort = cb;
                     },
                     address: () => ({ port: 43211 }),
@@ -513,21 +507,13 @@ describe('vlc-session.service process lifecycle', () => {
             });
             const replacementId =
                 externalPlayerSessions.getActiveSessionId() as string;
-            for (
-                let attempt = 0;
-                attempt < 20 && !releasePort;
-                attempt += 1
-            ) {
+            for (let attempt = 0; attempt < 20 && !releasePort; attempt += 1) {
                 await new Promise<void>((resolve) => setImmediate(resolve));
             }
             expect(releasePort).toBeDefined();
 
             const closing = externalPlayerSessions.closeSession(replacementId);
-            for (
-                let attempt = 0;
-                attempt < 20 && !releaseClose;
-                attempt += 1
-            ) {
+            for (let attempt = 0; attempt < 20 && !releaseClose; attempt += 1) {
                 await new Promise<void>((resolve) => setImmediate(resolve));
             }
             expect(releaseClose).toBeDefined();
@@ -917,9 +903,11 @@ describe('vlc-session.service process lifecycle', () => {
             let rejectPort: ((error: Error) => void) | undefined;
             (createServer as unknown as jest.Mock).mockImplementation(() => ({
                 unref: jest.fn(),
-                on: jest.fn((event: string, listener: (error: Error) => void) => {
-                    if (event === 'error') rejectPort = listener;
-                }),
+                on: jest.fn(
+                    (event: string, listener: (error: Error) => void) => {
+                        if (event === 'error') rejectPort = listener;
+                    }
+                ),
                 listen: () =>
                     setImmediate(() =>
                         rejectPort?.(new Error('port allocation failed'))
@@ -930,7 +918,10 @@ describe('vlc-session.service process lifecycle', () => {
             const proc = createMockChildProcess();
             spawnMock.mockReturnValueOnce(proc);
 
-            const opening = openVlcPlayer({ title: 'Fallback', url: streamUrl });
+            const opening = openVlcPlayer({
+                title: 'Fallback',
+                url: streamUrl,
+            });
             await waitForSpawnCallCount(1);
             proc.emit('spawn');
             const session = await opening;
