@@ -733,7 +733,9 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "Age rating country",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Choose the country used for age classifications. Missing local ratings may use US or provider data.",
-        "AGE_RATING_COUNTRY_AUTO": "Automatic — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Automatic — {{country}}",
+        "LIVE_CHANNEL_FAILOVER": "Live channel failover",
+        "LIVE_CHANNEL_FAILOVER_DESCRIPTION": "When a live channel fails — in the embedded player or a built-in web player, or in external MPV/VLC when the player reports an error — retry it 3 times (10 seconds each), then look for the same channel in your other sources, in list order, and switch to the first source that plays it."
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Could not save to the server. Check the connection and try again.",
@@ -873,7 +875,12 @@
             "STATS_CONTAINER": "Container",
             "STATS_BUFFER": "Buffer",
             "STATS_DROPPED_FRAMES": "Dropped frames",
-            "STATS_UNAVAILABLE": "No stream data yet"
+            "STATS_UNAVAILABLE": "No stream data yet",
+            "FAILOVER_RETRYING": "Stream failed. Retrying ({{attempt}}/{{maxAttempts}})…",
+            "FAILOVER_SEARCHING": "Looking for “{{channel}}” in your other sources…",
+            "FAILOVER_HOPPING": "Trying source {{index}}/{{total}}: {{source}} — {{channel}}",
+            "FAILOVER_SWITCHED": "Switched to {{source}} — {{channel}}",
+            "FAILOVER_EXHAUSTED": "No working source found for “{{channel}}”"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

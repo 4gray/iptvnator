@@ -72,6 +72,9 @@
                 "libs/playback/data-access/src/index.ts"
             ],
             "@iptvnator/playback/util": ["libs/playback/util/src/index.ts"],
+            "@iptvnator/playback/util/live-channel-match": [
+                "libs/playback/util/src/lib/live-channel-match.ts"
+            ],
             "@iptvnator/playlist/shared/ui": [
                 "libs/playlist/shared/ui/src/index.ts"
             ],

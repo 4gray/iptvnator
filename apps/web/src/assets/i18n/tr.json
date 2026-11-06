@@ -733,7 +733,9 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "Yaş sınıflandırması ülkesi",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Sınıflandırma ülkesini seçin. Yerel veri yoksa ABD veya sağlayıcı verileri kullanılabilir.",
-        "AGE_RATING_COUNTRY_AUTO": "Otomatik — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Otomatik — {{country}}",
+        "LIVE_CHANNEL_FAILOVER": "Canlı kanal yedeklemesi",
+        "LIVE_CHANNEL_FAILOVER_DESCRIPTION": "Gömülü oynatıcıda bir canlı kanal başarısız olduğunda 3 kez (her biri 10 saniye) yeniden denenir, ardından aynı kanal diğer kaynaklarınızda liste sırasıyla aranır ve onu oynatan ilk kaynağa geçilir."
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Sunucuya kaydedilemedi. Bağlantıyı kontrol edip tekrar deneyin.",
@@ -873,7 +875,12 @@
             "STATS_CONTAINER": "Kapsayıcı",
             "STATS_BUFFER": "Arabellek",
             "STATS_DROPPED_FRAMES": "Atlanan kareler",
-            "STATS_UNAVAILABLE": "Henüz yayın verisi yok"
+            "STATS_UNAVAILABLE": "Henüz yayın verisi yok",
+            "FAILOVER_RETRYING": "Yayın başarısız. Yeniden deneniyor ({{attempt}}/{{maxAttempts}})…",
+            "FAILOVER_SEARCHING": "“{{channel}}” diğer kaynaklarınızda aranıyor…",
+            "FAILOVER_HOPPING": "Kaynak {{index}}/{{total}} deneniyor: {{source}} — {{channel}}",
+            "FAILOVER_SWITCHED": "{{source}} kaynağına geçildi — {{channel}}",
+            "FAILOVER_EXHAUSTED": "“{{channel}}” için çalışan kaynak bulunamadı"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

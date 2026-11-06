@@ -733,7 +733,9 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "Paese della classificazione per età",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Scegli il paese della classificazione. In assenza di dati locali, possono essere usati quelli statunitensi o del fornitore.",
-        "AGE_RATING_COUNTRY_AUTO": "Automatico — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Automatico — {{country}}",
+        "LIVE_CHANNEL_FAILOVER": "Failover dei canali live",
+        "LIVE_CHANNEL_FAILOVER_DESCRIPTION": "Quando un canale live non funziona nel lettore integrato, viene ritentato 3 volte (10 secondi ciascuna), poi lo stesso canale viene cercato nelle altre sorgenti, nell’ordine dell’elenco, e si passa alla prima sorgente che lo riproduce."
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Impossibile salvare sul server. Controlla la connessione e riprova.",
@@ -873,7 +875,12 @@
             "STATS_CONTAINER": "Contenitore",
             "STATS_BUFFER": "Buffer",
             "STATS_DROPPED_FRAMES": "Fotogrammi persi",
-            "STATS_UNAVAILABLE": "Nessun dato dello stream"
+            "STATS_UNAVAILABLE": "Nessun dato dello stream",
+            "FAILOVER_RETRYING": "Stream non riuscito. Nuovo tentativo ({{attempt}}/{{maxAttempts}})…",
+            "FAILOVER_SEARCHING": "Ricerca di «{{channel}}» nelle altre sorgenti…",
+            "FAILOVER_HOPPING": "Provo la sorgente {{index}}/{{total}}: {{source}} — {{channel}}",
+            "FAILOVER_SWITCHED": "Passato a {{source}} — {{channel}}",
+            "FAILOVER_EXHAUSTED": "Nessuna sorgente funzionante trovata per «{{channel}}»"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

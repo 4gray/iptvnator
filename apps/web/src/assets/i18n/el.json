@@ -733,7 +733,9 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "Χώρα ηλικιακής κατάταξης",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Επιλέξτε τη χώρα κατάταξης. Αν δεν υπάρχουν τοπικά στοιχεία, μπορεί να χρησιμοποιηθούν στοιχεία ΗΠΑ ή παρόχου.",
-        "AGE_RATING_COUNTRY_AUTO": "Αυτόματα — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Αυτόματα — {{country}}",
+        "LIVE_CHANNEL_FAILOVER": "Εναλλαγή καναλιού σε άλλη πηγή",
+        "LIVE_CHANNEL_FAILOVER_DESCRIPTION": "Όταν ένα ζωντανό κανάλι αποτυγχάνει στο ενσωματωμένο πρόγραμμα αναπαραγωγής, γίνονται 3 νέες προσπάθειες (10 δευτερόλεπτα η καθεμία) και μετά αναζητείται το ίδιο κανάλι στις άλλες πηγές σας, με τη σειρά της λίστας, και γίνεται μετάβαση στην πρώτη πηγή που το παίζει."
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Δεν ήταν δυνατή η αποθήκευση στον διακομιστή. Ελέγξτε τη σύνδεση και δοκιμάστε ξανά.",
@@ -873,7 +875,12 @@
             "STATS_CONTAINER": "Κοντέινερ",
             "STATS_BUFFER": "Ενδιάμεση μνήμη",
             "STATS_DROPPED_FRAMES": "Απορριφθέντα καρέ",
-            "STATS_UNAVAILABLE": "Δεν υπάρχουν ακόμη δεδομένα ροής"
+            "STATS_UNAVAILABLE": "Δεν υπάρχουν ακόμη δεδομένα ροής",
+            "FAILOVER_RETRYING": "Η ροή απέτυχε. Νέα προσπάθεια ({{attempt}}/{{maxAttempts}})…",
+            "FAILOVER_SEARCHING": "Αναζήτηση του «{{channel}}» στις άλλες πηγές σας…",
+            "FAILOVER_HOPPING": "Δοκιμή πηγής {{index}}/{{total}}: {{source}} — {{channel}}",
+            "FAILOVER_SWITCHED": "Μετάβαση σε {{source}} — {{channel}}",
+            "FAILOVER_EXHAUSTED": "Δεν βρέθηκε πηγή που να λειτουργεί για το «{{channel}}»"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

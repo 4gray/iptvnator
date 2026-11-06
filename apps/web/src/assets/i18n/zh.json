@@ -733,7 +733,9 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "年龄分级国家",
         "AGE_RATING_COUNTRY_DESCRIPTION": "选择年龄分级使用的国家。缺少本地分级时，可能使用美国或提供商的数据。",
-        "AGE_RATING_COUNTRY_AUTO": "自动 — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "自动 — {{country}}",
+        "LIVE_CHANNEL_FAILOVER": "直播频道故障切换",
+        "LIVE_CHANNEL_FAILOVER_DESCRIPTION": "当直播频道在内置播放器中失败时，会重试 3 次（每次 10 秒），然后按列表顺序在你的其他来源中查找同一频道，并切换到第一个能播放它的来源。"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "无法保存到服务器。请检查连接后重试。",
@@ -873,7 +875,12 @@
             "STATS_CONTAINER": "容器",
             "STATS_BUFFER": "缓冲",
             "STATS_DROPPED_FRAMES": "丢帧",
-            "STATS_UNAVAILABLE": "暂无流数据"
+            "STATS_UNAVAILABLE": "暂无流数据",
+            "FAILOVER_RETRYING": "流播放失败。正在重试（{{attempt}}/{{maxAttempts}}）…",
+            "FAILOVER_SEARCHING": "正在其他来源中查找“{{channel}}”…",
+            "FAILOVER_HOPPING": "正在尝试来源 {{index}}/{{total}}：{{source}} — {{channel}}",
+            "FAILOVER_SWITCHED": "已切换到 {{source}} — {{channel}}",
+            "FAILOVER_EXHAUSTED": "找不到可播放“{{channel}}”的来源"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

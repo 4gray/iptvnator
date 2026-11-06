@@ -733,7 +733,9 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "Краіна ўзроставага рэйтынгу",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Выберыце краіну класіфікацыі. Калі мясцовых звестак няма, выкарыстоўваюцца даныя ЗША або правайдара.",
-        "AGE_RATING_COUNTRY_AUTO": "Аўтаматычна — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Аўтаматычна — {{country}}",
+        "LIVE_CHANNEL_FAILOVER": "Пераключэнне каналаў пры збоі",
+        "LIVE_CHANNEL_FAILOVER_DESCRIPTION": "Калі прамы эфір канала перарываецца ва ўбудаваным плэеры, ён перазапускаецца 3 разы (па 10 секунд), потым той жа канал шукаецца ў іншых вашых крыніцах у парадку спіса, і плэер пераключаецца на першую крыніцу, дзе ён прайграецца."
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Не ўдалося захаваць на сервер. Праверце злучэнне і паспрабуйце зноў.",
@@ -873,7 +875,12 @@
             "STATS_CONTAINER": "Кантэйнер",
             "STATS_BUFFER": "Буфер",
             "STATS_DROPPED_FRAMES": "Страчаныя кадры",
-            "STATS_UNAVAILABLE": "Дадзеных пра струмень пакуль няма"
+            "STATS_UNAVAILABLE": "Дадзеных пра струмень пакуль няма",
+            "FAILOVER_RETRYING": "Збой патоку. Паўторная спроба ({{attempt}}/{{maxAttempts}})…",
+            "FAILOVER_SEARCHING": "Пошук «{{channel}}» у іншых крыніцах…",
+            "FAILOVER_HOPPING": "Праверка крыніцы {{index}}/{{total}}: {{source}} — {{channel}}",
+            "FAILOVER_SWITCHED": "Пераключана на {{source}} — {{channel}}",
+            "FAILOVER_EXHAUSTED": "Не знойдзена працоўнай крыніцы для «{{channel}}»"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

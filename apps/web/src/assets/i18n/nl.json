@@ -733,7 +733,9 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "Land voor leeftijdsclassificatie",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Kies het land voor de leeftijdsclassificatie. Ontbrekende lokale gegevens kunnen worden aangevuld met Amerikaanse of aanbiedergegevens.",
-        "AGE_RATING_COUNTRY_AUTO": "Automatisch — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Automatisch — {{country}}",
+        "LIVE_CHANNEL_FAILOVER": "Failover voor livezenders",
+        "LIVE_CHANNEL_FAILOVER_DESCRIPTION": "Als een livezender in de ingebouwde speler faalt, wordt hij 3 keer opnieuw geprobeerd (elk 10 seconden). Daarna wordt dezelfde zender in je andere bronnen gezocht, in lijstvolgorde, en wordt overgeschakeld naar de eerste bron die hem afspeelt."
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Opslaan op de server is mislukt. Controleer de verbinding en probeer het opnieuw.",
@@ -873,7 +875,12 @@
             "STATS_CONTAINER": "Container",
             "STATS_BUFFER": "Buffer",
             "STATS_DROPPED_FRAMES": "Verloren frames",
-            "STATS_UNAVAILABLE": "Nog geen streamgegevens"
+            "STATS_UNAVAILABLE": "Nog geen streamgegevens",
+            "FAILOVER_RETRYING": "Stream mislukt. Opnieuw proberen ({{attempt}}/{{maxAttempts}})…",
+            "FAILOVER_SEARCHING": "Zoeken naar “{{channel}}” in je andere bronnen…",
+            "FAILOVER_HOPPING": "Bron {{index}}/{{total}} proberen: {{source}} — {{channel}}",
+            "FAILOVER_SWITCHED": "Overgeschakeld naar {{source}} — {{channel}}",
+            "FAILOVER_EXHAUSTED": "Geen werkende bron gevonden voor “{{channel}}”"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

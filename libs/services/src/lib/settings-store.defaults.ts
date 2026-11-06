@@ -48,6 +48,7 @@ export const DEFAULT_SETTINGS: Settings = {
     embeddedMpvFrameCopy: false,
     embeddedMpvExtraOptions: '',
     embeddedMpvAutoReconnect: true,
+    liveChannelFailover: false,
     portalConnectivityGuard: true,
     coverSize: 'medium',
     showCoverTitles: true,

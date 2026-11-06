@@ -259,6 +259,14 @@ export interface Settings {
      * Captured per session, so a change applies to the next session.
      */
     embeddedMpvAutoReconnect?: boolean;
+    /**
+     * Live channel failover for the embedded MPV player. A live stream that
+     * fails is retried up to 3 times (10 s each); then the same channel is
+     * looked up by fuzzy name in the other sources, in list order, and the
+     * player switches to the first source that plays it — a full switch to
+     * that source's live view. Off by default.
+     */
+    liveChannelFailover?: boolean;
     /** Desktop Xtream/Stalker request cooldown. Default on; applies on Save. */
     portalConnectivityGuard?: boolean;
     /** Cover/poster sizing preset applied across grids and rails */

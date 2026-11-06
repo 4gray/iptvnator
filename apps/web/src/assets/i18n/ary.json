@@ -733,7 +733,9 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "بلد التصنيف العمري",
         "AGE_RATING_COUNTRY_DESCRIPTION": "اختار بلد التصنيف. إلا ما كانتش بيانات محلية، يمكن نستعملو بيانات أمريكا ولا المزوّد.",
-        "AGE_RATING_COUNTRY_AUTO": "تلقائي — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "تلقائي — {{country}}",
+        "LIVE_CHANNEL_FAILOVER": "تبديل القنوات المباشرة ملي كتفشل",
+        "LIVE_CHANNEL_FAILOVER_DESCRIPTION": "ملي كتفشل شي قناة مباشرة فالمشغّل المدمج، كنعاودو نجربوها 3 مرات (10 ثواني كل مرة)، من بعد كنقلبو على نفس القناة فالمصادر الأخرى ديالك بترتيب اللائحة وكنبدلو لأول مصدر اللي كيشغّلها."
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "ما قدرناش نحفظو فالسيرفر. شوف الاتصال وعاود جرب.",
@@ -873,7 +875,12 @@
             "STATS_CONTAINER": "الحاوية",
             "STATS_BUFFER": "التخزين المؤقت",
             "STATS_DROPPED_FRAMES": "الإطارات اللي تضاعو",
-            "STATS_UNAVAILABLE": "مازال ماكاينش داتا ديال البث"
+            "STATS_UNAVAILABLE": "مازال ماكاينش داتا ديال البث",
+            "FAILOVER_RETRYING": "البث فشل. كنعاودو نجربو ({{attempt}}/{{maxAttempts}})…",
+            "FAILOVER_SEARCHING": "كنقلبو على «{{channel}}» فالمصادر الأخرى ديالك…",
+            "FAILOVER_HOPPING": "كنجربو المصدر {{index}}/{{total}}: {{source}} — {{channel}}",
+            "FAILOVER_SWITCHED": "تبدّل ل{{source}} — {{channel}}",
+            "FAILOVER_EXHAUSTED": "ما لقينا حتى مصدر خدام ل«{{channel}}»"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
