@@ -10,6 +10,8 @@ import {
     openSettings,
     openSettingsSection,
     openSources,
+    openSourceEditor,
+    saveSourceDialog,
     sourceRowByTitle,
     openGlobalRecent,
     clearCurrentUnifiedCollection,
@@ -142,10 +144,29 @@ for (const provider of ['xtream', 'stalker'] as const)
                 ).toBeEnabled();
                 expect((await read()).state.revision).toBe(first.revision);
             }
+            if (provider === 'xtream') {
+                await openSources(native);
+                const dialog = await openSourceEditor(
+                    native,
+                    'Synthetic shared history'
+                );
+                await dialog
+                    .getByTestId('xtream-load-movie')
+                    .getByRole('checkbox')
+                    .uncheck();
+                await saveSourceDialog(native, dialog);
+            }
             await openGlobalRecent(native);
             await expect(contentCardByTitle(native, title)).toBeVisible({
                 timeout: 30000,
             });
+            if (provider === 'xtream')
+                await expect(
+                    contentCardByTitle(native, title).getByText(
+                        'Movies — Disabled',
+                        { exact: true }
+                    )
+                ).toBeVisible();
             await contentCardByTitle(native, title).click();
             await startAndConfirmPlayback(
                 native,

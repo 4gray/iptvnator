@@ -465,7 +465,7 @@ export class UnifiedRecentDataService {
                 const rows =
                     await this.xtreamDataSource.getRecentItems(playlistId);
                 return rows.map((row) =>
-                    this.mapXtreamContentItem(row, playlistId, meta?.title)
+                    this.mapXtreamContentItem(row, playlistId, meta)
                 );
             }
 
@@ -528,7 +528,7 @@ export class UnifiedRecentDataService {
     private mapXtreamContentItem(
         item: XtreamRecentItem,
         playlistId: string,
-        playlistName?: string
+        meta?: PlaylistMeta
     ): UnifiedCollectionItem {
         const contentType = xtreamContentType(item.type);
 
@@ -539,6 +539,11 @@ export class UnifiedRecentDataService {
                 item.xtream_id
             ),
             name: item.title,
+            catalogDisabled:
+                this.runtime.supportsXtreamSqliteDataSource &&
+                !normalizeXtreamContentTypes(meta?.xtreamContentTypes).includes(
+                    contentType
+                ),
             catalogStatus: item.catalog_status,
             xtreamIdentity: {
                 tmdbId: item.tmdb_id ?? undefined,
@@ -547,7 +552,7 @@ export class UnifiedRecentDataService {
             contentType,
             sourceType: 'xtream',
             playlistId,
-            playlistName: playlistName ?? item.playlist_name ?? 'Xtream',
+            playlistName: meta?.title ?? item.playlist_name ?? 'Xtream',
             logo: contentType === 'live' ? (item.poster_url ?? null) : null,
             posterUrl:
                 contentType !== 'live' ? (item.poster_url ?? null) : null,
