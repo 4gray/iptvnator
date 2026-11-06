@@ -451,6 +451,8 @@ retains the cover's focus key and main scroll position through source activation
 playback and Details. Live entries offer Watch live; unknown durations show
 watched minutes without an indeterminate progress strip. History dates use a
 compact day/month label; episode coordinates and source remain explicit.
+Restoring a saved scroll offset also reveals the focused control, so a title
+moved by playback cannot remain offscreen after returning through Details.
 
 Movies and episodes count as watched when the remaining native duration is at
 most 5% of the total, capped at 300 seconds. The same helper controls continuation,

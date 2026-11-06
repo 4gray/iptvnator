@@ -327,6 +327,32 @@ test('History activates the saved source for playback and Details, then restores
     await expect(entry.locator('.resume-card')).toBeFocused();
 });
 
+test('History reveals a reordered cover after playback through Details', async ({
+    page,
+}) => {
+    await seed(page, 27);
+    await nav(page, 'History');
+    const card = page.locator('.resume-card').nth(18);
+    const title = await card.locator('strong').innerText();
+    await card.scrollIntoViewIfNeeded();
+    await cardAction(page, card, 'Details');
+    await expect(page.locator('.detail-hero')).toBeVisible();
+    await page.locator('[data-focus="detail-play"]').click();
+    await expect
+        .poll(() =>
+            page
+                .locator('video')
+                .evaluate((video: HTMLVideoElement) => video.currentTime)
+        )
+        .toBeGreaterThan(0);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.detail-hero')).toBeVisible();
+    await page.keyboard.press('Escape');
+    const returned = page.locator('.resume-card').filter({ hasText: title });
+    await expect(returned).toBeFocused();
+    await expect(returned).toBeInViewport();
+});
+
 test('empty History is navigable and keeps the TV sidebar within the viewport', async ({
     page,
 }) => {
