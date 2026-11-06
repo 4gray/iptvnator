@@ -7,7 +7,7 @@
   },
   "items": [
    {
-    "name": "Encrypted",
+    "name": "Synthetic3",
     "tvg": {
      "id": "",
      "name": "",
@@ -23,8 +23,8 @@
      "referrer": "",
      "user-agent": ""
     },
-    "url": "http://example.com/enc.mpd",
-    "raw": "#KODIPROP:inputstream.adaptive.license_type=clearkey\r\n#KODIPROP:inputstream.adaptive.license_key=kid123:key456\r\n#EXTINF:-1,Encrypted\r\nhttp://example.com/enc.mpd",
+    "url": "http://synthetic.example/Synthetic1.mpd",
+    "raw": "#KODIPROP:inputstream.adaptive.license_type=clearkey\r\n#KODIPROP:inputstream.adaptive.license_key=kid123:key456\r\n#EXTINF:-1,Synthetic3\r\nhttp://synthetic.example/Synthetic1.mpd",
     "line": 4,
     "catchup": {
      "type": "",
@@ -36,7 +36,7 @@
     "radio": ""
    },
    {
-    "name": "Plain",
+    "name": "Synthetic4",
     "tvg": {
      "id": "",
      "name": "",
@@ -52,8 +52,8 @@
      "referrer": "",
      "user-agent": ""
     },
-    "url": "http://example.com/plain.m3u8",
-    "raw": "#EXTINF:-1,Plain\r\nhttp://example.com/plain.m3u8",
+    "url": "http://synthetic.example/Synthetic2.m3u8",
+    "raw": "#EXTINF:-1,Synthetic4\r\nhttp://synthetic.example/Synthetic2.m3u8",
     "line": 6,
     "catchup": {
      "type": "",

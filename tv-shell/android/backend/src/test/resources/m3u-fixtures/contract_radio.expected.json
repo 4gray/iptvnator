@@ -7,9 +7,9 @@
   },
   "items": [
    {
-    "name": "Radio One",
+    "name": "Synthetic4 Synthetic5",
     "tvg": {
-     "id": "r1",
+     "id": "Synthetic3",
      "name": "",
      "logo": "",
      "url": "",
@@ -23,8 +23,8 @@
      "referrer": "",
      "user-agent": ""
     },
-    "url": "http://example.com/radio1",
-    "raw": "#EXTINF:-1 radio=\"true\" tvg-id=\"r1\",Radio One\r\nhttp://example.com/radio1",
+    "url": "http://synthetic.example/Synthetic1",
+    "raw": "#EXTINF:-1 radio=\"true\" tvg-id=\"Synthetic3\",Synthetic4 Synthetic5\r\nhttp://synthetic.example/Synthetic1",
     "line": 2,
     "catchup": {
      "type": "",
@@ -36,9 +36,9 @@
     "radio": "true"
    },
    {
-    "name": "TV One",
+    "name": "Synthetic6 Synthetic5",
     "tvg": {
-     "id": "tv1",
+     "id": "Synthetic2",
      "name": "",
      "logo": "",
      "url": "",
@@ -52,8 +52,8 @@
      "referrer": "",
      "user-agent": ""
     },
-    "url": "http://example.com/tv1",
-    "raw": "#EXTINF:-1 tvg-id=\"tv1\",TV One\r\nhttp://example.com/tv1",
+    "url": "http://synthetic.example/Synthetic2",
+    "raw": "#EXTINF:-1 tvg-id=\"Synthetic2\",Synthetic6 Synthetic5\r\nhttp://synthetic.example/Synthetic2",
     "line": 4,
     "catchup": {
      "type": "",

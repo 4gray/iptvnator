@@ -7,9 +7,9 @@
   },
   "items": [
    {
-    "name": "CRLF",
+    "name": "Synthetic3",
     "tvg": {
-     "id": "crlf",
+     "id": "Synthetic2",
      "name": "",
      "logo": "",
      "url": "",
@@ -23,8 +23,8 @@
      "referrer": "",
      "user-agent": "UA"
     },
-    "url": "http://x/1.ts",
-    "raw": "#EXTINF:-1 tvg-id=\"crlf\" radio=\"true\",CRLF\r\nhttp://x/1.ts|User-Agent=UA",
+    "url": "http://synthetic.example/Synthetic1.ts",
+    "raw": "#EXTINF:-1 tvg-id=\"Synthetic2\" radio=\"true\",Synthetic3\r\nhttp://synthetic.example/Synthetic1.ts|User-Agent=UA",
     "line": 2,
     "catchup": {
      "type": "",

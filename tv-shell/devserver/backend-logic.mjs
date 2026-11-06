@@ -252,8 +252,11 @@ export function fetchText(url, { headers = {}, timeoutMs = 30000, redirects = 0 
                 if (REDIRECT_STATUSES.has(res.statusCode) && res.headers.location) {
                     res.resume();
                     if (redirects >= 5) return reject(Object.assign(new Error('Too many redirects'), { code: 'ERR_TOO_MANY_REDIRECTS' }));
-                    const next = new URL(res.headers.location, target).href;
-                    return resolvePromise(fetchText(next, { headers, timeoutMs, redirects: redirects + 1 }));
+                    const next = new URL(res.headers.location, target);
+                    const nextHeaders = next.origin === target.origin ? headers : Object.fromEntries(
+                        Object.entries(headers).filter(([key]) => !['authorization', 'cookie', 'proxy-authorization', 'sn', 'host'].includes(key.toLowerCase()))
+                    );
+                    return resolvePromise(fetchText(next.href, { headers: nextHeaders, timeoutMs, redirects: redirects + 1 }));
                 }
                 if (res.statusCode < 200 || res.statusCode >= 300) {
                     res.resume();

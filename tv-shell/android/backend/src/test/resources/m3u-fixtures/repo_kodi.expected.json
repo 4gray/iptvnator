@@ -3,30 +3,30 @@
  "result": {
   "header": {
    "attrs": {
-    "x-tvg-url": "https://github.com/LITUATUI/M3UPT/raw/main/epg/epg-vodafone.xml.gz"
+    "x-tvg-url": "https://synthetic.example/Synthetic1/Synthetic2/Synthetic3/Synthetic4/Synthetic5/Synthetic6.gz"
    },
-   "raw": "#EXTM3U x-tvg-url=\"https://github.com/LITUATUI/M3UPT/raw/main/epg/epg-vodafone.xml.gz\""
+   "raw": "#EXTM3U x-tvg-url=\"https://synthetic.example/Synthetic1/Synthetic2/Synthetic3/Synthetic4/Synthetic5/Synthetic6.gz\""
   },
   "items": [
    {
-    "name": "RTP 1",
+    "name": "Synthetic17 1",
     "tvg": {
-     "id": "rtp1hd.tv.vodafone.pt",
+     "id": "Synthetic13.Synthetic14.Synthetic15.Synthetic16",
      "name": "",
-     "logo": "https://raw.githubusercontent.com/LITUATUI/M3UPT/main/logos/RTP1.png",
+     "logo": "https://synthetic.example/Synthetic1/Synthetic2/Synthetic4/Synthetic7/Synthetic8.png",
      "url": "",
      "rec": "",
      "shift": ""
     },
     "group": {
-     "title": "TV"
+     "title": "Synthetic12"
     },
     "http": {
      "referrer": "",
      "user-agent": "RTP Play/2.0.26 (Linux;Android 11) ExoPlayerLib/2.11.8"
     },
-    "url": "https://streaming-live.rtp.pt/liverepeater/rtpClean1HD.smil/playlist.m3u8",
-    "raw": "#EXTINF:-1 group-title=\"TV\" tvg-id=\"rtp1hd.tv.vodafone.pt\" tvg-logo=\"https://raw.githubusercontent.com/LITUATUI/M3UPT/main/logos/RTP1.png\",RTP 1\r\n#KODIPROP:inputstream=inputstream.adaptive\r\n#KODIPROP:inputstream.adaptive.manifest_type=hls\r\nhttps://streaming-live.rtp.pt/liverepeater/rtpClean1HD.smil/playlist.m3u8|user-agent=RTP Play/2.0.26 (Linux;Android 11) ExoPlayerLib/2.11.8",
+    "url": "https://synthetic.example/Synthetic9/Synthetic10.smil/Synthetic11.m3u8",
+    "raw": "#EXTINF:-1 group-title=\"Synthetic12\" tvg-id=\"Synthetic13.Synthetic14.Synthetic15.Synthetic16\" tvg-logo=\"https://synthetic.example/Synthetic1/Synthetic2/Synthetic4/Synthetic7/Synthetic8.png\",Synthetic17 1\r\n#KODIPROP:inputstream=inputstream.adaptive\r\n#KODIPROP:inputstream.adaptive.manifest_type=hls\r\nhttps://synthetic.example/Synthetic9/Synthetic10.smil/Synthetic11.m3u8|user-agent=RTP Play/2.0.26 (Linux;Android 11) ExoPlayerLib/2.11.8",
     "line": 7,
     "catchup": {
      "type": "",

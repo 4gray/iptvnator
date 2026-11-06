@@ -7,9 +7,9 @@
   },
   "items": [
    {
-    "name": "Radio One",
+    "name": "Synthetic5 Synthetic6",
     "tvg": {
-     "id": "r1",
+     "id": "Synthetic4",
      "name": "",
      "logo": "",
      "url": "",
@@ -23,8 +23,8 @@
      "referrer": "",
      "user-agent": ""
     },
-    "url": "http://example.com/radio1",
-    "raw": "#EXTINF:-1 radio=\"true\" tvg-id=\"r1\",Radio One\r\nhttp://example.com/radio1",
+    "url": "http://synthetic.example/Synthetic1",
+    "raw": "#EXTINF:-1 radio=\"true\" tvg-id=\"Synthetic4\",Synthetic5 Synthetic6\r\nhttp://synthetic.example/Synthetic1",
     "line": 2,
     "catchup": {
      "type": "",
@@ -36,9 +36,9 @@
     "radio": "true"
    },
    {
-    "name": "Radio Two",
+    "name": "Synthetic5 Synthetic8",
     "tvg": {
-     "id": "r2",
+     "id": "Synthetic7",
      "name": "",
      "logo": "",
      "url": "",
@@ -52,8 +52,8 @@
      "referrer": "",
      "user-agent": ""
     },
-    "url": "http://example.com/radio2",
-    "raw": "#EXTINF:-1 RADIO=\"yes\" tvg-id=\"r2\",Radio Two\r\nhttp://example.com/radio2",
+    "url": "http://synthetic.example/Synthetic2",
+    "raw": "#EXTINF:-1 RADIO=\"yes\" tvg-id=\"Synthetic7\",Synthetic5 Synthetic8\r\nhttp://synthetic.example/Synthetic2",
     "line": 4,
     "catchup": {
      "type": "",
@@ -65,9 +65,9 @@
     "radio": "yes"
    },
    {
-    "name": "TV One",
+    "name": "Synthetic9 Synthetic6",
     "tvg": {
-     "id": "tv1",
+     "id": "Synthetic3",
      "name": "",
      "logo": "",
      "url": "",
@@ -81,8 +81,8 @@
      "referrer": "",
      "user-agent": ""
     },
-    "url": "http://example.com/tv1",
-    "raw": "#EXTINF:-1 tvg-id=\"tv1\",TV One\r\nhttp://example.com/tv1",
+    "url": "http://synthetic.example/Synthetic3",
+    "raw": "#EXTINF:-1 tvg-id=\"Synthetic3\",Synthetic9 Synthetic6\r\nhttp://synthetic.example/Synthetic3",
     "line": 6,
     "catchup": {
      "type": "",

@@ -7,9 +7,9 @@
   },
   "items": [
    {
-    "name": "Name with, commas",
+    "name": "Synthetic4 Synthetic5, Synthetic6",
     "tvg": {
-     "id": "a",
+     "id": "Synthetic3",
      "name": "",
      "logo": "",
      "url": "",
@@ -20,11 +20,11 @@
      "title": ""
     },
     "http": {
-     "referrer": "http://r",
+     "referrer": "http://synthetic.example/",
      "user-agent": ""
     },
-    "url": "http://x/1.ts?a=1&user-agent=X",
-    "raw": "#EXTINF:-1 tvg-id=\"a\" broken=\"x,Name with, commas\r\nhttp://x/1.ts?a=1&user-agent=X|Referer=http://r",
+    "url": "http://synthetic.example/Synthetic1.ts?a=1&user-agent=Synthetic2",
+    "raw": "#EXTINF:-1 tvg-id=\"Synthetic3\" broken=\"x,Synthetic4 Synthetic5, Synthetic6\r\nhttp://synthetic.example/Synthetic1.ts?a=1&user-agent=Synthetic2|Referer=http://synthetic.example/",
     "line": 3,
     "catchup": {
      "type": "",
@@ -52,8 +52,8 @@
      "referrer": "",
      "user-agent": ""
     },
-    "url": "http://orphan",
-    "raw": "#EXTINF:\r\nhttp://orphan",
+    "url": "http://synthetic.example/",
+    "raw": "#EXTINF:\r\nhttp://synthetic.example/",
     "line": 6,
     "catchup": {
      "type": "",

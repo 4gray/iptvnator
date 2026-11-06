@@ -23,6 +23,12 @@ APK
 
 ## What it does
 
+Parser fixtures use synthetic catalog metadata before the reference parser
+generates expected output. Run `node --test tv-shell/tests/*.test.mjs` for the
+fixture privacy and reference-backend redirect identity checks; the APK workflow
+runs these checks alongside the Java and remote-control suites. Cross-origin
+redirects drop authorization, cookie, proxy authorization, serial and Host headers.
+
 - **Remote-control navigation**: the D-pad moves the focus between the app's
   focusable elements (a JavaScript port of Android's FocusFinder), OK activates,
   Back closes dialogs and menus then walks the history, Menu opens the focused

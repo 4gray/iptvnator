@@ -7,9 +7,9 @@
   },
   "items": [
    {
-    "name": "Chaîne n°1 – « Été »",
+    "name": "Синтетический6 Synthetic7°1 – « Синтетический8 »",
     "tvg": {
-     "id": "fr1",
+     "id": "Synthetic3",
      "name": "",
      "logo": "",
      "url": "",
@@ -17,14 +17,14 @@
      "shift": ""
     },
     "group": {
-     "title": "Télé française"
+     "title": "Синтетический4 Синтетический5"
     },
     "http": {
      "referrer": "",
      "user-agent": ""
     },
-    "url": "http://x/été.ts",
-    "raw": "#EXTINF:-1 tvg-id=\"fr1\" group-title=\"Télé française\",Chaîne n°1 – « Été »\r\nhttp://x/été.ts",
+    "url": "http://synthetic.example/Synthetic1.ts",
+    "raw": "#EXTINF:-1 tvg-id=\"Synthetic3\" group-title=\"Синтетический4 Синтетический5\",Синтетический6 Synthetic7°1 – « Синтетический8 »\r\nhttp://synthetic.example/Synthetic1.ts",
     "line": 2,
     "catchup": {
      "type": "",
@@ -36,7 +36,7 @@
     "radio": ""
    },
    {
-    "name": "テレビ 東京",
+    "name": "Синтетический10 Синтетический11",
     "tvg": {
      "id": "",
      "name": "",
@@ -46,14 +46,14 @@
      "shift": ""
     },
     "group": {
-     "title": "日本"
+     "title": "Синтетический9"
     },
     "http": {
      "referrer": "",
      "user-agent": ""
     },
-    "url": "http://x/jp.ts",
-    "raw": "#EXTINF:-1 group-title=\"日本\",テレビ 東京\r\nhttp://x/jp.ts",
+    "url": "http://synthetic.example/Synthetic2.ts",
+    "raw": "#EXTINF:-1 group-title=\"Синтетический9\",Синтетический10 Синтетический11\r\nhttp://synthetic.example/Synthetic2.ts",
     "line": 4,
     "catchup": {
      "type": "",

@@ -7,7 +7,7 @@
   },
   "items": [
    {
-    "name": "Coll",
+    "name": "Synthetic2",
     "tvg": {
      "id": "",
      "name": "",
@@ -23,8 +23,8 @@
      "referrer": "",
      "user-agent": "HU"
     },
-    "url": "http://x/1.ts",
-    "raw": "#EXTINF:-1 http-user-agent=\"HU\" user-agent=\"U\",Coll\r\nhttp://x/1.ts",
+    "url": "http://synthetic.example/Synthetic1.ts",
+    "raw": "#EXTINF:-1 http-user-agent=\"HU\" user-agent=\"U\",Synthetic2\r\nhttp://synthetic.example/Synthetic1.ts",
     "line": 2,
     "catchup": {
      "type": "",

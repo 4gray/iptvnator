@@ -7,9 +7,9 @@
   },
   "items": [
    {
-    "name": "Case",
+    "name": "Synthetic4",
     "tvg": {
-     "id": "UP",
+     "id": "Synthetic2",
      "name": "",
      "logo": "",
      "url": "",
@@ -17,14 +17,14 @@
      "shift": ""
     },
     "group": {
-     "title": "Upper"
+     "title": "Synthetic3"
     },
     "http": {
      "referrer": "",
      "user-agent": ""
     },
-    "url": "http://x/1.ts",
-    "raw": "#EXTINF:-1 TVG-ID=\"UP\" GROUP-TITLE=\"Upper\",Case\r\nhttp://x/1.ts",
+    "url": "http://synthetic.example/Synthetic1.ts",
+    "raw": "#EXTINF:-1 TVG-ID=\"Synthetic2\" GROUP-TITLE=\"Synthetic3\",Synthetic4\r\nhttp://synthetic.example/Synthetic1.ts",
     "line": 2,
     "catchup": {
      "type": "",

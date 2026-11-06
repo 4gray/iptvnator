@@ -7,9 +7,9 @@
   },
   "items": [
    {
-    "name": "Channel One",
+    "name": "Synthetic4 Synthetic5",
     "tvg": {
-     "id": "one",
+     "id": "Synthetic3",
      "name": "",
      "logo": "",
      "url": "",
@@ -23,8 +23,8 @@
      "referrer": "",
      "user-agent": ""
     },
-    "url": "http://example.com/one.m3u8",
-    "raw": "#EXTINF:-1 tvg-id=\"one\",Channel One\r\n# stray comment\r\n#EXT-X-SESSION-DATA:DATA-ID=\"com.example\",VALUE=\"x\"\r\nhttp://example.com/one.m3u8",
+    "url": "http://synthetic.example/Synthetic1.m3u8",
+    "raw": "#EXTINF:-1 tvg-id=\"Synthetic3\",Synthetic4 Synthetic5\r\n# stray comment\r\n#EXT-X-SESSION-DATA:DATA-ID=\"com.example\",VALUE=\"x\"\r\nhttp://synthetic.example/Synthetic1.m3u8",
     "line": 2,
     "catchup": {
      "type": "",
@@ -36,9 +36,9 @@
     "radio": ""
    },
    {
-    "name": "Channel Two",
+    "name": "Synthetic4 Synthetic7",
     "tvg": {
-     "id": "two",
+     "id": "Synthetic6",
      "name": "",
      "logo": "",
      "url": "",
@@ -52,8 +52,8 @@
      "referrer": "",
      "user-agent": ""
     },
-    "url": "http://example.com/two.m3u8",
-    "raw": "#EXTINF:-1 tvg-id=\"two\",Channel Two\r\nhttp://example.com/two.m3u8",
+    "url": "http://synthetic.example/Synthetic2.m3u8",
+    "raw": "#EXTINF:-1 tvg-id=\"Synthetic6\",Synthetic4 Synthetic7\r\nhttp://synthetic.example/Synthetic2.m3u8",
     "line": 6,
     "catchup": {
      "type": "",

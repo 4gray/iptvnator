@@ -7,9 +7,9 @@
   },
   "items": [
    {
-    "name": "  Spaced",
+    "name": "  Synthetic4",
     "tvg": {
-     "id": "t1",
+     "id": "Synthetic2",
      "name": "",
      "logo": "",
      "url": "",
@@ -17,14 +17,14 @@
      "shift": ""
     },
     "group": {
-     "title": "G"
+     "title": "Synthetic3"
     },
     "http": {
      "referrer": "",
      "user-agent": ""
     },
-    "url": "http://x/1.ts",
-    "raw": "#EXTINF:-1\ttvg-id=\"t1\"   group-title=\"G\" ,  Spaced  \r\n   http://x/1.ts   ",
+    "url": "http://synthetic.example/Synthetic1.ts",
+    "raw": "#EXTINF:-1\ttvg-id=\"Synthetic2\"   group-title=\"Synthetic3\" ,  Synthetic4  \r\n   http://synthetic.example/Synthetic1.ts   ",
     "line": 2,
     "catchup": {
      "type": "",

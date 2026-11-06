@@ -7,7 +7,7 @@
   },
   "items": [
    {
-    "name": "Tail",
+    "name": "Synthetic1",
     "tvg": {
      "id": "",
      "name": "",
@@ -23,7 +23,7 @@
      "referrer": "",
      "user-agent": ""
     },
-    "raw": "#EXTINF:-1,Tail",
+    "raw": "#EXTINF:-1,Synthetic1",
     "line": 2,
     "catchup": {
      "type": "",

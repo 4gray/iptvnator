@@ -7,24 +7,24 @@
   },
   "items": [
    {
-    "name": "Say \"hi\", friend",
+    "name": "Synthetic5 \"Synthetic6\", Synthetic7",
     "tvg": {
      "id": "",
-     "name": "Quoted, Name",
+     "name": "Synthetic2, Synthetic3",
      "logo": "",
      "url": "",
      "rec": "",
      "shift": ""
     },
     "group": {
-     "title": "G"
+     "title": "Synthetic4"
     },
     "http": {
      "referrer": "",
      "user-agent": ""
     },
-    "url": "http://x/1.ts",
-    "raw": "#EXTINF:-1 tvg-name=\"Quoted, Name\" group-title=\"G\",Say \"hi\", friend\r\nhttp://x/1.ts",
+    "url": "http://synthetic.example/Synthetic1.ts",
+    "raw": "#EXTINF:-1 tvg-name=\"Synthetic2, Synthetic3\" group-title=\"Synthetic4\",Synthetic5 \"Synthetic6\", Synthetic7\r\nhttp://synthetic.example/Synthetic1.ts",
     "line": 2,
     "catchup": {
      "type": "",

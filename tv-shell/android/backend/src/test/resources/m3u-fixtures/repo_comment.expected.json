@@ -7,7 +7,7 @@
   },
   "items": [
    {
-    "name": "tamazight tv8",
+    "name": "Synthetic6 Synthetic7",
     "tvg": {
      "id": "",
      "name": "",
@@ -23,8 +23,8 @@
      "referrer": "",
      "user-agent": ""
     },
-    "url": "http://cdn-hls.globecast.tv/live/ramdisk/tamazight_tv8_snrt/hls_snrt/index.m3u8",
-    "raw": "#EXTINF:-1,tamazight tv8\r\nhttp://cdn-hls.globecast.tv/live/ramdisk/tamazight_tv8_snrt/hls_snrt/index.m3u8",
+    "url": "http://synthetic.example/Synthetic1/Synthetic2/Synthetic3/Synthetic4/Synthetic5.m3u8",
+    "raw": "#EXTINF:-1,Synthetic6 Synthetic7\r\nhttp://synthetic.example/Synthetic1/Synthetic2/Synthetic3/Synthetic4/Synthetic5.m3u8",
     "line": 3,
     "catchup": {
      "type": "",

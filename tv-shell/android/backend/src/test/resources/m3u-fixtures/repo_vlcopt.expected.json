@@ -7,24 +7,24 @@
   },
   "items": [
    {
-    "name": "Test Channel",
+    "name": "Synthetic6 Synthetic7",
     "tvg": {
      "id": "",
-     "name": "TestChannel",
+     "name": "Synthetic4",
      "logo": "",
      "url": "",
      "rec": "",
      "shift": ""
     },
     "group": {
-     "title": "News"
+     "title": "Synthetic8"
     },
     "http": {
      "referrer": "",
      "user-agent": "Dalvik/2.1.0 (Linux; U; Android 6.0.1;)"
     },
-    "url": "http://test.channel.com/iptv/secret/1/index.m3u8",
-    "raw": "#EXTINF:0 tvg-name=\"TestChannel\" group-title=\"Entertainment\",Test Channel\r\n#EXTGRP:News\r\n#EXTVLCOPT:http-user-agent=\"Dalvik/2.1.0 (Linux; U; Android 6.0.1;)\"\r\nhttp://test.channel.com/iptv/secret/1/index.m3u8",
+    "url": "http://synthetic.example/Synthetic1/Synthetic2/1/Synthetic3.m3u8",
+    "raw": "#EXTINF:0 tvg-name=\"Synthetic4\" group-title=\"Synthetic5\",Synthetic6 Synthetic7\r\n#EXTGRP:Synthetic8\r\n#EXTVLCOPT:http-user-agent=\"Dalvik/2.1.0 (Linux; U; Android 6.0.1;)\"\r\nhttp://synthetic.example/Synthetic1/Synthetic2/1/Synthetic3.m3u8",
     "line": 2,
     "catchup": {
      "type": "",

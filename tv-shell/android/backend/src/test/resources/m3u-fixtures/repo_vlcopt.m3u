@@ -1,5 +1,5 @@
 #EXTM3U
-#EXTINF:0 tvg-name="TestChannel" group-title="Entertainment",Test Channel
-#EXTGRP:News
+#EXTINF:0 tvg-name="Synthetic4" group-title="Synthetic5",Synthetic6 Synthetic7
+#EXTGRP:Synthetic8
 #EXTVLCOPT:http-user-agent="Dalvik/2.1.0 (Linux; U; Android 6.0.1;)"
-http://test.channel.com/iptv/secret/1/index.m3u8
+http://synthetic.example/Synthetic1/Synthetic2/1/Synthetic3.m3u8

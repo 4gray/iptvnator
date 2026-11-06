@@ -7,7 +7,7 @@
   },
   "items": [
    {
-    "name": "A",
+    "name": "Synthetic3",
     "tvg": {
      "id": "",
      "name": "",
@@ -17,14 +17,14 @@
      "shift": ""
     },
     "group": {
-     "title": "New Group"
+     "title": "Synthetic4 Synthetic5"
     },
     "http": {
      "referrer": "",
      "user-agent": ""
     },
-    "url": "http://x/1.ts",
-    "raw": "#EXTINF:-1 group-title=\"Old\",A\r\n#EXTGRP:\"New Group\"\r\nhttp://x/1.ts",
+    "url": "http://synthetic.example/Synthetic1.ts",
+    "raw": "#EXTINF:-1 group-title=\"Synthetic2\",Synthetic3\r\n#EXTGRP:\"Synthetic4 Synthetic5\"\r\nhttp://synthetic.example/Synthetic1.ts",
     "line": 2,
     "catchup": {
      "type": "",

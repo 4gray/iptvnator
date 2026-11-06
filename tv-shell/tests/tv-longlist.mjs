@@ -54,8 +54,9 @@ check(/channel-content/.test(f || ''), 'on a channel row: ' + f);
 const numbers = [];
 for (let i = 0; i < 70; i++) {
     f = await key('ArrowDown', 1, 140);
-    const m = /\[(\d+)\./.exec(f || '');
-    numbers.push(m ? Number(m[1]) : null);
+    const number = await page.evaluate(() => document.activeElement
+        ?.querySelector('.channel-name')?.textContent?.trim().match(/^(\d+)\./)?.[1] ?? null);
+    numbers.push(number === null ? null : Number(number));
 }
 const last = numbers.filter((n) => n !== null).pop();
 console.log('  channel numbers visited:', numbers.filter((n, i) => i % 7 === 0).join(', '), '… last =', last);

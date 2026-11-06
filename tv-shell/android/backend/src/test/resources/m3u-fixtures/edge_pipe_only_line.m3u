@@ -1,4 +1,4 @@
 #EXTM3U
-#EXTINF:-1,A
+#EXTINF:-1,Synthetic2
 |User-Agent=UA
-http://x/real.ts
+http://synthetic.example/Synthetic1.ts

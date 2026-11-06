@@ -7,7 +7,7 @@
   },
   "items": [
    {
-    "name": "Piped",
+    "name": "Synthetic2",
     "tvg": {
      "id": "",
      "name": "",
@@ -20,11 +20,11 @@
      "title": ""
     },
     "http": {
-     "referrer": "http://ref.example",
+     "referrer": "http://synthetic.example/",
      "user-agent": "CustomUA"
     },
-    "url": "http://example.com/stream.ts",
-    "raw": "#EXTINF:-1,Piped\r\nhttp://example.com/stream.ts|User-Agent=CustomUA&Referer=http://ref.example",
+    "url": "http://synthetic.example/Synthetic1.ts",
+    "raw": "#EXTINF:-1,Synthetic2\r\nhttp://synthetic.example/Synthetic1.ts|User-Agent=CustomUA&Referer=http://synthetic.example/",
     "line": 2,
     "catchup": {
      "type": "",

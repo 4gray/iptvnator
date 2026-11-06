@@ -7,7 +7,7 @@
   },
   "items": [
    {
-    "name": "A",
+    "name": "Synthetic3",
     "tvg": {
      "id": "",
      "name": "",
@@ -23,8 +23,8 @@
      "referrer": "",
      "user-agent": ""
     },
-    "url": "http://x/a",
-    "raw": "#EXTINF:-1,A\r\nhttp://x/a",
+    "url": "http://synthetic.example/Synthetic1",
+    "raw": "#EXTINF:-1,Synthetic3\r\nhttp://synthetic.example/Synthetic1",
     "line": 4,
     "catchup": {
      "type": "",
@@ -36,7 +36,7 @@
     "radio": ""
    },
    {
-    "name": "B",
+    "name": "Synthetic4",
     "tvg": {
      "id": "",
      "name": "",
@@ -52,8 +52,8 @@
      "referrer": "",
      "user-agent": ""
     },
-    "url": "http://x/b",
-    "raw": "#EXTINF:-1,B\r\nhttp://x/b",
+    "url": "http://synthetic.example/Synthetic2",
+    "raw": "#EXTINF:-1,Synthetic4\r\nhttp://synthetic.example/Synthetic2",
     "line": 9,
     "catchup": {
      "type": "",
