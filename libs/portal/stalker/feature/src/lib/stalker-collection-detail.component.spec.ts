@@ -20,7 +20,10 @@ import {
     PORTAL_PLAYER,
     UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
-import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
+import {
+    StalkerStore,
+    StalkerCollectionMetadataService,
+} from '@iptvnator/portal/stalker/data-access';
 import {
     PlaybackPositionRuntimeBridgeService,
     PlaylistsService,
@@ -382,6 +385,63 @@ describe('StalkerCollectionDetailComponent', () => {
             calls + 1
         );
         expect(selectedItem()).not.toBe(hydrated);
+    });
+
+    it('fills open series metadata without resetting hydrated seasons or playback state', async () => {
+        const metadata = TestBed.inject(StalkerCollectionMetadataService);
+        const revision = signal(0);
+        jest.spyOn(metadata, 'revision').mockImplementation(() => revision());
+        jest.spyOn(metadata, 'item').mockImplementation((_source, item) =>
+            revision()
+                ? {
+                      ...item,
+                      cover: 'https://artwork.example/series.jpg',
+                      info: {
+                          ...(item as { info?: object }).info,
+                          description: 'Synthetic provider synopsis',
+                          movie_image: 'https://artwork.example/series.jpg',
+                      },
+                  }
+                : item
+        );
+        fixture.componentRef.setInput(
+            'item',
+            buildCollectionItem({
+                contentType: 'series',
+                stalkerId: '42',
+                stalkerItem: {
+                    id: '42',
+                    favoriteContentType: 'vod',
+                    is_series: true,
+                    title: 'Synthetic sparse series',
+                },
+            })
+        );
+        await settleDetail(fixture);
+        const seasons = [
+            { id: 'synthetic-season', episodes: [{ id: 'synthetic-episode' }] },
+        ];
+        selectedItem.set({
+            ...(selectedItem() as object),
+            series: seasons,
+            cmd: 'synthetic-active-command',
+        });
+        await settleDetail(fixture);
+        const playlistCalls = stalkerStore.setCurrentPlaylist.mock.calls.length;
+        revision.set(1);
+        await settleDetail(fixture);
+        expect(stalkerStore.setCurrentPlaylist).toHaveBeenCalledTimes(
+            playlistCalls
+        );
+        expect(selectedItem()).toMatchObject({
+            cmd: 'synthetic-active-command',
+            info: { description: 'Synthetic provider synopsis' },
+        });
+        expect((selectedItem() as { series: unknown }).series).toBe(seasons);
+        expect(playbackPositions.savePlaybackPosition).not.toHaveBeenCalled();
+        expect(
+            playbackPositions.savePlaybackPositionOrThrow
+        ).not.toHaveBeenCalled();
     });
 
     it('keeps regular Stalker series favorites in regular series mode', async () => {

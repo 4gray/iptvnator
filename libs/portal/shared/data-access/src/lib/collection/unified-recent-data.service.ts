@@ -1,6 +1,7 @@
 import { stalkerFavoriteReference } from '@iptvnator/shared/interfaces/favorites-sync';
 import { HISTORY_PLAYLIST_BRIDGE } from '@iptvnator/services/history-events';
 import { inject, Injectable } from '@angular/core';
+import { StalkerCollectionMetadataService } from '@iptvnator/portal/stalker/data-access';
 import { normalizeXtreamContentTypes } from '@iptvnator/shared/interfaces';
 import { Store } from '@ngrx/store';
 import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
@@ -45,6 +46,7 @@ type PlaylistWithChannels = Omit<Playlist, 'playlist'> & {
 
 @Injectable({ providedIn: 'root' })
 export class UnifiedRecentDataService {
+    private readonly stalkerMetadata = inject(StalkerCollectionMetadataService);
     private readonly history = inject(HISTORY_PLAYLIST_BRIDGE);
     private readonly store = inject(Store);
     private readonly dbService = inject(DatabaseService);
@@ -724,7 +726,10 @@ export class UnifiedRecentDataService {
             return [];
         }
 
-        return recentItems.map((item, index) => {
+        return recentItems.map((original, index) => {
+            const item = playlist
+                ? this.stalkerMetadata.item(playlist, original)
+                : original;
             const stalkerId = extractStalkerItemId(item, meta._id, index);
             const contentType = extractStalkerItemType(item);
             const isRadio = isStalkerRadioItem(item);

@@ -36,6 +36,7 @@ import {
     normalizeStalkerEntityId,
     StalkerSelectedVodItem,
     StalkerStore,
+    StalkerCollectionMetadataService,
 } from '@iptvnator/portal/stalker/data-access';
 import type { PlaybackFallbackRequest } from '@iptvnator/ui/playback';
 import {
@@ -138,6 +139,7 @@ export class StalkerCollectionDetailComponent implements ViewInPortalHandoff {
     private readonly playlistsService = inject(PlaylistsService);
     private readonly router = inject(Router);
     private readonly stalkerStore = inject(StalkerStore);
+    private readonly metadata = inject(StalkerCollectionMetadataService);
     readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
@@ -212,6 +214,7 @@ export class StalkerCollectionDetailComponent implements ViewInPortalHandoff {
 
         effect(() => {
             const item = this.item();
+            this.metadata.revision();
             const playbackOwnerKey = this.playbackSessionKey();
             untracked(() => {
                 if (playbackOwnerKey !== this.currentPlaybackOwnerKey) {
@@ -341,7 +344,13 @@ export class StalkerCollectionDetailComponent implements ViewInPortalHandoff {
         }
 
         const identity = stalkerCollectionPreparationKey(item, playlist);
-        if (identity === this.preparedIdentity && this.itemDetails()) return;
+        if (identity === this.preparedIdentity && this.itemDetails()) {
+            const current = this.itemDetails()!;
+            const enriched = this.metadata.item(playlist, current);
+            if (enriched !== current)
+                this.stalkerStore.setSelectedItem(enriched);
+            return;
+        }
         if (this.preparedIdentity) this.closeInlinePlayer();
         await this.stalkerStore.setCurrentPlaylist(playlist);
         if (requestId !== this.initRequestId) {
@@ -349,7 +358,10 @@ export class StalkerCollectionDetailComponent implements ViewInPortalHandoff {
         }
 
         this.preparedIdentity = identity;
-        const stalkerItem = resolveStalkerCollectionItem(item);
+        const stalkerItem = this.metadata.item(
+            playlist,
+            resolveStalkerCollectionItem(item)
+        );
         const detailMode = resolveStalkerCollectionDetailMode(
             item,
             stalkerItem

@@ -5,6 +5,7 @@ import {
 import { FAVORITES_PLAYLIST_BRIDGE } from '@iptvnator/services/favorites-events';
 import type { ElectronBridgeFavoriteReorderUpdate } from '@iptvnator/shared/interfaces';
 import { inject, Injectable } from '@angular/core';
+import { StalkerCollectionMetadataService } from '@iptvnator/portal/stalker/data-access';
 import { normalizeXtreamContentTypes } from '@iptvnator/shared/interfaces';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
@@ -55,6 +56,7 @@ type StalkerPortalFavoriteItem = StalkerPortalItem & {
 
 @Injectable({ providedIn: 'root' })
 export class UnifiedFavoritesDataService {
+    private readonly stalkerMetadata = inject(StalkerCollectionMetadataService);
     private readonly favoriteSync = inject(FAVORITES_PLAYLIST_BRIDGE);
     private readonly store = inject(Store);
     private readonly dbService = inject(DatabaseService);
@@ -765,6 +767,7 @@ export class UnifiedFavoritesDataService {
             return [];
         }
         if (playlist) playlist = await this.favoriteSync.project(playlist);
+        if (playlist) playlist = this.stalkerMetadata.project(playlist);
         const favs = Array.isArray(playlist?.favorites)
             ? playlist.favorites.filter(isStalkerItem)
             : [];
