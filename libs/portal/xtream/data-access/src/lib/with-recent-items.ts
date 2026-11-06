@@ -12,7 +12,6 @@ import { pipe, switchMap, tap } from 'rxjs';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import {
     ContentMetadataPatch,
-    normalizeContentMetadataPatch,
     PortalRecentItem,
 } from '@iptvnator/shared/interfaces';
 import {
@@ -25,32 +24,13 @@ export interface RecentlyViewedItem extends PortalRecentItem {
     content_id: number | string | null;
 }
 
-function mapDbRecentItem(
-    item: {
-        id: number | null;
-        title: string;
-        type: string;
-        poster_url: string;
-        backdrop_url?: string | null;
-        viewed_at?: string;
-        xtream_id: number;
-        category_id: number | string;
-    },
-    playlistId: string
-): RecentlyViewedItem {
-    return {
-        id: item.id ?? `recent:${item.type}:${item.xtream_id}`,
-        title: item.title,
-        type: item.type as 'live' | 'movie' | 'series',
-        poster_url: item.poster_url,
-        backdrop_url: item.backdrop_url ?? undefined,
-        content_id: item.id,
-        playlist_id: playlistId,
-        viewed_at: item.viewed_at || '',
-        xtream_id: item.xtream_id,
-        category_id: item.category_id,
-    };
-}
+const recentOperations = () => import('./xtream-recent-operations');
+const captureRecentOwner = (playlistId: string) =>
+    captureHistoryOwner(
+        sourceConnection()?.instanceId,
+        playlistId,
+        () => sourceConnection()?.instanceId
+    );
 
 export const withRecentItems = function () {
     return signalStoreFeature(
@@ -69,21 +49,17 @@ export const withRecentItems = function () {
             const loadRecentItems = rxMethod<{ id: string }>(
                 pipe(
                     switchMap(async (playlist) => {
-                        const current = captureHistoryOwner(
-                            sourceConnection()?.instanceId,
-                            playlist.id,
-                            () => sourceConnection()?.instanceId
-                        );
+                        const current = captureRecentOwner(playlist.id);
                         refresh = () => {
                             if (current()) loadRecentItems(playlist);
                         };
-                        const items = await dataSource.getRecentItems(
+                        const { loadXtreamRecent } = await recentOperations();
+                        const items = await loadXtreamRecent(
+                            dataSource,
                             playlist.id
                         );
                         if (!current()) return null;
-                        return items.map((item) =>
-                            mapDbRecentItem(item, playlist.id)
-                        );
+                        return items;
                     }),
                     tap((items) => {
                         if (items) patchState(store, { recentItems: items });
@@ -106,86 +82,24 @@ export const withRecentItems = function () {
                     playedContent?: XtreamPlayedContent;
                 }>(
                     pipe(
-                        switchMap(
-                            async ({
-                                xtreamId,
-                                contentType,
-                                playlist,
-                                backdropUrl,
-                                playedContent,
-                            }) => {
-                                const playlistId = playlist()?.id;
-                                const normalizedXtreamId = Number(xtreamId);
-                                if (
-                                    !playlistId ||
-                                    !Number.isFinite(normalizedXtreamId) ||
-                                    normalizedXtreamId <= 0
-                                ) {
-                                    return;
-                                }
-
-                                const identity = playedContent
-                                    ? normalizeContentMetadataPatch({
-                                          tmdbId:
-                                              playedContent.tmdbId ?? undefined,
-                                          releaseYear:
-                                              playedContent.releaseYear ??
-                                              undefined,
-                                      })
-                                    : null;
-                                const current = captureHistoryOwner(
-                                    sourceConnection()?.instanceId,
-                                    playlistId,
-                                    () => sourceConnection()?.instanceId
-                                );
-                                const content =
-                                    await dataSource.getContentByXtreamId(
-                                        normalizedXtreamId,
-                                        playlistId,
-                                        contentType,
-                                        ...(runtime.supportsXtreamSqliteDataSource &&
-                                        identity
-                                            ? [identity]
-                                            : [])
-                                    );
-                                const contentId =
-                                    content?.id ??
-                                    (!runtime.supportsXtreamSqliteDataSource ||
-                                    (await dataSource.supportsPortableHistory?.(
-                                        playlistId
-                                    ))
-                                        ? normalizedXtreamId
-                                        : null);
-
-                                if (!current()) return;
-                                if (contentId != null) {
-                                    await dataSource.addRecentItem(
-                                        {
-                                            id: contentId,
-                                            type: contentType,
-                                            providerId: normalizedXtreamId,
-                                        },
-                                        playlistId,
-                                        backdropUrl,
-                                        ...(playedContent
-                                            ? ([playedContent] as const)
-                                            : [])
-                                    );
-
-                                    // Reload after add/update so re-watched items
-                                    // immediately move to the top in recently-viewed.
-                                    const items =
-                                        await dataSource.getRecentItems(
-                                            playlistId
-                                        );
-                                    patchState(store, {
-                                        recentItems: items.map((item) =>
-                                            mapDbRecentItem(item, playlistId)
-                                        ),
-                                    });
-                                }
-                            }
-                        )
+                        switchMap(async ({ playlist, ...item }) => {
+                            const playlistId = playlist()?.id;
+                            if (!playlistId) return;
+                            const current = captureRecentOwner(playlistId);
+                            const { recordXtreamRecent } =
+                                await recentOperations();
+                            if (!current()) return;
+                            const items = await recordXtreamRecent(
+                                dataSource,
+                                runtime.supportsXtreamSqliteDataSource,
+                                { ...item, playlistId },
+                                current
+                            );
+                            if (items)
+                                patchState(store, {
+                                    recentItems: items,
+                                });
+                        })
                     )
                 ),
                 async backfillContentMetadata({
@@ -200,38 +114,21 @@ export const withRecentItems = function () {
                     patch: ContentMetadataPatch;
                 }): Promise<void> {
                     const playlistId = playlist()?.id;
-                    const normalizedXtreamId = Number(xtreamId);
-                    const normalized = normalizeContentMetadataPatch(patch);
-                    if (
-                        !playlistId ||
-                        !Number.isFinite(normalizedXtreamId) ||
-                        normalizedXtreamId <= 0 ||
-                        !normalized
-                    ) {
-                        return;
-                    }
-
-                    const content = await dataSource.getContentByXtreamId(
-                        normalizedXtreamId,
-                        playlistId,
-                        contentType,
-                        ...(runtime.supportsXtreamSqliteDataSource &&
-                        (normalized.tmdbId != null ||
-                            normalized.releaseYear != null)
-                            ? [normalized]
-                            : [])
-                    );
-                    const contentId =
-                        content?.id ??
-                        (!runtime.supportsXtreamSqliteDataSource
-                            ? normalizedXtreamId
-                            : null);
-                    if (contentId == null) return;
-
-                    await dataSource.setContentMetadataIfMissing(
-                        { id: contentId, type: contentType },
-                        playlistId,
-                        normalized
+                    if (!playlistId) return;
+                    const current = captureRecentOwner(playlistId);
+                    const { backfillXtreamRecentMetadata } =
+                        await recentOperations();
+                    if (!current()) return;
+                    await backfillXtreamRecentMetadata(
+                        dataSource,
+                        runtime.supportsXtreamSqliteDataSource,
+                        {
+                            playlistId,
+                            xtreamId,
+                            contentType,
+                            patch,
+                        },
+                        current
                     );
                 },
                 clearRecentItems: rxMethod<{ id: string }>(
@@ -248,24 +145,15 @@ export const withRecentItems = function () {
                     playlistId: string;
                 }>(
                     pipe(
-                        switchMap(
-                            async ({ itemId, playlistId, contentType }) => {
-                                await dataSource.removeRecentItem(
-                                    contentType
-                                        ? { id: itemId, type: contentType }
-                                        : itemId,
-                                    playlistId
-                                );
-                                // Reload recent items to update UI
-                                const items =
-                                    await dataSource.getRecentItems(playlistId);
-                                patchState(store, {
-                                    recentItems: items.map((item) =>
-                                        mapDbRecentItem(item, playlistId)
-                                    ),
-                                });
-                            }
-                        )
+                        switchMap(async (item) => {
+                            const { removeXtreamRecent } =
+                                await recentOperations();
+                            const items = await removeXtreamRecent(
+                                dataSource,
+                                item
+                            );
+                            patchState(store, { recentItems: items });
+                        })
                     )
                 ),
             })

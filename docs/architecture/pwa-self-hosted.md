@@ -1509,6 +1509,8 @@ Import sorts rows across all selected sources and awaits each receipt before
 submitting the next row, preserving global order with server acceptance times.
 Delivery failure stops the import with the failed row queued; raw archives remain
 available for a new preview and retry.
+Playlist archive transformations and Xtream recent-item operations load on first
+use. Their write queues and source/profile guards remain in the owning services.
 
 Global collections and Dashboard use the same history projection in both runtimes;
 explicit native reads/deletes do not bypass it. Completion notifications update

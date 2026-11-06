@@ -1446,6 +1446,10 @@ abort signals are
 never serialized across IPC. Keep that boundary when adding browser transport
 behavior rather than increasing the initial-byte baseline.
 
+Playlist history transformations and Xtream recent-item operations likewise load
+on first history access or action. Keep their data writes inside the existing
+playlist queue and capture source/profile ownership before loading write helpers.
+
 The global notification panel uses the same `shouldEnableServiceWorker()`
 contract as registration to load the PWA card. Its coordinator, translation
 rendering and Material button stay in that deferred browser chunk; Electron

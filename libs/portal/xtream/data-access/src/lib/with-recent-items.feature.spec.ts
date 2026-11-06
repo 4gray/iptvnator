@@ -120,12 +120,18 @@ describe('withRecentItems', () => {
             );
             await prepareSourceConnection();
             let complete!: (items: unknown[]) => void;
-            dataSource.getRecentItems.mockReturnValue(
-                new Promise((resolve) => {
+            let start!: () => void;
+            const started = new Promise<void>((resolve) => {
+                start = resolve;
+            });
+            dataSource.getRecentItems.mockImplementation(() => {
+                start();
+                return new Promise((resolve) => {
                     complete = resolve;
-                })
-            );
+                });
+            });
             store.loadRecentItems({ id: 'synthetic-source' });
+            await started;
             localStorage.setItem(key, 'replacement');
             complete([
                 {
@@ -141,6 +147,19 @@ describe('withRecentItems', () => {
             window.dispatchEvent(new Event('iptvnator-history-changed'));
             await new Promise((resolve) => setTimeout(resolve, 0));
             expect(dataSource.getRecentItems).toHaveBeenCalledTimes(calls);
+            dataSource.getContentByXtreamId.mockImplementation(async () => {
+                localStorage.setItem(key, 'retired-during-metadata-lookup');
+                return { id: 42 };
+            });
+            await store.backfillContentMetadata({
+                xtreamId: 42,
+                contentType: 'series',
+                playlist: signal({ id: 'synthetic-source' }),
+                patch: { tmdbId: 100 },
+            });
+            expect(
+                dataSource.setContentMetadataIfMissing
+            ).not.toHaveBeenCalled();
         } finally {
             if (connection == null) localStorage.removeItem(CONNECTION_KEY);
             else localStorage.setItem(CONNECTION_KEY, connection);
