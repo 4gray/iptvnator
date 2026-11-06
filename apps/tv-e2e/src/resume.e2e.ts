@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { addSource, nav, start } from './helpers';
+import { addSource, nav, start, cardAction } from './helpers';
 
 for (const mode of ['movie', 'episode', 'unknown-duration'] as const) {
     test(`resume ${mode} survives delayed metadata and an ignored seek without overwriting progress`, async ({
@@ -98,7 +98,7 @@ for (const mode of ['movie', 'episode', 'unknown-duration'] as const) {
                 { once: true }
             );
         });
-        await page.locator('.resume-card').click();
+        await cardAction(page, page.locator('.resume-card'));
         await expect
             .poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime))
             .toBeGreaterThan(7);
