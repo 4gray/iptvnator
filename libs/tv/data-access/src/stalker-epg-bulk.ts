@@ -11,19 +11,57 @@ interface Flight {
 const abortError = () => new DOMException('Aborted', 'AbortError');
 const lifetimeMs = 5 * 60 * 1000;
 
+/** The promise's value, or undefined if it has not settled within `ms`. */
+function settledWithin<T>(
+    promise: Promise<T>,
+    ms: number
+): Promise<T | undefined> {
+    // It may still reject after we stop waiting; that must not go unhandled.
+    promise.catch(() => undefined);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<undefined>((resolve) => {
+        timer = setTimeout(() => resolve(undefined), ms);
+    });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 /** Per-source bulk guide shared by preview and visible grid rows. */
 export class StalkerEpgBulk {
     private cached?: { value: Bulk; expires: number };
     private pending?: Flight;
     private disposed = false;
+    /** A download that outlasted one caller's wait. */
+    private late?: Flight;
 
     constructor(private readonly session: StalkerSession) {}
+
+    /**
+     * Like get(), but resolves undefined after `waitMs`. The shared download
+     * keeps running for the caller's subscription, and later callers skip the
+     * wait while that same download runs, so a slow portal costs one wait,
+     * not one per row.
+     */
+    async getWithin(signal: AbortSignal, waitMs: number) {
+        const late = !!this.pending && this.pending === this.late;
+        const pending = this.get(signal);
+        const flight = this.pending;
+        const value = await settledWithin(pending, late ? 0 : waitMs);
+        if (value === undefined) this.late = flight;
+        return value;
+    }
+
+    /** The bulk guide if it has landed and not expired; never waits. */
+    peek(): Bulk | undefined {
+        return this.cached && this.cached.expires > Date.now()
+            ? this.cached.value
+            : undefined;
+    }
 
     get(signal: AbortSignal): Promise<Bulk> {
         if (signal.aborted || this.disposed)
             return Promise.reject(abortError());
-        if (this.cached && this.cached.expires > Date.now())
-            return Promise.resolve(this.cached.value);
+        const cached = this.peek();
+        if (cached) return Promise.resolve(cached);
         const flight = this.pending ?? {
             controller: new AbortController(),
             subscribers: new Set<Subscriber>(),

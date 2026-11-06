@@ -74,8 +74,10 @@ export function useGridGuide(
                         updated: Date.now(),
                     });
                 } finally {
+                    // The abort listener stays: a row that fell back to the
+                    // short guide may still hold the shared bulk download,
+                    // which closing or superseding the guide must cancel.
                     clearTimeout(deadline);
-                    controller.signal.removeEventListener('abort', cancel);
                 }
                 // Keep a bounded session cache, including empty/error responses.
                 while (records.size > 60)

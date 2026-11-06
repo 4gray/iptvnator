@@ -344,6 +344,10 @@ on demand after five minutes. Bulk programmes are normalized before checking
 current coverage. Invalid, past-only or future-only lists request the short guide
 and merge it with valid bulk entries, which win exact start-time collisions.
 A failed short request retains a usable bulk schedule.
+A row waits at most three seconds for the bulk guide, then requests its short
+guide; later rows skip that wait until the download lands. A row's
+subscription keeps the shared download alive until the guide closes or is
+superseded, so a slow bulk response cannot exhaust every row's deadline in turn.
 Cancelling one subscriber leaves the others alive;
 the final cancellation and provider disposal abort/fence the shared request.
 
