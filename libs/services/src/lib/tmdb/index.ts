@@ -1,7 +1,6 @@
 export * from './tmdb-api.service';
 export * from './tmdb-cache.service';
 export * from './tmdb-config';
-export * from './tmdb-credits';
 export * from './tmdb-discover';
 export * from './tmdb-enrichment.service';
 export type {

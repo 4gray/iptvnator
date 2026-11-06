@@ -51,7 +51,7 @@ test('every tag hub: canonical, CollectionPage schema, breadcrumb, cards and the
   const tags = tagsFromRail(await readDist('blog/index.html'));
   for (const tag of tags) {
     const html = await readDist(`blog/tag/${tag}/index.html`);
-    assert.match(html, new RegExp(`<link rel="canonical" href="${SITE}/blog/tag/${tag}/"`));
+    assert.ok(html.includes(`<link rel="canonical" href="${SITE}/blog/tag/${tag}/"`));
     assert.match(html, /<meta name="robots" content="index, follow/);
     assert.match(html, /Back to blog/);
     assert.match(html, new RegExp(`aria-current="page"[^>]*href="/iptvnator/blog/tag/${tag}/"|href="/iptvnator/blog/tag/${tag}/"[^>]*aria-current="page"`));
@@ -95,6 +95,6 @@ test('homepage blog cards have no nested anchors', async () => {
 test('sitemap lists the tag hubs', async () => {
   const sitemap = await readDist('sitemap-0.xml');
   for (const tag of tagsFromRail(await readDist('blog/index.html'))) {
-    assert.match(sitemap, new RegExp(`<loc>${SITE}/blog/tag/${tag}/</loc>`));
+    assert.ok(sitemap.includes(`<loc>${SITE}/blog/tag/${tag}/</loc>`));
   }
 });

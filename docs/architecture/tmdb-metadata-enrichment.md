@@ -128,6 +128,11 @@ bundle budget while keeping the existing synchronous merge contracts.
 The metadata client and ID resolver load confidence-matching functions when
 an asynchronous lookup needs them. Matching rules, lookup keys and client cache
 lifetimes remain unchanged; the optional matcher stays off the startup graph.
+Cache trimming imports the shared aggregate-role selector from
+`tmdb-aggregate-role.ts`, independently of the credit presentation module.
+The synchronous selector stays unchanged. Credit presentation functions use
+the public `@iptvnator/shared/tmdb/credits` entry, outside the shared/services
+eager barrels; cache users do not pull cast formatting into the initial graph.
 The public pure matching entry is `@iptvnator/shared/tmdb/matcher`; eager shared
 and services barrels retain only the lightweight title helpers and matcher types.
 The season facade is resolved through the existing injector only on the first

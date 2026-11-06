@@ -124,12 +124,12 @@ runtimes.
 
 ## Vite Dev-Server Patch
 
-Angular's development builder resolves Vite `8.1.5`. It contains upstream precise
-asset/worker URL matchers, but also uses them as raw-code prefilters. Those
-prefilters reject valid expressions containing comments before the handlers can
-strip the comments and apply the precise matchers.
+Angular's development builder (`@angular/build` 22.2.5) resolves Vite `8.3.5`.
+It contains upstream precise asset/worker URL matchers, but also uses them as
+raw-code prefilters. Those prefilters reject valid expressions containing
+comments before the handlers can strip the comments and apply the precise matchers.
 
-`patches/vite@8.1.5.patch` adds bounded asset/worker prefilters and uses the asset
+`patches/vite@8.3.5.patch` adds bounded asset/worker prefilters and uses the asset
 prefilter for bundled URL rewriting too. The precise handler matchers remain
 unchanged. This preserves the earlier protection against expensive scanning of
 large false-positive chunks and retains comment-bearing expressions. Remove the

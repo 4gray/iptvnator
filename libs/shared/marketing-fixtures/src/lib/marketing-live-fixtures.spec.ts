@@ -24,6 +24,18 @@ describe('marketing live fixtures', () => {
         expect(marketingTitleFromSlug('aurora-news.svg')).toBe('Aurora News');
     });
 
+    it.each([
+        ['...Aurora / News!!!', 'aurora-news'],
+        ['---Aurora___News---', 'aurora-news'],
+        ['A1 + B2', 'a1-b2'],
+        ['', ''],
+        [' !?---___ ', ''],
+        ['-'.repeat(100_000), ''],
+        [`${'!'.repeat(100_000)}Aurora${'?'.repeat(100_000)}`, 'aurora'],
+    ])('normalizes punctuation and separators in slug case %#', (value, slug) => {
+        expect(marketingSlug(value)).toBe(slug);
+    });
+
     it('renders a self-contained SVG logo with the channel initials', () => {
         const svg = renderMarketingLogoSvg('aurora-news.svg', '128x128');
 

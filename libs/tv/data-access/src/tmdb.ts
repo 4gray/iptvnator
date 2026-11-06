@@ -1,3 +1,11 @@
+import {
+    enrichedCast,
+    enrichedCreators,
+    enrichedDirectors,
+    limitCast,
+    topCast,
+    unifiedTvCast,
+} from '@iptvnator/shared/tmdb/credits';
 import { TmdbSeasonClient } from '@iptvnator/shared/tmdb/season';
 import {
     TmdbApiClient,
@@ -5,13 +13,7 @@ import {
     TmdbMemoryCache,
     TmdbMetadataClient,
     TmdbPersonClient,
-    enrichedCast,
-    enrichedCreators,
-    enrichedDirectors,
     isGenericEpisodeTitle,
-    limitCast,
-    topCast,
-    unifiedTvCast,
     type TmdbTvDetails,
     type TmdbMovieDetails,
     extractYear,
