@@ -2131,7 +2131,8 @@ for 30 seconds. Cache keys include the server, projected connection, source-life
 epoch, typed reference and lock version. Native inventory omits payload-only device
 identity and revision fields; lookups read the full source and recheck its complete
 identity/revision before publication.
-Only display info is merged in memory. Commands, membership, history timestamps,
+Relative artwork resolves against the portal URL; only normalized display info is
+cached and merged in memory. Commands, membership, history timestamps,
 loaded seasons and playback ownership are unchanged, and no enriched provider
 payload is persisted or sent through synchronization.
 

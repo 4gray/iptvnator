@@ -16,6 +16,7 @@ import {
 import { mergeStalkerDisplayInfo } from './stalker-display-info';
 import { createStalkerInfo } from './stalker-vod.utils';
 import type { StalkerVodSource } from './models';
+import { resolveStalkerArtwork } from './stalker-artwork.utils';
 
 @Injectable({ providedIn: 'root' })
 export class StalkerCollectionMetadataService {
@@ -24,7 +25,7 @@ export class StalkerCollectionMetadataService {
     readonly revision = this.changed.asReadonly();
     private readonly cache = new Map<
         string,
-        { value?: StalkerPortalItem; retryAt: number }
+        { value?: StalkerVodSource; retryAt: number }
     >();
     private queue = Promise.resolve();
 
@@ -57,11 +58,7 @@ export class StalkerCollectionMetadataService {
         if (info.movie_image && info.description) return item;
         const key = this.key(playlist, item);
         const cached = this.cache.get(key);
-        if (cached?.value)
-            return mergeStalkerDisplayInfo(
-                item,
-                cached.value as StalkerVodSource
-            );
+        if (cached?.value) return mergeStalkerDisplayInfo(item, cached.value);
         if (cached && cached.retryAt > Date.now()) return item;
         this.cache.set(key, { retryAt: Infinity });
         const current = captureHistoryOwner(
@@ -102,7 +99,18 @@ export class StalkerCollectionMetadataService {
                     this.fullScope(latest) !== owner
                 )
                     return;
-                this.cache.set(key, { value, retryAt: Infinity });
+                const display = createStalkerInfo(value as StalkerVodSource);
+                display.movie_image =
+                    resolveStalkerArtwork(
+                        full.portalUrl ?? full.url ?? '',
+                        display.movie_image,
+                        (value as StalkerVodSource).screenshot_uri,
+                        value.logo
+                    ) ?? '';
+                this.cache.set(key, {
+                    value: { info: display },
+                    retryAt: Infinity,
+                });
                 this.changed.update((revision) => revision + 1);
                 window.dispatchEvent(new Event('iptvnator-favorites-changed'));
                 window.dispatchEvent(new Event('iptvnator-history-changed'));

@@ -89,6 +89,43 @@ describe('received Stalker collection metadata', () => {
         }
     );
 
+    it.each([
+        [
+            { screenshot_uri: '/artwork/synthetic.jpg' },
+            'https://portal.example/artwork/synthetic.jpg',
+        ],
+        [
+            { cover: 'artwork/synthetic.jpg' },
+            'https://portal.example/artwork/synthetic.jpg',
+        ],
+        [
+            { info: { movie_image: '//artwork.example/synthetic.jpg' } },
+            'https://artwork.example/synthetic.jpg',
+        ],
+        [
+            {
+                cover: 'javascript:synthetic',
+                screenshot_uri: '/artwork/synthetic.jpg',
+            },
+            'https://portal.example/artwork/synthetic.jpg',
+        ],
+    ])(
+        'resolves received artwork against the portal (%j)',
+        async (artwork, cover) => {
+            metadata.mockResolvedValueOnce({
+                ...fresh,
+                cover: undefined,
+                ...artwork,
+            });
+            service.item(source, sparse);
+            await settle();
+            expect(service.item(source, sparse)).toMatchObject({
+                cover,
+                info: { movie_image: cover },
+            });
+        }
+    );
+
     it.each(['source', 'device', 'locks'] as const)(
         'discards a late lookup after %s changes',
         async (change) => {
