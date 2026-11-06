@@ -4,6 +4,7 @@
 @use 'styles';
 @use 'theme-palettes' as palettes;
 @use 'warm-theme' as warm;
+@use 'dark-variant-themes' as dark-variants;
 
 // No `mat.elevation-classes()`: nothing in the app uses the `.mat-elevation-z*`
 // utilities, and the 25 rules cost 4.4 KB of the initial stylesheet.
@@ -112,7 +113,9 @@ $material-components: (
 html,
 html .dark-theme,
 html [data-app-theme='cream'],
-html [data-app-theme='mocha'] {
+html [data-app-theme='mocha'],
+html [data-app-theme='night-owl'],
+html [data-app-theme='black-oled'] {
     @include component-tokens($light-theme, (color));
 }
 
@@ -152,6 +155,16 @@ html {
         @include palettes.mocha;
     }
 
+    [data-app-theme='night-owl'] {
+        @include dark-variants.night-owl;
+        @include palettes.night-owl;
+    }
+
+    [data-app-theme='black-oled'] {
+        @include dark-variants.black-oled;
+        @include palettes.black-oled;
+    }
+
     // Samples use the same declarations as the app, independent of its theme.
     [data-theme-preview='light'] {
         @include palettes.light($preview: true);
@@ -164,6 +177,12 @@ html {
     }
     [data-theme-preview='mocha'] {
         @include palettes.mocha($preview: true);
+    }
+    [data-theme-preview='night-owl'] {
+        @include palettes.night-owl($preview: true);
+    }
+    [data-theme-preview='black-oled'] {
+        @include palettes.black-oled($preview: true);
     }
 }
 

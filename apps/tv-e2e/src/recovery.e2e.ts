@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { addSource, backend, nav, start } from './helpers';
+import { addSource, backend, nav, start, cardAction } from './helpers';
 test('storage quota failure is visible and does not claim favorite persistence', async ({
     page,
 }) => {
@@ -125,7 +125,7 @@ test('confirmed VOD position survives reload and resumes on the same title', asy
     await expect(
         page.getByRole('heading', { name: 'Continue watching' })
     ).toBeVisible();
-    await page.locator('.resume-card').first().click();
+    await cardAction(page, page.locator('.resume-card').first());
     await expect
         .poll(() =>
             page

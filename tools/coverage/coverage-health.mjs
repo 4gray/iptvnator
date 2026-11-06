@@ -17,6 +17,10 @@ import {
     validateRequiredProjectReports,
 } from './coverage-integrity.mjs';
 
+import { readResolvedProjects } from './nx-coverage-projects.mjs';
+
+const resolvedProjects = await readResolvedProjects();
+
 const COVERAGE_METRICS = [
     'statements',
     'branches',
@@ -48,10 +52,6 @@ function readJson(filePath) {
     return JSON.parse(readFileSync(filePath, 'utf8'));
 }
 
-function projectJsonPath(project) {
-    return path.join(workspaceRoot, project.root, 'project.json');
-}
-
 function projectCoveragePath(project) {
     return path.join(
         workspaceRoot,
@@ -63,14 +63,12 @@ function projectCoveragePath(project) {
 
 function verifyTierAProjects() {
     for (const project of policy.unitCoverage.tierA) {
-        const filePath = projectJsonPath(project);
-        if (!existsSync(filePath)) {
-            errors.push(`Tier A project ${project.name} is missing ${project.root}/project.json.`);
+        const resolvedProject = resolvedProjects[project.name];
+        if (!resolvedProject) {
+            errors.push(`Tier A project ${project.name} is missing from the Nx project graph.`);
             continue;
         }
-
-        const projectJson = readJson(filePath);
-        if (!projectJson.targets?.test) {
+        if (!resolvedProject.targets?.test) {
             errors.push(`Tier A project ${project.name} must have a test target.`);
         }
         if (!project.sourceRoot || !existsSync(path.join(workspaceRoot, project.sourceRoot))) {

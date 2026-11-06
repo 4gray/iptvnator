@@ -14,6 +14,7 @@
         "build": {
             "executor": "@angular/build:application",
             "outputs": ["{workspaceRoot}/dist/apps/web"],
+            "defaultConfiguration": "production",
             "options": {
                 "outputPath": {
                     "base": "dist/apps/web",
@@ -161,8 +162,7 @@
                         }
                     ]
                 }
-            },
-            "defaultConfiguration": "production"
+            }
         },
         "build-pwa": {
             "executor": "nx:run-commands",
@@ -185,6 +185,10 @@
         "serve": {
             "continuous": true,
             "executor": "@angular/build:dev-server",
+            "defaultConfiguration": "development",
+            "options": {
+                "proxyConfig": "apps/web/proxy.conf.json"
+            },
             "configurations": {
                 "production": {
                     "buildTarget": "web:build:production"
@@ -196,9 +200,8 @@
                     "buildTarget": "web:build:development"
                 }
             },
-            "defaultConfiguration": "development",
-            "options": {
-                "proxyConfig": "apps/web/proxy.conf.json"
+            "readyWhen": {
+                "signal": true
             }
         },
         "extract-i18n": {
@@ -208,7 +211,15 @@
             }
         },
         "lint": {
-            "executor": "@nx/eslint:lint"
+            "inputs": [
+                "default",
+                "^default",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/.eslintignore",
+                "{workspaceRoot}/eslint.config.mjs",
+                "{workspaceRoot}/tools/eslint-rules/**/*",
+                "{workspaceRoot}/tools/eslint/**/*"
+            ]
         },
         "test": {
             "executor": "nx:run-commands",

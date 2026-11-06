@@ -1,3 +1,4 @@
+import { checkHorizontalRail } from './horizontal-rail';
 import { expect, Page, test } from '@playwright/test';
 import { chooseTv, addSource, nav, start } from './helpers';
 
@@ -587,6 +588,7 @@ test('@tmdb-person paged provider choices survive a detail round trip and expire
     await target.click();
     const choices = page.locator('[aria-label="Available versions"]');
     await expect(choices.locator('button')).toHaveCount(2);
+    await checkHorizontalRail(page, choices);
     await expect(choices.locator('button').first()).toBeFocused();
     const chosen = choices.locator('button').nth(1);
     await page.keyboard.press('ArrowRight');

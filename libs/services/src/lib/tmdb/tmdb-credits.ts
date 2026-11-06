@@ -9,4 +9,4 @@ export {
     creatorNames,
     enrichedDirectors,
     enrichedCreators,
-} from '@iptvnator/shared/tmdb';
+} from '@iptvnator/shared/tmdb/credits';

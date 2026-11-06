@@ -4,4 +4,6 @@ export enum Theme {
     SystemTheme = 'SYSTEM_THEME',
     CreamTheme = 'CREAM_THEME',
     MochaTheme = 'MOCHA_THEME',
+    NightOwlTheme = 'NIGHT_OWL_THEME',
+    BlackOledTheme = 'BLACK_OLED_THEME',
 }

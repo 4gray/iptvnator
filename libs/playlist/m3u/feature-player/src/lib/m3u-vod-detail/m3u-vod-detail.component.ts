@@ -1,3 +1,4 @@
+import { enrichedCast, topCast } from '@iptvnator/shared/tmdb/credits';
 import { extractTmdbCertifications } from '@iptvnator/shared/tmdb/certifications';
 
 import {
@@ -14,10 +15,8 @@ import {
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import type { PlaybackFallbackRequest } from '@iptvnator/playback/util';
 import {
-    enrichedCast,
     tmdbBackdropUrl,
     tmdbPosterUrl,
-    topCast,
     injectTranslationTick,
 } from '@iptvnator/services';
 import {

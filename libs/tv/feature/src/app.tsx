@@ -6,6 +6,7 @@ import { useLiveBrowse } from './use-live-browse';
 import { useHomeFeature } from './use-home-feature';
 import { PageHeader } from './page-header';
 import { Favorites } from './favorites';
+import { History } from './history';
 import { usePlayerControls } from './player-controls';
 import { useEffect, useRef } from 'preact/hooks';
 import { useTv } from './use-tv';
@@ -97,7 +98,11 @@ export function TvApp({ buildInfo }: { buildInfo: TvBuildInfo }) {
             onMouseMove={(event) => {
                 if (!event.movementX && !event.movementY) return;
                 const button = (event.target as HTMLElement).closest('button');
-                if (button && button !== document.activeElement)
+                if (
+                    button &&
+                    !button.hasAttribute('data-tv-pointer-only') &&
+                    button !== document.activeElement
+                )
                     button.focus({ preventScroll: true });
             }}
         >
@@ -223,6 +228,8 @@ export function TvApp({ buildInfo }: { buildInfo: TvBuildInfo }) {
                     />
                 ) : r.view === 'favorites' ? (
                     <Favorites tv={tv} actions={homeActions} />
+                ) : r.view === 'history' ? (
+                    <History tv={tv} actions={homeActions} />
                 ) : r.view === 'person' ? (
                     <PersonPage
                         key={`${tv.data.activeId}:${r.person?.tmdbId}`}

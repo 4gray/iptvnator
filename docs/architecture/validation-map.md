@@ -102,6 +102,13 @@ Tier A entry has no test target. CI runs Tier A with coverage (uploaded to
 Codecov) and each Tier B/C project's `validationCommand` (falling back to
 `nx test`) without coverage; projects with an `e2e` target are skipped there
 because the E2E workflow already runs them on every PR that touches app code.
+Coverage commands resolve the Nx project graph once per invocation so inferred
+Jest targets remain classified even when `project.json` has no explicit `test`.
+Project-local Jest configs and the existing workspace-root Angular ESM
+config keep separate source-glob roots, with coverage reports written to the
+same workspace output paths and JUnit classnames relative to the repository.
+Migrated Jest commands keep the workspace working directory for subprocess and
+file-based test contracts, independently of the Jest config's root directory.
 Docs-only changes (Markdown, `docs/`, `.plans/`, `.codex/`, `.claude/`) and
 `apps/website/**` changes skip the E2E workflow via `paths-ignore` — for those
 PRs no E2E validation runs in CI, which is intentional: they cannot affect app

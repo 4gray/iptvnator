@@ -6,7 +6,7 @@ import {
 import { registerTvKeys } from './platform';
 
 const selectors =
-    'button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),summary,[data-tv-scroll]';
+    'button:not(:disabled):not([data-tv-pointer-only]),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),summary,[data-tv-scroll]';
 export function focusKey() {
     return (document.activeElement as HTMLElement)?.dataset.focus ?? '';
 }
@@ -31,6 +31,9 @@ export function restoreFocus(
         if (scroll !== undefined) {
             const main = document.querySelector('main');
             if (main) main.scrollTop = scroll;
+            // Virtual spacers are measured after this frame; retain their saved offset.
+            if (!target?.hasAttribute('data-virtual-index'))
+                target?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
         }
     });
 }
@@ -86,6 +89,17 @@ export function installRemote(
         event.preventDefault();
         if (event.repeat && Date.now() - lastMove < 75) return;
         lastMove = Date.now();
+        const row = horizontal && from?.closest('[data-tv-horizontal]');
+        if (row) {
+            const items = Array.from(
+                row.querySelectorAll<HTMLElement>(selectors)
+            );
+            const index = items.indexOf(from);
+            const target = items[index + (direction === 'ArrowRight' ? 1 : -1)];
+            target?.focus();
+            target?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+            return;
+        }
         const root =
             document.querySelector('[data-tv-modal]') ??
             (fullscreen()

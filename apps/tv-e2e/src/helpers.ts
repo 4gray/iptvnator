@@ -1,10 +1,21 @@
 import { tvOrigins, tvPorts } from '../ports';
-import { expect, Page } from '@playwright/test';
+import { expect, Page, Locator } from '@playwright/test';
 import { resolve } from 'node:path';
 import { workspaceRoot } from '@nx/devkit';
 export const backend = tvOrigins.backend;
 export const xtream = tvOrigins.xtream;
 export const stalker = tvOrigins.stalker;
+export async function cardAction(
+    page: Page,
+    card: Locator,
+    name: string | RegExp = /^(Resume|Watch again|Watch now|Watch live)$/
+) {
+    await card.click();
+    await page
+        .getByRole('dialog')
+        .getByRole('button', { name, exact: true })
+        .click();
+}
 export async function start(page: Page) {
     await page.route('**/*', async (route) => {
         const url = route.request().url();

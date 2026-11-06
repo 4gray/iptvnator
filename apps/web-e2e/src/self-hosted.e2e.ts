@@ -424,11 +424,6 @@ for (const portal of ['Xtream', 'Stalker', 'M3U'] as const) {
             ).toBeVisible();
             await expect(page.locator('.category-item').first()).toBeVisible();
             await page.locator('.category-item').first().click();
-            if (portal === 'Xtream') {
-                // Category navigation can use the fully imported catalog. Details
-                // require a fresh provider call even after initialization settles.
-                await page.locator('app-grid-list mat-card').first().click();
-            }
         }
         await expect((await recovered).json()).resolves.toHaveProperty(portal === 'M3U' ? 'playlist' : 'payload');
         expect(rejected).toBeGreaterThan(0);

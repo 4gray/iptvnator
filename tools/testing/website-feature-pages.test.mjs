@@ -23,7 +23,7 @@ function extractJsonLd(html) {
 for (const slug of FEATURES) {
   test(`feature page ${slug}: canonical, schema and links`, async () => {
     const html = await readDist(`features/${slug}/index.html`);
-    assert.match(html, new RegExp(`<link rel="canonical" href="${SITE}/features/${slug}/"`));
+    assert.ok(html.includes(`<link rel="canonical" href="${SITE}/features/${slug}/"`));
     assert.match(html, /<meta name="robots" content="index, follow/);
 
     const schema = extractJsonLd(html);
@@ -39,16 +39,16 @@ for (const slug of FEATURES) {
     assert.match(html, /href="\/iptvnator\/blog\/[a-z0-9-]+-setup-guide\/"/);
     assert.match(html, /href="\/iptvnator\/features\/"/);
     for (const other of FEATURES.filter((candidate) => candidate !== slug)) {
-      assert.match(html, new RegExp(`href="/iptvnator/features/${other}/"`));
+      assert.ok(html.includes(`href="/iptvnator/features/${other}/"`));
     }
   });
 }
 
 test('features hub links to every feature page and the download hub', async () => {
   const html = await readDist('features/index.html');
-  assert.match(html, new RegExp(`<link rel="canonical" href="${SITE}/features/"`));
+  assert.ok(html.includes(`<link rel="canonical" href="${SITE}/features/"`));
   for (const slug of FEATURES) {
-    assert.match(html, new RegExp(`href="/iptvnator/features/${slug}/"`));
+    assert.ok(html.includes(`href="/iptvnator/features/${slug}/"`));
   }
   assert.match(html, /href="\/iptvnator\/download\/"/);
 });
@@ -57,13 +57,13 @@ test('homepage feature cards and the header link into the feature pages', async 
   const html = await readDist('index.html');
   assert.match(html, /href="\/iptvnator\/features\/"/);
   for (const slug of ['m3u-player', 'xtream-codes-player', 'epg', 'stalker-portal-player', 'remote-control']) {
-    assert.match(html, new RegExp(`href="/iptvnator/features/${slug}/"`));
+    assert.ok(html.includes(`href="/iptvnator/features/${slug}/"`));
   }
 });
 
 test('sitemap lists the feature pages', async () => {
   const sitemap = await readDist('sitemap-0.xml');
   for (const path of ['features/', ...FEATURES.map((slug) => `features/${slug}/`)]) {
-    assert.match(sitemap, new RegExp(`<loc>${SITE}/${path}</loc>`));
+    assert.ok(sitemap.includes(`<loc>${SITE}/${path}</loc>`));
   }
 });

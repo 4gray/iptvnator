@@ -1,6 +1,9 @@
 import type { APIRequestContext, Page } from '@playwright/test';
 import { expect, test } from './fixtures';
 import { configureMockProviderBackend } from './provider-target-route';
+import axe from 'axe-core';
+import { expectNavigationFocus } from './navigation-focus.fixture';
+import { rasterTextContrast } from './ui-consistency.fixture';
 import {
     closeSeriesMenu,
     pressTab,
@@ -1250,7 +1253,10 @@ for (const theme of ['light', 'dark']) {
     test(`@xtream navigation: channel focus and separate scrollbar (${theme})`, async ({
         page,
         browserName,
-    }) => {
+    }, testInfo) => {
+        await page.route('https://test-streams.mux.dev/**', (route) =>
+            route.abort()
+        );
         await addXtreamPortal(page);
         await page.getByRole('link', { name: 'Live TV', exact: true }).click();
         await page.evaluate(
@@ -1261,7 +1267,32 @@ for (const theme of ['light', 'dark']) {
         await category.click();
         const viewport = page.locator('.scroll-viewport-portals');
         await expect(viewport).toBeVisible();
+        const sidebar = page.locator('app-live-stream-layout .sidebar');
+        await expect(sidebar).toHaveCSS('border-right-width', '1px');
+        await expect(sidebar.locator('app-portal-channels-list')).toHaveCSS(
+            'border-right-width',
+            '0px'
+        );
+        const headerGap = await sidebar.evaluate((el) => {
+            const header = el.querySelector('.sidebar-header');
+            if (!header) throw new Error('Missing sidebar header');
+            return (
+                el.getBoundingClientRect().right -
+                parseFloat(getComputedStyle(el).borderRightWidth) -
+                header.getBoundingClientRect().right
+            );
+        });
+        expect(Math.abs(headerGap)).toBeLessThanOrEqual(1);
         await category.focus();
+        await page.evaluate(axe.source);
+        const violations = await page.evaluate(async () => {
+            const engine = (
+                window as typeof window & { axe: typeof import('axe-core') }
+            ).axe;
+            return (await engine.run('app-workspace-context-category-view'))
+                .violations;
+        });
+        expect(violations).toEqual([]);
         await page.keyboard.press('ArrowRight');
         await expect(viewport).toBeFocused();
         await expect(page.locator('app-web-player-view')).toHaveCount(0);
@@ -1314,6 +1345,30 @@ for (const theme of ['light', 'dark']) {
         expect(overlap).toBeLessThanOrEqual(0);
         await page.keyboard.press('ArrowLeft');
         await expect(category).toBeFocused();
+        await expect(category).toHaveAttribute('aria-current', 'true');
+        const contrast = await expectNavigationFocus(category);
+        await expect
+            .poll(() => rasterTextContrast(category.locator('.nav-item-label')))
+            .toBeGreaterThanOrEqual(4.5);
+        await pressTab(page, browserName);
+        await expectNavigationFocus(
+            page.locator('.context-panel .category-item').nth(1)
+        );
+        await pressTab(page, browserName, 'backward');
+        await testInfo.attach('category-focus-contrast', {
+            body: JSON.stringify({ theme, contrast }),
+            contentType: 'application/json',
+        });
+        await page.setViewportSize({ width: 1600, height: 1000 });
+        await page.screenshot({
+            path: testInfo.outputPath(`live-panels-${theme}.png`),
+            animations: 'disabled',
+        });
+        await page.locator('.context-panel .category-item').nth(1).click();
+        await category.click();
+        expect(
+            await category.evaluate((el) => el.matches(':focus-visible'))
+        ).toBe(false);
     });
 
     for (const section of ['Movies', 'Series']) {

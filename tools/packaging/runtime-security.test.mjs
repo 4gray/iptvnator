@@ -15,6 +15,45 @@ const root = fileURLToPath(rootUrl);
 const require = createRequire(import.meta.url);
 const read = (path) => readFileSync(new URL(path, rootUrl), 'utf8');
 
+test('Angular worker options do not inherit injected environment settings', async () => {
+    const buildRequire = createRequire(
+        require.resolve('@angular/build/package.json')
+    );
+    const Piscina = buildRequire('piscina');
+    const pool = new Piscina({ minThreads: 0, maxThreads: 1 });
+    try {
+        Object.defineProperty(Object.prototype, 'env', {
+            configurable: true,
+            value: { EXAMPLE_WORKER_SETTING: 'injected' },
+        });
+        assert.equal(pool.options.env, undefined);
+    } finally {
+        delete Object.prototype.env;
+        await pool.destroy();
+    }
+});
+
+test('configuration schema URI parsing rejects unclosed host brackets', () => {
+    const confRequire = createRequire(require.resolve('electron-conf/main'));
+    const ajvRequire = createRequire(confRequire.resolve('ajv'));
+    const uri = ajvRequire('fast-uri');
+    assert.ok(uri.parse('https://[example.test/path').error);
+    assert.equal(uri.parse('https://example.test/path').error, undefined);
+});
+
+test('rate limiter address checks keep IPv4 and IPv6 subnets separate', () => {
+    const limiterRequire = createRequire(require.resolve('express-rate-limit'));
+    const { Address4, Address6 } = limiterRequire('ip-address');
+    assert.equal(
+        new Address6('a00::1').isInSubnet(new Address4('10.0.0.0/8')),
+        false
+    );
+    assert.equal(
+        new Address4('32.0.0.1').isInSubnet(new Address6('2000::/3')),
+        false
+    );
+});
+
 // Security floors from the October 2026 Node release, independent of the
 // package specifier: a valid Electron version can still bundle an unsafe Node.
 function assertPatchedNode(version) {

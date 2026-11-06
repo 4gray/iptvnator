@@ -242,8 +242,9 @@ in the overlay chunk. Everything else is lazy by these rules:
 
 The app mode is the exclusive `.dark-theme` or `.light-theme` class that
 `SettingsService` puts on `<body>`. Its `data-app-theme` attribute identifies
-the resolved palette: `light`, `dark`, `cream`, or `mocha`. Cream uses light
-mode and Mocha uses dark mode; a "System" choice resolves the OS preference
+the resolved palette: `light`, `dark`, `cream`, `mocha`, `night-owl`, or
+`black-oled`. Cream uses light mode; Mocha, Night Owl and Black OLED use dark
+mode. A "System" choice resolves the OS preference
 to the original Light/Dark presets there and nowhere else. Component styles never use a
 `prefers-color-scheme` query, which follows the OS: with the app set to dark
 on a light OS it paints light colours
@@ -481,6 +482,10 @@ inputs, overlays, and resize handles—requires `app-region: no-drag`. The share
 directive-generated `.resize-handle` sets this centrally in `resizable.scss`.
 The shared live-layout sidebar reserves 8 px at its right edge so the inward
 half of the 12 px resize handle cannot cover the channel scrollbar.
+The outer sidebar owns the single pane divider; nested channel lists add no
+edge border. The header background and bottom separator extend across the
+resize gutter, while its controls keep their inset. Narrow layouts remove
+the gutter together with the resize handle.
 
 ## Resizable Sidebar Widths
 
@@ -524,6 +529,10 @@ host by its padding and border on the first move.
   decorative border on something focusable: any outline outranks the
   fallback, so the element loses its ring (use `border` or a spread
   `box-shadow`, as the selected season tab does).
+- Shared navigation rows draw the keyboard ring inside their edge, over
+  the selection border when selected. Lists keep 2px of top inset so the
+  selected row's 1px lift cannot clip its border; group lists retain that
+  inset too. Selection tint and `aria-current` remain when focus moves away.
 - **Removing the outline.** A component rule that sets `outline: none` also
   outranks the fallback, so it must show focus another way: a search field's
   wrapper takes a token border on `:focus-within`, optionally with a soft
@@ -1021,7 +1030,8 @@ in front of 84 px channel cards.
 - The channel list views and `app-channel-list-loading-state` share
   `libs/ui/components/src/lib/styles/_channel-list-layout.scss`. The loading
   state takes the view and hides its headers where the loaded view does
-  (`showHeader`, compact lists).
+  (`showHeader`, compact lists). Group loading and loaded rails both inherit
+  the shared navigation list's top inset so their rows stay aligned.
 - The dashboard rails and `lib-dashboard-rail-skeleton` share
   `libs/workspace/dashboard/feature/src/lib/rails/_dashboard-rail-geometry.scss`.
   A skeleton takes the `layout` and `aspectRatio` of the rail it precedes:
@@ -1679,19 +1689,25 @@ The built-in catalog and theme-value normalization live in
 identifiers stable. Unknown saved values normalize to System; partial settings
 updates that omit the theme preserve the saved choice.
 
-The palette picker uses the existing keyboard-accessible radio directives. Four
-named miniature samples use the same app tokens as the real theme; System is a
+The palette picker uses the existing keyboard-accessible radio directives. Six
+named miniature samples use the same app tokens as the real theme, arranged in
+three columns on wide settings containers and two on narrow ones. System is a
 separate row in the same group. Selection previews immediately, Save persists
 it, and Discard restores the saved choice and its System listener when needed.
 
 App palette declarations live in `apps/web/src/_theme-palettes.scss`, included
 by `m3-theme.scss` for both body contexts and decorative preview contexts.
-`_warm-theme.scss` supplies the Material color ramps for Cream/Mocha. Material
+`_warm-theme.scss` supplies the Material color ramps for Cream/Mocha;
+`_dark-variant-themes.scss` supplies Night Owl/Black OLED. Night Owl uses navy
+surfaces and cool accents; Black OLED keeps the main background black and uses
+raised graphite surfaces for cards, inputs and overlays. Material
 component colors reference `--mat-sys-*` roles through one shared declaration
 block; each preset sets its system colors. The shared aliases are declared at
 each color boundary, since inheriting an alias from `html` would retain the
 light value. Samples emit only their seven displayed app roles from the same
 palette mixins, avoiding full duplicate theme payloads.
+Dark variants emit their app overrides over the shared `.dark-theme` defaults
+on the same body element; their mixins skip repeating the full dark palette.
 Adding a built-in preset requires catalog metadata, app/Material colors,
 localized naming, and computed contrast/persistence coverage. Do not introduce
 per-component preset conditions or duplicate sample-only palettes. Typography,

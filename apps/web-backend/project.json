@@ -3,41 +3,12 @@
     "$schema": "../../node_modules/nx/schemas/project-schema.json",
     "projectType": "application",
     "sourceRoot": "apps/web-backend/src",
-    "tags": [
-        "scope:app",
-        "domain:web",
-        "type:app"
-    ],
+    "tags": ["scope:app", "domain:web", "type:app"],
+    "implicitDependencies": ["tv-setup"],
     "targets": {
         "build": {
             "executor": "@nx/esbuild:esbuild",
-            "outputs": [
-                "{options.outputPath}"
-            ],
-            "options": {
-                "outputPath": "dist/apps/web-backend",
-                "main": "apps/web-backend/src/main.ts",
-                "tsConfig": "apps/web-backend/tsconfig.app.json",
-                "format": [
-                    "cjs"
-                ],
-                "platform": "node",
-                "target": "node22",
-                "bundle": true,
-                "thirdParty": true,
-                "generatePackageJson": true,
-                "external": [
-                    "better-sqlite3"
-                ],
-                "assets": [
-                    {
-                        "input": "dist/apps/tv-setup",
-                        "glob": "**/*",
-                        "output": "tv-setup"
-                    }
-                ],
-                "includeIgnoredAssetFiles": true
-            },
+            "outputs": ["{options.outputPath}"],
             "inputs": [
                 "default",
                 "^default",
@@ -60,15 +31,39 @@
             "dependsOn": [
                 {
                     "target": "build",
-                    "projects": [
-                        "tv-setup"
-                    ]
+                    "projects": ["tv-setup"]
                 }
-            ]
+            ],
+            "options": {
+                "outputPath": "dist/apps/web-backend",
+                "main": "apps/web-backend/src/main.ts",
+                "tsConfig": "apps/web-backend/tsconfig.app.json",
+                "format": ["cjs"],
+                "platform": "node",
+                "target": "node22",
+                "bundle": true,
+                "thirdParty": true,
+                "generatePackageJson": true,
+                "external": ["better-sqlite3"],
+                "assets": [
+                    {
+                        "input": "dist/apps/tv-setup",
+                        "glob": "**/*",
+                        "output": "tv-setup"
+                    }
+                ],
+                "includeIgnoredAssetFiles": true
+            }
         },
         "serve": {
             "continuous": true,
             "executor": "nx:run-commands",
+            "dependsOn": [
+                {
+                    "target": "build",
+                    "projects": ["tv-setup"]
+                }
+            ],
             "options": {
                 "command": "pnpm tsx apps/web-backend/src/main.ts",
                 "cwd": "{workspaceRoot}",
@@ -80,38 +75,18 @@
                     "IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS": "1",
                     "TSX_TSCONFIG_PATH": "tsconfig.base.json"
                 }
-            },
-            "dependsOn": [
-                {
-                    "target": "build",
-                    "projects": [
-                        "tv-setup"
-                    ]
-                }
-            ]
+            }
         },
         "lint": {
             "command": "eslint \"apps/web-backend/**/*.ts\""
         },
         "test": {
-            "executor": "@nx/jest:jest",
-            "outputs": [
-                "{workspaceRoot}/coverage/{projectRoot}"
-            ],
-            "options": {
-                "jestConfig": "apps/web-backend/jest.config.ts"
-            },
             "dependsOn": [
                 {
                     "target": "build",
-                    "projects": [
-                        "tv-setup"
-                    ]
+                    "projects": ["tv-setup"]
                 }
             ]
         }
-    },
-    "implicitDependencies": [
-        "tv-setup"
-    ]
+    }
 }

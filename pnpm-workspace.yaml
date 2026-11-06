@@ -19,11 +19,11 @@ packageExtensions:
             '@babel/runtime': '7.29.10'
 
 # Scoped compatibility bridges until these packages declare current peers.
-# nx-electron also needs patches/nx-electron@22.0.0.patch for Nx 23 exports.
+# nx-electron also needs patches/nx-electron@22.0.0.patch for current Nx exports.
 # Covered by executor/package tests and the historical IndexedDB v1 E2E.
 peerDependencyRules:
     allowedVersions:
-        'nx-electron@22.0.0>@nx/devkit': '23.3.1'
-        'nx-electron@22.0.0>@nx/workspace': '23.3.1'
+        'nx-electron@22.0.0>@nx/devkit': '24.0.4'
+        'nx-electron@22.0.0>@nx/workspace': '24.0.4'
         'ngx-indexed-db@22.0.0>@angular/common': '22.1.6'
         'ngx-indexed-db@22.0.0>@angular/core': '22.1.6'

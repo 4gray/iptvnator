@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { after, before, test } from 'node:test';
 
+import { readResolvedProjects } from './nx-coverage-projects.mjs';
 import { tierAExternalReferences } from './tier-a-external-references.mjs';
 import {
     declaredWorkspaceInputs,
@@ -20,10 +20,8 @@ const workspaceRoot = fileURLToPath(new URL('../..', import.meta.url));
 const policy = JSON.parse(
     await readFile(path.join(workspaceRoot, 'tools/coverage/coverage-policy.json'), 'utf8')
 );
-const readProjectJson = (project) =>
-    JSON.parse(
-        readFileSync(path.join(workspaceRoot, project.root, 'project.json'), 'utf8')
-    );
+const resolvedProjects = await readResolvedProjects();
+const readProject = (project) => resolvedProjects[project.name];
 
 const scriptPath = fileURLToPath(
     new URL('./unit-coverage-scope.mjs', import.meta.url)
@@ -91,7 +89,7 @@ test('every file outside a project that Tier A code refers to keeps the suite ru
     });
     const declaredInputs = declaredWorkspaceInputs(
         policy.unitCoverage.tierA,
-        readProjectJson
+        readProject
     );
     // The scan must see the known cross-project reads, or it proves nothing.
     assert.ok(references.has('.github/workflows/build-and-make.yaml'));
@@ -109,7 +107,7 @@ test('every file outside a project that Tier A code refers to keeps the suite ru
 test('Tier A test targets declare their workspace inputs and they always block', () => {
     const declaredInputs = declaredWorkspaceInputs(
         policy.unitCoverage.tierA,
-        readProjectJson
+        readProject
     );
     assert.ok(declaredInputs.includes('tools/embedded-mpv/runtime-probe-contract.cjs'));
     assert.equal(
