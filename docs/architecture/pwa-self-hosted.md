@@ -1505,6 +1505,10 @@ sources. Unsent successors lose references to predecessors kept local.
 Disabled/new sources with no verified history context retain ordinary local persistence. Preview captures
 instance, consent and source incarnation, rechecking each imported action. Import
 is explicit and places imported rows above shared history in their prior order.
+Import sorts rows across all selected sources and awaits each receipt before
+submitting the next row, preserving global order with server acceptance times.
+Delivery failure stops the import with the failed row queued; raw archives remain
+available for a new preview and retry.
 
 Global collections and Dashboard use the same history projection in both runtimes;
 explicit native reads/deletes do not bypass it. Completion notifications update

@@ -97,18 +97,21 @@ export async function importLocalHistory(
             scope.sourceIncarnation !== source.scope.sourceIncarnation
         )
             throw new Error('History preview expired');
-        for (const item of [...source.items].sort(
-            (a, b) => a.viewedAt - b.viewedAt
-        )) {
-            client.current(scope);
-            if (preview.generation !== client.options.consent())
-                throw new Error('History preview expired');
-            await client.command(scope.sourceId, {
-                kind: 'touch',
-                reference: item.reference,
-                snapshot: item.snapshot,
-            });
-        }
+    }
+    const ordered = preview.sources
+        .map(({ scope, items }) => items.map((item) => ({ scope, item })))
+        .reduce((all, items) => all.concat(items), [])
+        .sort((a, b) => a.item.viewedAt - b.item.viewedAt);
+    for (const { scope, item } of ordered) {
+        client.current(scope);
+        if (preview.generation !== client.options.consent())
+            throw new Error('History preview expired');
+        await client.command(scope.sourceId, {
+            kind: 'touch',
+            reference: item.reference,
+            snapshot: item.snapshot,
+        });
+        // Server timestamps follow acceptance order across all sources.
         await client.flush(scope.sourceId);
     }
 }
