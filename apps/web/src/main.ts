@@ -4,6 +4,7 @@ import { registerAppDateLocale } from './app/app-date-locales';
 import { AppComponent } from './app/app.component';
 import { appConfig, getInitialLanguage } from './app/app.config';
 import { prepareSourceConnection } from '@iptvnator/services/source-sync/connection';
+import { preparePlayerLoading } from './player-loading-rollback';
 
 const restoredHref = resolveRestoredRendererRoute(
     window.location.href,
@@ -22,6 +23,7 @@ const rendererRecovery =
 // renders dates with that locale, and a locale without data throws. English
 // (the default) resolves immediately.
 Promise.all([
+    preparePlayerLoading(),
     rendererRecovery,
     registerAppDateLocale(getInitialLanguage()),
     prepareSourceConnection(window.__IPTVNATOR_CONFIG__?.BACKEND_URL),

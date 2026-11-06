@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">IPTVnator</string>
+    <string name="file_picker_unavailable">No document picker is available on this device.</string>
     <string name="credits_label">Credits</string>
     <string name="credits_names">sz and axs</string>
     <string name="loading">Starting the player…</string>

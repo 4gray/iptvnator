@@ -23,6 +23,16 @@ APK
 
 ## What it does
 
+Local playlist import and backup restore use Android's document picker, without
+broad storage permissions. Cancellation leaves the file input unchanged; devices
+without a document picker show an explanatory message. The shared parsers validate
+the selected document.
+
+The temporary player-loading rollback is
+`localStorage.setItem('iptvnator.eagerPlayerLoading', '1')`, followed by a reload:
+all engines load before Angular starts. Remove the key to restore deferred loading.
+Remove this rollback by release 0.27 (within two releases of 0.25).
+
 Returning from a deep catalog position synchronizes the TV grid before restoring
 card focus. Shared playback diagnostics publish `iptvnator:playback-issue` with only a code;
 the shell uses unsupported-codec/container and decode errors to offer an external
@@ -252,6 +262,10 @@ WWW=/path/to/dist/apps/web tv-shell/devserver/run-dev.sh        # http://127.0.0
 # in a browser: F9 = Back, F10 = Menu, F8 = Play/Pause, F7 = external player
 # remote-control tests (Playwright, also run by the workflow) against the dev server
 node tv-shell/tests/tv-remote.mjs ; node tv-shell/tests/tv-longlist.mjs
+
+# native document-picker regression: a debug APK must already be installed
+# on an English-language Android emulator (physical devices are excluded)
+ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-file-input.mjs emulator-5554
 # the real Java backend on the JDK, without Android (same classes as the APK)
 cd tv-shell/android && ./gradlew :backend:check
 # regenerate the parser fixtures after an iptv-playlist-parser upgrade

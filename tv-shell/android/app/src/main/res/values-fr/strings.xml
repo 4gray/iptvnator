@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">IPTVnator</string>
+    <string name="file_picker_unavailable">Aucun sélecteur de documents n\'est disponible sur cet appareil.</string>
     <string name="credits_label">Crédits</string>
     <string name="credits_names">sz and axs</string>
     <string name="loading">Démarrage du lecteur…</string>

@@ -5,7 +5,7 @@
  *   node tests/tv-remote.mjs [--url http://127.0.0.1:43330] [--shots dir]
  */
 import { createRequire } from 'node:module';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -815,6 +815,37 @@ await page.evaluate(() => {
 await key('ArrowDown');
 check(await page.locator('#synthetic-card-link').evaluate((link) => document.activeElement === link),
     'a programmatic landing on a structural card enters its actionable child');
+console.log('15. player-loading rollback precedes the first Angular render');
+const buildDir = join(dirname(fileURLToPath(import.meta.url)), '../../dist/apps/web');
+const selectors = ['app-art-player', 'app-vjs-player', 'app-html-video-player'];
+const engineChunks = readdirSync(buildDir).filter((name) => {
+    if (!name.endsWith('.js')) return false;
+    const code = readFileSync(join(buildDir, name), 'utf8');
+    return selectors.some((selector) => new RegExp('selectors:\\s*\\[\\[\\s*["\'`]' + selector + '["\'`]').test(code));
+});
+check(engineChunks.length > 0, 'the built PWA contains discoverable web-player engine chunks');
+for (const eager of [false, true]) {
+    const startupContext = await browser.newContext({ serviceWorkers: 'block' });
+    await startupContext.addInitScript((eager) => {
+        if (eager) localStorage.setItem('iptvnator.eagerPlayerLoading', '1');
+        const observer = new MutationObserver(() => {
+            if (document.querySelector('app-root')?.childElementCount) {
+                window.__syntheticFirstRender = performance.now();
+                observer.disconnect();
+            }
+        });
+        observer.observe(document, { childList: true, subtree: true });
+    }, eager);
+    const startupPage = await startupContext.newPage();
+    await startupPage.goto(URL_, { waitUntil: 'networkidle' });
+    await startupPage.waitForFunction(() => window.__syntheticFirstRender > 0);
+    const loaded = await startupPage.evaluate(() => performance.getEntriesByType('resource')
+        .filter((entry) => entry.responseEnd > 0 && entry.responseEnd <= window.__syntheticFirstRender)
+        .map((entry) => new URL(entry.name).pathname.split('/').pop()));
+    check(eager ? engineChunks.every((name) => loaded.includes(name)) : engineChunks.every((name) => !loaded.includes(name)),
+        eager ? 'rollback loads every engine before Angular renders' : 'default startup renders before loading the engines');
+    await startupContext.close();
+}
 console.log(failures ? `${failures} check(s) failed` : 'all checks passed');
 process.exitCode = failures ? 1 : 0;
 await browser.close();

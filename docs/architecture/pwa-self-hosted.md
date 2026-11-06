@@ -39,6 +39,16 @@ The Docker entrypoint rewrites `assets/app-config.js` at container startup.
 `ngsw-config.json` explicitly excludes this file from Angular service worker
 asset hashing so a runtime rewrite does not break cache validation.
 
+## Player-loading rollback
+
+Player engines normally load after the first route settles or when playback needs
+them. To restore eager loading in Electron, PWA or the Android shell, set
+`localStorage.setItem('iptvnator.eagerPlayerLoading', '1')` in that runtime's
+developer console and reload. Bootstrap then waits for the player route and all
+web engines before rendering Angular. Remove the key and reload to restore the
+default. Blocked storage leaves the default enabled. This temporary rollback is
+introduced for 0.25 and must be removed by 0.27 (within two releases).
+
 ## Service Worker Build
 
 Use the PWA build configuration for browser deployments:

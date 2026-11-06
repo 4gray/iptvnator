@@ -28,6 +28,7 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.ValueCallback;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.TextView;
@@ -65,6 +66,7 @@ public class MainActivity extends Activity {
     private static long lastRendererDeathAt;
 
     private WebView webView;
+    private final WebFileChooser fileChooser = new WebFileChooser(this);
     private FrameLayout root;
     private View splash;
     private View errorPanel;
@@ -245,6 +247,7 @@ public class MainActivity extends Activity {
             /** The sandboxed renderer died (OOM abort or system kill). Unhandled, Chromium crashes or kills the app. */
             @Override
             public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
+                fileChooser.cancel();
                 boolean crashed = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && detail.didCrash();
                 long now = SystemClock.uptimeMillis();
                 if (crashed || resumed) {
@@ -268,6 +271,11 @@ public class MainActivity extends Activity {
             }
         });
         webView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
+                return fileChooser.show(callback, params);
+            }
+
             @Override
             public boolean onConsoleMessage(ConsoleMessage message) {
                 if (message.messageLevel() == ConsoleMessage.MessageLevel.ERROR) {
@@ -667,7 +675,15 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (!fileChooser.onActivityResult(requestCode, resultCode, data)) {
+            super.onActivityResult(requestCode, resultCode, data);
+        }
+    }
+
+    @Override
     protected void onDestroy() {
+        fileChooser.cancel();
         handler.removeCallbacks(readyWatchdog);
         handler.removeCallbacks(hideSplash);
         handler.removeCallbacks(loadRetry);
