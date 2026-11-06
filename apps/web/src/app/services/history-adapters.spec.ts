@@ -67,6 +67,100 @@ const playlist = {
     autoRefresh: false,
 } as Playlist;
 describe('history provider projections', () => {
+    it.each([
+        ['m3u', 'touch'],
+        ['m3u', 'remove'],
+        ['stalker', 'touch'],
+        ['stalker', 'remove'],
+    ] as const)(
+        'reads current %s history on an already-open collection after %s before metadata reload',
+        async (provider, operation) => {
+            const f = fixture(provider);
+            const channel = {
+                id: 'synthetic-channel',
+                name: 'Synthetic channel',
+                url: 'https://streams.example/live',
+                tvg: { logo: 'https://artwork.example/logo.svg' },
+            };
+            const original =
+                provider === 'm3u'
+                    ? {
+                          source: 'm3u',
+                          id: channel.url,
+                          url: channel.url,
+                          title: channel.name,
+                          category_id: 'live',
+                          added_at: 1,
+                      }
+                    : {
+                          id: '42',
+                          title: 'Synthetic channel',
+                          category_id: 'itv',
+                          added_at: 1,
+                      };
+            const source = {
+                ...playlist,
+                playlist: { items: [channel] },
+                ...(provider === 'stalker'
+                    ? { macAddress: 'synthetic-mac' }
+                    : {}),
+                recentlyViewed: operation === 'remove' ? [original] : [],
+            } as Playlist;
+            const reference =
+                provider === 'm3u'
+                    ? await m3uFavoriteReference(channel.url)
+                    : {
+                          provider: 'stalker' as const,
+                          kind: 'live' as const,
+                          id: '42',
+                      };
+            f.read().base = applyHistoryOperation(f.read().base, {
+                kind: 'touch',
+                reference,
+                snapshot: { title: channel.name },
+                operationId: 'synthetic-touch',
+                deviceId: 'synthetic-device',
+                baseRevision: 0,
+                viewedAt: 1,
+            }).state;
+            if (operation === 'remove')
+                f.read().base = applyHistoryOperation(f.read().base, {
+                    kind: 'remove',
+                    reference,
+                    operationId: 'synthetic-remove',
+                    deviceId: 'synthetic-device',
+                    baseRevision: f.read().base.revision,
+                    viewedAt: 2,
+                }).state;
+            const adapter = new HistoryPlaylistAdapter(
+                f.client,
+                async () => source
+            );
+            const recent = Object.assign(
+                Object.create(UnifiedRecentDataService.prototype),
+                {
+                    history: {
+                        active: () => true,
+                        project: (p: Playlist) => adapter.project(p),
+                    },
+                    runtime: { supportsPortalActivityStorage: false },
+                    store: { select: () => of([source]) },
+                    playlistsService: { getPlaylistById: () => of(source) },
+                }
+            ) as UnifiedRecentDataService;
+            const items = await recent.getRecentItems('all');
+            expect(items).toHaveLength(operation === 'touch' ? 1 : 0);
+            if (operation === 'touch')
+                expect(items[0]).toMatchObject({
+                    sourceType: provider,
+                    contentType: 'live',
+                });
+            expect(source.recentlyViewed).toHaveLength(
+                operation === 'remove' ? 1 : 0
+            );
+            expect(f.read().pending).toEqual([]);
+        }
+    );
     it.each([false, true])(
         'matches Stalker favorite membership independently of history consent, favorites=%s',
         async (enabled) => {
@@ -108,7 +202,10 @@ describe('history provider projections', () => {
             const recent = Object.assign(
                 Object.create(UnifiedRecentDataService.prototype),
                 {
-                    history: { active: () => true },
+                    history: {
+                        active: () => true,
+                        project: async (p: Playlist) => p,
+                    },
                     playlistsService: playlists,
                     getPlaylistMeta: async () => projected,
                 }

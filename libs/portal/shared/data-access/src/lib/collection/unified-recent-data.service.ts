@@ -609,11 +609,11 @@ export class UnifiedRecentDataService {
     private async extractM3uRecent(
         meta: PlaylistMeta
     ): Promise<UnifiedCollectionItem[]> {
-        const recentItems = this.sortRecentItems(meta.recentlyViewed).filter(
+        let recentItems = this.sortRecentItems(meta.recentlyViewed).filter(
             isM3uRecentlyViewedItem
         );
 
-        if (recentItems.length === 0) {
+        if (recentItems.length === 0 && !this.history.active()) {
             return [];
         }
 
@@ -622,6 +622,12 @@ export class UnifiedRecentDataService {
             playlist = (await firstValueFrom(
                 this.playlistsService.getPlaylistById(meta._id)
             )) as PlaylistWithChannels | undefined;
+            if (this.history.active() && playlist) {
+                playlist = await this.history.project(playlist);
+                recentItems = this.sortRecentItems(
+                    playlist.recentlyViewed
+                ).filter(isM3uRecentlyViewedItem);
+            }
         } catch {
             return [];
         }
@@ -692,11 +698,11 @@ export class UnifiedRecentDataService {
     private async extractStalkerRecent(
         meta: PlaylistMeta
     ): Promise<UnifiedCollectionItem[]> {
-        const recentItems = this.sortRecentItems(meta.recentlyViewed).filter(
+        let recentItems = this.sortRecentItems(meta.recentlyViewed).filter(
             (item): item is StalkerPortalItem => !isM3uRecentlyViewedItem(item)
         );
 
-        if (recentItems.length === 0) {
+        if (recentItems.length === 0 && !this.history.active()) {
             return [];
         }
 
@@ -705,6 +711,15 @@ export class UnifiedRecentDataService {
             playlist = (await firstValueFrom(
                 this.playlistsService.getPlaylistById(meta._id)
             )) as Playlist | undefined;
+            if (this.history.active() && playlist) {
+                playlist = await this.history.project(playlist);
+                recentItems = this.sortRecentItems(
+                    playlist.recentlyViewed
+                ).filter(
+                    (item): item is StalkerPortalItem =>
+                        !isM3uRecentlyViewedItem(item)
+                );
+            }
         } catch {
             return [];
         }

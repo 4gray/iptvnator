@@ -1,6 +1,6 @@
 // Shared by the application and the decorative settings samples.
 
-@mixin light($preview: false) {
+@mixin light($preview: false, $variant: false) {
     --app-shell-bg: #eef0f3;
     --app-rail-bg: #eef0f3;
     --app-content-bg: #f5f6f8;
@@ -9,7 +9,7 @@
     --app-muted-color: #535d6d;
     --app-selection-color: #2f7bff;
 
-    @if not $preview {
+    @if not $preview and not $variant {
         // ── Light theme design tokens ─────────────────────────────────────────
         --app-header-bg: #eef0f3;
         --app-rail-border: transparent;
@@ -248,7 +248,7 @@
 }
 
 @mixin cream($preview: false) {
-    @include light($preview);
+    @include light($preview, $variant: true);
     --app-shell-bg: #e9e1d4;
     --app-rail-bg: #e9e1d4;
     --app-content-bg: #f3eee4;

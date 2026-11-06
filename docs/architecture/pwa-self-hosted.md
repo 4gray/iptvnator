@@ -1511,6 +1511,10 @@ Delivery failure stops the import with the failed row queued; raw archives remai
 available for a new preview and retry.
 Playlist archive transformations and Xtream recent-item operations load on first
 use. Their write queues and source/profile guards remain in the owning services.
+Source/history readiness warms those helpers before user actions, so a later UI
+host outage cannot cancel the first local history edit. M3U/Stalker collection
+reads project the latest sidecar state directly; they do not wait for an
+asynchronous inventory metadata reload after the history event.
 
 Global collections and Dashboard use the same history projection in both runtimes;
 explicit native reads/deletes do not bypass it. Completion notifications update

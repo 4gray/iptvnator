@@ -66,7 +66,12 @@ export const withRecentItems = function () {
                     })
                 )
             );
-            return { loadRecentItems };
+            return {
+                loadRecentItems,
+                async prepareRecentActions(): Promise<void> {
+                    await recentOperations();
+                },
+            };
         }),
         withMethods(
             (

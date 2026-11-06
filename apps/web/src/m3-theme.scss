@@ -132,8 +132,6 @@ html {
     @include mat.system-level-shape($light-theme);
     @include mat.system-level-state($light-theme);
 
-    @include palettes.light;
-
     .dark-theme {
         // Only the color roles differ per theme: the elevation shadows are
         // the same black in both, so html's declarations already apply here.
@@ -141,6 +139,12 @@ html {
 
         @include palettes.dark;
     }
+}
+
+// Light presets share aliases on the same element as their color overrides.
+html,
+html .light-theme {
+    @include palettes.light;
 }
 
 // Preset identity is separate from the compatibility light/dark mode class.

@@ -110,6 +110,52 @@ test('shares confirmed synthetic M3U history and preserves import, ordering, cle
         await play(page, 0);
         expect(requests).toBe(0);
         expect(await visible()).toHaveLength(0);
+        await openGlobalRecent(page);
+        await expect(
+            page
+                .getByTestId('channel-item')
+                .filter({ hasText: 'Synthetic first' })
+        ).toBeVisible();
+        const cold = await browser.newContext({
+            serviceWorkers: 'block',
+            storageState: await context.storageState({ indexedDB: true }),
+        });
+        try {
+            const offline = await cold.newPage();
+            await offline.route('**/assets/app-config.js', (route) =>
+                route.fulfill({
+                    contentType: 'application/javascript',
+                    body: `window.__IPTVNATOR_CONFIG__=${JSON.stringify({ BACKEND_URL: server.apiUrl })};`,
+                })
+            );
+            await offline.goto(`${frontend}/workspace/global-recent`);
+            const row = offline
+                .getByTestId('channel-item')
+                .filter({ hasText: 'Synthetic first' });
+            await expect(row).toBeVisible();
+            await row.click({ button: 'right' });
+            const remove = offline.getByRole('menuitem', {
+                name: 'Remove from history',
+                exact: true,
+            });
+            await expect(remove).toBeVisible();
+            await offline.keyboard.press('Escape');
+            // The loaded view must keep its first local write independent of the UI host.
+            await offline.route(`${frontend}/**`, (route) =>
+                route.request().resourceType() === 'script'
+                    ? route.abort('failed')
+                    : route.continue()
+            );
+            await row.click({ button: 'right' });
+            await remove.click();
+            await expect(row).toHaveCount(0);
+            await offline.unroute(`${frontend}/**`);
+            await offline.reload();
+            await expect(row).toHaveCount(0);
+            expect(await visible()).toHaveLength(0);
+        } finally {
+            await cold.close();
+        }
         writeFileSync(
             join(directory, 'source-server.json'),
             JSON.stringify({ apiUrl: server.apiUrl, instanceId })

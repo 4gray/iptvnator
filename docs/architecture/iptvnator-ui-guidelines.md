@@ -1708,6 +1708,8 @@ light value. Samples emit only their seven displayed app roles from the same
 palette mixins, avoiding full duplicate theme payloads.
 Dark variants emit their app overrides over the shared `.dark-theme` defaults
 on the same body element; their mixins skip repeating the full dark palette.
+Light and Cream likewise share the `.light-theme` defaults on the body; `html`
+retains the same light fallback. Cream emits only its differing app roles.
 Adding a built-in preset requires catalog metadata, app/Material colors,
 localized naming, and computed contrast/persistence coverage. Do not introduce
 per-component preset conditions or duplicate sample-only palettes. Typography,

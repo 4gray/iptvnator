@@ -514,10 +514,20 @@ export class PlaylistsService {
 
     private projectFavoriteMetas(rows: Playlist[]) {
         return Promise.all(
-            rows.map(async (row) =>
-                this.historySync.project(await this.favoriteSync.project(row))
-            )
+            rows.map(async (row) => {
+                const projected = await this.historySync.project(
+                    await this.favoriteSync.project(row)
+                );
+                return projected.recentlyViewed?.length
+                    ? this.prepareHistory(projected)
+                    : projected;
+            })
         );
+    }
+
+    private async prepareHistory(playlist: Playlist): Promise<Playlist> {
+        if (playlist && !playlist.serverUrl) await import('./playlist-history');
+        return playlist;
     }
 
     getAllPlaylists() {
@@ -736,9 +746,13 @@ export class PlaylistsService {
                             ? await store.dbGetAppPlaylist(id)
                             : await store.dbGetAppPlaylist(id, operationId);
                 }
-                return playlist
-                    ? this.createSqliteFallbackPlaylist(playlist as Playlist)
-                    : (undefined as unknown as Playlist);
+                return this.prepareHistory(
+                    playlist
+                        ? this.createSqliteFallbackPlaylist(
+                              playlist as Playlist
+                          )
+                        : (undefined as unknown as Playlist)
+                );
             });
         }
 
@@ -746,7 +760,7 @@ export class PlaylistsService {
             firstValueFrom(
                 this.dbService.getByID<Playlist>(DbStores.Playlists, id)
             )
-        );
+        ).pipe(switchMap((playlist) => this.prepareHistory(playlist)));
     }
 
     updatePlaylistMeta(updatedPlaylist: PlaylistMetaUpdate) {
