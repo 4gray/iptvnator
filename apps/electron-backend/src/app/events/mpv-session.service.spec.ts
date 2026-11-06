@@ -386,10 +386,14 @@ describe('external player shutdown on app quit', () => {
         const args = (spawn as unknown as jest.Mock).mock.calls.at(
             -1
         )?.[1] as string[];
-        expect(args).toContain('--audio-file=https://example.com/channel-b.m3u8');
+        expect(args).toContain(
+            '--audio-file=https://example.com/channel-b.m3u8'
+        );
         expect(args).toContain('--audio-delay=1.5');
         // The video stream stays the file mpv opens.
-        expect(args[args.length - 1]).toBe('https://example.com/channel-a.m3u8');
+        expect(args[args.length - 1]).toBe(
+            'https://example.com/channel-a.m3u8'
+        );
     });
 
     it('adds no audio flags without a second stream, and skips a zero delay', async () => {
@@ -419,7 +423,9 @@ describe('external player shutdown on app quit', () => {
         const noDelayArgs = (spawn as unknown as jest.Mock).mock.calls.at(
             -1
         )?.[1] as string[];
-        expect(noDelayArgs).toContain('--audio-file=https://example.com/b.m3u8');
+        expect(noDelayArgs).toContain(
+            '--audio-file=https://example.com/b.m3u8'
+        );
         expect(noDelayArgs.some((arg) => arg.startsWith('--audio-delay'))).toBe(
             false
         );

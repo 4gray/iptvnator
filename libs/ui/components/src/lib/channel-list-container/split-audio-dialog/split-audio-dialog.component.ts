@@ -47,7 +47,9 @@ const MAX_VISIBLE_CHANNELS = 300;
 })
 export class SplitAudioDialogComponent {
     protected readonly data = inject<SplitAudioDialogData>(MAT_DIALOG_DATA);
-    private readonly dialogRef = inject(MatDialogRef<SplitAudioDialogComponent>);
+    private readonly dialogRef = inject(
+        MatDialogRef<SplitAudioDialogComponent>
+    );
     private readonly store = inject(Store);
     private readonly splitAudio = inject(SplitAudioService);
     private readonly settingsStore = inject(SettingsStore);
@@ -69,7 +71,8 @@ export class SplitAudioDialogComponent {
             .filter(
                 (channel) =>
                     channel.url !== videoUrl &&
-                    (!needle || (channel.name ?? '').toLowerCase().includes(needle))
+                    (!needle ||
+                        (channel.name ?? '').toLowerCase().includes(needle))
             )
             .slice(0, MAX_VISIBLE_CHANNELS);
     });

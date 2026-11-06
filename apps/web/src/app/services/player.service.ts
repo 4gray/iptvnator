@@ -140,15 +140,6 @@ export class PlayerService {
                 headers: playback.headers,
                 contentInfo: playback.contentInfo,
                 startTime: playback.startTime,
-                // Only mpv can mix another stream's audio into the video.
-                audioUrl:
-                    player === 'mpv'
-                        ? playback.audioOverride?.streamUrl
-                        : undefined,
-                audioDelaySeconds:
-                    player === 'mpv'
-                        ? playback.audioOverride?.delaySeconds
-                        : undefined,
             }
         );
     }

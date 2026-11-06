@@ -61,7 +61,9 @@ export class SplitAudioService {
 
     savedDelay(videoUrl: string, audioUrl: string): number {
         try {
-            const raw = localStorage.getItem(this.storageKey(videoUrl, audioUrl));
+            const raw = localStorage.getItem(
+                this.storageKey(videoUrl, audioUrl)
+            );
             return raw === null ? 0 : this.clampDelay(Number(raw));
         } catch {
             return 0; // storage can be unavailable; the delay is a convenience

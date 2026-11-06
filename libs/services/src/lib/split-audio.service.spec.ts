@@ -15,7 +15,10 @@ describe('SplitAudioService', () => {
     });
 
     it('hands the pending override out exactly once', () => {
-        service.request({ streamUrl: 'http://h/b.ts', delaySeconds: 1.5 }, 1000);
+        service.request(
+            { streamUrl: 'http://h/b.ts', delaySeconds: 1.5 },
+            1000
+        );
         expect(service.take(1500)).toEqual({
             streamUrl: 'http://h/b.ts',
             delaySeconds: 1.5,
@@ -25,9 +28,7 @@ describe('SplitAudioService', () => {
 
     it('drops an override nobody took in time', () => {
         service.request({ streamUrl: 'http://h/b.ts' }, 1000);
-        expect(
-            service.take(1000 + SPLIT_AUDIO_PENDING_TTL_MS + 1)
-        ).toBeNull();
+        expect(service.take(1000 + SPLIT_AUDIO_PENDING_TTL_MS + 1)).toBeNull();
     });
 
     it('clear removes a pending override', () => {
@@ -41,7 +42,9 @@ describe('SplitAudioService', () => {
         expect(service.clampDelay(-500)).toBe(-SPLIT_AUDIO_MAX_DELAY_SECONDS);
         expect(service.clampDelay(Number.NaN)).toBe(0);
         service.request({ streamUrl: 'x', delaySeconds: 999 }, 1);
-        expect(service.take(2)?.delaySeconds).toBe(SPLIT_AUDIO_MAX_DELAY_SECONDS);
+        expect(service.take(2)?.delaySeconds).toBe(
+            SPLIT_AUDIO_MAX_DELAY_SECONDS
+        );
     });
 
     it('remembers the delay per pair without putting URLs in storage keys', () => {

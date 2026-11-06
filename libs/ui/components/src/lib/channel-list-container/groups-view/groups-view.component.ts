@@ -650,7 +650,10 @@ export class GroupsViewComponent {
         this.channelContextMenu().close();
         SplitAudioDialogComponent.open(this.dialog, {
             video: channel,
-            channels: Object.values(this.groupedChannels()).flat(),
+            channels: Object.values(this.groupedChannels()).reduce<Channel[]>(
+                (all, group) => all.concat(group),
+                []
+            ),
         });
     }
 
