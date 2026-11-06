@@ -1,4 +1,5 @@
 import type { Progress, UserData } from './index';
+import { isWatched } from './playback-progress';
 
 /** A series contributes its latest episode only, even if older episodes are unfinished. */
 export function continueWatching(data: UserData, limit = 8): Progress[] {
@@ -23,11 +24,7 @@ export function continueWatching(data: UserData, limit = 8): Progress[] {
             ]);
             if (seen.has(key)) return false;
             seen.add(key);
-            return (
-                Number.isFinite(p.seconds) &&
-                p.seconds > 0 &&
-                (!p.duration || p.duration - p.seconds > 15)
-            );
+            return Number.isFinite(p.seconds) && p.seconds > 0 && !isWatched(p);
         })
         .slice(0, limit)
         .map(({ progress }) => progress);

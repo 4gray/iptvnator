@@ -436,6 +436,34 @@ independently, so an older title still resumes. Additive reads recover positions
 from older TV snapshots that only contain history. Closing an OS process can lose the interval
 since the last committed write; asynchronous pagehide writes are best effort.
 
+History in the sidebar shows the latest saved entry per media identity across all
+sources, including finished titles and live channels, newest first. Pages contain
+at most 24 entries with source and last-played date. Resume/Watch again and Details
+activate the saved item's source; Back restores its initiating control. Replayed
+entries move to the newest page; Details preserves the page unless playback
+changes the entry's order.
+History is local TV data, not a cross-device or per-session viewing log.
+History and Continue watching use the shared 2:3 poster treatment, with a bottom
+progress strip only for known duration and one focus target per title. OK/click
+opens the title's actions dialog with Resume/Watch again initially focused,
+Details and watched status below. Back/Close restores the cover. Each action
+retains the cover's focus key and main scroll position through source activation,
+playback and Details. Live entries offer Watch live; unknown durations show
+watched minutes without an indeterminate progress strip. History dates use a
+compact day/month label; episode coordinates and source remain explicit.
+
+Movies and episodes count as watched when the remaining native duration is at
+most 5% of the total, capped at 300 seconds. The same helper controls continuation,
+initial/retry resume and watched labels. Unknown or nonfinite durations do not
+automatically complete. Home cards and the featured title show remaining minutes
+when duration is known, otherwise watched minutes. History keeps completed titles.
+Mark as watched is available from Home, History and saved movie/episode Details;
+History also allows Mark as unwatched. The optional `Progress.watched` override
+persists without changing position, duration or last-played date. It is additive
+to existing snapshots. A new confirmed playback replaces the override with actual
+progress, so Watch again starts at zero and can enter continuation again. Failed
+status writes leave committed state visible and expose Retry viewing status.
+
 ## Artwork and optional TMDB metadata
 
 Stalker artwork resolves portal-root and protocol-relative paths through the
@@ -458,10 +486,10 @@ filter, and every card names its source. Unavailable-source entries remain visib
 and fail with recovery guidance instead of borrowing the active provider.
 Movie/series posters retain their proportions;
 channels use horizontal cards. Detail Back restores the selected favorite type,
-item and scroll position. Home Continue watching pairs a 2:3 cover (or local
-fallback icon) with persisted progress and its existing resume action. The cover
-keeps its 2:3 frame within taller cards and fits the whole image without cropping;
-cards grow to keep episode details and the resume action inside their background.
+item and scroll position. Home Continue watching uses the ordinary poster-card
+proportions (or a local fallback icon), crops artwork with `object-fit: cover`
+inside the fixed 2:3 frame, and exposes playback through the title's actions menu.
+Progress stays at the cover's lower edge; episode and source labels sit below it.
 Available parent series artwork takes precedence over episode imagery without
 requesting a new catalog.
 Historical Stalker history/favorites recover missing covers from their saved raw

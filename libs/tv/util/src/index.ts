@@ -122,6 +122,7 @@ export interface Progress {
     seconds: number;
     duration: number;
     updated: number;
+    watched?: boolean;
 }
 export interface LibrarySettings {
     url: string;
@@ -250,6 +251,7 @@ export * from './settings-draft';
 export * from './catalog-sort';
 export * from './catalog-query';
 export { continueWatching } from './continue-watching';
+export * from './playback-progress';
 export * from './series-context';
 export * from './programme-guide';
 

@@ -3,7 +3,7 @@ import { useNotice, connectionNotice } from './use-notice';
 import { useReconnect } from './use-reconnect';
 import { useLibrary } from './use-library';
 import { useBackend } from './use-backend';
-import { firstRoute, type View } from './navigation';
+import { firstRoute, isCollectionView, type View } from './navigation';
 import { useRouteHistory, type NavigationOrigin } from './use-route-history';
 import { usePlaybackOrigin, type FailedPlayback } from './use-playback-origin';
 import { useUserData } from './user-data';
@@ -12,7 +12,12 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { useProvider } from './use-provider';
 import { useSourceNavigation } from './use-source-navigation';
 import { useTvRemote } from './use-tv-remote';
-import { LatestRequest, Media, Source } from '@iptvnator/tv/util';
+import {
+    LatestRequest,
+    Media,
+    Source,
+    resumePosition,
+} from '@iptvnator/tv/util';
 import { focusKey, platformBack, restoreFocus } from '@iptvnator/tv/ui';
 export function useTv(video: { current: HTMLVideoElement | null }) {
     const [route, setRoute] = useState(firstRoute);
@@ -198,7 +203,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
             setPlaying(item);
             if (item.kind === 'live') {
                 playingCategory.current = category;
-                if (route.view === 'favorites') {
+                if (isCollectionView(route.view)) {
                     setSelected(item);
                     visit(
                         { ...firstRoute(), view: 'live', kind: 'live' },
@@ -207,18 +212,12 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
                     );
                 }
             }
-            if (item.kind !== 'live' || route.view === 'favorites') {
+            if (item.kind !== 'live' || isCollectionView(route.view)) {
                 setFullscreen(true);
                 restoreFocus('player-toggle');
             }
             const p = repo.current!.data.positions[item.id];
-            await player.current!.play(
-                item,
-                resolved,
-                p && (!p.duration || p.duration - p.seconds > 15)
-                    ? p.seconds
-                    : 0
-            );
+            await player.current!.play(item, resolved, resumePosition(p));
             return lane.owns(job);
         } catch {
             if (lane.owns(job)) {
@@ -262,9 +261,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
                         void player.current?.play(
                             item,
                             resolved,
-                            p && (!p.duration || p.duration - p.seconds > 15)
-                                ? p.seconds
-                                : 0
+                            resumePosition(p)
                         );
                     }
                 })
@@ -282,8 +279,9 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         if (fullscreen) {
             const favoriteLive =
                 playing?.kind === 'live' &&
-                stack.current[stack.current.length - 1]?.route.view ===
-                    'favorites';
+                isCollectionView(
+                    stack.current[stack.current.length - 1]?.route.view
+                );
             setFullscreen(false);
             if (playing?.kind !== 'live' || favoriteLive) stop();
             if (!favoriteLive) {
@@ -295,7 +293,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         const previous = stack.current.pop();
         if (previous || route.view !== 'home') content.cancelBrowse();
         if (previous) {
-            if (route.view === 'live' && previous.route.view === 'favorites')
+            if (route.view === 'live' && isCollectionView(previous.route.view))
                 stop();
             pendingFocus.current = previous.focus;
             pendingScroll.current = previous.scroll;

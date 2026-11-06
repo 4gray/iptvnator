@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
+import { restoreFocus } from '@iptvnator/tv/ui';
 import {
     NativePlayer,
     UserDataRepository,
@@ -7,6 +8,7 @@ import {
 import {
     initialData,
     recordProgress,
+    setWatched,
     UserData,
     Media,
 } from '@iptvnator/tv/util';
@@ -85,6 +87,28 @@ export function useUserData(
             );
         }
     }
+    async function markWatched(
+        id: string,
+        watched: boolean,
+        returnFocus = `watched:${id}`
+    ) {
+        try {
+            await update((d) => setWatched(d, id, watched));
+            favoriteNotice.clearError('Retry viewing status');
+            return true;
+        } catch {
+            favoriteNotice.setError(
+                'Viewing status was not saved. Free TV storage and retry.',
+                () =>
+                    void markWatched(id, watched, returnFocus).then((saved) => {
+                        if (saved && document.activeElement === document.body)
+                            restoreFocus(returnFocus, 'hero-resume');
+                    }),
+                'Retry viewing status'
+            );
+            return false;
+        }
+    }
     return {
         data,
         storageReady,
@@ -94,5 +118,6 @@ export function useUserData(
         player,
         update,
         favorite,
+        markWatched,
     };
 }
