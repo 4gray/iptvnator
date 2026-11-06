@@ -18,6 +18,7 @@ import type { HistoryPlaylistAdapter } from './history-playlist-adapter';
 import {
     xtreamFavoriteReference,
     xtreamFavoriteSnapshot,
+    hasXtreamFavoriteIdentityConflict,
 } from './favorites-reference-adapters';
 
 export async function projectHistoryBackup(
@@ -73,6 +74,11 @@ export async function projectHistoryBackup(
             continue;
         }
         const previous = mapped.get(id);
+        const conflict = hasXtreamFavoriteIdentityConflict(item.snapshot, {
+            tmdb_id: Number(previous?.collectionItem?.['tmdb_id']) || undefined,
+            release_year:
+                Number(previous?.collectionItem?.['release_year']) || undefined,
+        });
         mapped.set(id, {
             ...previous,
             contentType: ref.kind,
@@ -92,7 +98,7 @@ export async function projectHistoryBackup(
                 ...(item.snapshot?.releaseYear
                     ? { release_year: Number(item.snapshot.releaseYear) }
                     : {}),
-                ...(item.snapshot?.identityConflict
+                ...(conflict
                     ? { catalog_missing_reason: 'identity_conflict' }
                     : {}),
             },

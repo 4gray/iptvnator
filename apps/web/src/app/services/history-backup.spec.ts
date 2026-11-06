@@ -115,7 +115,7 @@ describe('durable history backup', () => {
             Date.parse('2026-11-05T12:00:00Z'),
         ]);
     });
-    it.each(['shared', 'archive'] as const)(
+    it.each(['shared', 'archive', 'tmdb', 'year'] as const)(
         'retains %s identity conflicts through export and restore',
         async (origin) => {
             const f = fixture();
@@ -127,7 +127,16 @@ describe('durable history backup', () => {
                         identityConflict: true,
                     },
                 }).state;
-            else
+            else {
+                if (origin !== 'archive')
+                    f.record().base = applyHistoryOperation(f.record().base, {
+                        ...op(42),
+                        snapshot: {
+                            title: 'Synthetic shared item',
+                            tmdbId: '101',
+                            releaseYear: '2020',
+                        },
+                    }).state;
                 f.entry.userState.recentlyViewed = [
                     {
                         contentType: 'movie',
@@ -137,10 +146,38 @@ describe('durable history backup', () => {
                             type: 'movie',
                             xtream_id: 42,
                             title: 'Synthetic rejected item',
-                            catalog_missing_reason: 'identity_conflict',
+                            ...(origin === 'archive'
+                                ? {
+                                      catalog_missing_reason:
+                                          'identity_conflict',
+                                  }
+                                : {
+                                      tmdb_id: origin === 'tmdb' ? 202 : 101,
+                                      release_year:
+                                          origin === 'year' ? 2021 : 2020,
+                                  }),
                         },
                     },
                 ];
+            }
+            if (origin === 'tmdb' || origin === 'year') {
+                const adapter = new HistoryXtreamAdapter(f.client, true, {
+                    active: () => false,
+                    withholdsEverything: () => false,
+                    version: () => 0,
+                });
+                expect(
+                    await adapter.project(
+                        {
+                            getRecentItems: async () => [
+                                f.entry.userState.recentlyViewed[0]
+                                    .collectionItem,
+                            ],
+                        } as never,
+                        'source'
+                    )
+                ).toEqual([]);
+            }
             const exported = (await projectHistoryBackup(
                 f.client,
                 {} as never,
