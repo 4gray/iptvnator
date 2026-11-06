@@ -1,10 +1,12 @@
 import { inject, Injector, Provider } from '@angular/core';
 import {
     PLAYLIST_DELETE_CLEANUP,
+    PORTAL_CONTENT_SEEDERS,
     RuntimeCapabilitiesService,
 } from '@iptvnator/services';
 import { ElectronXtreamDataSource } from './electron-xtream-data-source';
 import { PwaXtreamDataSource } from './pwa-xtream-data-source';
+import { XtreamContentSeedService } from '../xtream-content-seed.service';
 import {
     IXtreamDataSource,
     XTREAM_DATA_SOURCE,
@@ -40,6 +42,11 @@ export function provideXtreamDataSource(
     return [
         ElectronXtreamDataSource,
         PwaXtreamDataSource,
+        {
+            provide: PORTAL_CONTENT_SEEDERS,
+            multi: true,
+            useExisting: XtreamContentSeedService,
+        },
         {
             provide: XTREAM_DATA_SOURCE,
             useFactory: factory,

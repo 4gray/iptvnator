@@ -23,7 +23,14 @@ export const PlaylistActions = createActionGroup({
         }>(),
         'Load Playlists Failure': emptyProps(),
         'Add Playlist': props<{ playlist: Playlist }>(),
-        'Add Many Playlists': props<{ playlists: Playlist[] }>(),
+        'Add Many Playlists': props<{
+            /**
+             * False when an awaited owner already persisted these exact rows
+             * (bulk import) and the action only synchronizes NgRx state.
+             */
+            persist?: boolean;
+            playlists: Playlist[];
+        }>(),
         'Playlist Removal Committed': props<{ playlistId: string }>(),
         'Update Playlist Meta': props<{
             playlist: PlaylistMetaUpdate;
@@ -50,6 +57,8 @@ export const PlaylistActions = createActionGroup({
             playlist: string;
             title: string;
             path?: string;
+            importLive?: boolean;
+            importVod?: boolean;
         }>(),
         'Set Active Playlist': props<{ playlistId: string }>(),
         'Update Playlist Positions': props<{

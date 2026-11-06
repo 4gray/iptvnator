@@ -178,7 +178,9 @@
             "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "Actualisation automatique incomplète : {{updated}} listes de lecture sur {{total}} mises à jour, {{failed}} en échec, {{skipped}} ignorées (aucune URL ni chemin de fichier).",
             "AUTO_REFRESH_UPDATE_FAILED": "Échec de l'actualisation automatique. Aucune des {{total}} listes de lecture n'a pu être mise à jour.",
             "AUTO_REFRESH_UPDATE_SKIPPED": "Actualisation automatique des listes de lecture : {{updated}} sur {{total}} mises à jour, {{skipped}} ignorées (aucune URL ni chemin de fichier).",
-            "AUTO_REFRESH_ENABLED": "Actualisation automatique activée"
+            "AUTO_REFRESH_ENABLED": "Actualisation automatique activée",
+            "SOURCE_BULK_NEEDS": "Un fichier .txt avec les messages du fournisseur ou une liste .json de sources.",
+            "SOURCE_BULK_ADD": "Importer des sources"
         },
         "ADD_PLAYLIST": {
             "IMPORT_EPG": "Importer le guide des programmes indiqué dans la liste",
@@ -197,7 +199,34 @@
             "METHOD_TEXT_LABEL": "Texte m3u brut",
             "METHOD_TEXT_SUB": "Pour les listes ponctuelles ou quand vous n'avez que du texte",
             "METHOD_AUTO_LABEL": "Détection automatique",
-            "METHOD_AUTO_SUB": "Collez le message de votre fournisseur"
+            "METHOD_AUTO_SUB": "Collez le message de votre fournisseur",
+            "METHOD_BULK_LABEL": "Import groupé",
+            "METHOD_BULK_SUB": "Ajouter plusieurs sources à la fois depuis un fichier",
+            "IMPORT_SCOPE_LABEL": "Sections à importer",
+            "IMPORT_SCOPE_LIVE": "Chaînes en direct",
+            "IMPORT_SCOPE_VOD": "VOD (films et séries)",
+            "IMPORT_SCOPE_VOD_DISABLED": "La VOD est désactivée dans les paramètres : seules les chaînes en direct sont importées.",
+            "BULK_FILE_BUTTON": "Charger depuis un fichier",
+            "BULK_ROW_INCOMPLETE": "Incomplet — ajoutez les détails manquants comme source unique, ou supprimez cette ligne.",
+            "BULK_NO_SOURCES": "Aucune source reconnue dans ce fichier.",
+            "BULK_REMOVE": "Supprimer la source",
+            "BULK_IMPORT_BUTTON": "Importer {{count}} sources",
+            "BULK_INVALID_JSON": "Ce JSON n’est pas une liste d’import groupé. Format attendu : { \"sources\": [...] } ou un tableau [...].",
+            "BULK_IMPORT_STARTED": "Import de {{count}} sources…",
+            "BULK_ROW_NO_PORTAL": "Aucune adresse de portail pour cette MAC — ajoutez-la comme source Stalker individuelle ou supprimez la ligne.",
+            "BULK_ROW_NO_MAC": "Aucune adresse MAC pour ce portail — ajoutez-le comme source Stalker individuelle ou supprimez la ligne.",
+            "BULK_ROW_MISSING_DETAILS": "Des informations de connexion manquent — ajoutez cette source séparément ou supprimez la ligne.",
+            "BULK_NOTHING_IMPORTABLE": "Rien à importer — corrigez ou supprimez les lignes incomplètes ci-dessus.",
+            "BULK_REPLACE_NOTICE": "L’importation remplace toutes vos sources actuelles. Chaque source dispose d’une minute pour se charger ; les sources plus lentes ou en échec sont ignorées.",
+            "BULK_REPLACE_FAILED": "Impossible de supprimer vos sources actuelles : rien n’a été importé.",
+            "BULK_SOURCE_TOO_SLOW": "Source trop lente, « {{title}} » ignorée",
+            "BULK_SOURCE_FAILED": "Échec de l’importation, « {{title}} » ignorée",
+            "BULK_IMPORT_FINISHED": "Importation groupée terminée : {{imported}} importées, {{slow}} trop lentes, {{failed}} en échec.",
+            "BULK_STATUS_PENDING": "En attente",
+            "BULK_STATUS_IMPORTING": "Importation…",
+            "BULK_STATUS_IMPORTED": "Importée",
+            "BULK_STATUS_SLOW": "Trop lente, ignorée",
+            "BULK_STATUS_FAILED": "Échec, ignorée"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Glissez un fichier ici",
@@ -733,7 +762,9 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "Pays de classification par âge",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Choisissez le pays de classification. Sans donnée locale, les données américaines ou du fournisseur peuvent être utilisées.",
-        "AGE_RATING_COUNTRY_AUTO": "Automatique — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Automatique — {{country}}",
+        "DISABLE_VOD": "Désactiver la VOD",
+        "DISABLE_VOD_DESCRIPTION": "Charger uniquement les chaînes en direct. Les films et séries ne sont jamais importés, actualisés ni synchronisés pour aucune source, quelles que soient ses propres sections d'import. Désactivez pour les retrouver."
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Impossible d’enregistrer sur le serveur. Vérifiez la connexion et réessayez.",

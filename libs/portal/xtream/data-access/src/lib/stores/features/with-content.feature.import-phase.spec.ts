@@ -7,6 +7,7 @@ import {
     createContentTestStore,
     createDeferred,
     createPendingRestoreServiceMock,
+    TEST_PLAYLIST,
     waitForCondition,
 } from './with-content.feature.spec-helpers';
 
@@ -22,6 +23,8 @@ jest.mock('@iptvnator/portal/shared/util', () => ({
 type ContentType = 'live' | 'movie' | 'series';
 
 let checkPortalStatusMock: jest.Mock<Promise<PortalStatusType>, []>;
+/** Global "disable VOD" setting the mocked SettingsStore answers with. */
+let disableVodSetting: boolean;
 
 const TestContentStore = createContentTestStore(() => checkPortalStatusMock());
 
@@ -81,6 +84,7 @@ describe('withContent loading-cached phase', () => {
             supportsDbOperationCancellation: jest.fn().mockReturnValue(true),
         };
         checkPortalStatusMock = jest.fn().mockResolvedValue('active');
+        disableVodSetting = false;
 
         TestBed.configureTestingModule({
             providers: createContentTestProviders(TestContentStore, {
@@ -91,6 +95,7 @@ describe('withContent loading-cached phase', () => {
                 },
                 pendingRestoreService: createPendingRestoreServiceMock(),
                 dataService: { sendIpcEvent: jest.fn() },
+                settingsStore: { disableVod: () => disableVodSetting },
             }),
         });
 
@@ -242,5 +247,70 @@ describe('withContent loading-cached phase', () => {
 
         gate.resolve([]);
         await initialization;
+    });
+
+    it('skips the sections an import scope disables', async () => {
+        const importedTypes = () => ({
+            categories: dataSource.getCategories.mock.calls.map(
+                ([, , type]) => type
+            ),
+            content: dataSource.getContent.mock.calls.map(([, , type]) => type),
+        });
+
+        store.setCurrentPlaylist({ ...TEST_PLAYLIST, importVod: false });
+        await store.initializeContent();
+
+        expect(importedTypes()).toEqual({
+            categories: ['live'],
+            content: ['live'],
+        });
+        expect(store.vodStreams()).toEqual([]);
+        expect(store.serialStreams()).toEqual([]);
+        expect(store.contentLoadStateByType()).toEqual({
+            live: 'ready',
+            vod: 'ready',
+            series: 'ready',
+        });
+        expect(store.isContentInitialized()).toBe(true);
+
+        store.resetContent();
+        dataSource.getCategories.mockClear();
+        dataSource.getContent.mockClear();
+        store.setCurrentPlaylist({ ...TEST_PLAYLIST, importLive: false });
+        await store.initializeContent();
+
+        expect(importedTypes()).toEqual({
+            categories: ['vod', 'series'],
+            content: ['movie', 'series'],
+        });
+        expect(store.liveStreams()).toEqual([]);
+        expect(store.isContentInitialized()).toBe(true);
+    });
+
+    it('imports live only while the global disable-VOD setting is on', async () => {
+        const importedTypes = () => ({
+            categories: dataSource.getCategories.mock.calls.map(
+                ([, , type]) => type
+            ),
+            content: dataSource.getContent.mock.calls.map(([, , type]) => type),
+        });
+
+        // Wins over the playlist's own scope: a full-catalog source still
+        // stops at live channels when the setting is on.
+        disableVodSetting = true;
+        await store.initializeContent();
+
+        expect(importedTypes()).toEqual({
+            categories: ['live'],
+            content: ['live'],
+        });
+        expect(store.vodStreams()).toEqual([]);
+        expect(store.serialStreams()).toEqual([]);
+        expect(store.contentLoadStateByType()).toEqual({
+            live: 'ready',
+            vod: 'ready',
+            series: 'ready',
+        });
+        expect(store.isContentInitialized()).toBe(true);
     });
 });

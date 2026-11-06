@@ -70,7 +70,8 @@ const STALKER_PATH_PATTERN = /\/(?:portal\.php|c\/?)$/i;
 // backreference rejects mixed separators, and because `\b` never sits between
 // two word characters a MAC-shaped window inside a longer hex blob (a 64-hex
 // device ID) cannot match.
-const SEPARATED_MAC_PATTERN = /\b[0-9A-F]{2}([:.-])[0-9A-F]{2}(?:\1[0-9A-F]{2}){4}\b/gi;
+const SEPARATED_MAC_PATTERN =
+    /\b[0-9A-F]{2}([:.-])[0-9A-F]{2}(?:\1[0-9A-F]{2}){4}\b/gi;
 // A bare 12-hex run is only trusted as a MAC when it carries Infomir's OUI —
 // any 12 hex digits would false-positive on ids, tokens and hashes.
 const BARE_INFOMIR_MAC_PATTERN = /\b001A79[0-9A-F]{6}\b/gi;
@@ -83,10 +84,11 @@ const WRAPPING_CHARS = /^["'`«<([]+|["'`»>)\]]+$/g;
 
 // Both caps are DOM-safety guards against pathological pastes (a log file
 // full of MAC-shaped hex would otherwise render thousands of cards), sized
-// far beyond any real handout — reseller and scanner dumps top out around a
-// couple dozen accounts. The assembler's candidate cap leaves headroom for
-// both scanners together, so neither truncates real input before assembly.
-const MAX_URLS = 16;
+// well beyond real input: bulk portal lists routinely carry dozens of
+// accounts, so the URL cap must not truncate a genuine list file. The
+// assembler's candidate cap leaves headroom for both scanners together, so
+// neither truncates real input before assembly.
+const MAX_URLS = 64;
 const MAX_MACS = 64;
 
 interface FieldMatcher {
@@ -134,7 +136,7 @@ const isHexIdentity = (value: string) => HEX_IDENTITY_PATTERN.test(value);
 export function foldDecorativeAlphabets(text: string): string {
     const chars = Array.from(text);
     let result = '';
-    for (let index = 0; index < chars.length; ) {
+    for (let index = 0; index < chars.length;) {
         const code = chars[index].codePointAt(0) as number;
         if (isRegionalIndicator(code)) {
             // Regional indicators are ambiguous: a run of EXACTLY two is a
@@ -549,7 +551,11 @@ function stripWrapping(value: string): string {
     const stripped = trimmed.replace(WRAPPING_CHARS, '').trim();
     // Same hazard as the prose-punctuation cleanup: `]` closes both a bracket
     // quote and an IPv6 authority, so a strip that breaks the address loses.
-    if (stripped === trimmed || parsesAsUrl(stripped) || !parsesAsUrl(trimmed)) {
+    if (
+        stripped === trimmed ||
+        parsesAsUrl(stripped) ||
+        !parsesAsUrl(trimmed)
+    ) {
         return stripped;
     }
     return trimmed;

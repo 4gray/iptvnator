@@ -152,18 +152,15 @@ describe('detectProviderImportCandidates', () => {
             ['unicode arrow', 'login → carol\npassword → pa55'],
             ['ascii gt', 'USER > carol\nPASS > pa55'],
             ['spaced dash', 'User - carol\nPass - pa55'],
-        ])(
-            'accepts the %s label separator',
-            (_variant, message) => {
-                const xtream = only(
-                    detectProviderImportCandidates(message),
-                    'xtream'
-                );
-                expect(xtream).toHaveLength(1);
-                expect(xtream[0].username).toBe('carol');
-                expect(xtream[0].password).toBe('pa55');
-            }
-        );
+        ])('accepts the %s label separator', (_variant, message) => {
+            const xtream = only(
+                detectProviderImportCandidates(message),
+                'xtream'
+            );
+            expect(xtream).toHaveLength(1);
+            expect(xtream[0].username).toBe('carol');
+            expect(xtream[0].password).toBe('pa55');
+        });
 
         it('folds negative-circled font labels (🅤🅢🅔🅡 / 🅟🅐🅢🅢) and reads the get.php line', () => {
             // Sanitized representative message: negative-circled capitals NFKC does
@@ -719,7 +716,8 @@ describe('detectProviderImportCandidates', () => {
             expect(
                 stalker.every(
                     (candidate) =>
-                        candidate.portalUrl === 'http://multi-account.example.net/c/'
+                        candidate.portalUrl ===
+                        'http://multi-account.example.net/c/'
                 )
             ).toBe(true);
             expect(stalker.map((candidate) => candidate.macAddress)).toEqual([
@@ -830,12 +828,76 @@ describe('detectProviderImportCandidates', () => {
             const stalker = only(candidates, 'stalker');
             expect(stalker).toHaveLength(2);
             for (const candidate of stalker) {
-                expect(candidate.portalUrl).toBe(
-                    'http://multi.example.com/c/'
-                );
+                expect(candidate.portalUrl).toBe('http://multi.example.com/c/');
                 expect(candidate.deviceId1).toBeUndefined();
                 expect(candidate.serialNumber).toBeUndefined();
             }
+        });
+
+        it('pairs each MAC with the portal on its own line', () => {
+            // Provider list files (and scanner dumps) hand out one account
+            // per line: "portal | MAC", each panel on its own host. The
+            // whole-message ambiguity guard must not drop those portals —
+            // the line itself says which panel owns which MAC.
+            const candidates = detectProviderImportCandidates(
+                [
+                    'http://panel-a.example.com/c | 00:1A:79:AA:AA:AA',
+                    'http://panel-b.example.com/c | 00:1A:79:BB:BB:BB',
+                    'http://panel-c.example.com:80/c | 00:1A:79:CC:CC:CC',
+                ].join('\n')
+            );
+
+            const stalker = only(candidates, 'stalker');
+            expect(
+                stalker.map(({ portalUrl, macAddress }) => ({
+                    portalUrl,
+                    macAddress,
+                }))
+            ).toEqual([
+                {
+                    portalUrl: 'http://panel-a.example.com/c',
+                    macAddress: '00:1A:79:AA:AA:AA',
+                },
+                {
+                    portalUrl: 'http://panel-b.example.com/c',
+                    macAddress: '00:1A:79:BB:BB:BB',
+                },
+                {
+                    portalUrl: 'http://panel-c.example.com:80/c',
+                    macAddress: '00:1A:79:CC:CC:CC',
+                },
+            ]);
+        });
+
+        it('pairs a line-local portal that is not portal-shaped', () => {
+            const candidates = detectProviderImportCandidates(
+                [
+                    'http://panel-a.example.com | 00:1A:79:AA:AA:AA',
+                    'http://panel-b.example.com | 00:1A:79:BB:BB:BB',
+                ].join('\n')
+            );
+
+            const stalker = only(candidates, 'stalker');
+            expect(stalker.map(({ portalUrl }) => portalUrl)).toEqual([
+                'http://panel-a.example.com',
+                'http://panel-b.example.com',
+            ]);
+        });
+
+        it('does not hand a line-paired portal to an unpaired MAC', () => {
+            const candidates = detectProviderImportCandidates(
+                [
+                    'http://panel-a.example.com/c | 00:1A:79:AA:AA:AA',
+                    'http://panel-b.example.com/c | 00:1A:79:BB:BB:BB',
+                    'MAC: 00:1A:79:CC:CC:CC',
+                ].join('\n')
+            );
+
+            const stalker = only(candidates, 'stalker');
+            expect(stalker).toHaveLength(3);
+            expect(stalker[0].portalUrl).toBe('http://panel-a.example.com/c');
+            expect(stalker[1].portalUrl).toBe('http://panel-b.example.com/c');
+            expect(stalker[2].portalUrl).toBeUndefined();
         });
 
         it('omits the portal when several MACs meet portals on different hosts', () => {
@@ -971,8 +1033,7 @@ describe('detectProviderImportCandidates', () => {
         it('surfaces every MAC of a long multi-account list', () => {
             const macs = Array.from(
                 { length: 20 },
-                (_, index) =>
-                    `00:1A:79:${String(index).padStart(2, '0')}:11:22`
+                (_, index) => `00:1A:79:${String(index).padStart(2, '0')}:11:22`
             );
             const candidates = detectProviderImportCandidates(
                 ['http://long.example.com/c/', ...macs].join('\n')
@@ -1054,7 +1115,9 @@ describe('detectProviderImportCandidates', () => {
 
             expect(only(candidates, 'stalker')).toHaveLength(1);
             expect(only(candidates, 'xtream')).toHaveLength(1);
-            expect(only(candidates, 'm3u-url').length).toBeGreaterThanOrEqual(1);
+            expect(only(candidates, 'm3u-url').length).toBeGreaterThanOrEqual(
+                1
+            );
             // High-confidence candidates sort ahead of low-confidence ones.
             const ranks = candidates.map((candidate) => candidate.confidence);
             const firstLow = ranks.indexOf('low');
@@ -1071,11 +1134,11 @@ describe('detectProviderImportCandidates', () => {
         });
 
         it('does not read credentials out of URLs beyond the extraction cap', () => {
-            // URL #17 is past the 16-URL cap and never becomes a candidate;
+            // URL #65 is past the 64-URL cap and never becomes a candidate;
             // its query credentials must not leak into the label matchers and
             // attach to the early credential-less panel.
             const filler = Array.from(
-                { length: 15 },
+                { length: 63 },
                 (_, index) => `https://lists.example.com/list-${index}.m3u`
             );
             const candidates = detectProviderImportCandidates(
@@ -1104,7 +1167,7 @@ describe('detectProviderImportCandidates', () => {
                 { length: 20 },
                 (_, index) => `https://lists.example.com/list-${index}.m3u`
             ).join('\n');
-            expect(detectProviderImportCandidates(twenty)).toHaveLength(16);
+            expect(detectProviderImportCandidates(twenty)).toHaveLength(20);
         });
     });
 });

@@ -11,6 +11,7 @@ import type {
 } from '@iptvnator/shared/interfaces';
 
 import { PlaylistRefreshService } from './playlist-refresh.service';
+import { SettingsStore } from './settings-store.service';
 
 describe('PlaylistRefreshService', () => {
     const originalElectron = window.electron;
@@ -47,7 +48,12 @@ describe('PlaylistRefreshService', () => {
         await expect(
             runInInjectionContext(
                 createEnvironmentInjector(
-                    [],
+                    [
+                        {
+                            provide: SettingsStore,
+                            useValue: { disableVod: () => false },
+                        },
+                    ],
                     Injector.NULL as unknown as EnvironmentInjector
                 ),
                 () => new PlaylistRefreshService()
@@ -67,17 +73,20 @@ describe('PlaylistRefreshService', () => {
                 configurable: true,
                 writable: true,
                 value: {
-                    refreshPlaylist: jest
-                        .fn()
-                        .mockResolvedValue({
-                            _id: payload.playlistId,
-                            playlist: { items: [] },
-                        } as unknown as Playlist),
+                    refreshPlaylist: jest.fn().mockResolvedValue({
+                        _id: payload.playlistId,
+                        playlist: { items: [] },
+                    } as unknown as Playlist),
                 },
             });
             const result = await runInInjectionContext(
                 createEnvironmentInjector(
-                    [],
+                    [
+                        {
+                            provide: SettingsStore,
+                            useValue: { disableVod: () => false },
+                        },
+                    ],
                     Injector.NULL as unknown as EnvironmentInjector
                 ),
                 () => new PlaylistRefreshService()

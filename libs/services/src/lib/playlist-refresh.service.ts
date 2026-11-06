@@ -1,5 +1,7 @@
 import { SourceHealthEvidenceService } from './source-health-evidence.service';
 import { Injectable, inject } from '@angular/core';
+import { applyImportScopeToPlaylist } from '@iptvnator/shared/m3u-utils';
+import { SettingsStore } from './settings-store.service';
 import {
     isPlaylistRefreshCancelledResult,
     Playlist,
@@ -18,6 +20,7 @@ export class PlaylistRefreshService {
     private readonly healthEvidence = inject(SourceHealthEvidenceService, {
         optional: true,
     });
+    private readonly settingsStore = inject(SettingsStore);
     async refreshPlaylist(
         payload: PlaylistRefreshPayload,
         options?: PlaylistRefreshOptions
@@ -57,7 +60,11 @@ export class PlaylistRefreshService {
                     confirmedInactive: false,
                 },
             });
-            return refreshed;
+            // The worker kept the row's scope; drop VOD items while it is
+            // disabled globally.
+            return this.settingsStore.disableVod?.() === true
+                ? applyImportScopeToPlaylist(refreshed, refreshed, true)
+                : refreshed;
         } finally {
             unsubscribe?.();
         }

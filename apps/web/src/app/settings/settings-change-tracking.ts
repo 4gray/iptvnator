@@ -11,6 +11,7 @@ export const SETTINGS_CONTROL_SECTIONS: Readonly<Record<string, string>> = {
     startupWindowMode: 'general',
     stripCountryPrefix: 'general',
     portalConnectivityGuard: 'general',
+    disableVod: 'general',
     player: 'playback',
     streamFormat: 'playback',
     showCaptions: 'playback',

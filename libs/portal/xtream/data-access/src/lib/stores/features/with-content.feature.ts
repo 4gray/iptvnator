@@ -8,11 +8,14 @@ import {
 } from '@ngrx/signals';
 import {
     normalizeXtreamContentTypes,
+    PlaylistImportScope,
     XtreamContentType,
     XtreamCategory,
     XtreamLiveStream,
     XtreamSerieItem,
     XtreamVodStream,
+    shouldImportLive,
+    shouldImportVod,
 } from '@iptvnator/shared/interfaces';
 import {
     measureRendererPerformancePhase,
@@ -25,6 +28,7 @@ import {
     DbOperationEvent,
     isDbAbortError,
     resetHostConnectivityGuard,
+    SettingsStore,
     SourceActivityService,
     RuntimeCapabilitiesService,
     XtreamPendingRestoreService,
@@ -166,7 +170,7 @@ export function withContent() {
             | (XtreamCredentials & {
                   id?: string;
                   xtreamContentTypes?: XtreamContentType[];
-              })
+              } & PlaylistImportScope)
             | null;
         playlistId?: () => string | null;
         portalStatus?: () => PortalStatusType;
@@ -346,7 +350,10 @@ export function withContent() {
                 scope?: XtreamCachedContentScope | null,
                 options?: { preserveInitialized?: boolean }
             ): void => {
-                const types = getTypesForCacheScope(scope);
+                const active = new Set(getActiveImportTypes());
+                const types = getTypesForCacheScope(scope).filter((type) =>
+                    active.has(type)
+                );
 
                 patchState(store, (state) => {
                     const nextLoadStates = {
@@ -409,6 +416,30 @@ export function withContent() {
 
             const getPortalStore = (): ParentPortalStoreLike =>
                 store as ParentPortalStoreLike;
+
+            const settingsStore = inject(SettingsStore);
+
+            /**
+             * Types the current playlist's import scope enables. Live
+             * channels and on-demand (VOD + series) import independently;
+             * a disabled section is never fetched, cached, or reloaded.
+             * The global "disable VOD" setting wins over every scope.
+             */
+            const getActiveImportTypes = (): ContentType[] => {
+                const playlist = getPortalStore().currentPlaylist?.();
+                const inImportScope = (type: ContentType): boolean =>
+                    type === 'live'
+                        ? shouldImportLive(playlist)
+                        : shouldImportVod(playlist);
+                if (settingsStore.disableVod?.() === true) {
+                    return importTypes.filter(
+                        (type) => type === 'live' && isEnabled(type)
+                    );
+                }
+                return importTypes.filter(
+                    (type) => inImportScope(type) && isEnabled(type)
+                );
+            };
 
             const createImportAbortError = (): Error => {
                 const error = new Error('Xtream import cancelled');
@@ -570,10 +601,53 @@ export function withContent() {
                 scope: XtreamCachedContentScope | null | undefined,
                 generation: number
             ): Promise<void> => {
-                const types = getTypesForCacheScope(scope);
+                const active = new Set(getActiveImportTypes());
+                const types = getTypesForCacheScope(scope).filter((type) =>
+                    active.has(type)
+                );
                 markContentScopeLoading(scope, {
                     preserveInitialized: store.isContentInitialized(),
                 });
+
+                // A scope with every section disabled hydrates to an empty
+                // ready state without touching the data source. Only the
+                // requested scope's lists are cleared — other sections keep
+                // whatever they already hold.
+                if (types.length === 0) {
+                    patchState(store, (state) => {
+                        const nextLoadStates = {
+                            ...state.contentLoadStateByType,
+                        };
+                        const updates: Partial<ContentState> = {
+                            isLoadingCategories: false,
+                            isLoadingContent: false,
+                            isImporting: false,
+                            isContentInitialized: true,
+                            isPendingRestoreBlocked: false,
+                            contentInitBlockReason: null,
+                        };
+                        for (const type of getTypesForCacheScope(scope)) {
+                            nextLoadStates[type] = 'ready';
+                            switch (type) {
+                                case 'live':
+                                    updates.liveCategories = [];
+                                    updates.liveStreams = [];
+                                    break;
+                                case 'vod':
+                                    updates.vodCategories = [];
+                                    updates.vodStreams = [];
+                                    break;
+                                case 'series':
+                                    updates.serialCategories = [];
+                                    updates.serialStreams = [];
+                                    break;
+                            }
+                        }
+                        updates.contentLoadStateByType = nextLoadStates;
+                        return updates;
+                    });
+                    return;
+                }
 
                 let cachedEntries: Array<{
                     type: ContentType;
@@ -765,16 +839,14 @@ export function withContent() {
             };
 
             const publishTypedImportPhase =
-                (
-                    type: ContentType,
-                    sessionId?: string,
-                    signal?: AbortSignal
-                ) =>
+                (type: ContentType, sessionId?: string, signal?: AbortSignal) =>
                 (phase: string): void => {
                     if (
                         signal?.aborted ||
-                        (sessionId && store.activeImportSessionId() !== sessionId)
-                    ) return;
+                        (sessionId &&
+                            store.activeImportSessionId() !== sessionId)
+                    )
+                        return;
                     if (phase !== 'loading-cached') {
                         sessionRemoteWorkTypes.add(type);
                     }
@@ -928,6 +1000,7 @@ export function withContent() {
                 const importController = new AbortController();
                 activeImportAbortController = importController;
                 sessionRemoteWorkTypes.clear();
+                const activeImportTypes = new Set(getActiveImportTypes());
                 patchState(store, {
                     isImporting: false,
                     isCancellingImport: false,
@@ -940,13 +1013,24 @@ export function withContent() {
                     activeImportSessionId: importSessionId,
                     activeImportOperationIds: [],
                     contentLoadStateByType: {
-                        live: isEnabled('live') ? 'loading' : 'ready',
-                        vod: isEnabled('vod') ? 'loading' : 'ready',
-                        series: isEnabled('series') ? 'loading' : 'ready',
+                        live: activeImportTypes.has('live')
+                            ? 'loading'
+                            : 'ready',
+                        vod: activeImportTypes.has('vod') ? 'loading' : 'ready',
+                        series: activeImportTypes.has('series')
+                            ? 'loading'
+                            : 'ready',
                     },
                 });
 
                 const completedTypes = new Set<ContentType>();
+                // Disabled sections are complete without work: failure
+                // finalization must leave their ready state alone.
+                for (const type of importTypes) {
+                    if (!activeImportTypes.has(type)) {
+                        completedTypes.add(type);
+                    }
+                }
 
                 try {
                     // Capture parked state before publishing any imported
@@ -1178,39 +1262,49 @@ export function withContent() {
                     if (!ctx) return;
 
                     patchState(store, { isLoadingCategories: true });
+                    const activeTypes = new Set(getActiveImportTypes());
 
                     try {
                         const requests = importTypes.map((type) =>
-                            dataSource.getCategories(
-                                ctx.playlistId,
-                                ctx.credentials,
-                                type,
-                                {
-                                    sessionId: options?.sessionId,
-                                    signal: options?.signal,
-                                    onPhaseChange: publishTypedImportPhase(
-                                        type,
-                                        options?.sessionId,
-                                        options?.signal
-                                    ),
-                                }
-                            )
+                            activeTypes.has(type)
+                                ? dataSource.getCategories(
+                                      ctx.playlistId,
+                                      ctx.credentials,
+                                      type,
+                                      {
+                                          sessionId: options?.sessionId,
+                                          signal: options?.signal,
+                                          onPhaseChange:
+                                              publishTypedImportPhase(
+                                                  type,
+                                                  options?.sessionId,
+                                                  options?.signal
+                                              ),
+                                      }
+                                  )
+                                : Promise.resolve([] as XtreamCategory[])
                         );
-                        const [live, vod, series] = await Promise.all(requests)
-                            .catch(async (error: unknown) => {
-                                if (
-                                    options?.sessionId &&
-                                    store.activeImportSessionId() === options.sessionId
-                                ) {
-                                    activeImportAbortController?.abort();
-                                    await xtreamApiService.cancelSession(options.sessionId);
-                                }
-                                // Cleanup waits for every category writer in this session.
-                                await Promise.all(requests.map((request) =>
+                        const [live, vod, series] = await Promise.all(
+                            requests
+                        ).catch(async (error: unknown) => {
+                            if (
+                                options?.sessionId &&
+                                store.activeImportSessionId() ===
+                                    options.sessionId
+                            ) {
+                                activeImportAbortController?.abort();
+                                await xtreamApiService.cancelSession(
+                                    options.sessionId
+                                );
+                            }
+                            // Cleanup waits for every category writer in this session.
+                            await Promise.all(
+                                requests.map((request) =>
                                     request.catch(() => undefined)
-                                ));
-                                throw error;
-                            });
+                                )
+                            );
+                            throw error;
+                        });
                         throwIfImportCancelled(options?.sessionId);
 
                         // This span ends after synchronous store publication;
@@ -1235,6 +1329,11 @@ export function withContent() {
                                 items: live.length + vod.length + series.length,
                             })
                         );
+                        for (const type of importTypes) {
+                            if (!activeTypes.has(type)) {
+                                updateContentTypeLoadState(type, 'ready');
+                            }
+                        }
                     } catch (error) {
                         if (!isDbAbortError(error)) {
                             logger.error('Error fetching categories', error);
@@ -1257,6 +1356,7 @@ export function withContent() {
                     if (!ctx) return;
 
                     patchState(store, { isLoadingContent: true });
+                    const activeTypes = new Set(getActiveImportTypes());
 
                     // Track combined progress across all content types
                     let totalItems = 0;
@@ -1282,7 +1382,11 @@ export function withContent() {
                     try {
                         for (const type of importTypes) {
                             throwIfImportCancelled(options?.importSessionId);
-                            if (!isEnabled(type)) continue;
+                            if (!activeTypes.has(type)) {
+                                updateContentTypeLoadState(type, 'ready');
+                                options?.completedTypes?.add(type);
+                                continue;
+                            }
                             setActiveImportProgress(type);
                             const operationId =
                                 databaseService.createOperationId(
@@ -1569,24 +1673,31 @@ export function withContent() {
                         ctx.playlistId,
                         shouldPublishArg
                     );
+                    const activeTypes = new Set(getActiveImportTypes());
 
                     try {
                         const [live, vod, series] = await Promise.all([
-                            dataSource.getCategories(
-                                ctx.playlistId,
-                                ctx.credentials,
-                                'live'
-                            ),
-                            dataSource.getCategories(
-                                ctx.playlistId,
-                                ctx.credentials,
-                                'vod'
-                            ),
-                            dataSource.getCategories(
-                                ctx.playlistId,
-                                ctx.credentials,
-                                'series'
-                            ),
+                            activeTypes.has('live')
+                                ? dataSource.getCategories(
+                                      ctx.playlistId,
+                                      ctx.credentials,
+                                      'live'
+                                  )
+                                : Promise.resolve([]),
+                            activeTypes.has('vod')
+                                ? dataSource.getCategories(
+                                      ctx.playlistId,
+                                      ctx.credentials,
+                                      'vod'
+                                  )
+                                : Promise.resolve([]),
+                            activeTypes.has('series')
+                                ? dataSource.getCategories(
+                                      ctx.playlistId,
+                                      ctx.credentials,
+                                      'series'
+                                  )
+                                : Promise.resolve([]),
                         ]);
 
                         if (!shouldPublish()) return;
@@ -1638,13 +1749,20 @@ export function withContent() {
                         shouldPublishArg
                     );
                     const loadStates = store.contentLoadStateByType();
+                    const activeTypes = new Set(getActiveImportTypes());
                     // Each type on its own: one failing read must neither
                     // skip the remaining types nor keep its own rows, which
                     // were read under the previous lock state. A failed type
                     // is emptied and set back to `idle`, so the next visit
                     // loads it again (filtered) instead of showing a gap.
+                    // Disabled sections are never re-read here: on Electron
+                    // they hold nothing, and on PWA the read would hit the
+                    // provider network for a section the user excluded.
                     const failed: ContentType[] = [];
-                    if (loadStates.live === 'ready') {
+                    if (
+                        loadStates.live === 'ready' &&
+                        activeTypes.has('live')
+                    ) {
                         try {
                             const live = (await dataSource.getContent(
                                 ctx.playlistId,
@@ -1660,7 +1778,7 @@ export function withContent() {
                             failed.push('live');
                         }
                     }
-                    if (loadStates.vod === 'ready') {
+                    if (loadStates.vod === 'ready' && activeTypes.has('vod')) {
                         try {
                             const vod = (await dataSource.getContent(
                                 ctx.playlistId,
@@ -1679,7 +1797,10 @@ export function withContent() {
                             failed.push('vod');
                         }
                     }
-                    if (loadStates.series === 'ready') {
+                    if (
+                        loadStates.series === 'ready' &&
+                        activeTypes.has('series')
+                    ) {
                         try {
                             const series = (await dataSource.getContent(
                                 ctx.playlistId,

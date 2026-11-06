@@ -1,0 +1,133 @@
+:host {
+    display: flex;
+    margin: 10px;
+    justify-content: center;
+}
+
+.bulk {
+    width: 100%;
+}
+
+.bulk__file {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 4px 0 12px;
+}
+
+.bulk__hint {
+    font-size: 12px;
+    color: var(--app-muted-color);
+}
+
+.bulk__loaded {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 12px;
+    font-size: 13px;
+    color: var(--app-heading-color);
+}
+
+.bulk__error {
+    margin: 0 0 12px;
+    font-size: 13px;
+    color: var(--mat-sys-error);
+}
+
+.bulk__empty,
+.bulk__notice {
+    margin: 0 0 8px;
+    font-size: 13px;
+    color: var(--app-muted-color);
+}
+
+.bulk__notice--error {
+    color: var(--mat-sys-error);
+}
+
+.bulk__list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.bulk__row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--app-widget-header-border);
+    border-radius: 10px;
+    padding: 8px 8px 8px 12px;
+    background: color-mix(in srgb, var(--app-shell-bg) 60%, transparent);
+}
+
+.bulk__row--invalid {
+    opacity: 0.75;
+    border-style: dashed;
+}
+
+.bulk__kind {
+    color: var(--app-selection-color);
+    flex-shrink: 0;
+    display: inline-flex;
+}
+
+.bulk__meta {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.bulk__title {
+    background: transparent;
+    border: none;
+    border-bottom: 1px dashed transparent;
+    color: var(--app-heading-color);
+    font: inherit;
+    font-weight: 600;
+    padding: 0;
+    min-width: 0;
+
+    &:focus {
+        outline: none;
+        border-bottom-color: var(--app-focus-ring);
+    }
+}
+
+.bulk__summary {
+    font-size: 12px;
+    color: var(--app-muted-color);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bulk__invalid {
+    font-size: 12px;
+    color: var(--mat-sys-error);
+}
+
+.bulk__scope {
+    display: flex;
+    flex-shrink: 0;
+    gap: 0;
+}
+.bulk__status {
+    flex-shrink: 0;
+    font-size: 12px;
+    color: var(--app-muted-color);
+
+    &[data-status='imported'] {
+        color: var(--app-selection-color);
+    }
+
+    &[data-status='slow'],
+    &[data-status='failed'] {
+        color: var(--mat-sys-error);
+    }
+}

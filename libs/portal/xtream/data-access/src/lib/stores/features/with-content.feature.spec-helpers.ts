@@ -7,6 +7,7 @@ import {
 import {
     DataService,
     DatabaseService,
+    SettingsStore,
     XtreamPendingRestoreService,
     XtreamPendingRestoreSnapshot,
     RuntimeCapabilitiesService,
@@ -115,6 +116,13 @@ export function createContentTestStore(
                 patchState(store, { portalStatus: status });
                 return status;
             },
+            /** Simulates opening a playlist with the given stored row. */
+            setCurrentPlaylist(playlist: XtreamPlaylistData): void {
+                patchState(store, {
+                    currentPlaylist: playlist,
+                    playlistId: playlist.id,
+                });
+            },
             /** Simulates the user opening another playlist. */
             switchPlaylist(playlistId: string): void {
                 patchState(store, { playlistId });
@@ -137,6 +145,7 @@ export function createContentTestProviders(
         xtreamApiService: unknown;
         pendingRestoreService: unknown;
         dataService: unknown;
+        settingsStore?: unknown;
     }
 ) {
     return [
@@ -153,6 +162,14 @@ export function createContentTestProviders(
             useValue: mocks.pendingRestoreService,
         },
         { provide: DataService, useValue: mocks.dataService },
+        {
+            provide: SettingsStore,
+            useValue: mocks.settingsStore ?? {
+                // Default off; a spec that gates on the global VOD
+                // switch passes its own store mock here.
+                disableVod: () => false,
+            },
+        },
     ];
 }
 
