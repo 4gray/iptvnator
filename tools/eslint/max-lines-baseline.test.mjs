@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, it } from 'node:test';
+import { ESLint } from 'eslint';
 
 import { maxLinesBaseline } from './max-lines-baseline.mjs';
 import {
@@ -44,6 +47,40 @@ describe('max-lines baseline', () => {
 });
 
 describe('max-lines config', () => {
+    it('keeps shared rules anchored to the workspace from inferred project commands', async () => {
+        const root = fileURLToPath(new URL('../../', import.meta.url));
+        for (const cwd of [root, path.join(root, 'libs/shared/interfaces')]) {
+            const eslint = new ESLint({ cwd });
+            const ruleFor = async (file) =>
+                (await eslint.calculateConfigForFile(path.join(root, file)))
+                    .rules['max-lines'];
+            assert.equal(
+                (
+                    await ruleFor(
+                        'libs/shared/interfaces/src/lib/electron-api.interface.ts'
+                    )
+                )[0],
+                0
+            );
+            assert.equal(
+                (
+                    await ruleFor(
+                        'libs/shared/interfaces/src/lib/theme.enum.ts'
+                    )
+                )[1].max,
+                MAX_LINES_PROD
+            );
+            assert.equal(
+                (
+                    await ruleFor(
+                        'libs/shared/interfaces/src/lib/theme-presets.spec.ts'
+                    )
+                )[1].max,
+                MAX_LINES_TEST
+            );
+        }
+    });
+
     it('gives tests more headroom than production code', () => {
         // A spec is a flat list of independent cases; holding it to the
         // production ceiling produces arbitrary `-2.spec.ts` splits.

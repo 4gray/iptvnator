@@ -46,8 +46,12 @@ The previous `smol-toml` exception for Nx's exact 1.6.1 pin is retired: Nx
   qs 6.17.1, brace-expansion 1.1.21, source-map-js 1.2.2,
   postcss-selector-parser 6.1.5, diff 4.0.4 and Zod 4.6.6.
 - Node-gyp's undici 6.x moves to 6.29.1. A parent-scoped override updates
-  `@electron/get` to undici 7.30.1 inside its `^7.24.4` range. Nx's exact
-  7.29.0 pin stays separate; a global 7.29.0 override would violate it.
+  `@electron/get` to undici 7.30.1 inside its `^7.24.4` range.
+- Nx and every official plugin move together to 24.0.4. Nx itself supplies
+  undici 7.30.1, retiring the vulnerable exact 7.29.0 pin without a global
+  override. The migration converts removed Jest/ESLint executors to inferred
+  tasks, preserves Angular ESM test commands and revalidates the existing
+  nx-electron compatibility patch and scoped peer allowances.
 
 ## Remaining upstream constraints
 
@@ -55,7 +59,6 @@ Do not suppress these alerts or force a new major merely to clear the count:
 
 | Package | Remaining resolution | Constraint |
 | --- | --- | --- |
-| undici | 7.29.0 through Nx 23.3.1 | Nx pins it exactly; fixed 7.30.1 requires a coordinated parent update or an explicitly reviewed backport. |
 | minimatch | 9.x and 10.x | The advisory's fixed floor is 11.0.1, outside the affected parents' ranges (Nx also has an exact pin). |
 | postcss-selector-parser | 6.0.10 through `@tailwindcss/typography` 0.5.20 | Typography pins it exactly; the other 6.x paths use fixed 6.1.5. |
 | deepmerge | 4.3.1 through Jest and the webpack checker | No fixed release is published. |

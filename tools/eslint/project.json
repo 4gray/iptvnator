@@ -8,6 +8,7 @@
             "executor": "nx:run-commands",
             "cache": true,
             "inputs": [
+                "{workspaceRoot}/eslint.config.mjs",
                 "{workspaceRoot}/tools/eslint/max-lines-config.mjs",
                 "{workspaceRoot}/tools/eslint/max-lines-baseline.mjs",
                 "{workspaceRoot}/tools/eslint/generate-max-lines-baseline.mjs",
