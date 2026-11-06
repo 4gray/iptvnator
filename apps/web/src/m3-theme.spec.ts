@@ -1,5 +1,8 @@
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { THEME_PRESETS } from '@iptvnator/shared/interfaces';
 
 // A custom property that reads another one is resolved where it is declared,
 // so a token derived from a per-theme colour has to be declared again inside
@@ -11,47 +14,68 @@ const THEME = readFileSync(
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/(^|\s)\/\/[^\n]*/g, '$1');
 
-/** The body of the brace block that opens at `start` (an index of `{`). */
-function block(source: string, start: number): string {
-    let depth = 0;
-    for (let index = start; index < source.length; index++) {
-        if (source[index] === '{') depth++;
-        if (source[index] === '}' && --depth === 0) {
-            return source.slice(start + 1, index);
-        }
+// Resolve the compiler from the Angular builder that already owns its version.
+const { compileString } = createRequire(
+    resolve(process.cwd(), 'node_modules/@angular/build/package.json')
+)('sass') as {
+    compileString(
+        source: string,
+        options: { url: URL; loadPaths: string[]; quietDeps: boolean }
+    ): { css: string };
+};
+const compiledThemes = new Map<string, string>();
+
+/** Read actual emitted roles from the mode boundary and preset overrides. */
+function themeContexts(preview = false, theme = THEME): Record<string, string> {
+    let css = compiledThemes.get(theme);
+    if (!css) {
+        css = compileString(theme, {
+            url: pathToFileURL(
+                resolve(process.cwd(), 'apps/web/src/m3-theme.scss')
+            ),
+            loadPaths: [resolve(process.cwd(), 'node_modules')],
+            quietDeps: true,
+        }).css.replace(/\/\*[\s\S]*?\*\//g, '');
+        compiledThemes.set(theme, css);
     }
-    throw new Error('Unbalanced braces in m3-theme.scss');
+    const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)];
+    const declarations = (...selectors: string[]) =>
+        rules
+            .filter(([, ruleSelectors]) =>
+                ruleSelectors
+                    .split(',')
+                    .some((value) => selectors.includes(value.trim()))
+            )
+            .flatMap(
+                ([, , body]) => body.match(/--app-[\w-]+:\s*[^;]+;/g) ?? []
+            )
+            .join('\n');
+
+    return Object.fromEntries(
+        THEME_PRESETS.map(({ id, mode }) => [
+            id,
+            preview
+                ? declarations(`html [data-theme-preview=${id}]`)
+                : declarations(
+                      mode === 'dark' ? 'html .dark-theme' : 'html',
+                      `html [data-app-theme=${id}]`
+                  ),
+        ])
+    );
 }
 
-/** Expand the palette mixins so inherited tokens are checked per preset. */
-function themeContexts(preview = false): Record<string, string> {
-    const palettes = readFileSync(
-        resolve(process.cwd(), 'apps/web/src/_theme-palettes.scss'),
-        'utf8'
-    );
-    const context = (name: string): string => {
-        const start = palettes.indexOf(`@mixin ${name}(`);
-        expect(start).toBeGreaterThan(-1);
-        let source = block(palettes, palettes.indexOf('{', start));
-        if (preview) {
-            const fullOnly = source.indexOf('@if not $preview');
-            if (fullOnly !== -1) source = source.slice(0, fullOnly);
-        }
-        return source.replace(
-            /@include (light|dark)(?:\([^)]*\))?;/g,
-            (_, base: string) => context(base)
+describe('theme context extraction', () => {
+    it('does not invent shared dark roles when the mode stops supplying them', () => {
+        const contexts = themeContexts(
+            false,
+            THEME.replace('@include palettes.dark;', '')
         );
-    };
-    expect(THEME).toContain('@include palettes.cream');
-    expect(THEME).toContain('@include palettes.mocha');
-    expect(THEME).toContain('@include palettes.night-owl');
-    expect(THEME).toContain('@include palettes.black-oled');
-    return Object.fromEntries(
-        ['light', 'dark', 'cream', 'mocha', 'night-owl', 'black-oled'].map(
-            (name) => [name, context(name)]
-        )
-    );
-}
+        for (const name of ['dark', 'mocha', 'night-owl', 'black-oled']) {
+            expect(contexts[name]).not.toContain('--app-progress-color:');
+            expect(contexts[name]).not.toContain('--app-success-color:');
+        }
+    });
+});
 
 describe('m3-theme watch-progress token', () => {
     it('declares --app-progress-color from the selection colour in every preset', () => {
