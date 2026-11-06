@@ -33,10 +33,17 @@ test('@electron @a11y Settings text meets contrast in every preset', async ({
     try {
         await openSettings(page);
         await openSettingsSection(page, 'general');
-        for (const theme of ['light', 'dark', 'cream', 'mocha'] as const) {
+        for (const theme of [
+            'light',
+            'dark',
+            'cream',
+            'mocha',
+            'night-owl',
+            'black-oled',
+        ] as const) {
             await page
                 .getByTestId('select-theme')
-                .getByTestId(`${theme.toUpperCase()}_THEME`)
+                .getByTestId(`${theme.replace(/-/g, '_').toUpperCase()}_THEME`)
                 .click();
             await expect(page.locator('body')).toHaveAttribute(
                 'data-app-theme',
@@ -48,7 +55,7 @@ test('@electron @a11y Settings text meets contrast in every preset', async ({
             const paletteLabels = page
                 .getByTestId('select-theme')
                 .locator('.theme-palette__label');
-            await expect(paletteLabels).toHaveCount(5);
+            await expect(paletteLabels).toHaveCount(7);
             for (const label of await paletteLabels.all()) {
                 await expectTextContrast(label);
             }

@@ -762,6 +762,8 @@
     "THEMES": {
         "CREAM_THEME": "Creme",
         "MOCHA_THEME": "Moca",
+        "NIGHT_OWL_THEME": "Coruja noturna",
+        "BLACK_OLED_THEME": "Preto OLED",
         "SYSTEM_DESCRIPTION": "Sistema segue a aparência clara ou escura do dispositivo.",
         "DARK_THEME": "Escuro",
         "LIGHT_THEME": "Claro",

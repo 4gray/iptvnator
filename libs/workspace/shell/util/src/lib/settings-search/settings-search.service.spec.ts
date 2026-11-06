@@ -169,9 +169,7 @@ describe('SettingsSearchService', () => {
             'server'
         );
         expect(service.visibleEntries().map(({ id }) => id)).toEqual(
-            expect.arrayContaining([
-                'source-server',
-            ])
+            expect.arrayContaining(['source-server'])
         );
     });
 
@@ -392,6 +390,8 @@ describe('SettingsSearchService', () => {
         const { service } = setup(DESKTOP);
 
         expect(service.search('dark')[0].entry.id).toBe('theme');
+        expect(service.search('night owl')[0].entry.id).toBe('theme');
+        expect(service.search('black oled')[0].entry.id).toBe('theme');
         expect(service.search('mpv').length).toBeGreaterThan(3);
         expect(service.search('mpv', 2)).toHaveLength(2);
         expect(service.search('   ')).toEqual([]);
