@@ -37,13 +37,17 @@ export function setWatched(
     watched: boolean
 ): UserData {
     const position = data.positions[id];
+    const watchedUpdated = Date.now();
     return {
         ...data,
         history: data.history.map((p) =>
-            p.item.id === id ? { ...p, watched } : p
+            p.item.id === id ? { ...p, watched, watchedUpdated } : p
         ),
         positions: position
-            ? { ...data.positions, [id]: { ...position, watched } }
+            ? {
+                  ...data.positions,
+                  [id]: { ...position, watched, watchedUpdated },
+              }
             : data.positions,
     };
 }

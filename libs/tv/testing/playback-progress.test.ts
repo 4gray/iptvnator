@@ -39,9 +39,37 @@ test('manual completion preserves position and survives reload; undo and replay 
     const undone = setWatched(restored, 'demo', false);
     assert.equal(resumePosition(undone.positions.demo), 1200);
     assert.equal(continueWatching(undone).length, 1);
-    const replayed = recordProgress(restored, saved(0, 30));
+    const replayed = recordProgress(restored, {
+        ...saved(0, 30),
+        updated: (restored.positions.demo.watchedUpdated ?? 0) + 1,
+    });
     assert.equal(isWatched(replayed.positions.demo), false);
     assert.equal(continueWatching(replayed).length, 1);
+});
+
+test('an older progress-save retry cannot replace a later manual viewing status', () => {
+    const pending = saved(2760, 1200);
+    const original = recordProgress(initialData(), pending);
+    for (const watched of [true, false]) {
+        const marked = setWatched(original, 'demo', watched);
+        const retried = recordProgress(marked, pending);
+        assert.equal(retried.positions.demo.watched, watched);
+        assert.equal(retried.history[0].watched, watched);
+        assert.equal(retried.history[0].updated, pending.updated);
+        assert.equal(retried.history[0].seconds, pending.seconds);
+        const hydrated = hydrateUserData(JSON.parse(JSON.stringify(marked)));
+        assert.equal(
+            recordProgress(hydrated, pending).positions.demo.watched,
+            watched
+        );
+        const newPlayback = recordProgress(hydrated, {
+            ...pending,
+            seconds: 30,
+            updated: (hydrated.positions.demo.watchedUpdated ?? 0) + 1,
+        });
+        assert.equal(newPlayback.positions.demo.watched, undefined);
+        assert.equal(newPlayback.positions.demo.seconds, 30);
+    }
 });
 
 test('automatic completion and its manual override use the same resume decision', () => {

@@ -460,8 +460,9 @@ when duration is known, otherwise watched minutes. History keeps completed title
 Mark as watched is available from Home, History and saved movie/episode Details;
 History also allows Mark as unwatched. The optional `Progress.watched` override
 persists without changing position, duration or last-played date. It is additive
-to existing snapshots. A new confirmed playback replaces the override with actual
-progress, so Watch again starts at zero and can enter continuation again. Failed
+to existing snapshots. Its separate `watchedUpdated` timestamp rejects retries of
+progress captured before the status edit. A new confirmed playback replaces the
+override with actual progress, so Watch again starts at zero and can enter continuation again. Failed
 status writes leave committed state visible and expose Retry viewing status.
 
 ## Artwork and optional TMDB metadata
