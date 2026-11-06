@@ -27,6 +27,8 @@ Local playlist import and backup restore use Android's document picker, without
 broad storage permissions. Cancellation leaves the file input unchanged; devices
 without a document picker show an explanatory message. The shared parsers validate
 the selected document.
+Backup export is unavailable in this runtime until a native document-save flow
+exists. Settings offers import only; a programmatic export cannot report success.
 
 The temporary player-loading rollback is
 `localStorage.setItem('iptvnator.eagerPlayerLoading', '1')`, followed by a reload:

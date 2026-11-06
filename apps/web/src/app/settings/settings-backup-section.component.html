@@ -1,7 +1,9 @@
 <section class="settings-group" id="backup">
     <header class="settings-group__header">
         <h2>{{ 'SETTINGS.NAV_BACKUP' | translate }}</h2>
-        <p>{{ 'SETTINGS.BACKUP_DESCRIPTION' | translate }}</p>
+        @if (supportsExport()) {
+            <p>{{ 'SETTINGS.BACKUP_DESCRIPTION' | translate }}</p>
+        }
     </header>
 
     <section class="settings-section">
@@ -11,20 +13,33 @@
         <div class="settings-card">
             <div class="setting-item" data-setting-id="import-export-data">
                 <div class="setting-item__meta">
-                    <h4>{{ 'SETTINGS.IMPORT_EXPORT_DATA' | translate }}</h4>
-                    <p>
+                    <h4>
                         {{
-                            'SETTINGS.IMPORT_EXPORT_DATA_DESCRIPTION'
-                                | translate
+                            (supportsExport()
+                                ? 'SETTINGS.IMPORT_EXPORT_DATA'
+                                : 'SETTINGS.IMPORT_DATA'
+                            ) | translate
                         }}
-                    </p>
+                    </h4>
+                    @if (supportsExport()) {
+                        <p>
+                            {{
+                                'SETTINGS.IMPORT_EXPORT_DATA_DESCRIPTION'
+                                    | translate
+                            }}
+                        </p>
+                    }
                 </div>
                 <div class="setting-item__control inline-actions">
                     <button
                         mat-flat-button
                         class="inline-actions__button"
                         [attr.aria-busy]="isImportingData()"
-                        [disabled]="unavailable() || isRemovingAllPlaylists() || isBackupBusy()"
+                        [disabled]="
+                            unavailable() ||
+                            isRemovingAllPlaylists() ||
+                            isBackupBusy()
+                        "
                         (click)="
                             $event.preventDefault();
                             $event.stopPropagation();
@@ -46,33 +61,41 @@
                             ) | translate
                         }}</span>
                     </button>
-                    <button
-                        mat-flat-button
-                        class="inline-actions__button"
-                        [class.inline-actions__button--busy]="isExportingData()"
-                        [disabled]="unavailable() || isRemovingAllPlaylists() || isBackupBusy()"
-                        [attr.aria-busy]="isExportingData()"
-                        (click)="
-                            $event.preventDefault();
-                            $event.stopPropagation();
-                            exportData.emit()
-                        "
-                    >
-                        @if (isExportingData()) {
-                            <mat-progress-spinner
-                                class="button-spinner"
-                                diameter="16"
-                                mode="indeterminate"
-                            />
-                            <span class="inline-actions__label">{{
-                                'SETTINGS.EXPORTING_DATA' | translate
-                            }}</span>
-                        } @else {
-                            <span class="inline-actions__label">{{
-                                'SETTINGS.EXPORT_DATA' | translate
-                            }}</span>
-                        }
-                    </button>
+                    @if (supportsExport()) {
+                        <button
+                            mat-flat-button
+                            class="inline-actions__button"
+                            [class.inline-actions__button--busy]="
+                                isExportingData()
+                            "
+                            [disabled]="
+                                unavailable() ||
+                                isRemovingAllPlaylists() ||
+                                isBackupBusy()
+                            "
+                            [attr.aria-busy]="isExportingData()"
+                            (click)="
+                                $event.preventDefault();
+                                $event.stopPropagation();
+                                exportData.emit()
+                            "
+                        >
+                            @if (isExportingData()) {
+                                <mat-progress-spinner
+                                    class="button-spinner"
+                                    diameter="16"
+                                    mode="indeterminate"
+                                />
+                                <span class="inline-actions__label">{{
+                                    'SETTINGS.EXPORTING_DATA' | translate
+                                }}</span>
+                            } @else {
+                                <span class="inline-actions__label">{{
+                                    'SETTINGS.EXPORT_DATA' | translate
+                                }}</span>
+                            }
+                        </button>
+                    }
                 </div>
             </div>
 

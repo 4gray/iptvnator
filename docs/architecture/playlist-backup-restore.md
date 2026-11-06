@@ -416,6 +416,12 @@ Older builds ignore `collectionItems`; the manifest version stays `1`.
 
 ## Current UX
 
+The Android TV/Fire TV shell has no Blob-to-document save bridge. The settings
+facade's `supportsExport` capability reads the `tv-shell` marker installed before
+bootstrap; both the export control and its programmatic action are gated on it.
+This runtime offers backup import only, without claiming that a backup was saved.
+Desktop native save and ordinary browser downloads retain their existing paths.
+
 The settings page now exports/imports “playlist backups” instead of the old
 raw JSON application dump.
 

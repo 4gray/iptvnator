@@ -40,6 +40,9 @@ export class SettingsBackupFacade {
     private readonly destroyRef = inject(DestroyRef);
 
     readonly isExportingData = signal(false);
+    /** The shell marker is set before bootstrap; Android has no download/save bridge yet. */
+    readonly supportsExport =
+        !document.documentElement.classList.contains('tv-shell');
     readonly isImportingData = signal(false);
     private readonly isChoosingFile = signal(false);
     readonly isBusy = computed(
@@ -52,7 +55,7 @@ export class SettingsBackupFacade {
     readonly importFailed = signal(false);
 
     async exportData(waitForUiFeedbackFrame: () => Promise<void>) {
-        if (this.isBusy()) {
+        if (!this.supportsExport || this.isBusy()) {
             return;
         }
 

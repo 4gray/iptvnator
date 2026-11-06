@@ -846,6 +846,31 @@ for (const eager of [false, true]) {
         eager ? 'rollback loads every engine before Angular renders' : 'default startup renders before loading the engines');
     await startupContext.close();
 }
+console.log('16. backup export availability matches the runtime');
+for (const shell of [true, false]) {
+    for (const colorScheme of ['light', 'dark']) {
+        const backupContext = await browser.newContext({ serviceWorkers: 'block', colorScheme });
+        if (!shell) await backupContext.route('**/tvshell/tv.js', (route) => route.fulfill({ contentType: 'text/javascript', body: '' }));
+        const backupPage = await backupContext.newPage();
+        await backupPage.goto(URL_ + '/workspace/settings/backup', { waitUntil: 'networkidle' });
+        const section = backupPage.locator('app-settings-backup-section');
+        const importButton = section.getByRole('button', { name: 'Import', exact: true });
+        await importButton.waitFor({ state: 'visible' });
+        check(await importButton.isEnabled(), `${shell ? 'TV shell' : 'browser'} ${colorScheme} keeps backup import available`);
+        const exportButton = section.getByRole('button', { name: 'Export', exact: true });
+        check((await exportButton.count()) === (shell ? 0 : 1), `${shell ? 'TV shell hides unsupported export' : 'browser retains export'} in ${colorScheme}`);
+        if (!shell) {
+            const pendingDownload = backupPage.waitForEvent('download');
+            await exportButton.click();
+            const download = await pendingDownload;
+            const path = await download.path();
+            check(await download.failure() === null && JSON.parse(readFileSync(path, 'utf8')).kind === 'iptvnator-playlist-backup',
+                `browser ${colorScheme} export writes a valid backup file`);
+        }
+        await backupPage.screenshot({ path: join(SHOTS, `backup-${shell ? 'tv' : 'browser'}-${colorScheme}.png`), fullPage: true });
+        await backupContext.close();
+    }
+}
 console.log(failures ? `${failures} check(s) failed` : 'all checks passed');
 process.exitCode = failures ? 1 : 0;
 await browser.close();

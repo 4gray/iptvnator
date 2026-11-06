@@ -64,6 +64,25 @@ describe('SettingsBackupFacade', () => {
         window.electron = originalElectron;
     });
 
+    it('does not generate a backup or report success for unsupported TV export', async () => {
+        document.documentElement.classList.add('tv-shell');
+        try {
+            configure();
+            expect(facade.supportsExport).toBe(false);
+            const notice = jest.spyOn(
+                TestBed.inject(SettingsSnackbarService),
+                'open'
+            );
+            await facade.exportData(noWait);
+            expect(playlistBackupService.exportBackup).not.toHaveBeenCalled();
+            expect(window.electron.saveFileDialog).not.toHaveBeenCalled();
+            expect(notice).not.toHaveBeenCalled();
+            expect(facade.isExportingData()).toBe(false);
+        } finally {
+            document.documentElement.classList.remove('tv-shell');
+        }
+    });
+
     it('shows an export busy state until the backup file has been written', async () => {
         configure();
         let resolveExport: (value: typeof BACKUP_EXPORT_RESULT) => void = () =>

@@ -3,10 +3,7 @@ export const EAGER_PLAYER_LOADING_KEY = 'iptvnator.eagerPlayerLoading';
 
 export function preparePlayerLoading(
     load: () => Promise<unknown> = () =>
-        Promise.all([
-            import('@iptvnator/playlist/m3u/feature-player'),
-            import('./eager-web-players'),
-        ]),
+        import('./eager-web-players').then((players) => players.ready),
     storage?: Pick<Storage, 'getItem'>
 ): Promise<unknown> | undefined {
     try {
