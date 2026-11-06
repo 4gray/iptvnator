@@ -193,7 +193,7 @@ public class HttpFetcher {
                 try {
                     if (compressed && encoding.toLowerCase().contains("gzip")) in = new GZIPInputStream(in);
                     else if (compressed) in = new InflaterInputStream(in);
-                    // Content-Length is the compressed size: it only sizes the buffer when the body is plain.
+                    // Content-Length describes decoded bytes only when the body is plain.
                     byte[] body = readAll(in, compressed ? -1 : declared, MAX_BODY_BYTES);
                     return new Result(status, new String(body, charsetOf(contentType)), contentType);
                 } catch (TooLargeException e) {
@@ -238,7 +238,7 @@ public class HttpFetcher {
 
     /**
      * Reads at most {@code limit} bytes. A known plain size ({@code declared} &gt;= 0) sizes the
-     * buffer once instead of doubling it (which peaks at three times the body).
+     * buffer once instead of doubling it, and rejects premature EOF.
      */
     static byte[] readAll(InputStream in, long declared, long limit) throws IOException {
         if (declared > limit) throw new TooLargeException();
@@ -251,6 +251,7 @@ public class HttpFetcher {
             if (total > limit) throw new TooLargeException();
             out.write(buffer, 0, read);
         }
+        if (declared >= 0 && total != declared) throw new IOException("Incomplete provider response");
         return out.toByteArray();
     }
 

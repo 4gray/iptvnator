@@ -79,7 +79,9 @@ public class HttpFetcherTest {
         final Thread thread;
         volatile IOException failure;
 
-        BrokenBodyServer(final boolean timeout) throws IOException {
+        BrokenBodyServer(final String mode) throws IOException {
+            final boolean timeout = mode.equals("timeout");
+            final boolean truncated = mode.equals("truncated");
             listener = new ServerSocket(0, 1, java.net.InetAddress.getByName("127.0.0.1"));
             thread = new Thread(() -> {
                 try (Socket socket = listener.accept()) {
@@ -87,10 +89,11 @@ public class HttpFetcherTest {
                     BufferedReader request = new BufferedReader(new InputStreamReader(socket.getInputStream(), "US-ASCII"));
                     String line;
                     while ((line = request.readLine()) != null && !line.isEmpty()) { /* consume headers */ }
-                    String headers = "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: " + (timeout ? "1" : "3")
-                        + (timeout ? "" : "\r\nContent-Encoding: gzip") + "\r\n\r\n";
+                    String headers = "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: " + (timeout ? "1" : truncated ? "1024" : "3")
+                        + (timeout || truncated ? "" : "\r\nContent-Encoding: gzip") + "\r\n\r\n";
                     socket.getOutputStream().write(headers.getBytes("US-ASCII"));
-                    if (!timeout) socket.getOutputStream().write(new byte[] { 0x1f, (byte) 0x8b, 0x08 });
+                    if (truncated) socket.getOutputStream().write("#EXTM3U\n#EXTINF:-1,Synthetic Channel\nhttps://stream.example/live.m3u8\n".getBytes("UTF-8"));
+                    else if (!timeout) socket.getOutputStream().write(new byte[] { 0x1f, (byte) 0x8b, 0x08 });
                     socket.getOutputStream().flush();
                     // A stalled body ends when the client times out and disconnects.
                     if (timeout) socket.getInputStream().read();
@@ -113,22 +116,28 @@ public class HttpFetcherTest {
     }
 
     public void testBodyReadFailuresLoseTheSuccessfulHttpStatus() throws Exception {
-        for (boolean timeout : new boolean[] { false, true }) {
-            try (BrokenBodyServer server = new BrokenBodyServer(timeout)) {
+        for (String mode : new String[] { "gzip", "timeout", "truncated" }) {
+            try (BrokenBodyServer server = new BrokenBodyServer(mode)) {
                 try {
                     new HttpFetcher().get(server.url(), null, 200);
                     throw new TestMain.AssertionFailed("broken body must fail");
                 } catch (ProviderException error) {
                     assertTrue("body failure is a transport error", !error.hasHttpStatus());
                     assertTrue("network error code retained", error.code != null);
-                    if (timeout) assertEquals("body timeout code", "ETIMEDOUT", error.code);
+                    if (mode.equals("timeout")) assertEquals("body timeout code", "ETIMEDOUT", error.code);
                 }
             }
         }
     }
 
     public void testBrokenPlaylistBodyCannotLookLikeASuccessfulImport() throws Exception {
-        try (BrokenBodyServer server = new BrokenBodyServer(false)) {
+        for (String mode : new String[] { "gzip", "truncated" }) {
+            assertBrokenPlaylistImport(mode);
+        }
+    }
+
+    private void assertBrokenPlaylistImport(String mode) throws Exception {
+        try (BrokenBodyServer server = new BrokenBodyServer(mode)) {
             WebBackend backend = new WebBackend(new HttpFetcher(), "/api");
             String id = WebBackendTest.register(backend, server.url());
             WebBackend.Response response = backend.handle("GET", "/parse", WebBackendTest.query("targetId", id), null);
