@@ -243,7 +243,7 @@ export default class EpgEvents {
         const { canceled, filePaths } = await dialog.showOpenDialog({
             properties: ['openFile'],
             filters: [
-                { name: 'XMLTV', extensions: ['xml', 'gz', 'xmltv'] },
+                { name: 'XMLTV', extensions: ['xml', 'gz', 'xz', 'xmltv'] },
                 { name: 'All Files', extensions: ['*'] },
             ],
         });

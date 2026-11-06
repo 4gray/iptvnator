@@ -1,4 +1,6 @@
 import { randomBytes } from 'crypto';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { PassThrough, Readable, pipeline } from 'stream';
 import { finished } from 'stream/promises';
 import { brotliCompressSync, deflateSync, gzipSync } from 'zlib';
@@ -9,14 +11,12 @@ import { StreamingEpgParser } from './epg-streaming-parser';
 const xmltvFixture =
     '<?xml version="1.0" encoding="utf-8" ?>' +
     '<tv><channel id="test"><display-name>Test Channel</display-name></channel>' +
-    '<programme channel="test" start="20260912090000 +0000" stop="20260912100000 +0000">' +
+    '<programme channel="test" start="20990101090000 +0000" stop="20990101100000 +0000">' +
     '<title>Test Bulletin</title></programme></tv>';
 
-// xz has no Node core compressor, so an `xz -9` of the exact fixture above is
-// embedded as base64 (zlib can make the gzip/deflate/brotli fixtures inline).
-const xzFixture = Buffer.from(
-    '/Td6WFoAAATm1rRGBMCpAfEBIQEcAAAAAAAAAJkYdwPgAPAAoV0AHg/LhxHYzmaRD4Meyv17M9R/6bfaKDF2JWYgTSoJbYm6XYkb766123dItF5p9QuGX+PSpT+jeyPjMNuxZJ2QiMkLnHk6beI3Thlldi/myMIuQecJpVYtA2e8++lUypL1Zn7dUgwIeHZ95FL/yha8hTP4O0nKaa69OpQzSfBQ494+YL+Wl0rfKciBl/is9b0/+ZzGEnDKjTIjj4nq5RvMzXgAAAAAv1cEI8VXNo4AAcUB8QEAAJ9pCICxxGf7AgAAAAAEWVo=',
-    'base64'
+// Generated with xz -9 from the synthetic XMLTV fixture above.
+const xzFixture = readFileSync(
+    join(__dirname, 'testing/fixtures/guide.xml.xz')
 );
 
 async function collectDecodedText(stream: Readable): Promise<string> {
@@ -56,6 +56,24 @@ describe('createDecodedEpgStream', () => {
     it.each([
         ['gzip file', gzipSync(xmltvFixture), {}, true],
         ['xz file', xzFixture, {}, true],
+        [
+            'gzip over xz file',
+            gzipSync(xzFixture),
+            { 'content-encoding': 'gzip' },
+            true,
+        ],
+        [
+            'Brotli over xz file',
+            brotliCompressSync(xzFixture),
+            { 'content-encoding': 'br' },
+            true,
+        ],
+        [
+            'deflate over xz file',
+            deflateSync(xzFixture),
+            { 'content-encoding': 'deflate' },
+            true,
+        ],
         [
             'HTTP deflate',
             deflateSync(xmltvFixture),
@@ -256,13 +274,22 @@ describe('createDecodedEpgStream', () => {
         expect(source.destroyed).toBe(true);
     });
 
-    it.each(['invalid', 'truncated'] as const)(
-        'rejects %s inner gzip',
-        async (kind) => {
-            const inner =
-                kind === 'invalid'
-                    ? Buffer.from([0x1f, 0x8b, 0xff, 0, 0, 0, 0, 0, 0, 0])
-                    : gzipSync(xmltvFixture).subarray(0, -4);
+    it.each([
+        [
+            'invalid',
+            'gzip',
+            Buffer.from([0x1f, 0x8b, 0xff, 0, 0, 0, 0, 0, 0, 0]),
+        ],
+        ['truncated', 'gzip', gzipSync(xmltvFixture).subarray(0, -4)],
+        [
+            'invalid',
+            'xz',
+            Buffer.concat([xzFixture.subarray(0, 6), Buffer.alloc(60, 0xff)]),
+        ],
+        ['truncated', 'xz', xzFixture.subarray(0, -4)],
+    ] as const)(
+        'rejects %s inner %s and closes its source',
+        async (kind, _format, inner) => {
             const source = new PassThrough();
             const output = createDecodedEpgStream(
                 source,
@@ -279,22 +306,30 @@ describe('createDecodedEpgStream', () => {
         }
     );
 
-    it('stops the entire decoding chain when the consumer closes early', async () => {
-        const source = new PassThrough();
-        const output = createDecodedEpgStream(
-            source,
-            { 'content-encoding': 'gzip' },
-            true
-        );
-        const sourceClosed = finished(source).catch((error: Error) => error);
-        const iterator = output[Symbol.asyncIterator]();
-        source.write(gzipSync(gzipSync(Buffer.alloc(256 * 1024, 0x61))));
-        expect((await iterator.next()).done).toBe(false);
-        await iterator.return?.();
-        expect(await sourceClosed).toHaveProperty('message');
-        expect(source.destroyed).toBe(true);
-        expect(output.destroyed).toBe(true);
-    });
+    it.each([
+        ['gzip', gzipSync(Buffer.alloc(256 * 1024, 0x61))],
+        ['xz', xzFixture],
+    ] as const)(
+        'stops the %s decoding chain when the consumer closes early',
+        async (_format, inner) => {
+            const source = new PassThrough();
+            const output = createDecodedEpgStream(
+                source,
+                { 'content-encoding': 'gzip' },
+                true
+            );
+            const sourceClosed = finished(source).catch(
+                (error: Error) => error
+            );
+            const iterator = output[Symbol.asyncIterator]();
+            source.write(gzipSync(inner));
+            expect((await iterator.next()).done).toBe(false);
+            await iterator.return?.();
+            expect(await sourceClosed).toHaveProperty('message');
+            expect(source.destroyed).toBe(true);
+            expect(output.destroyed).toBe(true);
+        }
+    );
 
     it('preserves bytes and bounds read-ahead with a slow consumer', async () => {
         const expected = randomBytes(1024 * 1024);
@@ -327,24 +362,32 @@ describe('createDecodedEpgStream', () => {
 });
 
 describe('optional EPG file layer', () => {
-    it('waits for the second signature byte delivered in a later turn', async () => {
-        const payload = gzipSync(xmltvFixture);
-        const source = Readable.from(
-            (async function* () {
-                yield payload.subarray(0, 1);
-                await new Promise<void>((resolve) => setImmediate(resolve));
-                yield payload.subarray(1, 2);
-                await new Promise<void>((resolve) => setImmediate(resolve));
-                yield payload.subarray(2);
-            })()
-        );
-        expect(await collectDecodedText(optionalFileStream(source))).toBe(
-            xmltvFixture
-        );
-    });
+    it.each([
+        ['gzip', gzipSync(xmltvFixture)],
+        ['xz', xzFixture],
+    ] as const)(
+        'detects a %s signature arriving one byte at a time',
+        async (_format, payload) => {
+            const source = Readable.from(
+                (async function* () {
+                    for (let i = 0; i < 6; i++) {
+                        yield payload.subarray(i, i + 1);
+                        await new Promise<void>((resolve) =>
+                            setImmediate(resolve)
+                        );
+                    }
+                    yield payload.subarray(6);
+                })()
+            );
+            expect(await collectDecodedText(optionalFileStream(source))).toBe(
+                xmltvFixture
+            );
+        }
+    );
 
     it.each([
         ['gzip', gzipSync(xmltvFixture), Buffer.from(xmltvFixture)],
+        ['xz', xzFixture, Buffer.from(xmltvFixture)],
         ['plain XML', Buffer.from(xmltvFixture), Buffer.from(xmltvFixture)],
         ['empty', Buffer.alloc(0), Buffer.alloc(0)],
         ['one byte', Buffer.from([0x1f]), Buffer.from([0x1f])],
@@ -374,6 +417,9 @@ describe('optional EPG file layer', () => {
         Buffer.alloc(0),
         Buffer.from([0x1f]),
         gzipSync(xmltvFixture).subarray(0, 10),
+        xzFixture.subarray(0, 1),
+        xzFixture.subarray(0, 6),
+        xzFixture.subarray(0, 80),
     ])(
         'propagates source errors while waiting for a prefix or compressed body (%j)',
         async (prefix) => {
@@ -392,6 +438,9 @@ describe('optional EPG file layer', () => {
         Buffer.alloc(0),
         Buffer.from([0x1f]),
         gzipSync(xmltvFixture).subarray(0, 10),
+        xzFixture.subarray(0, 1),
+        xzFixture.subarray(0, 6),
+        xzFixture.subarray(0, 80),
     ])(
         'closes a pending prefix/body read when the consumer aborts (%j)',
         async (prefix) => {
