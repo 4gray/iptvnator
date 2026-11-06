@@ -657,6 +657,22 @@ most 120 entries, separated by media type and language, with the existing TTLs.
 Changing key/language or disabling enrichment replaces the cache. No key or API
 response is logged. The settings section includes the official logo and attribution.
 
+## Horizontal navigation
+
+Home rails, combined credits, provider-version choices and programme dates use
+`HorizontalRail` with a `data-tv-horizontal` scroller. Left/Right moves focus
+between enabled row items and stops at either end; Up/Down leaves the row.
+Focus scrolls the item into view without opening or playing it. Pointer-only
+side arrows advance a visible group and focus the newly revealed item. They
+appear only when content overflows and disable at the corresponding edge.
+Arrows stay outside remote and Tab focus and do not overlap cards.
+
+Horizontal native scrollbars are hidden; vertical lists and long text retain
+explicit dark WebKit scrollbars. The LG Chromium 68 target ignores
+`color-scheme`, so native scrollbar colours must not depend on that property.
+Overflow is remeasured after rendering, scrolling and window resizing; the
+implementation does not require ResizeObserver or smooth scrolling.
+
 ## Media feasibility is a separate gate
 
 The API proxy does **not** relay media. Native video opens provider URLs on the

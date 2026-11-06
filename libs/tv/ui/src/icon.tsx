@@ -7,6 +7,8 @@ const paths: Record<string, string> = {
     search: 'M16 16l6 6 M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0',
     sources: 'M3 3h18v18H3z M12 7v10 M7 12h10',
     settings: 'M4 5h16 M4 12h16 M4 19h16 M8 2v6 M16 9v6 M9 16v6',
+    'chevron-left': 'M15 5l-7 7 7 7',
+    'chevron-right': 'M9 5l7 7-7 7',
     check: 'M4 12l5 5L20 6',
 };
 export function TvIcon({ name }: { name: string }) {

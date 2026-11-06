@@ -3,6 +3,7 @@ import { storedMediaPoster } from '@iptvnator/tv/data-access';
 import { CatalogOrder, CatalogSortNotice } from './catalog-order';
 import {
     Empty,
+    HorizontalRail,
     TvSelect,
     Hero,
     VirtualCollection,
@@ -84,55 +85,63 @@ export function Home({
             {history.length ? (
                 <section>
                     <h2>Continue watching</h2>
-                    <div class="rail">
-                        {history.map((p) => (
-                            <ResumeCard
-                                key={p.item.id}
-                                progress={p}
-                                play={actions.play}
-                                sourceName={sourceName(p.item)}
-                                poster={storedMediaPoster(
-                                    p.item,
-                                    tv.data.sources.find(
-                                        (s) => s.id === p.item.sourceId
-                                    ),
-                                    [...tv.home, ...tv.data.favorites]
-                                )}
-                            />
-                        ))}
-                    </div>
+                    <HorizontalRail label="Continue watching">
+                        <div class="rail" data-tv-horizontal>
+                            {history.map((p) => (
+                                <ResumeCard
+                                    key={p.item.id}
+                                    progress={p}
+                                    play={actions.play}
+                                    sourceName={sourceName(p.item)}
+                                    poster={storedMediaPoster(
+                                        p.item,
+                                        tv.data.sources.find(
+                                            (s) => s.id === p.item.sourceId
+                                        ),
+                                        [...tv.home, ...tv.data.favorites]
+                                    )}
+                                />
+                            ))}
+                        </div>
+                    </HorizontalRail>
                 </section>
             ) : null}
             {rails
                 .filter(([, , list]) => list.length)
                 .map(([railId, title, list]) => (
-                    <section>
+                    <section key={railId}>
                         <h2>{title}</h2>
-                        <div class="rail">
-                            {list.map((item) => (
-                                <Poster
-                                    key={item.id}
-                                    focusKey={JSON.stringify([
-                                        'home',
-                                        railId,
-                                        item.id,
-                                    ])}
-                                    item={{
-                                        ...item,
-                                        title: mediaTitle(item),
-                                        poster: storedMediaPoster(
-                                            item,
-                                            tv.data.sources.find(
-                                                (s) => s.id === item.sourceId
+                        <HorizontalRail label={title}>
+                            <div class="rail" data-tv-horizontal>
+                                {list.map((item) => (
+                                    <Poster
+                                        key={item.id}
+                                        focusKey={JSON.stringify([
+                                            'home',
+                                            railId,
+                                            item.id,
+                                        ])}
+                                        item={{
+                                            ...item,
+                                            title: mediaTitle(item),
+                                            poster: storedMediaPoster(
+                                                item,
+                                                tv.data.sources.find(
+                                                    (s) =>
+                                                        s.id === item.sourceId
+                                                ),
+                                                [
+                                                    ...tv.home,
+                                                    ...tv.data.favorites,
+                                                ]
                                             ),
-                                            [...tv.home, ...tv.data.favorites]
-                                        ),
-                                    }}
-                                    open={() => actions.open(item)}
-                                    sourceName={sourceName(item)}
-                                />
-                            ))}
-                        </div>
+                                        }}
+                                        open={() => actions.open(item)}
+                                        sourceName={sourceName(item)}
+                                    />
+                                ))}
+                            </div>
+                        </HorizontalRail>
                     </section>
                 ))}
             {!history.length &&

@@ -97,7 +97,11 @@ export function TvApp({ buildInfo }: { buildInfo: TvBuildInfo }) {
             onMouseMove={(event) => {
                 if (!event.movementX && !event.movementY) return;
                 const button = (event.target as HTMLElement).closest('button');
-                if (button && button !== document.activeElement)
+                if (
+                    button &&
+                    !button.hasAttribute('data-tv-pointer-only') &&
+                    button !== document.activeElement
+                )
                     button.focus({ preventScroll: true });
             }}
         >

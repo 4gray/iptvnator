@@ -1,3 +1,4 @@
+import { checkHorizontalRail } from './horizontal-rail';
 import { playLive } from './live-media';
 import { expect, test } from '@playwright/test';
 import { addSource, backend, start } from './helpers';
@@ -72,7 +73,7 @@ test('expanded guide shows supplied days and descriptions, windows rows and keep
         await route.fulfill({
             json: {
                 payload: {
-                    epg_listings: Array.from({ length: 96 }, (_, i) => ({
+                    epg_listings: Array.from({ length: 384 }, (_, i) => ({
                         id: String(i),
                         title: btoa(`Programme ${i}`),
                         description: btoa(`Details ${i}. `.repeat(240)),
@@ -96,7 +97,18 @@ test('expanded guide shows supplied days and descriptions, windows rows and keep
     });
     await expect(guide).toBeVisible();
     await expect(guide.locator('[data-focus="guide-close"]')).toBeFocused();
-    await expect(guide.locator('[data-focus^="guide-day-"]')).toHaveCount(2);
+    await expect(guide.locator('[data-focus^="guide-day-"]')).toHaveCount(7);
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await checkHorizontalRail(page, guide.locator('.programme-guide-days'));
+    const lastDate = guide.locator('.programme-guide-days button').last();
+    const firstProgramme = guide.locator('.programme-guide-row').first();
+    await lastDate.focus();
+    await page.keyboard.press('Tab');
+    await expect(firstProgramme).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(lastDate).toBeFocused();
+
+    await page.setViewportSize({ width: 1920, height: 1080 });
     await guide.getByRole('button', { name: 'Now', exact: true }).click();
     await expect(
         guide.locator('.programme-guide-row[aria-pressed="true"]')
@@ -115,6 +127,15 @@ test('expanded guide shows supplied days and descriptions, windows rows and keep
     await expect(
         guide.getByRole('region', { name: 'Programme description' })
     ).toBeFocused();
+    expect(
+        await guide
+            .locator('.programme-guide-details')
+            .evaluate(
+                (element) =>
+                    getComputedStyle(element, '::-webkit-scrollbar-thumb')
+                        .backgroundColor
+            )
+    ).toBe('rgb(82, 107, 92)');
     await page.keyboard.press('ArrowDown');
     expect(
         await guide

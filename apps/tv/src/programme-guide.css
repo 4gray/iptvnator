@@ -23,11 +23,14 @@
 .programme-guide-header > button {
     flex: none;
 }
+.programme-guide > .horizontal-rail {
+    margin-bottom: 24px;
+}
 .programme-guide-days {
     display: flex;
     flex: none;
     padding: 8px;
-    margin: -8px -8px 24px;
+    margin: -8px -8px 0;
     overflow-x: auto;
 }
 .programme-guide-days button {
