@@ -19,6 +19,7 @@ const TRANSLATIONS: Record<string, string> = {
     'SETTINGS.EPG_VIEW_MODE': 'Programme guide layout',
     'SETTINGS.REMOTE_CONTROL': 'Remote control',
     'SETTINGS.NAV_GENERAL': 'General',
+    'SETTINGS.CARD_APPEARANCE': 'Appearance',
     'SETTINGS.NAV_PLAYBACK': 'Playback',
 };
 
@@ -382,8 +383,8 @@ describe('SettingsSearchService', () => {
         expect(first.entry.id).toBe('theme');
         expect(first.label).toBe('Theme');
         expect(first.description).toBe('Light, dark or system');
-        expect(first.sectionLabel).toBe('General');
-        expect(first.section.icon).toBe('tune');
+        expect(first.sectionLabel).toBe('Appearance');
+        expect(first.section.icon).toBe('palette');
     });
 
     it('matches untranslated keywords and caps results', () => {

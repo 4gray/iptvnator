@@ -672,7 +672,7 @@ them size from the `--cover-grid-min-width` / `--cover-rail-width` /
 
 ### Posters-only wall
 
-`Settings.showCoverTitles` (Settings > General, default on, only an explicit
+`Settings.showCoverTitles` (Settings > Appearance, default on, only an explicit
 `false` opts out — coerced like `webPlayerSharedControls`) removes the title
 row under VOD and series covers so the grid shows more rows per screen.
 
@@ -1219,6 +1219,12 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   tinted text and no border, so the list never shifts. Back lives in the
   workspace header and Esc runs it. Section pages are defined once in
   `SETTINGS_SECTION_DEFINITIONS` (`libs/workspace/shell/util`).
+- Appearance follows General in App and owns theme palettes, cover size and
+  cover titles. General owns language, startup, channel names and portal
+  connectivity. Sections share one parent form: navigating between them keeps
+  staged edits and the live theme preview without persisting either. Save and
+  Discard apply across sections; dirty markers and search results use the
+  section that owns the control.
 - Each page is a title (26px) and one-line subtitle, then sections: a 14px
   heading, an optional description and action buttons, and a card.
 - Rows (`.setting-item`) are a label column (13.5px title, description

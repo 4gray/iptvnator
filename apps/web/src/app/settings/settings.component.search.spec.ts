@@ -123,7 +123,7 @@ describe('SettingsComponent search', () => {
         fixture.detectChanges();
 
         expect(settingsCtx.matchCounts()).toEqual(
-            expect.objectContaining({ general: 1 })
+            expect.objectContaining({ appearance: 1 })
         );
 
         setSettingsSearchQuery('');
@@ -145,12 +145,14 @@ describe('SettingsComponent search', () => {
         expect(reveal).toHaveBeenCalledWith(entry('theme'));
         expect(
             (TestBed.inject(Router) as unknown as MockRouter).navigate
-        ).toHaveBeenCalledWith(['/workspace/settings', 'general']);
+        ).toHaveBeenCalledWith(['/workspace/settings', 'appearance']);
     });
 
     it('scrolls to, focuses and briefly highlights a revealed row', () => {
         jest.useFakeTimers();
 
+        setSettingsSection('appearance');
+        fixture.detectChanges();
         settingsSearch.reveal(entry('cover-titles'));
         fixture.detectChanges();
 

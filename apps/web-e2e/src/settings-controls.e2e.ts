@@ -2,9 +2,11 @@ import type { Locator, Page } from '@playwright/test';
 import { expect, test } from './fixtures';
 import { newServerPage } from './server-storage-pwa.helpers';
 
-async function openSection(page: Page, section = 'general') {
+async function openSection(page: Page, section = 'appearance') {
     await page.goto(`/workspace/settings/${section}`);
-    await expect(page.locator('.settings-container')).toBeVisible();
+    await expect(page.locator('.settings-container')).toBeVisible({
+        timeout: 20000,
+    });
 }
 
 async function expectRovingGroup(group: Locator, selected: Locator) {

@@ -1060,7 +1060,7 @@ test('@xtream posters-only wall — hides VOD titles behind a hover caption afte
     await expect(grid).not.toHaveClass(/grid-list--posters-only/);
 
     const catalogUrl = page.url();
-    await page.goto('/workspace/settings/general');
+    await page.goto('/workspace/settings/appearance');
     const toggle = page.locator('[data-test-id="cover-titles-toggle"]');
     await expect(toggle.getByRole('switch')).toBeChecked();
     await toggle.click();
