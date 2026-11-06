@@ -204,7 +204,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
             setPlaying(item);
             if (item.kind === 'live') {
                 playingCategory.current = category;
-                if (route.view === 'favorites') {
+                if (['home', 'favorites'].includes(route.view)) {
                     setSelected(item);
                     visit(
                         { ...firstRoute(), view: 'live', kind: 'live' },
@@ -213,7 +213,10 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
                     );
                 }
             }
-            if (item.kind !== 'live' || route.view === 'favorites') {
+            if (
+                item.kind !== 'live' ||
+                ['home', 'favorites'].includes(route.view)
+            ) {
                 setFullscreen(true);
                 restoreFocus('player-toggle');
             }
@@ -271,13 +274,14 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
     }
     function back() {
         if (fullscreen) {
-            const favoriteLive =
+            const savedLive =
                 playing?.kind === 'live' &&
-                stack.current[stack.current.length - 1]?.route.view ===
-                    'favorites';
+                ['home', 'favorites'].includes(
+                    stack.current[stack.current.length - 1]?.route.view
+                );
             setFullscreen(false);
-            if (playing?.kind !== 'live' || favoriteLive) stop();
-            if (!favoriteLive) {
+            if (playing?.kind !== 'live' || savedLive) stop();
+            if (!savedLive) {
                 playerOrigin.restore();
                 return;
             }
@@ -286,7 +290,10 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         const previous = stack.current.pop();
         if (previous || route.view !== 'home') content.cancelBrowse();
         if (previous) {
-            if (route.view === 'live' && previous.route.view === 'favorites')
+            if (
+                route.view === 'live' &&
+                ['home', 'favorites'].includes(previous.route.view)
+            )
                 stop();
             pendingFocus.current = previous.focus;
             pendingScroll.current = previous.scroll;

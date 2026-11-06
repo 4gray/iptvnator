@@ -267,6 +267,6 @@ export * from './programme-guide';
 
 export * from './grid-guide';
 export * from './detail-metadata';
-
 export * from './watch-state';
 export * from './series-continuity';
+export * from './recent-channels';
