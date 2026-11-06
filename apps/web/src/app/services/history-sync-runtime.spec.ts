@@ -252,6 +252,80 @@ describe('history consent, recovery and user actions', () => {
         }
     );
 
+    it.each(
+        [true, false].flatMap((native) =>
+            (['unrelated', 'target', 'profile'] as const).map(
+                (change) => [native, change] as const
+            )
+        )
+    )(
+        'retains a confirmed watch only for its original source, native=%s change=%s',
+        async (native, change) => {
+            const f = await historyRuntimeFixture(native);
+            await f.runtime.setEnabled(true);
+            f.offline(true);
+            let release!: () => void;
+            let started!: () => void;
+            const entered = new Promise<void>((resolve) => (started = resolve));
+            const paused = new Promise<void>((resolve) => (release = resolve));
+            const lookup = f.raw.getContentByXtreamId.getMockImplementation()!;
+            f.raw.getContentByXtreamId.mockImplementationOnce(async (id) => {
+                started();
+                await paused;
+                return lookup(id);
+            });
+            const watch = f.runtime.invoke(f.raw as never, 'addRecentItem', [
+                { id: 41, type: 'movie', providerId: 41 },
+                f.portal._id,
+            ]);
+            const result = watch.then(
+                () => true,
+                () => false
+            );
+            await entered;
+            if (change === 'profile') {
+                localStorage.setItem(
+                    'iptvnator:source-server',
+                    JSON.stringify({
+                        apiUrl: 'https://other.example/api',
+                        instanceId: 'synthetic-other-instance',
+                    })
+                );
+                await prepareSourceConnection();
+            } else
+                retireFavoriteSourceContext(
+                    historyInstance,
+                    change === 'target' ? f.portal._id : f.playlist._id
+                );
+            release();
+            expect(await result).toBe(change === 'unrelated');
+            const record = f.records.get(historyScopeKey(f.scopes[1]))!;
+            expect(record.pending).toHaveLength(change === 'unrelated' ? 1 : 0);
+            expect(record.base.items).toEqual([]);
+            expect(
+                f.request.mock.calls.some(
+                    ([r]) => r.operation === 'history-apply'
+                )
+            ).toBe(change === 'unrelated');
+            if (change === 'unrelated') {
+                f.offline(false);
+                await f.runtime.refresh();
+                expect(f.runtime.pending()).toBe(0);
+                expect(
+                    f.records.get(historyScopeKey(f.scopes[1]))!.base.items
+                ).toEqual([
+                    expect.objectContaining({
+                        reference: {
+                            provider: 'xtream',
+                            kind: 'movie',
+                            id: '41',
+                        },
+                    }),
+                ]);
+            }
+        }
+    );
+
     it('publishes confirmed portal writes and reports storage failures without losing durable work', async () => {
         const f = await historyRuntimeFixture();
         await f.runtime.setEnabled(true);

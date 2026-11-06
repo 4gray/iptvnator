@@ -1451,6 +1451,9 @@ intent commit together. Native CAS captures its expected bytes before invoking
 a mutator, so in-place changes cannot cause a permanent retry conflict. Source
 incarnations reuse the delivered favorites/source lifecycle contract; a source
 retirement invalidates its offline context and pending playback confirmations.
+Verified in-flight writes check that source's retirement epoch; retiring an
+unrelated source does not discard or park its confirmed playback. Runtime renewal
+still prevents stale context lists from overwriting a retirement.
 Source/profile changes fence delayed requests and storage retries. IndexedDB
 transaction ordering and worker CAS provide correctness without Web Locks.
 

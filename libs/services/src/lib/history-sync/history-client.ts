@@ -21,7 +21,7 @@ export interface HistoryOptions {
     instanceId: string;
     deviceId: string;
     consent(): string | null;
-    active(): boolean;
+    active(scope?: HistoryScope): boolean;
     request(value: SourceServerRequest): Promise<SourceServerResponse>;
     changed(): void;
     contexts?: HistoryScope[];
@@ -46,7 +46,7 @@ export class HistorySyncClient {
     }
     current(scope?: HistoryScope): void {
         if (
-            !this.options.active() ||
+            !this.options.active(scope) ||
             (scope &&
                 this.contexts.get(scope.sourceId)?.sourceIncarnation !==
                     scope.sourceIncarnation)
@@ -105,15 +105,15 @@ export class HistorySyncClient {
         return scope;
     }
     async scope(sourceId: string): Promise<HistoryScope> {
-        this.current();
         // Previously verified scopes permit offline writes; unknown sources stay local in the raw store.
         const cached = this.contexts.get(sourceId);
+        this.current(cached);
         if (cached) return cached;
         return this.refresh(sourceId);
     }
     async state(sourceId: string) {
         const scope = this.contexts.get(sourceId);
-        this.current();
+        this.current(scope);
         if (!scope) return null;
         const record = await this.store.read(scope);
         this.current(scope);

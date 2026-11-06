@@ -38,7 +38,10 @@ import {
     type Playlist,
     type PlaylistBackupEntry,
 } from '@iptvnator/shared/interfaces';
-import type { HistoryPlaylistAction } from '@iptvnator/services/history-events';
+import {
+    captureHistoryOwner,
+    type HistoryPlaylistAction,
+} from '@iptvnator/services/history-events';
 import {
     HISTORY_SYNC_CAPABILITY,
     type HistoryScope,
@@ -113,12 +116,29 @@ export class HistorySyncRuntime {
         const key = `iptvnator-server:${instanceId}:history-contexts-v1`;
         const retirementKey = favoriteSourceRetirementKey(instanceId);
         const epoch = localStorage.getItem(retirementKey);
-        const active = () =>
-            sourceConnection()?.instanceId === instanceId &&
-            localStorage.getItem(retirementKey) === epoch;
         const saved = JSON.parse(
             localStorage.getItem(key) ?? '[]'
         ) as HistoryScope[];
+        const owners = new Map<string, () => boolean>();
+        const rememberOwners = (contexts: HistoryScope[]) => {
+            for (const scope of contexts)
+                if (!owners.has(scope.sourceId))
+                    owners.set(
+                        scope.sourceId,
+                        captureHistoryOwner(
+                            instanceId,
+                            scope.sourceId,
+                            () => sourceConnection()?.instanceId
+                        )
+                    );
+        };
+        rememberOwners(saved);
+        // Retirement renews the context cache; verified writes retain their own source fence.
+        const active = (scope?: HistoryScope) =>
+            sourceConnection()?.instanceId === instanceId &&
+            (scope
+                ? (owners.get(scope.sourceId)?.() ?? false)
+                : localStorage.getItem(retirementKey) === epoch);
         this.client = new HistorySyncClient(
             this.capabilities.isElectron
                 ? new ElectronHistoryStore((request) =>
@@ -131,12 +151,14 @@ export class HistorySyncRuntime {
                 contexts: saved,
                 active,
                 consent: () =>
-                    active() && historyEnabled()
+                    sourceConnection()?.instanceId === instanceId &&
+                    historyEnabled()
                         ? readHistoryConsent()!.generation
                         : null,
                 request: requestSourceServer,
                 remember: (contexts) => {
                     if (!active()) throw new Error('History profile changed');
+                    rememberOwners(contexts);
                     localStorage.setItem(key, JSON.stringify(contexts));
                 },
                 changed: () =>
