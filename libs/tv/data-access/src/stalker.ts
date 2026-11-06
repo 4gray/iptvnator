@@ -198,13 +198,17 @@ export class StalkerProvider implements ProviderClient {
             );
             return [...merged.values()].sort((a, b) => a.start - b.start);
         } catch (error) {
+            // The bulk guide may have landed while the short guide loaded.
+            const bulkPrograms = primary.length
+                ? primary
+                : normalizePrograms(rows(this.bulk.peek()?.[item.providerId]));
             if (
                 signal.aborted ||
                 (error as Error)?.name === 'AbortError' ||
-                !primary.length
+                !bulkPrograms.length
             )
                 throw error;
-            return primary;
+            return bulkPrograms;
         }
     }
 

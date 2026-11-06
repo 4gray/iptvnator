@@ -30,32 +30,38 @@ export class StalkerEpgBulk {
     private cached?: { value: Bulk; expires: number };
     private pending?: Flight;
     private disposed = false;
-    /** The download outlasted one caller's wait and has not landed yet. */
-    private late = false;
+    /** A download that outlasted one caller's wait. */
+    private late?: Flight;
 
     constructor(private readonly session: StalkerSession) {}
 
     /**
      * Like get(), but resolves undefined after `waitMs`. The shared download
      * keeps running for the caller's subscription, and later callers skip the
-     * wait until it lands, so a slow portal costs one wait, not one per row.
+     * wait while that same download runs, so a slow portal costs one wait,
+     * not one per row.
      */
     async getWithin(signal: AbortSignal, waitMs: number) {
+        const late = !!this.pending && this.pending === this.late;
         const pending = this.get(signal);
-        const value = await settledWithin(pending, this.late ? 0 : waitMs);
-        if (value === undefined) {
-            this.late = true;
-            const landed = () => (this.late = false);
-            pending.then(landed, landed);
-        }
+        const flight = this.pending;
+        const value = await settledWithin(pending, late ? 0 : waitMs);
+        if (value === undefined) this.late = flight;
         return value;
+    }
+
+    /** The bulk guide if it has landed and not expired; never waits. */
+    peek(): Bulk | undefined {
+        return this.cached && this.cached.expires > Date.now()
+            ? this.cached.value
+            : undefined;
     }
 
     get(signal: AbortSignal): Promise<Bulk> {
         if (signal.aborted || this.disposed)
             return Promise.reject(abortError());
-        if (this.cached && this.cached.expires > Date.now())
-            return Promise.resolve(this.cached.value);
+        const cached = this.peek();
+        if (cached) return Promise.resolve(cached);
         const flight = this.pending ?? {
             controller: new AbortController(),
             subscribers: new Set<Subscriber>(),
