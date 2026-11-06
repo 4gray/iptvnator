@@ -122,6 +122,9 @@ Android pauses host-document media on activity pause. `setForeground(false)`
 also blocks late playback retries. WebView media events remain runnable so that
 these retries can be paused. Foreground restoration permits explicit playback;
 it does not automatically restart paused elements.
+TV remote navigation uses the active DOM fullscreen owner as its base scope,
+including menus within that owner. Background controls and overlays outside
+fullscreen are excluded until fullscreen exits.
 
 `PlayerController` remains a sibling of playback diagnostics and recovery
 recommendations. It owns engine-neutral playback state, capabilities, and

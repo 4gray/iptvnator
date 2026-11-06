@@ -209,23 +209,24 @@
     /** Overlay content that is not a place to navigate in: toasts and tooltips. */
     var TOAST_SELECTOR = '.mat-mdc-snack-bar-container,mat-snack-bar-container,[role="status"],[role="alert"],[role="tooltip"]';
 
-    /** Topmost overlay pane that owns focus, or the modal on top, or the document. */
+    /** Topmost applicable overlay, else the fullscreen owner or the document. */
     function navigationScope() {
+        var base = document.fullscreenElement || document;
         var active = document.activeElement;
         if (active && active !== document.body) {
             var pane = active.closest('.cdk-overlay-pane');
             // A snack bar's action button must not lock the D-pad into the toast while it shows.
-            if (pane && !pane.querySelector(TOAST_SELECTOR)) return pane;
+            if (pane && base.contains(pane) && !pane.querySelector(TOAST_SELECTOR)) return pane;
         }
-        var backdrop = document.querySelector('.cdk-overlay-backdrop.cdk-overlay-backdrop-showing');
+        var backdrop = base.querySelector('.cdk-overlay-backdrop.cdk-overlay-backdrop-showing');
         if (backdrop) {
-            var panes = document.querySelectorAll('.cdk-overlay-pane');
+            var panes = base.querySelectorAll('.cdk-overlay-pane');
             for (var i = panes.length - 1; i >= 0; i--) {
                 if (panes[i].querySelector('[role="dialog"],mat-dialog-container,mat-bottom-sheet-container,[role="menu"],[role="listbox"]')) return panes[i];
             }
             if (panes.length) return panes[panes.length - 1];
         }
-        return document;
+        return base;
     }
 
     /** The checks that cost: the disabled state, the ancestor walk, the style, the container test. */

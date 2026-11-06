@@ -921,6 +921,51 @@ for (const shell of [true, false]) {
         await backupContext.close();
     }
 }
+console.log('17. fullscreen navigation excludes background controls and preserves nested overlays');
+await page.evaluate(() => {
+    document.body.innerHTML = `<button id="synthetic-fullscreen-enter" style="position:fixed;left:10px;top:10px;z-index:10">Open synthetic player</button>
+        <div id="synthetic-fullscreen" style="position:fixed;inset:0;background:#111">
+            <video id="synthetic-fullscreen-video" tabindex="0" style="position:absolute;left:100px;top:100px;width:320px;height:180px"></video>
+            <button id="synthetic-fullscreen-control" style="position:absolute;left:240px;top:600px">Synthetic player action</button>
+        </div>
+        <button id="synthetic-fullscreen-behind" style="position:fixed;left:240px;top:240px">Synthetic background action</button>`;
+    document.querySelector('#synthetic-fullscreen-enter').onclick = async () => {
+        await document.querySelector('#synthetic-fullscreen').requestFullscreen();
+        document.querySelector('video').focus();
+    };
+});
+await page.locator('#synthetic-fullscreen-enter').click({ force: true });
+await page.waitForFunction(() => document.fullscreenElement?.id === 'synthetic-fullscreen');
+await key('ArrowDown');
+check(await page.evaluate(() => document.activeElement.id === 'synthetic-fullscreen-control'),
+    'Down from the fullscreen picture reaches a visible player control');
+check(await page.evaluate(() => Array.from(document.querySelectorAll('.tv-focus')).every((element) => document.fullscreenElement.contains(element))),
+    'fullscreen focus feedback stays inside the visible fullscreen owner');
+await page.evaluate(() => {
+    document.querySelector('#synthetic-fullscreen').insertAdjacentHTML('beforeend',
+        `<div class="cdk-overlay-backdrop cdk-overlay-backdrop-showing"></div>
+         <div class="cdk-overlay-pane" id="synthetic-fullscreen-menu" style="position:absolute;left:240px;top:350px">
+             <div role="menu"><button id="synthetic-fullscreen-menu-action">Synthetic menu action</button></div>
+         </div>`);
+    document.body.insertAdjacentHTML('beforeend',
+        `<div id="synthetic-background-menu" class="cdk-overlay-pane" style="position:fixed;left:240px;top:300px">
+             <div role="menu"><button>Synthetic hidden menu action</button></div>
+         </div>`);
+    document.querySelector('video').focus();
+});
+await key('ArrowDown');
+check(await page.evaluate(() => document.activeElement.id === 'synthetic-fullscreen-menu-action'),
+    'fullscreen navigation honors its nested menu and ignores an outside overlay');
+await page.evaluate(async () => {
+    document.querySelector('#synthetic-fullscreen-menu').remove();
+    document.querySelector('.cdk-overlay-backdrop').remove();
+    document.querySelector('#synthetic-background-menu').remove();
+    await document.exitFullscreen();
+    document.querySelector('video').focus();
+});
+await key('ArrowDown');
+check(await page.evaluate(() => document.activeElement.id === 'synthetic-fullscreen-behind'),
+    'leaving fullscreen restores navigation to the surrounding document');
 console.log(failures ? `${failures} check(s) failed` : 'all checks passed');
 process.exitCode = failures ? 1 : 0;
 await browser.close();
