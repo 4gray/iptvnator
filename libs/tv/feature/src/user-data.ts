@@ -7,6 +7,7 @@ import {
 import {
     initialData,
     recordProgress,
+    setWatchState,
     UserData,
     Media,
 } from '@iptvnator/tv/util';
@@ -53,12 +54,7 @@ export function useUserData(
         void retryStorage();
         player.current = new NativePlayer(
             video.current!,
-            (p) =>
-                update((d) =>
-                    (d.positions[p.item.id]?.updated ?? 0) > p.updated
-                        ? d
-                        : recordProgress(d, p)
-                ),
+            (p) => update((d) => recordProgress(d, p)),
             (message) => callbacks.current.report(message),
             () => callbacks.current.tick(),
             (message, retry) => callbacks.current.saveFailure(message, retry)
@@ -85,6 +81,20 @@ export function useUserData(
             );
         }
     }
+    async function watch(item: Media, action: 'watched' | 'reset') {
+        try {
+            await update((d) => setWatchState(d, item, action));
+            favoriteNotice.clearError('Retry watch state');
+            return true;
+        } catch {
+            favoriteNotice.setError(
+                'Watch state was not saved. Free TV storage and retry.',
+                () => void watch(item, action),
+                'Retry watch state'
+            );
+            return false;
+        }
+    }
     return {
         data,
         storageReady,
@@ -94,5 +104,6 @@ export function useUserData(
         player,
         update,
         favorite,
+        watch,
     };
 }

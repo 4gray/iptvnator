@@ -13,6 +13,8 @@ export class NativePlayer {
         return !!this.restore && !this.restore.failed;
     }
     private confirmed = false;
+    private completed = false;
+    private revision = 0;
     private timer?: ReturnType<typeof setInterval>;
     private restore?: {
         target: number;
@@ -55,6 +57,10 @@ export class NativePlayer {
                 this.changed();
             },
             ended: () => {
+                if (this.confirmed && this.item?.kind !== 'live') {
+                    this.completed = true;
+                    this.cancelRestore();
+                }
                 this.persist();
                 this.changed();
             },
@@ -80,10 +86,12 @@ export class NativePlayer {
         this.persist();
         if (document.hidden) this.video.pause();
     };
-    async play(item: Media, playback: Playback, resume: number) {
+    async play(item: Media, playback: Playback, resume: number, revision = 0) {
         this.stop();
         const generation = ++this.generation;
         this.item = item;
+        this.completed = false;
+        this.revision = revision;
         this.lastPlayback = { sourceId: item.sourceId, url: playback.url };
         if (item.kind !== 'live' && Number.isFinite(resume) && resume > 0)
             this.startRestore(resume);
@@ -134,7 +142,14 @@ export class NativePlayer {
         const duration = Number.isFinite(this.video.duration)
             ? this.video.duration
             : 0;
-        const progress = { item, seconds, duration, updated: Date.now() };
+        const progress: Progress = {
+            item,
+            seconds,
+            duration,
+            updated: Date.now(),
+            revision: this.revision,
+            ...(this.completed ? { watched: true } : {}),
+        };
         this.save(progress).catch(() =>
             this.saveFailure(
                 'Viewing progress could not be saved. Free TV storage and retry.',

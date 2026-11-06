@@ -122,6 +122,10 @@ export interface Progress {
     seconds: number;
     duration: number;
     updated: number;
+    /** Additive explicit intent; raw positions remain available. */
+    watched?: boolean;
+    reset?: boolean;
+    revision?: number;
 }
 export interface LibrarySettings {
     url: string;
@@ -205,6 +209,14 @@ export class LatestRequest {
 
 /** Recent history is bounded; unfinished playback positions are retained independently. */
 export function recordProgress(data: UserData, progress: Progress): UserData {
+    const previous = data.positions[progress.item.id];
+    if (
+        previous &&
+        ((previous.revision ?? 0) > (progress.revision ?? 0) ||
+            ((previous.revision ?? 0) === (progress.revision ?? 0) &&
+                previous.updated > progress.updated))
+    )
+        return data;
     return {
         ...data,
         history: [
@@ -255,3 +267,6 @@ export * from './programme-guide';
 
 export * from './grid-guide';
 export * from './detail-metadata';
+
+export * from './watch-state';
+export * from './series-continuity';
