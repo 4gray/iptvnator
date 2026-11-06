@@ -1244,6 +1244,8 @@ received entries; history metadata never supplies playback URLs. The data source
 `supportsPortableHistory(playlistId)` permits confirmed provider-only starts on
 verified history sources, including native playback without a SQLite content row.
 Ordinary native sources still require that row; metadata backfill remains row-only.
+The series detail menu can hide portable history without a native catalog row,
+using the typed provider ID and the same source/profile ownership fence.
 Both active-store and late-confirmation writers recheck source ownership after
 asynchronous lookups. Shared native Dashboard rows retain TMDB, year and original
 title hints. Cold PWA history reuses the favorites typed-catalog loader and
