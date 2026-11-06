@@ -1027,7 +1027,8 @@ in front of 84 px channel cards.
 - The channel list views and `app-channel-list-loading-state` share
   `libs/ui/components/src/lib/styles/_channel-list-layout.scss`. The loading
   state takes the view and hides its headers where the loaded view does
-  (`showHeader`, compact lists).
+  (`showHeader`, compact lists). Group loading and loaded rails both inherit
+  the shared navigation list's top inset so their rows stay aligned.
 - The dashboard rails and `lib-dashboard-rail-skeleton` share
   `libs/workspace/dashboard/feature/src/lib/rails/_dashboard-rail-geometry.scss`.
   A skeleton takes the `layout` and `aspectRatio` of the rail it precedes:
