@@ -63,8 +63,12 @@ See [the favorites contract](../../../docs/architecture/pwa-self-hosted.md#favor
 history tables and durable operation receipts. It does not migrate, delete or
 upload legacy recently-viewed rows. Local projection/outbox updates share a
 transaction; native renderer writes use `DB_HISTORY_LOCAL` compare-and-swap.
-Server touches, removals and clears persist with their receipt decision. Historical
-schema tests preserve populated 0.19–0.24 tables through rollback and reopening.
+Server touches, removals and clears persist with their receipt decision.
+Server acceptance time uses a persisted per-instance clock in the same transaction
+as state and receipts. Its first write seeds from pre-clock source states; normal
+writes read only the instance clock, preserving cross-source order on restart or
+clock rollback without scanning all histories for every operation.
+Historical schema tests preserve populated 0.19–0.24 tables through rollback and reopening.
 See [Recently Viewed sync](../../../docs/architecture/pwa-self-hosted.md#recently-viewed-synchronization).
 
 ## Database Location

@@ -16,7 +16,8 @@ import {
 export function ensureHistorySchema(db: Database.Database): void {
     db.exec(`CREATE TABLE IF NOT EXISTS history_local_records (scope_key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS history_server_states (scope_key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);
-        CREATE TABLE IF NOT EXISTS history_server_receipts (receipt_key TEXT PRIMARY KEY NOT NULL, scope_key TEXT NOT NULL, command TEXT NOT NULL, applied INTEGER NOT NULL, revision INTEGER NOT NULL);`);
+        CREATE TABLE IF NOT EXISTS history_server_receipts (receipt_key TEXT PRIMARY KEY NOT NULL, scope_key TEXT NOT NULL, command TEXT NOT NULL, applied INTEGER NOT NULL, revision INTEGER NOT NULL);
+        CREATE TABLE IF NOT EXISTS history_server_clocks (instance_id TEXT PRIMARY KEY NOT NULL, viewed_at INTEGER NOT NULL);`);
 }
 export class SqliteHistoryLocalStore implements HistoryStore {
     constructor(
@@ -139,10 +140,7 @@ export class SqliteHistoryServerStore {
             const state = this.readKey(key);
             if (baseRevision > state.revision)
                 throw new Error('History future revision');
-            const now = state.items.reduce(
-                (latest, item) => Math.max(latest, item.viewedAt + 1),
-                Date.now()
-            );
+            const now = this.nextTime(scope.instanceId);
             const result = applyHistoryOperation(
                 state,
                 { ...operation, baseRevision },
@@ -168,6 +166,35 @@ export class SqliteHistoryServerStore {
                 );
             return result;
         })();
+    }
+    private nextTime(instanceId: string): number {
+        const clock = this.db
+            .prepare(
+                'SELECT viewed_at FROM history_server_clocks WHERE instance_id = ?'
+            )
+            .get(instanceId) as { viewed_at: number } | undefined;
+        // Seed once from pre-clock states; normal writes read one indexed clock row.
+        const previous =
+            clock?.viewed_at ??
+            (
+                this.db
+                    .prepare(
+                        `SELECT MAX(json_extract(item.value, '$.viewedAt')) AS viewed_at
+             FROM history_server_states, json_each(history_server_states.value, '$.items') AS item
+             WHERE json_extract(history_server_states.scope_key, '$[0]') = ?`
+                    )
+                    .get(instanceId) as { viewed_at: number | null }
+            ).viewed_at ??
+            0;
+        const now = Math.max(Date.now(), previous + 1);
+        if (!Number.isSafeInteger(now))
+            throw new Error('History timestamp exhausted');
+        this.db
+            .prepare(
+                'INSERT INTO history_server_clocks VALUES (?, ?) ON CONFLICT(instance_id) DO UPDATE SET viewed_at = excluded.viewed_at'
+            )
+            .run(instanceId, now);
+        return now;
     }
     private allowed(scope: HistoryScope): void {
         historyScopeKey(scope);

@@ -1240,7 +1240,11 @@ Both data-source and global/Dashboard consumers read the sidecar overlay;
 remove/batch/current-tab clear use that same path on Electron and PWA. Series
 history keeps the existing parent-series row. Remote progress does not create it.
 Known catalog identity conflicts and parental locks remain enforced when resolving
-received entries; history metadata never supplies playback URLs. The data source's
+received entries; history metadata never supplies playback URLs.
+An incompatible archived row does not prevent an identity-aware catalog lookup.
+A replacement must confirm the received identity; missing, sparse or conflicting
+matches retain the conflict, and explicit snapshot rejection remains enforced.
+The data source's
 `supportsPortableHistory(playlistId)` permits confirmed provider-only starts on
 verified history sources, including native playback without a SQLite content row.
 Ordinary native sources still require that row; metadata backfill remains row-only.

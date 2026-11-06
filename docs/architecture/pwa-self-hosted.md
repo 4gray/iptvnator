@@ -1464,8 +1464,10 @@ Receipt responses include the latest state, and clients never replace a newer
 polled base with an older acknowledgement. Receipts retain decisions and revisions,
 not a complete historical snapshot for every watch.
 
-A monotonic source revision assigns acceptance order. Server time supplies existing
-UI timestamps and increases even for touches within one millisecond. Pending
+A monotonic source revision assigns acceptance order. A persisted instance-wide
+server clock supplies UI timestamps and orders touches across sources even within
+one millisecond or after clock rollback. Clock, state and receipt changes commit
+together; existing source timestamps seed a missing clock once. Pending
 commands project optimistically above the known server base; local-only choices
 retain their recorded viewing times as that base advances. A newer shared watch
 of the same item can advance its time; removals and clears cannot. Removal

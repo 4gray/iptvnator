@@ -112,14 +112,18 @@ export class HistoryXtreamAdapter {
             const ref = item.reference;
             if (ref.provider !== 'xtream') continue;
             if (accepted === 100) break;
+            if (item.snapshot?.identityConflict) continue;
             const key = favoriteReferenceKey(ref);
             const original = local.find(
                 (row) =>
                     favoriteReferenceKey(xtreamFavoriteReference(row)) === key
             );
-            const candidate =
-                original ??
-                (await raw.getContentByXtreamId(
+            let candidate: XtreamRecentItem | null | undefined = original;
+            if (
+                !original ||
+                hasXtreamFavoriteIdentityConflict(item.snapshot, original)
+            ) {
+                const found = await raw.getContentByXtreamId(
                     Number(ref.id),
                     id,
                     ref.kind,
@@ -133,7 +137,18 @@ export class HistoryXtreamAdapter {
                     },
                     undefined,
                     true
-                ));
+                );
+                if (
+                    !original ||
+                    (found &&
+                        !hasXtreamFavoriteIdentityConflict(
+                            item.snapshot,
+                            found,
+                            true
+                        ))
+                )
+                    candidate = found;
+            }
             if (
                 ((!candidate || !String(candidate.category_id ?? '').trim()) &&
                     this.locks.active()) ||

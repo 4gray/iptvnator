@@ -169,6 +169,7 @@ describe('durable history backup', () => {
                 expect(
                     await adapter.project(
                         {
+                            getContentByXtreamId: async () => null,
                             getRecentItems: async () => [
                                 f.entry.userState.recentlyViewed[0]
                                     .collectionItem,

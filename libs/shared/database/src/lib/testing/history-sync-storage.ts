@@ -10,6 +10,7 @@ import {
 import {
     emptyHistoryRecord,
     visibleHistory,
+    historyScopeKey,
     type HistoryScope,
     type HistoryOperation,
 } from '@iptvnator/shared/interfaces/history-sync';
@@ -74,6 +75,94 @@ async function main() {
         const first = server.apply(scope, add);
         assert.equal(first.applied, true);
         assert.deepEqual(server.apply(scope, add), first);
+        const orderedScope = {
+            ...scope,
+            instanceId: 'synthetic-order',
+            sourceId: 'source-a',
+        };
+        const secondScope = { ...orderedScope, sourceId: 'source-b' };
+        const realNow = Date.now;
+        try {
+            Date.now = () => 1000;
+            const allowed = (s: HistoryScope) => {
+                assert.equal(s.instanceId, 'synthetic-order');
+            };
+            const ordered = new SqliteHistoryServerStore(db, allowed);
+            const watch = (id: string, item: string, baseRevision = 0) => ({
+                ...operation('touch', id, baseRevision),
+                reference: { ...reference, id: item },
+            });
+            const a = ordered.apply(orderedScope, watch('synthetic-a1', '101'));
+            const b = ordered.apply(secondScope, watch('synthetic-b2', '102'));
+            const a3 = ordered.apply(
+                orderedScope,
+                watch('synthetic-a3', '103', 1)
+            );
+            const global = [...a3.state.items, ...b.state.items].sort(
+                (a, b) => b.viewedAt - a.viewedAt
+            );
+            assert.deepEqual(
+                global.map((item) =>
+                    item.reference.provider === 'xtream'
+                        ? item.reference.id
+                        : ''
+                ),
+                ['103', '102', '101']
+            );
+            assert.equal(a.state.items[0].viewedAt, 1000);
+            assert.equal(b.state.items[0].viewedAt, 1001);
+            assert.deepEqual(
+                ordered.apply(secondScope, watch('synthetic-b2', '102')),
+                b
+            );
+            const otherDb = new Database(file);
+            try {
+                const other = new SqliteHistoryServerStore(otherDb, allowed);
+                assert.equal(
+                    other.apply(
+                        { ...orderedScope, sourceId: 'source-c' },
+                        watch('synthetic-c4', '104')
+                    ).state.items[0].viewedAt,
+                    1003
+                );
+            } finally {
+                otherDb.close();
+            }
+            Date.now = () => 900;
+            const a5 = ordered.apply(
+                orderedScope,
+                watch('synthetic-a5', '105', 2)
+            );
+            assert.equal(
+                a5.state.items.find(
+                    (item) =>
+                        item.reference.provider === 'xtream' &&
+                        item.reference.id === '105'
+                )!.viewedAt,
+                1004
+            );
+            // An existing server can predate the instance clock and contain future source timestamps.
+            db.prepare(
+                'DELETE FROM history_server_clocks WHERE instance_id = ?'
+            ).run('synthetic-order');
+            db.prepare(
+                "UPDATE history_server_states SET value = json_set(value, '$.items[0].viewedAt', 9000) WHERE scope_key = ?"
+            ).run(historyScopeKey(orderedScope));
+            const b6 = ordered.apply(
+                secondScope,
+                watch('synthetic-b6', '106', 1)
+            );
+            assert.equal(
+                b6.state.items.find(
+                    (item) =>
+                        item.reference.provider === 'xtream' &&
+                        item.reference.id === '106'
+                )!.viewedAt,
+                9001
+            );
+        } finally {
+            Date.now = realNow;
+        }
         assert.throws(
             () => server.apply(scope, { ...add, kind: 'remove' }),
             /reused/
@@ -193,10 +282,21 @@ async function main() {
             "CREATE TRIGGER history_receipt_failure BEFORE INSERT ON history_server_receipts BEGIN SELECT RAISE(ABORT,'synthetic receipt failure'); END"
         );
         const before = server.read(scope);
+        const clocks = db
+            .prepare('SELECT * FROM history_server_clocks ORDER BY instance_id')
+            .all();
         assert.throws(() =>
             server.apply(scope, operation('clear', 'rollback', before.revision))
         );
         assert.deepEqual(server.read(scope), before);
+        assert.deepEqual(
+            db
+                .prepare(
+                    'SELECT * FROM history_server_clocks ORDER BY instance_id'
+                )
+                .all(),
+            clocks
+        );
         db.exec('DROP TRIGGER history_receipt_failure');
         db.close();
         db = new Database(file);
@@ -204,6 +304,17 @@ async function main() {
         local = new SqliteHistoryLocalStore(db, 'nas');
         assert.deepEqual(server.read(scope), before);
         assert.deepEqual(await local.read(scope), saved);
+        try {
+            Date.now = () => 900;
+            const reopened = new SqliteHistoryServerStore(db, () => undefined);
+            const next = reopened.apply(
+                { ...orderedScope, sourceId: 'source-d' },
+                operation('touch', 'synthetic-after-reopen')
+            );
+            assert.equal(next.state.items[0].viewedAt, 9002);
+        } finally {
+            Date.now = realNow;
+        }
         assert.equal(
             server.apply(scope, {
                 ...operation('touch', 'old-other-device'),

@@ -526,7 +526,8 @@ export class PlaylistsService {
     }
 
     private async prepareHistory(playlist: Playlist): Promise<Playlist> {
-        if (playlist && !playlist.serverUrl) await import('./playlist-history');
+        if (playlist && (!playlist.serverUrl || playlist.macAddress))
+            await import('./playlist-history');
         return playlist;
     }
 
