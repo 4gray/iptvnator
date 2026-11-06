@@ -101,6 +101,7 @@ Do not copy unrelated credentials into fixtures or diagnostic scripts.
 Minimum: Tizen TV 5.5 (2020, Chromium 69), the first Samsung engine above the
 shared Chromium 68 build floor. See the [engine table](https://developer.samsung.com/smarttv/develop/specifications/web-engine-specifications.html).
 No Samsung TV is certified yet; use the [acceptance checklist](tv-tizen-validation.md).
+Owners sign and install it themselves in Developer Mode: [Samsung TV guide](../../apps/tv/tizen/README.md).
 
 Install Tizen Studio CLI, Samsung TV Extension and Samsung Certificate Extension
 separately. Put `tizen` (`tizen.bat` on Windows) and `sdb` on PATH. Create a
