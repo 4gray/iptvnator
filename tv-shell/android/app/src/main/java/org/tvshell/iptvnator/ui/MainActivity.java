@@ -236,6 +236,7 @@ public class MainActivity extends Activity {
             public void onPageFinished(WebView view, String url) {
                 boolean first = !pageFinished;
                 pageFinished = true;
+                if (!resumed) js("window.__tvShell && typeof window.__tvShell.setForeground === 'function' && window.__tvShell.setForeground(false)");
                 if (first && !pageReady && errorPanel.getVisibility() != View.VISIBLE) {
                     // The bundle has run: Angular's bootstrap (IndexedDB, playlists) gets a period of its own.
                     armWatchdog();
@@ -377,7 +378,7 @@ public class MainActivity extends Activity {
     /** (Re)starts the ready watchdog for a full period; while paused onResume() does it. */
     private void armWatchdog() {
         handler.removeCallbacks(readyWatchdog);
-        if (!resumed) return; // the page's timers are frozen: it could not report ready
+        if (!resumed) return; // startup time in the background does not count
         handler.postDelayed(readyWatchdog, READY_TIMEOUT_MS);
     }
 
@@ -624,9 +625,9 @@ public class MainActivity extends Activity {
             return;
         }
         webView.onResume();
-        webView.resumeTimers();
+        js("window.__tvShell && typeof window.__tvShell.setForeground === 'function' && window.__tvShell.setForeground(true)");
         if (errorPanel.getVisibility() != View.VISIBLE) webView.requestFocus(View.FOCUS_DOWN);
-        // The page's timers were frozen with the Activity: the start-up budget restarts with them.
+        // Give a foreground startup a fresh ready budget.
         if (!pageReady && errorPanel.getVisibility() != View.VISIBLE) armWatchdog();
         if (SettingsActivity.dataCleared) {
             SettingsActivity.dataCleared = false;
@@ -642,14 +643,12 @@ public class MainActivity extends Activity {
     @Override
     protected void onPause() {
         resumed = false;
-        handler.removeCallbacks(readyWatchdog); // nothing can report ready while the page is frozen
+        handler.removeCallbacks(readyWatchdog); // startup time in the background does not count
         if (webView != null) {
             lastRoute = pageReady ? webView.getUrl() : null;
+            // Keep media events runnable: pauseTimers would also freeze the late-play guard.
+            js("(function(){if(window.__tvShell && typeof window.__tvShell.setForeground === 'function'){window.__tvShell.setForeground(false);}else{document.querySelectorAll('video,audio').forEach(function(media){media.pause();});}})()");
             webView.onPause();
-            // JavaScript timers stop too while another app (VLC, the launcher) is in front: the page's
-            // refresh timers would otherwise keep the renderer busy and growing in the background,
-            // which is what gets a 1 GB stick to kill it. onResume() resumes them.
-            webView.pauseTimers();
         }
         super.onPause();
     }

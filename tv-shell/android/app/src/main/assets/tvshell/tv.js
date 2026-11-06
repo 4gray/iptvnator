@@ -46,6 +46,7 @@
     var prevSession = null; // { pin, seen } of the session before it
     var lastMediaTitle = null;
     var currentVideo = null;
+    var foreground = true;
     var navDepth = 0;
     var exitArmedUntil = 0;
     var lastArrowAt = 0;
@@ -859,6 +860,11 @@
         return true;
     };
 
+    api.setForeground = function (on) {
+        foreground = !!on;
+        if (!foreground) document.querySelectorAll('video,audio').forEach(function (media) { media.pause(); });
+    };
+
     /** Media keys from the remote. */
     api.media = function (action) {
         var media = activeVideo();
@@ -1112,6 +1118,7 @@
         document.addEventListener('play', function (e) {
             var t = e.target;
             if (t && (t.tagName === 'VIDEO' || t.tagName === 'AUDIO')) {
+                if (!foreground) { t.pause(); return; }
                 currentVideo = t;
                 noteMediaUrl(t.currentSrc || t.getAttribute('src'), null, true);
                 lastMediaTitle = document.title;

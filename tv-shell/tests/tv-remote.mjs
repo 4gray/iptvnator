@@ -555,6 +555,18 @@ console.log('9. under the Android bridge: the screen follows playback, error cod
         await wait(600);
         out.currentPlayerError = recent();
         nextPlayer.remove();
+        const backgroundMedia = document.createElement('audio');
+        let pauseCalls = 0;
+        backgroundMedia.pause = () => { pauseCalls++; };
+        document.body.appendChild(backgroundMedia);
+        window.__tvShell.setForeground(false);
+        out.backgroundPause = pauseCalls;
+        backgroundMedia.dispatchEvent(new Event('play'));
+        out.backgroundRetry = pauseCalls;
+        window.__tvShell.setForeground(true);
+        backgroundMedia.dispatchEvent(new Event('play'));
+        out.foregroundPlay = pauseCalls;
+        backgroundMedia.remove();
         return out;
     }, PROVIDER);
     check(r.playing.includes('setKeepScreenOn true'), 'playback keeps the screen on: ' + r.playing.join(' | '));
@@ -574,6 +586,9 @@ console.log('9. under the Android bridge: the screen follows playback, error cod
     check(!r.retriedPlayerError.some((call) => call.startsWith('onPlaybackError ')), 'a fresh attempt of the same source discards the previous delayed error');
     check(!r.changedPlayerError.some((call) => call.startsWith('onPlaybackError ')), 'changing source before loadstart also discards the old error');
     check(r.currentPlayerError.filter((call) => call.startsWith('onPlaybackError ')).length === 1, 'a current unrecovered decode error still offers one recovery prompt');
+    check(r.backgroundPause === 1, 'backgrounding pauses existing media');
+    check(r.backgroundRetry === 2, 'backgrounding blocks a late playback retry');
+    check(r.foregroundPlay === 2, 'returning to foreground permits explicit playback');
     const bridgeFailures = [];
     bridged.on('console', (message) => {
         if (message.text().startsWith('[tvshell]')) bridgeFailures.push(message.text());

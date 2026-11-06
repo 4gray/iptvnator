@@ -118,6 +118,10 @@ network failures as unsupported media.
 Delayed native media errors retain the media element, source and load-attempt
 identity. Removal, replacement, a changed source or another `loadstart` discards
 that error before it can offer recovery for a newer playback attempt.
+Android pauses host-document media on activity pause. `setForeground(false)`
+also blocks late playback retries. WebView media events remain runnable so that
+these retries can be paused. Foreground restoration permits explicit playback;
+it does not automatically restart paused elements.
 
 `PlayerController` remains a sibling of playback diagnostics and recovery
 recommendations. It owns engine-neutral playback state, capabilities, and

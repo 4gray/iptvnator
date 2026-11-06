@@ -268,6 +268,9 @@ node tv-shell/tests/tv-remote.mjs ; node tv-shell/tests/tv-longlist.mjs
 # native document-picker regression: a debug APK must already be installed
 # on an English-language Android emulator (physical devices are excluded)
 ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-file-input.mjs emulator-5554
+
+# native background playback: keep the mock provider running for the synthetic clip
+ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-background-media.mjs emulator-5554
 # the real Java backend on the JDK, without Android (same classes as the APK)
 cd tv-shell/android && ./gradlew :backend:check
 # regenerate the parser fixtures after an iptv-playlist-parser upgrade
