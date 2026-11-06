@@ -3,6 +3,7 @@
     "$schema": "../../node_modules/nx/schemas/project-schema.json",
     "projectType": "application",
     "sourceRoot": "apps/electron-backend-e2e/src",
+    "tags": ["scope:e2e", "domain:electron-main", "type:e2e"],
     "implicitDependencies": [
         "electron-backend",
         "web",
@@ -132,8 +133,15 @@
             }
         },
         "lint": {
-            "executor": "@nx/eslint:lint"
+            "inputs": [
+                "default",
+                "^default",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/.eslintignore",
+                "{workspaceRoot}/eslint.config.mjs",
+                "{workspaceRoot}/tools/eslint-rules/**/*",
+                "{workspaceRoot}/tools/eslint/**/*"
+            ]
         }
-    },
-    "tags": ["scope:e2e", "domain:electron-main", "type:e2e"]
+    }
 }
