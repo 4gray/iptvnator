@@ -37,6 +37,7 @@ import {
     StalkerSelectedVodItem,
     StalkerStore,
     StalkerCollectionMetadataService,
+    mergeStalkerDisplayInfo,
 } from '@iptvnator/portal/stalker/data-access';
 import type { PlaybackFallbackRequest } from '@iptvnator/ui/playback';
 import {
@@ -344,9 +345,13 @@ export class StalkerCollectionDetailComponent implements ViewInPortalHandoff {
         }
 
         const identity = stalkerCollectionPreparationKey(item, playlist);
+        const stalkerItem = this.metadata.item(
+            playlist,
+            resolveStalkerCollectionItem(item)
+        );
         if (identity === this.preparedIdentity && this.itemDetails()) {
             const current = this.itemDetails()!;
-            const enriched = this.metadata.item(playlist, current);
+            const enriched = mergeStalkerDisplayInfo(current, stalkerItem);
             if (enriched !== current)
                 this.stalkerStore.setSelectedItem(enriched);
             return;
@@ -358,10 +363,6 @@ export class StalkerCollectionDetailComponent implements ViewInPortalHandoff {
         }
 
         this.preparedIdentity = identity;
-        const stalkerItem = this.metadata.item(
-            playlist,
-            resolveStalkerCollectionItem(item)
-        );
         const detailMode = resolveStalkerCollectionDetailMode(
             item,
             stalkerItem

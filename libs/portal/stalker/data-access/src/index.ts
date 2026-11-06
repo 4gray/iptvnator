@@ -23,3 +23,4 @@ export * from './lib/stalker-episode-resolver.service';
 
 export * from './lib/stalker-favorite-playback.service';
 export * from './lib/stalker-collection-metadata.service';
+export * from './lib/stalker-display-info';

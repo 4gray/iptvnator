@@ -36,6 +36,7 @@ import {
     createStalkerVodItem,
 } from '@iptvnator/shared/interfaces';
 import { of, Subject } from 'rxjs';
+import { stalkerFavoriteReference } from '@iptvnator/shared/interfaces/favorites-sync';
 import { StalkerCollectionDetailComponent } from './stalker-collection-detail.component';
 import { StalkerInlineDetailComponent } from './stalker-inline-detail/stalker-inline-detail.component';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
@@ -391,8 +392,13 @@ describe('StalkerCollectionDetailComponent', () => {
         const metadata = TestBed.inject(StalkerCollectionMetadataService);
         const revision = signal(0);
         jest.spyOn(metadata, 'revision').mockImplementation(() => revision());
-        jest.spyOn(metadata, 'item').mockImplementation((_source, item) =>
-            revision()
+        jest.spyOn(metadata, 'item').mockImplementation((_source, item) => {
+            expect(stalkerFavoriteReference(item)).toMatchObject({
+                kind: 'series',
+                mode: 'lazy',
+                id: '42',
+            });
+            return revision()
                 ? {
                       ...item,
                       cover: 'https://artwork.example/series.jpg',
@@ -402,8 +408,8 @@ describe('StalkerCollectionDetailComponent', () => {
                           movie_image: 'https://artwork.example/series.jpg',
                       },
                   }
-                : item
-        );
+                : item;
+        });
         fixture.componentRef.setInput(
             'item',
             buildCollectionItem({
