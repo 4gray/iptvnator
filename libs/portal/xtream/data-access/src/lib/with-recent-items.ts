@@ -1,6 +1,6 @@
 import { captureHistoryOwner } from '@iptvnator/services/history-events';
 import { sourceConnection } from '@iptvnator/services/source-sync/connection';
-import { inject, Signal } from '@angular/core';
+import { DestroyRef, inject, Signal } from '@angular/core';
 import {
     patchState,
     signalStoreFeature,
@@ -57,23 +57,41 @@ export const withRecentItems = function () {
         withState<{ recentItems: RecentlyViewedItem[] }>({
             recentItems: [],
         }),
-        withMethods((store, dataSource = inject(XTREAM_DATA_SOURCE)) => ({
-            loadRecentItems: rxMethod<{ id: string }>(
+        withMethods((store, dataSource = inject(XTREAM_DATA_SOURCE)) => {
+            let refresh: (() => void) | undefined;
+            const changes = new AbortController();
+            window.addEventListener(
+                'iptvnator-history-changed',
+                () => refresh?.(),
+                { signal: changes.signal }
+            );
+            inject(DestroyRef).onDestroy(() => changes.abort());
+            const loadRecentItems = rxMethod<{ id: string }>(
                 pipe(
                     switchMap(async (playlist) => {
+                        const current = captureHistoryOwner(
+                            sourceConnection()?.instanceId,
+                            playlist.id,
+                            () => sourceConnection()?.instanceId
+                        );
+                        refresh = () => {
+                            if (current()) loadRecentItems(playlist);
+                        };
                         const items = await dataSource.getRecentItems(
                             playlist.id
                         );
+                        if (!current()) return null;
                         return items.map((item) =>
                             mapDbRecentItem(item, playlist.id)
                         );
                     }),
-                    tap((items: RecentlyViewedItem[]) =>
-                        patchState(store, { recentItems: items })
-                    )
+                    tap((items) => {
+                        if (items) patchState(store, { recentItems: items });
+                    })
                 )
-            ),
-        })),
+            );
+            return { loadRecentItems };
+        }),
         withMethods(
             (
                 store,

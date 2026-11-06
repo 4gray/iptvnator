@@ -1246,6 +1246,9 @@ verified history sources, including native playback without a SQLite content row
 Ordinary native sources still require that row; metadata backfill remains row-only.
 The series detail menu can hide portable history without a native catalog row,
 using the typed provider ID and the same source/profile ownership fence.
+The active recent-items cache reloads on shared-history invalidation, keeping an
+open series menu's Hide action current. Reloads discard retired source/profile
+results, and the store removes its listener when destroyed.
 Both active-store and late-confirmation writers recheck source ownership after
 asynchronous lookups. Shared native Dashboard rows retain TMDB, year and original
 title hints. Cold PWA history reuses the favorites typed-catalog loader and

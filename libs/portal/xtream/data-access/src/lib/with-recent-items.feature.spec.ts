@@ -2,6 +2,10 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { signalStore } from '@ngrx/signals';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    CONNECTION_KEY,
+    prepareSourceConnection,
+} from '@iptvnator/services/source-sync/connection';
 import { XTREAM_DATA_SOURCE } from './data-sources/xtream-data-source.interface';
 import { withRecentItems } from './with-recent-items';
 
@@ -68,6 +72,82 @@ describe('withRecentItems', () => {
             writable: true,
             value: originalElectron,
         });
+    });
+
+    it('refreshes the loaded source after history changes and detaches on destroy', async () => {
+        dataSource.getRecentItems.mockResolvedValue([]);
+        store.loadRecentItems({ id: 'synthetic-source' });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(store.recentItems()).toEqual([]);
+        dataSource.getRecentItems.mockResolvedValue([
+            {
+                id: null,
+                xtream_id: 42,
+                type: 'series',
+                title: 'Synthetic shared series',
+                poster_url: '',
+                category_id: '',
+            },
+        ]);
+        window.dispatchEvent(new Event('iptvnator-history-changed'));
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(store.recentItems()).toEqual([
+            expect.objectContaining({ xtream_id: 42, type: 'series' }),
+        ]);
+        dataSource.getRecentItems.mockResolvedValue([]);
+        window.dispatchEvent(new Event('iptvnator-history-changed'));
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(store.recentItems()).toEqual([]);
+        const calls = dataSource.getRecentItems.mock.calls.length;
+        TestBed.resetTestingModule();
+        window.dispatchEvent(new Event('iptvnator-history-changed'));
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(dataSource.getRecentItems).toHaveBeenCalledTimes(calls);
+    });
+
+    it('discards a delayed history reload and stops refreshing a replaced source', async () => {
+        const connection = localStorage.getItem(CONNECTION_KEY);
+        const key =
+            'iptvnator-server:synthetic-instance:history-source-epoch:synthetic-source';
+        const epoch = localStorage.getItem(key);
+        try {
+            localStorage.setItem(
+                CONNECTION_KEY,
+                JSON.stringify({
+                    apiUrl: 'https://history.example/api',
+                    instanceId: 'synthetic-instance',
+                })
+            );
+            await prepareSourceConnection();
+            let complete!: (items: unknown[]) => void;
+            dataSource.getRecentItems.mockReturnValue(
+                new Promise((resolve) => {
+                    complete = resolve;
+                })
+            );
+            store.loadRecentItems({ id: 'synthetic-source' });
+            localStorage.setItem(key, 'replacement');
+            complete([
+                {
+                    id: 42,
+                    xtream_id: 42,
+                    type: 'series',
+                    title: 'Synthetic retired series',
+                },
+            ]);
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            expect(store.recentItems()).toEqual([]);
+            const calls = dataSource.getRecentItems.mock.calls.length;
+            window.dispatchEvent(new Event('iptvnator-history-changed'));
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            expect(dataSource.getRecentItems).toHaveBeenCalledTimes(calls);
+        } finally {
+            if (connection == null) localStorage.removeItem(CONNECTION_KEY);
+            else localStorage.setItem(CONNECTION_KEY, connection);
+            if (epoch == null) localStorage.removeItem(key);
+            else localStorage.setItem(key, epoch);
+            await prepareSourceConnection();
+        }
     });
 
     it('keeps a missing native row ID separate from the display key', async () => {
