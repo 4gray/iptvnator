@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import type { PlaylistBackupManifestV1 } from '@iptvnator/shared/interfaces';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -223,6 +224,114 @@ for (const provider of ['xtream', 'stalker'] as const)
             await expect(contentCardByTitle(page, title)).toHaveCount(0, {
                 timeout: 30000,
             });
+            if (provider === 'xtream') {
+                const received = await read();
+                const retainedTitle = 'Synthetic retained backup item';
+                const added = await fetch(
+                    `${server.apiUrl}/v1/history/operations`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-IPTVnator-Instance-Id': instanceId,
+                        },
+                        body: JSON.stringify({
+                            scope: received.scope,
+                            operation: {
+                                kind: 'touch',
+                                operationId: 'synthetic-backup-history',
+                                deviceId: 'synthetic-backup-device',
+                                baseRevision: received.state.revision,
+                                viewedAt: Date.now(),
+                                reference: {
+                                    provider: 'xtream',
+                                    kind: 'movie',
+                                    id: '987654321',
+                                },
+                                snapshot: { title: retainedTitle },
+                            },
+                        }),
+                    }
+                );
+                expect(added.ok).toBe(true);
+                await openSources(native);
+                await openGlobalRecent(native);
+                await expect(
+                    contentCardByTitle(native, retainedTitle)
+                ).toBeVisible({ timeout: 30000 });
+                const beforeRestore = JSON.stringify((await read()).state);
+                const source = inventory.entries[0].source;
+                const backup: PlaylistBackupManifestV1 = {
+                    kind: 'iptvnator-playlist-backup',
+                    version: 1,
+                    exportedAt: new Date().toISOString(),
+                    includeSecrets: true,
+                    playlists: [
+                        {
+                            portalType: 'm3u',
+                            exportedId: 'synthetic-new-backup-source',
+                            title: 'Synthetic backup source',
+                            autoRefresh: false,
+                            source: {
+                                kind: 'text',
+                                rawM3u: '#EXTM3U\n#EXTINF:-1,Synthetic backup channel\nhttps://history.example/backup-stream',
+                            },
+                            userState: {
+                                favorites: [],
+                                recentlyViewed: [],
+                                hiddenGroupTitles: [],
+                            },
+                        },
+                        {
+                            portalType: 'xtream',
+                            exportedId: id,
+                            title: 'Synthetic shared history',
+                            autoRefresh: false,
+                            connection: {
+                                serverUrl: source.serverUrl,
+                                username: source.username,
+                                password: source.password,
+                            },
+                            userState: {
+                                favorites: [],
+                                recentlyViewed: [],
+                                hiddenCategories: [],
+                                playbackPositions: [],
+                            },
+                        },
+                    ],
+                };
+                const path = join(
+                    directory,
+                    'synthetic-mixed-history-backup.json'
+                );
+                writeFileSync(path, JSON.stringify(backup));
+                await openSettings(native);
+                await openSettingsSection(native, 'backup');
+                const chooser = native.waitForEvent('filechooser');
+                await native
+                    .locator('#backup')
+                    .getByRole('button', { name: 'Import', exact: true })
+                    .click();
+                await (await chooser).setFiles(path);
+                await expect(
+                    native.getByText(
+                        /Backup import finished: 1 imported, 1 merged/
+                    )
+                ).toBeVisible({ timeout: 30000 });
+                await openGlobalRecent(native);
+                await expect(
+                    contentCardByTitle(native, retainedTitle)
+                ).toHaveCount(0);
+                expect(JSON.stringify((await read()).state)).toBe(
+                    beforeRestore
+                );
+                await openSources(page);
+                await openGlobalRecent(page);
+                await expect(
+                    contentCardByTitle(page, retainedTitle)
+                ).toBeVisible({ timeout: 30000 });
+            }
             const json = JSON.stringify((await read()).state);
             expect(json).not.toContain('cmd');
             expect(json).not.toContain('marketing');

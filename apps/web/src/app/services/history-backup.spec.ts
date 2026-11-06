@@ -101,7 +101,7 @@ describe('durable history backup', () => {
             exported.userState.recentlyViewed.map((item) => item.xtreamId)
         ).toEqual([41, 42]);
         await createHistoryBackupRestorer(
-            f.client,
+            () => f.client,
             {} as never,
             async () => source
         )('source', f.entry);
@@ -188,7 +188,7 @@ describe('durable history backup', () => {
                 exported.userState.recentlyViewed[0].collectionItem
             ).toMatchObject({ catalog_missing_reason: 'identity_conflict' });
             await createHistoryBackupRestorer(
-                f.client,
+                () => f.client,
                 {} as never,
                 async () => source
             )('source', exported);
@@ -281,7 +281,7 @@ describe('durable history backup', () => {
             },
         ];
         const restore = createHistoryBackupRestorer(
-            f.client,
+            () => f.client,
             {} as never,
             async () => source
         );
@@ -302,7 +302,7 @@ describe('durable history backup', () => {
     it('rejects a restorer captured before a source replacement', async () => {
         const f = fixture();
         const restore = createHistoryBackupRestorer(
-            f.client,
+            () => f.client,
             {} as never,
             async () => source
         );

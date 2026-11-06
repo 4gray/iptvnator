@@ -341,8 +341,11 @@ export class HistorySyncRuntime {
         );
     }
     backupRestorer() {
-        return createHistoryBackupRestorer(this.ensure(), this.adapter!, (id) =>
-            firstValueFrom(this.playlists.getPlaylistById(id))
+        this.ensure();
+        return createHistoryBackupRestorer(
+            () => this.ensure(),
+            this.adapter!,
+            (id) => firstValueFrom(this.playlists.getPlaylistById(id))
         );
     }
     async previewImport(): Promise<HistoryPreview> {

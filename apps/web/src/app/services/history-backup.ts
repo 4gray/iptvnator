@@ -119,12 +119,13 @@ export async function projectHistoryBackup(
 
 /** Backup restore replaces the local copy, while shared state and queued server commands retain their owners. */
 export function createHistoryBackupRestorer(
-    client: HistorySyncClient,
+    getClient: () => HistorySyncClient,
     adapter: HistoryPlaylistAdapter,
     read: (id: string) => Promise<Playlist>
 ) {
-    const contexts = new Map(client.contexts);
-    const generation = client.options.consent();
+    const initial = getClient();
+    const contexts = new Map(initial.contexts);
+    const generation = initial.options.consent();
     return async (
         sourceId: string,
         entry: PlaylistBackupEntry
@@ -132,9 +133,14 @@ export function createHistoryBackupRestorer(
         const scope = contexts.get(sourceId);
         if (!scope) return;
         const current = () => {
+            const client = getClient();
             client.current(scope);
-            if (client.options.consent() !== generation)
+            if (
+                client.options.instanceId !== scope.instanceId ||
+                client.options.consent() !== generation
+            )
                 throw new Error('History restore expired');
+            return client;
         };
         current();
         const items =
@@ -167,7 +173,7 @@ export function createHistoryBackupRestorer(
                           recentlyViewed: entry.userState.recentlyViewed,
                       })
                   ).items;
-        current();
+        const client = current();
         const clear: HistoryOperation = {
             kind: 'clear',
             operationId: createRandomId(),

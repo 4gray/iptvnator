@@ -480,6 +480,8 @@ round trip cannot make a rejected provider identity available again.
 
 Restore replaces the local history copy for previously verified sources and
 rebuilds its explicit-import archive. It preserves shared revisions and existing
-queued server operations; it creates no new uploads or consent. A captured source
-incarnation and consent guard delayed restore work. Sources without a history
-context retain the existing raw archive restore. The manifest stays version 1.
+queued server operations; it creates no new uploads or consent. Each target's
+captured profile, incarnation and consent guard delayed restore work. The client
+can renew after unrelated source changes without invalidating that target.
+Sources without a history context retain the existing raw archive restore.
+The manifest stays version 1.

@@ -1,7 +1,10 @@
 import { EnvironmentInjector } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { prepareSourceConnection } from '@iptvnator/services/source-sync/connection';
-import { favoriteSourceRetirementKey } from '@iptvnator/services/favorites-sync';
+import {
+    favoriteSourceRetirementKey,
+    retireFavoriteSourceContext,
+} from '@iptvnator/services/favorites-sync';
 import { historyScopeKey } from '@iptvnator/shared/interfaces/history-sync';
 import type {
     XtreamPlaylistBackupEntry,
@@ -113,6 +116,99 @@ describe('history consent, recovery and user actions', () => {
             expect(f.runtime.enabled()).toBe(false);
             expect(f.runtime.state()).toBe('disabled');
             expect(f.dispatch).toHaveBeenCalled();
+        }
+    );
+
+    it.each([true, false])(
+        'restores an unchanged source after creating or retiring another source, native=%s',
+        async (native) => {
+            const f = await historyRuntimeFixture(native);
+            await f.runtime.setEnabled(true);
+            await f.runtime.importHistory(await f.runtime.previewImport());
+            const restore = f.runtime.backupRestorer();
+            const requests = f.request.mock.calls.length;
+            const base = f.records.get(historyScopeKey(f.scopes[1]))!.base;
+            retireFavoriteSourceContext(
+                historyInstance,
+                'synthetic-new-source'
+            );
+            f.raw.getRecentItems.mockResolvedValue([]);
+            await restore(f.portal._id, {
+                portalType: 'xtream',
+                userState: { recentlyViewed: [] },
+            } as unknown as XtreamPlaylistBackupEntry);
+            expect(
+                await f.runtime.invoke(f.raw as never, 'getRecentItems', [
+                    f.portal._id,
+                ])
+            ).toEqual([]);
+            expect(f.records.get(historyScopeKey(f.scopes[1]))!.base).toEqual(
+                base
+            );
+            retireFavoriteSourceContext(historyInstance, f.portal._id);
+            await restore(f.playlist._id, {
+                portalType: 'm3u',
+                userState: { recentlyViewed: [] },
+            } as unknown as PlaylistBackupEntry);
+            expect(
+                (await f.runtime.project(f.playlist)).recentlyViewed
+            ).toEqual([]);
+            expect(f.request).toHaveBeenCalledTimes(requests);
+        }
+    );
+
+    it.each(['source', 'consent', 'profile'] as const)(
+        'rejects a renewed backup restorer when its %s changes',
+        async (change) => {
+            const f = await historyRuntimeFixture();
+            await f.runtime.setEnabled(true);
+            const restore = f.runtime.backupRestorer();
+            const records = JSON.stringify([...f.records]);
+            retireFavoriteSourceContext(
+                historyInstance,
+                'synthetic-new-source'
+            );
+            if (change === 'source')
+                retireFavoriteSourceContext(historyInstance, f.portal._id);
+            else if (change === 'consent')
+                localStorage.setItem(
+                    historyConsent,
+                    JSON.stringify({
+                        ...JSON.parse(localStorage.getItem(historyConsent)!),
+                        generation: 'synthetic-replacement',
+                    })
+                );
+            else {
+                const next = 'synthetic-other-instance';
+                localStorage.setItem(
+                    'iptvnator:source-server',
+                    JSON.stringify({
+                        apiUrl: 'https://history.example/api',
+                        instanceId: next,
+                    })
+                );
+                localStorage.setItem(
+                    `iptvnator-server:${next}:history-consent-v1`,
+                    localStorage.getItem(historyConsent)!
+                );
+                localStorage.setItem(
+                    `iptvnator-server:${next}:history-contexts-v1`,
+                    JSON.stringify(
+                        f.scopes.map((scope) => ({
+                            ...scope,
+                            instanceId: next,
+                        }))
+                    )
+                );
+                await prepareSourceConnection();
+            }
+            await expect(
+                restore(f.portal._id, {
+                    portalType: 'xtream',
+                    userState: { recentlyViewed: [] },
+                } as unknown as XtreamPlaylistBackupEntry)
+            ).rejects.toThrow();
+            expect(JSON.stringify([...f.records])).toBe(records);
         }
     );
 
