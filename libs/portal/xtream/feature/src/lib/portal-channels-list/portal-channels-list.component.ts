@@ -27,8 +27,8 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
-import { Subscription } from 'rxjs';
-import { debounceTime } from 'rxjs/operators';
+import { EMPTY, fromEvent, merge, of, Subscription } from 'rxjs';
+import { catchError, debounceTime, filter, switchMap } from 'rxjs/operators';
 import {
     foldSearchText,
     buildXtreamEpgMappingKey,
@@ -54,6 +54,7 @@ import { EpgQueueService } from '@iptvnator/portal/xtream/data-access';
 import { FavoritesService } from '@iptvnator/portal/xtream/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import {
+    EpgPreferencesService,
     EpgSourceSettingsService,
     RuntimeCapabilitiesService,
     SettingsStore,
@@ -134,15 +135,24 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     private readonly epgQueueService = inject(EpgQueueService);
     private readonly route = inject(ActivatedRoute);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly epgPreferences = inject(EpgPreferencesService);
     private readonly dialog = inject(MatDialog);
 
     readonly channelContextMenu = viewChild.required(
         ChannelContextMenuComponent
     );
     readonly contextMenuChannel = signal<XtreamChannelListItem | null>(null);
-    readonly supportsProviderEpg = this.runtime.supportsProviderEpg;
-    readonly supportsEpgMapping = this.runtime.supportsEpgMapping;
-    readonly channelItemSize = this.supportsProviderEpg ? 68 : 52;
+    get supportsProviderEpg(): boolean {
+        return (
+            this.epgPreferences.enabled() && this.runtime.supportsProviderEpg
+        );
+    }
+    get supportsEpgMapping(): boolean {
+        return this.epgPreferences.enabled() && this.runtime.supportsEpgMapping;
+    }
+    get channelItemSize(): number {
+        return this.supportsProviderEpg ? 68 : 52;
+    }
     readonly isSelectedTypeContentLoading =
         this.xtreamStore.selectedTypeContentLoading;
     readonly channels = computed(() => {
@@ -327,17 +337,32 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
 
         const playlist = this.xtreamStore.currentPlaylist();
         if (playlist) {
-            this.favoritesService
-                .getFavorites(playlist.id)
-                .subscribe((favorites) => {
-                    favorites.forEach((fav) => {
-                        this.favorites.set(
-                            this.getFavoriteKey(fav.xtream_id, fav.type),
-                            true
-                        );
-                    });
-                    this.cdr.markForCheck();
-                });
+            this.subscriptions.add(
+                merge(
+                    of(null),
+                    fromEvent(window, 'iptvnator-favorites-changed'),
+                    this.favoriteMarks.changes$.pipe(
+                        filter((change) => change.playlistId === playlist.id)
+                    )
+                )
+                    .pipe(
+                        switchMap(() =>
+                            this.favoritesService
+                                .getFavorites(playlist.id)
+                                .pipe(catchError(() => EMPTY))
+                        )
+                    )
+                    .subscribe((favorites) => {
+                        this.favorites.clear();
+                        favorites.forEach((fav) => {
+                            this.favorites.set(
+                                this.getFavoriteKey(fav.xtream_id, fav.type),
+                                true
+                            );
+                        });
+                        this.cdr.markForCheck();
+                    })
+            );
             // A toggle in another list instance (the sidebar and the
             // fullscreen channel panel render this component side by side)
             // must reach this instance's hearts too.
@@ -356,10 +381,11 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
             );
         }
 
-        if (this.supportsProviderEpg) {
+        if (this.runtime.supportsProviderEpg) {
             this.subscriptions.add(
                 this.epgQueueService.epgResult$.subscribe(
                     ({ streamId, items }) => {
+                        if (!this.supportsProviderEpg) return;
                         // The earliest-item fallback belongs to a row that has
                         // nothing to show yet. Once a row holds a programme,
                         // only one on air or upcoming may replace it: a refill
@@ -386,7 +412,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     ngAfterViewInit() {
         const vp = this.viewport();
         if (
-            this.supportsProviderEpg &&
+            this.runtime.supportsProviderEpg &&
             vp &&
             this.xtreamStore.selectedContentType() === 'live'
         ) {

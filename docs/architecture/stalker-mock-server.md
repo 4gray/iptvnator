@@ -200,6 +200,13 @@ marker and an `ffrt4://radio/...` command.
 
 ### `get_ordered_list` (seasons — when `movie_id` is present)
 
+The isolated #1844 pagination fixture uses MAC `00:1A:79:18:44:02` and
+`Fixture Paginated` (`movie_id=30`). It serves 20 seasons (IDs 301–320), each
+with 58 episodes in descending order, always paged at 14 rows regardless of
+client hints. The Electron lazy-VOD regression verifies episode 1, episode 58,
+season 20 and playback of season 20's final episode through both portal modes.
+The original `00:1A:79:18:44:01` episode/file-ID fixture remains unchanged.
+
 ```json
 {
   "js": [
@@ -233,7 +240,7 @@ marker and an `ffrt4://radio/...` command.
 }
 ```
 
-The stream URL is selected from a pool of 4 real public HLS test streams. The choice is deterministic based on the `cmd` field's character sum, so the same item always returns the same stream.
+The default video stream URL is selected from a pool of 4 public HLS test streams, deterministically from the `cmd` character sum. Default radio uses the local progressive `/stream/audio.mp4` fixture, because a bare Chromium audio element cannot play HLS. Credential-gated and TV scenarios retain their own media routes.
 
 `cmd_received` and `query_keys_received` are mock-only diagnostics (a real
 portal does not send them): they echo the request's `cmd` after Express' single

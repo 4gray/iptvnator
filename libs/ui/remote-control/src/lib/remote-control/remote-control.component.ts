@@ -5,6 +5,7 @@ import {
     OnInit,
     inject,
     ChangeDetectionStrategy,
+    ChangeDetectorRef,
 } from '@angular/core';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
@@ -22,13 +23,16 @@ const PORTAL_LABEL_KEYS: Readonly<Record<string, string>> = {
     selector: 'lib-remote-control',
     imports: [CommonModule, TranslatePipe],
     templateUrl: './remote-control.component.html',
-    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrls: ['./remote-control.component.scss'],
 })
 export class RemoteControlComponent implements OnInit, OnDestroy {
     private remoteControlService = inject(RemoteControlService);
+    private readonly changeDetector = inject(ChangeDetectorRef);
     private statusRefreshTimer?: number;
+    private destroyed = false;
+    private statusRequestId = 0;
+    private activeStatusRequest: number | null = null;
 
     isLoading = false;
     isStatusLoading = false;
@@ -41,12 +45,19 @@ export class RemoteControlComponent implements OnInit, OnDestroy {
     ngOnInit(): void {
         void this.refreshStatus();
         this.statusRefreshTimer = window.setInterval(() => {
-            void this.refreshStatus(true);
+            if (
+                !this.destroyed &&
+                !this.isLoading &&
+                this.activeStatusRequest === null
+            ) {
+                void this.refreshStatus(true);
+            }
         }, 2000);
     }
 
     ngOnDestroy(): void {
-        if (this.statusRefreshTimer) {
+        this.destroyed = true;
+        if (this.statusRefreshTimer !== undefined) {
             clearInterval(this.statusRefreshTimer);
             this.statusRefreshTimer = undefined;
         }
@@ -92,7 +103,10 @@ export class RemoteControlComponent implements OnInit, OnDestroy {
                 this.remoteControlService.selectChannelByNumber(channelNumber),
             'REMOTE_CONTROL.ERRORS.SELECT_NUMBER'
         );
-        this.clearDigits();
+        if (!this.destroyed) {
+            this.clearDigits();
+            this.changeDetector.markForCheck();
+        }
     }
 
     async volumeUp(): Promise<void> {
@@ -140,19 +154,34 @@ export class RemoteControlComponent implements OnInit, OnDestroy {
     }
 
     private async refreshStatus(silent = false): Promise<void> {
+        if (this.destroyed) return;
+        const requestId = ++this.statusRequestId;
+        this.activeStatusRequest = requestId;
         if (!silent) {
             this.isStatusLoading = true;
+            this.changeDetector.markForCheck();
         }
         try {
-            this.status = await this.remoteControlService.getStatus();
+            const status = await this.remoteControlService.getStatus();
+            if (!this.destroyed && requestId === this.statusRequestId) {
+                this.status = status;
+            }
         } catch (err) {
-            if (!silent) {
+            if (
+                !this.destroyed &&
+                requestId === this.statusRequestId &&
+                !silent
+            ) {
                 this.error = 'REMOTE_CONTROL.ERRORS.STATUS';
                 console.error(err);
             }
         } finally {
-            if (!silent) {
-                this.isStatusLoading = false;
+            if (!this.destroyed && requestId === this.statusRequestId) {
+                this.activeStatusRequest = null;
+                if (!silent) {
+                    this.isStatusLoading = false;
+                }
+                this.changeDetector.markForCheck();
             }
         }
     }
@@ -161,16 +190,29 @@ export class RemoteControlComponent implements OnInit, OnDestroy {
         action: () => Promise<void>,
         errorKey: string
     ): Promise<void> {
+        if (this.destroyed || this.isLoading) return;
+        // A poll started before this action must never restore its older status.
+        ++this.statusRequestId;
+        this.activeStatusRequest = null;
+        this.isStatusLoading = false;
         this.isLoading = true;
         this.error = null;
+        this.changeDetector.markForCheck();
         try {
             await action();
-            await this.refreshStatus(true);
+            if (!this.destroyed) {
+                await this.refreshStatus(true);
+            }
         } catch (err) {
-            this.error = errorKey;
-            console.error(err);
+            if (!this.destroyed) {
+                this.error = errorKey;
+                console.error(err);
+            }
         } finally {
-            this.isLoading = false;
+            if (!this.destroyed) {
+                this.isLoading = false;
+                this.changeDetector.markForCheck();
+            }
         }
     }
 }

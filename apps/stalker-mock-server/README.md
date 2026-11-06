@@ -12,6 +12,11 @@ The mock server speaks the same `portal.php` HTTP protocol as a real Stalker por
 
 ## Quick Start
 
+MAC `00:1A:79:18:44:03` supplies `Signal House (1-9 season)` as a VOD item
+with one embedded 189-episode array, without season boundaries or `is_series`.
+It exercises flat collection labels, TMDB guards and persisted episode identity
+in `stalker-flat-series.e2e.ts`.
+
 ```bash
 # Start the mock server (port 3210)
 nx serve stalker-mock-server

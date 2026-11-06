@@ -60,10 +60,11 @@ export class StalkerCollectionFavoritesController {
                     item as StalkerPortalItem,
                     onDone
                 ),
-            removeFromFavorites: (favoriteId, onDone) =>
+            removeFromFavorites: (favoriteId, onDone, context) =>
                 this.config.stalkerStore.removeFromFavorites(
                     favoriteId,
-                    onDone
+                    onDone,
+                    context
                 ),
             onComplete: () => {
                 this.refreshTrigger.refresh();

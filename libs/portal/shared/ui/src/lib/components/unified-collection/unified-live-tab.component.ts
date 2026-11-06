@@ -60,7 +60,10 @@ import {
     UnifiedLiveTimeshift,
 } from './unified-live-catchup';
 import { createUnifiedLiveChannelRows } from './unified-live-channel-rows';
-import { createUnifiedLiveEpgMap } from './unified-live-epg-map';
+import {
+    createUnifiedLiveEpgMap,
+    createUnifiedLiveEpgVisibility,
+} from './unified-live-epg-map';
 import { createUnifiedLiveEpgView } from './unified-live-epg-view';
 import { createUnifiedLiveRecording } from './unified-live-recording-metadata';
 import { createUnifiedLiveSelection } from './unified-live-selection';
@@ -125,11 +128,8 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     private readonly router = inject(Router);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
 
+    readonly epgVisibility = createUnifiedLiveEpgVisibility();
     readonly supportsEpg = this.runtime.supportsEpg;
-    private readonly supportsProviderEpg = this.runtime.supportsProviderEpg;
-    /** Some row can carry a programme: XMLTV for M3U, the portal guide otherwise. */
-    protected readonly supportsAnyEpg =
-        this.supportsEpg || this.supportsProviderEpg;
 
     private readonly fullscreenChannelPanelTemplate = viewChild<
         TemplateRef<FullscreenChannelPanelContext>
@@ -182,8 +182,8 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
         () =>
             !this.isRadioSelection() &&
             (this.view.isM3uSelection()
-                ? this.supportsEpg
-                : this.supportsProviderEpg)
+                ? this.epgVisibility.xmltv
+                : this.epgVisibility.provider)
     );
 
     private readonly catchup = createUnifiedLiveCatchup({
@@ -230,7 +230,8 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     readonly recordingMetadata = this.recording.metadata;
 
     private readonly epgPrograms = createUnifiedLiveEpgMap({
-        supportsEpg: this.supportsAnyEpg,
+        supportsEpg:
+            this.runtime.supportsEpg || this.runtime.supportsProviderEpg,
         items: this.items,
         offsetMinutes: this.epgView.offsetMinutes,
     });
@@ -243,8 +244,8 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
         activeTimeshift: this.activeTimeshift,
         isSelecting: this.isSelecting,
         generation: this.generation,
-        supportsEpg: this.supportsEpg,
-        supportsProviderEpg: this.supportsProviderEpg,
+        supportsEpg: this.runtime.supportsEpg,
+        supportsProviderEpg: this.runtime.supportsProviderEpg,
         isRadioDetail: (detail) => this.view.isRadioDetail(detail),
         shouldOpenExternalPlayback: (detail, startPlayback) =>
             this.view.shouldOpenExternalPlayback(detail, startPlayback),
@@ -265,7 +266,7 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     constructor() {
         effect(() => {
             const items = this.items();
-            if (this.supportsAnyEpg) {
+            if (this.epgVisibility.any) {
                 this.epgPrograms.load(items);
             } else {
                 this.epgPrograms.clear();

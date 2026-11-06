@@ -46,6 +46,22 @@ describe('PWA Xtream collection identity', () => {
             types.map((type) => source.getContent('p1', credentials, type))
         );
     const read = (key: string) => JSON.parse(localStorage.getItem(key) ?? '{}');
+    const exportBackup = () =>
+        new PwaXtreamBackupStorage(
+            TestBed.inject(USER_DATA_STORAGE)
+        ).exportInto({
+            portalType: 'xtream',
+            exportedId: 'p1',
+            title: 'Synthetic portal',
+            autoRefresh: false,
+            connection: credentials,
+            userState: {
+                hiddenCategories: [],
+                favorites: [],
+                recentlyViewed: [],
+                playbackPositions: [],
+            },
+        });
     const seedLegacyCollection = (otherIds: number[] = []) => {
         const ids = [42, ...otherIds];
         localStorage.setItem('xtream-favorites', JSON.stringify({ p1: ids }));
@@ -316,7 +332,7 @@ describe('PWA Xtream collection identity', () => {
         }
     );
 
-    it('preserves restored colliding types through hydration and clear/restore', async () => {
+    it('preserves restored colliding types through hydration and backup export/restore', async () => {
         await source.restoreUserData('p1', {
             hiddenCategories: [],
             playbackPositions: [],
@@ -336,18 +352,27 @@ describe('PWA Xtream collection identity', () => {
         expect(
             (await source.getRecentItems('p1')).map((item) => item.type)
         ).toEqual(['series', 'movie', 'live']);
-        const backup = await source.clearPlaylistContent('p1');
-        expect(backup.favorites).toEqual(
-            types.map((contentType) => ({ contentType, xtreamId: 42 }))
-        );
-        expect(backup.recentlyViewed.map((item) => item.contentType)).toEqual(
-            types
-        );
+        const backup = exportBackup();
+        expect(
+            backup.userState.favorites.map(({ contentType, xtreamId }) => ({
+                contentType,
+                xtreamId,
+            }))
+        ).toEqual(types.map((contentType) => ({ contentType, xtreamId: 42 })));
+        expect(
+            backup.userState.recentlyViewed.map((item) => item.contentType)
+        ).toEqual(types);
+        localStorage.clear();
         reload();
-        await source.restoreUserData('p1', backup);
+        await new PwaXtreamBackupStorage(
+            TestBed.inject(USER_DATA_STORAGE)
+        ).restore('p1', backup.userState, backup);
         expect(
             (await source.getFavorites('p1')).map((item) => item.type)
         ).toEqual(types);
+        expect(
+            (await source.getRecentItems('p1')).map((item) => item.type)
+        ).toEqual(['series', 'movie', 'live']);
     });
 
     it('restores playback positions under the playlist they are restored to', async () => {
@@ -692,7 +717,8 @@ describe('PWA Xtream collection identity', () => {
                 tmdb_id: 200,
                 poster_url: 'new.jpg',
             } as XtreamContentItem;
-            await source.saveContent('p1', [replacement], 'movie');
+            api.getStreams.mockResolvedValueOnce([replacement]);
+            await source.getContent('p1', credentials, 'movie');
             await source.getFavorites('p1');
             // A replacement detail heart cannot remove or claim the original favorite.
             expect(
@@ -738,16 +764,15 @@ describe('PWA Xtream collection identity', () => {
                 credentials,
                 'movie'
             );
-            const original = cached as XtreamContentItem;
-            original.tmdb_id = 100;
+            const original = { ...cached, tmdb_id: 100 } as XtreamContentItem;
             const expected = { title: 'Replacement', tmdb_id: 200 };
-            await source.saveContent('p1', [original], 'movie');
+            source.clearSessionCache('p1');
+            api.getStreams.mockResolvedValueOnce([original]);
+            await source.getContent('p1', credentials, 'movie');
             await source.addRecentItem(ref, 'p1');
-            await source.saveContent(
-                'p1',
-                [{ ...original, ...expected }],
-                'movie'
-            );
+            source.clearSessionCache('p1');
+            api.getStreams.mockResolvedValueOnce([{ ...original, ...expected }]);
+            await source.getContent('p1', credentials, 'movie');
             await source.getRecentItems('p1');
             await source.removeRecentItem(ref, 'p1');
             if (quota) {
@@ -853,8 +878,8 @@ describe('PWA Xtream collection identity', () => {
             TestBed.inject(USER_DATA_STORAGE)
         ).restore('p1', backup.userState, backup);
         await verify();
-        const pending = await source.clearPlaylistContent('p1');
-        await source.restoreUserData('p1', pending);
+        source.clearSessionCache('p1');
+        await source.restoreUserData('p1', exportBackup().userState);
         await verify();
     });
 
@@ -889,7 +914,7 @@ describe('PWA Xtream collection identity', () => {
         ).toEqual(['movie']);
     });
 
-    it('keeps the artwork saved with each view through clear/restore', async () => {
+    it('keeps the artwork saved with each view through backup export/restore', async () => {
         await source.restoreUserData('p1', {
             hiddenCategories: [],
             playbackPositions: [],
@@ -911,8 +936,8 @@ describe('PWA Xtream collection identity', () => {
             },
         ]);
 
-        const backup = await source.clearPlaylistContent('p1');
-        expect(backup.recentlyViewed).toEqual([
+        const backup = exportBackup();
+        expect(backup.userState.recentlyViewed).toEqual([
             {
                 contentType: 'movie',
                 xtreamId: 42,
@@ -920,6 +945,12 @@ describe('PWA Xtream collection identity', () => {
                 backdropUrl: 'https://img.example.com/still.jpg',
             },
         ]);
+        localStorage.clear();
+        reload();
+        await source.restoreUserData('p1', backup.userState);
+        expect(read('xtream-recent-items').p1[0].backdropUrl).toBe(
+            'https://img.example.com/still.jpg'
+        );
     });
 
     it('preserves ambiguous numeric legacy entries without selecting the last matching type', async () => {

@@ -5,6 +5,44 @@ import {
 } from './electron-xtream-data-source.test-helpers';
 
 describe('Electron Xtream catalog selection', () => {
+    it('forwards a category-qualified typed lookup through the data source', async () => {
+        const { dataSource, dbService } = setupElectronXtreamDataSource();
+        await dataSource.getContentByXtreamId(
+            42,
+            'synthetic-source',
+            'movie',
+            undefined,
+            8
+        );
+        expect(dbService.getContentByXtreamId).toHaveBeenCalledWith(
+            42,
+            'synthetic-source',
+            'movie',
+            undefined,
+            8
+        );
+    });
+
+    it('forwards collection lock filtering', async () => {
+        const { dataSource, dbService } = setupElectronXtreamDataSource();
+        await dataSource.getContentByXtreamId(
+            42,
+            'synthetic-source',
+            'movie',
+            undefined,
+            undefined,
+            true
+        );
+        expect(dbService.getContentByXtreamId).toHaveBeenCalledWith(
+            42,
+            'synthetic-source',
+            'movie',
+            undefined,
+            undefined,
+            true
+        );
+    });
+
     it.each(Array.from({ length: 8 }, (_, mask) => mask))(
         'requests only enabled catalogs for selection mask %i',
         async (mask) => {

@@ -42,6 +42,28 @@ function route(request: SourceServerRequest): { path: string; method: string } {
             return { path: `/v1/sources/${id}`, method: 'DELETE' };
         case 'clear':
             return { path: '/v1/sources', method: 'DELETE' };
+        case 'favorites-context':
+            return { path: `/v1/favorites/sources/${id}`, method: 'GET' };
+        case 'favorites-list':
+            return {
+                path: `/v1/favorites/sources/${id}/items${request.cursor ? '?cursor=' + encodeURIComponent(request.cursor) : ''}`,
+                method: 'GET',
+            };
+        case 'favorites-read':
+            return { path: '/v1/favorites/read', method: 'POST' };
+        case 'favorites-apply':
+            return { path: '/v1/favorites/operations', method: 'POST' };
+        case 'activity-context':
+            return { path: `/v1/activity/sources/${id}`, method: 'GET' };
+        case 'activity-list':
+            return {
+                path: `/v1/activity/sources/${id}/items${request.cursor ? '?cursor=' + encodeURIComponent(request.cursor) : ''}`,
+                method: 'GET',
+            };
+        case 'activity-read':
+            return { path: '/v1/activity/read', method: 'POST' };
+        case 'activity-apply':
+            return { path: '/v1/activity/operations', method: 'POST' };
         default:
             throw new Error('Invalid source operation');
     }
@@ -73,7 +95,7 @@ export async function sourceServerRequest(
                     ...(token && request.operation !== 'instance'
                         ? { Authorization: `Bearer ${token}` }
                         : {}),
-                    ...(request.source
+                    ...((request.favorite ?? request.activity ?? request.source)
                         ? { 'Content-Type': 'application/json' }
                         : {}),
                     ...(request.operation === 'create'
@@ -87,7 +109,7 @@ export async function sourceServerRequest(
                           }
                         : {}),
                 },
-                data: request.source,
+                data: request.favorite ?? request.activity ?? request.source,
             },
             {
                 allowPrivateNetworks: true,
@@ -151,6 +173,10 @@ export function registerSourceSyncEvents(prepareRestart: () => void): void {
             const probe = await sourceServerRequest(apiUrl, token, {
                 operation: 'instance',
             });
+            if ([401, 403].includes(probe.status))
+                throw new Error('SOURCE_SYNC.LOCKED');
+            if (probe.status >= 500)
+                throw new Error('SOURCE_SYNC.CONNECTION_FAILED');
             const instance = probe.body as ServerInstanceInfo;
             if (
                 probe.status !== 200 ||
@@ -186,7 +212,11 @@ export function registerSourceSyncEvents(prepareRestart: () => void): void {
                 { apiUrl, instanceId: instance.instanceId },
                 token
             );
-            if (restart) {
+            const needsRestart =
+                !configured ||
+                configured.apiUrl !== apiUrl ||
+                configured.instanceId !== instance.instanceId;
+            if (restart && needsRestart) {
                 // app.exit() skips will-quit, where ordinary quits tear down
                 // managed players and the database worker.
                 prepareRestart();

@@ -751,6 +751,12 @@ export interface ElectronBridgeApi {
     onAppMenuAction: (
         callback: (action: ElectronBridgeAppMenuAction) => void
     ) => () => void;
+    favoritesLocalRequest?: (
+        request: import('./favorites-sync/favorites-sync.contract').FavoriteLocalRequest
+    ) => Promise<unknown>;
+    activityLocalRequest?: (
+        request: import('./activity-sync/activity-sync.wire').ActivityLocalRequest
+    ) => Promise<unknown>;
     sourceSyncConnection?: () =>
         import('./source-sync.interface').SourceServerConnection | null;
     sourceSyncRequest?: (
@@ -897,7 +903,8 @@ export interface ElectronBridgeApi {
         userAgent?: string | null,
         referer?: string | null,
         scopeUrl?: string | null,
-        credentials?: ElectronBridgeStreamCredentials | null
+        credentials?: ElectronBridgeStreamCredentials | null,
+        origin?: string | null
     ) => Promise<boolean>;
     openInMpv: (
         url: string,
@@ -925,6 +932,8 @@ export interface ElectronBridgeApi {
         playlists: Playlist[],
         options?: ElectronBridgeTrustOptions
     ) => Promise<AutoUpdatePlaylistsResult>;
+    /** Stops imports without removing sources, mappings or cached programmes. */
+    setEpgEnabled?: (enabled: boolean) => Promise<void>;
     fetchEpg: (
         urls: string[],
         options?: ElectronBridgeTrustOptions
@@ -955,7 +964,10 @@ export interface ElectronBridgeApi {
     /** Native picker for a local XMLTV file; resolves null when cancelled. */
     openEpgFileDialog: () => Promise<string | null>;
     clearEpgData: () => Promise<ElectronBridgeResult>;
-    reconcileEpgSources: (urls: string[]) => Promise<ElectronBridgeResult>;
+    reconcileEpgSources: (
+        urls: string[],
+        epgEnabled?: boolean
+    ) => Promise<ElectronBridgeResult>;
     clearEpgDataForSource: (sourceUrl: string) => Promise<ElectronBridgeResult>;
     checkEpgFreshness: (
         urls: string[],
@@ -987,6 +999,10 @@ export interface ElectronBridgeApi {
     updateSettings: (settings: Partial<Settings>) => Promise<void>;
     getAiSettings: () => Promise<ElectronBridgeAiSettings>;
     setMpvPlayerPath: (mpvPlayerPath: string) => Promise<void>;
+    getExternalPlayerAvailability?: (paths?: {
+        mpv?: string;
+        vlc?: string;
+    }) => Promise<{ mpv: boolean | null; vlc: boolean | null }>;
     setVlcPlayerPath: (vlcPlayerPath: string) => Promise<void>;
     /**
      * The portal's JSON, the `{ stalkerAuthFailure }` marker, or a
@@ -1222,7 +1238,9 @@ export interface ElectronBridgeApi {
         xtreamId: number,
         playlistId: string,
         contentType?: ElectronBridgePortalContentType,
-        identity?: ContentMetadataPatch
+        identity?: ContentMetadataPatch,
+        categoryId?: number,
+        excludeLocked?: boolean
     ) => Promise<ElectronBridgeXtreamContent | null>;
     dbSetContentMetadataIfMissing: (
         contentId: number,

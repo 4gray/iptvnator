@@ -50,6 +50,13 @@ export class DownloadedSeriesDialogComponent {
     );
     readonly itemAction = output<DownloadItemAction>();
     protected readonly currentMembers = computed(() => this.members()());
+    private readonly seasonUnknown = computed(
+        () =>
+            this.group.seasonUnknown ||
+            this.currentMembers().some(
+                (item) => item.metadataSnapshot?.episode?.seasonUnknown
+            )
+    );
 
     protected emitAction(
         type: DownloadItemActionType,
@@ -79,7 +86,7 @@ export class DownloadedSeriesDialogComponent {
         ) {
             return '';
         }
-        return `S${String(item.seasonNumber).padStart(2, '0')}E${String(
+        return `${this.seasonUnknown() ? '' : `S${String(item.seasonNumber).padStart(2, '0')}`}E${String(
             item.episodeNumber
         ).padStart(2, '0')}`;
     }

@@ -90,6 +90,14 @@ is unavailable. Re-export neither applies nor consumes the pending snapshot,
 so it also works before the portal has been opened and in browser runtimes.
 Parental category locks still come from the current lock store.
 
+The settings facade supplies an export-only position projector when viewing
+activity is enabled. Normal Xtream exports overlay the durable shared projection
+on the strictly read local positions, including pending offline progress and reset
+barriers. Watched marks are encoded as complete legacy progress so either runtime
+can restore them; player session IDs and action markers are omitted. A pending
+restore snapshot remains authoritative and bypasses the projector. Projection
+failures fail export. Restore writes remain local and do not acquire sync consent.
+
 For desktop sources whose restored selection omits catalogs, history and hidden
 category choices without an available catalog are parked separately under
 `xtream-catalog-restore-<playlistId>`. This dormant record does not keep the source
@@ -181,7 +189,7 @@ Explicitly excluded:
 ### Stalker
 
 Stalker backups export connection metadata plus playlist-scoped favorites/recent
-state.
+state and playback positions.
 
 - Exported connection fields:
     - `portalUrl`
@@ -196,6 +204,18 @@ state.
 - Exported user state:
     - favorites snapshots
     - recently viewed snapshots
+    - optional `playbackPositions`, including shared activity and exact episode reset barriers
+
+The settings projector overlays shared activity on strictly read local positions.
+Restore atomically replaces the local position collection and remaps the source
+ID; it never uploads the archive as shared activity. Historical v1 archives with
+no `playbackPositions` field leave local positions untouched. An explicit empty
+array clears them. Invalid collections fail validation before playlist writes.
+A failed native or browser position read fails export.
+
+Stalker exports omit SQLite `null` values in optional duration and episode metadata
+fields. A zero duration remains zero, preserving exact episode reset barriers;
+unknown durations restore as nullable native columns.
 
 Explicitly excluded — session state, as opposed to the connection definition:
 
@@ -203,7 +223,6 @@ Explicitly excluded — session state, as opposed to the connection definition:
 - `stalkerSessionIdentity` (the fingerprint the token was negotiated for)
 - `stalkerWatchdogTimeout` / `stalkerTimeslot` (the profile-advertised cadence)
 - `stalkerAccountInfo`
-- playback positions in v1
 
 ### App Settings
 
@@ -258,6 +277,12 @@ If no fingerprint matches:
 - create a new playlist
 - reuse `exportedId` only when it is unused
 - otherwise generate a new UUID
+
+Reserve the ID returned by storage as soon as the playlist write succeeds,
+including before any follow-up write for a remapped ID. A later
+user-state or parental-lock restore can fail after that write; subsequent
+entries with a different source fingerprint must not reuse its ID and overwrite
+the saved playlist. A write that fails before persistence leaves the ID unused.
 
 ## Xtream Restore Contract
 
@@ -427,3 +452,17 @@ Regression coverage: `playlist-backup.service.validation.spec.ts`,
 `settings-backup.facade.spec.ts`, browser `backup-restore.e2e.ts`, and Electron
 `backup-roundtrip.e2e.ts`. Browser tests use isolated contexts and fictional
 archives; Electron tests use their own temporary data root.
+
+## Optional shared favorites in exports
+
+The Settings export action supplies a separate favorites projector when the
+selected profile has used favorites sync. It exports the durable visible copy,
+including shared removals and unresolved snapshot-only Xtream memberships, without
+reading/uploading the NAS as part of export. Original raw archives remain retained
+for explicit favorites preview/import. Archive restore updates local legacy data;
+it does not implicitly authorize per-item NAS writes. Use the independent
+favorites preview/import action to publish restored local memberships.
+After a successful entry restore, Settings reconciles matching retained local
+favorite choices against the restored memberships. An older opted-out removal
+cannot hide a restored item from preview. Omitted choices, server revisions and
+queued operations remain intact; restoration itself sends no favorites writes.

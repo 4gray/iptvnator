@@ -65,7 +65,12 @@
                     {{ item.block.startMs | date: 'HH:mm' }} –
                     {{ item.block.stopMs | date: 'HH:mm' }}
                 </div>
-                <div class="epg-timeline__block-title">
+                <div
+                    class="epg-timeline__block-title"
+                    [attr.data-upright]="
+                        hasVerticalTitleScript(item.block.program.title) ? '' : null
+                    "
+                >
                     {{ item.block.program.title }}
                 </div>
                 @if (item.tier === 'wide' && item.block.program.desc) {

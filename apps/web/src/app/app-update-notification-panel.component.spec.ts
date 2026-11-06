@@ -5,6 +5,9 @@ import {
     TestBed,
 } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
+import { SwUpdate } from '@angular/service-worker';
+import { PwaUpdateNotificationComponent } from './pwa-update-notification.component';
+import { PwaUpdateService } from './services/pwa-update.service';
 import { By } from '@angular/platform-browser';
 import { TranslateModule } from '@ngx-translate/core';
 import {
@@ -53,6 +56,7 @@ describe('AppUpdateNotificationPanelComponent', () => {
                 TranslateModule.forRoot(),
             ],
             providers: [
+                { provide: SwUpdate, useValue: { isEnabled: false } },
                 {
                     provide: MatDialog,
                     useValue: { open: jest.fn() },
@@ -188,6 +192,45 @@ describe('AppUpdateNotificationPanelComponent', () => {
         );
     });
 
+    it('keeps a failed download visible and retries the check from the card', async () => {
+        await showUpdate({
+            ...availableStatus,
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Error,
+            error: 'Synthetic update download failed',
+        });
+        window.electron.checkForAppUpdate = jest
+            .fn()
+            .mockResolvedValue(availableStatus);
+
+        expect(
+            fixture.nativeElement.querySelector('[role="alert"]').textContent
+        ).toContain('Synthetic update download failed');
+        const button = fixture.nativeElement.querySelector(
+            '[data-test-id="app-update-notification-download"]'
+        ) as HTMLButtonElement;
+        expect(button.textContent).toContain('SETTINGS.APP_UPDATE_CHECK');
+        button.click();
+        await fixture.whenStable();
+        expect(window.electron.checkForAppUpdate).toHaveBeenCalledTimes(1);
+        expect(window.electron.downloadAppUpdate).not.toHaveBeenCalled();
+        expect(fixture.componentInstance.status()).toEqual(availableStatus);
+    });
+
+    it('keeps the known update visible and disables actions while checking again', async () => {
+        await showUpdate({
+            ...availableStatus,
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Checking,
+        });
+        expect(card()).toBeDefined();
+        expect(
+            (
+                fixture.nativeElement.querySelector(
+                    '[data-test-id="app-update-notification-download"]'
+                ) as HTMLButtonElement
+            ).disabled
+        ).toBe(true);
+    });
+
     it('tells the user when the card chunk cannot be loaded', async () => {
         fixture.destroy();
         TestBed.resetTestingModule();
@@ -196,7 +239,10 @@ describe('AppUpdateNotificationPanelComponent', () => {
                 AppUpdateNotificationPanelComponent,
                 TranslateModule.forRoot(),
             ],
-            providers: [{ provide: MatDialog, useValue: { open: jest.fn() } }],
+            providers: [
+                { provide: MatDialog, useValue: { open: jest.fn() } },
+                { provide: SwUpdate, useValue: { isEnabled: false } },
+            ],
             deferBlockBehavior: DeferBlockBehavior.Manual,
         }).compileComponents();
         fixture = TestBed.createComponent(AppUpdateNotificationPanelComponent);
@@ -215,6 +261,16 @@ describe('AppUpdateNotificationPanelComponent', () => {
         expect(
             fixture.nativeElement.querySelector('app-update-notification-card')
         ).toBeNull();
+
+        fixture.componentInstance.reloadWindow = jest.fn();
+        const [, browserBlock] = await fixture.getDeferBlocks();
+        await browserBlock.render(DeferBlockState.Error);
+        const refresh = fixture.nativeElement.querySelector(
+            '[role="alert"] a'
+        ) as HTMLAnchorElement;
+        expect(refresh.textContent).toContain('REFRESH');
+        refresh.click();
+        expect(fixture.componentInstance.reloadWindow).toHaveBeenCalledTimes(1);
     });
 
     it('labels unsupported platform action as a GitHub release link', async () => {
@@ -244,5 +300,54 @@ describe('AppUpdateNotificationPanelComponent', () => {
             'noreferrer'
         );
         open.mockRestore();
+    });
+});
+
+describe('PwaUpdateNotificationComponent', () => {
+    let fixture: ComponentFixture<PwaUpdateNotificationComponent>;
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [
+                PwaUpdateNotificationComponent,
+                TranslateModule.forRoot(),
+            ],
+            providers: [{ provide: SwUpdate, useValue: { isEnabled: false } }],
+        }).compileComponents();
+        fixture = TestBed.createComponent(PwaUpdateNotificationComponent);
+        fixture.detectChanges();
+    });
+    it('keeps browser Refresh reachable when a reload leaves the page alive', async () => {
+        const updates = TestBed.inject(PwaUpdateService);
+        updates.reloadWindow = jest.fn();
+        updates.notice.set('ready');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const button = fixture.nativeElement.querySelector(
+            '[data-test-id="pwa-update-notification"] button'
+        ) as HTMLButtonElement;
+        expect(button.textContent).toContain('REFRESH');
+        button.click();
+        fixture.detectChanges();
+        button.click();
+        expect(updates.reloadWindow).toHaveBeenCalledTimes(2);
+        expect(button.isConnected).toBe(true);
+    });
+
+    it.each([
+        ['failed', 'PWA_UPDATE_FAILED'],
+        ['unrecoverable', 'PWA_RELOAD_REQUIRED'],
+    ] as const)('renders the browser %s notice', async (state, message) => {
+        const updates = TestBed.inject(PwaUpdateService);
+        updates.notice.set(state);
+        updates.checking.set(true);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const panel = fixture.nativeElement.querySelector(
+            '[data-test-id="pwa-update-notification"]'
+        );
+        expect(panel.textContent).toContain(message);
+        expect(
+            (panel.querySelector('button') as HTMLButtonElement).disabled
+        ).toBe(state === 'failed');
     });
 });

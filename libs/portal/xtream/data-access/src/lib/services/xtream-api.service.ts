@@ -1,6 +1,6 @@
 import { XtreamEpgNormalizer, EpgResponse } from '../xtream-epg-normalizer';
 import { inject, Injectable } from '@angular/core';
-import { DataService } from '@iptvnator/services';
+import { EpgPreferencesService, DataService } from '@iptvnator/services';
 import { createLogger } from '@iptvnator/portal/shared/util/logger';
 import {
     EpgItem,
@@ -45,6 +45,7 @@ export type CategoryType = 'live' | 'vod' | 'series';
 export type StreamType = 'live' | 'movie' | 'series';
 
 export interface XtreamRequestOptions {
+    signal?: AbortSignal;
     requestId?: string;
     sessionId?: string;
     suppressErrorLog?: boolean;
@@ -67,6 +68,7 @@ const XTREAM_ACCOUNT_ACTIONS = [
 @Injectable({ providedIn: 'root' })
 export class XtreamApiService extends XtreamEpgNormalizer {
     private readonly dataService = inject(DataService);
+    private readonly epgPreferences = inject(EpgPreferencesService);
     private readonly logger = createLogger('XtreamApiService');
 
     async cancelSession(sessionId: string): Promise<boolean> {
@@ -151,7 +153,10 @@ export class XtreamApiService extends XtreamEpgNormalizer {
             options
         );
 
-        return Array.isArray(response) ? response : [];
+        if (!Array.isArray(response)) {
+            throw new Error('The source did not return a valid catalog.');
+        }
+        return response;
     }
 
     /**
@@ -171,7 +176,10 @@ export class XtreamApiService extends XtreamEpgNormalizer {
             options
         );
 
-        return Array.isArray(response) ? response : [];
+        if (!Array.isArray(response)) {
+            throw new Error('The source did not return a valid catalog.');
+        }
+        return response;
     }
 
     /**
@@ -194,7 +202,10 @@ export class XtreamApiService extends XtreamEpgNormalizer {
             options
         );
 
-        return Array.isArray(response) ? response : [];
+        if (!Array.isArray(response)) {
+            throw new Error('The source did not return a valid catalog.');
+        }
+        return response;
     }
 
     async getVodStream(
@@ -232,7 +243,10 @@ export class XtreamApiService extends XtreamEpgNormalizer {
             options
         );
 
-        return Array.isArray(response) ? response : [];
+        if (!Array.isArray(response)) {
+            throw new Error('The source did not return a valid catalog.');
+        }
+        return response;
     }
 
     /**
@@ -377,6 +391,7 @@ export class XtreamApiService extends XtreamEpgNormalizer {
         params: Record<string, string | number>,
         options?: XtreamRequestOptions
     ): Promise<TResponse> {
+        options?.signal?.throwIfAborted();
         const normalizedUrl = normalizeXtreamServerUrl(credentials.serverUrl);
         const serializedParams: Record<string, string> = {};
         Object.entries(params).forEach(([key, value]) => {
@@ -387,16 +402,31 @@ export class XtreamApiService extends XtreamEpgNormalizer {
                     : serializedValue;
         });
 
-        const response = (await this.dataService.sendIpcEvent(XTREAM_REQUEST, {
-            url: normalizedUrl,
-            ...(credentials.userAgent?.trim()
-                ? { userAgent: credentials.userAgent.trim() }
-                : {}),
-            params: serializedParams,
-            requestId: options?.requestId,
-            sessionId: options?.sessionId,
-            suppressErrorLog: options?.suppressErrorLog,
-        })) as {
+        const request = async () =>
+            this.dataService.sendIpcEvent(
+                XTREAM_REQUEST,
+                {
+                    url: normalizedUrl,
+                    ...(credentials.userAgent?.trim()
+                        ? { userAgent: credentials.userAgent.trim() }
+                        : {}),
+                    params: serializedParams,
+                    requestId: options?.requestId,
+                    sessionId: options?.sessionId,
+                    suppressErrorLog: options?.suppressErrorLog,
+                },
+                ...(options?.signal ? ([options.signal] as const) : [])
+            );
+        const isEpg = [
+            XtreamCodeActions.GetShortEpg,
+            XtreamCodeActions.GetSimpleDataTable,
+            XtreamCodeActions.GetSimpleDateTable,
+        ].includes(params['action'] as XtreamCodeActions);
+        const response = (await (isEpg
+            ? this.epgPreferences.run<unknown>(request, {
+                  payload: { epg_listings: [] },
+              })
+            : request())) as {
             message?: string;
             payload?: unknown;
             type?: string;

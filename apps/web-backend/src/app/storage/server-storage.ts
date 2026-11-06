@@ -1,3 +1,7 @@
+import {
+    initializeActivitySources,
+    retireChangedActivitySource,
+} from './activity-source-lifecycle';
 import { PlaylistRevisions } from './playlist-revisions';
 import { openServerDatabase, type ServerDatabase } from './server-database';
 import { ServerPlaylistRepository } from './server-playlist-repository';
@@ -13,9 +17,15 @@ export interface ServerStorage {
 
 export async function openServerStorage(): Promise<ServerStorage> {
     const database = await openServerDatabase();
+    initializeActivitySources(database.sqlite);
+    const playlists = new ServerPlaylistRepository(database.db, (id) =>
+        retireChangedActivitySource(database.sqlite, id, () =>
+            playlists.get(id)
+        )
+    );
     return {
         database,
-        playlists: new ServerPlaylistRepository(database.db),
+        playlists,
         userState: new ServerUserStateRepository(database.db),
         revisions: new PlaylistRevisions(),
         startedAt: new Date(),

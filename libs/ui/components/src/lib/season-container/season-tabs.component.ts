@@ -1,9 +1,11 @@
 import {
     ChangeDetectionStrategy,
     Component,
+    ElementRef,
     computed,
     input,
     output,
+    viewChildren,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
@@ -16,6 +18,7 @@ import {
 
 /** Up to this many seasons the picker is a row of chips, beyond it a menu. */
 const MAX_SEASON_CHIPS = 4;
+let nextSeasonTabsId = 0;
 
 /** A season whose episodes are not in yet: `loading` now, `unloaded` until asked. */
 export type SeasonCountLoadState = 'loading' | 'unloaded';
@@ -46,8 +49,21 @@ export type SeasonCountLoadState = 'loading' | 'unloaded';
     ],
 })
 export class SeasonTabsComponent {
+    readonly panelId = `season-panel-${nextSeasonTabsId++}`;
+    private readonly tabs = viewChildren<ElementRef<HTMLButtonElement>>('tab');
+    readonly tabStop = computed(() =>
+        this.seasonKeys().includes(this.selectedSeason() ?? '')
+            ? this.selectedSeason()
+            : this.seasonKeys()[0]
+    );
+    readonly selectedTabId = computed(() =>
+        this.useDropdown() || !this.tabStop()
+            ? null
+            : this.tabId(this.tabStop() ?? '')
+    );
     /** Season keys, already sorted in display order. */
-    readonly seasonKeys = input.required<string[]>();
+    // The owning panel queries its labels before Angular binds this child's inputs.
+    readonly seasonKeys = input<string[]>([]);
     readonly selectedSeason = input<string | undefined>(undefined);
     readonly episodeCounts = input<Record<string, number>>({});
     readonly watchedCounts = input<Record<string, number>>({});
@@ -88,5 +104,51 @@ export class SeasonTabsComponent {
         if (seasonKey !== this.selectedSeason()) {
             this.seasonSelected.emit(seasonKey);
         }
+    }
+
+    tabId(key: string): string {
+        return `${this.panelId}-tab-${key}`;
+    }
+
+    onTabKeydown(event: KeyboardEvent, key: string): void {
+        if (
+            event.defaultPrevented ||
+            event.altKey ||
+            event.ctrlKey ||
+            event.metaKey
+        )
+            return;
+        const keys = this.seasonKeys();
+        const index = keys.indexOf(key);
+        const rtl =
+            getComputedStyle(event.currentTarget as HTMLElement).direction ===
+            'rtl';
+        let next: number;
+        switch (event.key) {
+            case 'ArrowRight':
+                next = index + (rtl ? -1 : 1);
+                break;
+            case 'ArrowLeft':
+                next = index + (rtl ? 1 : -1);
+                break;
+            case 'Home':
+                next = 0;
+                break;
+            case 'End':
+                next = keys.length - 1;
+                break;
+            default:
+                return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        next = (next + keys.length) % keys.length;
+        const tabs = this.tabs();
+        // A fast Tab must see the new stop before Angular renders the selection.
+        tabs.forEach((tab, index) => {
+            tab.nativeElement.tabIndex = index === next ? 0 : -1;
+        });
+        if (next !== index) this.seasonSelected.emit(keys[next]);
+        tabs[next]?.nativeElement.focus();
     }
 }

@@ -21,15 +21,13 @@ import {
 } from './database-worker-sql-statement-count';
 
 let drizzleFactory:
-    | (typeof import('drizzle-orm/better-sqlite3'))['drizzle']
-    | undefined;
+    (typeof import('drizzle-orm/better-sqlite3'))['drizzle'] | undefined;
 
 const nativeModuleSearchPaths = [
     ...getWorkerDataNativeModuleSearchPaths(workerData),
     ...getNativeModuleSearchPaths({
-        resourcesPath: (
-            process as NodeJS.Process & { resourcesPath?: string }
-        ).resourcesPath,
+        resourcesPath: (process as NodeJS.Process & { resourcesPath?: string })
+            .resourcesPath,
     }),
 ];
 
@@ -52,9 +50,8 @@ function getDrizzleFactory(): (typeof import('drizzle-orm/better-sqlite3'))['dri
 
     // Require drizzle only after native lookup paths have been registered.
     // Its better-sqlite3 driver resolves the native package at module load time.
-    drizzleFactory = require('drizzle-orm/better-sqlite3').drizzle as (
-        typeof import('drizzle-orm/better-sqlite3')
-    )['drizzle'];
+    drizzleFactory = require('drizzle-orm/better-sqlite3')
+        .drizzle as (typeof import('drizzle-orm/better-sqlite3'))['drizzle'];
 
     return drizzleFactory;
 }
@@ -63,6 +60,11 @@ export const Database = loadBetterSqlite3();
 
 let db: AppDatabase | null = null;
 let sqlite: BetterSqlite3.Database | null = null;
+
+export function getWorkerSqlite(): BetterSqlite3.Database {
+    if (!sqlite) throw new Error('Worker database is unavailable');
+    return sqlite;
+}
 
 // IPTVNATOR_PERF_CAPTURE=1 with IPTVNATOR_PERF_COUNT_SQL=1 only: the main
 // process keeps the running total.

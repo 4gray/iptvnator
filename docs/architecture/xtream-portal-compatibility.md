@@ -39,10 +39,8 @@ Electron and PWA paths.
 `RuntimeCapabilitiesService.supportsXtreamSqliteDataSource` proves that the
 complete SQLite-backed Xtream bridge is available. Otherwise it selects
 `PwaXtreamDataSource`. A generic Electron or `window.electron` check is not the
-data-source capability contract. Older favorites/recent branches that still
-probe `window.electron` directly are migration debt, not an alternate runtime
-selection rule; changes in those paths should follow the selected data source
-and explicit capabilities.
+data-source capability contract. Favorites and recent-item operations likewise
+follow the selected data source and explicit capabilities.
 
 Ownership follows the workspace boundaries:
 
@@ -54,6 +52,33 @@ Ownership follows the workspace boundaries:
   discovery/resolution: `libs/portal/shared/data-access`
 - reusable presentation: `libs/portal/shared/ui`
 - pure provider-neutral contracts/helpers: `libs/portal/shared/util`
+
+Catalog writes belong to the runtime loaders behind `getCategories` and
+`getContent`; `IXtreamDataSource` does not expose separate bulk-save methods.
+Electron loaders keep writing through the worker-backed `DatabaseService`;
+PWA loaders normalize API responses into their session caches. Tests load PWA
+catalogs through those same API-backed readers instead of seeding a second
+public write path.
+
+Destructive refresh belongs to `XtreamRefreshFlowService`; the data-source
+contract has no separate clear-and-snapshot entry point. Browser backup tests
+use `PwaXtreamBackupStorage` export/restore to preserve typed collection identity,
+saved snapshots and artwork. Category visibility writes remain owned by the
+category-management flow through `DatabaseService`, with no PWA no-op wrapper.
+Global recent-item collection reads and clears belong to
+`UnifiedRecentDataService`; `withRecentItems` retains playlist-local history and
+played-content metadata work only.
+
+Category initialization starts live, VOD and series reads in parallel, then
+publishes the results together. A failed session waits for every sibling
+category request to settle before releasing its busy hold and cleaning up.
+
+Content initialization runs one sequential import sequence for enabled live,
+VOD and series types, in that order. Each type persists completion before
+publishing rows or starting the next type. Publication retains its distinct
+state fields and renderer performance phase; cancellation and progress callbacks
+remain scoped to their owning session. Empty-catalog reuse and refill semantics
+are unchanged.
 
 Persisted Xtream identity is playlist-scoped and content-type-aware:
 `playlist_id + content.type + xtream_id`. Mixed collection keys likewise
@@ -370,7 +395,9 @@ catalog replay, rather than another client's source-definition update.
 Electron category/content cache reads and imports honor the selection. Ordinary
 catalog search and recently-added SQL exclude disabled types; collection and
 identity reads deliberately do not. Disabling a type retains its cached rows so
-Favorites/history remain playable, with a disabled-type indication. It does not
+Favorites/history remain playable, with a disabled-type indication. Portable
+favorites preserve that indication in global and playlist collections on SQLite
+clients; PWA clients retain their all-catalog behavior. Disabling a type does not
 delete playback positions or offline files. Saved metadata includes the selection
 in startup projections without parsing large M3U payloads, and backups preserve
 it, including an explicit empty array.
@@ -524,6 +551,30 @@ reimporting categories. If cleanup still fails, retry stops before provider or
 save work, retaining pending history. Completed warm caches keep their existing
 read path; cold category-import code is loaded only when needed. Failed-import
 cleanup also loads only on the error path, keeping the startup payload bounded.
+
+The native content saver persists `importing` before its first content commit,
+including a first import with no previous marker. Process exit between commits
+therefore leaves an unfinished type for bootstrap cleanup; unfinished rows do
+not qualify as a usable offline catalog. Warm reads do not change completion.
+Both runtimes reject non-array category/content responses, including account
+error objects; only an actual empty array proves a successful empty response.
+Import options carry a renderer-local abort signal through cache reads, provider
+responses and persistence boundaries. Existing session/operation IPC cancellation
+still interrupts active Electron work. Category failure aborts sibling work and
+waits for every request to settle before cleanup and releasing the source hold.
+Phase callbacks belong to their import session and cannot revive a terminated run.
+Browser imports propagate that signal to their HTTP subscriptions, including
+pending target-registration waits; see [PWA request cancellation](./pwa-self-hosted.md#xtream-request-cancellation).
+Only session-owned bootstrap category loads may clear unfinished cache rows;
+ordinary category/detail readers cannot interpret a live `importing` marker as
+abandoned work. Lock-driven category reloads wait until initialization settles.
+Cancelable or session-owned requests do not share promises with independent
+readers, so cancelling an import cannot cancel a concurrent detail recovery.
+When a completed empty type gains content during a sessionless cache refill,
+the data source records completion after persistence. Cancellation or a failed
+completion write leaves its unfinished marker intact. A refill cannot finalize
+a type already marked unfinished by another owner; bootstrap completion stays
+with the import session.
 
 Fresh desktop backup restores separate dormant catalog-dependent history and
 hidden choices from the active import snapshot. Offline restore readiness checks
@@ -724,6 +775,16 @@ and private-network checks.
 
 ## Provider EPG
 
+The global `Settings.epgEnabled` opt-out gates short/full provider requests and
+XMLTV fallbacks, including collections and dashboard previews. Turning it off
+retires queue state and pending answers and hides programme UI; provider channel
+logos remain visible. See the
+[shared preference contract](m3u-playlist-module.md#global-epg-preference).
+Channel lists attach guide-result, viewport and refresh listeners based on the
+runtime capability, independently of the saved preference. Each callback gates
+work on the current preference, so hydration or re-enabling cannot strand an
+already mounted list without programme previews.
+
 Xtream EPG comes from the portal itself. `get_short_epg` feeds the
 channel-row previews (`EpgQueueService`: three items, two requests in flight)
 and the collection previews (`StreamResolverService`). `get_simple_data_table`,
@@ -785,6 +846,18 @@ real browser or a VLC-style client passes. Keep all three request sites using
 the shared constant instead of inlining the string again.
 
 ## Playback URL Formats
+
+Ordinary movie Play/Resume and series episode playback copy the initiating
+playlist's `userAgent`, `referrer` (as descriptor `referer`), and `origin` into
+`ResolvedPortalPlayback`. Inline playback and forced MPV/VLC launches consume
+that same descriptor; episode navigation resolves the headers again for the
+next episode. Missing overrides remain absent so the transport keeps its
+existing defaults. Multi-source alternatives retain their own source's headers.
+An explicit Origin reaches inline Electron requests even when it differs from
+the Referer's origin or no Referer is configured; the scoped bridge retains its
+Referer-derived fallback when no usable Origin override is supplied.
+The playback service specs and `xtream-playback-headers.e2e.ts` cover this
+handoff, including actual Electron media request headers.
 
 When account info includes `user_info.allowed_output_formats`, the current
 Xtream playlist keeps those formats for the active session. The default
@@ -1112,3 +1185,48 @@ dates, and falls back to `last_modified` for series without a usable `added`
 value. It does not infer addition time from release dates or IDs. TV applies
 this timestamp before client pagination; see [TV application](tv-application.md).
 The Angular selection store's sort behavior is unchanged.
+
+
+## Optional shared favorites
+
+The [self-hosted favorites opt-in](pwa-self-hosted.md#favorites-synchronization)
+projects typed provider membership through the selected data source in both
+runtimes. Collection references can carry a portable `providerId` alongside the
+existing local row ID, including removal of a retained row with no catalog link.
+The shared snapshot cannot turn a known TMDB/year conflict into a playable catalog
+row. Global collections and dashboard use the same projection when this profile
+has used favorites sync; recently viewed and collection order stay local.
+Native collection actions select storage with `supportsPortableFavorites(playlistId)`
+for each source. After opt-out, a new/restored source without a verified favorites
+context keeps ordinary SQLite behavior, including favorite-ID removal of unlinked
+rows. Bulk removal shares the single-item path; mixed collection reordering updates
+only native source positions while retaining the complete local collection order.
+Received PWA references resolve through the needed typed catalogs before their
+collection cards become playable. Reuse the data source's cache and visibility
+filtering, share concurrent loads, index requested rows once per typed catalog,
+and keep snapshots unavailable on provider
+failure so a later read can retry. Re-read membership after catalog loading and
+discard results from retired source incarnations. Membership writes stay cache-only.
+SQLite lookups retain saved/requested TMDB and provider-year hints when selecting
+between duplicate rows; a compatible row does not erase an explicit identity conflict.
+Shared SQLite projections request category-lock filtering; ordinary identity
+lookups used by the PIN guard remain unfiltered. While locked, unresolved category
+ownership is withheld too. Unreadable lock state or a lock version change during
+projection returns no rows. Single-item hearts and edits project only their target,
+without catalog lookups for other memberships. A playlist-only portable reorder
+replaces its existing global-order slots and preserves other sources' positions.
+Capture source incarnation, profile and consent before reading either archive or
+catalog. Recheck ownership before publishing a projection and before committing
+a membership action, including lookups after a native projection has completed.
+Action/status paths call `getFavorites(playlistId, false)` to read the PWA archive
+without hydrating older unresolved entries. Ordinary collection reads retain
+hydration by default; reference/snapshot conversion stays in the shared provider
+reference adapters used by preview and backup.
+PWA cache-only identity lookup also applies TMDB/year hints, preferring fully
+confirmed duplicates over compatible rows with missing metadata and rejecting
+contradictions. Without hints, the previous first-row/type order is retained.
+Received PWA favorites use the same preference when hydrating a catalog: a row
+confirming every saved identity field wins over an earlier compatible sparse row.
+The pure lookup lives in the existing metadata module: an empty content cache
+returns immediately, and populated caches have already loaded that module during
+normalization, so membership actions never fetch a new lookup chunk.

@@ -1,5 +1,14 @@
+import { FAVORITES_PLAYLIST_BRIDGE } from '@iptvnator/services/favorites-events';
+import { observeActivityChanges } from '@iptvnator/services/activity-changes';
 import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
-import { Injectable, computed, effect, inject, signal } from '@angular/core';
+import {
+    DestroyRef,
+    Injectable,
+    computed,
+    effect,
+    inject,
+    signal,
+} from '@angular/core';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import {
@@ -31,7 +40,6 @@ import {
     PortalFavoriteItem,
     PortalRecentItem,
     resolvePortalActivityWatchKind,
-    stalkerItemMatchesId,
 } from '@iptvnator/shared/interfaces';
 import {
     buildStalkerFavoriteItems,
@@ -64,7 +72,6 @@ import { createDashboardContinueWatching } from './dashboard-continue-watching';
 import {
     emptyDashboardPlaybackPositionMaps,
     loadDashboardPlaybackPositions,
-    newestPlaybackPosition,
     playbackPositionMapKey,
     seriesPlaybackPositionMapKey,
 } from './dashboard-playback-positions';
@@ -81,6 +88,7 @@ export type DashboardRecentlyAddedFilterKind = GlobalRecentlyAddedKind;
 
 @Injectable({ providedIn: 'root' })
 export class DashboardDataService {
+    private readonly favoriteSync = inject(FAVORITES_PLAYLIST_BRIDGE);
     private readonly store = inject(Store);
     private readonly dbService = inject(DatabaseService);
     private readonly xtreamDataSource = inject(XTREAM_DATA_SOURCE);
@@ -336,7 +344,8 @@ export class DashboardDataService {
             this.playbackPositionMaps().newestBySeries.get(
                 seriesPlaybackPositionMapKey(item.playlist_id, xtreamId)
             ) ?? null;
-        return newestPlaybackPosition(episodePosition, seriesPosition);
+        // Episode and series ids can collide; parent ownership beats recency.
+        return seriesPosition ?? episodePosition;
     }
 
     /**
@@ -407,6 +416,22 @@ export class DashboardDataService {
     });
 
     constructor() {
+        const refreshFavorites = () => void this.reloadGlobalFavorites();
+        window.addEventListener(
+            'iptvnator-favorites-changed',
+            refreshFavorites
+        );
+        inject(DestroyRef).onDestroy(() =>
+            window.removeEventListener(
+                'iptvnator-favorites-changed',
+                refreshFavorites
+            )
+        );
+        inject(DestroyRef).onDestroy(
+            observeActivityChanges(() => {
+                void this.reloadPlaybackPositions().catch(() => undefined);
+            })
+        );
         effect(() => {
             this.playlistFavoritesReloadKey();
             if (
@@ -594,7 +619,7 @@ export class DashboardDataService {
     }
 
     private async reloadXtreamGlobalFavorites(): Promise<void> {
-        if (!this.hasPortalActivityStorage) {
+        if (this.favoriteSync.active() || !this.hasPortalActivityStorage) {
             const favorites = await this.loadPwaXtreamGlobalFavorites();
             this.xtreamGlobalFavorites.set(favorites);
             return;
@@ -684,7 +709,9 @@ export class DashboardDataService {
         playlist: PlaylistMeta
     ): DashboardFavoriteItem {
         return {
-            id: item.id ?? `favorite:${item.favorite_id}`,
+            id:
+                item.id ??
+                `favorite:${item.favorite_id ?? `${this.normalizeXtreamActivityType(item.type)}:${item.xtream_id}`}`,
             favorite_id: item.favorite_id,
             catalogStatus: item.catalog_status,
             title: item.title,
@@ -903,6 +930,8 @@ export class DashboardDataService {
             {
                 ...position,
                 positionSeconds: position.durationSeconds,
+                activitySessionId: undefined,
+                activityAction: 'mark-watched',
                 updatedAt: new Date().toISOString(),
             }
         );
@@ -997,75 +1026,6 @@ export class DashboardDataService {
         return getRecentlyAddedNavigationStateUtil(item);
     }
 
-    async removeGlobalFavorite(item: DashboardFavoriteItem): Promise<void> {
-        if (item.source === 'xtream') {
-            if (this.hasPortalActivityStorage) {
-                await this.dbService.removeFromFavorites(
-                    item.favorite_id != null
-                        ? { favoriteId: item.favorite_id }
-                        : (item.id as number),
-                    item.playlist_id
-                );
-            } else {
-                await this.xtreamDataSource.removeFavorite(
-                    {
-                        id: Number(item.id),
-                        type: item.type as 'live' | 'movie' | 'series',
-                    },
-                    item.playlist_id
-                );
-            }
-            await this.reloadGlobalFavorites();
-            return;
-        }
-
-        if (item.source === 'stalker') {
-            const playlist = this.playlists().find(
-                (p) => p._id === item.playlist_id
-            );
-            if (!playlist) return;
-
-            const currentFavorites = Array.isArray(playlist.favorites)
-                ? [...playlist.favorites]
-                : [];
-            const itemMatchStr = String(item.id);
-
-            const filteredFavorites = currentFavorites.filter(
-                (raw, index) =>
-                    !stalkerItemMatchesId(
-                        raw,
-                        itemMatchStr,
-                        playlist._id,
-                        index
-                    )
-            );
-
-            this.store.dispatch(
-                PlaylistActions.updatePlaylistMeta({
-                    playlist: {
-                        _id: item.playlist_id,
-                        favorites: filteredFavorites,
-                    } as unknown as PlaylistMeta,
-                }) as any
-            );
-        }
-
-        if (item.source === 'm3u') {
-            await firstValueFrom(
-                this.playlistsService.transformPlaylistFavorites(
-                    item.playlist_id,
-                    (current) =>
-                        current.filter(
-                            (favorite) =>
-                                typeof favorite !== 'string' ||
-                                favorite !== String(item.id)
-                        )
-                )
-            );
-            await this.reloadGlobalFavorites();
-        }
-    }
-
     formatTimestamp(value?: string | number): string {
         this.languageTick();
 
@@ -1098,8 +1058,10 @@ export class DashboardDataService {
             return fastPathItems;
         }
 
-        const playlist = (await firstValueFrom(
-            this.playlistsService.getPlaylistById(playlistMeta._id)
+        const playlist = (await this.favoriteSync.project(
+            await firstValueFrom(
+                this.playlistsService.getPlaylistById(playlistMeta._id)
+            )
         )) as Playlist & {
             playlist?: {
                 items?: Channel[];

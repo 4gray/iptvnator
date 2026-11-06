@@ -20,7 +20,8 @@ function feed(title: string, count = 1): string {
         Array.from(
             { length: count },
             (_, index) =>
-                `<programme channel="atomic" start="${date(-60000)}" stop="${date(3600000)}"><title>${title} ${index}</title></programme>`
+                // Keep the fixture out of the retained archive around UTC midnight.
+                `<programme channel="atomic" start="${date(60000)}" stop="${date(3600000)}"><title>${title} ${index}</title></programme>`
         ).join('') +
         '</tv>'
     );

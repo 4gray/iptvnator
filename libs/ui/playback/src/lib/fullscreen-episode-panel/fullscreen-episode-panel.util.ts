@@ -13,6 +13,7 @@ import type { UpNextRailItem } from '../portal-inline-player/up-next-rail.util';
  * overlay writes its stills and overviews into the same `info` fields.
  */
 export interface FullscreenPanelEpisodeLike {
+    seasonUnknown?: boolean;
     id: string | number;
     season?: string | number;
     episode_num?: string | number;
@@ -56,6 +57,7 @@ export interface FullscreenEpisodePanelItem<
 export type FullscreenPanelSeasonLoadState = 'loaded' | 'loading' | 'unloaded';
 
 export interface FullscreenEpisodePanelSeason<TEpisode = unknown> {
+    seasonUnknown?: boolean;
     /** Provider season key, as the season container uses it. */
     key: string;
     episodes: FullscreenEpisodePanelItem<TEpisode>[];
@@ -107,6 +109,9 @@ export function buildFullscreenEpisodePanelSeasons<
         const posterUrl = seasonPosters?.[seasonKey];
         return {
             key: seasonKey,
+            ...(episodes.some((episode) => episode.seasonUnknown)
+                ? { seasonUnknown: true }
+                : {}),
             loadState: seasonLoadStates?.[seasonKey] ?? 'loaded',
             ...(posterUrl ? { posterUrl } : {}),
             episodes: episodes.map((episode, index) =>
@@ -141,7 +146,11 @@ function toPanelItem<TEpisode extends FullscreenPanelEpisodeLike>(
         id,
         seasonKey,
         episodeNumber,
-        label: formatSeriesEpisodeLabel(seasonNumber, episodeNumber),
+        label: formatSeriesEpisodeLabel(
+            seasonNumber,
+            episodeNumber,
+            episode.seasonUnknown
+        ),
         title: episode.title?.trim() ?? '',
         thumbnailUrl: toHttpUrl(info?.movie_image),
         overview: info?.plot?.trim() ?? '',

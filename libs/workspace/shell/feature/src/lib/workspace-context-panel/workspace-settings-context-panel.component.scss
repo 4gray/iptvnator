@@ -103,8 +103,8 @@
     }
 
     &.active {
-        background: var(--app-selection-surface);
-        color: var(--app-selection-color);
+        background: var(--app-list-selected-bg);
+        color: var(--app-list-selected-fg);
 
         mat-icon {
             color: var(--app-selection-color);

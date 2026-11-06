@@ -33,6 +33,7 @@ describe('AppUpdateInstallService', () => {
     };
     let guard: AppQuitUnloadGuardHooks & {
         suspendForAppQuit: jest.Mock;
+        confirmAppQuit: jest.Mock;
         resumeAfterAbortedAppQuit: jest.Mock;
     };
 
@@ -49,6 +50,7 @@ describe('AppUpdateInstallService', () => {
         };
         window.electron = electronStub as unknown as typeof window.electron;
         guard = {
+            confirmAppQuit: jest.fn().mockResolvedValue(true),
             resumeAfterAbortedAppQuit: jest.fn(),
             suspendForAppQuit: jest.fn(),
         };
@@ -170,6 +172,7 @@ describe('AppUpdateInstallService', () => {
         service.registerUnloadGuard(guard);
 
         const install = service.installAppUpdate();
+        await Promise.resolve();
         pushStatus({
             ...BASE_STATUS,
             status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Error,
@@ -188,6 +191,48 @@ describe('AppUpdateInstallService', () => {
             status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Error,
         });
         expect(guard.resumeAfterAbortedAppQuit).toHaveBeenCalledTimes(1);
+    });
+
+    it('leaves both guards armed when the user cancels or saving fails', async () => {
+        guard.confirmAppQuit.mockResolvedValue(false);
+        const service = createService();
+        service.registerUnloadGuard(guard);
+
+        expect(await service.installAppUpdate()).toBeNull();
+        expect(electronStub.installAppUpdate).not.toHaveBeenCalled();
+        expect(guard.suspendForAppQuit).not.toHaveBeenCalled();
+    });
+
+    it('shares one confirmation and install request across entry points', async () => {
+        let confirm!: (accepted: boolean) => void;
+        guard.confirmAppQuit.mockReturnValue(
+            new Promise<boolean>((resolve) => {
+                confirm = resolve;
+            })
+        );
+        const service = createService();
+        service.registerUnloadGuard(guard);
+
+        const first = service.installAppUpdate();
+        const second = service.installAppUpdate();
+        expect(first).toBe(second);
+        expect(guard.confirmAppQuit).toHaveBeenCalledTimes(1);
+        expect(guard.suspendForAppQuit).not.toHaveBeenCalled();
+        expect(electronStub.installAppUpdate).not.toHaveBeenCalled();
+        confirm(true);
+        await first;
+        expect(electronStub.installAppUpdate).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not request another install while the app is quitting', async () => {
+        electronStub.installAppUpdate.mockResolvedValue({
+            ...BASE_STATUS,
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded,
+        });
+        const service = createService();
+        await service.installAppUpdate();
+        expect(await service.installAppUpdate()).toBeNull();
+        expect(electronStub.installAppUpdate).toHaveBeenCalledTimes(1);
     });
 
     it('stops reaching a guard after it unregisters', async () => {

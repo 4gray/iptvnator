@@ -1,6 +1,7 @@
 import { mediaTitle, type Media, type Progress } from '@iptvnator/tv/util';
 export function Hero({
     item,
+    sourceName,
     open,
     play,
     progress,
@@ -11,6 +12,7 @@ export function Hero({
     detailsBusy = false,
 }: {
     item?: Media;
+    sourceName?: string;
     open: (item: Media) => void;
     play: (item: Media) => void;
     progress?: Progress;
@@ -32,6 +34,9 @@ export function Hero({
                         : 'YOUR OWN CINEMA'}
                 </span>
                 <h1>{item ? mediaTitle(item) : 'Make yourself at home.'}</h1>
+                {sourceName ? (
+                    <span class="home-source-name">{sourceName}</span>
+                ) : null}
                 {progress ? (
                     <div class="hero-position">
                         {progress.item.kind === 'episode'

@@ -6,7 +6,25 @@
     "tags": ["scope:shared", "domain:shared-runtime", "type:util"],
     "targets": {
         "lint": {
-            "executor": "@nx/eslint:lint"
+            "inputs": [
+                "default",
+                "^default",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/.eslintignore",
+                "{workspaceRoot}/eslint.config.mjs",
+                "{workspaceRoot}/tools/eslint-rules/**/*",
+                "{workspaceRoot}/tools/eslint/**/*"
+            ]
+        },
+        "build": {
+            "executor": "@nx/js:tsc",
+            "outputs": ["{options.outputPath}"],
+            "options": {
+                "outputPath": "dist/libs/shared/testing",
+                "main": "libs/shared/testing/src/index.ts",
+                "tsConfig": "libs/shared/testing/tsconfig.lib.json",
+                "assets": []
+            }
         }
     }
 }

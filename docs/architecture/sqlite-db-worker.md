@@ -324,6 +324,12 @@ the main-process and EPG-worker connections give up after their 5 s
   an `XtreamContentValue` supplies, 1,100 parameters per statement; a whole
   5,000-row commit in one statement would pass SQLite's 32,766 limit) and
   wrap fifty of them in one transaction.
+- Category imports use at most 1,000 rows per `INSERT` to stay below SQLite's
+  bound-parameter limit. All statements remain in one transaction, preserving
+  provider order and rolling back earlier batches if a later batch fails.
+- A cold content save persists its type's `importing` marker before committing
+  any content rows. Failure to persist the marker prevents all content writes;
+  only the import owner records completion after the save succeeds.
 - For deletes, progress `current` is the sum of the `changes` SQLite reports
   and `total` is the summed pre-count. For inserts, `current` counts the rows
   handed to `INSERT ... ON CONFLICT DO NOTHING` and `total` is the number of
@@ -713,6 +719,15 @@ internal row ID consistently. Import completion reconciles links and saved
 metadata; detail enrichment also updates the snapshot. Known identity conflicts
 remain unresolved. See [Xtream compatibility](./xtream-portal-compatibility.md#durable-electron-favorites).
 
+The lookup also accepts an optional local `categoryId` restriction, independent
+of TMDB/year evidence. Cold detail Back uses it to verify route membership before
+recovering another category; duplicate typed provider IDs retain their original
+category context. Omitting the selector preserves existing lookup behavior.
+The optional `excludeLocked` flag is forwarded through the same IPC chain for
+shared-favorite projection. It applies the worker's category-lock condition before
+choosing a duplicate. Omitted flags preserve raw lookups used by the PIN guard.
+The renderer also rejects unreadable or changed lock state around these reads.
+
 `DB_RESTORE_XTREAM_FAVORITES` materializes pending/backup snapshots without an
 online catalog. Inserts and their replay receipt share one synchronous worker
 transaction, so retry after removal does not resurrect an item. Explicit backup
@@ -1017,6 +1032,8 @@ covers:
 4. `AbortError` propagation for cancelled work
 5. cancel message routing to the live worker
 6. worker exit recovery and fresh worker startup
+7. stale message/error/exit events cannot change a replacement worker's state;
+   shutdown rejects requests still waiting for readiness
 
 `apps/electron-backend/src/app/events/epg.events.spec.ts` covers:
 
@@ -1176,3 +1193,15 @@ When adding another heavy SQLite operation:
 6. Reuse existing preload/service APIs where possible instead of creating a new
    renderer-facing contract.
 7. Re-run the worker unit test and at least one Electron runtime smoke.
+
+
+### Optional favorites projection
+
+`DB_FAVORITES_LOCAL` follows the fixed local CAS protocol used by activity, with
+independent favorite record types and tables. The main handler verifies the
+selected source-server instance before dispatch; only the worker opens SQLite.
+Projection and pending membership operations commit in one synchronous SQLite
+transaction. Renderer retries preserve sibling-window changes and recheck the
+captured consent/source ownership. No callback, SQL or media address crosses this
+bridge. The worker bundler explicitly maps the favorites secondary entries before
+the parent interface/database aliases.

@@ -47,7 +47,12 @@ import { AppUpdateInstallService } from './services/app-update-install.service';
                 </button>
             </header>
 
-            <div class="app-update-notification__body">
+            <div
+                class="app-update-notification__body"
+                [attr.role]="
+                    status().status === appUpdateStatuses.Error ? 'alert' : null
+                "
+            >
                 <strong>
                     {{
                         labelKey()
@@ -59,6 +64,9 @@ import { AppUpdateInstallService } from './services/app-update-install.service';
                                   }
                     }}
                 </strong>
+                @if (status().status === appUpdateStatuses.Error) {
+                    <span>{{ status().error }}</span>
+                }
                 @if (status().progress; as progress) {
                     <mat-progress-bar
                         mode="determinate"
@@ -94,7 +102,8 @@ import { AppUpdateInstallService } from './services/app-update-install.service';
                         mat-flat-button
                         type="button"
                         [disabled]="
-                            status().status === appUpdateStatuses.Downloading
+                            status().status === appUpdateStatuses.Downloading ||
+                            status().status === appUpdateStatuses.Checking
                         "
                         (click)="downloadUpdate()"
                         data-test-id="app-update-notification-download"
@@ -119,18 +128,31 @@ export class AppUpdateNotificationCardComponent {
     readonly dismissed = output<void>();
 
     readonly appUpdateStatuses = ELECTRON_BRIDGE_APP_UPDATE_STATUSES;
-    readonly labelKey = computed(() =>
-        this.status().status === ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded
-            ? 'SETTINGS.APP_UPDATE_DOWNLOADED'
-            : 'SETTINGS.APP_UPDATE_AVAILABLE'
-    );
+    readonly labelKey = computed(() => {
+        switch (this.status().status) {
+            case ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Error:
+                return 'SETTINGS.APP_UPDATE_ERROR';
+            case ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Checking:
+                return 'SETTINGS.APP_UPDATE_CHECKING';
+            case ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded:
+                return 'SETTINGS.APP_UPDATE_DOWNLOADED';
+            default:
+                return 'SETTINGS.APP_UPDATE_AVAILABLE';
+        }
+    });
     readonly primaryActionLabelKey = computed(() =>
-        this.status().supportedSelfUpdate === false
-            ? 'SETTINGS.APP_UPDATE_OPEN_RELEASE'
-            : 'SETTINGS.APP_UPDATE_DOWNLOAD'
+        this.status().status === ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Error
+            ? 'SETTINGS.APP_UPDATE_CHECK'
+            : this.status().supportedSelfUpdate === false
+              ? 'SETTINGS.APP_UPDATE_OPEN_RELEASE'
+              : 'SETTINGS.APP_UPDATE_DOWNLOAD'
     );
     readonly primaryActionIcon = computed(() =>
-        this.status().supportedSelfUpdate === false ? 'open_in_new' : 'download'
+        this.status().status === ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Error
+            ? 'refresh'
+            : this.status().supportedSelfUpdate === false
+              ? 'open_in_new'
+              : 'download'
     );
 
     /**
@@ -165,6 +187,12 @@ export class AppUpdateNotificationCardComponent {
 
     async downloadUpdate(): Promise<void> {
         const status = this.status();
+
+        if (status.status === ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Error) {
+            const retry = await window.electron?.checkForAppUpdate?.();
+            if (retry) this.statusChange.emit(retry);
+            return;
+        }
 
         if (!status.supportedSelfUpdate) {
             window.open(status.manualDownloadUrl, '_blank', 'noreferrer');

@@ -310,6 +310,10 @@ const electronApi: ElectronBridgeApi = {
         if (result?.error) throw new Error('SOURCE_SYNC.INCOMPATIBLE');
         return result;
     },
+    favoritesLocalRequest: (request) =>
+        ipcRenderer.invoke('DB_FAVORITES_LOCAL', request),
+    activityLocalRequest: (request) =>
+        ipcRenderer.invoke('DB_ACTIVITY_LOCAL', request),
     sourceSyncRequest: (request) =>
         ipcRenderer.invoke(SOURCE_SYNC_REQUEST, request),
     sourceSyncConfigure: (url, token, restart) =>
@@ -544,14 +548,16 @@ const electronApi: ElectronBridgeApi = {
         credentials?: {
             authorization?: string | null;
             cookie?: string | null;
-        } | null
+        } | null,
+        origin?: string | null
     ) =>
         ipcRenderer.invoke(
             'set-user-agent',
             userAgent,
             referer,
             scopeUrl,
-            credentials
+            credentials,
+            origin
         ),
     openInMpv: (
         url: string,
@@ -715,6 +721,8 @@ const electronApi: ElectronBridgeApi = {
         playlists: Playlist[],
         options?: ElectronBridgeTrustOptions
     ) => ipcRenderer.invoke('AUTO_UPDATE', playlists, options),
+    setEpgEnabled: (enabled: boolean) =>
+        ipcRenderer.invoke('EPG_SET_ENABLED', enabled),
     fetchEpg: (urls: string[], options?: ElectronBridgeTrustOptions) =>
         ipcRenderer.invoke('FETCH_EPG', { url: urls, options }),
     getChannelPrograms: (
@@ -743,8 +751,11 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('EPG_FORCE_FETCH', { url, options }),
     openEpgFileDialog: () => ipcRenderer.invoke('EPG_OPEN_FILE_DIALOG'),
     clearEpgData: () => ipcRenderer.invoke('EPG_CLEAR_ALL'),
-    reconcileEpgSources: (urls: string[]) =>
-        ipcRenderer.invoke('EPG_RECONCILE_SOURCES', { urls }),
+    reconcileEpgSources: (urls: string[], epgEnabled?: boolean) =>
+        ipcRenderer.invoke('EPG_RECONCILE_SOURCES', {
+            urls,
+            ...(epgEnabled === undefined ? {} : { epgEnabled }),
+        }),
     clearEpgDataForSource: (sourceUrl: string) =>
         ipcRenderer.invoke('EPG_CLEAR_SOURCE', { sourceUrl }),
     checkEpgFreshness: (urls: string[], maxAgeHours?: number) =>
@@ -771,6 +782,8 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('EPG_CHANNEL_SEARCH', { searchTerm, limit }),
     setMpvPlayerPath: (mpvPlayerPath: string) =>
         ipcRenderer.invoke('SET_MPV_PLAYER_PATH', mpvPlayerPath),
+    getExternalPlayerAvailability: (paths?: { mpv?: string; vlc?: string }) =>
+        ipcRenderer.invoke('GET_EXTERNAL_PLAYER_AVAILABILITY', paths),
     setVlcPlayerPath: (vlcPlayerPath: string) =>
         ipcRenderer.invoke('SET_VLC_PLAYER_PATH', vlcPlayerPath),
     updateSettings: (settings: Partial<Settings>) =>
@@ -1060,14 +1073,22 @@ const electronApi: ElectronBridgeApi = {
         xtreamId: number,
         playlistId: string,
         contentType?: 'live' | 'movie' | 'series',
-        identity?: ContentMetadataPatch
+        identity?: ContentMetadataPatch,
+        categoryId?: number,
+        excludeLocked?: boolean
     ) =>
         ipcRenderer.invoke(
             'DB_GET_CONTENT_BY_XTREAM_ID',
             xtreamId,
             playlistId,
             contentType,
-            ...(identity ? [identity] : [])
+            ...(excludeLocked
+                ? [identity, categoryId, true]
+                : categoryId !== undefined
+                  ? [identity, categoryId]
+                  : identity
+                    ? [identity]
+                    : [])
         ),
     dbSetContentMetadataIfMissing: (
         contentId: number,

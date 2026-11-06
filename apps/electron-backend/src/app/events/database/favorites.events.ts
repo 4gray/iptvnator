@@ -1,3 +1,5 @@
+import type { FavoriteLocalRequest } from '@iptvnator/shared/interfaces/favorites-sync';
+import { readSourceServerConfig } from '../../services/source-server-config';
 import type {
     ElectronBridgeFavoriteReorderUpdate,
     XtreamFavoriteRemovalRef,
@@ -61,3 +63,10 @@ handleWorkerRequest(
 handleWorkerRequest('DB_GET_FAVORITES_FOR_BACKUP', (playlistId: string) => ({
     playlistId,
 }));
+
+handleWorkerRequest('DB_FAVORITES_LOCAL', (request: FavoriteLocalRequest) => {
+    const selected = readSourceServerConfig();
+    if (!selected || request?.instanceId !== selected.instanceId)
+        throw new Error('Favorite profile mismatch');
+    return request;
+});

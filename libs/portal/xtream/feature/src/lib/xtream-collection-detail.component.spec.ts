@@ -137,6 +137,52 @@ describe('XtreamCollectionDetailComponent', () => {
         fixture?.destroy();
     });
 
+    it.each(['movie', 'series'] as const)(
+        'preserves the nested %s detail and selection across metadata polls',
+        fakeAsync((contentType: 'movie' | 'series') => {
+            const item = {
+                ...seriesItem,
+                contentType,
+                name: 'Synthetic selected item',
+            };
+            fixture.componentRef.setInput('item', item);
+            fixture.detectChanges();
+            flushMicrotasks();
+            const original = fixture.componentInstance.detailInjector();
+            const selected = { id: 103, title: 'Synthetic loaded detail' };
+            selectedItem.set(selected);
+            fixture.componentRef.setInput('item', {
+                ...item,
+                name: 'Synthetic refreshed title',
+                categoryId: 9,
+                catalogDisabled: true,
+            });
+            fixture.detectChanges();
+            flushMicrotasks();
+            expect(
+                fixture.componentInstance.detailInjector() === original
+            ).toBe(true);
+            expect(selectedItem()).toBe(selected);
+        })
+    );
+    it('recreates the nested detail after a source connection edit', fakeAsync(() => {
+        fixture.componentRef.setInput('item', seriesItem);
+        fixture.detectChanges();
+        flushMicrotasks();
+        const original = fixture.componentInstance.detailInjector();
+        jest.mocked(
+            TestBed.inject(PlaylistsService).getPlaylistById
+        ).mockReturnValue(
+            of({ ...detailPlaylist, password: 'synthetic-new-password' })
+        );
+        fixture.componentRef.setInput('item', { ...seriesItem });
+        fixture.detectChanges();
+        flushMicrotasks();
+        expect(fixture.componentInstance.detailInjector() === original).toBe(
+            false
+        );
+        expect(currentPlaylist()?.password).toBe('synthetic-new-password');
+    }));
     it('opens Xtream series favorites with the serial detail route context', async () => {
         const seriesResume = {
             seriesXtreamId: 103,

@@ -1,8 +1,11 @@
 import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, Injector } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { firstValueFrom } from 'rxjs';
 import { extractDrmFromRaw } from '@iptvnator/shared/m3u-utils';
 import {
+    EpgPreferencesService,
+    EpgSourceSettingsService,
     DataService,
     PlaylistsService,
     RuntimeCapabilitiesService,
@@ -18,6 +21,7 @@ import {
     epgProviderClockMs,
     isFullStalkerPortalPlaylist,
     Playlist,
+    StalkerPortalItem,
     isStalkerStreamCredentialSafe,
     ResolvedPortalPlayback,
     shortEpgWindowSize,
@@ -40,6 +44,7 @@ import {
     resolveStalkerStaticPlaybackUrl,
     StalkerPortalRepairService,
     StalkerSessionService,
+    StalkerFavoritePlaybackResolver,
     type StalkerLinkFlagSource,
 } from '@iptvnator/portal/stalker/data-access';
 import {
@@ -97,11 +102,14 @@ interface EpgLoadClock {
 @Injectable({ providedIn: 'root' })
 export class StreamResolverService {
     private readonly playlistsService = inject(PlaylistsService);
+    private readonly injector = inject(Injector);
     private readonly xtreamApi = inject(XtreamApiService);
     private readonly xtreamUrl = inject(XtreamUrlService);
     private readonly dataService = inject(DataService);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly epgPreferences = inject(EpgPreferencesService);
+    private readonly epgSources = inject(EpgSourceSettingsService);
     private readonly settingsStore = inject(SettingsStore);
 
     /**
@@ -131,14 +139,26 @@ export class StreamResolverService {
     private readonly xtreamEpgCacheTtlMs = 60 * 1000;
     private readonly xtreamEpgFailureCooldownMs = 30 * 1000;
 
+    constructor() {
+        this.epgSources.changed$.pipe(takeUntilDestroyed()).subscribe(() => {
+            this.xtreamEpgCache.clear();
+            this.xtreamEpgFailureTimestamps.clear();
+        });
+    }
+
     /** Local XMLTV: M3U guides, `epg_channel_id` matches, manual mappings. */
     private get supportsProgramLookup(): boolean {
-        return this.epgBridge.supportsProgramLookup;
+        return (
+            this.epgPreferences.enabled() &&
+            this.epgBridge.supportsProgramLookup
+        );
     }
 
     /** Xtream and Stalker guides: only the portal transport is needed. */
     private get supportsProviderEpg(): boolean {
-        return this.runtime.supportsProviderEpg;
+        return (
+            this.epgPreferences.enabled() && this.runtime.supportsProviderEpg
+        );
     }
 
     private async getElectronPlaylist(
@@ -197,7 +217,12 @@ export class StreamResolverService {
     }
 
     async loadEpgItems(item: UnifiedCollectionItem): Promise<EpgItem[]> {
-        if (item.radio === 'true' || isCatalogUnavailable(item)) return [];
+        if (
+            !this.epgPreferences.enabled() ||
+            item.radio === 'true' ||
+            isCatalogUnavailable(item)
+        )
+            return [];
         if (item.sourceType === 'm3u') {
             return this.mapProgramsToEpgItems(
                 await this.loadM3uProgramsForItem(item)
@@ -217,6 +242,7 @@ export class StreamResolverService {
         items: UnifiedCollectionItem[]
     ): Promise<Map<string, EpgProgram | null>> {
         const epgMap = new Map<string, EpgProgram | null>();
+        if (!this.epgPreferences.enabled()) return epgMap;
         // M3U rows need XMLTV; Xtream and Stalker rows need the portal
         // transport (and try XMLTV matches and mappings first where XMLTV
         // exists).
@@ -431,6 +457,17 @@ export class StreamResolverService {
             '';
         const macAddress =
             currentPlaylist?.macAddress ?? item.stalkerMacAddress ?? '';
+        if (currentPlaylist && !item.stalkerCmd) {
+            const row = await this.injector
+                .get(StalkerFavoritePlaybackResolver)
+                .resolve(currentPlaylist, {
+                    ...(item.stalkerItem as StalkerPortalItem | undefined),
+                    id: item.stalkerId,
+                    favoriteContentType:
+                        item.radio === 'true' ? 'radio' : 'itv',
+                });
+            item = { ...item, stalkerItem: row, stalkerCmd: row.cmd };
+        }
         // Favorites and Recently Viewed persist the raw catalog row, so the
         // temporary-link flags travel with the item and this route makes the
         // same decision the portal views make: an unflagged, directly playable
@@ -1160,6 +1197,7 @@ export class StreamResolverService {
         }
 
         const { offsetMinutes, wallNowMs } = clock;
+        const revision = this.epgSources.revision();
         const cacheKey = this.getXtreamEpgCacheKey(
             playlistId,
             streamId,
@@ -1199,6 +1237,7 @@ export class StreamResolverService {
                           wallNowMs
                       );
 
+            if (revision !== this.epgSources.revision()) return [];
             this.xtreamEpgCache.set(cacheKey, {
                 data: items,
                 timestamp: Date.now(),
@@ -1206,6 +1245,7 @@ export class StreamResolverService {
             this.xtreamEpgFailureTimestamps.delete(cacheKey);
             return items;
         } catch {
+            if (revision !== this.epgSources.revision()) return [];
             this.xtreamEpgFailureTimestamps.set(cacheKey, Date.now());
             return [];
         }
@@ -1307,17 +1347,20 @@ export class StreamResolverService {
             size: String(size),
         };
 
-        const response: StalkerEpgResponse =
-            await executeStalkerRequest<StalkerEpgResponse>(
-                {
-                    dataService: this.dataService,
-                    stalkerSession: this.stalkerSession,
-                    portalRepair: this.portalRepair,
-                },
-                playlist,
-                params,
-                { silent: true }
-            );
+        const response: StalkerEpgResponse = await this.epgPreferences.run(
+            () =>
+                executeStalkerRequest<StalkerEpgResponse>(
+                    {
+                        dataService: this.dataService,
+                        stalkerSession: this.stalkerSession,
+                        portalRepair: this.portalRepair,
+                    },
+                    playlist,
+                    params,
+                    { silent: true }
+                ),
+            { js: [] }
+        );
 
         const epgData = Array.isArray(response?.js)
             ? response.js

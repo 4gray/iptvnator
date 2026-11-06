@@ -7,6 +7,22 @@ Embedded MPV rendering and native-view bounds behavior remain documented in
 
 ## Current status
 
+The Settings player selector probes external MPV/VLC using the same launch
+context as playback. A missing executable labels its option without disabling
+selection or changing the saved player. The selected external player's path
+editor sits directly below the selector; unused external-player configuration
+stays hidden. Its status announces checking, found, missing or unknown, with
+a manual recheck button. PATH and standard install locations are checked
+without spawning a process. Discovery uses asynchronous filesystem I/O with a
+1.5-second total budget and at most two outstanding filesystem operations,
+reserving at least one worker from the configured libuv pool for other work.
+With a single worker, detection returns unknown without filesystem I/O.
+An inaccessible UNC path, other inconclusive I/O error or timed-out shell PATH lookup returns unknown
+and leaves the option selectable. Flatpak host availability and older bridges remain
+unknown. Reopening the selector, editing either executable path or pressing
+the recheck button refreshes the check; unrelated form edits do not. Path edits
+immediately invalidate the previous result, and stale responses are ignored.
+
 The shared-controls preference checkbox is visible only when HTML5, Video.js
 or ArtPlayer is selected in Settings → Playback.
 
@@ -554,7 +570,9 @@ the panel the moment the last group disappears.
   24px segmented items) that replaces the dock while open. Picture-in-
   picture and recording stay in the compact dock — the mock shows only
   `tune` + fullscreen there, but those two are engine features a viewer
-  needs without opening anything.
+  needs without opening anything. At 200% zoom or on a short stage, the
+  whole sheet scrolls, including its header, so the body cannot collapse to
+  zero height. Wide panels retain the body as their sole scroll owner.
 - **Inside**: every choice is a `radio` in a `radiogroup`
   (`SettingsRadioGroupDirective` / `SettingsRadioDirective`). List groups
   (audio, subtitles, quality) are rows with a check mark and a cyan

@@ -478,6 +478,71 @@ describe('EpgQueryService', () => {
         expect(select).toHaveBeenCalledTimes(2);
     });
 
+    /** Records the LIMIT (= channel ids bound) of each current-programme query. */
+    function recordCurrentProgramQueries(): number[] {
+        const programLimits: number[] = [];
+        const select = jest.fn(() => {
+            const chain: Record<string, jest.Mock> = {};
+            chain.groupBy = jest.fn(() => chain);
+            chain.limit = jest.fn((count: number) => {
+                programLimits.push(count);
+                return Promise.resolve([]);
+            });
+            // Candidate lookups await where() directly; programme queries
+            // continue with groupBy().limit().
+            const where = jest.fn(() =>
+                Object.assign(Promise.resolve([]), chain)
+            );
+            return { from: jest.fn(() => ({ where })) };
+        });
+        getDatabase.mockResolvedValue({ select });
+        return programLimits;
+    }
+
+    // GROUP BY picks a channel's row by query plan when sources overlap, so a
+    // request that fits one statement must not be split. Each query binds the
+    // ids, two airing timestamps and the LIMIT, plus the source URLs (scoped)
+    // or one '' (legacy).
+    it.each([
+        {
+            name: 'unscoped ids at the limit',
+            idCount: 32_763,
+            sourceUrls: [] as string[],
+            expected: [32_763],
+        },
+        {
+            name: 'scoped and legacy queries with two source URLs',
+            idCount: 32_761,
+            sourceUrls: [
+                'https://a.example.com/epg.xml',
+                'https://b.example.com/epg.xml',
+            ],
+            expected: [32_761, 32_761],
+        },
+    ])(
+        'keeps one current-programme statement for $name',
+        async ({ idCount, sourceUrls, expected }) => {
+            const programLimits = recordCurrentProgramQueries();
+            const ids = Array.from({ length: idCount }, (_, i) => `ch-${i}`);
+
+            await service.getCurrentProgramsBatch(ids, { sourceUrls });
+
+            expect(programLimits).toEqual(expected);
+        }
+    );
+
+    it('splits current-programme ids past the SQLite variable limit', async () => {
+        // A single `IN (…)` over every playlist channel failed with "too many
+        // SQL variables" past 32766 ids, and the batch came back empty.
+        const programLimits = recordCurrentProgramQueries();
+        const ids = Array.from({ length: 40_000 }, (_, i) => `ch-${i}`);
+
+        const result = await service.getCurrentProgramsBatch(ids);
+
+        expect(programLimits).toEqual([32_763, 7_237]);
+        expect(Object.keys(result)).toHaveLength(40_000);
+    });
+
     it('scopes channel metadata by program source ownership for shared channels', async () => {
         const whereCalls: unknown[] = [];
         const select = jest.fn(() => createSelectChain([], whereCalls));

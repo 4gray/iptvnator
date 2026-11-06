@@ -115,6 +115,13 @@ packaged startup check after IPC registration; it never downloads during that
 check. After a successful download, the renderer may show a restart/install
 action backed by `quitAndInstall()`.
 
+The renderer suspends only its DOM unload handler during installation. The
+main-process window guard stays armed until install IPC: `prepareQuit` clears
+pending close intents and prepares one close bypass in the same synchronous call
+before `quitAndInstall()`. An install failure revokes an unused bypass. Renderer
+receipt of close notifications is not used as evidence that main has no pending
+close.
+
 Self-update is supported only for packaged macOS builds, Windows NSIS builds,
 and Linux AppImage builds. Other Linux packages still point users to the latest
 GitHub Release through `manualDownloadUrl` because Snap, Flatpak, DEB, RPM, and
@@ -162,7 +169,7 @@ policy.
 Inline playback can request temporary `User-Agent`, `Referer`, and `Origin`
 header overrides — and, for auth-gated portal streams, `Cookie` and
 `Authorization` credentials — through `window.electron.setUserAgent(userAgent,
-referer, scopeUrl, credentials?)`.
+referer, scopeUrl, credentials?, origin?)`.
 
 The Electron backend handles that IPC in `apps/electron-backend/src/app/events/shared.events.ts`
 and delegates to `apps/electron-backend/src/app/services/request-header-overrides.service.ts`.
@@ -185,11 +192,16 @@ a narrower call would overwrite the credentialed override.
 
 Rules:
 
-- empty playlist-level `userAgent` and `referer` clear all active overrides
+- empty playlist-level header overrides clear all active overrides
 - empty channel-level values with a `scopeUrl` clear only the scoped channel
   override, preserving playlist-level defaults
 - channel playback should pass the stream URL as `scopeUrl`
 - scoped overrides apply only to the active stream origin and referer origin
+- an explicit `origin` header value takes precedence over the origin derived
+  from `referer`, including when only `origin` is configured; absent or rejected
+  values preserve the Referer-derived fallback
+- the explicit Origin header value does not add a destination to the scope;
+  it cannot widen credential or request-header access to another host
 - playlist-level user agents and referrers may call the bridge without a
   `scopeUrl`; that is intentionally broader because playlist settings apply to
   the whole M3U playlist
@@ -328,5 +340,9 @@ Renderer IPC payloads are not filesystem authorization.
   returned by `DOWNLOADS_GET_DEFAULT_FOLDER`, so renderer-managed settings
   cannot substitute an arbitrary host path.
 - Downloads do not overwrite an existing destination file.
+- Download filenames use a media-extension allowlist. New downloads, retained
+  retry/resume paths and missing-file re-downloads reject unsupported types; Play checks the same allowlist
+  before OS opening, including records created by older releases. Provider
+  endpoints without a media extension use `.mp4`.
 - Reveal and playback handlers accept only file paths recorded in IPTVnator's
   downloads database.

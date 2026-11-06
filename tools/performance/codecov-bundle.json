@@ -1,0 +1,10 @@
+{
+    "bundleName": "iptvnator-renderer",
+    "enableBundleAnalysis": true,
+    "telemetry": false,
+    "gitService": "github",
+    "oidc": {
+        "useGitHubOIDC": true
+    },
+    "ignorePatterns": ["*.map"]
+}

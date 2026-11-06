@@ -98,8 +98,10 @@ export async function verifyCanonicalM3uEpgOptOut(
             .getByRole('button', { name: 'Add playlist', exact: true })
             .click();
         await expect(dialog).toBeHidden();
-        expect(seeded).toBe(true);
+        // Closing the import dialog only dispatches parsing. Navigation waits
+        // for the server write and adoption of the sibling's canonical ID.
         await expect(page).toHaveURL(new RegExp(`/playlists/${id}/`));
+        expect(seeded).toBe(true);
         await openSources(page);
         await expect(sourceRowByTitle(page, title)).toBeVisible();
         for (let attempt = 0; attempt < 2; attempt++) {

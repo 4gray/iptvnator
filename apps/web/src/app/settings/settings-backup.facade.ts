@@ -1,7 +1,12 @@
+import { favoritesProfileUsed } from '../services/favorites-consent';
+import { loadFavoritesRuntime } from '../services/favorites-sync.providers';
+import { activityEnabled } from '../services/activity-consent';
+import { loadActivityRuntime } from '../services/activity-sync.providers';
 import {
     afterNextRender,
     computed,
     DestroyRef,
+    EnvironmentInjector,
     inject,
     Injectable,
     Injector,
@@ -25,6 +30,7 @@ import { SettingsSnackbarService } from './settings-snackbar.service';
 
 @Injectable()
 export class SettingsBackupFacade {
+    private readonly environment = inject(EnvironmentInjector);
     private readonly playlistBackupService = inject(PlaylistBackupService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsSnackbar = inject(SettingsSnackbarService);
@@ -53,7 +59,20 @@ export class SettingsBackupFacade {
         this.isExportingData.set(true);
         try {
             await waitForUiFeedbackFrame();
-            const backup = await this.playlistBackupService.exportBackup();
+            const backup = await this.playlistBackupService.exportBackup(
+                async (sourceId, local) =>
+                    activityEnabled()
+                        ? (
+                              await loadActivityRuntime(this.environment)
+                          ).exportPositions(sourceId, local)
+                        : local,
+                async (playlist, entry) =>
+                    favoritesProfileUsed()
+                        ? (
+                              await loadFavoritesRuntime(this.environment)
+                          ).exportFavorites(playlist, entry)
+                        : entry
+            );
 
             if (this.runtime.supportsDesktopFileSave && window.electron) {
                 const savePath = await window.electron.saveFileDialog(
@@ -125,8 +144,14 @@ export class SettingsBackupFacade {
             this.importFailed.set(false);
 
             try {
+                const restoreFavorites = favoritesProfileUsed()
+                    ? (
+                          await loadFavoritesRuntime(this.environment)
+                      ).backupRestorer()
+                    : undefined;
                 const summary = await this.playlistBackupService.importBackup(
-                    await file.text()
+                    await file.text(),
+                    ...(restoreFavorites ? [restoreFavorites] : [])
                 );
                 this.injector
                     .get(XtreamStore, null)

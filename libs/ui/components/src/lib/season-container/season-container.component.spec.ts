@@ -22,7 +22,10 @@ import {
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { of } from 'rxjs';
-import { EPISODE_INFO_PLAY } from './episode-info-dialog.component';
+import {
+    EPISODE_INFO_PLAY,
+    buildEpisodeInfoDialogData,
+} from './episode-info-dialog.component';
 import { SeasonContainerComponent } from './season-container.component';
 
 interface DownloadsServiceStub {
@@ -499,6 +502,22 @@ describe('SeasonContainerComponent', () => {
         ) as HTMLElement;
         expect(item.classList).toContain('episode-item--playing');
         expect(item.classList).toContain('episode-item--current');
+    });
+
+    it('hides season tabs and season prefixes in episode info for flat collections', () => {
+        const episode = createEpisode({
+            season: 9,
+            episode_num: 189,
+            seasonUnknown: true,
+        });
+        setRequiredInputs({ '9': [episode] });
+        fixture.detectChanges();
+        expect(
+            fixture.nativeElement.querySelector('app-season-tabs')
+        ).toBeNull();
+        expect(buildEpisodeInfoDialogData(episode, '9').episodeLabel).toBe(
+            'E189'
+        );
     });
 
     it('opens the episode info dialog and plays on the dialog play action', () => {

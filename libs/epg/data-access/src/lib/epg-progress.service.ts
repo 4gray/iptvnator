@@ -3,7 +3,11 @@ import {
     ELECTRON_BRIDGE_SECURITY_ERROR_CODES,
     normalizeHost,
 } from '@iptvnator/shared/interfaces';
-import { SettingsStore, EpgSourceSettingsService } from '@iptvnator/services';
+import {
+    EpgPreferencesService,
+    SettingsStore,
+    EpgSourceSettingsService,
+} from '@iptvnator/services';
 import {
     EpgImportProgress,
     EpgRuntimeBridgeService,
@@ -13,6 +17,7 @@ import {
 export class EpgProgressService {
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly settingsStore = inject(SettingsStore);
+    private readonly epgPreferences = inject(EpgPreferencesService);
     private readonly sources = inject(EpgSourceSettingsService);
     private readonly importsMap = signal<Map<string, EpgImportProgress>>(
         new Map()
@@ -32,7 +37,9 @@ export class EpgProgressService {
             .sort((a, b) => (a.queuePosition ?? 0) - (b.queuePosition ?? 0))
     );
     readonly queuedCount = computed(() => this.queuedImports().length);
-    readonly isVisible = computed(() => this.imports().length > 0);
+    readonly isVisible = computed(
+        () => this.epgPreferences.enabled() && this.imports().length > 0
+    );
 
     constructor() {
         this.initializeListener();

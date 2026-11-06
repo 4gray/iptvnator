@@ -1,4 +1,11 @@
-import { Injectable, Provider, computed, inject } from '@angular/core';
+import { observeActivityChanges } from '@iptvnator/services/activity-changes';
+import {
+    DestroyRef,
+    Injectable,
+    Provider,
+    computed,
+    inject,
+} from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import {
     buildStalkerSelectedVodItem,
@@ -113,6 +120,15 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
         };
     });
 
+    constructor() {
+        inject(DestroyRef).onDestroy(
+            observeActivityChanges(() => {
+                const id = this.playlist()?.id;
+                if (id) void this.refreshPositions(id).catch(() => undefined);
+            })
+        );
+    }
+
     initialize(categoryId?: string | null): void {
         this.clearSelectedItem();
         // The retained facade also returns from collections, whose watched
@@ -221,8 +237,12 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
         this.stalkerStore.addToFavorites(item, onDone);
     }
 
-    removeFromFavorites(favoriteId: string, onDone?: () => void): void {
-        this.stalkerStore.removeFromFavorites(favoriteId, onDone);
+    removeFromFavorites(
+        favoriteId: string,
+        onDone?: () => void,
+        context?: import('@iptvnator/shared/interfaces').StalkerPortalItem
+    ): void {
+        this.stalkerStore.removeFromFavorites(favoriteId, onDone, context);
     }
 
     fetchMovieFileId(itemId: string): Promise<string | null> {

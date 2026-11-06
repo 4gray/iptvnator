@@ -1,3 +1,6 @@
+import { useSourceActions } from './use-source-actions';
+import { usePlayerPlaylist } from './use-player-playlist';
+import { HomeSourceStatus } from './home-source-status';
 import { LiveOverlay, useLiveOverlay } from './live-overlay';
 import { useLiveBrowse } from './use-live-browse';
 import { useHomeFeature } from './use-home-feature';
@@ -6,9 +9,10 @@ import { Favorites } from './favorites';
 import { usePlayerControls } from './player-controls';
 import { useEffect, useRef } from 'preact/hooks';
 import { useTv } from './use-tv';
-import type { View } from './navigation';
+import { mainNavigation } from './navigation';
 import { Sources } from './forms';
 import { Settings } from './settings';
+import type { TvBuildInfo } from './about';
 import type { SettingsMemory } from './settings-navigation';
 import { Home, CatalogScreen } from './screens';
 import { Detail } from './detail';
@@ -18,20 +22,10 @@ import { Backdrop, TvIcon } from '@iptvnator/tv/ui';
 import { useMetadata } from './use-metadata';
 import { useSeriesContext } from './use-series-context';
 import { useSeriesDetails } from './use-series-details';
-import { mediaTitle } from '@iptvnator/tv/util';
+import { NativePlayerView } from './native-player-view';
 import { PersonPage } from './person-page';
 import type { FilmographyMemory } from './use-filmography-search';
-const navigation: [View, string][] = [
-    ['home', 'Home'],
-    ['live', 'TV'],
-    ['movies', 'Movies'],
-    ['series', 'Series'],
-    ['favorites', 'Favorites'],
-    ['search', 'Search'],
-    ['sources', 'Sources'],
-    ['settings', 'Settings'],
-];
-export function TvApp() {
+export function TvApp({ buildInfo }: { buildInfo: TvBuildInfo }) {
     const personMemory = useRef<FilmographyMemory>(new WeakMap());
     const settingsMemory = useRef<SettingsMemory>({
         category: 'connection',
@@ -42,9 +36,11 @@ export function TvApp() {
     const tv = useTv(video);
     const detailSeason = useDetailSeason(tv.route);
     const seriesDetails = useSeriesDetails(tv);
+    const homeActions = useSourceActions(tv, seriesDetails);
     useSeriesContext(tv);
     const browse = useLiveBrowse(tv);
     const overlay = useLiveOverlay(tv, browse);
+    const playlist = usePlayerPlaylist(tv, browse);
     useEffect(() => {
         const position = () => {
             const rect = document
@@ -70,7 +66,7 @@ export function TvApp() {
         };
     });
     const r = tv.route;
-    const feature = useHomeFeature(tv);
+    const feature = useHomeFeature(tv, homeActions.leave);
     const cinematic = r.view === 'home' || r.view === 'detail';
     const metadata = useMetadata(
         r.view === 'detail'
@@ -90,23 +86,22 @@ export function TvApp() {
                   )
                 : tv.home,
     };
-    const current = tv.playing;
     const element = video.current;
     const controlsVisible = usePlayerControls(
         tv.fullscreen,
         !!overlay.panel || (element?.paused ?? true)
     );
-    const time = (seconds: number) =>
-        Number.isFinite(seconds)
-            ? `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`
-            : 'LIVE';
     return (
         <div
             class={`tv-app ${tv.data.layout}`}
             onMouseMove={(event) => {
                 if (!event.movementX && !event.movementY) return;
                 const button = (event.target as HTMLElement).closest('button');
-                if (button && button !== document.activeElement)
+                if (
+                    button &&
+                    !button.hasAttribute('data-tv-pointer-only') &&
+                    button !== document.activeElement
+                )
                     button.focus({ preventScroll: true });
             }}
         >
@@ -136,11 +131,14 @@ export function TvApp() {
                     ip<span>tv</span>nator<small>TV EDITION</small>
                 </div>
                 <nav aria-label="Main navigation">
-                    {navigation.map(([view, label]) => (
+                    {mainNavigation.map(([view, label]) => (
                         <button
                             data-focus={`nav:${view}`}
                             aria-current={r.view === view ? 'page' : undefined}
-                            onClick={() => tv.navigate(view)}
+                            onClick={() => {
+                                homeActions.leave();
+                                tv.navigate(view);
+                            }}
                         >
                             <span class="nav-icon" aria-hidden="true">
                                 <TvIcon name={view} />
@@ -168,7 +166,8 @@ export function TvApp() {
                 }
             >
                 {cinematic ? <Backdrop item={metadata.item} /> : null}
-                <PageHeader tv={tv} />
+                <PageHeader tv={tv} cancelOpening={homeActions.leave} />
+                <HomeSourceStatus actions={homeActions} />
                 {metadata.failed ? (
                     <div class="metadata-notice" role="status">
                         TMDB is unavailable. Showing provider information.
@@ -184,7 +183,12 @@ export function TvApp() {
                             </button>
                         ) : null}
                         <button onClick={() => tv.setError('')}>Dismiss</button>
-                        <button onClick={() => tv.navigate('sources')}>
+                        <button
+                            onClick={() => {
+                                homeActions.leave();
+                                tv.navigate('sources');
+                            }}
+                        >
                             Edit sources
                         </button>
                     </div>
@@ -201,13 +205,17 @@ export function TvApp() {
                     <Home
                         tv={display}
                         feature={{ ...feature, item: metadata.item }}
-                        openSeries={seriesDetails.open}
-                        detailsBusy={seriesDetails.busy}
+                        actions={homeActions}
+                        detailsBusy={seriesDetails.busy || homeActions.pending}
                     />
                 ) : r.view === 'sources' ? (
                     <Sources tv={tv} />
                 ) : r.view === 'settings' ? (
-                    <Settings tv={tv} memory={settingsMemory.current} />
+                    <Settings
+                        tv={tv}
+                        memory={settingsMemory.current}
+                        buildInfo={buildInfo}
+                    />
                 ) : r.view === 'live' ? (
                     <Live
                         key={tv.data.activeId}
@@ -218,7 +226,7 @@ export function TvApp() {
                         openGrid={overlay.openGrid}
                     />
                 ) : r.view === 'favorites' ? (
-                    <Favorites tv={tv} />
+                    <Favorites tv={tv} actions={homeActions} />
                 ) : r.view === 'person' ? (
                     <PersonPage
                         key={`${tv.data.activeId}:${r.person?.tmdbId}`}
@@ -238,150 +246,14 @@ export function TvApp() {
                     <CatalogScreen tv={tv} />
                 )}
             </main>
-            <div
-                class={`native-player ${tv.fullscreen ? 'fullscreen' : 'preview'}`}
-                hidden={!current}
-            >
-                <video ref={video} playsInline preload="metadata" />
-                {tv.fullscreen ? (
-                    <div
-                        class={`player-controls ${controlsVisible || tv.error ? '' : 'dormant'}`}
-                        hidden={!!overlay.panel}
-                    >
-                        <div class="player-top">
-                            <button data-focus="player-back" onClick={tv.back}>
-                                ← Back
-                            </button>
-                            {current?.kind === 'live' ? (
-                                <div class="actions">
-                                    <button
-                                        data-focus="player-channels"
-                                        onClick={overlay.openChannels}
-                                    >
-                                        Channels
-                                    </button>
-                                    <button
-                                        data-focus="player-grid"
-                                        onClick={overlay.openGrid}
-                                    >
-                                        TV Guide
-                                    </button>
-                                    <button
-                                        data-focus="player-guide"
-                                        onClick={overlay.openGuide}
-                                    >
-                                        Programme
-                                    </button>
-                                </div>
-                            ) : null}
-                            <span>
-                                {current?.kind === 'live'
-                                    ? 'LIVE TELEVISION'
-                                    : 'NOW WATCHING'}
-                            </span>
-                        </div>
-                        <div class="player-bottom">
-                            <span class="eyebrow">
-                                {current?.season
-                                    ? `SEASON ${current.season} · EPISODE ${current.episode}`
-                                    : 'IPTVNATOR TV'}
-                            </span>
-                            <h1>{current && mediaTitle(current)}</h1>
-                            {current?.kind === 'episode' ? (
-                                <p>{current.title}</p>
-                            ) : null}
-                            <div class="actions">
-                                <button
-                                    data-focus="player-toggle"
-                                    class="primary"
-                                    onClick={() => tv.player.current?.toggle()}
-                                >
-                                    {element?.paused ? 'Play ▶' : 'Pause Ⅱ'}
-                                </button>
-                                {current?.kind === 'episode' ? (
-                                    <button
-                                        data-focus="player-series-details"
-                                        disabled={seriesDetails.busy}
-                                        onClick={() =>
-                                            void seriesDetails.open(current)
-                                        }
-                                    >
-                                        {seriesDetails.busy
-                                            ? 'Finding series…'
-                                            : 'Series details →'}
-                                    </button>
-                                ) : null}
-                                {current?.kind !== 'live' ? (
-                                    <>
-                                        <button
-                                            onClick={() =>
-                                                tv.player.current?.seek(-10)
-                                            }
-                                        >
-                                            −10 sec
-                                        </button>
-                                        <button
-                                            onClick={() =>
-                                                tv.player.current?.seek(10)
-                                            }
-                                        >
-                                            +10 sec
-                                        </button>
-                                        <span>
-                                            {time(element?.currentTime ?? 0)} /{' '}
-                                            {time(element?.duration ?? 0)}
-                                        </span>
-                                    </>
-                                ) : null}
-                                <button
-                                    onClick={() =>
-                                        current && tv.favorite(current)
-                                    }
-                                >
-                                    ♡ Save
-                                </button>
-                            </div>
-                            {current?.kind !== 'live' ? (
-                                <label class="seek">
-                                    Playback position
-                                    <input
-                                        aria-label="Playback position"
-                                        type="range"
-                                        min="0"
-                                        max={
-                                            Number.isFinite(element?.duration)
-                                                ? element!.duration
-                                                : 0
-                                        }
-                                        value={element?.currentTime ?? 0}
-                                        onInput={(e) => {
-                                            tv.player.current?.seekTo(
-                                                Number(e.currentTarget.value)
-                                            );
-                                        }}
-                                    />
-                                </label>
-                            ) : null}
-                            {tv.player.current?.restoringPosition ? (
-                                <p role="status">Restoring saved position…</p>
-                            ) : null}
-                            {tv.error ? (
-                                <div role="alert" class="error">
-                                    {tv.error}
-                                    {tv.errorRetry ? (
-                                        <button onClick={tv.errorRetry}>
-                                            {tv.errorRetryLabel}
-                                        </button>
-                                    ) : null}
-                                    <button onClick={() => tv.setError('')}>
-                                        Dismiss
-                                    </button>
-                                </div>
-                            ) : null}
-                        </div>
-                    </div>
-                ) : null}
-            </div>
+            <NativePlayerView
+                tv={tv}
+                video={video}
+                controlsVisible={controlsVisible}
+                overlay={overlay}
+                seriesDetails={seriesDetails}
+                openPlaylist={playlist.open}
+            />
             <LiveOverlay tv={tv} browse={browse} overlay={overlay} />
         </div>
     );

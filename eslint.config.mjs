@@ -23,6 +23,7 @@ const legacyBareAliases = [
     'workspace-dashboard-data-access',
 ];
 
+// Keep root-relative rules stable when project-local configs import this array.
 export default [
     ...nx.configs['flat/base'],
     ...nx.configs['flat/typescript'],
@@ -374,6 +375,6 @@ export default [
             'no-console': ['warn', { allow: ['debug', 'warn', 'error'] }],
         },
     },
-];
+].map((config) => ({ basePath: import.meta.dirname, ...config }));
 
 // TV runtime is browser-only; framework-free provider entry points are explicit.

@@ -1,5 +1,11 @@
-import { computed, inject } from '@angular/core';
-import { signalStore, withComputed, withMethods } from '@ngrx/signals';
+import { observeActivityChanges } from '@iptvnator/services/activity-changes';
+import { DestroyRef } from '@angular/core';
+import { inject } from '@angular/core';
+import {
+    signalStore,
+    withMethods,
+    withHooks,
+} from '@ngrx/signals';
 import {
     XtreamSerieDetails,
     XtreamVodDetails,
@@ -44,15 +50,6 @@ export const XtreamStore = signalStore(
     withFavorites(),
     withRecentItems(),
     withTmdbEpisodeMetadata(),
-
-    withComputed((store) => ({
-        /**
-         * Get global recent items (from withRecentItems)
-         */
-        globalRecentItems: computed(() => {
-            return store.recentItems();
-        }),
-    })),
 
     // Cross-feature methods & orchestration
     withMethods((store) => {
@@ -369,7 +366,18 @@ export const XtreamStore = signalStore(
                 );
             },
         };
-    })
+    }),
+    withHooks((store) => ({
+        onInit() {
+            inject(DestroyRef).onDestroy(
+                observeActivityChanges(() => {
+                    const id = store.currentPlaylist()?.id;
+                    if (id)
+                        void store.loadAllPositions(id).catch(() => undefined);
+                })
+            );
+        },
+    }))
 );
 
 // Type alias for the store

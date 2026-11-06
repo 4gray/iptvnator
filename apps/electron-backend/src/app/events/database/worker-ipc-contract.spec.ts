@@ -39,6 +39,10 @@ jest.mock('../../services/database-worker-client', () => ({
     },
 }));
 
+jest.mock('../../services/source-server-config', () => ({
+    readSourceServerConfig: () => ({ instanceId: 'activity-test-instance' }),
+}));
+
 jest.mock('../../database/connection', () => ({
     getDatabase: (...args: unknown[]) => mockGetDatabase(...args),
 }));

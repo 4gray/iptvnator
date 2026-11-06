@@ -1,4 +1,5 @@
 import { selectContentFields } from './content-fields';
+import { setAppState } from './playlist.operations';
 import { enabledXtreamCatalogCondition } from './xtream-content-selection';
 export { getContentByXtreamId } from './content-identity-lookup';
 import { reconcileFavoriteIdentity } from './favorite-catalog';
@@ -965,6 +966,13 @@ export async function saveContent(
               categories,
               toXtreamContentValue
           );
+
+    // A process exit between commits must leave recoverable unfinished state.
+    await setAppState(
+        db,
+        `xtream-import-status:${playlistId}:${type}`,
+        'importing'
+    );
 
     return capturePhase
         ? capturePhase.captureAsync(

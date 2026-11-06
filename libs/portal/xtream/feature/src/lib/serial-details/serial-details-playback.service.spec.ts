@@ -7,7 +7,10 @@ import {
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
 } from '@iptvnator/portal/shared/util';
-import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import {
+    XtreamStore,
+    type XtreamPlaylistData,
+} from '@iptvnator/portal/xtream/data-access';
 import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
 import type {
     ExternalPlayerSession,
@@ -60,7 +63,14 @@ beforeEach(() => {
 });
 
 /** A fresh page: the component provides the service, so each visit gets its own instance. */
-function createPage(): SerialDetailsPlaybackService {
+function createPage(
+    playlist: Pick<
+        XtreamPlaylistData,
+        'id' | 'userAgent' | 'referrer' | 'origin'
+    > = {
+        id: 'xtream-1',
+    }
+): SerialDetailsPlaybackService {
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
         providers: [
@@ -72,7 +82,7 @@ function createPage(): SerialDetailsPlaybackService {
             {
                 provide: XtreamStore,
                 useValue: {
-                    currentPlaylist: signal({ id: 'xtream-1' }),
+                    currentPlaylist: signal(playlist),
                     constructEpisodeStreamUrl: (item: XtreamSerieEpisode) =>
                         `http://xtream.example/series/${item.id}.mp4`,
                 },
@@ -135,6 +145,48 @@ function holdLaunch(
 afterEach(async () => {
     heldLaunches.splice(0).forEach((release) => release());
     await flush();
+});
+
+describe('episode playback headers', () => {
+    it.each(['inline', 'mpv', 'vlc'] as const)(
+        'carries the playlist headers into %s playback and the next episode',
+        async (target) => {
+            const service = createPage({
+                id: 'xtream-1',
+                userAgent: 'SyntheticPlayer/1.0',
+                referrer: 'https://portal.example/player',
+                origin: 'https://portal.example',
+            });
+            isEmbeddedPlayer.mockReturnValue(target === 'inline');
+            const player = target === 'inline' ? undefined : target;
+            const headers = {
+                userAgent: 'SyntheticPlayer/1.0',
+                referer: 'https://portal.example/player',
+                origin: 'https://portal.example',
+            };
+
+            await service.playEpisode(episode(1001), player);
+            if (target === 'inline') {
+                expect(service.inlinePlayback()).toEqual(
+                    expect.objectContaining(headers)
+                );
+                service.playNextEpisode();
+                expect(service.inlinePlayback()).toEqual(
+                    expect.objectContaining({
+                        ...headers,
+                        contentInfo: expect.objectContaining({
+                            contentXtreamId: 1002,
+                        }),
+                    })
+                );
+            } else {
+                expect(openExternalPlayback).toHaveBeenCalledWith(
+                    expect.objectContaining(headers),
+                    target
+                );
+            }
+        }
+    );
 });
 
 describe('SerialDetailsPlaybackService page token', () => {

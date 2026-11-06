@@ -1221,6 +1221,13 @@ Shared spawn, request-header, session-registry, and notification helpers belong
 in the `external-player-*` modules so IPC registration stays small and
 reviewable.
 
+MPV and VLC progress polling belong to the current playback session. Delayed exit or
+error events from an older child stop only that child's polling; an in-flight
+poll also checks its generation before cleanup so it cannot stop its replacement.
+VLC checks ownership after both the snapshot and stopped-state RC reads, before
+updating the cached snapshot, forwarding progress, or closing the session.
+Obsolete replies and failures cannot cancel the replacement's delayed start.
+
 ## Flatpak External Players
 
 Flatpak cannot execute host-installed `mpv` or `vlc` binaries directly from the sandbox.

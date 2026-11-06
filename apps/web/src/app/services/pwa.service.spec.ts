@@ -11,7 +11,7 @@ import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { SwUpdate } from '@angular/service-worker';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { config as rxjsConfig, Observable, of, Subject } from 'rxjs';
+import { config as rxjsConfig, of, Subject } from 'rxjs';
 import {
     buildHostConnectivityFastFailMessage,
     CONNECTIVITY_GUARD_RESET,
@@ -115,29 +115,6 @@ describe('PwaService', () => {
         }
     );
 
-    it('reloads the page from the update toast once the toast is open and its action is chosen', async () => {
-        let showToast!: (ref: {
-            onAction: () => Observable<undefined>;
-        }) => void;
-        const open = TestBed.inject(LazySnackBar).open as jest.Mock;
-        open.mockImplementation(
-            () => new Promise((resolve) => (showToast = resolve))
-        );
-        service.reloadWindow = jest.fn();
-
-        service.checkUpdates();
-        versionUpdates.next();
-
-        expect(open).toHaveBeenCalledWith('UPDATE_AVAILABLE', 'REFRESH');
-        expect(service.reloadWindow).not.toHaveBeenCalled();
-
-        // The toast chunk arrives, the user picks Refresh.
-        showToast({ onAction: () => of(undefined) });
-        await new Promise((resolve) => setTimeout(resolve));
-
-        expect(service.reloadWindow).toHaveBeenCalledTimes(1);
-    });
-
     it('passes explicit connection-test evidence through without a playback response', async () => {
         const failure = {
             connectionFailure: { kind: 'connection', canTryHttp: true },
@@ -149,6 +126,7 @@ describe('PwaService', () => {
             params: { username: 'user', password: 'pass' },
             connectionTest: true,
         });
+        await new Promise((resolve) => setTimeout(resolve, 0));
         http.expectOne((req) => req.url.endsWith('/provider-targets')).flush({
             targetId: 'test-target',
         });

@@ -27,7 +27,7 @@ function extractRegExp(name) {
 }
 
 test('pins the Vite version carrying the local transform-filter patch', () => {
-    assert.equal(vitePackage.version, '8.1.5');
+    assert.equal(vitePackage.version, '8.3.5');
 });
 
 test('uses bounded Vite prefilters with precise handler matchers', () => {

@@ -1,10 +1,11 @@
-import { useNotice } from './use-notice';
+import { createSourceSwitcher } from './source-selection';
+import { useNotice, connectionNotice } from './use-notice';
 import { useReconnect } from './use-reconnect';
 import { useLibrary } from './use-library';
 import { useBackend } from './use-backend';
 import { firstRoute, type View } from './navigation';
 import { useRouteHistory, type NavigationOrigin } from './use-route-history';
-import { usePlaybackOrigin } from './use-playback-origin';
+import { usePlaybackOrigin, type FailedPlayback } from './use-playback-origin';
 import { useUserData } from './user-data';
 import { useContent } from './use-content';
 import { useEffect, useRef, useState } from 'preact/hooks';
@@ -18,31 +19,24 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
     const { error, errorRetry, errorRetryLabel, setError, clearError } =
         useNotice();
     const [connectionFailed, setConnectionFailed] = useState(false);
+    const reportConnection = connectionNotice(
+        { setError, clearError },
+        setConnectionFailed,
+        retryConnection
+    );
     const [retry, setRetry] = useState(0);
     const [selected, setSelected] = useState<Media>();
     const [playing, setPlaying] = useState<Media>();
     const [fullscreen, setFullscreen] = useState(false);
     const [, tick] = useState(0);
     const playback = useRef(new LatestRequest());
-    const failedResolution = useRef<{
-        item: Media;
-        category: string;
-        origin: string;
-    }>();
+    const failedResolution = useRef<FailedPlayback>();
     const { stack, visit } = useRouteHistory(route, setRoute);
     const playerOrigin = usePlaybackOrigin();
     const playingCategory = useRef('');
     const pendingFocus = useRef('');
     const pendingScroll = useRef<number>();
-    const {
-        data,
-        storageReady,
-        storageError,
-        retryStorage,
-        repo,
-        player,
-        update,
-    } = useUserData(
+    const user = useUserData(
         video,
         (message) => setError(message, retryPlayback, 'Retry playback'),
         () => tick((t) => t + 1),
@@ -55,8 +49,10 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
                         .catch(() => undefined);
                 },
                 'Retry saving progress'
-            )
+            ),
+        { setError, clearError }
     );
+    const { data, storageReady, repo, player, update } = user;
     useSourceNavigation(data.activeId, route, setRoute, () => {
         stack.current = [];
         pendingFocus.current = '';
@@ -91,11 +87,6 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         pendingScroll,
         data.catalogSort
     );
-    function reportConnection(message: string) {
-        setConnectionFailed(!!message);
-        if (message) setError(message, retryConnection, 'Retry connection');
-        else clearError('Retry connection');
-    }
     function retryConnection() {
         recovery.resetReconnect();
         setRetry((n) => n + 1);
@@ -175,12 +166,14 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
     async function play(
         item: Media,
         category = route.category,
-        origin = focusKey(),
-        signal?: AbortSignal
+        origin: string | NavigationOrigin = focusKey(),
+        signal?: AbortSignal,
+        retryResolution?: () => void
     ) {
         if (!ready || item.sourceId !== data.activeId || signal?.aborted)
             return false;
-        const originAtStart = playerOrigin.capture(origin);
+        const originAtStart =
+            typeof origin === 'string' ? playerOrigin.capture(origin) : origin;
         playback.current.cancel();
         failedResolution.current = undefined;
         if (playing?.id === item.id && item.kind === 'live') {
@@ -203,8 +196,18 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
             if (!lane.owns(job)) return false;
             playerOrigin.remember(originAtStart);
             setPlaying(item);
-            if (item.kind === 'live') playingCategory.current = category;
-            if (item.kind !== 'live') {
+            if (item.kind === 'live') {
+                playingCategory.current = category;
+                if (route.view === 'favorites') {
+                    setSelected(item);
+                    visit(
+                        { ...firstRoute(), view: 'live', kind: 'live' },
+                        item.id,
+                        originAtStart
+                    );
+                }
+            }
+            if (item.kind !== 'live' || route.view === 'favorites') {
                 setFullscreen(true);
                 restoreFocus('player-toggle');
             }
@@ -219,10 +222,14 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
             return lane.owns(job);
         } catch {
             if (lane.owns(job)) {
-                failedResolution.current = { item, category, origin };
+                failedResolution.current = {
+                    item,
+                    category,
+                    origin: originAtStart,
+                };
                 setError(
                     'Playback could not be resolved. Check the source and retry.',
-                    retryPlayback,
+                    retryResolution ?? retryPlayback,
                     'Retry playback'
                 );
             }
@@ -273,15 +280,23 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
     }
     function back() {
         if (fullscreen) {
+            const favoriteLive =
+                playing?.kind === 'live' &&
+                stack.current[stack.current.length - 1]?.route.view ===
+                    'favorites';
             setFullscreen(false);
-            if (playing?.kind !== 'live') stop();
-            playerOrigin.restore();
-            return;
+            if (playing?.kind !== 'live' || favoriteLive) stop();
+            if (!favoriteLive) {
+                playerOrigin.restore();
+                return;
+            }
         }
         playback.current.cancel();
         const previous = stack.current.pop();
         if (previous || route.view !== 'home') content.cancelBrowse();
         if (previous) {
+            if (route.view === 'live' && previous.route.view === 'favorites')
+                stop();
             pendingFocus.current = previous.focus;
             pendingScroll.current = previous.scroll;
             setSelected(previous.route.item);
@@ -302,37 +317,23 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         fullscreen,
         player: player.current,
     });
-    async function favorite(item: Media) {
-        try {
-            await update((d) => ({
-                ...d,
-                favorites: d.favorites.some((m) => m.id === item.id)
-                    ? d.favorites.filter((m) => m.id !== item.id)
-                    : [...d.favorites, item],
-            }));
-            clearError('Retry saving favorite');
-        } catch {
-            setError(
-                'Favorite was not saved. Free TV storage and retry.',
-                () => void favorite(item),
-                'Retry saving favorite'
-            );
-        }
-    }
-    async function switchSource(activeId: string) {
-        stop();
-        try {
-            await update((d) => ({ ...d, activeId }));
-            clearError('Retry source selection');
-            navigate('home');
-        } catch {
-            setError(
-                'Source selection was not saved.',
-                () => void switchSource(activeId),
-                'Retry source selection'
-            );
-        }
-    }
+    const switchSource = createSourceSwitcher({
+        stop,
+        update,
+        selected: () => {
+            if (route.view === 'sources') navigate('home');
+            else if (route.view === 'detail' || route.view === 'person') {
+                navigate(
+                    (route.item?.kind ?? route.kind) === 'movie'
+                        ? 'movies'
+                        : 'series'
+                );
+                restoreFocus('source-picker');
+            }
+        },
+        clearError,
+        setError,
+    });
     async function saveSource(source: Source, address: string) {
         try {
             if (!(await backend.connect(address))) return;
@@ -356,17 +357,15 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         }
     }
     return {
-        storageReady,
-        storageError,
-        retryStorage,
+        ...user,
         library,
         guideClient: ready ? provider.current : undefined,
         retryPlayback,
+        retryConnection,
         playbackOrigin: playerOrigin.current,
         restoreKey: pendingFocus.current,
         restoreScroll: pendingScroll.current,
         backend,
-        data,
         route,
         setRoute,
         error,
@@ -374,6 +373,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         errorRetryLabel,
         reconnectStatus: recovery.reconnectStatus,
         setError,
+        clearError,
         ready,
         ...content,
         busy: busy || content.busy,
@@ -383,17 +383,14 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         playingCategory: playingCategory.current,
         fullscreen,
         setFullscreen,
-        player,
         navigate,
         open,
         openPerson,
         play,
         back,
         stop,
-        favorite,
         saveSource,
         switchSource,
-        update,
         playbackRequest: playback.current.signal,
     };
 }

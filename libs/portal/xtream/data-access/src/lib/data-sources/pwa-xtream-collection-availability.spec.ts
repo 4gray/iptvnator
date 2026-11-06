@@ -20,7 +20,22 @@ const credentials = {
 describe('PWA collection availability after catalog completion', () => {
     let source: PwaXtreamDataSource;
     const api = { getStreams: jest.fn().mockResolvedValue([]) };
+    const catalogs = new Map<(typeof types)[number], XtreamContentItem[]>();
+    const loadContent = async (
+        playlistId: string,
+        rows: XtreamContentItem[],
+        type: (typeof types)[number]
+    ) => {
+        catalogs.set(type, rows);
+        source.clearSessionCache(playlistId);
+        // A refreshed source must retain every catalog this test already loaded.
+        for (const [knownType, items] of catalogs) {
+            api.getStreams.mockResolvedValueOnce(items);
+            await source.getContent(playlistId, credentials, knownType);
+        }
+    };
     const reload = () => {
+        catalogs.clear();
         TestBed.resetTestingModule();
         TestBed.configureTestingModule({
             providers: [
@@ -98,7 +113,7 @@ describe('PWA collection availability after catalog completion', () => {
             );
             // A same-ID item of another type is not evidence for the saved item.
             const otherType = type === 'live' ? 'movie' : 'live';
-            await source.saveContent(
+            await loadContent(
                 'p',
                 [{ ...saved, type: otherType }],
                 otherType
@@ -109,7 +124,7 @@ describe('PWA collection availability after catalog completion', () => {
             for (const missingType of types.filter(
                 (entry) => entry !== otherType
             ))
-                await source.saveContent('p', [], missingType);
+                await loadContent('p', [], missingType);
             expect(await source.getFavorites('p')).toEqual([
                 {
                     ...saved,
@@ -123,6 +138,7 @@ describe('PWA collection availability after catalog completion', () => {
                 catalog_status: 'missing',
                 viewed_at: '2026-01-03',
             });
+            const requestsBeforeReload = api.getStreams.mock.calls.length;
             reload();
             expect((await source.getFavorites('p'))[0]).toEqual({
                 ...saved,
@@ -134,7 +150,7 @@ describe('PWA collection availability after catalog completion', () => {
                 tmdb_id: 950,
                 catalog_status: 'missing',
             });
-            expect(api.getStreams).not.toHaveBeenCalled();
+            expect(api.getStreams).toHaveBeenCalledTimes(requestsBeforeReload);
             const backup = new PwaXtreamBackupStorage(localStorage).exportInto({
                 exportedId: 'p',
                 userState: {
@@ -154,7 +170,7 @@ describe('PWA collection availability after catalog completion', () => {
                 },
             });
             // Presence without detail identity restores access, not presentation.
-            await source.saveContent(
+            await loadContent(
                 'p',
                 [
                     {
@@ -180,7 +196,7 @@ describe('PWA collection availability after catalog completion', () => {
                 tmdb_id: 950,
                 catalog_status: 'present',
             });
-            await source.saveContent(
+            await loadContent(
                 'p',
                 [{ ...saved, title: 'Returned favorite' }],
                 type
@@ -229,7 +245,7 @@ describe('PWA collection availability after catalog completion', () => {
                 })
             );
             if (!legacy) {
-                await source.saveContent(
+                await loadContent(
                     'p',
                     [{ ...saved, tmdb_id: 950 }],
                     'movie'
@@ -238,7 +254,7 @@ describe('PWA collection availability after catalog completion', () => {
                     'missing'
                 );
             }
-            for (const type of types) await source.saveContent('p', [], type);
+            for (const type of types) await loadContent('p', [], type);
             expect((await source.getFavorites('p'))[0].catalog_status).toBe(
                 'missing'
             );
@@ -255,7 +271,7 @@ describe('PWA collection availability after catalog completion', () => {
             localStorage.clear();
             await store.restore('p', backup.userState, backup);
             reload();
-            await source.saveContent(
+            await loadContent(
                 'p',
                 [{ ...saved, tmdb_id: undefined }],
                 'movie'
@@ -264,7 +280,7 @@ describe('PWA collection availability after catalog completion', () => {
                 title: 'Original',
                 catalog_status: 'missing',
             });
-            await source.saveContent('p', [saved], 'movie');
+            await loadContent('p', [saved], 'movie');
             expect((await source.getFavorites('p'))[0].catalog_status).toBe(
                 'present'
             );
@@ -313,7 +329,7 @@ describe('PWA collection availability after catalog completion', () => {
                     ],
                 })
             );
-            await source.saveContent(
+            await loadContent(
                 'p',
                 identities.map((id) => ({
                     ...saved,
@@ -401,7 +417,7 @@ describe('PWA collection availability after catalog completion', () => {
             failure.mockRestore();
             await source.restoreUserData('p', pending);
             reload();
-            await source.saveContent(
+            await loadContent(
                 'p',
                 [
                     {
@@ -458,7 +474,7 @@ describe('PWA collection availability after catalog completion', () => {
                 tmdb_id: 200,
                 release_year: 1995,
             } as XtreamContentItem;
-            await source.saveContent('p', [returning], 'movie');
+            await loadContent('p', [returning], 'movie');
             expect((await source.getFavorites('p'))[0]).toMatchObject({
                 catalog_status: 'missing',
                 title: 'Original',
@@ -467,7 +483,7 @@ describe('PWA collection availability after catalog completion', () => {
             expect((await source.getFavorites('p'))[0]).toMatchObject({
                 catalog_status: 'missing',
             });
-            await source.saveContent(
+            await loadContent(
                 'p',
                 [{ ...returning, tmdb_id: undefined }],
                 'movie'
@@ -476,7 +492,7 @@ describe('PWA collection availability after catalog completion', () => {
                 catalog_status: 'missing',
                 title: 'Original',
             });
-            await source.saveContent(
+            await loadContent(
                 'p',
                 [{ ...returning, tmdb_id: 100 }],
                 'movie'
@@ -500,8 +516,8 @@ describe('PWA collection availability after catalog completion', () => {
             'xtream-collection-items',
             JSON.stringify({ p: { 42: saved } })
         );
-        await source.saveContent('p', [], 'movie');
-        await source.saveContent('p', [], 'live');
+        await loadContent('p', [], 'movie');
+        await loadContent('p', [], 'live');
         api.getStreams.mockRejectedValueOnce(new Error('Offline'));
         await expect(
             source.getContent('p', credentials, 'series')
@@ -509,7 +525,7 @@ describe('PWA collection availability after catalog completion', () => {
         expect(
             (await source.getFavorites('p'))[0].catalog_status
         ).toBeUndefined();
-        await source.saveContent('p', [], 'series');
+        await loadContent('p', [], 'series');
         expect((await source.getFavorites('p'))[0]).toMatchObject({
             title: saved.title,
             catalog_status: 'missing',

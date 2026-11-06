@@ -8,6 +8,7 @@ import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import {
     DatabaseService,
+    EpgPreferencesService,
     PlaylistsService,
     RuntimeCapabilitiesService,
     SettingsStore,
@@ -312,6 +313,24 @@ describe('PlaylistInfoComponent', () => {
         createComponent();
 
         expect(component.isDesktop).toBe(false);
+    });
+
+    it('hides the source editor while globally disabled and preserves its sources', async () => {
+        const epgUrls = ['https://playlist.example.com/guide.xml'];
+        TestBed.overrideProvider(MAT_DIALOG_DATA, {
+            useValue: { ...playlist, epgUrls },
+        });
+        createComponent();
+        const preferences = TestBed.inject(EpgPreferencesService);
+
+        expect(component.epg.canManage).toBe(true);
+        await preferences.apply(false);
+        expect(component.epg.canManage).toBe(false);
+        expect(component.epg.urls).toEqual(epgUrls);
+        await preferences.apply(true);
+        expect(component.epg.canManage).toBe(true);
+        expect(component.epg.urls).toEqual(epgUrls);
+        expect(store.dispatch).not.toHaveBeenCalled();
     });
 
     it('normalizes detected playlist EPG source URLs for the details UI', () => {

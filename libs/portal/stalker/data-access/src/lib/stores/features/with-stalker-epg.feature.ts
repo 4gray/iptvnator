@@ -10,6 +10,7 @@ import {
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import {
+    EpgPreferencesService,
     DataService,
     EpgSourceSettingsService,
     RuntimeCapabilitiesService,
@@ -111,7 +112,8 @@ export function withStalkerEpg() {
                 portalRepair = inject(StalkerPortalRepairService),
                 runtime = inject(RuntimeCapabilitiesService),
                 epgBridge = inject(EpgRuntimeBridgeService),
-                sources = inject(EpgSourceSettingsService)
+                sources = inject(EpgSourceSettingsService),
+                preferences = inject(EpgPreferencesService)
             ) => {
                 const storeContext = store as typeof store &
                     StalkerEpgFeatureStoreContract;
@@ -124,7 +126,7 @@ export function withStalkerEpg() {
                 // the PWA's backend proxy). Manual mappings read uploaded
                 // XMLTV and keep the XMLTV gate in applyMappedItvEpg.
                 const supportsProviderEpg = (): boolean =>
-                    runtime.supportsProviderEpg;
+                    preferences.enabled() && runtime.supportsProviderEpg;
 
                 // Manual EPG mapping overrides (uploaded XMLTV programs keyed
                 // by the normalized Stalker channel id). Kept outside the
@@ -165,11 +167,15 @@ export function withStalkerEpg() {
                     >,
                     queryParams: Record<string, string>
                 ): Promise<StalkerEpgResponse> => {
-                    return executeStalkerRequest<StalkerEpgResponse>(
-                        requestDeps,
-                        playlist,
-                        queryParams,
-                        { silent: true }
+                    return preferences.run(
+                        () =>
+                            executeStalkerRequest<StalkerEpgResponse>(
+                                requestDeps,
+                                playlist,
+                                queryParams,
+                                { silent: true }
+                            ),
+                        { js: [] }
                     );
                 };
 
@@ -310,6 +316,7 @@ export function withStalkerEpg() {
                         channelIds: ReadonlyArray<string | number>
                     ): Promise<void> {
                         if (
+                            !preferences.enabled() ||
                             !epgBridge.supportsEpgMapping ||
                             !runtime.supportsEpg
                         ) {
@@ -481,8 +488,12 @@ export function withStalkerEpg() {
                         const context = store as typeof store &
                             StalkerEpgFeatureStoreContract;
                         const selectedId = context.selectedItvId();
+                        const hadGuide =
+                            store.bulkItvEpgLoaded() ||
+                            store.isLoadingBulkItvEpg();
                         store.clearBulkItvEpgCache();
-                        void store.ensureBulkItvEpg();
+                        if (selectedId || hadGuide)
+                            void store.ensureBulkItvEpg();
                         if (selectedId)
                             void store.applyMappedItvEpg([selectedId]);
                     });

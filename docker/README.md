@@ -20,7 +20,10 @@ That means:
 - EPG/XMLTV panels and multi-EPG views are not available in the self-hosted PWA.
 - With server storage enabled, source definitions are shared by connected PWA
   and Electron clients. Each browser retains a local IndexedDB projection and
-  its own Xtream user data. Viewing activity is not synchronized.
+  its own Xtream user data. Progress and watched marks synchronize only after
+  enabling **Settings → Server → Viewing activity synchronization** on each
+  client. Favorites have a separate **Sync favorites with this server** opt-in,
+  initially off. Everyone with server access shares the consented collections.
 - Docker cannot launch local desktop players or Embedded MPV. If a stream does
   not play inline in the browser, use the in-app copy URL action and open the
   stream manually in an external player such as MPV, VLC, or IINA.
@@ -139,8 +142,9 @@ The image opens a server storage database on the `/data` volume
 under `/api/v1`. Source definitions are shared between devices connected to
 that instance. Open the NAS web address on phones/tablets, or use Settings →
 Data → Server in Electron to enter the same app address. Names, connections
-and uploaded M3U text synchronize; favorites, history, playback positions and
-EPG remain local. Visible clients refresh within a 15-second polling interval.
+and uploaded M3U text synchronize. Favorites and progress have separate opt-ins;
+history and EPG remain local. Visible source inventories refresh within a
+15-second polling interval.
 
 Settings → Server can preview and import the device's original local sources.
 Matching connections are deduplicated; the original library is retained.
@@ -195,10 +199,18 @@ container once on your NAS or home server, then connect your clients to it.
    review the preview and confirm. Disconnecting returns to the retained local
    library; it does not delete the server's sources.
 
-Only source definitions synchronize in this version: names, connection
-details and uploaded M3U text. Favorites, recently viewed items, playback
-progress, EPG and device settings remain local. One server is one shared source
-library, not separate user accounts. Browser tokens last for the tab; desktop
+Connecting synchronizes source definitions: names, connection details and
+uploaded M3U text. Enable **Viewing activity synchronization** separately on each
+client to share Xtream and Stalker progress and watched marks within the same
+source. Older local activity uploads only through the separate import preview;
+enabling synchronization sends new actions and downloads server activity.
+Enable **Sync favorites with this server** independently to share M3U, Xtream
+and Stalker favorites. First enable downloads shared favorites; older local
+entries upload only through preview/import. Offline changes stay queued, and
+re-enabling requires a choice before sending an older queue. Turning it off
+keeps local and server data. Recently viewed items, collection order, EPG and
+device settings stay local. One server has one shared library, without separate
+user accounts. Browser tokens last for the tab; desktop
 uses protected storage when available. Keep the same token available for a
 later browser session.
 

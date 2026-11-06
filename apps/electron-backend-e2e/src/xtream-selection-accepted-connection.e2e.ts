@@ -10,6 +10,7 @@ import {
     saveSourceDialog,
     sourceRowByTitle,
     test,
+    waitForSourceRowIdle,
 } from './electron-test-fixtures';
 import { startSourceSyncServer } from './source-sync-test-server';
 import {
@@ -47,12 +48,30 @@ for (const retained of [false, true])
                 password: 'performance',
                 contentTypes: retained ? ['live', 'movie'] : ['live'],
             });
-            // Setup imports the large synthetic Live/optional Movie catalogs.
+            // Dialog closure/native projection precedes route initialization.
+            // Stay on the import route until its catalog and activity hold settle.
+            await expect(page).toHaveURL(/\/workspace\/xtreams\/[^/]+(?:\/|$)/);
+            const id = await waitForNativeXtreamSource(page, title);
+            // An absent overlay can precede the account check/import startup.
+            // Observe native completion before opening the editor.
+            await expect
+                .poll(
+                    () =>
+                        page.evaluate(
+                            (id) =>
+                                window.electron.dbGetAppState(
+                                    `xtream-import-status:${id}:live`
+                                ),
+                            id
+                        ),
+                    { timeout: 60000 }
+                )
+                .toBe('completed');
             await expect(
                 page.locator('.workspace-loading-overlay')
             ).not.toBeVisible({ timeout: 60000 });
             await openSources(page);
-            const id = await waitForNativeXtreamSource(page, title);
+            await waitForSourceRowIdle(page, title);
             let rememberedMovie: number | undefined;
             if (retained) {
                 await expect

@@ -32,7 +32,7 @@ const cached = (): Playlist => ({
     favorites: [],
 });
 
-function setup() {
+function setup(retire?: (id: string) => void) {
     const rows = new Map<string, Playlist>([['a', cached()]]);
     const local: PlaylistDocumentStore = {
         dbGetAppPlaylist: jest.fn(async (id) =>
@@ -63,13 +63,50 @@ function setup() {
     const store = new SyncedPlaylistStore(
         local,
         request,
-        async (value, current) => applySourceDefinition(value, current)
+        async (value, current) => applySourceDefinition(value, current),
+        undefined,
+        undefined,
+        retire
     );
     store.ready = true;
     return { store, rows, request, local };
 }
 
 describe('source synchronization with local activity', () => {
+    it('keeps a replacement context when a stale activity write is rejected', async () => {
+        const retire = jest.fn();
+        const { store, rows } = setup(retire);
+        const stale = (await store.dbGetAppPlaylist('a'))!;
+        const replacement = { ...source, username: 'synthetic-replacement' };
+        rows.set('a', {
+            ...applySourceDefinition(replacement),
+            sourceSyncBase: replacement,
+            sourceSyncRevision: '"2"',
+        });
+        await expect(
+            store.dbUpsertAppPlaylist({
+                ...stale,
+                favorites: ['synthetic-local'],
+            })
+        ).rejects.toBeInstanceOf(PlaylistWriteConflict);
+        expect(retire).not.toHaveBeenCalled();
+        expect(rows.get('a')?.sourceSyncRevision).toBe('"2"');
+    });
+    it('keeps a sibling projection context when the same revision is reused', async () => {
+        const retire = jest.fn();
+        const { store, rows, local } = setup(retire);
+        const original = rows.get('a')!;
+        const replacement = { ...source, username: 'synthetic-replacement' };
+        const sibling = {
+            ...applySourceDefinition(replacement),
+            sourceSyncBase: replacement,
+            sourceSyncRevision: '"2"',
+        };
+        rows.set('a', sibling);
+        jest.mocked(local.dbGetAppPlaylist).mockResolvedValueOnce(original);
+        expect(await store.project(replacement, '"2"')).toEqual(sibling);
+        expect(retire).not.toHaveBeenCalled();
+    });
     it.each(['m3u-url', 'm3u-text'] as const)(
         'materializes an accepted %s edit before marking its revision current',
         async (kind) => {

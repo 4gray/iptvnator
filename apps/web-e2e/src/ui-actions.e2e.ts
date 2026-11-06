@@ -188,6 +188,9 @@ test('@ui @xtream hidden channel list offers a styled restore action', async ({
     await page.goto('/');
     await addXtreamPortal(page, 'UI hidden channels', pwaMocks);
     await page.getByRole('link', { name: 'Live TV', exact: true }).click();
+    await expect(
+        page.getByRole('heading', { name: 'Live Categories', exact: true })
+    ).toBeVisible();
     await page
         .locator('app-workspace-context-panel .category-item')
         .first()

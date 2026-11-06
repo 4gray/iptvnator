@@ -16,7 +16,7 @@ import { BASE_PATH as BASE, distRoot, launchBrowser, serveDist } from './website
  * half is skipped locally and fails in CI (see website-browser-support.mjs).
  */
 
-const CHANNELS = ['dashboard', 'live-tv', 'epg', 'movies', 'downloads', 'settings'];
+const CHANNELS = ['dashboard', 'live-tv', 'epg', 'movies', 'series', 'downloads', 'settings'];
 
 test('showcase markup: a vertical tablist with one selected channel and a panel each', async () => {
   const html = await readFile(join(distRoot, 'index.html'), 'utf8');
@@ -93,7 +93,7 @@ test('showcase interaction: autoplay, pausing, keyboard and synchronized state',
     );
     assert.equal(await selectedChannel(page), 'dashboard', 'autoplay starts on the first channel');
     const loaded = (p) => p.$$eval('.channel-panel img', (els) => els.map((el) => Boolean(el.getAttribute('src'))));
-    assert.deepEqual(await loaded(page), [true, true, false, false, false, false], 'only the shown frame and the next one have a src');
+    assert.deepEqual(await loaded(page), [true, true, false, false, false, false, false], 'only the shown frame and the next one have a src');
 
     // The dwell really rolls over: tab, panel, caption and badge all move to channel 02.
     await page.waitForFunction(
@@ -101,7 +101,7 @@ test('showcase interaction: autoplay, pausing, keyboard and synchronized state',
       null,
       { timeout: 9000 },
     );
-    assert.deepEqual(await hiddenPanels(page), ['true', 'false', 'true', 'true', 'true', 'true'], 'the panel follows autoplay');
+    assert.deepEqual(await hiddenPanels(page), ['true', 'false', 'true', 'true', 'true', 'true', 'true'], 'the panel follows autoplay');
     assert.equal(await page.$eval('[data-caption-label]', (el) => el.textContent.trim()), 'Live TV');
     assert.equal(await page.$eval('[data-osd-number]', (el) => el.textContent.trim()), 'CH 02');
     assert.deepEqual((await loaded(page)).slice(0, 3), [true, true, true], 'autoplay preloads the frame after the new channel');
@@ -174,8 +174,8 @@ test('showcase interaction: autoplay, pausing, keyboard and synchronized state',
     await page.keyboard.press('ArrowDown');
     assert.equal(await selectedChannel(page), 'movies');
     assert.equal(await page.evaluate(() => document.activeElement?.dataset.channel), 'movies');
-    assert.deepEqual(await hiddenPanels(page), ['true', 'true', 'true', 'false', 'true', 'true']);
-    assert.equal(await page.$eval('[data-caption-label]', (el) => el.textContent.trim()), 'Movies & series');
+    assert.deepEqual(await hiddenPanels(page), ['true', 'true', 'true', 'false', 'true', 'true', 'true']);
+    assert.equal(await page.$eval('[data-caption-label]', (el) => el.textContent.trim()), 'Movies');
     assert.equal(await page.$eval('[data-osd-number]', (el) => el.textContent.trim()), 'CH 04');
     assert.deepEqual((await loaded(page)).slice(2, 5), [true, true, true], 'a shown frame and its successor get their src');
     assert.equal(await page.$eval('.channel-osd', (el) => el.classList.contains('opacity-0')), false, 'badge shows on switch');
@@ -188,7 +188,7 @@ test('showcase interaction: autoplay, pausing, keyboard and synchronized state',
     await page.keyboard.press('Home');
     assert.equal(await selectedChannel(page), 'dashboard');
     const tabIndexes = await page.$$eval('.channel-tab', (els) => els.map((el) => el.tabIndex));
-    assert.deepEqual(tabIndexes, [0, -1, -1, -1, -1, -1], 'roving tabindex follows the selection');
+    assert.deepEqual(tabIndexes, [0, -1, -1, -1, -1, -1, -1], 'roving tabindex follows the selection');
 
     // Blurring the list resumes autoplay.
     await page.evaluate(() => document.activeElement?.blur());
@@ -250,13 +250,13 @@ test('showcase interaction: autoplay, pausing, keyboard and synchronized state',
     await calm.mouse.move(5, 5);
     await calm.waitForTimeout(1500);
     assert.equal(await progressWidth(calm), 0, 'no progress under prefers-reduced-motion');
-    assert.deepEqual(await loaded(calm), [true, false, false, false, false, false], 'no prefetch when autoplay is off');
+    assert.deepEqual(await loaded(calm), [true, false, false, false, false, false, false], 'no prefetch when autoplay is off');
     assert.equal(await selectedChannel(calm), 'dashboard');
     assert.equal(await calm.locator('[data-autoplay-toggle]').isVisible(), false, 'no pause control when nothing advances');
     await calm.keyboard.press('Tab');
     await calm.locator('.channel-tab').nth(1).click();
     assert.equal(await selectedChannel(calm), 'live-tv', 'manual switching still works');
-    assert.deepEqual(await loaded(calm), [true, true, false, false, false, false], 'a manual switch loads only the chosen frame under reduced motion');
+    assert.deepEqual(await loaded(calm), [true, true, false, false, false, false, false], 'a manual switch loads only the chosen frame under reduced motion');
     await calm.close();
   } finally {
     await browser.close();

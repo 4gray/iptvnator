@@ -18,6 +18,7 @@ import {
 import { LiveLayoutSidebarStateService } from '@iptvnator/portal/shared/util';
 import { ParentalLockService } from '@iptvnator/services';
 import { WorkspaceContextPanelComponent } from './workspace-context-panel.component';
+import { WorkspaceShellSearchSyncService } from '../workspace-shell/services/workspace-shell-search-sync.service';
 
 const translations: Record<string, string> = {
     'WORKSPACE.CONTEXT.MANAGE_CATEGORIES': 'Manage categories',
@@ -36,6 +37,7 @@ const translations: Record<string, string> = {
 
 interface RouteSnapshotStub {
     routeConfig: { path: string } | null;
+    url: { path: string }[];
     paramMap: { has: (param: string) => boolean };
     children: RouteSnapshotStub[];
 }
@@ -47,6 +49,7 @@ function createRouteSnapshot(
 ): RouteSnapshotStub {
     return {
         routeConfig: path ? { path } : null,
+        url: path ? path.split('/').map((segment) => ({ path: segment })) : [],
         paramMap: {
             has: (param: string) => hasCategoryId && param === 'categoryId',
         },
@@ -132,8 +135,10 @@ describe('WorkspaceContextPanelComponent', () => {
         open: jest.fn(),
     };
     const drawerOpen = signal(false);
+    const searchQuery = signal('');
 
     beforeEach(async () => {
+        searchQuery.set('');
         localStorage.removeItem(WORKSPACE_CATEGORY_SORT_STORAGE_KEY);
         xtreamCategories.set([
             { id: 1, name: 'News' },
@@ -163,6 +168,10 @@ describe('WorkspaceContextPanelComponent', () => {
         await TestBed.configureTestingModule({
             imports: [WorkspaceContextPanelComponent, NoopAnimationsModule],
             providers: [
+                {
+                    provide: WorkspaceShellSearchSyncService,
+                    useValue: { searchQuery },
+                },
                 {
                     provide: TranslateService,
                     useValue: {
@@ -830,6 +839,70 @@ describe('WorkspaceContextPanelComponent', () => {
                 replaceUrl: true,
             }
         );
+    });
+
+    it('clears the xtream category and keeps the pending search when the selected category is clicked again', () => {
+        fixture.componentRef.setInput('section', 'vod');
+        xtreamSelectedTypeContentState.set('ready');
+        xtreamSelectedCategoryId.set(2);
+        searchQuery.set('pending query');
+        fixture.detectChanges();
+
+        fixture.componentInstance.onXtreamCategoryClicked({ id: 2 });
+
+        expect(xtreamStore.setSelectedCategory).toHaveBeenCalledWith(null);
+        expect(xtreamStore.setSelectedItem).toHaveBeenCalledWith(null);
+        expect(router.navigate).toHaveBeenCalledWith(
+            ['/workspace', 'xtreams', 'playlist-1', 'vod'],
+            {
+                info: 'clear-category-scope',
+                queryParamsHandling: 'merge',
+                queryParams: { q: 'pending query' },
+            }
+        );
+    });
+
+    it('returns a deep-linked xtream live category to the live root with the pending search', () => {
+        fixture.componentRef.setInput('section', 'live');
+        router.routerState.snapshot.root = createRouteSnapshot(null, false, [
+            createRouteSnapshot('live/:categoryId', true),
+        ]);
+        xtreamSelectedTypeContentState.set('ready');
+        xtreamSelectedCategoryId.set(2);
+        searchQuery.set('pending query');
+        fixture.detectChanges();
+
+        fixture.componentInstance.onXtreamCategoryClicked({ id: 2 });
+
+        expect(xtreamStore.setSelectedCategory).toHaveBeenCalledWith(null);
+        expect(xtreamStore.setSelectedItem).not.toHaveBeenCalled();
+        expect(router.navigate).toHaveBeenCalledWith(
+            ['/workspace', 'xtreams', 'playlist-1', 'live'],
+            {
+                info: 'clear-category-scope',
+                queryParamsHandling: 'merge',
+                queryParams: { q: 'pending query' },
+                replaceUrl: true,
+            }
+        );
+    });
+
+    it('resets the stalker category to all items when the selected category is clicked again', () => {
+        fixture.componentRef.setInput('context', {
+            provider: 'stalker',
+            playlistId: 'stalker-1',
+        });
+        fixture.componentRef.setInput('section', 'vod');
+        stalkerStore.selectedCategoryId.set('1');
+        fixture.detectChanges();
+
+        fixture.componentInstance.onStalkerCategoryClicked({
+            category_id: '1',
+        });
+
+        expect(stalkerStore.setSelectedCategory).toHaveBeenCalledWith('*');
+        expect(stalkerStore.setPage).toHaveBeenCalledWith(0);
+        expect(stalkerStore.clearSelectedItem).toHaveBeenCalled();
     });
 
     it('labels Stalker radio categories and keeps the playing station on a category click', () => {

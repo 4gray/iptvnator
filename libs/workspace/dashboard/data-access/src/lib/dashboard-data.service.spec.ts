@@ -1,3 +1,4 @@
+import { announceActivityChange } from '@iptvnator/services/activity-changes';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
@@ -163,6 +164,7 @@ describe('DashboardDataService', () => {
         getM3uFavoriteChannels: jest.fn().mockReturnValue(of(null)),
         getPlaylistById: jest.fn().mockReturnValue(of(playlistMock)),
         transformPlaylistFavorites: jest.fn().mockReturnValue(of(playlistMock)),
+        removeFromPortalFavorites: jest.fn(),
         removeFromM3uRecentlyViewed: jest.fn().mockReturnValue(
             of({
                 ...playlistMock,
@@ -271,6 +273,7 @@ describe('DashboardDataService', () => {
         playlistsServiceMock.getM3uFavoriteChannels.mockReturnValue(of(null));
         playlistsServiceMock.getPlaylistById.mockClear();
         playlistsServiceMock.getPlaylistById.mockReturnValue(of(playlistMock));
+        playlistsServiceMock.removeFromPortalFavorites.mockReset();
         playlistsServiceMock.transformPlaylistFavorites.mockClear();
         playlistsServiceMock.transformPlaylistFavorites.mockReturnValue(
             of(playlistMock)
@@ -670,11 +673,6 @@ describe('DashboardDataService', () => {
         expect(service.getGlobalFavoriteNavigationState(item)).toEqual({
             collectionViewState: { scope: 'all', selectedContentType: 'movie' },
         });
-        await service.removeGlobalFavorite(item);
-        expect(dbServiceMock.removeFromFavorites).toHaveBeenCalledWith(
-            { favoriteId: 71 },
-            'xtream-1'
-        );
     });
 
     it('includes PWA Xtream favorites from the active data source', async () => {
@@ -713,6 +711,50 @@ describe('DashboardDataService', () => {
                 }),
             ])
         );
+    });
+
+    it('gives received favorites distinct stable identities without local catalog rows', async () => {
+        Object.defineProperty(window, 'electron', {
+            value: undefined,
+            configurable: true,
+        });
+        xtreamDataSourceMock.getFavorites.mockResolvedValue([
+            {
+                id: null,
+                type: 'movie',
+                xtream_id: 42,
+                title: 'Synthetic movie',
+            },
+            {
+                id: null,
+                type: 'series',
+                xtream_id: 42,
+                title: 'Synthetic series',
+            },
+            {
+                id: null,
+                type: 'movie',
+                xtream_id: 43,
+                title: 'Synthetic second movie',
+            },
+        ]);
+        await service.reloadGlobalFavorites();
+        const ids = () =>
+            service
+                .globalFavoriteItems()
+                .filter((item) => item.source === 'xtream')
+                .map((item) => item.id);
+        expect(ids()).toEqual(
+            expect.arrayContaining([
+                'favorite:movie:42',
+                'favorite:series:42',
+                'favorite:movie:43',
+            ])
+        );
+        expect(new Set(ids()).size).toBe(3);
+        const first = ids();
+        await service.reloadGlobalFavorites();
+        expect(ids()).toEqual(first);
     });
 
     it('loads PWA Xtream favorites for multiple playlists in parallel', async () => {
@@ -885,56 +927,6 @@ describe('DashboardDataService', () => {
                 }),
             },
         });
-    });
-
-    it('removes M3U favorites via PlaylistsService', async () => {
-        await service.reloadGlobalFavorites();
-        const m3uItem = service
-            .globalFavoriteItems()
-            .find((item) => item.id === 'channel-1');
-
-        expect(m3uItem).toBeDefined();
-
-        await service.removeGlobalFavorite(m3uItem!);
-
-        expect(
-            playlistsServiceMock.transformPlaylistFavorites
-        ).toHaveBeenCalledWith('m3u-1', expect.any(Function));
-        const [, transform] =
-            playlistsServiceMock.transformPlaylistFavorites.mock.calls[0];
-        expect(
-            transform(['channel-1', 'https://example.com/stream-2.m3u8'])
-        ).toEqual(['https://example.com/stream-2.m3u8']);
-    });
-
-    it('removes PWA Xtream favorites through the active data source', async () => {
-        Object.defineProperty(window, 'electron', {
-            value: undefined,
-            configurable: true,
-        });
-        const item = {
-            id: 51,
-            category_id: 12,
-            title: 'Action Movie',
-            poster_url: 'https://example.com/movie.png',
-            xtream_id: 5001,
-            type: 'movie',
-            playlist_id: 'xtream-1',
-            playlist_name: 'Xtream Playlist',
-            source: 'xtream',
-            added_at: '2026-01-01T00:00:00.000Z',
-        } satisfies DashboardFavoriteItem;
-
-        await service.removeGlobalFavorite(item);
-
-        expect(xtreamDataSourceMock.removeFavorite).toHaveBeenCalledWith(
-            { id: 51, type: 'movie' },
-            'xtream-1'
-        );
-        expect(dbServiceMock.removeFromFavorites).not.toHaveBeenCalled();
-        expect(xtreamDataSourceMock.getFavorites).toHaveBeenCalledWith(
-            'xtream-1'
-        );
     });
 
     it('includes M3U recently viewed items in global recent items', () => {
@@ -1283,7 +1275,7 @@ describe('DashboardDataService', () => {
     });
 
     it('resolves episode progress for a Stalker embedded-VOD show stored without is_series', async () => {
-        // Real stored shape (RUcolor-style portal): the recent entry keeps
+        // Synthetic embedded-VOD fixture: the recent entry keeps
         // the `series[]` episode array and a numeric VOD category, but no
         // `is_series` flag. It must keep routing as a movie while its
         // progress, badge, and resume handoff come from the episode rows
@@ -1292,19 +1284,19 @@ describe('DashboardDataService', () => {
             ...createDefaultPlaylists(),
             {
                 _id: 'stalker-embedded',
-                title: 'RUcolor.tv',
+                title: 'Synthetic portal',
                 count: 1,
                 importDate: '2026-01-01T00:00:00.000Z',
                 autoRefresh: false,
                 macAddress: '00:11:22:33:44:55',
                 recentlyViewed: [
                     {
-                        id: '17572',
+                        id: '900202',
                         title: 'Fake (10 episodes)',
                         category_id: '7',
-                        cmd: '/media/17572.mpg',
+                        cmd: '/media/900202.mpg',
                         series: [1, 2, 3, 4, 5, 6, 7, 8],
-                        added_at: '2026-09-19T16:13:50.000Z',
+                        added_at: '2025-02-01T00:00:00.000Z',
                     },
                 ],
             },
@@ -1315,20 +1307,20 @@ describe('DashboardDataService', () => {
                     ? [
                           {
                               playlistId,
-                              contentXtreamId: 1750797719,
+                              contentXtreamId: 900203,
                               contentType: 'episode',
-                              seriesXtreamId: 17572,
+                              seriesXtreamId: 900202,
                               seasonNumber: 1,
                               episodeNumber: 2,
                               positionSeconds: 2673,
                               durationSeconds: 2761,
-                              updatedAt: '2026-09-17T10:55:35.000Z',
+                              updatedAt: '2025-02-02T00:00:00.000Z',
                           },
                           {
                               playlistId,
-                              contentXtreamId: 1750797722,
+                              contentXtreamId: 900204,
                               contentType: 'episode',
-                              seriesXtreamId: 17572,
+                              seriesXtreamId: 900202,
                               seasonNumber: 1,
                               episodeNumber: 5,
                               positionSeconds: 2306,
@@ -1369,8 +1361,8 @@ describe('DashboardDataService', () => {
                             contentType: 'movie',
                         }),
                         seriesResume: {
-                            seriesXtreamId: 17572,
-                            contentXtreamId: 1750797722,
+                            seriesXtreamId: 900202,
+                            contentXtreamId: 900204,
                             seasonNumber: 1,
                             episodeNumber: 5,
                         },
@@ -1647,6 +1639,44 @@ describe('DashboardDataService', () => {
                     password: 'cw-pass',
                 },
             ]);
+        });
+
+        it('updates the open Continue Watching view on shared activity and removes its listener on destruction', async () => {
+            dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([
+                recentRow(
+                    1,
+                    'Synthetic fixture film A',
+                    'movie',
+                    101,
+                    '2026-10-04T10:00:00Z'
+                ),
+            ]);
+            playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue([
+                vodPosition(101, 20, 100),
+            ]);
+            await loadDashboard();
+            expect(titles()).toEqual(['Synthetic fixture film A']);
+            const refresh = jest.spyOn(service, 'reloadPlaybackPositions');
+            playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue([
+                vodPosition(101, 100, 100),
+            ]);
+            announceActivityChange();
+            expect(refresh).toHaveBeenCalledTimes(1);
+            await refresh.mock.results[0].value;
+            expect(titles()).toEqual([]);
+            playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue([
+                vodPosition(101, 30, 100),
+            ]);
+            announceActivityChange();
+            await refresh.mock.results[1].value;
+            expect(titles()).toEqual(['Synthetic fixture film A']);
+            const calls =
+                playbackPositionsMock.getAllPlaybackPositions.mock.calls.length;
+            TestBed.resetTestingModule();
+            announceActivityChange();
+            expect(
+                playbackPositionsMock.getAllPlaybackPositions
+            ).toHaveBeenCalledTimes(calls);
         });
 
         it('does not request continuation episodes for retained unavailable history', async () => {
@@ -2423,7 +2453,10 @@ describe('DashboardDataService', () => {
                     '2026-10-04T09:00:00Z'
                 ),
             ]);
-            let stored = vodPosition(102, 2700, 5400);
+            let stored: PlaybackPositionData = {
+                ...vodPosition(102, 2700, 5400),
+                activitySessionId: 'playing',
+            };
             playbackPositionsMock.getAllPlaybackPositions.mockImplementation(
                 () => Promise.resolve([stored])
             );
@@ -2443,6 +2476,8 @@ describe('DashboardDataService', () => {
                 )
             ).resolves.toBe(true);
 
+            expect(stored.activityAction).toBe('mark-watched');
+            expect(stored.activitySessionId).toBeUndefined();
             expect(titles()).toEqual([]);
         });
     });

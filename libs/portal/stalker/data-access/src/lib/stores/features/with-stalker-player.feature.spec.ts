@@ -1,3 +1,4 @@
+import { StalkerFavoritePlaybackResolver } from '../../stalker-favorite-playback.service';
 import { TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
@@ -108,6 +109,10 @@ describe('withStalkerPlayer', () => {
         TestBed.configureTestingModule({
             providers: [
                 TestPlayerStore,
+                {
+                    provide: StalkerFavoritePlaybackResolver,
+                    useValue: { resolve: jest.fn() },
+                },
                 { provide: DataService, useValue: dataService },
                 {
                     provide: PlaylistsService,
@@ -151,13 +156,58 @@ describe('withStalkerPlayer', () => {
         store = TestBed.inject(TestPlayerStore);
     });
 
+    it('resolves a received VOD favorite locally when the play event has an empty command', async () => {
+        store.setSelectedItem({
+            id: '42',
+            cmd: '',
+            category_id: '17',
+            title: 'Synthetic received movie',
+        });
+        const resolver = TestBed.inject(StalkerFavoritePlaybackResolver);
+        jest.mocked(resolver.resolve).mockResolvedValue({
+            id: '42',
+            cmd: '/media/synthetic-42.mpg',
+            category_id: '17',
+        });
+        dataService.sendIpcEvent.mockResolvedValue({
+            js: { cmd: 'https://cdn.example/synthetic-42.mp4' },
+        });
+        const result = await store.resolveVodPlayback('');
+        expect(resolver.resolve).toHaveBeenCalledWith(
+            PLAYLIST,
+            expect.objectContaining({ id: '42', favoriteContentType: 'vod' })
+        );
+        expect(result.streamUrl).toBe('https://cdn.example/synthetic-42.mp4');
+    });
+
     it('does not reinterpret a lazy episode command through the parent movie file lookup', async () => {
-        store.setSelectedItem({ id: '10', cmd: '/media/file_101.mpg', is_series: true, has_files: true });
-        dataService.sendIpcEvent.mockResolvedValueOnce({ js: { cmd: 'https://cdn.example/alpha.mp4' } });
-        const result = await store.resolveVodPlayback('/media/own-episode.mpg', 'Alpha', '', 1, 123);
+        store.setSelectedItem({
+            id: '10',
+            cmd: '/media/file_101.mpg',
+            is_series: true,
+            has_files: true,
+        });
+        dataService.sendIpcEvent.mockResolvedValueOnce({
+            js: { cmd: 'https://cdn.example/alpha.mp4' },
+        });
+        const result = await store.resolveVodPlayback(
+            '/media/own-episode.mpg',
+            'Alpha',
+            '',
+            1,
+            123
+        );
         expect(result.streamUrl).toBe('https://cdn.example/alpha.mp4');
         expect(dataService.sendIpcEvent).toHaveBeenCalledTimes(1);
-        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ params: expect.objectContaining({ action: 'create_link', cmd: '/media/own-episode.mpg' }) }));
+        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                params: expect.objectContaining({
+                    action: 'create_link',
+                    cmd: '/media/own-episode.mpg',
+                }),
+            })
+        );
     });
 
     it('falls back to file ids for VOD playback and persists recently viewed metadata', async () => {

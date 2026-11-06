@@ -4,6 +4,15 @@
  */
 
 import { handleWorkerRequest } from './worker-events.utils';
+import { readSourceServerConfig } from '../../services/source-server-config';
+import type { ActivityLocalRequest } from '@iptvnator/shared/interfaces/activity-sync';
+
+handleWorkerRequest('DB_ACTIVITY_LOCAL', (request: ActivityLocalRequest) => {
+    const selected = readSourceServerConfig();
+    if (!selected || request?.instanceId !== selected.instanceId)
+        throw new Error('Activity profile mismatch');
+    return request;
+});
 
 handleWorkerRequest(
     'DB_SAVE_PLAYBACK_POSITION',

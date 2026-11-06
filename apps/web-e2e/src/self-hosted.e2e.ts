@@ -299,6 +299,139 @@ test('@self-hosted M3U URL loads through web-backend proxy', async ({
     expectRequestsUseTargetId(parseRequests, '/parse');
 });
 
+test('@self-hosted @m3u @epg URL imports retain header guide links through the real backend and reload', async ({
+    page,
+}) => {
+    const provider = createServer((req, res) => {
+        if (req.url === '/guide.xml') {
+            res.writeHead(200, { 'Content-Type': 'application/xml' });
+            res.end('<?xml version="1.0"?><tv></tv>');
+        } else {
+            res.writeHead(200, {
+                'Content-Type': 'application/vnd.apple.mpegurl',
+            });
+            res.end(
+                `#EXTM3U x-tvg-url="http://${req.headers.host}/guide.xml"\n#EXTINF:-1,Synthetic guide channel\nhttps://media.example.test/live`
+            );
+        }
+    });
+    await new Promise<void>((resolve) =>
+        provider.listen(0, '127.0.0.1', resolve)
+    );
+    const address = provider.address();
+    if (!address || typeof address === 'string')
+        throw new Error('Missing provider port');
+    const origin = `http://127.0.0.1:${address.port}`;
+    try {
+        await page.getByRole('button', { name: 'Add playlist' }).click();
+        const dialog = page.getByRole('dialog');
+        await dialog
+            .getByRole('textbox', { name: /Playlist URL/ })
+            .fill(`${origin}/playlist.m3u`);
+        await dialog
+            .getByRole('textbox', { name: 'Playlist title' })
+            .fill('Synthetic guide source');
+        const parsed = page.waitForResponse((response) =>
+            response.url().startsWith(`${WEB_BACKEND_URL}/parse?`)
+        );
+        await dialog
+            .getByRole('button', { name: 'Add playlist', exact: true })
+            .click();
+        await expect((await parsed).json()).resolves.toMatchObject({
+            detectedEpgUrls: [`${origin}/guide.xml`],
+            epgUrls: [`${origin}/guide.xml`],
+        });
+        await page.waitForURL(/playlists.*all/);
+        for (let attempt = 0; attempt < 2; attempt++) {
+            await page.goto('/workspace/sources');
+            const editor = await openSourceEditor(
+                page,
+                'Synthetic guide source'
+            );
+            await expect(
+                editor.locator('[data-test-id="playlist-epg-detected-count"]')
+            ).toHaveText('From playlist: 1 of 1 enabled.');
+            await expect(
+                editor.locator('[data-epg-source-state="enabled"]')
+            ).toHaveCount(1);
+            await editor
+                .getByRole('button', { name: 'Close', exact: true })
+                .click();
+            if (attempt === 0) await page.reload();
+        }
+    } finally {
+        provider.closeAllConnections();
+        await new Promise<void>((resolve, reject) =>
+            provider.close((error) => (error ? reject(error) : resolve()))
+        );
+    }
+});
+
+for (const portal of ['Xtream', 'Stalker', 'M3U'] as const) {
+    test(`@self-hosted ${portal} recovers a forgotten provider target without a page reload`, async ({ page }) => {
+        if (portal === 'Xtream') await addXtreamPortal(page);
+        else if (portal === 'Stalker') await addStalkerPortal(page);
+        else await addM3uPlaylist(page);
+        if (portal !== 'M3U') await expect(page.locator('.category-item').first()).toBeVisible();
+        if (portal === 'Xtream') {
+            // Import prefetches the catalog; recover through an uncached detail.
+            await page.getByRole('link', { name: 'Series', exact: true }).click();
+            await expect(
+                page.getByRole('heading', { name: 'Series Categories', exact: true })
+            ).toBeVisible();
+            await page.locator('.category-item').first().click();
+            await expect(
+                page.locator('app-grid-list mat-card').first()
+            ).toBeVisible();
+        }
+        const origin = new URL(page.url()).origin;
+        const timeOrigin = await page.evaluate(() => performance.timeOrigin);
+        const proxy = portal === 'Xtream' ? 'xtream' : portal === 'Stalker' ? 'stalker' : 'parse';
+        let forgotten = true;
+        let rejected = 0;
+        let registrations = 0;
+        page.on('request', (request) => {
+            if (request.method() === 'POST' && request.url() === `${WEB_BACKEND_URL}/provider-targets`) {
+                registrations++;
+                forgotten = false;
+            }
+        });
+        await page.route(`${WEB_BACKEND_URL}/${proxy}?**`, async (route) => {
+            if (!forgotten) return route.continue();
+            rejected++;
+            await route.fulfill({
+                status: 404,
+                headers: { 'access-control-allow-origin': origin },
+                json: { status: 404, message: 'Provider target not found', code: 'PROVIDER_TARGET_NOT_FOUND' },
+            });
+        });
+        const recovered = page.waitForResponse((response) =>
+            response.url().startsWith(`${WEB_BACKEND_URL}/${proxy}?`) &&
+            response.status() === 200 && registrations > 0
+        );
+        if (portal === 'M3U') {
+            await page.locator('a[href="/workspace/sources"]').first().click();
+            const row = sourceRowByTitle(page, 'Self-hosted M3U');
+            await row.hover();
+            await row.locator('.source-row__refresh').click();
+        } else if (portal === 'Xtream') {
+            await page.locator('app-grid-list mat-card').first().click();
+        } else {
+            await page.getByRole('link', { name: 'Series', exact: true }).click();
+            await expect(page).toHaveURL(/\/series(?:\/|$)/);
+            await expect(
+                page.getByRole('heading', { name: 'Series Categories', exact: true })
+            ).toBeVisible();
+            await expect(page.locator('.category-item').first()).toBeVisible();
+            await page.locator('.category-item').first().click();
+        }
+        await expect((await recovered).json()).resolves.toHaveProperty(portal === 'M3U' ? 'playlist' : 'payload');
+        expect(rejected).toBeGreaterThan(0);
+        expect(registrations).toBe(1);
+        expect(await page.evaluate(() => performance.timeOrigin)).toBe(timeOrigin);
+    });
+}
+
 test('@self-hosted Stalker portal loads through web-backend proxy', async ({
     page,
 }) => {

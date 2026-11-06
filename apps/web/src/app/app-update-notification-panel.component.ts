@@ -12,6 +12,8 @@ import {
     ElectronBridgeAppUpdateStatus,
 } from '@iptvnator/shared/interfaces';
 import { AppUpdateNotificationCardComponent } from './app-update-notification-card.component';
+import { PwaUpdateNotificationComponent } from './pwa-update-notification.component';
+import { shouldEnableServiceWorker } from './services/runtime-config';
 
 /**
  * Follows the main process's update status and shows the notification card
@@ -23,7 +25,11 @@ import { AppUpdateNotificationCardComponent } from './app-update-notification-ca
 @Component({
     selector: 'app-update-notification-panel',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [AppUpdateNotificationCardComponent, TranslatePipe],
+    imports: [
+        AppUpdateNotificationCardComponent,
+        PwaUpdateNotificationComponent,
+        TranslatePipe,
+    ],
     template: `
         @defer (when visibleStatus()) {
             @if (visibleStatus(); as current) {
@@ -40,10 +46,22 @@ import { AppUpdateNotificationCardComponent } from './app-update-notification-ca
                 </div>
             }
         }
+        @defer (when browserUpdates) {
+            <app-pwa-update-notification />
+        } @error {
+            <div class="app-update-notification-unavailable" role="alert">
+                {{ 'PWA_RELOAD_REQUIRED' | translate }}
+                <a href="" (click)="$event.preventDefault(); reloadWindow()">
+                    {{ 'REFRESH' | translate }}
+                </a>
+            </div>
+        }
     `,
     styleUrl: './app-update-notification-panel.component.scss',
 })
 export class AppUpdateNotificationPanelComponent implements OnInit, OnDestroy {
+    readonly browserUpdates = shouldEnableServiceWorker();
+    reloadWindow = () => window.location.reload();
     private unsubscribeStatus: (() => void) | null = null;
 
     readonly status = signal<ElectronBridgeAppUpdateStatus | null>(null);
@@ -61,6 +79,8 @@ export class AppUpdateNotificationPanelComponent implements OnInit, OnDestroy {
 
         return (
             status.status === ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Available ||
+            status.status === ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Checking ||
+            status.status === ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Error ||
             status.status === ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloading ||
             status.status === ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded
         );

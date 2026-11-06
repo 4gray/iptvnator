@@ -37,6 +37,7 @@ import {
     waitForXtreamImportCompleted,
     xtreamPlaylistIdFromUrl,
 } from './xtream-import-wait';
+import { findMainWindow } from './electron-main-window';
 
 export const workspaceRoot = resolve(__dirname, '../../..');
 export const electronMainPath = join(
@@ -614,23 +615,7 @@ function assertPackagedRendererBuildIsElectronSafe(): void {
     }
 }
 
-async function findMainWindow(app: ElectronApplication): Promise<Page> {
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 2000));
-
-    const windows = app.windows();
-
-    for (const window of windows) {
-        const title = await window.title();
-
-        if (!title.includes('DevTools')) {
-            return window;
-        }
-    }
-
-    return app.firstWindow();
-}
-
-async function waitForAppReady(page: Page): Promise<void> {
+export async function waitForAppReady(page: Page): Promise<void> {
     await page.waitForLoadState('domcontentloaded');
     await page.waitForSelector('app-root', { timeout: 30000 });
     try {
@@ -664,6 +649,30 @@ async function waitForAppReady(page: Page): Promise<void> {
             )}`
         );
     }
+
+    // The old startup sleep also hid the rail's entrance animation. Keep
+    // geometry-sensitive tests ready for interaction without a fixed delay.
+    const rail = page.locator('.app-rail');
+    // Source inventory can keep the workspace hidden after app-root mounts.
+    // Its entrance animations only start when that startup gate opens.
+    await page
+        .locator('.app-rail:visible, app-startup-status [role="alert"]:visible')
+        .first()
+        .waitFor({ state: 'visible' });
+    // Failed migrations expose recovery controls while keeping the rail hidden.
+    if (!(await rail.isVisible())) return;
+    await rail.evaluate(async (rail) => {
+        await document.fonts.ready;
+        await Promise.all(
+            rail
+                .getAnimations({ subtree: true })
+                .filter(
+                    (animation) =>
+                        animation.effect?.getTiming().iterations !== Infinity
+                )
+                .map((animation) => animation.finished.catch(() => undefined))
+        );
+    });
 }
 
 export async function openAddPlaylistDialog(page: Page): Promise<void> {
@@ -1017,6 +1026,7 @@ export async function enableRemoteControl(
 
 export async function saveSettings(page: Page): Promise<void> {
     const saveButton = page.getByTestId('save-settings');
+    const dialogSaveButton = page.getByTestId('unsaved-dialog-save');
 
     // The save control is a native form submit (`<button type="submit">`
     // inside `<form (ngSubmit)="onSubmit()">`). Clicking it makes Chromium
@@ -1028,7 +1038,12 @@ export async function saveSettings(page: Page): Promise<void> {
     // timeout ("waiting for scheduled navigations to finish"). We never depend
     // on a navigation here, so opt out of the barrier and instead assert the
     // deterministic post-save state below.
-    await saveButton.click({ noWaitAfter: true });
+    if (await dialogSaveButton.isVisible()) {
+        await dialogSaveButton.click();
+        await expect(dialogSaveButton).toBeHidden();
+    } else {
+        await saveButton.click({ noWaitAfter: true });
+    }
     // `onSubmit()` calls `applyChangedSettings()` -> `markAsPristine()` once the
     // settings write resolves, which hides the whole unsaved-changes bar.
     // Awaiting that is a stronger, race-free confirmation that the save
@@ -1887,7 +1902,9 @@ export async function expectWorkspaceSearchScope(
     expected: RegExp | string
 ): Promise<void> {
     await expect(
-        page.locator('app-workspace-shell-header .search-chip--scope')
+        page.locator(
+            'app-workspace-shell-header .search-chip--scope .search-chip__label'
+        )
     ).toHaveText(expected);
 }
 

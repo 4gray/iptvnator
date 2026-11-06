@@ -35,6 +35,12 @@ contracts below before changing a subsystem; do not load every document.
   `window.electron` check does not prove that a particular bridge is available.
 - Use shared redacting logging before emitting settings, portal or trace data.
   Never log credentials or expanded SQL/bound values.
+- Use only synthetic data in fixtures, examples, docs, plans, screenshots and
+  commit/issue/PR text. Never copy real user/provider titles, source names,
+  endpoints, identifiers, credentials or payloads. Sample URLs must use reserved
+  example/test domains or local mock servers. Before publishing, inspect the
+  full diff and description for real data; changing a display name alone is
+  insufficient.
 - Keep UI consistent with the shared guidelines. Read the repository UI/theme
   skills before changing user-visible Angular views or shared styles.
 

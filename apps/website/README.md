@@ -2,6 +2,30 @@
 
 The website is an Astro static site deployed to GitHub Pages at `https://4gray.github.io/iptvnator/`.
 
+## Homepage and README screenshots
+
+The homepage and root README share `public/screenshots/dashboard-themes.webp`,
+a static diagonal light/dark dashboard cover. Show the full 1600×1100 frame
+without cropping; Live TV remains in the existing screenshot showcase below.
+That showcase has seven screens, including separate movie and series details.
+The root README links to the full [screenshot gallery](../../docs/screenshots.md).
+
+The marketing WebP copies come from committed v0.25 cinematic captures:
+
+| Marketing asset in `public/screenshots/` | Source under `public/blog/v0-25/` |
+| --- | --- |
+| `dashboard-themes.webp` | `previews/dashboard-live-channels-themes-diagonal.png` |
+| `dashboard-cinematic.webp` | `screenshots/dashboard-live-channels-dark.png` |
+| `dashboard-light-cinematic.webp` | `screenshots/dashboard-live-channels-light.png` |
+| `movie-details-cinematic.webp` | `screenshots/xtream-vod-details-dark.png` |
+| `series-details-cinematic.webp` | `screenshots/xtream-series-season-open-dark.png` |
+
+Encode these copies with `cwebp -q 84 -m 6`, retaining the source dimensions.
+Keep the versioned PNGs, preview provenance JSON and older images referenced by
+published release articles intact. Capture and preview regeneration is documented
+in the [cinematic demo workflow](../../docs/development/cinematic-demo.md).
+The application OG image also points to the deployed diagonal cover.
+
 ## Blog Comments
 
 Blog posts render Giscus comments from `apps/website/src/components/GiscusComments.astro`.

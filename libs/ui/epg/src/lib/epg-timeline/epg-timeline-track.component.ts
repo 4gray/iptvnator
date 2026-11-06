@@ -21,6 +21,9 @@ import {
     TimelineTick,
 } from './epg-timeline.utils';
 
+const VERTICAL_TITLE_SCRIPT =
+    /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Bopomofo}]/u;
+
 interface PopoverState {
     /** The render item it describes. */
     readonly key: string;
@@ -100,6 +103,10 @@ export class EpgTimelineTrackComponent {
 
     isPlaying(item: TimelineRenderBlock): boolean {
         return this.activeKey() === item.key;
+    }
+
+    hasVerticalTitleScript(title: string): boolean {
+        return VERTICAL_TITLE_SCRIPT.test(title);
     }
 
     /**

@@ -1,3 +1,8 @@
+import type { FavoriteLocalRequest } from '@iptvnator/shared/interfaces/favorites-sync';
+import { favoriteLocalOperation } from '../database/operations/favorites-local.operations';
+import type { ActivityLocalRequest } from '@iptvnator/shared/interfaces/activity-sync';
+import { activityLocalOperation } from '../database/operations/activity-local.operations';
+import { getWorkerSqlite } from './database.worker-connection';
 import type {
     ElectronBridgeFavoriteReorderUpdate,
     XtreamFavoriteRemovalRef,
@@ -432,6 +437,17 @@ async function executeRequest(
     const db = await getWorkerDatabase();
 
     switch (message.operation) {
+        case 'DB_FAVORITES_LOCAL':
+            return favoriteLocalOperation(
+                getWorkerSqlite(),
+                message.payload as FavoriteLocalRequest
+            );
+        case 'DB_ACTIVITY_LOCAL':
+            return activityLocalOperation(
+                getWorkerSqlite(),
+                message.payload as ActivityLocalRequest
+            );
+
         case 'DB_HAS_CATEGORIES': {
             const payload = message.payload as {
                 playlistId: string;
@@ -620,13 +636,17 @@ async function executeRequest(
                 playlistId: string;
                 contentType?: 'live' | 'movie' | 'series';
                 identity?: ContentMetadataPatch;
+                categoryId?: number;
+                excludeLocked?: boolean;
             };
             return getContentByXtreamId(
                 db,
                 payload.xtreamId,
                 payload.playlistId,
                 payload.contentType,
-                payload.identity
+                payload.identity,
+                payload.categoryId,
+                payload.excludeLocked === true
             );
         }
 

@@ -8,6 +8,7 @@ import {
     updateExplicitCategoryVisibility,
 } from './category-visibility';
 import type { DatabaseOperationPerformancePhaseCapture } from './performance-phase-capture';
+import { chunkValues } from './operation-control';
 
 type XtreamCategoryInput = {
     category_name: string;
@@ -79,16 +80,19 @@ async function insertXtreamCategories(
             values[0].playlistId,
             values
         );
-        tx.insert(schema.categories)
-            .values(applied)
-            .onConflictDoNothing({
-                target: [
-                    schema.categories.playlistId,
-                    schema.categories.type,
-                    schema.categories.xtreamId,
-                ],
-            })
-            .run();
+        // Bound statement parameters while keeping all category writes atomic.
+        for (const chunk of chunkValues(applied, 1000)) {
+            tx.insert(schema.categories)
+                .values(chunk)
+                .onConflictDoNothing({
+                    target: [
+                        schema.categories.playlistId,
+                        schema.categories.type,
+                        schema.categories.xtreamId,
+                    ],
+                })
+                .run();
+        }
     });
 }
 

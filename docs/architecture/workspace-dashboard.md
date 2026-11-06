@@ -250,9 +250,14 @@ all, and none inside the hero.
        `continueWatchingSettled()`. A movie stays until its position reaches
        `PORTAL_WATCHED_PROGRESS_PERCENT` (`isPortalPlaybackWatched`). The
        threshold is 90%, the Plex/Jellyfin/Emby/Kodi default, so stopping
-       during the end credits finishes a title, as does "Mark watched". A
-       series stays while it has something to continue: once its newest
-       episode is watched, or is an extra (season 0),
+       during the end credits finishes a title, as does "Mark watched". That
+       command clears inherited player session metadata and carries explicit
+       `mark-watched` intent through the shared playback-position boundary, so
+       consented activity reaches the server. Shared-activity invalidation
+       reloads the cached positions so an open Continue Watching rail reflects
+       progress and watched changes from another device. A series stays while
+       it has something to continue: once its newest episode is watched, or is
+       an extra (season 0),
        `DashboardSeriesEpisodesService` fetches its episode list
        (`get_series_info`, two lookups at a time) and
        `resolveDashboardSeriesContinuation` applies
@@ -332,8 +337,11 @@ all, and none inside the hero.
        item belongs in the VOD catalog) while its progress lives in episode
        rows. The mappers give both it and a lazy Ministra `is_series` row
        (already typed `series`) `watch_kind: 'series'`. Series lookup uses
-       keyed maps for both direct episode ids and parent series ids; card
-       renders must not scan the full playback-position map. A series'
+       keyed maps for both direct episode ids and parent series ids. A matching
+       parent-series position takes priority; direct episode lookup is only a
+       fallback for legacy episode-keyed history. A newer unrelated episode
+       whose id equals the series id must not override its progress or navigation
+       target. Card renders must not scan the full playback-position map. A series'
        newest row is the latest `updatedAt`; rows saved in the same second
        (SQLite keeps whole seconds, and "Mark season watched" stamps a
        season at once) go to the later episode, as `getSeriesNextUp` breaks

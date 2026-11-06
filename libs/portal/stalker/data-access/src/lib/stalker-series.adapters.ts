@@ -8,6 +8,7 @@ import {
     StalkerVodSeriesSeason,
     StalkerVodSource,
 } from './models';
+import { hasSeasonRangeInTitle } from './stalker-season-range.util';
 import { isStalkerSeriesFlag } from '@iptvnator/shared/interfaces';
 
 const naturalSeasonCollator = new Intl.Collator(undefined, {
@@ -43,6 +44,8 @@ export interface StalkerSeriesSeasonVm {
 }
 
 export interface MapVodSeriesEpisodesOptions {
+    mode?: 'lazy' | 'embedded';
+    activityParentSeriesId?: string | number;
     parentSeriesId: string | number;
     fallbackPoster?: string;
 }
@@ -130,7 +133,8 @@ export function isVodSeriesItem(
 
 export function mapVodSeriesSeasonsToVm(
     seasons: StalkerVodSeriesSeason[] | undefined,
-    rawTitle?: string | null
+    rawTitle?: string | null,
+    parentSeriesId?: string | number
 ): VodSeriesSeasonVm[] {
     const mapped = (seasons ?? []).map((season) => ({
         id: String(season.id),
@@ -252,6 +256,17 @@ export function mapVodSeriesEpisodes(
                             : '',
                     }
                 ),
+                activityIdentity: {
+                    provider: 'stalker',
+                    kind: 'episode',
+                    mode: options.mode ?? 'lazy',
+                    seriesId: String(
+                        options.activityParentSeriesId ?? options.parentSeriesId
+                    ),
+                    id: providerEpisodeId || String(episodeNum),
+                    seasonKey: String(trackingSeasonKey),
+                    episodeNumber: episodeNum,
+                },
                 legacyTrackingId,
                 ...(season.providerSeasonNumber !== undefined
                     ? { providerSeasonNumber: season.providerSeasonNumber }
@@ -273,9 +288,16 @@ export function mapVodSeriesEpisodes(
 export function mapRegularSeriesEpisodes(
     seasons: ReadonlyArray<StalkerSeriesSeasonVm>,
     fallbackPoster?: string,
-    rawTitle?: string | null
+    rawTitle?: string | null,
+    parentSeriesId?: string | number,
+    activityMode: 'regular' | 'embedded' = 'regular',
+    providerTitles: readonly (string | null | undefined)[] = [rawTitle]
 ): Record<string, XtreamSerieEpisode[]> {
     const mapped: Record<string, XtreamSerieEpisode[]> = {};
+    const seasonUnknown =
+        activityMode === 'embedded' &&
+        seasons.length === 1 &&
+        providerTitles.some(hasSeasonRangeInTitle);
 
     seasons.forEach((season, index) => {
         const seasonKey = String(
@@ -305,6 +327,20 @@ export function mapRegularSeriesEpisodes(
                         movie_image: fallbackPoster,
                     }
                 ),
+                ...(parentSeriesId !== undefined
+                    ? {
+                          activityIdentity: {
+                              provider: 'stalker',
+                              kind: 'episode',
+                              mode: activityMode,
+                              seriesId: String(parentSeriesId),
+                              id: String(episodeNum),
+                              seasonKey: String(season.id),
+                              episodeNumber: episodeNum,
+                          },
+                      }
+                    : {}),
+                ...(seasonUnknown ? { seasonUnknown: true } : {}),
                 originalCmd: season.cmd,
             } as StalkerMappedEpisode;
         });

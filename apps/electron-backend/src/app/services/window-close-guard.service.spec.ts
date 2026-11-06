@@ -262,6 +262,17 @@ describe('WindowCloseGuard', () => {
         expect(win.fireClose()).toBe(true);
     });
 
+    it('replaces a pending native close with the updater quit without replaying it', () => {
+        const { app, guard, win } = createArmedGuard();
+        // The notification can still be in flight when installation reaches main.
+        expect(win.fireClose()).toBe(true);
+        guard.allowNextClose();
+        guard.setGuardActive(false);
+        expect(win.close).not.toHaveBeenCalled();
+        expect(app.quit).not.toHaveBeenCalled();
+        expect(win.fireClose()).toBe(false);
+    });
+
     it('revokes an unused close bypass when the prepared quit never starts', () => {
         const { guard, win } = createArmedGuard();
 
@@ -405,9 +416,7 @@ describe('bootstrapWindowCloseGuard', () => {
         const attachListeners: Array<(win: Electron.BrowserWindow) => void> =
             [];
 
-        bootstrapWindowCloseGuard((listener) =>
-            attachListeners.push(listener)
-        );
+        bootstrapWindowCloseGuard((listener) => attachListeners.push(listener));
 
         const win = createFakeWindow();
         attachListeners.forEach((listener) =>
@@ -427,9 +436,7 @@ describe('bootstrapWindowCloseGuard', () => {
         const attachListeners: Array<(win: Electron.BrowserWindow) => void> =
             [];
 
-        bootstrapWindowCloseGuard((listener) =>
-            attachListeners.push(listener)
-        );
+        bootstrapWindowCloseGuard((listener) => attachListeners.push(listener));
 
         const win = createFakeWindow();
         attachListeners.forEach((listener) =>

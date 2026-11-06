@@ -35,7 +35,9 @@ export function handleCreateLink(req: Request, res: Response): void {
         ? `${requestOrigin}/stream/tv-video.webm`
         : getScenario(mac).gatedStream
           ? `${requestOrigin}/stream/gated/${gatedFile}`
-          : resolveStreamUrl(cmd, itemIndex);
+          : req.query['type'] === 'radio'
+            ? `${requestOrigin}/stream/audio.mp4`
+            : resolveStreamUrl(cmd, itemIndex);
 
     console.log(`[create_link] MAC=${mac} cmd=${cmd} → ${streamUrl}`);
 

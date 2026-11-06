@@ -17,6 +17,7 @@
     <mat-icon aria-hidden="true">more_horiz</mat-icon>
 </button>
 
+<!-- CDK applies the 6px position offset after pushing; reserve a 12px edge gap. -->
 <ng-template
     cdkConnectedOverlay
     [cdkConnectedOverlayOrigin]="trigger"
@@ -24,8 +25,9 @@
     [cdkConnectedOverlayHasBackdrop]="true"
     cdkConnectedOverlayBackdropClass="cdk-overlay-transparent-backdrop"
     [cdkConnectedOverlayPositions]="overlayPositions"
-    [cdkConnectedOverlayViewportMargin]="12"
+    [cdkConnectedOverlayViewportMargin]="18"
     [cdkConnectedOverlayFlexibleDimensions]="false"
+    [cdkConnectedOverlayPush]="true"
     (backdropClick)="close()"
     (detach)="close()"
     (overlayKeydown)="onOverlayKeydown($event)"

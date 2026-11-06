@@ -289,6 +289,75 @@ describe('withStalkerSeries serialSeasonsResource gating', () => {
     // watched toggle marks an answered-empty season as loaded, so a
     // malformed envelope collapsing to [] would silently skip that season.
     describe('fetchVodSeriesEpisodes strictness', () => {
+        it('loads all 58 episodes from descending 14-row pages before publishing', async () => {
+            const all = Array.from({ length: 58 }, (_, index) => ({
+                id: String(58 - index),
+                is_episode: true,
+                series_number: 58 - index,
+            }));
+            dataService.sendIpcEvent.mockImplementation(async (_, payload) => {
+                const { p } = (payload as { params: { p: number } }).params;
+                return {
+                    js: {
+                        total_items: '58',
+                        max_page_items: '14',
+                        data: all.slice((Number(p) - 1) * 14, Number(p) * 14),
+                    },
+                };
+            });
+            const episodes = await store.fetchVodSeriesEpisodes('11', 's1');
+            expect(episodes.map((row) => row.series_number)).toEqual(
+                Array.from({ length: 58 }, (_, index) => index + 1)
+            );
+            expect(store.vodSeriesEpisodes()).toEqual(episodes);
+            expect(
+                dataService.sendIpcEvent.mock.calls.map(([, payload]) =>
+                    Number((payload as { params: { p: number } }).params.p)
+                )
+            ).toEqual([1, 2, 3, 4, 5]);
+        });
+
+        it('does not publish a partial season when a later page fails', async () => {
+            dataService.sendIpcEvent
+                .mockResolvedValueOnce({
+                    js: {
+                        total_items: 2,
+                        max_page_items: 1,
+                        data: [
+                            { id: 'e1', is_episode: true, series_number: 1 },
+                        ],
+                    },
+                })
+                .mockRejectedValueOnce(new Error('page two failed'));
+            await expect(
+                store.fetchVodSeriesEpisodes('11', 's1')
+            ).rejects.toThrow('page two failed');
+            expect(store.vodSeriesEpisodes()).toEqual([]);
+            expect(store.selectedVodSeriesSeasonId()).toBeUndefined();
+        });
+
+        it('stops paging and leaves state untouched after switching sources', async () => {
+            dataService.sendIpcEvent.mockImplementationOnce(async () => {
+                store.setCurrentPlaylist({
+                    ...PLAYLIST,
+                    _id: 'another-source',
+                });
+                return {
+                    js: {
+                        total_items: 2,
+                        data: [
+                            { id: 'e1', is_episode: true, series_number: 1 },
+                        ],
+                    },
+                };
+            });
+            await expect(
+                store.fetchVodSeriesEpisodes('11', 's1')
+            ).rejects.toMatchObject({ name: 'AbortError' });
+            expect(dataService.sendIpcEvent).toHaveBeenCalledTimes(1);
+            expect(store.vodSeriesEpisodes()).toEqual([]);
+        });
+
         it('trusts a well-formed empty answer in either envelope shape', async () => {
             dataService.sendIpcEvent.mockResolvedValue({ js: { data: [] } });
             await expect(
@@ -335,5 +404,32 @@ describe('withStalkerSeries serialSeasonsResource gating', () => {
                 { id: 'e2', is_episode: true, series_number: 2 },
             ]);
         });
+    });
+
+    it('loads all 20 lazy seasons from 14-row pages', async () => {
+        const all = Array.from({ length: 20 }, (_, index) => ({
+            id: String(index + 1),
+            video_id: '11',
+            is_season: true,
+            season_number: String(index + 1),
+        }));
+        dataService.sendIpcEvent.mockImplementation(async (_, payload) => {
+            const { p } = (payload as { params: { p: number } }).params;
+            return {
+                js: {
+                    total_items: 20,
+                    max_page_items: 14,
+                    data: all.slice((Number(p) - 1) * 14, Number(p) * 14),
+                },
+            };
+        });
+        store.setSelectedContentType('vod');
+        store.setSelectedItem({ id: '11', name: 'Long show', is_series: '1' });
+        await waitForCondition(
+            () =>
+                !store.isVodSeriesSeasonsLoading() &&
+                (store.getVodSeriesSeasonsResource()?.length ?? 0) > 0
+        );
+        expect(store.getVodSeriesSeasonsResource()).toEqual(all);
     });
 });

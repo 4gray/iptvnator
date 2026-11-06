@@ -71,7 +71,7 @@ export function useLiveOverlay(tv: TvModel, browse: Browse) {
             } else if (current.panel && event.key === 'Tab') {
                 const buttons = Array.from(
                     document.querySelectorAll<HTMLElement>(
-                        '[data-tv-modal] button:not(:disabled),[data-tv-modal] [data-tv-scroll]'
+                        '[data-tv-modal] button:not(:disabled):not([data-tv-pointer-only]),[data-tv-modal] [data-tv-scroll]'
                     )
                 ).filter((e) => !!e.offsetWidth && !e.closest('[hidden]'));
                 const index = buttons.indexOf(
@@ -129,6 +129,11 @@ export function LiveOverlay({
                     <ProgrammeGuide
                         programs={tv.epg}
                         channel={tv.selected}
+                        sourceName={
+                            tv.data.sources.find(
+                                (source) => source.id === tv.selected?.sourceId
+                            )?.name ?? 'Source unavailable'
+                        }
                         enabled={tv.data.epg}
                         error={tv.epgError}
                         close={overlay.close}

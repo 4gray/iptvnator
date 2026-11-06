@@ -11,6 +11,7 @@
 
 import { ProviderRequestError } from './provider-request-error';
 import { providerUrlErrorBody } from './provider-url-policy';
+import { ProviderResponseTooLargeError } from './provider-response';
 
 export interface ProviderError extends Error {
     readonly code?: unknown;
@@ -81,6 +82,9 @@ function visitErrorNode(
 export function normalizeProviderError(
     error: unknown
 ): NormalizedProviderError {
+    if (error instanceof ProviderResponseTooLargeError) {
+        return { message: error.message, status: 413, code: error.code };
+    }
     if (error instanceof ProviderRequestError) {
         if (error.policyError) return providerUrlErrorBody(error.policyError);
         return normalizeProviderError(error.cause);
@@ -118,6 +122,7 @@ export function logProviderRequestFailure(options: {
 }
 
 function describeProviderFailure(error: unknown): string {
+    if (error instanceof ProviderResponseTooLargeError) return error.code;
     if (error instanceof ProviderRequestError)
         return error.policyError
             ? `URL policy ${error.policyError.status}`

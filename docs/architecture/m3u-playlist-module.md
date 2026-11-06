@@ -203,6 +203,14 @@ The M3U URL, file and text forms share a default-on EPG checkbox. It only
 controls sources declared in the imported M3U; entering a URL does not trigger
 a metadata or EPG request. The choice survives import-method switches in the
 open dialog and resets for a new import or Clear.
+Global EPG opt-out hides this checkbox without changing the source's import
+preference, so re-enabling EPG can use its declared sources normally.
+
+The self-hosted backend's `/parse` response uses the shared M3U playlist
+builder, including detected and enabled EPG URLs. URL imports and first-time
+source projections therefore receive the same header-derived guide selection
+as local file and text imports; the backend only replaces IDs and timestamps
+with its injected values.
 
 `Playlist.autoImportEpg: false` retains detected addresses as candidates without
 enabling them. An absent flag keeps the legacy default-on behavior. Refresh,
@@ -1162,8 +1170,13 @@ These URLs are playlist-scoped by default:
   names (Cyrillic, Greek, …) a `LOWER()`-only match would miss channels whose
   M3U name and EPG `display_name` share the same casing — the raw exact match
   keeps parity with the timeline's single-channel exact-display-name lookup, and
-  the JS `resolveChannelMetadataCandidate` then folds with full-Unicode
-  `toLowerCase()`. The "airing now" window is compared with timezone-aware SQLite
+  the JS `resolveEpgChannelCandidate` then folds with full-Unicode
+  `toLowerCase()`, using id/display-name lookup tables built once per candidate
+  list (`epg-channel-candidate-index.util.ts`) rather than scanning candidates
+  per key. Every id list bound into SQL on this path (candidate keys,
+  current-programme channel ids, manual-mapping keys) is chunked below SQLite's
+  32,766-variable limit, so playlists with tens of thousands of channels still
+  resolve. The "airing now" window is compared with timezone-aware SQLite
   `datetime()` on both sides (`EpgQueryService.isAiringAt`), not raw string
   comparison: stored EPG timestamps often carry an offset (e.g. `+03:00`) while
   `now` is built as UTC (`…Z`), so a lexical compare would be wrong by the offset
@@ -1234,6 +1247,43 @@ These URLs are playlist-scoped by default:
 - **Features**: Read-only channel details context menu, row-level and context-menu removal
 
 ## EPG Integration
+
+### Global EPG preference
+
+`Settings.epgEnabled` is a default-on opt-out shared by Electron and the PWA.
+Settings → EPG stages the switch until Save. Turning it off preserves source
+addresses, mappings and committed XMLTV data, while hiding programme panels,
+guide commands, row previews and EPG source editors. Channel logos supplied by
+the playlist or provider remain visible; XMLTV-only artwork is not requested.
+
+`EpgPreferencesService` gates import and lookup transports. Settings hydration
+blocks requests until the saved preference is known. Preference changes retire
+the source lookup revision, which clears ephemeral previews and fences late
+responses across XMLTV, portal stores, collections and the dashboard. Electron's
+`EPG_SET_ENABLED` drains active and queued imports without clearing the database.
+Startup synchronizes the native preference in the existing source-reconciliation
+IPC before reconciling source data, including when a renderer reopens over a
+reused native worker. Its acknowledgement avoids a separate enable command.
+Actual changes still synchronize the worker; overlapping updates use the latest
+acknowledgement and failures retry. Completed settings writes also retire older
+EPG activation continuations, so delayed source reconciliation cannot re-enable EPG
+after a newer saved opt-out; failed writes do not retire the committed change.
+Reconciliation after a native acknowledgement uses the latest committed source
+URLs, so an older save cannot restore obsolete ownership.
+Suspension clears session fetch markers after writers drain, so a source that
+becomes stale while disabled can refresh on resumption; fresh stored data still
+skips downloading through the ordinary freshness check.
+The resumable list follows `filterPlaylistEpgUrlsForFetch`: global sources stay
+eligible, while local playlist paths require explicit manual provenance. The
+ownership inventory remains intact for reconciliation and lookup retirement.
+Read helpers for programme and channel metadata lookups load on the first
+subscribed lookup, keeping source imports and settings hydration on the small
+startup path. Concurrent reads share that module; failed chunk loads can retry.
+Requests retain their source revision across loading, so a retired request
+cannot start after the chunk arrives or survive an EPG off/on cycle.
+Re-enabling restores ordinary loading and freshness checks without a restart.
+Archive browsing through the programme guide is unavailable while EPG is off.
+
 
 ### Xtream channel-row programme refresh
 
@@ -2181,3 +2231,14 @@ of them and `enqueueAll` queues the batch, because stopping at the first match
 would silently drop the rest of the selection. Adding an exec code to
 `linux.executableArgs` would suppress the `%U` but also pass that code to the
 app as a real argument, so it is not an option.
+
+
+## Optional shared favorites
+
+The [self-hosted favorites contract](pwa-self-hosted.md#favorites-synchronization)
+keeps M3U URL-based membership: duplicate URLs share a favorite. Version 1 hashes
+the exact URL and resolves legacy IDs through the local catalog, without title or
+tvg-id inference. Explicit favorite actions use the optional composition bridge;
+source/refresh writes never infer uploads from playlist snapshots. Original local
+favorites remain available for preview/import. Unmatched references remain
+unresolved; switching profiles does not transplant memberships or queued actions.

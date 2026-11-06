@@ -1,7 +1,10 @@
 {
     "$schema": "./node_modules/nx/schemas/nx-schema.json",
     "namedInputs": {
-        "default": ["{projectRoot}/**/*", "sharedGlobals"],
+        "default": [
+            "{projectRoot}/**/*",
+            "sharedGlobals"
+        ],
         "production": [
             "default",
             "!{projectRoot}/.eslintrc.json",
@@ -15,26 +18,21 @@
         "sharedGlobals": [
             "{workspaceRoot}/.github/workflows/ci.yml",
             "{workspaceRoot}/.nvmrc",
-            { "runtime": "node --version" },
+            {
+                "runtime": "node --version"
+            },
             "{workspaceRoot}/package.json"
         ]
     },
     "targetDefaults": {
         "@angular/build:application": {
             "cache": true,
-            "dependsOn": ["^build"],
-            "inputs": ["production", "^production"]
-        },
-        "@nx/eslint:lint": {
-            "cache": true,
+            "dependsOn": [
+                "^build"
+            ],
             "inputs": [
-                "default",
-                "^default",
-                "{workspaceRoot}/.eslintrc.json",
-                "{workspaceRoot}/.eslintignore",
-                "{workspaceRoot}/eslint.config.mjs",
-                "{workspaceRoot}/tools/eslint-rules/**/*",
-                "{workspaceRoot}/tools/eslint/**/*"
+                "production",
+                "^production"
             ]
         },
         "lint": {
@@ -48,47 +46,73 @@
                 "{workspaceRoot}/tools/eslint/**/*"
             ]
         },
-        "@nx/jest:jest": {
-            "cache": true,
-            "inputs": [
-                "default",
-                "^production",
-                "{workspaceRoot}/jest.preset.js"
-            ],
-            "options": {
-                "passWithNoTests": true
-            },
-            "configurations": {
-                "ci": {
-                    "ci": true,
-                    "codeCoverage": true
-                }
-            }
-        },
         "@nx/js:tsc": {
             "cache": true,
-            "dependsOn": ["^build"],
-            "inputs": ["production", "^production"]
+            "dependsOn": [
+                "^build"
+            ],
+            "inputs": [
+                "production",
+                "^production"
+            ]
         },
         "e2e-ci--src/*.e2e.ts": [
             {
-                "filter": { "projects": ["electron-backend-e2e"] },
+                "filter": {
+                    "projects": [
+                        "electron-backend-e2e"
+                    ]
+                },
                 "dependsOn": [
                     {
-                        "projects": ["electron-backend"],
+                        "projects": [
+                            "electron-backend"
+                        ],
                         "target": "build-e2e"
                     }
                 ]
             },
             {
-                "filter": { "projects": ["web-e2e"] },
+                "filter": {
+                    "projects": [
+                        "web-e2e"
+                    ]
+                },
                 "dependsOn": []
             },
             {
-                "filter": { "projects": ["tv-e2e"] },
+                "filter": {
+                    "projects": [
+                        "tv-e2e"
+                    ]
+                },
                 "dependsOn": [
-                    { "projects": ["tv", "tv-setup"], "target": "build" }
+                    {
+                        "projects": [
+                            "tv",
+                            "tv-setup"
+                        ],
+                        "target": "build"
+                    }
                 ]
+            }
+        ],
+        "test": [
+            {
+                "filter": {
+                    "plugin": "@nx/jest/plugin"
+                },
+                "configurations": {
+                    "ci": {
+                        "ci": true,
+                        "coverage": true
+                    }
+                },
+                "options": {
+                    "passWithNoTests": true,
+                    "cwd": "{workspaceRoot}",
+                    "command": "jest --config {projectRoot}/jest.config.ts"
+                }
             }
         ]
     },
@@ -105,6 +129,48 @@
             "options": {
                 "targetName": "lint"
             }
+        },
+        {
+            "plugin": "@nx/jest/plugin",
+            "options": {
+                "targetName": "test"
+            },
+            "include": [
+                "apps/electron-backend/**/*",
+                "apps/remote-control-web/**/*",
+                "apps/stalker-mock-server/**/*",
+                "apps/web-backend/**/*",
+                "apps/xtream-mock-server/**/*",
+                "libs/epg/data-access/**/*",
+                "libs/m3u-state/**/*",
+                "libs/playback/data-access/**/*",
+                "libs/playlist/import/feature/**/*",
+                "libs/playlist/shared/ui/**/*",
+                "libs/playlist/shared/util/**/*",
+                "libs/portal/catalog/feature/**/*",
+                "libs/portal/downloads/feature/**/*",
+                "libs/portal/shared/data-access/**/*",
+                "libs/portal/shared/ui/**/*",
+                "libs/portal/shared/util/**/*",
+                "libs/portal/stalker/data-access/**/*",
+                "libs/portal/stalker/feature/**/*",
+                "libs/portal/xtream/data-access/**/*",
+                "libs/portal/xtream/feature/**/*",
+                "libs/services/**/*",
+                "libs/shared/database/**/*",
+                "libs/shared/host-health/**/*",
+                "libs/shared/interfaces/**/*",
+                "libs/shared/logging/**/*",
+                "libs/shared/m3u-utils/**/*",
+                "libs/shared/marketing-fixtures/**/*",
+                "libs/shared/tmdb/**/*",
+                "libs/ui/remote-control/**/*",
+                "libs/ui/shared-portals/**/*",
+                "libs/workspace/dashboard/data-access/**/*",
+                "libs/workspace/dashboard/feature/**/*",
+                "libs/workspace/shell/feature/**/*",
+                "libs/workspace/shell/util/**/*"
+            ]
         }
     ],
     "generators": {
@@ -123,5 +189,8 @@
         }
     },
     "defaultProject": "web",
-    "analytics": false
+    "analytics": false,
+    "affected": {
+        "legacy": true
+    }
 }

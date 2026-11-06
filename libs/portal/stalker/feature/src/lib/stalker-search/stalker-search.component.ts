@@ -373,8 +373,8 @@ export class StalkerSearchComponent {
     }): void {
         toggleStalkerVodFavorite(event, {
             addToFavorites: (item, onDone) => this.addToFavorites(item, onDone),
-            removeFromFavorites: (favoriteId, onDone) =>
-                this.removeFromFavorites(favoriteId, onDone),
+            removeFromFavorites: (favoriteId, onDone, context) =>
+                this.removeFromFavorites(favoriteId, onDone, context),
             onComplete: () => {
                 this.favoritesRefresh.refresh();
                 this.syncSelectedVodFavorite();
@@ -462,8 +462,12 @@ export class StalkerSearchComponent {
         this.vodPlayback.handleExternalFallbackRequest(request);
     }
 
-    removeFromFavorites(favoriteId: string, onDone?: () => void) {
-        this.stalkerStore.removeFromFavorites(favoriteId, onDone);
+    removeFromFavorites(
+        favoriteId: string,
+        onDone?: () => void,
+        context?: import('@iptvnator/shared/interfaces').StalkerPortalItem
+    ) {
+        this.stalkerStore.removeFromFavorites(favoriteId, onDone, context);
     }
 
     addToFavorites(item: Record<string, unknown>, onDone?: () => void) {

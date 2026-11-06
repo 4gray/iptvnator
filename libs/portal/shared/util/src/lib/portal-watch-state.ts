@@ -21,6 +21,7 @@ export function buildWatchedVodPosition(options: {
     return {
         contentXtreamId: options.contentXtreamId,
         contentType: 'vod',
+        activityAction: 'mark-watched',
         positionSeconds: duration,
         durationSeconds: duration,
         playlistId: options.playlistId,

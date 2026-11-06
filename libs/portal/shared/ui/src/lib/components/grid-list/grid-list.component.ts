@@ -7,6 +7,7 @@ import {
     output,
     signal,
 } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIcon } from '@angular/material/icon';
@@ -14,7 +15,8 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
-import { readProviderRating } from '@iptvnator/shared/interfaces';
+import { EpgProgram, readProviderRating } from '@iptvnator/shared/interfaces';
+import { getProgramTimeMs } from '@iptvnator/ui/epg';
 import {
     PortalWatchState,
     getXtreamCatchupDays,
@@ -45,6 +47,8 @@ interface GridListItem {
     rating?: string | number;
     rating_imdb?: string | number;
     progress?: number;
+    epgProgram?: EpgProgram;
+    epgProgress?: number;
     watchState?: PortalWatchState;
     tv_archive?: number | string | null;
     tv_archive_duration?: number | string | null;
@@ -90,6 +94,7 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
     templateUrl: './grid-list.component.html',
     styleUrl: './grid-list.component.scss',
     imports: [
+        DatePipe,
         TranslatePipe,
         PlaylistErrorViewComponent,
         MatButtonModule,
@@ -103,6 +108,8 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
     host: {
         '[class.grid-list--posters-only]': 'postersOnly()',
         '[class.grid-list--windowed]': 'gridWindow.enabled',
+        '[class.grid-list--logos]': "variant() === 'logo'",
+        '[attr.aria-busy]': 'isLoading()',
     },
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -118,6 +125,9 @@ export class GridListComponent {
     readonly clearRefinement = output<void>();
     readonly items = input<GridListItem[]>([]);
     readonly isLoading = input<boolean>(false);
+    readonly showEpg = input(false);
+    readonly epgLoading = input(false);
+    readonly activateOnDoubleClick = input(false);
     /** True while an infinite-scroll append is in flight (tail spinner). */
     readonly isAppending = input<boolean>(false);
     /** True when the latest append failed; renders the retry tail. */
@@ -133,6 +143,13 @@ export class GridListComponent {
 
     readonly variant = input<'poster' | 'logo'>('poster');
     readonly type = input<'vod' | 'series' | 'live' | string>('');
+    programDisplayMs(value: string, timestamp?: number | null): number {
+        return getProgramTimeMs(
+            value,
+            timestamp,
+            this.settingsStore.resolvedEpgOffsetMinutes()
+        );
+    }
     protected readonly resolveRating = resolveGridRating;
     protected readonly ratingLabelKey = (item: GridListItem): string =>
         formatGridRating(item.rating_imdb)
@@ -211,6 +228,15 @@ export class GridListComponent {
             default:
                 return 'movie';
         }
+    }
+
+    protected onItemClick(item: GridListItem, event: MouseEvent): void {
+        if (!this.activateOnDoubleClick() || event.detail === 0)
+            this.itemClicked.emit(item);
+    }
+
+    protected onItemDoubleClick(item: GridListItem): void {
+        if (this.activateOnDoubleClick()) this.itemClicked.emit(item);
     }
 
     /** Space activates like a click but must not scroll the grid. */

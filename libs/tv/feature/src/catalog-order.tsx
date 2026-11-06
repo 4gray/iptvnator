@@ -1,3 +1,4 @@
+import { TvSelect } from '@iptvnator/tv/ui';
 import { useState } from 'preact/hooks';
 import { normalizeCatalogSort } from '@iptvnator/tv/util';
 import { TvModel } from './use-tv';
@@ -13,16 +14,13 @@ export function CatalogOrder({
     return (
         <label>
             Sort by
-            <select
-                aria-label="Sort by"
-                data-focus="catalog-sort"
+            <TvSelect
+                label="Sort by"
+                focusKey="catalog-sort"
                 value={sort}
                 disabled={saving}
-                onChange={async (event) => {
-                    const control = event.currentTarget;
-                    const next = normalizeCatalogSort(
-                        event.currentTarget.value
-                    );
+                onChange={async (value, control) => {
+                    const next = normalizeCatalogSort(value);
                     setSaving(true);
                     try {
                         await tv.update((data) => ({
@@ -45,11 +43,12 @@ export function CatalogOrder({
                         });
                     }
                 }}
-            >
-                <option value="recent">Recently added</option>
-                <option value="title">Title · A–Z</option>
-                <option value="provider">Provider order</option>
-            </select>
+                options={[
+                    { value: 'recent', label: 'Recently added' },
+                    { value: 'title', label: 'Title · A–Z' },
+                    { value: 'provider', label: 'Provider order' },
+                ]}
+            />
         </label>
     );
 }

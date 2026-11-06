@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "purpose": "Original fictional release 0.25 screenshot artwork",
+  "generationMode": "built-in image_gen",
+  "assets": [
+    {
+      "kind": "backdrop",
+      "slug": "black-harbor",
+      "reference": "poster/black-harbor.png",
+      "prompt": "Use case: ads-marketing.\nStyle/medium: premium cinematic key art with photorealistic film cinematography, practical atmospheric lighting, tactile surfaces, restrained film grain and natural skin texture. Original fictional production with no resemblance to any recognizable actor, film franchise or studio artwork. No watermarks, logos, billing blocks or extra text.\nAsset type: 16:9 landscape backdrop for fictional maritime thriller Black Harbor, 2560x1440 desired.\nUse the reference only for continuity of the fictional dark-haired female dock inspector, navy raincoat, fogbound container harbor and red navigation lights. Create an entirely new wide film still: inspector stands on the right third, waist up, looking across a rain-soaked quay toward an immense freighter disappearing into mist; container cranes, tiny amber cabin lights and one red navigation beacon reflected on wet asphalt. Layer the depth with foreground rain, the inspector, ship and distant harbor. The right half has sculptural warm practical light on her profile, copper reflections against blue-grey fog. The left 40 percent is quieter dark atmospheric water and mist for readable app text, still photographic and detailed. Very wide expensive anamorphic composition, grounded thriller, no explosions. No typography anywhere.",
+      "file": "backdrop/black-harbor.png",
+      "tool": "built-in image_gen",
+      "status": "generated-and-visually-reviewed",
+      "width": 1672,
+      "height": 941,
+      "bytes": 643688
+    },
+    {
+      "kind": "backdrop",
+      "slug": "the-paper-astronaut",
+      "reference": "poster/the-paper-astronaut.png",
+      "prompt": "Use case: ads-marketing.\nStyle/medium: premium cinematic key art with photorealistic film cinematography, practical atmospheric lighting, tactile surfaces, restrained film grain and natural skin texture. Original fictional production with no resemblance to any recognizable actor, film franchise or studio artwork. No watermarks, logos, billing blocks or extra text.\nAsset type: 16:9 landscape backdrop for fictional stop-motion family film The Paper Astronaut, 2560x1440 desired.\nMatch the handmade paper astronaut and quilted bedroom universe in the reference poster. New wide shot across rolling indigo quilt hills under hanging cardboard planets, fine cotton-string stars and a warm bedside lamp like a miniature sunrise. A little folded ivory-paper astronaut carrying a softly glowing golden paper star stands on the right third beside an ochre cardboard rocket. Photographed physical stop-motion set, visible paper fibres, corrugated edges, imperfect folds, miniature shallow depth of field, magical and sophisticated family feature. Quieter dark blue cloth and starlight on the left for app copy. No typography.",
+      "file": "backdrop/the-paper-astronaut.png",
+      "tool": "built-in image_gen",
+      "status": "generated-and-visually-reviewed",
+      "width": 1672,
+      "height": 941,
+      "bytes": 721197
+    },
+    {
+      "kind": "backdrop",
+      "slug": "summer-static",
+      "reference": "poster/summer-static.png",
+      "prompt": "Use case: ads-marketing.\nStyle/medium: premium cinematic key art with photorealistic film cinematography, practical atmospheric lighting, tactile surfaces, restrained film grain and natural skin texture. Original fictional production with no resemblance to any recognizable actor, film franchise or studio artwork. No watermarks, logos, billing blocks or extra text.\nAsset type: 16:9 landscape backdrop for fictional coming-of-age drama Summer Static, 2560x1440 desired.\nNew original cinematic still: four young adult friends restoring a tiny abandoned community-radio booth above a coastal town at the end of summer. Compose the friends around an old mixing desk and microphone in the right half, caught mid-conversation with honest unposed expressions, faded T-shirts and linen. Golden sunlight through dusty windows, salt-streaked glass, coiled headphone leads, distant hazy blue sea. The left half shows a quieter twilight interior, shelves of blank unbranded tapes, warm practical lamps. Earthy apricot, faded teal and sea blue, tactile 35mm coming-of-age film. No typography.\nReference continuity: preserve the fictional cast and production design from the reference; the landscape is a different camera setup. For House of Tides, match the reference's pale weatherproof coat rather than a red coat.",
+      "file": "backdrop/summer-static.png",
+      "tool": "built-in image_gen",
+      "status": "generated-and-visually-reviewed",
+      "width": 1672,
+      "height": 941,
+      "bytes": 740398
+    },
+    {
+      "kind": "backdrop",
+      "slug": "house-of-tides",
+      "reference": "poster/house-of-tides.png",
+      "prompt": "Use case: ads-marketing.\nStyle/medium: premium cinematic key art with photorealistic film cinematography, practical atmospheric lighting, tactile surfaces, restrained film grain and natural skin texture. Original fictional production with no resemblance to any recognizable actor, film franchise or studio artwork. No watermarks, logos, billing blocks or extra text.\nAsset type: 16:9 landscape backdrop for fictional gothic coastal mystery House of Tides, 2560x1440 desired.\nAn immense weathered cliff house over a retreating winter sea, photographed at storm-blue dusk. A marine surveyor in a rust-red wool coat stands on the exposed black-rock causeway, small against the architecture, on the right third. One warm amber window and an open door close to the tidal line, sea spray, wet slate, distant seabirds, majestic mist and threatening stillness. Original architecture, believable geography and realistic storm clouds. Left 40 percent holds dark open ocean and mist for app text. Sophisticated gothic film photography, not a fantasy castle or horror monster. No typography.\nReference continuity: preserve the fictional cast and production design from the reference; the landscape is a different camera setup. For House of Tides, match the reference's pale weatherproof coat rather than a red coat.",
+      "file": "backdrop/house-of-tides.png",
+      "tool": "built-in image_gen",
+      "status": "generated-and-visually-reviewed",
+      "width": 1672,
+      "height": 941,
+      "bytes": 920047
+    },
+    {
+      "kind": "poster",
+      "slug": "skyline-sentinels",
+      "prompt": "Use case: ads-marketing.\nStyle/medium: premium cinematic key art with photorealistic film cinematography, practical atmospheric lighting, tactile surfaces, restrained film grain and natural skin texture. Original fictional production with no resemblance to any recognizable actor, film franchise or studio artwork. No watermarks, logos, billing blocks or extra text.\nAsset type: 2:3 portrait key-art poster for fictional ensemble drama Skyline Sentinels, 1024x1536 desired.\nFour fictional city infrastructure maintenance workers on a very high rooftop at blue hour, a woman in an ochre work jacket in the foreground on the right, three colleagues at different depths behind her, climbing harnesses and worn practical equipment; enormous river city skyline and bridges in pale early dawn beyond. Faces look like ordinary distinctive working adults, not superheroes. Dramatic chiaroscuro, believable vertigo, clouds catching restrained amber light against cool steel blue, premium prestige TV poster photography. Keep bottom quarter dark and uncluttered. Text verbatim: \"SKYLINE SENTINELS\" in large crisp condensed ivory uppercase, two balanced lines near the bottom, legible at thumbnail size. No other text.",
+      "file": "poster/skyline-sentinels.png",
+      "tool": "built-in image_gen",
+      "status": "generated-and-visually-reviewed",
+      "width": 1024,
+      "height": 1536,
+      "bytes": 736146
+    },
+    {
+      "kind": "backdrop",
+      "slug": "skyline-sentinels",
+      "prompt": "Use case: ads-marketing.\nStyle/medium: premium cinematic key art with photorealistic film cinematography, practical atmospheric lighting, tactile surfaces, restrained film grain and natural skin texture. Original fictional production with no resemblance to any recognizable actor, film franchise or studio artwork. No watermarks, logos, billing blocks or extra text.\nAsset type: 16:9 landscape cinematic TV backdrop for fictional ensemble drama Skyline Sentinels, 2560x1440 desired.\nA woman in an ochre work jacket and climbing harness leads three ordinary city maintenance workers across the rooftop service catwalk of an immense river city at blue hour, steam venting softly, skyline and bridges emerging into first sunlight. Compose the crew across the right half, foreground rivets and wet steel, enormous realistic sense of height and layered urban depth. Amber sunrise shafts on faces and windows against steel blue shadows, restrained premium ensemble-drama cinematography, no superhero costume or futuristic tower. Left 40 percent is quieter dark rooftop and distant hazy skyline for application copy. No typography.\nReference continuity: match the fictional cast, costumes, palette and production design from the attached poster; create a new landscape scene without its title typography.",
+      "file": "backdrop/skyline-sentinels.png",
+      "tool": "built-in image_gen",
+      "status": "generated-and-visually-reviewed",
+      "reference": "poster/skyline-sentinels.png",
+      "width": 1672,
+      "height": 941,
+      "bytes": 830838
+    },
+    {
+      "kind": "poster",
+      "slug": "the-aegis-club",
+      "prompt": "Use case: ads-marketing.\nStyle/medium: premium cinematic key art with photorealistic film cinematography, practical atmospheric lighting, tactile surfaces, restrained film grain and natural skin texture. Original fictional production with no resemblance to any recognizable actor, film franchise or studio artwork. No watermarks, logos, billing blocks or extra text.\nAsset type: 2:3 portrait key-art poster for fictional warm ensemble dramedy The Aegis Club, 1024x1536 desired.\nFour retired public servants of varied backgrounds, men and women in their sixties, reopen a much-loved neighborhood social club. An assured silver-haired woman in a burgundy cardigan at an old wooden bar, friends laughing softly behind her beneath amber pendant lamps; a younger apprentice brings a tray, rain-speckled green windows, chess table, worn leather, practical details and natural human faces. Intimate prestige television ensemble photography, warm honey highlights, forest green shadows, restrained playful confidence. Text verbatim: \"THE AEGIS CLUB\" in large refined warm-ivory serif uppercase, three balanced lines in lower quarter, legible at thumbnail size. No other text.",
+      "file": "poster/the-aegis-club.png",
+      "tool": "built-in image_gen",
+      "status": "generated-and-visually-reviewed",
+      "width": 1024,
+      "height": 1536,
+      "bytes": 729680
+    },
+    {
+      "kind": "backdrop",
+      "slug": "the-aegis-club",
+      "prompt": "Use case: ads-marketing.\nStyle/medium: premium cinematic key art with photorealistic film cinematography, practical atmospheric lighting, tactile surfaces, restrained film grain and natural skin texture. Original fictional production with no resemblance to any recognizable actor, film franchise or studio artwork. No watermarks, logos, billing blocks or extra text.\nAsset type: 16:9 landscape cinematic TV backdrop for fictional warm ensemble dramedy The Aegis Club, 2560x1440 desired.\nInside a reopened neighborhood social club at rainy evening: a silver-haired woman in a burgundy cardigan and three retired public servants gathered around a wooden chess table on the right half, a younger apprentice listens to their friendly debate. Richly tactile dark timber, worn green leather, brass pendant lamps, rain on tall windows, a small neighborhood street outside. Cinematic candid ensemble framing, real ordinary fictional faces, warm amber light and forest green shadows, understated humour and lived-in warmth. Left 40 percent holds a quieter bar interior and reflected lamplight for application text. No typography.\nReference continuity: match the fictional cast, costumes, palette and production design from the attached poster; create a new landscape scene without its title typography.",
+      "file": "backdrop/the-aegis-club.png",
+      "tool": "built-in image_gen",
+      "status": "generated-and-visually-reviewed",
+      "reference": "poster/the-aegis-club.png",
+      "width": 1672,
+      "height": 941,
+      "bytes": 777115
+    },
+    {
+      "kind": "episode",
+      "slug": "skyline-sentinels-episode-1",
+      "prompt": "Use case: ads-marketing.\nStyle/medium: premium cinematic key art with photorealistic film cinematography, practical atmospheric lighting, tactile surfaces, restrained film grain and natural skin texture. Original fictional production with no resemblance to any recognizable actor, film franchise or studio artwork. No watermarks, logos, billing blocks or extra text.\nAsset type: 16:9 cinematic episode still for fictional series Skyline Sentinels, episode The Dawn Shift, 1920x1080 desired.\nAn ochre-jacketed female infrastructure worker and her colleague inspect a corroded rooftop radio relay just before sunrise. Practical climbing harnesses, damp steel, tool bag, vast misty river city and bridges far below; closer intimate two-shot, tired determined fictional faces, cold blue dawn with amber rim light, grounded prestige TV cinematography. No typography.\nReference continuity: match the original fictional maintenance crew, faces and ochre work jackets from the attached poster; this is a new episode still, without title lettering.",
+      "file": "episode/skyline-sentinels-episode-1.png",
+      "tool": "built-in image_gen",
+      "status": "generated-and-visually-reviewed",
+      "reference": "poster/skyline-sentinels.png",
+      "width": 1672,
+      "height": 941,
+      "bytes": 808392
+    },
+    {
+      "kind": "episode",
+      "slug": "skyline-sentinels-episode-2",
+      "prompt": "Use case: ads-marketing.\nStyle/medium: premium cinematic key art with photorealistic film cinematography, practical atmospheric lighting, tactile surfaces, restrained film grain and natural skin texture. Original fictional production with no resemblance to any recognizable actor, film franchise or studio artwork. No watermarks, logos, billing blocks or extra text.\nAsset type: 16:9 cinematic episode still for fictional series Skyline Sentinels, episode Under the River, 1920x1080 desired.\nTwo ordinary city infrastructure workers investigate an old service tunnel beneath a river bridge: one crouches beside a flooded cable junction, a woman in an ochre work jacket holds a warm inspection lamp behind him. Rust, wet concrete, small reflections on ankle-deep water, cold daylight through a high grating, believable workplace tension, atmospheric grounded prestige TV photography. Different composition from rooftop episode. No typography.\nReference continuity: match the original fictional maintenance crew, faces and ochre work jackets from the attached poster; this is a new episode still, without title lettering.",
+      "file": "episode/skyline-sentinels-episode-2.png",
+      "tool": "built-in image_gen",
+      "status": "generated-and-visually-reviewed",
+      "reference": "poster/skyline-sentinels.png",
+      "width": 1672,
+      "height": 941,
+      "bytes": 864295
+    }
+  ]
+}

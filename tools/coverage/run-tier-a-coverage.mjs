@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { readFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -21,6 +21,8 @@ import {
     runWithConcurrency,
     specsResolveElectronBinary,
 } from './coverage-run-pool.mjs';
+
+import { buildCoverageNxArgs, readResolvedProjects } from './nx-coverage-projects.mjs';
 
 const workspaceRoot = process.cwd();
 const policyPath = path.join(workspaceRoot, 'tools/coverage/coverage-policy.json');
@@ -64,98 +66,7 @@ if (tierAProjects.length === 0) {
     process.exit(1);
 }
 
-function readProjectJson(project) {
-    const projectJsonPath = path.join(workspaceRoot, project.root, 'project.json');
-    if (!existsSync(projectJsonPath)) {
-        throw new Error(`Missing project.json for ${project.name}: ${projectJsonPath}`);
-    }
-
-    return JSON.parse(readFileSync(projectJsonPath, 'utf8'));
-}
-
-function toPosix(filePath) {
-    return filePath.split(path.sep).join('/');
-}
-
-function coverageDirFor(project, jestRootMode) {
-    const workspaceCoverageDir = path.join('coverage', project.root);
-    if (jestRootMode === 'project') {
-        return toPosix(path.relative(project.root, workspaceCoverageDir));
-    }
-
-    return toPosix(workspaceCoverageDir);
-}
-
-function collectCoverageArgs(project, jestRootMode) {
-    const sourceGlob =
-        jestRootMode === 'project'
-            ? 'src/**/*.{ts,js,mjs,html}'
-            : `${project.sourceRoot}/**/*.{ts,js,mjs,html}`;
-    const sourcePrefix =
-        jestRootMode === 'project' ? 'src' : project.sourceRoot;
-
-    return [
-        '--coverage',
-        `--coverageDirectory=${coverageDirFor(project, jestRootMode)}`,
-        `--collectCoverageFrom=${sourceGlob}`,
-        `--collectCoverageFrom=!${sourcePrefix}/**/*.{spec,test}.ts`,
-        `--collectCoverageFrom=!${sourcePrefix}/**/test-setup.ts`,
-        `--collectCoverageFrom=!${sourcePrefix}/**/test-stubs/**`,
-        `--collectCoverageFrom=!${sourcePrefix}/**/*.generated.*`,
-        `--collectCoverageFrom=!${sourcePrefix}/**/environments/**`,
-        `--collectCoverageFrom=!${sourcePrefix}/**/index.ts`,
-    ];
-}
-
-function jestRootModeFor(project) {
-    const mode = project.jestRootMode ?? 'workspace';
-    if (mode !== 'workspace' && mode !== 'project') {
-        throw new Error(
-            `Tier A project ${project.name} has unsupported jestRootMode: ${mode}`
-        );
-    }
-
-    return mode;
-}
-
-function buildNxArgs(project) {
-    const projectJson = readProjectJson(project);
-    const testTarget = projectJson.targets?.test;
-    if (!testTarget) {
-        throw new Error(`Tier A project ${project.name} has no test target.`);
-    }
-
-    if (testTarget.executor === '@nx/jest:jest') {
-        return [
-            'nx',
-            'run',
-            `${project.name}:test`,
-            '--configuration=ci',
-            '--codeCoverage',
-            `--coverageDirectory=${coverageDirFor(project, 'workspace')}`,
-            `--maxWorkers=${workersPerProject}`,
-            '--output-style=static',
-        ];
-    }
-
-    if (testTarget.executor === 'nx:run-commands') {
-        const jestRootMode = jestRootModeFor(project);
-
-        return [
-            'nx',
-            'run',
-            `${project.name}:test`,
-            '--output-style=static',
-            '--',
-            `--maxWorkers=${workersPerProject}`,
-            ...collectCoverageArgs(project, jestRootMode),
-        ];
-    }
-
-    throw new Error(
-        `Tier A project ${project.name} uses unsupported test executor: ${testTarget.executor}`
-    );
-}
+const resolvedProjects = await readResolvedProjects();
 
 /**
  * Output is buffered per project and written in one piece when the project
@@ -165,7 +76,7 @@ function buildNxArgs(project) {
  * fast starts nothing new, and a big project with every test failing printed
  * 1.8 MB while its Jest process peaked at 850 MB.
  */
-function spawnCoverage(args, scanner, output) {
+function spawnCoverage(args, scanner, output, project) {
     return new Promise((resolve, reject) => {
         const child = spawn('pnpm', args, {
             cwd: workspaceRoot,
@@ -173,6 +84,20 @@ function spawnCoverage(args, scanner, output) {
                 ...process.env,
                 CI: process.env.CI ?? 'true',
                 NX_TASKS_RUNNER_DYNAMIC_OUTPUT: 'false',
+                JEST_JUNIT_OUTPUT_FILE: path.join(
+                    workspaceRoot,
+                    'coverage',
+                    project.root,
+                    'junit.xml'
+                ),
+                JEST_JUNIT_CLASSNAME: '{filepath}',
+                JEST_JUNIT_FILE_PATH_PREFIX: path.relative(
+                    workspaceRoot,
+                    path.resolve(
+                        workspaceRoot,
+                        resolvedProjects[project.name].targets.test.options?.cwd ?? '.'
+                    )
+                ),
             },
             stdio: ['ignore', 'pipe', 'pipe'],
         });
@@ -193,7 +118,12 @@ function spawnCoverage(args, scanner, output) {
 }
 
 async function collectProjectCoverage(project, specCount) {
-    const args = buildNxArgs(project);
+    const args = buildCoverageNxArgs({
+        project,
+        resolvedProject: resolvedProjects[project.name],
+        workspaceRoot,
+        workers: workersPerProject,
+    });
     const output = [];
     // The start line goes out immediately so a stalled project is visible in
     // the log before the job times out; its full output follows on completion.
@@ -203,7 +133,7 @@ async function collectProjectCoverage(project, specCount) {
     const lines = [`\n==> Coverage for ${project.name}`, `pnpm ${args.join(' ')}`];
 
     const scanner = createCoverageOutputScanner();
-    const result = await spawnCoverage(args, scanner, output);
+    const result = await spawnCoverage(args, scanner, output, project);
     let failed = result.code !== 0 || result.signal !== null;
 
     const flush = () => {

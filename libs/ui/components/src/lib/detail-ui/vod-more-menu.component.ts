@@ -34,9 +34,9 @@ import type {
 type MenuView = 'menu' | 'sources';
 
 /**
- * The "…" button of the details action row and its dropdown. Right edges
- * align with the button so the panel never leaves the details column; when
- * the space below is short the panel opens upward. Rows are plain buttons
+ * The "…" button of the details action row and its dropdown. It prefers the
+ * button's right edge, flips upward, and shifts inside the viewport when
+ * neither position fits. Rows are plain buttons
  * with `role="menuitem"`, reachable with the arrow keys; Escape and an
  * outside click close the menu. Selecting the `sources` row swaps the panel
  * to the alternative-sources list.

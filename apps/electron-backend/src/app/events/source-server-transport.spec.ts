@@ -4,6 +4,32 @@ import type {
 } from '@iptvnator/shared/interfaces';
 import { SourceServerTransport } from './source-server-transport';
 
+it.each([
+    [{ status: 401 }, 'LOCKED'],
+    [{ status: 403 }, 'LOCKED'],
+    [{ status: 404 }, 'INCOMPATIBLE'],
+    [{ status: 400 }, 'INCOMPATIBLE'],
+    [{ status: 204 }, 'INCOMPATIBLE'],
+    [
+        { status: 200, body: { instanceId: 'selected', storage: 'none' } },
+        'INCOMPATIBLE',
+    ],
+    [{ status: 200, body: { instanceId: 'other' } }, 'INSTANCE_CHANGED'],
+    [{ status: 503 }, 'OFFLINE'],
+])('preserves a rejected instance probe (%j)', async (response, code) => {
+    const send = jest.fn().mockResolvedValue(response);
+    const token = jest.fn(() => 'synthetic-token');
+    await expect(
+        new SourceServerTransport(send).execute(
+            { apiUrl: 'https://synthetic.invalid/api', instanceId: 'selected' },
+            { operation: 'favorites-context', id: 'source' },
+            token
+        )
+    ).rejects.toThrow(`SOURCE_SYNC.${code}`);
+    expect(token).not.toHaveBeenCalled();
+    expect(send).toHaveBeenCalledTimes(1);
+});
+
 it('keeps profile verification isolated when an older connection probe finishes late', async () => {
     const original = { apiUrl: 'https://nas.test/api', instanceId: 'original' };
     const selected = { ...original, instanceId: 'selected' };

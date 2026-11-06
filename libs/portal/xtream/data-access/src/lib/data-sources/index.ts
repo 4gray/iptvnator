@@ -34,13 +34,15 @@ export function xtreamDataSourceFactory(): IXtreamDataSource {
  * Provider for the Xtream data source.
  * Add this to your app providers to enable the data source abstraction.
  */
-export function provideXtreamDataSource(): Provider[] {
+export function provideXtreamDataSource(
+    factory: () => IXtreamDataSource = xtreamDataSourceFactory
+): Provider[] {
     return [
         ElectronXtreamDataSource,
         PwaXtreamDataSource,
         {
             provide: XTREAM_DATA_SOURCE,
-            useFactory: xtreamDataSourceFactory,
+            useFactory: factory,
         },
         {
             provide: PLAYLIST_DELETE_CLEANUP,

@@ -7,16 +7,28 @@
         @for (row of skeletonRows(); track row) {
             <div class="grid-skeleton-card" aria-hidden="true">
                 <div class="grid-skeleton-thumb">
-                    <span class="grid-skeleton-badge"></span>
+                    @if (variant() !== 'logo') {
+                        <span class="grid-skeleton-badge"></span>
+                    }
                 </div>
                 <div class="grid-skeleton-title">
                     <span
                         class="grid-skeleton-line grid-skeleton-line--primary"
                     ></span>
-                    <span
-                        class="grid-skeleton-line grid-skeleton-line--secondary"
-                    ></span>
+                    @if (variant() !== 'logo') {
+                        <span
+                            class="grid-skeleton-line grid-skeleton-line--secondary"
+                        ></span>
+                    }
                 </div>
+                @if (variant() === 'logo' && showEpg()) {
+                    <div class="grid-skeleton-epg">
+                        <span class="grid-skeleton-line"></span>
+                        <span
+                            class="grid-skeleton-line grid-skeleton-line--secondary"
+                        ></span>
+                    </div>
+                }
             </div>
         }
     } @else {
@@ -27,11 +39,22 @@
             @let i = $any(item);
             @let title = channelTitle(i) || ('PORTALS.UNTITLED' | translate);
             <mat-card
+                [attr.data-catalog-focus-key]="
+                    i.id ??
+                    i.stream_id ??
+                    i.series_id ??
+                    i.xtream_id ??
+                    i.movie_id
+                "
                 [class.grid-card--logo]="variant() === 'logo'"
                 role="button"
                 tabindex="0"
-                [attr.aria-label]="title"
-                (click)="itemClicked.emit(item)"
+                [attr.aria-label]="
+                    variant() === 'logo' && showEpg() ? null : title
+                "
+                [attr.title]="variant() === 'logo' ? title : null"
+                (click)="onItemClick(item, $event)"
+                (dblclick)="onItemDoubleClick(item)"
                 (keydown.enter)="itemClicked.emit(item)"
                 (keydown.space)="onSpaceKey($event, item)"
             >
@@ -44,7 +67,7 @@
                             [src]="poster"
                             (error)="onImageError($event, poster)"
                             loading="lazy"
-                            [alt]="title"
+                            [alt]="variant() === 'logo' ? '' : title"
                         />
                     } @else if (shouldRenderArtworkPlaceholder(poster)) {
                         <div class="stream-icon-placeholder" aria-hidden="true">
@@ -120,6 +143,52 @@
                 @if (!postersOnly()) {
                     <mat-card-actions>
                         <div class="title">{{ title }}</div>
+                        @if (variant() === 'logo' && showEpg()) {
+                            <div class="grid-epg">
+                                @if (i.epgProgram; as program) {
+                                    <div
+                                        class="grid-epg-title"
+                                        [title]="program.title"
+                                    >
+                                        {{ program.title }}
+                                    </div>
+                                    <div class="grid-epg-timeline">
+                                        <span>{{
+                                            programDisplayMs(
+                                                program.start,
+                                                program.startTimestamp
+                                            ) | date: 'HH:mm'
+                                        }}</span>
+                                        <div
+                                            class="grid-epg-progress-track"
+                                            aria-hidden="true"
+                                        >
+                                            <div
+                                                class="grid-epg-progress-fill"
+                                                [style.width.%]="
+                                                    i.epgProgress ?? 0
+                                                "
+                                            ></div>
+                                        </div>
+                                        <span>{{
+                                            programDisplayMs(
+                                                program.stop,
+                                                program.stopTimestamp
+                                            ) | date: 'HH:mm'
+                                        }}</span>
+                                    </div>
+                                } @else {
+                                    <div class="grid-epg-title grid-epg-empty">
+                                        {{
+                                            (epgLoading()
+                                                ? 'LOADING'
+                                                : 'EPG.NO_PROGRAM_INFO'
+                                            ) | translate
+                                        }}
+                                    </div>
+                                }
+                            </div>
+                        }
                     </mat-card-actions>
                 }
             </mat-card>

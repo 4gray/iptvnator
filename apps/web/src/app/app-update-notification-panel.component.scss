@@ -13,6 +13,10 @@
     padding: 10px 12px;
     font-size: 13px;
     line-height: 1.4;
+
+    a {
+        color: var(--app-selection-text-color);
+    }
 }
 
 @media (max-width: 560px) {

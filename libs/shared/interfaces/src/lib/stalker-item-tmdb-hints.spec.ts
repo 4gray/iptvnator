@@ -9,18 +9,18 @@ import { extractStalkerItemType } from './stalker-item.normalizer';
  * while the category stays VOD.
  */
 const enrichedEntry = {
-    id: '17573',
-    cmd: '/media/17573.mpg',
+    id: '900201',
+    cmd: '/media/900201.mpg',
     series: [1, 2, 3],
     category_id: '7',
     cover: 'https://image.tmdb.org/t/p/w500/poster.jpg',
-    title: 'Холод (10 серий)',
-    added_at: '2026-07-20T18:19:18.979Z',
+    title: 'Тестовый сериал Альфа (10 серий)',
+    added_at: '2025-02-01T00:00:00.000Z',
     info: {
-        name: 'Холод (10 серий)',
-        o_name: 'Kholod',
+        name: 'Тестовый сериал Альфа (10 серий)',
+        o_name: 'Synthetic Series Alpha',
         releasedate: '2026',
-        tmdb_id: 318354,
+        tmdb_id: 900301,
         tmdb_backdrop: 'https://image.tmdb.org/t/p/w1280/backdrop.jpg',
     },
 };
@@ -30,9 +30,9 @@ describe('extractStalkerItemTmdbHints', () => {
         expect(extractStalkerItemTmdbHints(enrichedEntry)).toEqual({
             backdropUrl: 'https://image.tmdb.org/t/p/w1280/backdrop.jpg',
             mediaType: 'tv',
-            originalTitle: 'Kholod',
-            tmdbId: 318354,
-            title: 'Холод (10 серий)',
+            originalTitle: 'Synthetic Series Alpha',
+            tmdbId: 900301,
+            title: 'Тестовый сериал Альфа (10 серий)',
             year: 2026,
         });
     });
@@ -127,7 +127,7 @@ describe('buildPlaylistRecentItems (stalker backdrops)', () => {
             [
                 {
                     _id: 'portal-1',
-                    title: 'RUcolor.tv',
+                    title: 'Synthetic portal',
                     macAddress: '00:1A:79:00:00:01',
                     recentlyViewed: [rawItem],
                 } as unknown as PlaylistMeta,
@@ -145,8 +145,8 @@ describe('buildPlaylistRecentItems (stalker backdrops)', () => {
     it('leaves the backdrop undefined for an entry saved without enrichment', () => {
         expect(
             recentItemsOf({
-                id: '17573',
-                title: 'Холод (10 серий)',
+                id: '900201',
+                title: 'Тестовый сериал Альфа (10 серий)',
                 cover: 'https://image.tmdb.org/t/p/w500/poster.jpg',
             })[0].backdrop_url
         ).toBeUndefined();

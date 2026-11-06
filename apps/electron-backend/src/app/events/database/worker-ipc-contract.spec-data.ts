@@ -65,6 +65,16 @@ const vodSourcePin = {
 };
 
 export const workerIpcContractCases: WorkerIpcContractCase[] = [
+    {
+        operation: 'DB_FAVORITES_LOCAL',
+        args: [{ instanceId: 'activity-test-instance', operation: 'pending' }],
+        payload: { instanceId: 'activity-test-instance', operation: 'pending' },
+    },
+    {
+        operation: 'DB_ACTIVITY_LOCAL',
+        args: [{ instanceId: 'activity-test-instance', operation: 'pending' }],
+        payload: { instanceId: 'activity-test-instance', operation: 'pending' },
+    },
     { operation: 'DB_GET_STANDALONE_SOURCES', args: [], payload: {} },
     {
         operation: 'DB_CREATE_PLAYLIST',
@@ -259,12 +269,32 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
     },
     {
         operation: 'DB_GET_CONTENT_BY_XTREAM_ID',
+        args: [42, playlistId, 'movie', undefined, 8],
+        payload: {
+            xtreamId: 42,
+            playlistId,
+            contentType: 'movie',
+            categoryId: 8,
+        },
+    },
+    {
+        operation: 'DB_GET_CONTENT_BY_XTREAM_ID',
         args: [42, playlistId, 'movie', { tmdbId: 100, releaseYear: 1995 }],
         payload: {
             xtreamId: 42,
             playlistId,
             contentType: 'movie',
             identity: { tmdbId: 100, releaseYear: 1995 },
+        },
+    },
+    {
+        operation: 'DB_GET_CONTENT_BY_XTREAM_ID',
+        args: [42, playlistId, 'movie', undefined, undefined, true],
+        payload: {
+            xtreamId: 42,
+            playlistId,
+            contentType: 'movie',
+            excludeLocked: true,
         },
     },
     {

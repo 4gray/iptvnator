@@ -4,10 +4,12 @@
 // pick the relative @use path from the consuming stylesheet, for example:
 //   @use '../../../../../../ui/styles/nav-list';
 
+@use 'focus-ring';
+
 .nav-list {
     flex: 1;
     overflow-y: auto;
-    padding: 0 8px 12px;
+    padding: 2px 8px 12px;
     display: flex;
     flex-direction: column;
     gap: 2px;
@@ -68,6 +70,11 @@
     &:hover:not(.selected):not(.active):not(.is-active) {
         background: var(--app-selection-surface);
         color: var(--mat-sys-on-surface);
+    }
+
+    &:focus-visible {
+        // Share the selected row's edge instead of adding a clipped outer ring.
+        @include focus-ring.focus-ring-declarations($offset: -2px);
     }
 
     &.selected,

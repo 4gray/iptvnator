@@ -6,20 +6,13 @@ import {
     withState,
 } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
-import { firstValueFrom, pipe, switchMap, tap } from 'rxjs';
+import { pipe, switchMap, tap } from 'rxjs';
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import {
-    DatabaseService,
-    PlaylistsService,
-    RuntimeCapabilitiesService,
-} from '@iptvnator/services';
-import {
-    buildPlaylistRecentItems,
     ContentMetadataPatch,
     normalizeContentMetadataPatch,
-    Playlist,
     PortalRecentItem,
 } from '@iptvnator/shared/interfaces';
-import { createLogger } from '@iptvnator/portal/shared/util/logger';
 import {
     XTREAM_DATA_SOURCE,
     type XtreamPlayedContent,
@@ -58,7 +51,6 @@ function mapDbRecentItem(
 }
 
 export const withRecentItems = function () {
-    const logger = createLogger('withRecentItems');
     return signalStoreFeature(
         withState<{ recentItems: RecentlyViewedItem[] }>({
             recentItems: [],
@@ -83,8 +75,6 @@ export const withRecentItems = function () {
         withMethods(
             (
                 store,
-                dbService = inject(DatabaseService),
-                playlistsService = inject(PlaylistsService),
                 dataSource = inject(XTREAM_DATA_SOURCE),
                 runtime = inject(RuntimeCapabilitiesService)
             ) => ({
@@ -245,100 +235,6 @@ export const withRecentItems = function () {
                         )
                     )
                 ),
-                async loadGlobalRecentItems() {
-                    try {
-                        const xtreamItems =
-                            await dbService.getGlobalRecentlyViewed();
-                        const playlists = (await firstValueFrom(
-                            playlistsService.getAllPlaylists()
-                        )) as Playlist[];
-                        const playlistBackedItems = buildPlaylistRecentItems(
-                            playlists,
-                            {
-                                stalker: 'Stalker Portal',
-                                m3u: 'M3U',
-                            }
-                        ).map((item) => ({
-                            ...item,
-                            content_id: item.id,
-                        })) as RecentlyViewedItem[];
-
-                        const normalizedXtream: RecentlyViewedItem[] = (
-                            xtreamItems || []
-                        ).map((item) => ({
-                            id: item.id,
-                            title: item.title,
-                            type: item.type as 'live' | 'movie' | 'series',
-                            poster_url: item.poster_url,
-                            backdrop_url: item.backdrop_url ?? undefined,
-                            content_id: item.id,
-                            playlist_id: item.playlist_id,
-                            playlist_name: item.playlist_name,
-                            viewed_at: item.viewed_at,
-                            xtream_id: item.xtream_id,
-                            category_id: item.category_id,
-                            source: 'xtream',
-                        }));
-
-                        const items = [
-                            ...normalizedXtream,
-                            ...playlistBackedItems,
-                        ].sort(
-                            (a, b) =>
-                                new Date(b.viewed_at).getTime() -
-                                new Date(a.viewed_at).getTime()
-                        );
-                        patchState(store, {
-                            recentItems: items,
-                        });
-                    } catch (error) {
-                        logger.error(
-                            'Error loading global recent items',
-                            error
-                        );
-                        patchState(store, { recentItems: [] });
-                    }
-                },
-                async clearGlobalRecentlyViewed() {
-                    try {
-                        if (window.electron) {
-                            await dbService.clearGlobalRecentlyViewed();
-                        }
-                        const playlists = (await firstValueFrom(
-                            playlistsService.getAllPlaylists()
-                        )) as Playlist[];
-                        await Promise.all(
-                            playlists.map(async (playlist) => {
-                                if (
-                                    !window.electron &&
-                                    playlist.serverUrl &&
-                                    !playlist.macAddress
-                                ) {
-                                    await dataSource.clearRecentItems(
-                                        playlist._id
-                                    );
-                                }
-
-                                if (
-                                    Boolean(playlist.macAddress) ||
-                                    !playlist.serverUrl
-                                ) {
-                                    await firstValueFrom(
-                                        playlistsService.clearPlaylistRecentlyViewed(
-                                            playlist._id
-                                        )
-                                    );
-                                }
-                            })
-                        );
-                        patchState(store, { recentItems: [] });
-                    } catch (error) {
-                        logger.error(
-                            'Error clearing global recently viewed',
-                            error
-                        );
-                    }
-                },
             })
         )
     );

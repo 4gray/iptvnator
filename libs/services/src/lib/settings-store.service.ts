@@ -7,6 +7,7 @@ import {
     resolveDefaultOnSettings,
 } from './settings-opt-out.util';
 import { computed, inject } from '@angular/core';
+import { EpgPreferencesService } from './epg-preferences.service';
 import {
     patchState,
     signalStore,
@@ -31,6 +32,7 @@ import {
     VideoPlayer,
     normalizeAppUpdateChannel,
     normalizeAppLanguage,
+    normalizeTheme,
     normalizeEpgOffsetMinutes,
     normalizeDashboardRailsSettings,
     normalizeParentalLockRelockMinutes,
@@ -66,7 +68,10 @@ export const SettingsStore = signalStore(
     })),
     withMethods((store, storage = inject(StorageMap)) => {
         const epgSources = inject(EpgSourceSettingsService);
+        const epgPreferences = inject(EpgPreferencesService);
         let settingsLoadPromise: Promise<void> | undefined;
+        let epgSaveRevision = 0;
+        let committedEpgUrls: Settings['epgUrl'];
 
         return {
             loadSettings() {
@@ -74,6 +79,7 @@ export const SettingsStore = signalStore(
                     return settingsLoadPromise;
                 }
 
+                epgPreferences.beginLoad();
                 settingsLoadPromise = (async () => {
                     const stored = await firstValueFrom(
                         storage.get(STORE_KEY.Settings)
@@ -87,6 +93,7 @@ export const SettingsStore = signalStore(
                             language: normalizeAppLanguage(
                                 storedSettings.language
                             ),
+                            theme: normalizeTheme(storedSettings.theme),
                             epgOffsetMinutes: normalizeEpgOffsetMinutes(
                                 storedSettings.epgOffsetMinutes
                             ),
@@ -111,21 +118,28 @@ export const SettingsStore = signalStore(
                         );
                     }
                     await epgSources
-                        .synchronize(this.getSettings().epgUrl)
+                        .synchronize(
+                            this.getSettings().epgUrl,
+                            this.getSettings().epgEnabled !== false
+                        )
                         .catch((error) => {
                             console.warn(
                                 'Could not reconcile cached EPG sources on startup.',
                                 error
                             );
                         });
-                })().catch((error) => {
-                    settingsLoadPromise = undefined;
-                    console.error('Failed to load settings:', error);
-                    // Keep default settings if loading fails, but remember
-                    // that they are defaults-by-failure rather than by choice
-                    // so the settings UI can warn about it.
-                    patchState(store, { storageFailure: 'load' });
-                });
+                })()
+                    .catch((error) => {
+                        settingsLoadPromise = undefined;
+                        console.error('Failed to load settings:', error);
+                        // Keep default settings if loading fails, but remember
+                        // that they are defaults-by-failure rather than by choice
+                        // so the settings UI can warn about it.
+                        patchState(store, { storageFailure: 'load' });
+                    })
+                    .finally(() =>
+                        epgPreferences.apply(store.epgEnabled?.() !== false)
+                    );
 
                 return settingsLoadPromise;
             },
@@ -135,8 +149,12 @@ export const SettingsStore = signalStore(
                 options: { retryEpgCleanup?: boolean } = {}
             ) {
                 const previousEpgUrls = store.epgUrl();
+                const previousEpgEnabled = store.epgEnabled?.();
                 patchState(store, {
                     ...settings,
+                    ...('theme' in settings
+                        ? { theme: normalizeTheme(settings.theme) }
+                        : {}),
                     ...(settings.language !== undefined
                         ? { language: normalizeAppLanguage(settings.language) }
                         : {}),
@@ -187,15 +205,26 @@ export const SettingsStore = signalStore(
                     patchState(store, {
                         storageFailure: 'save',
                         epgUrl: previousEpgUrls,
+                        epgEnabled: previousEpgEnabled,
                     });
                     throw error;
                 }
+                // Failed writes cannot retire an earlier committed preference.
+                const epgSave = ++epgSaveRevision;
+                committedEpgUrls = completeSettings.epgUrl;
+                const enableEpg = completeSettings.epgEnabled !== false;
+                const wasEpgEnabled = epgPreferences.enabled();
+                if (!enableEpg) await epgPreferences.apply(false);
                 if (
                     epgSourceUrlsChanged(previousEpgUrls, settings.epgUrl) ||
-                    options.retryEpgCleanup
+                    options.retryEpgCleanup ||
+                    (enableEpg && !wasEpgEnabled)
                 ) {
-                    await epgSources.synchronize(completeSettings.epgUrl);
+                    // A native acknowledgement may arrive after a newer save.
+                    await epgSources.synchronize(committedEpgUrls);
                 }
+                if (enableEpg && epgSave === epgSaveRevision)
+                    await epgPreferences.apply(true);
             },
 
             getSettings() {
@@ -251,6 +280,7 @@ export const SettingsStore = signalStore(
                     vlcReuseInstance: store.vlcReuseInstance(),
                     remoteControl: store.remoteControl(),
                     remoteControlPort: store.remoteControlPort(),
+                    epgEnabled: store.epgEnabled?.() !== false,
                     epgUrl: store.epgUrl(),
                     downloadFolder:
                         store.downloadFolder?.() ??

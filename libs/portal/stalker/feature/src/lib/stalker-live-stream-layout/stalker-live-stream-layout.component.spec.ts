@@ -38,6 +38,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { WebPlayerViewComponent } from '@iptvnator/ui/playback';
 import { StalkerLiveStreamLayoutComponent } from './stalker-live-stream-layout.component';
+import { registerStalkerLiveOverviewCases } from './testing/stalker-live-overview-cases';
 import {
     StubAudioPlayerComponent,
     StubChannelListItemComponent,
@@ -100,13 +101,9 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         },
     ]);
     const selectedItvId = signal<string | undefined>('10001');
-    const selectedItem = signal<{
-        id: string;
-        cmd: string;
-        name: string;
-        o_name: string;
-        logo: string;
-    } | null>(itvChannels()[0]);
+    const selectedItem = signal<
+        ReturnType<typeof defaultItvChannels>[number] | null
+    >(itvChannels()[0]);
     const selectedItvEpgPrograms = signal<EpgProgram[]>([]);
     const bulkItvEpgByChannel = signal<Record<string, EpgProgram[]>>({});
     const bulkItvEpgLoaded = signal(false);
@@ -121,9 +118,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         loaded: number;
         total: number;
     } | null>(null);
-    const itvFullChannelList = signal<ReturnType<typeof defaultItvChannels>>(
-        []
-    );
+    const itvFullChannelList = signal(itvChannels().slice(0, 0));
     const itvSelectedCategoryFromCache = signal(false);
     const isPaginatedContentLoading = signal(false);
 
@@ -1035,21 +1030,23 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         expect(stalkerStore.preloadItvChannels).toHaveBeenCalled();
     });
 
-    it('shows the all-channels grid instead of the placeholder when the full list is available', () => {
-        selectedCategoryId.set(null);
-        selectedItem.set(null);
-        itvFullListActive.set(true);
-        itvFullChannelList.set(defaultItvChannels());
-        fixture.detectChanges();
-
-        const grid = fixture.nativeElement.querySelector(
-            'app-stalker-itv-all-items'
-        );
-        expect(grid).toBeTruthy();
-        expect(grid.querySelectorAll('mat-card')).toHaveLength(2);
-        expect(
-            fixture.nativeElement.querySelector('app-portal-empty-state')
-        ).toBeNull();
+    registerStalkerLiveOverviewCases({
+        fixture: () => fixture,
+        component: () => component,
+        enterOverview: () => {
+            selectedCategoryId.set(null);
+            selectedItem.set(null);
+            itvChannels.set([]);
+            itvFullListActive.set(true);
+            itvFullChannelList.set(defaultItvChannels());
+        },
+        settle: settleEagerEpg,
+        ensureBulk: () => ensureBulkItvEpg,
+        fetchShort: () => fetchChannelEpg,
+        applyMapping: stalkerStore.applyMappedItvEpg,
+        mockFutureOnlyBulkEpg,
+        switchPlaylist: () =>
+            playlist.set({ _id: 'playlist-2', title: 'Other portal' }),
     });
 
     it('keeps the select-a-category placeholder on portals without a usable full list', () => {
@@ -1318,7 +1315,8 @@ describe('StalkerLiveStreamLayoutComponent', () => {
             {
                 authorization: 'Bearer TOKEN99',
                 cookie: 'mac=00:1A:79:00:00:01',
-            }
+            },
+            undefined
         );
 
         const audioPlayer = fixture.debugElement.query(

@@ -397,7 +397,13 @@ available after restart and after the source archive expires.
 - A grouped series selects its newest valid parent snapshot, then fills only
   missing parent metadata from older valid member snapshots. Newer values,
   per-episode metadata, language, and freshness identity remain authoritative.
-  Each episode row still uses its own stored episode metadata.
+  Each episode row still uses its own stored episode metadata. Flat Stalker
+  collections retain `episode.seasonUnknown` in the version-1 JSON snapshot:
+  labels omit the internal season number and offline details use the unknown
+  season group. A flagged member makes the whole collection's season grouping
+  unknown, including legacy downloads without the flag. Stored numeric identity
+  coordinates remain unchanged. Resolve this presentation state before search
+  and status filtering so hidden members cannot restore invented seasons.
 - Legacy rows and sparse, stale, or wrong-language snapshots are backfilled
   when focused details open: row metadata supplies a safe local fallback,
   provider data is merged when it can be resolved, and opt-in TMDB enrichment
@@ -438,6 +444,8 @@ available after restart and after the source archive expires.
 
 - Every download row writes to the shared `downloads` table with statuses (`queued`, `downloading`, `paused`, `completed`, `failed`, `canceled`) plus metadata such as `bytesDownloaded`, `totalBytes`, `errorMessage`, `requestHeaders`, `resumeValidator`, the offline-detail metadata snapshot, and Xtream identifiers. Downloads are locally owned records rather than playlist children: deleting a source retains its rows and local files, keeps them visible in the global library, and disables provider handoff until that source exists again. Startup rebuilds older tables that still carry the playlist foreign key, while additive columns use the idempotent column migrations.
 - Download-list and focused-detail reads verify completed files with asynchronous `lstat` probes in the main process. One shared probe queue permits at most four filesystem calls at once and coalesces only in-flight checks for the same path; it does not cache completed results, so external file deletion is visible on the next refresh without letting frequent progress broadcasts block Electron's main thread.
+- Play and Reveal use the same bounded asynchronous probes. Only proven absence refuses the action; a timeout or filesystem error remains unknown and lets the native shell try. Play also refuses unsupported media extensions in legacy rows, without removing their database records or files.
+- Ordinary VOD downloads use a 30-second request timeout and a separate 30-second body-inactivity watchdog that resets as bytes arrive. Pipeline backpressure suspends the body timer until reading resumes, so slow destination writes do not count as provider inactivity. A body timeout retains partial bytes and follows the existing bounded reconnect path; a progressing movie has no total-duration deadline.
 - On startup, `download-recovery.ts` converts stale `downloading` rows with a non-empty `.part` file to `paused`, converts stale `queued` rows to `paused` while keeping any retained `.part` (a resumed download waiting behind an active one persists as `queued` with its partial), and marks stale `downloading` rows without recoverable partial bytes as `failed`.
 - Queue cancellation removes a queued task or records an active cancellation request and aborts the request when available. Pausing follows the same abort path but persists `paused` and keeps the `.part`. Retries reuse the same database entry: a failed row with a retained `filePath` resumes its `.part` through HTTP Range, otherwise the retry starts from zero. Resume appends to the existing `.part` through HTTP Range with `If-Range` validation when a validator is stored, and through 256 KiB overlap verification when none is.
 - A `.part` that cannot be deleted (locked, permission denied) never loses its database path: cancel persists `canceled` while retaining `filePath` for later cleanup, and `DOWNLOADS_REMOVE` keeps the row and answers `success: false` (surfaced as a snackbar) so retrying the remove re-attempts the deletion once the lock is released.

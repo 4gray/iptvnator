@@ -256,7 +256,7 @@ for (const guide of GUIDES) {
     assert.ok(faq, 'Expected a FAQPage entry.');
     assert.ok(faq.mainEntity.length >= 5, 'Expected at least five FAQ questions.');
     assert.match(html, /Frequently asked questions/);
-    assert.match(html, new RegExp(`<link rel="canonical" href="${SITE}/blog/${guide.slug}/"`));
+    assert.ok(html.includes(`<link rel="canonical" href="${SITE}/blog/${guide.slug}/"`));
   });
 
   test(`${guide.slug}: links to the download hub and ships its screenshots`, async () => {
@@ -264,7 +264,7 @@ for (const guide of GUIDES) {
     assert.match(html, /href="\/iptvnator\/download\/"/);
 
     for (const screenshot of guide.screenshots) {
-      assert.match(html, new RegExp(`src="/iptvnator/${screenshot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`));
+      assert.ok(html.includes(`src="/iptvnator/${screenshot}"`));
       await access(new URL(screenshot, distRoot));
     }
   });

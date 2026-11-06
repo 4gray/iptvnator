@@ -8,6 +8,8 @@ Use it when changing existing views or introducing new list-based UI in the work
 
 1. Prefer shared components over duplicated markup.
    The canonical channel row is `app-channel-list-item`.
+   Its main button takes its accessible name from visible channel and programme
+   text; a name-only `aria-label` hides the programme metadata from that name.
 
 2. Drive emphasis through selection state, not through constant decoration.
    Neutral rows should stay quiet. Only active or current items should pick up strong color.
@@ -238,9 +240,11 @@ in the overlay chunk. Everything else is lazy by these rules:
   "focus was inside" in a microtask after such a `focusout`, which the close
   destroys the panel before. Both have specs that detach the view first.
 
-The app theme is the exclusive `.dark-theme` or `.light-theme` class that
-`SettingsService` puts on `<body>`; a "System" choice resolves the OS
-preference there and nowhere else. Component styles never use a
+The app mode is the exclusive `.dark-theme` or `.light-theme` class that
+`SettingsService` puts on `<body>`. Its `data-app-theme` attribute identifies
+the resolved palette: `light`, `dark`, `cream`, or `mocha`. Cream uses light
+mode and Mocha uses dark mode; a "System" choice resolves the OS preference
+to the original Light/Dark presets there and nowhere else. Component styles never use a
 `prefers-color-scheme` query, which follows the OS: with the app set to dark
 on a light OS it paints light colours
 into the dark theme. Read `--app-*` tokens, which switch with the class, or
@@ -439,7 +443,13 @@ rail, whose heading keeps a trace of it, and reaches the page colour before
 that rail's cards (their scroll-edge fades are drawn in the page colour), with
 no tail in the narrow layout. Series titles drop their season marker (`splitSeasonSuffix`) into a
 "Season N" chip. Rows a provider cannot serve are left out of the menu, never
-disabled. The page-level Sass mixin (`libs/ui/styles/_detail-view.scss`)
+disabled. The More overlay prefers the trigger's right edge and flips upward;
+when neither position fits, CDK pushes it inside the viewport with a 12px
+margin. The panel keeps its height cap and scrolls its rows; Home/End and
+arrow keys reveal the focused row, and Escape returns focus to the trigger.
+`detail-more-menu.e2e.ts` checks short-window geometry, both themes and real
+pointer handoffs for movie and series menus, including after scrolling.
+The page-level Sass mixin (`libs/ui/styles/_detail-view.scss`)
 only carries the page shell, meta items and the episodes section.
 
 With `detailTrailerBackdrop` on (Settings → Playback → "Play trailers in
@@ -471,6 +481,10 @@ inputs, overlays, and resize handles—requires `app-region: no-drag`. The share
 directive-generated `.resize-handle` sets this centrally in `resizable.scss`.
 The shared live-layout sidebar reserves 8 px at its right edge so the inward
 half of the 12 px resize handle cannot cover the channel scrollbar.
+The outer sidebar owns the single pane divider; nested channel lists add no
+edge border. The header background and bottom separator extend across the
+resize gutter, while its controls keep their inset. Narrow layouts remove
+the gutter together with the resize handle.
 
 ## Resizable Sidebar Widths
 
@@ -514,6 +528,10 @@ host by its padding and border on the first move.
   decorative border on something focusable: any outline outranks the
   fallback, so the element loses its ring (use `border` or a spread
   `box-shadow`, as the selected season tab does).
+- Shared navigation rows draw the keyboard ring inside their edge, over
+  the selection border when selected. Lists keep 2px of top inset so the
+  selected row's 1px lift cannot clip its border; group lists retain that
+  inset too. Selection tint and `aria-current` remain when focus moves away.
 - **Removing the outline.** A component rule that sets `outline: none` also
   outranks the fallback, so it must show focus another way: a search field's
   wrapper takes a token border on `:focus-within`, optionally with a soft
@@ -535,6 +553,17 @@ host by its padding and border on the first move.
   by an ancestor's `overflow: hidden`, at 3:1 where it sits on a flat
   colour, and a click must draw none.
 
+Catalog result counts use an atomic `status` region so search/filter changes
+are announced without moving focus from the search field. Opening a catalog
+card saves its identity in that list's history entry. Returning from details
+restores the card after scroll restoration, or the workspace main landmark
+if the card disappeared; an active input or dialog keeps focus.
+
+Shared season tabs have one Tab stop, wrapping Left/Right navigation
+(following text direction), Home/End, and an associated episode `tabpanel`.
+The dropdown variant keeps Material menu keyboard behavior. Detail and
+fullscreen instances own distinct tab/panel IDs.
+
 ## Keyboard Scrolling and Channel Focus
 
 `ChannelScrollFocusDirective` belongs on the actual channel scroll owner,
@@ -548,7 +577,11 @@ the normal DOM order; Safari's default keyboard preference skips buttons on
 plain Tab, so there the row button is reached with Option+Tab (WebKit E2E
 runs press it through `pressTab` in `apps/web-e2e/src/e2e-helpers.ts`).
 Scrolling from a virtual row moves focus to its viewport
-before CDK can recycle the row; asynchronous data updates never move focus.
+before CDK can recycle the row; asynchronous data updates preserve connected
+focused controls. If the focused row is removed, focus moves to the next row
+at the same index, the previous row at the end, or the empty scroll owner.
+A destroyed pane falls back to its captured workspace main landmark. This
+recovery never takes focus from another active control.
 Xtream aligns a newly selected channel only when it is outside the viewport;
 updates to the same selected ID never re-align it. A smooth scroll to an
 already visible row would otherwise cancel an immediate keyboard scroll.
@@ -737,6 +770,11 @@ remain local when the meaning is explicit.
   layouts keep the full EPG-only panel.
 - Keep the EPG content mounted while collapsed so current-program state can
   continue updating.
+- Narrow timeline titles containing Han, kana, Hangul or Bopomofo use native
+  top-to-bottom vertical text without rotation. Other scripts retain the
+  rotated presentation; choose by programme title, not interface locale.
+  Mixed titles keep the browser's `text-orientation: mixed`, and wider cards
+  retain horizontal text.
 - The ribbon renders only the blocks, ticks and day dividers within half a
   viewport of the visible range (`TimelineWindowController` in
   `epg-timeline-window.controller.ts`); the track keeps the full schedule's
@@ -774,8 +812,14 @@ remain local when the meaning is explicit.
   same paginated `All Items` shell as VOD and Series: a widget header with the
   total channel count, page-size controls, and page navigation above the shared
   `app-grid-list`. Use the grid list's logo-oriented live variant so channel
-  logos stay contained in 16:9 thumbnails instead of being cropped like
-  VOD/series posters. Selecting a channel from that root grid starts playback,
+  logos stay contained in a compact 72px-high region instead of being cropped
+  like VOD/series posters. The outer card owns the rounding; the logo region
+  joins the title and programme area with straight inner corners. Logo loading
+  placeholders reserve the same height, while channel rows remain unchanged.
+  Channel titles use a single 20px line with ellipsis and the full name in the
+  card's native tooltip; programme metadata follows after 8px without a reserved
+  second title line. Keep the title at 14px and programme text at 12px.
+  Selecting a channel from that root grid starts playback,
   selects the channel's category, highlights the active category and channel,
   and scrolls the category rail plus virtual channels list to the selected rows
   when those rails are visible.
@@ -1009,7 +1053,8 @@ in front of 84 px channel cards.
 - The channel list views and `app-channel-list-loading-state` share
   `libs/ui/components/src/lib/styles/_channel-list-layout.scss`. The loading
   state takes the view and hides its headers where the loaded view does
-  (`showHeader`, compact lists).
+  (`showHeader`, compact lists). Group loading and loaded rails both inherit
+  the shared navigation list's top inset so their rows stay aligned.
 - The dashboard rails and `lib-dashboard-rail-skeleton` share
   `libs/workspace/dashboard/feature/src/lib/rails/_dashboard-rail-geometry.scss`.
   A skeleton takes the `layout` and `aspectRatio` of the rail it precedes:
@@ -1661,6 +1706,30 @@ consumers must not reset these with a later `font: inherit` shorthand. Different
 content rows retain their own typography and density.
 
 ## Theme Guidance
+
+The built-in catalog and theme-value normalization live in
+`libs/shared/interfaces/src/lib/theme-presets.ts`. Keep existing persisted
+identifiers stable. Unknown saved values normalize to System; partial settings
+updates that omit the theme preserve the saved choice.
+
+The palette picker uses the existing keyboard-accessible radio directives. Four
+named miniature samples use the same app tokens as the real theme; System is a
+separate row in the same group. Selection previews immediately, Save persists
+it, and Discard restores the saved choice and its System listener when needed.
+
+App palette declarations live in `apps/web/src/_theme-palettes.scss`, included
+by `m3-theme.scss` for both body contexts and decorative preview contexts.
+`_warm-theme.scss` supplies the Material color ramps for Cream/Mocha. Material
+component colors reference `--mat-sys-*` roles through one shared declaration
+block; each preset sets its system colors. The shared aliases are declared at
+each color boundary, since inheriting an alias from `html` would retain the
+light value. Samples emit only their seven displayed app roles from the same
+palette mixins, avoiding full duplicate theme payloads.
+Adding a built-in preset requires catalog metadata, app/Material colors,
+localized naming, and computed contrast/persistence coverage. Do not introduce
+per-component preset conditions or duplicate sample-only palettes. Typography,
+spacing, media artwork and the fixed over-video control palette stay unchanged.
+
 
 ### Light Theme
 

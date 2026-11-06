@@ -41,7 +41,11 @@ export class XtreamProvider implements ProviderClient {
         await this.client.account(signal);
         return this.source;
     }
-    private media(raw: Record<string, unknown>, kind: Kind): Media {
+    private media(
+        raw: Record<string, unknown>,
+        kind: Kind,
+        categoryName?: string
+    ): Media {
         const providerId = text(
             kind === 'series' ? raw.series_id : (raw.stream_id ?? raw.id)
         );
@@ -54,6 +58,7 @@ export class XtreamProvider implements ProviderClient {
             addedAt: xtreamCatalogTimestamp(raw, kind === 'series'),
             poster: artwork(raw.stream_icon ?? raw.cover),
             category: text(raw.category_id),
+            categoryName,
             backdrop: artwork(
                 Array.isArray(raw.backdrop_path)
                     ? raw.backdrop_path[0]
@@ -92,8 +97,11 @@ export class XtreamProvider implements ProviderClient {
             name: text(r.category_name),
         }));
         const matchesTitle = catalogTitleMatcher(query);
+        const categoryNames = new Map(categories.map((c) => [c.id, c.name]));
         const items = data
-            .map((r) => this.media(r, kind))
+            .map((r) =>
+                this.media(r, kind, categoryNames.get(text(r.category_id)))
+            )
             .filter(
                 (m) =>
                     (!category || m.category === category) &&

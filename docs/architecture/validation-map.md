@@ -102,6 +102,13 @@ Tier A entry has no test target. CI runs Tier A with coverage (uploaded to
 Codecov) and each Tier B/C project's `validationCommand` (falling back to
 `nx test`) without coverage; projects with an `e2e` target are skipped there
 because the E2E workflow already runs them on every PR that touches app code.
+Coverage commands resolve the Nx project graph once per invocation so inferred
+Jest targets remain classified even when `project.json` has no explicit `test`.
+Project-local Jest configs and the existing workspace-root Angular ESM
+config keep separate source-glob roots, with coverage reports written to the
+same workspace output paths and JUnit classnames relative to the repository.
+Migrated Jest commands keep the workspace working directory for subprocess and
+file-based test contracts, independently of the Jest config's root directory.
 Docs-only changes (Markdown, `docs/`, `.plans/`, `.codex/`, `.claude/`) and
 `apps/website/**` changes skip the E2E workflow via `paths-ignore` — for those
 PRs no E2E validation runs in CI, which is intentional: they cannot affect app
@@ -124,6 +131,15 @@ type-checking each through a language service (the web configs already ran
 with `diagnostics: false`); `isolatedModules`-incompatible syntax such as a
 type re-export without `export type` still fails at load time, and spec type
 errors are caught by `typecheck:spec` (see Unit And Type Checks).
+
+The activity SQLite and real Chromium contracts return their actual runtime
+counters through `@iptvnator/shared/testing/runtime-coverage`. Esbuild instruments
+selected original TypeScript files before bundling; paths and locations remain
+source-based. SQLite writes counters on subprocess exit. Browser tests capture
+all pages before reload/close and merge their counters before writing the report.
+The parent merges those reports into Jest without replacing objects cached by
+existing instrumentation. Missing reports fail the test; assertion failures still
+propagate. The helper never creates synthetic hits or changes coverage thresholds.
 
 Some `electron-backend` and `database` specs run SQLite code in the Electron
 binary under `ELECTRON_RUN_AS_NODE`, resolving it with `require('electron')`.
@@ -201,6 +217,18 @@ The merged report is written to `coverage/merged/` as HTML, LCOV, Cobertura,
 and JSON summary output. CI uploads the merged Tier A report to Codecov with the
 `unit` flag and keeps the HTML report as a GitHub artifact.
 
+Each Tier A Jest run also writes `coverage/<projectRoot>/junit.xml` through
+`jest-junit`, with file paths as test class names for Codecov Test Analytics.
+The report lives inside the test target's coverage output so Nx cache restores
+include it, and concurrent projects cannot overwrite one another's results.
+CI uploads available JUnit reports with `codecov-action@v7` and
+`report_type: test_results`, including after test failures, and keeps them in
+the `unit-coverage` artifact. Cancelled runs and runs without reports skip the
+test-results upload. Upload errors are non-blocking for this analytics step;
+test failures and the existing coverage upload remain blocking. Analytics
+covers executed Tier A tests only: projects skipped after the first failure
+and out-of-scope suites do not contribute results.
+
 Passing the local coverage health checks does not guarantee that Codecov's
 `patch` check passes: it separately evaluates changed code, including partially
 covered branches, against the target reported for the current PR head. Inspect
@@ -271,6 +299,10 @@ After an E2E run, generate the semantic summary with:
 pnpm run coverage:e2e:summary
 ```
 
+The `electron-backend-e2e:e2e` target owns its `electron-backend:build-e2e`
+dependency, including renderer and remote-control assets. CI calls that target
+without a separate production build before each shard.
+
 CI runs the Electron suite as Playwright shards (`--shard=<n>/<total>`, split
 by spec file because the suite is sequential): three shards on Ubuntu, four
 on Windows, and two on macOS, whose runners are the scarcest and queued longest.
@@ -285,11 +317,29 @@ directory and runs the summary per OS with `--input=<directory>` and
 the summary never reports a partial run as complete. Tests for that merge live
 in `tools/coverage/e2e-shard-reports.test.mjs` (`pnpm run coverage:tools:test`).
 
+The shared Electron launcher waits for Playwright's first window and selects a
+non-DevTools URL, including a later renderer when DevTools appears first.
+It then waits for the app root, visible rail, fonts and finite rail entrance
+animations, without a fixed startup sleep. Visibility comes first because
+source inventory loading can hide the workspace. `electron-app-readiness.e2e.ts`
+covers this delayed startup gate and animation completion. A visible startup
+failure alert is also ready for tests: failed migration/recovery scenarios need
+the Electron bridge while the workspace stays hidden. Window-selection and
+process-lifecycle regression tests run once per OS before the E2E suite.
+Every test still owns its temporary profile, and restarts still confirm the
+previous process exited before relaunching.
+
 For local investigation only, Chromium browser V8 coverage can be explored with:
 
 ```bash
 pnpm run coverage:e2e:v8:web
 ```
+
+Production PWA update checks use `pnpm nx run web-e2e:pwa-updates`; its
+`web:build-pwa` dependency builds the matching service-worker output first.
+`pnpm nx run web-e2e:test-service-worker` validates the pinned worker behavior
+without a browser. Both are required after changes to update recovery or its
+Angular worker patch; ordinary dev-server browser flows do not exercise it.
 
 ## I18n
 
