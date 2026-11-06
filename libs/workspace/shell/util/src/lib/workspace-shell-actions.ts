@@ -5,12 +5,7 @@ import type {
 } from '@iptvnator/shared/interfaces';
 
 export type WorkspacePlaylistType =
-    | 'xtream'
-    | 'url'
-    | 'text'
-    | 'file'
-    | 'stalker'
-    | 'auto';
+    'xtream' | 'url' | 'text' | 'file' | 'stalker' | 'auto' | 'bulk';
 export type PlaylistCategory = 'm3u' | 'xtream' | 'stalker';
 export type M3uSubType = 'url' | 'file' | 'text';
 

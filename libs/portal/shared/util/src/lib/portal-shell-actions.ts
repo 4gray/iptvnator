@@ -1,12 +1,7 @@
 import { InjectionToken } from '@angular/core';
 
 export type PortalPlaylistType =
-    | 'xtream'
-    | 'url'
-    | 'text'
-    | 'file'
-    | 'stalker'
-    | 'auto';
+    'xtream' | 'url' | 'text' | 'file' | 'stalker' | 'auto' | 'bulk';
 
 export interface PortalShellActions {
     openAddPlaylistDialog(type?: PortalPlaylistType): void;

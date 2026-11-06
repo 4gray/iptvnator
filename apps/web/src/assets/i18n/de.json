@@ -178,7 +178,9 @@
             "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "Auto-Refresh unvollständig: {{updated}} von {{total}} Playlists aktualisiert, {{failed}} fehlgeschlagen, {{skipped}} übersprungen (keine URL und kein Dateipfad).",
             "AUTO_REFRESH_UPDATE_FAILED": "Auto-Refresh der Playlists fehlgeschlagen. Keine der {{total}} Playlists konnte aktualisiert werden.",
             "AUTO_REFRESH_UPDATE_SKIPPED": "Auto-Refresh der Playlists: {{updated}} von {{total}} aktualisiert, {{skipped}} übersprungen (keine URL und kein Dateipfad).",
-            "AUTO_REFRESH_ENABLED": "Auto-Refresh aktiviert"
+            "AUTO_REFRESH_ENABLED": "Auto-Refresh aktiviert",
+            "SOURCE_BULK_NEEDS": "Eine .txt-Datei mit Anbieter-Nachrichten oder eine .json-Quellliste.",
+            "SOURCE_BULK_ADD": "Quellen importieren"
         },
         "ADD_PLAYLIST": {
             "IMPORT_EPG": "Den in der Wiedergabeliste angegebenen Programmführer importieren",
@@ -197,7 +199,34 @@
             "METHOD_TEXT_LABEL": "M3U-Text",
             "METHOD_TEXT_SUB": "Für einmalige Listen oder wenn Sie nur Text haben",
             "METHOD_AUTO_LABEL": "Automatisch erkennen",
-            "METHOD_AUTO_SUB": "Nachricht des Anbieters einfügen"
+            "METHOD_AUTO_SUB": "Nachricht des Anbieters einfügen",
+            "METHOD_BULK_LABEL": "Sammelimport",
+            "METHOD_BULK_SUB": "Mehrere Quellen gleichzeitig aus einer Datei hinzufügen",
+            "IMPORT_SCOPE_LABEL": "Zu importierende Bereiche",
+            "IMPORT_SCOPE_LIVE": "Live-Sender",
+            "IMPORT_SCOPE_VOD": "VOD (Filme und Serien)",
+            "IMPORT_SCOPE_VOD_DISABLED": "VOD ist in den Einstellungen deaktiviert, daher werden nur Live-Sender importiert.",
+            "BULK_FILE_BUTTON": "Aus Datei laden",
+            "BULK_ROW_INCOMPLETE": "Unvollständig — fehlende Angaben als einzelne Quelle hinzufügen oder diese Zeile entfernen.",
+            "BULK_NO_SOURCES": "In dieser Datei wurden keine Quellen erkannt.",
+            "BULK_REMOVE": "Quelle entfernen",
+            "BULK_IMPORT_BUTTON": "{{count}} Quellen importieren",
+            "BULK_INVALID_JSON": "Dieses JSON ist keine Sammelimport-Liste. Erwartet wird { \"sources\": [...] } oder ein [...]-Array.",
+            "BULK_IMPORT_STARTED": "{{count}} Quellen werden importiert…",
+            "BULK_ROW_NO_PORTAL": "Keine Portaladresse für diese MAC — füge sie als einzelne Stalker-Quelle hinzu oder entferne die Zeile.",
+            "BULK_ROW_NO_MAC": "Keine MAC-Adresse für dieses Portal — füge es als einzelne Stalker-Quelle hinzu oder entferne die Zeile.",
+            "BULK_ROW_MISSING_DETAILS": "Verbindungsdaten fehlen — füge diese Quelle einzeln hinzu oder entferne die Zeile.",
+            "BULK_NOTHING_IMPORTABLE": "Nichts zu importieren — korrigiere oder entferne die unvollständigen Zeilen oben.",
+            "BULK_REPLACE_NOTICE": "Der Import ersetzt alle deine aktuellen Quellen. Jede Quelle hat eine Minute zum Laden; langsamere oder fehlerhafte Quellen werden übersprungen.",
+            "BULK_REPLACE_FAILED": "Deine aktuellen Quellen konnten nicht entfernt werden, daher wurde nichts importiert.",
+            "BULK_SOURCE_TOO_SLOW": "Quelle zu langsam, „{{title}}“ wird übersprungen",
+            "BULK_SOURCE_FAILED": "Import fehlgeschlagen, „{{title}}“ wird übersprungen",
+            "BULK_IMPORT_FINISHED": "Massenimport abgeschlossen: {{imported}} importiert, {{slow}} zu langsam, {{failed}} fehlgeschlagen.",
+            "BULK_STATUS_PENDING": "Wartet",
+            "BULK_STATUS_IMPORTING": "Wird importiert…",
+            "BULK_STATUS_IMPORTED": "Importiert",
+            "BULK_STATUS_SLOW": "Zu langsam, übersprungen",
+            "BULK_STATUS_FAILED": "Fehlgeschlagen, übersprungen"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Ziehen Sie Dateien per Drag & Drop",
@@ -733,7 +762,9 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "Land der Altersfreigabe",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Wählen Sie das Land der Altersfreigabe. Fehlende lokale Angaben werden durch US- oder Anbieterdaten ergänzt.",
-        "AGE_RATING_COUNTRY_AUTO": "Automatisch — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Automatisch — {{country}}",
+        "DISABLE_VOD": "VOD deaktivieren",
+        "DISABLE_VOD_DESCRIPTION": "Nur Live-Sender laden. Filme und Serien werden für keine Quelle importiert, aktualisiert oder synchronisiert, unabhängig von deren eigenen Importbereichen. Ausschalten, um sie zurückzuholen."
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Speichern auf dem Server fehlgeschlagen. Prüfen Sie die Verbindung und versuchen Sie es erneut.",

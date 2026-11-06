@@ -380,6 +380,31 @@ that work are never probed, let alone rewritten. E2E coverage:
 mock's tolerant `/portal.php`, strict `/server/load.php`, and
 `portal.php`-less `/ministra/*` hosts.
 
+## Bulk Import Runs the Same Discovery
+
+A bulk-import row is built from a provider list file, so it carries the
+coordinates exactly as printed — typically the portal page a reseller hands
+out (`http://panel/c`) with no observed mode. Seeding such a row without
+discovery aims the catalog request at that page: the panel answers HTML
+(or a 301 to the page), the seeder finds no channels and the bulk import
+skips a source that works fine in the Add form, where discovery resolves
+the endpoint first.
+
+`StalkerContentSeedService` therefore runs `StalkerPortalDiscoveryService`
+for every row whose `isFullStalkerPortal` is still undefined, before its
+first catalog call: the probe resolves the real endpoint
+(`portal.php` / `server/load.php`) and the observed mode. The resolved
+`portalUrl`, the mode, and — for a full portal — the token and the watchdog
+cadence are persisted onto the row through `transformPlaylistMeta` (guarded
+by the MAC, so an edit made while the probe ran is never overwritten), and
+the seeder returns that corrected row so the import stores and opens it.
+The seed request then goes to the endpoint discovery proved, handshaked when
+the panel enforces the token. `unreachable` and `auth-rejected` rows reject,
+so the import skips them like any other unreadable source.
+
+Rows that already carry an observed mode (Add form, edit) are used verbatim;
+discovery never runs twice for the same configuration.
+
 ## Main UI Components
 
 - `CategoryContentViewComponent` from `@iptvnator/portal/catalog/feature` (`libs/portal/catalog/feature`)
@@ -1492,6 +1517,16 @@ list:
   transient failure (network, or a page that failed both attempts) is retried
   later but throttled by a per-portal cooldown (`ERROR_COOLDOWN_MS`, 30s) so a
   deterministically-failing page can't trigger an unbounded re-crawl loop.
+- Startup warm-up: `StalkerLiveIndexWarmupService`
+  (`apps/web/src/app/services/stalker-live-index-warmup.service.ts`) loads the
+  full list of each portal that has no persisted failover index yet, one
+  portal at a time and only while Settings → Live channel failover is on.
+  That index is what
+  [Live Channel Failover](./embedded-inline-playback.md#live-channel-failover-embedded-mpv)
+  reads to hop to another Stalker source; without the warm-up a portal was
+  invisible to failover until the user opened it once after a restart.
+  A portal that is opened is still crawled on demand, and an existing index
+  is never re-crawled at startup.
 - Per-portal reactivity: the "cache ready / refreshed" trigger is a
   **per-portal** version signal (`versionFor(playlist)`), not one global
   counter, and the content resource reads it **only for ITV**. This is

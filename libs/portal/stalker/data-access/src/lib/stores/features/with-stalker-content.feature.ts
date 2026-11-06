@@ -12,9 +12,14 @@ import {
     DataService,
     ParentalLockService,
     resetHostConnectivityGuard,
+    SettingsStore,
 } from '@iptvnator/services';
 import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
-import { ALL_CATEGORIES_WITHHELD } from '@iptvnator/shared/interfaces';
+import {
+    ALL_CATEGORIES_WITHHELD,
+    shouldImportLive,
+    shouldImportVod,
+} from '@iptvnator/shared/interfaces';
 import {
     StalkerCategoryItem,
     StalkerContentItem,
@@ -274,6 +279,22 @@ function dedupeContentById(items: StalkerContentItem[]): StalkerContentItem[] {
     });
 }
 
+/** Whether the playlist's import scope enables the given section. VOD and
+ * series import together; live TV and radio import together. */
+export function isStalkerSectionInImportScope(
+    contentType: StalkerContentType,
+    playlist: PlaylistMeta | null | undefined
+): boolean {
+    switch (contentType) {
+        case 'vod':
+        case 'series':
+            return shouldImportVod(playlist);
+        case 'itv':
+        case 'radio':
+            return shouldImportLive(playlist);
+    }
+}
+
 export function withStalkerContent() {
     const logger = createLogger('withStalkerContent');
 
@@ -290,11 +311,25 @@ export function withStalkerContent() {
             ) => {
                 const storeContext = store as typeof store &
                     StalkerContentResourceStoreContract;
+                const settingsStore = inject(SettingsStore);
                 const requestDeps = {
                     dataService,
                     stalkerSession,
                     portalRepair,
                 };
+
+                /**
+                 * The section scope gate: the playlist's stored scope, unless
+                 * the global "disable VOD" setting is on, which leaves every
+                 * source live-only (a VOD-only source included).
+                 */
+                const isSectionImportable = (
+                    contentType: StalkerContentType,
+                    playlist: PlaylistMeta | null | undefined
+                ): boolean =>
+                    settingsStore.disableVod?.() === true
+                        ? contentType === 'itv' || contentType === 'radio'
+                        : isStalkerSectionInImportScope(contentType, playlist);
 
                 let lastLivePageKey = '';
                 // Withheld (parental-locked) row ids seen while accumulating
@@ -334,6 +369,26 @@ export function withStalkerContent() {
                                 ) === playlistKey;
                             if (!params.currentPlaylist) {
                                 patchState(store, { categoryError: null });
+                                return [];
+                            }
+
+                            // Sections the import scope excludes — or any
+                            // on-demand section while VOD is disabled
+                            // globally — serve an empty genre list without
+                            // contacting the portal.
+                            if (
+                                !isSectionImportable(
+                                    params.contentType,
+                                    params.currentPlaylist
+                                )
+                            ) {
+                                patchState(store, {
+                                    ...buildCategoryPatch(
+                                        params.contentType,
+                                        []
+                                    ),
+                                    categoryError: null,
+                                });
                                 return [];
                             }
 
@@ -510,6 +565,21 @@ export function withStalkerContent() {
 
                             const playlist = params.currentPlaylist;
                             if (!playlist?.portalUrl) {
+                                patchState(
+                                    store,
+                                    buildEmptyContentPatch(
+                                        params.contentType,
+                                        null
+                                    )
+                                );
+                                return [];
+                            }
+                            if (
+                                !isSectionImportable(
+                                    params.contentType,
+                                    playlist
+                                )
+                            ) {
                                 patchState(
                                     store,
                                     buildEmptyContentPatch(

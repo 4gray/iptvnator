@@ -168,6 +168,25 @@
                     ></mat-slide-toggle>
                 </div>
             </div>
+
+            <div class="setting-item" data-setting-id="disable-vod">
+                <div class="setting-item__meta">
+                    <h4 id="disable-vod-label">
+                        {{ 'SETTINGS.DISABLE_VOD' | translate }}
+                    </h4>
+                    <p id="disable-vod-description">
+                        {{ 'SETTINGS.DISABLE_VOD_DESCRIPTION' | translate }}
+                    </p>
+                </div>
+                <div class="setting-item__control setting-item__toggle">
+                    <mat-slide-toggle
+                        formControlName="disableVod"
+                        aria-labelledby="disable-vod-label"
+                        aria-describedby="disable-vod-description"
+                        data-test-id="disable-vod-toggle"
+                    ></mat-slide-toggle>
+                </div>
+            </div>
         </div>
     </section>
 

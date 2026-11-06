@@ -1,5 +1,6 @@
 import type { Playlist } from '@iptvnator/shared/interfaces';
 import {
+    applyImportScopeToPlaylist,
     createPlaylistObject,
     getFilenameFromUrl,
 } from '@iptvnator/shared/m3u-utils';
@@ -178,11 +179,14 @@ export function preserveAutoUpdatedPlaylistFields(
     playlistObject: Playlist,
     playlist: Playlist
 ): Playlist {
-    return {
-        ...playlistObject,
-        _id: playlist._id,
-        autoRefresh: playlist.autoRefresh,
-        favorites: playlist.favorites || [],
-        userAgent: playlist.userAgent,
-    };
+    return applyImportScopeToPlaylist(
+        {
+            ...playlistObject,
+            _id: playlist._id,
+            autoRefresh: playlist.autoRefresh,
+            favorites: playlist.favorites || [],
+            userAgent: playlist.userAgent,
+        },
+        playlist
+    );
 }

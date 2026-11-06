@@ -1,0 +1,9 @@
+http://panel-a.example/c | 00:1A:79:00:00:01
+http://panel-a.example/c | 00:1A:79:00:00:02
+http://panel-a.example/c | 00:1A:79:00:00:03
+http://panel-b.example/c | 00:1A:79:00:00:04
+http://panel-c.example:80/c | 00:1A:79:00:00:05
+http://203.0.113.10/c | 00:1A:79:00:00:06
+http://203.0.113.10/c | 00:1A:79:00:00:07
+http://203.0.113.10/c | 00:1A:79:00:00:08
+http://panel-d.example:80/c | 00:1B:79:00:00:09

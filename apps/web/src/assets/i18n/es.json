@@ -178,7 +178,9 @@
             "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "Auto-actualización incompleta: se actualizaron {{updated}} de {{total}} listas de reproducción, {{failed}} fallaron, {{skipped}} omitidas (sin URL ni ruta de archivo).",
             "AUTO_REFRESH_UPDATE_FAILED": "La auto-actualización de listas de reproducción falló. Ninguna de las {{total}} listas se pudo actualizar.",
             "AUTO_REFRESH_UPDATE_SKIPPED": "Auto-actualización de listas de reproducción: se actualizaron {{updated}} de {{total}}, {{skipped}} omitidas (sin URL ni ruta de archivo).",
-            "AUTO_REFRESH_ENABLED": "Auto-actualización activada"
+            "AUTO_REFRESH_ENABLED": "Auto-actualización activada",
+            "SOURCE_BULK_NEEDS": "Un archivo .txt con mensajes del proveedor o una lista .json de fuentes.",
+            "SOURCE_BULK_ADD": "Importar fuentes"
         },
         "ADD_PLAYLIST": {
             "IMPORT_EPG": "Importar la guía de programación indicada en la lista",
@@ -197,7 +199,34 @@
             "METHOD_TEXT_LABEL": "Texto m3u sin formato",
             "METHOD_TEXT_SUB": "Para listas puntuales o cuando solo tienes texto",
             "METHOD_AUTO_LABEL": "Detección automática",
-            "METHOD_AUTO_SUB": "Pega el mensaje de tu proveedor"
+            "METHOD_AUTO_SUB": "Pega el mensaje de tu proveedor",
+            "METHOD_BULK_LABEL": "Importación masiva",
+            "METHOD_BULK_SUB": "Añadir varias fuentes a la vez desde un archivo",
+            "IMPORT_SCOPE_LABEL": "Secciones a importar",
+            "IMPORT_SCOPE_LIVE": "Canales en directo",
+            "IMPORT_SCOPE_VOD": "VOD (películas y series)",
+            "IMPORT_SCOPE_VOD_DISABLED": "VOD está desactivado en Ajustes, así que solo se importan los canales en vivo.",
+            "BULK_FILE_BUTTON": "Cargar desde archivo",
+            "BULK_ROW_INCOMPLETE": "Incompleto — añade los datos que faltan como fuente individual o elimina esta fila.",
+            "BULK_NO_SOURCES": "No se reconoció ninguna fuente en este archivo.",
+            "BULK_REMOVE": "Eliminar fuente",
+            "BULK_IMPORT_BUTTON": "Importar {{count}} fuentes",
+            "BULK_INVALID_JSON": "Ese JSON no es una lista de importación masiva. Se esperaba { \"sources\": [...] } o una matriz [...].",
+            "BULK_IMPORT_STARTED": "Importando {{count}} fuentes…",
+            "BULK_ROW_NO_PORTAL": "No hay dirección de portal para esta MAC: añádela como fuente Stalker individual o elimina la fila.",
+            "BULK_ROW_NO_MAC": "No hay dirección MAC para este portal: añádelo como fuente Stalker individual o elimina la fila.",
+            "BULK_ROW_MISSING_DETAILS": "Faltan datos de conexión: añade esta fuente por separado o elimina la fila.",
+            "BULK_NOTHING_IMPORTABLE": "No hay nada que importar: corrige o elimina las filas incompletas de arriba.",
+            "BULK_REPLACE_NOTICE": "La importación reemplaza todas tus fuentes actuales. Cada fuente tiene un minuto para cargarse; las más lentas o las que fallan se omiten.",
+            "BULK_REPLACE_FAILED": "No se pudieron eliminar tus fuentes actuales, así que no se importó nada.",
+            "BULK_SOURCE_TOO_SLOW": "Fuente demasiado lenta, omitiendo «{{title}}»",
+            "BULK_SOURCE_FAILED": "La importación falló, omitiendo «{{title}}»",
+            "BULK_IMPORT_FINISHED": "Importación masiva terminada: {{imported}} importadas, {{slow}} demasiado lentas, {{failed}} fallidas.",
+            "BULK_STATUS_PENDING": "En espera",
+            "BULK_STATUS_IMPORTING": "Importando…",
+            "BULK_STATUS_IMPORTED": "Importada",
+            "BULK_STATUS_SLOW": "Demasiado lenta, omitida",
+            "BULK_STATUS_FAILED": "Fallida, omitida"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Arrastre & suelte archivos aquí",
@@ -733,7 +762,9 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "País de clasificación por edad",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Elige el país de clasificación. Si faltan datos locales, se pueden usar los de EE. UU. o del proveedor.",
-        "AGE_RATING_COUNTRY_AUTO": "Automático — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Automático — {{country}}",
+        "DISABLE_VOD": "Desactivar VOD",
+        "DISABLE_VOD_DESCRIPTION": "Cargar solo canales en vivo. Las películas y series nunca se importan, actualizan ni sincronizan para ninguna fuente, sean cuales sean sus propias secciones de importación. Desactívalo para recuperarlas."
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "No se pudo guardar en el servidor. Compruebe la conexión e inténtelo de nuevo.",

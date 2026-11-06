@@ -119,4 +119,11 @@ export interface Playlist {
     };
     /** Hidden M3U group titles for the groups view */
     hiddenGroupTitles?: string[];
+    /**
+     * Bulk/section import scope: which sections of the source are imported.
+     * `true`/absent imports the section, `false` skips it. `importVod`
+     * covers both movies and series. Absent (pre-scope sources) means all.
+     */
+    importLive?: boolean;
+    importVod?: boolean;
 }

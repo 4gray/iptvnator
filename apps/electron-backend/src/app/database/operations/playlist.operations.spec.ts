@@ -137,6 +137,21 @@ describe('playlist.operations', () => {
         });
     });
 
+    it('projects the stored import scope onto DB_GET_PLAYLIST rows so a live-only source stays live-only', async () => {
+        const row = {
+            id: 'playlist-1',
+            name: 'Xtream Source',
+            type: 'xtream',
+            payload: JSON.stringify({ _id: 'playlist-1', importVod: false }),
+        };
+        const { db } = createPlaylistFavoriteChannelsDbMock(row);
+
+        await expect(getPlaylist(db, 'playlist-1')).resolves.toEqual({
+            ...row,
+            importVod: false,
+        });
+    });
+
     it('returns DB_GET_PLAYLIST rows untouched when the payload carries no server timezone', async () => {
         const row = {
             id: 'playlist-1',

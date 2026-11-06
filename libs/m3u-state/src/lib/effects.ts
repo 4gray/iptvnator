@@ -391,7 +391,12 @@ export class PlaylistEffects {
                             action.uploadType,
                             action.playlist,
                             action.title,
-                            action.path
+                            action.path,
+                            {
+                                importLive: action.importLive,
+                                importVod: action.importVod,
+                            },
+                            this.settingsStore.disableVod?.() === true
                         )
                         .then((playlist) =>
                             applyPlaylistEpgImportPreference(
@@ -520,6 +525,7 @@ export class PlaylistEffects {
         () => {
             return this.actions$.pipe(
                 ofType(PlaylistActions.addManyPlaylists),
+                filter((action) => action.persist !== false),
                 switchMap((action) =>
                     this.playlistsService.addManyPlaylists(action.playlists)
                 )

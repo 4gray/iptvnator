@@ -20,6 +20,7 @@ import {
     parseSecurityPolicyError,
     PLAYLIST_UPDATE,
     PlaylistMeta,
+    storedImportScopeFlags,
 } from '@iptvnator/shared/interfaces';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
@@ -121,6 +122,7 @@ export class PlaylistRefreshActionService {
                 title: item.title,
                 url,
                 ...(item.userAgent ? { userAgent: item.userAgent } : {}),
+                ...storedImportScopeFlags(item),
             });
         } finally {
             this.m3uRefreshId.set(null);
@@ -194,6 +196,12 @@ export class PlaylistRefreshActionService {
                     trustedInsecureTlsHosts:
                         this.settingsStore.getTrustOptions()
                             .trustedInsecureTlsHosts,
+                    ...(item.importLive === false
+                        ? { importLive: false as const }
+                        : {}),
+                    ...(item.importVod === false
+                        ? { importVod: false as const }
+                        : {}),
                 });
 
             this.store.dispatch(
@@ -201,6 +209,12 @@ export class PlaylistRefreshActionService {
                     playlist: {
                         ...refreshedPlaylist,
                         _id: item._id,
+                        ...(item.importLive === false
+                            ? { importLive: false as const }
+                            : {}),
+                        ...(item.importVod === false
+                            ? { importVod: false as const }
+                            : {}),
                     },
                     playlistId: item._id,
                     refreshEpg: true,

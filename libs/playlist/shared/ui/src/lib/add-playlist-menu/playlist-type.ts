@@ -1,7 +1,2 @@
 export type PlaylistType =
-    | 'xtream'
-    | 'url'
-    | 'text'
-    | 'file'
-    | 'stalker'
-    | 'auto';
+    'xtream' | 'url' | 'text' | 'file' | 'stalker' | 'auto' | 'bulk';

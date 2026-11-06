@@ -16,9 +16,11 @@ import {
 } from '@angular/cdk/overlay';
 import {
     ApplicationConfig,
+    EnvironmentInjector,
     inject,
     importProvidersFrom,
     provideZonelessChangeDetection,
+    runInInjectionContext,
 } from '@angular/core';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { provideServiceWorker } from '@angular/service-worker';
@@ -39,6 +41,8 @@ import { provideXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
 import {
     provideParentalLockPlaylistCleanup,
     DataService,
+    PORTAL_CONTENT_SEEDERS,
+    type PortalContentSeeder,
 } from '@iptvnator/services';
 import { dbConfig } from '@iptvnator/shared/interfaces';
 import { getInitialLanguage } from './app-language-preference';
@@ -167,6 +171,30 @@ export const appConfig: ApplicationConfig = {
             useFactory: favoritesPlaylistBridgeFactory,
         },
         ...provideXtreamDataSource(activityDataSourceFactory),
+        // Stalker rows have no `serverUrl`, so the Xtream seeder skips them;
+        // without a seeder here every Stalker row counts as imported
+        // unchecked. The seeder itself is imported on its first use: naming
+        // the class in the bootstrap providers pulled the whole Stalker
+        // data-access graph into the initial bundle, and only the bulk
+        // import inside the lazily opened dialog ever reaches it.
+        {
+            provide: PORTAL_CONTENT_SEEDERS,
+            multi: true,
+            useFactory: (): PortalContentSeeder => {
+                const injector = inject(EnvironmentInjector);
+                return {
+                    async seed(playlist, signal) {
+                        const { StalkerContentSeedService } = await import(
+                            '@iptvnator/portal/stalker/data-access'
+                        );
+                        const seeder = runInInjectionContext(injector, () =>
+                            inject(StalkerContentSeedService)
+                        );
+                        return seeder.seed(playlist, signal);
+                    },
+                };
+            },
+        },
         {
             provide: PLAYBACK_ACTIVITY_EVENTS,
             useFactory: activityEventsFactory,

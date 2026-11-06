@@ -19,6 +19,8 @@ import {
     type AppPlaylistGetPerformancePhase,
     type AppPlaylistUpsertPerformancePhase,
     type PerformancePhaseMetadata,
+    type PlaylistImportScope,
+    storedImportScopeFlags,
 } from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
 import type {
@@ -388,7 +390,9 @@ export async function getAppPlaylistFavoriteChannels(
  * The raw row plus the fields the Xtream store needs from the JSON payload:
  * `serverTimezone` has no column, and the store seeds `currentPlaylist`
  * from this read before (or without) the account-info check that learns
- * it (issue #1562).
+ * it (issue #1562). The import scope (`importLive`/`importVod` opt-outs)
+ * has no column either; without it the store took a live-only source for
+ * a full one and imported its whole movie and series catalog on open.
  */
 export async function getPlaylist(db: AppDatabase, playlistId: string) {
     const result = await db
@@ -402,19 +406,24 @@ export async function getPlaylist(db: AppDatabase, playlistId: string) {
     }
 
     const serverTimezone = readPayloadServerTimezone(row.payload);
-    const payload = parseJsonValue<Record<string, unknown>>(row.payload, {});
-    if (!serverTimezone && payload?.xtreamContentTypes === undefined)
+    const payload = parseJsonValue<Record<string, unknown> | null>(
+        row.payload,
+        null
+    );
+    const scope = storedImportScopeFlags(payload as PlaylistImportScope | null);
+    const hasScope = Object.keys(scope).length > 0;
+    const xtreamContentTypes =
+        payload?.xtreamContentTypes === undefined
+            ? undefined
+            : normalizeXtreamContentTypes(payload.xtreamContentTypes);
+    if (!serverTimezone && !hasScope && xtreamContentTypes === undefined) {
         return row;
+    }
     return {
         ...row,
+        ...scope,
         ...(serverTimezone ? { serverTimezone } : {}),
-        ...(payload?.xtreamContentTypes === undefined
-            ? {}
-            : {
-                  xtreamContentTypes: normalizeXtreamContentTypes(
-                      payload.xtreamContentTypes
-                  ),
-              }),
+        ...(xtreamContentTypes === undefined ? {} : { xtreamContentTypes }),
     };
 }
 

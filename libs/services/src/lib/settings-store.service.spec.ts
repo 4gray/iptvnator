@@ -270,7 +270,6 @@ describe('SettingsStore dashboard rail settings', () => {
             expect.objectContaining({ theme: Theme.SystemTheme })
         );
     });
-
     it('reconciles only after persistence and restores the previous EPG list on a failed save', async () => {
         storedSettings = { epgUrl: ['https://old.example/guide.xml'] };
         const sources = injector.get(EpgSourceSettingsService);
@@ -399,6 +398,16 @@ describe('SettingsStore dashboard rail settings', () => {
         expect(storage.set).toHaveBeenLastCalledWith(
             STORE_KEY.Settings,
             expect.objectContaining({ portalConnectivityGuard: false })
+        );
+    });
+
+    it('persists Disable VOD so it survives a restart', async () => {
+        const store = injector.get(SettingsStore);
+        expect(store.getSettings().disableVod).toBe(false);
+        await store.updateSettings({ disableVod: true });
+        expect(storage.set).toHaveBeenLastCalledWith(
+            STORE_KEY.Settings,
+            expect.objectContaining({ disableVod: true })
         );
     });
 

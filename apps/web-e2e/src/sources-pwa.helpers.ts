@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { Locator, Page } from '@playwright/test';
 import { expect } from './fixtures';
 import { setInputValue } from './e2e-helpers';
@@ -288,7 +289,9 @@ async function openAddPlaylistDialog(page: Page): Promise<void> {
 
 function createParsedM3uPlaylist(providerUrl: string | null) {
     return {
-        _id: 'pwa-url-source-id',
+        // A real parse mints a fresh id per download; a fixed one makes a
+        // second list of the same run collide with the first.
+        _id: `pwa-url-source-${randomUUID()}`,
         autoRefresh: false,
         count: 2,
         filename: 'pwa-url-source.m3u',

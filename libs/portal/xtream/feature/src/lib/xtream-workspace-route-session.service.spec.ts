@@ -285,6 +285,25 @@ describe('XtreamWorkspaceRouteSession', () => {
         expect(xtreamStore.initializeContent).toHaveBeenCalled();
     });
 
+    it('forwards the playlist import scope into the bootstrapped store', async () => {
+        xtreamStore.checkPortalStatus.mockImplementation(async () => {
+            portalStatus.set('active');
+            return 'active';
+        });
+        // A bulk import navigates before its database row exists, so the
+        // route-provided playlist is the only carrier of the scope: dropping
+        // the flags here re-imports a declined VOD catalog and hangs the
+        // workspace on the portal's movie download.
+        activePlaylist.set({ ...ACTIVE_PLAYLIST, importVod: false });
+
+        TestBed.inject(XtreamWorkspaceRouteSession);
+        await flushEffects();
+
+        expect(xtreamStore.setCurrentPlaylist).toHaveBeenCalledWith(
+            expect.objectContaining({ id: PLAYLIST_ID, importVod: false })
+        );
+    });
+
     it('holds the routed source busy until the import it awaits settles', async () => {
         xtreamStore.checkPortalStatus.mockImplementation(async () => {
             portalStatus.set('active');
