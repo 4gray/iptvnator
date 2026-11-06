@@ -1,0 +1,38 @@
+import assert from 'node:assert/strict';
+import { createServer } from 'node:http';
+import { test } from 'node:test';
+import { handleApi } from '../devserver/server.mjs';
+
+test('provider routes preserve JSON payloads and send Xtream User-Agent as a header', async () => {
+    const observed = [];
+    const provider = createServer((req, res) => {
+        observed.push({ url: new URL(req.url, 'http://synthetic.example'), headers: req.headers });
+        const action = observed.at(-1).url.searchParams.get('action');
+        res.end(action === 'plain' ? 'synthetic error' : '\ufeff{"synthetic":true}');
+    });
+    const proxy = createServer((req, res) => handleApi(req, res, new URL(req.url, 'http://127.0.0.1')));
+    for (const server of [provider, proxy]) await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+        const base = `http://127.0.0.1:${proxy.address().port}/api`;
+        const { targetId } = await fetch(base + '/provider-targets', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: `http://127.0.0.1:${provider.address().port}` }),
+        }).then((res) => res.json());
+        const request = (route, params) => fetch(`${base}/${route}?${new URLSearchParams({ targetId, ...params })}`).then((res) => res.json());
+        for (const userAgent of [' synthetic-agent ', '   ']) {
+            const result = await request('xtream', { action: 'get_vod_categories', username: 'synthetic-user', userAgent });
+            assert.deepEqual(result.payload, { synthetic: true });
+            assert.equal(observed.at(-1).url.searchParams.has('userAgent'), false);
+            assert.equal(observed.at(-1).url.searchParams.get('username'), 'synthetic-user');
+            if (userAgent.trim()) assert.equal(observed.at(-1).headers['user-agent'], userAgent.trim());
+            else assert.notEqual(observed.at(-1).headers['user-agent'], '');
+        }
+        const handshake = await request('stalker', { action: 'handshake' });
+        assert.deepEqual(handshake.payload, { synthetic: true });
+        for (const route of ['xtream', 'stalker']) {
+            assert.equal((await request(route, { action: 'plain' })).payload, 'synthetic error');
+        }
+    } finally {
+        await Promise.all([proxy, provider].map((server) => new Promise((resolve) => server.close(resolve))));
+    }
+});

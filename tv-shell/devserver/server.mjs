@@ -159,7 +159,7 @@ function proxyParams(query, excluded) {
     return params;
 }
 
-async function handleApi(req, res, url) {
+export async function handleApi(req, res, url) {
     const path = url.pathname.replace(/^\/api/, '') || '/';
     const query = url.searchParams;
 
@@ -223,14 +223,15 @@ async function handleApi(req, res, url) {
         if (!target) return;
         const action = (query.get('action') || '').trim() || undefined;
         const connectionTest = query.get('connectionTest') === 'true';
+        const userAgent = (query.get('userAgent') || '').trim();
         try {
             const base = normalizeXtreamServerUrl(target);
             const apiUrl = new URL(`${base.replace(/\/+$/, '')}/player_api.php`);
-            for (const [k, v] of Object.entries(proxyParams(query, ['targetId', 'connectionTest']))) apiUrl.searchParams.set(k, v);
-            const text = await fetchText(apiUrl.href, { timeoutMs: 30000 });
+            for (const [k, v] of Object.entries(proxyParams(query, ['targetId', 'connectionTest', 'userAgent']))) apiUrl.searchParams.set(k, v);
+            const text = await fetchText(apiUrl.href, { headers: userAgent ? { 'User-Agent': userAgent } : {}, timeoutMs: 30000 });
             let payload;
             try {
-                payload = JSON.parse(text);
+                payload = JSON.parse(text.replace(/^\uFEFF/, ''));
             } catch {
                 payload = text;
             }
@@ -258,7 +259,7 @@ async function handleApi(req, res, url) {
             const text = await fetchText(requestUrl, { headers, timeoutMs: params.action === 'create_link' ? 60000 : 30000 });
             let payload;
             try {
-                payload = JSON.parse(text);
+                payload = JSON.parse(text.replace(/^\uFEFF/, ''));
             } catch {
                 payload = text;
             }
