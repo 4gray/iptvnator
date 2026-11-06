@@ -41,6 +41,7 @@ import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-de
         TranslateModule,
     ],
     templateUrl: './settings-general-section.component.html',
+    styleUrls: ['./_theme-picker.scss'],
     encapsulation: ViewEncapsulation.None,
     changeDetection: ChangeDetectionStrategy.OnPush,
     styles: [':host { display: contents; }'],

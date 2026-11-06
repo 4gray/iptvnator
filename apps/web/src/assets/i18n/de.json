@@ -754,6 +754,9 @@
         "DELETE_ALL_WARNING": "Damit werden die Wiedergabelisten für alle Geräte vom Server entfernt."
     },
     "THEMES": {
+        "CREAM_THEME": "Creme",
+        "MOCHA_THEME": "Mokka",
+        "SYSTEM_DESCRIPTION": "System folgt dem hellen oder dunklen Erscheinungsbild deines Geräts.",
         "DARK_THEME": "Dunkel",
         "LIGHT_THEME": "Hell",
         "SYSTEM_THEME": "System"

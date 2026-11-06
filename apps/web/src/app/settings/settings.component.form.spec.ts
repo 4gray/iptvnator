@@ -63,6 +63,30 @@ describe('SettingsComponent form', () => {
         window.electron = originalElectron;
     });
 
+    it.each(['CREAM_THEME', 'MOCHA_THEME'])(
+        'previews %s from the palette picker and restores the saved theme on Discard',
+        (value) => {
+            const service = TestBed.inject(SettingsService);
+            const changeTheme = jest.spyOn(service, 'changeTheme');
+            const saved = component.settingsForm.value.theme;
+            const option = (fixture.nativeElement as HTMLElement).querySelector(
+                `[data-test-id="${value}"]`
+            ) as HTMLButtonElement;
+            expect(option).not.toBeNull();
+            expect(option.querySelector('[data-theme-preview]')).not.toBeNull();
+            option.click();
+            fixture.detectChanges();
+            expect(component.settingsForm.value.theme).toBe(value);
+            expect(changeTheme).toHaveBeenLastCalledWith(value);
+            expect(option.getAttribute('aria-checked')).toBe('true');
+            expect(settingsStore.updateSettings).not.toHaveBeenCalled();
+            component.discardChanges();
+            fixture.detectChanges();
+            expect(component.settingsForm.value.theme).toBe(saved);
+            expect(changeTheme).toHaveBeenLastCalledWith(saved);
+        }
+    );
+
     it('stages the desktop portal pause setting until Save', async () => {
         const checkbox = (fixture.nativeElement as HTMLElement).querySelector(
             '[data-test-id="portal-connectivity-toggle"] button[role="switch"]'

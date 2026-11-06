@@ -5,6 +5,7 @@ import {
     StartupBehavior,
     StartupWindowMode,
     Theme,
+    ThemePreset,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 
@@ -19,7 +20,7 @@ export interface SettingsSection {
 
 export interface ThemeOption {
     value: Theme;
-    icon: string;
+    presetId?: ThemePreset['id'];
     labelKey: string;
 }
 

@@ -754,6 +754,9 @@
         "DELETE_ALL_WARNING": "Cela supprime les playlists du serveur pour tous les appareils."
     },
     "THEMES": {
+        "CREAM_THEME": "Crème",
+        "MOCHA_THEME": "Moka",
+        "SYSTEM_DESCRIPTION": "Le mode système suit l’apparence claire ou sombre de votre appareil.",
         "DARK_THEME": "Sombre",
         "LIGHT_THEME": "Clair",
         "SYSTEM_THEME": "Système"

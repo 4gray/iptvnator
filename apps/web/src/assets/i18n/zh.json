@@ -754,6 +754,9 @@
         "DELETE_ALL_WARNING": "这会从服务器上删除播放列表，所有设备都会受影响。"
     },
     "THEMES": {
+        "CREAM_THEME": "奶油",
+        "MOCHA_THEME": "摩卡",
+        "SYSTEM_DESCRIPTION": "系统主题跟随设备的浅色或深色外观。",
         "DARK_THEME": "深色",
         "LIGHT_THEME": "浅色",
         "SYSTEM_THEME": "跟随系统"

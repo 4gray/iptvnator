@@ -2,7 +2,12 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { catchError, map, Observable } from 'rxjs';
-import { STORE_KEY, Theme } from '@iptvnator/shared/interfaces';
+import {
+    normalizeTheme,
+    resolveThemePreset,
+    STORE_KEY,
+    Theme,
+} from '@iptvnator/shared/interfaces';
 
 const PRERELEASE_KEYWORDS = [
     'beta',
@@ -85,7 +90,8 @@ export class SettingsService {
     changeTheme(selectedTheme: Theme): void {
         this.stopSystemThemeSync();
 
-        if (selectedTheme === Theme.SystemTheme) {
+        const theme = normalizeTheme(selectedTheme);
+        if (theme === Theme.SystemTheme) {
             this.startSystemThemeSync();
             this.applyResolvedTheme(
                 this.systemThemeMediaQuery?.matches
@@ -95,13 +101,15 @@ export class SettingsService {
             return;
         }
 
-        this.applyResolvedTheme(selectedTheme);
+        this.applyResolvedTheme(theme);
     }
 
     private applyResolvedTheme(selectedTheme: Theme): void {
+        const preset = resolveThemePreset(selectedTheme);
+        document.body.dataset['appTheme'] = preset.id;
         // Shared component styles, including the resize handles, use an
         // explicit .light-theme selector for their light-mode overrides.
-        if (selectedTheme === Theme.DarkTheme) {
+        if (preset.mode === 'dark') {
             document.body.classList.add('dark-theme');
             document.body.classList.remove('light-theme');
             return;

@@ -754,6 +754,9 @@
         "DELETE_ALL_WARNING": "Esta ação remove as playlists do servidor para todos os dispositivos."
     },
     "THEMES": {
+        "CREAM_THEME": "Creme",
+        "MOCHA_THEME": "Moca",
+        "SYSTEM_DESCRIPTION": "Sistema segue a aparência clara ou escura do dispositivo.",
         "DARK_THEME": "Escuro",
         "LIGHT_THEME": "Claro",
         "SYSTEM_THEME": "Sistema"

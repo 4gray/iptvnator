@@ -754,6 +754,9 @@
         "DELETE_ALL_WARNING": "Spowoduje to usunięcie list odtwarzania z serwera dla wszystkich urządzeń."
     },
     "THEMES": {
+        "CREAM_THEME": "Kremowy",
+        "MOCHA_THEME": "Mokka",
+        "SYSTEM_DESCRIPTION": "Motyw systemowy podąża za jasnym lub ciemnym wyglądem urządzenia.",
         "DARK_THEME": "Ciemny",
         "LIGHT_THEME": "Jasny",
         "SYSTEM_THEME": "Systemowy"

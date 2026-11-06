@@ -7,7 +7,8 @@ description: Use when changing IPTVnator SCSS tokens, shared layout mixins, port
 
 ## Canonical Sources
 
-- Theme contexts and app tokens: `apps/web/src/m3-theme.scss`
+- Theme contexts: `apps/web/src/m3-theme.scss`; app palettes and warm Material
+  colors: `apps/web/src/_theme-palettes.scss`, `apps/web/src/_warm-theme.scss`
 - Shared forwarding inventory: `libs/ui/styles/_index.scss`
 - Shared partials: `libs/ui/styles/_portal-layout.scss`,
   `libs/ui/styles/_content-grid.scss`, `libs/ui/styles/_portal-sidebar.scss`,
@@ -15,18 +16,17 @@ description: Use when changing IPTVnator SCSS tokens, shared layout mixins, port
   `libs/ui/styles/_detail-view-actions.scss`
 - UI policy and migration debt: `docs/architecture/iptvnator-ui-guidelines.md`
 
-The index is a barrel, not a Sass include path: consumers `@use` each
-partial by relative path.
+The index is a barrel; consumers `@use` partials by relative path.
 
 ## Token Boundary
 
 - App-owned surfaces, text, separators, hover states, selections, and provider
   accents use `--app-*` tokens from `m3-theme.scss`, switched by
-  `.dark-theme`, not `prefers-color-scheme`.
+  the resolved `body[data-app-theme]` preset with exclusive light/dark mode
+  classes, not `prefers-color-scheme`.
 - Use `--app-selection-on-color` for foregrounds placed on the selection
   accent; do not assume white has enough contrast in both themes.
-- Angular Material mixins and Material-component overrides may use Material
-  tokens. `m3-theme.scss` declares `--mat-sys-*` for both theme contexts; use
+- Material mixins/overrides may use Material tokens. `m3-theme.scss` declares `--mat-sys-*` for both theme contexts; use
   them outside Material components only for roles without an app token.
 - Set component tokens through `mat.*-overrides()`; retired `--mdc-*` names
   do nothing and `pnpm run styles:material-tokens:validate` rejects them.
@@ -60,8 +60,8 @@ partial by relative path.
 
 ## Rendering Cost
 
-- A composited layer the size of the content area costs about 24 MB of
-  tile memory at 2x against Chromium's 512 MB budget; contract in
+- A content-sized composited layer costs about 24 MB at 2x against Chromium's
+  512 MB budget; contract in
   `docs/architecture/performance-journeys.md` (Compositing budget).
 - No `border-radius`, `mask` or `clip-path` on a scroller or another
   ancestor of `backdrop-filter`, render-surface `filter`, running
