@@ -91,12 +91,16 @@ export async function importLocalHistory(
 ): Promise<void> {
     for (const source of preview.sources) {
         const scope = await client.refresh(source.scope.sourceId);
+        const record = await client.store.read(scope);
+        client.current(scope);
         if (
             preview.instanceId !== client.options.instanceId ||
             preview.generation !== client.options.consent() ||
             scope.sourceIncarnation !== source.scope.sourceIncarnation
         )
             throw new Error('History preview expired');
+        if (record?.pending.some((item) => item.consent !== preview.generation))
+            throw new Error('Resolve parked history before import');
     }
     const ordered = preview.sources
         .map(({ scope, items }) => items.map((item) => ({ scope, item })))

@@ -1512,6 +1512,8 @@ instance, consent and source incarnation, rechecking each imported action. Impor
 is explicit and places imported rows above shared history in their prior order.
 Import sorts rows across all selected sources and awaits each receipt before
 submitting the next row, preserving global order with server acceptance times.
+Before queuing any imported row, it requires earlier-consent queues in every
+selected source to be resolved through send or keep-local.
 Delivery failure stops the import with the failed row queued; raw archives remain
 available for a new preview and retry.
 Playlist archive transformations and Xtream recent-item operations load on first

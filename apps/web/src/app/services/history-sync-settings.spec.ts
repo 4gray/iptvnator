@@ -89,98 +89,152 @@ function fixture() {
 }
 
 describe('explicit local history import', () => {
-    it('delivers interleaved source archives in global viewing order', async () => {
-        const scopes: HistoryScope[] = ['source-a', 'source-b'].map(
-            (sourceId) => ({
-                instanceId: 'synthetic-instance',
-                sourceId,
-                sourceIncarnation: 'first',
-                provider: 'xtream',
-            })
-        );
-        const records = new Map<string, HistoryRecord>();
-        const states = new Map<string, HistoryState>();
-        const accepted: string[] = [];
-        const client = new HistorySyncClient(
-            {
-                read: async (scope) =>
-                    records.get(historyScopeKey(scope)) ?? null,
-                mutate: async (scope, update) => {
-                    const key = historyScopeKey(scope);
-                    const record = update(records.get(key) ?? null);
-                    records.set(key, record);
-                    return record;
+    it.each([
+        [null, false],
+        [0, true],
+        [1, false],
+        [1, true],
+    ] as const)(
+        'delivers interleaved archives after resolving parked source %s, send=%s',
+        async (parked, send) => {
+            let generation = 'consent';
+            let offline = false;
+            const scopes: HistoryScope[] = ['source-a', 'source-b'].map(
+                (sourceId) => ({
+                    instanceId: 'synthetic-instance',
+                    sourceId,
+                    sourceIncarnation: 'first',
+                    provider: 'xtream',
+                })
+            );
+            const records = new Map<string, HistoryRecord>();
+            const states = new Map<string, HistoryState>();
+            const accepted: string[] = [];
+            const client = new HistorySyncClient(
+                {
+                    read: async (scope) =>
+                        records.get(historyScopeKey(scope)) ?? null,
+                    mutate: async (scope, update) => {
+                        const key = historyScopeKey(scope);
+                        const record = update(records.get(key) ?? null);
+                        records.set(key, record);
+                        return record;
+                    },
                 },
-            },
-            {
-                instanceId: 'synthetic-instance',
-                deviceId: 'synthetic-device',
-                active: () => true,
-                consent: () => 'consent',
-                contexts: scopes,
-                remember: () => undefined,
-                changed: () => undefined,
-                request: async (request) => {
-                    if (request.operation === 'history-read') {
-                        const scope = scopes.find(
-                            (s) => s.sourceId === request.id
-                        )!;
-                        return {
-                            status: 200,
-                            body: { scope, state: emptyHistoryState() },
-                        };
-                    }
-                    if (request.operation !== 'history-apply')
-                        throw new Error('Unexpected request');
-                    // A delayed receipt exposes delivery overlap between sources.
-                    await new Promise((resolve) => setTimeout(resolve, 5));
-                    const { scope, operation } = request.history!;
-                    accepted.push(
-                        operation.reference!.provider === 'xtream'
-                            ? operation.reference!.id
-                            : ''
-                    );
-                    const result = applyHistoryOperation(
-                        states.get(scope.sourceId) ?? emptyHistoryState(),
-                        operation,
-                        false,
-                        accepted.length
-                    );
-                    states.set(scope.sourceId, result.state);
-                    return { status: 200, body: result };
+                {
+                    instanceId: 'synthetic-instance',
+                    deviceId: 'synthetic-device',
+                    active: () => true,
+                    consent: () => generation,
+                    contexts: scopes,
+                    remember: () => undefined,
+                    changed: () => undefined,
+                    request: async (request) => {
+                        if (request.operation === 'history-read') {
+                            const scope = scopes.find(
+                                (s) => s.sourceId === request.id
+                            )!;
+                            return {
+                                status: 200,
+                                body: {
+                                    scope,
+                                    state:
+                                        states.get(scope.sourceId) ??
+                                        emptyHistoryState(),
+                                },
+                            };
+                        }
+                        if (request.operation !== 'history-apply')
+                            throw new Error('Unexpected request');
+                        if (offline) throw new Error('Synthetic offline');
+                        // A delayed receipt exposes delivery overlap between sources.
+                        await new Promise((resolve) => setTimeout(resolve, 5));
+                        const { scope, operation } = request.history!;
+                        accepted.push(
+                            operation.reference!.provider === 'xtream'
+                                ? operation.reference!.id
+                                : ''
+                        );
+                        const result = applyHistoryOperation(
+                            states.get(scope.sourceId) ?? emptyHistoryState(),
+                            operation,
+                            false,
+                            accepted.length
+                        );
+                        states.set(scope.sourceId, result.state);
+                        return { status: 200, body: result };
+                    },
+                }
+            );
+            const item = (id: string, viewedAt: number) => ({
+                reference: {
+                    provider: 'xtream' as const,
+                    kind: 'movie' as const,
+                    id,
                 },
+                viewedAt,
+            });
+            const preview = {
+                instanceId: 'synthetic-instance',
+                generation: 'consent',
+                unresolved: 0,
+                sources: [
+                    {
+                        scope: scopes[0],
+                        items: [item('3', 300), item('1', 100)],
+                    },
+                    { scope: scopes[1], items: [item('2', 200)] },
+                ],
+            };
+            if (parked !== null) {
+                generation = 'previous-consent';
+                offline = true;
+                await client.command(scopes[parked].sourceId, {
+                    kind: 'touch',
+                    reference: item('99', 0).reference,
+                });
+                await client
+                    .flush(scopes[parked].sourceId)
+                    .catch(() => undefined);
+                const pending = [...records.values()].flatMap(
+                    (record) => record.pending
+                );
+                generation = preview.generation;
+                offline = false;
+                await expect(
+                    importLocalHistory(client, preview)
+                ).rejects.toThrow('parked');
+                expect(accepted).toEqual([]);
+                expect(
+                    [...records.values()].flatMap((record) => record.pending)
+                ).toEqual(pending);
+                await client.parked(scopes[parked].sourceId, send);
             }
-        );
-        const item = (id: string, viewedAt: number) => ({
-            reference: {
-                provider: 'xtream' as const,
-                kind: 'movie' as const,
-                id,
-            },
-            viewedAt,
-        });
-        await importLocalHistory(client, {
-            instanceId: 'synthetic-instance',
-            generation: 'consent',
-            unresolved: 0,
-            sources: [
-                { scope: scopes[0], items: [item('3', 300), item('1', 100)] },
-                { scope: scopes[1], items: [item('2', 200)] },
-            ],
-        });
-        expect(accepted).toEqual(['1', '2', '3']);
-        const global = [...states.values()]
-            .flatMap((state) => visibleHistory(state))
-            .sort((a, b) => b.viewedAt - a.viewedAt);
-        expect(
-            global.map((row) =>
-                row.reference.provider === 'xtream' ? row.reference.id : ''
-            )
-        ).toEqual(['3', '2', '1']);
-        expect(
-            [...records.values()].every((record) => record.pending.length === 0)
-        ).toBe(true);
-    });
+            await importLocalHistory(client, preview);
+            expect(accepted).toEqual(
+                parked !== null && send
+                    ? ['99', '1', '2', '3']
+                    : ['1', '2', '3']
+            );
+            const global = [...states.values()]
+                .flatMap((state) => visibleHistory(state))
+                .sort((a, b) => b.viewedAt - a.viewedAt);
+            expect(
+                global.map((row) =>
+                    row.reference.provider === 'xtream' ? row.reference.id : ''
+                )
+            ).toEqual(
+                parked !== null && send
+                    ? ['3', '2', '1', '99']
+                    : ['3', '2', '1']
+            );
+            expect(
+                [...records.values()].every(
+                    (record) => record.pending.length === 0
+                )
+            ).toBe(true);
+        }
+    );
     it('previews mixed SQLite and ISO times in UTC order', async () => {
         const f = fixture();
         f.raw.getRecentItems = async () => [
