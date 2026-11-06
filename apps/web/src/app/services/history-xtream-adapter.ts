@@ -2,7 +2,7 @@ import { normalizeStalkerDate } from '@iptvnator/shared/interfaces';
 import { XtreamCollectionCatalog } from './xtream-collection-catalog';
 import type {
     IXtreamDataSource,
-    XtreamContentItem,
+    XtreamRecentItem,
     XtreamCollectionRef,
     XtreamPlayedContent,
 } from '@iptvnator/portal/xtream/data-access';
@@ -33,7 +33,7 @@ export class HistoryXtreamAdapter {
     async project(
         raw: IXtreamDataSource,
         id: string
-    ): Promise<XtreamContentItem[]> {
+    ): Promise<XtreamRecentItem[]> {
         const scope = this.client.contexts.get(id);
         if (this.locks.withholdsEverything()) return [];
         const lockVersion = this.locks.version();
@@ -149,7 +149,7 @@ export class HistoryXtreamAdapter {
             );
             mapped.set(key, {
                 ...(candidate ?? {
-                    id: Number(ref.id),
+                    id: this.sqlite ? null : Number(ref.id),
                     category_id: '',
                     title: item.snapshot?.title ?? '',
                     rating: '',
@@ -222,7 +222,7 @@ export class HistoryXtreamAdapter {
                 ).map((type) => raw.getCachedContent(id, type))
             )
         )
-            .reduce<XtreamContentItem[]>((all, rows) => all.concat(rows), [])
+            .reduce<XtreamRecentItem[]>((all, rows) => all.concat(rows), [])
             .filter((row) => row.id === rowId);
         if (rows.length !== 1) throw new Error('History identity unavailable');
         return xtreamFavoriteReference(rows[0]);

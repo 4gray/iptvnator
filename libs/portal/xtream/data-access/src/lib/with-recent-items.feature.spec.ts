@@ -70,6 +70,27 @@ describe('withRecentItems', () => {
         });
     });
 
+    it('keeps a missing native row ID separate from the display key', async () => {
+        dataSource.getRecentItems.mockResolvedValue([
+            {
+                id: null,
+                xtream_id: 42,
+                type: 'live',
+                title: 'Synthetic received channel',
+                poster_url: '',
+                category_id: '',
+                viewed_at: '2026-11-06T12:00:00Z',
+            },
+        ]);
+        store.loadRecentItems({ id: 'synthetic-source' });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(store.recentItems()[0]).toMatchObject({
+            id: 'recent:live:42',
+            content_id: null,
+            xtream_id: 42,
+        });
+    });
+
     it.each([false, true])(
         'records a provider-only native start only for a verified portable source (%s)',
         async (portable) => {

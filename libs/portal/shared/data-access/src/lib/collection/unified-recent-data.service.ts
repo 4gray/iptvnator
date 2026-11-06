@@ -36,7 +36,7 @@ import {
 } from '@iptvnator/portal/shared/util';
 import {
     XTREAM_DATA_SOURCE,
-    XtreamContentItem,
+    XtreamRecentItem,
 } from '@iptvnator/portal/xtream/data-access';
 
 type PlaylistWithChannels = Omit<Playlist, 'playlist'> & {
@@ -66,13 +66,15 @@ export class UnifiedRecentDataService {
 
     async removeRecentItem(item: UnifiedCollectionItem): Promise<void> {
         if (item.sourceType === 'xtream') {
-            if (item.contentId == null) {
+            const contentId =
+                item.contentId ?? (await this.resolveXtreamContentId(item));
+            if (contentId == null) {
                 return;
             }
 
             if (this.hasPortalActivityStorage) {
                 await this.dbService.removeRecentItem(
-                    item.contentId,
+                    contentId,
                     item.playlistId
                 );
                 return;
@@ -80,7 +82,7 @@ export class UnifiedRecentDataService {
 
             await this.xtreamDataSource.removeRecentItem(
                 {
-                    id: item.contentId,
+                    id: contentId,
                     type: item.contentType,
                     providerId: item.xtreamId,
                 },
@@ -132,9 +134,11 @@ export class UnifiedRecentDataService {
 
         for (const item of items) {
             if (item.sourceType === 'xtream') {
-                if (item.contentId != null) {
+                const contentId =
+                    item.contentId ?? (await this.resolveXtreamContentId(item));
+                if (contentId != null) {
                     xtreamBatch.push({
-                        contentId: item.contentId,
+                        contentId,
                         playlistId: item.playlistId,
                         contentType: item.contentType,
                         xtreamId: item.xtreamId,
@@ -325,7 +329,11 @@ export class UnifiedRecentDataService {
 
             return {
                 ...item,
-                contentId: contentId ?? item.contentId,
+                contentId:
+                    this.runtime.supportsXtreamSqliteDataSource &&
+                    !this.hasPortalActivityStorage
+                        ? item.contentId
+                        : (contentId ?? item.contentId),
                 viewedAt,
             };
         }
@@ -518,7 +526,7 @@ export class UnifiedRecentDataService {
     }
 
     private mapXtreamContentItem(
-        item: XtreamContentItem,
+        item: XtreamRecentItem,
         playlistId: string,
         playlistName?: string
     ): UnifiedCollectionItem {
@@ -548,7 +556,7 @@ export class UnifiedRecentDataService {
             tvgId: contentType === 'live' ? String(item.xtream_id) : undefined,
             tvArchive: item.tv_archive ?? null,
             tvArchiveDuration: item.tv_archive_duration ?? null,
-            contentId: item.id,
+            contentId: item.id ?? undefined,
             viewedAt: normalizeStalkerDate(item.viewed_at),
         };
     }

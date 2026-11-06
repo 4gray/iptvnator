@@ -10,7 +10,7 @@ import {
     normalizeStalkerDate,
     type Playlist,
 } from '@iptvnator/shared/interfaces';
-import type { XtreamContentItem } from '@iptvnator/portal/xtream/data-access';
+import type { XtreamRecentItem } from '@iptvnator/portal/xtream/data-access';
 import type { HistoryPlaylistAdapter } from './history-playlist-adapter';
 import {
     xtreamFavoriteReference,
@@ -31,7 +31,7 @@ export interface HistoryPreview {
 }
 export async function previewLocalHistory(
     client: HistorySyncClient,
-    readRecent: (id: string) => Promise<XtreamContentItem[]>,
+    readRecent: (id: string) => Promise<XtreamRecentItem[]>,
     adapter: HistoryPlaylistAdapter,
     sources: Playlist[],
     read: (id: string) => Promise<Playlist>

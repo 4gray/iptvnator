@@ -112,6 +112,11 @@ export interface XtreamContentItem {
     playlist_name?: string;
 }
 
+/** Shared history can arrive before its native catalog row exists. */
+export interface XtreamRecentItem extends Omit<XtreamContentItem, 'id'> {
+    id: number | null;
+}
+
 export interface XtreamFavoriteItem extends Omit<
     XtreamContentItem,
     'id' | 'category_id'
@@ -364,7 +369,7 @@ export interface IXtreamDataSource {
     getRecentItems(
         playlistId: string,
         options?: { all: true }
-    ): Promise<XtreamContentItem[]>;
+    ): Promise<XtreamRecentItem[]>;
 
     /**
      * Add item to recently viewed. See `addFavorite` for `backdropUrl`.

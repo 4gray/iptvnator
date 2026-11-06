@@ -27,7 +27,7 @@ import {
 } from '@iptvnator/services';
 import {
     XTREAM_DATA_SOURCE,
-    XtreamContentItem,
+    XtreamRecentItem,
 } from '@iptvnator/portal/xtream/data-access';
 import {
     buildPlaylistRecentItems,
@@ -696,11 +696,11 @@ export class DashboardDataService {
     }
 
     private mapPwaXtreamRecentItem(
-        item: XtreamContentItem,
+        item: XtreamRecentItem,
         playlist: PlaylistMeta
     ): GlobalRecentItem {
         return {
-            id: item.id,
+            id: item.id ?? `recent:${item.type}:${item.xtream_id}`,
             title: item.title,
             catalogStatus: item.catalog_status,
             type: this.normalizeXtreamActivityType(item.type),

@@ -199,7 +199,7 @@ export class UnifiedFavoritesDataService {
                 : null);
 
         if (contentId == null) {
-            return;
+            throw new Error('Favorite could not be saved');
         }
 
         const electron = await this.xtreamFavoritesBridge(item.playlistId);
@@ -664,7 +664,11 @@ export class UnifiedFavoritesDataService {
         const content = await this.dbService.getContentByXtreamId(
             item.xtreamId,
             item.playlistId,
-            item.contentType
+            item.contentType,
+            ...(item.xtreamIdentity?.tmdbId != null ||
+            item.xtreamIdentity?.releaseYear != null
+                ? [item.xtreamIdentity]
+                : [])
         );
 
         return content?.id ?? null;

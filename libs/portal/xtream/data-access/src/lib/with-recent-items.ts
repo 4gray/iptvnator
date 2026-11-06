@@ -21,13 +21,13 @@ import {
 } from './data-sources/xtream-data-source.interface';
 
 export interface RecentlyViewedItem extends PortalRecentItem {
-    /** @deprecated Redundant — always equals `id`. Retained for compat. */
-    content_id: number | string;
+    /** @deprecated Native row ID; absent for received history without a catalog row. */
+    content_id: number | string | null;
 }
 
 function mapDbRecentItem(
     item: {
-        id: number;
+        id: number | null;
         title: string;
         type: string;
         poster_url: string;
@@ -39,7 +39,7 @@ function mapDbRecentItem(
     playlistId: string
 ): RecentlyViewedItem {
     return {
-        id: item.id,
+        id: item.id ?? `recent:${item.type}:${item.xtream_id}`,
         title: item.title,
         type: item.type as 'live' | 'movie' | 'series',
         poster_url: item.poster_url,

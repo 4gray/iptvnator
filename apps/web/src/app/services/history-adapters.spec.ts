@@ -1,5 +1,11 @@
 import { HistoryPlaylistAdapter } from './history-playlist-adapter';
 import { HistoryXtreamAdapter } from './history-xtream-adapter';
+import {
+    UnifiedCollectionDataService,
+    UnifiedFavoritesDataService,
+    UnifiedRecentDataService,
+} from '@iptvnator/portal/shared/data-access';
+import { signal } from '@angular/core';
 import { HistorySyncClient } from '@iptvnator/services/history-sync';
 import {
     emptyHistoryRecord,
@@ -59,6 +65,161 @@ const playlist = {
     autoRefresh: false,
 } as Playlist;
 describe('history provider projections', () => {
+    it.each([true, false])(
+        'keeps unresolved row IDs separate with sqlite=%s',
+        async (sqlite) => {
+            const f = fixture('xtream');
+            f.read().base = applyHistoryOperation(f.read().base, {
+                kind: 'touch',
+                reference: { provider: 'xtream', kind: 'live', id: '42' },
+                operationId: 'synthetic-touch',
+                deviceId: 'synthetic-device',
+                baseRevision: 0,
+                viewedAt: 1,
+            }).state;
+            const raw = {
+                getRecentItems: async () => [],
+                getContentByXtreamId: jest.fn().mockResolvedValue(null),
+                getPlaylist: async () => ({
+                    serverUrl: 'https://history.example',
+                    username: 'synthetic',
+                    password: 'synthetic',
+                }),
+                getContent: async () => [],
+            };
+            const [row] = await new HistoryXtreamAdapter(
+                f.client,
+                sqlite,
+                locks
+            ).project(raw as never, 'source');
+            expect(row).toMatchObject({
+                id: sqlite ? null : 42,
+                xtream_id: 42,
+                type: 'live',
+            });
+        }
+    );
+    it.each([null, 7, 'conflict'] as const)(
+        'resolves native favorites by typed identity, not received ID 42 (row=%s)',
+        async (resolvedId) => {
+            const f = fixture('xtream');
+            const kind = resolvedId === 'conflict' ? 'movie' : 'live';
+            f.read().base = applyHistoryOperation(f.read().base, {
+                kind: 'touch',
+                reference: { provider: 'xtream', kind, id: '42' },
+                snapshot: {
+                    title: 'Synthetic received item',
+                    ...(resolvedId === 'conflict'
+                        ? { tmdbId: '101', releaseYear: '2020' }
+                        : {}),
+                },
+                operationId: 'synthetic-touch',
+                deviceId: 'synthetic-device',
+                baseRevision: 0,
+                viewedAt: 1,
+            }).state;
+            const raw = {
+                getRecentItems: async () => [],
+                getContentByXtreamId: async () => null,
+            };
+            const adapter = new HistoryXtreamAdapter(f.client, true, locks);
+            const dataSource = {
+                getRecentItems: () => adapter.project(raw as never, 'source'),
+                getContentByXtreamId: jest.fn().mockResolvedValue(null),
+                supportsPortableFavorites: async () => false,
+                addRecentItem: (...args: unknown[]) =>
+                    adapter.invoke(raw as never, 'addRecentItem', args),
+                removeRecentItem: (...args: unknown[]) =>
+                    adapter.invoke(raw as never, 'removeRecentItem', args),
+            };
+            const runtime = {
+                supportsPortalActivityStorage: true,
+                supportsXtreamSqliteDataSource: true,
+            };
+            const recent = Object.assign(
+                Object.create(UnifiedRecentDataService.prototype),
+                {
+                    runtime,
+                    history: { active: () => true },
+                    xtreamDataSource: dataSource,
+                    getPlaylistMeta: async () => ({
+                        _id: 'source',
+                        title: 'Synthetic source',
+                    }),
+                }
+            ) as UnifiedRecentDataService;
+            const [item] = await recent.getRecentItems(
+                'playlist',
+                'source',
+                'xtream'
+            );
+            expect(item).toMatchObject({
+                xtreamId: 42,
+                contentType: kind,
+                catalogStatus: 'unknown',
+            });
+            const lookup = jest.fn(
+                async (
+                    _providerId: number,
+                    _sourceId: string,
+                    _kind: string,
+                    identity?: { tmdbId?: number }
+                ) =>
+                    resolvedId == null ||
+                    (resolvedId === 'conflict' && identity?.tmdbId === 101)
+                        ? null
+                        : { id: 7 }
+            );
+            const add = jest.fn().mockResolvedValue({ success: true });
+            const original = window.electron;
+            window.electron = { dbAddFavorite: add } as never;
+            try {
+                const favorites = Object.assign(
+                    Object.create(UnifiedFavoritesDataService.prototype),
+                    {
+                        runtime,
+                        xtreamDataSource: dataSource,
+                        dbService: { getContentByXtreamId: lookup },
+                    }
+                ) as UnifiedFavoritesDataService;
+                const collection = Object.assign(
+                    Object.create(UnifiedCollectionDataService.prototype),
+                    {
+                        favoriteUidSet: signal(new Set<string>()),
+                        favoritesData: favorites,
+                    }
+                ) as UnifiedCollectionDataService;
+                if (resolvedId === 7) await collection.toggleFavorite(item);
+                else
+                    await expect(
+                        collection.toggleFavorite(item)
+                    ).rejects.toThrow('Favorite could not be saved');
+                expect(collection.favoriteUidSet().has(item.uid)).toBe(
+                    resolvedId === 7
+                );
+                expect(lookup).toHaveBeenCalledWith(
+                    42,
+                    'source',
+                    kind,
+                    ...(resolvedId === 'conflict' ? [item.xtreamIdentity] : [])
+                );
+                expect(add.mock.calls).toEqual(
+                    resolvedId === 7 ? [[7, 'source', '']] : []
+                );
+                expect(item.contentId).toBeUndefined();
+                const watched = await recent.recordLivePlayback(item);
+                expect(watched.contentId).toBeUndefined();
+                await recent.removeRecentItem(watched);
+                expect(await dataSource.getRecentItems()).toEqual([]);
+                await recent.recordLivePlayback(item);
+                await recent.removeRecentItemsBatch([item]);
+                expect(await dataSource.getRecentItems()).toEqual([]);
+                expect(f.read().pending).toEqual([]);
+            } finally {
+                window.electron = original;
+            }
+        }
+    );
     it('matches duplicate M3U URLs exactly without publishing addresses in metadata', async () => {
         const f = fixture('m3u');
         const url = 'https://synthetic.invalid/play?token=synthetic';
@@ -714,17 +875,15 @@ describe('history provider projections', () => {
                 viewedAt: Date.parse('2026-11-05T11:30:00Z') + id,
             }).state;
         const raw = {
-            getRecentItems: jest
-                .fn()
-                .mockResolvedValue([
-                    {
-                        id: 999,
-                        xtream_id: 999,
-                        type: 'movie',
-                        title: 'Synthetic UTC archive',
-                        viewed_at: '2026-11-05 12:00:00',
-                    },
-                ]),
+            getRecentItems: jest.fn().mockResolvedValue([
+                {
+                    id: 999,
+                    xtream_id: 999,
+                    type: 'movie',
+                    title: 'Synthetic UTC archive',
+                    viewed_at: '2026-11-05 12:00:00',
+                },
+            ]),
             getContentByXtreamId: jest.fn(async (id: number) => ({
                 id,
                 xtream_id: id,

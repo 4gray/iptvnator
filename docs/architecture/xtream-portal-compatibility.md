@@ -1231,7 +1231,12 @@ normalization, so membership actions never fetch a new lookup chunk.
 
 The [history opt-in](pwa-self-hosted.md#recently-viewed-synchronization) uses typed
 provider IDs captured by the confirmed playback writer. SQLite row IDs remain
-local. Both data-source and global/Dashboard consumers read the sidecar overlay;
+local. Received history without a native catalog row has a null row ID; collection
+actions resolve a typed provider identity instead of treating its provider ID as
+a SQLite row ID. Display-only keys never become native favorite targets.
+Native favorite lookups retain the received TMDB/year selector.
+An unresolved native lookup rejects the favorite action, preserving its unsaved UI state.
+Both data-source and global/Dashboard consumers read the sidecar overlay;
 remove/batch/current-tab clear use that same path on Electron and PWA. Series
 history keeps the existing parent-series row. Remote progress does not create it.
 Known catalog identity conflicts and parental locks remain enforced when resolving
