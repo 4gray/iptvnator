@@ -34,11 +34,25 @@ export class NativePlayer {
         private saveFailure: (
             message: string,
             retry: () => Promise<void>
-        ) => void = failure
+        ) => void = failure,
+        private onPlaying: (item: Media) => void = () => undefined
     ) {
         this.handlers = {
             playing: () => {
+                const source = this.video.getAttribute('src')
+                    ? this.video.src
+                    : this.video.querySelector('source')?.src;
+                if (
+                    !this.item ||
+                    !source ||
+                    this.video.currentSrc !== source ||
+                    this.video.readyState < 2 ||
+                    this.video.paused ||
+                    this.video.ended
+                )
+                    return;
                 this.confirmed = true;
+                this.onPlaying(this.item);
                 this.tryRestore(true);
                 this.persist();
                 this.changed();

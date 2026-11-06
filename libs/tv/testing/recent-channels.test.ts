@@ -61,3 +61,18 @@ test('recent channels are newest-first, unique, source/provider scoped and bound
         []
     );
 });
+
+test('Stalker Live recents retain the provider catalog prefix and raw playback command', () => {
+    const source: Source = { ...a, provider: 'stalker' };
+    const item: Media = {
+        ...channel(source, '5'),
+        id: util.identity(source, 'live', 'live:5'),
+        raw: { cmd: 'https://stream.example/five.ts' },
+    };
+    const data = {
+        ...util.initialData(),
+        sources: [source],
+        history: [progress(item, 1)],
+    };
+    assert.deepEqual(util.recentChannels(data), [item]);
+});

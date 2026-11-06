@@ -8,7 +8,14 @@ export function availableChannel(
         ? sources.find(
               (source) =>
                   source.id === item.sourceId &&
-                  item.id === identity(source, 'live', item.providerId)
+                  item.id ===
+                      identity(
+                          source,
+                          'live',
+                          source.provider === 'stalker'
+                              ? `live:${item.providerId}`
+                              : item.providerId
+                      )
           )
         : undefined;
 }

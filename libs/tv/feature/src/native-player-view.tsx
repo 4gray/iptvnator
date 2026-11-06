@@ -15,6 +15,7 @@ export function NativePlayerView({
     seriesDetails,
     openPlaylist,
     vod,
+    previousChannel,
 }: {
     tv: TvModel;
     video: RefObject<HTMLVideoElement>;
@@ -23,6 +24,7 @@ export function NativePlayerView({
     seriesDetails: ReturnType<typeof useSeriesDetails>;
     openPlaylist: () => void;
     vod: VodSequence;
+    previousChannel: { play: () => void; pending: boolean };
 }) {
     const current = tv.playing;
     const element = video.current;
@@ -58,6 +60,16 @@ export function NativePlayerView({
                         </button>
                         {current?.kind === 'live' ? (
                             <div class="actions">
+                                {tv.previousChannel ? (
+                                    <button
+                                        data-focus="player-previous"
+                                        disabled={previousChannel.pending}
+                                        onClick={previousChannel.play}
+                                    >
+                                        Previous channel ·{' '}
+                                        {tv.previousChannel.title}
+                                    </button>
+                                ) : null}
                                 <button
                                     data-focus="player-channels"
                                     onClick={overlay.openChannels}

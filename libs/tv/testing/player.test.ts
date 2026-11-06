@@ -14,6 +14,8 @@ test('native player records only confirmed playback, saves on pause and exposes 
     const video = dom.window.document.querySelector('video');
     assert.ok(video);
     Object.defineProperties(video, {
+        paused: { value: false },
+        currentSrc: { get: () => video.src },
         load: {
             value() {
                 return undefined;

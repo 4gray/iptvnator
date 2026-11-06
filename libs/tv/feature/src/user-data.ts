@@ -5,6 +5,7 @@ import {
     UserDataStorage,
 } from '@iptvnator/tv/data-access';
 import {
+    ConfirmedLiveChannels,
     initialData,
     recordProgress,
     setWatchState,
@@ -29,6 +30,7 @@ export function useUserData(
     const storage = useRef(new UserDataStorage());
     const repo = useRef<UserDataRepository>();
     const player = useRef<NativePlayer>();
+    const liveChannels = useRef(new ConfirmedLiveChannels());
     const callbacks = useRef({ report, tick, saveFailure });
     callbacks.current = { report, tick, saveFailure };
     if (!repo.current)
@@ -57,7 +59,9 @@ export function useUserData(
             (p) => update((d) => recordProgress(d, p)),
             (message) => callbacks.current.report(message),
             () => callbacks.current.tick(),
-            (message, retry) => callbacks.current.saveFailure(message, retry)
+            (message, retry) => callbacks.current.saveFailure(message, retry),
+            (item) =>
+                liveChannels.current.confirm(item, repo.current!.data.sources)
         );
         return () => {
             player.current?.dispose();
@@ -105,5 +109,6 @@ export function useUserData(
         update,
         favorite,
         watch,
+        previousChannel: liveChannels.current.previous(data.sources),
     };
 }

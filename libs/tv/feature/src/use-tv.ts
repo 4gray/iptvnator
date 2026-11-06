@@ -19,6 +19,7 @@ import {
     resumeSeconds,
 } from '@iptvnator/tv/util';
 import { focusKey, platformBack, restoreFocus } from '@iptvnator/tv/ui';
+const savedView = (view?: View) => view === 'home' || view === 'favorites';
 export function useTv(video: { current: HTMLVideoElement | null }) {
     const [route, setRoute] = useState(firstRoute);
     const { error, errorRetry, errorRetryLabel, setError, clearError } =
@@ -204,7 +205,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
             setPlaying(item);
             if (item.kind === 'live') {
                 playingCategory.current = category;
-                if (['home', 'favorites'].includes(route.view)) {
+                if (savedView(route.view)) {
                     setSelected(item);
                     visit(
                         { ...firstRoute(), view: 'live', kind: 'live' },
@@ -213,10 +214,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
                     );
                 }
             }
-            if (
-                item.kind !== 'live' ||
-                ['home', 'favorites'].includes(route.view)
-            ) {
+            if (item.kind !== 'live' || savedView(route.view)) {
                 setFullscreen(true);
                 restoreFocus('player-toggle');
             }
@@ -276,9 +274,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         if (fullscreen) {
             const savedLive =
                 playing?.kind === 'live' &&
-                ['home', 'favorites'].includes(
-                    stack.current[stack.current.length - 1]?.route.view
-                );
+                savedView(stack.current[stack.current.length - 1]?.route.view);
             setFullscreen(false);
             if (playing?.kind !== 'live' || savedLive) stop();
             if (!savedLive) {
@@ -290,11 +286,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         const previous = stack.current.pop();
         if (previous || route.view !== 'home') content.cancelBrowse();
         if (previous) {
-            if (
-                route.view === 'live' &&
-                ['home', 'favorites'].includes(previous.route.view)
-            )
-                stop();
+            if (route.view === 'live' && savedView(previous.route.view)) stop();
             pendingFocus.current = previous.focus;
             pendingScroll.current = previous.scroll;
             setSelected(previous.route.item);
