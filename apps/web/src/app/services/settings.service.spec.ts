@@ -96,6 +96,8 @@ describe('Service: Settings', () => {
         it.each([
             ['CREAM_THEME', 'cream', 'light-theme', 'dark-theme'],
             ['MOCHA_THEME', 'mocha', 'dark-theme', 'light-theme'],
+            ['NIGHT_OWL_THEME', 'night-owl', 'dark-theme', 'light-theme'],
+            ['BLACK_OLED_THEME', 'black-oled', 'dark-theme', 'light-theme'],
             [Theme.LightTheme, 'light', 'light-theme', 'dark-theme'],
             [Theme.DarkTheme, 'dark', 'dark-theme', 'light-theme'],
         ])(
@@ -116,18 +118,18 @@ describe('Service: Settings', () => {
             expect(systemThemeListeners).toHaveLength(1);
         });
 
-        it.each(['CREAM_THEME', 'MOCHA_THEME'])(
-            'stops following system changes after selecting %s',
-            (theme) => {
-                const service = TestBed.inject(SettingsService);
-                service.changeTheme(Theme.SystemTheme);
-                service.changeTheme(theme as Theme);
-                expect(systemThemeListeners).toHaveLength(0);
-                expect(document.body.dataset['appTheme']).toBe(
-                    theme === 'CREAM_THEME' ? 'cream' : 'mocha'
-                );
-            }
-        );
+        it.each([
+            ['CREAM_THEME', 'cream'],
+            ['MOCHA_THEME', 'mocha'],
+            ['NIGHT_OWL_THEME', 'night-owl'],
+            ['BLACK_OLED_THEME', 'black-oled'],
+        ])('stops following system changes after selecting %s', (theme, id) => {
+            const service = TestBed.inject(SettingsService);
+            service.changeTheme(Theme.SystemTheme);
+            service.changeTheme(theme as Theme);
+            expect(systemThemeListeners).toHaveLength(0);
+            expect(document.body.dataset['appTheme']).toBe(id);
+        });
 
         it('should switch to the dark theme', inject(
             [SettingsService],

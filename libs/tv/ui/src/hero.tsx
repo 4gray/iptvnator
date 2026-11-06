@@ -1,4 +1,9 @@
-import { mediaTitle, type Media, type Progress } from '@iptvnator/tv/util';
+import {
+    mediaTitle,
+    progressLabel,
+    type Media,
+    type Progress,
+} from '@iptvnator/tv/util';
 export function Hero({
     item,
     sourceName,
@@ -42,7 +47,7 @@ export function Hero({
                         {progress.item.kind === 'episode'
                             ? `S${progress.item.season ?? 1} · E${progress.item.episode ?? 1} · ${progress.item.title} · `
                             : ''}
-                        {Math.floor(progress.seconds / 60)} min watched
+                        {progressLabel(progress)}
                         {progress.duration > 0 ? (
                             <progress
                                 aria-label="Featured viewing progress"

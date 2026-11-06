@@ -77,6 +77,7 @@ export function useSourceActions(
             [
                 'Retry Home title',
                 'Retry favorite',
+                'Retry History title',
                 'Retry series details',
             ].includes(latest.current.tv.errorRetryLabel ?? '')
         )
@@ -98,7 +99,8 @@ export function useSourceActions(
         const current = latest.current;
         if (
             job.intent === 'play' ||
-            (job.item.kind === 'live' && current.tv.route.view === 'favorites')
+            (job.item.kind === 'live' &&
+                ['favorites', 'history'].includes(current.tv.route.view))
         ) {
             const owned = { job, controller: new AbortController() };
             playback.current = owned;
@@ -141,7 +143,7 @@ export function useSourceActions(
     ) {
         const current = latest.current.tv;
         if (
-            !['home', 'favorites'].includes(current.route.view) ||
+            !['home', 'favorites', 'history'].includes(current.route.view) ||
             current.fullscreen
         )
             return;
@@ -169,7 +171,9 @@ export function useSourceActions(
             retryLabel:
                 current.route.view === 'home'
                     ? 'Retry Home title'
-                    : 'Retry favorite',
+                    : current.route.view === 'history'
+                      ? 'Retry History title'
+                      : 'Retry favorite',
         };
         if (
             item.sourceId === current.data.activeId &&
@@ -252,7 +256,7 @@ export function useSourceActions(
     const waitingDetails =
         series.busy &&
         !!details.current &&
-        ['home', 'favorites'].includes(tv.route.view) &&
+        ['home', 'favorites', 'history'].includes(tv.route.view) &&
         !tv.fullscreen;
     useEffect(() => {
         if (!pending && !waitingDetails) return;
@@ -298,16 +302,20 @@ export function useSourceActions(
     );
     useEffect(() => {
         if (
-            ['Retry Home title', 'Retry favorite'].includes(
-                tv.errorRetryLabel ?? ''
-            ) &&
-            !['home', 'favorites'].includes(tv.route.view)
+            [
+                'Retry Home title',
+                'Retry favorite',
+                'Retry History title',
+            ].includes(tv.errorRetryLabel ?? '') &&
+            !['home', 'favorites', 'history'].includes(tv.route.view)
         )
             tv.setError('');
     }, [tv.route.view, tv.errorRetryLabel]);
     return {
-        open: (item: Media) => start(item, 'open'),
-        play: (item: Media) => start(item, 'play'),
+        open: (item: Media, origin?: NavigationOrigin) =>
+            start(item, 'open', origin),
+        play: (item: Media, origin?: NavigationOrigin) =>
+            start(item, 'play', origin),
         pending: !!pending,
         sourceName: pending
             ? tv.data.sources.find(

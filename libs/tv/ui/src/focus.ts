@@ -24,6 +24,7 @@ export function restoreFocus(
         if (scroll !== undefined) {
             const main = document.querySelector('main');
             if (main) main.scrollTop = scroll;
+            target?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
         }
     });
 }

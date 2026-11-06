@@ -1,18 +1,25 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures';
 
-const presets = ['light', 'dark', 'cream', 'mocha'] as const;
+const presets = [
+    'light',
+    'dark',
+    'cream',
+    'mocha',
+    'night-owl',
+    'black-oled',
+] as const;
 type Preset = (typeof presets)[number];
 
 function themeOption(page: Page, theme: Preset | 'system') {
     return page.locator(
-        `[data-test-id="select-theme"] [data-test-id="${theme.toUpperCase()}_THEME"]`
+        `[data-test-id="select-theme"] [data-test-id="${theme.replace(/-/g, '_').toUpperCase()}_THEME"]`
     );
 }
 
 async function expectTheme(page: Page, theme: Preset) {
     const body = page.locator('body');
-    const dark = theme === 'dark' || theme === 'mocha';
+    const dark = theme !== 'light' && theme !== 'cream';
     await expect(body).toHaveAttribute('data-app-theme', theme);
     await expect(body).toHaveClass(dark ? /dark-theme/ : /light-theme/);
     await expect(body).not.toHaveClass(dark ? /light-theme/ : /dark-theme/);
@@ -36,7 +43,7 @@ test.describe('PWA theme presets', () => {
         await openSettings(page);
     });
 
-    test('@theme @settings @pwa @web previews all four presets and discards to saved Mocha', async ({
+    test('@theme @settings @pwa @web previews all six presets and discards to saved Mocha', async ({
         page,
     }) => {
         await themeOption(page, 'mocha').click();
@@ -59,7 +66,12 @@ test.describe('PWA theme presets', () => {
         }
     });
 
-    for (const preset of ['cream', 'mocha'] as const) {
+    for (const preset of [
+        'cream',
+        'mocha',
+        'night-owl',
+        'black-oled',
+    ] as const) {
         test(`@theme @settings @persistence @pwa @web saves ${preset} across reload`, async ({
             page,
         }) => {
@@ -95,14 +107,38 @@ test.describe('PWA theme presets', () => {
         await expectTheme(page, 'mocha');
     });
 
-    test('@theme @settings @accessibility @pwa @web supports radio arrows and Home/End with four decorative previews', async ({
+    test('@theme @settings @pwa @web restores saved System and keeps explicit presets independent of the OS', async ({
+        page,
+    }) => {
+        await themeOption(page, 'light').click();
+        await saveSettings(page);
+        await themeOption(page, 'system').click();
+        await saveSettings(page);
+        for (const preset of presets) {
+            await themeOption(page, preset).click();
+            for (const colorScheme of ['light', 'dark'] as const) {
+                await page.emulateMedia({ colorScheme });
+                await expectTheme(page, preset);
+            }
+            await page.locator('[data-test-id="discard-settings"]').click();
+            await expectTheme(page, 'dark');
+            await expect(themeOption(page, 'system')).toHaveAttribute(
+                'aria-checked',
+                'true'
+            );
+            await page.emulateMedia({ colorScheme: 'light' });
+            await expectTheme(page, 'light');
+        }
+    });
+
+    test('@theme @settings @accessibility @pwa @web supports radio arrows and Home/End with six decorative previews', async ({
         page,
     }) => {
         const group = page.locator('[data-test-id="select-theme"]');
         await expect(group).toHaveAttribute('role', 'radiogroup');
-        await expect(group.getByRole('radio')).toHaveCount(5);
+        await expect(group.getByRole('radio')).toHaveCount(7);
         const previews = group.locator('[data-theme-preview]');
-        await expect(previews).toHaveCount(4);
+        await expect(previews).toHaveCount(6);
         expect(
             await previews.evaluateAll((elements) =>
                 elements.map((el) => ({
@@ -120,6 +156,8 @@ test.describe('PWA theme presets', () => {
             ['ArrowRight', 'dark'],
             ['ArrowDown', 'cream'],
             ['ArrowRight', 'mocha'],
+            ['ArrowRight', 'night-owl'],
+            ['ArrowDown', 'black-oled'],
             ['End', 'system'],
             ['ArrowRight', 'light'],
             ['ArrowLeft', 'system'],
