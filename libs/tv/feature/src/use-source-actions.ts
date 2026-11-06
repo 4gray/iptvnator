@@ -337,10 +337,12 @@ export function useSourceActions(
     );
     useEffect(() => {
         if (
-            ['Retry Home title', 'Retry favorite'].includes(
+            (tv.errorRetryLabel === 'Retry previous channel' &&
+                tv.route.view !== 'live') ||
+            (['Retry Home title', 'Retry favorite'].includes(
                 tv.errorRetryLabel ?? ''
             ) &&
-            !['home', 'favorites'].includes(tv.route.view)
+                !['home', 'favorites'].includes(tv.route.view))
         )
             tv.setError('');
     }, [tv.route.view, tv.errorRetryLabel]);

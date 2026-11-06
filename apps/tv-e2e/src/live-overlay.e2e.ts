@@ -61,6 +61,10 @@ for (const provider of ['xtream', 'stalker', 'm3u'] as const) {
 test('expanded guide shows supplied days and descriptions, windows rows and keeps playback', async ({
     page,
 }) => {
+    const midnight = new Date();
+    midnight.setHours(0, 0, 0, 0);
+    // Keep the initial programme window stable while checking Tab order.
+    await page.clock.setFixedTime(new Date(midnight.getTime() + 60000));
     await start(page);
     await page.route(`${backend}/xtream?**`, async (route) => {
         if (
@@ -68,8 +72,6 @@ test('expanded guide shows supplied days and descriptions, windows rows and keep
             'get_short_epg'
         )
             return route.continue();
-        const midnight = new Date();
-        midnight.setHours(0, 0, 0, 0);
         await route.fulfill({
             json: {
                 payload: {

@@ -293,6 +293,24 @@ closes its owning overlay or picker first. Back closes the overlay before
 leaving fullscreen; the category header changes groups within the drawer.
 The shared browse state retains loaded pages and scroll positions across surfaces.
 
+Home's Recent channels rail derives up to twelve unique Live entries from the
+existing confirmed history, newest first, retaining exact source/provider/media
+keys (including Stalker's Live prefix) and excluding unavailable sources.
+Focus only browses; OK activates the exact saved source and resolves a fresh link.
+Back returns to the opening Home card. Reload restores recents without starting
+video; the history cap, favorites and VOD positions keep their existing storage.
+
+Fullscreen Live exposes Previous channel after two distinct channels have played
+in the current session. Only a native `playing` event for the current loaded,
+ready, unpaused stream advances the pair. Repeated confirmation, failed resolution
+or native start, and obsolete events do not replace it. Each switch uses the saved
+source-action lifecycle and fresh resolution; a cross-source switch may stop video
+while connecting. Removed or changed source/account connections invalidate the
+corresponding candidate. The pair is session-only: history is not treated as a
+current playing channel after launch. Pending Previous can be canceled with Back;
+modal Back closes its overlay first. Existing Left/drawer, media and system keys
+are unchanged; no Channel +/- hardware support or autoplay is added.
+
 Expand guide in preview and Programme in fullscreen open the single-channel guide.
 It shows only supplied dates, with Now, programme details and independent scrolling.
 At most 21 programme rows (including a retained selection) and seven date buttons

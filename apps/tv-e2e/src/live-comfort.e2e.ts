@@ -347,3 +347,56 @@ test('TV Live comfort account edits invalidate Previous without autoplay or dele
     await expect(page.locator('.native-player.fullscreen')).toBeVisible();
     await expect(previous(page)).toHaveCount(0);
 });
+
+test('TV Live comfort failed cross-source connection retries keep the pair and Back clears obsolete recovery', async ({
+    page,
+}) => {
+    await start(page);
+    await addSource(page, 'xtream', { name: 'Demo North' });
+    await playLive(page);
+    const a = await switchInDrawer(page, 0);
+    await page.keyboard.press('Escape');
+    await addSource(page, 'stalker', { name: 'Demo South' });
+    await nav(page, 'TV');
+    const row = page.locator('.channel').first();
+    const b = (await row.getAttribute('data-focus'))!;
+    await row.click();
+    await confirmed(page, b);
+    await page.getByRole('button', { name: 'Open fullscreen' }).click();
+    let fail = true,
+        attempts = 0;
+    await page.route(`${backend}/xtream?**`, (route) => {
+        const action =
+            new URL(route.request().url()).searchParams.get('action') ?? '';
+        if (!['get_account_info', '', 'get_profile'].includes(action))
+            return route.fallback();
+        attempts++;
+        return fail
+            ? route.fulfill({
+                  status: 503,
+                  body: 'Synthetic connection failure',
+              })
+            : route.fallback();
+    });
+    await previous(page).click();
+    const retry = page.getByRole('button', {
+        name: 'Retry previous channel',
+        exact: true,
+    });
+    await expect(retry).toBeVisible();
+    const firstAttempts = attempts;
+    await retry.click();
+    await expect.poll(() => attempts).toBeGreaterThan(firstAttempts);
+    await expect(retry).toBeVisible();
+    await expect(page.locator('video[src],video source')).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await expect(recents(page)).toBeVisible();
+    await expect(retry).toHaveCount(0);
+    fail = false;
+    await recents(page)
+        .getByRole('button', { name: `${a.title} Demo North`, exact: true })
+        .click();
+    await confirmed(page, a.id);
+    await expect(previous(page)).toBeVisible();
+    await expect(page.locator('.player-source-name')).toHaveText('Demo North');
+});
