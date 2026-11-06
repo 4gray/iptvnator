@@ -32,8 +32,7 @@ function fixture(provider: HistoryScope['provider']) {
             _s: HistoryScope,
             update: (r: HistoryRecord) => HistoryRecord
         ) => {
-            record = update(JSON.parse(JSON.stringify(record)));
-            return record;
+            return (record = update(JSON.parse(JSON.stringify(record))));
         },
     };
     const client = new HistorySyncClient(store, {
@@ -58,6 +57,10 @@ const locks = {
     active: () => false,
     withholdsEverything: () => false,
     version: () => 0,
+};
+const stalkerMetadata = {
+    item: (_playlist: Playlist, item: StalkerPortalItem) => item,
+    project: (playlist: Playlist) => playlist,
 };
 const playlist = {
     _id: 'source',
@@ -139,6 +142,7 @@ describe('history provider projections', () => {
             const recent = Object.assign(
                 Object.create(UnifiedRecentDataService.prototype),
                 {
+                    stalkerMetadata,
                     history: {
                         active: () => true,
                         project: (p: Playlist) => adapter.project(p),
@@ -202,6 +206,7 @@ describe('history provider projections', () => {
             const recent = Object.assign(
                 Object.create(UnifiedRecentDataService.prototype),
                 {
+                    stalkerMetadata,
                     history: {
                         active: () => true,
                         project: async (p: Playlist) => p,
@@ -213,6 +218,7 @@ describe('history provider projections', () => {
             const favorites = Object.assign(
                 Object.create(UnifiedFavoritesDataService.prototype),
                 {
+                    stalkerMetadata,
                     favoriteSync: {
                         active: () => enabled,
                         project: async (p: Playlist) => p,
