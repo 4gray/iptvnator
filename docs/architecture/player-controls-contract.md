@@ -115,6 +115,9 @@ after rendering each issue, with only its bounded `code` in the detail. It conta
 no stream URL or provider credentials; the TV
 shell uses format/decode codes for its external-player offer without treating
 network failures as unsupported media.
+Delayed native media errors retain the media element, source and load-attempt
+identity. Removal, replacement, a changed source or another `loadstart` discards
+that error before it can offer recovery for a newer playback attempt.
 
 `PlayerController` remains a sibling of playback diagnostics and recovery
 recommendations. It owns engine-neutral playback state, capabilities, and

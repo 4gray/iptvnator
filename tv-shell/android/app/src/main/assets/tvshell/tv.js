@@ -1128,8 +1128,13 @@
         document.addEventListener('error', function (e) {
             var t = e.target;
             if (!t || !(t.tagName === 'VIDEO' || t.tagName === 'AUDIO')) return;
+            var failedSource = t.currentSrc || t.getAttribute('src');
+            var failedAttempt = t.__tvLoadAttempt || 0;
             // Let the player settle (video.js reports its own error afterwards).
             setTimeout(function () {
+                if (!t.isConnected || activeVideo() !== t ||
+                    (t.__tvLoadAttempt || 0) !== failedAttempt ||
+                    (t.currentSrc || t.getAttribute('src')) !== failedSource) return;
                 var url = api.currentStreamUrl();
                 var code = (t.error && t.error.code) || (hasPlayerError(t) ? 4 : 0);
                 // 1 = aborted, 2 = network: the connection failed, not the format; an external
@@ -1183,6 +1188,7 @@
         document.addEventListener('loadstart', function (e) {
             var t = e.target;
             if (t && (t.tagName === 'VIDEO' || t.tagName === 'AUDIO')) {
+                t.__tvLoadAttempt = (t.__tvLoadAttempt || 0) + 1;
                 currentVideo = t;
                 noteMediaUrl(t.currentSrc || t.getAttribute('src'), null, true);
                 promptedFor = null; // a new load attempt may prompt once more

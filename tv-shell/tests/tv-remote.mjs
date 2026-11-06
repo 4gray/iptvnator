@@ -524,6 +524,37 @@ console.log('9. under the Android bridge: the screen follows playback, error cod
         engineVideo.removeAttribute('src');
         engineVideo.load();
         engineVideo.remove();
+        // A decode error may outlive the element or the load attempt that raised it.
+        const failedVideo = (name) => {
+            const element = document.createElement('video');
+            Object.defineProperty(element, 'currentSrc', { configurable: true, value: provider + '/movie/synthetic-account/synthetic-secret/' + name + '.mp4' });
+            Object.defineProperty(element, 'error', { value: { code: 4 } });
+            document.body.appendChild(element);
+            element.dispatchEvent(new Event('loadstart'));
+            return element;
+        };
+        const oldPlayer = failedVideo('old');
+        recent = since();
+        oldPlayer.dispatchEvent(new Event('error'));
+        oldPlayer.remove();
+        const nextPlayer = failedVideo('replacement');
+        await wait(600);
+        out.removedPlayerError = recent();
+        recent = since();
+        nextPlayer.dispatchEvent(new Event('error'));
+        nextPlayer.dispatchEvent(new Event('loadstart')); // same URL, fresh attempt
+        await wait(600);
+        out.retriedPlayerError = recent();
+        recent = since();
+        nextPlayer.dispatchEvent(new Event('error'));
+        Object.defineProperty(nextPlayer, 'currentSrc', { value: provider + '/movie/synthetic-account/synthetic-secret/changed.mp4' });
+        await wait(600);
+        out.changedPlayerError = recent();
+        recent = since();
+        nextPlayer.dispatchEvent(new Event('error'));
+        await wait(600);
+        out.currentPlayerError = recent();
+        nextPlayer.remove();
         return out;
     }, PROVIDER);
     check(r.playing.includes('setKeepScreenOn true'), 'playback keeps the screen on: ' + r.playing.join(' | '));
@@ -539,6 +570,10 @@ console.log('9. under the Android bridge: the screen follows playback, error cod
         'an engine codec failure offers the external player without a native media error');
     check(r.engineDuplicateError.length === 1, 'the same engine failure offers the external player once');
     check(r.engineInsertedError.length === 2, 'a new load attempt can offer one prompt even when its codec diagnostic is unchanged');
+    check(!r.removedPlayerError.some((call) => call.startsWith('onPlaybackError ')), 'a removed player cannot offer recovery for its replacement');
+    check(!r.retriedPlayerError.some((call) => call.startsWith('onPlaybackError ')), 'a fresh attempt of the same source discards the previous delayed error');
+    check(!r.changedPlayerError.some((call) => call.startsWith('onPlaybackError ')), 'changing source before loadstart also discards the old error');
+    check(r.currentPlayerError.filter((call) => call.startsWith('onPlaybackError ')).length === 1, 'a current unrecovered decode error still offers one recovery prompt');
     const bridgeFailures = [];
     bridged.on('console', (message) => {
         if (message.text().startsWith('[tvshell]')) bridgeFailures.push(message.text());
