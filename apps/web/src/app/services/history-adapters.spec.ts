@@ -6,6 +6,7 @@ import {
     UnifiedRecentDataService,
 } from '@iptvnator/portal/shared/data-access';
 import { signal } from '@angular/core';
+import { of } from 'rxjs';
 import { HistorySyncClient } from '@iptvnator/services/history-sync';
 import {
     emptyHistoryRecord,
@@ -16,6 +17,7 @@ import {
 } from '@iptvnator/shared/interfaces/history-sync';
 import { m3uFavoriteReference } from '@iptvnator/shared/interfaces/favorites-sync';
 import type { Playlist, StalkerPortalItem } from '@iptvnator/shared/interfaces';
+import { buildPlaylistRecentItems } from '@iptvnator/shared/interfaces';
 function fixture(provider: HistoryScope['provider']) {
     const scope: HistoryScope = {
         instanceId: 'nas',
@@ -65,6 +67,166 @@ const playlist = {
     autoRefresh: false,
 } as Playlist;
 describe('history provider projections', () => {
+    it.each([false, true])(
+        'matches Stalker favorite membership independently of history consent, favorites=%s',
+        async (enabled) => {
+            const f = fixture('stalker');
+            for (const kind of ['live', 'movie'] as const)
+                f.read().base = applyHistoryOperation(f.read().base, {
+                    kind: 'touch',
+                    reference: { provider: 'stalker', kind, id: '42' },
+                    snapshot: { title: `Synthetic ${kind}` },
+                    operationId: `synthetic-${kind}`,
+                    deviceId: 'synthetic-device',
+                    baseRevision: f.read().base.revision,
+                    viewedAt: 1,
+                }).state;
+            const source = {
+                ...playlist,
+                macAddress: 'synthetic-mac',
+                favorites: [
+                    {
+                        id: '42',
+                        type: 'itv',
+                        name: 'Synthetic live',
+                        category_id: 'itv',
+                    },
+                ],
+            } as unknown as Playlist;
+            const projected = await new HistoryPlaylistAdapter(
+                f.client,
+                async (p) => p
+            ).project(source);
+            const remove = jest.fn(() => of(source));
+            const add = jest.fn(() => of(source));
+            const playlists = {
+                getPlaylistById: () => of(projected),
+                preparePortalFavoriteActions: async () => undefined,
+                removeFromPortalFavorites: remove,
+                addPortalFavorite: add,
+            };
+            const recent = Object.assign(
+                Object.create(UnifiedRecentDataService.prototype),
+                {
+                    history: { active: () => true },
+                    playlistsService: playlists,
+                    getPlaylistMeta: async () => projected,
+                }
+            ) as UnifiedRecentDataService;
+            const favorites = Object.assign(
+                Object.create(UnifiedFavoritesDataService.prototype),
+                {
+                    favoriteSync: {
+                        active: () => enabled,
+                        project: async (p: Playlist) => p,
+                    },
+                    playlistsService: playlists,
+                    getPlaylistMeta: async () => projected,
+                }
+            ) as UnifiedFavoritesDataService;
+            const collection = Object.assign(
+                Object.create(UnifiedCollectionDataService.prototype),
+                {
+                    favoritesData: favorites,
+                    recentData: recent,
+                    requestId: 0,
+                    request: signal(null),
+                    allItems: signal([]),
+                    isLoading: signal(true),
+                    favoriteUidSet: signal(new Set<string>()),
+                    reloadIndicator: {
+                        begin: () => undefined,
+                        settle: () => undefined,
+                    },
+                }
+            ) as UnifiedCollectionDataService;
+            const items = await collection.load({
+                mode: 'recent',
+                scope: 'playlist',
+                playlistId: 'source',
+                portalType: 'stalker',
+            });
+            expect(items).toHaveLength(2);
+            const live = items!.find((item) => item.contentType === 'live')!;
+            const movie = items!.find((item) => item.contentType === 'movie')!;
+            expect(collection.favoriteUidSet().has(live.uid)).toBe(true);
+            expect(collection.favoriteUidSet().has(movie.uid)).toBe(false);
+            await collection.toggleFavorite(live);
+            expect(remove).toHaveBeenCalledWith(
+                'source',
+                '42',
+                live.stalkerItem
+            );
+            expect(add).not.toHaveBeenCalled();
+            expect(collection.favoriteUidSet().has(live.uid)).toBe(false);
+        }
+    );
+
+    it.each(['local', 'received'] as const)(
+        'rehydrates M3U artwork and EPG metadata for a %s watch without an archive row',
+        async (origin) => {
+            const f = fixture('m3u');
+            const channel = {
+                id: 'synthetic-channel',
+                name: 'Synthetic display',
+                url: 'https://stream.example/live',
+                group: { title: 'Synthetic group' },
+                tvg: {
+                    id: 'synthetic.xmltv',
+                    name: 'Synthetic EPG name',
+                    logo: 'https://artwork.example/logo.svg',
+                },
+            };
+            const source = {
+                ...playlist,
+                items: [channel],
+            } as unknown as Playlist;
+            const reference = await m3uFavoriteReference(channel.url);
+            if (origin === 'received')
+                f.read().base = applyHistoryOperation(f.read().base, {
+                    kind: 'touch',
+                    reference,
+                    baseRevision: 0,
+                    operationId: 'synthetic-received',
+                    deviceId: 'synthetic-device',
+                    viewedAt: 1,
+                }).state;
+            const adapter = new HistoryPlaylistAdapter(
+                f.client,
+                async () => source
+            );
+            const projected =
+                origin === 'received'
+                    ? await adapter.project(source)
+                    : await adapter.mutate(source, {
+                          kind: 'touch',
+                          item: {
+                              source: 'm3u',
+                              id: channel.url,
+                              url: channel.url,
+                              title: channel.name,
+                              category_id: 'live',
+                              added_at: 1,
+                          },
+                      });
+            expect(projected!.recentlyViewed).toEqual([
+                expect.objectContaining({
+                    poster_url: channel.tvg.logo,
+                    tvg_id: channel.tvg.id,
+                    tvg_name: channel.tvg.name,
+                    group_title: channel.group.title,
+                }),
+            ]);
+            const [row] = buildPlaylistRecentItems([projected!], {
+                m3u: 'Synthetic M3U',
+                stalker: 'Synthetic portal',
+            });
+            expect(row.poster_url).toBe(channel.tvg.logo);
+            expect(row.epg_lookup_key).toBe(channel.tvg.id);
+            expect(JSON.stringify(f.read())).not.toContain(channel.tvg.logo);
+            expect(JSON.stringify(f.read())).not.toContain(channel.tvg.id);
+        }
+    );
     it.each([true, false])(
         'keeps unresolved row IDs separate with sqlite=%s',
         async (sqlite) => {

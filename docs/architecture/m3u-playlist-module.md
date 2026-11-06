@@ -2244,3 +2244,5 @@ random local channel IDs do not establish a match. Playback-confirmation ownersh
 is captured before waiting and retired with its source/profile. Legacy rows remain
 local until explicit preview/import; URL and credential-bearing metadata do not
 travel through the history API.
+Received and newly confirmed rows recover artwork, XMLTV identifiers/names and
+group labels from the matched local channel; these fields remain device-local.

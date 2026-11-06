@@ -6,6 +6,7 @@ import {
     type PlaylistRecentlyViewedItem,
     type PlaylistRecentIdentity,
     type M3uRecentlyViewedItem,
+    type Channel,
 } from '@iptvnator/shared/interfaces';
 import type { HistorySyncClient } from '@iptvnator/services/history-sync';
 import type { HistoryPlaylistAction } from '@iptvnator/services/history-events';
@@ -29,15 +30,14 @@ export interface LocalHistoryItem {
     original: PlaylistRecentlyViewedItem;
     viewedAt: number;
 }
+type HistoryChannel = Partial<Channel> & Pick<Channel, 'url'>;
 export class HistoryPlaylistAdapter {
     private readonly indexes = new Map<
         string,
         {
             stamp: string;
             channels: object;
-            value: Promise<
-                Map<string, { url: string; id?: string; name?: string }>
-            >;
+            value: Promise<Map<string, HistoryChannel>>;
         }
     >();
     constructor(
@@ -124,14 +124,22 @@ export class HistoryPlaylistAdapter {
                 });
             else if (ref.provider === 'm3u') {
                 const channel = urls.get(key);
+                const archived = isM3uRecentlyViewedItem(original)
+                    ? original
+                    : undefined;
                 if (channel)
                     mapped.set(key, {
-                        ...(isM3uRecentlyViewedItem(original) ? original : {}),
+                        ...archived,
                         source: 'm3u',
                         id: channel.url,
                         url: channel.url,
                         channel_id: channel.id,
                         title: channel.name ?? item.snapshot?.title ?? '',
+                        poster_url: channel.tvg?.logo || archived?.poster_url,
+                        tvg_id: channel.tvg?.id || archived?.tvg_id,
+                        tvg_name: channel.tvg?.name || archived?.tvg_name,
+                        group_title:
+                            channel.group?.title || archived?.group_title,
                         category_id: 'live',
                         added_at: date,
                     } as M3uRecentlyViewedItem);
@@ -148,14 +156,10 @@ export class HistoryPlaylistAdapter {
             ),
         };
     }
-    private urls(
-        source: Playlist
-    ): Promise<Map<string, { url: string; id?: string; name?: string }>> {
-        const channels = (source.playlist?.items ?? source.items ?? []) as {
-            url?: string;
-            id?: string;
-            name?: string;
-        }[];
+    private urls(source: Playlist): Promise<Map<string, HistoryChannel>> {
+        const channels = (source.playlist?.items ??
+            source.items ??
+            []) as Partial<Channel>[];
         const stamp = JSON.stringify([
             source.sourceSyncRevision,
             source.updateDate,
@@ -171,10 +175,7 @@ export class HistoryPlaylistAdapter {
         )
             return cached.value;
         const value = (async () => {
-            const urls = new Map<
-                string,
-                { url: string; id?: string; name?: string }
-            >();
+            const urls = new Map<string, HistoryChannel>();
             for (const channel of channels)
                 if (channel.url)
                     urls.set(

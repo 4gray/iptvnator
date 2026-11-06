@@ -2148,3 +2148,5 @@ command-bearing snapshots stay in the local playlist archive; the server receive
 only references and safe display hints. Received command-less rows reuse the
 existing provider resolver and parental checks when reopened. Remove and clear
 retain durable intent, independently of resume and watched synchronization.
+Collection favorite membership uses typed references independently of either
+sync consent, so received history matches local favorites without merging kinds.

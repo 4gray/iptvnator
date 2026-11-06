@@ -76,15 +76,15 @@ export class UnifiedFavoritesDataService {
     }
 
     membershipUid(item: UnifiedCollectionItem): string {
-        return item.sourceType === 'stalker' &&
-            this.favoriteSync.active() &&
-            item.stalkerItem
-            ? buildCollectionUid(
-                  'stalker',
-                  item.playlistId,
-                  this.getStalkerFavoriteId(item)
-              )
-            : item.uid;
+        if (item.sourceType !== 'stalker' || !item.stalkerItem) return item.uid;
+        const reference = stalkerFavoriteReference(item.stalkerItem);
+        return buildCollectionUid(
+            'stalker',
+            item.playlistId,
+            reference
+                ? favoriteReferenceKey(reference)
+                : this.getStalkerFavoriteId(item)
+        );
     }
 
     async addFavorite(item: UnifiedCollectionItem): Promise<void> {
