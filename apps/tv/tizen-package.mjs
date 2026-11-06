@@ -11,6 +11,7 @@ import { JSDOM } from 'jsdom';
 import { verifyTvBundle } from './build-check.mjs';
 
 export const tizenInput = 'dist/tv-tizen-input';
+const samsungApiScript = '<script src="$WEBAPIS/webapis/webapis.js"></script>';
 
 export function stageTizenPackage(workspace) {
     const build = resolve(workspace, 'dist/apps/tv');
@@ -33,12 +34,23 @@ export function stageTizenPackage(workspace) {
         input + '/config.xml',
         template.replace('__TV_VERSION__', app.version)
     );
+    const html = readFileSync(input + '/index.html', 'utf8');
+    writeFileSync(
+        input + '/index.html',
+        html.replace('<head>', '<head>\n' + samsungApiScript)
+    );
     verifyTizenPackage(input);
     return input;
 }
 
 export function verifyTizenPackage(input) {
     const bytes = verifyTvBundle(input);
+    const html = readFileSync(input + '/index.html', 'utf8');
+    assert.ok(
+        html.includes(samsungApiScript) &&
+            html.indexOf(samsungApiScript) < html.indexOf('<script defer'),
+        'Tizen input must load the Samsung SDK before the application'
+    );
     assert.equal(
         existsSync(input + '/appinfo.json'),
         false,

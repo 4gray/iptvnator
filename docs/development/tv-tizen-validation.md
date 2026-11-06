@@ -25,6 +25,9 @@ keep certificates, profiles, credentials and device addresses out of Git.
   (including signed/query URLs) and MPEG-TS: picture, audio and recoverable errors.
 - [ ] Films/episodes pause, resume, seek and restore saved positions, including late
   duration/seekable ranges. Stop removes the old source; Back restores the opening control.
+- [ ] With Auto Protection Time enabled, watch Live and VOD beyond its interval
+  without remote input. Playback stays visible; pause/stop, playback error and app
+  hide restore screensaver protection, and resuming playback disables it again.
 - [ ] Single-channel and multi-channel EPG load, scroll and handle unavailable data.
 - [ ] Sources, settings, favorites, history and positions survive exit/cold relaunch
   and reinstall/update as appropriate. Check quota failure, offline/backend recovery,

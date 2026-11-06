@@ -1,6 +1,19 @@
 import { detectTvPlatform, tvMediaKeys } from '@iptvnator/tv/util';
 
 interface TvWindow {
+    webapis?: {
+        appcommon?: {
+            AppCommonScreenSaverState: {
+                SCREEN_SAVER_ON: number;
+                SCREEN_SAVER_OFF: number;
+            };
+            setScreenSaver: (
+                state: number,
+                success: () => void,
+                error: () => void
+            ) => void;
+        };
+    };
     tizen?: {
         tvinputdevice?: { registerKey: (name: string) => void };
         application?: {
@@ -46,4 +59,39 @@ export function platformBack() {
         platform.tizen.application.getCurrentApplication().exit();
     else if (platform.webOS?.platformBack) platform.webOS.platformBack();
     else platform.PalmSystem?.platformBack?.();
+}
+
+/** The platform SDK is loaded only by the staged Samsung package. */
+export function installTvScreensaver(video: HTMLVideoElement) {
+    const common = tvWindow().webapis?.appcommon;
+    if (!common?.setScreenSaver) return () => undefined;
+    const document = video.ownerDocument;
+    const warn = () => console.warn('TV screensaver update failed.');
+    const set = (enabled: boolean) => {
+        try {
+            common.setScreenSaver(
+                enabled
+                    ? common.AppCommonScreenSaverState.SCREEN_SAVER_ON
+                    : common.AppCommonScreenSaverState.SCREEN_SAVER_OFF,
+                () => undefined,
+                warn
+            );
+        } catch {
+            warn();
+        }
+    };
+    const sync = () =>
+        set(document.hidden || video.paused || video.ended || !!video.error);
+    const release = () => set(true);
+    const events = ['playing', 'pause', 'ended', 'error', 'emptied'];
+    for (const name of events) video.addEventListener(name, sync);
+    document.addEventListener('visibilitychange', sync);
+    window.addEventListener('pagehide', release);
+    sync();
+    return () => {
+        for (const name of events) video.removeEventListener(name, sync);
+        document.removeEventListener('visibilitychange', sync);
+        window.removeEventListener('pagehide', release);
+        release();
+    };
 }

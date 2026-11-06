@@ -34,7 +34,7 @@ function fixture(t) {
     );
     writeFileSync(
         join(build, 'index.html'),
-        '<script defer src="./assets/tv.js"></script>'
+        '<html><head><script defer src="./assets/tv.js"></script></head><body></body></html>'
     );
     writeFileSync(
         join(build, 'assets/tv.js'),
@@ -70,6 +70,16 @@ test('Tizen staging reuses the verified bundle/version/icon and leaves LG files 
     assert.equal(existsSync(join(input, 'large-icon.png')), false);
     assert.equal(existsSync(join(input, 'appinfo.json')), false);
     assert.equal(existsSync(join(build, 'config.xml')), false);
+    const html = readFileSync(join(input, 'index.html'), 'utf8');
+    assert.match(
+        html,
+        /<script src="\$WEBAPIS\/webapis\/webapis\.js"><\/script>/
+    );
+    assert.ok(html.indexOf('$WEBAPIS/') < html.indexOf('./assets/tv.js'));
+    assert.doesNotMatch(
+        readFileSync(join(build, 'index.html'), 'utf8'),
+        /WEBAPIS/
+    );
     for (const [name, bytes] of before)
         assert.deepEqual(readFileSync(join(build, name)), bytes);
     writeFileSync(
@@ -81,6 +91,14 @@ test('Tizen staging reuses the verified bundle/version/icon and leaves LG files 
 });
 
 for (const [name, change] of [
+    [
+        'missing Samsung API script',
+        (input) =>
+            writeFileSync(
+                join(input, 'index.html'),
+                '<script defer src="./assets/tv.js"></script>'
+            ),
+    ],
     [
         'module script',
         (input) =>

@@ -65,6 +65,14 @@ See [development](../development/tv-development.md#samsung-tizen-tv) and the
 [unchecked device acceptance](../development/tv-tizen-validation.md), including
 Samsung Store exit-confirmation policy, before claiming device support.
 
+Only staged Tizen HTML loads the device-provided `$WEBAPIS/webapis/webapis.js`
+before the deferred application bundle; LG HTML is unchanged. The platform
+binding follows the existing video element: active visible playback disables
+Samsung's screensaver, while pause, end, error, source removal, app hide/pagehide
+and disposal restore protection. Missing AppCommon APIs leave playback alone;
+device failures report only a static warning. This uses no additional privilege.
+Actual Auto Protection Time behavior remains an unchecked hardware requirement.
+
 ## Provider contract
 
 `ProviderClient` implements connection, paged catalogs/categories, metadata,

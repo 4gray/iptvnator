@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { tvBackCodes } from '@iptvnator/tv/util';
-import { nav, start } from './helpers';
+import { addSource, nav, start } from './helpers';
+import { playLive } from './live-media';
 
 for (const platform of ['webos', 'tizen'] as const) {
     test(
@@ -104,3 +105,45 @@ for (const platform of ['webos', 'tizen'] as const) {
         }
     );
 }
+
+test('Samsung screensaver is disabled only while the native player is playing', async ({
+    page,
+}) => {
+    await page.addInitScript(() => {
+        const states: number[] = [];
+        Object.assign(window, {
+            screenSaverStates: states,
+            webapis: {
+                appcommon: {
+                    AppCommonScreenSaverState: {
+                        SCREEN_SAVER_ON: 1,
+                        SCREEN_SAVER_OFF: 0,
+                    },
+                    setScreenSaver: (state: number) => states.push(state),
+                },
+            },
+        });
+    });
+    const state = () =>
+        page.evaluate(() => {
+            const evidence = window as unknown as {
+                screenSaverStates: number[];
+            };
+            return evidence.screenSaverStates.at(-1);
+        });
+    await start(page);
+    await expect.poll(state).toBe(1);
+    await addSource(page, 'xtream');
+    await playLive(page);
+    await expect.poll(state).toBe(0);
+    await page.getByRole('button', { name: /^Pause/ }).click();
+    await expect.poll(state).toBe(1);
+    await page.getByRole('button', { name: /^Play ▶/ }).click();
+    await expect.poll(state).toBe(0);
+    await page.locator('body').dispatchEvent('keydown', {
+        key: 'MediaStop',
+        keyCode: 413,
+    });
+    await expect(page.locator('video[src],video source')).toHaveCount(0);
+    await expect.poll(state).toBe(1);
+});
