@@ -1,7 +1,12 @@
 import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
 import { of } from 'rxjs';
-import { DatabaseService, PlaylistsService } from '@iptvnator/services';
+import {
+    DatabaseService,
+    PlaylistsService,
+    RuntimeCapabilitiesService,
+} from '@iptvnator/services';
+import { HISTORY_PLAYLIST_BRIDGE } from '@iptvnator/services/history-events';
 import {
     Channel,
     M3uRecentlyViewedItem,
@@ -195,6 +200,75 @@ describe('UnifiedRecentDataService', () => {
         service = TestBed.inject(UnifiedRecentDataService);
     });
 
+    it.each([
+        ['all', true],
+        ['playlist', true],
+        ['all', false],
+        ['playlist', false],
+    ] as const)(
+        'retains desktop catalog status through the history bridge, scope=%s native=%s',
+        async (scope, native) => {
+            const active = jest
+                .spyOn(TestBed.inject(HISTORY_PLAYLIST_BRIDGE), 'active')
+                .mockReturnValue(true);
+            const sqlite = jest
+                .spyOn(
+                    TestBed.inject(RuntimeCapabilitiesService),
+                    'supportsXtreamSqliteDataSource',
+                    'get'
+                )
+                .mockReturnValue(native);
+            try {
+                store.select.mockReturnValue(
+                    of([
+                        {
+                            _id: 'synthetic-xtream',
+                            title: 'Synthetic source',
+                            serverUrl: 'https://portal.example',
+                            xtreamContentTypes: ['live'],
+                        } satisfies Partial<PlaylistMeta>,
+                    ])
+                );
+                xtreamDataSource.getRecentItems.mockResolvedValue(
+                    ['movie', 'live'].map((type, index) => ({
+                        id: index + 1,
+                        xtream_id: index + 42,
+                        type,
+                        title: `Synthetic ${type}`,
+                        category_id: 7,
+                        poster_url: '',
+                        catalog_status: 'present',
+                        viewed_at: '2026-11-06T12:00:00Z',
+                    }))
+                );
+                const items = await service.getRecentItems(
+                    scope,
+                    scope === 'playlist' ? 'synthetic-xtream' : undefined,
+                    'xtream'
+                );
+                expect(items).toHaveLength(2);
+                expect(
+                    Boolean(
+                        items.find((item) => item.contentType === 'movie')
+                            ?.catalogDisabled
+                    )
+                ).toBe(native);
+                expect(
+                    Boolean(
+                        items.find((item) => item.contentType === 'live')
+                            ?.catalogDisabled
+                    )
+                ).toBe(false);
+                expect(
+                    items.every((item) => item.catalogStatus === 'present')
+                ).toBe(true);
+            } finally {
+                active.mockRestore();
+                sqlite.mockRestore();
+            }
+        }
+    );
+
     it('rehydrates M3U recent items with stream and channel metadata', async () => {
         const items = await service.getRecentItems('playlist', 'm3u-1', 'm3u');
 
@@ -302,7 +376,7 @@ describe('UnifiedRecentDataService', () => {
         } satisfies UnifiedCollectionItem;
         await service.recordLivePlayback(item);
         expect(xtreamDataSource.addRecentItem).toHaveBeenCalledWith(
-            { id: 290, type: 'live' },
+            { id: 290, type: 'live', providerId: 290 },
             'xtream-1',
             undefined,
             {
@@ -340,7 +414,7 @@ describe('UnifiedRecentDataService', () => {
             'movie'
         );
         expect(xtreamDataSource.addRecentItem).toHaveBeenCalledWith(
-            { id: 290, type: 'movie' },
+            { id: 290, type: 'movie', providerId: 290 },
             'xtream-1',
             undefined,
             { title: 'PWA Movie', posterUrl: undefined, categoryId: undefined }
@@ -372,7 +446,7 @@ describe('UnifiedRecentDataService', () => {
         } satisfies UnifiedCollectionItem);
 
         expect(xtreamDataSource.removeRecentItem).toHaveBeenCalledWith(
-            { id: 444, type: 'movie' },
+            { id: 444, type: 'movie', providerId: 290 },
             'xtream-1'
         );
         expect(dbService.removeRecentItem).not.toHaveBeenCalled();

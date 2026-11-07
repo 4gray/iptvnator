@@ -58,6 +58,7 @@ for (const engine of [
                 );
             }
             await openSettings(app.mainWindow);
+            await openSettingsSection(app.mainWindow, 'appearance');
             await app.mainWindow.getByTestId('LIGHT_THEME').click();
             await openSettingsSection(app.mainWindow, 'playback');
             await app.mainWindow.getByTestId('select-video-player').click();

@@ -32,7 +32,7 @@ test('@electron @a11y Settings text meets contrast in every preset', async ({
     const page = app.mainWindow;
     try {
         await openSettings(page);
-        await openSettingsSection(page, 'general');
+        await openSettingsSection(page, 'appearance');
         for (const theme of [
             'light',
             'dark',

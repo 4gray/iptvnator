@@ -4,9 +4,11 @@ import sharp = require('sharp');
 /** Exercise the same live CSS boundary as SettingsService without navigating
  * away from (and therefore destroying) the player being measured. */
 export async function applyTheme(page: Page, theme: 'light' | 'dark') {
-    await page.evaluate((dark) => {
-        document.body.classList.toggle('dark-theme', dark);
-    }, theme === 'dark');
+    await page.evaluate((theme) => {
+        document.body.dataset['appTheme'] = theme;
+        document.body.classList.toggle('dark-theme', theme === 'dark');
+        document.body.classList.toggle('light-theme', theme === 'light');
+    }, theme);
 }
 
 /** Contrast for app panels with solid/alpha CSS background colors. Gradients,

@@ -17,6 +17,18 @@
         "skipDefaultLibCheck": true,
         "baseUrl": ".",
         "paths": {
+            "@iptvnator/shared/interfaces/history-sync": [
+                "libs/shared/interfaces/src/history-sync.ts"
+            ],
+            "@iptvnator/shared/database/history-sync": [
+                "libs/shared/database/src/history-sync.ts"
+            ],
+            "@iptvnator/services/history-sync": [
+                "libs/services/src/history-sync.ts"
+            ],
+            "@iptvnator/services/history-events": [
+                "libs/services/src/history-events.ts"
+            ],
             "@iptvnator/shared/tmdb": ["libs/shared/tmdb/src/index.ts"],
             "@iptvnator/shared/tmdb/credits": [
                 "libs/shared/tmdb/src/lib/tmdb-credits.ts"

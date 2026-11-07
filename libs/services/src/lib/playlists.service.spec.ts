@@ -47,6 +47,11 @@ describe('PlaylistsService', () => {
         ) as PlaylistsService;
 
         Object.assign(service as object, {
+            historySync: {
+                active: () => false,
+                project: async <T>(row: T) => row,
+                mutate: async () => null,
+            },
             favoriteSync: {
                 active: () => false,
                 project: async <T>(row: T) => row,

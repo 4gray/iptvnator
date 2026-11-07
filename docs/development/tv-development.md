@@ -155,6 +155,29 @@ manual entry and phone setup remain available. Video remains the shared HTML
 acceptance. Root Back exits immediately like LG; Store submission's confirmation
 policy is a maintainer follow-up in the checklist.
 
+## Synthetic screenshots
+
+Update to the intended source revision and install frozen dependencies before
+capturing. The presentation scenario starts isolated TV/backend/mock servers,
+adds the fictional marketing source, enables TMDB with a synthetic key and
+intercepts TMDB API/image requests using the mock server's
+[fictional TMDB API](../architecture/xtream-mock-server.md#fictional-tmdb-api).
+It verifies detail chips, loaded artwork, credits and a person's filmography
+before completing the capture. No real provider account or TMDB key is used.
+
+```sh
+TV_E2E_PORT_OFFSET=12000 pnpm nx e2e tv-e2e --grep='cinema/showcase' --skip-nx-cache
+```
+
+English 1920×1080 PNGs are written to `dist/tv-verification/cinema-home.png`,
+`cinema-detail.png`, `cinema-series.png` and `showcase-home.png`. The port offset
+moves all fixture ports together. Inspected WebP documentation copies are in
+`apps/tv/docs/screenshots/`: [Home](../../apps/tv/docs/screenshots/home.webp),
+[movie details](../../apps/tv/docs/screenshots/movie-details.webp) and
+[series details](../../apps/tv/docs/screenshots/series-details.webp).
+These are browser captures, not real-LG certification. All displayed content
+and portraits are fictional demo assets.
+
 ## Add sources from a phone
 
 Install the matching TV and backend builds. `pnpm nx build web-backend` first

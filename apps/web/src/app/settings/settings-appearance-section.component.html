@@ -1,0 +1,164 @@
+<section class="settings-group" id="appearance" [formGroup]="form()">
+    <header class="settings-group__header">
+        <h2>{{ 'SETTINGS.CARD_APPEARANCE' | translate }}</h2>
+        <p>{{ 'SETTINGS.APPEARANCE_SUBTITLE' | translate }}</p>
+    </header>
+
+    <section class="settings-section">
+        <div class="settings-section__header">
+            <h3>{{ 'SETTINGS.THEME' | translate }}</h3>
+        </div>
+        <div class="settings-card">
+            <div
+                class="setting-item setting-item--full-control"
+                data-setting-id="theme"
+            >
+                <div class="setting-item__meta">
+                    <h4>{{ 'SETTINGS.THEME' | translate }}</h4>
+                    <p>{{ 'SETTINGS.THEME_DESCRIPTION' | translate }}</p>
+                </div>
+                <div class="setting-item__control">
+                    <div
+                        class="theme-picker"
+                        appRadioGroup
+                        [attr.aria-label]="'SETTINGS.THEME' | translate"
+                        data-test-id="select-theme"
+                    >
+                        @for (
+                            themeOption of themeOptions();
+                            track themeOption.value
+                        ) {
+                            <button
+                                type="button"
+                                class="theme-palette"
+                                [class.theme-palette--system]="
+                                    !themeOption.presetId
+                                "
+                                [class.theme-palette--selected]="
+                                    form().value.theme === themeOption.value
+                                "
+                                [appRadioOption]="
+                                    form().value.theme === themeOption.value
+                                "
+                                [attr.aria-label]="
+                                    themeOption.labelKey | translate
+                                "
+                                [attr.data-test-id]="themeOption.value"
+                                (click)="selectTheme.emit(themeOption.value)"
+                            >
+                                @if (themeOption.presetId) {
+                                    <span
+                                        class="theme-palette__preview"
+                                        [attr.data-theme-preview]="
+                                            themeOption.presetId
+                                        "
+                                        aria-hidden="true"
+                                    >
+                                        <span class="theme-palette__rail"
+                                            ><i></i><i></i><i></i
+                                        ></span>
+                                        <span class="theme-palette__page">
+                                            <span
+                                                class="theme-palette__heading"
+                                            ></span>
+                                            <span
+                                                class="theme-palette__line"
+                                            ></span>
+                                            <span class="theme-palette__tiles"
+                                                ><i></i><i></i
+                                            ></span>
+                                        </span>
+                                    </span>
+                                } @else {
+                                    <mat-icon aria-hidden="true"
+                                        >desktop_windows</mat-icon
+                                    >
+                                }
+                                <span class="theme-palette__label">{{
+                                    themeOption.labelKey | translate
+                                }}</span>
+                                <mat-icon
+                                    class="theme-palette__check"
+                                    aria-hidden="true"
+                                >
+                                    {{
+                                        form().value.theme === themeOption.value
+                                            ? 'check_circle'
+                                            : 'radio_button_unchecked'
+                                    }}
+                                </mat-icon>
+                            </button>
+                        }
+                        <p class="theme-picker__hint">
+                            {{ 'THEMES.SYSTEM_DESCRIPTION' | translate }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="settings-section">
+        <div class="settings-section__header">
+            <h3>{{ 'SETTINGS.COVERS' | translate }}</h3>
+        </div>
+        <div class="settings-card">
+            <div class="setting-item" data-setting-id="cover-size">
+                <div class="setting-item__meta">
+                    <h4>{{ 'SETTINGS.COVER_SIZE' | translate }}</h4>
+                    <p>{{ 'SETTINGS.COVER_SIZE_DESCRIPTION' | translate }}</p>
+                </div>
+                <div class="setting-item__control">
+                    <div
+                        class="theme-switcher"
+                        appRadioGroup
+                        [attr.aria-label]="'SETTINGS.COVER_SIZE' | translate"
+                        data-test-id="select-cover-size"
+                    >
+                        @for (
+                            option of coverSizeOptions();
+                            track option.value
+                        ) {
+                            <button
+                                type="button"
+                                class="theme-switcher__option"
+                                [class.theme-switcher__option--selected]="
+                                    form().value.coverSize === option.value
+                                "
+                                [appRadioOption]="
+                                    form().value.coverSize === option.value
+                                "
+                                [attr.data-test-id]="
+                                    'cover-size-' + option.value
+                                "
+                                (click)="selectCoverSize.emit(option.value)"
+                            >
+                                <mat-icon>{{ option.icon }}</mat-icon>
+                                <span>{{ option.labelKey | translate }}</span>
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="setting-item" data-setting-id="cover-titles">
+                <div class="setting-item__meta">
+                    <h4 id="cover-titles-label">
+                        {{ 'SETTINGS.COVER_TITLES' | translate }}
+                    </h4>
+                    <p id="cover-titles-description">
+                        {{ 'SETTINGS.COVER_TITLES_DESCRIPTION' | translate }}
+                    </p>
+                </div>
+                <div class="setting-item__control setting-item__toggle">
+                    <mat-slide-toggle
+                        formControlName="showCoverTitles"
+                        aria-labelledby="cover-titles-label"
+                        aria-describedby="cover-titles-description"
+                        data-test-id="cover-titles-toggle"
+                    ></mat-slide-toggle>
+                </div>
+            </div>
+        </div>
+    </section>
+</section>

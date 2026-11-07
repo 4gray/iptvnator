@@ -1,3 +1,5 @@
+import { historyEnabled } from './history-consent';
+import { loadHistoryRuntime } from './history-sync.providers';
 import { favoritesEnabled } from './favorites-consent';
 import { loadFavoritesRuntime } from './favorites-sync.providers';
 import { EnvironmentInjector, inject } from '@angular/core';
@@ -15,6 +17,7 @@ export function initializeSourceSync(): Promise<void> {
     const router = inject(Router);
     const playlists = inject(PlaylistsService);
     const sync = inject(SourceSyncService);
+    const environment = inject(EnvironmentInjector);
     // A consented activity profile always belongs to this selected source server.
     if (favoritesEnabled())
         void loadFavoritesRuntime(inject(EnvironmentInjector)).catch(
@@ -52,5 +55,8 @@ export function initializeSourceSync(): Promise<void> {
                 .catch(() => undefined);
         }
     });
-    return sync.initialize();
+    return sync.initialize().then(() => {
+        if (historyEnabled())
+            void loadHistoryRuntime(environment).catch(() => undefined);
+    });
 }

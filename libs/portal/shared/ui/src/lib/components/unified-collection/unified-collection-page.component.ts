@@ -288,6 +288,7 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
         this.detailState.syncFromHistory();
     }
 
+    @HostListener('window:iptvnator-history-changed')
     @HostListener('window:iptvnator-favorites-changed')
     onFavoritesChanged(): void {
         void this.loadData({

@@ -3031,7 +3031,7 @@ describe('DashboardDataService', () => {
         await service.removeGlobalRecentItem(item);
 
         expect(xtreamDataSourceMock.removeRecentItem).toHaveBeenCalledWith(
-            { id: 91, type: 'movie' },
+            { id: 91, type: 'movie', providerId: 7001 },
             'xtream-1'
         );
         expect(dbServiceMock.removeRecentItem).not.toHaveBeenCalled();

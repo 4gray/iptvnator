@@ -3,7 +3,7 @@ import { expect, test } from './fixtures';
 import { configureMockProviderBackend } from './provider-target-route';
 import axe from 'axe-core';
 import { expectNavigationFocus } from './navigation-focus.fixture';
-import { rasterTextContrast } from './ui-consistency.fixture';
+import { applyUiTheme, rasterTextContrast } from './ui-consistency.fixture';
 import {
     closeSeriesMenu,
     pressTab,
@@ -1060,7 +1060,7 @@ test('@xtream posters-only wall — hides VOD titles behind a hover caption afte
     await expect(grid).not.toHaveClass(/grid-list--posters-only/);
 
     const catalogUrl = page.url();
-    await page.goto('/workspace/settings/general');
+    await page.goto('/workspace/settings/appearance');
     const toggle = page.locator('[data-test-id="cover-titles-toggle"]');
     await expect(toggle.getByRole('switch')).toBeChecked();
     await toggle.click();
@@ -1147,10 +1147,7 @@ for (const theme of ['light', 'dark']) {
         await page.locator('app-grid-list mat-card').first().click();
         const shell = page.locator('app-portal-detail-shell');
         await expect(shell).toBeVisible();
-        await page.evaluate(
-            (dark) => document.body.classList.toggle('dark-theme', dark),
-            theme === 'dark'
-        );
+        await applyUiTheme(page, theme === 'dark');
         const favorite = shell
             .locator('[data-testid="series-favorite-toggle"]')
             .first();
@@ -1259,10 +1256,7 @@ for (const theme of ['light', 'dark']) {
         );
         await addXtreamPortal(page);
         await page.getByRole('link', { name: 'Live TV', exact: true }).click();
-        await page.evaluate(
-            (dark) => document.body.classList.toggle('dark-theme', dark),
-            theme === 'dark'
-        );
+        await applyUiTheme(page, theme === 'dark');
         const category = page.locator('.context-panel .category-item').first();
         await category.click();
         const viewport = page.locator('.scroll-viewport-portals');
@@ -1387,10 +1381,7 @@ for (const theme of ['light', 'dark']) {
             await expect(
                 shell.getByRole('heading', { level: 1 })
             ).toBeVisible();
-            await page.evaluate(
-                (dark) => document.body.classList.toggle('dark-theme', dark),
-                theme === 'dark'
-            );
+            await applyUiTheme(page, theme === 'dark');
             await expect(shell).toBeFocused();
             await expect
                 .poll(() =>
@@ -1422,10 +1413,7 @@ for (const theme of ['light', 'dark']) {
                 shell.getByRole('heading', { level: 1 })
             ).toBeVisible();
             await shell.focus();
-            await page.evaluate(
-                (dark) => document.body.classList.toggle('dark-theme', dark),
-                theme === 'dark'
-            );
+            await applyUiTheme(page, theme === 'dark');
             // Back is the header's leading control, not a page overlay.
             const back = page.locator(
                 'app-workspace-shell-header [data-test-id="workspace-header-back"]'

@@ -65,6 +65,14 @@ const vodSourcePin = {
 
 export const dbPreloadCases: PreloadInvokeCase[] = [
     {
+        method: 'historyLocalRequest',
+        args: [{ instanceId: 'history-test-instance', operation: 'read' }],
+        channel: 'DB_HISTORY_LOCAL',
+        forwardedArgs: [
+            { instanceId: 'history-test-instance', operation: 'read' },
+        ],
+    },
+    {
         method: 'favoritesLocalRequest',
         args: [{ instanceId: 'favorites-test-instance', operation: 'pending' }],
         channel: 'DB_FAVORITES_LOCAL',

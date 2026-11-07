@@ -5,6 +5,7 @@ import {
 import { FAVORITES_PLAYLIST_BRIDGE } from '@iptvnator/services/favorites-events';
 import type { ElectronBridgeFavoriteReorderUpdate } from '@iptvnator/shared/interfaces';
 import { inject, Injectable } from '@angular/core';
+import { StalkerCollectionMetadataService } from '@iptvnator/portal/stalker/data-access';
 import { normalizeXtreamContentTypes } from '@iptvnator/shared/interfaces';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
@@ -55,6 +56,7 @@ type StalkerPortalFavoriteItem = StalkerPortalItem & {
 
 @Injectable({ providedIn: 'root' })
 export class UnifiedFavoritesDataService {
+    private readonly stalkerMetadata = inject(StalkerCollectionMetadataService);
     private readonly favoriteSync = inject(FAVORITES_PLAYLIST_BRIDGE);
     private readonly store = inject(Store);
     private readonly dbService = inject(DatabaseService);
@@ -76,15 +78,15 @@ export class UnifiedFavoritesDataService {
     }
 
     membershipUid(item: UnifiedCollectionItem): string {
-        return item.sourceType === 'stalker' &&
-            this.favoriteSync.active() &&
-            item.stalkerItem
-            ? buildCollectionUid(
-                  'stalker',
-                  item.playlistId,
-                  this.getStalkerFavoriteId(item)
-              )
-            : item.uid;
+        if (item.sourceType !== 'stalker' || !item.stalkerItem) return item.uid;
+        const reference = stalkerFavoriteReference(item.stalkerItem);
+        return buildCollectionUid(
+            'stalker',
+            item.playlistId,
+            reference
+                ? favoriteReferenceKey(reference)
+                : this.getStalkerFavoriteId(item)
+        );
     }
 
     async addFavorite(item: UnifiedCollectionItem): Promise<void> {
@@ -199,7 +201,7 @@ export class UnifiedFavoritesDataService {
                 : null);
 
         if (contentId == null) {
-            return;
+            throw new Error('Favorite could not be saved');
         }
 
         const electron = await this.xtreamFavoritesBridge(item.playlistId);
@@ -664,7 +666,11 @@ export class UnifiedFavoritesDataService {
         const content = await this.dbService.getContentByXtreamId(
             item.xtreamId,
             item.playlistId,
-            item.contentType
+            item.contentType,
+            ...(item.xtreamIdentity?.tmdbId != null ||
+            item.xtreamIdentity?.releaseYear != null
+                ? [item.xtreamIdentity]
+                : [])
         );
 
         return content?.id ?? null;
@@ -761,6 +767,7 @@ export class UnifiedFavoritesDataService {
             return [];
         }
         if (playlist) playlist = await this.favoriteSync.project(playlist);
+        if (playlist) playlist = this.stalkerMetadata.project(playlist);
         const favs = Array.isArray(playlist?.favorites)
             ? playlist.favorites.filter(isStalkerItem)
             : [];

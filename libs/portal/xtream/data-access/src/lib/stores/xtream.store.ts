@@ -1,11 +1,7 @@
 import { observeActivityChanges } from '@iptvnator/services/activity-changes';
 import { DestroyRef } from '@angular/core';
 import { inject } from '@angular/core';
-import {
-    signalStore,
-    withMethods,
-    withHooks,
-} from '@ngrx/signals';
+import { signalStore, withMethods, withHooks } from '@ngrx/signals';
 import {
     XtreamSerieDetails,
     XtreamVodDetails,
@@ -112,7 +108,10 @@ export const XtreamStore = signalStore(
              * Initialize the store for a playlist
              */
             async initialize(): Promise<void> {
-                await store.fetchPlaylist();
+                await Promise.all([
+                    store.fetchPlaylist(),
+                    store.prepareRecentActions(),
+                ]);
                 await store.checkPortalStatus();
                 await store.initializeContent();
                 const playlist = store.currentPlaylist();

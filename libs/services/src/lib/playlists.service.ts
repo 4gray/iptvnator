@@ -1,4 +1,8 @@
 import {
+    HISTORY_PLAYLIST_BRIDGE,
+    type HistoryPlaylistAction,
+} from '../history-events';
+import {
     FAVORITES_PLAYLIST_BRIDGE,
     mutateFavoritePlaylist,
 } from '../favorites-events';
@@ -28,16 +32,15 @@ import {
 } from 'rxjs';
 import {
     DbStores,
-    extractStalkerItemId,
     isM3uRecentlyViewedItem,
     M3uFavoriteChannel,
     M3uRecentlyViewedItem,
     Playlist,
     PlaylistMetaUpdate,
     PlaylistRecentlyViewedItem,
+    PlaylistRecentIdentity,
     PlaylistUpdateState,
     StalkerPortalItem,
-    normalizeStalkerDate,
     withExplicitStalkerPortalFlag,
 } from '@iptvnator/shared/interfaces';
 import { PLAYLIST_DELETE_CLEANUP } from './playlist-delete-cleanup.token';
@@ -82,6 +85,7 @@ export function resolvePlaylistParser(parserModule: PlaylistParserModule) {
     providedIn: 'root',
 })
 export class PlaylistsService {
+    private readonly historySync = inject(HISTORY_PLAYLIST_BRIDGE);
     private readonly favoriteSync = inject(FAVORITES_PLAYLIST_BRIDGE);
     private readonly healthEvidence = inject(SourceHealthEvidenceService, {
         optional: true,
@@ -509,7 +513,22 @@ export class PlaylistsService {
     }
 
     private projectFavoriteMetas(rows: Playlist[]) {
-        return Promise.all(rows.map((row) => this.favoriteSync.project(row)));
+        return Promise.all(
+            rows.map(async (row) => {
+                const projected = await this.historySync.project(
+                    await this.favoriteSync.project(row)
+                );
+                return projected.recentlyViewed?.length
+                    ? this.prepareHistory(projected)
+                    : projected;
+            })
+        );
+    }
+
+    private async prepareHistory(playlist: Playlist): Promise<Playlist> {
+        if (playlist && (!playlist.serverUrl || playlist.macAddress))
+            await import('./playlist-history');
+        return playlist;
     }
 
     getAllPlaylists() {
@@ -589,7 +608,9 @@ export class PlaylistsService {
         // mutation-internal reads keep using getPlaylistById to avoid re-entry.
         return this.serializePlaylistWrite(id, () =>
             firstValueFrom(this.getPlaylistById(id)).then((playlist) =>
-                this.favoriteSync.project(playlist)
+                this.favoriteSync
+                    .project(playlist)
+                    .then((row) => this.historySync.project(row))
             )
         );
     }
@@ -726,9 +747,13 @@ export class PlaylistsService {
                             ? await store.dbGetAppPlaylist(id)
                             : await store.dbGetAppPlaylist(id, operationId);
                 }
-                return playlist
-                    ? this.createSqliteFallbackPlaylist(playlist as Playlist)
-                    : (undefined as unknown as Playlist);
+                return this.prepareHistory(
+                    playlist
+                        ? this.createSqliteFallbackPlaylist(
+                              playlist as Playlist
+                          )
+                        : (undefined as unknown as Playlist)
+                );
             });
         }
 
@@ -736,7 +761,7 @@ export class PlaylistsService {
             firstValueFrom(
                 this.dbService.getByID<Playlist>(DbStores.Playlists, id)
             )
-        );
+        ).pipe(switchMap((playlist) => this.prepareHistory(playlist)));
     }
 
     updatePlaylistMeta(updatedPlaylist: PlaylistMetaUpdate) {
@@ -1316,53 +1341,17 @@ export class PlaylistsService {
         await firstValueFrom(this.dbService.clear(DbStores.Playlists));
     }
 
-    private normalizePortalRecentIdentity(value: unknown): string {
-        const raw = String(value ?? '').trim();
-        if (!raw) {
-            return '';
-        }
-        return raw.includes(':') ? raw.split(':')[0] : raw;
-    }
-
-    private getPlaylistRecentIdentity(
-        item: PlaylistRecentlyViewedItem
-    ): string {
-        if (isM3uRecentlyViewedItem(item)) {
-            return String(item.url ?? item.id ?? '').trim();
-        }
-
-        return this.normalizePortalRecentIdentity(
-            extractStalkerItemId(item ?? {})
-        );
-    }
-
-    private matchesPlaylistRecentIdentity(
-        item: PlaylistRecentlyViewedItem,
-        expectedIdentity: string | number
-    ): boolean {
-        const expectedRaw = String(expectedIdentity ?? '').trim();
-        if (!expectedRaw) {
-            return false;
-        }
-
-        if (isM3uRecentlyViewedItem(item)) {
-            return this.getPlaylistRecentIdentity(item) === expectedRaw;
-        }
-
-        return (
-            this.getPlaylistRecentIdentity(item) ===
-            this.normalizePortalRecentIdentity(expectedRaw)
-        );
-    }
-
-    private sortPlaylistRecentItems(
-        items: PlaylistRecentlyViewedItem[]
-    ): PlaylistRecentlyViewedItem[] {
-        return [...items].sort(
-            (a, b) =>
-                new Date(normalizeStalkerDate(b.added_at ?? '')).getTime() -
-                new Date(normalizeStalkerDate(a.added_at ?? '')).getTime()
-        );
+    private historyMutation(playlistId: string, action: HistoryPlaylistAction) {
+        return this.serializePlaylistWrite(playlistId, async () => {
+            const { mutatePlaylistHistory } =
+                await import('./playlist-history');
+            return mutatePlaylistHistory(
+                await firstValueFrom(this.getPlaylistById(playlistId)),
+                action,
+                this.historySync,
+                (row) => this.persistPlaylistMutation(row)
+            );
+        });
     }
 
     getPlaylistRecentlyViewed(playlistId: string) {
@@ -1371,13 +1360,12 @@ export class PlaylistsService {
         }
 
         return this.getPlaylistById(playlistId).pipe(
-            map((item) => {
-                if (!item || !Array.isArray(item.recentlyViewed)) {
-                    return [];
-                }
-                return item.recentlyViewed as PlaylistRecentlyViewedItem[];
-            }),
-            map((items) => this.sortPlaylistRecentItems(items))
+            switchMap((playlist) => this.historySync.project(playlist)),
+            switchMap(async (playlist) => {
+                const { sortedPlaylistHistory } =
+                    await import('./playlist-history');
+                return sortedPlaylistHistory(playlist);
+            })
         );
     }
 
@@ -1389,66 +1377,21 @@ export class PlaylistsService {
             throw new Error('Playlist ID is required');
         }
 
-        return this.serializePlaylistWrite(playlistId, async () => {
-            const playlist = await firstValueFrom(
-                this.getPlaylistById(playlistId)
-            );
-            const nowIso = new Date().toISOString();
-            const recentItems = Array.isArray(playlist.recentlyViewed)
-                ? (playlist.recentlyViewed as PlaylistRecentlyViewedItem[])
-                : [];
-            const existingIndex = recentItems.findIndex((recentItem) =>
-                this.matchesPlaylistRecentIdentity(
-                    recentItem,
-                    this.getPlaylistRecentIdentity(item)
-                )
-            );
-            const existingItem =
-                existingIndex >= 0 ? recentItems[existingIndex] : null;
-            const nextItem: PlaylistRecentlyViewedItem = {
-                ...(existingItem ?? {}),
-                ...item,
-                added_at: nowIso,
-            };
-            const remainingItems = recentItems.filter(
-                (_, index) => index !== existingIndex
-            );
-
-            return this.persistPlaylistMutation({
-                ...playlist,
-                recentlyViewed: [nextItem, ...remainingItems],
-            });
-        });
+        return this.historyMutation(playlistId, { kind: 'touch', item });
     }
 
     removeFromPlaylistRecentlyViewed(
         playlistId: string,
-        identity: string | number
+        identity: PlaylistRecentIdentity
     ) {
-        if (!playlistId) {
-            throw new Error('Playlist ID is required');
-        }
-
-        return this.serializePlaylistWrite(playlistId, async () => {
-            const playlist = await firstValueFrom(
-                this.getPlaylistById(playlistId)
-            );
-
-            return this.persistPlaylistMutation({
-                ...playlist,
-                recentlyViewed: (
-                    playlist.recentlyViewed as PlaylistRecentlyViewedItem[]
-                )?.filter(
-                    (item) =>
-                        !this.matchesPlaylistRecentIdentity(item, identity)
-                ),
-            });
-        });
+        return this.removeFromPlaylistRecentlyViewedBatch(playlistId, [
+            identity,
+        ]);
     }
 
     removeFromPlaylistRecentlyViewedBatch(
         playlistId: string,
-        identities: ReadonlyArray<string | number>
+        identities: ReadonlyArray<PlaylistRecentIdentity>
     ) {
         if (!playlistId) {
             throw new Error('Playlist ID is required');
@@ -1458,22 +1401,9 @@ export class PlaylistsService {
             return this.getPlaylistById(playlistId);
         }
 
-        return this.serializePlaylistWrite(playlistId, async () => {
-            const playlist = await firstValueFrom(
-                this.getPlaylistById(playlistId)
-            );
-
-            return this.persistPlaylistMutation({
-                ...playlist,
-                recentlyViewed: (
-                    playlist.recentlyViewed as PlaylistRecentlyViewedItem[]
-                )?.filter(
-                    (item) =>
-                        !identities.some((identity) =>
-                            this.matchesPlaylistRecentIdentity(item, identity)
-                        )
-                ),
-            });
+        return this.historyMutation(playlistId, {
+            kind: 'remove',
+            identities: [...identities],
         });
     }
 
@@ -1482,16 +1412,7 @@ export class PlaylistsService {
             throw new Error('Playlist ID is required');
         }
 
-        return this.serializePlaylistWrite(playlistId, async () => {
-            const playlist = await firstValueFrom(
-                this.getPlaylistById(playlistId)
-            );
-
-            return this.persistPlaylistMutation({
-                ...playlist,
-                recentlyViewed: [],
-            });
-        });
+        return this.historyMutation(playlistId, { kind: 'clear' });
     }
 
     getPortalRecentlyViewed(portalId: string) {
@@ -1516,7 +1437,10 @@ export class PlaylistsService {
         return this.addPlaylistRecentlyViewed(playlistId, item);
     }
 
-    removeFromPortalRecentlyViewed(portalId: string, id: string | number) {
+    removeFromPortalRecentlyViewed(
+        portalId: string,
+        id: PlaylistRecentIdentity
+    ) {
         return this.removeFromPlaylistRecentlyViewed(portalId, id);
     }
 

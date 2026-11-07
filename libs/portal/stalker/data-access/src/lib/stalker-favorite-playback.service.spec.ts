@@ -82,6 +82,33 @@ describe('receiving-device Stalker favorite playback', () => {
             expect(snapshot.cmd).toBeUndefined();
         }
     );
+    it('resolves presentation for a commandless regular series without making it playable', async () => {
+        const item = {
+            id: '42',
+            title: 'Synthetic received series',
+            favoriteContentType: 'series' as const,
+        };
+        send.mockResolvedValue({
+            js: {
+                data: [
+                    {
+                        id: '42',
+                        name: 'Synthetic provider series',
+                        cover: 'https://artwork.example/series.jpg',
+                    },
+                ],
+                total_items: 1,
+                max_page_items: 1,
+            },
+        });
+        expect(await resolver.metadata(playlist, item)).toMatchObject({
+            id: '42',
+            cover: 'https://artwork.example/series.jpg',
+        });
+        await expect(resolver.resolve(playlist, item)).rejects.toThrow(
+            'nothing_to_play'
+        );
+    });
     it.each(['itv', 'radio', 'vod', 'series'] as const)(
         'resolves the persisted stream alias for %s while retaining a legacy ID',
         async (kind) => {

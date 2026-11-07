@@ -1312,7 +1312,7 @@ export async function switchUnifiedCollectionContent(
 export async function clearCurrentUnifiedCollection(page: Page): Promise<void> {
     await page
         .getByRole('button', {
-            name: /Clear .* (favorites|recently viewed)/i,
+            name: /Clear .* favorites|Clear recently viewed /i,
         })
         .click();
 
