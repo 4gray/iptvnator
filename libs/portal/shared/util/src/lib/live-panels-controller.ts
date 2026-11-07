@@ -13,13 +13,6 @@ import { LiveSidebarState, LiveSidebarSurface } from './live-sidebar-state';
 export interface LivePanelsControllerOptions {
     /** The surface whose per-surface state this layout renders. */
     readonly surface: LiveSidebarSurface;
-    /**
-     * A live category is selected, so the layout renders a channels rail
-     * whose header can host the category dropdown and the show-categories
-     * button. Mirrors the shell's fold rule: on the live root the categories
-     * rail stays visible at `categories-hidden`.
-     */
-    readonly hasSelectedCategory: Signal<boolean>;
     /** The header's show-categories button, once rendered. */
     readonly showCategoriesButton: Signal<ElementRef<HTMLElement> | undefined>;
     /** The floating restore handle, once rendered at player-only. */
@@ -44,13 +37,17 @@ export class LivePanelsController {
 
     /** Player only: the channels rail is folded (and `inert`). */
     readonly isSidebarCollapsed: Signal<boolean>;
-    /** The header shows the category dropdown and show-categories button. */
+    /** The channels header shows the category dropdown and show-categories button. */
     readonly canOpenCategoriesPopover: Signal<boolean>;
     /**
-     * The level the layout actually shows. On the live root the categories
-     * rail stays visible at `categories-hidden`, and the first category
-     * selection folds it without a state change — the focus handoff keys on
-     * this, not on the raw state.
+     * The categories rail is folded while the channels rail is not, so a
+     * layout without a channels header (the all-items views) has to offer the
+     * way back itself.
+     */
+    readonly isCategoriesRailFolded: Signal<boolean>;
+    /**
+     * The level the layout actually shows; the focus handoff keys on this,
+     * not on the raw state.
      */
     readonly effectiveLevel: Signal<LiveSidebarState>;
 
@@ -60,10 +57,10 @@ export class LivePanelsController {
         const categoriesHidden =
             this.sidebarState.areCategoriesHiddenFor(surface);
         this.canOpenCategoriesPopover = computed(
-            () =>
-                this.categoriesPopover !== null &&
-                categoriesHidden() &&
-                this.options.hasSelectedCategory()
+            () => this.categoriesPopover !== null && categoriesHidden()
+        );
+        this.isCategoriesRailFolded = computed(
+            () => this.canOpenCategoriesPopover() && !this.isSidebarCollapsed()
         );
         this.effectiveLevel = computed(() =>
             this.isSidebarCollapsed()

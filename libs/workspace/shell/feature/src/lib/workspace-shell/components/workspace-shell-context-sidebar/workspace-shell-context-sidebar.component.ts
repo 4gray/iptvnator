@@ -16,7 +16,6 @@ import {
     LiveLayoutSidebarStateService,
     PortalRailSection,
 } from '@iptvnator/portal/shared/util';
-import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import {
     WorkspaceShellContextDrawerService,
@@ -54,7 +53,6 @@ export class WorkspaceShellContextSidebarComponent {
         LiveLayoutSidebarStateService
     );
     private readonly xtreamStore = inject(XtreamStore);
-    private readonly stalkerStore = inject(StalkerStore);
     // Root-provided; optional keeps standalone unit tests light. Only relevant
     // when the sidebar renders as the phone drawer — the close button that
     // calls this is CSS-hidden above the phone breakpoint.
@@ -76,32 +74,23 @@ export class WorkspaceShellContextSidebarComponent {
         );
     });
     /**
-     * A live category is selected, so the layout renders a channels rail
-     * whose header carries the way back to the folded categories rail (the
-     * category dropdown + show chevron). On the live root there is no such
-     * rail, and folding the categories there would leave no way back.
+     * The Xtream content gate replaces the live layout with an error view
+     * while content cannot load, so no control to unfold the rail exists.
      */
-    readonly hasLiveCategorySelection = computed(() => {
-        const provider = this.context()?.provider;
-        if (provider === 'xtreams') {
-            return this.xtreamStore.selectedCategoryId() !== null;
-        }
-        if (provider === 'stalker') {
-            return !!this.stalkerStore.selectedCategoryId();
-        }
-        return false;
-    });
+    readonly isLiveContentBlocked = computed(
+        () =>
+            this.context()?.provider === 'xtreams' &&
+            this.xtreamStore.isContentBlocked()
+    );
     // The categories rail is the outermost panel, so it folds on the first
-    // collapse level already (`categories-hidden`, gated on a channels rail
-    // existing to host the way back), and always on `collapsed`.
+    // collapse level already (`categories-hidden`). The live layouts render
+    // the way back (channels header or all-items header) in every state
+    // except a blocked Xtream portal, which keeps the rail visible.
     readonly isContextPanelCollapsed = computed(
         () =>
             this.isLiveCategoryRoute() &&
-            (this.liveSidebarStateService.isCollapsedFor('portal')() ||
-                (this.liveSidebarStateService.areCategoriesHiddenFor(
-                    'portal'
-                )() &&
-                    this.hasLiveCategorySelection()))
+            !this.isLiveContentBlocked() &&
+            this.liveSidebarStateService.areCategoriesHiddenFor('portal')()
     );
     /**
      * A folded rail is only 0px wide; its search, sort and category buttons

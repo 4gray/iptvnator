@@ -54,6 +54,20 @@
     @include panel.standard-panel-meta();
 }
 
+// Floats over the header's leading edge (the header reserves the room) so
+// it can stay one element while the view swaps between loading and ready.
+.all-items-show-categories {
+    position: absolute;
+    top: 6px;
+    inset-inline-start: 12px;
+    z-index: 6;
+    app-region: no-drag;
+}
+
+.category-content-header.category-content-header--rail-folded {
+    padding-inline-start: 56px;
+}
+
 .category-title {
     @include panel.standard-panel-title();
 }

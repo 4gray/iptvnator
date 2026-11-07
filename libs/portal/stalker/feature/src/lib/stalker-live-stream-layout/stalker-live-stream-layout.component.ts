@@ -545,20 +545,35 @@ export class StalkerLiveStreamLayoutComponent
     private readonly restoreButton = viewChild('restoreButton', {
         read: ElementRef<HTMLElement>,
     });
+    private readonly contentShowCategoriesButton = viewChild(
+        'contentShowCategoriesButton',
+        { read: ElementRef<HTMLElement> }
+    );
     private readonly overview = viewChild(StalkerItvAllItemsComponent);
     // Nested panel levels, category dropdown bridge and focus handoff; the
-    // template binds to it directly. The sidebar only renders with a
-    // selected category, and the fold rule keys on the same selection.
+    // template binds to it directly.
     readonly livePanels = createLivePanelsController({
         surface: 'portal',
-        hasSelectedCategory: computed(
-            () => !!this.stalkerStore.selectedCategoryId()
+        showCategoriesButton: computed(
+            () =>
+                this.showCategoriesButton() ??
+                this.overview()?.showCategoriesButton() ??
+                this.contentShowCategoriesButton()
         ),
-        showCategoriesButton: this.showCategoriesButton,
         restoreButton: computed(
             () => this.overview()?.restoreButton() ?? this.restoreButton()
         ),
     });
+    /**
+     * Folded categories rail with no channels header to carry the way back
+     * (and no all-items header either): the placeholder or a playing channel.
+     */
+    readonly showContentCategoriesButton = computed(
+        () =>
+            this.livePanels.isCategoriesRailFolded() &&
+            !this.stalkerStore.selectedCategoryId() &&
+            !this.isItvOverviewVisible()
+    );
     readonly isSidebarCollapsed = this.livePanels.isSidebarCollapsed;
     readonly liveEpgPanelSummary = computed(() =>
         this.toLiveEpgPanelSummary(this.currentProgram())

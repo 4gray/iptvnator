@@ -136,6 +136,25 @@ describe('StalkerItvAllItemsComponent', () => {
         );
     });
 
+    it('shows the way back to the categories rail only while it is folded', () => {
+        const show = jest.fn();
+        component.showCategories.subscribe(show);
+        fixture.componentRef.setInput('channels', buildChannels(2));
+        fixture.detectChanges();
+        const selector =
+            '.category-content-header [data-test-id="live-show-categories"]';
+        expect(fixture.nativeElement.querySelector(selector)).toBeNull();
+
+        fixture.componentRef.setInput('categoriesFolded', true);
+        fixture.detectChanges();
+        (
+            fixture.nativeElement.querySelector(selector) as HTMLButtonElement
+        ).click();
+
+        expect(show).toHaveBeenCalledTimes(1);
+        expect(component.showCategoriesButton()).toBeDefined();
+    });
+
     it('uses row skeletons and a labelled busy state in list mode', () => {
         fixture.componentRef.setInput('channels', buildChannels(1));
         fixture.detectChanges();

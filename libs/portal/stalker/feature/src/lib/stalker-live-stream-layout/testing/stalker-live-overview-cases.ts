@@ -1,5 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import {
+    LIVE_CATEGORIES_POPOVER,
+    LiveLayoutSidebarStateService,
+} from '@iptvnator/portal/shared/util';
 import { EpgPreferencesService } from '@iptvnator/services';
 import { StalkerItvAllItemsComponent } from '../stalker-itv-all-items.component';
 import { StalkerLiveStreamLayoutComponent } from '../stalker-live-stream-layout.component';
@@ -7,7 +11,7 @@ import { StalkerLiveStreamLayoutComponent } from '../stalker-live-stream-layout.
 interface OverviewHarness {
     fixture(): ComponentFixture<StalkerLiveStreamLayoutComponent>;
     component(): StalkerLiveStreamLayoutComponent;
-    enterOverview(): void;
+    enterOverview(fullList?: boolean): void;
     settle(): Promise<void>;
     ensureBulk(): jest.Mock;
     fetchShort(): jest.Mock;
@@ -40,6 +44,58 @@ export function registerStalkerLiveOverviewCases(
                 .fixture()
                 .nativeElement.querySelector('app-portal-empty-state')
         ).toBeNull();
+    });
+
+    describe('folded categories rail', () => {
+        const state = (): LiveLayoutSidebarStateService =>
+            TestBed.inject(LiveLayoutSidebarStateService);
+        const showButton = (): HTMLButtonElement | null =>
+            harness
+                .fixture()
+                .nativeElement.querySelector(
+                    '[data-test-id="live-show-categories"]'
+                );
+
+        afterEach(() => state().setState('portal', 'expanded'));
+
+        it('carries the way back in the overview header and unfolds through the popover bridge', async () => {
+            harness.enterOverview();
+            harness.fixture().detectChanges();
+            expect(showButton()).toBeNull();
+            (document.activeElement as HTMLElement | null)?.blur();
+
+            state().hideCategories('portal');
+            harness.fixture().detectChanges();
+            await harness.settle();
+
+            expect(overview().categoriesFolded()).toBe(true);
+            expect(
+                showButton()?.closest('app-stalker-itv-all-items')
+            ).not.toBeNull();
+            expect(document.activeElement).toBe(showButton());
+
+            showButton()?.click();
+            expect(
+                TestBed.inject(LIVE_CATEGORIES_POPOVER).showCategoriesPanel
+            ).toHaveBeenCalledTimes(1);
+        });
+
+        it('offers it on the placeholder too, where no header exists', () => {
+            harness.enterOverview(false);
+            state().hideCategories('portal');
+            harness.fixture().detectChanges();
+
+            expect(showButton()?.classList).toContain('sidebar-restore');
+        });
+
+        it('leaves the player-only level to the floating restore handle', () => {
+            harness.enterOverview();
+            state().collapse('portal');
+            harness.fixture().detectChanges();
+
+            expect(overview().categoriesFolded()).toBe(false);
+            expect(showButton()).toBeNull();
+        });
     });
 
     it('starts bulk EPG on the overview before any category has channels', async () => {

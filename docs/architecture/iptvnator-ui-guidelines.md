@@ -805,12 +805,21 @@ remain local when the meaning is explicit.
 - There is deliberately no "channels hidden, categories visible" state: a
   category click has to bring the channels back anyway. Surfaces without a
   categories rail (M3U, the unified-collection live tab) treat level 2 like
-  level 1 — and so does the live ROOT (no selected category, Xtream `/live`
-  "All Items", Stalker's all-items grid): there is no channels rail to host
-  the way back, so the shell folds the categories rail at level 2 only while
-  the portal store has a selected category (`hasLiveCategorySelection`), and
-  the rail's hide chevron is withheld there too. Level 3 folds it regardless,
-  since the floating restore handle lives in the content area.
+  level 1. The live ROOT (no selected category: Xtream `/live` "All Items",
+  Stalker's all-items grid or its select-a-category placeholder) folds at level
+  2 like any category, so the rail's hide chevron is offered there too. With no
+  channels header to host the way back, each root view renders its own
+  `data-test-id="live-show-categories"` button while
+  `LivePanelsController.isCategoriesRailFolded()` is true: one Xtream button
+  that floats over the header's leading edge (the header reserves the room), kept
+  outside the loading switch so its focus survives the loading-to-ready swap;
+  the Stalker `app-stalker-itv-all-items` header; or a floating handle on the
+  Stalker placeholder and while a Stalker channel plays without a category.
+  Level 3 hides it again in favour of the restore handle. The one exception is
+  a blocked Xtream portal (`XtreamStore.isContentBlocked`):
+  `XtreamContentGateComponent` then replaces the live layout with an error view,
+  so the shell keeps the rail unfolded (`isLiveContentBlocked`) and the rail
+  withholds its hide chevron, rather than hiding the only way back.
 - Xtream Live TV's root view (`/live` with no selected category) follows the
   same paginated `All Items` shell as VOD and Series: a widget header with the
   total channel count, page-size controls, and page navigation above the shared
@@ -921,14 +930,11 @@ remain local when the meaning is explicit.
   so focus drops to `<body>`; the side that gains the replacement affordance
   picks it up after its next render via `focusIfFocusLost()`
   (`@iptvnator/portal/shared/util`): the layouts' `LivePanelsController`
-  installs `handoffFocusOnLiveSidebarChange()` over the EFFECTIVE level (on
-  the live root the first category selection folds the rail with no state
-  change) and focuses the floating restore handle at player-only or the
-  show-categories button while the rail is folded, and the shell sidebar,
-  watching the rail's ACTUAL fold state (on the live root the rail stays
-  visible at level 2, so only player-only ↔ visible is a transition there),
-  focuses the control the context panel names (`focusTarget()`: its hide
-  chevron, or its first header action when the chevron is withheld) and,
+  installs `handoffFocusOnLiveSidebarChange()` over the EFFECTIVE level and
+  focuses the floating restore handle at player-only or the show-categories
+  button while the rail is folded, and the shell sidebar, watching the rail's
+  fold state, focuses the control the context panel names (`focusTarget()`: its
+  hide chevron, or its first header action when the chevron is withheld) and,
   while none is rendered (categories loading, a failed load), the
   `tabindex="-1"` aside itself — only on transitions, and never when another
   control still owns focus.
