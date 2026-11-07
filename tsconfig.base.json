@@ -17,7 +17,22 @@
         "skipDefaultLibCheck": true,
         "baseUrl": ".",
         "paths": {
+            "@iptvnator/shared/interfaces/history-sync": [
+                "libs/shared/interfaces/src/history-sync.ts"
+            ],
+            "@iptvnator/shared/database/history-sync": [
+                "libs/shared/database/src/history-sync.ts"
+            ],
+            "@iptvnator/services/history-sync": [
+                "libs/services/src/history-sync.ts"
+            ],
+            "@iptvnator/services/history-events": [
+                "libs/services/src/history-events.ts"
+            ],
             "@iptvnator/shared/tmdb": ["libs/shared/tmdb/src/index.ts"],
+            "@iptvnator/shared/tmdb/credits": [
+                "libs/shared/tmdb/src/lib/tmdb-credits.ts"
+            ],
             "@iptvnator/shared/tmdb/season": [
                 "libs/shared/tmdb/src/lib/tmdb-season-client.ts"
             ],
@@ -33,6 +48,9 @@
             ],
             "@iptvnator/portal/shared/ui": [
                 "libs/portal/shared/ui/src/index.ts"
+            ],
+            "@iptvnator/portal/shared/ui/global-favorites-list": [
+                "libs/portal/shared/ui/src/lib/components/global-favorites-list/global-favorites-list.component.ts"
             ],
             "@iptvnator/portal/shared/data-access": [
                 "libs/portal/shared/data-access/src/index.ts"

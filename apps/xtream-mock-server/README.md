@@ -31,6 +31,19 @@ pnpm demo:cinematic:live
 
 ---
 
+## Fictional TMDB metadata
+
+The normal mock server also serves a TMDB-shaped API under `/tmdb/3` and local
+images under `/tmdb/t/p`. Movie and series details, people, filmographies and
+season episodes use the same fictional marketing catalog as the provider API.
+No real TMDB key or external network access is needed. These routes are absent
+in performance-control mode.
+
+The TV presentation test intercepts TMDB requests and fulfills them from these
+routes. See [synthetic TV screenshots](../../docs/development/tv-development.md#synthetic-screenshots)
+for the capture command and [mock architecture](../../docs/architecture/xtream-mock-server.md#fictional-tmdb-api)
+for endpoint details.
+
 ## Local Performance Mode
 
 The benchmark control plane is opt-in and binds only to an explicit loopback

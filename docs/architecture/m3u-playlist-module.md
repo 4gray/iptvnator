@@ -13,6 +13,15 @@ The M3U playlist module provides:
 - Per-playlist group visibility management in the groups view
 - Video playback with multiple player backends
 
+## In-memory playlist state
+
+The NgRx playlist entity map holds metadata only. Parsed channels live in the
+active `channels` cache; the full source record remains in persistence and in
+owned action payloads used by effects. Shared-source inventory replacement keeps
+the active cache and removes deleted metadata without retaining another parsed
+payload. Shared hydration replaces the active channels while preserving local
+favorites and EPG preferences, and clears any previously retained entity payload.
+
 ## Adding a URL source
 
 The Add playlist dialog acquires a definition through
@@ -1335,20 +1344,23 @@ side — over one shared `EpgQueueService`:
 ### XMLTV response compression
 
 The Electron EPG worker decodes HTTP `Content-Encoding` layers in reverse
-order before parsing XMLTV. The existing URL (including redirects), MIME type
-and filename checks identify gzip files independently of HTTP compression.
-When both a gzip file hint and an HTTP gzip layer are present, a streaming
-stage checks the decoded body's first two bytes (`1F 8B`). A remaining gzip
-signature triggers exactly one additional file decompression; otherwise the
-body passes through unchanged. This supports both genuinely double-compressed
-feeds and providers that describe a single gzip layer with both metadata forms.
-Other decoding paths retain their existing behavior.
+order before parsing XMLTV. URL (including redirects), MIME type and filename
+checks identify gzip (`.gz`) and XZ (`.xz`) files independently of HTTP
+compression. Remote responses without any file-compression hint are not probed.
+After HTTP decoding, a streaming stage checks up to six leading bytes for gzip
+(`1F 8B`) or XZ (`FD 37 7A 58 5A 00`). A matching signature triggers exactly
+one file decompression; otherwise the body passes through unchanged. This also
+supports providers describing a single gzip layer with both metadata forms.
+XZ uses `xz-decompress`, a streaming WebAssembly decoder embedded in its
+JavaScript package; no native addon or separate WASM asset is required.
 
 The probe preserves bytes across chunk boundaries and keeps bounded buffering
-and stream backpressure. Invalid or truncated gzip fails the import; it is not
-retried as plain XML. Source errors and consumer cancellation terminate the
-whole decoding chain. The decoder does not recursively unpack file layers or
-change XML parsing, source reconciliation, or database persistence contracts.
+and stream backpressure. Recognized but invalid or truncated gzip/XZ fails the
+import; it is not retried as plain XML. Source errors and consumer cancellation
+terminate the whole decoding chain. The decoder does not recursively unpack
+file layers or change XML parsing, source reconciliation, or database persistence
+contracts. Decoder tests cover split signatures, HTTP layers, corrupt/truncated
+files, source errors and cancellation for both file formats.
 
 After all decompression stages, the parser worker uses a single UTF-8 stream
 decoder per import. It retains incomplete multibyte characters across chunks
@@ -1380,10 +1392,11 @@ In the worker, `openEpgSourceStream()` (`epg-source-stream.ts`) is the single
 entry that yields decoded XMLTV bytes: remote sources still go through
 `requestWithValidatedRedirects` with the private-network/TLS trust policy,
 while local sources are read with `fs.createReadStream` behind the same
-signature-sniffing optional gunzip stage the HTTP path uses, so `.xml`,
-`.xml.gz` and an extension-less gzip file all parse. A missing file, a
-directory, or a truncated gzip fail the import with a plain message; nothing
-is retried as XML.
+signature-sniffing decompression stage the HTTP path uses, so `.xml`,
+`.xml.gz`, `.xml.xz` and extension-less gzip/XZ files all parse. The native
+XMLTV picker includes `xz` in its extension filter. A missing file, a
+directory, or a truncated compressed file fails the import; nothing is retried
+as XML.
 
 **Provenance rule.** Only values the user chose or typed by hand may be
 local, and the decision is enforced in the main process, not in the form.
@@ -2113,8 +2126,12 @@ filter never hides the sources it is waiting for. See the [UI guidelines](iptvna
 Checks are demand-driven, never a startup readiness barrier: four at a time,
 two per origin, shared between surfaces. Known results remain visible during
 refresh (60-second evidence TTL, 15-second uncertain-result TTL). Background
-requests have a five-second aggregate deadline; explicit checks have fifteen
-seconds, including a handoff from a running background check. M3U streams are
+requests have a five-second first attempt. On timeout they rejoin the queue for
+one fifteen-second attempt with a fresh request ID, without publishing the
+first timeout. Queued manual checks run ahead of passive retries. A manual
+check can share the background retry, but its fifteen-second deadline includes
+the time already spent waiting. Cancelling one consumer leaves the request
+running only while another consumer still needs it. M3U streams are
 destroyed on completion, limit, error or cancellation,
 including when a provider ignores Range. Every intermediate redirect stream is
 closed before the next hop is validated or requested. Header/TLS and validated redirect
@@ -2127,15 +2144,16 @@ during a probe, both the cache and the waiting caller retain that newer result.
 
 Account-disabled/expired evidence is separate from authorization errors,
 network failures and connectivity-guard pauses. Only explicit account evidence
-is eligible for automatic cleanup selection. Statuses are session-only;
-committed SQLite connection edits and deletions publish inventory events that
+is eligible for automatic cleanup selection. Live snapshots are session-only.
+Committed SQLite connection edits and deletions publish inventory events that
 invalidate pending evidence, including deferred explicit retries. Retry now explicitly
 resets the portal guard; ordinary checks do not. Credentials and response bodies
 are never included in indicator text.
 
 Explicit source-health checks retain their deadline while queued, including
 background jobs promoted by Retry. Expired queued checks resolve without opening
-a transport; cancellation and admission clear the queue timer.
+a transport or recording a source failure. Cancellation and admission clear the
+queue timer.
 
 ### Desktop inactive-source cleanup
 
@@ -2233,3 +2251,16 @@ tvg-id inference. Explicit favorite actions use the optional composition bridge;
 source/refresh writes never infer uploads from playlist snapshots. Original local
 favorites remain available for preview/import. Unmatched references remain
 unresolved; switching profiles does not transplant memberships or queued actions.
+
+
+## Optional shared recently-viewed history
+
+The [history consent](pwa-self-hosted.md#recently-viewed-synchronization) keeps
+exact URL-based membership and resolves received hashes against this source's
+current channel catalog. Duplicate URLs share one history entry; names, tvg-id and
+random local channel IDs do not establish a match. Playback-confirmation ownership
+is captured before waiting and retired with its source/profile. Legacy rows remain
+local until explicit preview/import; URL and credential-bearing metadata do not
+travel through the history API.
+Received and newly confirmed rows recover artwork, XMLTV identifiers/names and
+group labels from the matched local channel; these fields remain device-local.

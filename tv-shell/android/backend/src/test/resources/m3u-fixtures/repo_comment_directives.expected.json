@@ -1,0 +1,69 @@
+{
+ "ok": true,
+ "result": {
+  "header": {
+   "attrs": {},
+   "raw": "#EXTM3U"
+  },
+  "items": [
+   {
+    "name": "Synthetic4 Synthetic5",
+    "tvg": {
+     "id": "Synthetic3",
+     "name": "",
+     "logo": "",
+     "url": "",
+     "rec": "",
+     "shift": ""
+    },
+    "group": {
+     "title": ""
+    },
+    "http": {
+     "referrer": "",
+     "user-agent": ""
+    },
+    "url": "http://synthetic.example/Synthetic1.m3u8",
+    "raw": "#EXTINF:-1 tvg-id=\"Synthetic3\",Synthetic4 Synthetic5\r\n# a stray comment between EXTINF and its URL\r\n#EXT-X-SESSION-DATA:DATA-ID=\"com.example.title\",VALUE=\"Some value\"\r\nhttp://synthetic.example/Synthetic1.m3u8",
+    "line": 3,
+    "catchup": {
+     "type": "",
+     "days": "",
+     "source": ""
+    },
+    "timeshift": "",
+    "lang": "",
+    "radio": ""
+   },
+   {
+    "name": "Synthetic4 Synthetic7",
+    "tvg": {
+     "id": "Synthetic6",
+     "name": "",
+     "logo": "",
+     "url": "",
+     "rec": "",
+     "shift": ""
+    },
+    "group": {
+     "title": ""
+    },
+    "http": {
+     "referrer": "",
+     "user-agent": ""
+    },
+    "url": "http://synthetic.example/Synthetic2.m3u8",
+    "raw": "#EXTINF:-1 tvg-id=\"Synthetic6\",Synthetic4 Synthetic7\r\n#PLAYLIST:ignored directive\r\nhttp://synthetic.example/Synthetic2.m3u8",
+    "line": 7,
+    "catchup": {
+     "type": "",
+     "days": "",
+     "source": ""
+    },
+    "timeshift": "",
+    "lang": "",
+    "radio": ""
+   }
+  ]
+ }
+}

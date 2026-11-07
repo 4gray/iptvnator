@@ -5,6 +5,7 @@ export type View =
     | 'movies'
     | 'series'
     | 'favorites'
+    | 'history'
     | 'search'
     | 'sources'
     | 'settings'
@@ -16,10 +17,15 @@ export const mainNavigation: [View, string][] = [
     ['movies', 'Movies'],
     ['series', 'Series'],
     ['favorites', 'Favorites'],
+    ['history', 'History'],
     ['search', 'Search'],
     ['sources', 'Sources'],
     ['settings', 'Settings'],
 ];
+export const isCollectionView = (view?: View) =>
+    view === 'favorites' || view === 'history';
+export const isSavedView = (view?: View) =>
+    view === 'home' || isCollectionView(view);
 export interface Route {
     view: View;
     kind: Kind;

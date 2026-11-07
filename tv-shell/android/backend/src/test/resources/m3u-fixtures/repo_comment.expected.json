@@ -1,0 +1,40 @@
+{
+ "ok": true,
+ "result": {
+  "header": {
+   "attrs": {},
+   "raw": "#EXTM3U"
+  },
+  "items": [
+   {
+    "name": "Synthetic6 Synthetic7",
+    "tvg": {
+     "id": "",
+     "name": "",
+     "logo": "",
+     "url": "",
+     "rec": "",
+     "shift": ""
+    },
+    "group": {
+     "title": ""
+    },
+    "http": {
+     "referrer": "",
+     "user-agent": ""
+    },
+    "url": "http://synthetic.example/Synthetic1/Synthetic2/Synthetic3/Synthetic4/Synthetic5.m3u8",
+    "raw": "#EXTINF:-1,Synthetic6 Synthetic7\r\nhttp://synthetic.example/Synthetic1/Synthetic2/Synthetic3/Synthetic4/Synthetic5.m3u8",
+    "line": 3,
+    "catchup": {
+     "type": "",
+     "days": "",
+     "source": ""
+    },
+    "timeshift": "",
+    "lang": "",
+    "radio": ""
+   }
+  ]
+ }
+}

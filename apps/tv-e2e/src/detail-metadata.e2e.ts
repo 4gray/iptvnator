@@ -2,6 +2,7 @@ import { expect, Page, test } from '@playwright/test';
 import { workspaceRoot } from '@nx/devkit';
 import { resolve } from 'node:path';
 import { addSource, nav, start } from './helpers';
+import { checkHorizontalRail } from './horizontal-rail';
 
 const artwork =
     '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900"><rect width="600" height="900" fill="#234039"/><circle cx="300" cy="300" r="140" fill="#7cad98"/></svg>';
@@ -173,8 +174,10 @@ for (const kind of ['movie', 'series'] as const) {
             `${kind === 'movie' ? 'Directors' : 'Creators'} & cast`
         );
         await expect(credits.locator('ul')).toHaveCount(1);
-        const people = credits.getByRole('button');
+        const people = credits.locator('.person-chip');
         await expect(people).toHaveCount(10);
+        await checkHorizontalRail(page, credits.locator('ul'));
+        await expect(page.locator('.detail-hero')).toBeVisible();
         await expect(people.first()).toContainText(author);
         await expect(people.first().locator('small')).toHaveText(
             kind === 'movie' ? 'Director' : 'Creator'
@@ -242,6 +245,17 @@ for (const kind of ['movie', 'series'] as const) {
                 element.scrollTop = 0;
             });
             await expect(chips).toBeVisible();
+            await credits.screenshot({
+                path: resolve(
+                    workspaceRoot,
+                    'dist/test-results/tv-e2e',
+                    `credits-rail-${kind}-${width}.png`
+                ),
+            });
+            await page.locator('[data-focus="detail-play"]').focus();
+            await page.locator('main').evaluate((element) => {
+                element.scrollTop = 0;
+            });
             await page.screenshot({
                 path: resolve(
                     workspaceRoot,

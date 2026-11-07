@@ -240,9 +240,12 @@ in the overlay chunk. Everything else is lazy by these rules:
   "focus was inside" in a microtask after such a `focusout`, which the close
   destroys the panel before. Both have specs that detach the view first.
 
-The app theme is the exclusive `.dark-theme` or `.light-theme` class that
-`SettingsService` puts on `<body>`; a "System" choice resolves the OS
-preference there and nowhere else. Component styles never use a
+The app mode is the exclusive `.dark-theme` or `.light-theme` class that
+`SettingsService` puts on `<body>`. Its `data-app-theme` attribute identifies
+the resolved palette: `light`, `dark`, `cream`, `mocha`, `night-owl`, or
+`black-oled`. Cream uses light mode; Mocha, Night Owl and Black OLED use dark
+mode. A "System" choice resolves the OS preference
+to the original Light/Dark presets there and nowhere else. Component styles never use a
 `prefers-color-scheme` query, which follows the OS: with the app set to dark
 on a light OS it paints light colours
 into the dark theme. Read `--app-*` tokens, which switch with the class, or
@@ -479,6 +482,10 @@ inputs, overlays, and resize handles—requires `app-region: no-drag`. The share
 directive-generated `.resize-handle` sets this centrally in `resizable.scss`.
 The shared live-layout sidebar reserves 8 px at its right edge so the inward
 half of the 12 px resize handle cannot cover the channel scrollbar.
+The outer sidebar owns the single pane divider; nested channel lists add no
+edge border. The header background and bottom separator extend across the
+resize gutter, while its controls keep their inset. Narrow layouts remove
+the gutter together with the resize handle.
 
 ## Resizable Sidebar Widths
 
@@ -522,6 +529,10 @@ host by its padding and border on the first move.
   decorative border on something focusable: any outline outranks the
   fallback, so the element loses its ring (use `border` or a spread
   `box-shadow`, as the selected season tab does).
+- Shared navigation rows draw the keyboard ring inside their edge, over
+  the selection border when selected. Lists keep 2px of top inset so the
+  selected row's 1px lift cannot clip its border; group lists retain that
+  inset too. Selection tint and `aria-current` remain when focus moves away.
 - **Removing the outline.** A component rule that sets `outline: none` also
   outranks the fallback, so it must show focus another way: a search field's
   wrapper takes a token border on `:focus-within`, optionally with a soft
@@ -548,6 +559,8 @@ are announced without moving focus from the search field. Opening a catalog
 card saves its identity in that list's history entry. Returning from details
 restores the card after scroll restoration, or the workspace main landmark
 if the card disappeared; an active input or dialog keeps focus.
+Catalog scroll restoration uses `GridListComponent.restoreScrollPosition()` so
+the TV window is rendered before the synchronous card-focus lookup.
 
 Shared season tabs have one Tab stop, wrapping Left/Right navigation
 (following text direction), Home/End, and an associated episode `tabpanel`.
@@ -661,7 +674,7 @@ them size from the `--cover-grid-min-width` / `--cover-rail-width` /
 
 ### Posters-only wall
 
-`Settings.showCoverTitles` (Settings > General, default on, only an explicit
+`Settings.showCoverTitles` (Settings > Appearance, default on, only an explicit
 `false` opts out — coerced like `webPlayerSharedControls`) removes the title
 row under VOD and series covers so the grid shows more rows per screen.
 
@@ -705,6 +718,30 @@ row under VOD and series covers so the grid shows more rows per screen.
   `.content-card` via `:has(> .content-card__activation:focus-visible)`,
   because the card's `overflow: hidden` would clip an outline on the inner
   surface on every edge. Poster `alt` is the title, not a literal.
+
+### Row windowing (TV shell)
+
+Under the TV shell (`tv-shell` class on `<html>`, set by its `tv.js` before
+the app boots) `app-grid-list` renders only the rows around its viewport plus
+three overscan rows on each side (`grid-window.ts`). The grid's top and
+bottom padding stand in for the rows left out, so the host keeps the full
+grid's `scrollHeight`: the infinite-scroll near-end check, the store's
+growing `visibleCount` and the saved `scrollTop` restore work unchanged. The
+`@for` tracks the item identity (`id`, `stream_id`, `series_id`,
+`xtream_id`, else the item's absolute position) so the focused card survives
+a window shift and a consumer that re-maps its items. A held D-pad key
+scrolls faster than a slow TV renders frames, so a capture `keydown` listener
+re-reads the offset and renders the window synchronously before the remote
+layer looks for the next row. Spacers assume one row height, so
+`.grid-list--windowed` turns `content-visibility` off on the cards and
+reserves both title lines. Outside the shell the grid renders every item with
+`track $index`, unchanged. A hidden grid (`display: none` ancestor) has no
+geometry and keeps its last window. Rows that re-enter the window re-create
+their `<img>`: posters a provider serves as cacheable come from the disk
+cache, while `no-store` artwork on a slow link shows blank for about the
+request time when scrolling back. Kill switch:
+`localStorage['grid-list:windowing'] = 'off'`; added October 2026, remove it
+two releases later.
 
 ## EPG Views
 
@@ -1019,7 +1056,8 @@ in front of 84 px channel cards.
 - The channel list views and `app-channel-list-loading-state` share
   `libs/ui/components/src/lib/styles/_channel-list-layout.scss`. The loading
   state takes the view and hides its headers where the loaded view does
-  (`showHeader`, compact lists).
+  (`showHeader`, compact lists). Group loading and loaded rails both inherit
+  the shared navigation list's top inset so their rows stay aligned.
 - The dashboard rails and `lib-dashboard-rail-skeleton` share
   `libs/workspace/dashboard/feature/src/lib/rails/_dashboard-rail-geometry.scss`.
   A skeleton takes the `layout` and `aspectRatio` of the rail it precedes:
@@ -1207,6 +1245,12 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   tinted text and no border, so the list never shifts. Back lives in the
   workspace header and Esc runs it. Section pages are defined once in
   `SETTINGS_SECTION_DEFINITIONS` (`libs/workspace/shell/util`).
+- Appearance follows General in App and owns theme palettes, cover size and
+  cover titles. General owns language, startup, channel names and portal
+  connectivity. Sections share one parent form: navigating between them keeps
+  staged edits and the live theme preview without persisting either. Save and
+  Discard apply across sections; dirty markers and search results use the
+  section that owns the control.
 - Each page is a title (26px) and one-line subtitle, then sections: a 14px
   heading, an optional description and action buttons, and a card.
 - Rows (`.setting-item`) are a label column (13.5px title, description
@@ -1671,6 +1715,38 @@ consumers must not reset these with a later `font: inherit` shorthand. Different
 content rows retain their own typography and density.
 
 ## Theme Guidance
+
+The built-in catalog and theme-value normalization live in
+`libs/shared/interfaces/src/lib/theme-presets.ts`. Keep existing persisted
+identifiers stable. Unknown saved values normalize to System; partial settings
+updates that omit the theme preserve the saved choice.
+
+The palette picker uses the existing keyboard-accessible radio directives. Six
+named miniature samples use the same app tokens as the real theme, arranged in
+three columns on wide settings containers and two on narrow ones. System is a
+separate row in the same group. Selection previews immediately, Save persists
+it, and Discard restores the saved choice and its System listener when needed.
+
+App palette declarations live in `apps/web/src/_theme-palettes.scss`, included
+by `m3-theme.scss` for both body contexts and decorative preview contexts.
+`_warm-theme.scss` supplies the Material color ramps for Cream/Mocha;
+`_dark-variant-themes.scss` supplies Night Owl/Black OLED. Night Owl uses navy
+surfaces and cool accents; Black OLED keeps the main background black and uses
+raised graphite surfaces for cards, inputs and overlays. Material
+component colors reference `--mat-sys-*` roles through one shared declaration
+block; each preset sets its system colors. The shared aliases are declared at
+each color boundary, since inheriting an alias from `html` would retain the
+light value. Samples emit only their seven displayed app roles from the same
+palette mixins, avoiding full duplicate theme payloads.
+Dark variants emit their app overrides over the shared `.dark-theme` defaults
+on the same body element; their mixins skip repeating the full dark palette.
+Light and Cream likewise share the `.light-theme` defaults on the body; `html`
+retains the same light fallback. Cream emits only its differing app roles.
+Adding a built-in preset requires catalog metadata, app/Material colors,
+localized naming, and computed contrast/persistence coverage. Do not introduce
+per-component preset conditions or duplicate sample-only palettes. Typography,
+spacing, media artwork and the fixed over-video control palette stay unchanged.
+
 
 ### Light Theme
 

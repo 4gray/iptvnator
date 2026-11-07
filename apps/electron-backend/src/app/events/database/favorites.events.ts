@@ -70,3 +70,15 @@ handleWorkerRequest('DB_FAVORITES_LOCAL', (request: FavoriteLocalRequest) => {
         throw new Error('Favorite profile mismatch');
     return request;
 });
+
+handleWorkerRequest(
+    'DB_HISTORY_LOCAL',
+    (
+        request: import('@iptvnator/shared/interfaces/history-sync').HistoryLocalRequest
+    ) => {
+        const selected = readSourceServerConfig();
+        if (!selected || request?.instanceId !== selected.instanceId)
+            throw new Error('History profile mismatch');
+        return request;
+    }
+);

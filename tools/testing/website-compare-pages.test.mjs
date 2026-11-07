@@ -36,7 +36,7 @@ function extractJsonLd(html) {
 for (const slug of COMPARISONS) {
   test(`comparison page ${slug}: canonical, schema and verdict`, async () => {
     const html = await readDist(`compare/${slug}/index.html`);
-    assert.match(html, new RegExp(`<link rel="canonical" href="${SITE}/compare/${slug}/"`));
+    assert.ok(html.includes(`<link rel="canonical" href="${SITE}/compare/${slug}/"`));
     assert.match(html, /<meta name="robots" content="index, follow/);
     assert.match(html, /Short answer/, 'Every comparison must state its verdict up front.');
     assert.match(html, /<table/, 'Every comparison must carry a comparison table.');
@@ -68,7 +68,7 @@ for (const slug of COMPARISONS) {
     const html = await readDist(`compare/${slug}/index.html`);
     assert.match(html, /href="\/iptvnator\/compare\/"/);
     for (const other of COMPARISONS.filter((candidate) => candidate !== slug)) {
-      assert.match(html, new RegExp(`href="/iptvnator/compare/${other}/"`));
+      assert.ok(html.includes(`href="/iptvnator/compare/${other}/"`));
     }
     assert.match(html, /href="\/iptvnator\/blog\/[a-z0-9-]+\/"/, 'Expected a link into the guides.');
   });
@@ -76,9 +76,9 @@ for (const slug of COMPARISONS) {
 
 test('compare hub links to every comparison and to the feature pages', async () => {
   const html = await readDist('compare/index.html');
-  assert.match(html, new RegExp(`<link rel="canonical" href="${SITE}/compare/"`));
+  assert.ok(html.includes(`<link rel="canonical" href="${SITE}/compare/"`));
   for (const slug of COMPARISONS) {
-    assert.match(html, new RegExp(`href="/iptvnator/compare/${slug}/"`));
+    assert.ok(html.includes(`href="/iptvnator/compare/${slug}/"`));
   }
   assert.match(html, /href="\/iptvnator\/features\/[a-z0-9-]+\/"/);
 });
@@ -93,6 +93,6 @@ test('the header and the features hub link into the comparisons', async () => {
 test('sitemap lists the comparison pages', async () => {
   const sitemap = await readDist('sitemap-0.xml');
   for (const path of ['compare/', ...COMPARISONS.map((slug) => `compare/${slug}/`)]) {
-    assert.match(sitemap, new RegExp(`<loc>${SITE}/${path}</loc>`));
+    assert.ok(sitemap.includes(`<loc>${SITE}/${path}</loc>`));
   }
 });

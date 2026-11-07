@@ -4,9 +4,9 @@
  */
 export const SETTINGS_CONTROL_SECTIONS: Readonly<Record<string, string>> = {
     language: 'general',
-    theme: 'general',
-    coverSize: 'general',
-    showCoverTitles: 'general',
+    theme: 'appearance',
+    coverSize: 'appearance',
+    showCoverTitles: 'appearance',
     startupBehavior: 'general',
     startupWindowMode: 'general',
     stripCountryPrefix: 'general',

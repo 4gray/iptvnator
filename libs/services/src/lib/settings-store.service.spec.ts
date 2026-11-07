@@ -230,6 +230,47 @@ describe('SettingsStore dashboard rail settings', () => {
         expect(store.language()).toBe('pt-PT');
     });
 
+    it.each([
+        'CREAM_THEME',
+        'MOCHA_THEME',
+        'NIGHT_OWL_THEME',
+        'BLACK_OLED_THEME',
+    ])(
+        'preserves saved theme %s through unrelated partial updates',
+        async (theme) => {
+            storedSettings = { theme: theme as Theme };
+            const store = injector.get(SettingsStore);
+            await store.loadSettings();
+            expect(store.theme()).toBe(theme);
+            await store.updateSettings({ showCaptions: true });
+            expect(storage.set).toHaveBeenLastCalledWith(
+                STORE_KEY.Settings,
+                expect.objectContaining({ theme })
+            );
+        }
+    );
+
+    it.each(['UNKNOWN_THEME', null, undefined])(
+        'normalizes invalid saved theme %p to System',
+        async (theme) => {
+            storedSettings = { theme: theme as unknown as Theme };
+            const store = injector.get(SettingsStore);
+            await store.loadSettings();
+            expect(store.theme()).toBe(Theme.SystemTheme);
+        }
+    );
+
+    it('normalizes an invalid theme update before persisting it', async () => {
+        const store = injector.get(SettingsStore);
+        await store.loadSettings();
+        await store.updateSettings({ theme: 'UNKNOWN_THEME' as Theme });
+        expect(store.theme()).toBe(Theme.SystemTheme);
+        expect(storage.set).toHaveBeenLastCalledWith(
+            STORE_KEY.Settings,
+            expect.objectContaining({ theme: Theme.SystemTheme })
+        );
+    });
+
     it('reconciles only after persistence and restores the previous EPG list on a failed save', async () => {
         storedSettings = { epgUrl: ['https://old.example/guide.xml'] };
         const sources = injector.get(EpgSourceSettingsService);

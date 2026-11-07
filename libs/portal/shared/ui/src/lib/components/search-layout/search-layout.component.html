@@ -41,6 +41,7 @@
                 [infiniteAppending]="nearEndAppending()"
                 [infiniteItemCount]="nearEndRenderedCount() ?? resultsCount()"
                 [infiniteResetKey]="nearEndResetKey() ?? searchTerm()"
+                [infiniteThresholdPx]="nearEndThresholdPx()"
                 (infiniteLoadMore)="nearEnd.emit()"
             >
                 @if (isLoading()) {

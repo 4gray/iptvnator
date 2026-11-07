@@ -18,10 +18,12 @@
  *       because the E2E workflow already runs them on every PR.
  */
 
-import { execFileSync, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+
+import { readResolvedProjects } from './nx-coverage-projects.mjs';
 
 const workspaceRoot = process.cwd();
 const policyPath = path.join(workspaceRoot, 'tools/coverage/coverage-policy.json');
@@ -33,24 +35,15 @@ const tiers = {
     tierC: policy.unitCoverage.tierC ?? [],
 };
 
-function showProjects(extraArgs = []) {
-    const output = execFileSync(
-        'pnpm',
-        ['nx', 'show', 'projects', '--json', ...extraArgs],
-        { cwd: workspaceRoot, encoding: 'utf8' }
-    );
-    const start = output.indexOf('[');
-    if (start === -1) {
-        throw new Error(
-            `nx show projects --json produced no JSON array.\nRaw output:\n${output}`
-        );
-    }
-    return new Set(JSON.parse(output.slice(start)));
-}
-
-const testProjects = showProjects(['--withTarget', 'test']);
-const allProjects = showProjects();
-const e2eProjects = showProjects(['--withTarget', 'e2e']);
+const resolvedProjects = await readResolvedProjects();
+const allProjects = new Set(Object.keys(resolvedProjects));
+const projectsWithTarget = (target) => new Set(
+    Object.entries(resolvedProjects)
+        .filter(([, project]) => project.targets?.[target])
+        .map(([name]) => name)
+);
+const testProjects = projectsWithTarget('test');
+const e2eProjects = projectsWithTarget('e2e');
 
 function runNonTierA() {
     let failed = false;

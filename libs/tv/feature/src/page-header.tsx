@@ -13,6 +13,7 @@ export function PageHeader({
         movies: 'Movies',
         series: 'Series',
         favorites: 'Favorites',
+        history: 'History',
         search: 'Find your next story.',
         live: 'Live television',
         sources: 'Sources',
@@ -50,7 +51,7 @@ export function PageHeader({
                     ) : null}
                 </div>
             )}
-            {view === 'home' ? (
+            {view === 'home' || view === 'history' ? (
                 <span class="home-scope">All sources</span>
             ) : view === 'favorites' ? (
                 <FavoriteSources tv={tv} cancel={cancelOpening} />

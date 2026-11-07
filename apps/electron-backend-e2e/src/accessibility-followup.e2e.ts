@@ -25,22 +25,45 @@ test.afterAll(async () => {
     await fixture.close();
 });
 
-test('@electron @a11y Settings text meets contrast in both themes', async ({
+test('@electron @a11y Settings text meets contrast in every preset', async ({
     dataDir,
 }) => {
     const app = await launchElectronApp(dataDir);
     const page = app.mainWindow;
     try {
         await openSettings(page);
-        await openSettingsSection(page, 'general');
-        for (const theme of ['light', 'dark'] as const) {
-            await applyTheme(page, theme);
+        await openSettingsSection(page, 'appearance');
+        for (const theme of [
+            'light',
+            'dark',
+            'cream',
+            'mocha',
+            'night-owl',
+            'black-oled',
+        ] as const) {
+            await page
+                .getByTestId('select-theme')
+                .getByTestId(`${theme.replace(/-/g, '_').toUpperCase()}_THEME`)
+                .click();
+            await expect(page.locator('body')).toHaveAttribute(
+                'data-app-theme',
+                theme
+            );
             await expectTextContrast(
                 page.locator('.settings-section-item.active .nav-item-label')
             );
-            const options = await page.locator('.theme-switcher__option').all();
-            expect(options).toHaveLength(6);
-            for (const option of options) {
+            const paletteLabels = page
+                .getByTestId('select-theme')
+                .locator('.theme-palette__label');
+            await expect(paletteLabels).toHaveCount(7);
+            for (const label of await paletteLabels.all()) {
+                await expectTextContrast(label);
+            }
+            const coverOptions = page
+                .getByTestId('select-cover-size')
+                .locator('.theme-switcher__option');
+            await expect(coverOptions).toHaveCount(3);
+            for (const option of await coverOptions.all()) {
                 await expectTextContrast(option);
             }
         }

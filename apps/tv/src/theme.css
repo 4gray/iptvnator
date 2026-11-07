@@ -6,6 +6,7 @@
     --tv-accent: #8ee5c2;
     --app-focus-ring-color: var(--tv-accent);
     --tv-line: #2a3832;
+    --tv-scroll-thumb: #526b5c;
     color-scheme: dark;
     font-family: 'Trebuchet MS', sans-serif;
     font-size: 22px;
@@ -14,6 +15,16 @@
 }
 * {
     box-sizing: border-box;
+}
+::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+::-webkit-scrollbar-track {
+    background: var(--tv-bg);
+}
+::-webkit-scrollbar-thumb {
+    background: var(--tv-scroll-thumb);
 }
 body {
     margin: 0;
@@ -166,6 +177,11 @@ aside {
 nav {
     display: flex;
     flex-direction: column;
+    min-height: 0;
+    overflow-y: auto;
+    flex-shrink: 1;
+    padding: 7px;
+    margin: -7px;
 }
 nav button {
     background: transparent;
@@ -386,7 +402,8 @@ header .tv-select {
     min-width: 192px;
     margin-right: 24px;
 }
-.poster-card {
+.poster-card,
+.resume-card {
     background: none;
     padding: 0;
     min-width: 0;
@@ -395,7 +412,8 @@ header .tv-select {
     display: block;
     position: relative;
 }
-.poster-card:hover {
+.poster-card:hover,
+.resume-card:hover {
     background: transparent;
 }
 .poster-art {
@@ -438,7 +456,8 @@ header .tv-select {
     letter-spacing: 2px;
     color: #cbd9d0;
 }
-.poster-card > strong {
+.poster-card > strong,
+.resume-card > strong {
     font-size: 20px;
     font-weight: 500;
     display: block;
@@ -446,7 +465,8 @@ header .tv-select {
     overflow: hidden;
     text-overflow: ellipsis;
 }
-.poster-card > .muted {
+.poster-card > .muted,
+.resume-card > .muted {
     font-size: 15px;
     display: block;
     margin-top: 8px;
@@ -461,79 +481,97 @@ header .tv-select {
     height: 0;
     padding-top: 150%;
 }
-.resume-card {
-    width: 400px;
-    min-width: 400px;
-    min-height: 220px;
+.resume-entry {
+    min-width: 0;
+    flex: none;
+}
+.rail > .resume-entry {
+    width: 192px;
+    min-width: 192px;
     margin-right: 24px;
-    padding: 0;
-    display: flex;
-    align-items: stretch;
-    background: var(--tv-surface);
 }
-.resume-art {
-    width: 120px;
-    min-width: 120px;
-    height: 180px;
-    align-self: center;
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--tv-accent);
-    background: #263e31;
+.resume-card {
+    width: 100%;
 }
-.resume-art > svg {
-    width: 40px;
-    height: 40px;
-}
-.resume-art img {
+.resume-fallback {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    object-fit: contain;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--tv-accent);
 }
-.resume-copy {
-    min-width: 0;
-    padding: 18px;
-    flex: 1;
-}
-.resume-copy strong {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    font-size: 20px;
-    font-weight: 500;
-    line-height: 1.2;
+.resume-fallback svg {
+    width: 48px;
     height: 48px;
-    margin-bottom: 8px;
+}
+.resume-options {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 2;
+    display: flex;
+    padding: 6px;
+    border-radius: 4px;
+    color: var(--tv-text);
+    background: var(--tv-bg);
 }
 .resume-position,
+.resume-date,
 .resume-action {
     display: block;
     font-size: 15px;
+    margin-top: 8px;
     color: var(--tv-muted);
 }
 .resume-action {
     color: var(--tv-accent);
-    margin-top: 10px;
 }
-.resume-card progress {
-    display: block;
+.resume-card > .muted {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.resume-card .resume-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    z-index: 3;
     width: 100%;
     height: 4px;
     border: 0;
-    margin-top: 12px;
+    margin: 0;
     -webkit-appearance: none;
 }
-.resume-card progress::-webkit-progress-bar {
+.resume-progress::-webkit-progress-bar {
     background: var(--tv-line);
 }
-.resume-card progress::-webkit-progress-value {
+.resume-progress::-webkit-progress-value {
     background: var(--tv-accent);
+}
+.history-list {
+    margin-top: 24px;
+}
+.tv-card-options button {
+    width: 100%;
+    display: block;
+    margin-top: 12px;
+    font-size: 24px;
+    min-height: 64px;
+}
+.tv-dialog.tv-card-menu {
+    width: 640px;
+}
+.tv-card-menu .tv-dialog-header h2 {
+    min-width: 0;
+    overflow: hidden;
+    overflow-wrap: break-word;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
 }
 .favorite-types {
     display: flex;
@@ -833,14 +871,6 @@ main.live-page {
     overflow-x: hidden;
     padding: 8px;
 }
-.channels::-webkit-scrollbar,
-.programme-list::-webkit-scrollbar {
-    width: 12px;
-}
-.channels::-webkit-scrollbar-thumb,
-.programme-list::-webkit-scrollbar-thumb {
-    background: #40554a;
-}
 .channel-pane-header {
     flex-shrink: 0;
     padding: 0 8px 14px;
@@ -1075,6 +1105,16 @@ main.live-page {
     opacity: 0;
     pointer-events: none;
 }
+@media (max-height: 800px) {
+    .wordmark {
+        margin-bottom: 24px;
+    }
+    nav button {
+        min-height: 48px;
+        padding: 8px;
+        margin-bottom: 4px;
+    }
+}
 @media (max-width: 1400px) {
     :root {
         font-size: 19px;
@@ -1119,7 +1159,8 @@ main.live-page {
     .poster-grid {
         grid-template-columns: repeat(5, minmax(0, 1fr));
     }
-    .rail > .poster-card {
+    .rail > .poster-card,
+    .rail > .resume-entry {
         min-width: 170px;
         width: 170px;
     }
@@ -1506,4 +1547,32 @@ main.live-page {
     background: var(--tv-surface);
     padding: 18px 24px;
     margin-bottom: 24px;
+}
+
+/* Episode actions are siblings of playback, with one stable virtual row height. */
+.detail-page .episode-grid {
+    grid-auto-rows: 330px;
+}
+.detail-page .rich-episodes .episode-grid {
+    grid-auto-rows: 550px;
+}
+.episode-entry {
+    min-width: 0;
+}
+.episode-entry .episode {
+    width: 100%;
+}
+.episode-entry > .tv-select {
+    margin-top: 8px;
+    width: 100%;
+}
+.watch-status {
+    display: block;
+    color: var(--tv-muted);
+    font-size: 18px;
+}
+.watch-status progress {
+    display: block;
+    width: 100%;
+    margin: 8px 0;
 }

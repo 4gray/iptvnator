@@ -1,6 +1,9 @@
 import type { APIRequestContext, Page } from '@playwright/test';
 import { expect, test } from './fixtures';
 import { configureMockProviderBackend } from './provider-target-route';
+import axe from 'axe-core';
+import { expectNavigationFocus } from './navigation-focus.fixture';
+import { applyUiTheme, rasterTextContrast } from './ui-consistency.fixture';
 import {
     closeSeriesMenu,
     pressTab,
@@ -1057,7 +1060,7 @@ test('@xtream posters-only wall — hides VOD titles behind a hover caption afte
     await expect(grid).not.toHaveClass(/grid-list--posters-only/);
 
     const catalogUrl = page.url();
-    await page.goto('/workspace/settings/general');
+    await page.goto('/workspace/settings/appearance');
     const toggle = page.locator('[data-test-id="cover-titles-toggle"]');
     await expect(toggle.getByRole('switch')).toBeChecked();
     await toggle.click();
@@ -1144,10 +1147,7 @@ for (const theme of ['light', 'dark']) {
         await page.locator('app-grid-list mat-card').first().click();
         const shell = page.locator('app-portal-detail-shell');
         await expect(shell).toBeVisible();
-        await page.evaluate(
-            (dark) => document.body.classList.toggle('dark-theme', dark),
-            theme === 'dark'
-        );
+        await applyUiTheme(page, theme === 'dark');
         const favorite = shell
             .locator('[data-testid="series-favorite-toggle"]')
             .first();
@@ -1250,18 +1250,43 @@ for (const theme of ['light', 'dark']) {
     test(`@xtream navigation: channel focus and separate scrollbar (${theme})`, async ({
         page,
         browserName,
-    }) => {
+    }, testInfo) => {
+        await page.route('https://test-streams.mux.dev/**', (route) =>
+            route.abort()
+        );
         await addXtreamPortal(page);
         await page.getByRole('link', { name: 'Live TV', exact: true }).click();
-        await page.evaluate(
-            (dark) => document.body.classList.toggle('dark-theme', dark),
-            theme === 'dark'
-        );
+        await applyUiTheme(page, theme === 'dark');
         const category = page.locator('.context-panel .category-item').first();
         await category.click();
         const viewport = page.locator('.scroll-viewport-portals');
         await expect(viewport).toBeVisible();
+        const sidebar = page.locator('app-live-stream-layout .sidebar');
+        await expect(sidebar).toHaveCSS('border-right-width', '1px');
+        await expect(sidebar.locator('app-portal-channels-list')).toHaveCSS(
+            'border-right-width',
+            '0px'
+        );
+        const headerGap = await sidebar.evaluate((el) => {
+            const header = el.querySelector('.sidebar-header');
+            if (!header) throw new Error('Missing sidebar header');
+            return (
+                el.getBoundingClientRect().right -
+                parseFloat(getComputedStyle(el).borderRightWidth) -
+                header.getBoundingClientRect().right
+            );
+        });
+        expect(Math.abs(headerGap)).toBeLessThanOrEqual(1);
         await category.focus();
+        await page.evaluate(axe.source);
+        const violations = await page.evaluate(async () => {
+            const engine = (
+                window as typeof window & { axe: typeof import('axe-core') }
+            ).axe;
+            return (await engine.run('app-workspace-context-category-view'))
+                .violations;
+        });
+        expect(violations).toEqual([]);
         await page.keyboard.press('ArrowRight');
         await expect(viewport).toBeFocused();
         await expect(page.locator('app-web-player-view')).toHaveCount(0);
@@ -1314,6 +1339,30 @@ for (const theme of ['light', 'dark']) {
         expect(overlap).toBeLessThanOrEqual(0);
         await page.keyboard.press('ArrowLeft');
         await expect(category).toBeFocused();
+        await expect(category).toHaveAttribute('aria-current', 'true');
+        const contrast = await expectNavigationFocus(category);
+        await expect
+            .poll(() => rasterTextContrast(category.locator('.nav-item-label')))
+            .toBeGreaterThanOrEqual(4.5);
+        await pressTab(page, browserName);
+        await expectNavigationFocus(
+            page.locator('.context-panel .category-item').nth(1)
+        );
+        await pressTab(page, browserName, 'backward');
+        await testInfo.attach('category-focus-contrast', {
+            body: JSON.stringify({ theme, contrast }),
+            contentType: 'application/json',
+        });
+        await page.setViewportSize({ width: 1600, height: 1000 });
+        await page.screenshot({
+            path: testInfo.outputPath(`live-panels-${theme}.png`),
+            animations: 'disabled',
+        });
+        await page.locator('.context-panel .category-item').nth(1).click();
+        await category.click();
+        expect(
+            await category.evaluate((el) => el.matches(':focus-visible'))
+        ).toBe(false);
     });
 
     for (const section of ['Movies', 'Series']) {
@@ -1332,10 +1381,7 @@ for (const theme of ['light', 'dark']) {
             await expect(
                 shell.getByRole('heading', { level: 1 })
             ).toBeVisible();
-            await page.evaluate(
-                (dark) => document.body.classList.toggle('dark-theme', dark),
-                theme === 'dark'
-            );
+            await applyUiTheme(page, theme === 'dark');
             await expect(shell).toBeFocused();
             await expect
                 .poll(() =>
@@ -1367,10 +1413,7 @@ for (const theme of ['light', 'dark']) {
                 shell.getByRole('heading', { level: 1 })
             ).toBeVisible();
             await shell.focus();
-            await page.evaluate(
-                (dark) => document.body.classList.toggle('dark-theme', dark),
-                theme === 'dark'
-            );
+            await applyUiTheme(page, theme === 'dark');
             // Back is the header's leading control, not a page overlay.
             const back = page.locator(
                 'app-workspace-shell-header [data-test-id="workspace-header-back"]'

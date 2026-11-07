@@ -1,0 +1,7 @@
+#EXTM3U
+#EXTINF:-1 tvg-id="Synthetic3",Synthetic4 Synthetic5
+# stray comment
+#EXT-X-SESSION-DATA:DATA-ID="com.example",VALUE="x"
+http://synthetic.example/Synthetic1.m3u8
+#EXTINF:-1 tvg-id="Synthetic6",Synthetic4 Synthetic7
+http://synthetic.example/Synthetic2.m3u8

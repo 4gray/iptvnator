@@ -1,0 +1,7 @@
+#EXTM3U
+#EXTINF:-1,Synthetic7 Synthetic8 Synthetic9
+http://synthetic.example:7522/Synthetic1/Synthetic2/Synthetic3.ts
+#EXTINF:-1,Synthetic10 Synthetic9
+http://synthetic.example:7522/Synthetic1/Synthetic2/Synthetic4.ts
+#EXTINF:-1,3Synthetic11 Synthetic9
+http://synthetic.example:8080/Synthetic5/Synthetic6.ts

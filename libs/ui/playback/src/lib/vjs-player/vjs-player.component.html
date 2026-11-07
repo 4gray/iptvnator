@@ -22,6 +22,10 @@
     </div>
 
     @if (sharedControls) {
+        @if (interactionEnabled()) {
+            <!-- The Video.js tech cancels touchend, suppressing the tap's click. -->
+            <div class="vjs-player-interaction-capture" aria-hidden="true"></div>
+        }
         <app-player-controls
             [controller]="controlsAdapter"
             [playerSurface]="playerRoot"

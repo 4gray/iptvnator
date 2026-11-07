@@ -1,6 +1,7 @@
 import {
     ChangeDetectionStrategy,
     Component,
+    ElementRef,
     computed,
     inject,
     input,
@@ -29,6 +30,7 @@ import {
 } from '@iptvnator/ui/components';
 import { CoverTitlesService } from '../../cover-titles/cover-titles.service';
 import { PlaylistErrorViewComponent } from '../playlist-error-view/playlist-error-view.component';
+import { createGridWindow } from './grid-window.controller';
 
 interface GridListItem {
     id?: number | string;
@@ -106,12 +108,14 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
     ],
     host: {
         '[class.grid-list--posters-only]': 'postersOnly()',
+        '[class.grid-list--windowed]': 'gridWindow.enabled',
         '[class.grid-list--logos]': "variant() === 'logo'",
         '[attr.aria-busy]': 'isLoading()',
     },
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class GridListComponent {
+    private readonly host: HTMLElement = inject(ElementRef).nativeElement;
     private readonly failedArtworkUrls = signal<ReadonlySet<string>>(new Set());
     private readonly settingsStore = inject(SettingsStore);
     private readonly coverTitles = inject(CoverTitlesService);
@@ -133,6 +137,11 @@ export class GridListComponent {
     readonly searchTerm = input<string>('');
     readonly itemClicked = output<GridListItem>();
     readonly retryLoadMore = output<void>();
+    /** TV shell only: renders the rows around the viewport, see grid-window.ts. */
+    protected readonly gridWindow = createGridWindow(
+        this.items,
+        this.isLoading
+    );
 
     readonly variant = input<'poster' | 'logo'>('poster');
     readonly type = input<'vod' | 'series' | 'live' | string>('');
@@ -198,6 +207,11 @@ export class GridListComponent {
     readonly skeletonRows = computed(() =>
         Array.from({ length: 12 }, (_, index) => index)
     );
+
+    restoreScrollPosition(top: number): void {
+        this.host.scrollTo({ top });
+        this.gridWindow.synchronize();
+    }
 
     protected hasArtworkFailed(poster: string): boolean {
         return this.failedArtworkUrls().has(poster);

@@ -1,0 +1,30 @@
+.horizontal-rail {
+    position: relative;
+    min-width: 0;
+    flex: none;
+    padding: 0 48px;
+}
+[data-tv-horizontal] {
+    scrollbar-width: none;
+}
+[data-tv-horizontal]::-webkit-scrollbar {
+    display: none;
+    height: 0;
+}
+.rail-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    min-height: 64px;
+    padding: 6px;
+}
+.rail-arrow-left {
+    left: 0;
+}
+.rail-arrow-right {
+    right: 0;
+}

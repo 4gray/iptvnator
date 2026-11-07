@@ -1,6 +1,7 @@
 export * from './components';
 export { Backdrop } from './backdrop';
 export * from './focus';
+export * from './platform';
 export { TvIcon } from './icon';
 export { VirtualCollection } from './virtual-collection';
 export { ChannelLogo, ChannelCard } from './channel-card';
@@ -8,3 +9,5 @@ export { ResumeCard } from './resume-card';
 export { Hero } from './hero';
 export { TvSelect, type TvOption } from './select';
 export { TvDescription } from './description';
+export { HorizontalRail } from './horizontal-rail';
+export { TvDialog } from './dialog';

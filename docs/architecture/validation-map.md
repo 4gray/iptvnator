@@ -32,7 +32,7 @@ using its result as evidence. Docker validation can use
 | EPG data access                    | `pnpm nx test epg-data-access`      |
 | Workspace shell utilities          | `pnpm nx test workspace-shell-util` |
 | Shared SQLite schema/connection    | `pnpm nx test database`             |
-| TV runtime, providers and local storage | `pnpm nx test tv` and `pnpm nx e2e tv-e2e` |
+| TV runtime, providers, local storage and LG/Tizen package inputs | `corepack pnpm nx test tv`, `corepack pnpm nx run tv:verify-build` and `corepack pnpm nx e2e tv-e2e`; Samsung hardware/signing: [Tizen acceptance](../development/tv-tizen-validation.md) |
 | Packaging metadata                 | `pnpm nx test packaging`            |
 
 `typecheck:spec` (`tools/typecheck/spec-typecheck.mjs`) runs `tsc --noEmit`
@@ -102,6 +102,13 @@ Tier A entry has no test target. CI runs Tier A with coverage (uploaded to
 Codecov) and each Tier B/C project's `validationCommand` (falling back to
 `nx test`) without coverage; projects with an `e2e` target are skipped there
 because the E2E workflow already runs them on every PR that touches app code.
+Coverage commands resolve the Nx project graph once per invocation so inferred
+Jest targets remain classified even when `project.json` has no explicit `test`.
+Project-local Jest configs and the existing workspace-root Angular ESM
+config keep separate source-glob roots, with coverage reports written to the
+same workspace output paths and JUnit classnames relative to the repository.
+Migrated Jest commands keep the workspace working directory for subprocess and
+file-based test contracts, independently of the Jest config's root directory.
 Docs-only changes (Markdown, `docs/`, `.plans/`, `.codex/`, `.claude/`) and
 `apps/website/**` changes skip the E2E workflow via `paths-ignore` — for those
 PRs no E2E validation runs in CI, which is intentional: they cannot affect app
@@ -256,11 +263,17 @@ The Web E2E CI job runs Chromium with `--workers=2`; retry and timeout
 settings remain defined by the Playwright configuration. This override applies
 only to the Web E2E workflow step.
 
+On pull requests, the CI Lint job summarizes which E2E suites project-level
+Nx affected selects for the PR merge diff. Use the preview to check that the
+graph includes each suite that consumes the changed code before using it to
+skip any jobs. The preview is informational. The E2E workflow keeps its
+existing path filters and matrix, and TV E2E remains a separate local target.
+
 Use atomized E2E targets when available, for example
 `pnpm nx run web-e2e:e2e-ci--src/xtream.e2e.ts`.
 
 After changing a Playwright config's `webServer` list, `nx.json` target
-defaults or an E2E project's `dependsOn`, run
+defaults or an E2E project's dependencies, run
 `pnpm run e2e:task-graphs:validate`. It builds every Playwright target's task
 graph with and without `CI` and fails on the graphs Nx refuses to run; CI runs
 it in the `unit-and-typecheck` job. See

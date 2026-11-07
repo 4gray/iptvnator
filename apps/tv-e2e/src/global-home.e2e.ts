@@ -2,7 +2,7 @@ import { expect, Page, test } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { workspaceRoot } from '@nx/devkit';
-import { addSource, nav, start } from './helpers';
+import { addSource, nav, start, cardAction } from './helpers';
 
 const sourceA = 'Synthetic source A';
 const sourceB = 'Synthetic source B';
@@ -145,13 +145,18 @@ test('Home combines sources and resumes the selected movie with its own provider
     await expect(cardA).toBeVisible();
     await expect(resume(page, sourceB)).toBeVisible();
     expect(await active(page)).not.toBe(JSON.parse(idA!)[0]);
+    // Hover can target a partially clipped cover. Start fully in view so the
+    // saved scroll is compatible with revealing the restored focus target.
+    await cardA.evaluate((card) =>
+        card.scrollIntoView({ block: 'center', inline: 'nearest' })
+    );
     await cardA.hover();
     await expect(page.locator('video[src],video source')).toHaveCount(0);
-    const scroll = await page.locator('main').evaluate((e) => e.scrollTop);
     const output = join(workspaceRoot, 'dist/tv-home-verification');
     await mkdir(output, { recursive: true });
     await page.screenshot({ path: join(output, 'global-home.png') });
-    await cardA.click();
+    const scroll = await page.locator('main').evaluate((e) => e.scrollTop);
+    await cardAction(page, cardA);
     await expect(page.locator('.player-controls')).toBeVisible();
     await expect.poll(() => active(page)).toBe(JSON.parse(idA!)[0]);
     await expect
@@ -226,7 +231,7 @@ for (const exit of ['Back', 'Settings'] as const)
             }
         });
         try {
-            await resume(page, sourceA).click();
+            await cardAction(page, resume(page, sourceA));
             await expect.poll(() => held).toBeGreaterThan(0);
             await expect(
                 page.getByRole('button', { name: 'Cancel opening title' })
@@ -283,7 +288,7 @@ test('navigation during the source save cannot return to Home or launch playback
             return original.call(this, value, key);
         };
     }, target);
-    await resume(page, sourceA).click();
+    await cardAction(page, resume(page, sourceA));
     await expect(
         page.getByRole('heading', { name: 'Settings', exact: true })
     ).toBeVisible();
@@ -320,9 +325,9 @@ test('a newer Home resume supersedes a delayed source activation', async ({
         }
     });
     try {
-        await resume(page, sourceA).click();
+        await cardAction(page, resume(page, sourceA));
         await expect.poll(() => held).toBe(true);
-        await resume(page, sourceB).click();
+        await cardAction(page, resume(page, sourceB));
         await expect(page.locator('.player-controls')).toBeVisible();
         expect(await active(page)).toBe(expected);
         release();
@@ -368,7 +373,7 @@ test('a failed foreign source retries only the requested Home title', async ({
         }
         return route.fallback();
     });
-    await resume(page, sourceA).click();
+    await cardAction(page, resume(page, sourceA));
     const retry = page.getByRole('button', {
         name: 'Retry Home title',
         exact: true,
@@ -434,7 +439,7 @@ test('a removed source retains visible history and cannot use a different provid
     await nav(page, 'Home');
     const missing = resume(page, 'Source unavailable');
     await expect(missing).toBeVisible();
-    await missing.click();
+    await cardAction(page, missing);
     await expect(page.getByRole('alert')).toContainText('no longer available');
     await expect(page.locator('video[src],video source')).toHaveCount(0);
 });
@@ -584,7 +589,7 @@ test('cross-source playback retry restores the complete Home origin', async ({
     await resume(page, sourceA).focus();
     const scroll = await page.locator('main').evaluate((e) => e.scrollTop);
     expect(scroll).toBeGreaterThan(0);
-    await resume(page, sourceA).click();
+    await cardAction(page, resume(page, sourceA));
     const retry = page.getByRole('button', {
         name: 'Retry playback',
         exact: true,
@@ -650,7 +655,7 @@ test('a ready-source resume waits behind an earlier source save', async ({
         };
     }, target);
     try {
-        await resume(page, sourceA).click();
+        await cardAction(page, resume(page, sourceA));
         await expect
             .poll(() =>
                 page.evaluate(() =>
@@ -661,7 +666,7 @@ test('a ready-source resume waits behind an earlier source save', async ({
                 )
             )
             .toBe(true);
-        await resume(page, sourceB).click();
+        await cardAction(page, resume(page, sourceB));
         await expect(
             page.getByRole('button', { name: 'Cancel opening title' })
         ).toBeVisible();
@@ -800,7 +805,8 @@ for (const action of ['resume', 'Back', 'Next', 'Previous'] as const)
                 )
                 .toBe(true);
             if (action === 'Back') await page.keyboard.press('Escape');
-            else if (action === 'resume') await resume(page, sourceB).click();
+            else if (action === 'resume')
+                await cardAction(page, resume(page, sourceB));
             else {
                 const control = page.getByRole('button', {
                     name: `${action} unfinished title`,

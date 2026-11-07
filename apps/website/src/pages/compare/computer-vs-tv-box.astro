@@ -18,7 +18,7 @@ const comparison = comparisonBySlug('computer-vs-tv-box');
 const pageUrl = absoluteUrl('/compare/computer-vs-tv-box/');
 const title = 'IPTV on a Computer vs on a TV Box – Which Room Does What';
 const description =
-  'A set-top box is unbeatable in front of the TV, and hopeless the moment you have to type a server URL or work out why a guide shows the wrong programme. What each place is good at, why an Android-only app has no PC version, and how IPTVnator fits the computer half.';
+  'Compare IPTV on a computer and a TV box for setup, programme guides and remote control. See where IPTVnator’s desktop app and experimental TV builds fit.';
 
 const columns = ['TV box or smart TV', 'Computer'];
 
@@ -44,7 +44,7 @@ const practicalRows = [
   { label: 'Hardware', cells: ['A box, a stick or the TV itself', 'A machine you already own'] },
   { label: 'Decoding', cells: ['What the chip supports, in hardware', 'What the machine supports, plus MPV or VLC for the rest'] },
   { label: 'Updates', cells: ['When the app store offers one', 'When you install one'] },
-  { label: 'Runs IPTVnator', cells: [false, true], note: 'IPTVnator is a desktop app for Windows, macOS and Linux, plus a browser version you host yourself. There is no TV build.' },
+  { label: 'Runs IPTVnator', cells: ['Experimental builds for Fire TV, Android TV, LG webOS and Samsung Tizen', 'Desktop app for Windows, macOS and Linux'] },
 ];
 
 const apps = [
@@ -95,11 +95,11 @@ const guidance = [
 
 const faq: FaqEntry[] = [
   {
-    q: 'Is there an IPTVnator app for Android TV, Fire TV or an Apple TV?',
-    a: 'No. IPTVnator is a desktop application for Windows, macOS and Linux, plus a browser version you can host yourself. There is no build for a television or a set-top box, and its interface assumes a keyboard and a mouse rather than a d-pad.',
+    q: 'Which TV platforms have an IPTVnator app?',
+    a: 'Experimental builds are available for Fire TV and Android TV, LG webOS and Samsung Tizen. The Fire TV and Android TV APK includes its backend. The LG and Samsung client needs a compatible IPTVnator web backend.',
   },
   {
-    q: 'So how do I watch it on the television?',
+    q: 'How do I watch the desktop app on my TV?',
     a: 'Connect the computer to the TV with an HDMI cable, which is what most people do, and use the app full screen. A phone then works as the remote through the built-in web remote. Casting works too, though it depends on your operating system rather than on IPTVnator.',
   },
   {
@@ -150,7 +150,7 @@ const jsonLd = buildComparisonPageSchema({ comparison, pageUrl, description, faq
     titleLead="A box for the couch, a"
     titleAccent="keyboard for the setup"
     lede="These are not competing products, they are different rooms. A set-top box is unbeatable in front of the television and hopeless the moment you have to type a server URL. A computer is the opposite, and the gap between them is where most IPTV frustration lives."
-    verdict="Do the setup where there is a keyboard: adding a provider, attaching a guide, fixing the channels that do not match, downloading something for a trip. Watch wherever suits the room. IPTVnator is the computer half of that — there is no TV build — and its phone remote is what makes a laptop on the TV bearable."
+    verdict="Use the desktop app when you need a keyboard for setup or the full set of playback tools. To watch with a TV remote, try the experimental IPTVnator build for your device."
   />
 
   <DownloadSection id="setup" eyebrow="Setting it up" title="Everything that needs" accent="a keyboard" lead="A d-pad and an on-screen keyboard are fine for choosing a channel and miserable for everything below.">
@@ -168,6 +168,9 @@ const jsonLd = buildComparisonPageSchema({ comparison, pageUrl, description, faq
 
   <DownloadSection id="practical" eyebrow="In practice" title="Hardware, decoding" accent="and updates">
     <ComparisonTable columns={columns} rows={practicalRows} rowHeader="Detail" />
+    <a href="/iptvnator/download/#tv" class="mt-4 inline-flex min-h-11 items-center text-sm text-accent-400 underline decoration-accent-500/30 underline-offset-4 hover:text-accent-300">
+      Explore experimental TV builds
+    </a>
   </DownloadSection>
 
   <DownloadSection id="apps" eyebrow="Names" title="The apps people" accent="actually mean" lead="“TV box” usually means one of a handful of Android TV players. Knowing what they have in common is more useful than ranking them.">

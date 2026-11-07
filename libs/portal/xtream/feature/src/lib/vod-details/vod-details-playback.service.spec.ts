@@ -39,6 +39,7 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
     let positionListener: ((data: PlaybackPositionData) => void) | undefined;
     const addRecentItem = jest.fn();
     const xtreamDataSource = {
+        supportsPortableHistory: jest.fn().mockResolvedValue(false),
         getContentByXtreamId: jest.fn(),
         addRecentItem: jest.fn(),
     };
@@ -91,6 +92,7 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
     }
 
     beforeEach(() => {
+        xtreamDataSource.supportsPortableHistory.mockResolvedValue(false);
         activeSession.set(null);
         activeSource.set(null);
         currentPlaylist.set({ id: ROUTE_PLAYLIST });
@@ -371,7 +373,7 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
             'movie'
         );
         expect(xtreamDataSource.addRecentItem).toHaveBeenCalledWith(
-            { id: 77, type: 'movie' },
+            { id: 77, type: 'movie', providerId: ROUTE_VOD_ID },
             ROUTE_PLAYLIST,
             undefined,
             expect.objectContaining({
@@ -383,11 +385,15 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
     });
 
     it.each([
-        ['the API-only data source', false, 1],
-        ['the SQLite data source', true, 0],
+        ['the API-only data source', false, 1, false],
+        ['the SQLite data source', true, 0, false],
+        ['verified portable native history', true, 1, true],
     ])(
         'keys a late, uncached write by Xtream id only for %s',
-        async (_label, sqlite: boolean, saves: number) => {
+        async (_label, sqlite: boolean, saves: number, portable: boolean) => {
+            xtreamDataSource.supportsPortableHistory.mockResolvedValue(
+                portable
+            );
             // A partial Electron bridge still selects the API-only source.
             jest.spyOn(
                 TestBed.inject(RuntimeCapabilitiesService),
@@ -404,13 +410,16 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
             TestBed.inject(PlaybackHistoryGate).confirm({
                 streamUrls: ['https://example.com/route.mkv'],
             });
-            await Promise.resolve();
-            await Promise.resolve();
+            await new Promise((resolve) => setTimeout(resolve, 0));
 
             expect(xtreamDataSource.addRecentItem).toHaveBeenCalledTimes(saves);
             if (saves) {
                 expect(xtreamDataSource.addRecentItem).toHaveBeenCalledWith(
-                    { id: ROUTE_VOD_ID, type: 'movie' },
+                    {
+                        id: ROUTE_VOD_ID,
+                        type: 'movie',
+                        providerId: ROUTE_VOD_ID,
+                    },
                     ROUTE_PLAYLIST,
                     undefined,
                     expect.objectContaining({ title: 'Slow external launch' })

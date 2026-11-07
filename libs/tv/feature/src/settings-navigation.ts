@@ -1,3 +1,4 @@
+import { isBackKey } from '@iptvnator/tv/util';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 
@@ -102,14 +103,12 @@ export function useSettingsNavigation(memory: SettingsMemory) {
                     38: 'ArrowUp',
                     39: 'ArrowRight',
                     40: 'ArrowDown',
-                    461: 'Escape',
                 } as Record<number, string>
             )[event.keyCode] ?? event.key;
         const inPanel = !!target.closest('[data-settings-panel]');
         const back =
-            key === 'Escape' ||
-            key === 'BrowserBack' ||
-            (key === 'Backspace' && !target.matches('input,textarea'));
+            isBackKey(event) &&
+            !(event.key === 'Backspace' && target.matches('input,textarea'));
         // Text inputs retain horizontal caret movement. Native selects leave
         // horizontally, as in the shared remote engine.
         if (

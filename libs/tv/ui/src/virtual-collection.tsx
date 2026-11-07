@@ -3,6 +3,9 @@ import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 
 const windowRow = (index: number, columns: number) =>
     Math.max(0, Math.floor(index / columns) - 2);
+const itemIndex = (element: HTMLElement) =>
+    element.dataset.virtualIndex ??
+    element.closest<HTMLElement>('[data-episode-index]')?.dataset.episodeIndex;
 
 /** Window the DOM while retaining loaded data and stable scroll coordinates. */
 export function VirtualCollection<T extends { id: string }>({
@@ -104,13 +107,16 @@ export function VirtualCollection<T extends { id: string }>({
                     element.getBoundingClientRect().top
             );
             const active = document.activeElement as HTMLElement;
+            const activeIndex = element.contains(active)
+                ? itemIndex(active)
+                : undefined;
             const resized =
                 columns !== current.windowed.columns ||
                 Math.abs(step - current.windowed.step) > 1;
             if (measured && layout === 'episodes' && resized) {
                 const anchor =
-                    element.contains(active) && active.dataset.virtualIndex
-                        ? Number(active.dataset.virtualIndex)
+                    activeIndex !== undefined
+                        ? Number(activeIndex)
                         : Math.floor(relative / current.windowed.step) *
                           current.windowed.columns;
                 const delta =
@@ -127,8 +133,8 @@ export function VirtualCollection<T extends { id: string }>({
                 row,
                 Math.max(0, Math.ceil(current.items.length / columns) - rows)
             );
-            if (element.contains(active) && active.dataset.virtualIndex) {
-                const index = Number(active.dataset.virtualIndex);
+            if (activeIndex !== undefined) {
+                const index = Number(activeIndex);
                 if (index < row * columns || index >= (row + rows) * columns)
                     focusAfterRender.current = Math.min(
                         current.items.length - 1,
@@ -204,13 +210,14 @@ export function VirtualCollection<T extends { id: string }>({
             data-loaded={items.length}
             onKeyDown={(event) => {
                 const target = event.target as HTMLElement;
+                const entryIndex = itemIndex(target);
                 const down = event.key === 'ArrowDown' || event.keyCode === 40;
                 const up = event.key === 'ArrowUp' || event.keyCode === 38;
                 const right =
                     event.key === 'ArrowRight' || event.keyCode === 39;
                 const left = event.key === 'ArrowLeft' || event.keyCode === 37;
-                if ((right || left) && target.dataset.virtualIndex) {
-                    const index = Number(target.dataset.virtualIndex);
+                if ((right || left) && entryIndex) {
+                    const index = Number(entryIndex);
                     const next = index + (right ? 1 : -1);
                     const sameRow =
                         Math.floor(index / windowed.columns) ===
@@ -227,9 +234,9 @@ export function VirtualCollection<T extends { id: string }>({
                         destination.scrollIntoView({ block: 'nearest' });
                     }
                 }
-                if ((down || up) && target.dataset.virtualIndex) {
+                if ((down || up) && entryIndex) {
                     const next =
-                        Number(target.dataset.virtualIndex) +
+                        Number(entryIndex) +
                         (down ? windowed.columns : -windowed.columns);
                     if (next >= 0 && next < items.length) {
                         event.preventDefault();

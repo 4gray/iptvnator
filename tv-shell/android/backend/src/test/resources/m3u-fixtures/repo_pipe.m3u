@@ -1,0 +1,6 @@
+#EXTM3U
+#EXTINF:17 tvg-id="Synthetic7",Synthetic8 Synthetic9
+http://192.0.2.1:8080/Synthetic1/Synthetic2/Synthetic3.mp4|User-Agent=Mozilla/5.0 (Windows NT 6.1; WOW64; Trident/7.0; AS; rv:11.0) like Gecko&Referer=http://synthetic.example/Synthetic4
+#EXTINF:555 tvg-id="Synthetic10",Synthetic11 Synthetic9
+#EXTVLCOPT:http-user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.25 Safari/537.36
+http://synthetic.example:8999/Synthetic1/Synthetic5/Synthetic3.mp4|Referer=http://synthetic.example/Synthetic6

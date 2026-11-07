@@ -82,6 +82,7 @@ describe('Service: Settings', () => {
         let spyOnRemove: jest.SpyInstance<void, [...tokens: string[]]>;
         beforeEach(() => {
             document.body.classList.remove('dark-theme', 'light-theme');
+            delete document.body.dataset['appTheme'];
             spyOnAdd = jest.spyOn(document.body.classList, 'add');
             spyOnRemove = jest.spyOn(document.body.classList, 'remove');
         });
@@ -89,6 +90,45 @@ describe('Service: Settings', () => {
         afterEach(() => {
             jest.clearAllMocks();
             document.body.classList.remove('dark-theme', 'light-theme');
+            delete document.body.dataset['appTheme'];
+        });
+
+        it.each([
+            ['CREAM_THEME', 'cream', 'light-theme', 'dark-theme'],
+            ['MOCHA_THEME', 'mocha', 'dark-theme', 'light-theme'],
+            ['NIGHT_OWL_THEME', 'night-owl', 'dark-theme', 'light-theme'],
+            ['BLACK_OLED_THEME', 'black-oled', 'dark-theme', 'light-theme'],
+            [Theme.LightTheme, 'light', 'light-theme', 'dark-theme'],
+            [Theme.DarkTheme, 'dark', 'dark-theme', 'light-theme'],
+        ])(
+            'applies preset %s with its compatibility class',
+            (theme, id, active, inactive) => {
+                const service = TestBed.inject(SettingsService);
+                service.changeTheme(theme as Theme);
+                expect(document.body.dataset['appTheme']).toBe(id);
+                expect(document.body.classList.contains(active)).toBe(true);
+                expect(document.body.classList.contains(inactive)).toBe(false);
+            }
+        );
+
+        it('normalizes an unknown theme to the system preference', () => {
+            const service = TestBed.inject(SettingsService);
+            service.changeTheme('UNKNOWN_THEME' as Theme);
+            expect(document.body.dataset['appTheme']).toBe('dark');
+            expect(systemThemeListeners).toHaveLength(1);
+        });
+
+        it.each([
+            ['CREAM_THEME', 'cream'],
+            ['MOCHA_THEME', 'mocha'],
+            ['NIGHT_OWL_THEME', 'night-owl'],
+            ['BLACK_OLED_THEME', 'black-oled'],
+        ])('stops following system changes after selecting %s', (theme, id) => {
+            const service = TestBed.inject(SettingsService);
+            service.changeTheme(Theme.SystemTheme);
+            service.changeTheme(theme as Theme);
+            expect(systemThemeListeners).toHaveLength(0);
+            expect(document.body.dataset['appTheme']).toBe(id);
         });
 
         it('should switch to the dark theme', inject(
@@ -128,6 +168,8 @@ describe('Service: Settings', () => {
 
                 expect(spyOnAdd).toHaveBeenCalledWith('dark-theme');
 
+                expect(document.body.dataset['appTheme']).toBe('dark');
+
                 systemThemeListeners[0]?.({
                     matches: false,
                 } as MediaQueryListEvent);
@@ -137,6 +179,7 @@ describe('Service: Settings', () => {
                 expect(document.body.classList.contains('light-theme')).toBe(
                     true
                 );
+                expect(document.body.dataset['appTheme']).toBe('light');
             }
         ));
     });

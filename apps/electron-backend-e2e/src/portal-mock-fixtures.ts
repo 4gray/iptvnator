@@ -96,6 +96,7 @@ type StalkerProxyPayload<T> = {
 
 type StalkerOrderedList<T> = {
     data: T[];
+    total_items?: number;
 };
 
 type StalkerSeasonLike = {
@@ -112,6 +113,8 @@ export type StalkerCategoryFixture = {
     categoryId: string;
     categoryName: string;
     items: StalkerContentItem[];
+    /** The category size the portal reports (all pages, not just page 1). */
+    totalItems: number;
 };
 
 export async function fetchXtreamLiveFixture(
@@ -227,6 +230,9 @@ export async function fetchStalkerCategoryFixture(
             })
         );
         const items = itemsResponse.payload.js.data ?? [];
+        const totalItems = Number(
+            itemsResponse.payload.js.total_items ?? items.length
+        );
 
         if (items.length > 0) {
             if (type === 'series') {
@@ -242,6 +248,7 @@ export async function fetchStalkerCategoryFixture(
                 return {
                     categoryId: String(category.id),
                     categoryName: category.title,
+                    totalItems,
                     items: [
                         playableSeries,
                         ...items.filter(
@@ -257,6 +264,7 @@ export async function fetchStalkerCategoryFixture(
                 categoryId: String(category.id),
                 categoryName: category.title,
                 items,
+                totalItems,
             };
         }
     }

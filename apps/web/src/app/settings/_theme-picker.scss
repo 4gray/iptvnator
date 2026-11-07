@@ -1,0 +1,150 @@
+@use '../../../../../libs/ui/styles/focus-ring';
+
+.theme-picker {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    width: min(100%, 540px);
+}
+
+.theme-palette {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 9px 5px;
+    min-width: 0;
+    padding: 7px;
+    border: 1px solid var(--app-line-strong);
+    border-radius: 12px;
+    background: transparent;
+    color: var(--app-heading-color);
+    font: inherit;
+    cursor: pointer;
+    app-region: no-drag;
+
+    &:hover {
+        background: var(--app-hover-overlay);
+    }
+    &:focus-visible {
+        @include focus-ring.focus-ring-declarations($offset: 2px);
+    }
+    &:disabled {
+        opacity: 0.4;
+        cursor: default;
+    }
+
+    &--selected {
+        border-color: var(--app-selection-text-color);
+        background: var(--app-selection-surface);
+    }
+
+    &__label {
+        min-width: 0;
+        overflow-wrap: anywhere;
+        font-size: 12px;
+        font-weight: 500;
+        text-align: start;
+    }
+    &__check {
+        width: 16px;
+        height: 16px;
+        font-size: 16px;
+        color: var(--app-muted-color);
+    }
+    &--selected &__check {
+        color: var(--app-selection-text-color);
+    }
+
+    &__preview {
+        grid-column: 1 / -1;
+        display: flex;
+        gap: 6px;
+        height: 58px;
+        padding: 7px;
+        border-radius: 6px;
+        background: var(--app-shell-bg);
+        pointer-events: none;
+    }
+
+    &__rail {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        width: 9px;
+        padding-top: 3px;
+        background: var(--app-rail-bg);
+
+        i {
+            height: 5px;
+            border-radius: 2px;
+            background: var(--app-muted-color);
+        }
+        i:first-child {
+            background: var(--app-selection-color);
+        }
+    }
+
+    &__page {
+        flex: 1;
+        min-width: 0;
+        padding: 6px;
+        border-radius: 3px;
+        background: var(--app-content-bg);
+    }
+    &__heading,
+    &__line {
+        display: block;
+        height: 3px;
+        border-radius: 2px;
+    }
+    &__heading {
+        width: 70%;
+        background: var(--app-heading-color);
+    }
+    &__line {
+        width: 90%;
+        height: 2px;
+        margin-top: 4px;
+        background: var(--app-muted-color);
+    }
+    &__tiles {
+        display: flex;
+        gap: 4px;
+        margin-top: 6px;
+        i {
+            flex: 1;
+            height: 12px;
+            border-radius: 2px;
+            background: var(--app-widget-bg);
+        }
+        i:first-child {
+            background: var(--app-selection-color);
+        }
+    }
+
+    &--system {
+        grid-column: 1 / -1;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 10px;
+        padding: 9px 11px;
+        mat-icon:not(.theme-palette__check) {
+            width: 18px;
+            height: 18px;
+            font-size: 18px;
+        }
+    }
+}
+
+.theme-picker__hint {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: var(--app-muted-color);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+@container (max-width: 600px) {
+    .theme-picker {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}

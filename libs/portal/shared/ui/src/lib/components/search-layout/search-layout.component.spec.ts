@@ -29,6 +29,20 @@ describe('SearchLayoutComponent', () => {
         fixture = TestBed.createComponent(SearchLayoutComponent);
     });
 
+    /** The directive emits a scroll-requested load in a task after the scroll's frame. */
+    function nextTask(): Promise<void> {
+        return new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    /** Keeps the directive's frame-scheduled fill check out of the scroll tests. */
+    function holdFillChecks(): void {
+        jest.spyOn(window, 'requestAnimationFrame').mockImplementation(() => 0);
+    }
+
+    afterEach(() => {
+        jest.restoreAllMocks();
+    });
+
     function renderResultsContainer(): HTMLElement {
         fixture.componentRef.setInput('searchTerm', 'matrix');
         fixture.componentRef.setInput('resultsCount', 1);
@@ -121,7 +135,8 @@ describe('SearchLayoutComponent', () => {
         expect(backNavigation.target()).toBeNull();
     });
 
-    it('emits nearEnd when the results container is scrolled near the bottom', () => {
+    it('emits nearEnd when the results container is scrolled near the bottom', async () => {
+        holdFillChecks();
         const nearEndSpy = jest.fn();
         fixture.componentInstance.nearEnd.subscribe(nearEndSpy);
         const resultsContainer = renderResultsContainer();
@@ -129,35 +144,60 @@ describe('SearchLayoutComponent', () => {
         setScrollMetrics(resultsContainer, 700);
 
         resultsContainer.dispatchEvent(new Event('scroll'));
+        await nextTask();
 
         expect(nearEndSpy).toHaveBeenCalledTimes(1);
     });
 
-    it('emits nearEnd only when crossing into the bottom threshold', () => {
+    it('emits nearEnd only when crossing into the bottom threshold', async () => {
+        holdFillChecks();
         const nearEndSpy = jest.fn();
         fixture.componentInstance.nearEnd.subscribe(nearEndSpy);
         const resultsContainer = renderResultsContainer();
 
         setScrollMetrics(resultsContainer, 500);
         resultsContainer.dispatchEvent(new Event('scroll'));
+        await nextTask();
         expect(nearEndSpy).not.toHaveBeenCalled();
 
         setScrollMetrics(resultsContainer, 700);
         resultsContainer.dispatchEvent(new Event('scroll'));
+        await nextTask();
         expect(nearEndSpy).toHaveBeenCalledTimes(1);
 
         setScrollMetrics(resultsContainer, 710);
         resultsContainer.dispatchEvent(new Event('scroll'));
+        await nextTask();
         expect(nearEndSpy).toHaveBeenCalledTimes(1);
 
         setScrollMetrics(resultsContainer, 500);
         resultsContainer.dispatchEvent(new Event('scroll'));
         setScrollMetrics(resultsContainer, 760);
         resultsContainer.dispatchEvent(new Event('scroll'));
+        await nextTask();
         expect(nearEndSpy).toHaveBeenCalledTimes(2);
     });
 
-    it('resets the near-end latch when the reset identity changes without a new term', () => {
+    it('fires nearEnd at the distance the consumer asks for', async () => {
+        holdFillChecks();
+        const nearEndSpy = jest.fn();
+        fixture.componentInstance.nearEnd.subscribe(nearEndSpy);
+        fixture.componentRef.setInput('nearEndThresholdPx', 640);
+        const resultsContainer = renderResultsContainer();
+
+        setScrollMetrics(resultsContainer, 200); // 680 px below: outside
+        resultsContainer.dispatchEvent(new Event('scroll'));
+        await nextTask();
+        expect(nearEndSpy).not.toHaveBeenCalled();
+
+        setScrollMetrics(resultsContainer, 300); // 580 px below: two poster rows ahead
+        resultsContainer.dispatchEvent(new Event('scroll'));
+        await nextTask();
+        expect(nearEndSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('resets the near-end latch when the reset identity changes without a new term', async () => {
+        holdFillChecks();
         // Regression: a filter-only search transition replaces the result set
         // while the term stays the same; the latch must not survive it.
         const nearEndSpy = jest.fn();
@@ -166,6 +206,7 @@ describe('SearchLayoutComponent', () => {
 
         setScrollMetrics(resultsContainer, 700);
         resultsContainer.dispatchEvent(new Event('scroll'));
+        await nextTask();
         expect(nearEndSpy).toHaveBeenCalledTimes(1);
 
         fixture.componentRef.setInput('nearEndResetKey', 'matrix|movie-only');
@@ -173,6 +214,7 @@ describe('SearchLayoutComponent', () => {
 
         // Still inside the threshold — a stale latch would swallow this.
         resultsContainer.dispatchEvent(new Event('scroll'));
+        await nextTask();
         expect(nearEndSpy).toHaveBeenCalledTimes(2);
     });
 

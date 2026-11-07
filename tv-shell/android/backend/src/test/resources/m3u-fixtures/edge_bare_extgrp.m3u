@@ -1,0 +1,4 @@
+#EXTM3U
+#EXTINF:-1 group-title="Synthetic2",Synthetic3
+#EXTGRP:
+http://synthetic.example/Synthetic1.ts

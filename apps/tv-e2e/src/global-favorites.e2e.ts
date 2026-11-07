@@ -1,4 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
+import { tvBackCodes } from '@iptvnator/tv/util';
 import { addSource, chooseTv, nav, start } from './helpers';
 import { prepareLiveMedia } from './live-media';
 
@@ -115,42 +116,59 @@ test('historical favorites combine sources for every type and persist their scop
     await expect(page.locator('.poster-card')).toHaveCount(2);
 });
 
-test('favorite channel activates its exact source, opens fullscreen and restores Favorites after playlist browsing', async ({
-    page,
-}) => {
-    await favorites(page);
-    await page.locator('[data-focus="favorites:live"]').click();
-    const card = savedChannel(page, sourceA);
-    await card.focus();
-    await page.keyboard.press('Enter');
-    await expect(page.locator('.native-player.fullscreen')).toBeVisible();
-    await expect(page.locator('.player-source-name')).toHaveText(sourceA);
-    await expect
-        .poll(() =>
-            page
-                .locator('video')
-                .evaluate((video: HTMLVideoElement) => video.currentTime)
-        )
-        .toBeGreaterThan(0.1);
-    await page.locator('[data-focus="player-guide"]').click();
-    await expect(page.locator('.programme-guide .source-name')).toHaveText(
-        sourceA
-    );
-    await page.keyboard.press('Escape');
-    await page.locator('[data-focus="player-playlist"]').click();
-    await expect(page.locator('.live-layout')).toBeVisible();
-    await expect(page.locator('.native-player.preview')).toBeVisible();
-    await expect(
-        page.getByRole('combobox', { name: 'Active source' })
-    ).toContainText(sourceA);
-    await expect(page.locator('.channel.is-playing')).toBeFocused();
-    await page.keyboard.press('Escape');
-    await expect(page.locator('.native-player.fullscreen')).toBeVisible();
-    await page.keyboard.press('Escape');
-    await expect(card).toBeFocused();
-    await expect(page.locator('video[src],video source')).toHaveCount(0);
-    await expect(page.locator('.channel-card')).toHaveCount(2);
-});
+for (const back of ['Escape', 'Samsung Return'] as const)
+    test(`favorite channel activates its exact source, opens fullscreen and restores Favorites after playlist browsing (${back})`, async ({
+        page,
+    }) => {
+        const pressBack = () =>
+            back === 'Escape'
+                ? page.keyboard.press('Escape')
+                : page.evaluate((keyCode) => {
+                      const event = new KeyboardEvent('keydown', {
+                          key: 'Unidentified',
+                          bubbles: true,
+                          cancelable: true,
+                      });
+                      Object.defineProperty(event, 'keyCode', {
+                          get: () => keyCode,
+                      });
+                      (document.activeElement ?? document.body).dispatchEvent(
+                          event
+                      );
+                  }, tvBackCodes.tizen);
+        await favorites(page);
+        await page.locator('[data-focus="favorites:live"]').click();
+        const card = savedChannel(page, sourceA);
+        await card.focus();
+        await page.keyboard.press('Enter');
+        await expect(page.locator('.native-player.fullscreen')).toBeVisible();
+        await expect(page.locator('.player-source-name')).toHaveText(sourceA);
+        await expect
+            .poll(() =>
+                page
+                    .locator('video')
+                    .evaluate((video: HTMLVideoElement) => video.currentTime)
+            )
+            .toBeGreaterThan(0.1);
+        await page.locator('[data-focus="player-guide"]').click();
+        await expect(page.locator('.programme-guide .source-name')).toHaveText(
+            sourceA
+        );
+        await page.keyboard.press('Escape');
+        await page.locator('[data-focus="player-playlist"]').click();
+        await expect(page.locator('.live-layout')).toBeVisible();
+        await expect(page.locator('.native-player.preview')).toBeVisible();
+        await expect(
+            page.getByRole('combobox', { name: 'Active source' })
+        ).toContainText(sourceA);
+        await expect(page.locator('.channel.is-playing')).toBeFocused();
+        await pressBack();
+        await expect(page.locator('.native-player.fullscreen')).toBeVisible();
+        await pressBack();
+        await expect(card).toBeFocused();
+        await expect(page.locator('video[src],video source')).toHaveCount(0);
+        await expect(page.locator('.channel-card')).toHaveCount(2);
+    });
 
 for (const section of ['Movies', 'Series', 'TV', 'Search'])
     test(`manual source selection retains ${section} and picker focus`, async ({

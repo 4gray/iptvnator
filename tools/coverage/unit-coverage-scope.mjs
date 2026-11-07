@@ -21,6 +21,8 @@ import { appendFileSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { readResolvedProjects } from './nx-coverage-projects.mjs';
+
 /**
  * Paths that no Tier A test imports or reads. Tier A specs only read files
  * inside their own project (checked 2026-09-26), so this list is about
@@ -87,13 +89,13 @@ export function isScriptsOnlyChange(basePackageJson, headPackageJson) {
 
 /**
  * Files outside a project that a Tier A test target declares as inputs
- * (`{workspaceRoot}/...` in its project.json). Nx already knows the test
+ * (`{workspaceRoot}/...` in its resolved Nx target). Nx already knows the test
  * reads them, so they always need the suite, whatever the allowlist says.
  */
-export function declaredWorkspaceInputs(tierAProjects, readProjectJson) {
+export function declaredWorkspaceInputs(tierAProjects, readProject) {
     const inputs = [];
     for (const project of tierAProjects) {
-        const testTarget = readProjectJson(project)?.targets?.test;
+        const testTarget = readProject(project)?.targets?.test;
         for (const input of testTarget?.inputs ?? []) {
             if (typeof input !== 'string') continue;
             const match = /^\{workspaceRoot\}\/(.+)$/.exec(input);
@@ -202,12 +204,10 @@ if (isMain) {
     const policy = JSON.parse(
         readFileSync('tools/coverage/coverage-policy.json', 'utf8')
     );
+    const resolvedProjects = await readResolvedProjects();
     const declaredInputs = declaredWorkspaceInputs(
         policy.unitCoverage.tierA,
-        (project) =>
-            JSON.parse(
-                readFileSync(path.join(project.root, 'project.json'), 'utf8')
-            )
+        (project) => resolvedProjects[project.name]
     );
     const decision = decideUnitCoverageScope(files, {
         packageJsonScriptsOnly,

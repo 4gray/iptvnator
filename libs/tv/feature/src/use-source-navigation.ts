@@ -21,7 +21,7 @@ export function useSourceNavigation(
                       ...route,
                       category: '',
                       query: '',
-                      page: 0,
+                      page: route.view === 'history' ? route.page : 0,
                       item: undefined,
                   }
         );

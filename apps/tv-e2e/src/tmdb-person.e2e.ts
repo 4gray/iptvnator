@@ -1,3 +1,4 @@
+import { checkHorizontalRail } from './horizontal-rail';
 import { expect, Page, test } from '@playwright/test';
 import { chooseTv, addSource, nav, start } from './helpers';
 
@@ -332,6 +333,90 @@ for (const provider of ['xtream', 'stalker'] as const) {
     });
 }
 
+for (const failedMetadata of [false, true]) {
+    test(`@tmdb-person Back waits for provider details and delayed credits (${failedMetadata ? 'metadata failure' : 'restored actor'})`, async ({
+        page,
+    }) => {
+        const { title, year } = await setup(page, 'xtream');
+        const actor = page.getByRole('button', {
+            name: 'View filmography: Fixture Actor',
+        });
+        await actor.click();
+        await expect(page.locator('.person-page h1')).toHaveText(
+            'Fixture Actor'
+        );
+        let releaseProvider: () => void = () => undefined;
+        let releaseCredits: () => void = () => undefined;
+        const providerGate = new Promise<void>((resolve) => {
+            releaseProvider = resolve;
+        });
+        const creditsGate = new Promise<void>((resolve) => {
+            releaseCredits = resolve;
+        });
+        let providerRequested = false;
+        let creditsRequested = false;
+        await page.route('**/xtream?**', async (route) => {
+            const url = new URL(route.request().url());
+            if (url.searchParams.get('action') !== 'get_vod_info')
+                return route.fallback();
+            providerRequested = true;
+            await providerGate;
+            return route.fulfill({
+                json: {
+                    payload: {
+                        info: {
+                            name: title,
+                            releasedate: year ? `${year}-01-01` : undefined,
+                            // An uncached synthetic identity forces credits to load again on Back.
+                            tmdb_id: 9701,
+                        },
+                    },
+                },
+            });
+        });
+        await page.route('https://api.themoviedb.org/3/**', async (route) => {
+            if (new URL(route.request().url()).pathname !== '/3/movie/9701')
+                return route.fallback();
+            creditsRequested = true;
+            await creditsGate;
+            return failedMetadata
+                ? route.fulfill({ status: 503, json: {} })
+                : route.fallback();
+        });
+        await page.keyboard.press('Escape');
+        await expect.poll(() => providerRequested).toBe(true);
+        await expect(actor).not.toBeFocused();
+        releaseProvider();
+        await expect.poll(() => creditsRequested).toBe(true);
+        await expect(page.locator('.loading')).toBeHidden();
+        await expect(actor).toHaveCount(0);
+        releaseCredits();
+        if (failedMetadata) {
+            await expect(
+                page.getByRole('button', {
+                    name: 'Retry metadata',
+                    exact: true,
+                })
+            ).toBeVisible();
+            await expect
+                .poll(() =>
+                    page.evaluate(() => {
+                        const focused = document.activeElement;
+                        return (
+                            focused instanceof HTMLButtonElement &&
+                            focused.isConnected &&
+                            !focused.disabled &&
+                            focused.getBoundingClientRect().width > 0
+                        );
+                    })
+                )
+                .toBe(true);
+        } else {
+            await expect(actor).toBeFocused();
+        }
+    });
+}
+
 test('@tmdb-person failed and cancelled portal searches cannot report absence or navigate from a stale response', async ({
     page,
 }) => {
@@ -503,6 +588,7 @@ test('@tmdb-person paged provider choices survive a detail round trip and expire
     await target.click();
     const choices = page.locator('[aria-label="Available versions"]');
     await expect(choices.locator('button')).toHaveCount(2);
+    await checkHorizontalRail(page, choices);
     await expect(choices.locator('button').first()).toBeFocused();
     const chosen = choices.locator('button').nth(1);
     await page.keyboard.press('ArrowRight');

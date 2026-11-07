@@ -272,8 +272,6 @@
             "command": "eslint \"apps/electron-backend/**/*.ts\" \"apps/electron-backend/src/app/services/embedded-mpv-frame-copy-runtime.ts\" \"apps/electron-backend/src/app/services/embedded-mpv-frame-copy-runtime/**/*.ts\""
         },
         "test": {
-            "executor": "@nx/jest:jest",
-            "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
             "inputs": [
                 "default",
                 "^production",
@@ -281,12 +279,11 @@
                 "{workspaceRoot}/tools/embedded-mpv/linux-source-archive-contract.cjs",
                 "{workspaceRoot}/tools/embedded-mpv/linux-source-archive-contract.d.cts",
                 "{workspaceRoot}/tools/embedded-mpv/runtime-probe-contract.cjs",
-                "{workspaceRoot}/tools/embedded-mpv/runtime-probe-contract.d.cts"
-            ],
-            "options": {
-                "jestConfig": "apps/electron-backend/jest.config.ts"
-            }
+                "{workspaceRoot}/tools/embedded-mpv/runtime-probe-contract.d.cts",
+                {
+                    "externalDependencies": ["jest", "@nx/jest", "ts-jest"]
+                }
+            ]
         }
-    },
-    "tags": ["scope:electron", "domain:electron-main", "type:app"]
+    }
 }

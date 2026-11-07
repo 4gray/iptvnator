@@ -122,6 +122,12 @@ export interface Progress {
     seconds: number;
     duration: number;
     updated: number;
+    /** Additive explicit intent; raw positions remain available. */
+    watched?: boolean;
+    reset?: boolean;
+    revision?: number;
+    /** Legacy manual status fence from before playback revisions. */
+    watchedUpdated?: number;
 }
 export interface LibrarySettings {
     url: string;
@@ -205,6 +211,21 @@ export class LatestRequest {
 
 /** Recent history is bounded; unfinished playback positions are retained independently. */
 export function recordProgress(data: UserData, progress: Progress): UserData {
+    const previous =
+        data.positions[progress.item.id] ??
+        data.history.find((p) => p.item.id === progress.item.id);
+    const previousRevision = previous?.revision ?? 0;
+    const revision = progress.revision ?? 0;
+    if (
+        previous &&
+        (previousRevision > revision ||
+            (previousRevision === revision &&
+                (previous.updated > progress.updated ||
+                    (previousRevision === 0 &&
+                        previous.watchedUpdated !== undefined &&
+                        previous.watchedUpdated >= progress.updated))))
+    )
+        return data;
     return {
         ...data,
         history: [
@@ -255,3 +276,8 @@ export * from './programme-guide';
 
 export * from './grid-guide';
 export * from './detail-metadata';
+export * from './watch-state';
+export * from './series-continuity';
+export * from './recent-channels';
+export * from './confirmed-live-channels';
+export * from './platform';

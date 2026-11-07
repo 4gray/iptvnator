@@ -1,4 +1,4 @@
-import { pickAggregateRole } from './tmdb-credits';
+import { pickAggregateRole } from './tmdb-aggregate-role';
 import { TmdbDetails, TmdbTvDetails } from './tmdb.types';
 
 /**

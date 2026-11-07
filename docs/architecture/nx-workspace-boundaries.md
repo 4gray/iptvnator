@@ -56,9 +56,25 @@ Omit `pnpm nx migrate --run-migrations` when the first command reports that no
 migrations exist. Major Nx updates always use this manual workflow and the
 resulting PR runs the full CI pipeline.
 
+Nx 24.0.4 uses inferred Jest and ESLint tasks instead of the removed
+`@nx/jest:jest` and `@nx/eslint:lint` executors. The Jest plugin includes only
+the projects migrated from that executor; Angular ESM command targets retain
+their existing runner, environment and workspace-root configuration. Preserve
+the scoped `test` defaults for the Jest plugin, including its `ci` configuration,
+and the per-project lint inputs carried forward by the converter. Jest commands
+retain the workspace working directory and pass their project config explicitly,
+so subprocess fixtures and file-based contracts keep their previous paths.
+The marketing-fixtures target retains its `.cts` config through a command override.
+Shared ESLint config patterns have an explicit workspace base path so inferred
+project-local lint commands preserve existing rule scopes and baseline entries.
+Coverage tooling reads resolved Nx project targets, including inferred tasks;
+raw `project.json` alone is no longer a complete target inventory.
+`affected.legacy` keeps the previous project-level affected selection during
+this toolchain migration.
+
 ## Angular 22 Toolchain Compatibility
 
-Angular framework/Material 22.1 and CLI/build 22.1 use Nx 23.2 and TypeScript
+Angular 22 and CLI/build 22.2.5 use Nx 24.0.4 and TypeScript
 6.0. Framework and CLI patch numbers may differ; keep framework packages aligned
 in both dependency sections and all official Nx packages on one exact version.
 Use `.nvmrc` for development/CI (Node 24.22.1); supported LTS Node ranges are
@@ -87,7 +103,9 @@ Third-party packages need scoped compatibility bridges in
 
 - `nx-electron@22.0.0` still declares Nx 22 peers. Its existing package-layout
   patch also changes the removed `@nx/js/src/utils/buildable-libs-utils` import
-  to `@nx/js/internal`. A package extension supplies its undeclared runtime
+  to `@nx/js/internal`. Scoped peer allowances select Nx 24.0.4; revalidate them
+  with the executor/package tests and real Electron builds on upgrades.
+  A package extension supplies its undeclared runtime
   dependency `webpack-node-externals`. The packaging suite loads every executor
   and checks the single application manifest. Remove these bridges only after
   the upstream package declares and implements the current Nx APIs.
@@ -124,12 +142,12 @@ runtimes.
 
 ## Vite Dev-Server Patch
 
-Angular's development builder resolves Vite `8.1.5`. It contains upstream precise
-asset/worker URL matchers, but also uses them as raw-code prefilters. Those
-prefilters reject valid expressions containing comments before the handlers can
-strip the comments and apply the precise matchers.
+Angular's development builder (`@angular/build` 22.2.5) resolves Vite `8.3.5`.
+It contains upstream precise asset/worker URL matchers, but also uses them as
+raw-code prefilters. Those prefilters reject valid expressions containing
+comments before the handlers can strip the comments and apply the precise matchers.
 
-`patches/vite@8.1.5.patch` adds bounded asset/worker prefilters and uses the asset
+`patches/vite@8.3.5.patch` adds bounded asset/worker prefilters and uses the asset
 prefilter for bundled URL rewriting too. The precise handler matchers remain
 unchanged. This preserves the earlier protection against expensive scanning of
 large false-positive chunks and retains comment-bearing expressions. Remove the
@@ -400,6 +418,14 @@ only while a Stalker route is open). A local file,
 not the library alias, is the dynamic-import target because
 `@nx/enforce-module-boundaries` forbids static imports of a library the same
 project also loads dynamically.
+
+The lazy `/workspace` route is entered at every start, so the workspace shell
+follows the same rule: it imports `EmbeddedMpvOverlayVisibilityService` from
+`@iptvnator/ui/playback/embedded-mpv-player` and re-exports the global
+favourites list from `@iptvnator/portal/shared/ui/global-favorites-list`.
+Either barrel puts the web players (video.js, hls.js, mpegts.js, ArtPlayer,
+about 2.7 MB) on the first route; a `no-restricted-imports` block in
+`eslint.config.mjs` keeps both barrels out of `libs/workspace/shell/feature`.
 
 A barrel the initial path imports also costs code it never runs itself:
 code splitting places a module in the chunk shared by every entry point

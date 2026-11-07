@@ -63,6 +63,37 @@ describe('SettingsComponent form', () => {
         window.electron = originalElectron;
     });
 
+    it.each([
+        'CREAM_THEME',
+        'MOCHA_THEME',
+        'NIGHT_OWL_THEME',
+        'BLACK_OLED_THEME',
+    ])(
+        'previews %s from the palette picker and restores the saved theme on Discard',
+        (value) => {
+            setSettingsSection('appearance');
+            fixture.detectChanges();
+            const service = TestBed.inject(SettingsService);
+            const changeTheme = jest.spyOn(service, 'changeTheme');
+            const saved = component.settingsForm.value.theme;
+            const option = (fixture.nativeElement as HTMLElement).querySelector(
+                `[data-test-id="${value}"]`
+            ) as HTMLButtonElement;
+            expect(option).not.toBeNull();
+            expect(option.querySelector('[data-theme-preview]')).not.toBeNull();
+            option.click();
+            fixture.detectChanges();
+            expect(component.settingsForm.value.theme).toBe(value);
+            expect(changeTheme).toHaveBeenLastCalledWith(value);
+            expect(option.getAttribute('aria-checked')).toBe('true');
+            expect(settingsStore.updateSettings).not.toHaveBeenCalled();
+            component.discardChanges();
+            fixture.detectChanges();
+            expect(component.settingsForm.value.theme).toBe(saved);
+            expect(changeTheme).toHaveBeenLastCalledWith(saved);
+        }
+    );
+
     it('stages the desktop portal pause setting until Save', async () => {
         const checkbox = (fixture.nativeElement as HTMLElement).querySelector(
             '[data-test-id="portal-connectivity-toggle"] button[role="switch"]'
@@ -86,6 +117,8 @@ describe('SettingsComponent form', () => {
     });
 
     it('stages the posters-only cover wall until Save', async () => {
+        setSettingsSection('appearance');
+        fixture.detectChanges();
         const checkbox = (fixture.nativeElement as HTMLElement).querySelector(
             '[data-test-id="cover-titles-toggle"] button[role="switch"]'
         ) as HTMLButtonElement;
@@ -152,6 +185,8 @@ describe('SettingsComponent form', () => {
         // itself on the form's events. The fixture renders on its own here:
         // a forced detectChanges() would hide a section that is not marked.
         it('re-renders section selections after a value-only form patch', async () => {
+            setSettingsSection('appearance');
+            fixture.detectChanges();
             const darkTheme = () =>
                 (fixture.nativeElement as HTMLElement).querySelector(
                     '[data-test-id="DARK_THEME"]'
@@ -180,7 +215,9 @@ describe('SettingsComponent form', () => {
     });
 
     describe('Section outputs', () => {
-        it('updates the selected theme through the general section and marks the form dirty', () => {
+        it('updates the selected theme through the appearance section and marks the form dirty', () => {
+            setSettingsSection('appearance');
+            fixture.detectChanges();
             const darkThemeButton = (
                 fixture.nativeElement as HTMLElement
             ).querySelector('[data-test-id="DARK_THEME"]') as HTMLButtonElement;
@@ -193,6 +230,8 @@ describe('SettingsComponent form', () => {
         });
 
         it('stages cover size without writing to the store until Save', () => {
+            setSettingsSection('appearance');
+            fixture.detectChanges();
             const largeCoverButton = (
                 fixture.nativeElement as HTMLElement
             ).querySelector(
@@ -555,7 +594,7 @@ describe('SettingsComponent form', () => {
             expect(component.unsavedMessageKey()).toBe(
                 'SETTINGS.UNSAVED_CHANGES_ONE'
             );
-            expect(settingsCtx.dirtySections()).toEqual(new Set(['general']));
+            expect(settingsCtx.dirtySections()).toEqual(new Set(['appearance']));
 
             component.settingsForm
                 .get('dashboardRails.hero')
@@ -569,7 +608,7 @@ describe('SettingsComponent form', () => {
             );
             expect(message()).toContain('SETTINGS.UNSAVED_CHANGES_COUNT');
             expect(settingsCtx.dirtySections()).toEqual(
-                new Set(['general', 'dashboard', 'playback'])
+                new Set(['appearance', 'dashboard', 'playback'])
             );
 
             // Reverting by hand leaves the form dirty but counts nothing.
@@ -779,6 +818,8 @@ describe('SettingsComponent form', () => {
         });
 
         it('discard reverts a staged cover size (regression: eager persist made it stick)', () => {
+            setSettingsSection('appearance');
+            fixture.detectChanges();
             const largeCoverButton = (
                 fixture.nativeElement as HTMLElement
             ).querySelector(

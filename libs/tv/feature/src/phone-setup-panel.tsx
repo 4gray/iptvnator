@@ -1,3 +1,4 @@
+import { isBackKey } from '@iptvnator/tv/util';
 import { useLayoutEffect, useRef } from 'preact/hooks';
 import type { ComponentChildren } from 'preact';
 
@@ -45,10 +46,7 @@ export function PhoneSetupPanel({
             aria-label={compact ? 'Set up from phone' : undefined}
             onKeyDown={(event) => {
                 if (!compact) return;
-                if (
-                    event.keyCode === 461 ||
-                    ['Escape', 'BrowserBack', 'Backspace'].includes(event.key)
-                ) {
+                if (isBackKey(event)) {
                     event.preventDefault();
                     event.stopPropagation();
                     event.currentTarget

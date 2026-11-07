@@ -18,6 +18,7 @@ import {
 } from '@iptvnator/shared/interfaces/favorites-sync';
 import type { StalkerPortalItem } from '@iptvnator/shared/interfaces';
 import { UnifiedFavoritesDataService } from './unified-favorites-data.service';
+import { StalkerCollectionMetadataService } from '@iptvnator/portal/stalker/data-access';
 
 const orderKey = 'global-favorites-channel-order-v1';
 const typedUid = (item: StalkerPortalItem) =>
@@ -45,6 +46,10 @@ function fixture(
     TestBed.configureTestingModule({
         providers: [
             UnifiedFavoritesDataService,
+            {
+                provide: StalkerCollectionMetadataService,
+                useValue: { project: (value: unknown) => value },
+            },
             { provide: USER_DATA_STORAGE, useValue: storage },
             {
                 provide: FAVORITES_PLAYLIST_BRIDGE,

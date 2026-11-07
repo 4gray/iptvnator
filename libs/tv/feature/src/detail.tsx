@@ -6,18 +6,29 @@ import {
 } from '@iptvnator/tv/ui';
 import { TvModel } from './use-tv';
 import { TvMetadata } from '@iptvnator/tv/data-access';
-import { mediaTitle } from '@iptvnator/tv/util';
+import { useEffect, useLayoutEffect, useRef } from 'preact/hooks';
+import { restoreFocus } from '@iptvnator/tv/ui';
+import { EpisodeCard } from './episode-card';
+import { WatchActions, WatchStatus } from './watch-actions';
+import {
+    mediaTitle,
+    watchLabel,
+    seriesAction,
+    episodeCode,
+} from '@iptvnator/tv/util';
 import { MetadataCredits } from './metadata-credits';
 import { MetadataChips } from './metadata-chips';
 import { useEpisodeMetadata } from './use-episode-metadata';
 export function Detail({
     tv,
     metadataClient,
+    metadataLoading,
     season,
     selectSeason,
 }: {
     tv: TvModel;
     metadataClient: TvMetadata;
+    metadataLoading: boolean;
     season?: number;
     selectSeason: (season: number) => void;
 }) {
@@ -33,10 +44,30 @@ export function Detail({
         currentSeason,
         metadataClient
     );
+    const entryFocus = useRef(true);
+    const primary =
+        item?.kind === 'series'
+            ? seriesAction(item, tv.episodes, tv.data)
+            : undefined;
+    useLayoutEffect(() => {
+        if (!entryFocus.current || !primary || tv.fullscreen) return;
+        entryFocus.current = false;
+        if (tv.restoreKey.startsWith('person:')) return;
+        let owns = true;
+        restoreFocus('detail-play', '', undefined, () => owns);
+        return () => {
+            owns = false;
+        };
+    }, [!!primary, tv.fullscreen]);
+    useEffect(() => {
+        if (!tv.busy && !metadataLoading && tv.restoreKey.startsWith('person:'))
+            tv.finishFocus();
+    }, [tv.busy, metadataLoading, tv.restoreKey, item?.metadata]);
     if (!item || item.sourceId !== tv.data.activeId) return null;
     const episodes = metadata.items.filter(
         (e) => (e.season ?? 1) === currentSeason
     );
+    const action = primary;
     const saved = tv.data.favorites.some((m) => m.id === item.id);
     return (
         <>
@@ -65,30 +96,49 @@ export function Detail({
                             'Your provider has not supplied a description for this title.'
                         }
                     />
+                    {item.kind !== 'series' ? (
+                        <WatchStatus progress={tv.data.positions[item.id]} />
+                    ) : null}
                     <div class="actions">
+                        {item.kind === 'series' && action ? (
+                            <button
+                                class="primary"
+                                data-focus="detail-play"
+                                onClick={() =>
+                                    action.kind === 'caught-up'
+                                        ? tv.startOver(action.item)
+                                        : tv.play(action.item)
+                                }
+                            >
+                                {action.kind === 'caught-up'
+                                    ? 'Caught up · Watch again'
+                                    : action.kind === 'start'
+                                      ? 'Start'
+                                      : action.kind === 'resume'
+                                        ? watchLabel(action.progress)
+                                        : 'Continue'}{' '}
+                                · {episodeCode(action.item)} ▶
+                            </button>
+                        ) : null}
                         {item.kind !== 'series' ? (
                             <button
                                 class="primary"
                                 data-focus="detail-play"
                                 onClick={() => tv.play(item)}
                             >
-                                {tv.data.positions[item.id]?.seconds
-                                    ? 'Resume'
-                                    : 'Watch now'}{' '}
-                                ▶
+                                {watchLabel(tv.data.positions[item.id])} ▶
                             </button>
                         ) : null}
                         <button
-                            data-focus={
-                                item.kind === 'series'
-                                    ? 'detail-play'
-                                    : 'favorite'
-                            }
+                            data-focus="favorite"
                             aria-pressed={saved}
                             onClick={() => tv.favorite(item)}
                         >
                             {saved ? '♥ Saved' : '♡ Add to favorites'}
                         </button>
+                        {item.kind !== 'series' ? (
+                            <WatchActions tv={tv} item={item} />
+                        ) : null}
                     </div>
                 </div>
             </section>
@@ -131,48 +181,7 @@ export function Detail({
                         key={`${item.id}:${currentSeason}`}
                         layout="episodes"
                         items={episodes}
-                        render={(e) => (
-                            <button
-                                data-focus={e.id}
-                                key={e.id}
-                                class={`episode ${e.episodeStill ? 'with-still' : ''}`}
-                                onClick={() => tv.play(e)}
-                            >
-                                {e.episodeStill ? (
-                                    <img
-                                        key={e.episodeStill}
-                                        class="episode-still"
-                                        src={e.episodeStill}
-                                        alt=""
-                                        loading="lazy"
-                                        onError={(event) => {
-                                            event.currentTarget.style.display =
-                                                'none';
-                                        }}
-                                    />
-                                ) : null}
-                                <span class="episode-copy">
-                                    <span class="episode-number">
-                                        {String(e.episode ?? 1).padStart(
-                                            2,
-                                            '0'
-                                        )}
-                                    </span>
-                                    <strong>{e.title}</strong>
-                                    {e.description ? (
-                                        <span class="episode-description">
-                                            {e.description}
-                                        </span>
-                                    ) : null}
-                                    <small>
-                                        {tv.data.positions[e.id]?.seconds
-                                            ? 'Resume episode'
-                                            : 'Watch episode'}{' '}
-                                        →
-                                    </small>
-                                </span>
-                            </button>
-                        )}
+                        render={(e) => <EpisodeCard tv={tv} item={e} />}
                     />
                     {!tv.busy && !episodes.length ? (
                         <Empty>

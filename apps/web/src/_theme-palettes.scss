@@ -1,0 +1,407 @@
+// Shared by the application and the decorative settings samples.
+
+@mixin light($preview: false, $variant: false) {
+    --app-shell-bg: #eef0f3;
+    --app-rail-bg: #eef0f3;
+    --app-content-bg: #f5f6f8;
+    --app-widget-bg: #ffffff;
+    --app-heading-color: #1a1d23;
+    --app-muted-color: #535d6d;
+    --app-selection-color: #2f7bff;
+
+    @if not $preview and not $variant {
+        // ── Light theme design tokens ─────────────────────────────────────────
+        --app-header-bg: #eef0f3;
+        --app-rail-border: transparent;
+        --app-on-surface: #1d1b1e;
+        --app-hover-overlay: rgba(0, 0, 0, 0.06);
+        --app-search-bg: rgba(255, 255, 255, 0.7);
+        --app-search-border: rgba(0, 0, 0, 0.1);
+        --app-selection-text-color: #164fa3;
+        --app-selection-on-color: #eef4ff;
+        --app-selection-surface: color-mix(
+            in srgb,
+            var(--app-selection-color) 14%,
+            transparent
+        );
+        --app-selection-surface-strong: color-mix(
+            in srgb,
+            var(--app-selection-color) 22%,
+            transparent
+        );
+        --app-selection-border: color-mix(
+            in srgb,
+            var(--app-selection-color) 52%,
+            transparent
+        );
+        --app-selection-glow: color-mix(
+            in srgb,
+            var(--app-selection-color) 34%,
+            transparent
+        );
+        // Watch progress in app chrome (rail cards, catalog capsules, the hero).
+        // Over video the player's fixed `--pc-progress` applies instead.
+        --app-progress-color: var(--app-selection-color);
+        // Keyboard focus ring (`libs/ui/styles/_focus-ring.scss`), drawn 2px
+        // outside the focused element. A deeper blue than the selection colour:
+        // at least 3.6:1 on every light surface and selection tint, where
+        // #2f7bff falls to 2.6:1 on the stronger tint.
+        --app-focus-ring: #1d63e0;
+
+        // Live / on-air accent (broadcast indicator)
+        --app-live-color: #d12c2c;
+
+        // Done / watched status (episode watched toggle)
+        --app-success-color: #15803d;
+
+        // Content area
+        --app-content-shadow: -2px 4px 12px rgba(0, 0, 0, 0.06);
+
+        // Widget surfaces — no borders, layered backgrounds
+        --app-widget-header-bg: #fafbfc;
+        --app-widget-border: transparent;
+        --app-widget-shadow:
+            0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
+        --app-widget-header-border: rgba(0, 0, 0, 0.06);
+        --app-card-hover-bg: #f0f2f5;
+        --app-separator: rgba(0, 0, 0, 0.14);
+
+        // Typography — subdued, not pure black
+        --app-body-color: #4a5060;
+        --app-eyebrow-color: #535d6d;
+
+        // Provider accent colors
+        --app-provider-xtream: #2f7bff;
+        --app-provider-stalker: #10b981;
+        --app-provider-m3u: #d97706;
+
+        // Subscription-expiry chips (dashboard source cards). Text/surface pairs
+        // are picked per theme to keep >= 4.5:1 small-text contrast against the
+        // composited chip background.
+        --app-expiry-warn-text: #8a5300;
+        --app-expiry-warn-surface: color-mix(in srgb, #d97706 16%, transparent);
+        --app-expiry-expired-text: #b3261e;
+        --app-expiry-expired-surface: color-mix(
+            in srgb,
+            #f44336 14%,
+            transparent
+        );
+
+        // Hero
+        --app-accent-gradient: linear-gradient(
+            135deg,
+            rgba(47, 123, 255, 0.08) 0%,
+            rgba(92, 214, 255, 0.05) 100%
+        );
+        --app-hero-surface: rgba(47, 123, 255, 0.04);
+
+        // Detail / hero call to action. The dark theme's light primary (#f2f4f8
+        // on #0a0e14) inverts to a dark button on the light theme, so it reads as
+        // the one solid CTA on either page background.
+        --app-cta-bg: #1a1d23;
+        --app-cta-fg: #f5f6f8;
+        --app-cta-hover-bg: #2a2f3a;
+        --app-cta-meta-fg: rgba(245, 246, 248, 0.68);
+        // Star rating chip: a deep amber, since the chip's 12px text needs
+        // 4.5:1 over hero artwork under the light scrim (#a16207 measured 3.4:1).
+        --app-rating-color: #7a4a00;
+
+        // Source lists (Sources page, playlist switcher) and their popovers.
+        --app-line-strong: rgba(0, 0, 0, 0.12);
+        --app-font-mono:
+            'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+        // A failing source's tag and destructive menu items.
+        --app-danger-text: #b3261e;
+        --app-danger-surface: color-mix(in srgb, #d12c2c 12%, transparent);
+        --app-neutral-tag-surface: rgba(0, 0, 0, 0.06);
+        // One selected-row look for side lists and the switcher's current row:
+        // the Settings navigation's soft tint, plus an outline in light theme
+        // (selection reads as outline + tint here, not a solid slab). Light
+        // text stays the heading colour: the blue on its own tint is 3.3:1.
+        --app-list-selected-bg: var(--app-selection-surface);
+        --app-list-selected-fg: var(--app-heading-color);
+        --app-list-selected-outline: var(--app-selection-border);
+        --app-popover-shadow: 0 24px 70px rgba(15, 20, 28, 0.18);
+        --app-popover-backdrop: rgba(20, 24, 32, 0.28);
+    }
+}
+
+@mixin dark($preview: false, $variant: false) {
+    --app-shell-bg: #0d0f12;
+    --app-rail-bg: #111318;
+    --app-content-bg: #161a22;
+    --app-widget-bg: #1e2330;
+    --app-heading-color: #d8dce8;
+    --app-muted-color: #a1aabd;
+    --app-selection-color: #78adff;
+
+    @if not $preview and not $variant {
+        // ── Dark graphite theme ────────────────────────────────────────────
+        // Inspired by both Slack (sidebar distinction) and GitButler (data density)
+        // Key principle: clearly distinct surface layers using graphite steps
+        // Darkest → lightest: #0d0f12 → #141720 → #1c2030 → #222840
+
+        // App shell & navigation
+        --app-header-bg: #111318;
+        --app-rail-border: transparent;
+        --app-on-surface: #e6e1e5;
+        --app-hover-overlay: rgba(255, 255, 255, 0.08);
+        --app-search-bg: rgba(255, 255, 255, 0.05);
+        --app-search-border: rgba(255, 255, 255, 0.09);
+        --app-selection-text-color: #a9caff;
+        --app-selection-on-color: #071225;
+        --app-selection-surface: color-mix(
+            in srgb,
+            var(--app-selection-color) 18%,
+            transparent
+        );
+        --app-selection-surface-strong: color-mix(
+            in srgb,
+            var(--app-selection-color) 28%,
+            transparent
+        );
+        --app-selection-border: color-mix(
+            in srgb,
+            var(--app-selection-color) 62%,
+            transparent
+        );
+        --app-selection-glow: color-mix(
+            in srgb,
+            var(--app-selection-color) 44%,
+            transparent
+        );
+        // Re-declared so it resolves against this context's selection colour
+        // rather than inheriting the light value computed on `html`.
+        --app-progress-color: var(--app-selection-color);
+        // Keyboard focus ring: at least 4.1:1 on every dark surface and
+        // selection tint.
+        --app-focus-ring: #8cbaff;
+
+        // Live / on-air accent (broadcast indicator)
+        --app-live-color: #ff8f8f;
+
+        // Done / watched status (episode watched toggle)
+        --app-success-color: #4ade80;
+
+        // Content area
+        --app-content-shadow: -4px 8px 20px rgba(0, 0, 0, 0.18);
+
+        // Widget surfaces — NO border, surface contrast does the work
+        // Widgets sit on content-bg (#161a22), so widget-bg is notably lighter
+        --app-widget-header-bg: #232840;
+        --app-widget-border: transparent;
+        --app-widget-shadow: none;
+        --app-widget-header-border: rgba(255, 255, 255, 0.05);
+        --app-card-hover-bg: #252b3a;
+        --app-separator: rgba(255, 255, 255, 0.14);
+
+        // Typography — NOT pure white. Warm graphite-tinted whites
+        // soft off-white, not #fff
+        --app-body-color: #8b93a8; // muted blue-grey
+        // readable secondary metadata
+        --app-eyebrow-color: #a1aabd; // eyebrow labels
+
+        // Provider accents (slightly brighter for dark bg)
+        --app-provider-xtream: #78adff;
+        --app-provider-stalker: #34d399;
+        --app-provider-m3u: #fbbf24;
+
+        // Subscription-expiry chips — brighter text for the dark surfaces;
+        // expired matches the --app-live-color accent family.
+        --app-expiry-warn-text: #fbbf24;
+        --app-expiry-warn-surface: color-mix(in srgb, #fbbf24 16%, transparent);
+        --app-expiry-expired-text: #ff8f8f;
+        --app-expiry-expired-surface: color-mix(
+            in srgb,
+            #ff8f8f 16%,
+            transparent
+        );
+
+        // Hero section
+        --app-accent-gradient: linear-gradient(
+            135deg,
+            rgba(120, 173, 255, 0.12) 0%,
+            rgba(92, 214, 255, 0.07) 100%
+        );
+        --app-hero-surface: rgba(30, 35, 48, 0.9);
+
+        // Detail / hero call to action (light primary) and rating accent
+        --app-cta-bg: #f2f4f8;
+        --app-cta-fg: #0a0e14;
+        --app-cta-hover-bg: #ffffff;
+        --app-cta-meta-fg: #5a6274;
+        --app-rating-color: #ffcf5c;
+
+        // Source lists and popovers. The selected-row tokens are
+        // re-declared so they resolve against this context's selection
+        // colour, not the light values computed on `html`.
+        --app-line-strong: rgba(255, 255, 255, 0.1);
+        --app-danger-text: #ff8d9b;
+        --app-danger-surface: rgba(255, 91, 110, 0.14);
+        --app-neutral-tag-surface: rgba(255, 255, 255, 0.08);
+        --app-list-selected-bg: var(--app-selection-surface);
+        --app-list-selected-fg: var(--app-selection-color);
+        --app-list-selected-outline: transparent;
+        --app-popover-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
+        --app-popover-backdrop: rgba(4, 6, 10, 0.5);
+    }
+}
+
+@mixin cream($preview: false) {
+    @include light($preview, $variant: true);
+    --app-shell-bg: #e9e1d4;
+    --app-rail-bg: #e9e1d4;
+    --app-content-bg: #f3eee4;
+    --app-widget-bg: #fcf8f0;
+    --app-heading-color: #302923;
+    --app-muted-color: #6d5e51;
+    --app-selection-color: #8a5a3b;
+
+    @if not $preview {
+        --app-header-bg: #e9e1d4;
+        --app-widget-header-bg: #f7f1e7;
+        --app-card-hover-bg: #eae1d4;
+        --app-on-surface: #302923;
+        --app-body-color: #5e5148;
+        --app-eyebrow-color: #6d5e51;
+        --app-hover-overlay: rgba(63, 43, 24, 0.06);
+        --app-search-bg: rgba(252, 248, 240, 0.8);
+        --app-search-border: rgba(63, 43, 24, 0.16);
+        --app-selection-text-color: #74482e;
+        --app-selection-on-color: #fff8f0;
+        --app-focus-ring: #74482e;
+        --app-content-shadow: -2px 4px 12px rgba(63, 43, 24, 0.06);
+        --app-widget-shadow: 0 2px 8px rgba(63, 43, 24, 0.05);
+        --app-widget-header-border: rgba(63, 43, 24, 0.08);
+        --app-separator: rgba(63, 43, 24, 0.16);
+        --app-line-strong: rgba(63, 43, 24, 0.16);
+        --app-accent-gradient: linear-gradient(
+            135deg,
+            rgba(138, 90, 59, 0.08),
+            rgba(188, 153, 105, 0.05)
+        );
+        --app-hero-surface: rgba(138, 90, 59, 0.04);
+        --app-cta-bg: #382b23;
+        --app-cta-fg: #fcf8f0;
+        --app-cta-hover-bg: #4b382b;
+        --app-cta-meta-fg: rgba(252, 248, 240, 0.75);
+        --app-rating-color: #754600;
+        --app-popover-shadow: 0 24px 70px rgba(48, 34, 23, 0.18);
+        --app-popover-backdrop: rgba(48, 34, 23, 0.28);
+    }
+}
+
+@mixin mocha($preview: false) {
+    // The mode class declares shared roles on this same body element.
+    @include dark($preview, $variant: true);
+    --app-shell-bg: #171310;
+    --app-rail-bg: #1e1916;
+    --app-content-bg: #251f1b;
+    --app-widget-bg: #302823;
+    --app-heading-color: #f0e3d2;
+    --app-muted-color: #c9b6a5;
+    --app-selection-color: #d5ad89;
+
+    @if not $preview {
+        --app-header-bg: #1e1916;
+        --app-widget-header-bg: #382f29;
+        --app-card-hover-bg: #40352d;
+        --app-on-surface: #eaddce;
+        --app-body-color: #c0ad9d;
+        --app-eyebrow-color: #c9b6a5;
+        --app-hover-overlay: rgba(240, 227, 210, 0.08);
+        --app-search-bg: rgba(240, 227, 210, 0.05);
+        --app-search-border: rgba(240, 227, 210, 0.12);
+        --app-selection-text-color: #e1bc9b;
+        --app-selection-on-color: #2b1c11;
+        --app-focus-ring: #edc49e;
+        --app-widget-header-border: rgba(240, 227, 210, 0.07);
+        --app-separator: rgba(240, 227, 210, 0.16);
+        --app-line-strong: rgba(240, 227, 210, 0.12);
+        --app-accent-gradient: linear-gradient(
+            135deg,
+            rgba(213, 173, 137, 0.1),
+            rgba(161, 115, 79, 0.06)
+        );
+        --app-hero-surface: rgba(48, 40, 35, 0.9);
+        --app-cta-bg: #ecdfcd;
+        --app-cta-fg: #251f1b;
+        --app-cta-hover-bg: #fff5e8;
+        --app-cta-meta-fg: #625345;
+        --app-rating-color: #edc485;
+        --app-popover-shadow: 0 24px 70px rgba(15, 10, 6, 0.6);
+        --app-popover-backdrop: rgba(15, 10, 6, 0.5);
+    }
+}
+
+@mixin night-owl($preview: false) {
+    // The mode class declares shared roles on this same body element.
+    @include dark($preview, $variant: true);
+    --app-shell-bg: #011627;
+    --app-rail-bg: #0b2232;
+    --app-content-bg: #071d2b;
+    --app-widget-bg: #102a3a;
+    --app-heading-color: #d6deeb;
+    --app-muted-color: #a5b8ca;
+    --app-selection-color: #82aaff;
+
+    @if not $preview {
+        --app-header-bg: #0b2232;
+        --app-widget-header-bg: #102a3a;
+        --app-card-hover-bg: #17384b;
+        --app-on-surface: #d6deeb;
+        --app-body-color: #b8c8d9;
+        --app-eyebrow-color: #a5b8ca;
+        --app-selection-text-color: #b3ccff;
+        --app-selection-on-color: #011627;
+        --app-focus-ring: #a7c5ff;
+        --app-provider-xtream: #82aaff;
+        --app-accent-gradient: linear-gradient(
+            135deg,
+            rgba(130, 170, 255, 0.12),
+            rgba(127, 219, 202, 0.07)
+        );
+        --app-hero-surface: rgba(16, 42, 58, 0.9);
+        --app-cta-bg: #d6deeb;
+        --app-cta-fg: #011627;
+        --app-cta-hover-bg: #edf3fc;
+        --app-cta-meta-fg: #43586c;
+        --app-popover-backdrop: rgba(1, 22, 39, 0.5);
+    }
+}
+
+@mixin black-oled($preview: false) {
+    // The mode class declares shared roles on this same body element.
+    @include dark($preview, $variant: true);
+    --app-shell-bg: #000000;
+    --app-rail-bg: #080808;
+    --app-content-bg: #000000;
+    --app-widget-bg: #121212;
+    --app-heading-color: #dedede;
+    --app-muted-color: #a3a3a3;
+    --app-selection-color: #8ab4f8;
+
+    @if not $preview {
+        --app-header-bg: #080808;
+        --app-widget-header-bg: #121212;
+        --app-card-hover-bg: #1c1c1c;
+        --app-on-surface: #dedede;
+        --app-body-color: #b8b8b8;
+        --app-eyebrow-color: #a3a3a3;
+        --app-selection-text-color: #aecbfa;
+        --app-selection-on-color: #000000;
+        --app-focus-ring: #aecbfa;
+        --app-provider-xtream: #8ab4f8;
+        --app-accent-gradient: linear-gradient(
+            135deg,
+            rgba(138, 180, 248, 0.08),
+            rgba(138, 180, 248, 0.03)
+        );
+        --app-hero-surface: #121212;
+        --app-cta-bg: #dedede;
+        --app-cta-fg: #000000;
+        --app-cta-hover-bg: #eeeeee;
+        --app-cta-meta-fg: #505050;
+        --app-popover-backdrop: rgba(0, 0, 0, 0.5);
+    }
+}

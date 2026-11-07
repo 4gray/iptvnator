@@ -69,17 +69,51 @@ docker compose -f docker/docker-compose.yml up --build -d
 ```
 
 Open <http://localhost:4333>. No separate backend container is needed.
-Connected clients can share source definitions; favorites, history and watch
-progress stay on each device.
+Connected clients can share source definitions. Favorites and watch progress
+have separate synchronization opt-ins; history stays local to each device.
 
 The PWA does not include M3U XMLTV, Embedded MPV, managed external-player
 launching, the download manager or Electron remote-control features.
 See [Docker setup and client connections](docker/README.md) for configuration,
 reverse proxies, playback troubleshooting and platform limits.
 
-For the separate experimental webOS TV client, see
-[TV setup](docs/development/tv-development.md) and
-[TV architecture and limitations](docs/architecture/tv-application.md).
+## Smart TV
+
+### LG webOS and Samsung Tizen
+
+LG webOS and Samsung Tizen share a dedicated, experimental TV client for M3U,
+Xtream Codes and Stalker / Ministra sources. It requires a compatible IPTVnator
+web backend. Build and install the package for your TV in Developer Mode.
+
+- [LG webOS installation](apps/tv/README.md#installation)
+- [Samsung Tizen installation and signing](apps/tv/tizen/README.md)
+
+Add sources from your phone by scanning a QR code, or connect the TV to your
+self-hosted IPTVnator source library. Favorites, history and resume positions
+currently stay on the TV.
+
+See the [TV README](apps/tv/README.md) for compatibility, phone setup, source
+synchronization and screenshots.
+
+### Fire TV / Android TV shell (experimental)
+
+The Android shell bundles the same PWA used in the browser with an embedded
+backend. It's designed primarily for Fire TV Stick and Android TV devices with a
+D-pad remote. You can try it on tablets. Compact phone screens still need layout
+work.
+
+The `Build TV shell APK` workflow can publish a GitHub release, marked as a
+pre-release by default. For APK builds, installation and remote controls, see
+the [Android shell guide](./tv-shell/README.md).
+
+### Enigma2 receivers
+
+Dreaminator is a standalone IPTV plugin and browser-based playlist manager for
+Enigma2 receivers. Organize channels in a browser and watch with the receiver's
+remote. Tested on the Dreambox DM520 and Vu+ Uno 4K SE.
+
+[Dreaminator on GitHub](https://github.com/4gray/dreaminator) ·
+[Dreaminator on the IPTVnator blog](https://4gray.github.io/iptvnator/blog/dreaminator-enigma2/)
 
 ## Help and development
 

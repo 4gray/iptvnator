@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<widget
+    xmlns="http://www.w3.org/ns/widgets"
+    xmlns:tizen="http://tizen.org/ns/widgets"
+    id="https://github.com/4gray/iptvnator/tv"
+    version="__TV_VERSION__"
+    viewmodes="maximized"
+>
+    <tizen:application
+        id="IPTVnatorT.TV"
+        package="IPTVnatorT"
+        required_version="5.5"
+    />
+    <tizen:profile name="tv-samsung" />
+    <name>IPTVnator TV</name>
+    <icon src="icon.png" />
+    <content src="index.html" />
+    <access origin="*" subdomains="true" />
+    <tizen:privilege name="http://tizen.org/privilege/internet" />
+    <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice" />
+    <tizen:setting
+        screen-orientation="landscape"
+        context-menu="disable"
+        background-support="disable"
+        hwkey-event="enable"
+    />
+</widget>

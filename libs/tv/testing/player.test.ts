@@ -14,6 +14,8 @@ test('native player records only confirmed playback, saves on pause and exposes 
     const video = dom.window.document.querySelector('video');
     assert.ok(video);
     Object.defineProperties(video, {
+        paused: { value: false },
+        currentSrc: { get: () => video.src },
         load: {
             value() {
                 return undefined;
@@ -25,7 +27,7 @@ test('native player records only confirmed playback, saves on pause and exposes 
                 return undefined;
             },
         },
-        duration: { value: 100 },
+        duration: { value: 100, configurable: true },
         readyState: { value: 4 },
         currentTime: { value: 0, writable: true },
     });
@@ -85,6 +87,40 @@ test('native player records only confirmed playback, saves on pause and exposes 
         await retrySave();
         assert.equal(saved.at(-1)?.seconds, 30);
         assert.equal(saved.at(-1)?.item.id, item.id);
+        await player.play(item, { url: 'https://cdn.invalid/video.mp4' }, 0, 4);
+        video.dispatchEvent(new dom.window.Event('playing'));
+        Object.defineProperty(video, 'duration', {
+            value: Infinity,
+            configurable: true,
+        });
+        video.dispatchEvent(new dom.window.Event('ended'));
+        await Promise.resolve();
+        assert.equal(saved.at(-1)?.watched, true);
+        assert.equal(saved.at(-1)?.duration, 0);
+        assert.equal(saved.at(-1)?.revision, 4);
+        player.stop();
+        await Promise.resolve();
+        assert.equal(saved.at(-1)?.watched, true);
+
+        await player.play(item, { url: 'https://cdn.invalid/video.mp4' }, 0, 4);
+        Object.defineProperty(video, 'duration', {
+            value: 100,
+            configurable: true,
+        });
+        video.currentTime = 100;
+        video.dispatchEvent(new dom.window.Event('playing'));
+        video.dispatchEvent(new dom.window.Event('ended'));
+        player.seekTo(22);
+        video.dispatchEvent(new dom.window.Event('seeked'));
+        assert.equal(saved.at(-1)?.seconds, 22);
+        assert.equal(saved.at(-1)?.watched, undefined);
+
+        video.currentTime = 100;
+        video.dispatchEvent(new dom.window.Event('ended'));
+        player.seekTo(0);
+        video.dispatchEvent(new dom.window.Event('seeked'));
+        assert.equal(saved.at(-1)?.seconds, 0);
+        assert.equal(saved.at(-1)?.watched, undefined);
     } finally {
         player.dispose();
         dom.window.close();

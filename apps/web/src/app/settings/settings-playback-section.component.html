@@ -31,18 +31,126 @@
                             formControlName="player"
                             aria-labelledby="video-player-label"
                             data-test-id="select-video-player"
+                            (openedChange)="
+                                $event && refreshExternalAvailability()
+                            "
                         >
                             @for (player of players(); track player.id) {
                                 <mat-option
                                     [value]="player.id"
                                     [attr.data-test-id]="player.id"
                                     >{{ player.labelKey | translate }}
+                                    @if (externalPlayerUnavailable(player.id)) {
+                                        ·
+                                        {{
+                                            'SETTINGS.EXTERNAL_PLAYER_UNAVAILABLE'
+                                                | translate
+                                        }}
+                                    }
                                 </mat-option>
                             }
                         </mat-select>
                     </mat-form-field>
                 </div>
             </div>
+
+            @if (
+                supportsExternalPlayerPathSettings() &&
+                form().value.player === 'mpv'
+            ) {
+                <div class="setting-item" data-setting-id="mpv-player-path">
+                    <div class="setting-item__meta">
+                        <h4>
+                            {{ 'SETTINGS.MPV_PLAYER_PATH_LABEL' | translate }}
+                        </h4>
+                        <p>
+                            {{
+                                'SETTINGS.MPV_PLAYER_PATH_DESCRIPTION'
+                                    | translate
+                            }}
+                        </p>
+                        <p data-test-id="mpv-compatible-player-tip">
+                            {{
+                                'SETTINGS.MPV_COMPATIBLE_PLAYER_TIP' | translate
+                            }}
+                        </p>
+                    </div>
+                    <div class="setting-item__control">
+                        <mat-form-field
+                            class="settings-text-field"
+                            appearance="outline"
+                            subscriptSizing="dynamic"
+                        >
+                            <mat-label for="mpvPlayerPath">{{
+                                'SETTINGS.MPV_PLAYER_PATH' | translate
+                            }}</mat-label>
+                            <input
+                                matInput
+                                type="text"
+                                id="mpvPlayerPath"
+                                formControlName="mpvPlayerPath"
+                            />
+                        </mat-form-field>
+                    </div>
+                </div>
+            }
+
+            @if (
+                supportsExternalPlayerPathSettings() &&
+                form().value.player === 'vlc'
+            ) {
+                <div class="setting-item" data-setting-id="vlc-player-path">
+                    <div class="setting-item__meta">
+                        <h4>
+                            {{ 'SETTINGS.VLC_PLAYER_PATH_LABEL' | translate }}
+                        </h4>
+                        <p>
+                            {{
+                                'SETTINGS.VLC_PLAYER_PATH_DESCRIPTION'
+                                    | translate
+                            }}
+                        </p>
+                    </div>
+                    <div class="setting-item__control">
+                        <mat-form-field
+                            class="settings-text-field"
+                            appearance="outline"
+                            subscriptSizing="dynamic"
+                        >
+                            <mat-label for="vlcPlayerPath">{{
+                                'SETTINGS.VLC_PLAYER_PATH' | translate
+                            }}</mat-label>
+                            <input
+                                matInput
+                                type="text"
+                                id="vlcPlayerPath"
+                                formControlName="vlcPlayerPath"
+                            />
+                        </mat-form-field>
+                    </div>
+                </div>
+            }
+
+            @if (canCheckExternalPlayers() && isExternalPlayerSelected()) {
+                <div class="setting-item__sub">
+                    <p
+                        role="status"
+                        aria-live="polite"
+                        data-test-id="external-player-status"
+                    >
+                        {{ externalPlayerStatusKey() | translate }}
+                    </p>
+                    <button
+                        mat-button
+                        type="button"
+                        data-test-id="check-external-players"
+                        [disabled]="checkingExternalPlayers()"
+                        (click)="refreshExternalAvailability()"
+                    >
+                        {{ 'SETTINGS.EXTERNAL_PLAYER_CHECK_AGAIN' | translate }}
+                    </button>
+                </div>
+            }
 
             <!-- The runtime note belongs to the choice it describes, and
                  only while that choice is made. -->
@@ -306,35 +414,6 @@
                 supportsExternalPlayerPathSettings() &&
                 form().value.player === 'mpv'
             ) {
-                <div class="setting-item" data-setting-id="mpv-player-path">
-                    <div class="setting-item__meta">
-                        <h4>{{ 'SETTINGS.MPV_PLAYER_PATH_LABEL' | translate }}</h4>
-                        <p>
-                            {{ 'SETTINGS.MPV_PLAYER_PATH_DESCRIPTION' | translate }}
-                        </p>
-                        <p data-test-id="mpv-compatible-player-tip">
-                            {{ 'SETTINGS.MPV_COMPATIBLE_PLAYER_TIP' | translate }}
-                        </p>
-                    </div>
-                    <div class="setting-item__control">
-                        <mat-form-field
-                            class="settings-text-field"
-                            appearance="outline"
-                            subscriptSizing="dynamic"
-                        >
-                            <mat-label for="mpvPlayerPath">{{
-                                'SETTINGS.MPV_PLAYER_PATH' | translate
-                            }}</mat-label>
-                            <input
-                                matInput
-                                type="text"
-                                id="mpvPlayerPath"
-                                formControlName="mpvPlayerPath"
-                            />
-                        </mat-form-field>
-                    </div>
-                </div>
-
                 <div
                     class="setting-item setting-item--full-control setting-item--external-player-arguments"
                     data-setting-id="mpv-player-arguments"
@@ -402,32 +481,6 @@
                 supportsExternalPlayerPathSettings() &&
                 form().value.player === 'vlc'
             ) {
-                <div class="setting-item" data-setting-id="vlc-player-path">
-                    <div class="setting-item__meta">
-                        <h4>{{ 'SETTINGS.VLC_PLAYER_PATH_LABEL' | translate }}</h4>
-                        <p>
-                            {{ 'SETTINGS.VLC_PLAYER_PATH_DESCRIPTION' | translate }}
-                        </p>
-                    </div>
-                    <div class="setting-item__control">
-                        <mat-form-field
-                            class="settings-text-field"
-                            appearance="outline"
-                            subscriptSizing="dynamic"
-                        >
-                            <mat-label for="vlcPlayerPath">{{
-                                'SETTINGS.VLC_PLAYER_PATH' | translate
-                            }}</mat-label>
-                            <input
-                                matInput
-                                type="text"
-                                id="vlcPlayerPath"
-                                formControlName="vlcPlayerPath"
-                            />
-                        </mat-form-field>
-                    </div>
-                </div>
-
                 <div
                     class="setting-item setting-item--full-control setting-item--external-player-arguments"
                     data-setting-id="vlc-player-arguments"

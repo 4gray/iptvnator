@@ -1,0 +1,42 @@
+{
+ "ok": true,
+ "result": {
+  "header": {
+   "attrs": {
+    "url-tvg": "http://synthetic.example/Synthetic1.xml"
+   },
+   "raw": "#EXTM3U x-tvg-url=\"\" url-tvg=\"http://synthetic.example/Synthetic1.xml\""
+  },
+  "items": [
+   {
+    "name": "Synthetic3",
+    "tvg": {
+     "id": "",
+     "name": "",
+     "logo": "",
+     "url": "",
+     "rec": "",
+     "shift": ""
+    },
+    "group": {
+     "title": ""
+    },
+    "http": {
+     "referrer": "",
+     "user-agent": ""
+    },
+    "url": "http://synthetic.example/Synthetic2.ts",
+    "raw": "#EXTINF:-1,Synthetic3\r\nhttp://synthetic.example/Synthetic2.ts",
+    "line": 2,
+    "catchup": {
+     "type": "",
+     "days": "",
+     "source": ""
+    },
+    "timeshift": "",
+    "lang": "",
+    "radio": ""
+   }
+  ]
+ }
+}

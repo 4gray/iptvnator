@@ -1,6 +1,7 @@
 import { render } from 'preact';
 import { TvApp } from '@iptvnator/tv/feature';
 import './theme.css';
+import './horizontal-rail.css';
 import './live-overlay.css';
 import './programme-guide.css';
 import './grid-guide.css';

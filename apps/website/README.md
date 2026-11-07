@@ -88,6 +88,11 @@ requirements, an FAQ and `SoftwareApplication` / `FAQPage` / `BreadcrumbList`
 structured data. Shared pieces live in `src/components/download/` and reuse the
 blog components (`StepRail`, `Alert`, `FaqAccordion`, `CopyCommand`).
 
+The download hub also links to the build and installation guides for the
+experimental TV apps. The blog links directly to `/download/#tv`. The Android
+shell, LG webOS and Samsung Tizen packages have their own installation paths
+outside the desktop release resolver.
+
 ### Latest-release resolution
 
 Direct asset links need the release version, so `src/lib/downloads.ts`

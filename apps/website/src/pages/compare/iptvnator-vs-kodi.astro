@@ -36,14 +36,14 @@ const shapeRows = [
   { label: 'Provider movie and series catalogs with posters', cells: ['Depends on the add-on', true] },
   { label: 'Your own video and music library with scraped metadata', cells: [true, false] },
   { label: 'Add-ons and skins', cells: [true, false] },
-  { label: 'Designed first for', cells: ['A TV across the room, with a remote', 'A computer, with a keyboard and mouse'] },
+  { label: 'Designed first for', cells: ['A TV across the room, with a remote', 'Keyboard and mouse on desktop, remote control on experimental TV builds'] },
   { label: 'Control it from a phone', cells: ['Official and third-party remote apps', 'Built-in web remote, nothing to install'] },
   { label: 'Catch-up from the guide', cells: ['Depends on the add-on', true] },
   { label: 'Offline downloads of provider movies and episodes', cells: ['Depends on the add-on', 'Desktop app'] },
 ];
 
 const practicalRows = [
-  { label: 'Where it runs', cells: ['Windows, macOS, Linux, Android, tvOS, Raspberry Pi and more', 'Windows, macOS, Linux; browser version you host yourself'] },
+  { label: 'Where it runs', cells: ['Windows, macOS, Linux, Android, tvOS, Raspberry Pi and more', 'Windows, macOS, Linux, self-hosted browser version, experimental TV builds'] },
   { label: 'Price', cells: ['Free, open source', 'Free, open source'] },
   { label: 'Account needed', cells: [false, false] },
   { label: 'Supplies channels or playlists', cells: [false, false], note: 'Neither is a content source. Both play sources you bring yourself, and the Kodi project is explicit about that too.' },
@@ -53,7 +53,7 @@ const guidance = [
   {
     title: 'Already running Kodi on a TV or a Pi? Stay there',
     description:
-      'If Kodi is your living-room setup and IPTV is one of several things it does, adding a second app solves nothing. IPTVnator has no TV build and no remote-friendly interface; it would be the wrong tool in that room.',
+      'Kodi can keep IPTV, your local media library and add-ons in one living-room setup. IPTVnator’s experimental TV builds focus on watching IPTV with a remote.',
   },
   {
     title: 'IPTV on a computer, and that is the whole job',
@@ -79,7 +79,7 @@ const faq: FaqEntry[] = [
   },
   {
     q: 'Is IPTVnator a Kodi add-on?',
-    a: 'No. It is a standalone application for Windows, macOS and Linux, plus a browser version you can host yourself. It does not run inside Kodi and does not need it.',
+    a: 'IPTVnator runs on its own, with desktop apps, a self-hosted browser version and experimental TV builds.',
   },
   {
     q: 'Can Kodi use an Xtream Codes login or a Stalker portal?',
@@ -91,7 +91,7 @@ const faq: FaqEntry[] = [
   },
   {
     q: 'What does Kodi do that IPTVnator does not?',
-    a: 'Quite a lot. Your own local video and music library with scraped metadata, add-ons, skins, an interface built for a remote across the room, and builds for TV boxes, phones and a Raspberry Pi. IPTVnator does none of that and is not trying to.',
+    a: 'Kodi manages a local video and music library with scraped metadata and offers add-ons and skins. IPTVnator focuses on live TV and catalogs from your IPTV sources.',
   },
   {
     q: 'Can I run both?',
@@ -120,8 +120,8 @@ const jsonLd = buildComparisonPageSchema({ comparison, pageUrl, description, faq
     comparison={comparison}
     titleLead="A media center, or"
     titleAccent="just an IPTV player?"
-    lede="Kodi can do IPTV, and a great deal more. That breadth is exactly what makes the comparison worth having: one of these is a living-room platform that reaches IPTV through an add-on, the other does nothing but IPTV and is installed on a desk."
-    verdict="If Kodi is already your TV setup, stay with it — IPTVnator has no TV build and would be the wrong tool in that room. If IPTV is the whole job on a computer, or your provider gave you an Xtream Codes login or a Stalker portal rather than a playlist file, a dedicated player is less setup and speaks those APIs natively."
+    lede="Kodi is a media center that reaches IPTV through an add-on. IPTVnator is a dedicated IPTV player with desktop, browser and experimental TV builds."
+    verdict="Kodi fits a living-room setup that combines IPTV with a local media library and add-ons. IPTVnator fits an IPTV-only setup and connects directly to Xtream Codes and Stalker portals."
   />
 
   <DownloadSection id="setup" eyebrow="Getting the source in" title="Where IPTV" accent="comes from" lead="Kodi treats IPTV as one kind of PVR backend among many; IPTVnator treats it as the whole application.">

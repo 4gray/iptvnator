@@ -14,6 +14,9 @@ const selectedPoster = '/synthetic-alpha.svg';
 const otherPoster = '/synthetic-beta.svg';
 const title = 'Синтетический сериал Альфа (8 серий)';
 
+// Route mocks must stay authoritative across reloads of the production PWA.
+test.use({ serviceWorkers: 'block' });
+
 test('@tmdb-match persists a manual series match, restores provider metadata and automatic matching', async ({
     page,
 }) => {
@@ -279,11 +282,12 @@ test('@tmdb-match persists a manual series match, restores provider metadata and
     await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
 
     const browseUrl = page.url();
-    await page.goto('/workspace/settings/general');
+    await page.goto('/workspace/settings/appearance');
     await page
         .locator('[data-test-id="select-theme"]')
         .getByRole('radio', { name: 'Dark', exact: true })
         .click();
+    await page.locator('[data-test-id="settings-section-general"]').click();
     await page.locator('[data-test-id="select-language"]').click();
     const russianLocale = page.waitForResponse(
         (response) =>

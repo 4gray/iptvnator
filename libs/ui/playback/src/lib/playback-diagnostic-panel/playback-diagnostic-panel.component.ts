@@ -3,7 +3,9 @@ import { version as appVersion } from '@package';
 import { createDiagnosticReport } from './playback-diagnostic-report.util';
 import { ClipboardModule } from '@angular/cdk/clipboard';
 import {
+    afterRenderEffect,
     ChangeDetectionStrategy,
+    ElementRef,
     Component,
     computed,
     inject,
@@ -82,6 +84,18 @@ export class PlaybackDiagnosticPanelComponent {
     readonly playerRequested = output<PlaybackRecommendationTarget>();
     readonly alternativeSourceRequested = output<string>();
     readonly sourceCheckRequested = output<string>();
+
+    private readonly host: HTMLElement = inject(ElementRef).nativeElement;
+    constructor() {
+        afterRenderEffect(() => {
+            this.host.dispatchEvent(
+                new CustomEvent('iptvnator:playback-issue', {
+                    bubbles: true,
+                    detail: { code: this.diagnostic().code },
+                })
+            );
+        });
+    }
 
     private readonly document = inject(DOCUMENT);
     private readonly copyResult = signal<{

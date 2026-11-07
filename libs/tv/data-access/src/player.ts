@@ -13,6 +13,8 @@ export class NativePlayer {
         return !!this.restore && !this.restore.failed;
     }
     private confirmed = false;
+    private completed = false;
+    private revision = 0;
     private timer?: ReturnType<typeof setInterval>;
     private restore?: {
         target: number;
@@ -32,11 +34,25 @@ export class NativePlayer {
         private saveFailure: (
             message: string,
             retry: () => Promise<void>
-        ) => void = failure
+        ) => void = failure,
+        private onPlaying: (item: Media) => void = () => undefined
     ) {
         this.handlers = {
             playing: () => {
+                const source = this.video.getAttribute('src')
+                    ? this.video.src
+                    : this.video.querySelector('source')?.src;
+                if (
+                    !this.item ||
+                    !source ||
+                    this.video.currentSrc !== source ||
+                    this.video.readyState < 2 ||
+                    this.video.paused ||
+                    this.video.ended
+                )
+                    return;
                 this.confirmed = true;
+                this.onPlaying(this.item);
                 this.tryRestore(true);
                 this.persist();
                 this.changed();
@@ -55,6 +71,10 @@ export class NativePlayer {
                 this.changed();
             },
             ended: () => {
+                if (this.confirmed && this.item?.kind !== 'live') {
+                    this.completed = true;
+                    this.cancelRestore();
+                }
                 this.persist();
                 this.changed();
             },
@@ -80,10 +100,12 @@ export class NativePlayer {
         this.persist();
         if (document.hidden) this.video.pause();
     };
-    async play(item: Media, playback: Playback, resume: number) {
+    async play(item: Media, playback: Playback, resume: number, revision = 0) {
         this.stop();
         const generation = ++this.generation;
         this.item = item;
+        this.completed = false;
+        this.revision = revision;
         this.lastPlayback = { sourceId: item.sourceId, url: playback.url };
         if (item.kind !== 'live' && Number.isFinite(resume) && resume > 0)
             this.startRestore(resume);
@@ -113,8 +135,8 @@ export class NativePlayer {
             this.video.src = url;
             return;
         }
-        // webOS 5 can reject signed master playlists when it guesses the
-        // transport from video.src. Select native HLS before the first load.
+        // webOS 5 needs explicit HLS transport selection. Keep the standard
+        // <source> path on Tizen too; native Samsung playback needs device acceptance.
         const source = this.video.ownerDocument.createElement('source');
         source.src = url;
         source.type = 'application/vnd.apple.mpegurl';
@@ -134,7 +156,14 @@ export class NativePlayer {
         const duration = Number.isFinite(this.video.duration)
             ? this.video.duration
             : 0;
-        const progress = { item, seconds, duration, updated: Date.now() };
+        const progress: Progress = {
+            item,
+            seconds,
+            duration,
+            updated: Date.now(),
+            revision: this.revision,
+            ...(this.completed ? { watched: true } : {}),
+        };
         this.save(progress).catch(() =>
             this.saveFailure(
                 'Viewing progress could not be saved. Free TV storage and retry.',
@@ -190,6 +219,7 @@ export class NativePlayer {
         } else {
             try {
                 this.video.currentTime = 0;
+                this.completed = false;
                 this.cancelRestore();
             } catch {
                 this.failure(
@@ -232,6 +262,7 @@ export class NativePlayer {
             v.readyState >= 2 &&
             Math.abs(v.currentTime - target) <= Math.min(2, target / 4)
         ) {
+            this.completed = false;
             this.cancelRestore();
             return;
         }

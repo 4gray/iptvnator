@@ -1,5 +1,7 @@
 import { expect, test } from './fixtures';
 import axe from 'axe-core';
+import { expectNavigationFocus } from './navigation-focus.fixture';
+import { pressTab } from './e2e-helpers';
 import { configureMockProviderBackend } from './provider-target-route';
 import {
     addStalkerPortal,
@@ -161,6 +163,48 @@ test('@stalker @epg overview loads programmes before category selection and shar
         });
     }
 });
+
+for (const theme of ['light', 'dark']) {
+    test(`@stalker live sidebar header reaches the divider (${theme})`, async ({
+        page,
+        browserName,
+    }, testInfo) => {
+        await page.getByRole('link', { name: /live|itv/i }).click();
+        await page.locator('.context-panel .category-item').nth(1).click();
+        const sidebar = page.locator('app-stalker-live-stream-layout .sidebar');
+        await expect(sidebar.locator('.channel-name').first()).toBeVisible();
+        await page.evaluate((dark) => {
+            document.body.classList.toggle('dark-theme', dark);
+            document.body.classList.toggle('light-theme', !dark);
+        }, theme === 'dark');
+
+        const selected = page.locator(
+            '.context-panel .category-item[aria-current="true"]'
+        );
+        await selected.focus();
+        await pressTab(page, browserName);
+        await pressTab(page, browserName, 'backward');
+        await expectNavigationFocus(selected);
+
+        for (const width of [1280, 360]) {
+            await page.setViewportSize({ width, height: 800 });
+            const gap = await sidebar.evaluate((el) => {
+                const header = el.querySelector('.sidebar-header');
+                if (!header) throw new Error('Missing sidebar header');
+                return (
+                    el.getBoundingClientRect().right -
+                    parseFloat(getComputedStyle(el).borderRightWidth) -
+                    header.getBoundingClientRect().right
+                );
+            });
+            expect(Math.abs(gap)).toBeLessThanOrEqual(1);
+            await sidebar.screenshot({
+                path: testInfo.outputPath(`live-sidebar-${theme}-${width}.png`),
+                animations: 'disabled',
+            });
+        }
+    });
+}
 
 test('@stalker loading reserves logo-card geometry and respects reduced motion in both modes', async ({
     page,

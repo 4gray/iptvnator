@@ -6,7 +6,7 @@
 
     <section class="settings-section">
         <div class="settings-section__header">
-            <h3>{{ 'SETTINGS.CARD_APPEARANCE' | translate }}</h3>
+            <h3>{{ 'SETTINGS.LANGUAGE' | translate }}</h3>
         </div>
         <div class="settings-card">
             <div class="setting-item" data-setting-id="language">
@@ -43,96 +43,6 @@
                     </mat-form-field>
                 </div>
             </div>
-
-            <div class="setting-item" data-setting-id="theme">
-                <div class="setting-item__meta">
-                    <h4>{{ 'SETTINGS.THEME' | translate }}</h4>
-                    <p>{{ 'SETTINGS.THEME_DESCRIPTION' | translate }}</p>
-                </div>
-                <div class="setting-item__control">
-                    <div
-                        class="theme-switcher"
-                        appRadioGroup
-                        [attr.aria-label]="'SETTINGS.THEME' | translate"
-                        data-test-id="select-theme"
-                    >
-                        @for (
-                            themeOption of themeOptions();
-                            track themeOption.value
-                        ) {
-                            <button
-                                type="button"
-                                class="theme-switcher__option"
-                                [class.theme-switcher__option--selected]="
-                                    form().value.theme === themeOption.value
-                                "
-                                [appRadioOption]="
-                                    form().value.theme === themeOption.value
-                                "
-                                [attr.data-test-id]="themeOption.value"
-                                (click)="selectTheme.emit(themeOption.value)"
-                            >
-                                <mat-icon>{{ themeOption.icon }}</mat-icon>
-                                <span>{{ themeOption.labelKey | translate }}</span>
-                            </button>
-                        }
-                    </div>
-                </div>
-            </div>
-
-            <div class="setting-item" data-setting-id="cover-size">
-                <div class="setting-item__meta">
-                    <h4>{{ 'SETTINGS.COVER_SIZE' | translate }}</h4>
-                    <p>{{ 'SETTINGS.COVER_SIZE_DESCRIPTION' | translate }}</p>
-                </div>
-                <div class="setting-item__control">
-                    <div
-                        class="theme-switcher"
-                        appRadioGroup
-                        [attr.aria-label]="'SETTINGS.COVER_SIZE' | translate"
-                        data-test-id="select-cover-size"
-                    >
-                        @for (option of coverSizeOptions(); track option.value) {
-                            <button
-                                type="button"
-                                class="theme-switcher__option"
-                                [class.theme-switcher__option--selected]="
-                                    form().value.coverSize === option.value
-                                "
-                                [appRadioOption]="
-                                    form().value.coverSize === option.value
-                                "
-                                [attr.data-test-id]="
-                                    'cover-size-' + option.value
-                                "
-                                (click)="selectCoverSize.emit(option.value)"
-                            >
-                                <mat-icon>{{ option.icon }}</mat-icon>
-                                <span>{{ option.labelKey | translate }}</span>
-                            </button>
-                        }
-                    </div>
-                </div>
-            </div>
-
-            <div class="setting-item" data-setting-id="cover-titles">
-                <div class="setting-item__meta">
-                    <h4 id="cover-titles-label">
-                        {{ 'SETTINGS.COVER_TITLES' | translate }}
-                    </h4>
-                    <p id="cover-titles-description">
-                        {{ 'SETTINGS.COVER_TITLES_DESCRIPTION' | translate }}
-                    </p>
-                </div>
-                <div class="setting-item__control setting-item__toggle">
-                    <mat-slide-toggle
-                        formControlName="showCoverTitles"
-                        aria-labelledby="cover-titles-label"
-                        aria-describedby="cover-titles-description"
-                        data-test-id="cover-titles-toggle"
-                    ></mat-slide-toggle>
-                </div>
-            </div>
         </div>
     </section>
 
@@ -147,7 +57,9 @@
                         {{ 'SETTINGS.STARTUP_BEHAVIOR' | translate }}
                     </h4>
                     <p>
-                        {{ 'SETTINGS.STARTUP_BEHAVIOR_DESCRIPTION' | translate }}
+                        {{
+                            'SETTINGS.STARTUP_BEHAVIOR_DESCRIPTION' | translate
+                        }}
                     </p>
                 </div>
                 <div class="setting-item__control">
@@ -274,7 +186,9 @@
                 >
                     <div class="setting-item__meta">
                         <h4 id="portal-connectivity-label">
-                            {{ 'SETTINGS.PORTAL_CONNECTIVITY_GUARD' | translate }}
+                            {{
+                                'SETTINGS.PORTAL_CONNECTIVITY_GUARD' | translate
+                            }}
                         </h4>
                         <p id="portal-connectivity-description">
                             {{

@@ -2,6 +2,9 @@
 @use 'sass:meta';
 @use '@angular/material' as mat;
 @use 'styles';
+@use 'theme-palettes' as palettes;
+@use 'warm-theme' as warm;
+@use 'dark-variant-themes' as dark-variants;
 
 // No `mat.elevation-classes()`: nothing in the app uses the `.mat-elevation-z*`
 // utilities, and the 25 rules cost 4.4 KB of the initial stylesheet.
@@ -34,6 +37,7 @@ $light-theme: mat.define-theme(
     (
         color: (
             theme-type: light,
+            use-system-variables: true,
             primary: mat.$azure-palette,
             tertiary: mat.$cyan-palette,
         ),
@@ -48,6 +52,7 @@ $dark-theme: mat.define-theme(
     (
         color: (
             theme-type: dark,
+            use-system-variables: true,
             primary: mat.$azure-palette,
             tertiary: mat.$cyan-palette,
         ),
@@ -91,275 +96,97 @@ $material-components: (
     icon
 );
 
-@mixin component-themes($theme) {
+@mixin component-tokens($theme, $kinds) {
     @each $component in $material-components {
-        @include meta.apply(
-            meta.get-mixin('#{$component}-theme', 'mat'),
-            $theme
-        );
-    }
-}
-
-@mixin component-colors($theme) {
-    @each $component in $material-components {
-        @include meta.apply(
-            meta.get-mixin('#{$component}-color', 'mat'),
-            $theme
-        );
+        @each $kind in $kinds {
+            @include meta.apply(
+                meta.get-mixin('#{$component}-#{$kind}', 'mat'),
+                $theme
+            );
+        }
     }
 }
 
 // ─── Apply Themes ────────────────────────────────────────────────────────────
-html {
-    @include component-themes($light-theme);
+// Re-declare aliases at each color boundary: CSS custom properties resolve
+// where declared, so aliases inherited from html would keep the light colors.
+html,
+html .dark-theme,
+html [data-app-theme='cream'],
+html [data-app-theme='mocha'],
+html [data-app-theme='night-owl'],
+html [data-app-theme='black-oled'] {
+    @include component-tokens($light-theme, (color));
+}
 
-    // The theme is built with the legacy `define-theme` config, whose
-    // component mixins emit resolved component tokens but never declare the
-    // `--mat-sys-*` system variables. App styles reference those variables
-    // directly, so declare them explicitly for each theme context; without
-    // this every such reference silently resolves to nothing.
+html {
+    // Typography and density stay on html so preset color boundaries do not
+    // reset the compact input density applied later in this stylesheet.
+    @include component-tokens($light-theme, (base, typography, density));
+
+    // Component color tokens reference system roles once. Each preset changes
+    // those roles instead of repeating every Material component's color map.
     @include mat.system-level-colors($light-theme);
     @include mat.system-level-typography($light-theme);
     @include mat.system-level-elevation($light-theme);
     @include mat.system-level-shape($light-theme);
     @include mat.system-level-state($light-theme);
 
-    // ── Light theme design tokens ─────────────────────────────────────────
-    --app-shell-bg: #eef0f3;
-    --app-rail-bg: #eef0f3;
-    --app-header-bg: #eef0f3;
-    --app-content-bg: #f5f6f8;
-    --app-rail-border: transparent;
-    --app-on-surface: #1d1b1e;
-    --app-hover-overlay: rgba(0, 0, 0, 0.06);
-    --app-search-bg: rgba(255, 255, 255, 0.7);
-    --app-search-border: rgba(0, 0, 0, 0.1);
-    --app-selection-color: #2f7bff;
-    --app-selection-text-color: #164fa3;
-    --app-selection-on-color: #eef4ff;
-    --app-selection-surface: color-mix(
-        in srgb,
-        var(--app-selection-color) 14%,
-        transparent
-    );
-    --app-selection-surface-strong: color-mix(
-        in srgb,
-        var(--app-selection-color) 22%,
-        transparent
-    );
-    --app-selection-border: color-mix(
-        in srgb,
-        var(--app-selection-color) 52%,
-        transparent
-    );
-    --app-selection-glow: color-mix(
-        in srgb,
-        var(--app-selection-color) 34%,
-        transparent
-    );
-    // Watch progress in app chrome (rail cards, catalog capsules, the hero).
-    // Over video the player's fixed `--pc-progress` applies instead.
-    --app-progress-color: var(--app-selection-color);
-    // Keyboard focus ring (`libs/ui/styles/_focus-ring.scss`), drawn 2px
-    // outside the focused element. A deeper blue than the selection colour:
-    // at least 3.6:1 on every light surface and selection tint, where
-    // #2f7bff falls to 2.6:1 on the stronger tint.
-    --app-focus-ring: #1d63e0;
-
-    // Live / on-air accent (broadcast indicator)
-    --app-live-color: #d12c2c;
-
-    // Done / watched status (episode watched toggle)
-    --app-success-color: #15803d;
-
-    // Content area
-    --app-content-shadow: -2px 4px 12px rgba(0, 0, 0, 0.06);
-
-    // Widget surfaces — no borders, layered backgrounds
-    --app-widget-bg: #ffffff;
-    --app-widget-header-bg: #fafbfc;
-    --app-widget-border: transparent;
-    --app-widget-shadow:
-        0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
-    --app-widget-header-border: rgba(0, 0, 0, 0.06);
-    --app-card-hover-bg: #f0f2f5;
-    --app-separator: rgba(0, 0, 0, 0.14);
-
-    // Typography — subdued, not pure black
-    --app-heading-color: #1a1d23;
-    --app-body-color: #4a5060;
-    --app-muted-color: #535d6d;
-    --app-eyebrow-color: #535d6d;
-
-    // Provider accent colors
-    --app-provider-xtream: #2f7bff;
-    --app-provider-stalker: #10b981;
-    --app-provider-m3u: #d97706;
-
-    // Subscription-expiry chips (dashboard source cards). Text/surface pairs
-    // are picked per theme to keep >= 4.5:1 small-text contrast against the
-    // composited chip background.
-    --app-expiry-warn-text: #8a5300;
-    --app-expiry-warn-surface: color-mix(in srgb, #d97706 16%, transparent);
-    --app-expiry-expired-text: #b3261e;
-    --app-expiry-expired-surface: color-mix(in srgb, #f44336 14%, transparent);
-
-    // Hero
-    --app-accent-gradient: linear-gradient(
-        135deg,
-        rgba(47, 123, 255, 0.08) 0%,
-        rgba(92, 214, 255, 0.05) 100%
-    );
-    --app-hero-surface: rgba(47, 123, 255, 0.04);
-
-    // Detail / hero call to action. The dark theme's light primary (#f2f4f8
-    // on #0a0e14) inverts to a dark button on the light theme, so it reads as
-    // the one solid CTA on either page background.
-    --app-cta-bg: #1a1d23;
-    --app-cta-fg: #f5f6f8;
-    --app-cta-hover-bg: #2a2f3a;
-    --app-cta-meta-fg: rgba(245, 246, 248, 0.68);
-    // Star rating chip: a deep amber, since the chip's 12px text needs
-    // 4.5:1 over hero artwork under the light scrim (#a16207 measured 3.4:1).
-    --app-rating-color: #7a4a00;
-
-    // Source lists (Sources page, playlist switcher) and their popovers.
-    --app-line-strong: rgba(0, 0, 0, 0.12);
-    --app-font-mono:
-        'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-    // A failing source's tag and destructive menu items.
-    --app-danger-text: #b3261e;
-    --app-danger-surface: color-mix(in srgb, #d12c2c 12%, transparent);
-    --app-neutral-tag-surface: rgba(0, 0, 0, 0.06);
-    // One selected-row look for side lists and the switcher's current row:
-    // the Settings navigation's soft tint, plus an outline in light theme
-    // (selection reads as outline + tint here, not a solid slab). Light
-    // text stays the heading colour: the blue on its own tint is 3.3:1.
-    --app-list-selected-bg: var(--app-selection-surface);
-    --app-list-selected-fg: var(--app-heading-color);
-    --app-list-selected-outline: var(--app-selection-border);
-    --app-popover-shadow: 0 24px 70px rgba(15, 20, 28, 0.18);
-    --app-popover-backdrop: rgba(20, 24, 32, 0.28);
-
     .dark-theme {
-        @include component-colors($dark-theme);
         // Only the color roles differ per theme: the elevation shadows are
         // the same black in both, so html's declarations already apply here.
         @include mat.system-level-colors($dark-theme);
 
-        // ── Dark graphite theme ────────────────────────────────────────────
-        // Inspired by both Slack (sidebar distinction) and GitButler (data density)
-        // Key principle: clearly distinct surface layers using graphite steps
-        // Darkest → lightest: #0d0f12 → #141720 → #1c2030 → #222840
+        @include palettes.dark;
+    }
+}
 
-        // App shell & navigation
-        --app-shell-bg: #0d0f12;
-        --app-rail-bg: #111318;
-        --app-header-bg: #111318;
-        --app-content-bg: #161a22;
-        --app-rail-border: transparent;
-        --app-on-surface: #e6e1e5;
-        --app-hover-overlay: rgba(255, 255, 255, 0.08);
-        --app-search-bg: rgba(255, 255, 255, 0.05);
-        --app-search-border: rgba(255, 255, 255, 0.09);
-        --app-selection-color: #78adff;
-        --app-selection-text-color: #a9caff;
-        --app-selection-on-color: #071225;
-        --app-selection-surface: color-mix(
-            in srgb,
-            var(--app-selection-color) 18%,
-            transparent
-        );
-        --app-selection-surface-strong: color-mix(
-            in srgb,
-            var(--app-selection-color) 28%,
-            transparent
-        );
-        --app-selection-border: color-mix(
-            in srgb,
-            var(--app-selection-color) 62%,
-            transparent
-        );
-        --app-selection-glow: color-mix(
-            in srgb,
-            var(--app-selection-color) 44%,
-            transparent
-        );
-        // Re-declared so it resolves against this context's selection colour
-        // rather than inheriting the light value computed on `html`.
-        --app-progress-color: var(--app-selection-color);
-        // Keyboard focus ring: at least 4.1:1 on every dark surface and
-        // selection tint.
-        --app-focus-ring: #8cbaff;
+// Light presets share aliases on the same element as their color overrides.
+html,
+html .light-theme {
+    @include palettes.light;
+}
 
-        // Live / on-air accent (broadcast indicator)
-        --app-live-color: #ff8f8f;
+// Preset identity is separate from the compatibility light/dark mode class.
+html {
+    [data-app-theme='cream'] {
+        @include mat.system-level-colors(warm.$cream);
+        @include palettes.cream;
+    }
 
-        // Done / watched status (episode watched toggle)
-        --app-success-color: #4ade80;
+    [data-app-theme='mocha'] {
+        @include mat.system-level-colors(warm.$mocha);
+        @include palettes.mocha;
+    }
 
-        // Content area
-        --app-content-shadow: -4px 8px 20px rgba(0, 0, 0, 0.18);
+    [data-app-theme='night-owl'] {
+        @include dark-variants.night-owl;
+        @include palettes.night-owl;
+    }
 
-        // Widget surfaces — NO border, surface contrast does the work
-        // Widgets sit on content-bg (#161a22), so widget-bg is notably lighter
-        --app-widget-bg: #1e2330;
-        --app-widget-header-bg: #232840;
-        --app-widget-border: transparent;
-        --app-widget-shadow: none;
-        --app-widget-header-border: rgba(255, 255, 255, 0.05);
-        --app-card-hover-bg: #252b3a;
-        --app-separator: rgba(255, 255, 255, 0.14);
+    [data-app-theme='black-oled'] {
+        @include dark-variants.black-oled;
+        @include palettes.black-oled;
+    }
 
-        // Typography — NOT pure white. Warm graphite-tinted whites
-        --app-heading-color: #d8dce8; // soft off-white, not #fff
-        --app-body-color: #8b93a8; // muted blue-grey
-        --app-muted-color: #a1aabd; // readable secondary metadata
-        --app-eyebrow-color: #a1aabd; // eyebrow labels
-
-        // Provider accents (slightly brighter for dark bg)
-        --app-provider-xtream: #78adff;
-        --app-provider-stalker: #34d399;
-        --app-provider-m3u: #fbbf24;
-
-        // Subscription-expiry chips — brighter text for the dark surfaces;
-        // expired matches the --app-live-color accent family.
-        --app-expiry-warn-text: #fbbf24;
-        --app-expiry-warn-surface: color-mix(in srgb, #fbbf24 16%, transparent);
-        --app-expiry-expired-text: #ff8f8f;
-        --app-expiry-expired-surface: color-mix(
-            in srgb,
-            #ff8f8f 16%,
-            transparent
-        );
-
-        // Hero section
-        --app-accent-gradient: linear-gradient(
-            135deg,
-            rgba(120, 173, 255, 0.12) 0%,
-            rgba(92, 214, 255, 0.07) 100%
-        );
-        --app-hero-surface: rgba(30, 35, 48, 0.9);
-
-        // Detail / hero call to action (light primary) and rating accent
-        --app-cta-bg: #f2f4f8;
-        --app-cta-fg: #0a0e14;
-        --app-cta-hover-bg: #ffffff;
-        --app-cta-meta-fg: #5a6274;
-        --app-rating-color: #ffcf5c;
-
-        // Source lists and popovers. The selected-row tokens are
-        // re-declared so they resolve against this context's selection
-        // colour, not the light values computed on `html`.
-        --app-line-strong: rgba(255, 255, 255, 0.1);
-        --app-danger-text: #ff8d9b;
-        --app-danger-surface: rgba(255, 91, 110, 0.14);
-        --app-neutral-tag-surface: rgba(255, 255, 255, 0.08);
-        --app-list-selected-bg: var(--app-selection-surface);
-        --app-list-selected-fg: var(--app-selection-color);
-        --app-list-selected-outline: transparent;
-        --app-popover-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
-        --app-popover-backdrop: rgba(4, 6, 10, 0.5);
+    // Samples use the same declarations as the app, independent of its theme.
+    [data-theme-preview='light'] {
+        @include palettes.light($preview: true);
+    }
+    [data-theme-preview='dark'] {
+        @include palettes.dark($preview: true);
+    }
+    [data-theme-preview='cream'] {
+        @include palettes.cream($preview: true);
+    }
+    [data-theme-preview='mocha'] {
+        @include palettes.mocha($preview: true);
+    }
+    [data-theme-preview='night-owl'] {
+        @include palettes.night-owl($preview: true);
+    }
+    [data-theme-preview='black-oled'] {
+        @include palettes.black-oled($preview: true);
     }
 }
 

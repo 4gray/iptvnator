@@ -7,6 +7,22 @@ Embedded MPV rendering and native-view bounds behavior remain documented in
 
 ## Current status
 
+The Settings player selector probes external MPV/VLC using the same launch
+context as playback. A missing executable labels its option without disabling
+selection or changing the saved player. The selected external player's path
+editor sits directly below the selector; unused external-player configuration
+stays hidden. Its status announces checking, found, missing or unknown, with
+a manual recheck button. PATH and standard install locations are checked
+without spawning a process. Discovery uses asynchronous filesystem I/O with a
+1.5-second total budget and at most two outstanding filesystem operations,
+reserving at least one worker from the configured libuv pool for other work.
+With a single worker, detection returns unknown without filesystem I/O.
+An inaccessible UNC path, other inconclusive I/O error or timed-out shell PATH lookup returns unknown
+and leaves the option selectable. Flatpak host availability and older bridges remain
+unknown. Reopening the selector, editing either executable path or pressing
+the recheck button refreshes the check; unrelated form edits do not. Path edits
+immediately invalidate the previous result, and stale responses are ignored.
+
 The shared-controls preference checkbox is visible only when HTML5, Video.js
 or ArtPlayer is selected in Settings → Playback.
 
@@ -47,8 +63,10 @@ and legacy series navigation remain unchanged and the adapter is not attached.
 Video.js consumes the same token and shared presentation atomically. Its bridge
 binds the adapter to the current Video.js Tech `<video>` and rebinds after
 `playerreset`, while focused collaborators expose Video.js audio/text tracks
-and manage raw MPEG-TS playback. When the host token resolves to false, Video.js
-keeps its existing skin and legacy series navigation.
+and manage raw MPEG-TS playback. A transparent layer routes shared surface
+gestures around the Tech, whose touch handler cancels the tap's native click
+even when vendor controls are disabled. When the host token resolves to false,
+Video.js keeps its existing skin and legacy series navigation.
 
 ArtPlayer is the fourth consumer. Its source session owns HLS, MPEG-TS, native
 source selection, and delayed `customType` callbacks, while the neutral
@@ -93,6 +111,26 @@ with the active playback/session owner, serializes toggles, and cancels pending
 ownership when the session, playback, engine, or component changes.
 
 ## Diagnostics And Recovery Ownership Boundary
+
+The diagnostic panel publishes a bubbling `iptvnator:playback-issue` DOM event
+after rendering each issue, with only its bounded `code` in the detail. It contains
+no stream URL or provider credentials; the TV
+shell uses format/decode codes for its external-player offer without treating
+network failures as unsupported media.
+Delayed native media errors retain the media element, source and load-attempt
+identity. Removal, replacement, a changed source or another `loadstart` discards
+that error before it can offer recovery for a newer playback attempt.
+Android pauses host-document media on activity pause. `setForeground(false)`
+also blocks late playback retries. WebView media events remain runnable so that
+these retries can be paused. Foreground restoration permits explicit playback;
+it does not automatically restart paused elements.
+TV remote navigation uses the active DOM fullscreen owner as its base scope,
+including menus within that owner. Background controls and overlays outside
+fullscreen are excluded until fullscreen exits. Down from the focused picture
+reveals the shared dock and waits for it to render before moving focus into
+it. If the dock has no focusable controls, normal directional navigation applies.
+When focus needs restoring in fullscreen, it lands on the picture so the dock
+can hide again.
 
 `PlayerController` remains a sibling of playback diagnostics and recovery
 recommendations. It owns engine-neutral playback state, capabilities, and

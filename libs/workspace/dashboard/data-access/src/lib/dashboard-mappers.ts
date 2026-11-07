@@ -40,7 +40,7 @@ export function normalizeActivityType(value: string): PortalActivityType {
  * provider fabricated all collapse to the same thing: absent fields, and a
  * caller that falls back to the display title.
  */
-function readContentTmdbIdentity(item: {
+export function readContentTmdbIdentity(item: {
     tmdb_id?: number | null;
     release_year?: number | null;
     original_title?: string | null;

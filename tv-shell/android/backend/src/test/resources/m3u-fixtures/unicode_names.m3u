@@ -1,0 +1,5 @@
+#EXTM3U
+#EXTINF:-1 tvg-id="Synthetic3" group-title="Синтетический4 Синтетический5",Синтетический6 Synthetic7°1 – « Синтетический8 »
+http://synthetic.example/Synthetic1.ts
+#EXTINF:-1 group-title="Синтетический9",Синтетический10 Синтетический11
+http://synthetic.example/Synthetic2.ts

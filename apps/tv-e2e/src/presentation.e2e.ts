@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { mkdir } from 'node:fs/promises';
 import { chooseTv, addSource, nav, start } from './helpers';
+import { enableMarketingTmdb } from './marketing-tmdb';
 test('packaged classic script boots and connects from file protocol', async ({
     page,
 }) => {
@@ -82,6 +83,8 @@ test('cinema/showcase, direct catalog diagnostic and TV layout widths', async ({
         username: 'marketing',
         password: 'marketing',
     });
+    await enableMarketingTmdb(page);
+    await nav(page, 'Home');
     await expect(page.locator('.hero h1')).not.toHaveText(
         'Make yourself at home.'
     );
@@ -133,10 +136,82 @@ test('cinema/showcase, direct catalog diagnostic and TV layout widths', async ({
         'src',
         /backdrop/
     );
+    const chips = page.getByRole('list', { name: 'Title information' });
+    await expect(
+        chips.getByLabel('Genre: Maritime Crime Thriller', { exact: true })
+    ).toBeVisible();
+    await expect(
+        chips.getByLabel('Country: Meridian Union', { exact: true })
+    ).toBeVisible();
+    await expect(
+        chips.getByLabel('TMDB rating: TMDB 8.2', { exact: true })
+    ).toBeVisible();
+    const credits = page.getByRole('region', { name: 'TMDB credits' });
+    await expect(credits.getByRole('heading')).toHaveText('Directors & cast');
+    await expect(credits.getByRole('button')).toHaveCount(5);
+    await expect
+        .poll(() =>
+            page
+                .locator(
+                    '.detail-poster img, .page-backdrop img, .person-avatar img'
+                )
+                .evaluateAll((images) =>
+                    images.every(
+                        (element) =>
+                            (element as HTMLImageElement).complete &&
+                            (element as HTMLImageElement).naturalWidth > 0
+                    )
+                )
+        )
+        .toBe(true);
     await page.screenshot({
         path: join(workspaceRoot, 'dist/tv-verification/cinema-detail.png'),
     });
+    await credits
+        .getByRole('button', {
+            name: 'View filmography: Mara Venn',
+            exact: true,
+        })
+        .click();
+    await expect(
+        page.getByRole('region', { name: 'Person filmography' })
+    ).toBeVisible();
+    await expect(page.locator('.filmography-card').first()).toContainText(
+        'Black Harbor'
+    );
+    await nav(page, 'Series');
+    await page.locator('.poster-card').first().click();
+    await expect(page.locator('.detail-hero h1')).toHaveText(
+        'Skyline Sentinels'
+    );
+    await expect(
+        chips.getByLabel('Duration: 44 min / episode', { exact: true })
+    ).toBeVisible();
+    await expect(credits.getByRole('heading')).toHaveText('Creators & cast');
+    await expect(credits.getByRole('button')).toHaveCount(5);
+    await expect(page.locator('.episode strong').first()).toHaveText(
+        'The Dawn Shift'
+    );
+    await expect
+        .poll(() =>
+            page
+                .locator(
+                    '.detail-poster img, .page-backdrop img, .person-avatar img, .episode-still'
+                )
+                .evaluateAll((images) =>
+                    images.every(
+                        (element) =>
+                            (element as HTMLImageElement).complete &&
+                            (element as HTMLImageElement).naturalWidth > 0
+                    )
+                )
+        )
+        .toBe(true);
+    await page.screenshot({
+        path: join(workspaceRoot, 'dist/tv-verification/cinema-series.png'),
+    });
     await nav(page, 'Settings');
+    await page.getByRole('tab', { name: 'Connection', exact: false }).click();
     await page.getByRole('button', { name: 'Test direct access' }).click();
     await expect(page.locator('.probe [role=status]')).toContainText(
         'directly readable'

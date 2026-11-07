@@ -1,0 +1,122 @@
+@use 'sass:map';
+@use '@angular/material' as mat;
+
+// Complete neutral ramps keep every Material surface (including overlays)
+// within the preset family. The error ramp retains Material's semantic red.
+$night-neutral: (
+    0: #000000,
+    4: #011627,
+    6: #041a29,
+    10: #071d2b,
+    12: #0b2232,
+    17: #102a3a,
+    20: #153246,
+    22: #17384b,
+    24: #1c3c50,
+    25: #203e52,
+    30: #2b495d,
+    35: #375569,
+    40: #436175,
+    50: #5c7a8f,
+    60: #7694aa,
+    70: #91afc6,
+    80: #adcbe2,
+    87: #c2dbef,
+    90: #d6deeb,
+    92: #dce4f0,
+    94: #e2eaf5,
+    95: #e6edf7,
+    96: #eaf1fa,
+    98: #f4f8fd,
+    99: #fafcff,
+    100: #ffffff,
+);
+$oled-neutral: (
+    0: #000000,
+    4: #000000,
+    6: #080808,
+    10: #000000,
+    12: #121212,
+    17: #171717,
+    20: #1c1c1c,
+    22: #202020,
+    24: #242424,
+    25: #262626,
+    30: #303030,
+    35: #3b3b3b,
+    40: #484848,
+    50: #707070,
+    60: #8e8e8e,
+    70: #a3a3a3,
+    80: #b8b8b8,
+    87: #cccccc,
+    90: #dedede,
+    92: #e2e2e2,
+    94: #e8e8e8,
+    95: #ebebeb,
+    96: #eeeeee,
+    98: #f6f6f6,
+    99: #fafafa,
+    100: #ffffff,
+);
+
+@function palette($neutral, $secondary) {
+    $variant: map.get(mat.$azure-palette, neutral-variant);
+    @each $tone, $color in $variant {
+        $variant: map.set($variant, $tone, map.get($neutral, $tone));
+    }
+    @return map.merge(
+        mat.$azure-palette,
+        (
+            neutral: $neutral,
+            neutral-variant: $variant,
+            secondary: map.get($secondary, secondary),
+        )
+    );
+}
+
+$night-owl: mat.define-theme(
+    (
+        color: (
+            theme-type: dark,
+            use-system-variables: true,
+            primary: palette($night-neutral, mat.$cyan-palette),
+            tertiary: mat.$cyan-palette,
+        ),
+    )
+);
+$black-oled: mat.define-theme(
+    (
+        color: (
+            theme-type: dark,
+            use-system-variables: true,
+            primary: palette($oled-neutral, mat.$azure-palette),
+            tertiary: mat.$cyan-palette,
+        ),
+    )
+);
+
+@mixin night-owl {
+    @include mat.system-level-colors(
+        $night-owl,
+        (
+            primary: #82aaff,
+            on-primary: #011627,
+            secondary: #7fdbca,
+            on-secondary: #011627,
+        )
+    );
+}
+
+@mixin black-oled {
+    @include mat.system-level-colors(
+        $black-oled,
+        (
+            primary: #8ab4f8,
+            on-primary: #000000,
+            background: #000000,
+            surface: #000000,
+            surface-dim: #000000,
+        )
+    );
+}

@@ -59,6 +59,9 @@ test('retains the offline library after failed updates and protects unsaved sett
             .click();
         await expect(dialog).toBeHidden();
         await page.locator('a[href$="/workspace/settings"]').click();
+        await page
+            .locator('[data-test-id="settings-section-appearance"]')
+            .click();
         await page.getByRole('radio', { name: 'Dark', exact: true }).click();
         await page.locator('[data-test-id="save-settings"]').click();
         await expect(
@@ -121,6 +124,9 @@ test('retains the offline library after failed updates and protects unsaved sett
         await expect(notice).toContainText('An update is ready');
         await page.evaluate(() => Reflect.set(window, 'auditDocument', true));
         await page.locator('a[href$="/workspace/settings"]').click();
+        await page
+            .locator('[data-test-id="settings-section-appearance"]')
+            .click();
         await page.getByRole('radio', { name: 'Light', exact: true }).click();
         const beforeUnload = page.waitForEvent('dialog');
         const refreshClick = notice

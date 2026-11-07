@@ -32,6 +32,7 @@ import {
     VideoPlayer,
     normalizeAppUpdateChannel,
     normalizeAppLanguage,
+    normalizeTheme,
     normalizeEpgOffsetMinutes,
     normalizeDashboardRailsSettings,
     normalizeParentalLockRelockMinutes,
@@ -92,6 +93,7 @@ export const SettingsStore = signalStore(
                             language: normalizeAppLanguage(
                                 storedSettings.language
                             ),
+                            theme: normalizeTheme(storedSettings.theme),
                             epgOffsetMinutes: normalizeEpgOffsetMinutes(
                                 storedSettings.epgOffsetMinutes
                             ),
@@ -150,6 +152,9 @@ export const SettingsStore = signalStore(
                 const previousEpgEnabled = store.epgEnabled?.();
                 patchState(store, {
                     ...settings,
+                    ...('theme' in settings
+                        ? { theme: normalizeTheme(settings.theme) }
+                        : {}),
                     ...(settings.language !== undefined
                         ? { language: normalizeAppLanguage(settings.language) }
                         : {}),

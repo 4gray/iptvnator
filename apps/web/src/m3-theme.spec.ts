@@ -1,5 +1,8 @@
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { THEME_PRESETS } from '@iptvnator/shared/interfaces';
 
 // A custom property that reads another one is resolved where it is declared,
 // so a token derived from a per-theme colour has to be declared again inside
@@ -11,38 +14,78 @@ const THEME = readFileSync(
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/(^|\s)\/\/[^\n]*/g, '$1');
 
-/** The body of the brace block that opens at `start` (an index of `{`). */
-function block(source: string, start: number): string {
-    let depth = 0;
-    for (let index = start; index < source.length; index++) {
-        if (source[index] === '{') depth++;
-        if (source[index] === '}' && --depth === 0) {
-            return source.slice(start + 1, index);
-        }
+// Resolve the compiler from the Angular builder that already owns its version.
+const { compileString } = createRequire(
+    resolve(process.cwd(), 'node_modules/@angular/build/package.json')
+)('sass') as {
+    compileString(
+        source: string,
+        options: { url: URL; loadPaths: string[]; quietDeps: boolean }
+    ): { css: string };
+};
+const compiledThemes = new Map<string, string>();
+
+/** Read actual emitted roles from the mode boundary and preset overrides. */
+function themeContexts(preview = false, theme = THEME): Record<string, string> {
+    let css = compiledThemes.get(theme);
+    if (!css) {
+        css = compileString(theme, {
+            url: pathToFileURL(
+                resolve(process.cwd(), 'apps/web/src/m3-theme.scss')
+            ),
+            loadPaths: [resolve(process.cwd(), 'node_modules')],
+            quietDeps: true,
+        }).css.replace(/\/\*[\s\S]*?\*\//g, '');
+        compiledThemes.set(theme, css);
     }
-    throw new Error('Unbalanced braces in m3-theme.scss');
+    const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)];
+    const declarations = (...selectors: string[]) =>
+        rules
+            .filter(([, ruleSelectors]) =>
+                ruleSelectors
+                    .split(',')
+                    .some((value) => selectors.includes(value.trim()))
+            )
+            .flatMap(
+                ([, , body]) => body.match(/--app-[\w-]+:\s*[^;]+;/g) ?? []
+            )
+            .join('\n');
+
+    return Object.fromEntries(
+        THEME_PRESETS.map(({ id, mode }) => [
+            id,
+            preview
+                ? declarations(`html [data-theme-preview=${id}]`)
+                : declarations(
+                      mode === 'dark' ? 'html .dark-theme' : 'html',
+                      `html [data-app-theme=${id}]`
+                  ),
+        ])
+    );
 }
 
-/** Light declarations (the `html` block minus `.dark-theme`) and dark ones. */
-function themeContexts(): { light: string; dark: string } {
-    const darkStart = THEME.indexOf('.dark-theme {');
-    const htmlStart = THEME.lastIndexOf('html {', darkStart);
-    expect(darkStart).toBeGreaterThan(-1);
-    expect(htmlStart).toBeGreaterThan(-1);
-
-    const html = block(THEME, THEME.indexOf('{', htmlStart));
-    const dark = block(THEME, THEME.indexOf('{', darkStart));
-    return { light: html.replace(dark, ''), dark };
-}
+describe('theme context extraction', () => {
+    it('does not invent shared dark roles when the mode stops supplying them', () => {
+        const contexts = themeContexts(
+            false,
+            THEME.replace('@include palettes.dark;', '')
+        );
+        for (const name of ['dark', 'mocha', 'night-owl', 'black-oled']) {
+            expect(contexts[name]).not.toContain('--app-progress-color:');
+            expect(contexts[name]).not.toContain('--app-success-color:');
+        }
+    });
+});
 
 describe('m3-theme watch-progress token', () => {
-    it('declares --app-progress-color from the selection colour in both themes', () => {
-        const { light, dark } = themeContexts();
+    it('declares --app-progress-color from the selection colour in every preset', () => {
+        const contexts = themeContexts();
+        const { light, dark } = contexts;
         const progress =
             /--app-progress-color:\s*var\(--app-selection-color\);/;
         const selection = /--app-selection-color:\s*#[0-9a-f]{6};/i;
 
-        for (const context of [light, dark]) {
+        for (const context of Object.values(contexts)) {
             expect(context).toMatch(selection);
             expect(context).toMatch(progress);
         }
@@ -82,9 +125,9 @@ function mix(top: string, percent: number, base: string): string {
 }
 
 function hexToken(context: string, name: string): string {
-    const value = new RegExp(`${name}:\\s*(#[0-9a-f]{6});`, 'i').exec(
-        context
-    )?.[1];
+    const value = [
+        ...context.matchAll(new RegExp(`${name}:\\s*(#[0-9a-f]{6});`, 'gi')),
+    ].at(-1)?.[1];
     expect(value).toBeDefined();
     return (value ?? '').toLowerCase();
 }
@@ -102,10 +145,10 @@ describe('m3-theme focus ring token', () => {
         '--app-card-hover-bg',
     ];
 
-    it('declares a ring with at least 3:1 on every surface in both themes', () => {
-        const { light, dark } = themeContexts();
+    it('declares a ring with at least 3:1 on every surface in every preset', () => {
+        const contexts = themeContexts();
 
-        for (const [theme, context] of Object.entries({ light, dark })) {
+        for (const [theme, context] of Object.entries(contexts)) {
             const ring = hexToken(context, '--app-focus-ring');
             const selection = hexToken(context, '--app-selection-color');
             const strongTint = Number(
@@ -129,6 +172,109 @@ describe('m3-theme focus ring token', () => {
                     }).toEqual({ theme, surface, background, ratio: true });
                 }
             }
+        }
+    });
+});
+
+describe('theme preset text palettes', () => {
+    it('limits decorative previews to the seven actual app colors they draw', () => {
+        const contexts = themeContexts();
+        for (const [name, preview] of Object.entries(themeContexts(true))) {
+            const tokens = new Map(
+                [
+                    ...preview.matchAll(/(--app-[\w-]+):\s*(#[0-9a-f]{6});/gi),
+                ].map((match) => [match[1], match[2]])
+            );
+            expect(tokens.size).toBe(7);
+            for (const [token, value] of tokens) {
+                expect(value).toBe(hexToken(contexts[name], token));
+            }
+            expect(preview).not.toContain('var(');
+        }
+    });
+
+    it('keeps new dark preset text readable over the strongest composited selection tint', () => {
+        for (const [name, context] of Object.entries(themeContexts()).filter(
+            ([name]) => name === 'night-owl' || name === 'black-oled'
+        )) {
+            const selection = hexToken(context, '--app-selection-color');
+            const text = hexToken(context, '--app-selection-text-color');
+            const tint = 28;
+            for (const surface of [
+                '--app-content-bg',
+                '--app-widget-bg',
+                '--app-card-hover-bg',
+            ]) {
+                expect({
+                    name,
+                    surface,
+                    readable:
+                        contrast(
+                            text,
+                            mix(selection, tint, hexToken(context, surface))
+                        ) >= 4.5,
+                }).toEqual({ name, surface, readable: true });
+            }
+        }
+    });
+    it('keeps normal text readable on every app surface', () => {
+        for (const [name, context] of Object.entries(themeContexts())) {
+            for (const surface of [
+                '--app-content-bg',
+                '--app-widget-bg',
+                '--app-widget-header-bg',
+                '--app-card-hover-bg',
+            ]) {
+                for (const text of [
+                    '--app-heading-color',
+                    '--app-body-color',
+                    '--app-muted-color',
+                ]) {
+                    expect({
+                        name,
+                        surface,
+                        text,
+                        readable:
+                            contrast(
+                                hexToken(context, text),
+                                hexToken(context, surface)
+                            ) >= 4.5,
+                    }).toEqual({ name, surface, text, readable: true });
+                }
+            }
+        }
+    });
+
+    it('preserves the existing four presets’ surface and selection colors', () => {
+        const contexts = themeContexts();
+        expect(
+            [
+                '--app-shell-bg',
+                '--app-content-bg',
+                '--app-widget-bg',
+                '--app-selection-color',
+            ].map((name) => hexToken(contexts['light'], name))
+        ).toEqual(['#eef0f3', '#f5f6f8', '#ffffff', '#2f7bff']);
+        expect(
+            [
+                '--app-shell-bg',
+                '--app-content-bg',
+                '--app-widget-bg',
+                '--app-selection-color',
+            ].map((name) => hexToken(contexts['dark'], name))
+        ).toEqual(['#0d0f12', '#161a22', '#1e2330', '#78adff']);
+        for (const [name, colors] of [
+            ['cream', ['#e9e1d4', '#f3eee4', '#fcf8f0', '#8a5a3b']],
+            ['mocha', ['#171310', '#251f1b', '#302823', '#d5ad89']],
+        ] as const) {
+            expect(
+                [
+                    '--app-shell-bg',
+                    '--app-content-bg',
+                    '--app-widget-bg',
+                    '--app-selection-color',
+                ].map((token) => hexToken(contexts[name], token))
+            ).toEqual(colors);
         }
     });
 });

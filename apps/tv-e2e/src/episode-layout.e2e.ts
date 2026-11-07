@@ -1,8 +1,11 @@
 import { expect, test } from '@playwright/test';
 import { addSource, nav, start } from './helpers';
 
-for (const index of [72, 180])
-    test(`@tmdb delayed episode stills preserve focused episode ${index + 1} and its viewport anchor`, async ({
+for (const { index, actions } of [
+    { index: 72, actions: false },
+    { index: 180, actions: true },
+])
+    test(`@tmdb delayed episode stills preserve ${actions ? 'watch actions' : 'playback focus'} at episode ${index + 1} and its viewport anchor`, async ({
         page,
     }) => {
         await start(page);
@@ -101,6 +104,10 @@ for (const index of [72, 180])
         await page.locator('.episode').first().focus();
         for (let next = columns; next <= index; next += columns) {
             await page.keyboard.press('ArrowDown');
+            await expect(
+                page.locator('.episode-entry .tv-select:focus')
+            ).toHaveCount(1);
+            await page.keyboard.press('ArrowDown');
             await expect(page.locator('.episode:focus')).toHaveAttribute(
                 'data-virtual-index',
                 String(next)
@@ -108,6 +115,11 @@ for (const index of [72, 180])
         }
         const chosen = page.locator(`.episode[data-virtual-index="${index}"]`);
         await expect(chosen).toBeFocused();
+        const focused = actions
+            ? chosen.locator('..').getByRole('combobox')
+            : chosen;
+        if (actions) await page.keyboard.press('ArrowDown');
+        await expect(focused).toBeFocused();
         const before = await chosen.evaluate(
             (el) => el.getBoundingClientRect().top
         );
@@ -121,7 +133,7 @@ for (const index of [72, 180])
                     )
                 )
         );
-        await expect(chosen).toBeFocused();
+        await expect(focused).toBeFocused();
         await expect
             .poll(() =>
                 chosen.evaluate(
@@ -131,6 +143,8 @@ for (const index of [72, 180])
             )
             .toBeLessThan(2);
         expect(await page.locator('.episode').count()).toBeLessThanOrEqual(30);
+        if (actions) await page.keyboard.press('ArrowUp');
+        await expect(chosen).toBeFocused();
         await page.keyboard.press('Enter');
         await expect(page.locator('.player-bottom')).toContainText(
             `Anchored episode ${index + 1}`

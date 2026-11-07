@@ -1,0 +1,42 @@
+{
+ "ok": true,
+ "result": {
+  "header": {
+   "attrs": {
+    "x-tvg-url": "https://synthetic.example/Synthetic1/Synthetic2/Synthetic3/Synthetic4/Synthetic5/Synthetic6"
+   },
+   "raw": "#EXTM3U x-tvg-url=\"https://synthetic.example/Synthetic1/Synthetic2/Synthetic3/Synthetic4/Synthetic5/Synthetic6\""
+  },
+  "items": [
+   {
+    "name": "Synthetic17 1",
+    "tvg": {
+     "id": "Synthetic13.Synthetic14.Synthetic15.Synthetic16",
+     "name": "",
+     "logo": "https://synthetic.example/Synthetic1/Synthetic2/Synthetic4/Synthetic7/Synthetic8.png",
+     "url": "",
+     "rec": "",
+     "shift": ""
+    },
+    "group": {
+     "title": "Synthetic12"
+    },
+    "http": {
+     "referrer": "",
+     "user-agent": "RTP Play/2.0.26 (Linux;Android 11) ExoPlayerLib/2.11.8"
+    },
+    "url": "https://synthetic.example/Synthetic9/Synthetic10/Synthetic11.m3u8",
+    "raw": "#EXTINF:-1 group-title=\"Synthetic12\" tvg-id=\"Synthetic13.Synthetic14.Synthetic15.Synthetic16\" tvg-logo=\"https://synthetic.example/Synthetic1/Synthetic2/Synthetic4/Synthetic7/Synthetic8.png\",Synthetic17 1\r\n#KODIPROP:inputstream=inputstream.adaptive\r\n#KODIPROP:inputstream.adaptive.manifest_type=hls\r\nhttps://synthetic.example/Synthetic9/Synthetic10/Synthetic11.m3u8|user-agent=RTP Play/2.0.26 (Linux;Android 11) ExoPlayerLib/2.11.8",
+    "line": 7,
+    "catchup": {
+     "type": "",
+     "days": "",
+     "source": ""
+    },
+    "timeshift": "",
+    "lang": "",
+    "radio": ""
+   }
+  ]
+ }
+}

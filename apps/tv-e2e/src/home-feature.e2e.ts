@@ -1,5 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
-import { chooseTv, addSource, nav, start, xtream } from './helpers';
+import { checkHorizontalRail } from './horizontal-rail';
+import { chooseTv, addSource, nav, start, xtream, cardAction } from './helpers';
 
 async function watch(page: Page, index: number, episode = false) {
     await nav(page, episode ? 'Series' : 'Movies');
@@ -189,7 +190,7 @@ for (const provider of ['xtream', 'stalker'] as const)
         const resumeScroll = await page
             .locator('main')
             .evaluate((el) => el.scrollTop);
-        await resume.click();
+        await cardAction(page, resume);
         await expect(
             page.locator('[data-focus="player-series-details"]')
         ).toBeVisible();
@@ -371,7 +372,9 @@ for (const action of ['exit', 'play'] as const) {
                 await expect(page.locator('.player-controls')).toBeVisible();
             }
             release();
-            await expect.poll(() => released).toBe(2);
+            // Fullscreen also owns a canceled/restarted next-episode sequence lookup.
+            await expect.poll(() => released).toBeGreaterThanOrEqual(2);
+            expect(held).toBeLessThanOrEqual(3);
             await expect
                 .poll(() =>
                     page.evaluate(
@@ -467,7 +470,7 @@ test('a retained series-details retry cannot reopen the previous source', async 
     await nav(page, 'Movies');
     await chooseTv(page, 'Active source', { label: 'TV m3u · M3U' });
     await expect(page.locator('.loading')).toBeHidden();
-    await expect(page.locator('.poster-grid')).toBeVisible();
+    await expect(page.locator('.empty')).toContainText('No titles');
     // An already queued click remains harmless after its original notice is retired.
     await retained!.evaluate((button: HTMLButtonElement) => button.click());
     await page.evaluate(
@@ -551,11 +554,11 @@ test('Home retains saved series-wide artwork without using episode stills and pr
         'src',
         poster
     );
-    const cover = page.locator('.resume-art').first();
+    const cover = page.locator('.resume-card .poster-art').first();
     const box = await cover.boundingBox();
     expect(box).not.toBeNull();
     expect(box!.width / box!.height).toBeCloseTo(2 / 3, 2);
-    await expect(cover.locator('img')).toHaveCSS('object-fit', 'contain');
+    await expect(cover.locator('img')).toHaveCSS('object-fit', 'cover');
     const cardBox = await page.locator('.resume-card').first().boundingBox();
     const actionBox = await page
         .locator('.resume-action')
@@ -696,4 +699,42 @@ test('browser Back on loading Home keeps its catalog requests alive', async ({
     } finally {
         release();
     }
+});
+
+test('Home rails hide native scrollbars and support pointer paging and directional focus', async ({
+    page,
+}) => {
+    await start(page);
+    await addSource(page, 'xtream', {
+        username: 'marketing',
+        password: 'marketing',
+    });
+    await nav(page, 'Home');
+    const row = page
+        .locator('.rail')
+        .filter({ has: page.locator('.poster-card:not(.channel-card)') })
+        .first();
+    await expect(row.locator('.poster-card')).toHaveCount(12);
+    for (const width of [1920, 1280]) {
+        await page.setViewportSize({ width, height: 1080 });
+        await checkHorizontalRail(page, row);
+        await row.locator('.poster-card').first().focus();
+        await page.keyboard.press('ArrowDown');
+        await expect(row.locator('.poster-card').first()).not.toBeFocused();
+        await row.locator('..').screenshot({
+            path: `../../dist/tv-verification/home-rail-${width}.png`,
+        });
+        await expect(
+            page.locator('.detail-hero,video[src],video source')
+        ).toHaveCount(0);
+        expect(
+            await page
+                .locator('main')
+                .evaluate(
+                    (element) => element.scrollWidth <= element.clientWidth
+                )
+        ).toBe(true);
+    }
+    await page.setViewportSize({ width: 3840, height: 2160 });
+    await expect(row.locator('..').locator('.rail-arrow')).toHaveCount(0);
 });

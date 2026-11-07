@@ -1,5 +1,12 @@
+import {
+    isBackKey,
+    mediaKeyAction,
+    type TvMediaAction,
+} from '@iptvnator/tv/util';
+import { registerTvKeys } from './platform';
+
 const selectors =
-    'button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),summary,[data-tv-scroll]';
+    'button:not(:disabled):not([data-tv-pointer-only]),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),summary,[data-tv-scroll]';
 export function focusKey() {
     return (document.activeElement as HTMLElement)?.dataset.focus ?? '';
 }
@@ -24,14 +31,18 @@ export function restoreFocus(
         if (scroll !== undefined) {
             const main = document.querySelector('main');
             if (main) main.scrollTop = scroll;
+            // Virtual spacers are measured after this frame; retain their saved offset.
+            if (!target?.hasAttribute('data-virtual-index'))
+                target?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
         }
     });
 }
 export function installRemote(
     back: () => void,
     fullscreen: () => boolean,
-    playerKey: (key: number) => void
+    playerKey: (action: TvMediaAction) => void
 ) {
+    registerTvKeys();
     let lastMove = 0;
     const handler = (event: KeyboardEvent) => {
         const code = event.keyCode;
@@ -45,19 +56,20 @@ export function installRemote(
                 } as Record<number, string>
             )[code] ?? event.key;
         if (
-            code === 461 ||
-            event.key === 'Escape' ||
-            event.key === 'BrowserBack' ||
-            (event.key === 'Backspace' &&
-                !(event.target instanceof HTMLInputElement))
+            isBackKey(event) &&
+            !(
+                event.key === 'Backspace' &&
+                event.target instanceof HTMLInputElement
+            )
         ) {
             event.preventDefault();
             back();
             return;
         }
-        if ([415, 19, 413, 412, 417].includes(code)) {
+        const action = mediaKeyAction(code);
+        if (action) {
             event.preventDefault();
-            playerKey(code);
+            playerKey(action);
             return;
         }
         if (!direction.startsWith('Arrow')) return;
@@ -77,6 +89,17 @@ export function installRemote(
         event.preventDefault();
         if (event.repeat && Date.now() - lastMove < 75) return;
         lastMove = Date.now();
+        const row = horizontal && from?.closest('[data-tv-horizontal]');
+        if (row) {
+            const items = Array.from(
+                row.querySelectorAll<HTMLElement>(selectors)
+            );
+            const index = items.indexOf(from);
+            const target = items[index + (direction === 'ArrowRight' ? 1 : -1)];
+            target?.focus();
+            target?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+            return;
+        }
         const root =
             document.querySelector('[data-tv-modal]') ??
             (fullscreen()
@@ -117,12 +140,4 @@ export function installRemote(
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-}
-export function platformBack() {
-    const platform = window as unknown as {
-        webOS?: { platformBack?: () => void };
-        PalmSystem?: { platformBack?: () => void };
-    };
-    if (platform.webOS?.platformBack) platform.webOS.platformBack();
-    else platform.PalmSystem?.platformBack?.();
 }

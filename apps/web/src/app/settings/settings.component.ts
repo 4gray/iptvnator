@@ -54,8 +54,9 @@ import {
     SettingsFormFacade,
     SettingsRuntimeUpdateError,
 } from './settings-form.facade';
+import { SettingsAppearanceSectionComponent } from './settings-appearance-section.component';
 import { SettingsGeneralSectionComponent } from './settings-general-section.component';
-import { SettingsSection } from './settings.models';
+import { SETTINGS_DEFAULT_SECTION, SettingsSection } from './settings.models';
 import {
     buildSettingsPlayerOptions,
     buildSettingsSectionNavItems,
@@ -86,8 +87,6 @@ import { SettingsBackupFacade } from './settings-backup.facade';
 import { SettingsPlaylistResetFacade } from './settings-playlist-reset.facade';
 import { SettingsSnackbarService } from './settings-snackbar.service';
 
-export const SETTINGS_DEFAULT_SECTION = 'general';
-
 /**
  * Thin coordinator for the settings page. The behaviour of each section lives
  * in a dedicated facade the template binds to directly; what stays here is the
@@ -116,13 +115,13 @@ export const SETTINGS_DEFAULT_SECTION = 'general';
         SettingsDashboardSectionComponent,
         SettingsEpgSectionComponent,
         SettingsGeneralSectionComponent,
+        SettingsAppearanceSectionComponent,
         SettingsParentalLockSectionComponent,
         SettingsPlaybackSectionComponent,
         SettingsRemoteControlSectionComponent,
         SettingsSearchResultsComponent,
         SettingsServerSectionComponent,
         SettingsTmdbSectionComponent,
-        SettingsServerSectionComponent,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     providers: [

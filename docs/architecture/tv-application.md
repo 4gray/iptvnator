@@ -4,7 +4,11 @@ The TV client is a separate Preact 10 application (`apps/tv`), with feature,
 UI, data-access and pure contracts under `libs/tv`. It does not load the Angular
 renderer, Electron bridge, Node runtime or another player engine.
 The approved target is LG OLED55BX9LB, firmware 04.64.00, webOS 5.x / Chromium 68.
-A successful desktop browser test is not device certification.
+Samsung Tizen TV uses the same client/build, with a minimum of Tizen 5.5
+(2020, Chromium 69). Tizen 5.0 (2019, Chromium 63) is below the build's Chromium
+68 floor; see Samsung's [engine table](https://developer.samsung.com/smarttv/develop/specifications/web-engine-specifications.html).
+The [community device report](../development/tv-tizen-validation.md#community-device-test)
+records verified scenarios on a Samsung Q60C with Tizen 9.0 and remaining checks.
 
 ## Runtime and ownership
 
@@ -30,6 +34,44 @@ Vite consumes the scoped paths from `tsconfig.base.json` in descending alias
 length, so configured sub-entrypoints resolve before a parent barrel. The
 Stalker client uses the shared `stalker-session` sub-entrypoint; `tv:verify-build`
 must continue to build this real graph and enforce the browser-only contract.
+
+## Samsung Tizen package
+
+The LG Vite configuration, public manifest and `package` target stay unchanged.
+`tv:verify-build` stages `dist/tv-tizen-input` from the same `dist/apps/tv`:
+only the Tizen input receives `apps/tv/tizen/config.xml`, with the LG manifest
+removed and the shared icon/version retained. Both inputs pass the same classic
+script, ES2018 and unsupported-builtin checks; Tizen also checks its XML,
+minimum version, icon and exact privilege set. `tv:package-tizen` invokes the
+external Tizen CLI using a local `TIZEN_SIGNING_PROFILE`; signing material and
+WGT output stay outside Git. The neutral widget ID is
+`https://github.com/4gray/iptvnator/tv`, package `IPTVnatorT` and app ID
+`IPTVnatorT.TV`; the maintainer may change these before distribution.
+Internet permits configured backends/media/artwork; `tv.inputdevice` permits
+remote media-key registration. No other platform privilege is requested.
+The wildcard access policy permits user-selected HTTP(S) endpoints; it does not
+replace backend Origin admission. webOS network-service discovery stays LG-only;
+Tizen keeps the existing hostname discovery and manual backend entry.
+
+`libs/tv/util/src/platform.ts` owns detection and key mapping;
+`libs/tv/ui/src/platform.ts` owns guarded platform APIs. All navigation layers share Back codes 461 (LG) and
+10009 (Samsung). Only six used media keys are registered when the Tizen input
+API exists; an unsupported key warns with its static name and does not block
+remaining keys. Play/Pause 10252 toggles the native player. No colour actions
+are used. Root Back uses Tizen application exit at the same point as LG platform
+Back; dialogs, fullscreen and route history retain priority. About identifies
+Samsung Tizen TV and reads its installed app ID through the application API.
+See [development](../development/tv-development.md#samsung-tizen-tv) and the
+[device checklist and results](../development/tv-tizen-validation.md), including
+Samsung Store exit-confirmation policy, before claiming device support.
+
+Only staged Tizen HTML loads the device-provided `$WEBAPIS/webapis/webapis.js`
+before the deferred application bundle; LG HTML is unchanged. The platform
+binding follows the existing video element: active visible playback disables
+Samsung's screensaver, while pause, end, error, source removal, app hide/pagehide
+and disposal restore protection. Missing AppCommon APIs leave playback alone;
+device failures report only a static warning. This uses no additional privilege.
+Actual Auto Protection Time behavior remains an unchecked hardware requirement.
 
 ## Provider contract
 
@@ -168,12 +210,13 @@ Restoration ignores disabled controls and restores each category's saved scroll
 when its panel becomes visible. Its cancellation and committed-write rules remain
 unchanged. Panel layout uses Chromium-68-compatible flex and explicit dimensions.
 
-Settings > About shows the TV package version, ID and publisher from `appinfo.json`,
+Settings > About shows the shared TV package version and publisher from `appinfo.json`,
 the workspace release, license and project address from package metadata,
 and the build's Git revision, local-change indicator and UTC build time. Vite
 injects these values; the TV runtime never invokes Git or fetches build metadata.
-The build cache includes revision and worktree-wide local-change identity,
-including shared dependencies, so a cached artifact does not claim a different
+Samsung reads the installed application ID from its platform API; other runtimes
+use the build manifest ID. The build cache includes revision and worktree-wide
+local-change identity, including shared dependencies, so a cached artifact does not claim a different
 revision. Source archives without Git show revision as
 unavailable. Device information is limited to platform, browser engine, viewport
 and system language; credentials and source URLs are not part of About. A static
@@ -293,6 +336,28 @@ closes its owning overlay or picker first. Back closes the overlay before
 leaving fullscreen; the category header changes groups within the drawer.
 The shared browse state retains loaded pages and scroll positions across surfaces.
 
+Home's Recent channels rail derives up to twelve unique Live entries from the
+existing confirmed history, newest first, retaining exact source/provider/media
+keys (including Stalker's Live prefix) and excluding unavailable sources.
+Focus only browses; OK activates the exact saved source and resolves a fresh link.
+Back returns to the opening Home card. Reload restores recents without starting
+video; the history cap, favorites and VOD positions keep their existing storage.
+
+Fullscreen Live exposes Previous channel after two distinct channels have played
+in the current session. Only a native `playing` event for the current loaded,
+ready, unpaused stream advances the pair. Repeated confirmation, failed resolution
+or native start, and obsolete events do not replace it. A new confirmation keeps
+the latest valid distinct channel when a source change invalidates a candidate.
+Each switch activates the saved source and resolves a fresh link. A cross-source
+switch may stop video while connecting. Removed or changed source/account connections invalidate the
+corresponding candidate. The pair is session-only: history is not treated as a
+current playing channel after launch. Pending Previous can be canceled with Back;
+the visible Back and Go to playlist controls also retire it before leaving fullscreen.
+A failed switch offers Retry previous channel until the viewer leaves fullscreen
+or chooses another action.
+Modal Back closes its overlay first. Existing Left/drawer, media and system keys
+are unchanged; no Channel +/- hardware support or autoplay is added.
+
 Expand guide in preview and Programme in fullscreen open the single-channel guide.
 It shows only supplied dates, with Now, programme details and independent scrolling.
 At most 21 programme rows (including a retained selection) and seven date buttons
@@ -363,8 +428,41 @@ Timeout preserves the previous saved position. Retry playback reads that
 position again, including records whose duration was unknown; completed items
 still restart. Stop/source replacement cancels the retry timer. Positive timeline
 seeks use the same confirmation path; explicit seek-to-zero starts over.
-Remote Stop (413) tears down the stream and returns focus to its origin or
-channel. Back from catalog-origin fullscreen Live returns to the ongoing preview instead.
+After completion, a confirmed seek clears the end-of-playback marker so the
+saved status follows the new position.
+
+Movie/episode labels, progress, resume and continuation use one browser-only
+policy matching desktop: rounded playback percentage at or above 90 is watched.
+Nonfinite/unknown durations do not imply completion. Confirmed `ended` records
+explicit completion even without duration, preserving raw seconds and duration;
+subsequent pause/stop checkpoints retain it. Additive optional watched/reset and
+revision fields remain in schema-1 progress records. Manual Mark watched,
+Mark unwatched, Reset progress and Start over commit before UI publication and retain raw
+positions, unrelated history/favorites and unknown snapshot fields. Every manual
+action increments the item's revision, fencing old session ticks and save retries.
+Playback captures that revision before resolving a stream, so a delayed launch
+cannot overwrite a manual action committed while resolution was pending.
+Start over uses the normal fresh playback resolver after the reset commits.
+Retry start over repeats both steps. Leaving the player or opening another
+title retires that retry. A stale watch action cannot recreate viewing records
+after its source is deleted.
+
+Series Details focuses a primary Start/Resume/Continue action naming the actual
+season/episode. Episode actions are siblings of playback controls in the existing
+TV picker, never nested buttons. Starting over from the picker captures the
+episode's focus and scroll position for Back or Stop. The player validates
+successors against exact source/parent/episode identity in provider-supplied order.
+Next episode is visible
+during playback and focused on completion, including season transitions; no IDs
+or media files are inferred from episode numbers. `ended` never resolves or starts
+a successor automatically. Next resolves a fresh link only on activation, keeps
+the mounted video element and originating page focus, and Back/source changes
+cancel pending resolution. Missing parent, failed lookup and unavailable final
+successors retain the current episode, with retry where appropriate.
+
+Remote Stop (413) cancels pending source actions, tears down the stream and
+returns focus to its origin or channel. Back from catalog-origin fullscreen
+Live returns to the ongoing preview instead.
 
 Lazy Stalker episodes retain provider movie/season/episode coordinates and use
 the shared framework-free episode command resolver before `create_link`.
@@ -430,11 +528,41 @@ Until the initial snapshot is successfully read, the repository rejects all
 writes and editing/navigation is hidden behind a storage recovery screen.
 Retry reading saved data reloads the original snapshot without clearing it.
 Aborted read transactions reject instead of leaving startup pending.
-History begins on `playing`, then saves every 10 seconds, on pause/leave/hide.
+Playback history begins on `playing`, then saves every 10 seconds, on pause/leave/hide.
+Explicit watch actions on titles without a saved position create a local entry.
+Editing a saved position preserves the last-played date and history order.
 Recent history is bounded to 200 entries; playback positions are retained
 independently, so an older title still resumes. Additive reads recover positions
 from older TV snapshots that only contain history. Closing an OS process can lose the interval
 since the last committed write; asynchronous pagehide writes are best effort.
+
+History in the sidebar shows the latest saved entry per media identity across all
+sources, including finished titles and live channels, newest first. Pages contain
+at most 24 entries with source and last-played date. Resume/Watch again and Details
+activate the saved item's source; Back restores its initiating control. Replayed
+entries move to the newest page; Details preserves the page unless playback
+changes the entry's order.
+History is local TV data, not a cross-device or per-session viewing log.
+History and Continue watching use the shared 2:3 poster treatment, with a bottom
+progress strip only for known duration and one focus target per title. OK/click
+opens the title's actions dialog with Resume/Watch again initially focused,
+Details and watched status below. Back/Close restores the cover. Each action
+retains the cover's focus key and main scroll position through source activation,
+playback and Details. Live entries offer Watch live; unknown durations show
+watched minutes without an indeterminate progress strip. History dates use a
+compact day/month label; episode coordinates and source remain explicit.
+Restoring a saved scroll offset also reveals the focused control, so a title
+moved by playback cannot remain offscreen after returning through Details.
+
+Home cards and the featured title show remaining minutes when duration is known
+or watched minutes when duration is unknown. A queued successor is labeled Next
+episode. History keeps completed titles. Mark as unwatched restores any saved
+position to continuation. Reset progress keeps the raw record but restarts from
+zero. Existing schema-1 entries with a `watchedUpdated` timestamp still reject
+legacy retries captured before that edit. New edits use the playback revision.
+A confirmed playback at the current revision replaces the override with actual
+progress. Failed status writes leave committed state visible and offer Retry
+viewing status.
 
 ## Artwork and optional TMDB metadata
 
@@ -458,10 +586,10 @@ filter, and every card names its source. Unavailable-source entries remain visib
 and fail with recovery guidance instead of borrowing the active provider.
 Movie/series posters retain their proportions;
 channels use horizontal cards. Detail Back restores the selected favorite type,
-item and scroll position. Home Continue watching pairs a 2:3 cover (or local
-fallback icon) with persisted progress and its existing resume action. The cover
-keeps its 2:3 frame within taller cards and fits the whole image without cropping;
-cards grow to keep episode details and the resume action inside their background.
+item and scroll position. Home Continue watching uses the ordinary poster-card
+proportions (or a local fallback icon), crops artwork with `object-fit: cover`
+inside the fixed 2:3 frame, and exposes playback through the title's actions menu.
+Progress stays at the cover's lower edge; episode and source labels sit below it.
 Available parent series artwork takes precedence over episode imagery without
 requesting a new catalog.
 Historical Stalker history/favorites recover missing covers from their saved raw
@@ -485,10 +613,15 @@ Home focus keys include the rail identity, so copies of a title in different rai
 restore to the initiating placement. Catalog preview rails remain
 explicitly labeled with the selected source; full catalogs stay source-scoped.
 The source picker belongs to catalog/detail/settings screens, while Home displays
-All sources. A series contributes its latest watched episode; a completed latest
-episode does not revive older unfinished episodes. Unknown-duration positions
-remain resumable. The Continue watching rail retains up to eight titles using
-the same grouping. Previous/Next controls wrap on OK or pointer click; there is
+All sources. A series contributes one continuation derived from its latest
+activity. Known sequences advance to the next supplied unwatched episode after
+completion, across season boundaries, without reviving an older gap. Season-0
+extras do not displace regular seasons; an extras-only series uses its supplied
+run. A caught-up series offers explicit replay in Details. Unknown-duration
+positions remain resumable. The Continue watching rail retains up to eight titles
+using the same grouping. Retained history from a removed source remains visible
+as unavailable; it cannot launch through another source or gain a new successor.
+Previous/Next controls wrap on OK or pointer click; there is
 no automatic rotation or playback on focus. Changing the featured title cancels
 pending Home activation, series details and playback-address resolution before
 updating the visible selection. Home owns resolution retries too; changing title
@@ -501,9 +634,15 @@ parent works even outside the Home catalog preview after relaunch. Historical
 entries retain Details and resolve their exact parent in the current provider,
 using the saved series name to narrow catalog queries. Only a matching
 source/parent identity can open; title similarity never synthesizes a parent.
-Named unfinished entries recover context in the background on Home. Lookups
-are bounded to 20 pages per catalog and 15 seconds, preserve playback data,
-and offer an explicit retry through Details when recovery is unavailable.
+Recent episode entries recover exact parent context and supplied sequences on
+Home, sequentially for at most three parents in the active source. Parents are
+deduplicated, successful sequences have a session cache capped at twelve, and
+route/source/provider changes cancel the lane. Named historical entries can use
+exact parent lookup, bounded to 20 pages per catalog and 15 seconds for the lane;
+unnamed entries never trigger an unfiltered portal scan. A late exact parent
+from the Home catalog resumes lookup without leaving Home. Lookup failure
+leaves Home usable and Details retains explicit retry. Other sources are
+activated only by deliberate existing Home actions; Home never scans every portal.
 Fullscreen episode playback also has Series details: it saves/stops playback and
 opens the parent episode list. Exiting fullscreen cancels a pending parent lookup;
 its late response cannot navigate away from Home.
@@ -628,7 +767,9 @@ lookups contribute candidates, retaining valid fallback results when an alternat
 catalog is unsupported. Without a complete match, errors, repeated pages, the
 20-page safety limit and the 15-second deadline report an incomplete search with
 retry. Cancellation, source changes and navigation discard obsolete
-results. Person/detail Back preserves card focus and scroll position. Filmography
+results. Person/detail Back preserves card focus and scroll position. Returning to a
+person control waits for provider details and optional metadata to settle before
+consuming its focus key; missing/failed metadata uses the normal fallback. Filmography
 cards reserve two subtitle lines to keep virtual row heights and scroll coordinates stable.
 The selected series season belongs to its detail-route visit: person-page Back
 restores it, while opening a fresh detail visit starts at the first available season.
@@ -657,6 +798,25 @@ most 120 entries, separated by media type and language, with the existing TTLs.
 Changing key/language or disabling enrichment replaces the cache. No key or API
 response is logged. The settings section includes the official logo and attribution.
 
+## Horizontal navigation
+
+Home rails, combined credits, provider-version choices and programme dates use
+`HorizontalRail` with a `data-tv-horizontal` scroller. Left/Right moves focus
+between enabled row items and stops at either end; Up/Down leaves the row.
+Focus scrolls the item into view without opening or playing it. Pointer-only
+side arrows advance a visible group and focus the newly revealed item. They
+appear only when content overflows and disable at the corresponding edge.
+Arrows stay outside remote and Tab focus and do not overlap cards.
+Focus restoration retains the saved main scroll offset for virtualized items
+while their windows are measured. Other targets still scroll into view, including
+horizontal rails and History covers reordered by playback.
+
+Horizontal native scrollbars are hidden; vertical lists and long text retain
+explicit dark WebKit scrollbars. The LG Chromium 68 target ignores
+`color-scheme`, so native scrollbar colours must not depend on that property.
+Overflow is remeasured after rendering, scrolling and window resizing; the
+implementation does not require ResizeObserver or smooth scrolling.
+
 ## Media feasibility is a separate gate
 
 The API proxy does **not** relay media. Native video opens provider URLs on the
@@ -672,6 +832,11 @@ provider session and media access still require separate checks. Query parameter
 other URLs retain native format detection. Stop/switch removes both `src` and
 child sources, and source-level errors reach the playback retry UI. This does
 not add headers, rewrite manifests or proxy media.
+
+The explicit HLS source, bounded seek restoration and visibility pause are
+standard HTML-video paths shared by both platforms. The Samsung device report
+covers HLS playback and seek on one model. Other codecs, models and app
+visibility transitions still need device testing.
 
 Settings exposes an opt-in direct catalog request and a separate media HEAD
 probe. A readable HEAD response establishes HTTP reachability only, not native

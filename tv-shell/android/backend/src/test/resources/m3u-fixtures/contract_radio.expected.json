@@ -1,0 +1,69 @@
+{
+ "ok": true,
+ "result": {
+  "header": {
+   "attrs": {},
+   "raw": "#EXTM3U"
+  },
+  "items": [
+   {
+    "name": "Synthetic4 Synthetic5",
+    "tvg": {
+     "id": "Synthetic3",
+     "name": "",
+     "logo": "",
+     "url": "",
+     "rec": "",
+     "shift": ""
+    },
+    "group": {
+     "title": ""
+    },
+    "http": {
+     "referrer": "",
+     "user-agent": ""
+    },
+    "url": "http://synthetic.example/Synthetic1",
+    "raw": "#EXTINF:-1 radio=\"true\" tvg-id=\"Synthetic3\",Synthetic4 Synthetic5\r\nhttp://synthetic.example/Synthetic1",
+    "line": 2,
+    "catchup": {
+     "type": "",
+     "days": "",
+     "source": ""
+    },
+    "timeshift": "",
+    "lang": "",
+    "radio": "true"
+   },
+   {
+    "name": "Synthetic6 Synthetic5",
+    "tvg": {
+     "id": "Synthetic2",
+     "name": "",
+     "logo": "",
+     "url": "",
+     "rec": "",
+     "shift": ""
+    },
+    "group": {
+     "title": ""
+    },
+    "http": {
+     "referrer": "",
+     "user-agent": ""
+    },
+    "url": "http://synthetic.example/Synthetic2",
+    "raw": "#EXTINF:-1 tvg-id=\"Synthetic2\",Synthetic6 Synthetic5\r\nhttp://synthetic.example/Synthetic2",
+    "line": 4,
+    "catchup": {
+     "type": "",
+     "days": "",
+     "source": ""
+    },
+    "timeshift": "",
+    "lang": "",
+    "radio": ""
+   }
+  ]
+ }
+}

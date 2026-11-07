@@ -32,6 +32,12 @@ const progress = (
 });
 test('historical episodes gain their exact parent title without changing identity, resume or commands', () => {
     const data = initialData();
+    data.sources = ['a', 'b'].map((id) => ({
+        id,
+        name: 'Synthetic source',
+        provider: 'xtream',
+        url: 'https://example.test',
+    }));
     data.activeId = 'a';
     const saved = progress('ep', 42);
     saved.item = {
@@ -50,7 +56,7 @@ test('historical episodes gain their exact parent title without changing identit
         ...saved.item,
         id: 'show',
         kind: 'series' as const,
-        title: 'Ted Lasso s04',
+        title: 'Synthetic Story s04',
         year: '2026',
         poster: 'https://example.test/show.jpg',
     };
@@ -59,7 +65,7 @@ test('historical episodes gain their exact parent title without changing identit
         data
     );
     const next = recoverSeriesContext(data, [parent]);
-    assert.equal(mediaTitle(next.history[0].item), 'Ted Lasso s04');
+    assert.equal(mediaTitle(next.history[0].item), 'Synthetic Story s04');
     assert.equal(next.history[0].item.title, 'Episode 1');
     assert.equal(next.positions.ep.seconds, saved.seconds);
     assert.equal(next.positions.ep.updated, 42);
@@ -114,6 +120,12 @@ test('saved parent context survives JSON storage without copying cached episode 
 });
 test('continuation combines sources, newest first, limited and never mutates saved history', () => {
     const data = initialData();
+    data.sources = ['a', 'b'].map((id) => ({
+        id,
+        name: 'Synthetic source',
+        provider: 'xtream',
+        url: 'https://example.test',
+    }));
     data.activeId = 'a';
     const foreign = progress('foreign', 100);
     foreign.item.sourceId = 'b';
@@ -141,6 +153,12 @@ test('continuation combines sources, newest first, limited and never mutates sav
 });
 test('one latest episode per series; completed latest episode cannot revive an older unfinished episode', () => {
     const data = initialData();
+    data.sources = ['a', 'b'].map((id) => ({
+        id,
+        name: 'Synthetic source',
+        provider: 'xtream',
+        url: 'https://example.test',
+    }));
     data.activeId = 'a';
     const episodes = ['e1', 'e2', 'e3', 'other'].map((id, i) => {
         const p = progress(id, i + 1);
@@ -242,6 +260,12 @@ test('unknown saved fields survive hydration and subsequent progress writes', ()
 
 test('global continuation keeps equal provider ids separate across sources', () => {
     const data = initialData();
+    data.sources = ['a', 'b'].map((id) => ({
+        id,
+        name: 'Synthetic source',
+        provider: 'xtream',
+        url: 'https://example.test',
+    }));
     const first = progress('synthetic-first', 10);
     const second = progress('synthetic-second', 11);
     first.item = {
