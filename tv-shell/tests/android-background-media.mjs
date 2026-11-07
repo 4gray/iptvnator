@@ -3,6 +3,7 @@
  */
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { _android } from '@playwright/test';
@@ -19,6 +20,28 @@ try {
     assert.ok(device, 'Emulator was not found.');
     const page = await (await device.webView({ pkg: 'org.tvshell.iptvnator' })).page();
     await page.waitForLoadState('domcontentloaded');
+    const trailerUrl = 'https://www.youtube-nocookie.com/embed/synthetic-trailer';
+    await page.route(trailerUrl, (route) => route.fulfill({
+        contentType: 'text/html',
+        body: '<video muted loop></video>',
+    }));
+    const trailer = page.locator('app-trailer-dialog');
+    const trailerClip = readFileSync(new URL('../devserver/clip.webm', import.meta.url)).toString('base64');
+    async function playTrailer() {
+        await page.evaluate((url) => {
+            const dialog = document.createElement('app-trailer-dialog');
+            dialog.innerHTML = '<iframe allow="autoplay"></iframe><button data-test-id="trailer-dialog-close">Close</button>';
+            dialog.querySelector('button').onclick = () => dialog.remove();
+            dialog.querySelector('iframe').src = url;
+            document.body.append(dialog);
+        }, trailerUrl);
+        const video = trailer.frameLocator('iframe').locator('video');
+        await video.evaluate(async (media, clip) => {
+            media.src = `data:video/webm;base64,${clip}`;
+            await media.play();
+        }, trailerClip);
+        assert.equal(await video.evaluate((media) => media.paused), false);
+    }
     await page.evaluate(() => {
         document.body.innerHTML = '<video id="synthetic-video" loop muted></video><audio id="synthetic-audio" loop></audio>';
         document.querySelector('video').src = 'http://127.0.0.1:43331/movie/synthetic-account/synthetic-secret/clip.webm';
@@ -44,9 +67,11 @@ try {
     }
     await start();
     assert.deepEqual(await states(), [false, false]);
+    await playTrailer();
     adb('shell', 'input', 'keyevent', '3');
     await waitPaused();
-    console.log('PASS Home pauses native video and audio');
+    await trailer.waitFor({ state: 'detached', timeout: 3000 });
+    console.log('PASS Home pauses native video and audio and closes the playing trailer');
     // Simulate a late async player retry while the activity is hidden.
     await page.evaluate(() => document.querySelectorAll('video,audio').forEach((media) => { media.play().catch(() => undefined); }));
     await waitPaused();
@@ -54,15 +79,19 @@ try {
     adb('shell', 'am', 'start', '-n', 'org.tvshell.iptvnator/.ui.MainActivity');
     await delay(300);
     assert.deepEqual(await states(), [true, true]);
+    assert.equal(await trailer.count(), 0);
     await start();
     assert.deepEqual(await states(), [false, false]);
     console.log('PASS foreground permits explicit playback without autoplay on return');
+    await playTrailer();
     await page.evaluate(() => window.TvShell.postMessage('["openSettings"]'));
     await waitPaused();
+    await trailer.waitFor({ state: 'detached', timeout: 3000 });
     adb('shell', 'input', 'keyevent', '4');
     await delay(300);
     assert.deepEqual(await states(), [true, true]);
-    console.log('PASS native settings pauses media and returns with media paused');
+    assert.equal(await trailer.count(), 0);
+    console.log('PASS native settings pauses media and closes the playing trailer');
 } finally {
     await device?.close();
     adb('reverse', '--remove', 'tcp:43331');

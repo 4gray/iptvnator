@@ -863,7 +863,11 @@
 
     api.setForeground = function (on) {
         foreground = !!on;
-        if (!foreground) document.querySelectorAll('video,audio').forEach(function (media) { media.pause(); });
+        if (foreground) return;
+        document.querySelectorAll('video,audio').forEach(function (media) { media.pause(); });
+        // Unload cross-origin trailers immediately, before the dialog's closing animation.
+        document.querySelectorAll('app-trailer-dialog iframe').forEach(function (frame) { frame.removeAttribute('src'); });
+        document.querySelectorAll('app-trailer-dialog [data-test-id="trailer-dialog-close"]').forEach(function (button) { button.click(); });
     };
 
     /** Media keys from the remote. */

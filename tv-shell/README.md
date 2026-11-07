@@ -72,7 +72,8 @@ from the configured `--www` directory, with symbolic links confined to that dire
   search caret and leave it at the boundary. Menu opens the highlighted source's
   actions through the app's keyboard handler, with a mouse context-menu fallback.
   Visible trailer iframes can receive remote focus and handle their own keys;
-  hidden background embeds remain excluded. HTTP protocol discovery requires
+  hidden background embeds remain excluded. Leaving the Android activity closes
+  the trailer dialog and unloads its player. HTTP protocol discovery requires
   positive refusal evidence from every connection-error cause; ambiguous failures
   never authorize a plaintext probe.
   The transparent playback-position input stays focusable, with its ring on the
