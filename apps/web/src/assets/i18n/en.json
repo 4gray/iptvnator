@@ -1515,6 +1515,7 @@
         "EPISODES_WATCHED_COUNT": "{{count}} watched",
         "BACK_TO_PLAYING_EPISODE": "Back to playing episode",
         "GRID_VIEW": "Grid view",
+        "PLAY_RANDOM_EPISODE": "Play random episode",
         "LIST_VIEW": "List view",
         "NO_EPISODES_AVAILABLE": "No episodes available",
         "NO_EPISODES_AVAILABLE_MESSAGE": "This series is listed by your provider, but no seasons or episodes are available to play.",
