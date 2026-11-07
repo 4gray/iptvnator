@@ -341,6 +341,28 @@ describe('SourceHealthService', () => {
             jest.useRealTimers();
         }
     });
+    it('publishes the deadline result if Retry is the last consumer of a stalled probe', async () => {
+        jest.useFakeTimers();
+        try {
+            probe.mockImplementation(() => new Promise(() => undefined));
+            const source = playlist('slow');
+            const surface = new AbortController();
+            const background = service.check(source, {
+                signal: surface.signal,
+            });
+            const retry = service.check(source, { fresh: true });
+            surface.abort();
+
+            await jest.advanceTimersByTimeAsync(15000);
+            expect(await retry).toMatchObject({ reason: 'timeout' });
+            expect(service.get(source)).toMatchObject({ reason: 'timeout' });
+            expect(probe).toHaveBeenCalledTimes(2);
+            expect(probe.mock.calls[1][2].aborted).toBe(true);
+            await background;
+        } finally {
+            jest.useRealTimers();
+        }
+    });
     it('runs a queued manual check ahead of passive retries', async () => {
         jest.useFakeTimers();
         try {

@@ -193,11 +193,23 @@ export class SourceHealthService {
             const snapshot = await Promise.race([job.promise, stopped]);
             if (signal?.aborted || this.identities.get(p._id) !== job.key)
                 return { ...sourceHealthUnknown('cancelled'), checkedAt: 0 };
-            if (!snapshot || Date.now() >= deadlineAt)
-                return {
+            if (!snapshot || Date.now() >= deadlineAt) {
+                const previous = this.snapshots().get(job.key);
+                if (previous && previous !== job.initial) return previous;
+                const timeout = {
                     ...sourceHealthUnknown('timeout'),
                     checkedAt: Date.now(),
                 };
+                if (job.users.size === 1 && this.jobs.get(job.key) === job) {
+                    if (job.running) this.publish(job.key, timeout);
+                    else if (previous?.state === 'checking')
+                        this.publish(job.key, {
+                            ...sourceHealthUnknown(),
+                            checkedAt: 0,
+                        });
+                }
+                return timeout;
+            }
             if (job.retried) return snapshot;
             return this.check(p, { fresh: true, deadlineAt, signal });
         } finally {
