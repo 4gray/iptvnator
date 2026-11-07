@@ -389,7 +389,7 @@
         "SERVER_ACCESS_OPEN": "يمكن لأي شخص يصل إلى هذا العنوان استخدامه. اضبط IPTVNATOR_ACCESS_TOKEN على الخادم لطلب رمز وصول.",
         "SERVER_ACCESS_TOKEN": "يتطلب هذا الخادم رمز وصول.",
         "SERVER_SIGN_OUT": "تسجيل الخروج",
-        "NAV_ABOUT": "حول",
+        "NAV_ABOUT": "حول والتحديثات",
         "NAV_GROUP_APP": "التطبيق",
         "NAV_GROUP_LIBRARY": "المكتبة",
         "NAV_GROUP_DEVICES": "الأجهزة",

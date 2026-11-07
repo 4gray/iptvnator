@@ -1435,7 +1435,10 @@ jobs:
             - nightly-version
             - build-cross-platform
             - build-linux
-        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+        # !cancelled() lets the release go out when a platform that needs
+        # signing secrets this fork does not have (macOS) failed; its files
+        # are simply missing from the release.
+        if: ${{ !cancelled() && needs.nightly-version.result == 'success' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
         runs-on: ubuntu-latest
         concurrency:
             group: ${{ github.workflow }}-release-${{ github.event.pull_request.number || github.ref }}

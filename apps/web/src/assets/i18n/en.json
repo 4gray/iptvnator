@@ -389,7 +389,7 @@
         "SERVER_ACCESS_OPEN": "Anyone who can reach this address can use it. Set IPTVNATOR_ACCESS_TOKEN on the server to require a token.",
         "SERVER_ACCESS_TOKEN": "This server requires an access token.",
         "SERVER_SIGN_OUT": "Sign out",
-        "NAV_ABOUT": "About",
+        "NAV_ABOUT": "About & updates",
         "NAV_GROUP_APP": "App",
         "NAV_GROUP_LIBRARY": "Library",
         "NAV_GROUP_DEVICES": "Devices",
