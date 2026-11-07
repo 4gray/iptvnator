@@ -1,8 +1,15 @@
-<app-source-sync-status />
-<app-startup-status #startup [routeReady]="routeReady()" />
-<div [style.display]="startup.complete() ? 'contents' : 'none'">
-    <router-outlet (activate)="routeReady.set(true)" />
+@if (!isElectron) {
+    <app-source-sync-status />
+}
+<div class="app-viewport">
+    <app-startup-status #startup [routeReady]="routeReady()" />
+    <div class="app-route" [hidden]="!startup.complete()">
+        <router-outlet (activate)="routeReady.set(true)" />
+    </div>
 </div>
+@if (isElectron) {
+    <app-source-sync-status />
+}
 
 <app-epg-progress-panel />
 

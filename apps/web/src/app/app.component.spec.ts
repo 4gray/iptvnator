@@ -1,4 +1,9 @@
-import { EventEmitter } from '@angular/core';
+import {
+    Component,
+    EventEmitter,
+    input,
+    NO_ERRORS_SCHEMA,
+} from '@angular/core';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { Router } from '@angular/router';
@@ -54,6 +59,12 @@ jest.spyOn(global.console, 'error').mockImplementation(() => {
 class MockSettingsService {
     getValueFromLocalStorage = jest.fn().mockReturnValue(of(undefined));
     changeTheme = jest.fn();
+}
+
+@Component({ selector: 'app-startup-status', template: '' })
+class StartupStatusStub {
+    readonly routeReady = input(false);
+    readonly complete = () => true;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -179,7 +190,8 @@ describe('AppComponent', () => {
         })
             .overrideComponent(AppComponent, {
                 set: {
-                    template: '',
+                    imports: [StartupStatusStub],
+                    schemas: [NO_ERRORS_SCHEMA],
                 },
             })
             .compileComponents();
@@ -201,6 +213,23 @@ describe('AppComponent', () => {
     it('should create the component', () => {
         expect(component).toBeTruthy();
     });
+
+    it.each([
+        { isElectron: true, sibling: 'nextElementSibling' as const },
+        { isElectron: false, sibling: 'previousElementSibling' as const },
+    ])(
+        'keeps the server status outside the app viewport ($isElectron)',
+        ({ isElectron, sibling }) => {
+            Object.assign(runtimeCapabilities, { isElectron });
+            fixture.detectChanges();
+
+            const root = fixture.nativeElement as HTMLElement;
+            const viewport = root.querySelector('.app-viewport');
+            const statuses = root.querySelectorAll('app-source-sync-status');
+            expect(statuses).toHaveLength(1);
+            expect(viewport?.[sibling]).toBe(statuses[0]);
+        }
+    );
 
     it('should init component', () => {
         const storeDispatchSpy = jest.spyOn(store, 'dispatch');

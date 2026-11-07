@@ -297,9 +297,26 @@ for (const failReceipt of [false, true]) {
             desktop = await launchElectronApp(directory);
             const page = desktop.mainWindow;
             if (failReceipt) {
+                const notice = page.getByTestId('source-sync-status');
+                await expect(notice).toContainText('Server unavailable');
+                await notice.getByRole('link', { name: 'Server' }).click();
                 await expect(
-                    page.getByTestId('source-sync-status')
-                ).toContainText('Server unavailable');
+                    page.getByTestId('source-server-connect')
+                ).toBeVisible();
+                await expect(
+                    page.getByTestId('settings-section-about')
+                ).toBeInViewport({
+                    ratio: 1,
+                });
+                await expect(
+                    page.getByRole('link', { name: 'Open settings' })
+                ).toBeInViewport({ ratio: 1 });
+                expect(
+                    await page.evaluate(() => {
+                        const root = document.documentElement;
+                        return root.scrollHeight - root.clientHeight;
+                    })
+                ).toBe(0);
                 await setSourceStateWriteFailure(
                     desktop.electronApp,
                     directory,
@@ -307,8 +324,7 @@ for (const failReceipt of [false, true]) {
                     false,
                     'source-sync-initialized'
                 );
-                await page
-                    .getByTestId('source-sync-status')
+                await notice
                     .getByRole('button', { name: 'Refresh', exact: true })
                     .click();
             }
