@@ -11,7 +11,6 @@ import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { LiveLayoutSidebarStateService } from '@iptvnator/portal/shared/util';
-import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { WorkspaceShellContextSidebarComponent } from './workspace-shell-context-sidebar.component';
 import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
@@ -66,15 +65,11 @@ class MockWorkspaceSourcesFiltersPanelComponent {}
 describe('WorkspaceShellContextSidebarComponent', () => {
     let fixture: ComponentFixture<WorkspaceShellContextSidebarComponent>;
     let liveSidebarService: LiveLayoutSidebarStateService;
-    const xtreamSelectedCategoryId = signal<number | null>(1);
-    const stalkerSelectedCategoryId = signal<string | null>('7');
     const drawerOpen = signal(false);
     const xtreamBlockReason = signal<string | null>(null);
 
     beforeEach(async () => {
         localStorage.removeItem('live-sidebar-state:portal');
-        xtreamSelectedCategoryId.set(1);
-        stalkerSelectedCategoryId.set('7');
         drawerOpen.set(false);
         xtreamBlockReason.set(null);
 
@@ -88,14 +83,9 @@ describe('WorkspaceShellContextSidebarComponent', () => {
                 {
                     provide: XtreamStore,
                     useValue: {
-                        selectedCategoryId: xtreamSelectedCategoryId,
                         contentInitBlockReason: xtreamBlockReason,
                         isPendingRestoreBlocked: signal(false),
                     },
-                },
-                {
-                    provide: StalkerStore,
-                    useValue: { selectedCategoryId: stalkerSelectedCategoryId },
                 },
                 {
                     provide: TranslateService,
@@ -228,7 +218,6 @@ describe('WorkspaceShellContextSidebarComponent', () => {
         });
 
         it('folds the rail on the live root (no selected category) at categories-hidden too, since the all-items view carries the way back', () => {
-            xtreamSelectedCategoryId.set(null);
             setupLiveCategory('live');
 
             liveSidebarService.setState('portal', 'categories-hidden');
@@ -289,7 +278,6 @@ describe('WorkspaceShellContextSidebarComponent', () => {
         });
 
         it('hands focus to the panel whenever the rail actually unfolds, including from player-only on the live root', async () => {
-            xtreamSelectedCategoryId.set(null);
             liveSidebarService.setState('portal', 'expanded');
             setupLiveCategory('live');
             const panel = fixture.debugElement.query(

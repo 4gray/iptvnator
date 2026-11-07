@@ -189,20 +189,12 @@
         }
     } @else if (!showLiveChannelSidebar()) {
         @if (isSelectedTypeContentLoading()) {
-            @if (livePanels.isCategoriesRailFolded()) {
-                <button
-                    #allItemsShowButton
-                    mat-icon-button
-                    type="button"
-                    class="sidebar-restore"
-                    data-test-id="live-show-categories"
-                    [attr.aria-label]="'LAYOUT.SHOW_CATEGORIES' | translate"
-                    [matTooltip]="'LAYOUT.SHOW_CATEGORIES' | translate"
-                    (click)="livePanels.showCategories()"
-                >
-                    <mat-icon>chevron_right</mat-icon>
-                </button>
-            }
+            <ng-container
+                *ngTemplateOutlet="
+                    showCategoriesAction;
+                    context: { styleClass: 'sidebar-restore' }
+                "
+            />
             <div class="live-loading-content">
                 <app-portal-channels-list
                     [sortMode]="liveChannelSortMode()"
@@ -214,22 +206,12 @@
         } @else {
             <div class="live-all-items-content category-content-layout">
                 <div class="category-content-header">
-                    @if (livePanels.isCategoriesRailFolded()) {
-                        <button
-                            #allItemsShowButton
-                            mat-icon-button
-                            type="button"
-                            class="all-items-show-categories"
-                            data-test-id="live-show-categories"
-                            [attr.aria-label]="
-                                'LAYOUT.SHOW_CATEGORIES' | translate
-                            "
-                            [matTooltip]="'LAYOUT.SHOW_CATEGORIES' | translate"
-                            (click)="livePanels.showCategories()"
-                        >
-                            <mat-icon>chevron_right</mat-icon>
-                        </button>
-                    }
+                    <ng-container
+                        *ngTemplateOutlet="
+                            showCategoriesAction;
+                            context: { styleClass: 'all-items-show-categories' }
+                        "
+                    />
                     <div class="category-meta">
                         <h2 class="category-title">
                             {{ 'PORTALS.ALL_ITEMS' | translate }}
@@ -269,6 +251,25 @@
         />
     }
 </div>
+
+<!-- The way back to the folded categories rail for the views that have no
+     channels header: the loading state and the "All Items" grid header. -->
+<ng-template #showCategoriesAction let-styleClass="styleClass">
+    @if (livePanels.isCategoriesRailFolded()) {
+        <button
+            #allItemsShowButton
+            mat-icon-button
+            type="button"
+            [class]="styleClass"
+            data-test-id="live-show-categories"
+            [attr.aria-label]="'LAYOUT.SHOW_CATEGORIES' | translate"
+            [matTooltip]="'LAYOUT.SHOW_CATEGORIES' | translate"
+            (click)="livePanels.showCategories()"
+        >
+            <mat-icon>chevron_right</mat-icon>
+        </button>
+    }
+</ng-template>
 
 <ng-template #epgPanelContent>
     <div class="epg-content">
