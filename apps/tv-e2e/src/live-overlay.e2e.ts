@@ -100,6 +100,13 @@ test('expanded guide shows supplied days and descriptions, windows rows and keep
     await expect(guide.locator('[data-focus^="guide-day-"]')).toHaveCount(7);
     await page.setViewportSize({ width: 1280, height: 720 });
     await checkHorizontalRail(page, guide.locator('.programme-guide-days'));
+    // Check Tab order at list origin; the current-time window is exercised below.
+    await guide
+        .getByRole('region', { name: 'Programmes', exact: true })
+        .evaluate((list) => {
+            list.scrollTop = 0;
+        });
+    await expect(guide.locator('[data-programme-index="0"]')).toBeVisible();
     const lastDate = guide.locator('.programme-guide-days button').last();
     const firstProgramme = guide.locator('.programme-guide-row').first();
     await lastDate.focus();

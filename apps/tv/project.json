@@ -32,6 +32,11 @@
             "outputs": ["{workspaceRoot}/dist/tv-package"],
             "command": "ares-package dist/apps/tv -o dist/tv-package"
         },
+        "package-tizen": {
+            "dependsOn": ["verify-build"],
+            "outputs": ["{workspaceRoot}/dist/tv-tizen-package"],
+            "command": "node apps/tv/package-tizen.mjs"
+        },
         "verify-build": {
             "dependsOn": ["build"],
             "command": "node apps/tv/verify-build.mjs"

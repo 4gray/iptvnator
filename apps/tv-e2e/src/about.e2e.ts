@@ -1,3 +1,4 @@
+import { tvBackCodes } from '@iptvnator/tv/util';
 import { expect, Page, test } from '@playwright/test';
 import { readFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -86,7 +87,10 @@ test('About supports remote category movement, platform Back and focus restorati
     await page.keyboard.press('Enter');
     const panel = page.getByRole('tabpanel');
     await expect(panel).toBeFocused();
-    await panel.dispatchEvent('keydown', { key: 'Unidentified', keyCode: 461 });
+    await panel.dispatchEvent('keydown', {
+        key: 'Unidentified',
+        keyCode: tvBackCodes.webos,
+    });
     await expect(aboutTab(page)).toBeFocused();
     await page.keyboard.press('ArrowRight');
     await expect(panel).toBeFocused();

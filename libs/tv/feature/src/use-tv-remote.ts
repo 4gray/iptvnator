@@ -15,13 +15,14 @@ export function useTvRemote(state: {
             installRemote(
                 () => latest.current.back(),
                 () => latest.current.fullscreen,
-                (code) => {
+                (action) => {
                     const p = latest.current.player;
-                    if (code === 415) p?.resume();
-                    if (code === 19) p?.pause();
-                    if (code === 413) latest.current.stop();
-                    if (code === 412) p?.seek(-10);
-                    if (code === 417) p?.seek(10);
+                    if (action === 'play') p?.resume();
+                    if (action === 'pause') p?.pause();
+                    if (action === 'toggle') p?.toggle();
+                    if (action === 'stop') latest.current.stop();
+                    if (action === 'rewind') p?.seek(-10);
+                    if (action === 'forward') p?.seek(10);
                 }
             ),
         []

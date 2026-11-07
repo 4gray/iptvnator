@@ -4,7 +4,11 @@ The TV client is a separate Preact 10 application (`apps/tv`), with feature,
 UI, data-access and pure contracts under `libs/tv`. It does not load the Angular
 renderer, Electron bridge, Node runtime or another player engine.
 The approved target is LG OLED55BX9LB, firmware 04.64.00, webOS 5.x / Chromium 68.
-A successful desktop browser test is not device certification.
+Samsung Tizen TV uses the same client/build, with a minimum of Tizen 5.5
+(2020, Chromium 69). Tizen 5.0 (2019, Chromium 63) is below the build's Chromium
+68 floor; see Samsung's [engine table](https://developer.samsung.com/smarttv/develop/specifications/web-engine-specifications.html).
+Samsung device acceptance remains pending. A successful desktop browser test is
+not device certification.
 
 ## Runtime and ownership
 
@@ -30,6 +34,44 @@ Vite consumes the scoped paths from `tsconfig.base.json` in descending alias
 length, so configured sub-entrypoints resolve before a parent barrel. The
 Stalker client uses the shared `stalker-session` sub-entrypoint; `tv:verify-build`
 must continue to build this real graph and enforce the browser-only contract.
+
+## Samsung Tizen package
+
+The LG Vite configuration, public manifest and `package` target stay unchanged.
+`tv:verify-build` stages `dist/tv-tizen-input` from the same `dist/apps/tv`:
+only the Tizen input receives `apps/tv/tizen/config.xml`, with the LG manifest
+removed and the shared icon/version retained. Both inputs pass the same classic
+script, ES2018 and unsupported-builtin checks; Tizen also checks its XML,
+minimum version, icon and exact privilege set. `tv:package-tizen` invokes the
+external Tizen CLI using a local `TIZEN_SIGNING_PROFILE`; signing material and
+WGT output stay outside Git. The neutral widget ID is
+`https://github.com/4gray/iptvnator/tv`, package `IPTVnatorT` and app ID
+`IPTVnatorT.TV`; the maintainer may change these before distribution.
+Internet permits configured backends/media/artwork; `tv.inputdevice` permits
+remote media-key registration. No other platform privilege is requested.
+The wildcard access policy permits user-selected HTTP(S) endpoints; it does not
+replace backend Origin admission. webOS network-service discovery stays LG-only;
+Tizen keeps the existing hostname discovery and manual backend entry.
+
+`libs/tv/util/src/platform.ts` owns detection and key mapping;
+`libs/tv/ui/src/platform.ts` owns guarded platform APIs. All navigation layers share Back codes 461 (LG) and
+10009 (Samsung). Only six used media keys are registered when the Tizen input
+API exists; an unsupported key warns with its static name and does not block
+remaining keys. Play/Pause 10252 toggles the native player. No colour actions
+are used. Root Back uses Tizen application exit at the same point as LG platform
+Back; dialogs, fullscreen and route history retain priority. About identifies
+Samsung Tizen TV and reads its installed app ID through the application API.
+See [development](../development/tv-development.md#samsung-tizen-tv) and the
+[unchecked device acceptance](../development/tv-tizen-validation.md), including
+Samsung Store exit-confirmation policy, before claiming device support.
+
+Only staged Tizen HTML loads the device-provided `$WEBAPIS/webapis/webapis.js`
+before the deferred application bundle; LG HTML is unchanged. The platform
+binding follows the existing video element: active visible playback disables
+Samsung's screensaver, while pause, end, error, source removal, app hide/pagehide
+and disposal restore protection. Missing AppCommon APIs leave playback alone;
+device failures report only a static warning. This uses no additional privilege.
+Actual Auto Protection Time behavior remains an unchecked hardware requirement.
 
 ## Provider contract
 
@@ -168,12 +210,13 @@ Restoration ignores disabled controls and restores each category's saved scroll
 when its panel becomes visible. Its cancellation and committed-write rules remain
 unchanged. Panel layout uses Chromium-68-compatible flex and explicit dimensions.
 
-Settings > About shows the TV package version, ID and publisher from `appinfo.json`,
+Settings > About shows the shared TV package version and publisher from `appinfo.json`,
 the workspace release, license and project address from package metadata,
 and the build's Git revision, local-change indicator and UTC build time. Vite
 injects these values; the TV runtime never invokes Git or fetches build metadata.
-The build cache includes revision and worktree-wide local-change identity,
-including shared dependencies, so a cached artifact does not claim a different
+Samsung reads the installed application ID from its platform API; other runtimes
+use the build manifest ID. The build cache includes revision and worktree-wide
+local-change identity, including shared dependencies, so a cached artifact does not claim a different
 revision. Source archives without Git show revision as
 unavailable. Device information is limited to platform, browser engine, viewport
 and system language; credentials and source URLs are not part of About. A static
@@ -659,7 +702,9 @@ lookups contribute candidates, retaining valid fallback results when an alternat
 catalog is unsupported. Without a complete match, errors, repeated pages, the
 20-page safety limit and the 15-second deadline report an incomplete search with
 retry. Cancellation, source changes and navigation discard obsolete
-results. Person/detail Back preserves card focus and scroll position. Filmography
+results. Person/detail Back preserves card focus and scroll position. Returning to a
+person control waits for provider details and optional metadata to settle before
+consuming its focus key; missing/failed metadata uses the normal fallback. Filmography
 cards reserve two subtitle lines to keep virtual row heights and scroll coordinates stable.
 The selected series season belongs to its detail-route visit: person-page Back
 restores it, while opening a fresh detail visit starts at the first available season.
@@ -697,6 +742,9 @@ Focus scrolls the item into view without opening or playing it. Pointer-only
 side arrows advance a visible group and focus the newly revealed item. They
 appear only when content overflows and disable at the corresponding edge.
 Arrows stay outside remote and Tab focus and do not overlap cards.
+Focus restoration retains the saved main scroll offset for virtualized items
+while their windows are measured. Other targets still scroll into view, including
+horizontal rails and History covers reordered by playback.
 
 Horizontal native scrollbars are hidden; vertical lists and long text retain
 explicit dark WebKit scrollbars. The LG Chromium 68 target ignores
@@ -719,6 +767,11 @@ provider session and media access still require separate checks. Query parameter
 other URLs retain native format detection. Stop/switch removes both `src` and
 child sources, and source-level errors reach the playback retry UI. This does
 not add headers, rewrite manifests or proxy media.
+
+The explicit HLS source, bounded seek restoration and visibility pause are
+standard HTML-video paths and remain shared on Samsung; LG behavior is unchanged.
+Their native Samsung MIME, codec, seek and lifecycle behavior is an open device
+gate, not inferred from the browser engine. No AVPlay is introduced.
 
 Settings exposes an opt-in direct catalog request and a separate media HEAD
 probe. A readable HEAD response establishes HTTP reachability only, not native

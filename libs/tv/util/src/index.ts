@@ -267,3 +267,4 @@ export * from './programme-guide';
 
 export * from './grid-guide';
 export * from './detail-metadata';
+export * from './platform';
