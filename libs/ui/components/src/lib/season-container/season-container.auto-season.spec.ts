@@ -205,4 +205,46 @@ describe('SeasonContainerComponent default-season fallback', () => {
 
         expect(component.selectedSeason()).toBe('1');
     });
+
+    it('re-resolves to the watched season once lazy seasons finish hydrating', () => {
+        fixture.componentRef.setInput('hasUnloadedSeasons', true);
+        fixture.componentRef.setInput('unloadedSeasonKeys', ['2', '3', '4']);
+        setRequiredInputs({
+            '1': [createEpisode()],
+            '2': [],
+            '3': [],
+            '4': [],
+        });
+        fixture.detectChanges();
+        expect(component.selectedSeason()).toBe('1');
+
+        fixture.componentRef.setInput('hasUnloadedSeasons', false);
+        fixture.componentRef.setInput('unloadedSeasonKeys', []);
+        fixture.componentRef.setInput('seasons', {
+            '1': [createEpisode()],
+            '2': [createEpisode({ id: '201', season: 2 })],
+            '3': [createEpisode({ id: '301', season: 3 })],
+            '4': [
+                createEpisode({ id: '401', episode_num: 1, season: 4 }),
+                createEpisode({ id: '402', episode_num: 2, season: 4 }),
+                createEpisode({ id: '403', episode_num: 3, season: 4 }),
+            ],
+        });
+        fixture.componentRef.setInput(
+            'playbackPositions',
+            new Map([
+                [401, watchedPosition(401)],
+                [
+                    402,
+                    {
+                        ...watchedPosition(402),
+                        updatedAt: '2026-07-02T00:00:00.000Z',
+                    },
+                ],
+            ])
+        );
+        fixture.detectChanges();
+
+        expect(component.selectedSeason()).toBe('4');
+    });
 });

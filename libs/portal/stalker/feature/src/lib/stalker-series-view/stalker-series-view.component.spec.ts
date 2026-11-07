@@ -1,4 +1,7 @@
-import { StalkerEpisodeResolver } from '@iptvnator/portal/stalker/data-access';
+import {
+    StalkerEpisodeResolver,
+    mapVodSeriesEpisodes,
+} from '@iptvnator/portal/stalker/data-access';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
@@ -19,6 +22,7 @@ describe('StalkerSeriesViewComponent', () => {
         vodSeriesSeasonsResource,
         fetchVodSeriesEpisodes,
         resolveVodPlayback,
+        getSeriesPlaybackPositions,
         openResolvedPlayback,
         openExternalPlayback,
         isEmbeddedPlayer,
@@ -759,5 +763,125 @@ describe('StalkerSeriesViewComponent', () => {
             expect.any(Number),
             undefined
         );
+    });
+
+    it('hydrates lazy VOD-series seasons when saved playback positions exist and points quick start to the next unwatched episode', async () => {
+        selectedContentType.set('vod');
+        selectedItem.set({
+            id: '50001',
+            is_series: true,
+            info: {
+                name: 'VOD Flagged Series',
+                description: 'Lazy seasons',
+                movie_image: 'vod-series.jpg',
+            },
+        });
+        serialSeasonsResource.set([]);
+        vodSeriesSeasonsResource.set([
+            {
+                id: 'season-1',
+                video_id: '50001',
+                season_number: '1',
+                name: 'Season 1',
+            },
+            {
+                id: 'season-2',
+                video_id: '50001',
+                season_number: '2',
+                name: 'Season 2',
+            },
+            {
+                id: 'season-3',
+                video_id: '50001',
+                season_number: '3',
+                name: 'Season 3',
+            },
+            {
+                id: 'season-4',
+                video_id: '50001',
+                season_number: '4',
+                name: 'Season 4',
+            },
+        ]);
+        const seasonFourMapped = mapVodSeriesEpisodes(
+            [
+                {
+                    id: 'season-4',
+                    video_id: '50001',
+                    season_number: '4',
+                    name: 'Season 4',
+                    episodes: [
+                        {
+                            id: 'season-4-ep-1',
+                            series_number: 1,
+                            name: 'season-4 Episode 1',
+                        },
+                        {
+                            id: 'season-4-ep-2',
+                            series_number: 2,
+                            name: 'season-4 Episode 2',
+                        },
+                    ],
+                    isLoading: false,
+                    isExpanded: false,
+                },
+            ],
+            { parentSeriesId: 50001 }
+        )['4'];
+        getSeriesPlaybackPositions.mockResolvedValue([
+            {
+                contentXtreamId: Number(seasonFourMapped[0].id),
+                contentType: 'episode',
+                seriesXtreamId: 50001,
+                seasonNumber: 4,
+                episodeNumber: 1,
+                positionSeconds: 95,
+                durationSeconds: 100,
+                updatedAt: '2026-10-05T10:00:00.000Z',
+            },
+            {
+                contentXtreamId: Number(seasonFourMapped[1].id),
+                contentType: 'episode',
+                seriesXtreamId: 50001,
+                seasonNumber: 4,
+                episodeNumber: 2,
+                positionSeconds: 95,
+                durationSeconds: 100,
+                updatedAt: '2026-10-05T11:00:00.000Z',
+            },
+        ]);
+        fetchVodSeriesEpisodes.mockImplementation(
+            async (_videoId: string, seasonId: string) => [
+                {
+                    id: `${seasonId}-ep-1`,
+                    series_number: 1,
+                    name: `${seasonId} Episode 1`,
+                },
+                {
+                    id: `${seasonId}-ep-2`,
+                    series_number: 2,
+                    name: `${seasonId} Episode 2`,
+                },
+                {
+                    id: `${seasonId}-ep-3`,
+                    series_number: 3,
+                    name: `${seasonId} Episode 3`,
+                },
+            ]
+        );
+
+        await stabilize();
+        await settleStart();
+        await stabilize();
+
+        expect(fetchVodSeriesEpisodes).toHaveBeenCalledTimes(4);
+        expect(fixture.componentInstance.hasUnloadedVodSeasons()).toBe(false);
+        expect(fixture.componentInstance.unloadedVodSeasonKeys()).toEqual([]);
+
+        const quickStartButton: HTMLButtonElement | null =
+            fixture.nativeElement.querySelector(
+                '[data-testid="series-quick-start"]'
+            );
+        expect(quickStartButton?.textContent).toContain('S04E03');
     });
 });

@@ -388,6 +388,7 @@ export class SeasonContainerComponent implements OnInit {
     }
 
     selectSeason(seasonKey: string) {
+        this.autoSelect.markManualSelection();
         this.selectedSeason.set(seasonKey);
     }
 
