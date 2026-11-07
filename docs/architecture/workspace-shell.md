@@ -151,6 +151,12 @@ The shell is intentionally split into four persistent regions:
 4. Optional footer:
     1. External playback session bar when a docked session is visible.
 
+The app-wide source connection warning has its own row outside the shell.
+Electron places it below the workspace to clear the window controls, and the
+workspace fills the remaining height so both navigation footers stay visible.
+The browser places the warning above its route. In Settings, section groups
+scroll independently above the pinned About link.
+
 ### Content surface corner
 
 `main.workspace-content` (the scroller) sits in `.workspace-content-frame`.

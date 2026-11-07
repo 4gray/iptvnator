@@ -57,6 +57,21 @@ const debugAppComponent = createDevLogger('AppComponent');
 @Component({
     selector: 'app-root',
     templateUrl: './app.component.html',
+    styles: `
+        :host {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .app-viewport {
+            flex: 1;
+            min-height: 0;
+            overflow: auto;
+        }
+        .app-route {
+            height: 100%;
+        }
+    `,
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         AppStartupStatusComponent,
@@ -69,6 +84,9 @@ const debugAppComponent = createDevLogger('AppComponent');
 })
 export class AppComponent implements OnInit {
     readonly routeReady = signal(false);
+    get isElectron() {
+        return this.runtime.isElectron;
+    }
     get usesCustomWindowControls() {
         return this.runtime.usesCustomWindowControls;
     }
