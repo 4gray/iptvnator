@@ -193,6 +193,32 @@ describe('source server settings', () => {
         expect(component.busy()).toBe(false);
     });
 
+    it('connects to the built-in server with its code and clears the field afterwards', async () => {
+        const configure = jest.fn().mockResolvedValue({});
+        const code = jest
+            .fn()
+            .mockResolvedValueOnce('synthetic-code')
+            .mockRejectedValueOnce(new Error('synthetic bridge error'));
+        window.electron = {
+            sourceSyncConfigure: configure,
+            hostedServerAccessCode: code,
+        } as unknown as typeof window.electron;
+        const component = fixture.componentInstance;
+        const origin = 'http://127.0.0.1:4334';
+
+        await component.connectHosted(origin);
+        expect(configure).toHaveBeenCalledWith(
+            origin + '/api',
+            'synthetic-code',
+            true
+        );
+        expect(component.token).toBe('');
+        await component.connectHosted(origin);
+        expect(configure).toHaveBeenCalledTimes(1);
+        expect(component.message()).toBe('HOSTED_SERVER.CODE_FAILED');
+        expect(component.token).toBe('');
+    });
+
     it('shows rejected credentials without leaking raw errors or confirming connection', async () => {
         const configure = jest
             .fn()
