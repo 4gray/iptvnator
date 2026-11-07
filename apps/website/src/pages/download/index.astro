@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import CopyCommand from '../../components/blog/CopyCommand.astro';
+import DownloadSection from '../../components/download/DownloadSection.astro';
 import OfficialSourcesNote from '../../components/download/OfficialSourcesNote.astro';
 import { LATEST_RELEASE_URL, REPO_URL, formatAssetSize, formatReleaseDate, getLatestRelease, resolveDownloads } from '../../lib/downloads';
 import { DOWNLOAD_PLATFORMS, PLATFORM_ICON_PATHS, PLATFORM_LABELS, PLATFORM_PAGES } from '../../lib/platforms';
@@ -28,6 +29,22 @@ const cards = DOWNLOAD_PLATFORMS.map((platform) => {
     primarySize: primary ? formatAssetSize(primary.size) : null,
   };
 });
+
+const tvBuilds = [
+  {
+    title: 'Fire TV & Android TV',
+    description: 'The same IPTVnator app you use in the browser, packaged as an APK with an embedded backend. Designed for Fire TV Stick and Android TV remotes. You can try it on Android tablets. Compact phone screens still need layout work.',
+    guides: [{ label: 'Build and install the APK', href: `${REPO_URL}/blob/master/tv-shell/README.md#building-the-apk` }],
+  },
+  {
+    title: 'LG webOS & Samsung Tizen',
+    description: 'LG and Samsung share a dedicated TV client. Build the package for your TV, install it in Developer Mode, and connect it to a compatible IPTVnator web backend.',
+    guides: [
+      { label: 'LG webOS installation', href: `${REPO_URL}/blob/master/apps/tv/README.md#installation` },
+      { label: 'Samsung Tizen installation', href: `${REPO_URL}/blob/master/apps/tv/tizen/README.md` },
+    ],
+  },
+];
 
 const title = 'Download IPTVnator – Windows, macOS and Linux';
 const description =
@@ -78,8 +95,11 @@ const jsonLd = [
         </h1>
         <p class="mt-6 text-lg leading-relaxed text-surface-400">
           Pick your operating system for a direct download, install steps and the answers to the usual questions.
-          Every build comes from the same GitHub release.
+          Desktop installers come from the latest GitHub release.
         </p>
+        <a href="#tv" class="mt-2 inline-flex min-h-11 items-center text-sm text-accent-400 underline decoration-accent-500/30 underline-offset-4 hover:text-accent-300">
+          Explore experimental TV builds
+        </a>
         <p class="mt-5 font-mono text-[11px] uppercase tracking-[0.12em] text-surface-500">
           Version {release.version}
           {releaseDate && <span> · Released {releaseDate}</span>}
@@ -135,6 +155,24 @@ const jsonLd = [
       </div>
     </div>
   </section>
+
+  <DownloadSection id="tv" eyebrow="Experimental" title="IPTVnator for TV">
+    <div class="grid gap-5 md:grid-cols-2">
+      {tvBuilds.map(({ title, description, guides }) => (
+        <div class="card-panel flex flex-col sm:p-7">
+          <h3 class="font-display text-xl font-bold tracking-tight text-surface-50">{title}</h3>
+          <p class="mt-3 flex-1 text-sm leading-relaxed text-surface-300">{description}</p>
+          <div class="mt-3 flex flex-wrap gap-x-6">
+            {guides.map(({ label, href }) => (
+              <a href={href} class="inline-flex min-h-11 items-center rounded-sm text-sm font-semibold text-accent-400 underline decoration-accent-500/30 underline-offset-4 hover:text-accent-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-400">
+                {label}
+              </a>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  </DownloadSection>
 
   <section class="relative py-20">
     <hr class="section-divider mb-20" />
