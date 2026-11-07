@@ -100,15 +100,27 @@ handleEmbeddedMpv(EMBEDDED_MPV_PREPARE, () =>
 
 handleEmbeddedMpv(
     EMBEDDED_MPV_CREATE_SESSION,
-    (bounds: EmbeddedMpvBounds, title?: string, initialVolume?: number) =>
-        // Settings are read here, per session, so the service itself never
-        // touches the config store (constructed at module load).
-        getService().createSession(
+    (
+        bounds: EmbeddedMpvBounds,
+        title?: string,
+        initialVolume?: number,
+        subtitlesOff?: boolean
+    ) => {
+        // Apply an explicit Off at initialization; async sid and loadfile
+        // commands can run out of order in libmpv.
+        const options = readEmbeddedMpvSessionOptions();
+        return getService().createSession(
             bounds,
             title,
             initialVolume,
-            readEmbeddedMpvSessionOptions()
-        )
+            subtitlesOff === true
+                ? {
+                      ...options,
+                      extraOptions: [...options.extraOptions, 'sid=no'],
+                  }
+                : options
+        );
+    }
 );
 
 handleEmbeddedMpv(

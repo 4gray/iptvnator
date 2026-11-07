@@ -147,7 +147,8 @@ export class EmbeddedMpvSessionController {
     startSession(
         host: HTMLElement,
         playback: ResolvedPortalPlayback,
-        initialVolume: number
+        initialVolume: number,
+        subtitlesOff = false
     ): () => void {
         let disposed = false;
         let activeSessionId: string | null = null;
@@ -255,7 +256,8 @@ export class EmbeddedMpvSessionController {
             const created = await electron.createEmbeddedMpvSession(
                 measureBounds(host),
                 playback.title,
-                initialVolume
+                initialVolume,
+                subtitlesOff
             );
 
             if (disposed) {

@@ -520,6 +520,15 @@ Audio tracks are discovered from MPV's `track-list` property. The selected track
 
 Subtitle tracks mirror the audio-track contract: same `track-list` source, same parsing pipeline, but selected through MPV's `sid` property. A `trackId` of `-1` from the renderer is interpreted as "disable subtitles" and translated to `sid=no` at the addon boundary. Playback speed is observed and set through MPV's `speed` property, clamped at the addon to `[0.25, 4.0]`. Aspect override uses MPV's `video-aspect-override` property as a passthrough string ("no", "16:9", "4:3", "21:9", "2.35:1"). All four properties (`sid`, `speed`, `video-aspect-override`, plus `aid`) are observed at session init so renderer state stays in sync with the native side without needing extra round-trips.
 
+During Live TV playback, the open player view remembers an explicit
+**Subtitles → Off** across channel changes and renderer retries. New sessions
+with subtitle controls append `sid=no` after the saved MPV options, before
+initialization. Picking a track clears the remembered Off; the track number
+only applies to the current stream. Loading an external subtitle file selects
+it for the current session and leaves the choice for the next channel intact.
+Closing the view discards the choice. The global caption setting and non-live
+playback are unaffected.
+
 File chapters come from MPV's `chapter-list` property, observed as a node next to `track-list` by the macOS and Windows addons and the frame-copy helper, and cleared on every `START_FILE` so a replacement file never shows the previous one's chapters. Each snapshot carries `chapters: [{ timeSeconds, title? }]` (the helper always emits the key, because the adapter merges snapshot events field by field); `EmbeddedMpvNativeService` validates it with `normalizeEmbeddedMpvChapters` into `EmbeddedMpvSession.chapters`, and an older binary without the field yields `[]`. The Linux `mpv --wid` poller does not read chapters. The renderer maps them to timeline segments — see "Timeline segments" in the [player controls contract](player-controls-contract.md).
 
 The renderer learns which features the loaded addon binary supports through the `EmbeddedMpvSupport.capabilities` field returned from `getEmbeddedMpvSupport()`. The service probes `typeof addon.<method> === 'function'` for each optional native export. Older addon binaries with the original audio-only surface return `capabilities: { subtitles: false, playbackSpeed: false, aspectOverride: false, screenshot: false, recording: false }`, and the renderer hides the corresponding controls instead of throwing at runtime. Linux intentionally does not export libmpv-only optional controls while it uses the process-isolated `mpv --wid` backend.

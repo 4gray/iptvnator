@@ -162,7 +162,8 @@ describe('EmbeddedMpvSessionController', () => {
         expect(electron.createEmbeddedMpvSession).toHaveBeenCalledWith(
             { x: 10.6, y: 20.5, width: 640, height: 360 },
             'Example Movie',
-            0.7
+            0.7,
+            false
         );
         expect(electron.loadEmbeddedMpvPlayback).toHaveBeenCalledWith(
             'mpv-1',
