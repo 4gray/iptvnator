@@ -302,7 +302,12 @@ function isInside(root, file) {
 }
 
 export function serveStatic(res, url, www = WWW) {
-    let pathname = decodeURIComponent(url.pathname);
+    let pathname;
+    try {
+        pathname = decodeURIComponent(url.pathname);
+    } catch {
+        return res.writeHead(400).end();
+    }
     if (pathname === '/tvshell/tv.js') {
         res.writeHead(200, { 'Content-Type': MIME['.js'], 'Cache-Control': 'no-store' });
         return res.end(readFileSync(TV_JS));
@@ -353,16 +358,20 @@ export function injectTvLayer(html, layoutWidth = 1280) {
     return html;
 }
 
+export async function handleRequest(req, res) {
+    const url = URL.parse(req.url, `http://127.0.0.1:${PORT}`);
+    if (!url) return res.writeHead(400).end();
+    try {
+        if (url.pathname.startsWith('/api')) await handleApi(req, res, url);
+        else serveStatic(res, url);
+    } catch (error) {
+        console.error('[devserver]', error);
+        if (!res.headersSent) json(res, 500, { message: 'Internal error', status: 500 });
+        else res.destroy();
+    }
+}
+
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-    const server = createServer(async (req, res) => {
-        const url = new URL(req.url, `http://127.0.0.1:${PORT}`);
-        try {
-            if (url.pathname.startsWith('/api')) await handleApi(req, res, url);
-            else serveStatic(res, url);
-        } catch (error) {
-            console.error('[devserver]', error);
-            if (!res.headersSent) json(res, 500, { message: 'Internal error', status: 500 });
-        }
-    });
+    const server = createServer(handleRequest);
     server.listen(PORT, '127.0.0.1', () => console.log(`IPTVnator TV shell dev server: http://127.0.0.1:${PORT}  (www=${WWW})`));
 }
