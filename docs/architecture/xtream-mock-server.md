@@ -444,7 +444,9 @@ sometimes only respond to that misspelled action.
 This scenario is reserved for Xtream EPG tests:
 
 - live category `EPG Focus` contains deterministic channels such as `Timezone News`
-- `Timezone News` serves a fixed `get_short_epg` window and a full `get_simple_data_table` schedule
+- `Timezone News` serves a `get_short_epg` window and a full
+  `get_simple_data_table` schedule. The current programme ends 15 minutes
+  after the fixture is generated so it stays on air throughout the test.
 - the full schedule includes a program that spans a UTC midnight boundary and another program after midnight
 - raw `start` / `end` strings are intentionally offset from `start_timestamp` / `stop_timestamp`
 
