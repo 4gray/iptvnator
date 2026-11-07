@@ -1004,6 +1004,17 @@
         "ADD_FAVORITE": "添加到收藏",
         "SHOW_DETAILS": "显示频道详情",
         "MAP_EPG": "映射 EPG 频道",
+        "SPLIT_AUDIO": {
+            "MENU": "Video here, audio from another channel...",
+            "TITLE": "Audio from another channel",
+            "VIDEO_FROM": "Video from:",
+            "AUDIO_FROM": "Audio from:",
+            "SEARCH": "Search channels",
+            "DELAY": "Audio delay (seconds)",
+            "DELAY_HINT": "If you hear things before you see them, raise the delay. The value is remembered for this pair of channels.",
+            "NEEDS_MPV": "Plays in a separate MPV window (MPV must be installed), whichever player is selected in Settings.",
+            "PLAY": "Play"
+        },
         "FAVORITES_UPDATED": "收藏夹已更新！",
         "SELECT_CHANNEL_PLAYBACK": "请选择一个频道开始播放",
         "SORT_BY": "排序方式",

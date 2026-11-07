@@ -12,6 +12,8 @@ import type {
     PlayerControlsState,
 } from './player-controls.model';
 
+export { ControlsSplitAudio } from './controls-split-audio';
+
 export interface ControlsSettingsDeps {
     state: Signal<PlayerControlsState>;
     capabilities: Signal<PlayerControlsCapabilities>;
