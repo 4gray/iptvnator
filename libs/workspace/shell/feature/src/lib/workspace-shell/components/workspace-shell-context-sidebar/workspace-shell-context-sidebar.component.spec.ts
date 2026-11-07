@@ -66,12 +66,12 @@ describe('WorkspaceShellContextSidebarComponent', () => {
     let fixture: ComponentFixture<WorkspaceShellContextSidebarComponent>;
     let liveSidebarService: LiveLayoutSidebarStateService;
     const drawerOpen = signal(false);
-    const xtreamBlockReason = signal<string | null>(null);
+    const xtreamBlocked = signal(false);
 
     beforeEach(async () => {
         localStorage.removeItem('live-sidebar-state:portal');
         drawerOpen.set(false);
-        xtreamBlockReason.set(null);
+        xtreamBlocked.set(false);
 
         await TestBed.configureTestingModule({
             imports: [WorkspaceShellContextSidebarComponent],
@@ -83,8 +83,7 @@ describe('WorkspaceShellContextSidebarComponent', () => {
                 {
                     provide: XtreamStore,
                     useValue: {
-                        contentInitBlockReason: xtreamBlockReason,
-                        isPendingRestoreBlocked: signal(false),
+                        isContentBlocked: xtreamBlocked,
                     },
                 },
                 {
@@ -240,7 +239,7 @@ describe('WorkspaceShellContextSidebarComponent', () => {
         it('keeps the rail visible while the Xtream content gate blocks the live layout, which would carry the way back', () => {
             setupLiveCategory('live');
             liveSidebarService.setState('portal', 'categories-hidden');
-            xtreamBlockReason.set('expired');
+            xtreamBlocked.set(true);
             fixture.detectChanges();
 
             const aside = fixture.nativeElement.querySelector(
@@ -250,7 +249,7 @@ describe('WorkspaceShellContextSidebarComponent', () => {
                 false
             );
 
-            xtreamBlockReason.set(null);
+            xtreamBlocked.set(false);
             fixture.detectChanges();
             expect(aside.classList.contains('context-panel--collapsed')).toBe(
                 true

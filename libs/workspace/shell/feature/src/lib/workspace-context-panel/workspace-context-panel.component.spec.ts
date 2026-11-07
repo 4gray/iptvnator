@@ -82,6 +82,7 @@ describe('WorkspaceContextPanelComponent', () => {
     const xtreamImportPhase = signal<string | null>('loading-live');
     const xtreamIsImporting = signal(true);
     const xtreamIsLoadingCategories = signal(false);
+    const xtreamIsContentBlocked = signal(false);
 
     const xtreamStore = {
         getCategoriesBySelectedType: xtreamCategories,
@@ -97,6 +98,7 @@ describe('WorkspaceContextPanelComponent', () => {
         isImporting: xtreamIsImporting,
         currentImportPhase: xtreamImportPhase,
         isLoadingCategories: xtreamIsLoadingCategories,
+        isContentBlocked: xtreamIsContentBlocked,
         setSelectedItem: jest.fn(),
         setSelectedCategory: jest.fn(),
         reloadCategories: jest.fn(),
@@ -146,6 +148,7 @@ describe('WorkspaceContextPanelComponent', () => {
         ]);
         xtreamCategoryItemCounts.set(new Map());
         xtreamSelectedCategoryId.set(null);
+        xtreamIsContentBlocked.set(false);
         xtreamSelectedTypeContentState.set('loading');
         xtreamImportPhase.set('loading-live');
         xtreamIsImporting.set(true);
@@ -649,6 +652,17 @@ describe('WorkspaceContextPanelComponent', () => {
             expect(liveSidebarService.stateOf('portal')()).toBe(
                 'categories-hidden'
             );
+        });
+
+        it('withholds the chevron on a blocked Xtream portal, whose error view has no way back', () => {
+            fixture.componentRef.setInput('section', 'live');
+            xtreamIsContentBlocked.set(true);
+            fixture.detectChanges();
+            expect(hideButton()).toBeNull();
+
+            xtreamIsContentBlocked.set(false);
+            fixture.detectChanges();
+            expect(hideButton()).not.toBeNull();
         });
 
         it('offers it for Stalker itv and radio too', () => {

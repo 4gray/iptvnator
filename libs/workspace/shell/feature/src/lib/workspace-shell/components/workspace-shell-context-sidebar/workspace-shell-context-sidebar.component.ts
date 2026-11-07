@@ -80,8 +80,7 @@ export class WorkspaceShellContextSidebarComponent {
     readonly isLiveContentBlocked = computed(
         () =>
             this.context()?.provider === 'xtreams' &&
-            (!!this.xtreamStore.contentInitBlockReason() ||
-                this.xtreamStore.isPendingRestoreBlocked())
+            this.xtreamStore.isContentBlocked()
     );
     // The categories rail is the outermost panel, so it folds on the first
     // collapse level already (`categories-hidden`). The live layouts render

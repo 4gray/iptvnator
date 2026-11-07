@@ -269,9 +269,10 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
         fixture.detectChanges();
 
         const button = query<HTMLButtonElement>(
-            '.live-all-items-content [data-test-id="live-show-categories"]'
+            '[data-test-id="live-show-categories"]'
         );
         expect(button).not.toBeNull();
+        expect(query('.category-content-header--rail-folded')).not.toBeNull();
         expect(button?.getAttribute('aria-label')).toBe(
             'LAYOUT.SHOW_CATEGORIES'
         );
@@ -283,6 +284,28 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
         fixture.detectChanges();
         expect(query('[data-test-id="live-show-categories"]')).toBeNull();
         expect(query('.sidebar-restore')).not.toBeNull();
+    });
+
+    it('keeps the same show-categories button, and its focus, across the loading to ready swap', async () => {
+        xtreamStore.selectedTypeContentLoading.set(true);
+        selectedCategoryId.set(null);
+        fixture.detectChanges();
+        service.hideCategories('portal');
+        fixture.detectChanges();
+        await new Promise<void>((resolve) => queueMicrotask(() => resolve()));
+
+        const button = query('[data-test-id="live-show-categories"]');
+        expect(button).not.toBeNull();
+        expect(query('.live-loading-content')).not.toBeNull();
+        expect(document.activeElement).toBe(button);
+
+        xtreamStore.selectedTypeContentLoading.set(false);
+        fixture.detectChanges();
+
+        expect(query('.live-all-items-content')).not.toBeNull();
+        expect(query('[data-test-id="live-show-categories"]')).toBe(button);
+        expect(document.activeElement).toBe(button);
+        xtreamStore.selectedTypeContentLoading.set(false);
     });
 
     it('hands focus to the "All Items" show-categories button when the rail folds', async () => {

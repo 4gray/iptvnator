@@ -157,11 +157,17 @@ export class WorkspaceContextPanelComponent {
     // all-items header). Not in the open phone drawer: its stylesheet ignores
     // the folded state, so the tap would change nothing visible while
     // persisting a preference that only bites once the window is wide again.
+    // Nor on a blocked Xtream portal, whose error view has no way back and
+    // keeps the rail unfolded (the fold would only apply after a retry).
     readonly canHideCategories = computed(
         () =>
             this.presentation() === 'sidebar' &&
             this.isLiveSection() &&
-            !this.contextDrawer?.isOpen()
+            !this.contextDrawer?.isOpen() &&
+            !(
+                this.context().provider === 'xtreams' &&
+                this.xtreamStore.isContentBlocked()
+            )
     );
     private readonly hideCategoriesButton = viewChild('hideCategoriesButton', {
         read: ElementRef<HTMLElement>,
