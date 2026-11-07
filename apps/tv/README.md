@@ -1,9 +1,10 @@
-# IPTVnator TV for LG webOS
+# IPTVnator TV for LG webOS and Samsung Tizen
 
 An experimental TV edition of [IPTVnator](../../README.md) for watching your own
-live TV, movies and series with a remote or Magic Remote pointer. It supports
-M3U playlists, Xtream Codes and Stalker / Ministra portals, phone-assisted setup
-and a shared source library with self-hosted IPTVnator.
+live TV, movies and series with a remote. The same client is packaged separately
+for LG webOS and Samsung Tizen. It supports M3U playlists, Xtream Codes and
+Stalker / Ministra portals, phone-assisted setup and a shared source library with
+self-hosted IPTVnator.
 
 IPTVnator is a player: it does not provide channels, playlists or subscriptions.
 
@@ -21,7 +22,7 @@ portraits. They are browser captures of the TV interface._
 
 - Live TV, channel categories and programme guides from Xtream and Stalker.
 - Movie and series catalogs with posters, seasons and episode browsing.
-- Remote arrows, OK and Back navigation, plus Magic Remote pointer support.
+- Remote arrows, OK and Back navigation, plus Magic Remote pointer support on LG.
 - Local and global favorites, watch history and continue watching on the TV.
 - Add M3U URLs, Xtream accounts and Stalker sources from a phone using a QR code.
 - Share source definitions with a self-hosted IPTVnator library.
@@ -31,12 +32,13 @@ portraits. They are browser captures of the TV interface._
 
 ## Compatibility
 
-| Platform                                         | Status                                                                  |
-| ------------------------------------------------ | ----------------------------------------------------------------------- |
-| LG webOS 5.x / Chromium 68                       | Current compatibility target; hardware validation uses an LG BX (2020). |
-| Later LG webOS versions                          | Not yet verified; compatibility is not guaranteed.                      |
-| LG webOS 4.x and earlier                         | Below the current compatibility target; unsupported.                    |
-| Samsung Tizen, Android TV and other TV platforms | No supported package from this application.                             |
+| Platform | Status |
+| --- | --- |
+| LG webOS 5.x / Chromium 68 | Compatibility target. Hardware validation uses an LG BX (2020). |
+| Later LG webOS versions | Hardware testing pending. |
+| LG webOS 4.x and earlier | Below the current compatibility target. |
+| Samsung Tizen 5.5+ | Experimental build target. Community tested on Samsung Q60C (2023) with Tizen 9.0. See the [device test results](../../docs/development/tv-tizen-validation.md#community-device-test). |
+| Android TV and other TV platforms | No package available. |
 
 The build targets Chromium 68. LG lists the engine used by each platform in its
 [webOS compatibility table](https://webostv.developer.lge.com/develop/specifications/web-api-and-web-engine).
@@ -50,9 +52,11 @@ play directly on the TV. Shared server sources are optional.
 
 ## Installation
 
-The current installation path is a locally built `.ipk` package installed through
-LG Developer Mode. The TV application has its own package version, declared in
-[`public/appinfo.json`](public/appinfo.json), independently of the desktop app.
+For Samsung, follow the [Tizen guide](tizen/README.md) to build, sign and install
+a `.wgt` package in Developer Mode. The steps below cover LG webOS and its
+locally built `.ipk` package. The TV application has its own package version,
+declared in [`public/appinfo.json`](public/appinfo.json), independently of the
+desktop app.
 
 ### 1. Prepare the backend
 
@@ -236,5 +240,5 @@ describe how to reproduce them without provider accounts or real TMDB keys.
   alongside an existing server library.
 
 When reporting a problem, include the app build and device information shown
-in **Settings → About**, your webOS version and source type. Do not include
+in **Settings → About**, your TV's OS version and source type. Do not include
 provider credentials, access tokens or private stream URLs.

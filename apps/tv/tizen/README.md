@@ -4,9 +4,9 @@ IPTVnator is not in the Samsung TV store. You build it, sign it with your own
 free Samsung certificate and install it on your TV in Developer Mode. Nobody
 else can sign it for your TV, and no signed app is published with IPTVnator.
 
-Status: no Samsung TV is certified yet; see the
-[device checklist](../../../docs/development/tv-tizen-validation.md).
-Needs a Samsung TV from 2020 or later (Tizen 5.5+).
+The experimental package targets Tizen 5.5 and newer. The
+[device checklist](../../../docs/development/tv-tizen-validation.md) records
+community test results and the remaining hardware checks.
 
 ## 1. Install the tools (computer)
 
