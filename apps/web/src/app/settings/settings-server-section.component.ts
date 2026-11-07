@@ -1,3 +1,4 @@
+import { SettingsHistorySectionComponent } from './settings-history-section.component';
 import { SettingsFavoritesSectionComponent } from './settings-favorites-section.component';
 import {
     ChangeDetectionStrategy,
@@ -40,6 +41,7 @@ import {
     imports: [
         SettingsActivitySectionComponent,
         SettingsFavoritesSectionComponent,
+        SettingsHistorySectionComponent,
         SettingsSyncStatusComponent,
         MatIconModule,
         FormsModule,

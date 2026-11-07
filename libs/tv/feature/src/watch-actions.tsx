@@ -35,7 +35,7 @@ export function WatchActions({ tv, item }: { tv: TvModel; item: Media }) {
                 onClick={() =>
                     tv.watch(
                         item,
-                        watchState(p) === 'watched' ? 'reset' : 'watched'
+                        watchState(p) === 'watched' ? 'unwatched' : 'watched'
                     )
                 }
             >

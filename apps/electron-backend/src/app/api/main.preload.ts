@@ -310,6 +310,8 @@ const electronApi: ElectronBridgeApi = {
         if (result?.error) throw new Error('SOURCE_SYNC.INCOMPATIBLE');
         return result;
     },
+    historyLocalRequest: (request) =>
+        ipcRenderer.invoke('DB_HISTORY_LOCAL', request),
     favoritesLocalRequest: (request) =>
         ipcRenderer.invoke('DB_FAVORITES_LOCAL', request),
     activityLocalRequest: (request) =>

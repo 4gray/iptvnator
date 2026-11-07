@@ -4,6 +4,7 @@ import {
     watchLabel,
     watchState,
     type Media,
+    type WatchAction,
 } from '@iptvnator/tv/util';
 import type { TvModel } from './use-tv';
 import { WatchStatus } from './watch-actions';
@@ -17,6 +18,7 @@ export function EpisodeCard({
     item: Media;
     'data-virtual-index'?: number;
 }) {
+    const watched = watchState(tv.data.positions[e.id]) === 'watched';
     return (
         <div
             class="episode-entry"
@@ -74,20 +76,17 @@ export function EpisodeCard({
                 value=""
                 placeholder="Watch actions"
                 options={[
-                    { value: 'watched', label: 'Mark watched' },
                     {
-                        value: 'reset',
-                        label:
-                            watchState(tv.data.positions[e.id]) === 'watched'
-                                ? 'Mark unwatched / Reset progress'
-                                : 'Reset progress',
+                        value: watched ? 'unwatched' : 'watched',
+                        label: watched ? 'Mark unwatched' : 'Mark watched',
                     },
+                    { value: 'reset', label: 'Reset progress' },
                     { value: 'start-over', label: 'Start over' },
                 ]}
                 onChange={(value) =>
                     value === 'start-over'
                         ? void tv.startOver(e)
-                        : void tv.watch(e, value as 'watched' | 'reset')
+                        : void tv.watch(e, value as WatchAction)
                 }
             />
         </div>

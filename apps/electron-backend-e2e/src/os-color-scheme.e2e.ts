@@ -5,6 +5,7 @@ import {
     goToDashboard,
     launchElectronApp,
     openSettings,
+    openSettingsSection,
     openSources,
     saveSettings,
     test,
@@ -89,6 +90,7 @@ interface Surface {
  */
 async function chooseAppTheme(page: Page, theme: Theme): Promise<void> {
     await openSettings(page);
+    await openSettingsSection(page, 'appearance');
     await page
         .getByTestId(theme === 'dark' ? 'DARK_THEME' : 'LIGHT_THEME')
         .click();

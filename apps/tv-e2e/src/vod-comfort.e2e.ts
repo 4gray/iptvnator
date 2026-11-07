@@ -1,5 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
-import { addSource, chooseTv, nav, start } from './helpers';
+import { addSource, cardAction, chooseTv, nav, start } from './helpers';
 
 async function editSaved(page: Page, edit: 'complete' | 'historical') {
     await page.evaluate(
@@ -180,13 +180,13 @@ test('TV VOD comfort manual marks commit before display, recover from quota and 
         .getByRole('button', { name: 'Mark watched', exact: true })
         .click();
     await expect(
-        page.getByRole('button', { name: 'Retry watch state' })
+        page.getByRole('button', { name: 'Retry viewing status' })
     ).toBeVisible();
     await expect(page.locator('[data-focus="detail-play"]')).toContainText(
         'Resume'
     );
     await page.evaluate(() => window.dispatchEvent(new Event('release-quota')));
-    await page.getByRole('button', { name: 'Retry watch state' }).click();
+    await page.getByRole('button', { name: 'Retry viewing status' }).click();
     await expect(page.locator('[data-focus="detail-play"]')).toContainText(
         'Watch again'
     );
@@ -266,8 +266,8 @@ test('TV VOD comfort series Start, ended, explicit Next and Home advance across 
     await nav(page, 'Home');
     await expect(page.locator('.resume-card')).toHaveCount(1);
     await expect(page.locator('.resume-card')).toContainText('The crossing');
-    await expect(page.locator('.resume-card')).toContainText('Watch now');
-    await page.locator('.resume-card').click();
+    await expect(page.locator('.resume-card')).toContainText('Next episode');
+    await cardAction(page, page.locator('.resume-card'), 'Next episode');
     await expect(page.locator('[data-focus="player-next"]')).toContainText(
         'S2 · E1'
     );
@@ -335,7 +335,7 @@ test('TV VOD comfort pending sequence lookup is canceled by Back and late result
     await page.keyboard.press('Escape');
     await page.reload();
     await expect(page.locator('.resume-card')).toBeVisible();
-    await page.locator('.resume-card').click();
+    await cardAction(page, page.locator('.resume-card'));
     await expect.poll(() => held).toBeGreaterThan(0);
     await page.keyboard.press('Escape');
     release();
@@ -427,7 +427,7 @@ test('TV VOD comfort failed sequence lookup keeps playback and Retry finds the a
     // A relaunched Home entry has no loaded detail episode list to fall back to.
     await page.reload();
     await expect(page.locator('.resume-card')).toBeVisible();
-    await page.locator('.resume-card').click();
+    await cardAction(page, page.locator('.resume-card'));
     await expect(
         page.getByRole('button', { name: 'Retry next episode', exact: true })
     ).toBeVisible();

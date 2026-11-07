@@ -9,10 +9,10 @@ import {
     Hero,
     VirtualCollection,
     Poster,
-    ResumeCard,
 } from '@iptvnator/tv/ui';
 import { mediaTitle, Media } from '@iptvnator/tv/util';
 import { TvModel } from './use-tv';
+import { ViewingCard } from './viewing-card';
 export function Home({
     tv,
     feature,
@@ -21,7 +21,11 @@ export function Home({
 }: {
     tv: TvModel;
     feature: HomeFeature;
-    actions: { open: (item: Media) => void; play: (item: Media) => void };
+    actions: {
+        open: (item: Media) => void;
+        play: (item: Media) => void;
+        leave: () => void;
+    };
     detailsBusy: boolean;
 }) {
     const sourceName = (item: Media) =>
@@ -89,18 +93,11 @@ export function Home({
                     <HorizontalRail label="Continue watching">
                         <div class="rail" data-tv-horizontal>
                             {history.map((p) => (
-                                <ResumeCard
+                                <ViewingCard
                                     key={p.item.id}
+                                    tv={tv}
                                     progress={p}
-                                    play={actions.play}
-                                    sourceName={sourceName(p.item)}
-                                    poster={storedMediaPoster(
-                                        p.item,
-                                        tv.data.sources.find(
-                                            (s) => s.id === p.item.sourceId
-                                        ),
-                                        [...tv.home, ...tv.data.favorites]
-                                    )}
+                                    actions={actions}
                                 />
                             ))}
                         </div>

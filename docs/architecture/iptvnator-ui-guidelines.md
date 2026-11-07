@@ -242,8 +242,9 @@ in the overlay chunk. Everything else is lazy by these rules:
 
 The app mode is the exclusive `.dark-theme` or `.light-theme` class that
 `SettingsService` puts on `<body>`. Its `data-app-theme` attribute identifies
-the resolved palette: `light`, `dark`, `cream`, or `mocha`. Cream uses light
-mode and Mocha uses dark mode; a "System" choice resolves the OS preference
+the resolved palette: `light`, `dark`, `cream`, `mocha`, `night-owl`, or
+`black-oled`. Cream uses light mode; Mocha, Night Owl and Black OLED use dark
+mode. A "System" choice resolves the OS preference
 to the original Light/Dark presets there and nowhere else. Component styles never use a
 `prefers-color-scheme` query, which follows the OS: with the app set to dark
 on a light OS it paints light colours
@@ -671,7 +672,7 @@ them size from the `--cover-grid-min-width` / `--cover-rail-width` /
 
 ### Posters-only wall
 
-`Settings.showCoverTitles` (Settings > General, default on, only an explicit
+`Settings.showCoverTitles` (Settings > Appearance, default on, only an explicit
 `false` opts out — coerced like `webPlayerSharedControls`) removes the title
 row under VOD and series covers so the grid shows more rows per screen.
 
@@ -1218,6 +1219,12 @@ per-theme tokens in `apps/web/src/_settings-theme.scss`.
   tinted text and no border, so the list never shifts. Back lives in the
   workspace header and Esc runs it. Section pages are defined once in
   `SETTINGS_SECTION_DEFINITIONS` (`libs/workspace/shell/util`).
+- Appearance follows General in App and owns theme palettes, cover size and
+  cover titles. General owns language, startup, channel names and portal
+  connectivity. Sections share one parent form: navigating between them keeps
+  staged edits and the live theme preview without persisting either. Save and
+  Discard apply across sections; dirty markers and search results use the
+  section that owns the control.
 - Each page is a title (26px) and one-line subtitle, then sections: a 14px
   heading, an optional description and action buttons, and a card.
 - Rows (`.setting-item`) are a label column (13.5px title, description
@@ -1688,19 +1695,27 @@ The built-in catalog and theme-value normalization live in
 identifiers stable. Unknown saved values normalize to System; partial settings
 updates that omit the theme preserve the saved choice.
 
-The palette picker uses the existing keyboard-accessible radio directives. Four
-named miniature samples use the same app tokens as the real theme; System is a
+The palette picker uses the existing keyboard-accessible radio directives. Six
+named miniature samples use the same app tokens as the real theme, arranged in
+three columns on wide settings containers and two on narrow ones. System is a
 separate row in the same group. Selection previews immediately, Save persists
 it, and Discard restores the saved choice and its System listener when needed.
 
 App palette declarations live in `apps/web/src/_theme-palettes.scss`, included
 by `m3-theme.scss` for both body contexts and decorative preview contexts.
-`_warm-theme.scss` supplies the Material color ramps for Cream/Mocha. Material
+`_warm-theme.scss` supplies the Material color ramps for Cream/Mocha;
+`_dark-variant-themes.scss` supplies Night Owl/Black OLED. Night Owl uses navy
+surfaces and cool accents; Black OLED keeps the main background black and uses
+raised graphite surfaces for cards, inputs and overlays. Material
 component colors reference `--mat-sys-*` roles through one shared declaration
 block; each preset sets its system colors. The shared aliases are declared at
 each color boundary, since inheriting an alias from `html` would retain the
 light value. Samples emit only their seven displayed app roles from the same
 palette mixins, avoiding full duplicate theme payloads.
+Dark variants emit their app overrides over the shared `.dark-theme` defaults
+on the same body element; their mixins skip repeating the full dark palette.
+Light and Cream likewise share the `.light-theme` defaults on the body; `html`
+retains the same light fallback. Cream emits only its differing app roles.
 Adding a built-in preset requires catalog metadata, app/Material colors,
 localized naming, and computed contrast/persistence coverage. Do not introduce
 per-component preset conditions or duplicate sample-only palettes. Typography,

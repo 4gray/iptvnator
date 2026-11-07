@@ -78,7 +78,8 @@ export function useContent(
             (route.view === 'detail' && route.item?.sourceId !== sourceId)
         ) {
             setBusy(false);
-            if (route.view === 'favorites') finishFocus();
+            if (route.view === 'favorites' || route.view === 'history')
+                finishFocus();
             return;
         }
         setBusy(true);

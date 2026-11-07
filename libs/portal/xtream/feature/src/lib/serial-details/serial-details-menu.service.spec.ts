@@ -18,6 +18,10 @@ import {
     type SeasonContainerComponent,
 } from '@iptvnator/ui/components';
 import { SerialDetailsMenuService } from './serial-details-menu.service';
+import {
+    CONNECTION_KEY,
+    prepareSourceConnection,
+} from '@iptvnator/services/source-sync/connection';
 
 function quickStart(
     overrides: Partial<SeriesQuickStartAction> = {}
@@ -101,9 +105,12 @@ describe('SerialDetailsMenuService', () => {
                     provide: XTREAM_DATA_SOURCE,
                     useValue: {
                         removeRecentItem: jest.fn(),
+                        supportsPortableHistory: jest
+                            .fn()
+                            .mockResolvedValue(false),
                         getContentByXtreamId: jest
                             .fn()
-                            .mockResolvedValue({ id: 103 }),
+                            .mockResolvedValue({ id: 9001 }),
                     },
                 },
                 {
@@ -275,7 +282,85 @@ describe('SerialDetailsMenuService', () => {
             ).toHaveBeenCalledWith(103, 'xtream-1', 'series');
             expect(
                 TestBed.inject(XTREAM_DATA_SOURCE).removeRecentItem
-            ).toHaveBeenCalledWith({ id: 103, type: 'series' }, 'xtream-1');
+            ).toHaveBeenCalledWith(
+                { id: 9001, type: 'series', providerId: 103 },
+                'xtream-1'
+            );
+        });
+
+        it.each([undefined, false, true])(
+            'hides a received series without a native row only with portable history (%s)',
+            async (portable) => {
+                const data = TestBed.inject(XTREAM_DATA_SOURCE);
+                jest.mocked(data.getContentByXtreamId).mockResolvedValue(null);
+                if (portable === undefined)
+                    data.supportsPortableHistory = undefined;
+                else
+                    jest.mocked(
+                        data.supportsPortableHistory!
+                    ).mockResolvedValue(portable);
+                jest.mocked(
+                    TestBed.inject(XtreamStore).loadRecentItems
+                ).mockClear();
+                episodePositionsSignal.set(new Map([watched(1001)]));
+                expect(rowIds()).toContain(
+                    SERIES_MENU_ACTION.HideFromContinueWatching
+                );
+                await service.run(SERIES_MENU_ACTION.HideFromContinueWatching);
+                expect(data.removeRecentItem).toHaveBeenCalledTimes(
+                    portable ? 1 : 0
+                );
+                if (portable)
+                    expect(data.removeRecentItem).toHaveBeenCalledWith(
+                        { id: 103, providerId: 103, type: 'series' },
+                        'xtream-1'
+                    );
+                expect(
+                    TestBed.inject(XtreamStore).loadRecentItems
+                ).toHaveBeenCalledTimes(portable ? 1 : 0);
+                expect(openSnackBar).toHaveBeenCalledTimes(portable ? 1 : 0);
+            }
+        );
+
+        it('does not hide a replacement source after an asynchronous lookup', async () => {
+            const saved = localStorage.getItem(CONNECTION_KEY);
+            const epochKey =
+                'iptvnator-server:synthetic-instance:history-source-epoch:xtream-1';
+            const savedEpoch = localStorage.getItem(epochKey);
+            try {
+                localStorage.setItem(
+                    CONNECTION_KEY,
+                    JSON.stringify({
+                        apiUrl: 'https://history.example/api',
+                        instanceId: 'synthetic-instance',
+                    })
+                );
+                await prepareSourceConnection();
+                const data = TestBed.inject(XTREAM_DATA_SOURCE);
+                let complete!: (value: null) => void;
+                jest.mocked(data.getContentByXtreamId).mockReturnValue(
+                    new Promise<null>((resolve) => {
+                        complete = resolve;
+                    })
+                );
+                jest.mocked(data.supportsPortableHistory!).mockResolvedValue(
+                    true
+                );
+                const action = service.run(
+                    SERIES_MENU_ACTION.HideFromContinueWatching
+                );
+                localStorage.setItem(epochKey, 'synthetic-replacement');
+                complete(null);
+                await action;
+                expect(data.removeRecentItem).not.toHaveBeenCalled();
+                expect(openSnackBar).not.toHaveBeenCalled();
+            } finally {
+                if (saved == null) localStorage.removeItem(CONNECTION_KEY);
+                else localStorage.setItem(CONNECTION_KEY, saved);
+                if (savedEpoch == null) localStorage.removeItem(epochKey);
+                else localStorage.setItem(epochKey, savedEpoch);
+                await prepareSourceConnection();
+            }
         });
 
         it('is offered once an episode is finished while the next one remains, as the rail lists the series with it', () => {

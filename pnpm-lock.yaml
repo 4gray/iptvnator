@@ -215,6 +215,9 @@ importers:
       videojs-quality-selector-hls:
         specifier: 1.1.1
         version: 1.1.1
+      xz-decompress:
+        specifier: ^0.2.3
+        version: 0.2.3
       zone.js:
         specifier: 0.16.3
         version: 0.16.3
@@ -265,8 +268,8 @@ importers:
         specifier: 7.29.7
         version: 7.29.7
       '@electron/asar':
-        specifier: 3.4.1
-        version: 3.4.1
+        specifier: 4.3.1
+        version: 4.3.1
       '@eslint/eslintrc':
         specifier: 3.3.7
         version: 3.3.7
@@ -1725,6 +1728,11 @@ packages:
   '@electron/asar@3.4.1':
     resolution: {integrity: sha512-i4/rNPRS84t0vSRa2HorerGRXWyF4vThfHesw0dmcWHp+cspK743UanA0suA5Q5y8kzY2y6YKrvbIUn69BCAiA==}
     engines: {node: '>=10.12.0'}
+    hasBin: true
+
+  '@electron/asar@4.3.1':
+    resolution: {integrity: sha512-6pI64z/tMSBkUTZLQFYhs2YiB7fS9sKA6gy7/2nH1Ju7GGwT32UPsj4Mxsws5NMmtR6C0zYdXVxEU/rGqJRCJA==}
+    engines: {node: '>=22.12.0'}
     hasBin: true
 
   '@electron/fuses@1.8.0':
@@ -6812,6 +6820,7 @@ packages:
   image-size@0.5.5:
     resolution: {integrity: sha512-6TDAlDPZxUFCv+fuOkIoXT/V/f3Qbq8e37p+YOiYrUv3v9cc3/6x78VdfPgFVaB9dZYeLUfKgHRebpkm/oP2VQ==}
     engines: {node: '>=0.10.0'}
+    deprecated: Please migrate to image-size@2.x
     hasBin: true
 
   immutable@5.1.9:
@@ -10106,6 +10115,10 @@ packages:
   xxhash-wasm@1.1.0:
     resolution: {integrity: sha512-147y/6YNh+tlp6nd/2pWq38i9h6mz/EuQ6njIrmW8D1BS5nCqs0P6DG+m6zTGnNz5I+uhZ0SHxBs9BsPrwcKDA==}
 
+  xz-decompress@0.2.3:
+    resolution: {integrity: sha512-O8v6HG8T0PrKBcpyWA13GkSYWFvncwzuzcLx5A7++l3HsE3atmoetXjIxrZ/JV/nbvSZ7WS4+3XvREZuVn+rEA==}
+    engines: {node: '>=16'}
+
   y18n@4.0.3:
     resolution: {integrity: sha512-JKhqTOwSrqNA1NY5lSztJ1GrBiUodLMmIZuLiDaMRJ+itFd+ABVE8XBjOvIWL+rSqNDC74LCSFmlb/U4UZ4hJQ==}
 
@@ -11712,6 +11725,11 @@ snapshots:
       commander: 5.1.0
       glob: 7.2.3
       minimatch: 3.1.5
+
+  '@electron/asar@4.3.1':
+    dependencies:
+      glob: 13.0.6
+      minimatch: 10.2.6
 
   '@electron/fuses@1.8.0':
     dependencies:
@@ -21222,6 +21240,8 @@ snapshots:
   xmlchars@2.2.0: {}
 
   xxhash-wasm@1.1.0: {}
+
+  xz-decompress@0.2.3: {}
 
   y18n@4.0.3: {}
 

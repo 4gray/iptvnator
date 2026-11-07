@@ -48,6 +48,26 @@ export function retireFavoriteSourceContext(
     instanceId: string,
     sourceId: string
 ): void {
+    if (
+        localStorage.getItem(
+            `iptvnator-server:${instanceId}:history-consent-v1`
+        )
+    ) {
+        localStorage.setItem(
+            `iptvnator-server:${instanceId}:history-source-epoch:${sourceId}`,
+            createRandomId()
+        );
+        const historyKey = `iptvnator-server:${instanceId}:history-contexts-v1`;
+        const history = JSON.parse(
+            localStorage.getItem(historyKey) ?? '[]'
+        ) as { sourceId: string }[];
+        localStorage.setItem(
+            historyKey,
+            JSON.stringify(
+                history.filter((context) => context.sourceId !== sourceId)
+            )
+        );
+    }
     const sourceIncarnation = cachedContexts(instanceId).find(
         (item) => item.sourceId === sourceId
     )?.sourceIncarnation;

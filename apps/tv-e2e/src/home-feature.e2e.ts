@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 import { checkHorizontalRail } from './horizontal-rail';
-import { chooseTv, addSource, nav, start, xtream } from './helpers';
+import { chooseTv, addSource, nav, start, xtream, cardAction } from './helpers';
 
 async function watch(page: Page, index: number, episode = false) {
     await nav(page, episode ? 'Series' : 'Movies');
@@ -190,7 +190,7 @@ for (const provider of ['xtream', 'stalker'] as const)
         const resumeScroll = await page
             .locator('main')
             .evaluate((el) => el.scrollTop);
-        await resume.click();
+        await cardAction(page, resume);
         await expect(
             page.locator('[data-focus="player-series-details"]')
         ).toBeVisible();
@@ -554,11 +554,11 @@ test('Home retains saved series-wide artwork without using episode stills and pr
         'src',
         poster
     );
-    const cover = page.locator('.resume-art').first();
+    const cover = page.locator('.resume-card .poster-art').first();
     const box = await cover.boundingBox();
     expect(box).not.toBeNull();
     expect(box!.width / box!.height).toBeCloseTo(2 / 3, 2);
-    await expect(cover.locator('img')).toHaveCSS('object-fit', 'contain');
+    await expect(cover.locator('img')).toHaveCSS('object-fit', 'cover');
     const cardBox = await page.locator('.resume-card').first().boundingBox();
     const actionBox = await page
         .locator('.resume-action')

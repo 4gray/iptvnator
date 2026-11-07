@@ -19,6 +19,7 @@ const TRANSLATIONS: Record<string, string> = {
     'SETTINGS.EPG_VIEW_MODE': 'Programme guide layout',
     'SETTINGS.REMOTE_CONTROL': 'Remote control',
     'SETTINGS.NAV_GENERAL': 'General',
+    'SETTINGS.CARD_APPEARANCE': 'Appearance',
     'SETTINGS.NAV_PLAYBACK': 'Playback',
 };
 
@@ -169,9 +170,7 @@ describe('SettingsSearchService', () => {
             'server'
         );
         expect(service.visibleEntries().map(({ id }) => id)).toEqual(
-            expect.arrayContaining([
-                'source-server',
-            ])
+            expect.arrayContaining(['source-server'])
         );
     });
 
@@ -384,14 +383,16 @@ describe('SettingsSearchService', () => {
         expect(first.entry.id).toBe('theme');
         expect(first.label).toBe('Theme');
         expect(first.description).toBe('Light, dark or system');
-        expect(first.sectionLabel).toBe('General');
-        expect(first.section.icon).toBe('tune');
+        expect(first.sectionLabel).toBe('Appearance');
+        expect(first.section.icon).toBe('palette');
     });
 
     it('matches untranslated keywords and caps results', () => {
         const { service } = setup(DESKTOP);
 
         expect(service.search('dark')[0].entry.id).toBe('theme');
+        expect(service.search('night owl')[0].entry.id).toBe('theme');
+        expect(service.search('black oled')[0].entry.id).toBe('theme');
         expect(service.search('mpv').length).toBeGreaterThan(3);
         expect(service.search('mpv', 2)).toHaveLength(2);
         expect(service.search('   ')).toEqual([]);

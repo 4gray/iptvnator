@@ -7,10 +7,12 @@ export function TvDialog({
     title,
     close,
     children,
+    className = '',
 }: {
     title: string;
     close: () => void;
     children: ComponentChildren;
+    className?: string;
 }) {
     const root = useRef<HTMLDivElement>(null);
     useLayoutEffect(() => {
@@ -52,7 +54,7 @@ export function TvDialog({
         >
             <div
                 ref={root}
-                class="tv-dialog"
+                class={`tv-dialog ${className}`}
                 role="dialog"
                 aria-modal="true"
                 aria-label={title}

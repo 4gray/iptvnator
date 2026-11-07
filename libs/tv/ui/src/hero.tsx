@@ -1,6 +1,6 @@
 import {
     mediaTitle,
-    watchLabel,
+    progressLabel,
     watchState,
     type Media,
     type Progress,
@@ -48,9 +48,9 @@ export function Hero({
                         {progress.item.kind === 'episode'
                             ? `S${progress.item.season ?? 1} · E${progress.item.episode ?? 1} · ${progress.item.title} · `
                             : ''}
-                        {watchState(progress) === 'in-progress'
-                            ? `${Math.floor(progress.seconds / 60)} min watched`
-                            : 'Next episode'}
+                        {watchState(progress) === 'unwatched'
+                            ? 'Next episode'
+                            : progressLabel(progress)}
                         {progress.duration > 0 ? (
                             <progress
                                 aria-label="Featured viewing progress"
@@ -76,7 +76,7 @@ export function Hero({
                             >
                                 {watchState(progress) === 'in-progress'
                                     ? 'Continue watching'
-                                    : watchLabel(progress)}{' '}
+                                    : 'Next episode'}{' '}
                                 ▷
                             </button>
                         ) : null}

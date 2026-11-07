@@ -1,5 +1,7 @@
+import { HISTORY_PLAYLIST_BRIDGE } from '@iptvnator/services/history-events';
 import { FAVORITES_PLAYLIST_BRIDGE } from '@iptvnator/services/favorites-events';
 import { observeActivityChanges } from '@iptvnator/services/activity-changes';
+import { StalkerCollectionMetadataService } from '@iptvnator/portal/stalker/data-access';
 import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
 import {
     DestroyRef,
@@ -26,7 +28,7 @@ import {
 } from '@iptvnator/services';
 import {
     XTREAM_DATA_SOURCE,
-    XtreamContentItem,
+    XtreamRecentItem,
 } from '@iptvnator/portal/xtream/data-access';
 import {
     buildPlaylistRecentItems,
@@ -46,6 +48,7 @@ import {
     mapDbFavoriteToItem,
     mapDbRecentlyAddedToItem,
     mapDbRecentToItem,
+    readContentTmdbIdentity,
     toDateTimestamp,
     toTimestamp,
 } from './dashboard-mappers';
@@ -88,6 +91,8 @@ export type DashboardRecentlyAddedFilterKind = GlobalRecentlyAddedKind;
 
 @Injectable({ providedIn: 'root' })
 export class DashboardDataService {
+    private readonly history = inject(HISTORY_PLAYLIST_BRIDGE);
+    private readonly stalkerMetadata = inject(StalkerCollectionMetadataService);
     private readonly favoriteSync = inject(FAVORITES_PLAYLIST_BRIDGE);
     private readonly store = inject(Store);
     private readonly dbService = inject(DatabaseService);
@@ -210,12 +215,17 @@ export class DashboardDataService {
     readonly playlistBackedGlobalRecentItems = computed<GlobalRecentItem[]>(
         () => {
             this.languageTick();
-            return buildPlaylistRecentItems(this.playlists(), {
-                stalker: this.translateText(
-                    'WORKSPACE.DASHBOARD.STALKER_PORTAL'
+            return buildPlaylistRecentItems(
+                this.playlists().map((playlist) =>
+                    this.stalkerMetadata.project(playlist)
                 ),
-                m3u: this.translateText('WORKSPACE.DASHBOARD.M3U'),
-            });
+                {
+                    stalker: this.translateText(
+                        'WORKSPACE.DASHBOARD.STALKER_PORTAL'
+                    ),
+                    m3u: this.translateText('WORKSPACE.DASHBOARD.M3U'),
+                }
+            );
         }
     );
 
@@ -385,7 +395,9 @@ export class DashboardDataService {
     readonly stalkerGlobalFavorites = computed<DashboardFavoriteItem[]>(() => {
         this.languageTick();
         return buildStalkerFavoriteItems(
-            this.playlists(),
+            this.playlists().map((playlist) =>
+                this.stalkerMetadata.project(playlist)
+            ),
             this.translateText('WORKSPACE.DASHBOARD.STALKER_PORTAL')
         );
     });
@@ -416,6 +428,14 @@ export class DashboardDataService {
     });
 
     constructor() {
+        const refreshHistory = () => void this.reloadGlobalRecentItems();
+        window.addEventListener('iptvnator-history-changed', refreshHistory);
+        inject(DestroyRef).onDestroy(() =>
+            window.removeEventListener(
+                'iptvnator-history-changed',
+                refreshHistory
+            )
+        );
         const refreshFavorites = () => void this.reloadGlobalFavorites();
         window.addEventListener(
             'iptvnator-favorites-changed',
@@ -502,7 +522,7 @@ export class DashboardDataService {
             this.globalRecentLoadingState.set(true);
         }
 
-        if (!this.hasPortalActivityStorage) {
+        if (!this.hasPortalActivityStorage || this.history.active()) {
             try {
                 const recentItems = await this.loadPwaXtreamGlobalRecentItems();
                 this.xtreamGlobalRecentItems.set(recentItems);
@@ -685,11 +705,11 @@ export class DashboardDataService {
     }
 
     private mapPwaXtreamRecentItem(
-        item: XtreamContentItem,
+        item: XtreamRecentItem,
         playlist: PlaylistMeta
     ): GlobalRecentItem {
         return {
-            id: item.id,
+            id: item.id ?? `recent:${item.type}:${item.xtream_id}`,
             title: item.title,
             catalogStatus: item.catalog_status,
             type: this.normalizeXtreamActivityType(item.type),
@@ -700,6 +720,7 @@ export class DashboardDataService {
             xtream_id: item.xtream_id,
             poster_url: item.poster_url,
             backdrop_url: item.backdrop_url ?? undefined,
+            ...readContentTmdbIdentity(item),
             source: 'xtream',
         };
     }
@@ -941,7 +962,7 @@ export class DashboardDataService {
 
     async removeGlobalRecentItem(item: GlobalRecentItem): Promise<void> {
         if (item.source === 'xtream') {
-            if (this.hasPortalActivityStorage) {
+            if (this.hasPortalActivityStorage && !this.history.active()) {
                 await this.dbService.removeRecentItem(
                     item.id as number,
                     item.playlist_id
@@ -951,6 +972,7 @@ export class DashboardDataService {
                     {
                         id: Number(item.id),
                         type: item.type as 'live' | 'movie' | 'series',
+                        providerId: Number(item.xtream_id),
                     },
                     item.playlist_id
                 );
@@ -963,12 +985,13 @@ export class DashboardDataService {
             const updatedPlaylist = await firstValueFrom(
                 this.playlistsService.removeFromPortalRecentlyViewed(
                     item.playlist_id,
-                    item.id
+                    item.stalker_item ?? item.id
                 )
             );
 
             this.store.dispatch(
                 PlaylistActions.updatePlaylistMeta({
+                    persist: false,
                     playlist: {
                         _id: item.playlist_id,
                         recentlyViewed: updatedPlaylist?.recentlyViewed ?? [],
@@ -988,6 +1011,7 @@ export class DashboardDataService {
 
             this.store.dispatch(
                 PlaylistActions.updatePlaylistMeta({
+                    persist: false,
                     playlist: {
                         _id: item.playlist_id,
                         recentlyViewed: updatedPlaylist?.recentlyViewed ?? [],

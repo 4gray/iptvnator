@@ -3,7 +3,7 @@ import { useNotice, connectionNotice } from './use-notice';
 import { useReconnect } from './use-reconnect';
 import { useLibrary } from './use-library';
 import { useBackend } from './use-backend';
-import { firstRoute, type View } from './navigation';
+import { firstRoute, isSavedView, type View } from './navigation';
 import { useRouteHistory, type NavigationOrigin } from './use-route-history';
 import { usePlaybackOrigin, type FailedPlayback } from './use-playback-origin';
 import { useUserData } from './user-data';
@@ -19,7 +19,6 @@ import {
     resumeSeconds,
 } from '@iptvnator/tv/util';
 import { focusKey, platformBack, restoreFocus } from '@iptvnator/tv/ui';
-const savedView = (view?: View) => view === 'home' || view === 'favorites';
 export function useTv(video: { current: HTMLVideoElement | null }) {
     const [route, setRoute] = useState(firstRoute);
     const { error, errorRetry, errorRetryLabel, setError, clearError } =
@@ -206,7 +205,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
             setPlaying(item);
             if (item.kind === 'live') {
                 playingCategory.current = category;
-                if (savedView(route.view)) {
+                if (isSavedView(route.view)) {
                     setSelected(item);
                     visit(
                         { ...firstRoute(), view: 'live', kind: 'live' },
@@ -215,17 +214,14 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
                     );
                 }
             }
-            if (item.kind !== 'live' || savedView(route.view)) {
+            if (item.kind !== 'live' || isSavedView(route.view)) {
                 setFullscreen(true);
                 restoreFocus('player-toggle');
             }
-            const p = repo.current!.data.positions[item.id];
-            await player.current!.play(
-                item,
-                resolved,
-                resumeSeconds(p),
-                revision
+            const position = resumeSeconds(
+                repo.current!.data.positions[item.id]
             );
+            await player.current!.play(item, resolved, position, revision);
             return lane.owns(job);
         } catch {
             if (lane.owns(job)) {
@@ -275,7 +271,9 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         if (fullscreen) {
             const savedLive =
                 playing?.kind === 'live' &&
-                savedView(stack.current[stack.current.length - 1]?.route.view);
+                isSavedView(
+                    stack.current[stack.current.length - 1]?.route.view
+                );
             setFullscreen(false);
             if (playing?.kind !== 'live' || savedLive) stop();
             if (!savedLive) {
@@ -287,7 +285,8 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         const previous = stack.current.pop();
         if (previous || route.view !== 'home') content.cancelBrowse();
         if (previous) {
-            if (route.view === 'live' && savedView(previous.route.view)) stop();
+            if (route.view === 'live' && isSavedView(previous.route.view))
+                stop();
             pendingFocus.current = previous.focus;
             pendingScroll.current = previous.scroll;
             setSelected(previous.route.item);

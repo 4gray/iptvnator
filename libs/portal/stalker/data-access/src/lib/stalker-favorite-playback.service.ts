@@ -26,6 +26,21 @@ export class StalkerFavoritePlaybackResolver {
         item: StalkerPortalItem & { info?: { name?: string } }
     ): Promise<StalkerPortalItem> {
         if (item.cmd) return item;
+        return this.lookup(playlist, item, true);
+    }
+
+    metadata(
+        playlist: PlaylistMeta,
+        item: StalkerPortalItem & { info?: { name?: string } }
+    ): Promise<StalkerPortalItem> {
+        return this.lookup(playlist, item, false);
+    }
+
+    private async lookup(
+        playlist: PlaylistMeta,
+        item: StalkerPortalItem & { info?: { name?: string } },
+        requireCommand: boolean
+    ): Promise<StalkerPortalItem> {
         playlist = {
             ...playlist,
             portalUrl: playlist.portalUrl ?? playlist.url,
@@ -94,7 +109,7 @@ export class StalkerFavoritePlaybackResolver {
             if (key === expectedKey) canonicalFound = true;
             if (
                 key === expectedKey &&
-                command(candidate) &&
+                (!requireCommand || command(candidate)) &&
                 favoriteReferenceKey(stalkerFavoriteReference(candidate)!) ===
                     key
             )
@@ -112,7 +127,7 @@ export class StalkerFavoritePlaybackResolver {
         };
         const selected = () => {
             const candidate = found.values().next().value;
-            return candidate && command(candidate)
+            return candidate && (!requireCommand || command(candidate))
                 ? { ...candidate, id: reference.id }
                 : undefined;
         };

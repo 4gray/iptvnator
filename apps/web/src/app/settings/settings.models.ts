@@ -9,6 +9,8 @@ import {
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 
+export const SETTINGS_DEFAULT_SECTION = 'general';
+
 export interface SettingsSection {
     id: string;
     label: string;

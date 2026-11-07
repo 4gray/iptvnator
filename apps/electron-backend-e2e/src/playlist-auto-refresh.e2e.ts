@@ -39,7 +39,10 @@ function snackBarLabel(page: Page, text: string): Locator {
 
 async function openAutoRefreshPlaylistCatalog(page: Page): Promise<void> {
     await openSources(page);
-    await sourceRowByTitle(page, autoRefreshSourceName).first().click();
+    await sourceRowByTitle(page, autoRefreshSourceName)
+        .first()
+        .getByRole('button', { name: autoRefreshSourceName, exact: true })
+        .click();
     await waitForM3uCatalog(page);
 }
 

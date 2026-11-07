@@ -143,7 +143,7 @@ under `/api/v1`. Source definitions are shared between devices connected to
 that instance. Open the NAS web address on phones/tablets, or use Settings →
 Data → Server in Electron to enter the same app address. Names, connections
 and uploaded M3U text synchronize. Favorites and progress have separate opt-ins;
-history and EPG remain local. Visible source inventories refresh within a
+Recently Viewed has a separate opt-in with explicit local-history import; EPG remains local. Visible source inventories refresh within a
 15-second polling interval.
 
 Settings → Server can preview and import the device's original local sources.

@@ -6,6 +6,7 @@ import type { ServerStorage } from './server-storage';
 import { storageErrorHandler } from './storage-route-errors';
 import { createUserStateRouter } from './user-state-router';
 import { createSourcesRouter } from './sources-router';
+import { createHistoryRouter } from './history-router';
 import { createFavoriteRouter } from './favorites-router';
 import { createActivityRouter } from './activity-router';
 
@@ -44,6 +45,7 @@ export function mountServerStorage(
     if (options.storage) {
         app.use('/v1', createActivityRouter(options.storage));
         app.use('/v1', createFavoriteRouter(options.storage));
+        app.use('/v1', createHistoryRouter(options.storage));
         app.use(
             '/v1',
             createSourcesRouter(options.storage, options.maxDocumentBytes)

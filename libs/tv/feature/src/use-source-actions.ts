@@ -1,3 +1,4 @@
+import { isCollectionView, isSavedView } from './navigation';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { restoreFocus } from '@iptvnator/tv/ui';
 import type { Media, Source } from '@iptvnator/tv/util';
@@ -84,6 +85,7 @@ export function useSourceActions(
                 'Retry previous channel',
                 'Retry Home title',
                 'Retry favorite',
+                'Retry History title',
                 'Retry series details',
             ].includes(latest.current.tv.errorRetryLabel ?? '')
         )
@@ -105,7 +107,8 @@ export function useSourceActions(
         const current = latest.current;
         if (
             job.intent !== 'open' ||
-            (job.item.kind === 'live' && current.tv.route.view === 'favorites')
+            (job.item.kind === 'live' &&
+                isCollectionView(current.tv.route.view))
         ) {
             const owned = { job, controller: new AbortController() };
             playback.current = owned;
@@ -163,8 +166,7 @@ export function useSourceActions(
         if (
             intent === 'previous'
                 ? current.route.view !== 'live' || item.kind !== 'live'
-                : !['home', 'favorites'].includes(current.route.view) ||
-                  current.fullscreen
+                : !isSavedView(current.route.view) || current.fullscreen
         )
             return;
         abortIntent();
@@ -193,7 +195,9 @@ export function useSourceActions(
                     ? 'Retry previous channel'
                     : current.route.view === 'home'
                       ? 'Retry Home title'
-                      : 'Retry favorite',
+                      : current.route.view === 'history'
+                        ? 'Retry History title'
+                        : 'Retry favorite',
         };
         if (
             item.sourceId === current.data.activeId &&
@@ -289,7 +293,7 @@ export function useSourceActions(
     const waitingDetails =
         series.busy &&
         !!details.current &&
-        ['home', 'favorites'].includes(tv.route.view) &&
+        isSavedView(tv.route.view) &&
         !tv.fullscreen;
     useEffect(() => {
         if (!pending && !waitingDetails) return;
@@ -339,16 +343,20 @@ export function useSourceActions(
         if (
             (tv.errorRetryLabel === 'Retry previous channel' &&
                 tv.route.view !== 'live') ||
-            (['Retry Home title', 'Retry favorite'].includes(
-                tv.errorRetryLabel ?? ''
-            ) &&
-                !['home', 'favorites'].includes(tv.route.view))
+            ([
+                'Retry Home title',
+                'Retry favorite',
+                'Retry History title',
+            ].includes(tv.errorRetryLabel ?? '') &&
+                !isSavedView(tv.route.view))
         )
             tv.setError('');
     }, [tv.route.view, tv.errorRetryLabel]);
     return {
-        open: (item: Media) => start(item, 'open'),
-        play: (item: Media) => start(item, 'play'),
+        open: (item: Media, origin?: NavigationOrigin) =>
+            start(item, 'open', origin),
+        play: (item: Media, origin?: NavigationOrigin) =>
+            start(item, 'play', origin),
         previous: (item: Media) =>
             start(item, 'previous', navigationOrigin('player-previous')),
         pending: !!pending,
