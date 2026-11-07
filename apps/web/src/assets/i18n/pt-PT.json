@@ -2365,6 +2365,7 @@
         "ERROR_startup": "Não foi possível iniciar o servidor. Tenta novamente.",
         "START": "Iniciar servidor",
         "STOP": "Parar servidor",
+        "DISABLE_AUTOSTART": "Desativar arranque automático",
         "SHARE_LAN": "Permitir dispositivos na minha rede doméstica",
         "LAN_WARNING": "Utiliza esta opção apenas numa rede de confiança. O código de acesso e os dados das playlists são transmitidos por HTTP sem encriptação.",
         "NETWORK_ADDRESS": "Endereço de rede",

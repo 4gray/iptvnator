@@ -2365,6 +2365,7 @@
         "ERROR_startup": "De server kon niet worden gestart. Probeer het opnieuw.",
         "START": "Server starten",
         "STOP": "Server stoppen",
+        "DISABLE_AUTOSTART": "Automatisch starten uitschakelen",
         "SHARE_LAN": "Apparaten op mijn thuisnetwerk toestaan",
         "LAN_WARNING": "Gebruik dit alleen op een vertrouwd netwerk. De toegangscode en afspeellijstgegevens gaan onversleuteld via HTTP.",
         "NETWORK_ADDRESS": "Netwerkadres",

@@ -2365,6 +2365,7 @@
         "ERROR_startup": "Der Server konnte nicht gestartet werden. Versuche es erneut.",
         "START": "Server starten",
         "STOP": "Server stoppen",
+        "DISABLE_AUTOSTART": "Autostart deaktivieren",
         "SHARE_LAN": "Geräte in meinem Heimnetz zulassen",
         "LAN_WARNING": "Nur in einem vertrauenswürdigen Netzwerk verwenden. Zugangscode und Playlist-Daten werden unverschlüsselt per HTTP übertragen.",
         "NETWORK_ADDRESS": "Netzwerkadresse",

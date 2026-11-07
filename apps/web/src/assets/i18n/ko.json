@@ -2365,6 +2365,7 @@
         "ERROR_startup": "서버를 시작할 수 없습니다. 다시 시도하세요.",
         "START": "서버 시작",
         "STOP": "서버 중지",
+        "DISABLE_AUTOSTART": "자동 시작 끄기",
         "SHARE_LAN": "홈 네트워크의 기기에서 접근 허용",
         "LAN_WARNING": "신뢰하는 네트워크에서만 사용하세요. 접근 코드와 재생목록 데이터는 암호화되지 않은 HTTP로 전송됩니다.",
         "NETWORK_ADDRESS": "네트워크 주소",

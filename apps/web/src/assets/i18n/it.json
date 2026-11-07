@@ -2365,6 +2365,7 @@
         "ERROR_startup": "Impossibile avviare il server. Riprova.",
         "START": "Avvia server",
         "STOP": "Arresta server",
+        "DISABLE_AUTOSTART": "Disattiva avvio automatico",
         "SHARE_LAN": "Consenti l’accesso ai dispositivi della mia rete domestica",
         "LAN_WARNING": "Usa questa opzione solo su una rete fidata. Il codice di accesso e i dati delle playlist viaggiano tramite HTTP senza cifratura.",
         "NETWORK_ADDRESS": "Indirizzo di rete",

@@ -2365,6 +2365,7 @@
         "ERROR_startup": "无法启动服务器。请重试。",
         "START": "启动服务器",
         "STOP": "停止服务器",
+        "DISABLE_AUTOSTART": "关闭自动启动",
         "SHARE_LAN": "允许家庭网络中的设备访问",
         "LAN_WARNING": "仅在信任的网络中使用。访问码和播放列表数据通过未加密的 HTTP 传输。",
         "NETWORK_ADDRESS": "网络地址",

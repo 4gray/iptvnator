@@ -2365,6 +2365,7 @@
         "ERROR_startup": "無法啟動伺服器。請再試一次。",
         "START": "啟動伺服器",
         "STOP": "停止伺服器",
+        "DISABLE_AUTOSTART": "關閉自動啟動",
         "SHARE_LAN": "允許家庭網路中的裝置存取",
         "LAN_WARNING": "僅在信任的網路中使用。存取代碼及播放清單資料會透過未加密的 HTTP 傳輸。",
         "NETWORK_ADDRESS": "網路位址",

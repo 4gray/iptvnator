@@ -2365,6 +2365,7 @@
         "ERROR_startup": "Nie udało się uruchomić serwera. Spróbuj ponownie.",
         "START": "Uruchom serwer",
         "STOP": "Zatrzymaj serwer",
+        "DISABLE_AUTOSTART": "Wyłącz automatyczne uruchamianie",
         "SHARE_LAN": "Zezwalaj urządzeniom w mojej sieci domowej",
         "LAN_WARNING": "Używaj tylko w zaufanej sieci. Kod dostępu i dane list odtwarzania są przesyłane przez HTTP bez szyfrowania.",
         "NETWORK_ADDRESS": "Adres sieciowy",

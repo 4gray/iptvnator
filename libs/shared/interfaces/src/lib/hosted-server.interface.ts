@@ -14,6 +14,7 @@ export interface HostedServerStatus {
         | 'running'
         | 'stopping'
         | 'error';
+    autoStart?: boolean;
     localUrl?: string;
     lanUrl?: string;
     lanAddress?: string;

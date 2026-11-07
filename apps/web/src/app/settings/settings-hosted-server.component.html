@@ -139,16 +139,30 @@
                             }
                         }
                     </div>
-                    <button
-                        mat-flat-button
-                        type="button"
-                        [disabled]="shareLan() && !address()"
-                        (click)="start()"
-                        class="settings-primary-button hosted-power"
-                        data-test-id="hosted-server-start"
-                    >
-                        {{ 'HOSTED_SERVER.START' | translate }}
-                    </button>
+                    <div class="server-actions hosted-power">
+                        @if (status().state === 'error' && status().autoStart) {
+                            <button
+                                mat-flat-button
+                                type="button"
+                                (click)="control('stop')"
+                            >
+                                {{
+                                    'HOSTED_SERVER.DISABLE_AUTOSTART'
+                                        | translate
+                                }}
+                            </button>
+                        }
+                        <button
+                            mat-flat-button
+                            type="button"
+                            [disabled]="shareLan() && !address()"
+                            (click)="start()"
+                            class="settings-primary-button"
+                            data-test-id="hosted-server-start"
+                        >
+                            {{ 'HOSTED_SERVER.START' | translate }}
+                        </button>
+                    </div>
                 </div>
             }
             <p

@@ -2365,6 +2365,7 @@
         "ERROR_startup": "A szerver nem indult el. Próbáld újra.",
         "START": "Szerver indítása",
         "STOP": "Szerver leállítása",
+        "DISABLE_AUTOSTART": "Automatikus indítás kikapcsolása",
         "SHARE_LAN": "Eszközök engedélyezése az otthoni hálózatomon",
         "LAN_WARNING": "Csak megbízható hálózaton használd. A hozzáférési kód és a lejátszási listák adatai titkosítás nélkül, HTTP-n továbbítódnak.",
         "NETWORK_ADDRESS": "Hálózati cím",

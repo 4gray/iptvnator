@@ -2365,6 +2365,7 @@
         "ERROR_startup": "Sunucu başlatılamadı. Yeniden deneyin.",
         "START": "Sunucuyu başlat",
         "STOP": "Sunucuyu durdur",
+        "DISABLE_AUTOSTART": "Otomatik başlatmayı kapat",
         "SHARE_LAN": "Ev ağımdaki cihazlara izin ver",
         "LAN_WARNING": "Yalnızca güvendiğiniz bir ağda kullanın. Erişim kodu ve oynatma listesi verileri HTTP üzerinden şifrelenmeden aktarılır.",
         "NETWORK_ADDRESS": "Ağ adresi",

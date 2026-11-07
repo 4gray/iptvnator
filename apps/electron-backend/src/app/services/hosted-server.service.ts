@@ -96,6 +96,7 @@ function status(): HostedServerStatus {
     const lanAddress = store.get(HOSTED_SERVER_LAN_ADDRESS, '') || undefined;
     return {
         ...state,
+        autoStart: store.get(HOSTED_SERVER_ENABLED, false),
         availableAddresses,
         lanAddress,
         lanUrl:

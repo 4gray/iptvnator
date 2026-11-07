@@ -2365,6 +2365,7 @@
         "ERROR_startup": "Impossible de démarrer le serveur. Réessayez.",
         "START": "Démarrer le serveur",
         "STOP": "Arrêter le serveur",
+        "DISABLE_AUTOSTART": "Désactiver le démarrage automatique",
         "SHARE_LAN": "Autoriser les appareils de mon réseau domestique",
         "LAN_WARNING": "Utilisez cette option uniquement sur un réseau de confiance. Le code d’accès et les données des listes passent par HTTP sans chiffrement.",
         "NETWORK_ADDRESS": "Adresse réseau",

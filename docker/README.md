@@ -143,6 +143,8 @@ IPTVnator opens until you choose **Stop server**. Minimizing the app leaves it
 running. Quitting IPTVnator, shutting down the computer, or putting it to sleep
 makes the server unavailable to other devices. On macOS, closing the window
 can leave IPTVnator running. Use **Quit IPTVnator** to exit the app.
+If the server fails to start automatically, choose **Disable automatic start**
+to stop trying again when the app opens.
 
 To use a tablet or another computer, enable **Allow devices on my home
 network** before starting. Open the address shown in Settings on the other

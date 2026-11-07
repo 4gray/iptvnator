@@ -2365,6 +2365,7 @@
         "ERROR_startup": "No se pudo iniciar el servidor. Vuelve a intentarlo.",
         "START": "Iniciar servidor",
         "STOP": "Detener servidor",
+        "DISABLE_AUTOSTART": "Desactivar el inicio automático",
         "SHARE_LAN": "Permitir dispositivos de mi red doméstica",
         "LAN_WARNING": "Úsalo solo en una red de confianza. El código de acceso y los datos de las listas se transmiten por HTTP sin cifrar.",
         "NETWORK_ADDRESS": "Dirección de red",

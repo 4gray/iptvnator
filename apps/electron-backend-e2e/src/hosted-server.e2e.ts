@@ -1,4 +1,5 @@
 import { mkdtempSync, rmSync } from 'node:fs';
+import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { HOSTED_SERVER_PORT } from '@iptvnator/shared/interfaces';
@@ -77,6 +78,59 @@ test('starts locally, reconnects through the hosted library, and stops on reques
         await expect(fetch(origin + '/api/health')).rejects.toThrow();
     } finally {
         if (desktop) await closeElectronApp(desktop);
+        rmSync(directory, { recursive: true, force: true });
+    }
+});
+
+test('can disable automatic hosting when the server port is occupied', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'iptvnator-hosted-retry-'));
+    const blocker = createServer();
+    let desktop: Awaited<ReturnType<typeof launchElectronApp>> | undefined;
+    try {
+        desktop = await launchElectronApp(directory);
+        await openSettings(desktop.mainWindow);
+        await openSettingsSection(desktop.mainWindow, 'server');
+        await desktop.mainWindow.getByTestId('hosted-server-start').click();
+        await expect(
+            desktop.mainWindow.getByTestId('hosted-server-status')
+        ).toHaveText('Server running');
+        await closeElectronApp(desktop);
+        desktop = undefined;
+
+        await new Promise<void>((resolve, reject) => {
+            blocker.once('error', reject);
+            blocker.listen(HOSTED_SERVER_PORT, '127.0.0.1', resolve);
+        });
+        desktop = await launchElectronApp(directory);
+        await openSettings(desktop.mainWindow);
+        await openSettingsSection(desktop.mainWindow, 'server');
+        await expect(
+            desktop.mainWindow.getByText('Port 4334 is in use.', {
+                exact: false,
+            })
+        ).toBeVisible();
+        await desktop.mainWindow
+            .getByRole('button', { name: 'Disable automatic start' })
+            .click();
+        await expect(
+            desktop.mainWindow.getByTestId('hosted-server-status')
+        ).toHaveText('Server stopped');
+        await closeElectronApp(desktop);
+        desktop = undefined;
+
+        // Keep the port occupied so an unintended restart cannot look successful.
+        desktop = await launchElectronApp(directory);
+        await openSettings(desktop.mainWindow);
+        await openSettingsSection(desktop.mainWindow, 'server');
+        await expect(
+            desktop.mainWindow.getByTestId('hosted-server-status')
+        ).toHaveText('Server stopped');
+    } finally {
+        if (desktop) await closeElectronApp(desktop);
+        if (blocker.listening)
+            await new Promise<void>((resolve) =>
+                blocker.close(() => resolve())
+            );
         rmSync(directory, { recursive: true, force: true });
     }
 });

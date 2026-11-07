@@ -2365,6 +2365,7 @@
         "ERROR_startup": "The server could not start. Try again.",
         "START": "Start server",
         "STOP": "Stop server",
+        "DISABLE_AUTOSTART": "Disable automatic start",
         "SHARE_LAN": "Allow devices on my home network",
         "LAN_WARNING": "Use this only on a network you trust. The access code and playlist data travel over HTTP without encryption.",
         "NETWORK_ADDRESS": "Network address",
