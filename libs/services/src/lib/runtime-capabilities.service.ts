@@ -23,6 +23,11 @@ const playbackPositionStorageMethods = [
 
 @Injectable({ providedIn: 'root' })
 export class RuntimeCapabilitiesService {
+    get supportsHostedServer(): boolean {
+        return this.hasElectronMethod('hostedServerControl') &&
+            this.hasElectronMethod('hostedServerAccessCode');
+    }
+
     get supportsHistoryStorage(): boolean {
         return this.isPwa || this.hasElectronMethod('historyLocalRequest');
     }

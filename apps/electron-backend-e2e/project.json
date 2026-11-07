@@ -22,6 +22,14 @@
                 "command": "playwright test --config=apps/electron-backend-e2e/playwright.source-sync.config.ts"
             }
         },
+        "hosted-server": {
+            "dependsOn": ["electron-backend:build-e2e", "web-backend:build", "web:build-hosted"],
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "playwright test --config=apps/electron-backend-e2e/playwright.config.ts hosted-server.e2e.ts",
+                "env": { "IPTVNATOR_E2E_HOSTED_SERVER": "1" }
+            }
+        },
         "e2e": {
             "dependsOn": ["electron-backend:build-e2e"]
         },

@@ -64,3 +64,24 @@ input,
 a {
     app-region: no-drag;
 }
+
+.hosted-sharing {
+    display: grid;
+    gap: 8px;
+}
+
+.hosted-code {
+    user-select: text;
+}
+
+.hosted-status-row {
+    justify-content: space-between;
+}
+
+.hosted-status {
+    font-weight: 600;
+
+    &:not(.server-message--error) {
+        color: var(--app-heading-color);
+    }
+}

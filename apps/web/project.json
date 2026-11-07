@@ -170,6 +170,14 @@
                 "command": "pnpm nx run web:build:pwa"
             }
         },
+        "build-hosted": {
+            "executor": "nx:run-commands",
+            "inputs": ["production", "^production"],
+            "outputs": ["{workspaceRoot}/dist/apps/hosted-pwa"],
+            "options": {
+                "command": "pnpm nx run web:build:pwa --outputPath=dist/apps/hosted-pwa --skip-nx-cache"
+            }
+        },
         "build-e2e": {
             "executor": "nx:run-commands",
             "options": {

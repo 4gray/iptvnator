@@ -1,3 +1,5 @@
+import { SettingsHostedServerComponent } from './settings-hosted-server.component';
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { SettingsHistorySectionComponent } from './settings-history-section.component';
 import { SettingsFavoritesSectionComponent } from './settings-favorites-section.component';
 import {
@@ -5,6 +7,8 @@ import {
     Component,
     inject,
     signal,
+    viewChild,
+    computed,
 } from '@angular/core';
 import {
     FormControl,
@@ -40,6 +44,7 @@ import {
     providers: [provideFormFieldDefaults()],
     imports: [
         SettingsActivitySectionComponent,
+        SettingsHostedServerComponent,
         SettingsFavoritesSectionComponent,
         SettingsHistorySectionComponent,
         SettingsSyncStatusComponent,
@@ -56,6 +61,27 @@ import {
 })
 export class SettingsServerSectionComponent {
     readonly sync = inject(SourceSyncService);
+    readonly supportsHosting = inject(RuntimeCapabilitiesService)
+        .supportsHostedServer;
+
+    readonly hostedServer = viewChild(SettingsHostedServerComponent);
+    readonly localServerUrl = computed(
+        () => this.hostedServer()?.status().localUrl
+    );
+
+    async connectHosted(url: string): Promise<void> {
+        if (this.busy()) return;
+        try {
+            const code = await window.electron.hostedServerAccessCode!();
+            this.urlControl.setValue(url);
+            this.token = code;
+            await this.connect();
+        } catch {
+            this.message.set('HOSTED_SERVER.CODE_FAILED');
+        } finally {
+            this.token = '';
+        }
+    }
     readonly busy = signal(false);
     readonly connecting = signal(false);
     readonly message = signal('');

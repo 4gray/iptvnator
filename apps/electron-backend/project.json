@@ -205,7 +205,9 @@
         "package": {
             "dependsOn": [
                 "electron-backend:build",
-                "electron-backend:generate-builder-metadata"
+                "electron-backend:generate-builder-metadata",
+                "web-backend:build",
+                "web:build-hosted"
             ],
             "executor": "nx-electron:package",
             "options": {
@@ -226,7 +228,9 @@
         "make": {
             "dependsOn": [
                 "electron-backend:build",
-                "electron-backend:generate-builder-metadata"
+                "electron-backend:generate-builder-metadata",
+                "web-backend:build",
+                "web:build-hosted"
             ],
             "executor": "nx-electron:make",
             "options": {

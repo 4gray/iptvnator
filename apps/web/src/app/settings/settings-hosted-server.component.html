@@ -1,0 +1,146 @@
+@if (status().state !== 'unavailable') {
+    <section class="settings-group">
+        <header class="settings-group__header">
+            <h2>{{ 'HOSTED_SERVER.TITLE' | translate }}</h2>
+            <p>{{ 'HOSTED_SERVER.DESCRIPTION' | translate }}</p>
+            <a
+                class="server-help"
+                href="https://github.com/4gray/iptvnator/blob/master/docker/README.md#run-the-server-from-the-desktop-app"
+                target="_blank"
+                rel="noopener noreferrer"
+                >{{ 'HOSTED_SERVER.SETUP_GUIDE' | translate }}</a
+            >
+        </header>
+        <div class="settings-card server-fields">
+            <div class="server-actions hosted-status-row">
+                <p
+                    class="server-message hosted-status"
+                    [class.server-message--error]="status().state === 'error'"
+                    role="status"
+                    data-test-id="hosted-server-status"
+                >
+                    {{
+                        (status().error
+                            ? 'HOSTED_SERVER.ERROR_' + status().error
+                            : 'HOSTED_SERVER.STATE_' + status().state
+                        ) | translate
+                    }}
+                </p>
+                @if (status().state === 'running') {
+                    <button
+                        mat-stroked-button
+                        type="button"
+                        (click)="control('stop')"
+                        data-test-id="hosted-server-stop"
+                    >
+                        {{ 'HOSTED_SERVER.STOP' | translate }}
+                    </button>
+                }
+            </div>
+            @if (status().state === 'running') {
+                @if (status().lanUrl; as address) {
+                    <p class="server-message">
+                        {{ 'HOSTED_SERVER.DEVICES' | translate }}
+                    </p>
+                    <div class="server-actions">
+                        <strong
+                            class="server-message"
+                            data-test-id="hosted-server-address"
+                            >{{ address }}</strong
+                        >
+                        <button
+                            mat-button
+                            type="button"
+                            (click)="copyAddress(address)"
+                        >
+                            {{ 'HOSTED_SERVER.COPY_ADDRESS' | translate }}
+                        </button>
+                        <button mat-button type="button" (click)="showCode()">
+                            {{
+                                (code()
+                                    ? 'HOSTED_SERVER.HIDE_CODE'
+                                    : 'HOSTED_SERVER.SHOW_CODE'
+                                ) | translate
+                            }}
+                        </button>
+                    </div>
+                    @if (code()) {
+                        <p class="server-message hosted-code">{{ code() }}</p>
+                    }
+                } @else if (status().lanAddress) {
+                    <p class="server-message">
+                        {{ 'HOSTED_SERVER.ADDRESS_UNAVAILABLE' | translate }}
+                    </p>
+                } @else {
+                    <p class="server-message">
+                        {{ 'HOSTED_SERVER.LOCAL_ONLY' | translate }}
+                    </p>
+                }
+            } @else if (
+                status().state === 'stopped' || status().state === 'error'
+            ) {
+                <div class="hosted-sharing">
+                    <mat-checkbox
+                        [checked]="shareLan()"
+                        (change)="lanChoice.set($event.checked)"
+                        [aria-describedby]="
+                            shareLan() ? 'hosted-server-lan-warning' : ''
+                        "
+                        data-test-id="hosted-server-share-lan"
+                    >
+                        {{ 'HOSTED_SERVER.SHARE_LAN' | translate }}
+                    </mat-checkbox>
+                    @if (shareLan()) {
+                        <p
+                            class="server-message"
+                            id="hosted-server-lan-warning"
+                        >
+                            {{ 'HOSTED_SERVER.LAN_WARNING' | translate }}
+                        </p>
+                        @if (addresses().length > 1) {
+                            <mat-form-field
+                                appearance="outline"
+                                subscriptSizing="dynamic"
+                            >
+                                <mat-label>{{
+                                    'HOSTED_SERVER.NETWORK_ADDRESS' | translate
+                                }}</mat-label>
+                                <mat-select
+                                    [value]="address()"
+                                    (selectionChange)="
+                                        addressChoice.set($event.value)
+                                    "
+                                >
+                                    @for (option of addresses(); track option) {
+                                        <mat-option [value]="option">{{
+                                            option
+                                        }}</mat-option>
+                                    }
+                                </mat-select>
+                            </mat-form-field>
+                        } @else if (!address()) {
+                            <p class="server-message">
+                                {{ 'HOSTED_SERVER.NO_ADDRESS' | translate }}
+                            </p>
+                        }
+                    }
+                </div>
+                <div class="server-actions">
+                    <button
+                        mat-flat-button
+                        type="button"
+                        [disabled]="shareLan() && !address()"
+                        (click)="start()"
+                        class="settings-primary-button"
+                        data-test-id="hosted-server-start"
+                    >
+                        {{ 'HOSTED_SERVER.START' | translate }}
+                    </button>
+                </div>
+            }
+            <p class="server-message" role="status">
+                {{ feedback() | translate }}
+            </p>
+        </div>
+    </section>
+}

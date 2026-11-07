@@ -1,14 +1,36 @@
+@if (supportsHosting) {
+    <app-settings-hosted-server />
+}
 <section class="settings-group" id="server">
     <header class="settings-group__header">
-        <h2>{{ 'SOURCE_SYNC.TITLE' | translate }}</h2>
-        <p>{{ 'SOURCE_SYNC.DESCRIPTION' | translate }}</p>
+        <h2>
+            {{
+                (supportsHosting
+                    ? 'HOSTED_SERVER.CLIENT_TITLE'
+                    : 'SOURCE_SYNC.TITLE'
+                ) | translate
+            }}
+        </h2>
+        <p>
+            {{
+                (supportsHosting
+                    ? 'HOSTED_SERVER.CLIENT_DESCRIPTION'
+                    : 'SOURCE_SYNC.DESCRIPTION'
+                ) | translate
+            }}
+        </p>
         <a
             class="server-help"
             href="https://github.com/4gray/iptvnator/blob/master/docker/README.md#connect-your-clients"
             target="_blank"
             rel="noopener noreferrer"
             data-test-id="source-server-help"
-            >{{ 'SOURCE_SYNC.SETUP_GUIDE' | translate }}</a
+            >{{
+                (supportsHosting
+                    ? 'HOSTED_SERVER.CLIENT_GUIDE'
+                    : 'SOURCE_SYNC.SETUP_GUIDE'
+                ) | translate
+            }}</a
         >
     </header>
     <div class="settings-card server-fields" data-setting-id="source-server">
@@ -19,6 +41,25 @@
                 [lastSync]="sync.lastSync()"
                 testId="source-server-state"
             />
+        }
+        @if (localServerUrl(); as url) {
+            @if (sync.connection?.apiUrl === url + '/api') {
+                <p class="server-message">
+                    {{ 'HOSTED_SERVER.CONNECTED_LOCAL' | translate }}
+                </p>
+            } @else {
+                <div class="server-actions">
+                    <button
+                        mat-stroked-button
+                        type="button"
+                        [disabled]="busy()"
+                        (click)="connectHosted(url)"
+                        data-test-id="hosted-server-connect"
+                    >
+                        {{ 'HOSTED_SERVER.CONNECT_LOCAL' | translate }}
+                    </button>
+                </div>
+            }
         }
         <mat-form-field appearance="outline">
             <mat-label>{{ 'SOURCE_SYNC.URL' | translate }}</mat-label>
