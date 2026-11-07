@@ -2,11 +2,12 @@
  * Virtual-scroll channel list: Down must keep moving through 180 channels,
  * and the player controls must be reachable from the picture.
  */
+import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const require = createRequire(import.meta.url);
-const { chromium } = require('@playwright/test');
+const { chromium, expect } = require('@playwright/test');
 const args = process.argv.slice(2);
 const opt = (name, def) => {
     const i = args.indexOf(name);
@@ -15,7 +16,7 @@ const opt = (name, def) => {
 const SHOTS = opt('--shots', join(dirname(fileURLToPath(import.meta.url)), 'shots'));
 
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, hasTouch: true });
 page.on('console', (m) => { if (m.text().startsWith('[tvshell] bridge')) console.log('  ' + m.text()); });
 let failures = 0;
 const check = (c, m) => { if (!c) failures++; console.log((c ? '  ✓ ' : '  ✗ ') + m); };
@@ -109,6 +110,8 @@ for (let i = 0; f && !/Playable clip/i.test(f) && i < 200; i++) {
     }
 }
 check(!!f && /Playable clip/i.test(f), 'the playable mock channel is reachable: ' + f);
+const clip = readFileSync(new URL('../../apps/web-e2e/src/fixtures/playback/episode.webm', import.meta.url));
+await page.route('**/clip.webm', (route) => route.fulfill({ contentType: 'video/webm', body: clip }));
 await key('Enter');
 await page.waitForTimeout(2500);
 f = await reach(/^video/, ['ArrowRight', 'ArrowUp'], 8);
@@ -148,6 +151,24 @@ if (playable) {
         const after = await focused();
         check(!!after && !/^video/.test(after), 'Back on the focused picture moves the focus off the video: ' + after);
     }
+    const video = page.locator('app-vjs-player video');
+    const dock = page.locator('.player-controls__bar');
+    const visible = /player-controls__bar--visible/;
+    await page.mouse.move(0, 0);
+    await video.focus();
+    await expect.poll(() => video.evaluate((media) => media.paused)).toBe(false);
+    await expect(dock).not.toHaveClass(visible);
+    const { x, y, width, height } = await video.boundingBox();
+    await page.touchscreen.tap(x + width / 2, y + height / 2);
+    await expect(dock).toHaveClass(visible);
+    check(await video.evaluate((media) => !media.paused), 'touch reveals the hidden dock without pausing');
+    await expect(dock).not.toHaveClass(visible);
+    await video.focus();
+    await key('ArrowDown');
+    await expect(dock).toHaveClass(visible);
+    check(await dock.evaluate((bar) => bar.contains(document.activeElement)),
+        'Down from the picture enters the revealed dock');
+
     // Player#reset() (the raw MPEG-TS path) reads the bar's progress control: it must still work.
     const reset = await page.evaluate(() => {
         const p = document.querySelector('.video-js') && document.querySelector('.video-js').player;
