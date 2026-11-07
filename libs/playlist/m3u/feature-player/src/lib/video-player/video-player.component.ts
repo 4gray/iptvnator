@@ -1259,6 +1259,7 @@ export class VideoPlayerComponent
 
         this.historyGate.defer(
             {
+                sourceId: playlistId,
                 sessionKey: this.playbackSessionKey(),
                 streamUrls: [channel.url],
             },
@@ -1293,6 +1294,7 @@ export class VideoPlayerComponent
 
         this.store.dispatch(
             PlaylistActions.updatePlaylistMeta({
+                persist: false,
                 playlist: {
                     _id: playlistId,
                     recentlyViewed: updatedPlaylist?.recentlyViewed ?? [],

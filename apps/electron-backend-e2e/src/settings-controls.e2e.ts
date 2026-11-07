@@ -16,6 +16,7 @@ for (const theme of ['Light', 'Dark'] as const) {
         const page = app.mainWindow;
         try {
             await openSettings(page);
+            await openSettingsSection(page, 'appearance');
             await page.getByRole('radio', { name: theme, exact: true }).click();
             await saveSettings(page);
             await openSettingsSection(page, 'about');

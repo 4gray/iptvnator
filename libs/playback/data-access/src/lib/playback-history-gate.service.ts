@@ -1,7 +1,10 @@
+import { captureHistoryOwner } from '@iptvnator/services/history-events';
+import { sourceConnection } from '@iptvnator/services/source-sync/connection';
 import { Injectable } from '@angular/core';
 
 /** What a playback is known by, for correlating a write with its playback. */
 export interface PlaybackHistoryTarget {
+    readonly sourceId?: string;
     /**
      * The playing host's `playbackSessionKey` (source and content scoped).
      * A write deferred with one is only confirmed by that same key.
@@ -67,13 +70,21 @@ export class PlaybackHistoryGate {
     }
 
     defer(target: PlaybackHistoryTarget, commit: () => void): void {
+        const current = captureHistoryOwner(
+            sourceConnection()?.instanceId,
+            target.sourceId ?? '',
+            () => sourceConnection()?.instanceId
+        );
+        const confirmedCommit = () => {
+            if (current()) commit();
+        };
         const normalized = normalizeTarget(target);
         if (!normalized.sessionKey && normalized.streamUrls.size === 0) {
-            runCommit(commit);
+            runCommit(confirmedCommit);
             return;
         }
 
-        this.pending.push({ target: normalized, commit });
+        this.pending.push({ target: normalized, commit: confirmedCommit });
         if (this.pending.length > MAX_PENDING_HISTORY_WRITES) {
             this.pending.shift();
         }

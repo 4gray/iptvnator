@@ -2,6 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import { join } from 'path';
 import { expect, test } from './pwa-mock.fixture';
 import { pressTab, surfaceContrast } from './e2e-helpers';
+import { applyUiTheme } from './ui-consistency.fixture';
 import {
     addStalkerPortal,
     addXtreamPortal,
@@ -35,10 +36,7 @@ const PHONE = { width: 375, height: 812 };
 const THEMES = ['light', 'dark'] as const;
 
 async function setTheme(page: Page, theme: (typeof THEMES)[number]) {
-    await page.evaluate(
-        (dark) => document.body.classList.toggle('dark-theme', dark),
-        theme === 'dark'
-    );
+    await applyUiTheme(page, theme === 'dark');
 }
 
 async function enableParentalLock(page: Page): Promise<void> {
@@ -333,7 +331,8 @@ test.describe('Parental lock UI', () => {
             'app-stalker-category-lock-dialog'
         );
         await expect(dialog.locator('.bulk-actions button').last()).toHaveCSS(
-            'border-top-left-radius', '8px'
+            'border-top-left-radius',
+            '8px'
         );
         const rows = dialog.locator('.category-item');
         await expect(rows.first()).toBeVisible();

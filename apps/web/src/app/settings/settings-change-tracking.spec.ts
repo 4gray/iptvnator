@@ -33,9 +33,7 @@ describe('settings change tracking', () => {
 
     it('treats a missing value and null alike, and arrays as one value', () => {
         expect(diffSettingsValues({ a: null }, { a: undefined })).toEqual([]);
-        expect(diffSettingsValues({ a: [1, 2] }, { a: [2, 1] })).toEqual([
-            'a',
-        ]);
+        expect(diffSettingsValues({ a: [1, 2] }, { a: [2, 1] })).toEqual(['a']);
         expect(diffSettingsValues({ a: 1 }, {})).toEqual(['a']);
     });
 
@@ -43,6 +41,10 @@ describe('settings change tracking', () => {
         expect(sectionOfSettingsPath('dashboardRails.hero')).toBe('dashboard');
         expect(sectionOfSettingsPath('tmdb.apiKey')).toBe('tmdb');
         expect(sectionOfSettingsPath('showCaptions')).toBe('playback');
+        for (const control of ['theme', 'coverSize', 'showCoverTitles']) {
+            expect(sectionOfSettingsPath(control)).toBe('appearance');
+        }
+        expect(sectionOfSettingsPath('language')).toBe('general');
         expect(sectionOfSettingsPath('unknownControl')).toBeNull();
     });
 

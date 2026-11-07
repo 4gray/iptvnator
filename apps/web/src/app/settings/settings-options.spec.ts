@@ -93,6 +93,7 @@ describe('buildSettingsSectionNavItems', () => {
             }).map((item) => item.id)
         ).toEqual([
             'general',
+            'appearance',
             'playback',
             'epg',
             'dashboard',
@@ -115,6 +116,7 @@ describe('buildSettingsSectionNavItems', () => {
             items.find((item) => item.id === id)?.group;
 
         expect(groupOf('general')).toBe('app');
+        expect(groupOf('appearance')).toBe('app');
         expect(groupOf('tmdb')).toBe('library');
         expect(groupOf('remote-control')).toBe('devices');
         expect(groupOf('server')).toBe('data');

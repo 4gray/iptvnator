@@ -4,6 +4,7 @@ import {
     expect,
     launchElectronApp,
     openSettings,
+    openSettingsSection,
     restartElectronApp,
     saveSettings,
     test,
@@ -42,6 +43,7 @@ test.describe('Electron theme presets', () => {
         const page = app.mainWindow;
         try {
             await openSettings(page);
+            await openSettingsSection(page, 'appearance');
             await themeOption(page, 'mocha').click();
             await saveSettings(page);
             for (const preset of presets) {
@@ -77,11 +79,13 @@ test.describe('Electron theme presets', () => {
             let app = await launchElectronApp(dataDir);
             try {
                 await openSettings(app.mainWindow);
+                await openSettingsSection(app.mainWindow, 'appearance');
                 await themeOption(app.mainWindow, preset).click();
                 await saveSettings(app.mainWindow);
                 app = await restartElectronApp(app, dataDir);
                 await expectTheme(app.mainWindow, preset);
                 await openSettings(app.mainWindow);
+                await openSettingsSection(app.mainWindow, 'appearance');
                 await expect(
                     themeOption(app.mainWindow, preset)
                 ).toHaveAttribute('aria-checked', 'true');
@@ -99,6 +103,7 @@ test.describe('Electron theme presets', () => {
         try {
             await page.emulateMedia({ colorScheme: 'light' });
             await openSettings(page);
+            await openSettingsSection(page, 'appearance');
             await expectTheme(page, 'light');
             await themeOption(page, 'mocha').click();
             await saveSettings(page);
@@ -125,6 +130,7 @@ test.describe('Electron theme presets', () => {
         const page = app.mainWindow;
         try {
             await openSettings(page);
+            await openSettingsSection(page, 'appearance');
             await themeOption(page, 'system').click();
             // Default is already System; save an explicit preset first.
             await themeOption(page, 'light').click();
@@ -158,6 +164,7 @@ test.describe('Electron theme presets', () => {
         const page = app.mainWindow;
         try {
             await openSettings(page);
+            await openSettingsSection(page, 'appearance');
             const group = page.getByTestId('select-theme');
             await expect(group).toHaveAttribute('role', 'radiogroup');
             await expect(group.getByRole('radio')).toHaveCount(7);
@@ -210,15 +217,17 @@ test.describe('Electron theme presets', () => {
         const page = app.mainWindow;
         try {
             await openSettings(page);
+            await openSettingsSection(page, 'appearance');
             for (const preset of presets) {
                 await themeOption(page, preset).click();
                 await expectTheme(page, preset);
+                await expectTextContrast(
+                    themeOption(page, preset).locator('.theme-palette__label')
+                );
+                await openSettingsSection(page, 'general');
                 await expectTextContrast(page.locator('#language-label'));
                 await expectTextContrast(
                     page.locator('[data-setting-id="language"] p')
-                );
-                await expectTextContrast(
-                    themeOption(page, preset).locator('.theme-palette__label')
                 );
                 const select = page.getByTestId('select-language');
                 await expectTextContrast(
@@ -231,6 +240,7 @@ test.describe('Electron theme presets', () => {
                 await expectTextContrast(selected);
                 await page.keyboard.press('Escape');
                 await expect(selected).toBeHidden();
+                await openSettingsSection(page, 'appearance');
             }
         } finally {
             await closeElectronApp(app);
@@ -249,6 +259,7 @@ test('@theme @settings @electron palette labels fit a narrow desktop settings pa
         await page
             .getByRole('option', { name: 'Русский', exact: true })
             .click();
+        await openSettingsSection(page, 'appearance');
         await app.electronApp.evaluate(({ BrowserWindow }) => {
             const window = BrowserWindow.getAllWindows()[0];
             window.setMinimumSize(500, 500);

@@ -472,3 +472,22 @@ After a successful entry restore, Settings reconciles matching retained local
 favorite choices against the restored memberships. An older opted-out removal
 cannot hide a restored item from preview. Omitted choices, server revisions and
 queued operations remain intact; restoration itself sends no favorites writes.
+
+## Optional shared history in backups
+
+Settings also overlays the durable history sidecar when this profile has used
+history synchronization. Export includes removals and local choices, including
+unresolved typed Xtream entries, without a server request or the 100-row browse
+limit. Unrelated pre-enable local history remains included. M3U and Stalker use
+the same history projection as their collections.
+Xtream identity-conflict markers survive export and restore. Export also marks
+contradictory archived/shared TMDB or year hints before merging, so a backup
+round trip cannot make a rejected provider identity available again.
+
+Restore replaces the local history copy for previously verified sources and
+rebuilds its explicit-import archive. It preserves shared revisions and existing
+queued server operations; it creates no new uploads or consent. Each target's
+captured profile, incarnation and consent guard delayed restore work. The client
+can renew after unrelated source changes without invalidating that target.
+Sources without a history context retain the existing raw archive restore.
+The manifest stays version 1.

@@ -1,4 +1,5 @@
 import { expect, test } from './fixtures';
+import { applyUiTheme } from './ui-consistency.fixture';
 import {
     interceptXtreamRequests,
     MOCK_SERVER,
@@ -22,7 +23,9 @@ for (const language of ['en', 'ru']) {
             browserName !== 'chromium',
             'Clipboard permission targets Chromium'
         );
-        await request.post(`${MOCK_SERVER}/reset?username=user1&password=pass1`);
+        await request.post(
+            `${MOCK_SERVER}/reset?username=user1&password=pass1`
+        );
         await page.goto('/');
         await interceptXtreamRequests(page);
         await routeEpisodeClip(page);
@@ -79,10 +82,7 @@ for (const language of ['en', 'ru']) {
         });
 
         for (const dark of [false, true]) {
-            await page.evaluate(
-                (value) => document.body.classList.toggle('dark-theme', value),
-                dark
-            );
+            await applyUiTheme(page, dark);
             for (const width of [1440, 980, 390]) {
                 await page.setViewportSize({ width, height: 900 });
                 await expect(async () => {

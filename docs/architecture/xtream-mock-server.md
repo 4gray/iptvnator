@@ -501,6 +501,31 @@ This scenario is reserved for release screenshots and marketing materials:
 - the SVG renderer in `marketing.generator.ts` remains the fallback for missing
   assets and live logos
 
+### Fictional TMDB API
+
+Normal mode installs `src/app/tmdb-fixtures.ts` alongside the TV media fixtures.
+The `/tmdb/3` API derives movie and series metadata from the existing marketing
+generators, keeping titles, provider IDs, dates, descriptions, genres, ratings
+and credits consistent. Fictional country data, deterministic person IDs and
+SVG portraits complete the detail layout without real accounts or metadata.
+
+- `GET /tmdb/3/configuration` supplies a key-validation response.
+- `GET /tmdb/3/search/movie` and `/search/tv` match exact case-insensitive
+  marketing titles via `query`; unknown titles return an empty result.
+- `GET /tmdb/3/movie/:id` and `/tv/:id` return metadata and appended credits.
+- `GET /tmdb/3/tv/:id/season/:season` returns the curated episode names,
+  descriptions and still paths.
+- `GET /tmdb/3/person/:id` returns a fictional biography and combined credits.
+- `GET /tmdb/t/p/:size/:kind/:slug` serves local synthetic portraits or redirects
+  to the existing local poster, backdrop and episode artwork routes.
+
+Unknown detail/person/season IDs return 404. Keys and tokens are ignored; no
+request is forwarded to TMDB. Performance-control mode does not install these
+routes. `apps/tv-e2e/src/marketing-tmdb.ts` intercepts the normal TMDB API/image
+origins for the presentation scenario, so production clients retain their
+existing TMDB configuration and opt-in behavior. The browser's external-request
+guard remains active for everything else.
+
 ### `performance:performance` fixture details
 
 This scenario is reserved for local performance captures:

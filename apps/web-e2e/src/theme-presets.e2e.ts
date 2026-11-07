@@ -34,6 +34,7 @@ async function saveSettings(page: Page) {
 async function openSettings(page: Page) {
     await page.locator('a[href$="/workspace/settings"]').click();
     await page.waitForURL(/\/workspace\/settings\/general$/);
+    await page.locator('[data-test-id="settings-section-appearance"]').click();
     await expect(page.locator('[data-test-id="select-theme"]')).toBeVisible();
 }
 
@@ -41,6 +42,102 @@ test.describe('PWA theme presets', () => {
     test.beforeEach(async ({ page }) => {
         await page.goto('/');
         await openSettings(page);
+    });
+
+    test('@theme @settings @persistence @web shares staged Appearance and General edits through Save and Discard', async ({
+        page,
+    }) => {
+        const section = (id: string) =>
+            page.locator(`[data-test-id="settings-section-${id}"]`);
+        const dirty = (id: string) =>
+            page.locator(`[data-test-id="settings-section-dirty-${id}"]`);
+        const message = page.locator(
+            '[data-test-id="settings-unsaved-message"]'
+        );
+        const prefix = page
+            .locator('[data-test-id="strip-country-prefix-toggle"]')
+            .getByRole('switch');
+        const titles = page
+            .locator('[data-test-id="cover-titles-toggle"]')
+            .getByRole('switch');
+        await themeOption(page, 'light').click();
+        await saveSettings(page);
+
+        await section('general').click();
+        await expect(page.locator('[data-setting-id="theme"]')).toHaveCount(0);
+        const savedPrefix = await prefix.isChecked();
+        await prefix.click();
+        await section('appearance').click();
+        await themeOption(page, 'night-owl').click();
+        await page.locator('[data-test-id="cover-size-large"]').click();
+        await titles.click();
+        await expect(message).toHaveText('4 unsaved changes');
+        await expect(dirty('general')).toBeVisible();
+        await expect(dirty('appearance')).toBeVisible();
+        await section('general').click();
+        await expect(prefix).toBeChecked({ checked: !savedPrefix });
+        await expectTheme(page, 'night-owl');
+        await section('appearance').click();
+        await expect(titles).not.toBeChecked();
+        await page.locator('[data-test-id="discard-settings"]').click();
+        await expectTheme(page, 'light');
+        await expect(titles).toBeChecked();
+        await expect(dirty('appearance')).toHaveCount(0);
+        await expect(dirty('general')).toHaveCount(0);
+        await section('general').click();
+        await expect(prefix).toBeChecked({ checked: savedPrefix });
+
+        await prefix.click();
+        await section('appearance').click();
+        await themeOption(page, 'night-owl').click();
+        await page.locator('[data-test-id="cover-size-large"]').click();
+        await titles.click();
+        await section('general').click();
+        await page.keyboard.press('Control+s');
+        await expect(message).toBeHidden();
+        await page.reload();
+        await expectTheme(page, 'night-owl');
+        await openSettings(page);
+        await expect(titles).not.toBeChecked();
+        await expect(
+            page.locator('[data-test-id="cover-size-large"]')
+        ).toHaveAttribute('aria-checked', 'true');
+        await section('general').click();
+        await expect(prefix).toBeChecked({ checked: !savedPrefix });
+    });
+
+    test('@theme @settings @search @web reveals Appearance rows from settings search and the command palette', async ({
+        page,
+    }) => {
+        const search = page.locator(
+            'app-workspace-shell-header input[type="search"]'
+        );
+        for (const [term, id] of [
+            ['night owl', 'theme'],
+            ['cover size', 'cover-size'],
+            ['cover titles', 'cover-titles'],
+        ]) {
+            await page
+                .locator('[data-test-id="settings-section-general"]')
+                .click();
+            await search.fill(term);
+            await page
+                .locator(`[data-test-id="settings-search-result-${id}"]`)
+                .click();
+            await expect(page).toHaveURL(/\/workspace\/settings\/appearance$/);
+            const row = page.locator(`[data-setting-id="${id}"]`);
+            await expect(row).toBeFocused();
+            await expect(row).toHaveClass(/setting-item--revealed/);
+        }
+        await page.keyboard.press('Control+k');
+        const palette = page.locator('.workspace-command-palette-overlay');
+        await palette.locator('input[type="search"]').fill('night owl');
+        await palette
+            .locator('.palette-command', { hasText: /theme/i })
+            .first()
+            .click();
+        await expect(page).toHaveURL(/\/workspace\/settings\/appearance$/);
+        await expect(page.locator('[data-setting-id="theme"]')).toBeFocused();
     });
 
     test('@theme @settings @pwa @web previews all six presets and discards to saved Mocha', async ({

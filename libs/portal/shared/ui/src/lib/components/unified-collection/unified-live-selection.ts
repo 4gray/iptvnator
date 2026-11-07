@@ -277,6 +277,7 @@ export function createUnifiedLiveSelection(options: {
             );
             historyGate.defer(
                 {
+                    sourceId: item.playlistId,
                     sessionKey: playsInline
                         ? createUnifiedLivePlaybackSessionKey(item)
                         : null,

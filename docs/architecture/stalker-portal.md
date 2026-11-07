@@ -1904,7 +1904,9 @@ snapshot-first + background re-fetch contract:
   `refreshEmbeddedSeriesSelection()` then re-fetches the item via a portal
   title search (`get_ordered_list&type=vod&search=<title>`, item matched by
   id, paginated up to 5 pages, wildcard-category retry) in the background.
-- When the episode list or `cmd` changed, the selection is patched in place.
+- Missing display fields are filled from the fresh provider row, even when the
+  episode list and `cmd` are unchanged. Existing enriched fields, playback and
+  series state are retained; both metadata and playback updates patch the selection in place.
   The guard requires both the item id **and** the active playlist id to be
   unchanged, because Stalker ids are only unique per portal.
 - Only the in-memory selection is patched — the stored snapshot row is
@@ -2120,6 +2122,20 @@ Resolved commands remain local and never enter a shared snapshot. The global
 collection detail host reuses an open detail for the same item during polling,
 so background membership updates cannot cancel an in-flight playback request.
 
+Sparse received movie/series cards use `StalkerCollectionMetadataService` on the
+receiving device. It reuses the exact typed-ID, series-origin and parental checks
+of the playback resolver, while allowing metadata-only rows without a command.
+Dashboard and collection reads immediately retain their snapshots; a deduplicated
+background queue fills missing artwork and descriptions. Failed lookups back off
+for 30 seconds. Cache keys include the server, projected connection, source-lifecycle
+epoch, typed reference and lock version. Native inventory omits payload-only device
+identity and revision fields; lookups read the full source and recheck its complete
+identity/revision before publication.
+Relative artwork resolves against the portal URL; only normalized display info is
+cached and merged in memory. Commands, membership, history timestamps,
+loaded seasons and playback ownership are unchanged, and no enriched provider
+payload is persisted or sent through synchronization.
+
 Removing a typed target also removes its historical untyped ID copy, consistent
 with legacy heart matching. Known typed rows with another kind or series origin
 remain intact even when the provider reuses the same numeric ID.
@@ -2137,3 +2153,16 @@ without widening the strict `is_series` predicate.
 Portable references use the same `id`-before-`stream_id` precedence as existing
 Stalker display/navigation identity. Synthetic display fallbacks are never
 published as provider IDs.
+
+
+## Optional shared viewing history
+
+The [Recently Viewed opt-in](pwa-self-hosted.md#recently-viewed-synchronization)
+records only existing confirmed playback flows. Its portable references reuse
+favorites' typed movie/live/radio and regular/embedded/lazy series modes. Legacy
+command-bearing snapshots stay in the local playlist archive; the server receives
+only references and safe display hints. Received command-less rows reuse the
+existing provider resolver and parental checks when reopened. Remove and clear
+retain durable intent, independently of resume and watched synchronization.
+Collection favorite membership uses typed references independently of either
+sync consent, so received history matches local favorites without merging kinds.

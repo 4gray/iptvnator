@@ -69,17 +69,26 @@ docker compose -f docker/docker-compose.yml up --build -d
 ```
 
 Open <http://localhost:4333>. No separate backend container is needed.
-Connected clients can share source definitions; favorites, history and watch
-progress stay on each device.
+Connected clients can share source definitions. Favorites and watch progress
+have separate synchronization opt-ins; history stays local to each device.
 
 The PWA does not include M3U XMLTV, Embedded MPV, managed external-player
 launching, the download manager or Electron remote-control features.
 See [Docker setup and client connections](docker/README.md) for configuration,
 reverse proxies, playback troubleshooting and platform limits.
 
-For the separate experimental webOS TV client, see
-[TV setup](docs/development/tv-development.md) and
-[TV architecture and limitations](docs/architecture/tv-application.md).
+## LG webOS TV
+
+IPTVnator also includes a separate experimental [LG webOS TV app](apps/tv/)
+for watching your own M3U, Xtream Codes and Stalker / Ministra sources with a
+remote or Magic Remote pointer.
+
+Add sources from your phone by scanning a QR code, or connect the TV to your
+self-hosted IPTVnator source library. Favorites, history and resume positions
+currently stay on the TV. A matching IPTVnator backend is required.
+
+See the [TV README](apps/tv/README.md) for supported versions, installation,
+phone setup, source synchronization and screenshots.
 
 ## Fire TV / Android TV shell (experimental)
 

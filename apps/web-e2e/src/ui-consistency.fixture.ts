@@ -4,6 +4,7 @@ import { expect } from './fixtures';
 
 export async function applyUiTheme(page: Page, dark: boolean) {
     await page.evaluate((dark) => {
+        document.body.dataset['appTheme'] = dark ? 'dark' : 'light';
         document.body.classList.toggle('dark-theme', dark);
         document.body.classList.toggle('light-theme', !dark);
     }, dark);

@@ -1,3 +1,5 @@
+import { captureHistoryOwner } from '@iptvnator/services/history-events';
+import { sourceConnection } from '@iptvnator/services/source-sync/connection';
 import { normalizeContentMetadataPatch } from '@iptvnator/shared/interfaces';
 import { inject, Injector, signal } from '@angular/core';
 import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
@@ -49,22 +51,25 @@ export function injectXtreamRecentHistory(): (
                 ? { playedContent: { ...request.playedContent } }
                 : {}),
         };
-        gate.defer({ sessionKey, streamUrls: [streamUrl] }, () => {
-            const playlistId = playlist()?.id;
-            if (store.currentPlaylist()?.id === playlistId) {
-                store.addRecentItem({ ...captured, playlist });
-            } else if (playlistId) {
-                void saveWithoutListRefresh(
-                    injector.get(XTREAM_DATA_SOURCE),
-                    // The data source factory picks SQLite by this contract,
-                    // not by a generic Electron bridge.
-                    !injector.get(RuntimeCapabilitiesService)
-                        .supportsXtreamSqliteDataSource,
-                    playlistId,
-                    captured
-                );
+        gate.defer(
+            { sourceId: playlist()?.id, sessionKey, streamUrls: [streamUrl] },
+            () => {
+                const playlistId = playlist()?.id;
+                if (store.currentPlaylist()?.id === playlistId) {
+                    store.addRecentItem({ ...captured, playlist });
+                } else if (playlistId) {
+                    void saveWithoutListRefresh(
+                        injector.get(XTREAM_DATA_SOURCE),
+                        // The data source factory picks SQLite by this contract,
+                        // not by a generic Electron bridge.
+                        !injector.get(RuntimeCapabilitiesService)
+                            .supportsXtreamSqliteDataSource,
+                        playlistId,
+                        captured
+                    );
+                }
             }
-        });
+        );
     };
 }
 
@@ -96,16 +101,27 @@ async function saveWithoutListRefresh(
               releaseYear: playedContent.releaseYear ?? undefined,
           })
         : null;
+    const current = captureHistoryOwner(
+        sourceConnection()?.instanceId,
+        playlistId,
+        () => sourceConnection()?.instanceId
+    );
     const content = await dataSource.getContentByXtreamId(
         id,
         playlistId,
         contentType,
         ...(!keysByXtreamId && identity ? [identity] : [])
     );
-    const contentId = content?.id ?? (keysByXtreamId ? id : null);
+    const contentId =
+        content?.id ??
+        (keysByXtreamId ||
+        (await dataSource.supportsPortableHistory?.(playlistId))
+            ? id
+            : null);
+    if (!current()) return;
     if (contentId != null) {
         await dataSource.addRecentItem(
-            { id: contentId, type: contentType },
+            { id: contentId, type: contentType, providerId: id },
             playlistId,
             backdropUrl,
             ...(playedContent ? ([playedContent] as const) : [])
