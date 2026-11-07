@@ -686,6 +686,9 @@ certificate, HTTP authorization, and redirected-destination failures cannot
 trigger a downgrade. Aggregate and nested cause errors require positive
 evidence from every address; mixed failures, cycles and truncated error trees
 fail closed. TLS verification diagnostics include incomplete certificate chains.
+On Android, the embedded backend can confirm an initial direct HTTPS refusal
+with a TCP-only check before the HTTPS request. It requires the platform's
+`ECONNREFUSED` errno for every resolved address and sends no credentials.
 A response from an earlier account-action variant also
 prevents downgrade. HTTP failures (including panels returning 500 for unsupported actions)
 still try the remaining account actions on the same candidate.

@@ -208,7 +208,9 @@ public class WebBackend {
             String userAgent = query.get("userAgent");
             if (userAgent != null) headers.put("User-Agent", userAgent);
             String requestUrl = PortalUrls.withQuery(PortalUrls.xtreamApiUrl(base), params);
-            HttpFetcher.Result result = fetcher.get(requestUrl, headers, TIMEOUT_XTREAM_MS);
+            HttpFetcher.Result result = connectionTest
+                ? fetcher.testConnection(requestUrl, headers, TIMEOUT_XTREAM_MS)
+                : fetcher.get(requestUrl, headers, TIMEOUT_XTREAM_MS);
             Map<String, Object> out = Json.object();
             out.put("action", action);
             out.put("payload", payloadOf(result.body));

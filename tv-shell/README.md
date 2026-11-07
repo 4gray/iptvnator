@@ -285,6 +285,9 @@ ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-file-input.mjs emulator-55
 # native bridge isolation and main-frame commands
 ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-bridge.mjs emulator-5554
 
+# Xtream connection-test refusal, TLS, and redirect evidence
+ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-protocol-discovery.mjs emulator-5554
+
 # native background playback: keep the mock provider running for the synthetic clip
 ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-background-media.mjs emulator-5554
 # the real Java backend on the JDK, without Android (same classes as the APK)

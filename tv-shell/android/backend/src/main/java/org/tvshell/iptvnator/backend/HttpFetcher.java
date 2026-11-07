@@ -108,6 +108,10 @@ public class HttpFetcher {
         }
     }
 
+    public Result testConnection(String url, Map<String, String> headers, int timeoutMs) throws ProviderException {
+        return get(url, headers, timeoutMs);
+    }
+
     private Result fetch(String url, Map<String, String> headers, int timeoutMs, RequestProgress progress) throws ProviderException {
         Set<String> visited = new HashSet<String>();
         String current = url;

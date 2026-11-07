@@ -7,7 +7,6 @@ import android.util.Log;
 import org.tvshell.iptvnator.Prefs;
 import org.tvshell.iptvnator.ShellApp;
 import org.tvshell.iptvnator.backend.DiagnosticRedactor;
-import org.tvshell.iptvnator.backend.HttpFetcher;
 import org.tvshell.iptvnator.backend.ShellSite;
 import org.tvshell.iptvnator.backend.WebBackend;
 
@@ -52,7 +51,7 @@ public final class TvShellServer extends NanoHTTPD {
                 return readAsset(relativePath);
             }
         }, "/api", prefs.layoutWidth());
-        this.backend = new WebBackend(new HttpFetcher(), "/api");
+        this.backend = new WebBackend(new AndroidHttpFetcher(), "/api");
         setAsyncRunner(new DefaultAsyncRunner() {
             @Override
             public void exec(ClientHandler handler) {
