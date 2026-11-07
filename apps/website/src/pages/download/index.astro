@@ -46,6 +46,8 @@ const tvBuilds = [
   },
 ];
 
+const tvGuideLinkClass = 'inline-flex min-h-11 items-center rounded-sm text-sm font-semibold text-accent-400 underline decoration-accent-500/30 underline-offset-4 hover:text-accent-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-400';
+
 const title = 'Download IPTVnator – Windows, macOS and Linux';
 const description =
   'Download IPTVnator, the free open-source IPTV player, for Windows, macOS and Linux. Direct installers, Homebrew, Snap, AUR and a self-hosted browser version.';
@@ -164,13 +166,26 @@ const jsonLd = [
           <p class="mt-3 flex-1 text-sm leading-relaxed text-surface-300">{description}</p>
           <div class="mt-3 flex flex-wrap gap-x-6">
             {guides.map(({ label, href }) => (
-              <a href={href} class="inline-flex min-h-11 items-center rounded-sm text-sm font-semibold text-accent-400 underline decoration-accent-500/30 underline-offset-4 hover:text-accent-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-400">
+              <a href={href} class={tvGuideLinkClass}>
                 {label}
               </a>
             ))}
           </div>
         </div>
       ))}
+    </div>
+    <div class="card-panel mt-5 flex flex-wrap items-center justify-between gap-x-8 gap-y-3 sm:p-7">
+      <div class="max-w-xl">
+        <h3 class="font-display text-xl font-bold tracking-tight text-surface-50">Enigma2 receivers</h3>
+        <p class="mt-3 text-sm leading-relaxed text-surface-300">
+          Dreaminator is a standalone IPTV plugin with a browser-based playlist manager.
+          Tested on the Dreambox DM520 and Vu+ Uno 4K SE.
+        </p>
+      </div>
+      <div class="flex flex-wrap gap-x-6">
+        <a href="https://github.com/4gray/dreaminator" class={tvGuideLinkClass}>Dreaminator on GitHub</a>
+        <a href="/iptvnator/blog/dreaminator-enigma2/" class={tvGuideLinkClass}>Read the blog post</a>
+      </div>
     </div>
   </DownloadSection>
 
