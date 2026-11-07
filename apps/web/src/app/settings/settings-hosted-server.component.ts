@@ -14,6 +14,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { SettingsSyncStatusComponent } from './settings-sync-status.component';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 import { TranslateModule } from '@ngx-translate/core';
 import type {
     HostedServerCommand,
@@ -23,6 +24,7 @@ import { timer } from 'rxjs';
 
 @Component({
     selector: 'app-settings-hosted-server',
+    providers: [provideFormFieldDefaults()],
     imports: [
         SettingsSyncStatusComponent,
         MatIconModule,

@@ -47,7 +47,9 @@ selecting the new address and starting the server again.
 
 The desktop package includes `web-backend:build` and `web:build-hosted`. The
 latter emits a separate PWA bundle, so the Electron renderer and Docker
-deployment keep their own build outputs.
+deployment keep their own build outputs. The outer Nx graph builds shared
+dependencies once for both renderer builds. The hosted server reads the PWA
+shell at startup and reuses it for browser navigation requests.
 
 ## Runtime Backend Configuration
 

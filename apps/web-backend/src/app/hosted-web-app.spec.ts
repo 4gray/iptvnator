@@ -21,9 +21,13 @@ it('serves browser routes and authenticated API at one origin and rejects foreig
     const server = await listenHosted(app, '127.0.0.1', 0);
     const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
     try {
-        expect(
-            await (await fetch(origin + '/workspace/dashboard')).text()
-        ).toContain('Synthetic PWA');
+        await rm(join(assets, 'index.html'));
+        for (const path of ['/', '/index.html', '/workspace/dashboard']) {
+            const response = await fetch(origin + path);
+            expect(response.status).toBe(200);
+            expect(response.headers.get('content-type')).toContain('text/html');
+            expect(await response.text()).toContain('Synthetic PWA');
+        }
         const config = await fetch(origin + '/assets/app-config.js');
         expect(config.headers.get('cache-control')).toBe('no-store');
         expect(await config.text()).toContain('"/api"');

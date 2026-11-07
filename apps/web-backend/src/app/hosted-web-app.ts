@@ -1,7 +1,11 @@
-import { extname } from 'node:path';
-import express, { type Express } from 'express';
+import { readFileSync } from 'node:fs';
+import { extname, join } from 'node:path';
+import express, { type Express, type Response } from 'express';
 
 export function createHostedWebApp(api: Express, assets: string): Express {
+    const index = readFileSync(join(assets, 'index.html'), 'utf8');
+    const sendIndex = (res: Response) =>
+        res.set('Cache-Control', 'no-cache').type('html').send(index);
     const app = express();
     app.disable('x-powered-by');
     app.use('/api', api);
@@ -11,13 +15,11 @@ export function createHostedWebApp(api: Express, assets: string): Express {
             .type('js')
             .send('window.__IPTVNATOR_CONFIG__ = { BACKEND_URL: "/api" };');
     });
-    app.use(express.static(assets, { redirect: false }));
+    app.get(['/', '/index.html'], (_req, res) => sendIndex(res));
+    app.use(express.static(assets, { index: false, redirect: false }));
     app.get('/{*path}', (req, res, next) => {
         if (extname(req.path) || !req.accepts('html')) return next();
-        return res.sendFile('index.html', {
-            root: assets,
-            headers: { 'Cache-Control': 'no-cache' },
-        });
+        return sendIndex(res);
     });
     return app;
 }
