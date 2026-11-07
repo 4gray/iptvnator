@@ -678,8 +678,9 @@ describe('WorkspaceContextPanelComponent', () => {
             fixture.detectChanges();
             expect(fixture.componentInstance.focusTarget()).toBe(hideButton());
 
-            // Live root: no chevron, the search action stands in.
-            xtreamSelectedCategoryId.set(null);
+            // The chevron is withheld in the popover presentation, so the
+            // search action stands in.
+            fixture.componentRef.setInput('presentation', 'popover');
             fixture.detectChanges();
             expect(fixture.componentInstance.focusTarget()).toBe(
                 fixture.nativeElement.querySelector('.context-header__action')
@@ -691,12 +692,31 @@ describe('WorkspaceContextPanelComponent', () => {
             expect(fixture.componentInstance.focusTarget()).toBeNull();
         });
 
-        it('withholds the chevron while no category is selected (live root has no channels rail)', () => {
+        it('offers the chevron on the live root too, so "All Items" can fold the rail', () => {
             fixture.componentRef.setInput('section', 'live');
             xtreamSelectedCategoryId.set(null);
             fixture.detectChanges();
 
-            expect(hideButton()).toBeNull();
+            expect(hideButton()).not.toBeNull();
+
+            hideButton()?.click();
+            expect(liveSidebarService.stateOf('portal')()).toBe(
+                'categories-hidden'
+            );
+        });
+
+        it('offers the chevron on the Stalker live root, with or without the all-items entry selected', () => {
+            fixture.componentRef.setInput('context', {
+                provider: 'stalker',
+                playlistId: 'stalker-1',
+            });
+            fixture.componentRef.setInput('section', 'itv');
+
+            for (const selected of [null, '*']) {
+                stalkerStore.selectedCategoryId.set(selected);
+                fixture.detectChanges();
+                expect(hideButton()).not.toBeNull();
+            }
         });
 
         it('keeps VOD and series rails without the chevron', () => {

@@ -48,9 +48,9 @@
                                 ) | translate)
                         }}
                     </span>
-                    @if (selectedCategoryInfo()?.count) {
+                    @if (sidebarItemCount()) {
                         <span class="category-count">{{
-                            selectedCategoryInfo()?.count
+                            sidebarItemCount()
                         }}</span>
                     }
                     <mat-icon class="category-dropdown__caret"
@@ -68,9 +68,9 @@
                                 ) | translate)
                         }}
                     </h2>
-                    @if (selectedCategoryInfo()?.count) {
+                    @if (sidebarItemCount()) {
                         <span class="category-count">{{
-                            selectedCategoryInfo()?.count
+                            sidebarItemCount()
                         }}</span>
                     }
                 </div>
@@ -189,6 +189,20 @@
         }
     } @else if (!showLiveChannelSidebar()) {
         @if (isSelectedTypeContentLoading()) {
+            @if (livePanels.isCategoriesRailFolded()) {
+                <button
+                    #allItemsShowButton
+                    mat-icon-button
+                    type="button"
+                    class="sidebar-restore"
+                    data-test-id="live-show-categories"
+                    [attr.aria-label]="'LAYOUT.SHOW_CATEGORIES' | translate"
+                    [matTooltip]="'LAYOUT.SHOW_CATEGORIES' | translate"
+                    (click)="livePanels.showCategories()"
+                >
+                    <mat-icon>chevron_right</mat-icon>
+                </button>
+            }
             <div class="live-loading-content">
                 <app-portal-channels-list
                     [sortMode]="liveChannelSortMode()"
@@ -200,6 +214,22 @@
         } @else {
             <div class="live-all-items-content category-content-layout">
                 <div class="category-content-header">
+                    @if (livePanels.isCategoriesRailFolded()) {
+                        <button
+                            #allItemsShowButton
+                            mat-icon-button
+                            type="button"
+                            class="all-items-show-categories"
+                            data-test-id="live-show-categories"
+                            [attr.aria-label]="
+                                'LAYOUT.SHOW_CATEGORIES' | translate
+                            "
+                            [matTooltip]="'LAYOUT.SHOW_CATEGORIES' | translate"
+                            (click)="livePanels.showCategories()"
+                        >
+                            <mat-icon>chevron_right</mat-icon>
+                        </button>
+                    }
                     <div class="category-meta">
                         <h2 class="category-title">
                             {{ 'PORTALS.ALL_ITEMS' | translate }}

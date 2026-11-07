@@ -54,6 +54,12 @@
     @include panel.standard-panel-meta();
 }
 
+.all-items-show-categories {
+    flex-shrink: 0;
+    margin-inline-start: -8px;
+    app-region: no-drag;
+}
+
 .category-title {
     @include panel.standard-panel-title();
 }

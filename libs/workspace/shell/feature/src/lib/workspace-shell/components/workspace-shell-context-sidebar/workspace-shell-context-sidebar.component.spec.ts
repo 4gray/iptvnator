@@ -221,7 +221,7 @@ describe('WorkspaceShellContextSidebarComponent', () => {
             );
         });
 
-        it('keeps the rail on the live root (no selected category) at categories-hidden, since no channels rail exists to host the way back', () => {
+        it('folds the rail on the live root (no selected category) at categories-hidden too, since the all-items view carries the way back', () => {
             xtreamSelectedCategoryId.set(null);
             setupLiveCategory('live');
 
@@ -232,15 +232,13 @@ describe('WorkspaceShellContextSidebarComponent', () => {
                 'aside.context-panel--route'
             );
             expect(aside.classList.contains('context-panel--collapsed')).toBe(
-                false
+                true
             );
 
-            // Player-only still folds it: the floating restore handle lives
-            // in the content area and stays reachable there.
-            liveSidebarService.setState('portal', 'collapsed');
+            liveSidebarService.setState('portal', 'expanded');
             fixture.detectChanges();
             expect(aside.classList.contains('context-panel--collapsed')).toBe(
-                true
+                false
             );
         });
 
@@ -266,7 +264,7 @@ describe('WorkspaceShellContextSidebarComponent', () => {
 
         it('hands focus to the panel whenever the rail actually unfolds, including from player-only on the live root', async () => {
             xtreamSelectedCategoryId.set(null);
-            liveSidebarService.setState('portal', 'categories-hidden');
+            liveSidebarService.setState('portal', 'expanded');
             setupLiveCategory('live');
             const panel = fixture.debugElement.query(
                 By.directive(MockWorkspaceContextPanelComponent)
@@ -274,7 +272,6 @@ describe('WorkspaceShellContextSidebarComponent', () => {
 
             (document.activeElement as HTMLElement | null)?.blur();
 
-            // Root at categories-hidden: the rail is visible, no transition.
             liveSidebarService.collapse('portal');
             fixture.detectChanges();
             liveSidebarService.expand('portal');
@@ -294,9 +291,9 @@ describe('WorkspaceShellContextSidebarComponent', () => {
             fixture.nativeElement.appendChild(control);
             panel.focusTarget.mockReturnValue(control);
             (document.activeElement as HTMLElement | null)?.blur();
-            liveSidebarService.collapse('portal');
+            liveSidebarService.setState('portal', 'categories-hidden');
             fixture.detectChanges();
-            liveSidebarService.expand('portal');
+            liveSidebarService.showCategories('portal');
             fixture.detectChanges();
             await new Promise<void>((resolve) =>
                 queueMicrotask(() => resolve())
