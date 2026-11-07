@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { addSource, backend, nav, start } from './helpers';
+import { addSource, backend, nav, start, cardAction } from './helpers';
 
 test('compact page headers leave room for posters and remove prototype chrome at TV widths', async ({
     page,
@@ -150,8 +150,8 @@ test('continue watching includes a loaded poster, real progress and the same res
                 .evaluate((e: HTMLProgressElement) => e.value)
         )
         .toBeGreaterThan(7);
-    await expect(resume).toContainText('Resume');
-    await resume.click();
+    await expect(resume).toContainText('Options');
+    await cardAction(page, resume);
     await expect
         .poll(() =>
             page

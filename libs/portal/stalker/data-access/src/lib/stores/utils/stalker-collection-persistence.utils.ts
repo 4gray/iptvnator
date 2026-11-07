@@ -43,6 +43,7 @@ export function buildStalkerRecentlyViewedPayload(
 ): StalkerRecentlyViewedItem {
     return {
         ...item,
+        favoriteContentType: item.favoriteContentType ?? selectedContentType,
         category_id: resolveStalkerCategoryId(
             item.category_id,
             selectedContentType

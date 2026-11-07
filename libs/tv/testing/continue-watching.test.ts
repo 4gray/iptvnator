@@ -273,3 +273,27 @@ test('global continuation keeps equal provider ids separate across sources', () 
         ['a']
     );
 });
+
+test('completion uses the final five percent capped at five minutes', () => {
+    for (const [duration, seconds, visible] of [
+        [2760, 2621, true],
+        [2760, 2622, false],
+        [2760, 2700, false],
+        [10800, 10499, true],
+        [10800, 10500, false],
+        [60, 56, true],
+        [60, 57, false],
+        [0, 2700, true],
+    ] as const) {
+        const data = recordProgress(
+            initialData(),
+            progress('demo', 1, { duration, seconds })
+        );
+        assert.equal(
+            continueWatching(data).length > 0,
+            visible,
+            `${seconds}/${duration}`
+        );
+        assert.equal(data.history.length, 1);
+    }
+});

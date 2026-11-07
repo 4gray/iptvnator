@@ -3,6 +3,9 @@ import {
     Component,
     input,
     output,
+    signal,
+    computed,
+    effect,
     ViewEncapsulation,
     ChangeDetectionStrategy,
 } from '@angular/core';
@@ -23,6 +26,7 @@ import {
 import { SettingsPlayerOption } from './settings.models';
 import { markSectionForCheckOnFormEvents } from './settings-section-form-render';
 import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
+import { merge } from 'rxjs';
 
 @Component({
     selector: 'app-settings-playback-section',
@@ -58,12 +62,6 @@ export class SettingsPlaybackSectionComponent {
 
     readonly form = input.required<FormGroup>();
 
-    constructor() {
-        // Parent patches (Discard, backup import) change the form outside
-        // this OnPush section's events.
-        markSectionForCheckOnFormEvents(this.form);
-    }
-
     readonly players = input.required<SettingsPlayerOption[]>();
     readonly streamFormatEnum = input.required<typeof StreamFormat>();
     readonly isDesktop = input(false);
@@ -79,6 +77,91 @@ export class SettingsPlaybackSectionComponent {
      */
     readonly supportsVodMultiSource = input(false);
     readonly selectRecordingFolder = output<void>();
+    readonly externalAvailability = signal<{
+        mpv: boolean | null;
+        vlc: boolean | null;
+    }>({
+        mpv: null,
+        vlc: null,
+    });
+    readonly checkingExternalPlayers = signal(false);
+    readonly canCheckExternalPlayers = computed(
+        () =>
+            this.supportsExternalPlayerPathSettings() &&
+            !!window.electron?.getExternalPlayerAvailability
+    );
+    private availabilityRequest = 0;
+
+    constructor() {
+        markSectionForCheckOnFormEvents(this.form);
+        effect((onCleanup) => {
+            const form = this.form();
+            if (!this.canCheckExternalPlayers()) return;
+            void this.refreshExternalAvailability();
+            let timer: ReturnType<typeof setTimeout>;
+            const subscription = merge(
+                form.controls.mpvPlayerPath.valueChanges,
+                form.controls.vlcPlayerPath.valueChanges
+            ).subscribe(() => {
+                this.availabilityRequest++;
+                this.externalAvailability.set({ mpv: null, vlc: null });
+                this.checkingExternalPlayers.set(true);
+                clearTimeout(timer);
+                timer = setTimeout(
+                    () => void this.refreshExternalAvailability(),
+                    300
+                );
+            });
+            onCleanup(() => {
+                clearTimeout(timer);
+                subscription.unsubscribe();
+                this.availabilityRequest++;
+            });
+        });
+    }
+
+    async refreshExternalAvailability(): Promise<void> {
+        const probe = window.electron?.getExternalPlayerAvailability;
+        if (!this.canCheckExternalPlayers() || !probe) return;
+        const request = ++this.availabilityRequest;
+        this.checkingExternalPlayers.set(true);
+        const value = this.form().getRawValue();
+        try {
+            const result = await probe({
+                mpv: value.mpvPlayerPath ?? '',
+                vlc: value.vlcPlayerPath ?? '',
+            });
+            if (request === this.availabilityRequest)
+                this.externalAvailability.set(result);
+        } catch {
+            if (request === this.availabilityRequest)
+                this.externalAvailability.set({ mpv: null, vlc: null });
+        } finally {
+            if (request === this.availabilityRequest)
+                this.checkingExternalPlayers.set(false);
+        }
+    }
+
+    externalPlayerStatusKey(): string {
+        if (this.checkingExternalPlayers())
+            return 'SETTINGS.EXTERNAL_PLAYER_CHECKING';
+        const player: VideoPlayer = this.form().value.player;
+        const available =
+            player === VideoPlayer.MPV || player === VideoPlayer.VLC
+                ? this.externalAvailability()[player]
+                : null;
+        if (available === true) return 'SETTINGS.EXTERNAL_PLAYER_FOUND';
+        return available === false
+            ? 'SETTINGS.EXTERNAL_PLAYER_INSTALL_HINT'
+            : 'SETTINGS.EXTERNAL_PLAYER_UNKNOWN';
+    }
+
+    externalPlayerUnavailable(player: VideoPlayer): boolean {
+        return (
+            (player === VideoPlayer.MPV || player === VideoPlayer.VLC) &&
+            this.externalAvailability()[player] === false
+        );
+    }
 
     isWebPlayerSelected(): boolean {
         return reportsPlaybackFailures(this.form().value.player);

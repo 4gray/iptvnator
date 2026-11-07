@@ -91,6 +91,7 @@ test('keeps an unseen native close guarded until install IPC arrives @electron @
     const app = await launchElectronApp(dataDir);
     try {
         await openSettings(app.mainWindow);
+        await openSettingsSection(app.mainWindow, 'appearance');
         await app.mainWindow
             .getByRole('radio', { name: 'Dark', exact: true })
             .click();
@@ -152,6 +153,7 @@ for (const entry of ['panel', 'about'] as const) {
         try {
             const page = app.mainWindow;
             await openSettings(page);
+            await openSettingsSection(page, 'appearance');
             await page
                 .getByRole('radio', { name: 'Dark', exact: true })
                 .click();
@@ -209,6 +211,7 @@ for (const entry of ['panel', 'about'] as const) {
             await closeElectronApp(app);
             app = await launchElectronApp(dataDir);
             await openSettings(app.mainWindow);
+            await openSettingsSection(app.mainWindow, 'appearance');
             await expect(
                 app.mainWindow.getByRole('radio', { name: 'Dark', exact: true })
             ).toBeChecked();

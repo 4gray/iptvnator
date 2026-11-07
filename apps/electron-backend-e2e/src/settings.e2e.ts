@@ -30,6 +30,7 @@ import {
     defaultXtreamUsername,
 } from './electron-test-fixtures';
 import { fetchXtreamVodFixture } from './portal-mock-fixtures';
+import { mockExternalPlayerAvailability } from './external-player-availability.fixture';
 
 const epgFixtureXml = `<?xml version="1.0" encoding="UTF-8"?>
 <tv>
@@ -231,6 +232,7 @@ test.describe('Electron Settings', () => {
                 'select-language',
                 'de'
             );
+            await openSettingsSection(firstLaunch.mainWindow, 'appearance');
             await firstLaunch.mainWindow
                 .locator('[data-test-id="DARK_THEME"]')
                 .click();
@@ -280,6 +282,7 @@ test.describe('Electron Settings', () => {
             await expect(
                 secondLaunch.mainWindow.getByTestId('select-language')
             ).toContainText('Deutsch');
+            await openSettingsSection(secondLaunch.mainWindow, 'appearance');
             await expect(
                 secondLaunch.mainWindow.locator('[data-test-id="DARK_THEME"]')
             ).toHaveAttribute('aria-checked', 'true');
@@ -1070,6 +1073,7 @@ async function installExternalPlayerLaunchCapture(
         ipcMain.handle('OPEN_MPV_PLAYER', captureLaunch('mpv'));
         ipcMain.handle('OPEN_VLC_PLAYER', captureLaunch('vlc'));
     }, externalPlayerLaunchCaptureKey);
+    await mockExternalPlayerAvailability(app, { mpv: true, vlc: true });
 }
 
 async function getExternalPlayerLaunches(

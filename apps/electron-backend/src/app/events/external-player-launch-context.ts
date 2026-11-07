@@ -5,6 +5,10 @@ import {
     type ExternalPlayerArgumentsInput,
 } from '@iptvnator/shared/interfaces';
 import { existsSync, readdirSync } from 'fs';
+import {
+    defaultExternalPlayerPaths,
+    VLC_CASKROOM_PATH,
+} from './external-player-default-paths';
 
 export type PathExists = (path: string) => boolean;
 export type ReadDirectory = (path: string) => string[];
@@ -216,47 +220,9 @@ export function getDefaultMpvPath(options: PlayerPathOptions = {}): string {
         return 'mpv';
     }
 
-    if (platform === 'win32') {
-        const windowsPaths = [
-            path.join('C:', 'Program Files', 'mpv', 'mpv.exe'),
-            path.join('C:', 'Program Files (x86)', 'mpv', 'mpv.exe'),
-        ];
-
-        for (const mpvPath of windowsPaths) {
-            if (pathExists(mpvPath)) {
-                return mpvPath;
-            }
-        }
-        return 'mpv';
-    } else if (platform === 'linux') {
-        const linuxPaths = [
-            '/usr/bin/mpv',
-            '/usr/local/bin/mpv',
-            '/snap/bin/mpv',
-        ];
-
-        for (const mpvPath of linuxPaths) {
-            if (pathExists(mpvPath)) {
-                return mpvPath;
-            }
-        }
-        return 'mpv';
-    } else if (platform === 'darwin') {
-        const macosPaths = [
-            '/Applications/mpv.app/Contents/MacOS/mpv',
-            '/opt/homebrew/bin/mpv',
-            '/usr/local/bin/mpv',
-        ];
-
-        for (const mpvPath of macosPaths) {
-            if (pathExists(mpvPath)) {
-                return mpvPath;
-            }
-        }
-        return 'mpv';
-    }
-
-    return 'mpv';
+    return (
+        defaultExternalPlayerPaths('mpv', platform).find(pathExists) ?? 'mpv'
+    );
 }
 
 export function getDefaultVlcPath(options: PlayerPathOptions = {}): string {
@@ -271,71 +237,18 @@ export function getDefaultVlcPath(options: PlayerPathOptions = {}): string {
         return 'vlc';
     }
 
-    if (platform === 'win32') {
-        const windowsPaths = [
-            path.join('C:', 'Program Files', 'VideoLAN', 'VLC', 'vlc.exe'),
-            path.join(
-                'C:',
-                'Program Files (x86)',
-                'VideoLAN',
-                'VLC',
-                'vlc.exe'
-            ),
-        ];
-
-        for (const vlcPath of windowsPaths) {
-            if (pathExists(vlcPath)) {
-                return vlcPath;
-            }
-        }
-        return 'vlc';
-    } else if (platform === 'linux') {
-        const linuxPaths = [
-            '/usr/bin/vlc',
-            '/usr/local/bin/vlc',
-            '/snap/bin/vlc',
-        ];
-
-        for (const vlcPath of linuxPaths) {
-            if (pathExists(vlcPath)) {
-                return vlcPath;
-            }
-        }
-        return 'vlc';
-    } else if (platform === 'darwin') {
-        const macosPaths = [
-            '/Applications/VLC.app/Contents/MacOS/VLC',
-            ...getHomebrewCaskVlcPaths(readDirectory),
-        ];
-
-        for (const vlcPath of macosPaths) {
-            if (pathExists(vlcPath)) {
-                return vlcPath;
-            }
-        }
-        return 'vlc';
-    }
-    return 'vlc';
+    const caskEntries =
+        platform === 'darwin' ? getHomebrewCaskVlcEntries(readDirectory) : [];
+    return (
+        defaultExternalPlayerPaths('vlc', platform, caskEntries).find(
+            pathExists
+        ) ?? 'vlc'
+    );
 }
 
-function getHomebrewCaskVlcPaths(readDirectory: ReadDirectory): string[] {
-    const caskroomPath = '/opt/homebrew/Caskroom/vlc';
-
+function getHomebrewCaskVlcEntries(readDirectory: ReadDirectory): string[] {
     try {
-        // Caskroom paths are always POSIX, even when a darwin platform is
-        // simulated on a win32 host in tests.
-        return readDirectory(caskroomPath)
-            .filter((entry) => entry.trim().length > 0)
-            .map((entry) =>
-                path.posix.join(
-                    caskroomPath,
-                    entry,
-                    'VLC.app',
-                    'Contents',
-                    'MacOS',
-                    'VLC'
-                )
-            );
+        return readDirectory(VLC_CASKROOM_PATH);
     } catch {
         return [];
     }

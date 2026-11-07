@@ -128,11 +128,13 @@ test('@settings @electron saves the portal cooldown preference and applies it wi
         expect(await requestFailure(app.mainWindow, origin)).toContain(
             pausedMessage
         );
+        await app.mainWindow.getByTestId('settings-section-appearance').click();
         await app.mainWindow.getByTestId('DARK_THEME').click();
         await saveSettings(app.mainWindow);
         await expect(
             app.mainWindow.locator('mat-snack-bar-container')
         ).toBeHidden();
+        await app.mainWindow.getByTestId('settings-section-general').click();
         await app.mainWindow
             .getByTestId('portal-connectivity-setting')
             .screenshot({

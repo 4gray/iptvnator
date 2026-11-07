@@ -62,6 +62,21 @@ for (const type of ['movie', 'series'] as const) {
                     await window.electron.dbAddFavorite(item.id, playlistId);
                 }
             }, playlistId);
+            if (type === 'series') {
+                await page.evaluate(
+                    (id) =>
+                        window.electron.dbSavePlaybackPosition(id, {
+                            contentXtreamId: 50001,
+                            contentType: 'episode',
+                            seriesXtreamId: 30001,
+                            seasonNumber: 1,
+                            episodeNumber: 1,
+                            positionSeconds: 60,
+                            durationSeconds: 1500,
+                        }),
+                    playlistId
+                );
+            }
             await openGlobalFavorites(page);
             await switchUnifiedCollectionContent(
                 page,
@@ -80,6 +95,37 @@ for (const type of ['movie', 'series'] as const) {
                 name: 'Open in Synthetic Menu Source',
                 exact: true,
             });
+            if (type === 'series') {
+                const hide = page.getByRole('menuitem', {
+                    name: 'Hide from Continue Watching',
+                    exact: true,
+                });
+                await trigger.click();
+                await expect(hide).toHaveCount(0);
+                const rowId = await page.evaluate(async (id) => {
+                    const [row] = await window.electron.dbGetContent(
+                        id,
+                        'series'
+                    );
+                    await window.electron.dbAddRecentItem(row.id, id);
+                    window.dispatchEvent(
+                        new Event('iptvnator-history-changed')
+                    );
+                    return row.id;
+                }, playlistId);
+                await expect(hide).toBeVisible();
+                await page.evaluate(
+                    async ({ id, rowId }) => {
+                        await window.electron.dbRemoveRecentItem(rowId, id);
+                        window.dispatchEvent(
+                            new Event('iptvnator-history-changed')
+                        );
+                    },
+                    { id: playlistId, rowId }
+                );
+                await expect(hide).toHaveCount(0);
+                await page.keyboard.press('Escape');
+            }
             // Keep the real component and overlay, but isolate their geometry from hero layout.
             for (const position of [
                 { top: 200, left: 400 },

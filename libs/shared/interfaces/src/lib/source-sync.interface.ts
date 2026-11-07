@@ -51,6 +51,8 @@ export interface SourceServerRequest {
         | 'activity-list'
         | 'activity-read'
         | 'activity-apply'
+        | 'history-read'
+        | 'history-apply'
         | 'favorites-context'
         | 'favorites-list'
         | 'favorites-read'
@@ -58,6 +60,10 @@ export interface SourceServerRequest {
     favorite?: {
         address: import('./favorites-sync/favorites-sync.contract').FavoriteAddress;
         operation?: import('./favorites-sync/favorites-sync.contract').FavoriteOperation;
+    };
+    history?: {
+        scope: import('./history-sync/history.contract').HistoryScope;
+        operation: import('./history-sync/history.contract').HistoryOperation;
     };
     cursor?: string;
     activity?: {

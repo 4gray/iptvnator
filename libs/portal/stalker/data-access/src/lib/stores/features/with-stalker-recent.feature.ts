@@ -56,7 +56,8 @@ export function withStalkerRecent() {
                                     {
                                         recentlyViewed:
                                             updatedPlaylist?.recentlyViewed,
-                                    }
+                                    },
+                                    false
                                 );
                             });
                     },
@@ -79,7 +80,8 @@ export function withStalkerRecent() {
                                         {
                                             recentlyViewed:
                                                 updatedPlaylist?.recentlyViewed,
-                                        }
+                                        },
+                                        false
                                     );
                                     onComplete?.();
                                 },

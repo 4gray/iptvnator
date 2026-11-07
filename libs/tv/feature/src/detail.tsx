@@ -6,7 +6,8 @@ import {
 } from '@iptvnator/tv/ui';
 import { TvModel } from './use-tv';
 import { TvMetadata } from '@iptvnator/tv/data-access';
-import { mediaTitle } from '@iptvnator/tv/util';
+import { mediaTitle, isWatched, resumePosition } from '@iptvnator/tv/util';
+import { WatchedButton } from './watched-button';
 import { MetadataCredits } from './metadata-credits';
 import { MetadataChips } from './metadata-chips';
 import { useEpisodeMetadata } from './use-episode-metadata';
@@ -72,9 +73,11 @@ export function Detail({
                                 data-focus="detail-play"
                                 onClick={() => tv.play(item)}
                             >
-                                {tv.data.positions[item.id]?.seconds
-                                    ? 'Resume'
-                                    : 'Watch now'}{' '}
+                                {isWatched(tv.data.positions[item.id])
+                                    ? 'Watch again'
+                                    : resumePosition(tv.data.positions[item.id])
+                                      ? 'Resume'
+                                      : 'Watch now'}{' '}
                                 ▶
                             </button>
                         ) : null}
@@ -89,6 +92,13 @@ export function Detail({
                         >
                             {saved ? '♥ Saved' : '♡ Add to favorites'}
                         </button>
+                        {(item.kind === 'movie' || item.kind === 'episode') &&
+                        tv.data.positions[item.id] ? (
+                            <WatchedButton
+                                tv={tv}
+                                progress={tv.data.positions[item.id]}
+                            />
+                        ) : null}
                     </div>
                 </div>
             </section>
@@ -165,9 +175,13 @@ export function Detail({
                                         </span>
                                     ) : null}
                                     <small>
-                                        {tv.data.positions[e.id]?.seconds
-                                            ? 'Resume episode'
-                                            : 'Watch episode'}{' '}
+                                        {isWatched(tv.data.positions[e.id])
+                                            ? 'Watch episode again'
+                                            : resumePosition(
+                                                    tv.data.positions[e.id]
+                                                )
+                                              ? 'Resume episode'
+                                              : 'Watch episode'}{' '}
                                         →
                                     </small>
                                 </span>

@@ -441,6 +441,94 @@ for (const provider of ['xtream', 'stalker'] as const)
                     }
                 }
                 expect(JSON.stringify(await list())).not.toContain('cmd');
+                const seriesRow = (
+                    await (
+                        await fetch(
+                            `http://localhost:${process.env['MOCK_PORT'] ?? '3417'}/portal.php?type=series&action=get_ordered_list&category=*&p=1`,
+                            { headers: { cookie: 'mac=00:1a:79:00:00:07' } }
+                        )
+                    ).json()
+                ).js.data[1];
+                expect(seriesRow.cover).toBeTruthy();
+                expect(seriesRow.description).toBeTruthy();
+                expect(
+                    (
+                        await fetch(
+                            `${server.apiUrl}/v1/favorites/operations`,
+                            {
+                                method: 'POST',
+                                headers,
+                                body: JSON.stringify({
+                                    address: {
+                                        instanceId,
+                                        scope: 'shared',
+                                        sourceId,
+                                        sourceIncarnation:
+                                            scope.sourceIncarnation,
+                                        content: {
+                                            provider: 'stalker',
+                                            kind: 'series',
+                                            id: String(seriesRow.id),
+                                            mode: 'regular',
+                                        },
+                                    },
+                                    operation: {
+                                        operationId:
+                                            'synthetic-series-metadata',
+                                        deviceId: 'fixture',
+                                        expectedRevision: 0,
+                                        member: true,
+                                        snapshot: {
+                                            title: 'Synthetic received series',
+                                        },
+                                    },
+                                }),
+                            }
+                        )
+                    ).status
+                ).toBe(200);
+                for (const client of [page, desktop.mainWindow]) {
+                    await client.route('https://picsum.photos/**', (route) =>
+                        route.fulfill({
+                            contentType: 'image/svg+xml',
+                            body: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="30"><rect width="20" height="30" fill="#345"/></svg>',
+                        })
+                    );
+                    await refresh(client);
+                    await openGlobalFavorites(client);
+                    await switchUnifiedCollectionContent(client, 'Series');
+                    const card = contentCardByTitle(
+                        client,
+                        'Synthetic received series'
+                    );
+                    await expect(card.locator('img')).toHaveAttribute(
+                        'src',
+                        seriesRow.cover,
+                        { timeout: 30000 }
+                    );
+                    await card.click();
+                    await expect(
+                        client.locator('.details__description')
+                    ).toContainText(seriesRow.description, { timeout: 30000 });
+                    await client
+                        .getByRole('link', { name: 'Dashboard', exact: true })
+                        .click();
+                    const favorite = client
+                        .getByTestId('dashboard-favorite-vod-rail')
+                        .getByRole('listitem')
+                        .filter({ hasText: 'Synthetic received series' });
+                    await expect(favorite.locator('img')).toHaveAttribute(
+                        'src',
+                        seriesRow.cover,
+                        { timeout: 30000 }
+                    );
+                }
+                expect(JSON.stringify(await list())).not.toContain(
+                    seriesRow.cover
+                );
+                expect(JSON.stringify(await list())).not.toContain(
+                    seriesRow.description
+                );
                 for (const [index, mode] of [
                     'regular',
                     'embedded',

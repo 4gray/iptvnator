@@ -112,6 +112,11 @@ export interface XtreamContentItem {
     playlist_name?: string;
 }
 
+/** Shared history can arrive before its native catalog row exists. */
+export interface XtreamRecentItem extends Omit<XtreamContentItem, 'id'> {
+    id: number | null;
+}
+
 export interface XtreamFavoriteItem extends Omit<
     XtreamContentItem,
     'id' | 'category_id'
@@ -173,6 +178,8 @@ export interface XtreamOperationOptions {
  * Allows different implementations for Electron (DB-first) and PWA (API-only).
  */
 export interface IXtreamDataSource {
+    /** Verified source history accepts provider IDs without a local catalog row. */
+    supportsPortableHistory?(playlistId: string): boolean | Promise<boolean>;
     /** Only the consent-aware adapter may handle provider references without SQLite rows. */
     supportsPortableFavorites?(playlistId: string): boolean | Promise<boolean>;
 
@@ -359,7 +366,10 @@ export interface IXtreamDataSource {
     /**
      * Get recently viewed items for a playlist
      */
-    getRecentItems(playlistId: string): Promise<XtreamContentItem[]>;
+    getRecentItems(
+        playlistId: string,
+        options?: { all: true }
+    ): Promise<XtreamRecentItem[]>;
 
     /**
      * Add item to recently viewed. See `addFavorite` for `backdropUrl`.

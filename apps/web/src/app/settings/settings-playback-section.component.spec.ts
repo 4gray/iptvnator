@@ -64,6 +64,224 @@ describe('SettingsPlaybackSectionComponent', () => {
         fixture.componentRef.setInput('streamFormatEnum', StreamFormat);
     });
 
+    it.each(['mpv', 'vlc'] as const)(
+        'keeps the %s path editor mounted after a successful probe while editing',
+        (player) => {
+            fixture.componentRef.setInput(
+                'form',
+                createForm(player === 'mpv' ? VideoPlayer.MPV : VideoPlayer.VLC)
+            );
+            fixture.componentRef.setInput(
+                'supportsExternalPlayerPathSettings',
+                true
+            );
+            fixture.componentInstance.externalAvailability.set({
+                mpv: false,
+                vlc: false,
+            });
+            fixture.detectChanges();
+            const input = fixture.nativeElement.querySelector(
+                `#${player}PlayerPath`
+            );
+            const control =
+                fixture.componentInstance.form().controls[
+                    `${player}PlayerPath`
+                ];
+            control.markAsDirty();
+            control.setValue('D:\\Players\\portable');
+            fixture.componentInstance.externalAvailability.set({
+                mpv: true,
+                vlc: true,
+            });
+            fixture.detectChanges();
+            expect(
+                fixture.nativeElement.querySelector(`#${player}PlayerPath`)
+            ).toBe(input);
+        }
+    );
+
+    it('rejects an old probe response immediately after the paths change', async () => {
+        const previous = Object.getOwnPropertyDescriptor(window, 'electron');
+        let resolveProbe!: (result: { mpv: boolean; vlc: boolean }) => void;
+        Object.defineProperty(window, 'electron', {
+            configurable: true,
+            value: {
+                getExternalPlayerAvailability: jest.fn(
+                    () =>
+                        new Promise((resolve) => {
+                            resolveProbe = resolve;
+                        })
+                ),
+            },
+        });
+        try {
+            fixture.componentRef.setInput(
+                'supportsExternalPlayerPathSettings',
+                true
+            );
+            fixture.detectChanges();
+            fixture.componentInstance
+                .form()
+                .controls.mpvPlayerPath.setValue('D:\\New\\mpv.exe');
+            resolveProbe({ mpv: true, vlc: true });
+            await Promise.resolve();
+            await Promise.resolve();
+            expect(fixture.componentInstance.externalAvailability()).toEqual({
+                mpv: null,
+                vlc: null,
+            });
+        } finally {
+            if (previous) Object.defineProperty(window, 'electron', previous);
+            else Reflect.deleteProperty(window, 'electron');
+        }
+    });
+
+    it('keeps missing players selectable without exposing unused configuration', async () => {
+        fixture.componentRef.setInput(
+            'supportsExternalPlayerPathSettings',
+            true
+        );
+        fixture.componentInstance.externalAvailability.set({
+            mpv: false,
+            vlc: true,
+        });
+        fixture.detectChanges();
+        expect(
+            fixture.componentInstance.externalPlayerUnavailable(VideoPlayer.MPV)
+        ).toBe(true);
+        expect(
+            fixture.componentInstance.externalPlayerUnavailable(VideoPlayer.VLC)
+        ).toBe(false);
+        expect(
+            fixture.nativeElement.querySelector('#mpvPlayerPath')
+        ).toBeNull();
+        expect(queryByTestId('mpv-player-arguments-setting')).toBeNull();
+        fixture.nativeElement
+            .querySelector('[data-test-id="select-video-player"]')
+            .click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const mpv = document.body.querySelector<HTMLElement>(
+            '[data-test-id="mpv"]'
+        ) as HTMLElement;
+        expect(mpv.getAttribute('aria-disabled')).toBe('false');
+        expect(mpv.textContent).toContain(
+            'SETTINGS.EXTERNAL_PLAYER_UNAVAILABLE'
+        );
+        mpv.click();
+        fixture.detectChanges();
+        expect(fixture.componentInstance.form().value.player).toBe(
+            VideoPlayer.MPV
+        );
+        const rows = fixture.nativeElement.querySelectorAll(
+            '.settings-card .setting-item'
+        );
+        expect(rows[1].getAttribute('data-setting-id')).toBe('mpv-player-path');
+        expect(
+            fixture.nativeElement.querySelector('#vlcPlayerPath')
+        ).toBeNull();
+    });
+
+    describe('availability checks', () => {
+        let previous: PropertyDescriptor | undefined;
+        let probe: jest.Mock;
+
+        beforeEach(() => {
+            previous = Object.getOwnPropertyDescriptor(window, 'electron');
+            probe = jest.fn().mockResolvedValue({ mpv: true, vlc: null });
+            Object.defineProperty(window, 'electron', {
+                configurable: true,
+                value: { getExternalPlayerAvailability: probe },
+            });
+            fixture.componentRef.setInput(
+                'supportsExternalPlayerPathSettings',
+                true
+            );
+            fixture.componentRef.setInput('form', createForm(VideoPlayer.MPV));
+        });
+
+        afterEach(() => {
+            if (previous) Object.defineProperty(window, 'electron', previous);
+            else Reflect.deleteProperty(window, 'electron');
+        });
+
+        it('checks only path edits and immediately clears stale results', async () => {
+            fixture.detectChanges();
+            await fixture.componentInstance.refreshExternalAvailability();
+            expect(fixture.componentInstance.externalAvailability().mpv).toBe(
+                true
+            );
+            probe.mockClear();
+            const form = fixture.componentInstance.form();
+            form.controls.player.setValue(VideoPlayer.VLC);
+            form.controls.mpvReuseInstance.setValue(false);
+            await new Promise((resolve) => setTimeout(resolve, 350));
+            expect(probe).not.toHaveBeenCalled();
+            form.controls.mpvPlayerPath.setValue('/synthetic/players/mpv');
+            expect(fixture.componentInstance.externalAvailability()).toEqual({
+                mpv: null,
+                vlc: null,
+            });
+            expect(fixture.componentInstance.checkingExternalPlayers()).toBe(
+                true
+            );
+            await new Promise((resolve) => setTimeout(resolve, 350));
+            expect(probe).toHaveBeenCalledTimes(1);
+            expect(probe).toHaveBeenCalledWith({
+                mpv: '/synthetic/players/mpv',
+                vlc: '',
+            });
+            expect(fixture.componentInstance.checkingExternalPlayers()).toBe(
+                false
+            );
+        });
+
+        it('announces found, missing and unknown results and allows a manual recheck', async () => {
+            fixture.detectChanges();
+            await fixture.whenStable();
+            await fixture.componentInstance.refreshExternalAvailability();
+            fixture.detectChanges();
+            const status = queryByTestId(
+                'external-player-status'
+            ) as HTMLElement;
+            expect(status.getAttribute('role')).toBe('status');
+            expect(status.textContent).toContain(
+                'SETTINGS.EXTERNAL_PLAYER_FOUND'
+            );
+            probe.mockResolvedValue({ mpv: false, vlc: null });
+            (queryByTestId('check-external-players') as HTMLElement).click();
+            fixture.detectChanges();
+            expect(status.textContent).toContain(
+                'SETTINGS.EXTERNAL_PLAYER_CHECKING'
+            );
+            await fixture.whenStable();
+            fixture.detectChanges();
+            expect(status.textContent).toContain(
+                'SETTINGS.EXTERNAL_PLAYER_INSTALL_HINT'
+            );
+            probe.mockRejectedValue(new Error('Synthetic unavailable bridge'));
+            await fixture.componentInstance.refreshExternalAvailability();
+            fixture.detectChanges();
+            expect(status.textContent).toContain(
+                'SETTINGS.EXTERNAL_PLAYER_UNKNOWN'
+            );
+            expect(fixture.componentInstance.checkingExternalPlayers()).toBe(
+                false
+            );
+        });
+    });
+
+    it('keeps unknown availability and built-in players selectable', () => {
+        expect(
+            fixture.componentInstance.externalPlayerUnavailable(VideoPlayer.MPV)
+        ).toBe(false);
+        expect(
+            fixture.componentInstance.externalPlayerUnavailable(
+                VideoPlayer.VideoJs
+            )
+        ).toBe(false);
+    });
+
     it('hides the external-player double-click option when managed external players are unsupported', () => {
         fixture.componentRef.setInput('form', createForm(VideoPlayer.MPV));
         fixture.componentRef.setInput('isDesktop', true);

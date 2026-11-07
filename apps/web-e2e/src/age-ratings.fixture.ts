@@ -136,7 +136,7 @@ export async function setAgeRatingTheme(
     detailUrl: string
 ) {
     await page.getByRole('link', { name: 'Open settings' }).click();
-    await page.locator('[data-test-id="settings-section-general"]').click();
+    await page.locator('[data-test-id="settings-section-appearance"]').click();
     await page
         .locator('[data-test-id="select-theme"]')
         .getByRole('radio', { name: theme, exact: true })

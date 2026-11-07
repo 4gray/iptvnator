@@ -38,6 +38,7 @@ describe('typed shared Stalker favorites collection', () => {
             UnifiedFavoritesDataService.prototype
         ) as UnifiedFavoritesDataService;
         Object.assign(service, {
+            stalkerMetadata: { project: (value: unknown) => value },
             favoriteSync: {
                 active: () => true,
                 project: async (value: unknown) => value,

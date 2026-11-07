@@ -7,6 +7,22 @@ Embedded MPV rendering and native-view bounds behavior remain documented in
 
 ## Current status
 
+The Settings player selector probes external MPV/VLC using the same launch
+context as playback. A missing executable labels its option without disabling
+selection or changing the saved player. The selected external player's path
+editor sits directly below the selector; unused external-player configuration
+stays hidden. Its status announces checking, found, missing or unknown, with
+a manual recheck button. PATH and standard install locations are checked
+without spawning a process. Discovery uses asynchronous filesystem I/O with a
+1.5-second total budget and at most two outstanding filesystem operations,
+reserving at least one worker from the configured libuv pool for other work.
+With a single worker, detection returns unknown without filesystem I/O.
+An inaccessible UNC path, other inconclusive I/O error or timed-out shell PATH lookup returns unknown
+and leaves the option selectable. Flatpak host availability and older bridges remain
+unknown. Reopening the selector, editing either executable path or pressing
+the recheck button refreshes the check; unrelated form edits do not. Path edits
+immediately invalidate the previous result, and stale responses are ignored.
+
 The shared-controls preference checkbox is visible only when HTML5, Video.js
 or ArtPlayer is selected in Settings → Playback.
 

@@ -122,6 +122,8 @@ export interface Progress {
     seconds: number;
     duration: number;
     updated: number;
+    watched?: boolean;
+    watchedUpdated?: number;
 }
 export interface LibrarySettings {
     url: string;
@@ -205,6 +207,15 @@ export class LatestRequest {
 
 /** Recent history is bounded; unfinished playback positions are retained independently. */
 export function recordProgress(data: UserData, progress: Progress): UserData {
+    const current =
+        data.positions[progress.item.id] ??
+        data.history.find((p) => p.item.id === progress.item.id);
+    // A retry captured before a manual status edit must not replace that edit.
+    if (
+        current?.watchedUpdated !== undefined &&
+        progress.updated <= current.watchedUpdated
+    )
+        return data;
     return {
         ...data,
         history: [
@@ -250,6 +261,7 @@ export * from './settings-draft';
 export * from './catalog-sort';
 export * from './catalog-query';
 export { continueWatching } from './continue-watching';
+export * from './playback-progress';
 export * from './series-context';
 export * from './programme-guide';
 

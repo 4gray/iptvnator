@@ -1,5 +1,7 @@
 import { join } from 'node:path';
 import { expect, test } from './fixtures';
+import { pressTab } from './e2e-helpers';
+import { expectNavigationFocus } from './navigation-focus.fixture';
 import {
     addXtreamPortal,
     interceptXtreamRequests,
@@ -95,6 +97,51 @@ test('@ui @m3u navigation uses one font role across native group and provider bu
     await expect(provider).toHaveCSS('font-family', family);
     await expect(provider).toHaveCSS('font-size', '14px');
     await expect(provider).toHaveCSS('font-weight', '500');
+});
+
+test('@ui @a11y @m3u group keyboard focus shares the selected edge in both themes', async ({
+    page,
+    browserName,
+}, testInfo) => {
+    await page.getByRole('button', { name: 'Add playlist' }).click();
+    const dialog = page.locator('mat-dialog-container');
+    await dialog.getByRole('radio', { name: /M3U file/i }).click();
+    await dialog.locator('input[type=file]').setInputFiles({
+        name: 'synthetic-focus.m3u',
+        mimeType: 'audio/x-mpegurl',
+        buffer: Buffer.from(
+            '#EXTM3U\n#EXTINF:-1 group-title="Newsroom",Aurora\nhttps://media.example.test/news\n#EXTINF:-1 group-title="Culture",Civic\nhttps://media.example.test/culture\n'
+        ),
+    });
+    await dialog
+        .getByRole('button', { name: 'Add playlist', exact: true })
+        .click();
+    await page.waitForURL(/\/all$/);
+    await page.getByRole('link', { name: 'Groups', exact: true }).click();
+    const group = page.locator('.group-nav-item').first();
+    await group.click();
+    await expect(group).toHaveAttribute('aria-current', 'true');
+    for (const dark of [false, true]) {
+        await applyUiTheme(page, dark);
+        await group.focus();
+        await pressTab(page, browserName);
+        await pressTab(page, browserName, 'backward');
+        await expectNavigationFocus(group);
+        await expect
+            .poll(() => rasterTextContrast(group.locator('.nav-item-label')))
+            .toBeGreaterThanOrEqual(4.5);
+        await page.screenshot({
+            path: testInfo.outputPath(
+                `group-focus-${dark ? 'dark' : 'light'}.png`
+            ),
+            animations: 'disabled',
+        });
+        await page.locator('.group-nav-item').nth(1).click();
+        await group.click();
+        expect(await group.evaluate((el) => el.matches(':focus-visible'))).toBe(
+            false
+        );
+    }
 });
 
 test('@ui @collections all content filters and actions fit localized narrow panes', async ({

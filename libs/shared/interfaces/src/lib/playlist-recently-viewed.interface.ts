@@ -15,8 +15,10 @@ export interface M3uRecentlyViewedItem {
 }
 
 export type PlaylistRecentlyViewedItem =
-    | M3uRecentlyViewedItem
-    | StalkerPortalItem;
+    M3uRecentlyViewedItem | StalkerPortalItem;
+
+export type PlaylistRecentIdentity =
+    string | number | PlaylistRecentlyViewedItem;
 
 export function isM3uRecentlyViewedItem(
     item: unknown

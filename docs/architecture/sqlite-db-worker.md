@@ -278,6 +278,14 @@ same with and without profiling. `DB_GLOBAL_SEARCH` is deliberately not
 instrumented: it interleaves queries and ranking across sources, so these
 single-query phases would be misleading.
 
+### Shared history sidecar
+
+`DB_HISTORY_LOCAL` is a fixed read/compare-and-swap request, verified against the
+selected instance in main and validated again in the worker. Its additive history
+sidecar stores the projection, local-only choices and pending operations together.
+It does not write the legacy recently-viewed table or its recovery journal.
+Expected serialized bytes are captured before invoking renderer mutation logic.
+
 ### Cache history recovery
 
 The internal `xtream-history-recovery:` keys in `app_state` register Xtream cache

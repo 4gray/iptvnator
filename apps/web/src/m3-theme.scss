@@ -4,6 +4,7 @@
 @use 'styles';
 @use 'theme-palettes' as palettes;
 @use 'warm-theme' as warm;
+@use 'dark-variant-themes' as dark-variants;
 
 // No `mat.elevation-classes()`: nothing in the app uses the `.mat-elevation-z*`
 // utilities, and the 25 rules cost 4.4 KB of the initial stylesheet.
@@ -112,7 +113,9 @@ $material-components: (
 html,
 html .dark-theme,
 html [data-app-theme='cream'],
-html [data-app-theme='mocha'] {
+html [data-app-theme='mocha'],
+html [data-app-theme='night-owl'],
+html [data-app-theme='black-oled'] {
     @include component-tokens($light-theme, (color));
 }
 
@@ -129,8 +132,6 @@ html {
     @include mat.system-level-shape($light-theme);
     @include mat.system-level-state($light-theme);
 
-    @include palettes.light;
-
     .dark-theme {
         // Only the color roles differ per theme: the elevation shadows are
         // the same black in both, so html's declarations already apply here.
@@ -138,6 +139,12 @@ html {
 
         @include palettes.dark;
     }
+}
+
+// Light presets share aliases on the same element as their color overrides.
+html,
+html .light-theme {
+    @include palettes.light;
 }
 
 // Preset identity is separate from the compatibility light/dark mode class.
@@ -152,6 +159,16 @@ html {
         @include palettes.mocha;
     }
 
+    [data-app-theme='night-owl'] {
+        @include dark-variants.night-owl;
+        @include palettes.night-owl;
+    }
+
+    [data-app-theme='black-oled'] {
+        @include dark-variants.black-oled;
+        @include palettes.black-oled;
+    }
+
     // Samples use the same declarations as the app, independent of its theme.
     [data-theme-preview='light'] {
         @include palettes.light($preview: true);
@@ -164,6 +181,12 @@ html {
     }
     [data-theme-preview='mocha'] {
         @include palettes.mocha($preview: true);
+    }
+    [data-theme-preview='night-owl'] {
+        @include palettes.night-owl($preview: true);
+    }
+    [data-theme-preview='black-oled'] {
+        @include palettes.black-oled($preview: true);
     }
 }
 
