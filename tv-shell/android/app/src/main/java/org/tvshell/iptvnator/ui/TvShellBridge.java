@@ -1,128 +1,71 @@
 package org.tvshell.iptvnator.ui;
 
 import android.util.Log;
-import android.webkit.JavascriptInterface;
 
 import org.tvshell.iptvnator.ShellApp;
-import org.tvshell.iptvnator.backend.DiagnosticRedactor;
+import org.tvshell.iptvnator.backend.Json;
 
-/**
- * {@code window.TvShell} inside the page. Every method is called from the
- * WebView's JavaScript thread; UI work is handed to the activity's main thread.
- */
-public class TvShellBridge {
+import java.util.List;
 
+/** Dispatches messages from the trusted main frame on the UI thread. */
+final class TvShellBridge {
     private final MainActivity activity;
 
     TvShellBridge(MainActivity activity) {
         this.activity = activity;
     }
 
-    @JavascriptInterface
-    public void onReady(String url) {
-        Log.i(ShellApp.TAG, "web app ready: " + DiagnosticRedactor.redact(url));
-        activity.runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
+    void receive(String message) {
+        if (message == null || message.length() > 64 * 1024) return;
+        Object parsed;
+        try {
+            parsed = Json.parse(message);
+        } catch (Json.JsonException | NumberFormatException ignored) {
+            return;
+        }
+        if (!(parsed instanceof List<?>)) return;
+        List<?> args = (List<?>) parsed;
+        String command = stringAt(args, 0);
+        if (command == null) return;
+        switch (command) {
+            case "onReady":
+                Log.i(ShellApp.TAG, "web app ready");
                 activity.onWebAppReady();
-            }
-        });
-    }
-
-    @JavascriptInterface
-    public void openExternal(final String url, final String title) {
-        activity.runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                activity.openExternal(url, title);
-            }
-        });
-    }
-
-    /** The web app copied a stream URL: on a TV that means "play it elsewhere". */
-    @JavascriptInterface
-    public void onUrlCopied(final String url, final String title) {
-        activity.runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                activity.offerExternal(url, title, false);
-            }
-        });
-    }
-
-    @JavascriptInterface
-    public void onPlaybackError(final String url, final String title, final String code) {
-        activity.runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                activity.offerExternal(url, title, true);
-            }
-        });
-    }
-
-    /** Something plays (or stopped): the screen stays on only during playback. */
-    @JavascriptInterface
-    public void setKeepScreenOn(final boolean on) {
-        activity.runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                activity.setKeepScreenOn(on);
-            }
-        });
-    }
-
-    @JavascriptInterface
-    public void exitApp() {
-        activity.runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
+                break;
+            case "openExternal":
+            case "onUrlCopied":
+            case "onPlaybackError":
+                String url = stringAt(args, 1);
+                String title = stringAt(args, 2);
+                if (url == null || title == null) return;
+                if (command.equals("openExternal")) activity.openExternal(url, title);
+                else activity.offerExternal(url, title, command.equals("onPlaybackError"));
+                break;
+            case "setKeepScreenOn":
+                if (args.size() > 1 && args.get(1) instanceof Boolean) {
+                    activity.setKeepScreenOn((Boolean) args.get(1));
+                }
+                break;
+            case "exitApp":
                 activity.finishAffinity();
-            }
-        });
-    }
-
-    @JavascriptInterface
-    public void showExitHint() {
-        activity.runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
+                break;
+            case "showExitHint":
                 activity.showExitHint();
-            }
-        });
-    }
-
-    @JavascriptInterface
-    public void toast(final String message) {
-        activity.runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                activity.toast(message);
-            }
-        });
-    }
-
-    @JavascriptInterface
-    public void showKeyboard() {
-        activity.runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
+                break;
+            case "toast":
+                String text = stringAt(args, 1);
+                if (text != null) activity.toast(text);
+                break;
+            case "showKeyboard":
                 activity.showKeyboard();
-            }
-        });
-    }
-
-    @JavascriptInterface
-    public void openSettings() {
-        activity.runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
+                break;
+            case "openSettings":
                 activity.openSettings();
-            }
-        });
+                break;
+        }
     }
 
-    @JavascriptInterface
-    public void log(String message) {
-        Log.d(ShellApp.TAG, "[page] " + DiagnosticRedactor.redact(message));
+    private static String stringAt(List<?> args, int index) {
+        return index < args.size() && args.get(index) instanceof String ? (String) args.get(index) : null;
     }
 }

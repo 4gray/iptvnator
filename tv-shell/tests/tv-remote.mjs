@@ -438,9 +438,7 @@ console.log('9. under the Android bridge: the screen follows playback, error cod
     const bridged = await context.newPage();
     await bridged.addInitScript(() => {
         window.__calls = [];
-        window.TvShell = {};
-        ['onReady', 'openExternal', 'onUrlCopied', 'onPlaybackError', 'exitApp', 'showExitHint', 'toast', 'showKeyboard', 'openSettings', 'log', 'setKeepScreenOn']
-            .forEach((m) => { window.TvShell[m] = (...a) => { window.__calls.push([m].concat(a.map(String)).join(' ')); }; });
+        window.TvShell = { postMessage: (data) => { window.__calls.push(JSON.parse(data).map(String).join(' ')); } };
     });
     await bridged.goto(URL_, { waitUntil: 'networkidle' });
     await bridged.waitForTimeout(1500);
@@ -596,7 +594,7 @@ console.log('9. under the Android bridge: the screen follows playback, error cod
     await bridged.evaluate(async (provider) => {
         window.__tvShellDebug = true;
         await navigator.clipboard.writeText(provider + '/live/synthetic-account/synthetic-bridge-secret/42.ts');
-        window.TvShell.openExternal = () => { throw new Error('synthetic-bridge-secret'); };
+        window.TvShell.postMessage = () => { throw new Error('synthetic-bridge-secret'); };
         window.__tvShell.openExternal();
     }, PROVIDER);
     check(bridgeFailures.some((message) => message.includes('bridge.openExternal failed')) &&

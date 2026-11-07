@@ -10,6 +10,7 @@
     <string name="server_error">The embedded server could not start (no free port).</string>
     <string name="load_timeout">The web app did not start in time. The WebView of this device may be too old for IPTVnator (Chrome engine 94 or newer is required). The diagnostics are below.</string>
     <string name="webview_unavailable">The system web view is unavailable (being updated, or disabled). Try again in a minute, or update Amazon WebView / Android System WebView.</string>
+    <string name="webview_bridge_unavailable">Update Amazon WebView or Android System WebView to enable IPTVnator’s secure controls.</string>
     <string name="port_fallback">Port %1$d is used by another app: running on port %2$d for now. Your saved playlists come back when you return to the app after port %1$d is free.</string>
     <string name="no_stream_to_open">No stream to open</string>
     <string name="renderer_restarted">The player was restarted after it ran out of memory.</string>

@@ -19,7 +19,7 @@
  *   Menu             → window.__tvShell.menu(): context menu on the focused item.
  *   Media keys       → window.__tvShell.media('playpause' | 'rewind' | ...).
  *
- * The Android side exposes `window.TvShell` (JavascriptInterface). Without it
+ * Android exposes `window.TvShell.postMessage` on the local origin. Without it
  * (plain browser) a console stub is used and F9/F10/F8/F7 emulate Back/Menu/
  * Play-Pause/External player.
  */
@@ -36,7 +36,7 @@
     var MEDIA_URL_RE = /\.(m3u8|m3u|ts|mp4|mkv|avi|mov|webm|mpd|aac|mp3|flac)(\?|#|$)|\/(live|movie|movies|series|play|stream|hls|dash|radio)\//i;
 
     var bridge = window.TvShell || null;
-    var isAndroid = !!bridge;
+    var isAndroid = !!bridge && typeof bridge.postMessage === 'function';
     var api = {};
     var lastRect = null; // where focus last was, for recycled/removed elements
     var lastMediaUrl = null;
@@ -57,9 +57,9 @@
     // --------------------------------------------------------------- bridge
     function native(method) {
         var args = Array.prototype.slice.call(arguments, 1);
-        if (bridge && typeof bridge[method] === 'function') {
+        if (isAndroid) {
             try {
-                return bridge[method].apply(bridge, args);
+                bridge.postMessage(JSON.stringify([method].concat(args)));
             } catch (e) {
                 log('bridge.' + method + ' failed');
             }

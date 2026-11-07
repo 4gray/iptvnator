@@ -34,11 +34,17 @@ import android.widget.FrameLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.webkit.WebMessageCompat;
+import androidx.webkit.WebViewCompat;
+import androidx.webkit.WebViewFeature;
+
 import org.tvshell.iptvnator.Prefs;
 import org.tvshell.iptvnator.R;
 import org.tvshell.iptvnator.ShellApp;
 import org.tvshell.iptvnator.backend.DiagnosticRedactor;
 import org.tvshell.iptvnator.server.TvShellServer;
+
+import java.util.Collections;
 
 /**
  * Full-screen WebView showing the bundled IPTVnator PWA from the embedded
@@ -49,7 +55,7 @@ public class MainActivity extends Activity {
 
     private static final long LONG_PRESS_MS = 650;
     /**
-     * How long the web app may take to call TvShell.onReady() before the error panel explains the
+     * How long the web app may take to report readiness before the error panel explains the
      * situation; doubled once while the page is still being fetched (a cold start on a slow stick
      * right after an update parses the whole bundle again).
      */
@@ -66,6 +72,7 @@ public class MainActivity extends Activity {
     private static long lastRendererDeathAt;
 
     private WebView webView;
+    private String bridgeOrigin;
     private final WebFileChooser fileChooser = new WebFileChooser(this);
     private FrameLayout root;
     private View splash;
@@ -186,10 +193,10 @@ public class MainActivity extends Activity {
         webView.setBackgroundColor(Color.BLACK);
         webView.setFocusable(true);
         webView.setFocusableInTouchMode(true);
-        webView.addJavascriptInterface(new TvShellBridge(this), "TvShell");
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                if (!request.isForMainFrame()) return false;
                 Uri uri = request.getUrl();
                 if (server != null && uri.toString().startsWith(server.baseUrl())) return false;
                 // Outside links (YouTube trailers, provider sites): hand http(s) to the system, the
@@ -363,6 +370,11 @@ public class MainActivity extends Activity {
             showError(getString(R.string.server_error));
             return;
         }
+        if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+            showError(getString(R.string.webview_bridge_unavailable));
+            return;
+        }
+        bindBridge();
         if (ShellApp.onFallbackPort()) toast(getString(R.string.port_fallback, prefs.serverPort(), server.port()));
         server.setLayoutWidth(loadedLayoutWidth);
         server.setScreenWidth(loadedScreenWidth);
@@ -373,6 +385,21 @@ public class MainActivity extends Activity {
         webView.loadUrl(url);
         webView.requestFocus(View.FOCUS_DOWN);
         armWatchdog();
+    }
+
+    private void bindBridge() {
+        String origin = "http://127.0.0.1:" + server.port();
+        if (origin.equals(bridgeOrigin)) return;
+        if (bridgeOrigin != null) WebViewCompat.removeWebMessageListener(webView, "TvShell");
+        TvShellBridge bridge = new TvShellBridge(this);
+        WebViewCompat.addWebMessageListener(webView, "TvShell", Collections.singleton(origin),
+            (view, message, sourceOrigin, isMainFrame, replyProxy) -> {
+                if (view == webView && server != null && isMainFrame && origin.equals(bridgeOrigin)
+                    && origin.equals(sourceOrigin.toString()) && message.getType() == WebMessageCompat.TYPE_STRING) {
+                    bridge.receive(message.getData());
+                }
+            });
+        bridgeOrigin = origin;
     }
 
     /** (Re)starts the ready watchdog for a full period; while paused onResume() does it. */

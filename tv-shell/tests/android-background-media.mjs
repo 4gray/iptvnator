@@ -30,7 +30,7 @@ try {
         header.setUint32(24, 8000, true); header.setUint32(28, 16000, true);
         header.setUint16(32, 2, true); header.setUint16(34, 16, true); text(36, 'data'); header.setUint32(40, 160000, true);
         document.querySelector('audio').src = URL.createObjectURL(new Blob([pcm], { type: 'audio/wav' }));
-        window.TvShell.onReady(location.href);
+        window.TvShell.postMessage('["onReady"]');
     });
     const states = () => page.evaluate(() => Array.from(document.querySelectorAll('video,audio')).map((media) => media.paused));
     const start = () => page.evaluate(() => Promise.all(Array.from(document.querySelectorAll('video,audio')).map((media) => media.play())));
@@ -57,7 +57,7 @@ try {
     await start();
     assert.deepEqual(await states(), [false, false]);
     console.log('PASS foreground permits explicit playback without autoplay on return');
-    await page.evaluate(() => window.TvShell.openSettings());
+    await page.evaluate(() => window.TvShell.postMessage('["openSettings"]'));
     await waitPaused();
     adb('shell', 'input', 'keyevent', '4');
     await delay(300);

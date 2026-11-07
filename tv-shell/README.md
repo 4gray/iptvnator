@@ -106,8 +106,9 @@ features in IPTVnator).
   origin, exactly like the web backend's `ValidatedHttpClient`.
 - The WebView has file and content access off; the only top-level navigations
   that leave the shell are `http(s)` links handed to the system (`ACTION_VIEW`),
-  any other scheme is ignored. The `window.TvShell` bridge only exposes the
-  shell's own actions (ready, external player, toast, keyboard, settings, exit).
+  any other scheme is ignored. AndroidX WebKit injects `window.TvShell.postMessage`
+  only at the current loopback origin. The shell handles commands from the main
+  frame of that origin. WebViews without this feature show an update prompt.
 - The published APK is a **non-debuggable** release build, `allowBackup` is
   off (the WebView storage holds portal credentials) and remote debugging
   (`chrome://inspect`) is **opt-in** in the IPTVnator settings.
@@ -210,7 +211,7 @@ cd tv-shell/android && ./gradlew :backend:check :app:assembleRelease
   inside the APK, caching would only make updates stale.
 - `tv.js` is loaded **before** the bundle through a same-origin
   `<script src="tvshell/tv.js">` tag (the app's CSP forbids inline scripts). No
-  IPTVnator file is modified. It calls `TvShell.onReady()` only once Angular has
+  IPTVnator file is modified. It sends `onReady` to the native bridge once Angular has
   rendered; the shell shows the error panel with the diagnostics when that does
   not happen within 30 s or when the page reports an `Uncaught SyntaxError`.
   The 30 s wait doubles once while the page is still being fetched (a cold
@@ -273,6 +274,9 @@ node tv-shell/tests/tv-remote.mjs ; node tv-shell/tests/tv-longlist.mjs
 # native document-picker regression: a debug APK must already be installed
 # on an English-language Android emulator (physical devices are excluded)
 ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-file-input.mjs emulator-5554
+
+# native bridge isolation and main-frame commands
+ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-bridge.mjs emulator-5554
 
 # native background playback: keep the mock provider running for the synthetic clip
 ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-background-media.mjs emulator-5554
@@ -417,8 +421,8 @@ adb shell dumpsys package com.amazon.webview.chromium | grep versionName
 
 ## Third-party notices
 
-The APK ships NanoHTTPD (BSD 3-Clause) and a JavaScript port of Android's
-`FocusFinder` (Apache 2.0); the notices are in
+The APK ships NanoHTTPD (BSD 3-Clause), AndroidX WebKit (Apache 2.0) and a
+JavaScript port of Android's `FocusFinder` (Apache 2.0). The notices are in
 `android/app/src/main/assets/tvshell/THIRD-PARTY-NOTICES.txt`, also served at
 `/tvshell/THIRD-PARTY-NOTICES.txt`. The web app's own licenses are in its
 `3rdpartylicenses.txt`.

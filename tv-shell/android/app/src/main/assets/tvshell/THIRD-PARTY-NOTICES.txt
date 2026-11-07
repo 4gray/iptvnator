@@ -52,7 +52,14 @@ WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 License for the specific language governing permissions and limitations under
 the License. The port is a modified translation of the original Java.
 
-3. IPTVnator web app
+3. AndroidX WebKit and dependencies (Apache License 2.0)
+-------------------------------------------------------
+
+AndroidX WebKit 1.13.0 and its AndroidX dependencies are from the Android Open
+Source Project. JSpecify annotations are from the JSpecify authors. The license
+text ships alongside this notice in APACHE-2.0.txt.
+
+4. IPTVnator web app
 --------------------
 
 The bundled web app ships its own dependency licenses at /3rdpartylicenses.txt.
