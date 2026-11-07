@@ -51,6 +51,11 @@ The reference server also accepts a leading JSON BOM and forwards Xtream's trimm
 User-Agent as a header, excluding it from provider query parameters.
 Malformed redirects and interrupted response bodies return provider errors. An HTTP
 response, including a redirect, rules out an HTTP retry during protocol discovery.
+The Node reference server allows the local mock provider by default. For other
+providers, set `TVSHELL_PROVIDER_ORIGINS` to a comma-separated list of HTTP(S)
+origins such as `https://provider.example`. Registration and every redirect hop
+must use a configured origin. The embedded Android backend has its own provider
+policy.
 
 - **Remote-control navigation**: the D-pad moves the focus between the app's
   focusable elements (a JavaScript port of Android's FocusFinder), OK activates,
@@ -148,8 +153,9 @@ the `TVSHELL_KEYSTORE_B64` (base64 keystore), `TVSHELL_KEYSTORE_PASSWORD`,
 `versionCode` is the commit time in minutes, so every build upgrades the
 previous one.
 
-The launcher banner reuses the shared IPTVnator icon. After changing that icon
-or the banner wording, regenerate it with `node tv-shell/tools/gen-brand-banner.mjs`.
+The Android startup mark, legacy and adaptive launcher icons, and TV banner use
+the shared IPTVnator artwork. Regenerate them with
+`node tv-shell/tools/gen-brand-assets.mjs`.
 
 ### Locally (Android Studio or the command line)
 
@@ -219,8 +225,8 @@ cd tv-shell/android && ./gradlew :backend:check :app:assembleRelease
   bootstrap gets its own period), and pauses while another app is in front (the
   page's timers are paused then). A main-frame load error from the loopback
   server is retried once after the server is restarted, an HTTP error from it
-  opens the panel at once, and the splash (with the credits) stays at least
-  1.5 s. While the panel is up, the remote's keys always land on its buttons.
+  opens the panel at once. The splash hides as soon as the web app reports
+  readiness. While the panel is up, the remote's keys always land on its buttons.
 - The WebView is created in code, not inflated: when the system WebView is
   missing, disabled or being updated, the error panel says so instead of the
   app crashing at start.

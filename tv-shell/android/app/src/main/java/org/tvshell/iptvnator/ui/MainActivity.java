@@ -60,8 +60,6 @@ public class MainActivity extends Activity {
      * right after an update parses the whole bundle again).
      */
     private static final long READY_TIMEOUT_MS = 30_000;
-    /** The splash (and its credits) stays readable even on a device that starts in under a second. */
-    private static final long MIN_SPLASH_MS = 1_500;
     /** A main-frame load error from the loopback server is retried once, after the server is restarted. */
     private static final long LOAD_RETRY_DELAY_MS = 1_200;
     /** Renderer deaths are counted across Activity recreations; a burst means the page itself is the problem. */
@@ -93,7 +91,6 @@ public class MainActivity extends Activity {
     private boolean watchdogExtended;
     private boolean loadRetried;
     private boolean webViewUnavailable;
-    private long splashShownAt;
     private int loadedLayoutWidth;
     private int loadedScreenWidth;
     private String restoreUrl;
@@ -116,12 +113,6 @@ public class MainActivity extends Activity {
                 return;
             }
             showLoadTimeout();
-        }
-    };
-    private final Runnable hideSplash = new Runnable() {
-        @Override
-        public void run() {
-            if (pageReady) splash.setVisibility(View.GONE);
         }
     };
     /** The one retry of a main-frame load the loopback server did not answer. */
@@ -354,13 +345,11 @@ public class MainActivity extends Activity {
         }
         errorPanel.setVisibility(View.GONE);
         splash.setVisibility(View.VISIBLE);
-        splashShownAt = SystemClock.uptimeMillis();
         pageReady = false;
         pageFinished = false;
         watchdogExtended = false;
         lastConsoleError = null;
         handler.removeCallbacks(readyWatchdog);
-        handler.removeCallbacks(hideSplash);
         handler.removeCallbacks(loadRetry);
         setKeepScreenOn(true); // through the splash; the page then reports its playback state
         loadedLayoutWidth = prefs.layoutWidth();
@@ -570,11 +559,8 @@ public class MainActivity extends Activity {
         loadRetried = false;
         setKeepScreenOn(false); // from here the page says when something plays
         handler.removeCallbacks(readyWatchdog);
-        handler.removeCallbacks(hideSplash);
         handler.removeCallbacks(loadRetry);
-        long shown = SystemClock.uptimeMillis() - splashShownAt;
-        if (shown >= MIN_SPLASH_MS) splash.setVisibility(View.GONE);
-        else handler.postDelayed(hideSplash, MIN_SPLASH_MS - shown);
+        splash.setVisibility(View.GONE);
         errorPanel.setVisibility(View.GONE);
         if (webView != null) webView.requestFocus(View.FOCUS_DOWN);
     }
@@ -711,7 +697,6 @@ public class MainActivity extends Activity {
     protected void onDestroy() {
         fileChooser.cancel();
         handler.removeCallbacks(readyWatchdog);
-        handler.removeCallbacks(hideSplash);
         handler.removeCallbacks(loadRetry);
         if (webView != null) {
             webView.loadUrl("about:blank");

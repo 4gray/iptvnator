@@ -35,6 +35,16 @@ const opt = (name, def) => {
 const WWW = resolve(opt('--www', join(__dirname, '..', 'www')));
 const PORT = Number(opt('--port', '43330'));
 const TV_JS = resolve(opt('--tv', join(__dirname, '..', 'android', 'app', 'src', 'main', 'assets', 'tvshell', 'tv.js')));
+const PROVIDER_ORIGINS = [
+    `http://127.0.0.1:${process.env.MOCK_PORT || '43331'}`,
+    ...(process.env.TVSHELL_PROVIDER_ORIGINS ?? '').split(',').map((origin) => origin.trim()).filter(Boolean),
+].map((value) => {
+    const origin = URL.parse(value);
+    if (!origin || !['http:', 'https:'].includes(origin.protocol) || origin.href !== `${origin.origin}/`) {
+        throw new Error('TVSHELL_PROVIDER_ORIGINS must contain HTTP(S) origins without paths or credentials');
+    }
+    return origin;
+});
 // The real parser (the fork IPTVnator bundles): from the monorepo's node_modules
 // when the shell lives inside the IPTVnator repo, else from a sibling clone.
 function findParser() {
@@ -159,7 +169,7 @@ function proxyParams(query, excluded) {
     return params;
 }
 
-export async function handleApi(req, res, url) {
+export async function handleApi(req, res, url, allowedOrigins = PROVIDER_ORIGINS) {
     const path = url.pathname.replace(/^\/api/, '') || '/';
     const query = url.searchParams;
 
@@ -192,6 +202,9 @@ export async function handleApi(req, res, url) {
         if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
             return json(res, 400, { message: 'Only http and https provider URLs are supported', status: 400 });
         }
+        if (!allowedOrigins.some((origin) => origin.origin === parsed.origin)) {
+            return json(res, 403, { message: 'Provider origin is not configured', status: 403 });
+        }
         const id = targetId(parsed.href);
         providerTargets.set(id, parsed.href);
         return json(res, 200, { targetId: id });
@@ -205,7 +218,7 @@ export async function handleApi(req, res, url) {
         if (!target) return;
         const userAgent = (query.get('userAgent') || '').trim() || undefined;
         try {
-            const text = await fetchText(target, { headers: userAgent ? { 'User-Agent': userAgent } : {}, timeoutMs: 60000 });
+            const text = await fetchText(target, allowedOrigins, { headers: userAgent ? { 'User-Agent': userAgent } : {}, timeoutMs: 60000 });
             let parsed;
             try {
                 parsed = parser.parse(text);
@@ -228,7 +241,7 @@ export async function handleApi(req, res, url) {
             const base = normalizeXtreamServerUrl(target);
             const apiUrl = new URL(`${base.replace(/\/+$/, '')}/player_api.php`);
             for (const [k, v] of Object.entries(proxyParams(query, ['targetId', 'connectionTest', 'userAgent']))) apiUrl.searchParams.set(k, v);
-            const text = await fetchText(apiUrl.href, { headers: userAgent ? { 'User-Agent': userAgent } : {}, timeoutMs: 30000 });
+            const text = await fetchText(apiUrl.href, allowedOrigins, { headers: userAgent ? { 'User-Agent': userAgent } : {}, timeoutMs: 30000 });
             let payload;
             try {
                 payload = JSON.parse(text.replace(/^\uFEFF/, ''));
@@ -256,7 +269,7 @@ export async function handleApi(req, res, url) {
             const { headers, requestParams } = stalkerHeaders({ macAddress, params, token, serialNumber });
             if (!macAddress) delete headers.Cookie;
             const requestUrl = stalkerUrl(target, requestParams);
-            const text = await fetchText(requestUrl, { headers, timeoutMs: params.action === 'create_link' ? 60000 : 30000 });
+            const text = await fetchText(requestUrl, allowedOrigins, { headers, timeoutMs: params.action === 'create_link' ? 60000 : 30000 });
             let payload;
             try {
                 payload = JSON.parse(text.replace(/^\uFEFF/, ''));

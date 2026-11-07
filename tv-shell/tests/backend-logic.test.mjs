@@ -19,8 +19,9 @@ test('redirects retain identity on the same origin and drop it across origins', 
     try {
         const headers = { aUtHoRiZaTiOn: 'Bearer synthetic-token', Cookie: 'mac=synthetic-mac', SN: 'synthetic-serial', 'Proxy-Authorization': 'synthetic-proxy', Host: 'synthetic-source.example', 'User-Agent': 'synthetic-agent' };
         const base = `http://127.0.0.1:${source.address().port}`;
-        await fetchText(base + '/same', { headers });
-        await fetchText(base + '/cross', { headers });
+        const allowedOrigins = [new URL(base), new URL(`http://127.0.0.1:${destination.address().port}`)];
+        await fetchText(base + '/same', allowedOrigins, { headers });
+        await fetchText(base + '/cross', allowedOrigins, { headers });
         assert.equal(observed[0].authorization, headers.aUtHoRiZaTiOn);
         assert.equal(observed[0].cookie, headers.Cookie);
         assert.equal(observed[0].sn, headers.SN);
@@ -39,7 +40,8 @@ test('malformed redirect locations reject without an uncaught exception', { time
     const provider = createServer((_req, res) => res.writeHead(302, { Location: 'http://[' }).end());
     await new Promise((resolve) => provider.listen(0, '127.0.0.1', resolve));
     try {
-        await assert.rejects(fetchText(`http://127.0.0.1:${provider.address().port}`), { code: 'ERR_INVALID_URL' });
+        const origin = new URL(`http://127.0.0.1:${provider.address().port}`);
+        await assert.rejects(fetchText(origin.href, [origin]), { code: 'ERR_INVALID_URL' });
     } finally {
         await new Promise((resolve) => provider.close(resolve));
     }
@@ -57,8 +59,20 @@ test('a compressed response rejects when its upstream socket closes early', { ti
     await new Promise((resolve) => provider.listen(0, '127.0.0.1', resolve));
     try {
         const base = `http://127.0.0.1:${provider.address().port}`;
-        assert.equal(await fetchText(base + '/complete'), payload);
-        await assert.rejects(fetchText(base + '/truncated', { timeoutMs: 1000 }), { code: 'ECONNRESET' });
+        const allowedOrigins = [new URL(base)];
+        assert.equal(await fetchText(base + '/complete', allowedOrigins), payload);
+        await assert.rejects(fetchText(base + '/truncated', allowedOrigins, { timeoutMs: 1000 }), { code: 'ECONNRESET' });
+    } finally {
+        await new Promise((resolve) => provider.close(resolve));
+    }
+});
+
+test('an inherited origin does not authorize a non-HTTP URL', async () => {
+    const provider = createServer((_req, res) => res.end('synthetic response'));
+    await new Promise((resolve) => provider.listen(0, '127.0.0.1', resolve));
+    try {
+        const origin = new URL(`http://127.0.0.1:${provider.address().port}`);
+        await assert.rejects(fetchText(`blob:${origin.href}synthetic`, [origin]), { code: 'ERR_PROVIDER_ORIGIN' });
     } finally {
         await new Promise((resolve) => provider.close(resolve));
     }

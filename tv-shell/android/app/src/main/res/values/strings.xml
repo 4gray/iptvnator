@@ -2,9 +2,7 @@
 <resources>
     <string name="app_name">IPTVnator</string>
     <string name="file_picker_unavailable">No document picker is available on this device.</string>
-    <string name="credits_label">Credits</string>
-    <string name="credits_names">sz and axs</string>
-    <string name="loading">Starting the player…</string>
+    <string name="loading">Loading IPTVnator…</string>
     <string name="load_error_title">The player could not be loaded</string>
     <string name="load_error">Error: %1$s (code %2$s)</string>
     <string name="server_error">The embedded server could not start (no free port).</string>

@@ -2,9 +2,7 @@
 <resources>
     <string name="app_name">IPTVnator</string>
     <string name="file_picker_unavailable">Aucun sélecteur de documents n\'est disponible sur cet appareil.</string>
-    <string name="credits_label">Crédits</string>
-    <string name="credits_names">sz and axs</string>
-    <string name="loading">Démarrage du lecteur…</string>
+    <string name="loading">Chargement d’IPTVnator…</string>
     <string name="load_error_title">Le lecteur n\'a pas pu être chargé</string>
     <string name="load_error">Erreur : %1$s (code %2$s)</string>
     <string name="server_error">Le serveur embarqué n\'a pas pu démarrer (aucun port libre).</string>
