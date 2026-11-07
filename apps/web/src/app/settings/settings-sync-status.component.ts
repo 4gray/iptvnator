@@ -71,18 +71,18 @@ export class SettingsSyncStatusComponent {
         }
     );
     readonly success = computed(() =>
-        ['connected', 'ready'].includes(this.state())
+        ['connected', 'ready', 'running'].includes(this.state())
     );
     readonly error = computed(() =>
-        ['offline', 'locked', 'conflict', 'incompatible'].includes(this.state())
+        ['offline', 'locked', 'conflict', 'incompatible', 'error'].includes(
+            this.state()
+        )
     );
-    readonly icon = computed(() =>
-        this.success()
-            ? 'check_circle'
-            : this.error()
-              ? 'error_outline'
-              : 'sync'
-    );
+    readonly icon = computed(() => {
+        if (this.success()) return 'check_circle';
+        if (this.error()) return 'error_outline';
+        return this.state() === 'stopped' ? 'remove_circle_outline' : 'sync';
+    });
     readonly isoTime = computed(() => {
         const value = this.lastSync();
         const timestamp = value instanceof Date ? value.getTime() : value;

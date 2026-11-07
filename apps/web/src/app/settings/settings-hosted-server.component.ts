@@ -11,6 +11,8 @@ import { Clipboard } from '@angular/cdk/clipboard';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
+import { SettingsSyncStatusComponent } from './settings-sync-status.component';
+import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { TranslateModule } from '@ngx-translate/core';
 import type {
@@ -22,6 +24,8 @@ import { timer } from 'rxjs';
 @Component({
     selector: 'app-settings-hosted-server',
     imports: [
+        SettingsSyncStatusComponent,
+        MatIconModule,
         MatButtonModule,
         MatCheckboxModule,
         MatFormFieldModule,

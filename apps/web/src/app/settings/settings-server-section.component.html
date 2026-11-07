@@ -1,8 +1,8 @@
 @if (supportsHosting) {
     <app-settings-hosted-server />
 }
-<section class="settings-group" id="server">
-    <header class="settings-group__header">
+<section class="settings-group server-group" id="server">
+    <header class="settings-group__header server-header">
         <h2>
             {{
                 (supportsHosting
@@ -48,9 +48,9 @@
                     {{ 'HOSTED_SERVER.CONNECTED_LOCAL' | translate }}
                 </p>
             } @else {
-                <div class="server-actions">
+                <div class="server-actions server-local-shortcut">
                     <button
-                        mat-stroked-button
+                        mat-flat-button
                         type="button"
                         [disabled]="busy()"
                         (click)="connectHosted(url)"
@@ -97,32 +97,6 @@
             {{ 'SOURCE_SYNC.RESTART_HINT' | translate }}
         </p>
         <div class="server-actions">
-            <button
-                type="button"
-                mat-flat-button
-                [disabled]="
-                    busy() ||
-                    !urlControl.value.trim() ||
-                    (isCurrentServer() &&
-                        !token &&
-                        sync.state() === 'connected')
-                "
-                [attr.aria-busy]="connecting()"
-                (click)="connect()"
-                class="settings-primary-button"
-                data-test-id="source-server-connect"
-            >
-                {{
-                    (connecting()
-                        ? 'SOURCE_SYNC.STATE_connecting'
-                        : isCurrentServer() &&
-                            !token &&
-                            sync.state() === 'connected'
-                          ? 'SOURCE_SYNC.STATE_connected'
-                          : 'SOURCE_SYNC.CONNECT'
-                    ) | translate
-                }}
-            </button>
             @if (sync.connection) {
                 <button
                     type="button"
@@ -155,6 +129,32 @@
                     {{ 'SOURCE_SYNC.DISCONNECT' | translate }}
                 </button>
             }
+            <button
+                type="button"
+                mat-flat-button
+                [disabled]="
+                    busy() ||
+                    !urlControl.value.trim() ||
+                    (isCurrentServer() &&
+                        !token &&
+                        sync.state() === 'connected')
+                "
+                [attr.aria-busy]="connecting()"
+                (click)="connect()"
+                class="settings-primary-button server-connect"
+                data-test-id="source-server-connect"
+            >
+                {{
+                    (connecting()
+                        ? 'SOURCE_SYNC.STATE_connecting'
+                        : isCurrentServer() &&
+                            !token &&
+                            sync.state() === 'connected'
+                          ? 'SOURCE_SYNC.STATE_connected'
+                          : 'SOURCE_SYNC.CONNECT'
+                    ) | translate
+                }}
+            </button>
         </div>
         @if (preview(); as sources) {
             <section
@@ -218,6 +218,7 @@
             role="status"
             aria-live="polite"
             class="server-message"
+            [class.visually-hidden]="!connecting() && !message()"
             [class.server-message--error]="
                 message() && message() !== 'SOURCE_SYNC.IMPORTED'
             "

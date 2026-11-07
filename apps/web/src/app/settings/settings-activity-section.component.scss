@@ -1,10 +1,13 @@
 :host {
     display: block;
 }
+.settings-group {
+    gap: 12px;
+}
 .activity-fields {
     display: grid;
-    gap: 20px;
-    padding: 20px;
+    gap: 12px;
+    padding: 16px;
     min-width: 0;
     p {
         margin: 0;
@@ -23,12 +26,12 @@
     color: var(--app-body-color);
 }
 .settings-group__header h2 {
-    font-size: 22px;
+    font-size: 18px;
 }
 .activity-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: 8px;
 }
 .activity-conflict {
     display: grid;
