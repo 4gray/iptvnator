@@ -515,6 +515,61 @@ https://streams.example.test/url-omega.m3u8
         }
     });
 
+    test('reports a slow working M3U source as responding without Retry', async ({
+        dataDir,
+    }) => {
+        let requests = 0;
+        const server = createServer((_request, response) => {
+            requests++;
+            response.writeHead(200, { 'Content-Type': 'text/plain' });
+            response.flushHeaders();
+            const timer = setTimeout(() => {
+                response.end(
+                    '#EXTM3U\n#EXTINF:-1,Synthetic stream\nhttps://example.test/live\n'
+                );
+            }, 6500);
+            response.on('close', () => clearTimeout(timer));
+        });
+        await new Promise<void>((resolve) =>
+            server.listen(0, '127.0.0.1', resolve)
+        );
+        const address = server.address();
+        if (!address || typeof address === 'string')
+            throw new Error('Missing server address');
+        const url = `http://127.0.0.1:${address.port}/slow.m3u`;
+        const title = 'Synthetic slow source';
+        let app = await launchElectronApp(dataDir);
+        try {
+            await app.mainWindow.evaluate(
+                async ({ title, url }) => {
+                    await window.electron.dbUpsertAppPlaylist({
+                        _id: 'slow-m3u',
+                        title,
+                        url,
+                        count: 0,
+                        importDate: '2026-01-01',
+                        lastUsage: '2026-01-01',
+                        autoRefresh: false,
+                    });
+                },
+                { title, url }
+            );
+            app = await restartElectronApp(app, dataDir);
+            await openSources(app.mainWindow);
+            const dot = sourceRowByTitle(app.mainWindow, title).locator(
+                '.source-tile__dot'
+            );
+            await expect.poll(() => requests).toBe(2);
+            await expect(dot).toHaveAttribute('data-state', 'unknown');
+            await expect(dot).toHaveAttribute('data-state', 'ok');
+            expect(requests).toBe(2);
+        } finally {
+            await closeElectronApp(app);
+            server.closeAllConnections();
+            await new Promise<void>((resolve) => server.close(() => resolve()));
+        }
+    });
+
     test('skips a source whose startup auto-refresh is still fetching', async ({
         dataDir,
     }) => {

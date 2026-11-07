@@ -21,6 +21,9 @@ interface Job {
     playlist: PlaylistMeta;
     origin: string;
     explicit: boolean;
+    retried: boolean;
+    waitingRetries: number;
+    initial?: SourceHealthSnapshot;
     requestId: string;
     deadlineAt?: number;
     queueTimer?: ReturnType<typeof setTimeout>;
@@ -118,14 +121,18 @@ export class SourceHealthService {
         if (!options.fresh && cached && Date.now() - cached.checkedAt < ttl)
             return Promise.resolve(cached);
         let job = this.jobs.get(key);
-        if (options.fresh && job?.running && !job.explicit) {
-            const deadlineAt = options.deadlineAt ?? Date.now() + 15000;
-            return job.promise.then(() =>
-                this.identities.get(p._id) === key
-                    ? this.check(p, { ...options, deadlineAt })
-                    : { ...sourceHealthUnknown('cancelled'), checkedAt: 0 }
+        if (
+            options.fresh &&
+            job &&
+            !job.explicit &&
+            (job.running || job.retried)
+        )
+            return this.waitForBackground(
+                job,
+                p,
+                options.deadlineAt ?? Date.now() + 15000,
+                options.signal
             );
-        }
         if (!job) {
             let resolve!: Job['resolve'];
             const promise = new Promise<SourceHealthSnapshot>((r) => {
@@ -136,6 +143,8 @@ export class SourceHealthService {
                 playlist: { ...p },
                 origin: new URL(p.portalUrl || p.serverUrl || p.url!).origin,
                 explicit: !!options.fresh,
+                retried: false,
+                waitingRetries: 0,
                 users: new Set(),
                 running: false,
                 requestId: crypto.randomUUID(),
@@ -158,44 +167,87 @@ export class SourceHealthService {
             job.deadlineAt ??= options.deadlineAt ?? Date.now() + 15000;
             this.boundQueueWait(job);
         }
-        const user = Symbol();
-        job.users.add(user);
-        const ownedJob = job;
-        const cancel = () => {
-            ownedJob.users.delete(user);
-            if (!ownedJob.users.size) this.cancel(ownedJob);
-        };
-        options.signal?.addEventListener('abort', cancel, { once: true });
+        const release = this.consume(job);
+        options.signal?.addEventListener('abort', release, { once: true });
         this.drain();
         return job.promise.finally(() =>
-            options.signal?.removeEventListener('abort', cancel)
+            options.signal?.removeEventListener('abort', release)
         );
+    }
+    private async waitForBackground(
+        job: Job,
+        p: PlaylistMeta,
+        deadlineAt: number,
+        signal?: AbortSignal
+    ): Promise<SourceHealthSnapshot> {
+        const release = this.consume(job);
+        job.waitingRetries++;
+        let stop!: () => void;
+        const stopped = new Promise<void>((resolve) => {
+            stop = resolve;
+        });
+        const timer = setTimeout(stop, Math.max(0, deadlineAt - Date.now()));
+        signal?.addEventListener('abort', stop, { once: true });
+        try {
+            this.drain();
+            const snapshot = await Promise.race([job.promise, stopped]);
+            if (signal?.aborted || this.identities.get(p._id) !== job.key)
+                return { ...sourceHealthUnknown('cancelled'), checkedAt: 0 };
+            if (!snapshot || Date.now() >= deadlineAt) {
+                const previous = this.snapshots().get(job.key);
+                if (previous && previous !== job.initial) return previous;
+                const timeout = {
+                    ...sourceHealthUnknown('timeout'),
+                    checkedAt: Date.now(),
+                };
+                if (job.users.size === 1 && this.jobs.get(job.key) === job) {
+                    if (job.running) this.publish(job.key, timeout);
+                    else if (previous?.state === 'checking')
+                        this.publish(job.key, {
+                            ...sourceHealthUnknown(),
+                            checkedAt: 0,
+                        });
+                }
+                return timeout;
+            }
+            if (job.retried) return snapshot;
+            return this.check(p, { fresh: true, deadlineAt, signal });
+        } finally {
+            clearTimeout(timer);
+            signal?.removeEventListener('abort', stop);
+            job.waitingRetries--;
+            release();
+        }
+    }
+    private consume(job: Job): () => void {
+        const user = Symbol();
+        job.users.add(user);
+        return () => {
+            job.users.delete(user);
+            if (!job.users.size) this.cancel(job);
+        };
     }
     private boundQueueWait(job: Job): void {
         if (job.queueTimer !== undefined) return;
-        const queuedAt = Date.now();
-        const initial = this.snapshots().get(job.key);
+        job.initial = this.snapshots().get(job.key);
         job.queueTimer = setTimeout(
-            () => {
-                if (job.running || this.jobs.get(job.key) !== job) return;
-                this.jobs.delete(job.key);
-                const previous = this.snapshots().get(job.key);
-                const snapshot =
-                    previous && previous !== initial
-                        ? previous
-                        : {
-                              ...sourceHealthUnknown('timeout'),
-                              checkedAt: Date.now(),
-                          };
-                if (
-                    job.users.size &&
-                    [...this.identities.values()].includes(job.key)
-                )
-                    this.publish(job.key, snapshot);
-                job.resolve(snapshot);
-            },
-            Math.max(0, job.deadlineAt! - queuedAt)
+            () => this.expireQueued(job),
+            Math.max(0, job.deadlineAt! - Date.now())
         );
+    }
+    private expireQueued(job: Job): void {
+        if (job.running || this.jobs.get(job.key) !== job) return;
+        clearTimeout(job.queueTimer);
+        this.jobs.delete(job.key);
+        const previous = this.snapshots().get(job.key);
+        const snapshot =
+            previous && previous !== job.initial
+                ? previous
+                : { ...sourceHealthUnknown('timeout'), checkedAt: Date.now() };
+        // A wait in the local queue is not evidence against the source.
+        if (previous === job.initial && previous?.state === 'checking')
+            this.publish(job.key, { ...sourceHealthUnknown(), checkedAt: 0 });
+        job.resolve(snapshot);
     }
     private cancel(job: Job): void {
         if (this.jobs.get(job.key) !== job) return;
@@ -203,16 +255,21 @@ export class SourceHealthService {
         job.controller.abort();
         this.jobs.delete(job.key);
         if (job.running) void window.electron.cancelSourceProbe(job.requestId);
-        else {
-            this.jobs.delete(job.key);
-            job.resolve({ ...sourceHealthUnknown('cancelled'), checkedAt: 0 });
-        }
+        else job.resolve({ ...sourceHealthUnknown('cancelled'), checkedAt: 0 });
     }
     private drain(): void {
         const queue = [...this.jobs.values()]
             .filter((j) => !j.running && j.users.size)
-            .sort((a, b) => Number(b.explicit) - Number(a.explicit));
+            .sort(
+                (a, b) =>
+                    Number(b.explicit || b.waitingRetries > 0) -
+                    Number(a.explicit || a.waitingRetries > 0)
+            );
         for (const job of queue) {
+            if (job.deadlineAt !== undefined && job.deadlineAt <= Date.now()) {
+                this.expireQueued(job);
+                continue;
+            }
             if (this.active >= 4) break;
             if ((this.origins.get(job.origin) ?? 0) >= 2) continue;
             clearTimeout(job.queueTimer);
@@ -226,55 +283,85 @@ export class SourceHealthService {
         }
     }
     private async run(job: Job) {
-        const startedAt = Date.now();
         const initial = this.snapshots().get(job.key);
+        if (!job.retried) job.initial = initial;
+        let snapshot = await (initial && initial !== job.initial
+            ? initial
+            : this.attempt(job));
+        const previous = this.snapshots().get(job.key);
+        this.active--;
+        this.origins.set(job.origin, (this.origins.get(job.origin) ?? 1) - 1);
+        if (
+            !job.explicit &&
+            !job.retried &&
+            snapshot.reason === 'timeout' &&
+            this.jobs.get(job.key) === job &&
+            previous === job.initial
+        ) {
+            // A passive retry goes behind the work that is already queued.
+            job.retried = true;
+            job.running = false;
+            job.requestId = crypto.randomUUID();
+            job.controller = new AbortController();
+            this.jobs.delete(job.key);
+            this.jobs.set(job.key, job);
+        } else {
+            if (this.jobs.get(job.key) === job) this.jobs.delete(job.key);
+            if (
+                job.users.size &&
+                [...this.identities.values()].includes(job.key)
+            ) {
+                // Keep any newer account evidence published during the check.
+                if (previous && previous !== job.initial) {
+                    snapshot = previous;
+                } else {
+                    this.publish(job.key, snapshot);
+                }
+            }
+            job.resolve(snapshot);
+        }
+        this.drain();
+    }
+    private async attempt(job: Job): Promise<SourceHealthSnapshot> {
+        const startedAt = Date.now();
         const deadlineAt =
-            job.deadlineAt ?? startedAt + (job.explicit ? 15000 : 5000);
-        let snapshot: SourceHealthSnapshot;
+            job.deadlineAt ??
+            startedAt + (job.explicit || job.retried ? 15000 : 5000);
         try {
             const result =
                 deadlineAt <= startedAt
                     ? sourceHealthUnknown('timeout')
                     : await this.checkWithinDeadline(job, deadlineAt);
-            snapshot = { ...result, checkedAt: Date.now() };
+            return { ...result, checkedAt: Date.now() };
         } catch (error) {
-            snapshot = { ...sourceHealthError(error), checkedAt: Date.now() };
+            const snapshot = {
+                ...sourceHealthError(error),
+                checkedAt: Date.now(),
+            };
             if (snapshot.reason === 'cancelled' && Date.now() >= deadlineAt)
                 snapshot.reason = 'timeout';
+            return snapshot;
         }
-        if (job.users.size && [...this.identities.values()].includes(job.key)) {
-            const previous = this.snapshots().get(job.key);
-            // An account dialog may have published newer evidence while this check ran.
-            if (!previous || previous === initial) {
-                this.publish(job.key, snapshot);
-            } else {
-                // Return the same newer evidence that the indicator displays.
-                snapshot = previous;
-            }
-        }
-        if (this.jobs.get(job.key) === job) this.jobs.delete(job.key);
-        this.active--;
-        this.origins.set(job.origin, (this.origins.get(job.origin) ?? 1) - 1);
-        job.resolve(snapshot);
-        this.drain();
     }
     private async checkWithinDeadline(
         job: Job,
         deadlineAt: number
     ): Promise<SourceHealthResult> {
+        // This attempt's transport: an escalation replaces the job's.
+        const { controller, requestId } = job;
         let timer: ReturnType<typeof setTimeout> | undefined;
         let onAbort: (() => void) | undefined;
         const stopped = new Promise<never>((_, reject) => {
             onAbort = () => reject(new Error('cancelled'));
-            job.controller.signal.addEventListener('abort', onAbort, {
+            controller.signal.addEventListener('abort', onAbort, {
                 once: true,
             });
             timer = setTimeout(
                 () => {
                     // Also cancel the transport; the race bounds waits before a socket exists.
                     reject(new Error('deadline exceeded'));
-                    job.controller.abort();
-                    void window.electron.cancelSourceProbe(job.requestId);
+                    controller.abort();
+                    void window.electron.cancelSourceProbe(requestId);
                 },
                 Math.max(0, deadlineAt - Date.now())
             );
@@ -283,15 +370,15 @@ export class SourceHealthService {
             return await Promise.race([
                 this.probes.check(
                     job.playlist,
-                    { requestId: job.requestId, deadlineAt },
-                    job.controller.signal
+                    { requestId, deadlineAt },
+                    controller.signal
                 ),
                 stopped,
             ]);
         } finally {
             clearTimeout(timer);
             if (onAbort)
-                job.controller.signal.removeEventListener('abort', onAbort);
+                controller.signal.removeEventListener('abort', onAbort);
         }
     }
     private publish(key: string, result: SourceHealthSnapshot) {

@@ -2117,8 +2117,12 @@ filter never hides the sources it is waiting for. See the [UI guidelines](iptvna
 Checks are demand-driven, never a startup readiness barrier: four at a time,
 two per origin, shared between surfaces. Known results remain visible during
 refresh (60-second evidence TTL, 15-second uncertain-result TTL). Background
-requests have a five-second aggregate deadline; explicit checks have fifteen
-seconds, including a handoff from a running background check. M3U streams are
+requests have a five-second first attempt. On timeout they rejoin the queue for
+one fifteen-second attempt with a fresh request ID, without publishing the
+first timeout. Queued manual checks run ahead of passive retries. A manual
+check can share the background retry, but its fifteen-second deadline includes
+the time already spent waiting. Cancelling one consumer leaves the request
+running only while another consumer still needs it. M3U streams are
 destroyed on completion, limit, error or cancellation,
 including when a provider ignores Range. Every intermediate redirect stream is
 closed before the next hop is validated or requested. Header/TLS and validated redirect
@@ -2131,15 +2135,16 @@ during a probe, both the cache and the waiting caller retain that newer result.
 
 Account-disabled/expired evidence is separate from authorization errors,
 network failures and connectivity-guard pauses. Only explicit account evidence
-is eligible for automatic cleanup selection. Statuses are session-only;
-committed SQLite connection edits and deletions publish inventory events that
+is eligible for automatic cleanup selection. Live snapshots are session-only.
+Committed SQLite connection edits and deletions publish inventory events that
 invalidate pending evidence, including deferred explicit retries. Retry now explicitly
 resets the portal guard; ordinary checks do not. Credentials and response bodies
 are never included in indicator text.
 
 Explicit source-health checks retain their deadline while queued, including
 background jobs promoted by Retry. Expired queued checks resolve without opening
-a transport; cancellation and admission clear the queue timer.
+a transport or recording a source failure. Cancellation and admission clear the
+queue timer.
 
 ### Desktop inactive-source cleanup
 
