@@ -5,6 +5,8 @@ import { safeStorage } from 'electron';
 import { getIptvnatorDataRoot } from '@iptvnator/shared/database/path-utils';
 import type { SourceServerConnection } from '@iptvnator/shared/interfaces';
 
+import { getHostedServerAccessCode } from './hosted-server-session';
+
 interface StoredConnection extends SourceServerConnection {
     encryptedToken?: string;
 }
@@ -59,6 +61,8 @@ export function activateSourceServerProfile(): void {
 let sessionToken: string | undefined;
 export function sourceServerToken(config: StoredConnection): string {
     if (sessionToken !== undefined) return sessionToken;
+    const hostedCode = getHostedServerAccessCode(config);
+    if (hostedCode) return hostedCode;
     if (!config.encryptedToken) return '';
     try {
         return safeStorage.decryptString(

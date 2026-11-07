@@ -140,7 +140,9 @@ export async function sourceServerRequest(
     }
 }
 
-export function registerSourceSyncEvents(prepareRestart: () => void): void {
+export function registerSourceSyncEvents(
+    prepareRestart: () => void | Promise<void>
+): void {
     const transport = new SourceServerTransport(sourceServerRequest);
     powerMonitor.on('resume', () => {
         for (const window of BrowserWindow.getAllWindows())
@@ -230,7 +232,7 @@ export function registerSourceSyncEvents(prepareRestart: () => void): void {
             if (restart && needsRestart) {
                 // app.exit() skips will-quit, where ordinary quits tear down
                 // managed players and the database worker.
-                prepareRestart();
+                await prepareRestart();
                 app.relaunch();
                 app.exit();
             }
@@ -241,9 +243,9 @@ export function registerSourceSyncEvents(prepareRestart: () => void): void {
             };
         }
     );
-    ipcMain.handle(SOURCE_SYNC_DISCONNECT, () => {
+    ipcMain.handle(SOURCE_SYNC_DISCONNECT, async () => {
         clearSourceServerConfig();
-        prepareRestart();
+        await prepareRestart();
         app.relaunch();
         app.exit();
     });

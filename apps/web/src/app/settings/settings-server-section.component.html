@@ -1,14 +1,41 @@
-<section class="settings-group" id="server">
-    <header class="settings-group__header">
-        <h2>{{ 'SOURCE_SYNC.TITLE' | translate }}</h2>
-        <p>{{ 'SOURCE_SYNC.DESCRIPTION' | translate }}</p>
+<header class="server-page-header">
+    <h1>{{ 'SOURCE_SYNC.TITLE' | translate }}</h1>
+    <button
+        type="button"
+        mat-button
+        aria-haspopup="dialog"
+        (click)="showAbout()"
+    >
+        <mat-icon aria-hidden="true">info_outline</mat-icon>
+        {{ 'SOURCE_SYNC.ABOUT_TITLE' | translate }}
+    </button>
+</header>
+@if (supportsHosting) {
+    <app-settings-hosted-server />
+}
+<section class="settings-group server-group" id="server">
+    <header class="settings-group__header server-header">
+        <h2>{{ 'HOSTED_SERVER.CLIENT_TITLE' | translate }}</h2>
+        <p>
+            {{
+                (supportsHosting
+                    ? 'HOSTED_SERVER.CLIENT_DESCRIPTION'
+                    : 'SOURCE_SYNC.DESCRIPTION'
+                ) | translate
+            }}
+        </p>
         <a
             class="server-help"
-            href="https://github.com/4gray/iptvnator/blob/master/docker/README.md#connect-your-clients"
+            [href]="guides.connection"
             target="_blank"
             rel="noopener noreferrer"
             data-test-id="source-server-help"
-            >{{ 'SOURCE_SYNC.SETUP_GUIDE' | translate }}</a
+            >{{
+                (supportsHosting
+                    ? 'HOSTED_SERVER.CLIENT_GUIDE'
+                    : 'SOURCE_SYNC.SETUP_GUIDE'
+                ) | translate
+            }}</a
         >
     </header>
     <div class="settings-card server-fields" data-setting-id="source-server">
@@ -19,6 +46,25 @@
                 [lastSync]="sync.lastSync()"
                 testId="source-server-state"
             />
+        }
+        @if (localServerUrl(); as url) {
+            @if (sync.connection?.apiUrl === url + '/api') {
+                <p class="server-message">
+                    {{ 'HOSTED_SERVER.CONNECTED_LOCAL' | translate }}
+                </p>
+            } @else {
+                <div class="server-actions server-local-shortcut">
+                    <button
+                        mat-flat-button
+                        type="button"
+                        [disabled]="busy()"
+                        (click)="connectHosted(url)"
+                        data-test-id="hosted-server-connect"
+                    >
+                        {{ 'HOSTED_SERVER.CONNECT_LOCAL' | translate }}
+                    </button>
+                </div>
+            }
         }
         <mat-form-field appearance="outline">
             <mat-label>{{ 'SOURCE_SYNC.URL' | translate }}</mat-label>
@@ -56,32 +102,6 @@
             {{ 'SOURCE_SYNC.RESTART_HINT' | translate }}
         </p>
         <div class="server-actions">
-            <button
-                type="button"
-                mat-flat-button
-                [disabled]="
-                    busy() ||
-                    !urlControl.value.trim() ||
-                    (isCurrentServer() &&
-                        !token &&
-                        sync.state() === 'connected')
-                "
-                [attr.aria-busy]="connecting()"
-                (click)="connect()"
-                class="settings-primary-button"
-                data-test-id="source-server-connect"
-            >
-                {{
-                    (connecting()
-                        ? 'SOURCE_SYNC.STATE_connecting'
-                        : isCurrentServer() &&
-                            !token &&
-                            sync.state() === 'connected'
-                          ? 'SOURCE_SYNC.STATE_connected'
-                          : 'SOURCE_SYNC.CONNECT'
-                    ) | translate
-                }}
-            </button>
             @if (sync.connection) {
                 <button
                     type="button"
@@ -114,6 +134,32 @@
                     {{ 'SOURCE_SYNC.DISCONNECT' | translate }}
                 </button>
             }
+            <button
+                type="button"
+                mat-flat-button
+                [disabled]="
+                    busy() ||
+                    !urlControl.value.trim() ||
+                    (isCurrentServer() &&
+                        !token &&
+                        sync.state() === 'connected')
+                "
+                [attr.aria-busy]="connecting()"
+                (click)="connect()"
+                class="settings-primary-button server-connect"
+                data-test-id="source-server-connect"
+            >
+                {{
+                    (connecting()
+                        ? 'SOURCE_SYNC.STATE_connecting'
+                        : isCurrentServer() &&
+                            !token &&
+                            sync.state() === 'connected'
+                          ? 'SOURCE_SYNC.STATE_connected'
+                          : 'SOURCE_SYNC.CONNECT'
+                    ) | translate
+                }}
+            </button>
         </div>
         @if (preview(); as sources) {
             <section
@@ -177,6 +223,7 @@
             role="status"
             aria-live="polite"
             class="server-message"
+            [class.visually-hidden]="!connecting() && !message()"
             [class.server-message--error]="
                 message() && message() !== 'SOURCE_SYNC.IMPORTED'
             "

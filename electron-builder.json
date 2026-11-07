@@ -35,6 +35,16 @@
             "to": "remote-control-web",
             "filter": ["**/*"]
         },
+        {
+            "from": "dist/apps/web-backend",
+            "to": "hosted-backend",
+            "filter": ["main.cjs", "tv-setup/**/*"]
+        },
+        {
+            "from": "dist/apps/hosted-pwa/browser",
+            "to": "hosted-pwa",
+            "filter": ["**/*"]
+        },
         "electron-backend/**/*",
         "!electron-backend/native{,/**/*}",
         "web/**/*",

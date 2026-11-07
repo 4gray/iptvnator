@@ -1,3 +1,5 @@
+import { SettingsHostedServerComponent } from './settings-hosted-server.component';
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { SettingsHistorySectionComponent } from './settings-history-section.component';
 import { SettingsFavoritesSectionComponent } from './settings-favorites-section.component';
 import {
@@ -5,6 +7,8 @@ import {
     Component,
     inject,
     signal,
+    viewChild,
+    computed,
 } from '@angular/core';
 import {
     FormControl,
@@ -12,6 +16,12 @@ import {
     ReactiveFormsModule,
     Validators,
 } from '@angular/forms';
+import { MatDialog } from '@angular/material/dialog';
+import { dialogSize } from '@iptvnator/ui/components/dialog-size';
+import {
+    SERVER_GUIDES,
+    SettingsServerAboutDialogComponent,
+} from './settings-server-about-dialog.component';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -40,6 +50,7 @@ import {
     providers: [provideFormFieldDefaults()],
     imports: [
         SettingsActivitySectionComponent,
+        SettingsHostedServerComponent,
         SettingsFavoritesSectionComponent,
         SettingsHistorySectionComponent,
         SettingsSyncStatusComponent,
@@ -55,7 +66,34 @@ import {
     styleUrl: './settings-server-section.component.scss',
 })
 export class SettingsServerSectionComponent {
+    private readonly dialog = inject(MatDialog);
+    readonly guides = SERVER_GUIDES;
     readonly sync = inject(SourceSyncService);
+    readonly supportsHosting = inject(RuntimeCapabilitiesService)
+        .supportsHostedServer;
+
+    readonly hostedServer = viewChild(SettingsHostedServerComponent);
+    readonly localServerUrl = computed(
+        () => this.hostedServer()?.status().localUrl
+    );
+
+    showAbout(): void {
+        this.dialog.open(SettingsServerAboutDialogComponent, dialogSize('md'));
+    }
+
+    async connectHosted(url: string): Promise<void> {
+        if (this.busy()) return;
+        try {
+            const code = await window.electron.hostedServerAccessCode!();
+            this.urlControl.setValue(url);
+            this.token = code;
+            await this.connect();
+        } catch {
+            this.message.set('HOSTED_SERVER.CODE_FAILED');
+        } finally {
+            this.token = '';
+        }
+    }
     readonly busy = signal(false);
     readonly connecting = signal(false);
     readonly message = signal('');

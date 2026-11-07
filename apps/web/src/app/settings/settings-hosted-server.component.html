@@ -1,0 +1,179 @@
+@if (status().state !== 'unavailable') {
+    <section class="settings-group server-group">
+        <header class="settings-group__header server-header">
+            <h2>{{ 'HOSTED_SERVER.TITLE' | translate }}</h2>
+            <p>{{ 'HOSTED_SERVER.DESCRIPTION' | translate }}</p>
+            <a
+                class="server-help"
+                [href]="guides.desktop"
+                target="_blank"
+                rel="noopener noreferrer"
+                >{{ 'HOSTED_SERVER.SETUP_GUIDE' | translate }}</a
+            >
+        </header>
+        <div class="settings-card server-fields">
+            <app-settings-sync-status
+                [state]="status().state"
+                [stateKey]="stateKeys[status().state]"
+                testId="hosted-server-status"
+            />
+            @if (status().error; as error) {
+                <p class="server-message server-message--error" role="alert">
+                    {{ errorKeys[error] | translate }}
+                </p>
+            }
+            @if (status().state === 'running') {
+                @if (status().lanUrl; as address) {
+                    <p class="server-message">
+                        {{ 'HOSTED_SERVER.DEVICES' | translate }}
+                    </p>
+                } @else {
+                    <p class="server-message">
+                        {{
+                            (status().lanAddress
+                                ? 'HOSTED_SERVER.ADDRESS_UNAVAILABLE'
+                                : 'HOSTED_SERVER.LOCAL_ONLY'
+                            ) | translate
+                        }}
+                    </p>
+                }
+                <div class="server-actions hosted-controls">
+                    @if (status().lanUrl; as address) {
+                        <code
+                            class="hosted-value"
+                            data-test-id="hosted-server-address"
+                            >{{ address }}</code
+                        >
+                        <button
+                            mat-button
+                            type="button"
+                            (click)="copyAddress(address)"
+                        >
+                            {{ 'HOSTED_SERVER.COPY_ADDRESS' | translate }}
+                        </button>
+                        <button
+                            mat-button
+                            type="button"
+                            [attr.aria-expanded]="!!code()"
+                            aria-controls="hosted-server-code"
+                            (click)="showCode()"
+                        >
+                            {{
+                                (code()
+                                    ? 'HOSTED_SERVER.HIDE_CODE'
+                                    : 'HOSTED_SERVER.SHOW_CODE'
+                                ) | translate
+                            }}
+                        </button>
+                    }
+                    <button
+                        mat-flat-button
+                        type="button"
+                        class="hosted-power"
+                        (click)="control('stop')"
+                        data-test-id="hosted-server-stop"
+                    >
+                        {{ 'HOSTED_SERVER.STOP' | translate }}
+                    </button>
+                </div>
+                <code
+                    id="hosted-server-code"
+                    class="hosted-value"
+                    [hidden]="!code()"
+                    >{{ code() }}</code
+                >
+            } @else if (
+                status().state === 'stopped' || status().state === 'error'
+            ) {
+                <div class="server-actions hosted-controls">
+                    <div class="hosted-sharing">
+                        <mat-checkbox
+                            [checked]="shareLan()"
+                            (change)="lanChoice.set($event.checked)"
+                            [aria-describedby]="
+                                shareLan() ? 'hosted-server-lan-warning' : ''
+                            "
+                            data-test-id="hosted-server-share-lan"
+                        >
+                            {{ 'HOSTED_SERVER.SHARE_LAN' | translate }}
+                        </mat-checkbox>
+                        @if (shareLan()) {
+                            <p
+                                class="settings-callout settings-callout--warn hosted-warning"
+                                id="hosted-server-lan-warning"
+                            >
+                                <mat-icon aria-hidden="true">warning</mat-icon>
+                                <span>{{
+                                    'HOSTED_SERVER.LAN_WARNING' | translate
+                                }}</span>
+                            </p>
+                            @if (addresses().length > 1) {
+                                <mat-form-field
+                                    appearance="outline"
+                                    subscriptSizing="dynamic"
+                                >
+                                    <mat-label>{{
+                                        'HOSTED_SERVER.NETWORK_ADDRESS'
+                                            | translate
+                                    }}</mat-label>
+                                    <mat-select
+                                        [value]="address()"
+                                        (selectionChange)="
+                                            addressChoice.set($event.value)
+                                        "
+                                    >
+                                        @for (
+                                            option of addresses();
+                                            track option
+                                        ) {
+                                            <mat-option [value]="option">{{
+                                                option
+                                            }}</mat-option>
+                                        }
+                                    </mat-select>
+                                </mat-form-field>
+                            } @else if (!address()) {
+                                <p class="server-message">
+                                    {{ 'HOSTED_SERVER.NO_ADDRESS' | translate }}
+                                </p>
+                            }
+                        }
+                    </div>
+                    <div class="server-actions hosted-power">
+                        @if (status().state === 'error' && status().autoStart) {
+                            <button
+                                mat-flat-button
+                                type="button"
+                                (click)="control('stop')"
+                            >
+                                {{
+                                    'HOSTED_SERVER.DISABLE_AUTOSTART'
+                                        | translate
+                                }}
+                            </button>
+                        }
+                        <button
+                            mat-flat-button
+                            type="button"
+                            [disabled]="shareLan() && !address()"
+                            (click)="start()"
+                            class="settings-primary-button"
+                            data-test-id="hosted-server-start"
+                        >
+                            {{ 'HOSTED_SERVER.START' | translate }}
+                        </button>
+                    </div>
+                </div>
+            }
+            <p
+                class="server-message"
+                [class.visually-hidden]="!feedback()"
+                role="status"
+            >
+                @if (feedback()) {
+                    {{ feedback() | translate }}
+                }
+            </p>
+        </div>
+    </section>
+}

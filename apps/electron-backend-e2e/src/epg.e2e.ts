@@ -19,6 +19,7 @@ import {
     saveSettings,
     setSwitch,
     test,
+    waitForM3uCatalog,
 } from './electron-test-fixtures';
 
 const fallbackLogoSvg = Buffer.from(
@@ -1205,6 +1206,8 @@ test.describe('Electron EPG', () => {
                 app.mainWindow,
                 playlistServer.resourceUrl
             );
+            // The add dialog closes before the imported playlist becomes active.
+            await waitForM3uCatalog(app.mainWindow);
 
             await openSettings(app.mainWindow);
             await openSettingsSection(app.mainWindow, 'epg');

@@ -40,7 +40,16 @@ import {
     extractPlaylistOpenRequestsFromArgv,
     playlistOpenRequests,
 } from './app/services/playlist-open-request';
-import { EMBEDDED_MPV_FRAME_COPY, store } from './app/services/store.service';
+import {
+    EMBEDDED_MPV_FRAME_COPY,
+    HOSTED_SERVER_ENABLED,
+    store,
+} from './app/services/store.service';
+import {
+    registerHostedServerEvents,
+    restoreHostedServer,
+    stopHostedServerOnQuit,
+} from './app/services/hosted-server.service';
 
 app.setName('iptvnator');
 
@@ -131,6 +140,8 @@ export default class Main {
         registerStaticHeaderShims();
         WindowEvents.bootstrapWindowEvents();
         PlaylistOpenEvents.bootstrapPlaylistOpenEvents();
+        registerHostedServerEvents(() => App.mainWindow);
+        if (store.get(HOSTED_SERVER_ENABLED, false)) await restoreHostedServer();
 
         const deferred = createDeferredBootstrap<
             DeferredEventsModule,
@@ -263,6 +274,7 @@ runEmbeddedMpvRuntimeDiagnosticOrContinue(process.argv, () => {
     // every window close was allowed through.
     app.on('will-quit', () => {
         // Nothing to tear down when the deferred group never loaded.
+        stopHostedServerOnQuit();
         deferredEvents?.module?.shutdownDeferredServices();
     });
 });

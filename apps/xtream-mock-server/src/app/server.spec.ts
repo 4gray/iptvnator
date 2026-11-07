@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import express from 'express';
 import {
     getPortalData,
+    getShortEpgListings,
     getVodDetails,
     getSeriesInfo,
     resetAll,
@@ -287,6 +288,19 @@ describe('Xtream mock server factory', () => {
         } finally {
             await running.close();
         }
+    });
+
+    it('keeps the current EPG programme across a nearby quarter-hour boundary', () => {
+        const start = Date.parse('2026-11-07T18:14:58Z');
+        const clock = jest.spyOn(Date, 'now').mockReturnValue(start);
+        const currentTitle = () =>
+            Buffer.from(
+                getShortEpgListings('epg', 'epg', 10_000, 1)[0].title,
+                'base64'
+            ).toString('utf8');
+        expect(currentTitle()).toBe('Global Headlines');
+        clock.mockReturnValue(start + 10_000);
+        expect(currentTitle()).toBe('Global Headlines');
     });
 
     it('keeps performance controls absent unless explicitly enabled', async () => {

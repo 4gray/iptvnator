@@ -1,29 +1,73 @@
 :host {
     display: grid;
-    gap: 32px;
+    gap: 28px;
 }
+
+.server-page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+
+    h1 {
+        margin: 0;
+        color: var(--app-heading-color);
+        font-size: 26px;
+        font-weight: 600;
+        line-height: 1.2;
+    }
+}
+
+.server-group {
+    gap: 12px;
+}
+
+.server-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: 4px 16px;
+
+    h2 {
+        font-size: 22px;
+    }
+
+    p {
+        grid-column: 1 / -1;
+        margin: 0;
+        max-width: 75ch;
+    }
+}
+
 .server-fields {
     display: grid;
-    gap: 20px;
-    padding: 20px;
+    gap: 12px;
+    padding: 16px;
     min-width: 0;
+
+    mat-hint,
+    mat-error {
+        font-size: 12px;
+    }
 }
 .server-actions {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     flex-wrap: wrap;
 }
 .server-message {
     margin: 0;
-    color: var(--app-eyebrow-color);
+    color: var(--app-body-color);
+    font-size: 13px;
     overflow-wrap: anywhere;
     line-height: 1.5;
 }
 .server-import-preview {
     display: grid;
     gap: 12px;
-    padding-block-start: 16px;
+    padding-block-start: 12px;
     border-block-start: 1px solid var(--app-widget-border);
     p,
     ul {
@@ -50,17 +94,62 @@
 .server-message--error {
     color: var(--app-danger-text);
 }
-.server-message:empty {
-    display: none;
-}
 .server-help {
-    display: inline-block;
-    margin-top: 8px;
+    grid-area: 1 / 2;
+    justify-self: start;
     color: var(--app-selection-text-color);
+    font-size: 13px;
     text-underline-offset: 3px;
 }
 button,
 input,
 a {
     app-region: no-drag;
+}
+
+.server-local-shortcut {
+    padding-block-end: 12px;
+    border-block-end: 1px solid var(--app-widget-border);
+}
+
+.hosted-controls {
+    align-items: start;
+}
+
+.server-connect,
+.hosted-power {
+    margin-inline-start: auto;
+}
+
+.hosted-sharing {
+    flex: 1 1 min(100%, 300px);
+    display: grid;
+    justify-items: start;
+    gap: 8px;
+    min-width: 0;
+}
+
+.hosted-warning {
+    margin: 0;
+    max-width: 64ch;
+}
+
+.hosted-value {
+    align-self: center;
+    color: var(--app-heading-color);
+    font-family: var(--app-font-mono);
+    font-size: 13px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    user-select: text;
+}
+
+@container (max-width: 580px) {
+    .server-header {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .server-help {
+        grid-area: auto;
+    }
 }

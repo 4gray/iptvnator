@@ -30,6 +30,16 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsParentalLockSqliteFilter).toBe(false);
     });
 
+    it('offers built-in hosting only when both Electron server methods are available', () => {
+        const service = new RuntimeCapabilitiesService();
+        testWindow.electron = undefined;
+        expect(service.supportsHostedServer).toBe(false);
+        testWindow.electron = { hostedServerControl: jest.fn() };
+        expect(service.supportsHostedServer).toBe(false);
+        testWindow.electron['hostedServerAccessCode'] = jest.fn();
+        expect(service.supportsHostedServer).toBe(true);
+    });
+
     it('reports browser PWA capabilities when the Electron bridge is absent', () => {
         testWindow.electron = undefined;
 

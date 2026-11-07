@@ -175,10 +175,20 @@
                 "command": "pnpm nx run web:build:pwa"
             }
         },
+        "build-hosted": {
+            "executor": "nx:run-commands",
+            "dependsOn": ["^build"],
+            "inputs": ["production", "^production"],
+            "outputs": ["{workspaceRoot}/dist/apps/hosted-pwa"],
+            "options": {
+                "command": "pnpm nx run web:build:pwa --outputPath=dist/apps/hosted-pwa --excludeTaskDependencies --skip-nx-cache"
+            }
+        },
         "build-e2e": {
             "executor": "nx:run-commands",
+            "dependsOn": ["^build"],
             "options": {
-                "command": "pnpm nx run web:build:electron-e2e"
+                "command": "pnpm nx run web:build:electron-e2e --excludeTaskDependencies"
             }
         },
         "build-performance": {

@@ -135,6 +135,26 @@ define a health check against `/api/health`. If nginx or the backend exits
 after startup, the entrypoint exits the container so Docker Compose can apply
 the `restart: unless-stopped` policy.
 
+## Run the server from the desktop app
+
+Open **Settings → Server** in the desktop app. Under **Server on this
+computer**, choose **Start server**. The server starts again the next time
+IPTVnator opens until you choose **Stop server**. Minimizing the app leaves it
+running. Quitting IPTVnator, shutting down the computer, or putting it to sleep
+makes the server unavailable to other devices. On macOS, closing the window
+can leave IPTVnator running. Use **Quit IPTVnator** to exit the app.
+If the server fails to start automatically, choose **Disable automatic start**
+to stop trying again when the app opens.
+
+To use a tablet or another computer, enable **Allow devices on my home
+network** before starting. Open the address shown in Settings on the other
+device and enter the access code. Use this option only on a trusted network.
+HTTP carries the code and library data without encryption.
+
+Under **Connection on this device**, you can connect the desktop to its own
+server or to another server. Connecting to your own server lets you preview
+and import the desktop's original local sources into the shared library.
+
 ## Server Storage
 
 The image opens a server storage database on the `/data` volume
@@ -170,9 +190,10 @@ Back up the volume like any database: stop the container, or copy
 
 ## Connect your clients
 
-The **Server** page connects to your own IPTVnator installation. It does not
-create a server or connect directly to your IPTV provider. Run the Docker
-container once on your NAS or home server, then connect your clients to it.
+Under **Connection on this device**, connect to the IPTVnator server that
+will hold your shared library. This can be the [server built into the desktop
+app](#run-the-server-from-the-desktop-app) or a separate Docker installation
+on a NAS or home server. The steps below use Docker.
 
 1. Start the container with the [Compose instructions above](#run-with-docker-compose).
    Keep `IPTVNATOR_STORAGE=server` and a persistent volume mounted at `/data`.
