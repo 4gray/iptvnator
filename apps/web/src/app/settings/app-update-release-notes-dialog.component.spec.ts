@@ -130,7 +130,7 @@ describe('AppUpdateReleaseNotesDialogComponent', () => {
         ).click();
 
         expect(openSpy).toHaveBeenCalledWith(
-            'https://github.com/4gray/iptvnator/releases',
+            'https://github.com/byd7my/iptvnator/releases',
             '_blank',
             'noreferrer'
         );

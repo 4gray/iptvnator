@@ -23,6 +23,7 @@ import { type ControlsMenu, ControlsMenuState } from './controls-menu-state';
 import { ControlsSettings } from './controls-settings';
 import { ControlsShortcuts } from './controls-shortcuts';
 import { ControlsStreamStats } from './controls-stream-stats';
+import { ControlsSplitAudio } from './controls-split-audio';
 import { ControlsSurface } from './controls-surface';
 import { ControlsTimeline } from './controls-timeline';
 import { ControlsTimelineLabel } from './controls-timeline-label';
@@ -145,6 +146,7 @@ export class PlayerControlsComponent implements OnDestroy {
     );
 
     readonly state = computed(() => this.controller().state());
+    readonly splitAudio = new ControlsSplitAudio(this.state);
     readonly capabilities = computed(() => this.controller().capabilities());
     readonly settings = new ControlsSettings({
         state: this.state,

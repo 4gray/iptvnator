@@ -13,14 +13,18 @@ import {
     MatDialogRef,
 } from '@angular/material/dialog';
 import { Store } from '@ngrx/store';
+import { firstValueFrom } from 'rxjs';
 import { TranslatePipe } from '@ngx-translate/core';
-import { ChannelActions } from '@iptvnator/m3u-state';
 import {
+    resolveExternalPlayerHttpHeaders,
+    selectActivePlaylist,
+} from '@iptvnator/m3u-state';
+import {
+    DataService,
     SPLIT_AUDIO_MAX_DELAY_SECONDS,
-    SettingsStore,
     SplitAudioService,
 } from '@iptvnator/services';
-import { Channel, VideoPlayer } from '@iptvnator/shared/interfaces';
+import { Channel, OPEN_MPV_PLAYER } from '@iptvnator/shared/interfaces';
 import { dialogSize } from '../../dialog-shell/dialog-size';
 
 export interface SplitAudioDialogData {
@@ -28,11 +32,6 @@ export interface SplitAudioDialogData {
     readonly video: Channel;
     /** Every channel the audio can come from. */
     readonly channels: readonly Channel[];
-    /**
-     * How the video channel is started. Defaults to the M3U playlist flow;
-     * portals with their own playback (Xtream) pass their own starter.
-     */
-    readonly start?: () => void;
 }
 
 /** More rows than this are never useful to scroll; the search narrows the rest. */
@@ -57,17 +56,12 @@ export class SplitAudioDialogComponent {
     );
     private readonly store = inject(Store);
     private readonly splitAudio = inject(SplitAudioService);
-    private readonly settingsStore = inject(SettingsStore);
+    private readonly dataService = inject(DataService);
 
     protected readonly maxDelay = SPLIT_AUDIO_MAX_DELAY_SECONDS;
     protected readonly query = signal('');
     protected readonly selected = signal<Channel | null>(null);
     protected readonly delay = signal(0);
-
-    /** Mixing two streams is an MPV feature; the built-in web players cannot. */
-    protected readonly isMpv = computed(
-        () => this.settingsStore.player() === VideoPlayer.MPV
-    );
 
     protected readonly visibleChannels = computed(() => {
         const needle = this.query().trim().toLowerCase();
@@ -110,29 +104,28 @@ export class SplitAudioDialogComponent {
         this.delay.set(this.splitAudio.clampDelay(value));
     }
 
-    protected play(): void {
+    /**
+     * Always plays in an external MPV window, whatever player is selected in
+     * the settings: only MPV can combine two streams.
+     */
+    protected async play(): Promise<void> {
         const audio = this.selected();
-        if (!audio || !this.isMpv()) {
+        if (!audio) {
             return;
         }
         const video = this.data.video;
         const delay = this.splitAudio.clampDelay(this.delay());
         this.splitAudio.saveDelay(video.url, audio.url, delay);
-        this.splitAudio.request({
-            streamUrl: audio.url,
-            title: audio.name,
-            delaySeconds: delay,
-        });
-        if (this.data.start) {
-            this.data.start();
-        } else {
-            this.store.dispatch(
-                ChannelActions.setActiveChannel({
-                    channel: video,
-                    startPlayback: true,
-                })
-            );
-        }
+        const playlist = await firstValueFrom(
+            this.store.select(selectActivePlaylist)
+        );
         this.dialogRef.close();
+        await this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, {
+            url: video.url,
+            title: video.name,
+            ...resolveExternalPlayerHttpHeaders(video, playlist),
+            audioUrl: audio.url,
+            audioDelaySeconds: delay,
+        });
     }
 }

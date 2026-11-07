@@ -749,8 +749,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
 
     /**
      * "Picture from this channel, audio from another": lists the channels of
-     * the open category and starts the picture channel through the normal
-     * Xtream playback once the audio channel is chosen.
+     * the open category; the dialog starts the MPV window itself.
      */
     openSplitAudio(): void {
         const channel = this.contextMenuChannel();
@@ -776,11 +775,15 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                     credentials,
                     item.xtream_id
                 ),
+                http: {
+                    'user-agent': playlist.userAgent ?? '',
+                    referrer: playlist.referrer ?? '',
+                    origin: playlist.origin ?? '',
+                },
             }) as Channel;
         SplitAudioDialogComponent.open(this.dialog, {
             video: toChannel(channel),
             channels: this.sortedChannels().map(toChannel),
-            start: () => this.playbackRequested.emit(channel),
         });
     }
 

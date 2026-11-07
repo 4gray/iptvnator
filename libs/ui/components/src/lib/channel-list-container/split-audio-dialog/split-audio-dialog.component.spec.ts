@@ -1,12 +1,11 @@
-import { signal } from '@angular/core';
+import { of } from 'rxjs';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
-import { ChannelActions } from '@iptvnator/m3u-state';
-import { SettingsStore, SplitAudioService } from '@iptvnator/services';
-import { Channel, VideoPlayer } from '@iptvnator/shared/interfaces';
+import { DataService, SplitAudioService } from '@iptvnator/services';
+import { Channel } from '@iptvnator/shared/interfaces';
 import {
     SplitAudioDialogComponent,
     SplitAudioDialogData,
@@ -26,8 +25,7 @@ describe('SplitAudioDialogComponent', () => {
     };
 
     let fixture: ComponentFixture<SplitAudioDialogComponent>;
-    let player: ReturnType<typeof signal<VideoPlayer>>;
-    let dispatch: jest.Mock;
+    let sendIpcEvent: jest.Mock;
     let close: jest.Mock;
     let splitAudio: SplitAudioService;
 
@@ -46,8 +44,7 @@ describe('SplitAudioDialogComponent', () => {
 
     beforeEach(async () => {
         localStorage.clear();
-        player = signal(VideoPlayer.MPV);
-        dispatch = jest.fn();
+        sendIpcEvent = jest.fn().mockResolvedValue(undefined);
         close = jest.fn();
 
         await TestBed.configureTestingModule({
@@ -59,8 +56,11 @@ describe('SplitAudioDialogComponent', () => {
             providers: [
                 { provide: MAT_DIALOG_DATA, useValue: data },
                 { provide: MatDialogRef, useValue: { close } },
-                { provide: Store, useValue: { dispatch } },
-                { provide: SettingsStore, useValue: { player } },
+                {
+                    provide: Store,
+                    useValue: { select: () => of(null), dispatch: jest.fn() },
+                },
+                { provide: DataService, useValue: { sendIpcEvent } },
             ],
         }).compileComponents();
 
@@ -93,28 +93,25 @@ describe('SplitAudioDialogComponent', () => {
         expect(playButton().disabled).toBe(false);
     });
 
-    it('starts the video channel with the chosen audio and delay, once', () => {
+    it('starts an MPV window with the picture of one channel and the audio of another', async () => {
         options()[0].click();
         fixture.detectChanges();
         type('#split-audio-delay', '1.5');
 
         playButton().click();
+        await fixture.whenStable();
 
-        expect(dispatch).toHaveBeenCalledTimes(1);
-        expect(dispatch).toHaveBeenCalledWith(
-            ChannelActions.setActiveChannel({
-                channel: video,
-                startPlayback: true,
+        expect(sendIpcEvent).toHaveBeenCalledTimes(1);
+        expect(sendIpcEvent).toHaveBeenCalledWith(
+            'OPEN_MPV_PLAYER',
+            expect.objectContaining({
+                url: video.url,
+                title: 'Match',
+                audioUrl: commentary.url,
+                audioDelaySeconds: 1.5,
             })
         );
         expect(close).toHaveBeenCalledTimes(1);
-        // The playback launch takes the request exactly once.
-        expect(splitAudio.take()).toEqual({
-            streamUrl: commentary.url,
-            title: 'Commentary',
-            delaySeconds: 1.5,
-        });
-        expect(splitAudio.take()).toBeNull();
     });
 
     it('remembers the delay for the pair and restores it next time', () => {
@@ -135,20 +132,5 @@ describe('SplitAudioDialogComponent', () => {
             '#split-audio-delay'
         ) as HTMLInputElement;
         expect(Number(delayInput.value)).toBe(2.25);
-    });
-
-    it('explains and refuses when the player is not MPV', () => {
-        player.set(VideoPlayer.VideoJs);
-        fixture.detectChanges();
-
-        expect(root().querySelector('.split-audio__warning')).not.toBeNull();
-
-        options()[0].click();
-        fixture.detectChanges();
-        expect(playButton().disabled).toBe(true);
-
-        playButton().click();
-        expect(dispatch).not.toHaveBeenCalled();
-        expect(splitAudio.take()).toBeNull();
     });
 });

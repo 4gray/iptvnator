@@ -1,5 +1,5 @@
-import { Injectable } from '@angular/core';
-import type { ExternalAudioOverride } from '@iptvnator/shared/interfaces';
+import { Injectable, signal } from '@angular/core';
+import type { Channel, ExternalAudioOverride } from '@iptvnator/shared/interfaces';
 
 /** How long a requested override waits for the playback launch that should use it. */
 export const SPLIT_AUDIO_PENDING_TTL_MS = 10_000;
@@ -20,8 +20,24 @@ const DELAY_STORAGE_PREFIX = 'iptvnator.splitAudioDelay.';
  * Pairs are stored under a hash, so stream URLs (which often carry the
  * provider login) never end up as storage keys.
  */
+/** The live channel being watched and the channels its audio can come from. */
+export interface SplitAudioContext {
+    readonly video: Channel;
+    readonly channels: readonly Channel[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class SplitAudioService {
+    /**
+     * Set by the channel lists when a live channel starts, so the player's
+     * control bar can offer "audio from another channel" for it.
+     */
+    readonly context = signal<SplitAudioContext | null>(null);
+
+    setContext(context: SplitAudioContext | null): void {
+        this.context.set(context);
+    }
+
     private pending: { override: ExternalAudioOverride; at: number } | null =
         null;
 

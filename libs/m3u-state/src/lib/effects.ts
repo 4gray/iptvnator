@@ -206,6 +206,23 @@ export class PlaylistEffects {
         { dispatch: false }
     );
 
+    /** Lets the player bar offer "audio from another channel" for this one. */
+    splitAudioContext$ = createEffect(
+        () =>
+            this.actions$.pipe(
+                ofType(ChannelActions.setActiveChannel),
+                filter((action) => !!action.channel),
+                withLatestFrom(this.store.select(selectChannels)),
+                tap(([action, channels]) =>
+                    this.splitAudio.setContext({
+                        video: action.channel,
+                        channels,
+                    })
+                )
+            ),
+        { dispatch: false }
+    );
+
     setActiveChannel$ = createEffect(() => {
         return this.actions$.pipe(
             ofType(ChannelActions.setActiveChannel),

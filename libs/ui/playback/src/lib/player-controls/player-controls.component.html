@@ -436,6 +436,23 @@
                     }
                 }
 
+                @if (splitAudio.available()) {
+                    <button
+                        mat-icon-button
+                        type="button"
+                        class="player-controls__button"
+                        data-test-id="player-controls-split-audio-button"
+                        (click)="splitAudio.open()"
+                        [attr.aria-label]="
+                            'CHANNELS.SPLIT_AUDIO.TITLE' | translate
+                        "
+                        [matTooltip]="'CHANNELS.SPLIT_AUDIO.TITLE' | translate"
+                        matTooltipPosition="above"
+                    >
+                        <mat-icon>surround_sound</mat-icon>
+                    </button>
+                }
+
                 @if (settings.available()) {
                     <button
                         mat-icon-button

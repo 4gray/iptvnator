@@ -8,11 +8,9 @@
         {{ data.video.name }}
     </p>
 
-    @if (!isMpv()) {
-        <p class="split-audio__warning" role="alert">
-            {{ 'CHANNELS.SPLIT_AUDIO.NEEDS_MPV' | translate }}
-        </p>
-    }
+    <p class="split-audio__hint">
+        {{ 'CHANNELS.SPLIT_AUDIO.NEEDS_MPV' | translate }}
+    </p>
 
     <label class="split-audio__label" for="split-audio-search">{{
         'CHANNELS.SPLIT_AUDIO.AUDIO_FROM' | translate
@@ -71,7 +69,7 @@
     <button
         mat-flat-button
         type="button"
-        [disabled]="!selected() || !isMpv()"
+        [disabled]="!selected()"
         (click)="play()"
     >
         {{ 'CHANNELS.SPLIT_AUDIO.PLAY' | translate }}

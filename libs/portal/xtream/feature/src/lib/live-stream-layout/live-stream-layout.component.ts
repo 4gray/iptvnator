@@ -83,6 +83,7 @@ import {
 import { LiveEpgPanelSummary } from '@iptvnator/ui/shared-portals';
 import {
     buildXtreamEpgMappingKey,
+    Channel,
     EpgItem,
     EpgProgram,
     epgProviderClockMs,
@@ -105,6 +106,7 @@ import {
     RecordingsService,
     RuntimeCapabilitiesService,
     SettingsStore,
+    SplitAudioService,
 } from '@iptvnator/services';
 import { LiveStreamAutoOpenStateService } from './live-stream-auto-open-state.service';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
@@ -176,6 +178,7 @@ export class LiveStreamLayoutComponent
     );
     private readonly archiveCopy = inject(EpgArchiveCopyService);
     private readonly xtreamUrlService = inject(XtreamUrlService);
+    private readonly splitAudio = inject(SplitAudioService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly epgPreferences = inject(EpgPreferencesService);
     private readonly settingsStore = inject(SettingsStore);
@@ -687,6 +690,7 @@ export class LiveStreamLayoutComponent
             this.resolveLiveProviderCategoryId(item);
         const playlist = this.xtreamStore.currentPlaylist();
         this.activePlaylistId = playlist?.id ?? null;
+        this.publishSplitAudioContext(item);
         this.activePlayback.set({
             streamUrl,
             liveAutoTsUrl: playlist
@@ -729,6 +733,52 @@ export class LiveStreamLayoutComponent
             item.title ?? item.name ?? '',
             item.poster_url ?? item.stream_icon ?? null
         );
+    }
+
+    /** Lets the player bar offer "audio from another channel" for this live channel. */
+    private publishSplitAudioContext(item: XtreamLiveChannelItem): void {
+        // A side feature of playback: whatever goes wrong here must never
+        // stop the channel from starting.
+        try {
+            this.buildSplitAudioContext(item);
+        } catch (error) {
+            this.splitAudio.setContext(null);
+            console.warn('Could not prepare split audio for this channel', error);
+        }
+    }
+
+    private buildSplitAudioContext(item: XtreamLiveChannelItem): void {
+        const playlist = this.xtreamStore.currentPlaylist();
+        if (!playlist) {
+            this.splitAudio.setContext(null);
+            return;
+        }
+        const credentials = {
+            allowedOutputFormats: playlist.allowedOutputFormats,
+            serverUrl: playlist.serverUrl,
+            username: playlist.username,
+            password: playlist.password,
+            userAgent: playlist.userAgent?.trim() || undefined,
+        };
+        // The dialog only reads id, name, url and the request headers.
+        const toChannel = (channel: XtreamLiveChannelItem): Channel =>
+            ({
+                id: String(channel.xtream_id),
+                name: channel.title ?? channel.name ?? '',
+                url: this.xtreamUrlService.constructLiveUrl(
+                    credentials,
+                    channel.xtream_id
+                ),
+                http: {
+                    'user-agent': playlist.userAgent ?? '',
+                    referrer: playlist.referrer ?? '',
+                    origin: playlist.origin ?? '',
+                },
+            }) as Channel;
+        this.splitAudio.setContext({
+            video: toChannel(item),
+            channels: this.getVisibleChannels().map(toChannel),
+        });
     }
 
     async onProgramActivated(event: EpgProgramActivationEvent): Promise<void> {

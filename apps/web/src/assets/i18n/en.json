@@ -1012,7 +1012,7 @@
             "SEARCH": "Search channels",
             "DELAY": "Audio delay (seconds)",
             "DELAY_HINT": "If you hear things before you see them, raise the delay. The value is remembered for this pair of channels.",
-            "NEEDS_MPV": "This works only with the external MPV player. Choose MPV in Settings > Playback first.",
+            "NEEDS_MPV": "Plays in a separate MPV window (MPV must be installed), whichever player is selected in Settings.",
             "PLAY": "Play"
         },
         "FAVORITES_UPDATED": "Favorites were updated!",
