@@ -121,9 +121,15 @@ export function useSourceActions(
                         ? current.tv.playbackOrigin
                         : job.origin,
                     owned.controller.signal,
-                    () => {
-                        if (generation.current === job.generation)
-                            start(job.item, job.intent, job.origin);
+                    {
+                        retry: () => {
+                            if (generation.current === job.generation)
+                                start(job.item, job.intent, job.origin);
+                        },
+                        label:
+                            job.intent === 'previous'
+                                ? job.retryLabel
+                                : undefined,
                     },
                     job.intent === 'previous'
                 )

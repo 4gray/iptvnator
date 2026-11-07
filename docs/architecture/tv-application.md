@@ -353,6 +353,8 @@ switch may stop video while connecting. Removed or changed source/account connec
 corresponding candidate. The pair is session-only: history is not treated as a
 current playing channel after launch. Pending Previous can be canceled with Back;
 the visible Back and Go to playlist controls also retire it before leaving fullscreen.
+A failed switch offers Retry previous channel until the viewer leaves fullscreen
+or chooses another action.
 Modal Back closes its overlay first. Existing Left/drawer, media and system keys
 are unchanged; no Channel +/- hardware support or autoplay is added.
 

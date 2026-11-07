@@ -176,7 +176,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         category = route.category,
         origin: string | NavigationOrigin = focusKey(),
         signal?: AbortSignal,
-        retryResolution?: () => void,
+        retryResolution?: { retry: () => void; label?: string },
         forceRestart = false
     ) {
         if (!ready || item.sourceId !== data.activeId || signal?.aborted)
@@ -237,8 +237,8 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
                     forceRestart && playing?.id === item.id
                         ? 'Playback could not be restarted.'
                         : 'Playback could not be resolved. Check the source and retry.',
-                    retryResolution ?? retryPlayback,
-                    'Retry playback'
+                    retryResolution?.retry ?? retryPlayback,
+                    retryResolution?.label ?? 'Retry playback'
                 );
             }
             return false;

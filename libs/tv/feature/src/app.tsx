@@ -40,8 +40,12 @@ export function TvApp({ buildInfo }: { buildInfo: TvBuildInfo }) {
     const detailSeason = useDetailSeason(tv.route);
     const seriesDetails = useSeriesDetails(tv);
     const homeActions = useSourceActions(tv, seriesDetails);
+    const back = () => {
+        homeActions.leave();
+        tv.back();
+    };
     useTvRemote({
-        back: tv.back,
+        back,
         stop: () => {
             homeActions.leave();
             tv.stop();
@@ -276,10 +280,7 @@ export function TvApp({ buildInfo }: { buildInfo: TvBuildInfo }) {
                 overlay={overlay}
                 seriesDetails={seriesDetails}
                 vod={vod}
-                back={() => {
-                    homeActions.leave();
-                    tv.back();
-                }}
+                back={back}
                 openPlaylist={() => {
                     homeActions.leave();
                     playlist.open();

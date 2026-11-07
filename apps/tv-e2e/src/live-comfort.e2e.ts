@@ -191,14 +191,14 @@ test('TV Live comfort failed resolution and retry leave confirmed pair and recen
     await confirmed(page, b.id);
     await expect(previous(page)).toContainText(a.title);
     await page
-        .getByRole('button', { name: 'Retry playback', exact: true })
+        .getByRole('button', { name: 'Retry previous channel', exact: true })
         .click();
     await expect.poll(() => requests).toBe(2);
     await expect(previous(page)).toBeEnabled();
     await expect(video).toHaveAttribute('data-loads', loads!);
     fail = false;
     await page
-        .getByRole('button', { name: 'Retry playback', exact: true })
+        .getByRole('button', { name: 'Retry previous channel', exact: true })
         .click();
     await confirmed(page, a.id);
     await expect(previous(page)).toContainText(b.title);
@@ -211,7 +211,31 @@ test('TV Live comfort failed resolution and retry leave confirmed pair and recen
     await confirmed(page, a.id);
     await page.keyboard.press('Escape');
     await expect(previous(page)).toContainText(b.title);
-    await page.keyboard.press('Escape');
+    for (const control of ['button', 'remote'] as const) {
+        if (control === 'remote')
+            await page.getByRole('button', { name: 'Open fullscreen' }).click();
+        const beforePrevious = requests;
+        await previous(page).click();
+        await expect.poll(() => requests).toBe(beforePrevious + 1);
+        await expect(previous(page)).toBeEnabled();
+        const retry = page.getByRole('button', {
+            name: /^Retry (playback|previous channel)$/,
+        });
+        await expect(retry).toHaveText('Retry previous channel');
+        if (control === 'button')
+            await page.locator('[data-focus="player-back"]').click();
+        else
+            await page.evaluate(() =>
+                document.dispatchEvent(
+                    new KeyboardEvent('keydown', {
+                        keyCode: 461,
+                        bubbles: true,
+                    })
+                )
+            );
+        await expect(page.locator('.native-player.preview')).toBeVisible();
+        await expect(retry).toHaveCount(0);
+    }
     await nav(page, 'Home');
     await expect(recents(page).locator('.channel-card')).toHaveCount(2);
     await expect(recents(page).locator('.channel-card').first()).toContainText(
