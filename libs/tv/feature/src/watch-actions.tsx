@@ -1,3 +1,4 @@
+import { restoreFocus } from '@iptvnator/tv/ui';
 import {
     watchState,
     watchPercent,
@@ -45,7 +46,20 @@ export function WatchActions({ tv, item }: { tv: TvModel; item: Media }) {
             </button>
             {watchState(p) !== 'unwatched' ? (
                 <>
-                    <button onClick={() => tv.watch(item, 'reset')}>
+                    <button
+                        onClick={async (event) => {
+                            const button = event.currentTarget;
+                            if (await tv.watch(item, 'reset', 'detail-play'))
+                                restoreFocus(
+                                    'detail-play',
+                                    '',
+                                    undefined,
+                                    () =>
+                                        !button.isConnected &&
+                                        document.activeElement === document.body
+                                );
+                        }}
+                    >
                         Reset progress
                     </button>
                     <button onClick={() => tv.startOver(item)}>

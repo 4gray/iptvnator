@@ -119,6 +119,12 @@ test('TV Live comfort previous toggles confirmed channels and preserves drawer, 
     });
     await page.keyboard.press('Escape');
     await expect(page.locator('.native-player.preview')).toBeVisible();
+    const open = page.getByRole('button', { name: 'Open fullscreen' });
+    await open.click();
+    await previous(page).click();
+    await confirmed(page, b.id);
+    await page.keyboard.press('Escape');
+    await expect(open).toBeFocused();
 });
 
 test('TV Live comfort failed native previous can resolve a fresh link on repeated activation', async ({

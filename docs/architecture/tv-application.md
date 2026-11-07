@@ -425,6 +425,8 @@ Timeout preserves the previous saved position. Retry playback reads that
 position again, including records whose duration was unknown; completed items
 still restart. Stop/source replacement cancels the retry timer. Positive timeline
 seeks use the same confirmation path; explicit seek-to-zero starts over.
+After completion, a confirmed seek clears the end-of-playback marker so the
+saved status follows the new position.
 
 Movie/episode labels, progress, resume and continuation use one browser-only
 policy matching desktop: rounded playback percentage at or above 90 is watched.
@@ -438,6 +440,8 @@ action increments the item's revision, fencing old session ticks and save retrie
 Playback captures that revision before resolving a stream, so a delayed launch
 cannot overwrite a manual action committed while resolution was pending.
 Start over uses the normal fresh playback resolver after the reset commits.
+Retry start over repeats both steps. Leaving the player or opening another
+title retires that retry.
 
 Series Details focuses a primary Start/Resume/Continue action naming the actual
 season/episode. Episode actions are siblings of playback controls in the existing

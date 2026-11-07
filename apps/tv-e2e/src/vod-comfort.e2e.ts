@@ -193,6 +193,7 @@ test('TV VOD comfort manual marks commit before display, recover from quota and 
     await page
         .getByRole('button', { name: 'Reset progress', exact: true })
         .click();
+    await expect(page.locator('[data-focus="detail-play"]')).toBeFocused();
     await expect(page.locator('[data-focus="detail-play"]')).toContainText(
         'Watch now'
     );
@@ -545,7 +546,12 @@ test('TV VOD comfort remote arrows reach early-row episode watch actions and ret
     });
 });
 
-for (const replay of ['button', 'remote Play', 'Samsung Play/Pause'] as const)
+for (const replay of [
+    'button',
+    'remote Play',
+    'Samsung Play/Pause',
+    'storage retry',
+] as const)
     test(`TV VOD comfort ${replay} replay after ended resets only that episode and preserves originating focus`, async ({
         page,
     }) => {
@@ -565,7 +571,33 @@ for (const replay of ['button', 'remote Play', 'Samsung Play/Pause'] as const)
             )
             .toBeGreaterThan(0.1);
         await endedUnknown(page);
-        if (replay === 'button')
+        if (replay === 'storage retry') {
+            await page.evaluate(() => {
+                const put = IDBObjectStore.prototype.put;
+                IDBObjectStore.prototype.put = function (value, key) {
+                    const positions = value?.data?.positions as
+                        Record<string, { reset?: boolean }> | undefined;
+                    if (
+                        key === 'user' &&
+                        positions &&
+                        Object.values(positions).some((p) => p.reset)
+                    ) {
+                        IDBObjectStore.prototype.put = put;
+                        throw new DOMException(
+                            'Synthetic quota failure',
+                            'QuotaExceededError'
+                        );
+                    }
+                    return put.call(this, value, key);
+                };
+            });
+            await page.locator('[data-focus="player-toggle"]').click();
+            await page
+                .getByRole('button', {
+                    name: /^(Retry viewing status|Retry start over)$/,
+                })
+                .click();
+        } else if (replay === 'button')
             await page.locator('[data-focus="player-toggle"]').click();
         else
             await page.evaluate(

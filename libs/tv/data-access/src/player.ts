@@ -219,6 +219,7 @@ export class NativePlayer {
         } else {
             try {
                 this.video.currentTime = 0;
+                this.completed = false;
                 this.cancelRestore();
             } catch {
                 this.failure(
@@ -261,6 +262,7 @@ export class NativePlayer {
             v.readyState >= 2 &&
             Math.abs(v.currentTime - target) <= Math.min(2, target / 4)
         ) {
+            this.completed = false;
             this.cancelRestore();
             return;
         }

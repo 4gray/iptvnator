@@ -117,7 +117,9 @@ export function useSourceActions(
                 .play(
                     job.item,
                     '',
-                    job.origin,
+                    job.intent === 'previous'
+                        ? current.tv.playbackOrigin
+                        : job.origin,
                     owned.controller.signal,
                     () => {
                         if (generation.current === job.generation)
@@ -132,6 +134,7 @@ export function useSourceActions(
                     if (started) {
                         playback.current = undefined;
                         if (job.intent === 'previous') {
+                            latest.current.tv.setSelected(job.item);
                             latest.current.tv.setFullscreen(true);
                             restoreFocus('player-previous', 'player-toggle');
                         }

@@ -101,6 +101,26 @@ test('native player records only confirmed playback, saves on pause and exposes 
         player.stop();
         await Promise.resolve();
         assert.equal(saved.at(-1)?.watched, true);
+
+        await player.play(item, { url: 'https://cdn.invalid/video.mp4' }, 0, 4);
+        Object.defineProperty(video, 'duration', {
+            value: 100,
+            configurable: true,
+        });
+        video.currentTime = 100;
+        video.dispatchEvent(new dom.window.Event('playing'));
+        video.dispatchEvent(new dom.window.Event('ended'));
+        player.seekTo(22);
+        video.dispatchEvent(new dom.window.Event('seeked'));
+        assert.equal(saved.at(-1)?.seconds, 22);
+        assert.equal(saved.at(-1)?.watched, undefined);
+
+        video.currentTime = 100;
+        video.dispatchEvent(new dom.window.Event('ended'));
+        player.seekTo(0);
+        video.dispatchEvent(new dom.window.Event('seeked'));
+        assert.equal(saved.at(-1)?.seconds, 0);
+        assert.equal(saved.at(-1)?.watched, undefined);
     } finally {
         player.dispose();
         dom.window.close();

@@ -112,17 +112,21 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         ready,
         retry: () => setRetry((n) => n + 1),
     });
+    function cancelPlayback() {
+        playback.current.cancel();
+        clearError('Retry start over');
+    }
     function stop() {
         clearError('Retry playback');
         failedResolution.current = undefined;
-        playback.current.cancel();
+        cancelPlayback();
         player.current?.stop();
         setPlaying(undefined);
         setFullscreen(false);
     }
     function navigate(view: View) {
-        playback.current.cancel();
-        if (view !== 'live' || playing?.kind !== 'live') stop();
+        if (view === 'live' && playing?.kind === 'live') cancelPlayback();
+        else stop();
         stack.current = [];
         pendingFocus.current = '';
         setRoute({
@@ -139,7 +143,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
     }
     function open(item: Media, origin?: NavigationOrigin) {
         if (item.sourceId !== data.activeId) return;
-        playback.current.cancel();
+        cancelPlayback();
         if (item.kind === 'live') {
             if (route.view !== 'live') {
                 setRoute({ ...firstRoute(), view: 'live', kind: 'live' });
@@ -152,7 +156,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         setSelected(item);
     }
     function openPerson(person: { tmdbId: number; name: string }) {
-        playback.current.cancel();
+        cancelPlayback();
         if (
             !data.activeId ||
             !Number.isInteger(person.tmdbId) ||
@@ -180,7 +184,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
             return false;
         const originAtStart =
             typeof origin === 'string' ? playerOrigin.capture(origin) : origin;
-        playback.current.cancel();
+        cancelPlayback();
         failedResolution.current = undefined;
         if (!forceRestart && playing?.id === item.id && item.kind === 'live') {
             if (!fullscreen) {
@@ -258,14 +262,26 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
                 true
             );
     }
-    async function startOver(item: Media) {
-        const origin = fullscreen
-            ? playerOrigin.current
-            : playerOrigin.capture(focusKey());
-        const job = playback.current.start();
-        if ((await user.watch(item, 'reset')) && playback.current.owns(job))
-            return play(item, route.category, origin);
-        return false;
+    async function startOver(
+        item: Media,
+        origin = fullscreen ? playerOrigin.current : playerOrigin.capture()
+    ) {
+        const lane = playback.current;
+        const job = lane.start();
+        try {
+            await user.saveWatch(item, 'reset');
+        } catch {
+            if (lane.owns(job))
+                setError(
+                    'Viewing status was not saved. Free TV storage and retry.',
+                    () => {
+                        if (lane.owns(job)) void startOver(item, origin);
+                    },
+                    'Retry start over'
+                );
+            return false;
+        }
+        return lane.owns(job) && play(item, route.category, origin);
     }
     function back() {
         if (fullscreen) {
@@ -281,7 +297,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
                 return;
             }
         }
-        playback.current.cancel();
+        cancelPlayback();
         const previous = stack.current.pop();
         if (previous || route.view !== 'home') content.cancelBrowse();
         if (previous) {
@@ -294,28 +310,13 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         } else if (route.view !== 'home') navigate('home');
         else platformBack();
     }
-    function stopRemote() {
-        stop();
-        if (fullscreen)
-            playerOrigin.restore(
-                playing?.kind === 'live' ? playing.id : 'detail-play'
-            );
-    }
     useTvRemote({
         back,
-        stop: stopRemote,
+        stop,
         fullscreen,
         player: player.current,
-        resume: () => {
-            const current = player.current;
-            if (
-                current?.video.ended &&
-                current.item &&
-                current.item.kind !== 'live'
-            )
-                void startOver(current.item);
-            else current?.resume();
-        },
+        restore: playerOrigin.restore,
+        startOver,
     });
     const switchSource = createSourceSwitcher({
         stop,

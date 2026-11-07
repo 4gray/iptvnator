@@ -39,6 +39,8 @@ export function useUserData(
         repo.current = new UserDataRepository(storage.current, setData);
     const update = (change: (d: UserData) => UserData) =>
         repo.current!.update(change);
+    const saveWatch = (item: Media, action: WatchAction) =>
+        update((d) => setWatchState(d, item, action));
     async function retryStorage() {
         if (loading.current || storageReady) return;
         loading.current = true;
@@ -96,8 +98,9 @@ export function useUserData(
     ) {
         const retryLabel = 'Retry viewing status';
         try {
-            await update((d) => setWatchState(d, item, action));
+            await saveWatch(item, action);
             favoriteNotice.clearError(retryLabel);
+            favoriteNotice.clearError('Retry start over');
             return true;
         } catch {
             favoriteNotice.setError(
@@ -126,6 +129,7 @@ export function useUserData(
         update,
         favorite,
         watch,
+        saveWatch,
         previousChannel: liveChannels.current.previous(data.sources),
     };
 }
