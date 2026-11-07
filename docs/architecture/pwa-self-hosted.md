@@ -343,8 +343,13 @@ reconciliation cannot deadlock parental cleanup. The store's ready flag keeps
 rejecting incomplete inventory after a failed projection, preserving the loading
 error instead of exposing a false empty library. Server
 settings bypass the source-loading screen and remain reachable through the
-connection banner. A successful projection publishes its inventory change to
-refresh mounted views. Its collection revision advances only after the local
+connection banner. Once a local source inventory is ready, a connectivity
+notice can be hidden for the current app session without changing profiles or
+stopping background retries. Settings → Server can still check the connection
+and shows the result there. A missing inventory, rejected token, or server
+identity error keeps its recovery controls visible. A successful projection
+publishes its inventory change to refresh mounted views. Its collection
+revision advances only after the local
 initialization receipt is persisted, so a failed write retries the inventory
 instead of accepting HTTP 304 with an unreadable cache. Electron Xtream metadata
 paths in `DatabaseService` use the same wrapper.

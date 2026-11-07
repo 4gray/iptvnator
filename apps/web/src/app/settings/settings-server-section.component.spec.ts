@@ -18,6 +18,7 @@ describe('source server settings', () => {
         connection: { apiUrl: 'https://nas.test/api', instanceId: 'nas' },
         state: signal('connected'),
         stateKey: signal('SOURCE_SYNC.STATE_connected'),
+        errorKey: signal<string | null>(null),
         lastSync: signal<number | null>(null),
         refresh: jest.fn(),
     };
@@ -34,6 +35,7 @@ describe('source server settings', () => {
     beforeEach(async () => {
         jest.clearAllMocks();
         sync.state.set('connected');
+        sync.errorKey.set(null);
         sync.refresh.mockResolvedValue(undefined);
         (readLocalSourcesForImport as jest.Mock).mockResolvedValue([local]);
         (requestSourceServer as jest.Mock).mockResolvedValue({ status: 201 });
@@ -71,6 +73,31 @@ describe('source server settings', () => {
                 '[data-test-id="source-server-connect"]'
             )
         ).not.toBeNull();
+    });
+
+    it('shows that a manual check is running and then reports the connection problem', async () => {
+        let finishCheck!: () => void;
+        sync.refresh.mockReturnValueOnce(
+            new Promise<void>((resolve) => {
+                finishCheck = resolve;
+            })
+        );
+        const root = fixture.nativeElement as HTMLElement;
+        const status = root.querySelector(
+            '[data-test-id="source-server-state"]'
+        );
+        root.querySelector<HTMLButtonElement>(
+            '[data-test-id="source-server-refresh"]'
+        )?.click();
+        fixture.detectChanges();
+        expect(status?.textContent).toContain('SOURCE_SYNC.STATE_connecting');
+
+        sync.state.set('offline');
+        sync.errorKey.set('SOURCE_SYNC.INSTANCE_CHANGED');
+        finishCheck();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(status?.textContent).toContain('SOURCE_SYNC.INSTANCE_CHANGED');
     });
 
     it('previews the preserved local sources before sending anything', async () => {

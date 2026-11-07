@@ -632,10 +632,12 @@ describe('source synchronization lifecycle', () => {
     it('preserves a completed cache offline and rejects source writes until reconnecting', async () => {
         receipt = '1';
         rows.set('a', applySourceDefinition(source));
-        request.mockRejectedValueOnce(new Error('unreachable'));
+        request.mockResolvedValueOnce({ status: 503 });
         await service.initialize();
         await service.refresh();
         expect(service.state()).toBe('offline');
+        expect(service.errorKey()).toBe('SOURCE_SYNC.OFFLINE');
+        expect(service.hasCachedLibrary).toBe(true);
         await expect(store.dbGetAppPlaylists()).resolves.toHaveLength(1);
         const calls = request.mock.calls.length;
         await expect(
@@ -649,6 +651,20 @@ describe('source synchronization lifecycle', () => {
         inventory = [source];
         await service.refresh();
         expect(service.state()).toBe('connected');
+        expect(service.errorKey()).toBeNull();
+    });
+
+    it('reports an outage immediately when a source write detects it first', async () => {
+        await service.initialize();
+        await service.refresh();
+        request.mockRejectedValueOnce(new Error('SOURCE_SYNC.OFFLINE'));
+
+        await expect(
+            store.dbUpsertAppPlaylist(applySourceDefinition(source))
+        ).rejects.toThrow('SOURCE_SYNC.OFFLINE');
+        expect(service.state()).toBe('offline');
+        expect(service.errorKey()).toBe('SOURCE_SYNC.OFFLINE');
+        expect(service.hasCachedLibrary).toBe(true);
     });
 
     it('revokes browser credentials immediately after a mutation detects a replacement instance', async () => {

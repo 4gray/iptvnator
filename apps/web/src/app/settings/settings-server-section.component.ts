@@ -95,6 +95,7 @@ export class SettingsServerSectionComponent {
         }
     }
     readonly busy = signal(false);
+    readonly checking = signal(false);
     readonly connecting = signal(false);
     readonly message = signal('');
     readonly preview = signal<Playlist[] | null>(null);
@@ -130,12 +131,14 @@ export class SettingsServerSectionComponent {
     async refresh(): Promise<void> {
         if (this.busy()) return;
         this.busy.set(true);
+        this.checking.set(true);
         this.message.set('');
         try {
             await this.sync.refresh();
         } catch (error) {
             this.showError(error);
         } finally {
+            this.checking.set(false);
             this.busy.set(false);
         }
     }
