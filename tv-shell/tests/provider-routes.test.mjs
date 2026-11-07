@@ -3,6 +3,15 @@ import { createServer } from 'node:http';
 import { test } from 'node:test';
 import { handleApi } from '../devserver/server.mjs';
 
+async function registerTarget(base, url) {
+    const response = await fetch(base + '/provider-targets', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+    });
+    assert.equal(response.status, 200);
+    return (await response.json()).targetId;
+}
+
 test('provider routes preserve JSON payloads and send Xtream User-Agent as a header', async () => {
     const observed = [];
     const provider = createServer((req, res) => {
@@ -14,10 +23,7 @@ test('provider routes preserve JSON payloads and send Xtream User-Agent as a hea
     for (const server of [provider, proxy]) await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
     try {
         const base = `http://127.0.0.1:${proxy.address().port}/api`;
-        const { targetId } = await fetch(base + '/provider-targets', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url: `http://127.0.0.1:${provider.address().port}` }),
-        }).then((res) => res.json());
+        const targetId = await registerTarget(base, `http://127.0.0.1:${provider.address().port}`);
         const request = (route, params) => fetch(`${base}/${route}?${new URLSearchParams({ targetId, ...params })}`).then((res) => res.json());
         for (const userAgent of [' synthetic-agent ', '   ']) {
             const result = await request('xtream', { action: 'get_vod_categories', username: 'synthetic-user', userAgent });
@@ -31,6 +37,27 @@ test('provider routes preserve JSON payloads and send Xtream User-Agent as a hea
         assert.deepEqual(handshake.payload, { synthetic: true });
         for (const route of ['xtream', 'stalker']) {
             assert.equal((await request(route, { action: 'plain' })).payload, 'synthetic error');
+        }
+    } finally {
+        await Promise.all([proxy, provider].map((server) => new Promise((resolve) => server.close(resolve))));
+    }
+});
+
+test('only an initial connection refusal permits HTTP discovery', { timeout: 3000 }, async () => {
+    const unavailable = createServer();
+    await new Promise((resolve) => unavailable.listen(0, '127.0.0.1', resolve));
+    const refused = `http://127.0.0.1:${unavailable.address().port}`;
+    await new Promise((resolve) => unavailable.close(resolve));
+
+    const provider = createServer((_req, res) => res.writeHead(302, { Location: refused }).end());
+    const proxy = createServer((req, res) => handleApi(req, res, new URL(req.url, 'http://127.0.0.1')));
+    for (const server of [provider, proxy]) await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+        const base = `http://127.0.0.1:${proxy.address().port}/api`;
+        for (const [url, canTryHttp] of [[refused, true], [`http://127.0.0.1:${provider.address().port}`, false]]) {
+            const targetId = await registerTarget(base, url);
+            const result = await fetch(`${base}/xtream?targetId=${targetId}&connectionTest=true`).then((res) => res.json());
+            assert.deepEqual(result, { connectionFailure: { kind: 'connection', canTryHttp } });
         }
     } finally {
         await Promise.all([proxy, provider].map((server) => new Promise((resolve) => server.close(resolve))));

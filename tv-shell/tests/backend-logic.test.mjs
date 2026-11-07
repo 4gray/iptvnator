@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { test } from 'node:test';
+import { gzipSync } from 'node:zlib';
 import { fetchText } from '../devserver/backend-logic.mjs';
 
 test('redirects retain identity on the same origin and drop it across origins', async () => {
@@ -31,5 +32,34 @@ test('redirects retain identity on the same origin and drop it across origins', 
         assert.equal(headers.Cookie, 'mac=synthetic-mac');
     } finally {
         await Promise.all([source, destination].map((server) => new Promise((resolve) => server.close(resolve))));
+    }
+});
+
+test('malformed redirect locations reject without an uncaught exception', { timeout: 3000 }, async () => {
+    const provider = createServer((_req, res) => res.writeHead(302, { Location: 'http://[' }).end());
+    await new Promise((resolve) => provider.listen(0, '127.0.0.1', resolve));
+    try {
+        await assert.rejects(fetchText(`http://127.0.0.1:${provider.address().port}`), { code: 'ERR_INVALID_URL' });
+    } finally {
+        await new Promise((resolve) => provider.close(resolve));
+    }
+});
+
+test('a compressed response rejects when its upstream socket closes early', { timeout: 3000 }, async () => {
+    const payload = '\ufeff{"synthetic":true}';
+    const compressed = gzipSync(payload);
+    const provider = createServer((req, res) => {
+        res.writeHead(200, { 'Content-Encoding': 'gzip', 'Content-Length': compressed.length });
+        if (req.url === '/complete') return res.end(compressed);
+        res.write(compressed.subarray(0, 15));
+        res.socket.end();
+    });
+    await new Promise((resolve) => provider.listen(0, '127.0.0.1', resolve));
+    try {
+        const base = `http://127.0.0.1:${provider.address().port}`;
+        assert.equal(await fetchText(base + '/complete'), payload);
+        await assert.rejects(fetchText(base + '/truncated', { timeoutMs: 1000 }), { code: 'ECONNRESET' });
+    } finally {
+        await new Promise((resolve) => provider.close(resolve));
     }
 });

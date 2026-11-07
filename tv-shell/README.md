@@ -48,6 +48,8 @@ runs these checks alongside the Java and remote-control suites. Cross-origin
 redirects drop authorization, cookie, proxy authorization, serial and Host headers.
 The reference server also accepts a leading JSON BOM and forwards Xtream's trimmed
 User-Agent as a header, excluding it from provider query parameters.
+Malformed redirects and interrupted response bodies return provider errors. An HTTP
+response, including a redirect, rules out an HTTP retry during protocol discovery.
 
 - **Remote-control navigation**: the D-pad moves the focus between the app's
   focusable elements (a JavaScript port of Android's FocusFinder), OK activates,

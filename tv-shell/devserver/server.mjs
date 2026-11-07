@@ -280,7 +280,7 @@ function describeConnectionFailure(error) {
     const code = error && typeof error.code === 'string' ? error.code : '';
     if (!code) return { kind: 'unknown', canTryHttp: false };
     const tls = /CERT|TLS|SSL|CRL/.test(code);
-    return { kind: tls ? 'tls' : 'connection', canTryHttp: code === 'ECONNREFUSED' };
+    return { kind: tls ? 'tls' : 'connection', canTryHttp: !error.initialResponded && code === 'ECONNREFUSED' };
 }
 
 function serveStatic(req, res, url) {

@@ -11,6 +11,7 @@
  */
 import http from 'node:http';
 import https from 'node:https';
+import { pipeline } from 'node:stream/promises';
 import zlib from 'node:zlib';
 
 // ---------------------------------------------------------------- xtream ---
@@ -234,10 +235,16 @@ const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 /**
  * GET a URL as text: follows up to 5 redirects, decodes gzip/deflate/br,
  * rejects with `{status, statusText}` on HTTP errors and with `{code}` on
- * network errors — the same evidence the web backend turns into error bodies.
+ * network errors. Failures after response headers preserve that evidence for
+ * protocol discovery, including when a redirect destination fails to connect.
  */
 export function fetchText(url, { headers = {}, timeoutMs = 30000, redirects = 0 } = {}) {
     return new Promise((resolvePromise, reject) => {
+        let initialResponded = false;
+        const fail = (error) => {
+            if (initialResponded) error.initialResponded = true;
+            reject(error);
+        };
         let target;
         try {
             target = new URL(url);
@@ -249,31 +256,41 @@ export function fetchText(url, { headers = {}, timeoutMs = 30000, redirects = 0 
             target,
             { headers: { 'Accept-Encoding': 'gzip, deflate', ...headers }, timeout: timeoutMs },
             (res) => {
+                initialResponded = true;
                 if (REDIRECT_STATUSES.has(res.statusCode) && res.headers.location) {
-                    res.resume();
-                    if (redirects >= 5) return reject(Object.assign(new Error('Too many redirects'), { code: 'ERR_TOO_MANY_REDIRECTS' }));
-                    const next = new URL(res.headers.location, target);
+                    res.on('error', fail).resume();
+                    if (redirects >= 5) return fail(Object.assign(new Error('Too many redirects'), { code: 'ERR_TOO_MANY_REDIRECTS' }));
+                    let next;
+                    try {
+                        next = new URL(res.headers.location, target);
+                    } catch {
+                        return fail(Object.assign(new Error('Invalid redirect URL'), { code: 'ERR_INVALID_URL' }));
+                    }
                     const nextHeaders = next.origin === target.origin ? headers : Object.fromEntries(
                         Object.entries(headers).filter(([key]) => !['authorization', 'cookie', 'proxy-authorization', 'sn', 'host'].includes(key.toLowerCase()))
                     );
-                    return resolvePromise(fetchText(next.href, { headers: nextHeaders, timeoutMs, redirects: redirects + 1 }));
+                    return fetchText(next.href, { headers: nextHeaders, timeoutMs, redirects: redirects + 1 }).then(resolvePromise, fail);
                 }
                 if (res.statusCode < 200 || res.statusCode >= 300) {
-                    res.resume();
-                    return reject(Object.assign(new Error(`HTTP ${res.statusCode}`), { status: res.statusCode, statusText: res.statusMessage || `HTTP ${res.statusCode}` }));
+                    res.on('error', fail).resume();
+                    return fail(Object.assign(new Error(`HTTP ${res.statusCode}`), { status: res.statusCode, statusText: res.statusMessage || `HTTP ${res.statusCode}` }));
                 }
-                const chunks = [];
-                let stream = res;
+                const stages = [res];
                 const encoding = (res.headers['content-encoding'] || '').toLowerCase();
-                if (encoding === 'gzip') stream = res.pipe(zlib.createGunzip());
-                else if (encoding === 'deflate') stream = res.pipe(zlib.createInflate());
-                else if (encoding === 'br') stream = res.pipe(zlib.createBrotliDecompress());
-                stream.on('data', (c) => chunks.push(c));
-                stream.on('end', () => resolvePromise(Buffer.concat(chunks).toString('utf8')));
-                stream.on('error', (e) => reject(Object.assign(e, { code: e.code || 'ERR_BODY' })));
+                if (encoding === 'gzip') stages.push(zlib.createGunzip());
+                else if (encoding === 'deflate') stages.push(zlib.createInflate());
+                else if (encoding === 'br') stages.push(zlib.createBrotliDecompress());
+                return pipeline(...stages, async (source) => {
+                    const chunks = [];
+                    for await (const chunk of source) chunks.push(chunk);
+                    return Buffer.concat(chunks).toString('utf8');
+                }).then(
+                    resolvePromise,
+                    (error) => fail(Object.assign(error, { code: error.code || 'ERR_BODY' }))
+                );
             }
         );
         req.on('timeout', () => req.destroy(Object.assign(new Error('timeout'), { code: 'ETIMEDOUT' })));
-        req.on('error', (e) => reject(e));
+        req.on('error', fail);
     });
 }
