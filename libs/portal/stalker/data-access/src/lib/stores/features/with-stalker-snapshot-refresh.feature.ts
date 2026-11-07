@@ -15,6 +15,7 @@ import { StalkerVodSource } from '../../models';
 import { StalkerPortalRepairService } from '../../stalker-portal-repair.service';
 import { StalkerSessionService } from '../../stalker-session.service';
 import { normalizeStalkerEntityId } from '../../stalker-vod.utils';
+import { mergeStalkerDisplayInfo } from '../../stalker-display-info';
 import { StalkerPortalStoreContract } from '../stalker-store.contracts';
 import { executeStalkerRequest, StalkerRequestDeps } from '../utils';
 
@@ -190,9 +191,14 @@ export function withStalkerSnapshotRefresh() {
                             fresh.cmd.trim() !== ''
                                 ? fresh.cmd
                                 : current.cmd;
+                        const enriched = mergeStalkerDisplayInfo(
+                            current,
+                            fresh
+                        );
                         if (
                             nextCmd === current.cmd &&
-                            sameEpisodeList(current.series, fresh.series)
+                            sameEpisodeList(current.series, fresh.series) &&
+                            enriched === current
                         ) {
                             return false;
                         }
@@ -207,7 +213,7 @@ export function withStalkerSnapshotRefresh() {
                         // favorite/recent mutation.
                         patchState(store, {
                             selectedItem: {
-                                ...current,
+                                ...enriched,
                                 series: fresh.series,
                                 cmd: nextCmd,
                             },

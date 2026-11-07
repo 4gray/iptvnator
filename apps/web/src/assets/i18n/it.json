@@ -2384,7 +2384,7 @@
         "SHARED_HINT": "Tutti i dispositivi autorizzati condividono l’avanzamento e i contrassegni di visione.",
         "ENABLE": "Sincronizza avanzamento e contenuti visti",
         "IMPORT_HINT": "L’attivazione riceve i dati del server e invia le nuove azioni. I dati locali precedenti richiedono un’importazione separata.",
-        "LOCAL_HINT": "I contenuti visti di recente e le impostazioni EPG restano locali. I preferiti richiedono un consenso separato. La disattivazione conserva i progressi su questo dispositivo e sul server.",
+        "LOCAL_HINT": "Le impostazioni EPG restano locali. Preferiti e cronologia richiedono consensi separati. La disattivazione conserva i progressi sul dispositivo e sul server.",
         "STATE_disabled": "L’attività resta su questo dispositivo",
         "STATE_disabling": "Salvataggio dell’attività sul dispositivo. La sincronizzazione è in pausa.",
         "STATE_initializing": "Caricamento dell’attività condivisa…",
@@ -2413,7 +2413,7 @@
         "SHARED_HINT": "Un’unica raccolta di preferiti condivisa. Chiunque abbia accesso a questo server può visualizzarla e modificarla.",
         "ENABLE": "Sincronizza i preferiti con questo server",
         "IMPORT_HINT": "L’attivazione scarica i preferiti condivisi e sincronizza le nuove azioni. I preferiti locali esistenti vengono caricati solo dopo l’anteprima e l’importazione.",
-        "LOCAL_HINT": "La disattivazione conserva una copia locale e i dati del server. L’ordine della raccolta e i contenuti visti di recente restano locali.",
+        "LOCAL_HINT": "La disattivazione conserva la copia locale e i dati del server. L’ordine della raccolta resta locale; la cronologia richiede un consenso separato.",
         "ERROR": "Impossibile salvare o sincronizzare i preferiti. Riprova quando l’archiviazione e il server saranno disponibili.",
         "PREVIEW_IMPORT": "Anteprima importazione dei preferiti locali",
         "PENDING": "Modifiche ai preferiti in coda: {{count}}",
@@ -2438,5 +2438,24 @@
         "STATE_incompatible": "Questo server non supporta la sincronizzazione dei preferiti",
         "STATE_locked": "Accedi di nuovo per sincronizzare i preferiti",
         "STATE_storage-error": "Archiviazione dei preferiti non disponibile; riprova quando l’archiviazione locale sarà accessibile"
+    },
+    "HISTORY_SYNC": {
+        "TITLE": "Visti di recente",
+        "SHARED_HINT": "Tutti i dispositivi di questo server vedono e modificano la stessa cronologia per ogni sorgente condivisa.",
+        "ENABLE": "Sincronizza la cronologia su questo dispositivo",
+        "ENABLE_HINT": "Vengono condivisi solo gli avvii di riproduzione confermati. L’attivazione scarica la cronologia del server; la cronologia locale precedente viene inviata solo dopo anteprima e importazione. La disattivazione conserva i dati locali e del server.",
+        "ERROR": "Impossibile sincronizzare la cronologia. Le azioni salvate restano su questo dispositivo. Riprova quando il server è disponibile.",
+        "PREVIEW": "Anteprima dell’importazione della cronologia locale",
+        "PARKED": "{{count}} azioni appartengono a un consenso precedente. Inviale esplicitamente o mantienile locali.",
+        "LOCAL": "Parte della cronologia è solo su questo dispositivo. Usa anteprima e importazione per condividerla.",
+        "IMPORT_PREVIEW": "{{count}} voci da {{sources}} sorgenti; impossibile associare {{unresolved}} voci.",
+        "IMPORT_HINT": "L’importazione condivide questa cronologia con tutti i dispositivi e colloca le voci sopra la cronologia condivisa, nel loro ordine originale.",
+        "STATE_disabled": "La cronologia resta su questo dispositivo",
+        "STATE_initializing": "Caricamento della cronologia condivisa",
+        "STATE_ready": "Cronologia sincronizzata",
+        "STATE_pending": "Cronologia salvata localmente; invio in attesa",
+        "STATE_offline": "Cronologia salvata localmente; server non disponibile",
+        "STATE_incompatible": "Questo server non supporta la sincronizzazione della cronologia",
+        "PENDING": "Modifiche alla cronologia in coda: {{count}}"
     }
 }

@@ -1,0 +1,117 @@
+<section class="settings-group" data-test-id="history-sync-settings">
+    <header class="settings-group__header">
+        <h2>{{ 'HISTORY_SYNC.TITLE' | translate }}</h2>
+        <p>{{ 'HISTORY_SYNC.SHARED_HINT' | translate }}</p>
+    </header>
+    <div class="settings-card favorites-fields">
+        @if (runtime(); as history) {
+            <mat-checkbox
+                [checked]="history.enabled()"
+                [disabled]="busy() || history.busy()"
+                (change)="toggle($event)"
+                data-test-id="history-sync-enable"
+            >
+                {{ 'HISTORY_SYNC.ENABLE' | translate }}
+            </mat-checkbox>
+            <p>{{ 'HISTORY_SYNC.ENABLE_HINT' | translate }}</p>
+            <p role="status" aria-live="polite">
+                {{ history.stateKey() | translate }}
+            </p>
+            @if (failed() || history.error()) {
+                <p role="alert">{{ 'HISTORY_SYNC.ERROR' | translate }}</p>
+            }
+            @if (history.enabled()) {
+                <p>
+                    {{
+                        'HISTORY_SYNC.PENDING'
+                            | translate: { count: history.pending() }
+                    }}
+                </p>
+                <div class="favorites-actions">
+                    <button
+                        type="button"
+                        mat-button
+                        (click)="refresh()"
+                        [disabled]="busy()"
+                    >
+                        {{ 'SOURCE_SYNC.REFRESH' | translate }}
+                    </button>
+                    <button
+                        type="button"
+                        mat-button
+                        (click)="previewImport()"
+                        [disabled]="busy()"
+                        data-test-id="history-import-preview"
+                    >
+                        {{ 'HISTORY_SYNC.PREVIEW' | translate }}
+                    </button>
+                </div>
+                @if (history.parkedCount()) {
+                    <p>
+                        {{
+                            'HISTORY_SYNC.PARKED'
+                                | translate: { count: history.parkedCount() }
+                        }}
+                    </p>
+                    <div class="favorites-actions">
+                        <button
+                            type="button"
+                            mat-button
+                            (click)="parked(true)"
+                            [disabled]="busy()"
+                            data-test-id="history-send-parked"
+                        >
+                            {{ 'ACTIVITY_SYNC.SEND_PENDING' | translate }}
+                        </button>
+                        <button
+                            type="button"
+                            mat-button
+                            (click)="parked(false)"
+                            [disabled]="busy()"
+                            data-test-id="history-keep-local"
+                        >
+                            {{ 'ACTIVITY_SYNC.KEEP_PENDING_LOCAL' | translate }}
+                        </button>
+                    </div>
+                }
+                @if (history.localCount()) {
+                    <p>{{ 'HISTORY_SYNC.LOCAL' | translate }}</p>
+                }
+                @if (preview(); as items) {
+                    <p>
+                        {{
+                            'HISTORY_SYNC.IMPORT_PREVIEW'
+                                | translate
+                                    : {
+                                          count: count(),
+                                          sources: items.sources.length,
+                                          unresolved: items.unresolved,
+                                      }
+                        }}
+                    </p>
+                    <p>{{ 'HISTORY_SYNC.IMPORT_HINT' | translate }}</p>
+                    <div class="favorites-actions">
+                        <button
+                            type="button"
+                            mat-button
+                            (click)="preview.set(null)"
+                        >
+                            {{ 'CANCEL' | translate }}
+                        </button>
+                        <button
+                            type="button"
+                            mat-flat-button
+                            (click)="importHistory()"
+                            [disabled]="busy() || !count()"
+                            data-test-id="history-import-confirm"
+                        >
+                            {{ 'SETTINGS.IMPORT_DATA' | translate }}
+                        </button>
+                    </div>
+                }
+            }
+        } @else if (failed()) {
+            <p role="alert">{{ 'HISTORY_SYNC.ERROR' | translate }}</p>
+        }
+    </div>
+</section>

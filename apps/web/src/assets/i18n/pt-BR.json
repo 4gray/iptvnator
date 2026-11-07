@@ -2384,7 +2384,7 @@
         "SHARED_HINT": "Todos os dispositivos com acesso compartilham o progresso e as marcações de assistido.",
         "ENABLE": "Sincronizar progresso e marcações de assistido",
         "IMPORT_HINT": "Ativar recebe os dados do servidor e envia novas ações. Os dados locais anteriores só são enviados por uma importação separada.",
-        "LOCAL_HINT": "Os conteúdos visualizados recentemente e as configurações de EPG ficam locais. Os favoritos exigem consentimento separado. Desativar mantém o progresso neste dispositivo e no servidor.",
+        "LOCAL_HINT": "As configurações de EPG permanecem locais. Favoritos e histórico exigem consentimentos separados. A desativação mantém o progresso neste dispositivo e no servidor.",
         "STATE_disabled": "A atividade fica neste dispositivo",
         "STATE_disabling": "Salvando a atividade neste dispositivo. A sincronização está pausada.",
         "STATE_initializing": "Carregando atividade compartilhada…",
@@ -2413,7 +2413,7 @@
         "SHARED_HINT": "Uma biblioteca compartilhada de favoritos. Qualquer pessoa com acesso a este servidor pode vê-la e alterá-la.",
         "ENABLE": "Sincronizar favoritos com este servidor",
         "IMPORT_HINT": "Ao ativar, os favoritos compartilhados são baixados e as novas ações são sincronizadas. Os favoritos locais existentes só são enviados após a prévia e a importação.",
-        "LOCAL_HINT": "Desativar mantém uma cópia local e os dados do servidor. A ordem da coleção e os conteúdos visualizados recentemente ficam locais.",
+        "LOCAL_HINT": "A desativação mantém a cópia local e os dados do servidor. A ordem da coleção permanece local; o histórico exige consentimento separado.",
         "ERROR": "Não foi possível salvar ou sincronizar os favoritos. Tente novamente quando o armazenamento e o servidor estiverem disponíveis.",
         "PREVIEW_IMPORT": "Prévia da importação de favoritos locais",
         "PENDING": "Alterações de favoritos na fila: {{count}}",
@@ -2438,5 +2438,24 @@
         "STATE_incompatible": "Este servidor não oferece sincronização de favoritos",
         "STATE_locked": "Entre novamente para sincronizar os favoritos",
         "STATE_storage-error": "Armazenamento de favoritos indisponível; tente novamente quando o armazenamento local estiver acessível"
+    },
+    "HISTORY_SYNC": {
+        "TITLE": "Vistos recentemente",
+        "SHARED_HINT": "Todos os dispositivos deste servidor veem e alteram o mesmo histórico em cada fonte compartilhada.",
+        "ENABLE": "Sincronizar histórico neste dispositivo",
+        "ENABLE_HINT": "Apenas inícios de reprodução confirmados são compartilhados. A ativação baixa o histórico do servidor; o histórico local anterior só é enviado após prévia e importação. A desativação mantém os dados locais e do servidor.",
+        "ERROR": "Não foi possível sincronizar o histórico. As ações salvas permanecem neste dispositivo. Tente novamente quando o servidor estiver disponível.",
+        "PREVIEW": "Prévia da importação do histórico local",
+        "PARKED": "{{count}} ações pertencem a um consentimento anterior. Envie-as explicitamente ou mantenha-as locais.",
+        "LOCAL": "Parte do histórico está apenas neste dispositivo. Use a prévia e a importação para compartilhá-la.",
+        "IMPORT_PREVIEW": "{{count}} registros de {{sources}} fontes; não foi possível associar {{unresolved}} registros.",
+        "IMPORT_HINT": "A importação compartilha este histórico com todos os dispositivos e coloca os registros acima do histórico compartilhado, na ordem original.",
+        "STATE_disabled": "O histórico permanece neste dispositivo",
+        "STATE_initializing": "Carregando histórico compartilhado",
+        "STATE_ready": "Histórico sincronizado",
+        "STATE_pending": "Histórico salvo localmente; envio pendente",
+        "STATE_offline": "Histórico salvo localmente; servidor indisponível",
+        "STATE_incompatible": "Este servidor não oferece sincronização do histórico",
+        "PENDING": "Alterações do histórico na fila: {{count}}"
     }
 }

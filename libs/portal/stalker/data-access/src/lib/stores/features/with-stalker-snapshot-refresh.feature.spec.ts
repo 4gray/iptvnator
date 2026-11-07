@@ -96,6 +96,29 @@ describe('withStalkerSnapshotRefresh', () => {
         expect(store.selectedItem()?.series).toEqual([1, 2]);
     });
 
+    it('fills missing artwork and synopsis even when command and episodes are unchanged', async () => {
+        mockPortalRows([
+            {
+                ...SNAPSHOT,
+                cover: 'https://artwork.example/synthetic-series.jpg',
+                description: 'Synthetic provider synopsis',
+            },
+        ]);
+        await expect(store.refreshEmbeddedSeriesSelection()).resolves.toBe(
+            true
+        );
+        expect(store.selectedItem()).toMatchObject({
+            id: SNAPSHOT.id,
+            cmd: SNAPSHOT.cmd,
+            series: SNAPSHOT.series,
+            cover: 'https://artwork.example/synthetic-series.jpg',
+            info: {
+                name: 'Embedded Series',
+                description: 'Synthetic provider synopsis',
+            },
+        });
+    });
+
     it('updates a stale playback cmd even when the episode list is unchanged', async () => {
         mockPortalRows([
             { id: '20001', cmd: '/media/file_20001_v2.mpg', series: [1] },

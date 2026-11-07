@@ -2384,7 +2384,7 @@
         "SHARED_HINT": "Wszystkie urządzenia z dostępem współdzielą postęp i oznaczenia obejrzanych treści.",
         "ENABLE": "Synchronizuj postęp i oznaczenia obejrzenia",
         "IMPORT_HINT": "Włączenie pobiera dane serwera i wysyła nowe działania. Starsze dane lokalne są wysyłane tylko przez osobny import.",
-        "LOCAL_HINT": "Ostatnio oglądane i ustawienia EPG pozostają lokalne. Ulubione wymagają osobnej zgody. Wyłączenie zachowuje postęp na tym urządzeniu i serwerze.",
+        "LOCAL_HINT": "Ustawienia EPG pozostają lokalne. Ulubione i historia wymagają osobnych zgód. Wyłączenie zachowuje postęp na urządzeniu i serwerze.",
         "STATE_disabled": "Aktywność pozostaje na tym urządzeniu",
         "STATE_disabling": "Zapisywanie aktywności na tym urządzeniu. Synchronizacja jest wstrzymana.",
         "STATE_initializing": "Wczytywanie wspólnej aktywności…",
@@ -2413,7 +2413,7 @@
         "SHARED_HINT": "Wspólna biblioteka ulubionych. Każdy z dostępem do tego serwera może ją przeglądać i zmieniać.",
         "ENABLE": "Synchronizuj ulubione z tym serwerem",
         "IMPORT_HINT": "Włączenie pobiera wspólne ulubione i synchronizuje nowe działania. Istniejące lokalne ulubione są wysyłane dopiero po podglądzie i imporcie.",
-        "LOCAL_HINT": "Wyłączenie zachowuje lokalną kopię i dane serwera. Kolejność kolekcji i ostatnio oglądane pozostają lokalne.",
+        "LOCAL_HINT": "Wyłączenie zachowuje kopię lokalną i dane serwera. Kolejność kolekcji pozostaje lokalna; historia wymaga osobnej zgody.",
         "ERROR": "Nie udało się zapisać lub zsynchronizować ulubionych. Spróbuj ponownie, gdy pamięć i serwer będą dostępne.",
         "PREVIEW_IMPORT": "Podgląd importu lokalnych ulubionych",
         "PENDING": "Zmiany ulubionych w kolejce: {{count}}",
@@ -2438,5 +2438,24 @@
         "STATE_incompatible": "Ten serwer nie obsługuje synchronizacji ulubionych",
         "STATE_locked": "Zaloguj się ponownie, aby synchronizować ulubione",
         "STATE_storage-error": "Pamięć ulubionych jest niedostępna; spróbuj ponownie, gdy lokalna pamięć będzie dostępna"
+    },
+    "HISTORY_SYNC": {
+        "TITLE": "Ostatnio oglądane",
+        "SHARED_HINT": "Wszystkie urządzenia tego serwera widzą i zmieniają wspólną historię w obrębie każdego udostępnionego źródła.",
+        "ENABLE": "Synchronizuj historię na tym urządzeniu",
+        "ENABLE_HINT": "Udostępniane są tylko potwierdzone rozpoczęcia odtwarzania. Włączenie pobiera historię serwera; starsza historia lokalna jest wysyłana dopiero po podglądzie i imporcie. Wyłączenie zachowuje dane lokalne i serwera.",
+        "ERROR": "Nie udało się zsynchronizować historii. Zapisane działania pozostają na tym urządzeniu. Spróbuj ponownie, gdy serwer będzie dostępny.",
+        "PREVIEW": "Podgląd importu historii lokalnej",
+        "PARKED": "{{count}} działań pochodzi z wcześniejszej zgody. Wyślij je jawnie lub zachowaj lokalnie.",
+        "LOCAL": "Część historii jest tylko na tym urządzeniu. Udostępnij ją przez podgląd i import.",
+        "IMPORT_PREVIEW": "{{count}} wpisów z {{sources}} źródeł; nie dopasowano {{unresolved}} wpisów.",
+        "IMPORT_HINT": "Import udostępnia historię wszystkim urządzeniom i umieszcza wpisy nad wspólną historią, zachowując ich pierwotną kolejność.",
+        "STATE_disabled": "Historia pozostaje na tym urządzeniu",
+        "STATE_initializing": "Wczytywanie wspólnej historii",
+        "STATE_ready": "Historia zsynchronizowana",
+        "STATE_pending": "Historia zapisana lokalnie; oczekiwanie na wysłanie",
+        "STATE_offline": "Historia zapisana lokalnie; serwer niedostępny",
+        "STATE_incompatible": "Ten serwer nie obsługuje synchronizacji historii",
+        "PENDING": "Zmiany historii w kolejce: {{count}}"
     }
 }
