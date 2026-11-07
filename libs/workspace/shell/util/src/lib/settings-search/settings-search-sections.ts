@@ -28,6 +28,12 @@ export const SETTINGS_SECTION_DEFINITIONS: readonly SettingsSectionDefinition[] 
             group: 'app',
         },
         {
+            id: 'appearance',
+            navLabelKey: 'SETTINGS.CARD_APPEARANCE',
+            icon: 'palette',
+            group: 'app',
+        },
+        {
             id: 'playback',
             navLabelKey: 'SETTINGS.NAV_PLAYBACK',
             icon: 'play_circle',

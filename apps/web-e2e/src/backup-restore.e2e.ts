@@ -350,11 +350,14 @@ for (const theme of ['light', 'dark']) {
             browserName,
         }, testInfo) => {
             // Set real preferences through the settings controls, then use the shipped translations.
-            await page.goto('/workspace/settings/general');
+            await page.goto('/workspace/settings/appearance');
             await page
                 .locator(
                     `[data-test-id="select-theme"] [data-test-id="${theme.toUpperCase()}_THEME"]`
                 )
+                .click();
+            await page
+                .locator('[data-test-id="settings-section-general"]')
                 .click();
             await page.locator('[data-test-id="select-language"]').click();
             await page

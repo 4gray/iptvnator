@@ -154,6 +154,9 @@ test.describe('Settings unsaved-changes dialog layout', () => {
             await page.goto('/');
             await openSettings(page);
             await useLanguage(page, locale);
+            await page
+                .locator('[data-test-id="settings-section-appearance"]')
+                .click();
             const dialog = await openUnsavedDialog(page, locale);
 
             const row = await measureActions(dialog);
@@ -175,6 +178,9 @@ test.describe('Settings unsaved-changes dialog layout', () => {
             await page.goto('/');
             await openSettings(page);
             await useLanguage(page, locale);
+            await page
+                .locator('[data-test-id="settings-section-appearance"]')
+                .click();
             await page.setViewportSize(PHONE_VIEWPORT);
             const dialog = await openUnsavedDialog(page, locale);
 
