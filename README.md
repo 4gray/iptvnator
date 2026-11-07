@@ -77,18 +77,21 @@ launching, the download manager or Electron remote-control features.
 See [Docker setup and client connections](docker/README.md) for configuration,
 reverse proxies, playback troubleshooting and platform limits.
 
-## LG webOS TV
+## Smart TV
 
-IPTVnator also includes a separate experimental [LG webOS TV app](apps/tv/)
-for watching your own M3U, Xtream Codes and Stalker / Ministra sources with a
-remote or Magic Remote pointer.
+IPTVnator includes an experimental TV app for watching your own M3U, Xtream Codes
+and Stalker / Ministra sources. LG webOS and Samsung Tizen share the same TV
+client, with separate packages you build and install in Developer Mode.
+
+- [LG webOS installation](apps/tv/README.md#installation)
+- [Samsung Tizen installation and signing](apps/tv/tizen/README.md)
 
 Add sources from your phone by scanning a QR code, or connect the TV to your
 self-hosted IPTVnator source library. Favorites, history and resume positions
 currently stay on the TV. A matching IPTVnator backend is required.
 
-See the [TV README](apps/tv/README.md) for supported versions, installation,
-phone setup, source synchronization and screenshots.
+See the [TV README](apps/tv/README.md) for compatibility, phone setup, source
+synchronization and screenshots.
 
 ## Help and development
 
