@@ -2381,6 +2381,7 @@
     "SOURCE_SYNC": {
         "ABOUT_TITLE": "O synchronizacji przez serwer",
         "ABOUT_PURPOSE": "Połącz urządzenia z tym samym serwerem IPTVnator, aby korzystać ze wspólnych list i źródeł. Możesz też synchronizować ulubione, postęp i historię oglądania.",
+        "ABOUT_PRIVACY": "Synchronizacja działa bez usług w chmurze. Wspólne dane są przechowywane na wybranym przez Ciebie serwerze.",
         "ABOUT_DESKTOP": "Uruchom serwer w aplikacji komputerowej. Inne urządzenia w sieci domowej mogą się połączyć, jeśli zezwolisz na dostęp. Serwer działa, gdy IPTVnator jest otwarty, nawet po zminimalizowaniu.",
         "ABOUT_SEPARATE_TITLE": "Osobny serwer",
         "ABOUT_SEPARATE": "Uruchom IPTVnator w Dockerze na NAS-ie lub serwerze domowym. Urządzenia mogą się łączyć, dopóki ten serwer działa, także po zamknięciu aplikacji komputerowej.",

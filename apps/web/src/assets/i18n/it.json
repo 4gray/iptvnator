@@ -2381,6 +2381,7 @@
     "SOURCE_SYNC": {
         "ABOUT_TITLE": "Informazioni sulla sincronizzazione con il server",
         "ABOUT_PURPOSE": "Collega i dispositivi allo stesso server IPTVnator per condividere playlist e sorgenti. Puoi anche sincronizzare preferiti, avanzamento e cronologia di visione.",
+        "ABOUT_PRIVACY": "La sincronizzazione funziona senza servizi cloud. I dati condivisi vengono archiviati sul server che scegli.",
         "ABOUT_DESKTOP": "Avvia il server nell’app desktop. Se autorizzi l’accesso, gli altri dispositivi della rete domestica possono collegarsi. Il server funziona finché IPTVnator resta aperto, anche se ridotto a icona.",
         "ABOUT_SEPARATE_TITLE": "Server separato",
         "ABOUT_SEPARATE": "Esegui IPTVnator con Docker su un NAS o un server domestico. I tuoi dispositivi possono collegarsi finché quel server è in esecuzione, anche dopo aver chiuso l’app desktop.",

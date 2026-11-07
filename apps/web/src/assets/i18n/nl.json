@@ -2381,6 +2381,7 @@
     "SOURCE_SYNC": {
         "ABOUT_TITLE": "Over synchronisatie via de server",
         "ABOUT_PURPOSE": "Verbind je apparaten met dezelfde IPTVnator-server om afspeellijsten en bronnen te delen. Je kunt ook favorieten, kijkvoortgang en kijkgeschiedenis synchroniseren.",
+        "ABOUT_PRIVACY": "Synchronisatie werkt zonder clouddiensten. Gedeelde gegevens worden opgeslagen op de server die je kiest.",
         "ABOUT_DESKTOP": "Start de server in de desktopapp. Andere apparaten op je thuisnetwerk kunnen verbinden als je toegang toestaat. De server draait zolang IPTVnator open is, ook geminimaliseerd.",
         "ABOUT_SEPARATE_TITLE": "Aparte server",
         "ABOUT_SEPARATE": "Draai IPTVnator met Docker op een NAS of thuisserver. Je apparaten kunnen verbinden zolang die server draait, ook nadat je de desktopapp afsluit.",

@@ -2381,6 +2381,7 @@
     "SOURCE_SYNC": {
         "ABOUT_TITLE": "Sobre a sincronização por servidor",
         "ABOUT_PURPOSE": "Liga os teus dispositivos ao mesmo servidor IPTVnator para partilhar playlists e fontes. Também podes sincronizar favoritos, progresso e histórico de visualização.",
+        "ABOUT_PRIVACY": "A sincronização funciona sem serviços na nuvem. Os dados partilhados são guardados no servidor que escolheres.",
         "ABOUT_DESKTOP": "Inicia o servidor na aplicação para computador. Outros dispositivos na rede doméstica podem ligar-se se permitires o acesso. O servidor funciona enquanto o IPTVnator estiver aberto, mesmo minimizado.",
         "ABOUT_SEPARATE_TITLE": "Servidor separado",
         "ABOUT_SEPARATE": "Executa o IPTVnator com Docker num NAS ou servidor doméstico. Os teus dispositivos podem ligar-se enquanto esse servidor estiver em execução, mesmo depois de saíres da aplicação para computador.",

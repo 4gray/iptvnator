@@ -2381,6 +2381,7 @@
     "SOURCE_SYNC": {
         "ABOUT_TITLE": "A szerveren keresztüli szinkronizálásról",
         "ABOUT_PURPOSE": "Csatlakoztasd eszközeidet ugyanahhoz az IPTVnator-szerverhez a lejátszási listák és források megosztásához. A kedvenceket, a lejátszási állást és az előzményeket is szinkronizálhatod.",
+        "ABOUT_PRIVACY": "A szinkronizálás felhőszolgáltatás nélkül működik. A megosztott adatok az általad választott szerveren tárolódnak.",
         "ABOUT_DESKTOP": "Indítsd el a szervert az asztali alkalmazásban. Az otthoni hálózat többi eszköze akkor csatlakozhat, ha engedélyezed a hozzáférést. A szerver addig fut, amíg az IPTVnator nyitva van, kis méretben is.",
         "ABOUT_SEPARATE_TITLE": "Külön szerver",
         "ABOUT_SEPARATE": "Futtasd az IPTVnatort Dockerrel egy NAS-on vagy otthoni szerveren. Az eszközeid addig csatlakozhatnak, amíg ez a szerver fut, az asztali alkalmazás bezárása után is.",

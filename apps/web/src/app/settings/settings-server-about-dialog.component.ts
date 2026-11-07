@@ -20,6 +20,7 @@ export const SERVER_GUIDES = {
         >
             <div class="server-about">
                 <p>{{ 'SOURCE_SYNC.ABOUT_PURPOSE' | translate }}</p>
+                <p>{{ 'SOURCE_SYNC.ABOUT_PRIVACY' | translate }}</p>
 
                 <section>
                     <h3>{{ 'HOSTED_SERVER.TITLE' | translate }}</h3>

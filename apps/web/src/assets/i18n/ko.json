@@ -2381,6 +2381,7 @@
     "SOURCE_SYNC": {
         "ABOUT_TITLE": "서버 동기화 안내",
         "ABOUT_PURPOSE": "기기를 같은 IPTVnator 서버에 연결하면 재생목록과 소스를 공유할 수 있습니다. 즐겨찾기, 시청 진행률, 시청 기록도 동기화할 수 있습니다.",
+        "ABOUT_PRIVACY": "동기화는 클라우드 서비스 없이 작동합니다. 공유 데이터는 선택한 서버에 저장됩니다.",
         "ABOUT_DESKTOP": "데스크톱 앱에서 서버를 시작하세요. 접근을 허용하면 홈 네트워크의 다른 기기도 연결할 수 있습니다. IPTVnator가 열려 있으면 창을 최소화해도 서버는 작동합니다.",
         "ABOUT_SEPARATE_TITLE": "별도 서버",
         "ABOUT_SEPARATE": "NAS나 홈 서버에서 Docker로 IPTVnator를 실행하세요. 데스크톱 앱을 종료해도 이 서버가 실행 중이면 기기를 연결할 수 있습니다.",

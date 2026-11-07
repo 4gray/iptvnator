@@ -2381,6 +2381,7 @@
     "SOURCE_SYNC": {
         "ABOUT_TITLE": "Sunucu eşitlemesi hakkında",
         "ABOUT_PURPOSE": "Oynatma listelerini ve kaynakları paylaşmak için cihazlarınızı aynı IPTVnator sunucusuna bağlayın. Favorileri, izleme ilerlemesini ve geçmişi de eşitleyebilirsiniz.",
+        "ABOUT_PRIVACY": "Eşitleme bulut hizmetleri olmadan çalışır. Paylaşılan veriler seçtiğiniz sunucuda saklanır.",
         "ABOUT_DESKTOP": "Sunucuyu masaüstü uygulamasından başlatın. Erişime izin verirseniz ev ağındaki diğer cihazlar bağlanabilir. IPTVnator açık olduğu sürece, pencere küçültülmüş olsa bile sunucu çalışır.",
         "ABOUT_SEPARATE_TITLE": "Ayrı sunucu",
         "ABOUT_SEPARATE": "IPTVnator’ı Docker ile bir NAS veya ev sunucusunda çalıştırın. Masaüstü uygulamasından çıksanız bile bu sunucu çalıştığı sürece cihazlarınız bağlanabilir.",
