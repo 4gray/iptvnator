@@ -52,22 +52,23 @@ interface SettingsNavGroupView {
             class="settings-nav"
             [attr.aria-label]="'SETTINGS.TITLE' | translate"
         >
-            @for (group of groups(); track group.id) {
-                <div class="settings-nav__group" [attr.data-group]="group.id">
-                    <div class="settings-nav__group-label">
-                        {{ group.labelKey | translate }}
+            <div class="settings-nav__groups">
+                @for (group of groups(); track group.id) {
+                    <div class="settings-nav__group" [attr.data-group]="group.id">
+                        <div class="settings-nav__group-label">
+                            {{ group.labelKey | translate }}
+                        </div>
+                        @for (section of group.sections; track section.id) {
+                            <ng-container
+                                *ngTemplateOutlet="
+                                    sectionLink;
+                                    context: { $implicit: section }
+                                "
+                            />
+                        }
                     </div>
-                    @for (section of group.sections; track section.id) {
-                        <ng-container
-                            *ngTemplateOutlet="
-                                sectionLink;
-                                context: { $implicit: section }
-                            "
-                        />
-                    }
-                </div>
-            }
-            <div class="settings-nav__spacer"></div>
+                }
+            </div>
             @if (footer().length > 0) {
                 <div class="settings-nav__footer">
                     @for (section of footer(); track section.id) {
