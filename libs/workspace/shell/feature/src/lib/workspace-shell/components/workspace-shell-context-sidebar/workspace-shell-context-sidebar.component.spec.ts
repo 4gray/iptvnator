@@ -69,12 +69,14 @@ describe('WorkspaceShellContextSidebarComponent', () => {
     const xtreamSelectedCategoryId = signal<number | null>(1);
     const stalkerSelectedCategoryId = signal<string | null>('7');
     const drawerOpen = signal(false);
+    const xtreamBlockReason = signal<string | null>(null);
 
     beforeEach(async () => {
         localStorage.removeItem('live-sidebar-state:portal');
         xtreamSelectedCategoryId.set(1);
         stalkerSelectedCategoryId.set('7');
         drawerOpen.set(false);
+        xtreamBlockReason.set(null);
 
         await TestBed.configureTestingModule({
             imports: [WorkspaceShellContextSidebarComponent],
@@ -85,7 +87,11 @@ describe('WorkspaceShellContextSidebarComponent', () => {
                 },
                 {
                     provide: XtreamStore,
-                    useValue: { selectedCategoryId: xtreamSelectedCategoryId },
+                    useValue: {
+                        selectedCategoryId: xtreamSelectedCategoryId,
+                        contentInitBlockReason: xtreamBlockReason,
+                        isPendingRestoreBlocked: signal(false),
+                    },
                 },
                 {
                     provide: StalkerStore,
@@ -239,6 +245,26 @@ describe('WorkspaceShellContextSidebarComponent', () => {
             fixture.detectChanges();
             expect(aside.classList.contains('context-panel--collapsed')).toBe(
                 false
+            );
+        });
+
+        it('keeps the rail visible while the Xtream content gate blocks the live layout, which would carry the way back', () => {
+            setupLiveCategory('live');
+            liveSidebarService.setState('portal', 'categories-hidden');
+            xtreamBlockReason.set('expired');
+            fixture.detectChanges();
+
+            const aside = fixture.nativeElement.querySelector(
+                'aside.context-panel--route'
+            );
+            expect(aside.classList.contains('context-panel--collapsed')).toBe(
+                false
+            );
+
+            xtreamBlockReason.set(null);
+            fixture.detectChanges();
+            expect(aside.classList.contains('context-panel--collapsed')).toBe(
+                true
             );
         });
 

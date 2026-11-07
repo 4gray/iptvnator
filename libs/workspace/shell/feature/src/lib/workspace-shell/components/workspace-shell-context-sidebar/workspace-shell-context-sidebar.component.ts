@@ -16,6 +16,7 @@ import {
     LiveLayoutSidebarStateService,
     PortalRailSection,
 } from '@iptvnator/portal/shared/util';
+import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import {
     WorkspaceShellContextDrawerService,
     WorkspacePortalContext,
@@ -51,6 +52,7 @@ export class WorkspaceShellContextSidebarComponent {
     private readonly liveSidebarStateService = inject(
         LiveLayoutSidebarStateService
     );
+    private readonly xtreamStore = inject(XtreamStore);
     // Root-provided; optional keeps standalone unit tests light. Only relevant
     // when the sidebar renders as the phone drawer — the close button that
     // calls this is CSS-hidden above the phone breakpoint.
@@ -71,12 +73,24 @@ export class WorkspaceShellContextSidebarComponent {
             LIVE_SECTIONS.has(section)
         );
     });
+    /**
+     * The Xtream content gate replaces the live layout with an error view
+     * while content cannot load, so no control to unfold the rail exists.
+     */
+    readonly isLiveContentBlocked = computed(
+        () =>
+            this.context()?.provider === 'xtreams' &&
+            (!!this.xtreamStore.contentInitBlockReason() ||
+                this.xtreamStore.isPendingRestoreBlocked())
+    );
     // The categories rail is the outermost panel, so it folds on the first
     // collapse level already (`categories-hidden`). The live layouts render
-    // the way back (channels header or all-items header) in every state.
+    // the way back (channels header or all-items header) in every state
+    // except a blocked Xtream portal, which keeps the rail visible.
     readonly isContextPanelCollapsed = computed(
         () =>
             this.isLiveCategoryRoute() &&
+            !this.isLiveContentBlocked() &&
             this.liveSidebarStateService.areCategoriesHiddenFor('portal')()
     );
     /**

@@ -813,7 +813,10 @@ remain local when the meaning is explicit.
   `LivePanelsController.isCategoriesRailFolded()` is true: the Xtream grid header
   and Stalker `app-stalker-itv-all-items` header, or a floating handle on the
   Stalker placeholder and while a Stalker channel plays without a category.
-  Level 3 hides it again in favour of the restore handle.
+  Level 3 hides it again in favour of the restore handle. The one exception is
+  a blocked Xtream portal: `XtreamContentGateComponent` then replaces the live
+  layout with an error view, so the shell keeps the rail unfolded
+  (`isLiveContentBlocked`) rather than hiding the only way back.
 - Xtream Live TV's root view (`/live` with no selected category) follows the
   same paginated `All Items` shell as VOD and Series: a widget header with the
   total channel count, page-size controls, and page navigation above the shared
