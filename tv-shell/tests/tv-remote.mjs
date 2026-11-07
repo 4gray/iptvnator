@@ -954,10 +954,16 @@ await page.evaluate(() => {
 await key('ArrowDown');
 check(await page.evaluate(() => document.activeElement.id === 'synthetic-fullscreen-menu-action'),
     'fullscreen navigation honors its nested menu and ignores an outside overlay');
-await page.evaluate(async () => {
+await page.evaluate(() => {
+    const control = document.querySelector('#synthetic-fullscreen-control');
+    control.focus();
+    control.blur();
     document.querySelector('#synthetic-fullscreen-menu').remove();
     document.querySelector('.cdk-overlay-backdrop').remove();
     document.querySelector('#synthetic-background-menu').remove();
+});
+await page.waitForFunction(() => document.activeElement.id === 'synthetic-fullscreen-video', null, { timeout: 2000 });
+await page.evaluate(async () => {
     await document.exitFullscreen();
     document.querySelector('video').focus();
 });

@@ -63,8 +63,10 @@ and legacy series navigation remain unchanged and the adapter is not attached.
 Video.js consumes the same token and shared presentation atomically. Its bridge
 binds the adapter to the current Video.js Tech `<video>` and rebinds after
 `playerreset`, while focused collaborators expose Video.js audio/text tracks
-and manage raw MPEG-TS playback. When the host token resolves to false, Video.js
-keeps its existing skin and legacy series navigation.
+and manage raw MPEG-TS playback. A transparent layer routes shared surface
+gestures around the Tech, whose touch handler cancels the tap's native click
+even when vendor controls are disabled. When the host token resolves to false,
+Video.js keeps its existing skin and legacy series navigation.
 
 ArtPlayer is the fourth consumer. Its source session owns HLS, MPEG-TS, native
 source selection, and delayed `customType` callbacks, while the neutral
@@ -124,7 +126,11 @@ these retries can be paused. Foreground restoration permits explicit playback;
 it does not automatically restart paused elements.
 TV remote navigation uses the active DOM fullscreen owner as its base scope,
 including menus within that owner. Background controls and overlays outside
-fullscreen are excluded until fullscreen exits.
+fullscreen are excluded until fullscreen exits. Down from the focused picture
+reveals the shared dock and waits for it to render before moving focus into
+it. If the dock has no focusable controls, normal directional navigation applies.
+When focus needs restoring in fullscreen, it lands on the picture so the dock
+can hide again.
 
 `PlayerController` remains a sibling of playback diagnostics and recovery
 recommendations. It owns engine-neutral playback state, capabilities, and

@@ -662,8 +662,16 @@
             event.preventDefault();
             event.stopImmediatePropagation();
             if (active && (active.tagName === 'VIDEO' || active.tagName === 'AUDIO')) {
-                // Controls auto-hide: bring them back, then look for them.
                 revealPlayerControls(active);
+                var player = active.closest('[class*="player-shell"]');
+                var dock = dir === 'down' && player && player.querySelector('.player-controls__bar');
+                if (dock && navigationScope().contains(dock)) {
+                    // Let the shared dock render before spatial navigation can leave the player.
+                    requestAnimationFrame(function () {
+                        if (document.activeElement === active && !focusFirst(dock)) move(dir);
+                    });
+                    return;
+                }
                 if (!move(dir)) {
                     setTimeout(function () {
                         // Only if nothing moved meanwhile: a held key's later repeats are paced.
@@ -1313,7 +1321,11 @@
             refocusTimer = null;
             var active = document.activeElement;
             if (!active || active === document.body || !active.isConnected || !isVisible(active)) {
-                focusFirst();
+                var scope = navigationScope();
+                var picture = scope === document.fullscreenElement && scope.querySelector('video');
+                // A tap releases button focus. Recover on the picture so the dock can still hide.
+                if (picture && isVisible(picture) && ensureFocusable(picture)) setFocus(picture, { silent: true });
+                else focusFirst(scope);
             } else if (!active.classList.contains(FOCUS_CLASS)) {
                 paintFocus(active);
                 lastRect = rectOf(active);
