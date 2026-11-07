@@ -106,6 +106,15 @@ The `Build TV shell APK` workflow can publish a GitHub release, marked as a
 pre-release by default. For APK builds, installation and remote controls, see
 the [Android shell guide](./tv-shell/README.md).
 
+### Enigma2 receivers
+
+Dreaminator is a standalone IPTV plugin and browser-based playlist manager for
+Enigma2 receivers. Organize channels in a browser and watch with the receiver's
+remote. Tested on the Dreambox DM520 and Vu+ Uno 4K SE.
+
+[Dreaminator on GitHub](https://github.com/4gray/dreaminator) ·
+[Dreaminator on the IPTVnator blog](https://4gray.github.io/iptvnator/blog/dreaminator-enigma2/)
+
 ## Help and development
 
 - [User guides](https://4gray.github.io/iptvnator/guides/) — sources, EPG,
