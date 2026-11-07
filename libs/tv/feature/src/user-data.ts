@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { restoreFocus } from '@iptvnator/tv/ui';
+import { installTvScreensaver, restoreFocus } from '@iptvnator/tv/ui';
 import {
     NativePlayer,
     UserDataRepository,
@@ -56,6 +56,7 @@ export function useUserData(
     }
     useEffect(() => {
         void retryStorage();
+        const removeScreensaver = installTvScreensaver(video.current!);
         player.current = new NativePlayer(
             video.current!,
             (p) => update((d) => recordProgress(d, p)),
@@ -67,6 +68,7 @@ export function useUserData(
         );
         return () => {
             player.current?.dispose();
+            removeScreensaver();
             storage.current.close();
         };
     }, []);

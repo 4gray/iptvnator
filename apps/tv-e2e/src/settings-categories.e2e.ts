@@ -1,3 +1,4 @@
+import { tvBackCodes } from '@iptvnator/tv/util';
 import { expect, test } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -164,7 +165,10 @@ test('phone setup owns remote and Tab focus, Back closes it in the selected cate
     await expect(close).toBeFocused();
     await page.keyboard.press('Shift+Tab');
     await expect(close).toBeFocused();
-    await close.dispatchEvent('keydown', { key: 'Unidentified', keyCode: 461 });
+    await close.dispatchEvent('keydown', {
+        key: 'Unidentified',
+        keyCode: tvBackCodes.webos,
+    });
     await expect(dialog).toBeHidden();
     await expect(
         page.getByRole('tab', { name: 'Metadata', exact: false })

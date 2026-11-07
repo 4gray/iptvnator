@@ -6,7 +6,7 @@ import {
 } from '@iptvnator/tv/ui';
 import { TvModel } from './use-tv';
 import { TvMetadata } from '@iptvnator/tv/data-access';
-import { useLayoutEffect, useRef } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef } from 'preact/hooks';
 import { restoreFocus } from '@iptvnator/tv/ui';
 import { EpisodeCard } from './episode-card';
 import { WatchActions, WatchStatus } from './watch-actions';
@@ -22,11 +22,13 @@ import { useEpisodeMetadata } from './use-episode-metadata';
 export function Detail({
     tv,
     metadataClient,
+    metadataLoading,
     season,
     selectSeason,
 }: {
     tv: TvModel;
     metadataClient: TvMetadata;
+    metadataLoading: boolean;
     season?: number;
     selectSeason: (season: number) => void;
 }) {
@@ -50,12 +52,17 @@ export function Detail({
     useLayoutEffect(() => {
         if (!entryFocus.current || !primary || tv.fullscreen) return;
         entryFocus.current = false;
+        if (tv.restoreKey.startsWith('person:')) return;
         let owns = true;
         restoreFocus('detail-play', '', undefined, () => owns);
         return () => {
             owns = false;
         };
     }, [!!primary, tv.fullscreen]);
+    useEffect(() => {
+        if (!tv.busy && !metadataLoading && tv.restoreKey.startsWith('person:'))
+            tv.finishFocus();
+    }, [tv.busy, metadataLoading, tv.restoreKey, item?.metadata]);
     if (!item || item.sourceId !== tv.data.activeId) return null;
     const episodes = metadata.items.filter(
         (e) => (e.season ?? 1) === currentSeason

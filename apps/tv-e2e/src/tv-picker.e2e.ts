@@ -1,3 +1,4 @@
+import { tvBackCodes } from '@iptvnator/tv/util';
 import { expect, test } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -37,7 +38,7 @@ test('TV picker separates remote focus, confirmation and Back cancellation', asy
         .toBe(true);
     await dialog.dispatchEvent('keydown', {
         key: 'Unidentified',
-        keyCode: 461,
+        keyCode: tvBackCodes.webos,
     });
     await expect(dialog).toBeHidden();
     await expect(trigger).toBeFocused();
@@ -167,7 +168,7 @@ test('long descriptions can be read with a remote and return to their trigger', 
     await page.screenshot({ path: join(output, 'full-description.png') });
     await dialog.dispatchEvent('keydown', {
         key: 'Unidentified',
-        keyCode: 461,
+        keyCode: tvBackCodes.webos,
     });
     await expect(dialog).toBeHidden();
     await expect(more).toBeFocused();

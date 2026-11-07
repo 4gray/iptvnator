@@ -1,3 +1,5 @@
+import { currentTvPlatform, tvApplicationId } from '@iptvnator/tv/ui';
+import { tvPlatformLabels } from '@iptvnator/tv/util';
 import { useEffect, useState } from 'preact/hooks';
 
 export interface TvBuildInfo {
@@ -24,9 +26,7 @@ export function About({ build }: { build: TvBuildInfo }) {
         return () => window.removeEventListener('resize', resize);
     }, []);
     const chrome = /Chrome\/([\d.]+)/.exec(navigator.userAgent)?.[1];
-    const platform = /web0s|webos|netcast/i.test(navigator.userAgent)
-        ? 'webOS TV'
-        : 'Web browser';
+    const platform = tvPlatformLabels[currentTvPlatform()];
     const application = [
         ['TV app version', build.version],
         ['IPTVnator release', build.releaseVersion],
@@ -37,7 +37,7 @@ export function About({ build }: { build: TvBuildInfo }) {
                 : 'Not available',
         ],
         ['Built · UTC', build.builtAt.replace('T', ' ').replace(/\.\d+Z$/, '')],
-        ['Application ID', build.appId],
+        ['Application ID', tvApplicationId(build.appId)],
     ];
     const runtime = [
         ['Platform', platform],

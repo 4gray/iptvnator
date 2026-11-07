@@ -545,7 +545,7 @@ test('TV VOD comfort remote arrows reach early-row episode watch actions and ret
     });
 });
 
-for (const replay of ['button', 'remote'] as const)
+for (const replay of ['button', 'remote Play', 'Samsung Play/Pause'] as const)
     test(`TV VOD comfort ${replay} replay after ended resets only that episode and preserves originating focus`, async ({
         page,
     }) => {
@@ -568,13 +568,12 @@ for (const replay of ['button', 'remote'] as const)
         if (replay === 'button')
             await page.locator('[data-focus="player-toggle"]').click();
         else
-            await page.evaluate(() =>
-                document.dispatchEvent(
-                    new KeyboardEvent('keydown', {
-                        keyCode: 415,
-                        bubbles: true,
-                    })
-                )
+            await page.evaluate(
+                (keyCode) =>
+                    document.dispatchEvent(
+                        new KeyboardEvent('keydown', { keyCode, bubbles: true })
+                    ),
+                replay === 'remote Play' ? 415 : 10252
             );
         await expect
             .poll(() =>

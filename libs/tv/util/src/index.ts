@@ -280,3 +280,4 @@ export * from './watch-state';
 export * from './series-continuity';
 export * from './recent-channels';
 export * from './confirmed-live-channels';
+export * from './platform';

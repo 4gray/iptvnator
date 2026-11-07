@@ -249,6 +249,7 @@ export function TvApp({ buildInfo }: { buildInfo: TvBuildInfo }) {
                         key={r.item?.id}
                         tv={display}
                         metadataClient={metadata.client}
+                        metadataLoading={metadata.loading}
                         season={detailSeason.season}
                         selectSeason={detailSeason.select}
                     />

@@ -1,7 +1,7 @@
 import { isCollectionView, isSavedView } from './navigation';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { restoreFocus } from '@iptvnator/tv/ui';
-import type { Media, Source } from '@iptvnator/tv/util';
+import { isBackKey, type Media, type Source } from '@iptvnator/tv/util';
 import { navigationOrigin, type NavigationOrigin } from './use-route-history';
 import type { TvModel } from './use-tv';
 
@@ -310,11 +310,7 @@ export function useSourceActions(
                 (!request.current && !details.current && !playback.current)
             )
                 return;
-            if (
-                event.keyCode !== 461 &&
-                !['Escape', 'BrowserBack', 'Backspace'].includes(event.key)
-            )
-                return;
+            if (!isBackKey(event)) return;
             if (
                 event.key === 'Backspace' &&
                 (event.target as HTMLElement).matches('input,textarea')

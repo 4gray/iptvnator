@@ -1,3 +1,4 @@
+import { isBackKey } from '@iptvnator/tv/util';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { focusKey, restoreFocus } from '@iptvnator/tv/ui';
 import { LiveChannels } from './live-channels';
@@ -44,9 +45,7 @@ export function useLiveOverlay(tv: TvModel, browse: Browse) {
     useEffect(() => {
         const key = (event: KeyboardEvent) => {
             const current = latest.current;
-            const back =
-                event.keyCode === 461 ||
-                ['Escape', 'BrowserBack', 'Backspace'].includes(event.key);
+            const back = isBackKey(event);
             if (current.panel && back) {
                 event.preventDefault();
                 event.stopImmediatePropagation();
