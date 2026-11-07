@@ -125,6 +125,17 @@ async function checkCurrentEnvironment() {
         await import('@nx/devkit');
     const projectGraph = await createProjectGraphAsync({ exitOnError: true });
     const failures = await findInvalidTaskGraphs(projectGraph);
+    if (
+        !projectGraph.dependencies['electron-backend-e2e']?.some(
+            ({ target }) => target === 'remote-control-web'
+        )
+    ) {
+        failures.push({
+            task: 'electron-backend-e2e:e2e',
+            message:
+                'The project graph must include remote-control-web so Nx affected selects Electron E2E when the remote UI changes.',
+        });
+    }
     const checked = playwrightTargets(projectGraph).length;
     const missing = findMissingTargets(
         projectGraph,

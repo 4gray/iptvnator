@@ -263,11 +263,17 @@ The Web E2E CI job runs Chromium with `--workers=2`; retry and timeout
 settings remain defined by the Playwright configuration. This override applies
 only to the Web E2E workflow step.
 
+On pull requests, the CI Lint job summarizes which E2E suites project-level
+Nx affected selects for the PR merge diff. Use the preview to check that the
+graph includes each suite that consumes the changed code before using it to
+skip any jobs. The preview is informational. The E2E workflow keeps its
+existing path filters and matrix, and TV E2E remains a separate local target.
+
 Use atomized E2E targets when available, for example
 `pnpm nx run web-e2e:e2e-ci--src/xtream.e2e.ts`.
 
 After changing a Playwright config's `webServer` list, `nx.json` target
-defaults or an E2E project's `dependsOn`, run
+defaults or an E2E project's dependencies, run
 `pnpm run e2e:task-graphs:validate`. It builds every Playwright target's task
 graph with and without `CI` and fails on the graphs Nx refuses to run; CI runs
 it in the `unit-and-typecheck` job. See
