@@ -1,10 +1,25 @@
 # Samsung Tizen TV acceptance
 
-The existing TV client now has a separate WGT packaging path. Local unit,
-build and browser checks do not certify Samsung hardware. No TV is used for
-this implementation; every device item below is intentionally unchecked.
+The shared TV client has a separate WGT packaging path. Unit, build and browser
+checks complement testing on hardware. Use the checklist for each TV you test.
 See [development](tv-development.md#samsung-tizen-tv) for signing/install commands
 and [architecture](../architecture/tv-application.md#samsung-tizen-package) for scope.
+
+## Community device test
+
+The [PR #2126 device report](https://github.com/4gray/iptvnator/pull/2126#issuecomment-6703818846)
+covers a Samsung Q60C (2023) running Tizen 9.0 and Chromium 120, with WGT 0.1.25
+from commit `725e83e366a1894849a263c6cb4f83a167b49a76`. The contributor verified
+signing and installation, cold launch, Xtream phone setup, HLS picture and audio,
+remote navigation and playback controls, EPG, VOD seek and resume, and persistence
+after relaunch. Remote DevTools showed the screensaver API switching off during
+playback and back on after pause or stop.
+
+MPEG-TS, M3U and Stalker sources, other remote types, a long playback session past
+the TV's screensaver interval, reinstall/update, quota failure and app hide/return
+still need hardware testing.
+
+## Device checklist
 
 Record model, firmware, Tizen/browser version, tested commit, WGT version and
 SHA-256 locally. Use an owner-controlled test backend and permitted test media;

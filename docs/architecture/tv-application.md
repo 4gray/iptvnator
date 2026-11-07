@@ -7,8 +7,8 @@ The approved target is LG OLED55BX9LB, firmware 04.64.00, webOS 5.x / Chromium 6
 Samsung Tizen TV uses the same client/build, with a minimum of Tizen 5.5
 (2020, Chromium 69). Tizen 5.0 (2019, Chromium 63) is below the build's Chromium
 68 floor; see Samsung's [engine table](https://developer.samsung.com/smarttv/develop/specifications/web-engine-specifications.html).
-Samsung device acceptance remains pending. A successful desktop browser test is
-not device certification.
+The [community device report](../development/tv-tizen-validation.md#community-device-test)
+records verified scenarios on a Samsung Q60C with Tizen 9.0 and remaining checks.
 
 ## Runtime and ownership
 
@@ -62,7 +62,7 @@ are used. Root Back uses Tizen application exit at the same point as LG platform
 Back; dialogs, fullscreen and route history retain priority. About identifies
 Samsung Tizen TV and reads its installed app ID through the application API.
 See [development](../development/tv-development.md#samsung-tizen-tv) and the
-[unchecked device acceptance](../development/tv-tizen-validation.md), including
+[device checklist and results](../development/tv-tizen-validation.md), including
 Samsung Store exit-confirmation policy, before claiming device support.
 
 Only staged Tizen HTML loads the device-provided `$WEBAPIS/webapis/webapis.js`
@@ -834,9 +834,9 @@ child sources, and source-level errors reach the playback retry UI. This does
 not add headers, rewrite manifests or proxy media.
 
 The explicit HLS source, bounded seek restoration and visibility pause are
-standard HTML-video paths and remain shared on Samsung; LG behavior is unchanged.
-Their native Samsung MIME, codec, seek and lifecycle behavior is an open device
-gate, not inferred from the browser engine. No AVPlay is introduced.
+standard HTML-video paths shared by both platforms. The Samsung device report
+covers HLS playback and seek on one model. Other codecs, models and app
+visibility transitions still need device testing.
 
 Settings exposes an opt-in direct catalog request and a separate media HEAD
 probe. A readable HEAD response establishes HTTP reachability only, not native
