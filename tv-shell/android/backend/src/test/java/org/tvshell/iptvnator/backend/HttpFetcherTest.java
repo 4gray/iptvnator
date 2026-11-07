@@ -5,6 +5,7 @@ import static org.tvshell.iptvnator.backend.TestMain.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -13,6 +14,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.zip.GZIPOutputStream;
 
 /** Mirrors apps/web-backend validated-http-client.spec.ts: identity headers stop at the origin boundary. */
 public class HttpFetcherTest {
@@ -75,6 +77,7 @@ public class HttpFetcherTest {
     }
     /** A real HTTP 200 whose body cannot be consumed; no external host or provider data. */
     private static final class BrokenBodyServer implements AutoCloseable {
+        private static final byte[] PLAYLIST = "#EXTM3U\n#EXTINF:-1,Synthetic Channel\nhttps://stream.example/live.m3u8\n".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         final ServerSocket listener;
         final Thread thread;
         volatile IOException failure;
@@ -82,6 +85,7 @@ public class HttpFetcherTest {
         BrokenBodyServer(final String mode) throws IOException {
             final boolean timeout = mode.equals("timeout");
             final boolean truncated = mode.equals("truncated");
+            final boolean missingGzipMember = mode.equals("gzip-member");
             listener = new ServerSocket(0, 1, java.net.InetAddress.getByName("127.0.0.1"));
             thread = new Thread(() -> {
                 try (Socket socket = listener.accept()) {
@@ -89,11 +93,13 @@ public class HttpFetcherTest {
                     BufferedReader request = new BufferedReader(new InputStreamReader(socket.getInputStream(), "US-ASCII"));
                     String line;
                     while ((line = request.readLine()) != null && !line.isEmpty()) { /* consume headers */ }
-                    String headers = "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: " + (timeout ? "1" : truncated ? "1024" : "3")
+                    byte[] body = timeout ? new byte[0] : truncated ? PLAYLIST
+                        : missingGzipMember ? gzip(PLAYLIST) : new byte[] { 0x1f, (byte) 0x8b, 0x08 };
+                    int declared = timeout ? 1 : truncated || missingGzipMember ? 1024 : body.length;
+                    String headers = "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: " + declared
                         + (timeout || truncated ? "" : "\r\nContent-Encoding: gzip") + "\r\n\r\n";
                     socket.getOutputStream().write(headers.getBytes("US-ASCII"));
-                    if (truncated) socket.getOutputStream().write("#EXTM3U\n#EXTINF:-1,Synthetic Channel\nhttps://stream.example/live.m3u8\n".getBytes("UTF-8"));
-                    else if (!timeout) socket.getOutputStream().write(new byte[] { 0x1f, (byte) 0x8b, 0x08 });
+                    socket.getOutputStream().write(body);
                     socket.getOutputStream().flush();
                     // A stalled body ends when the client times out and disconnects.
                     if (timeout) socket.getInputStream().read();
@@ -102,6 +108,14 @@ public class HttpFetcherTest {
                 }
             }, "synthetic-broken-body");
             thread.start();
+        }
+
+        private static byte[] gzip(byte[] body) throws IOException {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            try (GZIPOutputStream gzip = new GZIPOutputStream(out)) {
+                gzip.write(body);
+            }
+            return out.toByteArray();
         }
 
         String url() { return "http://127.0.0.1:" + listener.getLocalPort() + "/synthetic.m3u"; }
@@ -131,7 +145,7 @@ public class HttpFetcherTest {
     }
 
     public void testBrokenPlaylistBodyCannotLookLikeASuccessfulImport() throws Exception {
-        for (String mode : new String[] { "gzip", "truncated" }) {
+        for (String mode : new String[] { "gzip", "truncated", "gzip-member" }) {
             assertBrokenPlaylistImport(mode);
         }
     }

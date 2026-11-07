@@ -51,6 +51,7 @@ The reference server also accepts a leading JSON BOM and forwards Xtream's trimm
 User-Agent as a header, excluding it from provider query parameters.
 Malformed redirects and interrupted response bodies return provider errors. An HTTP
 response, including a redirect, rules out an HTTP retry during protocol discovery.
+The embedded backend checks compressed response lengths before accepting playlist data.
 The Node reference server allows the local mock provider by default. For other
 providers, set `TVSHELL_PROVIDER_ORIGINS` to a comma-separated list of HTTP(S)
 origins such as `https://provider.example`. Registration and every redirect hop
