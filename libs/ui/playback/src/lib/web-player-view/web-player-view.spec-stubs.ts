@@ -1,4 +1,4 @@
-import { Component, input, output, signal } from '@angular/core';
+import { Component, input, model, output, signal } from '@angular/core';
 import type { PlaybackDiagnostic } from '@iptvnator/playback/util';
 import type {
     EmbeddedMpvSupport,
@@ -100,6 +100,7 @@ export class StubFullscreenChannelPanelComponent {
 })
 export class StubEmbeddedMpvPlayerComponent {
     readonly support = signal<EmbeddedMpvSupport | null>(null);
+    readonly liveSubtitlesOff = model(false);
     readonly playback = input.required<unknown>();
     readonly fullscreenTarget = input<HTMLElement | null>(null);
     readonly mediaTitle = input<unknown>(null);

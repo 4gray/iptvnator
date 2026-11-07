@@ -1389,7 +1389,8 @@ export interface ElectronBridgeApi {
     createEmbeddedMpvSession: (
         bounds: EmbeddedMpvBounds,
         title?: string,
-        initialVolume?: number
+        initialVolume?: number,
+        subtitlesOff?: boolean
     ) => Promise<EmbeddedMpvSession>;
     loadEmbeddedMpvPlayback: (
         sessionId: string,

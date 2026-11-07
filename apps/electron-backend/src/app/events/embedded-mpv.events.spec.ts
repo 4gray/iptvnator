@@ -14,7 +14,7 @@ const mockEmbeddedMpvService = {
     setPaused: jest.fn(),
 };
 const mockSessionOptions = {
-    extraOptions: ['network-timeout=10', 'hwdec=no'],
+    extraOptions: ['network-timeout=10', 'hwdec=no', 'sid=auto'],
     autoReconnect: false,
 };
 
@@ -221,6 +221,34 @@ describe('EmbeddedMpvEvents IPC handlers', () => {
             mockSessionOptions
         );
     });
+
+    it.each([true, false, 'true'])(
+        'only appends the startup subtitle override for boolean true (%p)',
+        async (subtitlesOff) => {
+            const bounds = { x: 0, y: 0, width: 640, height: 360 };
+            const handler = getIpcMainHandler(EMBEDDED_MPV_CREATE_SESSION);
+
+            await handler({}, bounds, 'Title', 0.5, subtitlesOff);
+
+            expect(mockEmbeddedMpvService.createSession).toHaveBeenCalledWith(
+                bounds,
+                'Title',
+                0.5,
+                {
+                    ...mockSessionOptions,
+                    extraOptions:
+                        subtitlesOff === true
+                            ? [
+                                  'network-timeout=10',
+                                  'hwdec=no',
+                                  'sid=auto',
+                                  'sid=no',
+                              ]
+                            : ['network-timeout=10', 'hwdec=no', 'sid=auto'],
+                }
+            );
+        }
+    );
 
     it('forwards arguments to the native service and returns its result', async () => {
         const session = { id: 'session-1', status: 'paused' };
