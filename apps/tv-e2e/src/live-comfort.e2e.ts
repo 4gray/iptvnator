@@ -354,9 +354,7 @@ test('TV Live comfort account edits invalidate Previous without autoplay or dele
     await expect(previous(page)).toHaveCount(0);
 });
 
-test('TV Live comfort failed cross-source connection retries keep the pair and Back clears obsolete recovery', async ({
-    page,
-}) => {
+async function openForeignPrevious(page: Page) {
     await start(page);
     await addSource(page, 'xtream', { name: 'Demo North' });
     await playLive(page);
@@ -369,6 +367,51 @@ test('TV Live comfort failed cross-source connection retries keep the pair and B
     await row.click();
     await confirmed(page, b);
     await page.getByRole('button', { name: 'Open fullscreen' }).click();
+    return a;
+}
+
+test('TV Live comfort remote Stop cancels Previous during cross-source connection', async ({
+    page,
+}) => {
+    await openForeignPrevious(page);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let held = false;
+    await page.route(`${backend}/xtream?**`, async (route) => {
+        const action =
+            new URL(route.request().url()).searchParams.get('action') ?? '';
+        if (['get_account_info', '', 'get_profile'].includes(action)) {
+            held = true;
+            await gate;
+        }
+        return route.fallback();
+    });
+    try {
+        await previous(page).click();
+        await expect.poll(() => held).toBe(true);
+        const pending = page.getByRole('button', {
+            name: 'Cancel opening title',
+        });
+        await expect(pending).toBeVisible();
+        await page.evaluate(() =>
+            document.dispatchEvent(
+                new KeyboardEvent('keydown', { keyCode: 413, bubbles: true })
+            )
+        );
+        release();
+        await expect(pending).toHaveCount(0);
+        await expect(page.locator('.loading')).toBeHidden();
+        await expect(page.locator('.native-player.fullscreen')).toHaveCount(0);
+        await expect(page.locator('video[src],video source')).toHaveCount(0);
+    } finally {
+        release();
+    }
+});
+
+test('TV Live comfort failed cross-source connection retries keep the pair and Back clears obsolete recovery', async ({
+    page,
+}) => {
+    const a = await openForeignPrevious(page);
     let fail = true,
         attempts = 0;
     await page.route(`${backend}/xtream?**`, (route) => {

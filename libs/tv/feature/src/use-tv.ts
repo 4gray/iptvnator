@@ -11,7 +11,6 @@ import { useContent } from './use-content';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { useProvider } from './use-provider';
 import { useSourceNavigation } from './use-source-navigation';
-import { useTvRemote } from './use-tv-remote';
 import {
     LatestRequest,
     Media,
@@ -310,14 +309,6 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         } else if (route.view !== 'home') navigate('home');
         else platformBack();
     }
-    useTvRemote({
-        back,
-        stop,
-        fullscreen,
-        player: player.current,
-        restore: playerOrigin.restore,
-        startOver,
-    });
     const switchSource = createSourceSwitcher({
         stop,
         update,
@@ -364,6 +355,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         retryPlayback,
         retryConnection,
         playbackOrigin: playerOrigin.current,
+        restorePlaybackFocus: playerOrigin.restore,
         restoreKey: pendingFocus.current,
         restoreScroll: pendingScroll.current,
         backend,

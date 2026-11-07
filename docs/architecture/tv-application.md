@@ -455,8 +455,9 @@ the mounted video element and originating page focus, and Back/source changes
 cancel pending resolution. Missing parent, failed lookup and unavailable final
 successors retain the current episode, with retry where appropriate.
 
-Remote Stop (413) tears down the stream and returns focus to its origin or
-channel. Back from catalog-origin fullscreen Live returns to the ongoing preview instead.
+Remote Stop (413) cancels pending source actions, tears down the stream and
+returns focus to its origin or channel. Back from catalog-origin fullscreen
+Live returns to the ongoing preview instead.
 
 Lazy Stalker episodes retain provider movie/season/episode coordinates and use
 the shared framework-free episode command resolver before `create_link`.

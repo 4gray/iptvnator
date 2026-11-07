@@ -25,6 +25,7 @@ import { useMetadata } from './use-metadata';
 import { useSeriesContext } from './use-series-context';
 import { useSeriesDetails } from './use-series-details';
 import { NativePlayerView } from './native-player-view';
+import { useTvRemote } from './use-tv-remote';
 import { PersonPage } from './person-page';
 import type { FilmographyMemory } from './use-filmography-search';
 export function TvApp({ buildInfo }: { buildInfo: TvBuildInfo }) {
@@ -39,6 +40,17 @@ export function TvApp({ buildInfo }: { buildInfo: TvBuildInfo }) {
     const detailSeason = useDetailSeason(tv.route);
     const seriesDetails = useSeriesDetails(tv);
     const homeActions = useSourceActions(tv, seriesDetails);
+    useTvRemote({
+        back: tv.back,
+        stop: () => {
+            homeActions.leave();
+            tv.stop();
+        },
+        fullscreen: tv.fullscreen,
+        player: tv.player.current,
+        restore: tv.restorePlaybackFocus,
+        startOver: tv.startOver,
+    });
     useSeriesContext(tv);
     const browse = useLiveBrowse(tv);
     const overlay = useLiveOverlay(tv, browse);
