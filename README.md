@@ -79,30 +79,32 @@ reverse proxies, playback troubleshooting and platform limits.
 
 ## Smart TV
 
-IPTVnator includes an experimental TV app for watching your own M3U, Xtream Codes
-and Stalker / Ministra sources. LG webOS and Samsung Tizen share the same TV
-client, with separate packages you build and install in Developer Mode.
+### LG webOS and Samsung Tizen
+
+LG webOS and Samsung Tizen share a dedicated, experimental TV client for M3U,
+Xtream Codes and Stalker / Ministra sources. It requires a compatible IPTVnator
+web backend. Build and install the package for your TV in Developer Mode.
 
 - [LG webOS installation](apps/tv/README.md#installation)
 - [Samsung Tizen installation and signing](apps/tv/tizen/README.md)
 
 Add sources from your phone by scanning a QR code, or connect the TV to your
 self-hosted IPTVnator source library. Favorites, history and resume positions
-currently stay on the TV. A matching IPTVnator backend is required.
+currently stay on the TV.
 
 See the [TV README](apps/tv/README.md) for compatibility, phone setup, source
 synchronization and screenshots.
 
-## Fire TV / Android TV shell (experimental)
+### Fire TV / Android TV shell (experimental)
 
-[`tv-shell/`](./tv-shell/README.md) brings IPTVnator to Fire TV sticks and
-Android TV boxes by wrapping the browser PWA in a small Android app. The web backend is embedded in the APK,
-so nothing has to be hosted; a remote-control layer drives the existing
-interface with the D-pad, and streams the TV's WebView cannot play are handed to
-an installed player such as VLC. The `Build TV shell APK` workflow builds the
-APK and can publish it as a GitHub release (a pre-release by default); see
-[`tv-shell/README.md`](./tv-shell/README.md) for installation, the security
-model and the remote-control key map.
+The Android shell bundles the same PWA used in the browser with an embedded
+backend. It's designed primarily for Fire TV Stick and Android TV devices with a
+D-pad remote. You can try it on tablets. Compact phone screens still need layout
+work.
+
+The `Build TV shell APK` workflow can publish a GitHub release, marked as a
+pre-release by default. For APK builds, installation and remote controls, see
+the [Android shell guide](./tv-shell/README.md).
 
 ## Help and development
 
