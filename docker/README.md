@@ -188,9 +188,10 @@ Back up the volume like any database: stop the container, or copy
 
 ## Connect your clients
 
-The **Server** page connects to your own IPTVnator installation. It does not
-create a server or connect directly to your IPTV provider. Run the Docker
-container once on your NAS or home server, then connect your clients to it.
+Under **Connection on this device**, connect to the IPTVnator server that
+will hold your shared library. This can be the [server built into the desktop
+app](#run-the-server-from-the-desktop-app) or a separate Docker installation
+on a NAS or home server. The steps below use Docker.
 
 1. Start the container with the [Compose instructions above](#run-with-docker-compose).
    Keep `IPTVNATOR_STORAGE=server` and a persistent volume mounted at `/data`.

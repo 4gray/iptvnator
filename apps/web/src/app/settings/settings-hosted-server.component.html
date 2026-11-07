@@ -5,7 +5,7 @@
             <p>{{ 'HOSTED_SERVER.DESCRIPTION' | translate }}</p>
             <a
                 class="server-help"
-                href="https://github.com/4gray/iptvnator/blob/master/docker/README.md#run-the-server-from-the-desktop-app"
+                [href]="guides.desktop"
                 target="_blank"
                 rel="noopener noreferrer"
                 >{{ 'HOSTED_SERVER.SETUP_GUIDE' | translate }}</a
@@ -14,12 +14,12 @@
         <div class="settings-card server-fields">
             <app-settings-sync-status
                 [state]="status().state"
-                [stateKey]="'HOSTED_SERVER.STATE_' + status().state"
+                [stateKey]="stateKeys[status().state]"
                 testId="hosted-server-status"
             />
             @if (status().error; as error) {
                 <p class="server-message server-message--error" role="alert">
-                    {{ 'HOSTED_SERVER.ERROR_' + error | translate }}
+                    {{ errorKeys[error] | translate }}
                 </p>
             }
             @if (status().state === 'running') {

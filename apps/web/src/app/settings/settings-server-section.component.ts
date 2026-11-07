@@ -16,6 +16,12 @@ import {
     ReactiveFormsModule,
     Validators,
 } from '@angular/forms';
+import { MatDialog } from '@angular/material/dialog';
+import { dialogSize } from '@iptvnator/ui/components/dialog-size';
+import {
+    SERVER_GUIDES,
+    SettingsServerAboutDialogComponent,
+} from './settings-server-about-dialog.component';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -60,6 +66,8 @@ import {
     styleUrl: './settings-server-section.component.scss',
 })
 export class SettingsServerSectionComponent {
+    private readonly dialog = inject(MatDialog);
+    readonly guides = SERVER_GUIDES;
     readonly sync = inject(SourceSyncService);
     readonly supportsHosting = inject(RuntimeCapabilitiesService)
         .supportsHostedServer;
@@ -68,6 +76,10 @@ export class SettingsServerSectionComponent {
     readonly localServerUrl = computed(
         () => this.hostedServer()?.status().localUrl
     );
+
+    showAbout(): void {
+        this.dialog.open(SettingsServerAboutDialogComponent, dialogSize('md'));
+    }
 
     async connectHosted(url: string): Promise<void> {
         if (this.busy()) return;

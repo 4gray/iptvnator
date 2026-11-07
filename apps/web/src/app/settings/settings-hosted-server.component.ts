@@ -11,6 +11,7 @@ import { Clipboard } from '@angular/cdk/clipboard';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
+import { SERVER_GUIDES } from './settings-server-about-dialog.component';
 import { SettingsSyncStatusComponent } from './settings-sync-status.component';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
@@ -39,6 +40,19 @@ import { timer } from 'rxjs';
     styleUrl: './settings-server-section.component.scss',
 })
 export class SettingsHostedServerComponent {
+    readonly guides = SERVER_GUIDES;
+    readonly stateKeys = {
+        unavailable: '',
+        stopped: 'HOSTED_SERVER.STATE_stopped',
+        starting: 'HOSTED_SERVER.STATE_starting',
+        running: 'HOSTED_SERVER.STATE_running',
+        stopping: 'HOSTED_SERVER.STATE_stopping',
+        error: 'HOSTED_SERVER.STATE_error',
+    } satisfies Record<HostedServerStatus['state'], string>;
+    readonly errorKeys = {
+        port: 'HOSTED_SERVER.ERROR_port',
+        startup: 'HOSTED_SERVER.ERROR_startup',
+    };
     readonly status = signal<HostedServerStatus>({ state: 'unavailable' });
     readonly busy = signal(false);
     readonly lanChoice = signal<boolean | null>(null);

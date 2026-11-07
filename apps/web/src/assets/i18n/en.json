@@ -2379,6 +2379,11 @@
         "CODE_FAILED": "Could not read the server access code."
     },
     "SOURCE_SYNC": {
+        "ABOUT_TITLE": "About server sync",
+        "ABOUT_PURPOSE": "Connect your devices to the same IPTVnator server to share playlists and sources. You can also enable sync for favorites, viewing progress and history.",
+        "ABOUT_DESKTOP": "Start the server in the desktop app. Other devices on your home network can connect if you allow access. The server runs while IPTVnator is open, even when minimized.",
+        "ABOUT_SEPARATE_TITLE": "Separate server",
+        "ABOUT_SEPARATE": "Run IPTVnator with Docker on a NAS or home server. Your devices can connect while that server is running, even after you quit the desktop app.",
         "CONNECTION_RECOVERY": "Saved server connection unavailable. Check browser storage or reconnect in Server settings.",
         "TITLE": "Server",
         "DESCRIPTION": "Connect to IPTVnator running in Docker on your home server or NAS to share sources between devices.",
