@@ -28,6 +28,11 @@ export interface SplitAudioDialogData {
     readonly video: Channel;
     /** Every channel the audio can come from. */
     readonly channels: readonly Channel[];
+    /**
+     * How the video channel is started. Defaults to the M3U playlist flow;
+     * portals with their own playback (Xtream) pass their own starter.
+     */
+    readonly start?: () => void;
 }
 
 /** More rows than this are never useful to scroll; the search narrows the rest. */
@@ -118,12 +123,16 @@ export class SplitAudioDialogComponent {
             title: audio.name,
             delaySeconds: delay,
         });
-        this.store.dispatch(
-            ChannelActions.setActiveChannel({
-                channel: video,
-                startPlayback: true,
-            })
-        );
+        if (this.data.start) {
+            this.data.start();
+        } else {
+            this.store.dispatch(
+                ChannelActions.setActiveChannel({
+                    channel: video,
+                    startPlayback: true,
+                })
+            );
+        }
         this.dialogRef.close();
     }
 }

@@ -390,6 +390,7 @@ describe('external player shutdown on app quit', () => {
             '--audio-file=https://example.com/channel-b.m3u8'
         );
         expect(args).toContain('--audio-delay=1.5');
+        expect(args).toContain('--fs');
         // The video stream stays the file mpv opens.
         expect(args[args.length - 1]).toBe(
             'https://example.com/channel-a.m3u8'
@@ -413,6 +414,7 @@ describe('external player shutdown on app quit', () => {
             -1
         )?.[1] as string[];
         expect(plainArgs.some((arg) => arg.startsWith('--audio-'))).toBe(false);
+        expect(plainArgs).not.toContain('--fs');
 
         await openMpvPlayer({
             title: 'Split audio, no delay',

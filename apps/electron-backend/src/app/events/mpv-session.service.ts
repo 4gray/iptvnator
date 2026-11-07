@@ -260,7 +260,8 @@ async function launchMpvPlayer(
         }
 
         if (audioUrl) {
-            args.push(`--audio-file=${audioUrl}`);
+            // Opens covering the whole screen; F or Esc leaves fullscreen.
+            args.push('--fs', `--audio-file=${audioUrl}`);
             if (
                 typeof audioDelaySeconds === 'number' &&
                 Number.isFinite(audioDelaySeconds) &&
