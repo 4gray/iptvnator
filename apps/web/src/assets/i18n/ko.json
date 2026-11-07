@@ -733,7 +733,9 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "연령 등급 국가",
         "AGE_RATING_COUNTRY_DESCRIPTION": "연령 등급에 사용할 국가를 선택하세요. 현지 정보가 없으면 미국 또는 제공업체 정보를 사용할 수 있습니다.",
-        "AGE_RATING_COUNTRY_AUTO": "자동 — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "자동 — {{country}}",
+        "LIVE_CHANNEL_FAILOVER": "라이브 채널 페일오버",
+        "LIVE_CHANNEL_FAILOVER_DESCRIPTION": "내장 플레이어에서 라이브 채널이 실패하면 3번(각 10초) 다시 시도한 뒤, 다른 소스에서 목록 순서대로 같은 채널을 찾아 처음으로 재생되는 소스로 전환합니다."
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "서버에 저장하지 못했습니다. 연결을 확인하고 다시 시도하세요.",
@@ -873,7 +875,12 @@
             "STATS_CONTAINER": "컨테이너",
             "STATS_BUFFER": "버퍼",
             "STATS_DROPPED_FRAMES": "손실된 프레임",
-            "STATS_UNAVAILABLE": "아직 스트림 데이터가 없습니다"
+            "STATS_UNAVAILABLE": "아직 스트림 데이터가 없습니다",
+            "FAILOVER_RETRYING": "스트림 실패. 다시 시도하는 중({{attempt}}/{{maxAttempts}})…",
+            "FAILOVER_SEARCHING": "다른 소스에서 “{{channel}}” 찾는 중…",
+            "FAILOVER_HOPPING": "소스 {{index}}/{{total}} 시도 중: {{source}} — {{channel}}",
+            "FAILOVER_SWITCHED": "{{source}}(으)로 전환됨 — {{channel}}",
+            "FAILOVER_EXHAUSTED": "“{{channel}}”을(를) 재생할 수 있는 소스를 찾지 못했습니다"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

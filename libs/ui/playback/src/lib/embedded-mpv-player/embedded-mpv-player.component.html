@@ -274,7 +274,9 @@
                                     class="embedded-mpv-player__live-dot"
                                     aria-hidden="true"
                                 ></span>
-                                {{ 'EMBEDDED_MPV.PLAYER.LIVE_BADGE' | translate }}
+                                {{
+                                    'EMBEDDED_MPV.PLAYER.LIVE_BADGE' | translate
+                                }}
                             </span>
                         } @else {
                             <span
@@ -287,6 +289,16 @@
                             >
                         }
                     </div>
+                    @if (failoverLabel(); as failoverStatus) {
+                        <div
+                            class="embedded-mpv-player__failover-status"
+                            data-test-id="embedded-mpv-failover-status"
+                            aria-live="polite"
+                        >
+                            <mat-icon>swap_horiz</mat-icon>
+                            <span>{{ failoverStatus }}</span>
+                        </div>
+                    }
                     @if (recordingStatusText(); as recordingStatus) {
                         <div
                             class="embedded-mpv-player__recording-status"

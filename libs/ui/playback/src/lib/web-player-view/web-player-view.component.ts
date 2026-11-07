@@ -25,7 +25,10 @@ import {
 } from '@iptvnator/playback/util';
 import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
-import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
+import {
+    LiveChannelFailoverService,
+    PlaybackHistoryGate,
+} from '@iptvnator/playback/data-access';
 import {
     VideoPlayer,
     type Channel,
@@ -264,6 +267,7 @@ export class WebPlayerViewComponent implements OnDestroy {
         managedExternalPlayersAvailable: () =>
             this.runtime.supportsManagedExternalPlayers,
         tryAutoLiveFormat: (issue) => this.liveAutoFormat.tryFallback(issue),
+        liveChannelFailover: inject(LiveChannelFailoverService),
         emitPlaybackFailed: (code) => this.playbackFailed.emit(code),
         emitExternalFallbackRequested: (request) =>
             this.externalFallbackRequested.emit(request),
@@ -386,8 +390,10 @@ export class WebPlayerViewComponent implements OnDestroy {
                 this.playbackApplicationToken()
             ) &&
             !this.liveAutoFormat.pending()
-        )
+        ) {
             this.liveAutoFormat.started();
+            this.recovery.notifyPlaybackStarted();
+        }
     }
 
     handleTimeUpdate(

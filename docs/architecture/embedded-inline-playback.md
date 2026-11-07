@@ -135,6 +135,52 @@ Current limitation:
 - because of that, the setting is auto-sanitized back to the default inline player unless support detection reports that the experimental runtime is available
 - this follows the rollout gate: keep the native work in-tree, but do not leave it user-facing until playback, resize, focus, and packaging are stable
 
+## Live Channel Failover (Embedded MPV)
+
+`Settings.liveChannelFailover` (Settings → Playback, shown with the embedded
+MPV rows, default off) adds retries and cross-source failover for live
+playback in the embedded MPV player:
+
+- `EmbeddedMpvLiveFailover` (`libs/ui/playback`, created by the player
+  component) gives each attempt `LIVE_FAILOVER_ATTEMPT_MS` (10 s) to reach
+  `playing`. An mpv error, a live EOF, a main-process reconnect (see
+  `embedded-mpv-reconnect.ts`) or the attempt timing out restarts the session,
+  up to `LIVE_FAILOVER_MAX_RETRIES` (3). Playing restores the full budget.
+- Coverage begins at the first selection, not only after playback started:
+  the attempt watchdog runs for every new playback, so a channel that never
+  reaches `playing` (mpv error, live EOF, reconnect, or the 10 s attempt
+  expiring) takes the same retry-then-hop path as a stream that drops later.
+- After the last retry, `LiveChannelFailoverService`
+  (`libs/playback/data-access`) searches the other sources with
+  `globalSearchContent` (desktop SQLite: Xtream and M3U live channels),
+  ranks one best fuzzy match per source (`rankLiveChannelCandidates`,
+  `libs/playback/util`; a candidate may drop decorations or words but never
+  add one) and walks them in the source-list order of `SortService`, skipping
+  the failing source. Stalker sources are not searched.
+- Each hop is a real navigation through the "Open in playlist" targets
+  (`getLiveCollectionPlaylistNavigation`), so the user lands in that source's
+  live view with the channel open and can browse its categories. A hop gets
+  one attempt; a candidate whose player never mounts is skipped after
+  `LIVE_FAILOVER_ARRIVAL_MS`. The first candidate that plays settles the hop
+  with a "Switched to" snackbar; when none plays the player shows "No working
+  source found". Picking another channel cancels a hop.
+- The player shows the retry/hop progress in its status overlay and, for the
+  native-view engine, in the dock below the video (`failoverLabel`).
+- Scope: every player. The built-in web players (`videojs`, `html5`,
+  `artplayer`) run the same retry budget through `WebPlayerLiveFailover`,
+  driven by their playback diagnostics: the HLS→MPEG-TS live format fallback
+  (`web-player-live-auto-format.ts`) still gets the first try, and once the
+  adapter owns a failure the manual recovery card stays hidden while it
+  retries. Managed external MPV/VLC run `ExternalLiveFailoverService`
+  (`apps/web/src/app/services`) on the main process's session updates and
+  `player-error` events, replaying the exact launch — headers included —
+  through `PlayerService.openExternalPlayback`. External limits: a stream that
+  opens and then stalls without raising an error is not detected (the renderer
+  receives no position feed), and the external window cannot show retry
+  progress, so hops are announced by the in-app notice and dock only.
+- Failover only engages on playback inside a source route
+  (`/workspace/{xtreams,playlists,stalker}/:id`).
+
 ## Two-State Detail Layout (Browse ↔ Watch)
 
 Portal VOD/series detail pages are hosted by the shared
@@ -528,11 +574,11 @@ Every detail host therefore keeps these rules:
 
 Owner keys and queueing are provider contracts:
 
-| Host | Contract |
-| --- | --- |
-| Xtream series | [Forced external launches from detail pages](./xtream-portal-compatibility.md#forced-external-launches-from-detail-pages) |
-| Xtream movie | [Menu launch and reset follow the primary button](./vod-multi-source.md#menu-launch-and-reset-follow-the-primary-button) |
-| Stalker series and movies | [Forced External Launches](./stalker-portal.md#forced-external-launches) |
+| Host                      | Contract                                                                                                                  |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Xtream series             | [Forced external launches from detail pages](./xtream-portal-compatibility.md#forced-external-launches-from-detail-pages) |
+| Xtream movie              | [Menu launch and reset follow the primary button](./vod-multi-source.md#menu-launch-and-reset-follow-the-primary-button)  |
+| Stalker series and movies | [Forced External Launches](./stalker-portal.md#forced-external-launches)                                                  |
 
 ## Series Quick Start CTA
 
@@ -1220,13 +1266,6 @@ Keep player-specific reusable-process state in the focused MPV/VLC managers.
 Shared spawn, request-header, session-registry, and notification helpers belong
 in the `external-player-*` modules so IPC registration stays small and
 reviewable.
-
-MPV and VLC progress polling belong to the current playback session. Delayed exit or
-error events from an older child stop only that child's polling; an in-flight
-poll also checks its generation before cleanup so it cannot stop its replacement.
-VLC checks ownership after both the snapshot and stopped-state RC reads, before
-updating the cached snapshot, forwarding progress, or closing the session.
-Obsolete replies and failures cannot cancel the replacement's delayed start.
 
 ## Flatpak External Players
 

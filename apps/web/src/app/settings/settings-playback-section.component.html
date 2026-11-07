@@ -410,6 +410,33 @@
                 }
             }
 
+            @if (isDesktop()) {
+                <div
+                    class="setting-item"
+                    data-setting-id="live-channel-failover"
+                    data-test-id="live-channel-failover-setting"
+                >
+                    <div class="setting-item__meta">
+                        <h4 id="live-channel-failover-label">
+                            {{ 'SETTINGS.LIVE_CHANNEL_FAILOVER' | translate }}
+                        </h4>
+                        <p>
+                            {{
+                                'SETTINGS.LIVE_CHANNEL_FAILOVER_DESCRIPTION'
+                                    | translate
+                            }}
+                        </p>
+                    </div>
+                    <div class="setting-item__control setting-item__toggle">
+                        <mat-slide-toggle
+                            formControlName="liveChannelFailover"
+                            aria-labelledby="live-channel-failover-label"
+                            data-test-id="live-channel-failover-toggle"
+                        ></mat-slide-toggle>
+                    </div>
+                </div>
+            }
+
             @if (
                 supportsExternalPlayerPathSettings() &&
                 form().value.player === 'mpv'

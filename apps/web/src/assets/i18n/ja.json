@@ -733,7 +733,9 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "年齢区分の国",
         "AGE_RATING_COUNTRY_DESCRIPTION": "年齢区分に使用する国を選択します。現地の情報がない場合は米国またはプロバイダーの情報を使用します。",
-        "AGE_RATING_COUNTRY_AUTO": "自動 — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "自動 — {{country}}",
+        "LIVE_CHANNEL_FAILOVER": "ライブチャンネルのフェイルオーバー",
+        "LIVE_CHANNEL_FAILOVER_DESCRIPTION": "内蔵プレーヤーでライブチャンネルが失敗した場合、3回（各10秒）再試行し、その後ほかのソースからリスト順に同じチャンネルを探して、再生できた最初のソースに切り替えます。"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "サーバーに保存できませんでした。接続を確認して、もう一度お試しください。",
@@ -873,7 +875,12 @@
             "STATS_CONTAINER": "コンテナ",
             "STATS_BUFFER": "バッファ",
             "STATS_DROPPED_FRAMES": "ドロップフレーム",
-            "STATS_UNAVAILABLE": "ストリームデータはまだありません"
+            "STATS_UNAVAILABLE": "ストリームデータはまだありません",
+            "FAILOVER_RETRYING": "ストリームが失敗しました。再試行中（{{attempt}}/{{maxAttempts}}）…",
+            "FAILOVER_SEARCHING": "ほかのソースで「{{channel}}」を検索中…",
+            "FAILOVER_HOPPING": "ソース {{index}}/{{total}} を試行中：{{source}} — {{channel}}",
+            "FAILOVER_SWITCHED": "{{source}} に切り替えました — {{channel}}",
+            "FAILOVER_EXHAUSTED": "「{{channel}}」を再生できるソースが見つかりませんでした"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

@@ -1,5 +1,5 @@
 import { PLAYBACK_ACTIVITY_EVENTS } from '@iptvnator/services/activity-events';
-import { Injectable, inject } from '@angular/core';
+import { Injectable, Injector, inject, signal } from '@angular/core';
 import { DataService } from '@iptvnator/services';
 import {
     ExternalPlayerSession,
@@ -12,6 +12,7 @@ import {
 import type { ExternalPlayerName } from '@iptvnator/shared/interfaces';
 import { LazyMatDialog } from '@iptvnator/ui/components/lazy-dialog';
 import { dialogSize } from '@iptvnator/ui/components/dialog-size';
+import { ExternalLiveFailoverService } from './external-live-failover.service';
 import { SettingsStore } from './settings-store.service';
 
 @Injectable({
@@ -24,6 +25,15 @@ export class PlayerService {
     private lazyDialog = inject(LazyMatDialog);
     private dataService = inject(DataService);
     private settingsStore = inject(SettingsStore);
+    private readonly injector = inject(Injector);
+    /**
+     * The playback the most recent external launch sent, recorded before the
+     * IPC call so a session update that arrives during it can still be
+     * matched. Live failover replays it after the player reports the stream
+     * unusable, so headers and credentials travel with the retry instead of
+     * being rebuilt from the session snapshot (which has neither).
+     */
+    readonly lastExternalPlayback = signal<ResolvedPortalPlayback | null>(null);
 
     isEmbeddedPlayer(
         player = this.settingsStore.player() ?? VideoPlayer.VideoJs
@@ -128,6 +138,8 @@ export class PlayerService {
                 .catch(() => undefined);
         const ipcEvent = player === 'mpv' ? OPEN_MPV_PLAYER : OPEN_VLC_PLAYER;
 
+        this.ensureLiveFailoverListener();
+        this.lastExternalPlayback.set(playback);
         return await this.dataService.sendIpcEvent<ExternalPlayerSession>(
             ipcEvent,
             {
@@ -142,5 +154,14 @@ export class PlayerService {
                 startTime: playback.startTime,
             }
         );
+    }
+
+    /**
+     * Live failover has to be listening before the first session update. It is
+     * a light listener; its cross-source search graph loads on the first live
+     * failure, well after startup.
+     */
+    private ensureLiveFailoverListener(): void {
+        this.injector.get(ExternalLiveFailoverService);
     }
 }
