@@ -27,6 +27,14 @@ public class DiagnosticRedactorTest {
         }
     }
 
+    public void testApostropheInsideStreamUrlDoesNotExposeSignedPath() {
+        String error = "Access to video at 'https://synthetic.example/play'part(synthetic-secret)/stream.m3u8' "
+            + "from origin 'http://127.0.0.1:43330' has been blocked by CORS policy";
+        String safe = DiagnosticRedactor.redact(error);
+        assertTrue("signed path removed", !safe.contains("synthetic-secret") && !safe.contains("stream.m3u8"));
+        assertTrue("CORS diagnosis retained", safe.contains("blocked by CORS policy"));
+    }
+
     public void testExceptionCausesAreRedacted() {
         RuntimeException error = new RuntimeException("synthetic failure",
             new IllegalArgumentException("https://synthetic.example/live/synthetic-account/synthetic-secret/42.ts"));

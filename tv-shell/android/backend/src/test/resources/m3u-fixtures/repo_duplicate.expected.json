@@ -3,9 +3,9 @@
  "result": {
   "header": {
    "attrs": {
-    "url-tvg": "http://195.154.221.171/Synthetic1/Synthetic2.gz"
+    "url-tvg": "http://192.0.2.1/Synthetic1/Synthetic2"
    },
-   "raw": "#EXTM3U url-tvg=\"http://195.154.221.171/Synthetic1/Synthetic2.gz\""
+   "raw": "#EXTM3U url-tvg=\"http://192.0.2.1/Synthetic1/Synthetic2\""
   },
   "items": [
    {

@@ -1,20 +1,20 @@
-#EXTM3U x-tvg-url="http://195.154.221.171/Synthetic1/Synthetic2.gz"
-    #EXTINF:-1 tvg-ID="Synthetic20" tvg-name="Synthetic21 1" tvg-logo="http://synthetic.example/Synthetic3/Synthetic4/2017/04/Synthetic5.png" tvg-url="http://195.154.221.171/Synthetic1/Synthetic6.gz" tvg-rec="3" group-title="Synthetic22",Synthetic23 1 (Synthetic24)
-    #EXTGRP:Синтетический25 Synthetic26
-    #EXTVLCOPT:http-referrer=http://synthetic.example/Synthetic7/
+#EXTM3U x-tvg-url="http://192.0.2.1/Synthetic1/Synthetic2"
+    #EXTINF:-1 tvg-ID="Synthetic28" tvg-name="Synthetic29 1" tvg-logo="http://synthetic.example/Synthetic3/Synthetic4/900000005/900000006/Synthetic7.png" tvg-url="http://192.0.2.1/Synthetic1/Synthetic8" tvg-rec="3" group-title="Synthetic30",Synthetic31 1 (Synthetic32)
+    #EXTGRP:Синтетический33 Synthetic34
+    #EXTVLCOPT:http-referrer=http://synthetic.example/Synthetic9/
     #EXTVLCOPT:http-user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.25 Safari/537.36
-    http://synthetic.example/Synthetic8/Synthetic9/Synthetic10/Synthetic11/Synthetic12.m3u8
-    #EXTINF:16 tvg-id="Synthetic27",Synthetic23 2
-Synthetic40/Synthetic41.Synthetic42
+    http://synthetic.example/Synthetic10/Synthetic11/Synthetic12/Synthetic13/Synthetic14.m3u8
+    #EXTINF:16 tvg-id="Synthetic35",Synthetic31 2
+Synthetic48/Synthetic49.Synthetic50
 
-=========================Synthetic43===================================
+=========================Synthetic51===================================
 #EXTM3U
-#EXTINF:1,=>(★ Синтетический28 ★)<=
+#EXTINF:1,=>(★ Синтетический36 ★)<=
 
-http://synthetic.example:8080/Synthetic13/Synthetic14.mp4
-#EXTINF:1 tvg-shift="-4.5" timeshift="3" catchup="shift" catchup-days="3" catchup-source="https://synthetic.example/Synthetic15.m3u8?utc=325234234&lutc=3123125324" lang="tur" http-referrer="http://synthetic.example/" http-user-agent="Mozilla/5.0",Synthetic29 1 Synthetic30
-https://synthetic.example/Synthetic16/Synthetic17'a(vuk2sg)s(3Rc)))s(s(2h8)b(OVsX9brZ0psZeMaQYt9O46THOxFsPHFB6R_YrLO_lAYLehFKlBcB3utUOhZjyWY7C52ngNY4Ow9Ook29TA)'s(gRY)b(iE9B80a6sOKUZn0UnLJQU_bKwqIDP29GWBxvJz1bQ1ihEmrOuDaUGTinW0l8unt4U9_v4jCwiAC2T6TOa8pgVRIAfsnYG9Y7VoI5EmwQ)'s(A4Q)b(ayZ0dwLn))m(0))/index.m3u8
-#EXTINF: -1, Synthetic31,Synthetic32 Synthetic33
-http://synthetic.example/Synthetic18?streaming-ip=%D0%A1%D0%B8%D0%BD%D1%82%D0%B5%D1%82%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B8%D0%B919
-#EXTINF: -1 tvg-name="Synthetic34 Synthetic35, Synthetic36 Synthetic37 Synthetic38 Synthetic36 Synthetic39",Synthetic34 Synthetic35, Synthetic36 Synthetic37 Synthetic38 Synthetic36 Synthetic39
-Synthetic44.Synthetic42
+http://synthetic.example:8080/Synthetic15/Synthetic16.mp4
+#EXTINF:1 tvg-shift="-4.5" timeshift="3" catchup="shift" catchup-days="3" catchup-source="https://synthetic.example/Synthetic17.m3u8?Synthetic19=900000018&Synthetic21=900000020" lang="tur" http-referrer="http://synthetic.example/" http-user-agent="Mozilla/5.0",Synthetic37 1 Synthetic38
+https://synthetic.example/Synthetic22/Synthetic23/Synthetic24.m3u8
+#EXTINF: -1, Synthetic39,Synthetic40 Synthetic41
+http://synthetic.example/Synthetic25?Synthetic27=%D0%A1%D0%B8%D0%BD%D1%82%D0%B5%D1%82%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B8%D0%B926
+#EXTINF: -1 tvg-name="Synthetic42 Synthetic43, Synthetic44 Synthetic45 Synthetic46 Synthetic44 Synthetic47",Synthetic42 Synthetic43, Synthetic44 Synthetic45 Synthetic46 Synthetic44 Synthetic47
+Synthetic52.Synthetic50

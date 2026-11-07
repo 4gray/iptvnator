@@ -30,11 +30,33 @@ test('malformed free-text records are synthetic while pipe directive syntax stay
     assert.ok(!syntheticFixture('#EXTINF:-1 broken="x,FixtureLabel\n').includes('FixtureLabel'));
 });
 
-test('regenerating every fixture cannot publish original catalog labels', () => {
+test('fixture URLs replace IP literals, numeric identifiers and signed paths', () => {
+    const input = '#EXTM3U\n'
+        + '#EXTINF:-1 tvg-id="123456",Synthetic channel\n'
+        + "http://198.51.100.42:8080/123456/play'part(synthetic-original)/stream.syntheticTail?token=654321&syntheticKey=S11E12|User-Agent=Synthetic Agent\n"
+        + '#EXTINF:-1,Synthetic channel\nhttp://[2001:db8::42]:8080/123456.ts\n';
+    const result = syntheticFixture(input);
+    for (const value of ['198.51.100.42', '2001:db8::42', '123456', '654321', 'synthetic-original', 'syntheticTail', 'syntheticKey', 'S11E12']) {
+        assert.ok(!result.includes(value), 'original endpoint and identifiers must be absent');
+    }
+    assert.match(result, /http:\/\/192\.0\.2\.1:8080\/\d+\//);
+    assert.ok(result.includes('http://[2001:db8::1]:8080/'));
+    assert.ok(result.includes('|User-Agent=Synthetic Agent\n'));
+});
+
+test('generated fixtures contain only synthetic catalog labels and endpoints', () => {
     const output = mkdtempSync(join(tmpdir(), 'iptvnator-synthetic-fixtures-'));
     try {
         execFileSync(process.execPath, [fileURLToPath(new URL('../tools/gen-parser-fixtures.mjs', import.meta.url)), '--out', output]);
+        const hosts = new Set(['synthetic.example', '192.0.2.1', '[2001:db8::1]']);
         const check = (value) => {
+            if (typeof value === 'string') {
+                for (const [endpoint] of value.matchAll(/\b[a-z][a-z\d+.-]*:\/\/[^\s"|<>]+/gi)) {
+                    assert.ok(URL.canParse(endpoint), 'fixture endpoint must parse');
+                    assert.ok(hosts.has(new URL(endpoint).hostname), 'fixture endpoint must use a reserved host');
+                }
+                return;
+            }
             if (Array.isArray(value)) return value.forEach(check);
             if (!value || typeof value !== 'object') return;
             for (const [key, item] of Object.entries(value)) {
@@ -44,8 +66,10 @@ test('regenerating every fixture cannot publish original catalog labels', () => 
                 check(item);
             }
         };
-        for (const file of readdirSync(output).filter((name) => name.endsWith('.expected.json'))) {
-            check(JSON.parse(readFileSync(join(output, file), 'utf8')));
+        for (const file of readdirSync(output)) {
+            const content = readFileSync(join(output, file), 'utf8');
+            if (file.endsWith('.m3u')) check(content);
+            if (file.endsWith('.expected.json')) check(JSON.parse(content));
         }
     } finally {
         rmSync(output, { recursive: true, force: true });

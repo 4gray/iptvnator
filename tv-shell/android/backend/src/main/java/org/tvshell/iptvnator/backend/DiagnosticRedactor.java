@@ -11,7 +11,8 @@ import java.util.regex.Pattern;
  */
 public final class DiagnosticRedactor {
     private static final int MAX_LENGTH = 4000;
-    private static final Pattern URL = Pattern.compile("[a-z][a-z0-9+.-]*://[^\\s\"'<>]+", Pattern.CASE_INSENSITIVE);
+    // Apostrophes may be part of a signed URL path.
+    private static final Pattern URL = Pattern.compile("[a-z][a-z0-9+.-]*://[^\\s\"<>]+", Pattern.CASE_INSENSITIVE);
     private static final Pattern CREDENTIAL_LINE = Pattern.compile(
         "\\b[a-z0-9_.-]*(?:api[-_.]?key|auth(?:orization)?|cookie|credentials|device[-_.]?id[12]?|login|"
         + "mac(?:[-_.]?address)?|passwd|password|prehash|pwd|secret|serial[-_.]?number|set[-_.]?cookie|"

@@ -41,9 +41,10 @@ the shell uses unsupported-codec/container and decode errors to offer an externa
 player even when the engine does not raise a native media error. Network errors
 remain excluded and duplicate diagnostics share the existing per-load prompt limit.
 
-Parser fixtures use synthetic catalog metadata before the reference parser
-generates expected output. Run `node --test tv-shell/tests/*.test.mjs` for the
-fixture privacy and reference-backend redirect identity checks; the APK workflow
+Parser fixtures use synthetic catalog metadata and reserved provider endpoints
+before the reference parser generates expected output. Run
+`node --test tv-shell/tests/*.test.mjs` for fixture privacy and reference-backend
+redirect checks. The APK workflow
 runs these checks alongside the Java and remote-control suites. Cross-origin
 redirects drop authorization, cookie, proxy authorization, serial and Host headers.
 The reference server also accepts a leading JSON BOM and forwards Xtream's trimmed
@@ -110,8 +111,9 @@ features in IPTVnator).
 - The published APK is a **non-debuggable** release build, `allowBackup` is
   off (the WebView storage holds portal credentials) and remote debugging
   (`chrome://inspect`) is **opt-in** in the IPTVnator settings.
-- Native diagnostics and forwarded WebView errors share a redactor: full URLs,
-  credential fields and authorization values are removed before logging or
+- Native diagnostics and forwarded WebView errors share a redactor. It removes
+  full URLs, including signed paths containing apostrophes, plus credential
+  fields and authorization values before logging or
   displaying startup diagnostics. Other console levels are consumed without
   forwarding their original text; each diagnostic is capped at 4,000 characters.
 - Cleartext traffic is allowed on purpose: the app's own origin is

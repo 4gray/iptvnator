@@ -7,9 +7,9 @@
   },
   "items": [
    {
-    "name": "Synthetic4 Synthetic5, Synthetic6",
+    "name": "Synthetic6 Synthetic7, Synthetic8",
     "tvg": {
-     "id": "Synthetic3",
+     "id": "Synthetic5",
      "name": "",
      "logo": "",
      "url": "",
@@ -23,8 +23,8 @@
      "referrer": "http://synthetic.example/",
      "user-agent": ""
     },
-    "url": "http://synthetic.example/Synthetic1.ts?a=1&user-agent=Synthetic2",
-    "raw": "#EXTINF:-1 tvg-id=\"Synthetic3\" broken=\"x,Synthetic4 Synthetic5, Synthetic6\r\nhttp://synthetic.example/Synthetic1.ts?a=1&user-agent=Synthetic2|Referer=http://synthetic.example/",
+    "url": "http://synthetic.example/Synthetic1.ts?Synthetic3=900000002&user-agent=Synthetic4",
+    "raw": "#EXTINF:-1 tvg-id=\"Synthetic5\" broken=\"x,Synthetic6 Synthetic7, Synthetic8\r\nhttp://synthetic.example/Synthetic1.ts?Synthetic3=900000002&user-agent=Synthetic4|Referer=http://synthetic.example/",
     "line": 3,
     "catchup": {
      "type": "",
