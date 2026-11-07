@@ -444,12 +444,15 @@ Playback captures that revision before resolving a stream, so a delayed launch
 cannot overwrite a manual action committed while resolution was pending.
 Start over uses the normal fresh playback resolver after the reset commits.
 Retry start over repeats both steps. Leaving the player or opening another
-title retires that retry.
+title retires that retry. A stale watch action cannot recreate viewing records
+after its source is deleted.
 
 Series Details focuses a primary Start/Resume/Continue action naming the actual
 season/episode. Episode actions are siblings of playback controls in the existing
-TV picker, never nested buttons. The player validates successors against exact
-source/parent/episode identity in provider-supplied order. Next episode is visible
+TV picker, never nested buttons. Starting over from the picker captures the
+episode's focus and scroll position for Back or Stop. The player validates
+successors against exact source/parent/episode identity in provider-supplied order.
+Next episode is visible
 during playback and focused on completion, including season transitions; no IDs
 or media files are inferred from episode numbers. `ended` never resolves or starts
 a successor automatically. Next resolves a fresh link only on activation, keeps

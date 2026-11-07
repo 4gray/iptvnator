@@ -8,6 +8,7 @@ import {
 } from '@iptvnator/tv/util';
 import type { TvModel } from './use-tv';
 import { WatchStatus } from './watch-actions';
+import { navigationOrigin } from './use-route-history';
 
 export function EpisodeCard({
     tv,
@@ -85,7 +86,7 @@ export function EpisodeCard({
                 ]}
                 onChange={(value) =>
                     value === 'start-over'
-                        ? void tv.startOver(e)
+                        ? void tv.startOver(e, navigationOrigin(e.id))
                         : void tv.watch(e, value as WatchAction)
                 }
             />

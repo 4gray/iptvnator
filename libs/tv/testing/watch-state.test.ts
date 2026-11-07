@@ -9,6 +9,12 @@ const item: tv.Media = {
     title: 'Synthetic film',
     raw: {},
 };
+const source: tv.Source = {
+    id: item.sourceId,
+    name: 'Synthetic',
+    provider: 'xtream',
+    url: 'https://example.test',
+};
 const p = (seconds: number, duration: number): tv.Progress => ({
     item,
     seconds,
@@ -64,14 +70,20 @@ test('manual actions retain raw records, survive reload and reject a delayed old
 });
 test('90 percent is absent from continuation and cannot revive older unfinished episode', () => {
     const data = tv.initialData();
-    data.sources = [
-        {
-            id: 'source',
-            name: 'Synthetic',
-            provider: 'xtream',
-            url: 'https://example.test',
-        },
-    ];
+    data.sources = [source];
     data.history = [p(3240, 3600)];
     assert.deepEqual(tv.continueWatching(data), []);
+});
+
+test('a stale watch action cannot recreate deleted history and positions', () => {
+    const original = tv.recordProgress(
+        { ...tv.initialData(), sources: [source] },
+        p(600, 3600)
+    );
+    const deleted = tv.removeSourceData(original, source.id);
+    for (const action of ['watched', 'unwatched', 'reset'] as const) {
+        const result = tv.setWatchState(deleted, item, action);
+        assert.deepEqual(result.history, []);
+        assert.deepEqual(result.positions, {});
+    }
 });

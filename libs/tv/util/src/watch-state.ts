@@ -63,6 +63,8 @@ export function setWatchState(
     const old =
         data.positions[item.id] ??
         data.history.find((p) => p.item.id === item.id);
+    if (!old && !data.sources.some((source) => source.id === item.sourceId))
+        return data;
     const progress = {
         ...old,
         item: old?.item ?? item,

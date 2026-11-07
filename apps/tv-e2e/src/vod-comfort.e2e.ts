@@ -596,6 +596,12 @@ test('TV VOD comfort remote arrows reach early-row episode watch actions and ret
     await page.screenshot({
         path: test.info().outputPath('synthetic-episode-actions.png'),
     });
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    await page.getByRole('option', { name: 'Start over', exact: true }).click();
+    await expect(page.locator('[data-focus="player-toggle"]')).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.episode').first()).toBeFocused();
 });
 
 for (const replay of [
