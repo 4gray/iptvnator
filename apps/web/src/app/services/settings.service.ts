@@ -192,7 +192,7 @@ export class SettingsService {
         return this.http
             .get<
                 { created_at: string; name: string }[]
-            >('https://api.github.com/repos/4gray/iptvnator/releases')
+            >('https://api.github.com/repos/byd7my/iptvnator/releases')
             .pipe(
                 map((response) => {
                     // Filter out pre-release versions (beta, alpha, rc, etc.)

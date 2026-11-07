@@ -1,0 +1,77 @@
+<h2 mat-dialog-title>{{ 'CHANNELS.SPLIT_AUDIO.TITLE' | translate }}</h2>
+
+<mat-dialog-content class="split-audio">
+    <p class="split-audio__video">
+        <span class="split-audio__label">{{
+            'CHANNELS.SPLIT_AUDIO.VIDEO_FROM' | translate
+        }}</span>
+        {{ data.video.name }}
+    </p>
+
+    <p class="split-audio__hint">
+        {{ 'CHANNELS.SPLIT_AUDIO.NEEDS_MPV' | translate }}
+    </p>
+
+    <label class="split-audio__label" for="split-audio-search">{{
+        'CHANNELS.SPLIT_AUDIO.AUDIO_FROM' | translate
+    }}</label>
+    <input
+        id="split-audio-search"
+        class="split-audio__input"
+        type="search"
+        autocomplete="off"
+        [value]="query()"
+        [placeholder]="'CHANNELS.SPLIT_AUDIO.SEARCH' | translate"
+        (input)="onQuery($event)"
+    />
+
+    <ul class="split-audio__list" role="listbox">
+        @for (channel of visibleChannels(); track channel.url) {
+            <li>
+                <button
+                    type="button"
+                    role="option"
+                    class="split-audio__option"
+                    [class.split-audio__option--selected]="
+                        selected()?.url === channel.url
+                    "
+                    [attr.aria-selected]="selected()?.url === channel.url"
+                    (click)="select(channel)"
+                >
+                    {{ channel.name }}
+                </button>
+            </li>
+        }
+    </ul>
+
+    <label class="split-audio__label" for="split-audio-delay">{{
+        'CHANNELS.SPLIT_AUDIO.DELAY' | translate
+    }}</label>
+    <input
+        id="split-audio-delay"
+        class="split-audio__input split-audio__input--short"
+        type="number"
+        step="0.1"
+        [min]="-maxDelay"
+        [max]="maxDelay"
+        [value]="delay()"
+        (input)="onDelay($event)"
+    />
+    <p class="split-audio__hint">
+        {{ 'CHANNELS.SPLIT_AUDIO.DELAY_HINT' | translate }}
+    </p>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+    <button mat-button type="button" mat-dialog-close>
+        {{ 'CLOSE' | translate }}
+    </button>
+    <button
+        mat-flat-button
+        type="button"
+        [disabled]="!selected()"
+        (click)="play()"
+    >
+        {{ 'CHANNELS.SPLIT_AUDIO.PLAY' | translate }}
+    </button>
+</mat-dialog-actions>

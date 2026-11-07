@@ -1,0 +1,71 @@
+.split-audio {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    &__label {
+        font-weight: 500;
+    }
+
+    &__video {
+        margin: 0;
+    }
+
+    &__warning {
+        margin: 0;
+        padding: 8px 12px;
+        border-radius: 8px;
+        background: color-mix(in srgb, currentColor 10%, transparent);
+    }
+
+    &__input {
+        padding: 8px 10px;
+        border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+        border-radius: 8px;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+
+        &--short {
+            width: 8em;
+        }
+    }
+
+    &__list {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        max-height: 260px;
+        overflow-y: auto;
+        border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+        border-radius: 8px;
+    }
+
+    &__option {
+        display: block;
+        width: 100%;
+        padding: 8px 12px;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        text-align: start;
+        cursor: pointer;
+
+        &:hover,
+        &:focus-visible {
+            background: color-mix(in srgb, currentColor 8%, transparent);
+        }
+
+        &--selected {
+            background: color-mix(in srgb, currentColor 16%, transparent);
+            font-weight: 600;
+        }
+    }
+
+    &__hint {
+        margin: 0;
+        opacity: 0.7;
+        font-size: 0.85em;
+    }
+}

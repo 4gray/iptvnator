@@ -21,7 +21,7 @@
     "publish": [
         {
             "provider": "github",
-            "owner": "4gray",
+            "owner": "byd7my",
             "repo": "iptvnator"
         }
     ],

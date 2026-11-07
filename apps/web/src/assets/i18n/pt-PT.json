@@ -1004,6 +1004,17 @@
         "ADD_FAVORITE": "Adicionar aos favoritos",
         "SHOW_DETAILS": "Mostrar detalhes do canal",
         "MAP_EPG": "Associar canal EPG",
+        "SPLIT_AUDIO": {
+            "MENU": "Video here, audio from another channel...",
+            "TITLE": "Audio from another channel",
+            "VIDEO_FROM": "Video from:",
+            "AUDIO_FROM": "Audio from:",
+            "SEARCH": "Search channels",
+            "DELAY": "Audio delay (seconds)",
+            "DELAY_HINT": "If you hear things before you see them, raise the delay. The value is remembered for this pair of channels.",
+            "NEEDS_MPV": "Plays in a separate MPV window (MPV must be installed), whichever player is selected in Settings.",
+            "PLAY": "Play"
+        },
         "FAVORITES_UPDATED": "Os favoritos foram atualizados.",
         "SELECT_CHANNEL_PLAYBACK": "Seleciona um canal para iniciar a reprodução",
         "SORT_BY": "Ordenar por",

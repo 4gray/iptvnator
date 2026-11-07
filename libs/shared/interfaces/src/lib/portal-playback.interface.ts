@@ -23,3 +23,14 @@ export interface ResolvedPortalPlayback {
     origin?: string;
     drm?: ChannelDrm;
 }
+
+/**
+ * Audio taken from another stream while the picture plays from the main one
+ * (e.g. another channel's commentary). `delaySeconds` shifts that audio
+ * relative to the video; live streams rarely line up on their own.
+ */
+export interface ExternalAudioOverride {
+    streamUrl: string;
+    title?: string;
+    delaySeconds?: number;
+}

@@ -27,6 +27,7 @@ import {
     epgProviderClockMs,
 } from '@iptvnator/shared/interfaces';
 import { ChannelContextMenuComponent } from '../channel-context-menu/channel-context-menu.component';
+import { SplitAudioDialogComponent } from '../split-audio-dialog/split-audio-dialog.component';
 import {
     PlaylistChannelSortMode,
     getPlaylistChannelSortModeLabelKey,
@@ -214,6 +215,19 @@ export class AllChannelsViewComponent {
     onChannelContextMenu(channel: Channel, event: MouseEvent): void {
         this.contextMenuChannel.set(channel);
         this.channelContextMenu().open(event);
+    }
+
+    openSplitAudio(): void {
+        const channel = this.contextMenuChannel();
+        if (!channel) {
+            return;
+        }
+
+        this.channelContextMenu().close();
+        SplitAudioDialogComponent.open(this.dialog, {
+            video: channel,
+            channels: this.channels(),
+        });
     }
 
     openChannelDetails(): void {

@@ -45,6 +45,12 @@ on:
             - '.codex/**'
             - '.claude/**'
     workflow_dispatch:
+        inputs:
+            publish_release:
+                description: Publish the build as a real release (v<package version>) that the in-app updater picks up
+                required: false
+                default: false
+                type: boolean
 
 # Build jobs only read the repo; the create-release job raises itself to
 # contents: write at the job level to manage the rolling draft release.
@@ -87,6 +93,8 @@ jobs:
 
     linux-embedded-mpv-runtime:
         name: Build pinned Linux Embedded MPV runtime
+        # A Windows release builds nothing for Linux.
+        if: ${{ inputs.publish_release != true }}
         runs-on: ubuntu-22.04
         timeout-minutes: 120
         # Concurrency lives on the build jobs, not the workflow: cancelling a
@@ -391,27 +399,8 @@ jobs:
             cancel-in-progress: ${{ github.event_name == 'pull_request' }}
         strategy:
             fail-fast: false
-            matrix:
-                include:
-                    # macOS builds - separate runners to avoid native module conflicts
-                    - os: macos
-                      runner: macos-15-intel
-                      arch: x64
-                      embedded_mpv_platform: darwin
-                      embedded_mpv_arch: x64
-                      embedded_mpv_build_runtime: true
-                    - os: macos
-                      runner: macos-latest
-                      arch: arm64
-                      embedded_mpv_platform: darwin
-                      embedded_mpv_arch: arm64
-                      embedded_mpv_build_runtime: true
-                    - os: windows
-                      runner: windows-2022
-                      arch: x64
-                      embedded_mpv_platform: win32
-                      embedded_mpv_arch: x64
-                      embedded_mpv_build_runtime: false
+            # A Windows release (publish_release) builds only the Windows leg.
+            matrix: ${{ fromJSON(inputs.publish_release == true && '{"include":[{"os":"windows","runner":"windows-2022","arch":"x64","embedded_mpv_platform":"win32","embedded_mpv_arch":"x64","embedded_mpv_build_runtime":false}]}' || '{"include":[{"os":"macos","runner":"macos-15-intel","arch":"x64","embedded_mpv_platform":"darwin","embedded_mpv_arch":"x64","embedded_mpv_build_runtime":true},{"os":"macos","runner":"macos-latest","arch":"arm64","embedded_mpv_platform":"darwin","embedded_mpv_arch":"arm64","embedded_mpv_build_runtime":true},{"os":"windows","runner":"windows-2022","arch":"x64","embedded_mpv_platform":"win32","embedded_mpv_arch":"x64","embedded_mpv_build_runtime":false}]}') }}
 
         steps: &electron-build-steps
             - name: Checkout code
@@ -517,6 +506,16 @@ jobs:
 
             - name: Build frontend
               run: pnpm nx build web --skip-nx-cache
+
+            - name: Refresh Windows Embedded MPV runtime pin if upstream removed it
+              # The pinned archive lives in a third-party release repository that
+              # deletes releases after ~30 days. Re-pin to the newest published
+              # build (with its GitHub-provided SHA-256) when the pin is gone.
+              if: matrix.os == 'windows'
+              shell: bash
+              env:
+                  GITHUB_TOKEN: ${{ github.token }}
+              run: node tools/embedded-mpv/update-windows-runtime-pin.mjs
 
             - name: Resolve pinned Windows Embedded MPV runtime
               if: matrix.os == 'windows'
@@ -1386,6 +1385,7 @@ jobs:
         needs:
             - linux-embedded-mpv-runtime
             - nightly-version
+        if: ${{ inputs.publish_release != true }}
         runs-on: ${{ matrix.runner }}
         timeout-minutes: 120
         concurrency:
@@ -1425,7 +1425,10 @@ jobs:
             - nightly-version
             - build-cross-platform
             - build-linux
-        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+        # !cancelled() lets the release go out when a platform that needs
+        # signing secrets this fork does not have (macOS) failed; its files
+        # are simply missing from the release.
+        if: ${{ !cancelled() && needs.nightly-version.result == 'success' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
         runs-on: ubuntu-latest
         concurrency:
             group: ${{ github.workflow }}-release-${{ github.event.pull_request.number || github.ref }}
@@ -1592,6 +1595,7 @@ jobs:
                   VERSION: ${{ steps.package-version.outputs.version }}
                   EVENT_NAME: ${{ github.event_name }}
                   IS_TAG_BUILD: ${{ startsWith(github.ref, 'refs/tags/') }}
+                  PUBLISH_RELEASE: ${{ inputs.publish_release == true && 'true' || 'false' }}
                   PR_NUMBER: ${{ github.event.pull_request.number }}
                   PR_TITLE: ${{ github.event.pull_request.title }}
                   PR_URL: ${{ github.event.pull_request.html_url }}
@@ -1605,9 +1609,13 @@ jobs:
                   SHORT_SHA="${HEAD_SHA:0:7}"
                   SAFE_BRANCH="${SOURCE_BRANCH//\//-}"
 
-                  if [ "${IS_TAG_BUILD}" = "true" ]; then
+                  if [ "${IS_TAG_BUILD}" = "true" ] || [ "${PUBLISH_RELEASE}" = "true" ]; then
                       NAME="Release v${VERSION}"
-                      TAG="${GITHUB_REF_NAME}"
+                      if [ "${IS_TAG_BUILD}" = "true" ]; then
+                          TAG="${GITHUB_REF_NAME}"
+                      else
+                          TAG="v${VERSION}"
+                      fi
                       # The full committed CHANGELOG retains internal notes,
                       # while the tag release uses authored public extraction.
                       # An internal-only release intentionally has no authored
@@ -1684,9 +1692,33 @@ jobs:
 
                   echo "Pruned assets from draft ${release_id} (${RELEASE_TAG})."
 
+            # Windows-only stable release for the in-app updater. Only the x64
+            # installer and the two small files electron-updater reads
+            # (latest.yml and the .blockmap) are attached; the release is
+            # published, not a draft, and is not a prerelease.
+            - name: Publish Windows release
+              if: inputs.publish_release == true && needs.build-cross-platform.result == 'success'
+              uses: softprops/action-gh-release@v3
+              with:
+                  draft: false
+                  prerelease: false
+                  make_latest: true
+                  name: ${{ steps.release-meta.outputs.name }}
+                  tag_name: ${{ steps.release-meta.outputs.tag }}
+                  target_commitish: ${{ steps.release-meta.outputs.commitish }}
+                  body_path: .github/release-notes-windows-ar.md
+                  generate_release_notes: false
+                  fail_on_unmatched_files: true
+                  files: |
+                      artifacts/windows-artifacts/*-windows-x64-setup.exe
+                      artifacts/windows-artifacts/latest.yml
+                      artifacts/windows-artifacts/*-windows-x64-setup.exe.blockmap
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
             - name: Create Draft Release
               id: draft-release
-              if: env.NIGHTLY != 'true' && (github.event_name != 'pull_request' || steps.pr-state.outputs.state == 'open')
+              if: env.NIGHTLY != 'true' && inputs.publish_release != true && (github.event_name != 'pull_request' || steps.pr-state.outputs.state == 'open')
               uses: softprops/action-gh-release@v3
               with:
                   draft: true

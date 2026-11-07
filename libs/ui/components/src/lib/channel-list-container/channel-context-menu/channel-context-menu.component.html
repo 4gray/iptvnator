@@ -19,6 +19,17 @@
             <span>{{ 'CHANNELS.SHOW_DETAILS' | translate }}</span>
         </button>
     }
+    @if (showSplitAudio()) {
+        <button
+            mat-menu-item
+            type="button"
+            data-testid="channel-split-audio"
+            (click)="splitAudio.emit()"
+        >
+            <mat-icon>surround_sound</mat-icon>
+            <span>{{ 'CHANNELS.SPLIT_AUDIO.MENU' | translate }}</span>
+        </button>
+    }
     @if (openInPlaylistName() !== null) {
         <button
             mat-menu-item

@@ -20,7 +20,7 @@ import { ControlsFullscreen } from './controls-fullscreen';
 import { ControlsLayout } from './controls-layout';
 import { ControlsMenuSelection } from './controls-menu-selection';
 import { type ControlsMenu, ControlsMenuState } from './controls-menu-state';
-import { ControlsSettings } from './controls-settings';
+import { ControlsSettings, ControlsSplitAudio } from './controls-settings';
 import { ControlsShortcuts } from './controls-shortcuts';
 import { ControlsStreamStats } from './controls-stream-stats';
 import { ControlsSurface } from './controls-surface';
@@ -145,6 +145,7 @@ export class PlayerControlsComponent implements OnDestroy {
     );
 
     readonly state = computed(() => this.controller().state());
+    readonly splitAudio = new ControlsSplitAudio(this.state);
     readonly capabilities = computed(() => this.controller().capabilities());
     readonly settings = new ControlsSettings({
         state: this.state,

@@ -11,6 +11,18 @@ this marker — see `.changes/README.md`.
 
 <!-- next-release -->
 
+# 0.26.0 (2026-11-08)
+
+## Highlights
+
+### Picture from one channel, sound from another
+
+A new button in the player control bar (and a **Split audio** entry in the channel menu) plays the picture of the current live channel with the audio of any other channel, with an adjustable audio delay that is remembered per pair. It opens in a separate MPV window, so MPV must be installed.
+
+### Updates from inside the app
+
+Settings → **About & updates** checks this fork's GitHub releases and installs new versions.
+
 # [0.24.0](https://github.com/4gray/iptvnator/compare/v0.23.0...v0.24.0) (2026-09-24)
 
 

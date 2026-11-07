@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
-import { DataService } from '@iptvnator/services';
+import { DataService, SplitAudioService } from '@iptvnator/services';
 import {
     ExternalPlayerSession,
     VideoPlayer,
@@ -93,6 +93,55 @@ describe('PlayerService', () => {
             })
         );
         expect(result).toEqual(session);
+    });
+
+    it('attaches a requested split-audio channel to the next MPV launch only', async () => {
+        settingsStore.player.mockReturnValue(VideoPlayer.MPV);
+        dataService.sendIpcEvent.mockResolvedValue(undefined);
+        TestBed.inject(SplitAudioService).request({
+            streamUrl: 'https://example.com/commentary.ts',
+            delaySeconds: 2,
+        });
+
+        await service.openResolvedPlayback({
+            streamUrl: 'https://example.com/match.ts',
+            title: 'Match',
+        });
+        await service.openResolvedPlayback({
+            streamUrl: 'https://example.com/other.ts',
+            title: 'Other',
+        });
+
+        expect(dataService.sendIpcEvent).toHaveBeenNthCalledWith(
+            1,
+            'OPEN_MPV_PLAYER',
+            expect.objectContaining({
+                url: 'https://example.com/match.ts',
+                audioUrl: 'https://example.com/commentary.ts',
+                audioDelaySeconds: 2,
+            })
+        );
+        expect(dataService.sendIpcEvent.mock.calls[1][1]).not.toHaveProperty(
+            'audioUrl'
+        );
+    });
+
+    it('never gives a split-audio request to VLC', async () => {
+        settingsStore.player.mockReturnValue(VideoPlayer.VLC);
+        dataService.sendIpcEvent.mockResolvedValue(undefined);
+        TestBed.inject(SplitAudioService).request({
+            streamUrl: 'https://example.com/commentary.ts',
+        });
+
+        await service.openResolvedPlayback({
+            streamUrl: 'https://example.com/match.ts',
+            title: 'Match',
+        });
+
+        expect(dataService.sendIpcEvent.mock.calls[0][1]).not.toHaveProperty(
+            'audioUrl'
+        );
+        expect(TestBed.inject(SplitAudioService).take()).toBeNull();
     });
 
     it('opens the external-player info dialog once its chunk has loaded', async () => {

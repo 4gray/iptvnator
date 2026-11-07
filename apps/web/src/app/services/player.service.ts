@@ -1,6 +1,6 @@
 import { PLAYBACK_ACTIVITY_EVENTS } from '@iptvnator/services/activity-events';
 import { Injectable, inject } from '@angular/core';
-import { DataService } from '@iptvnator/services';
+import { DataService, SplitAudioService } from '@iptvnator/services';
 import {
     ExternalPlayerSession,
     OPEN_MPV_PLAYER,
@@ -23,6 +23,7 @@ export class PlayerService {
     });
     private lazyDialog = inject(LazyMatDialog);
     private dataService = inject(DataService);
+    private splitAudio = inject(SplitAudioService);
     private settingsStore = inject(SettingsStore);
 
     isEmbeddedPlayer(
@@ -127,10 +128,19 @@ export class PlayerService {
                 )
                 .catch(() => undefined);
         const ipcEvent = player === 'mpv' ? OPEN_MPV_PLAYER : OPEN_VLC_PLAYER;
+        // "Audio from another channel" only exists in MPV; a request must
+        // never leak into a VLC launch or a later, unrelated one.
+        const audio = this.splitAudio.take();
 
         return await this.dataService.sendIpcEvent<ExternalPlayerSession>(
             ipcEvent,
             {
+                ...(player === 'mpv' && audio
+                    ? {
+                          audioUrl: audio.streamUrl,
+                          audioDelaySeconds: audio.delaySeconds,
+                      }
+                    : {}),
                 url: playback.streamUrl,
                 title: playback.title,
                 thumbnail: playback.thumbnail,

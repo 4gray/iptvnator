@@ -78,7 +78,7 @@ export const SETTINGS_SECTION_DEFINITIONS: readonly SettingsSectionDefinition[] 
             icon: 'backup',
             group: 'data',
         },
-        { id: 'about', navLabelKey: 'SETTINGS.NAV_ABOUT', icon: 'info' },
+        { id: 'about', navLabelKey: 'SETTINGS.NAV_ABOUT', icon: 'system_update' },
     ];
 
 export function meetsSettingsRequirements(

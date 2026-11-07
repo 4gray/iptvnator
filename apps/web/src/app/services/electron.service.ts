@@ -57,6 +57,8 @@ interface PlayerLaunchPayload {
     readonly url: string;
     readonly ['user-agent']?: string;
     readonly contentInfo?: PlayerContentInfo;
+    readonly audioUrl?: string;
+    readonly audioDelaySeconds?: number;
 }
 
 interface ErrorStatus {
@@ -233,17 +235,34 @@ export class ElectronService extends DataService {
         if (type === 'OPEN_MPV_PLAYER') {
             const data = payload as PlayerLaunchPayload;
             try {
-                return (await window.electron.openInMpv(
-                    data.url,
-                    data.title ?? '',
-                    data.thumbnail ?? '',
-                    data['user-agent'],
-                    data.referer ?? undefined,
-                    data.origin ?? undefined,
-                    data.contentInfo,
-                    data.startTime,
-                    data.headers ?? undefined
-                )) as T;
+                // Only a split-audio launch carries the two audio arguments;
+                // every other launch keeps the exact call shape it always had.
+                const launch = data.audioUrl
+                    ? window.electron.openInMpv(
+                          data.url,
+                          data.title ?? '',
+                          data.thumbnail ?? '',
+                          data['user-agent'],
+                          data.referer ?? undefined,
+                          data.origin ?? undefined,
+                          data.contentInfo,
+                          data.startTime,
+                          data.headers ?? undefined,
+                          data.audioUrl,
+                          data.audioDelaySeconds
+                      )
+                    : window.electron.openInMpv(
+                          data.url,
+                          data.title ?? '',
+                          data.thumbnail ?? '',
+                          data['user-agent'],
+                          data.referer ?? undefined,
+                          data.origin ?? undefined,
+                          data.contentInfo,
+                          data.startTime,
+                          data.headers ?? undefined
+                      );
+                return (await launch) as T;
             } catch (error: unknown) {
                 this.showPlayerLaunchError('MPV', error);
                 this.logger.error('MPV launch error:', error);

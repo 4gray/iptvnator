@@ -1,6 +1,7 @@
 import {
     ChannelContextMenuComponent,
     ChannelScrollFocusDirective,
+    SplitAudioDialogComponent,
 } from '@iptvnator/ui/components';
 import {
     CdkVirtualScrollViewport,
@@ -32,6 +33,7 @@ import { catchError, debounceTime, filter, switchMap } from 'rxjs/operators';
 import {
     foldSearchText,
     buildXtreamEpgMappingKey,
+    Channel,
     EpgItem,
     EpgProgram,
     epgProviderClockMs,
@@ -52,7 +54,10 @@ import {
 } from '@iptvnator/portal/shared/util';
 import { EpgQueueService } from '@iptvnator/portal/xtream/data-access';
 import { FavoritesService } from '@iptvnator/portal/xtream/data-access';
-import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import {
+    XtreamStore,
+    XtreamUrlService,
+} from '@iptvnator/portal/xtream/data-access';
 import {
     EpgPreferencesService,
     EpgSourceSettingsService,
@@ -137,6 +142,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly epgPreferences = inject(EpgPreferencesService);
     private readonly dialog = inject(MatDialog);
+    private readonly xtreamUrl = inject(XtreamUrlService);
 
     readonly channelContextMenu = viewChild.required(
         ChannelContextMenuComponent
@@ -739,6 +745,46 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     ): void {
         this.contextMenuChannel.set(channel);
         this.channelContextMenu().open(event);
+    }
+
+    /**
+     * "Picture from this channel, audio from another": lists the channels of
+     * the open category; the dialog starts the MPV window itself.
+     */
+    openSplitAudio(): void {
+        const channel = this.contextMenuChannel();
+        const playlist = this.xtreamStore.currentPlaylist();
+        if (!channel || !playlist) {
+            return;
+        }
+
+        this.channelContextMenu().close();
+        const credentials = {
+            allowedOutputFormats: playlist.allowedOutputFormats,
+            serverUrl: playlist.serverUrl,
+            username: playlist.username,
+            password: playlist.password,
+            userAgent: playlist.userAgent?.trim() || undefined,
+        };
+        // The dialog only reads id, name and url.
+        const toChannel = (item: XtreamChannelListItem): Channel =>
+            ({
+                id: String(item.xtream_id),
+                name: item.title ?? item.name ?? '',
+                url: this.xtreamUrl.constructLiveUrl(
+                    credentials,
+                    item.xtream_id
+                ),
+                http: {
+                    'user-agent': playlist.userAgent ?? '',
+                    referrer: playlist.referrer ?? '',
+                    origin: playlist.origin ?? '',
+                },
+            }) as Channel;
+        SplitAudioDialogComponent.open(this.dialog, {
+            video: toChannel(channel),
+            channels: this.sortedChannels().map(toChannel),
+        });
     }
 
     openEpgMapping(): void {

@@ -1004,6 +1004,17 @@
         "ADD_FAVORITE": "زيد للمفضلة",
         "SHOW_DETAILS": "وري تفاصيل القناة",
         "MAP_EPG": "ربط قناة ديال EPG",
+        "SPLIT_AUDIO": {
+            "MENU": "Video here, audio from another channel...",
+            "TITLE": "Audio from another channel",
+            "VIDEO_FROM": "Video from:",
+            "AUDIO_FROM": "Audio from:",
+            "SEARCH": "Search channels",
+            "DELAY": "Audio delay (seconds)",
+            "DELAY_HINT": "If you hear things before you see them, raise the delay. The value is remembered for this pair of channels.",
+            "NEEDS_MPV": "Plays in a separate MPV window (MPV must be installed), whichever player is selected in Settings.",
+            "PLAY": "Play"
+        },
         "FAVORITES_UPDATED": "المفضلة تحدثات!",
         "SELECT_CHANNEL_PLAYBACK": "عفاك اختار قناة باش يبدا التشغيل",
         "SORT_BY": "رتب بـ",

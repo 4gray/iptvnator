@@ -62,6 +62,8 @@
         <app-channel-context-menu
             [showMapEpg]="true"
             (mapEpg)="openEpgMapping()"
+            [showSplitAudio]="true"
+            (splitAudio)="openSplitAudio()"
         />
     } @else {
         <div class="empty-search-state">

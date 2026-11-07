@@ -44,8 +44,8 @@ interface AppUpdateRepository {
 }
 
 const APP_UPDATE_REPOSITORIES: Record<AppUpdateChannel, AppUpdateRepository> = {
-    stable: { owner: '4gray', repo: 'iptvnator' },
-    nightly: { owner: '4gray', repo: 'iptvnator-nightly' },
+    stable: { owner: 'byd7my', repo: 'iptvnator' },
+    nightly: { owner: 'byd7my', repo: 'iptvnator-nightly' },
 };
 
 export function appUpdateRepository(
