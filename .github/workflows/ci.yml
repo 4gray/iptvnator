@@ -109,6 +109,31 @@ jobs:
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
 
+            - name: Preview affected E2E suites (PR)
+              if: github.event_name == 'pull_request'
+              continue-on-error: true
+              env:
+                  CI: true
+                  NX_LEGACY_AFFECTED: 'true'
+                  BASE_SHA: ${{ github.event.pull_request.base.sha }}
+              run: |
+                  set -euo pipefail
+                  pnpm nx show projects --affected --withTarget=e2e --base="$BASE_SHA" --head=HEAD --json |
+                      jq -er '
+                          def selection($project):
+                              if index($project) == null then "Skip candidate" else "Selected" end;
+                          arrays |
+                          "### E2E affected preview",
+                          "",
+                          "Project-level Nx selection for comparison. E2E jobs still follow their existing workflow.",
+                          "",
+                          "| Suite | Nx selection |",
+                          "| --- | --- |",
+                          "| Electron matrix | \(selection("electron-backend-e2e")) |",
+                          "| Web Chromium and PWA | \(selection("web-e2e")) |",
+                          "| TV (local target) | \(selection("tv-e2e")) |"
+                      ' >> "$GITHUB_STEP_SUMMARY"
+
             # PRs lint only affected projects for faster feedback; root config
             # or lockfile changes make every project affected, so the
             # module-boundary and max-lines rules cannot be dodged this way.

@@ -8,6 +8,7 @@
         "electron-backend",
         "web",
         "web-backend",
+        "remote-control-web",
         "stalker-mock-server",
         "xtream-mock-server"
     ],
