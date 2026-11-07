@@ -1,0 +1,148 @@
+<div class="bulk">
+    <div class="bulk__file">
+        <button
+            mat-stroked-button
+            type="button"
+            [disabled]="isImporting()"
+            (click)="fileField.click()"
+            data-test-id="bulk-file-button"
+        >
+            <mat-icon>upload_file</mat-icon>
+            {{ 'HOME.ADD_PLAYLIST.BULK_FILE_BUTTON' | translate }}
+        </button>
+        <input
+            type="file"
+            #fileField
+            hidden
+            accept=".txt,.json,application/json,text/plain"
+            (change)="onFilePicked(fileField)"
+        />
+        <span class="bulk__hint">
+            {{ 'HOME.ADD_PLAYLIST.METHOD_BULK_SUB' | translate }}
+        </span>
+    </div>
+
+    @if (fileError(); as error) {
+        <p class="bulk__error" role="alert">{{ error }}</p>
+    } @else if (loadedFileName(); as filename) {
+        <p class="bulk__loaded" data-test-id="bulk-loaded-file">
+            <mat-icon>description</mat-icon>
+            {{ filename }}
+        </p>
+    }
+
+    @if (hasEntries()) {
+        <p class="bulk__notice" data-test-id="bulk-replace-notice">
+            {{ 'HOME.ADD_PLAYLIST.BULK_REPLACE_NOTICE' | translate }}
+        </p>
+        @if (vodDisabled()) {
+            <p class="bulk__notice" data-test-id="bulk-vod-disabled">
+                {{ 'HOME.ADD_PLAYLIST.IMPORT_SCOPE_VOD_DISABLED' | translate }}
+            </p>
+        }
+        @if (nothingImportable()) {
+            <p
+                class="bulk__notice bulk__notice--error"
+                data-test-id="bulk-nothing-importable"
+                role="alert"
+            >
+                {{ 'HOME.ADD_PLAYLIST.BULK_NOTHING_IMPORTABLE' | translate }}
+            </p>
+        }
+        <div class="bulk__list" role="list">
+            @for (entry of entries(); track entry.id) {
+                <div
+                    class="bulk__row"
+                    role="listitem"
+                    [class.bulk__row--invalid]="!entry.valid"
+                >
+                    <span
+                        class="bulk__kind"
+                        aria-hidden="true"
+                        [title]="kindLabelKey(entry.kind) | translate"
+                    >
+                        <mat-icon>{{ kindIcon(entry.kind) }}</mat-icon>
+                    </span>
+                    <div class="bulk__meta">
+                        <input
+                            class="bulk__title"
+                            type="text"
+                            [value]="entry.title"
+                            (input)="
+                                setEntryTitle(
+                                    entry.id,
+                                    $any($event.target).value
+                                )
+                            "
+                            [attr.aria-label]="
+                                'HOME.XTREAM_PLAYLIST.TITLE' | translate
+                            "
+                        />
+                        <span
+                            class="bulk__summary"
+                            [title]="entrySummary(entry)"
+                        >
+                            {{ entrySummary(entry) }}
+                        </span>
+                        @if (entryIssueKey(entry); as issueKey) {
+                            <span class="bulk__invalid">
+                                {{ issueKey | translate }}
+                            </span>
+                        }
+                    </div>
+                    <div class="bulk__scope">
+                        <mat-checkbox
+                            [checked]="entry.importLive || vodDisabled()"
+                            [disabled]="
+                                !entry.valid ||
+                                !entry.importVod ||
+                                vodDisabled()
+                            "
+                            (change)="setEntryLive(entry.id, $event.checked)"
+                            >{{
+                                'HOME.ADD_PLAYLIST.IMPORT_SCOPE_LIVE'
+                                    | translate
+                            }}</mat-checkbox
+                        >
+                        <mat-checkbox
+                            [checked]="entry.importVod && !vodDisabled()"
+                            [disabled]="
+                                !entry.valid ||
+                                !entry.importLive ||
+                                vodDisabled()
+                            "
+                            (change)="setEntryVod(entry.id, $event.checked)"
+                            >{{
+                                'HOME.ADD_PLAYLIST.IMPORT_SCOPE_VOD' | translate
+                            }}</mat-checkbox
+                        >
+                    </div>
+                    @if (rowStatus(entry.id); as status) {
+                        <span
+                            class="bulk__status"
+                            [attr.data-status]="status"
+                            data-test-id="bulk-row-status"
+                        >
+                            {{ statusLabelKey(status) | translate }}
+                        </span>
+                    }
+                    <button
+                        mat-icon-button
+                        type="button"
+                        [disabled]="isImporting()"
+                        (click)="removeEntry(entry.id)"
+                        [attr.aria-label]="
+                            'HOME.ADD_PLAYLIST.BULK_REMOVE' | translate
+                        "
+                    >
+                        <mat-icon>close</mat-icon>
+                    </button>
+                </div>
+            }
+        </div>
+    } @else if (loadedFileName()) {
+        <p class="bulk__empty" data-test-id="bulk-no-sources">
+            {{ 'HOME.ADD_PLAYLIST.BULK_NO_SOURCES' | translate }}
+        </p>
+    }
+</div>

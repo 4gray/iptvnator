@@ -2,6 +2,7 @@ import { parentPort } from 'worker_threads';
 import { parse } from 'iptv-playlist-parser';
 import { readFile } from 'node:fs/promises';
 import {
+    applyImportScopeToPlaylist,
     createPlaylistObject,
     getFilenameFromUrl,
 } from '@iptvnator/shared/m3u-utils';
@@ -147,11 +148,14 @@ async function fetchPlaylistFromUrl(
             ? 'Imported from URL'
             : extractedName;
 
-    return createPlaylistObject(
-        payload.title || playlistName,
-        parsedPlaylist,
-        payload.url,
-        'URL'
+    return applyImportScopeToPlaylist(
+        createPlaylistObject(
+            payload.title || playlistName,
+            parsedPlaylist,
+            payload.url,
+            'URL'
+        ),
+        payload
     );
 }
 
@@ -167,11 +171,14 @@ async function fetchPlaylistFromFile(
     const parsedPlaylist = parse(fileContent);
     checkpoint(payload);
 
-    return createPlaylistObject(
-        payload.title,
-        parsedPlaylist,
-        payload.filePath,
-        'FILE'
+    return applyImportScopeToPlaylist(
+        createPlaylistObject(
+            payload.title,
+            parsedPlaylist,
+            payload.filePath,
+            'FILE'
+        ),
+        payload
     );
 }
 

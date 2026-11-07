@@ -51,6 +51,7 @@ import {
     normalizeParentalLockGroupTitles,
     normalizeParentalLockStalkerCategories,
     normalizeParentalLockXtreamCategories,
+    storedImportScopeFlags,
     ParentalLockPlaylistLocks,
     StalkerBackupLockedCategory,
     XtreamBackupHiddenCategory,
@@ -358,6 +359,7 @@ export class PlaylistBackupService {
             manualEpgUrls: this.uniqueStrings(playlist.manualEpgUrls ?? []),
             disabledEpgUrls: this.uniqueStrings(playlist.disabledEpgUrls ?? []),
             position: playlist.position,
+            ...storedImportScopeFlags(playlist),
             source: {
                 kind: this.resolveM3uSourceKind(playlist),
                 rawM3u,
@@ -403,6 +405,7 @@ export class PlaylistBackupService {
             title: playlist.title,
             autoRefresh: Boolean(playlist.autoRefresh),
             position: playlist.position,
+            ...storedImportScopeFlags(playlist),
             connection: {
                 serverUrl: playlist.serverUrl ?? '',
                 username: playlist.username ?? '',
@@ -598,6 +601,7 @@ export class PlaylistBackupService {
             title: playlist.title,
             autoRefresh: Boolean(playlist.autoRefresh),
             position: playlist.position,
+            ...storedImportScopeFlags(playlist),
             connection: {
                 portalUrl: playlist.portalUrl ?? playlist.url ?? '',
                 macAddress: playlist.macAddress ?? '',
@@ -983,11 +987,21 @@ export class PlaylistBackupService {
         playlistId: string,
         existing: Playlist | null
     ): Promise<Playlist> {
+        // A missing flag means the archive predates scopes: keep the existing
+        // source's choice instead of parsing what it opted out of. The parsed
+        // items and the merged row must describe the same scope.
+        const effectiveScope = {
+            importLive: entry.importLive ?? existing?.importLive,
+            importVod: entry.importVod ?? existing?.importVod,
+        };
         const parsedPlaylist =
             await this.playlistsService.handlePlaylistParsing(
                 'TEXT',
                 entry.source.rawM3u,
-                entry.title
+                entry.title,
+                undefined,
+                effectiveScope,
+                this.settingsStore.disableVod?.() === true
             );
         const autoImportEpg = entry.autoImportEpg ?? existing?.autoImportEpg;
         const now = new Date().toISOString();
@@ -1069,6 +1083,7 @@ export class PlaylistBackupService {
             password: entry.connection.password,
             favorites: [],
             recentlyViewed: [],
+            ...storedImportScopeFlags(entry),
         };
     }
 
@@ -1109,6 +1124,7 @@ export class PlaylistBackupService {
             stalkerSignature2: entry.connection.stalkerSignature2,
             stalkerToken: undefined,
             stalkerAccountInfo: undefined,
+            ...storedImportScopeFlags(entry),
         };
     }
 

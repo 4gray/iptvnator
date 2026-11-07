@@ -15,6 +15,8 @@ import { inject, Injectable } from '@angular/core';
 import { LazySnackBar } from './lazy-snack-bar/lazy-snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import {
+    applyImportScopeToPlaylist,
+    filterM3uItemsByImportScope,
     createPlaylistObject,
     resolvePlaylistEpgSourceState,
 } from '@iptvnator/shared/m3u-utils';
@@ -1203,7 +1205,9 @@ export class PlaylistsService {
         uploadType: 'FILE' | 'URL' | 'TEXT',
         playlist: string,
         title: string,
-        path?: string
+        path?: string,
+        scope?: { importLive?: boolean; importVod?: boolean },
+        disableVod = false
     ) {
         try {
             // Dynamic import keeps the parser out of the eager bundle;
@@ -1211,12 +1215,21 @@ export class PlaylistsService {
             const parserModule = await import('iptv-playlist-parser');
             const parse = resolvePlaylistParser(parserModule);
             const parsedPlaylist = parse(playlist);
-            return createPlaylistObject(
+            const created = createPlaylistObject(
                 title,
-                parsedPlaylist,
+                {
+                    ...parsedPlaylist,
+                    items: filterM3uItemsByImportScope(
+                        parsedPlaylist.items,
+                        scope,
+                        disableVod
+                    ),
+                },
                 path,
                 uploadType
             );
+            // Remember a partial scope on the row so refreshes keep it.
+            return applyImportScopeToPlaylist(created, scope, disableVod);
         } catch (error) {
             void this.snackBar.open(
                 this.translateService.instant('HOME.PARSING_ERROR'),

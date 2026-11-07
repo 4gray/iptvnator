@@ -72,9 +72,10 @@ export interface ProviderImportCandidate {
 const GET_PHP_PATH_PATTERN = /\/get\.php$/i;
 const EXTM3U_HEADER_PATTERN = /^\s*#EXTM3U/i;
 // DOM-safety guard against pathological pastes, not a business limit: sized
-// above the scanners' combined caps (64 MACs + 16 URLs), so every candidate
-// a real multi-account handout produces survives the final slice.
-const MAX_CANDIDATES = 96;
+// above the scanners' combined caps (64 MACs + 64 URLs — a get.php URL can
+// yield both an xtream and an m3u-url candidate), so every candidate a real
+// multi-account handout produces survives the final slice.
+const MAX_CANDIDATES = 160;
 
 /**
  * Scans a pasted provider message and returns ranked import candidates.
@@ -127,29 +128,49 @@ export function detectProviderImportCandidates(
     // generic-URL fallback — a guard on the shaped pool alone would let two
     // root-URL panels slip through the fallback door. A single labeled
     // "Portal:" line, same-host Real/Panel pairs, and one portal shared by a
-    // whole MAC list stay unambiguous.
-    const shapedPortals = urls.filter((url) => url.role === 'stalker');
+    // whole MAC list stay unambiguous. A line naming one MAC and one portal
+    // ("http://panel/c | 00:1A:79:…", the shape of provider list files) needs
+    // no judgement at all: that pair is attached as-is and withdrawn from the
+    // pool the guard judges.
+    const linePortals = linePairedPortals(normalized);
+    const pairedUrls = new Set(
+        Array.from(linePortals.values(), (pair) => pair.url)
+    );
+    // A labeled portal a line already claimed belongs to that account; it
+    // must not compete for a MAC the guard has left.
+    const remainingLabeled = pairedUrls.has(labeledHostUrl(labeled) ?? '')
+        ? { ...labeled, host: undefined }
+        : labeled;
+    const remainingUrls = urls.filter(
+        (url) =>
+            !pairedUrls.has(completeWithLabeledPort(url, remainingLabeled.port))
+    );
+    const unpairedMacs = macs.filter((mac) => !linePortals.has(mac));
+    const shapedPortals = remainingUrls.filter((url) => url.role === 'stalker');
     const portalPool =
         shapedPortals.length > 0
             ? shapedPortals
-            : labeledHostUrl(labeled) !== undefined
+            : labeledHostUrl(remainingLabeled) !== undefined
               ? []
-              : urls.filter((url) => url.role === 'generic');
+              : remainingUrls.filter((url) => url.role === 'generic');
     const portalAmbiguous =
-        macs.length > 1 &&
+        unpairedMacs.length > 1 &&
         new Set(
-            portalPool.map((url) => portalInstallationKey(url, labeled.port))
+            portalPool.map((url) =>
+                portalInstallationKey(url, remainingLabeled.port)
+            )
         ).size > 1;
     const portal = portalAmbiguous
         ? null
-        : pickStalkerPortalUrl(urls, labeled);
+        : pickStalkerPortalUrl(remainingUrls, remainingLabeled);
     const identity: LabeledFields = macs.length === 1 ? labeled : {};
     for (const macAddress of macs) {
+        const attached = linePortals.get(macAddress) ?? portal;
         candidates.push(
             compact({
                 kind: 'stalker',
-                confidence: portal?.confidence ?? 'low',
-                portalUrl: portal?.url,
+                confidence: attached?.confidence ?? 'low',
+                portalUrl: attached?.url,
                 macAddress,
                 serialNumber: identity.serialNumber,
                 deviceId1: identity.deviceId1,
@@ -158,7 +179,7 @@ export function detectProviderImportCandidates(
                 signature2: identity.signature2,
                 username: identity.username,
                 password: identity.password,
-                suggestedTitle: hostnameOf(portal?.url),
+                suggestedTitle: hostnameOf(attached?.url),
             })
         );
     }
@@ -342,6 +363,37 @@ function completeWithLabeledPort(
     }
     const { protocol, hostname, pathname, search } = url.parsed;
     return `${protocol}//${hostname}:${port}${pathname}${search}`;
+}
+
+/**
+ * Portal/MAC pairs stated by a single line. Provider list files hand out one
+ * account per line — "http://panel/c | 00:1A:79:…" — so when a pasted block
+ * spans several panels, co-occurrence on one line is the only deterministic
+ * statement of which portal owns which MAC. A line pairs only when it names
+ * exactly one MAC and exactly one usable URL (portal-shaped, or a lone root
+ * URL); a line listing several MACs stays for the ambiguity guard.
+ */
+function linePairedPortals(
+    text: string
+): Map<string, { url: string; confidence: ProviderImportConfidence }> {
+    const pairs = new Map<
+        string,
+        { url: string; confidence: ProviderImportConfidence }
+    >();
+    for (const line of text.split(/\r?\n/)) {
+        const macs = extractMacAddresses(line, undefined);
+        if (macs.length !== 1 || pairs.has(macs[0])) {
+            continue;
+        }
+        const urls = extractUrls(line);
+        const shaped = urls.find((url) => url.role === 'stalker');
+        if (shaped) {
+            pairs.set(macs[0], { url: shaped.raw, confidence: 'high' });
+        } else if (urls.length === 1 && urls[0].role === 'generic') {
+            pairs.set(macs[0], { url: urls[0].raw, confidence: 'medium' });
+        }
+    }
+    return pairs;
 }
 
 function pickStalkerPortalUrl(

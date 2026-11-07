@@ -178,7 +178,9 @@
             "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "Playlist auto-refresh incomplete: {{updated}} of {{total}} playlists updated, {{failed}} failed, {{skipped}} skipped (no URL or file path).",
             "AUTO_REFRESH_UPDATE_FAILED": "Playlist auto-refresh failed. None of the {{total}} playlists could be updated.",
             "AUTO_REFRESH_UPDATE_SKIPPED": "Playlist auto-refresh: {{updated}} of {{total}} playlists updated, {{skipped}} skipped (no URL or file path).",
-            "AUTO_REFRESH_ENABLED": "Auto-refresh enabled"
+            "AUTO_REFRESH_ENABLED": "Auto-refresh enabled",
+            "SOURCE_BULK_NEEDS": "A .txt file with provider messages or a .json source list.",
+            "SOURCE_BULK_ADD": "Import sources"
         },
         "ADD_PLAYLIST": {
             "IMPORT_EPG": "Import the programme guide specified in the playlist",
@@ -197,7 +199,34 @@
             "METHOD_TEXT_LABEL": "Raw m3u text",
             "METHOD_TEXT_SUB": "For one-off lists or when you only have text",
             "METHOD_AUTO_LABEL": "Auto-detect",
-            "METHOD_AUTO_SUB": "Paste the message from your provider"
+            "METHOD_AUTO_SUB": "Paste the message from your provider",
+            "METHOD_BULK_LABEL": "Bulk import",
+            "METHOD_BULK_SUB": "Add many sources at once from a file",
+            "IMPORT_SCOPE_LABEL": "Import sections",
+            "IMPORT_SCOPE_LIVE": "Live channels",
+            "IMPORT_SCOPE_VOD": "VOD (movies and series)",
+            "IMPORT_SCOPE_VOD_DISABLED": "VOD is disabled in Settings, so only live channels are imported.",
+            "BULK_FILE_BUTTON": "Load from file",
+            "BULK_ROW_INCOMPLETE": "Incomplete — add the missing details as a single source, or remove this row.",
+            "BULK_NO_SOURCES": "No sources recognized in this file.",
+            "BULK_REMOVE": "Remove source",
+            "BULK_IMPORT_BUTTON": "Import {{count}} sources",
+            "BULK_INVALID_JSON": "That JSON is not a bulk source list. Expected { \"sources\": [...] } or a [...] array.",
+            "BULK_IMPORT_STARTED": "Importing {{count}} sources…",
+            "BULK_ROW_NO_PORTAL": "No portal address for this MAC — add it as a single Stalker source, or remove the row.",
+            "BULK_ROW_NO_MAC": "No MAC address for this portal — add it as a single Stalker source, or remove the row.",
+            "BULK_ROW_MISSING_DETAILS": "Connection details are missing — add this source on its own, or remove the row.",
+            "BULK_NOTHING_IMPORTABLE": "Nothing to import — fix or remove the incomplete rows above.",
+            "BULK_REPLACE_NOTICE": "Importing replaces all your current sources. Each source gets one minute to load; slower or failing sources are skipped.",
+            "BULK_REPLACE_FAILED": "Could not remove your current sources, so nothing was imported.",
+            "BULK_SOURCE_TOO_SLOW": "Source too slow, skipping “{{title}}”",
+            "BULK_SOURCE_FAILED": "Import failed, skipping “{{title}}”",
+            "BULK_IMPORT_FINISHED": "Bulk import finished: {{imported}} imported, {{slow}} too slow, {{failed}} failed.",
+            "BULK_STATUS_PENDING": "Waiting",
+            "BULK_STATUS_IMPORTING": "Importing…",
+            "BULK_STATUS_IMPORTED": "Imported",
+            "BULK_STATUS_SLOW": "Too slow, skipped",
+            "BULK_STATUS_FAILED": "Failed, skipped"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Drop an .m3u or .m3u8 file here",
@@ -733,7 +762,9 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "Age rating country",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Choose the country used for age classifications. Missing local ratings may use US or provider data.",
-        "AGE_RATING_COUNTRY_AUTO": "Automatic — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Automatic — {{country}}",
+        "DISABLE_VOD": "Disable VOD",
+        "DISABLE_VOD_DESCRIPTION": "Load live channels only. Movies and series are never imported, refreshed or synced for any source, whatever its own import sections say. Turn off to bring them back."
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Could not save to the server. Check the connection and try again.",

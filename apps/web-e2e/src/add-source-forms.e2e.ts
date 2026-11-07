@@ -3,8 +3,11 @@ import { setInputValue } from './e2e-helpers';
 import { expect, test } from './pwa-mock.fixture';
 import {
     XTREAM_MOCK_SERVER,
+    addM3uUrlPlaylist,
     addStalkerPortal,
     interceptPwaProviderRequests,
+    openSources,
+    sourceRowByTitle,
 } from './sources-pwa.helpers';
 
 /**
@@ -156,6 +159,119 @@ test('@sources @pwa gives the Stalker form the shared labels and a masked passwo
     await expect(
         dialog.getByRole('button', { name: 'Add playlist', exact: true })
     ).toBeVisible();
+});
+
+test('@sources @pwa offers bulk import in the initial setup wizard', async ({
+    page,
+}) => {
+    await page.goto('/workspace/sources');
+    await expect(page.locator('.welcome-sources')).toBeVisible();
+    const card = page
+        .locator('.source-card')
+        .filter({ hasText: /Bulk import/i });
+    await expect(card).toBeVisible();
+    await card.getByRole('button').click();
+
+    const dialog = page.locator('mat-dialog-container');
+    await expect(dialog).toBeVisible();
+    // The picked card opens straight into the bulk form.
+    await expect(
+        dialog.getByRole('button', { name: /Load from file/i })
+    ).toBeVisible();
+});
+
+test('@sources @pwa bulk import replaces the sources with per-row VOD scope', async ({
+    page,
+}) => {
+    await addM3uUrlPlaylist(page, 'Existing Source');
+    // The middle row's download fails; the import skips it and goes on.
+    let parseRequests = 0;
+    await page.route('**/localhost:3000/parse**', async (route) => {
+        parseRequests += 1;
+        if (parseRequests === 2) {
+            await route.fulfill({ status: 500, json: { message: 'down' } });
+            return;
+        }
+        await route.fallback();
+    });
+    const dialog = await openMethod(page, /Bulk import/i);
+
+    // Bulk import reads everything from one file; no free-text field.
+    await expect(
+        dialog.getByRole('textbox', { name: 'Sources to import' })
+    ).toHaveCount(0);
+    await dialog.locator('input[type=file]').setInputFiles({
+        name: 'sources.json',
+        mimeType: 'application/json',
+        buffer: Buffer.from(
+            JSON.stringify({
+                sources: [
+                    {
+                        type: 'm3u-url',
+                        title: 'Bulk Live Only',
+                        url: `${XTREAM_MOCK_SERVER}/bulk-one.m3u`,
+                        importVod: false,
+                    },
+                    {
+                        type: 'm3u-url',
+                        title: 'Bulk Broken',
+                        url: `${XTREAM_MOCK_SERVER}/bulk-broken.m3u`,
+                    },
+                    {
+                        type: 'm3u-url',
+                        title: 'Bulk Full',
+                        url: `${XTREAM_MOCK_SERVER}/bulk-two.m3u`,
+                    },
+                ],
+            })
+        ),
+    });
+
+    const rows = dialog.getByRole('listitem');
+    await expect(rows).toHaveCount(3);
+    await expect(
+        dialog.locator('[data-test-id="bulk-replace-notice"]')
+    ).toContainText('replaces all your current sources');
+    await expect(
+        rows.first().getByRole('textbox', { name: 'Playlist title' })
+    ).toHaveValue('Bulk Live Only');
+    await expect(
+        rows.nth(2).getByRole('textbox', { name: 'Playlist title' })
+    ).toHaveValue('Bulk Full');
+    await expect(
+        rows.first().getByRole('checkbox', { name: 'Live channels' })
+    ).toBeChecked();
+    await expect(
+        rows.first().getByRole('checkbox', { name: /VOD/ })
+    ).not.toBeChecked();
+    // The last checked box disables instead of clearing: unchecking it is
+    // refused, so enable VOD first and then switch Live off for real.
+    await expect(
+        rows.first().getByRole('checkbox', { name: 'Live channels' })
+    ).toBeDisabled();
+    await rows.first().getByRole('checkbox', { name: /VOD/ }).click();
+    await expect(
+        rows.first().getByRole('checkbox', { name: 'Live channels' })
+    ).toBeEnabled();
+    await rows.first().getByRole('checkbox', { name: 'Live channels' }).click();
+    await expect(
+        rows.first().getByRole('checkbox', { name: 'Live channels' })
+    ).not.toBeChecked();
+
+    const add = dialog.getByRole('button', { name: 'Import 3 sources' });
+    await expect(add).toBeEnabled();
+    await add.click();
+    await expect(
+        page.getByText('Import failed, skipping “Bulk Broken”')
+    ).toBeVisible();
+    await expect(dialog).toBeHidden();
+    await page.waitForURL(/playlists/);
+
+    // The bulk file replaced the library: only its working rows remain.
+    await openSources(page);
+    await expect(page.locator('app-source-row')).toHaveCount(2);
+    await expect(sourceRowByTitle(page, 'Bulk Live Only')).toBeVisible();
+    await expect(sourceRowByTitle(page, 'Bulk Full')).toBeVisible();
 });
 
 test('@sources @pwa preserves a failed M3U draft and discards cancelled responses', async ({

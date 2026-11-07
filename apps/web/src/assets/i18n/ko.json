@@ -178,7 +178,9 @@
             "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "재생목록 자동 새로 고침이 완료되지 않았습니다. {{total}}개 중 {{updated}}개를 업데이트했고 {{failed}}개가 실패했으며 {{skipped}}개를 건너뛰었습니다(URL 또는 파일 경로 없음).",
             "AUTO_REFRESH_UPDATE_FAILED": "재생목록 자동 새로 고침에 실패했습니다. {{total}}개의 재생목록을 모두 업데이트하지 못했습니다.",
             "AUTO_REFRESH_UPDATE_SKIPPED": "재생목록 자동 새로 고침: {{total}}개 중 {{updated}}개를 업데이트하고 {{skipped}}개를 건너뛰었습니다(URL 또는 파일 경로 없음).",
-            "AUTO_REFRESH_ENABLED": "자동 새로 고침 활성화됨"
+            "AUTO_REFRESH_ENABLED": "자동 새로 고침 활성화됨",
+            "SOURCE_BULK_NEEDS": "제공자 메시지가 담긴 .txt 파일이나 .json 소스 목록.",
+            "SOURCE_BULK_ADD": "소스 가져오기"
         },
         "ADD_PLAYLIST": {
             "IMPORT_EPG": "재생목록에 지정된 프로그램 가이드 가져오기",
@@ -197,7 +199,34 @@
             "METHOD_TEXT_LABEL": "원본 m3u 텍스트",
             "METHOD_TEXT_SUB": "일회성 목록이나 텍스트만 있을 때 사용하세요",
             "METHOD_AUTO_LABEL": "자동 감지",
-            "METHOD_AUTO_SUB": "제공업체의 메시지를 붙여넣으세요"
+            "METHOD_AUTO_SUB": "제공업체의 메시지를 붙여넣으세요",
+            "METHOD_BULK_LABEL": "일괄 가져오기",
+            "METHOD_BULK_SUB": "파일에서 여러 소스를 한 번에 추가",
+            "IMPORT_SCOPE_LABEL": "가져올 섹션",
+            "IMPORT_SCOPE_LIVE": "실시간 채널",
+            "IMPORT_SCOPE_VOD": "VOD(영화 및 시리즈)",
+            "IMPORT_SCOPE_VOD_DISABLED": "설정에서 VOD가 비활성화되어 있어 라이브 채널만 가져옵니다.",
+            "BULK_FILE_BUTTON": "파일에서 불러오기",
+            "BULK_ROW_INCOMPLETE": "불완전 — 누락된 세부 정보를 단일 소스로 추가하거나 이 행을 제거하세요.",
+            "BULK_NO_SOURCES": "이 파일에서 소스를 인식하지 못했습니다.",
+            "BULK_REMOVE": "소스 제거",
+            "BULK_IMPORT_BUTTON": "소스 {{count}}개 가져오기",
+            "BULK_INVALID_JSON": "이 JSON은 일괄 가져오기 목록이 아닙니다. { \"sources\": [...] } 또는 [...] 배열이어야 합니다.",
+            "BULK_IMPORT_STARTED": "소스 {{count}}개를 가져오는 중…",
+            "BULK_ROW_NO_PORTAL": "이 MAC의 포털 주소가 없습니다. 단일 Stalker 소스로 추가하거나 이 행을 제거하세요.",
+            "BULK_ROW_NO_MAC": "이 포털의 MAC 주소가 없습니다. 단일 Stalker 소스로 추가하거나 이 행을 제거하세요.",
+            "BULK_ROW_MISSING_DETAILS": "접속 정보가 없습니다. 이 소스를 따로 추가하거나 이 행을 제거하세요.",
+            "BULK_NOTHING_IMPORTABLE": "가져올 항목이 없습니다. 위의 불완전한 행을 고치거나 제거하세요.",
+            "BULK_REPLACE_NOTICE": "가져오기를 하면 현재 소스가 모두 대체됩니다. 각 소스는 1분 안에 로드되어야 하며, 더 느리거나 실패한 소스는 건너뜁니다.",
+            "BULK_REPLACE_FAILED": "현재 소스를 제거할 수 없어 아무것도 가져오지 않았습니다.",
+            "BULK_SOURCE_TOO_SLOW": "소스가 너무 느려 “{{title}}”을(를) 건너뜁니다",
+            "BULK_SOURCE_FAILED": "가져오기에 실패하여 “{{title}}”을(를) 건너뜁니다",
+            "BULK_IMPORT_FINISHED": "일괄 가져오기 완료: {{imported}}개 가져옴, {{slow}}개 너무 느림, {{failed}}개 실패.",
+            "BULK_STATUS_PENDING": "대기 중",
+            "BULK_STATUS_IMPORTING": "가져오는 중…",
+            "BULK_STATUS_IMPORTED": "가져옴",
+            "BULK_STATUS_SLOW": "너무 느려 건너뜀",
+            "BULK_STATUS_FAILED": "실패하여 건너뜀"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "파일을 드래그 앤 드롭",
@@ -733,7 +762,9 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "연령 등급 국가",
         "AGE_RATING_COUNTRY_DESCRIPTION": "연령 등급에 사용할 국가를 선택하세요. 현지 정보가 없으면 미국 또는 제공업체 정보를 사용할 수 있습니다.",
-        "AGE_RATING_COUNTRY_AUTO": "자동 — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "자동 — {{country}}",
+        "DISABLE_VOD": "VOD 비활성화",
+        "DISABLE_VOD_DESCRIPTION": "라이브 채널만 불러옵니다. 소스별 가져오기 항목과 관계없이 어떤 소스에서도 영화와 시리즈를 가져오거나 새로 고치거나 동기화하지 않습니다. 끄면 다시 사용할 수 있습니다."
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "서버에 저장하지 못했습니다. 연결을 확인하고 다시 시도하세요.",

@@ -27,12 +27,8 @@ export function toStalkerPlaylistIdentityFields(
         ...(identity.serialNumber
             ? { stalkerSerialNumber: identity.serialNumber }
             : {}),
-        ...(identity.deviceId1
-            ? { stalkerDeviceId1: identity.deviceId1 }
-            : {}),
-        ...(identity.deviceId2
-            ? { stalkerDeviceId2: identity.deviceId2 }
-            : {}),
+        ...(identity.deviceId1 ? { stalkerDeviceId1: identity.deviceId1 } : {}),
+        ...(identity.deviceId2 ? { stalkerDeviceId2: identity.deviceId2 } : {}),
         ...(identity.signature1
             ? { stalkerSignature1: identity.signature1 }
             : {}),
@@ -80,4 +76,15 @@ export function toStalkerImportFeedback(error: unknown): StalkerImportFeedback {
             ? { portalText: portalError.portalText }
             : {}),
     };
+}
+
+/**
+ * A MAC and the device IDs that belong to exactly it. Kept together because
+ * the portal binds the pair permanently on first use — a MAC carrying another
+ * address's IDs is a device conflict nobody can undo.
+ */
+export interface StalkerSettledIdentity {
+    macAddress: string;
+    deviceId1: string;
+    deviceId2: string;
 }

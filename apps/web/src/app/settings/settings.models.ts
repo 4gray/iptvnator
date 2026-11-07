@@ -23,6 +23,7 @@ export interface SettingsSection {
 export interface ThemeOption {
     value: Theme;
     presetId?: ThemePreset['id'];
+    icon: string;
     labelKey: string;
 }
 

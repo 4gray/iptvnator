@@ -17,7 +17,8 @@ type ChildSignalKey =
     | 'textImport'
     | 'xtreamImport'
     | 'stalkerImport'
-    | 'autoImport';
+    | 'autoImport'
+    | 'bulkImport';
 
 describe('AddPlaylistDialogComponent', () => {
     const fetchedPlaylist = {
@@ -211,6 +212,11 @@ describe('AddPlaylistDialogComponent', () => {
         {
             type: 'auto',
             childAccessor: 'autoImport',
+            clearMethod: 'clearForm',
+        },
+        {
+            type: 'bulk',
+            childAccessor: 'bulkImport',
             clearMethod: 'clearForm',
         },
     ] as const)(

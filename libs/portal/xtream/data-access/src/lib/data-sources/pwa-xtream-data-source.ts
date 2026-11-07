@@ -245,6 +245,8 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             referrer: playlist.referrer,
             origin: playlist.origin,
             serverTimezone: playlist.serverTimezone,
+            ...(playlist.importLive === false ? { importLive: false } : {}),
+            ...(playlist.importVod === false ? { importVod: false } : {}),
         };
     }
 
@@ -278,6 +280,8 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             referrer: playlist.referrer,
             origin: playlist.origin,
             serverTimezone: playlist.serverTimezone,
+            importLive: playlist.importLive,
+            importVod: playlist.importVod,
         };
     }
 
@@ -303,6 +307,8 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             referrer: playlist.referrer,
             origin: playlist.origin,
             serverTimezone: playlist.serverTimezone,
+            importLive: playlist.importLive,
+            importVod: playlist.importVod,
         };
     }
 

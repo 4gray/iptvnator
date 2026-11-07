@@ -67,6 +67,7 @@
             <mat-icon>{{ passwordToggle.icon() }}</mat-icon>
         </button>
     </mat-form-field>
+    <app-import-scope [(importLive)]="importLive" [(importVod)]="importVod" />
     <details
         class="app-dialog-disclosure"
         data-test-id="xtream-advanced-settings"

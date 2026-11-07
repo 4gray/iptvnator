@@ -178,7 +178,9 @@
             "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "التحديث التلقائي غير مكتمل: تم تحديث {{updated}} من {{total}} من قوائم التشغيل، وفشل {{failed}}، وتم تخطي {{skipped}} (بدون رابط أو مسار ملف).",
             "AUTO_REFRESH_UPDATE_FAILED": "فشل التحديث التلقائي لقوائم التشغيل. لم يتم تحديث أي من قوائم التشغيل الـ {{total}}.",
             "AUTO_REFRESH_UPDATE_SKIPPED": "التحديث التلقائي لقوائم التشغيل: تم تحديث {{updated}} من {{total}}، وتم تخطي {{skipped}} (بدون رابط أو مسار ملف).",
-            "AUTO_REFRESH_ENABLED": "تم تفعيل التحديث التلقائي"
+            "AUTO_REFRESH_ENABLED": "تم تفعيل التحديث التلقائي",
+            "SOURCE_BULK_NEEDS": "ملف .txt يحتوي رسائل المزود أو قائمة .json للمصادر.",
+            "SOURCE_BULK_ADD": "استيراد المصادر"
         },
         "ADD_PLAYLIST": {
             "IMPORT_EPG": "استيراد دليل البرامج المحدد في قائمة التشغيل",
@@ -197,7 +199,34 @@
             "METHOD_TEXT_LABEL": "نص m3u الخام",
             "METHOD_TEXT_SUB": "للقوائم العابرة أو عندما يتوفر لديك النص فقط",
             "METHOD_AUTO_LABEL": "اكتشاف تلقائي",
-            "METHOD_AUTO_SUB": "الصق رسالة مزوّد الخدمة"
+            "METHOD_AUTO_SUB": "الصق رسالة مزوّد الخدمة",
+            "METHOD_BULK_LABEL": "استيراد جماعي",
+            "METHOD_BULK_SUB": "أضف عدة مصادر دفعة واحدة من ملف",
+            "IMPORT_SCOPE_LABEL": "الأقسام المستوردة",
+            "IMPORT_SCOPE_LIVE": "القنوات المباشرة",
+            "IMPORT_SCOPE_VOD": "الفيديو عند الطلب (أفلام ومسلسلات)",
+            "IMPORT_SCOPE_VOD_DISABLED": "تم تعطيل VOD في الإعدادات، لذا يتم استيراد قنوات البث المباشر فقط.",
+            "BULK_FILE_BUTTON": "تحميل من ملف",
+            "BULK_ROW_INCOMPLETE": "غير مكتمل — أضف التفاصيل الناقصة كمصدر واحد أو احذف هذا الصف.",
+            "BULK_NO_SOURCES": "لم يتم التعرف على أي مصادر في هذا الملف بعد.",
+            "BULK_REMOVE": "إزالة المصدر",
+            "BULK_IMPORT_BUTTON": "استيراد {{count}} مصادر",
+            "BULK_INVALID_JSON": "ملف JSON هذا ليس قائمة استيراد جماعي. المتوقع { \"sources\": [...] } أو مصفوفة [...].",
+            "BULK_IMPORT_STARTED": "جارٍ استيراد {{count}} مصادر…",
+            "BULK_ROW_NO_PORTAL": "لا يوجد عنوان بوابة لهذا الـ MAC — أضفه كمصدر Stalker منفرد أو احذف هذا الصف.",
+            "BULK_ROW_NO_MAC": "لا يوجد عنوان MAC لهذه البوابة — أضفها كمصدر Stalker منفرد أو احذف هذا الصف.",
+            "BULK_ROW_MISSING_DETAILS": "تفاصيل الاتصال ناقصة — أضف هذا المصدر منفردًا أو احذف هذا الصف.",
+            "BULK_NOTHING_IMPORTABLE": "لا يوجد شيء لاستيراده — صحّح الصفوف الناقصة أعلاه أو احذفها.",
+            "BULK_REPLACE_NOTICE": "يستبدل الاستيراد جميع مصادرك الحالية. يحصل كل مصدر على دقيقة واحدة للتحميل؛ ويتم تخطي المصادر الأبطأ أو الفاشلة.",
+            "BULK_REPLACE_FAILED": "تعذّرت إزالة مصادرك الحالية، لذلك لم يتم استيراد أي شيء.",
+            "BULK_SOURCE_TOO_SLOW": "المصدر بطيء جدًا، جارٍ تخطي «{{title}}»",
+            "BULK_SOURCE_FAILED": "فشل الاستيراد، جارٍ تخطي «{{title}}»",
+            "BULK_IMPORT_FINISHED": "اكتمل الاستيراد المجمّع: تم استيراد {{imported}}، و{{slow}} بطيئة جدًا، و{{failed}} فاشلة.",
+            "BULK_STATUS_PENDING": "في الانتظار",
+            "BULK_STATUS_IMPORTING": "جارٍ الاستيراد…",
+            "BULK_STATUS_IMPORTED": "تم الاستيراد",
+            "BULK_STATUS_SLOW": "بطيء جدًا، تم التخطي",
+            "BULK_STATUS_FAILED": "فشل، تم التخطي"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "اسحب وأفلت الملفات هنا",
@@ -733,7 +762,9 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "بلد التصنيف العمري",
         "AGE_RATING_COUNTRY_DESCRIPTION": "اختر بلد التصنيف. عند غياب البيانات المحلية، يمكن استخدام بيانات الولايات المتحدة أو المزوّد.",
-        "AGE_RATING_COUNTRY_AUTO": "تلقائي — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "تلقائي — {{country}}",
+        "DISABLE_VOD": "تعطيل VOD",
+        "DISABLE_VOD_DESCRIPTION": "تحميل قنوات البث المباشر فقط. لا يتم أبدًا استيراد الأفلام والمسلسلات أو تحديثها أو مزامنتها لأي مصدر، أيًا كانت أقسام الاستيراد الخاصة به. أوقف التشغيل لاستعادتها."
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "تعذّر الحفظ على الخادم. تحقق من الاتصال وحاول مرة أخرى.",

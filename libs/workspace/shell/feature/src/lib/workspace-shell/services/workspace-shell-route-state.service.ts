@@ -14,12 +14,15 @@ import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     buildPortalRailLinks,
     PortalRailLink,
+    PortalRailSection,
 } from '@iptvnator/portal/shared/util';
 import { selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import {
     injectTranslationTick,
     RuntimeCapabilitiesService,
+    SettingsStore,
 } from '@iptvnator/services';
+import { shouldImportVod } from '@iptvnator/shared/interfaces';
 import {
     parseWorkspaceShellRoute,
     WorkspacePortalContext,
@@ -39,6 +42,7 @@ export class WorkspaceShellRouteStateService {
     private readonly translate = inject(TranslateService);
     private readonly destroyRef = inject(DestroyRef);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly settingsStore = inject(SettingsStore);
 
     private readonly languageTick = injectTranslationTick();
 
@@ -114,6 +118,22 @@ export class WorkspaceShellRouteStateService {
     readonly isGlobalDownloadsRoute = computed(
         () => this.currentRoute().kind === 'downloads'
     );
+    /**
+     * Portal sections the active source must not show: the global
+     * "disable VOD" setting, or the playlist's own scope, keeps Movies and
+     * Series out of the rail so a dead link never invites a fetch.
+     */
+    readonly hiddenPortalSections = computed<ReadonlySet<PortalRailSection>>(
+        () => {
+            const vodOff =
+                this.settingsStore.disableVod?.() === true ||
+                !shouldImportVod(this.playlistContext.activePlaylist());
+            return vodOff
+                ? new Set<PortalRailSection>(['vod', 'series'])
+                : new Set<PortalRailSection>();
+        }
+    );
+
     readonly railContext = computed<WorkspacePortalContext | null>(() => {
         const routeContext = this.currentContext();
         if (routeContext) {
@@ -233,7 +253,11 @@ export class WorkspaceShellRouteStateService {
                 playlistId: context.playlistId,
                 supportsDownloads: this.runtime.supportsDownloads,
                 workspace: true,
-            }).primary,
+            }).primary.filter(
+                (link) =>
+                    !link.section ||
+                    !this.hiddenPortalSections().has(link.section)
+            ),
             context.provider,
             (key, params) => this.translateText(key, params)
         );
@@ -252,7 +276,12 @@ export class WorkspaceShellRouteStateService {
                 playlistId: context.playlistId,
                 supportsDownloads: this.runtime.supportsDownloads,
                 workspace: true,
-            }).secondary.filter((link) => link.section !== 'downloads'),
+            }).secondary.filter(
+                (link) =>
+                    link.section !== 'downloads' &&
+                    (link.section == null ||
+                        !this.hiddenPortalSections().has(link.section))
+            ),
             context.provider,
             (key, params) => this.translateText(key, params)
         );

@@ -178,7 +178,9 @@
             "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "Automatisch vernieuwen onvolledig: {{updated}} van {{total}} afspeellijsten bijgewerkt, {{failed}} mislukt, {{skipped}} overgeslagen (geen URL of bestandspad).",
             "AUTO_REFRESH_UPDATE_FAILED": "Automatisch vernieuwen van afspeellijsten mislukt. Geen van de {{total}} afspeellijsten kon worden bijgewerkt.",
             "AUTO_REFRESH_UPDATE_SKIPPED": "Automatisch vernieuwen van afspeellijsten: {{updated}} van {{total}} bijgewerkt, {{skipped}} overgeslagen (geen URL of bestandspad).",
-            "AUTO_REFRESH_ENABLED": "Automatisch vernieuwen ingeschakeld"
+            "AUTO_REFRESH_ENABLED": "Automatisch vernieuwen ingeschakeld",
+            "SOURCE_BULK_NEEDS": "Een .txt-bestand met providerberichten of een .json-bronnenlijst.",
+            "SOURCE_BULK_ADD": "Bronnen importeren"
         },
         "ADD_PLAYLIST": {
             "IMPORT_EPG": "De programmagids uit de afspeellijst importeren",
@@ -197,7 +199,34 @@
             "METHOD_TEXT_LABEL": "Ruwe m3u-tekst",
             "METHOD_TEXT_SUB": "Voor eenmalige lijsten of als je alleen tekst hebt",
             "METHOD_AUTO_LABEL": "Automatisch detecteren",
-            "METHOD_AUTO_SUB": "Plak het bericht van je provider"
+            "METHOD_AUTO_SUB": "Plak het bericht van je provider",
+            "METHOD_BULK_LABEL": "Bulkimport",
+            "METHOD_BULK_SUB": "Voeg meerdere bronnen tegelijk toe vanuit een bestand",
+            "IMPORT_SCOPE_LABEL": "Te importeren onderdelen",
+            "IMPORT_SCOPE_LIVE": "Livezenders",
+            "IMPORT_SCOPE_VOD": "VOD (films en series)",
+            "IMPORT_SCOPE_VOD_DISABLED": "VOD is uitgeschakeld in de instellingen, dus alleen live-kanalen worden geïmporteerd.",
+            "BULK_FILE_BUTTON": "Laden uit bestand",
+            "BULK_ROW_INCOMPLETE": "Onvolledig — voeg de ontbrekende gegevens toe als afzonderlijke bron, of verwijder deze rij.",
+            "BULK_NO_SOURCES": "Geen bronnen herkend in dit bestand.",
+            "BULK_REMOVE": "Bron verwijderen",
+            "BULK_IMPORT_BUTTON": "{{count}} bronnen importeren",
+            "BULK_INVALID_JSON": "Deze JSON is geen bulkimportlijst. Verwacht: { \"sources\": [...] } of een [...]-array.",
+            "BULK_IMPORT_STARTED": "{{count}} bronnen importeren…",
+            "BULK_ROW_NO_PORTAL": "Geen portaladres voor deze MAC — voeg hem toe als losse Stalker-bron of verwijder de rij.",
+            "BULK_ROW_NO_MAC": "Geen MAC-adres voor dit portaal — voeg het toe als losse Stalker-bron of verwijder de rij.",
+            "BULK_ROW_MISSING_DETAILS": "Verbindingsgegevens ontbreken — voeg deze bron apart toe of verwijder de rij.",
+            "BULK_NOTHING_IMPORTABLE": "Niets te importeren — herstel of verwijder de onvolledige rijen hierboven.",
+            "BULK_REPLACE_NOTICE": "Importeren vervangt al je huidige bronnen. Elke bron krijgt één minuut om te laden; tragere of mislukte bronnen worden overgeslagen.",
+            "BULK_REPLACE_FAILED": "Je huidige bronnen konden niet worden verwijderd, dus er is niets geïmporteerd.",
+            "BULK_SOURCE_TOO_SLOW": "Bron te traag, “{{title}}” wordt overgeslagen",
+            "BULK_SOURCE_FAILED": "Importeren mislukt, “{{title}}” wordt overgeslagen",
+            "BULK_IMPORT_FINISHED": "Bulkimport voltooid: {{imported}} geïmporteerd, {{slow}} te traag, {{failed}} mislukt.",
+            "BULK_STATUS_PENDING": "Wachten",
+            "BULK_STATUS_IMPORTING": "Importeren…",
+            "BULK_STATUS_IMPORTED": "Geïmporteerd",
+            "BULK_STATUS_SLOW": "Te traag, overgeslagen",
+            "BULK_STATUS_FAILED": "Mislukt, overgeslagen"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Sleep bestanden hierheen",
@@ -733,7 +762,9 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "Land voor leeftijdsclassificatie",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Kies het land voor de leeftijdsclassificatie. Ontbrekende lokale gegevens kunnen worden aangevuld met Amerikaanse of aanbiedergegevens.",
-        "AGE_RATING_COUNTRY_AUTO": "Automatisch — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Automatisch — {{country}}",
+        "DISABLE_VOD": "VOD uitschakelen",
+        "DISABLE_VOD_DESCRIPTION": "Alleen live-kanalen laden. Films en series worden voor geen enkele bron geïmporteerd, vernieuwd of gesynchroniseerd, ongeacht de eigen importonderdelen van de bron. Zet dit uit om ze terug te krijgen."
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Opslaan op de server is mislukt. Controleer de verbinding en probeer het opnieuw.",

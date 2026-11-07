@@ -39,6 +39,7 @@ import {
     measureRendererPerformancePhase,
     RENDERER_PERFORMANCE_PHASE,
 } from '@iptvnator/shared/logging';
+import { applyImportScopeToPlaylist } from '@iptvnator/shared/m3u-utils';
 import { AppConfig } from '../../environments/environment';
 import { buildAutoUpdatePlaylistsFeedback } from './auto-update-playlists-feedback';
 import {
@@ -280,10 +281,20 @@ export class ElectronService extends DataService {
                     data,
                     this.settingsStore.getTrustOptions()
                 );
+                // Main already kept each row's scope; drop VOD items while
+                // it is disabled globally.
+                const playlists =
+                    this.settingsStore.disableVod?.() === true
+                        ? result.playlists.map((playlist) =>
+                              applyImportScopeToPlaylist(
+                                  playlist,
+                                  playlist,
+                                  true
+                              )
+                          )
+                        : result.playlists;
                 this.store.dispatch(
-                    PlaylistActions.updateManyPlaylists({
-                        playlists: result.playlists,
-                    })
+                    PlaylistActions.updateManyPlaylists({ playlists })
                 );
                 this.reportAutoUpdatePlaylistsResult(result);
                 return result as T;
@@ -413,7 +424,14 @@ export class ElectronService extends DataService {
                         this.store.dispatch(
                             PlaylistActions.handleAddingPlaylistByUrl({
                                 isTemporary: !!payload?.isTemporary,
-                                playlist: result,
+                                playlist: applyImportScopeToPlaylist(
+                                    result,
+                                    {
+                                        importLive: payload?.importLive,
+                                        importVod: payload?.importVod,
+                                    },
+                                    this.settingsStore.disableVod?.() === true
+                                ),
                             })
                         )
                 );
@@ -469,6 +487,8 @@ export class ElectronService extends DataService {
         filePath?: string;
         userAgent?: string;
         title: string;
+        importLive?: boolean;
+        importVod?: boolean;
     }) {
         try {
             let playlistObject: Playlist;
@@ -496,11 +516,18 @@ export class ElectronService extends DataService {
 
             this.store.dispatch(
                 PlaylistActions.updatePlaylist({
-                    playlist: {
-                        ...playlistObject,
-                        _id: data.id,
-                        userAgent: data.userAgent?.trim() || undefined,
-                    },
+                    playlist: applyImportScopeToPlaylist(
+                        {
+                            ...playlistObject,
+                            _id: data.id,
+                            userAgent: data.userAgent?.trim() || undefined,
+                        },
+                        {
+                            importLive: data.importLive,
+                            importVod: data.importVod,
+                        },
+                        this.settingsStore.disableVod?.() === true
+                    ),
                     playlistId: data.id,
                     refreshEpg: true,
                 })

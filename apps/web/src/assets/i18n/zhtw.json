@@ -178,7 +178,9 @@
             "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "播放清單自動重新整理未完成：{{total}} 個播放清單中已更新 {{updated}} 個，{{failed}} 個失敗，略過 {{skipped}} 個（沒有 URL 或檔案路徑）。",
             "AUTO_REFRESH_UPDATE_FAILED": "播放清單自動重新整理失敗。{{total}} 個播放清單皆未更新。",
             "AUTO_REFRESH_UPDATE_SKIPPED": "播放清單自動重新整理：{{total}} 個中已更新 {{updated}} 個，略過 {{skipped}} 個（沒有 URL 或檔案路徑）。",
-            "AUTO_REFRESH_ENABLED": "已啟用自動重新整理"
+            "AUTO_REFRESH_ENABLED": "已啟用自動重新整理",
+            "SOURCE_BULK_NEEDS": "包含業者訊息的 .txt 檔案，或 .json 來源清單。",
+            "SOURCE_BULK_ADD": "匯入來源"
         },
         "ADD_PLAYLIST": {
             "IMPORT_EPG": "匯入播放清單中指定的節目指南",
@@ -197,7 +199,34 @@
             "METHOD_TEXT_LABEL": "M3U 原始文字",
             "METHOD_TEXT_SUB": "適合一次性清單，或您只有文字內容時使用",
             "METHOD_AUTO_LABEL": "自動辨識",
-            "METHOD_AUTO_SUB": "貼上服務商傳來的訊息"
+            "METHOD_AUTO_SUB": "貼上服務商傳來的訊息",
+            "METHOD_BULK_LABEL": "批次匯入",
+            "METHOD_BULK_SUB": "從檔案一次新增多個來源",
+            "IMPORT_SCOPE_LABEL": "要匯入的部分",
+            "IMPORT_SCOPE_LIVE": "直播頻道",
+            "IMPORT_SCOPE_VOD": "隨選（電影和影集）",
+            "IMPORT_SCOPE_VOD_DISABLED": "已在設定中停用 VOD，因此只匯入直播頻道。",
+            "BULK_FILE_BUTTON": "從檔案載入",
+            "BULK_ROW_INCOMPLETE": "不完整——將缺少的資訊作為單一來源新增，或刪除此列。",
+            "BULK_NO_SOURCES": "此檔案中沒有辨識到任何來源。",
+            "BULK_REMOVE": "移除來源",
+            "BULK_IMPORT_BUTTON": "匯入{{count}}個來源",
+            "BULK_INVALID_JSON": "此JSON不是批次匯入來源清單。應為{ \"sources\": [...] }或[...]陣列。",
+            "BULK_IMPORT_STARTED": "正在匯入{{count}}個來源…",
+            "BULK_ROW_NO_PORTAL": "這個 MAC 沒有入口網站網址——請作為單一 Stalker 來源新增，或刪除此列。",
+            "BULK_ROW_NO_MAC": "這個入口網站沒有 MAC 位址——請作為單一 Stalker 來源新增，或刪除此列。",
+            "BULK_ROW_MISSING_DETAILS": "缺少連線資訊——請單獨新增此來源，或刪除此列。",
+            "BULK_NOTHING_IMPORTABLE": "沒有可匯入的內容——請修正或刪除上方不完整的列。",
+            "BULK_REPLACE_NOTICE": "匯入會取代你目前的所有來源。每個來源有一分鐘的載入時間；較慢或失敗的來源將被略過。",
+            "BULK_REPLACE_FAILED": "無法移除目前的來源，因此沒有匯入任何內容。",
+            "BULK_SOURCE_TOO_SLOW": "來源太慢，略過「{{title}}」",
+            "BULK_SOURCE_FAILED": "匯入失敗，略過「{{title}}」",
+            "BULK_IMPORT_FINISHED": "批次匯入完成：已匯入 {{imported}} 個，太慢 {{slow}} 個，失敗 {{failed}} 個。",
+            "BULK_STATUS_PENDING": "等待中",
+            "BULK_STATUS_IMPORTING": "匯入中…",
+            "BULK_STATUS_IMPORTED": "已匯入",
+            "BULK_STATUS_SLOW": "太慢，已略過",
+            "BULK_STATUS_FAILED": "失敗，已略過"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "在此處拖放檔案",
@@ -733,7 +762,9 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "年齡分級國家",
         "AGE_RATING_COUNTRY_DESCRIPTION": "選擇年齡分級使用的國家。缺少當地分級時，可能使用美國或供應商的資料。",
-        "AGE_RATING_COUNTRY_AUTO": "自動 — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "自動 — {{country}}",
+        "DISABLE_VOD": "停用 VOD",
+        "DISABLE_VOD_DESCRIPTION": "只載入直播頻道。無論各來源自身的匯入區段如何設定，任何來源都不會匯入、重新整理或同步電影和影集。關閉即可恢復。"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "無法儲存到伺服器。請檢查連線後再試一次。",

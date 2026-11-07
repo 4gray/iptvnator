@@ -178,7 +178,9 @@
             "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "プレイリストの自動更新が完了しませんでした：{{total}} 件中 {{updated}} 件を更新し、{{failed}} 件が失敗、{{skipped}} 件をスキップしました（URL もファイルパスもありません）。",
             "AUTO_REFRESH_UPDATE_FAILED": "プレイリストの自動更新に失敗しました。{{total}} 件のプレイリストをいずれも更新できませんでした。",
             "AUTO_REFRESH_UPDATE_SKIPPED": "プレイリストの自動更新：{{total}} 件中 {{updated}} 件を更新し、{{skipped}} 件をスキップしました（URL もファイルパスもありません）。",
-            "AUTO_REFRESH_ENABLED": "自動更新が有効です"
+            "AUTO_REFRESH_ENABLED": "自動更新が有効です",
+            "SOURCE_BULK_NEEDS": "プロバイダーのメッセージを含む .txt ファイルか、.json 形式のソース一覧。",
+            "SOURCE_BULK_ADD": "ソースを読み込む"
         },
         "ADD_PLAYLIST": {
             "IMPORT_EPG": "プレイリストに指定された番組表をインポート",
@@ -197,7 +199,34 @@
             "METHOD_TEXT_LABEL": "M3Uテキスト",
             "METHOD_TEXT_SUB": "一度限りのリストやテキストしかない場合に",
             "METHOD_AUTO_LABEL": "自動検出",
-            "METHOD_AUTO_SUB": "プロバイダーからのメッセージを貼り付け"
+            "METHOD_AUTO_SUB": "プロバイダーからのメッセージを貼り付け",
+            "METHOD_BULK_LABEL": "一括インポート",
+            "METHOD_BULK_SUB": "ファイルから複数のソースをまとめて追加",
+            "IMPORT_SCOPE_LABEL": "インポートするセクション",
+            "IMPORT_SCOPE_LIVE": "ライブチャンネル",
+            "IMPORT_SCOPE_VOD": "VOD（映画とシリーズ）",
+            "IMPORT_SCOPE_VOD_DISABLED": "設定で VOD が無効になっているため、ライブチャンネルのみをインポートします。",
+            "BULK_FILE_BUTTON": "ファイルから読み込む",
+            "BULK_ROW_INCOMPLETE": "不完全 — 不足している情報を単一ソースとして追加するか、この行を削除してください。",
+            "BULK_NO_SOURCES": "このファイルではソースが見つかりませんでした。",
+            "BULK_REMOVE": "ソースを削除",
+            "BULK_IMPORT_BUTTON": "{{count}}件のソースをインポート",
+            "BULK_INVALID_JSON": "このJSONは一括インポート用のソースリストではありません。{ \"sources\": [...] }または[...]配列が必要です。",
+            "BULK_IMPORT_STARTED": "{{count}}件のソースをインポート中…",
+            "BULK_ROW_NO_PORTAL": "この MAC のポータルアドレスがありません。単一の Stalker ソースとして追加するか、この行を削除してください。",
+            "BULK_ROW_NO_MAC": "このポータルの MAC アドレスがありません。単一の Stalker ソースとして追加するか、この行を削除してください。",
+            "BULK_ROW_MISSING_DETAILS": "接続情報が不足しています。このソースを単独で追加するか、この行を削除してください。",
+            "BULK_NOTHING_IMPORTABLE": "インポートできるものはありません。上の不完全な行を修正するか削除してください。",
+            "BULK_REPLACE_NOTICE": "インポートすると現在のソースはすべて置き換えられます。各ソースの読み込み時間は1分です。それより遅いソースや失敗したソースはスキップされます。",
+            "BULK_REPLACE_FAILED": "現在のソースを削除できなかったため、何もインポートされませんでした。",
+            "BULK_SOURCE_TOO_SLOW": "ソースが遅すぎるため「{{title}}」をスキップします",
+            "BULK_SOURCE_FAILED": "インポートに失敗したため「{{title}}」をスキップします",
+            "BULK_IMPORT_FINISHED": "一括インポートが完了しました：インポート {{imported}}件、遅すぎ {{slow}}件、失敗 {{failed}}件。",
+            "BULK_STATUS_PENDING": "待機中",
+            "BULK_STATUS_IMPORTING": "インポート中…",
+            "BULK_STATUS_IMPORTED": "インポート済み",
+            "BULK_STATUS_SLOW": "遅すぎるためスキップ",
+            "BULK_STATUS_FAILED": "失敗のためスキップ"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "ここにファイルをドラッグ＆ドロップ",
@@ -733,7 +762,9 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "年齢区分の国",
         "AGE_RATING_COUNTRY_DESCRIPTION": "年齢区分に使用する国を選択します。現地の情報がない場合は米国またはプロバイダーの情報を使用します。",
-        "AGE_RATING_COUNTRY_AUTO": "自動 — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "自動 — {{country}}",
+        "DISABLE_VOD": "VOD を無効化",
+        "DISABLE_VOD_DESCRIPTION": "ライブチャンネルのみを読み込みます。各ソースのインポート項目に関係なく、映画やシリーズはどのソースでもインポート・更新・同期されません。オフにすると元に戻ります。"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "サーバーに保存できませんでした。接続を確認して、もう一度お試しください。",

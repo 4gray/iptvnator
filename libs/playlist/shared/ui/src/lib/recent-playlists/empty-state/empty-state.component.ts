@@ -91,6 +91,17 @@ const SOURCE_CARDS: readonly SourceCard[] = [
             'HOME.PLAYLISTS.CONTENT_EPG',
         ],
     },
+    {
+        type: 'bulk',
+        icon: 'library_add',
+        nameKey: 'HOME.ADD_PLAYLIST.METHOD_BULK_LABEL',
+        needsKey: 'HOME.PLAYLISTS.SOURCE_BULK_NEEDS',
+        addLabelKey: 'HOME.PLAYLISTS.SOURCE_BULK_ADD',
+        contentKeys: [
+            'HOME.PLAYLISTS.CONTENT_LIVE',
+            'HOME.PLAYLISTS.CONTENT_VOD',
+        ],
+    },
 ];
 
 @Component({

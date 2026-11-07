@@ -178,7 +178,9 @@
             "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "Az automatikus frissítés csak részben sikerült: {{total}} lejátszási listából {{updated}} frissült, {{failed}} esetében hiba történt, {{skipped}} pedig URL-cím vagy fájlelérési út hiányában kimaradt.",
             "AUTO_REFRESH_UPDATE_FAILED": "A lejátszási listák automatikus frissítése sikertelen volt: a {{total}} lista közül egyet sem sikerült frissíteni.",
             "AUTO_REFRESH_UPDATE_SKIPPED": "Automatikus frissítés: {{total}} listából {{updated}} frissült, {{skipped}} pedig kimaradt (hiányzó URL-cím vagy fájlelérési út miatt).",
-            "AUTO_REFRESH_ENABLED": "Automatikus frissítés bekapcsolva"
+            "AUTO_REFRESH_ENABLED": "Automatikus frissítés bekapcsolva",
+            "SOURCE_BULK_NEEDS": "Egy .txt fájl a szolgáltató üzeneteivel vagy egy .json forráslista.",
+            "SOURCE_BULK_ADD": "Források importálása"
         },
         "ADD_PLAYLIST": {
             "IMPORT_EPG": "A lejátszási listában megadott műsorújság importálása",
@@ -197,7 +199,34 @@
             "METHOD_TEXT_LABEL": "Nyers M3U-szöveg",
             "METHOD_TEXT_SUB": "Egyszeri importáláshoz, vagy ha a lista csak szövegként áll rendelkezésre",
             "METHOD_AUTO_LABEL": "Automatikus felismerés",
-            "METHOD_AUTO_SUB": "Illessze be a szolgáltató üzenetét"
+            "METHOD_AUTO_SUB": "Illessze be a szolgáltató üzenetét",
+            "METHOD_BULK_LABEL": "Tömeges importálás",
+            "METHOD_BULK_SUB": "Több forrás hozzáadása egyszerre fájlból",
+            "IMPORT_SCOPE_LABEL": "Importálandó részek",
+            "IMPORT_SCOPE_LIVE": "Élő csatornák",
+            "IMPORT_SCOPE_VOD": "VOD (filmek és sorozatok)",
+            "IMPORT_SCOPE_VOD_DISABLED": "A VOD le van tiltva a beállításokban, ezért csak az élő csatornák kerülnek importálásra.",
+            "BULK_FILE_BUTTON": "Betöltés fájlból",
+            "BULK_ROW_INCOMPLETE": "Hiányos — adja hozzá a hiányzó adatokat egyetlen forrásként, vagy távolítsa el ezt a sort.",
+            "BULK_NO_SOURCES": "Ebben a fájlban nem található forrás.",
+            "BULK_REMOVE": "Forrás eltávolítása",
+            "BULK_IMPORT_BUTTON": "{{count}} forrás importálása",
+            "BULK_INVALID_JSON": "Ez a JSON nem tömeges importálási lista. Elvárt formátum: { \"sources\": [...] } vagy [...] tömb.",
+            "BULK_IMPORT_STARTED": "{{count}} forrás importálása…",
+            "BULK_ROW_NO_PORTAL": "Nincs portálcím ehhez a MAC-hez — add hozzá külön Stalker-forrásként, vagy töröld a sort.",
+            "BULK_ROW_NO_MAC": "Nincs MAC-cím ehhez a portálhoz — add hozzá külön Stalker-forrásként, vagy töröld a sort.",
+            "BULK_ROW_MISSING_DETAILS": "Hiányoznak a kapcsolati adatok — add hozzá ezt a forrást külön, vagy töröld a sort.",
+            "BULK_NOTHING_IMPORTABLE": "Nincs mit importálni — javítsd vagy töröld a fenti hiányos sorokat.",
+            "BULK_REPLACE_NOTICE": "Az importálás lecseréli az összes jelenlegi forrásodat. Minden forrásnak egy perce van a betöltésre; a lassabb vagy hibás források kimaradnak.",
+            "BULK_REPLACE_FAILED": "A jelenlegi források nem távolíthatók el, ezért semmi sem lett importálva.",
+            "BULK_SOURCE_TOO_SLOW": "A forrás túl lassú, „{{title}}” kihagyva",
+            "BULK_SOURCE_FAILED": "Sikertelen importálás, „{{title}}” kihagyva",
+            "BULK_IMPORT_FINISHED": "A tömeges importálás befejeződött: {{imported}} importálva, {{slow}} túl lassú, {{failed}} sikertelen.",
+            "BULK_STATUS_PENDING": "Várakozik",
+            "BULK_STATUS_IMPORTING": "Importálás…",
+            "BULK_STATUS_IMPORTED": "Importálva",
+            "BULK_STATUS_SLOW": "Túl lassú, kihagyva",
+            "BULK_STATUS_FAILED": "Sikertelen, kihagyva"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Húzzon ide egy .m3u- vagy .m3u8-fájlt",
@@ -733,7 +762,9 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "Korhatár-besorolás országa",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Válassza ki, melyik ország korhatár-besorolását szeretné látni. Ha ehhez az országhoz nincs adat, az amerikai vagy a szolgáltató által megadott besorolás jelenhet meg.",
-        "AGE_RATING_COUNTRY_AUTO": "Automatikus — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Automatikus — {{country}}",
+        "DISABLE_VOD": "VOD letiltása",
+        "DISABLE_VOD_DESCRIPTION": "Csak élő csatornák betöltése. Filmek és sorozatok egyetlen forrásnál sem kerülnek importálásra, frissítésre vagy szinkronizálásra, a forrás saját importálási szakaszaitól függetlenül. Kapcsolja ki a visszaállításukhoz."
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Nem sikerült menteni a kiszolgálóra. Ellenőrizze a kapcsolatot, majd próbálja újra.",

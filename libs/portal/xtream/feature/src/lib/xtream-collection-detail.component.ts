@@ -156,6 +156,10 @@ export class XtreamCollectionDetailComponent implements ViewInPortalHandoff {
         }
 
         const xtreamPlaylist = this.toXtreamPlaylist(playlist);
+        // A background refresh replaces the item object; rebuilding the
+        // detail host for the same source and title would reset the open
+        // detail and the user's selection. A changed import scope is a
+        // different view and must re-prepare.
         const identity = JSON.stringify([
             xtreamPlaylist.id,
             item.contentType,
@@ -168,8 +172,12 @@ export class XtreamCollectionDetailComponent implements ViewInPortalHandoff {
             xtreamPlaylist.userAgent ?? '',
             xtreamPlaylist.referrer ?? '',
             xtreamPlaylist.origin ?? '',
+            xtreamPlaylist.importLive ?? true,
+            xtreamPlaylist.importVod ?? true,
         ]);
-        if (identity === this.preparedIdentity && this.detailInjector()) return;
+        if (identity === this.preparedIdentity && this.detailInjector()) {
+            return;
+        }
         this.preparedIdentity = identity;
         this.xtreamStore.setPlaylistId(xtreamPlaylist.id);
         this.xtreamStore.setCurrentPlaylist(xtreamPlaylist);
@@ -278,6 +286,10 @@ export class XtreamCollectionDetailComponent implements ViewInPortalHandoff {
             userAgent: playlist.userAgent,
             referrer: playlist.referrer,
             origin: playlist.origin,
+            // Keep the import scope so reinstalling this playlist view
+            // cannot re-enable a section the source opted out of.
+            ...(playlist.importLive === false ? { importLive: false } : {}),
+            ...(playlist.importVod === false ? { importVod: false } : {}),
         };
     }
 

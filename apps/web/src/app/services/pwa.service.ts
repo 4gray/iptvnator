@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
+import { SwUpdate } from '@angular/service-worker';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
@@ -11,6 +12,7 @@ import {
     isGatewayOutage,
     isServerAccessChallenge,
     ServerStorageStatusService,
+    SettingsStore,
 } from '@iptvnator/services';
 import {
     CONNECTIVITY_GUARD_RESET,
@@ -32,6 +34,7 @@ import {
     createLogger,
 } from '@iptvnator/portal/shared/util/logger';
 import { getRuntimeBackendUrl } from './runtime-config';
+import { applyImportScopeToPlaylist } from '@iptvnator/shared/m3u-utils';
 import { isSourceBackendRequest } from '@iptvnator/services/source-sync/connection';
 import { ProviderTargetClient } from './provider-target-client';
 
@@ -62,8 +65,10 @@ export class PwaService extends DataService {
     private readonly http = inject(HttpClient);
     private readonly snackBar = inject(LazySnackBar);
     private readonly store = inject(Store);
+    private readonly swUpdate = inject(SwUpdate);
     private readonly translateService = inject(TranslateService);
     private readonly serverStatus = inject(ServerStorageStatusService);
+    private readonly settingsStore = inject(SettingsStore);
     private readonly logger = createLogger('PwaService');
     private readonly providerTargets = new ProviderTargetClient((url) =>
         firstValueFrom(
@@ -84,6 +89,27 @@ export class PwaService extends DataService {
      * protocol-relative `//xtream` (another host).
      */
     corsProxyUrl = this.backendUrl.replace(/\/+$/, '');
+
+    constructor() {
+        super();
+    }
+
+    /** The page reload; a field so specs can substitute it. */
+    reloadWindow: () => void = () => window.location.reload();
+
+    /** Uses service worker mechanism to check for available application updates */
+    checkUpdates() {
+        this.swUpdate.versionUpdates.subscribe(() => {
+            void this.snackBar
+                .open(
+                    this.translateService.instant('UPDATE_AVAILABLE'),
+                    this.translateService.instant('REFRESH')
+                )
+                .then((ref) =>
+                    ref?.onAction().subscribe(() => this.reloadWindow())
+                );
+        });
+    }
 
     getAppVersion(): string {
         return AppConfig.version;
@@ -210,13 +236,21 @@ export class PwaService extends DataService {
         const playlistId = payload.id;
         const { url } = payload;
         const userAgent = payload.userAgent?.trim() || undefined;
+        const scope = {
+            importLive: payload.importLive,
+            importVod: payload.importVod,
+        };
 
         return new Promise<void>((resolve) => {
             this.getPlaylistFromUrl(url, userAgent).subscribe({
                 next: (playlist: Playlist) => {
                     this.store.dispatch(
                         PlaylistActions.updatePlaylist({
-                            playlist: { ...playlist, url, userAgent },
+                            playlist: applyImportScopeToPlaylist(
+                                { ...playlist, url, userAgent },
+                                scope,
+                                this.settingsStore.disableVod?.() === true
+                            ),
                             playlistId,
                             refreshEpg: true,
                         })
@@ -299,13 +333,20 @@ export class PwaService extends DataService {
                 })
             )
             .subscribe((response: Playlist) => {
-                const playlist = title
-                    ? {
-                          ...response,
-                          filename: title,
-                          title,
-                      }
-                    : response;
+                const playlist = applyImportScopeToPlaylist(
+                    title
+                        ? {
+                              ...response,
+                              filename: title,
+                              title,
+                          }
+                        : response,
+                    {
+                        importLive: payload?.importLive,
+                        importVod: payload?.importVod,
+                    },
+                    this.settingsStore.disableVod?.() === true
+                );
 
                 this.store.dispatch(
                     PlaylistActions.handleAddingPlaylistByUrl({
@@ -367,9 +408,13 @@ export class PwaService extends DataService {
         return match ? parseInt(match[1], 10) : null;
     }
 
-    async forwardXtreamRequest(payload: PwaXtreamRequest, signal?: AbortSignal) {
+    async forwardXtreamRequest(
+        payload: PwaXtreamRequest,
+        signal?: AbortSignal
+    ) {
         signal?.throwIfAborted();
-        const { forwardPwaXtreamRequest } = await import('./pwa-xtream-request');
+        const { forwardPwaXtreamRequest } =
+            await import('./pwa-xtream-request');
         return forwardPwaXtreamRequest(
             {
                 http: this.http,

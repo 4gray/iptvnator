@@ -37,6 +37,10 @@ export function toXtreamPlaylistData(
         username: playlist.username,
         password: playlist.password,
         type: 'xtream',
+        // Keep the row's section scope: the content gate reads it from the
+        // store after this conversion replaced the current playlist.
+        ...(playlist.importLive === false ? { importLive: false } : {}),
+        ...(playlist.importVod === false ? { importVod: false } : {}),
         ...(userAgent ? { userAgent } : {}),
         ...(referrer ? { referrer } : {}),
         ...(origin ? { origin } : {}),
