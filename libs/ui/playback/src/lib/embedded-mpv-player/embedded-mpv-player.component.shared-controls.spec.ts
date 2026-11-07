@@ -194,6 +194,59 @@ describe('EmbeddedMpvPlayerComponent shared controls host', () => {
         ).toBe(true);
     });
 
+    it('applies the Live TV subtitle choice on Retry without restarting the current stream', () => {
+        const { fixture, component, controller } = render();
+        const startSession = jest
+            .spyOn(controller, 'startSession')
+            .mockReturnValue(jest.fn());
+        const setSubtitleTrack = jest
+            .spyOn(controller, 'setSubtitleTrack')
+            .mockResolvedValue(undefined);
+        const electronDescriptor = Object.getOwnPropertyDescriptor(
+            window,
+            'electron'
+        );
+        Object.defineProperty(window, 'electron', {
+            configurable: true,
+            value: { createEmbeddedMpvSession: jest.fn() },
+        });
+        try {
+            const live = {
+                streamUrl: 'https://example.test/live.ts',
+                title: 'Live channel',
+                isLive: true,
+            };
+            fixture.componentRef.setInput('playback', live);
+            fixture.detectChanges();
+            expect(startSession).toHaveBeenLastCalledWith(
+                expect.any(HTMLElement),
+                live,
+                expect.any(Number),
+                false
+            );
+
+            const controls = sharedControls(fixture);
+            expect(controls).not.toBeNull();
+            const commands = controls?.controller().commands;
+            commands?.setSubtitleTrack(-1);
+            fixture.detectChanges();
+            expect(setSubtitleTrack).toHaveBeenLastCalledWith(-1);
+            expect(startSession).toHaveBeenCalledTimes(1);
+
+            component.retry();
+            fixture.detectChanges();
+            expect(startSession).toHaveBeenLastCalledWith(
+                expect.any(HTMLElement),
+                live,
+                expect.any(Number),
+                true
+            );
+            expect(startSession).toHaveBeenCalledTimes(2);
+        } finally {
+            restoreProperty(window, 'electron', electronDescriptor);
+        }
+    });
+
     it('preserves the host previous and next episode guards', () => {
         const { fixture, component } = render();
         const controls = sharedControls(fixture);
