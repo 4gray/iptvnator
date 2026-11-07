@@ -518,6 +518,16 @@ jobs:
             - name: Build frontend
               run: pnpm nx build web --skip-nx-cache
 
+            - name: Refresh Windows Embedded MPV runtime pin if upstream removed it
+              # The pinned archive lives in a third-party release repository that
+              # deletes releases after ~30 days. Re-pin to the newest published
+              # build (with its GitHub-provided SHA-256) when the pin is gone.
+              if: matrix.os == 'windows'
+              shell: bash
+              env:
+                  GITHUB_TOKEN: ${{ github.token }}
+              run: node tools/embedded-mpv/update-windows-runtime-pin.mjs
+
             - name: Resolve pinned Windows Embedded MPV runtime
               if: matrix.os == 'windows'
               id: windows-embedded-mpv-runtime-pin

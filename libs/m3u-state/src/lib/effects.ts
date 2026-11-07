@@ -34,6 +34,7 @@ import {
     PlaylistsService,
     SettingsStore,
     RuntimeCapabilitiesService,
+    SplitAudioService,
 } from '@iptvnator/services';
 import {
     getXtreamContentRoute,
@@ -73,6 +74,7 @@ export class PlaylistEffects {
     private actions$ = inject(Actions);
     private playlistsService = inject(PlaylistsService);
     private dataService = inject(DataService);
+    private splitAudio = inject(SplitAudioService);
     private epgService = inject(EpgService);
     private router = inject(Router);
     private snackBar = inject(LazySnackBar);
@@ -253,7 +255,7 @@ export class PlaylistEffects {
                         ) {
                             this.dataService.sendIpcEvent(
                                 OPEN_MPV_PLAYER,
-                                payload
+                                this.withSplitAudio(payload)
                             );
                         } else if (
                             shouldAutoLaunchExternalPlayer(
@@ -263,6 +265,7 @@ export class PlaylistEffects {
                                 VideoPlayer.VLC
                             )
                         ) {
+                            this.splitAudio.clear(); // VLC cannot mix two streams
                             this.dataService.sendIpcEvent(
                                 OPEN_VLC_PLAYER,
                                 payload
@@ -342,13 +345,34 @@ export class PlaylistEffects {
         }
 
         if (settings.player === VideoPlayer.MPV) {
-            this.dataService.sendIpcEvent(OPEN_MPV_PLAYER, payload);
+            this.dataService.sendIpcEvent(
+                OPEN_MPV_PLAYER,
+                this.withSplitAudio(payload)
+            );
             return;
         }
 
         if (settings.player === VideoPlayer.VLC) {
+            this.splitAudio.clear();
             this.dataService.sendIpcEvent(OPEN_VLC_PLAYER, payload);
         }
+    }
+
+    /**
+     * Adds the "audio from another channel" request made from the channel
+     * list, if one is waiting. Taken once, so it only ever applies to the
+     * playback it was requested for.
+     */
+    private withSplitAudio<T extends object>(payload: T): T {
+        const override = this.splitAudio.take();
+        if (!override) {
+            return payload;
+        }
+        return {
+            ...payload,
+            audioUrl: override.streamUrl,
+            audioDelaySeconds: override.delaySeconds,
+        };
     }
 
     playlistRemovalCommitted$ = createEffect(

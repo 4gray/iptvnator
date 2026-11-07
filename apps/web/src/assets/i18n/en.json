@@ -1002,6 +1002,17 @@
         "ADD_FAVORITE": "Add to favorites",
         "SHOW_DETAILS": "Show channel details",
         "MAP_EPG": "Map EPG channel",
+        "SPLIT_AUDIO": {
+            "MENU": "Video here, audio from another channel...",
+            "TITLE": "Audio from another channel",
+            "VIDEO_FROM": "Video from:",
+            "AUDIO_FROM": "Audio from:",
+            "SEARCH": "Search channels",
+            "DELAY": "Audio delay (seconds)",
+            "DELAY_HINT": "If you hear things before you see them, raise the delay. The value is remembered for this pair of channels.",
+            "NEEDS_MPV": "This works only with the external MPV player. Choose MPV in Settings > Playback first.",
+            "PLAY": "Play"
+        },
         "FAVORITES_UPDATED": "Favorites were updated!",
         "SELECT_CHANNEL_PLAYBACK": "Please select a channel to start playback",
         "SORT_BY": "Sort by",

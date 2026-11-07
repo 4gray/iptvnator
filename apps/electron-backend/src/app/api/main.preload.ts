@@ -568,7 +568,9 @@ const electronApi: ElectronBridgeApi = {
         origin?: string,
         contentInfo?: PlayerContentInfo,
         startTime?: number,
-        headers?: Record<string, string>
+        headers?: Record<string, string>,
+        audioUrl?: string,
+        audioDelaySeconds?: number
     ): Promise<ExternalPlayerSession> =>
         ipcRenderer.invoke(
             'OPEN_MPV_PLAYER',
@@ -580,7 +582,9 @@ const electronApi: ElectronBridgeApi = {
             origin,
             contentInfo,
             startTime,
-            headers
+            headers,
+            audioUrl,
+            audioDelaySeconds
         ),
     openInVlc: (
         url: string,

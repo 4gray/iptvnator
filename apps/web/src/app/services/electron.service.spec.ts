@@ -681,6 +681,28 @@ describe('ElectronService', () => {
         );
     });
 
+    it('passes the audio of another stream to MPV only when one is requested', async () => {
+        await service.sendIpcEvent('OPEN_MPV_PLAYER', {
+            url: 'https://example.test/video.m3u8',
+            audioUrl: 'https://example.test/audio.m3u8',
+            audioDelaySeconds: 1.5,
+        });
+
+        expect(electronBridge.openInMpv).toHaveBeenCalledWith(
+            'https://example.test/video.m3u8',
+            '',
+            '',
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            'https://example.test/audio.m3u8',
+            1.5
+        );
+    });
+
     it('preserves an absent VLC user-agent so backend fallback headers can apply', async () => {
         await service.sendIpcEvent('OPEN_VLC_PLAYER', {
             url: 'https://example.test/live.m3u8',

@@ -367,6 +367,70 @@ describe('external player shutdown on app quit', () => {
         expect(headerArg).not.toContain('(KHTML, like Gecko)');
     });
 
+    it('passes another stream as the audio track, with its delay', async () => {
+        shutdownMpvSession();
+        const proc = createMockChildProcess();
+        (spawn as unknown as jest.Mock).mockReturnValue(proc);
+        mockStoreValues({
+            [MPV_PLAYER_PATH]: '/usr/bin/mpv',
+            [MPV_REUSE_INSTANCE]: true,
+        });
+
+        await openMpvPlayer({
+            title: 'Match (video A, commentary B)',
+            url: 'https://example.com/channel-a.m3u8',
+            audioUrl: 'https://example.com/channel-b.m3u8',
+            audioDelaySeconds: 1.5,
+        });
+
+        const args = (spawn as unknown as jest.Mock).mock.calls.at(
+            -1
+        )?.[1] as string[];
+        expect(args).toContain(
+            '--audio-file=https://example.com/channel-b.m3u8'
+        );
+        expect(args).toContain('--audio-delay=1.5');
+        // The video stream stays the file mpv opens.
+        expect(args[args.length - 1]).toBe(
+            'https://example.com/channel-a.m3u8'
+        );
+    });
+
+    it('adds no audio flags without a second stream, and skips a zero delay', async () => {
+        shutdownMpvSession();
+        const proc = createMockChildProcess();
+        (spawn as unknown as jest.Mock).mockReturnValue(proc);
+        mockStoreValues({
+            [MPV_PLAYER_PATH]: '/usr/bin/mpv',
+            [MPV_REUSE_INSTANCE]: false,
+        });
+
+        await openMpvPlayer({
+            title: 'Plain stream',
+            url: 'https://example.com/plain.m3u8',
+        });
+        const plainArgs = (spawn as unknown as jest.Mock).mock.calls.at(
+            -1
+        )?.[1] as string[];
+        expect(plainArgs.some((arg) => arg.startsWith('--audio-'))).toBe(false);
+
+        await openMpvPlayer({
+            title: 'Split audio, no delay',
+            url: 'https://example.com/a.m3u8',
+            audioUrl: 'https://example.com/b.m3u8',
+            audioDelaySeconds: 0,
+        });
+        const noDelayArgs = (spawn as unknown as jest.Mock).mock.calls.at(
+            -1
+        )?.[1] as string[];
+        expect(noDelayArgs).toContain(
+            '--audio-file=https://example.com/b.m3u8'
+        );
+        expect(noDelayArgs.some((arg) => arg.startsWith('--audio-delay'))).toBe(
+            false
+        );
+    });
+
     it('gives every reused load its own start offset, zero by default', async () => {
         // mpv applies the first launch's global --start=<resume> to every
         // later loadfile of that process; the per-file start option (0 when

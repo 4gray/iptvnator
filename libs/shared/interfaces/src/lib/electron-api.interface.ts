@@ -915,7 +915,9 @@ export interface ElectronBridgeApi {
         origin?: string,
         contentInfo?: PlayerContentInfo,
         startTime?: number,
-        headers?: Record<string, string>
+        headers?: Record<string, string>,
+        audioUrl?: string,
+        audioDelaySeconds?: number
     ) => Promise<ExternalPlayerSession>;
     openInVlc: (
         url: string,

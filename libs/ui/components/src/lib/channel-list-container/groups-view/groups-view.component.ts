@@ -45,6 +45,7 @@ import {
 import { resolveChannelLogo } from '../channel-logo-fallback.util';
 import { EpgMappingDialogComponent } from '../epg-mapping-dialog/epg-mapping-dialog.component';
 import { ChannelDetailsDialogComponent } from '../channel-details-dialog/channel-details-dialog.component';
+import { SplitAudioDialogComponent } from '../split-audio-dialog/split-audio-dialog.component';
 import { ChannelListItemComponent } from '../channel-list-item/channel-list-item.component';
 import {
     MenuItemRadioCheckDirective,
@@ -637,6 +638,22 @@ export class GroupsViewComponent {
         EpgMappingDialogComponent.open(this.dialog, {
             channelKey,
             channelName: channel.name ?? channelKey,
+        });
+    }
+
+    openSplitAudio(): void {
+        const channel = this.contextMenuChannel();
+        if (!channel) {
+            return;
+        }
+
+        this.channelContextMenu().close();
+        SplitAudioDialogComponent.open(this.dialog, {
+            video: channel,
+            channels: Object.values(this.groupedChannels()).reduce<Channel[]>(
+                (all, group) => all.concat(group),
+                []
+            ),
         });
     }
 
