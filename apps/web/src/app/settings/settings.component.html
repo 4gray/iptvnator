@@ -3,6 +3,9 @@
         [formGroup]="settingsForm"
         (ngSubmit)="onSubmit()"
         class="settings-layout"
+        [class.settings-layout--server]="
+            activeSection() === 'server' && !search.isSearching()
+        "
         novalidate
     >
         @if (!libraryReady()) {

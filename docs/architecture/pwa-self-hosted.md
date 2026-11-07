@@ -28,6 +28,29 @@ running Node process unchanged. The optional TV container validates its base
 runtime; follow [its build instructions](../../docker/tv/README.md) to supply
 a patched base rather than reusing the older published digest.
 
+## Desktop-hosted server
+
+Desktop Settings → Server can launch the packaged web backend in an Electron
+utility process. It serves the bundled browser app and the existing API under
+`/api`. The server has its own database under the app data directory
+(`hosted-server/databases/iptvnator.db`). Connecting the desktop to it follows
+the same profile and opt-in rules as connecting to another server.
+
+The server starts on loopback port 4334. Home-network access is opt-in and binds
+a selected private IPv4 interface. The LAN listener accepts that address in
+the Host header and peers on that interface's subnet. The protected routes
+require a generated access code. HTTP carries this code and library data
+without encryption, so the settings UI asks users to share only on a trusted
+network. The code is stored in the server data directory with user-only file
+permissions where supported. A change to the selected network address requires
+selecting the new address and starting the server again.
+
+The desktop package includes `web-backend:build` and `web:build-hosted`. The
+latter emits a separate PWA bundle, so the Electron renderer and Docker
+deployment keep their own build outputs. The outer Nx graph builds shared
+dependencies once for both renderer builds. The hosted server reads the PWA
+shell at startup and reuses it for browser navigation requests.
+
 ## Runtime Backend Configuration
 
 The PWA reads `window.__IPTVNATOR_CONFIG__.BACKEND_URL` through

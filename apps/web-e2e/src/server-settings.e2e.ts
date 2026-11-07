@@ -12,6 +12,41 @@ test.beforeEach(async ({ page }) => {
     await expect(page.getByTestId('source-server-url')).toBeVisible();
 });
 
+test('@settings @ui explains both server options and restores keyboard focus', async ({
+    page,
+}) => {
+    await expect(
+        page.getByRole('heading', { name: 'Connection on this device' })
+    ).toBeVisible();
+    await expect(
+        page.getByRole('heading', { name: 'Server on this computer' })
+    ).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Start server' })).toHaveCount(
+        0
+    );
+
+    const help = page.getByRole('button', { name: 'About server sync' });
+    await help.press('Enter');
+    const dialog = page.getByRole('dialog', { name: 'About server sync' });
+    await expect(dialog).toContainText(
+        'favorites, viewing progress and history'
+    );
+    await expect(dialog).toContainText('Sync works without cloud services.');
+    await expect(
+        dialog.getByRole('link', {
+            name: 'How to run a server on this computer',
+        })
+    ).toHaveAttribute('href', /#run-the-server-from-the-desktop-app$/);
+    await expect(
+        dialog.getByRole('link', {
+            name: 'How to connect to an existing server',
+        })
+    ).toHaveAttribute('href', /#connect-your-clients$/);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+    await expect(help).toBeFocused();
+});
+
 test('@settings @pwa validates the address inline without losing the token', async ({
     page,
 }) => {
