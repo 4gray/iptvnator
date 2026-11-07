@@ -31,11 +31,9 @@ export function createDecodedEpgStream(
     );
 
     if (shouldGunzipPayload) {
-        transforms.push(
-            contentEncodings.includes('gzip')
-                ? createOptionalEpgGunzip()
-                : createGunzip()
-        );
+        // The byte-sniffing decompressor handles a gzip (.gz) or xz (.xz) EPG
+        // file and passes an already-decoded payload through untouched.
+        transforms.push(createOptionalEpgGunzip());
     }
 
     if (transforms.length === 0) {

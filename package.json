@@ -153,8 +153,8 @@
         "@ngrx/signals": "22.0.1",
         "@ngrx/store": "22.0.1",
         "@ngrx/store-devtools": "22.0.1",
-        "@noble/hashes": "2.3.0",
         "@ngx-pwa/local-storage": "22.0.0",
+        "@noble/hashes": "2.3.0",
         "@yangkghjh/videojs-aspect-ratio-panel": "0.0.1",
         "angularx-qrcode": "22.0.1",
         "artplayer": "5.4.0",
@@ -182,6 +182,7 @@
         "video.js": "8.24.1",
         "videojs-contrib-quality-levels": "4.1.0",
         "videojs-quality-selector-hls": "1.1.1",
+        "xz-decompress": "^0.2.3",
         "zone.js": "0.16.3"
     },
     "devDependencies": {

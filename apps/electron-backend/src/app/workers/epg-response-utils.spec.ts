@@ -13,6 +13,47 @@ describe('shouldGunzipEpgResponse', () => {
         ).toBe(true);
     });
 
+    it('returns true for original .xz URLs', () => {
+        expect(
+            shouldGunzipEpgResponse('https://example.com/guide.xml.xz', {
+                headers: new Headers(),
+                url: 'https://example.com/guide.xml.xz',
+            })
+        ).toBe(true);
+    });
+
+    it.each(['application/x-xz', 'application/xz'])(
+        'returns true for %s',
+        (contentType) => {
+            expect(
+                shouldGunzipEpgResponse('https://example.com/guide', {
+                    headers: new Headers([['content-type', contentType]]),
+                    url: 'https://example.com/guide',
+                })
+            ).toBe(true);
+        }
+    );
+
+    it('recognizes redirected xz files with query parameters', () => {
+        expect(
+            shouldGunzipEpgResponse('https://example.test/guide', {
+                headers: {},
+                url: 'https://example.test/guide.XML.XZ?token=synthetic',
+            })
+        ).toBe(true);
+    });
+
+    it('recognizes an xz content-disposition filename', () => {
+        expect(
+            shouldGunzipEpgResponse('https://example.test/guide', {
+                headers: {
+                    'content-disposition':
+                        'attachment; filename="guide.xml.xz"',
+                },
+            })
+        ).toBe(true);
+    });
+
     it('returns true when a redirect lands on a .gz URL', () => {
         expect(
             shouldGunzipEpgResponse('http://epg.vcboy.com', {

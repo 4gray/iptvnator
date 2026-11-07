@@ -1,7 +1,32 @@
 import { Duplex, PassThrough, Readable, pipeline } from 'stream';
 import { createGunzip } from 'zlib';
+import * as xzDecompressModule from 'xz-decompress';
 
-/** Resolve the ambiguous .gz + HTTP gzip case after HTTP decoding. */
+/**
+ * `xz-decompress` ships a UMD bundle whose stream class is reachable either as
+ * a named export or nested under `default`, depending on the module interop of
+ * the consumer (bundler, ts-jest, or raw ESM). Resolve it defensively.
+ */
+type XzModuleShape = {
+    XzReadableStream?: typeof import('xz-decompress').XzReadableStream;
+    default?: {
+        XzReadableStream?: typeof import('xz-decompress').XzReadableStream;
+    };
+};
+const xzModule = xzDecompressModule as unknown as XzModuleShape;
+const XzReadableStream =
+    xzModule.XzReadableStream ?? xzModule.default?.XzReadableStream;
+
+const GZIP_MAGIC = Buffer.from([0x1f, 0x8b]);
+const XZ_MAGIC = Buffer.from([0xfd, 0x37, 0x7a, 0x58, 0x5a, 0x00]);
+
+/**
+ * Resolve the ambiguous file-level compression case after HTTP decoding.
+ *
+ * Sniffs the leading bytes and transparently decompresses a gzip (`.gz`) or
+ * xz (`.xz`) EPG file, passing anything else through untouched. Only one file
+ * layer is unwrapped; invalid gzip/xz remains an error.
+ */
 export function createOptionalEpgGunzip(): Duplex {
     const input = new PassThrough();
     const output = new PassThrough();
@@ -14,16 +39,39 @@ export function createOptionalEpgGunzip(): Duplex {
     return stage;
 }
 
+/**
+ * Bridge the WHATWG stream exposed by `xz-decompress` back into a Node stream
+ * so it can take part in the existing pipeline.
+ */
+function createXzDecodeStream(source: Readable): Readable {
+    if (typeof XzReadableStream !== 'function') {
+        throw new Error(
+            'Cannot decompress xz EPG source: xz-decompress failed to load'
+        );
+    }
+    // xz-decompress types its stream as the DOM `ReadableStream`, while Node's
+    // `Readable.to/fromWeb` use the structurally identical `stream/web` type.
+    // Bridge across the two type worlds explicitly.
+    const webSource = Readable.toWeb(
+        source
+    ) as unknown as ReadableStream<Uint8Array>;
+    const decompressed = new XzReadableStream(webSource);
+    return Readable.fromWeb(
+        decompressed as unknown as Parameters<typeof Readable.fromWeb>[0]
+    );
+}
+
 async function decodeRemainingFile(
     input: Readable,
     output: PassThrough
 ): Promise<void> {
     const iterator = input.iterator({ destroyOnReturn: false });
-    const prefix = Buffer.alloc(2);
+    // Six bytes covers both the gzip (2) and xz (6) signatures.
+    const prefix = Buffer.alloc(XZ_MAGIC.length);
     const pending: Buffer[] = [];
     let prefixLength = 0;
 
-    // Retain at most two non-empty chunks, never the whole response.
+    // Retain only the chunks needed to read the signature, never the whole file.
     while (prefixLength < prefix.length) {
         const next = await iterator.next();
         if (next.done) break;
@@ -43,11 +91,21 @@ async function decodeRemainingFile(
         })(),
         { objectMode: false }
     );
-    // One optional file layer only. Invalid gzip remains an error.
-    const decoder =
-        prefixLength === 2 && prefix[0] === 0x1f && prefix[1] === 0x8b
-            ? createGunzip()
-            : new PassThrough();
+
+    const isGzip =
+        prefixLength >= GZIP_MAGIC.length &&
+        prefix.subarray(0, GZIP_MAGIC.length).equals(GZIP_MAGIC);
+    const isXz = prefixLength >= XZ_MAGIC.length && prefix.equals(XZ_MAGIC);
+
+    // One optional file layer only. Invalid gzip/xz remains an error.
+    if (isXz) {
+        pipeline(createXzDecodeStream(replay), output, (error) => {
+            if (error) output.destroy(error);
+        });
+        return;
+    }
+
+    const decoder = isGzip ? createGunzip() : new PassThrough();
     pipeline(replay, decoder, output, (error) => {
         if (error) output.destroy(error);
     });
