@@ -342,7 +342,11 @@ test.describe('Electron Catalog Sorting', () => {
                 type: 'vod',
             });
             await clearCatalogSearch(app.mainWindow);
-            await expectDetailRoundTripRestoresScroll(app.mainWindow);
+            await expectDetailRoundTripRestoresScroll(
+                app.mainWindow,
+                undefined,
+                vodFixture.totalItems
+            );
 
             await openWorkspaceSection(app.mainWindow, 'Series');
             await clickCategoryByVisibleName(
@@ -355,7 +359,11 @@ test.describe('Electron Catalog Sorting', () => {
                 categoryId: seriesFixture.categoryId,
                 type: 'series',
             });
-            await expectDetailRoundTripRestoresScroll(app.mainWindow);
+            await expectDetailRoundTripRestoresScroll(
+                app.mainWindow,
+                undefined,
+                seriesFixture.totalItems
+            );
         } finally {
             await closeElectronApp(app);
         }
@@ -471,6 +479,46 @@ async function expectCatalogGrowsOnScroll(page: Page): Promise<number> {
     return catalogCardCount(page);
 }
 
+/** The category's item total, as the catalog header's subtitle states it. */
+async function catalogTotalItems(page: Page): Promise<number> {
+    const totalText = await page
+        .locator('.category-content-header .category-subtitle')
+        .first()
+        .textContent();
+    return Number(/\d+/.exec(totalText ?? '')?.[0] ?? 0);
+}
+
+/**
+ * Scrolls the catalog grid to its bottom. While the category still has items
+ * to load, the infinite-scroll window must append more cards. The poster grid
+ * requests the next page two rows ahead, so a small category (the Stalker
+ * mock's 40 items) can already be complete after its first scroll: then every
+ * item must be rendered and there is nothing left to append. `expectedTotal`,
+ * the size the portal itself reports, keeps the app's own subtitle honest (it
+ * drops to the loaded count when an append stalls). Returns the card count.
+ */
+async function scrollCatalogToEnd(
+    page: Page,
+    expectedTotal?: number
+): Promise<number> {
+    const grid = catalogGrid(page);
+    await expect(grid).toBeVisible({ timeout: 20000 });
+    const totalItems = await catalogTotalItems(page);
+    if (expectedTotal !== undefined) {
+        expect(totalItems).toBe(expectedTotal);
+    }
+    const countBefore = await catalogCardCount(page);
+    if (!(totalItems > 0) || countBefore < totalItems) {
+        return expectCatalogGrowsOnScroll(page);
+    }
+
+    expect(countBefore).toBe(totalItems);
+    await grid.evaluate((element: HTMLElement) => {
+        element.scrollTo({ top: element.scrollHeight });
+    });
+    return countBefore;
+}
+
 /**
  * From a grown, scrolled-down grid: opens a visible (bottom) card's detail,
  * navigates back, and expects both the render window and the scroll offset to
@@ -478,9 +526,10 @@ async function expectCatalogGrowsOnScroll(page: Page): Promise<number> {
  */
 async function expectDetailRoundTripRestoresScroll(
     page: Page,
-    detailPathname?: RegExp
+    detailPathname?: RegExp,
+    expectedTotal?: number
 ): Promise<void> {
-    const grownCount = await expectCatalogGrowsOnScroll(page);
+    const grownCount = await scrollCatalogToEnd(page, expectedTotal);
     await expect.poll(() => getCatalogGridScrollTop(page)).toBeGreaterThan(100);
 
     // The last card is already in view at the bottom — clicking it does not
@@ -515,11 +564,7 @@ async function expectStalkerCatalogAppendsOnScroll(
     const grid = catalogGrid(page);
     await expect(grid).toBeVisible({ timeout: 20000 });
 
-    const totalText = await page
-        .locator('.category-content-header .category-subtitle')
-        .first()
-        .textContent();
-    const totalItems = Number(/\d+/.exec(totalText ?? '')?.[0] ?? 0);
+    const totalItems = await catalogTotalItems(page);
     const countBefore = await catalogCardCount(page);
     if (countBefore < totalItems) {
         await grid.evaluate((element: HTMLElement) => {

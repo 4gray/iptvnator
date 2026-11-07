@@ -110,6 +110,22 @@ ownership when the session, playback, engine, or component changes.
 
 ## Diagnostics And Recovery Ownership Boundary
 
+The diagnostic panel publishes a bubbling `iptvnator:playback-issue` DOM event
+after rendering each issue, with only its bounded `code` in the detail. It contains
+no stream URL or provider credentials; the TV
+shell uses format/decode codes for its external-player offer without treating
+network failures as unsupported media.
+Delayed native media errors retain the media element, source and load-attempt
+identity. Removal, replacement, a changed source or another `loadstart` discards
+that error before it can offer recovery for a newer playback attempt.
+Android pauses host-document media on activity pause. `setForeground(false)`
+also blocks late playback retries. WebView media events remain runnable so that
+these retries can be paused. Foreground restoration permits explicit playback;
+it does not automatically restart paused elements.
+TV remote navigation uses the active DOM fullscreen owner as its base scope,
+including menus within that owner. Background controls and overlays outside
+fullscreen are excluded until fullscreen exits.
+
 `PlayerController` remains a sibling of playback diagnostics and recovery
 recommendations. It owns engine-neutral playback state, capabilities, and
 commands for the shared controls; it does not classify errors, call

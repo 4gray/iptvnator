@@ -1,0 +1,9 @@
+#EXTM3U
+# top-of-file comment
+#EXTINF:-1 tvg-id="Synthetic3",Synthetic4 Synthetic5
+# a stray comment between EXTINF and its URL
+#EXT-X-SESSION-DATA:DATA-ID="com.example.title",VALUE="Some value"
+http://synthetic.example/Synthetic1.m3u8
+#EXTINF:-1 tvg-id="Synthetic6",Synthetic4 Synthetic7
+#PLAYLIST:ignored directive
+http://synthetic.example/Synthetic2.m3u8

@@ -36,6 +36,7 @@ export class SettingsBackupSectionComponent {
     readonly unavailable = input(false);
     readonly isRemovingAllPlaylists = input(false);
     readonly isExportingData = input(false);
+    readonly supportsExport = input(true);
     readonly isImportingData = input(false);
     readonly isBackupBusy = input(false);
     readonly importSummary = input<PlaylistBackupImportSummary | null>(null);

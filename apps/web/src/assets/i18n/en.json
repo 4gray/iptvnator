@@ -1814,8 +1814,8 @@
             "TOGGLE_MUTE": "Failed to toggle mute",
             "STATUS": "Failed to fetch remote status"
         },
-        "HEADER": "IPTVNator Remote Control",
-        "FOOTER": "IPTVNator Remote Control"
+        "HEADER": "IPTVnator Remote Control",
+        "FOOTER": "IPTVnator Remote Control"
     },
     "WORKSPACE": {
         "FAVORITES_ONLY": "Favorites only",

@@ -1,0 +1,7 @@
+#EXTM3U
+#KODIPROP:inputstream.adaptive.license_type=clearkey
+#KODIPROP:inputstream.adaptive.license_key=kid123:key456
+#EXTINF:-1,Synthetic3
+http://synthetic.example/Synthetic1.mpd
+#EXTINF:-1,Synthetic4
+http://synthetic.example/Synthetic2.m3u8

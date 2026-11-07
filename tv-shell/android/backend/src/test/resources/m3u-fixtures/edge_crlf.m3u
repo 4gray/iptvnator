@@ -1,0 +1,3 @@
+#EXTM3U
+#EXTINF:-1 tvg-id="Synthetic2" radio="true",Synthetic3
+http://synthetic.example/Synthetic1.ts|User-Agent=UA

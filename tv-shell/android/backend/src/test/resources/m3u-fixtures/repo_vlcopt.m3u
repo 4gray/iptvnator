@@ -1,0 +1,5 @@
+#EXTM3U
+#EXTINF:0 tvg-name="Synthetic5" group-title="Synthetic6",Synthetic7 Synthetic8
+#EXTGRP:Synthetic9
+#EXTVLCOPT:http-user-agent="Dalvik/2.1.0 (Linux; U; Android 6.0.1;)"
+http://synthetic.example/Synthetic1/Synthetic2/900000003/Synthetic4.m3u8

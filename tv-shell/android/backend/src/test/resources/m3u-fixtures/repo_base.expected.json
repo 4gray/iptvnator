@@ -1,0 +1,187 @@
+{
+ "ok": true,
+ "result": {
+  "header": {
+   "attrs": {
+    "x-tvg-url": "http://192.0.2.1/Synthetic1/Synthetic2"
+   },
+   "raw": "#EXTM3U x-tvg-url=\"http://192.0.2.1/Synthetic1/Synthetic2\""
+  },
+  "items": [
+   {
+    "name": "Synthetic31 1 (Synthetic32)",
+    "tvg": {
+     "id": "Synthetic28",
+     "name": "Synthetic29 1",
+     "logo": "http://synthetic.example/Synthetic3/Synthetic4/900000005/900000006/Synthetic7.png",
+     "url": "http://192.0.2.1/Synthetic1/Synthetic8",
+     "rec": "3",
+     "shift": ""
+    },
+    "group": {
+     "title": "Синтетический33 Synthetic34"
+    },
+    "http": {
+     "referrer": "http://synthetic.example/Synthetic9/",
+     "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.25 Safari/537.36"
+    },
+    "url": "http://synthetic.example/Synthetic10/Synthetic11/Synthetic12/Synthetic13/Synthetic14.m3u8",
+    "raw": "    #EXTINF:-1 tvg-ID=\"Synthetic28\" tvg-name=\"Synthetic29 1\" tvg-logo=\"http://synthetic.example/Synthetic3/Synthetic4/900000005/900000006/Synthetic7.png\" tvg-url=\"http://192.0.2.1/Synthetic1/Synthetic8\" tvg-rec=\"3\" group-title=\"Synthetic30\",Synthetic31 1 (Synthetic32)\r\n    #EXTGRP:Синтетический33 Synthetic34\r\n    #EXTVLCOPT:http-referrer=http://synthetic.example/Synthetic9/\r\n    #EXTVLCOPT:http-user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.25 Safari/537.36\r\n    http://synthetic.example/Synthetic10/Synthetic11/Synthetic12/Synthetic13/Synthetic14.m3u8",
+    "line": 2,
+    "catchup": {
+     "type": "",
+     "days": "",
+     "source": ""
+    },
+    "timeshift": "",
+    "lang": "",
+    "radio": ""
+   },
+   {
+    "name": "Synthetic31 2",
+    "tvg": {
+     "id": "Synthetic35",
+     "name": "",
+     "logo": "",
+     "url": "",
+     "rec": "",
+     "shift": ""
+    },
+    "group": {
+     "title": ""
+    },
+    "http": {
+     "referrer": "",
+     "user-agent": ""
+    },
+    "url": "Synthetic48/Synthetic49.Synthetic50",
+    "raw": "    #EXTINF:16 tvg-id=\"Synthetic35\",Synthetic31 2\r\nSynthetic48/Synthetic49.Synthetic50",
+    "line": 7,
+    "catchup": {
+     "type": "",
+     "days": "",
+     "source": ""
+    },
+    "timeshift": "",
+    "lang": "",
+    "radio": ""
+   },
+   {
+    "name": "=>(★ Синтетический36 ★)<=",
+    "tvg": {
+     "id": "",
+     "name": "",
+     "logo": "",
+     "url": "",
+     "rec": "",
+     "shift": ""
+    },
+    "group": {
+     "title": ""
+    },
+    "http": {
+     "referrer": "",
+     "user-agent": ""
+    },
+    "url": "http://synthetic.example:8080/Synthetic15/Synthetic16.mp4",
+    "raw": "#EXTINF:1,=>(★ Синтетический36 ★)<=\r\n\r\nhttp://synthetic.example:8080/Synthetic15/Synthetic16.mp4",
+    "line": 12,
+    "catchup": {
+     "type": "",
+     "days": "",
+     "source": ""
+    },
+    "timeshift": "",
+    "lang": "",
+    "radio": ""
+   },
+   {
+    "name": "Synthetic37 1 Synthetic38",
+    "tvg": {
+     "id": "",
+     "name": "",
+     "logo": "",
+     "url": "",
+     "rec": "",
+     "shift": "-4.5"
+    },
+    "group": {
+     "title": ""
+    },
+    "http": {
+     "referrer": "http://synthetic.example/",
+     "user-agent": "Mozilla/5.0"
+    },
+    "url": "https://synthetic.example/Synthetic22/Synthetic23/Synthetic24.m3u8",
+    "raw": "#EXTINF:1 tvg-shift=\"-4.5\" timeshift=\"3\" catchup=\"shift\" catchup-days=\"3\" catchup-source=\"https://synthetic.example/Synthetic17.m3u8?Synthetic19=900000018&Synthetic21=900000020\" lang=\"tur\" http-referrer=\"http://synthetic.example/\" http-user-agent=\"Mozilla/5.0\",Synthetic37 1 Synthetic38\r\nhttps://synthetic.example/Synthetic22/Synthetic23/Synthetic24.m3u8",
+    "line": 15,
+    "catchup": {
+     "type": "shift",
+     "days": "3",
+     "source": "https://synthetic.example/Synthetic17.m3u8?Synthetic19=900000018&Synthetic21=900000020"
+    },
+    "timeshift": "3",
+    "lang": "tur",
+    "radio": ""
+   },
+   {
+    "name": " Synthetic39,Synthetic40 Synthetic41",
+    "tvg": {
+     "id": "",
+     "name": "",
+     "logo": "",
+     "url": "",
+     "rec": "",
+     "shift": ""
+    },
+    "group": {
+     "title": ""
+    },
+    "http": {
+     "referrer": "",
+     "user-agent": ""
+    },
+    "url": "http://synthetic.example/Synthetic25?Synthetic27=%D0%A1%D0%B8%D0%BD%D1%82%D0%B5%D1%82%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B8%D0%B926",
+    "raw": "#EXTINF: -1, Synthetic39,Synthetic40 Synthetic41\r\nhttp://synthetic.example/Synthetic25?Synthetic27=%D0%A1%D0%B8%D0%BD%D1%82%D0%B5%D1%82%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B8%D0%B926",
+    "line": 17,
+    "catchup": {
+     "type": "",
+     "days": "",
+     "source": ""
+    },
+    "timeshift": "",
+    "lang": "",
+    "radio": ""
+   },
+   {
+    "name": "Synthetic42 Synthetic43, Synthetic44 Synthetic45 Synthetic46 Synthetic44 Synthetic47",
+    "tvg": {
+     "id": "",
+     "name": "Synthetic42 Synthetic43, Synthetic44 Synthetic45 Synthetic46 Synthetic44 Synthetic47",
+     "logo": "",
+     "url": "",
+     "rec": "",
+     "shift": ""
+    },
+    "group": {
+     "title": ""
+    },
+    "http": {
+     "referrer": "",
+     "user-agent": ""
+    },
+    "url": "Synthetic52.Synthetic50",
+    "raw": "#EXTINF: -1 tvg-name=\"Synthetic42 Synthetic43, Synthetic44 Synthetic45 Synthetic46 Synthetic44 Synthetic47\",Synthetic42 Synthetic43, Synthetic44 Synthetic45 Synthetic46 Synthetic44 Synthetic47\r\nSynthetic52.Synthetic50",
+    "line": 19,
+    "catchup": {
+     "type": "",
+     "days": "",
+     "source": ""
+    },
+    "timeshift": "",
+    "lang": "",
+    "radio": ""
+   }
+  ]
+ }
+}

@@ -1,0 +1,3 @@
+#EXTM3U x-tvg-url="" url-tvg="http://synthetic.example/Synthetic1.xml"
+#EXTINF:-1,Synthetic3
+http://synthetic.example/Synthetic2.ts

@@ -1,4 +1,8 @@
-<div class="grid-list__grid">
+<div
+    class="grid-list__grid"
+    [style.padding-top.px]="gridWindow.topPx()"
+    [style.padding-bottom.px]="gridWindow.bottomPx()"
+>
     @if (isLoading()) {
         @for (row of skeletonRows(); track row) {
             <div class="grid-skeleton-card" aria-hidden="true">
@@ -28,7 +32,10 @@
             </div>
         }
     } @else {
-        @for (item of items(); track $index) {
+        @for (
+            item of gridWindow.rendered();
+            track gridWindow.trackKey($index, item)
+        ) {
             @let i = $any(item);
             @let title = channelTitle(i) || ('PORTALS.UNTITLED' | translate);
             <mat-card

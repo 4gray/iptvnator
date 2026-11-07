@@ -93,6 +93,17 @@ currently stay on the TV. A matching IPTVnator backend is required.
 See the [TV README](apps/tv/README.md) for compatibility, phone setup, source
 synchronization and screenshots.
 
+## Fire TV / Android TV shell (experimental)
+
+[`tv-shell/`](./tv-shell/README.md) brings IPTVnator to Fire TV sticks and
+Android TV boxes by wrapping the browser PWA in a small Android app. The web backend is embedded in the APK,
+so nothing has to be hosted; a remote-control layer drives the existing
+interface with the D-pad, and streams the TV's WebView cannot play are handed to
+an installed player such as VLC. The `Build TV shell APK` workflow builds the
+APK and can publish it as a GitHub release (a pre-release by default); see
+[`tv-shell/README.md`](./tv-shell/README.md) for installation, the security
+model and the remote-control key map.
+
 ## Help and development
 
 - [User guides](https://4gray.github.io/iptvnator/guides/) — sources, EPG,

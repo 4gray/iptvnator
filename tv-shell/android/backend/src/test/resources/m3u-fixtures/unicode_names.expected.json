@@ -1,0 +1,69 @@
+{
+ "ok": true,
+ "result": {
+  "header": {
+   "attrs": {},
+   "raw": "#EXTM3U"
+  },
+  "items": [
+   {
+    "name": "Синтетический6 Synthetic7°1 – « Синтетический8 »",
+    "tvg": {
+     "id": "Synthetic3",
+     "name": "",
+     "logo": "",
+     "url": "",
+     "rec": "",
+     "shift": ""
+    },
+    "group": {
+     "title": "Синтетический4 Синтетический5"
+    },
+    "http": {
+     "referrer": "",
+     "user-agent": ""
+    },
+    "url": "http://synthetic.example/Synthetic1.ts",
+    "raw": "#EXTINF:-1 tvg-id=\"Synthetic3\" group-title=\"Синтетический4 Синтетический5\",Синтетический6 Synthetic7°1 – « Синтетический8 »\r\nhttp://synthetic.example/Synthetic1.ts",
+    "line": 2,
+    "catchup": {
+     "type": "",
+     "days": "",
+     "source": ""
+    },
+    "timeshift": "",
+    "lang": "",
+    "radio": ""
+   },
+   {
+    "name": "Синтетический10 Синтетический11",
+    "tvg": {
+     "id": "",
+     "name": "",
+     "logo": "",
+     "url": "",
+     "rec": "",
+     "shift": ""
+    },
+    "group": {
+     "title": "Синтетический9"
+    },
+    "http": {
+     "referrer": "",
+     "user-agent": ""
+    },
+    "url": "http://synthetic.example/Synthetic2.ts",
+    "raw": "#EXTINF:-1 group-title=\"Синтетический9\",Синтетический10 Синтетический11\r\nhttp://synthetic.example/Synthetic2.ts",
+    "line": 4,
+    "catchup": {
+     "type": "",
+     "days": "",
+     "source": ""
+    },
+    "timeshift": "",
+    "lang": "",
+    "radio": ""
+   }
+  ]
+ }
+}

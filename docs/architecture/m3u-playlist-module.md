@@ -13,6 +13,15 @@ The M3U playlist module provides:
 - Per-playlist group visibility management in the groups view
 - Video playback with multiple player backends
 
+## In-memory playlist state
+
+The NgRx playlist entity map holds metadata only. Parsed channels live in the
+active `channels` cache; the full source record remains in persistence and in
+owned action payloads used by effects. Shared-source inventory replacement keeps
+the active cache and removes deleted metadata without retaining another parsed
+payload. Shared hydration replaces the active channels while preserving local
+favorites and EPG preferences, and clears any previously retained entity payload.
+
 ## Adding a URL source
 
 The Add playlist dialog acquires a definition through

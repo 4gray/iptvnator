@@ -1,0 +1,40 @@
+{
+ "ok": true,
+ "result": {
+  "header": {
+   "attrs": {},
+   "raw": "#EXTM3U"
+  },
+  "items": [
+   {
+    "name": "Synthetic5",
+    "tvg": {
+     "id": "Synthetic2",
+     "name": "Synthetic3",
+     "logo": "lg",
+     "url": "tu",
+     "rec": "3",
+     "shift": "-1"
+    },
+    "group": {
+     "title": "Synthetic4"
+    },
+    "http": {
+     "referrer": "ref",
+     "user-agent": "ua"
+    },
+    "url": "http://synthetic.example/Synthetic1.ts",
+    "raw": "#EXTINF:-1 tvg-id=\"Synthetic2\" tvg-name=\"Synthetic3\" tvg-logo=\"lg\" tvg-url=\"tu\" tvg-rec=\"3\" tvg-shift=\"-1\" group-title=\"Synthetic4\" referrer=\"ref\" user-agent=\"ua\" catchup=\"shift\" catchup-days=\"7\" catchup-source=\"cs\" timeshift=\"2\" lang=\"eng\" radio=\"true\",Synthetic5\r\nhttp://synthetic.example/Synthetic1.ts",
+    "line": 2,
+    "catchup": {
+     "type": "shift",
+     "days": "7",
+     "source": "cs"
+    },
+    "timeshift": "2",
+    "lang": "eng",
+    "radio": "true"
+   }
+  ]
+ }
+}

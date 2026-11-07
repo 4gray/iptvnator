@@ -1,0 +1,40 @@
+{
+ "ok": true,
+ "result": {
+  "header": {
+   "attrs": {},
+   "raw": "#EXTM3U"
+  },
+  "items": [
+   {
+    "name": "Synthetic3",
+    "tvg": {
+     "id": "Synthetic2",
+     "name": "",
+     "logo": "",
+     "url": "",
+     "rec": "",
+     "shift": ""
+    },
+    "group": {
+     "title": ""
+    },
+    "http": {
+     "referrer": "",
+     "user-agent": "UA"
+    },
+    "url": "http://synthetic.example/Synthetic1.ts",
+    "raw": "#EXTINF:-1 tvg-id=\"Synthetic2\" radio=\"true\",Synthetic3\r\nhttp://synthetic.example/Synthetic1.ts|User-Agent=UA",
+    "line": 2,
+    "catchup": {
+     "type": "",
+     "days": "",
+     "source": ""
+    },
+    "timeshift": "",
+    "lang": "",
+    "radio": "true"
+   }
+  ]
+ }
+}
