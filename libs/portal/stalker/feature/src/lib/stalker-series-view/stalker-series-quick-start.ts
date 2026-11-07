@@ -3,6 +3,7 @@ import {
     formatSeriesEpisodeCode,
     getSeriesQuickStartAction,
     isExtrasSeason,
+    isPortalPlaybackWatched,
     type SeriesQuickStartAction,
 } from '@iptvnator/portal/shared/util';
 import {
@@ -52,6 +53,7 @@ export function getStalkerSeriesQuickStartButton(
         ? getQuickStartLazyVodSeriesSeason(
               action,
               request.mappedSeasons,
+              request.playbackPositions,
               orderedVodSeriesSeasons
           )
         : null;
@@ -96,9 +98,12 @@ function getOrderedVodSeriesSeasons(
     );
 }
 
+const SQLITE_UTC_TIMESTAMP = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d+)?$/;
+
 function getQuickStartLazyVodSeriesSeason(
     action: SeriesQuickStartAction | null,
     mappedSeasons: Record<string, XtreamSerieEpisode[]>,
+    playbackPositions: ReadonlyMap<number, PlaybackPositionData>,
     seasons: ReadonlyArray<VodSeriesSeasonVm>
 ): VodSeriesSeasonVm | null {
     const firstUnloadedSeason = getFirstUnloadedVodSeriesSeason(
@@ -132,8 +137,41 @@ function getQuickStartLazyVodSeriesSeason(
         return null;
     }
 
-    if (action.kind === SERIES_QUICK_START_ACTION_KIND.Completed) {
-        return firstUnloadedSeason;
+    const lastWatchedSeasonIndex = findLastWatchedVodSeriesSeasonIndex(
+        seasons,
+        mappedSeasons,
+        playbackPositions
+    );
+
+    if (
+        action.kind === SERIES_QUICK_START_ACTION_KIND.Completed ||
+        (lastWatchedSeasonIndex !== -1 &&
+            actionSeasonIndex !== -1 &&
+            actionSeasonIndex < lastWatchedSeasonIndex)
+    ) {
+        const nextUnloadedAfterWatched =
+            lastWatchedSeasonIndex !== -1
+                ? getFirstUnloadedVodSeriesSeason(
+                      seasons.slice(lastWatchedSeasonIndex + 1),
+                      mappedSeasons
+                  )
+                : null;
+        if (nextUnloadedAfterWatched) {
+            return nextUnloadedAfterWatched;
+        }
+        if (action.kind === SERIES_QUICK_START_ACTION_KIND.Completed) {
+            return firstUnloadedSeason;
+        }
+    }
+
+    if (
+        lastWatchedSeasonIndex !== -1 &&
+        actionSeasonIndex >= lastWatchedSeasonIndex
+    ) {
+        return getFirstUnloadedVodSeriesSeason(
+            seasons.slice(lastWatchedSeasonIndex + 1, actionSeasonIndex),
+            mappedSeasons
+        );
     }
 
     const unloadedSeasonIndex = seasons.findIndex(
@@ -145,6 +183,44 @@ function getQuickStartLazyVodSeriesSeason(
         unloadedSeasonIndex < actionSeasonIndex
         ? firstUnloadedSeason
         : null;
+}
+
+function findLastWatchedVodSeriesSeasonIndex(
+    seasons: ReadonlyArray<VodSeriesSeasonVm>,
+    mappedSeasons: Record<string, XtreamSerieEpisode[]>,
+    playbackPositions: ReadonlyMap<number, PlaybackPositionData>
+): number {
+    let lastWatchedSeasonIndex = -1;
+    let bestTimestamp = -1;
+    for (let index = 0; index < seasons.length; index++) {
+        const season = seasons[index];
+        if (isExtrasVodSeason(season, mappedSeasons)) {
+            continue;
+        }
+        const episodes = mappedSeasons[getVodSeriesSeasonKey(season)] ?? [];
+        for (const episode of episodes) {
+            const position = playbackPositions.get(Number(episode.id));
+            if (!isPortalPlaybackWatched(position)) {
+                continue;
+            }
+            const timestamp = getPositionTimestamp(position?.updatedAt);
+            if (lastWatchedSeasonIndex === -1 || timestamp >= bestTimestamp) {
+                bestTimestamp = timestamp;
+                lastWatchedSeasonIndex = index;
+            }
+        }
+    }
+    return lastWatchedSeasonIndex;
+}
+
+function getPositionTimestamp(value: string | undefined): number {
+    if (!value) {
+        return 0;
+    }
+    const timestamp = Date.parse(
+        SQLITE_UTC_TIMESTAMP.test(value) ? `${value.replace(' ', 'T')}Z` : value
+    );
+    return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
 /**

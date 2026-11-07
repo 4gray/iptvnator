@@ -1,6 +1,8 @@
 import type { WritableSignal } from '@angular/core';
+import { isExtrasSeason } from '@iptvnator/portal/shared/util';
 import {
     getVodSeriesSeasonKey,
+    isVodSeasonHydrationPending,
     type VodSeriesSeasonVm,
 } from '@iptvnator/portal/stalker/data-access';
 
@@ -23,8 +25,67 @@ export class StalkerVodSeasonEpisodeLoader {
         string,
         { season: VodSeriesSeasonVm; promise: Promise<boolean> }
     >();
+    private hydratedSeriesKey = '';
+    private shouldHydrateSeries = false;
+    private readonly failedSeasonIds = new Set<string>();
+    private hydrationInFlight = false;
 
     constructor(private readonly host: StalkerVodSeasonEpisodeLoaderHost) {}
+
+    /**
+     * Hydrates pending regular seasons sequentially when a lazy VOD series
+     * opens with saved playback positions, so the season picker and
+     * next-episode action reflect the viewer's actual progress across seasons.
+     */
+    hydrateForSavedProgress(seriesKey: string, hasSavedProgress: boolean): void {
+        if (seriesKey !== this.hydratedSeriesKey) {
+            this.hydratedSeriesKey = seriesKey;
+            this.shouldHydrateSeries = hasSavedProgress;
+            this.failedSeasonIds.clear();
+        }
+        if (
+            !seriesKey ||
+            !this.shouldHydrateSeries ||
+            this.hydrationInFlight
+        ) {
+            return;
+        }
+        const seasons = this.host.seasons();
+        const hasRegularRun = seasons.some(
+            (season) =>
+                !isExtrasSeason(getVodSeriesSeasonKey(season), null) &&
+                (season.episodes.length > 0 ||
+                    isVodSeasonHydrationPending(season))
+        );
+        const nextSeason = seasons.find(
+            (season) =>
+                !this.failedSeasonIds.has(season.id) &&
+                !(
+                    hasRegularRun &&
+                    isExtrasSeason(getVodSeriesSeasonKey(season), null)
+                ) &&
+                isVodSeasonHydrationPending(season)
+        );
+        if (!nextSeason) {
+            return;
+        }
+        this.hydrationInFlight = true;
+        void this.load(nextSeason)
+            .then((answered) => {
+                if (!answered && this.hydratedSeriesKey === seriesKey) {
+                    this.failedSeasonIds.add(nextSeason.id);
+                }
+            })
+            .finally(() => {
+                this.hydrationInFlight = false;
+                if (this.hydratedSeriesKey === seriesKey) {
+                    this.hydrateForSavedProgress(
+                        seriesKey,
+                        this.shouldHydrateSeries
+                    );
+                }
+            });
+    }
 
     /**
      * Loads episodes for a specific VOD season.

@@ -1,6 +1,7 @@
 import {
     isExtrasSeason,
     isPortalPlaybackInProgress,
+    isPortalPlaybackWatched,
 } from '@iptvnator/portal/shared/util';
 import {
     PlaybackPositionData,
@@ -61,6 +62,7 @@ export function resolveAutoSelectedSeason(
     const steering = runKeys.length > 0 && runMayHaveEpisodes ? runKeys : keys;
     return (
         findMostRecentInProgressSeason(context, steering) ??
+        findNextAfterLastWatchedSeason(context, steering) ??
         resolveDefaultSeason(context, steering, unloaded)
     );
 }
@@ -123,4 +125,63 @@ function findMostRecentInProgressSeason(
         }
     }
     return bestSeason;
+}
+
+/**
+ * Season of the first unwatched episode after the episode watched last, so
+ * skipping ahead to a later season (e.g. watching S04E01–S04E02 with
+ * seasons 1–3 untouched) keeps the container on season 4 instead of falling
+ * back to season 1.
+ */
+function findNextAfterLastWatchedSeason(
+    {
+        seasons,
+        positionOf,
+        hasUnloadedSeasons,
+        episodeCounts,
+        watchedCounts,
+    }: AutoSeasonContext,
+    keys: readonly string[]
+): string | null {
+    let lastWatchedKey: string | null = null;
+    let lastWatchedIndex = -1;
+    let bestUpdatedAt = '';
+    for (const key of keys) {
+        const episodes = seasons[key] ?? [];
+        for (let index = 0; index < episodes.length; index++) {
+            const position = positionOf(episodes[index]);
+            if (!isPortalPlaybackWatched(position)) {
+                continue;
+            }
+            const updatedAt = position?.updatedAt ?? '';
+            if (lastWatchedKey === null || updatedAt >= bestUpdatedAt) {
+                bestUpdatedAt = updatedAt;
+                lastWatchedKey = key;
+                lastWatchedIndex = index;
+            }
+        }
+    }
+    if (lastWatchedKey === null) {
+        return null;
+    }
+    const remainingInSeason = (seasons[lastWatchedKey] ?? []).slice(
+        lastWatchedIndex + 1
+    );
+    if (
+        remainingInSeason.some(
+            (episode) => !isPortalPlaybackWatched(positionOf(episode))
+        )
+    ) {
+        return lastWatchedKey;
+    }
+    if (hasUnloadedSeasons) {
+        return null;
+    }
+    const afterSeasonIndex = keys.indexOf(lastWatchedKey);
+    return (
+        keys.slice(afterSeasonIndex + 1).find((key) => {
+            const total = episodeCounts[key] ?? 0;
+            return total > 0 && (watchedCounts[key] ?? 0) < total;
+        }) ?? null
+    );
 }
