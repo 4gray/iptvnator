@@ -338,7 +338,7 @@ public class WebBackend {
 
     /** Roughly {@code new URL(raw).href}: validates and normalises scheme/host. */
     static String normalizeHref(String raw) {
-        java.net.URI uri = PortalUrls.parse(raw);
+        java.net.URI uri = PortalUrls.parse(raw.replace(" ", "%20"));
         String path = uri.getRawPath() == null || uri.getRawPath().isEmpty() ? "/" : uri.getRawPath();
         String query = uri.getRawQuery() == null ? "" : "?" + uri.getRawQuery();
         String fragment = uri.getRawFragment() == null ? "" : "#" + uri.getRawFragment();

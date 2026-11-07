@@ -55,8 +55,9 @@ The Node reference server allows the local mock provider by default. For other
 providers, set `TVSHELL_PROVIDER_ORIGINS` to a comma-separated list of HTTP(S)
 origins such as `https://provider.example`. Registration and every redirect hop
 must use a configured origin. The embedded Android backend has its own provider
-policy. The Node server serves static files and the SPA entry point from the
-configured `--www` directory, with symbolic links confined to that directory.
+policy and encodes spaces in registered playlist URLs without re-encoding
+existing escapes. The Node server serves static files and the SPA entry point
+from the configured `--www` directory, with symbolic links confined to that directory.
 
 - **Remote-control navigation**: the D-pad moves the focus between the app's
   focusable elements (a JavaScript port of Android's FocusFinder), OK activates,

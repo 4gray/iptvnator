@@ -110,6 +110,19 @@ public class WebBackendTest {
         assertEquals("reset", Boolean.FALSE, body(reset).get("reset"));
     }
 
+    public void testPlaylistUrlWithSpacesIsNormalizedWithoutReencoding() {
+        FakeFetcher fetcher = new FakeFetcher();
+        WebBackend backend = new WebBackend(fetcher, "/api");
+        String normalized = "https://provider.example/Synthetic%20List.m3u?label=two%20words&token=synthetic%2Fvalue";
+        fetcher.answers.put(normalized, "#EXTM3U\n#EXTINF:-1,Synthetic Channel\nhttps://media.example/channel.ts\n");
+        String id = register(backend, "https://provider.example/Synthetic List.m3u?label=two words&token=synthetic%2Fvalue");
+        assertEquals("same target for encoded spelling", register(backend, normalized), id);
+        WebBackend.Response response = backend.handle("GET", "/parse", query("targetId", id), null);
+        assertEquals("normalized playlist is fetched", normalized, fetcher.urls.get(0));
+        assertEquals("playlist import", 200, response.status);
+        assertEquals("playlist count", 1, ((Number) body(response).get("count")).intValue());
+    }
+
     @SuppressWarnings("unchecked")
     public void testParseBuildsThePlaylistRecord() {
         FakeFetcher fetcher = new FakeFetcher();
