@@ -45,6 +45,12 @@ on:
             - '.codex/**'
             - '.claude/**'
     workflow_dispatch:
+        inputs:
+            publish_release:
+                description: Publish the build as a real release (v<package version>) that the in-app updater picks up
+                required: false
+                default: false
+                type: boolean
 
 # Build jobs only read the repo; the create-release job raises itself to
 # contents: write at the job level to manage the rolling draft release.
@@ -1605,6 +1611,7 @@ jobs:
                   VERSION: ${{ steps.package-version.outputs.version }}
                   EVENT_NAME: ${{ github.event_name }}
                   IS_TAG_BUILD: ${{ startsWith(github.ref, 'refs/tags/') }}
+                  PUBLISH_RELEASE: ${{ inputs.publish_release == true && 'true' || 'false' }}
                   PR_NUMBER: ${{ github.event.pull_request.number }}
                   PR_TITLE: ${{ github.event.pull_request.title }}
                   PR_URL: ${{ github.event.pull_request.html_url }}
@@ -1618,9 +1625,13 @@ jobs:
                   SHORT_SHA="${HEAD_SHA:0:7}"
                   SAFE_BRANCH="${SOURCE_BRANCH//\//-}"
 
-                  if [ "${IS_TAG_BUILD}" = "true" ]; then
+                  if [ "${IS_TAG_BUILD}" = "true" ] || [ "${PUBLISH_RELEASE}" = "true" ]; then
                       NAME="Release v${VERSION}"
-                      TAG="${GITHUB_REF_NAME}"
+                      if [ "${IS_TAG_BUILD}" = "true" ]; then
+                          TAG="${GITHUB_REF_NAME}"
+                      else
+                          TAG="v${VERSION}"
+                      fi
                       # The full committed CHANGELOG retains internal notes,
                       # while the tag release uses authored public extraction.
                       # An internal-only release intentionally has no authored
@@ -1702,8 +1713,8 @@ jobs:
               if: env.NIGHTLY != 'true' && (github.event_name != 'pull_request' || steps.pr-state.outputs.state == 'open')
               uses: softprops/action-gh-release@v3
               with:
-                  draft: true
-                  prerelease: ${{ !startsWith(github.ref, 'refs/tags/') }}
+                  draft: ${{ inputs.publish_release != true }}
+                  prerelease: ${{ !startsWith(github.ref, 'refs/tags/') && inputs.publish_release != true }}
                   name: ${{ steps.release-meta.outputs.name }}
                   tag_name: ${{ steps.release-meta.outputs.tag }}
                   target_commitish: ${{ steps.release-meta.outputs.commitish }}
