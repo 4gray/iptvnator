@@ -658,9 +658,10 @@ sorted by popularity, up to 5 pages (early stop at `total_pages`),
 mapped/deduped by `mapDiscoverResults` (`tmdb-discover.ts`). Results are
 deliberately session-cached in memory only (FIFO-bounded Map keyed by
 mediaType|facets|language) and never persisted to `tmdb_metadata` —
-popularity rankings are volatile. Any failure returns `null` (not
-cached); the page shows its empty state, which also covers deep links
-with enrichment disabled.
+popularity rankings are volatile. A deep link with enrichment disabled
+offers a link to TMDB settings without sending a request. If a request
+returns `null`, Discover offers Retry with the same facets. A successful
+empty result has its own message.
 
 **Route containers.** `XtreamDiscoverRouteComponent`
 (`libs/portal/xtream/feature/src/lib/discover/`) and
@@ -679,7 +680,9 @@ match keeps both: the guard owns the in-flight INDICATOR (a request whose
 subject changed must not clear a spinner its replacement now owns, and a
 request with no replacement must still clear it) while the facet key
 decides whether the RESULT is still wanted. The actor pages use the same
-guard for the same reason.
+guard for the same reason. A new Discover load invalidates the previous
+catalog lookup and clears its spinner because an empty selection may not
+start a replacement lookup.
 
 Availability also waits for the catalog, not just for TMDB: the content
 gate renders the route while a cold import runs, and TMDB usually answers
@@ -690,7 +693,11 @@ spinning forever. Both
 render the shared `DiscoverViewComponent`, whose grid is the
 `TitleResultsComponent` extracted from `ActorViewComponent`
 (`libs/ui/shared-portals/src/lib/title-results/`) — one grid, filter
-chips, and badge set shared by actor and Discover pages.
+chips, and badge set shared by actor and Discover pages. Stalker Discover
+marks availability as unknown in the current portal and offers search with
+normal poster styling. Where matching is supported, the filter shows the
+counts for all returned titles and confirmed library matches after matching
+settles. An empty library filter offers a return to all returned titles.
 
 ## Cache
 

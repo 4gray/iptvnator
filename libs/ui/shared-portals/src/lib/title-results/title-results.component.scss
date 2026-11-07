@@ -1,3 +1,5 @@
+@use '../../../../styles/app-controls' as controls;
+
 // Theme custom properties (--surface-bg, --text-*, --chip-*,
 // --poster-fallback-bg) are defined by the hosting page's :host scope and
 // cascade in — see actor-view / discover-view.
@@ -73,9 +75,15 @@
         }
 
         p {
+            color: var(--app-on-surface);
             font-size: 0.9375rem;
             margin: 0;
+            text-align: center;
         }
+    }
+
+    &__show-all {
+        @include controls.secondary-button;
     }
 
     &__badge {
@@ -111,6 +119,7 @@
 
     &__filter {
         display: inline-flex;
+        flex-wrap: wrap;
         gap: 8px;
         margin-left: 16px;
         vertical-align: middle;
@@ -120,16 +129,16 @@
         background: var(--chip-bg);
         border: 1px solid var(--chip-border);
         border-radius: 999px;
-        color: var(--text-muted);
+        color: var(--app-on-surface);
         cursor: pointer;
         font-size: 0.8125rem;
         font-weight: 500;
         padding: 4px 14px;
 
         &--active {
-            border-color: transparent;
-            background: #2f7bff;
-            color: #fff;
+            border-color: var(--app-selection-border);
+            background: var(--app-selection-surface);
+            color: var(--app-selection-text-color);
         }
     }
 

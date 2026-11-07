@@ -54,6 +54,8 @@ interface DiscoverItem extends DiscoverTitle {
         [facets]="facets()"
         [items]="items()"
         [isLoading]="isLoading()"
+        [tmdbEnabled]="tmdbEnabled()"
+        [loadFailed]="loadFailed()"
         [isMatching]="isMatchingGlobal()"
         [showAvailabilityFilter]="true"
         [showScopeToggle]="showScopeToggle"
@@ -61,6 +63,7 @@ interface DiscoverItem extends DiscoverTitle {
         (scopeChanged)="onScopeChanged($event)"
         (itemClicked)="openItem($event)"
         (backClicked)="goBack()"
+        (retryRequested)="loadDiscover()"
     />`,
     styles: [':host { display: block; height: 100%; min-height: 0; }'],
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -84,6 +87,8 @@ export class XtreamDiscoverRouteComponent {
 
     private readonly results = signal<DiscoverTitle[]>([]);
     private readonly isLoadingResults = signal(true);
+    readonly loadFailed = signal(false);
+    readonly tmdbEnabled = computed(() => this.tmdbEnrichment.isEnabled());
 
     /**
      * TMDB usually answers before a cold catalog finishes importing, and
@@ -272,15 +277,19 @@ export class XtreamDiscoverRouteComponent {
         }
     }
 
-    private async loadDiscover(): Promise<void> {
+    async loadDiscover(): Promise<void> {
         const facets = this.facets();
         // A facet change to B and back to A leaves two in-flight requests
         // with the SAME key, so recency — not the key — decides who may
         // commit: otherwise the older one's failure blanks valid results
         const token = this.discoverRequest.start();
         this.isLoadingResults.set(true);
+        this.loadFailed.set(false);
+        // An empty selection may never start another catalog lookup.
+        this.matchRequest.start();
+        this.isMatchingGlobal.set(false);
         this.globalMatches.set(null);
-        if (!hasDiscoverFacet(facets)) {
+        if (!hasDiscoverFacet(facets) || !this.tmdbEnabled()) {
             this.results.set([]);
             this.isLoadingResults.set(false);
             return;
@@ -294,8 +303,9 @@ export class XtreamDiscoverRouteComponent {
             return;
         }
         this.results.set(titles ?? []);
+        this.loadFailed.set(titles === null);
         this.isLoadingResults.set(false);
-        if (this.scope() === 'global') {
+        if (titles?.length && this.scope() === 'global') {
             void this.loadGlobalMatches();
         }
     }

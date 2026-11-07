@@ -1,6 +1,8 @@
 <div class="discover-view">
     <header class="discover-view__header">
-        <h1>{{ 'XTREAM.DISCOVER_TITLE' | translate }}</h1>
+        <h1 #discoverTitle tabindex="-1">
+            {{ 'XTREAM.DISCOVER_TITLE' | translate }}
+        </h1>
         <div class="discover-view__facets">
             <span class="discover-view__facet-chip">
                 {{ mediaTypeLabelKey() | translate }}
@@ -11,9 +13,32 @@
         </div>
     </header>
 
-    @if (isLoading()) {
+    @if (!tmdbEnabled()) {
+        <div class="discover-view__notice">
+            <p role="status">{{ 'XTREAM.DISCOVER_DISABLED' | translate }}</p>
+            <a
+                mat-flat-button
+                class="discover-view__action"
+                routerLink="/workspace/settings/tmdb"
+            >
+                {{ 'WORKSPACE.SHELL.OPEN_SETTINGS' | translate }}
+            </a>
+        </div>
+    } @else if (isLoading()) {
         <div class="discover-view__loading">
             <mat-spinner diameter="48" />
+        </div>
+    } @else if (loadFailed()) {
+        <div class="discover-view__notice">
+            <p role="status">{{ 'XTREAM.DISCOVER_ERROR' | translate }}</p>
+            <button
+                type="button"
+                mat-flat-button
+                class="discover-view__action"
+                (click)="discoverTitle.focus(); retryRequested.emit()"
+            >
+                {{ 'RETRY' | translate }}
+            </button>
         </div>
     } @else {
         <app-title-results

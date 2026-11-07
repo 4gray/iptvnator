@@ -1,3 +1,5 @@
+@use '../../../../styles/app-controls' as controls;
+
 // Same theme scope as the actor page — cascades into app-title-results.
 :host {
     --surface-bg: #fffaf5;
@@ -35,6 +37,24 @@
         display: flex;
         justify-content: center;
         min-height: 40vh;
+    }
+
+    &__notice {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        padding: 48px 0;
+        text-align: center;
+
+        p {
+            margin: 0;
+            max-width: 50ch;
+        }
+    }
+
+    &__action {
+        @include controls.accent-button;
     }
 
     &__header {

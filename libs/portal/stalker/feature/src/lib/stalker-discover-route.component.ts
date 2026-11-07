@@ -32,7 +32,7 @@ import {
 
 /** One Discover result annotated with catalog availability */
 interface DiscoverItem extends DiscoverTitle {
-    available: boolean;
+    available: boolean | null;
     availableIn?: string;
 }
 
@@ -47,6 +47,8 @@ interface DiscoverItem extends DiscoverTitle {
         [facets]="facets()"
         [items]="items()"
         [isLoading]="isLoading()"
+        [tmdbEnabled]="tmdbEnabled()"
+        [loadFailed]="loadFailed()"
         [isMatching]="isMatchingGlobal()"
         [showAvailabilityFilter]="scope() === 'global'"
         [showScopeToggle]="showScopeToggle"
@@ -54,6 +56,7 @@ interface DiscoverItem extends DiscoverTitle {
         (scopeChanged)="onScopeChanged($event)"
         (itemClicked)="openItem($event)"
         (backClicked)="goBack()"
+        (retryRequested)="loadDiscover()"
     />`,
     styles: [':host { display: block; height: 100%; min-height: 0; }'],
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -76,6 +79,8 @@ export class StalkerDiscoverRouteComponent {
 
     private readonly results = signal<DiscoverTitle[]>([]);
     readonly isLoading = signal(true);
+    readonly loadFailed = signal(false);
+    readonly tmdbEnabled = computed(() => this.tmdbEnrichment.isEnabled());
 
     readonly showScopeToggle = this.titleMatch.isAvailable;
     readonly scope = signal<TitleResultsScope>('portal');
@@ -104,7 +109,7 @@ export class StalkerDiscoverRouteComponent {
 
         return this.results().map((title) => ({
             ...title,
-            available: false,
+            available: null,
         }));
     });
 
@@ -217,15 +222,19 @@ export class StalkerDiscoverRouteComponent {
         }
     }
 
-    private async loadDiscover(): Promise<void> {
+    async loadDiscover(): Promise<void> {
         const facets = this.facets();
         // A facet change to B and back to A leaves two in-flight requests
         // with the SAME key, so recency — not the key — decides who may
         // commit: otherwise the older one's failure blanks valid results
         const token = this.discoverRequest.start();
         this.isLoading.set(true);
+        this.loadFailed.set(false);
+        // An empty selection may never start another catalog lookup.
+        this.matchRequest.start();
+        this.isMatchingGlobal.set(false);
         this.globalMatches.set(null);
-        if (!hasDiscoverFacet(facets)) {
+        if (!hasDiscoverFacet(facets) || !this.tmdbEnabled()) {
             this.results.set([]);
             this.isLoading.set(false);
             return;
@@ -239,8 +248,9 @@ export class StalkerDiscoverRouteComponent {
             return;
         }
         this.results.set(titles ?? []);
+        this.loadFailed.set(titles === null);
         this.isLoading.set(false);
-        if (this.scope() === 'global') {
+        if (titles?.length && this.scope() === 'global') {
             void this.loadGlobalMatches();
         }
     }
