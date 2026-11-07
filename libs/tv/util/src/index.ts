@@ -122,7 +122,11 @@ export interface Progress {
     seconds: number;
     duration: number;
     updated: number;
+    /** Additive explicit intent; raw positions remain available. */
     watched?: boolean;
+    reset?: boolean;
+    revision?: number;
+    /** Legacy manual status fence from before playback revisions. */
     watchedUpdated?: number;
 }
 export interface LibrarySettings {
@@ -207,13 +211,19 @@ export class LatestRequest {
 
 /** Recent history is bounded; unfinished playback positions are retained independently. */
 export function recordProgress(data: UserData, progress: Progress): UserData {
-    const current =
+    const previous =
         data.positions[progress.item.id] ??
         data.history.find((p) => p.item.id === progress.item.id);
-    // A retry captured before a manual status edit must not replace that edit.
+    const previousRevision = previous?.revision ?? 0;
+    const revision = progress.revision ?? 0;
     if (
-        current?.watchedUpdated !== undefined &&
-        progress.updated <= current.watchedUpdated
+        previous &&
+        (previousRevision > revision ||
+            (previousRevision === revision &&
+                (previous.updated > progress.updated ||
+                    (previousRevision === 0 &&
+                        previous.watchedUpdated !== undefined &&
+                        previous.watchedUpdated >= progress.updated))))
     )
         return data;
     return {
@@ -261,10 +271,13 @@ export * from './settings-draft';
 export * from './catalog-sort';
 export * from './catalog-query';
 export { continueWatching } from './continue-watching';
-export * from './playback-progress';
 export * from './series-context';
 export * from './programme-guide';
 
 export * from './grid-guide';
 export * from './detail-metadata';
+export * from './watch-state';
+export * from './series-continuity';
+export * from './recent-channels';
+export * from './confirmed-live-channels';
 export * from './platform';

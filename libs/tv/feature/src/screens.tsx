@@ -1,3 +1,4 @@
+import { RecentChannels } from './recent-channels';
 import type { HomeFeature } from './use-home-feature';
 import { storedMediaPoster } from '@iptvnator/tv/data-access';
 import { CatalogOrder, CatalogSortNotice } from './catalog-order';
@@ -103,6 +104,7 @@ export function Home({
                     </HorizontalRail>
                 </section>
             ) : null}
+            <RecentChannels data={tv.data} play={actions.play} />
             {rails
                 .filter(([, , list]) => list.length)
                 .map(([railId, title, list]) => (

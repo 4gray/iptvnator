@@ -9,10 +9,15 @@ import { storedMediaPoster } from '@iptvnator/tv/data-access';
 import type { TvModel } from './use-tv';
 
 /** Global selection survives source activation and detail/player return. */
-export function useHomeFeature(tv: TvModel, beforeSelect: () => void) {
+export function useHomeFeature(
+    tv: TvModel,
+    beforeSelect: () => void,
+    lists = new Map<string, Media[]>(),
+    revision = 0
+) {
     const history = useMemo(
         () =>
-            continueWatching(tv.data).map((progress) => {
+            continueWatching(tv.data, 8, lists).map((progress) => {
                 const item = withSeriesContext(
                     progress.item,
                     seriesForEpisode(progress.item, [
@@ -24,7 +29,14 @@ export function useHomeFeature(tv: TvModel, beforeSelect: () => void) {
                     ? progress
                     : { ...progress, item };
             }),
-        [tv.data.history, tv.data.activeId, tv.home, tv.data.favorites]
+        [
+            tv.data.history,
+            tv.data.positions,
+            tv.data.activeId,
+            tv.home,
+            tv.data.favorites,
+            revision,
+        ]
     );
     const slides = history.slice(0, 3);
     const [selection, setSelection] = useState('');

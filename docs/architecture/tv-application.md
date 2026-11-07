@@ -336,6 +336,28 @@ closes its owning overlay or picker first. Back closes the overlay before
 leaving fullscreen; the category header changes groups within the drawer.
 The shared browse state retains loaded pages and scroll positions across surfaces.
 
+Home's Recent channels rail derives up to twelve unique Live entries from the
+existing confirmed history, newest first, retaining exact source/provider/media
+keys (including Stalker's Live prefix) and excluding unavailable sources.
+Focus only browses; OK activates the exact saved source and resolves a fresh link.
+Back returns to the opening Home card. Reload restores recents without starting
+video; the history cap, favorites and VOD positions keep their existing storage.
+
+Fullscreen Live exposes Previous channel after two distinct channels have played
+in the current session. Only a native `playing` event for the current loaded,
+ready, unpaused stream advances the pair. Repeated confirmation, failed resolution
+or native start, and obsolete events do not replace it. A new confirmation keeps
+the latest valid distinct channel when a source change invalidates a candidate.
+Each switch activates the saved source and resolves a fresh link. A cross-source
+switch may stop video while connecting. Removed or changed source/account connections invalidate the
+corresponding candidate. The pair is session-only: history is not treated as a
+current playing channel after launch. Pending Previous can be canceled with Back;
+the visible Back and Go to playlist controls also retire it before leaving fullscreen.
+A failed switch offers Retry previous channel until the viewer leaves fullscreen
+or chooses another action.
+Modal Back closes its overlay first. Existing Left/drawer, media and system keys
+are unchanged; no Channel +/- hardware support or autoplay is added.
+
 Expand guide in preview and Programme in fullscreen open the single-channel guide.
 It shows only supplied dates, with Now, programme details and independent scrolling.
 At most 21 programme rows (including a retained selection) and seven date buttons
@@ -406,8 +428,41 @@ Timeout preserves the previous saved position. Retry playback reads that
 position again, including records whose duration was unknown; completed items
 still restart. Stop/source replacement cancels the retry timer. Positive timeline
 seeks use the same confirmation path; explicit seek-to-zero starts over.
-Remote Stop (413) tears down the stream and returns focus to its origin or
-channel. Back from catalog-origin fullscreen Live returns to the ongoing preview instead.
+After completion, a confirmed seek clears the end-of-playback marker so the
+saved status follows the new position.
+
+Movie/episode labels, progress, resume and continuation use one browser-only
+policy matching desktop: rounded playback percentage at or above 90 is watched.
+Nonfinite/unknown durations do not imply completion. Confirmed `ended` records
+explicit completion even without duration, preserving raw seconds and duration;
+subsequent pause/stop checkpoints retain it. Additive optional watched/reset and
+revision fields remain in schema-1 progress records. Manual Mark watched,
+Mark unwatched, Reset progress and Start over commit before UI publication and retain raw
+positions, unrelated history/favorites and unknown snapshot fields. Every manual
+action increments the item's revision, fencing old session ticks and save retries.
+Playback captures that revision before resolving a stream, so a delayed launch
+cannot overwrite a manual action committed while resolution was pending.
+Start over uses the normal fresh playback resolver after the reset commits.
+Retry start over repeats both steps. Leaving the player or opening another
+title retires that retry. A stale watch action cannot recreate viewing records
+after its source is deleted.
+
+Series Details focuses a primary Start/Resume/Continue action naming the actual
+season/episode. Episode actions are siblings of playback controls in the existing
+TV picker, never nested buttons. Starting over from the picker captures the
+episode's focus and scroll position for Back or Stop. The player validates
+successors against exact source/parent/episode identity in provider-supplied order.
+Next episode is visible
+during playback and focused on completion, including season transitions; no IDs
+or media files are inferred from episode numbers. `ended` never resolves or starts
+a successor automatically. Next resolves a fresh link only on activation, keeps
+the mounted video element and originating page focus, and Back/source changes
+cancel pending resolution. Missing parent, failed lookup and unavailable final
+successors retain the current episode, with retry where appropriate.
+
+Remote Stop (413) cancels pending source actions, tears down the stream and
+returns focus to its origin or channel. Back from catalog-origin fullscreen
+Live returns to the ongoing preview instead.
 
 Lazy Stalker episodes retain provider movie/season/episode coordinates and use
 the shared framework-free episode command resolver before `create_link`.
@@ -473,7 +528,9 @@ Until the initial snapshot is successfully read, the repository rejects all
 writes and editing/navigation is hidden behind a storage recovery screen.
 Retry reading saved data reloads the original snapshot without clearing it.
 Aborted read transactions reject instead of leaving startup pending.
-History begins on `playing`, then saves every 10 seconds, on pause/leave/hide.
+Playback history begins on `playing`, then saves every 10 seconds, on pause/leave/hide.
+Explicit watch actions on titles without a saved position create a local entry.
+Editing a saved position preserves the last-played date and history order.
 Recent history is bounded to 200 entries; playback positions are retained
 independently, so an older title still resumes. Additive reads recover positions
 from older TV snapshots that only contain history. Closing an OS process can lose the interval
@@ -497,18 +554,15 @@ compact day/month label; episode coordinates and source remain explicit.
 Restoring a saved scroll offset also reveals the focused control, so a title
 moved by playback cannot remain offscreen after returning through Details.
 
-Movies and episodes count as watched when the remaining native duration is at
-most 5% of the total, capped at 300 seconds. The same helper controls continuation,
-initial/retry resume and watched labels. Unknown or nonfinite durations do not
-automatically complete. Home cards and the featured title show remaining minutes
-when duration is known, otherwise watched minutes. History keeps completed titles.
-Mark as watched is available from Home, History and saved movie/episode Details;
-History also allows Mark as unwatched. The optional `Progress.watched` override
-persists without changing position, duration or last-played date. It is additive
-to existing snapshots. Its separate `watchedUpdated` timestamp rejects retries of
-progress captured before the status edit. A new confirmed playback replaces the
-override with actual progress, so Watch again starts at zero and can enter continuation again. Failed
-status writes leave committed state visible and expose Retry viewing status.
+Home cards and the featured title show remaining minutes when duration is known
+or watched minutes when duration is unknown. A queued successor is labeled Next
+episode. History keeps completed titles. Mark as unwatched restores any saved
+position to continuation. Reset progress keeps the raw record but restarts from
+zero. Existing schema-1 entries with a `watchedUpdated` timestamp still reject
+legacy retries captured before that edit. New edits use the playback revision.
+A confirmed playback at the current revision replaces the override with actual
+progress. Failed status writes leave committed state visible and offer Retry
+viewing status.
 
 ## Artwork and optional TMDB metadata
 
@@ -559,10 +613,15 @@ Home focus keys include the rail identity, so copies of a title in different rai
 restore to the initiating placement. Catalog preview rails remain
 explicitly labeled with the selected source; full catalogs stay source-scoped.
 The source picker belongs to catalog/detail/settings screens, while Home displays
-All sources. A series contributes its latest watched episode; a completed latest
-episode does not revive older unfinished episodes. Unknown-duration positions
-remain resumable. The Continue watching rail retains up to eight titles using
-the same grouping. Previous/Next controls wrap on OK or pointer click; there is
+All sources. A series contributes one continuation derived from its latest
+activity. Known sequences advance to the next supplied unwatched episode after
+completion, across season boundaries, without reviving an older gap. Season-0
+extras do not displace regular seasons; an extras-only series uses its supplied
+run. A caught-up series offers explicit replay in Details. Unknown-duration
+positions remain resumable. The Continue watching rail retains up to eight titles
+using the same grouping. Retained history from a removed source remains visible
+as unavailable; it cannot launch through another source or gain a new successor.
+Previous/Next controls wrap on OK or pointer click; there is
 no automatic rotation or playback on focus. Changing the featured title cancels
 pending Home activation, series details and playback-address resolution before
 updating the visible selection. Home owns resolution retries too; changing title
@@ -575,9 +634,15 @@ parent works even outside the Home catalog preview after relaunch. Historical
 entries retain Details and resolve their exact parent in the current provider,
 using the saved series name to narrow catalog queries. Only a matching
 source/parent identity can open; title similarity never synthesizes a parent.
-Named unfinished entries recover context in the background on Home. Lookups
-are bounded to 20 pages per catalog and 15 seconds, preserve playback data,
-and offer an explicit retry through Details when recovery is unavailable.
+Recent episode entries recover exact parent context and supplied sequences on
+Home, sequentially for at most three parents in the active source. Parents are
+deduplicated, successful sequences have a session cache capped at twelve, and
+route/source/provider changes cancel the lane. Named historical entries can use
+exact parent lookup, bounded to 20 pages per catalog and 15 seconds for the lane;
+unnamed entries never trigger an unfiltered portal scan. A late exact parent
+from the Home catalog resumes lookup without leaving Home. Lookup failure
+leaves Home usable and Details retains explicit retry. Other sources are
+activated only by deliberate existing Home actions; Home never scans every portal.
 Fullscreen episode playback also has Series details: it saves/stops playback and
 opens the parent episode list. Exiting fullscreen cancels a pending parent lookup;
 its late response cannot navigate away from Home.

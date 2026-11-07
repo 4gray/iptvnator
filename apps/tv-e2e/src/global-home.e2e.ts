@@ -145,12 +145,17 @@ test('Home combines sources and resumes the selected movie with its own provider
     await expect(cardA).toBeVisible();
     await expect(resume(page, sourceB)).toBeVisible();
     expect(await active(page)).not.toBe(JSON.parse(idA!)[0]);
+    // Hover can target a partially clipped cover. Start fully in view so the
+    // saved scroll is compatible with revealing the restored focus target.
+    await cardA.evaluate((card) =>
+        card.scrollIntoView({ block: 'center', inline: 'nearest' })
+    );
     await cardA.hover();
     await expect(page.locator('video[src],video source')).toHaveCount(0);
-    const scroll = await page.locator('main').evaluate((e) => e.scrollTop);
     const output = join(workspaceRoot, 'dist/tv-home-verification');
     await mkdir(output, { recursive: true });
     await page.screenshot({ path: join(output, 'global-home.png') });
+    const scroll = await page.locator('main').evaluate((e) => e.scrollTop);
     await cardAction(page, cardA);
     await expect(page.locator('.player-controls')).toBeVisible();
     await expect.poll(() => active(page)).toBe(JSON.parse(idA!)[0]);

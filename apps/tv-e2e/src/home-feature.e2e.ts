@@ -372,7 +372,9 @@ for (const action of ['exit', 'play'] as const) {
                 await expect(page.locator('.player-controls')).toBeVisible();
             }
             release();
-            await expect.poll(() => released).toBe(2);
+            // Fullscreen also owns a canceled/restarted next-episode sequence lookup.
+            await expect.poll(() => released).toBeGreaterThanOrEqual(2);
+            expect(held).toBeLessThanOrEqual(3);
             await expect
                 .poll(() =>
                     page.evaluate(
@@ -468,7 +470,7 @@ test('a retained series-details retry cannot reopen the previous source', async 
     await nav(page, 'Movies');
     await chooseTv(page, 'Active source', { label: 'TV m3u · M3U' });
     await expect(page.locator('.loading')).toBeHidden();
-    await expect(page.locator('.poster-grid')).toBeVisible();
+    await expect(page.locator('.empty')).toContainText('No titles');
     // An already queued click remains harmless after its original notice is retired.
     await retained!.evaluate((button: HTMLButtonElement) => button.click());
     await page.evaluate(

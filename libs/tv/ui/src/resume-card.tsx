@@ -8,6 +8,7 @@ export function ResumeCard({
     sourceName,
     date,
     focusKey,
+    next = false,
 }: {
     progress: Progress;
     poster?: string;
@@ -15,6 +16,7 @@ export function ResumeCard({
     open: () => void;
     date?: number;
     focusKey?: string;
+    next?: boolean;
 }) {
     const { item, seconds, duration } = progress;
     const knownDuration = Number.isFinite(duration) && duration > 0;
@@ -57,13 +59,11 @@ export function ResumeCard({
                             class="resume-progress"
                             aria-label={`${mediaTitle(item)}: viewing progress`}
                             max={duration}
-                            value={Math.min(
-                                Math.max(
-                                    Number.isFinite(seconds) ? seconds : 0,
-                                    0
-                                ),
-                                duration
-                            )}
+                            value={
+                                !progress.reset && Number.isFinite(seconds)
+                                    ? Math.min(Math.max(seconds, 0), duration)
+                                    : 0
+                            }
                         />
                     ) : null}
                 </span>
@@ -75,7 +75,9 @@ export function ResumeCard({
                     </span>
                 ) : null}
                 {sourceName ? <span class="muted">{sourceName}</span> : null}
-                <span class="resume-position">{progressLabel(progress)}</span>
+                <span class="resume-position">
+                    {next ? 'Next episode' : progressLabel(progress)}
+                </span>
                 {date !== undefined ? (
                     <time
                         class="resume-date"

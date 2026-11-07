@@ -3,6 +3,7 @@ import { usePlayerPlaylist } from './use-player-playlist';
 import { HomeSourceStatus } from './home-source-status';
 import { LiveOverlay, useLiveOverlay } from './live-overlay';
 import { useLiveBrowse } from './use-live-browse';
+import { useVodSequence } from './use-vod-sequence';
 import { useHomeFeature } from './use-home-feature';
 import { PageHeader } from './page-header';
 import { Favorites } from './favorites';
@@ -24,6 +25,7 @@ import { useMetadata } from './use-metadata';
 import { useSeriesContext } from './use-series-context';
 import { useSeriesDetails } from './use-series-details';
 import { NativePlayerView } from './native-player-view';
+import { useTvRemote } from './use-tv-remote';
 import { PersonPage } from './person-page';
 import type { FilmographyMemory } from './use-filmography-search';
 export function TvApp({ buildInfo }: { buildInfo: TvBuildInfo }) {
@@ -38,6 +40,21 @@ export function TvApp({ buildInfo }: { buildInfo: TvBuildInfo }) {
     const detailSeason = useDetailSeason(tv.route);
     const seriesDetails = useSeriesDetails(tv);
     const homeActions = useSourceActions(tv, seriesDetails);
+    const back = () => {
+        homeActions.leave();
+        tv.back();
+    };
+    useTvRemote({
+        back,
+        stop: () => {
+            homeActions.leave();
+            tv.stop();
+        },
+        fullscreen: tv.fullscreen,
+        player: tv.player.current,
+        restore: tv.restorePlaybackFocus,
+        startOver: tv.startOver,
+    });
     useSeriesContext(tv);
     const browse = useLiveBrowse(tv);
     const overlay = useLiveOverlay(tv, browse);
@@ -67,7 +84,13 @@ export function TvApp({ buildInfo }: { buildInfo: TvBuildInfo }) {
         };
     });
     const r = tv.route;
-    const feature = useHomeFeature(tv, homeActions.leave);
+    const vod = useVodSequence(tv);
+    const feature = useHomeFeature(
+        tv,
+        homeActions.leave,
+        vod.lists,
+        vod.revision
+    );
     const cinematic = r.view === 'home' || r.view === 'detail';
     const metadata = useMetadata(
         r.view === 'detail'
@@ -256,7 +279,18 @@ export function TvApp({ buildInfo }: { buildInfo: TvBuildInfo }) {
                 controlsVisible={controlsVisible}
                 overlay={overlay}
                 seriesDetails={seriesDetails}
-                openPlaylist={playlist.open}
+                vod={vod}
+                back={back}
+                openPlaylist={() => {
+                    homeActions.leave();
+                    playlist.open();
+                }}
+                previousChannel={{
+                    pending: homeActions.pending,
+                    play: () =>
+                        tv.previousChannel &&
+                        homeActions.previous(tv.previousChannel),
+                }}
             />
             <LiveOverlay tv={tv} browse={browse} overlay={overlay} />
         </div>

@@ -2,8 +2,9 @@ import { useRef, useState } from 'preact/hooks';
 import { storedMediaPoster } from '@iptvnator/tv/data-access';
 import { ResumeCard, TvDialog, restoreFocus } from '@iptvnator/tv/ui';
 import {
-    isWatched,
     mediaTitle,
+    watchLabel,
+    watchState,
     type Media,
     type Progress,
 } from '@iptvnator/tv/util';
@@ -34,19 +35,22 @@ export function ViewingCard({
     const { item } = progress;
     const source = tv.data.sources.find((s) => s.id === item.sourceId);
     const close = () => setMenu(false);
+    const next =
+        date === undefined &&
+        item.kind === 'episode' &&
+        watchState(progress) === 'unwatched';
     const playLabel =
         item.kind === 'live'
             ? 'Watch live'
-            : isWatched(progress)
-              ? 'Watch again'
-              : progress.seconds > 0
-                ? 'Resume'
-                : 'Watch now';
+            : next
+              ? 'Next episode'
+              : watchLabel(progress);
     return (
         <>
             <ResumeCard
                 progress={progress}
                 date={date}
+                next={next}
                 focusKey={focusKey}
                 sourceName={source?.name ?? 'Source unavailable'}
                 poster={storedMediaPoster(item, source, [

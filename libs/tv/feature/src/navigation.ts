@@ -24,6 +24,8 @@ export const mainNavigation: [View, string][] = [
 ];
 export const isCollectionView = (view?: View) =>
     view === 'favorites' || view === 'history';
+export const isSavedView = (view?: View) =>
+    view === 'home' || isCollectionView(view);
 export interface Route {
     view: View;
     kind: Kind;

@@ -1,7 +1,7 @@
-import { isBackKey } from '@iptvnator/tv/util';
+import { isCollectionView, isSavedView } from './navigation';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { restoreFocus } from '@iptvnator/tv/ui';
-import type { Media, Source } from '@iptvnator/tv/util';
+import { isBackKey, type Media, type Source } from '@iptvnator/tv/util';
 import { navigationOrigin, type NavigationOrigin } from './use-route-history';
 import type { TvModel } from './use-tv';
 
@@ -25,7 +25,7 @@ const connection = (s: Source) =>
     ]);
 interface SourceRequest {
     item: Media;
-    intent: 'open' | 'play';
+    intent: 'open' | 'play' | 'previous';
     origin: NavigationOrigin;
     source: string;
     backend: string;
@@ -73,9 +73,16 @@ export function useSourceActions(
         const playing = playback.current;
         playback.current = undefined;
         playing?.controller.abort();
-        if (playing) latest.current.tv.stop();
+        if (
+            playing &&
+            (playing.job.intent !== 'previous' ||
+                latest.current.tv.player.current?.item?.id ===
+                    playing.job.item.id)
+        )
+            latest.current.tv.stop();
         if (
             [
+                'Retry previous channel',
                 'Retry Home title',
                 'Retry favorite',
                 'Retry History title',
@@ -99,23 +106,45 @@ export function useSourceActions(
     const perform = (job: SourceRequest) => {
         const current = latest.current;
         if (
-            job.intent === 'play' ||
+            job.intent !== 'open' ||
             (job.item.kind === 'live' &&
-                ['favorites', 'history'].includes(current.tv.route.view))
+                isCollectionView(current.tv.route.view))
         ) {
             const owned = { job, controller: new AbortController() };
             playback.current = owned;
             setPending(job);
             void current.tv
-                .play(job.item, '', job.origin, owned.controller.signal, () => {
-                    if (generation.current === job.generation)
-                        start(job.item, 'play', job.origin);
-                })
+                .play(
+                    job.item,
+                    '',
+                    job.intent === 'previous'
+                        ? current.tv.playbackOrigin
+                        : job.origin,
+                    owned.controller.signal,
+                    {
+                        retry: () => {
+                            if (generation.current === job.generation)
+                                start(job.item, job.intent, job.origin);
+                        },
+                        label:
+                            job.intent === 'previous'
+                                ? job.retryLabel
+                                : undefined,
+                    },
+                    job.intent === 'previous'
+                )
                 .then((started) => {
                     if (playback.current !== owned) return;
                     // A failed resolution retains ownership of its Retry notice
                     // until the user retries, changes title or leaves Home.
-                    if (started) playback.current = undefined;
+                    if (started) {
+                        playback.current = undefined;
+                        if (job.intent === 'previous') {
+                            latest.current.tv.setSelected(job.item);
+                            latest.current.tv.setFullscreen(true);
+                            restoreFocus('player-previous', 'player-toggle');
+                        }
+                    }
                     setPending(undefined);
                 });
         } else if (job.item.kind === 'episode') {
@@ -144,8 +173,9 @@ export function useSourceActions(
     ) {
         const current = latest.current.tv;
         if (
-            !['home', 'favorites', 'history'].includes(current.route.view) ||
-            current.fullscreen
+            intent === 'previous'
+                ? current.route.view !== 'live' || item.kind !== 'live'
+                : !isSavedView(current.route.view) || current.fullscreen
         )
             return;
         abortIntent();
@@ -170,11 +200,13 @@ export function useSourceActions(
             generation: generation.current,
             context,
             retryLabel:
-                current.route.view === 'home'
-                    ? 'Retry Home title'
-                    : current.route.view === 'history'
-                      ? 'Retry History title'
-                      : 'Retry favorite',
+                intent === 'previous'
+                    ? 'Retry previous channel'
+                    : current.route.view === 'home'
+                      ? 'Retry Home title'
+                      : current.route.view === 'history'
+                        ? 'Retry History title'
+                        : 'Retry favorite',
         };
         if (
             item.sourceId === current.data.activeId &&
@@ -218,6 +250,7 @@ export function useSourceActions(
         const launched = playback.current;
         if (
             launched &&
+            launched.job.intent !== 'previous' &&
             tv.fullscreen &&
             tv.playing?.id === launched.job.item.id
         ) {
@@ -225,6 +258,18 @@ export function useSourceActions(
             playback.current = undefined;
             setPending(undefined);
         }
+        const launchedSource = tv.data.sources.find(
+            (s) => s.id === launched?.job.item.sourceId
+        );
+        if (
+            launched?.job.intent === 'previous' &&
+            (context !== launched.job.context ||
+                !launchedSource ||
+                connection(launchedSource) !== launched.job.source ||
+                JSON.stringify([tv.data.backend, tv.data.backendToken]) !==
+                    launched.job.backend)
+        )
+            abortIntent();
         if (sourceSave.current?.done) sourceSave.current = undefined;
         const job = request.current;
         if (!job) return;
@@ -257,7 +302,7 @@ export function useSourceActions(
     const waitingDetails =
         series.busy &&
         !!details.current &&
-        ['home', 'favorites', 'history'].includes(tv.route.view) &&
+        isSavedView(tv.route.view) &&
         !tv.fullscreen;
     useEffect(() => {
         if (!pending && !waitingDetails) return;
@@ -267,7 +312,9 @@ export function useSourceActions(
         }, 40000);
         const back = (event: KeyboardEvent) => {
             if (
-                latest.current.tv.fullscreen ||
+                (latest.current.tv.fullscreen &&
+                    (request.current ?? playback.current?.job)?.intent !==
+                        'previous') ||
                 document.querySelector('[data-tv-modal]') ||
                 (!request.current && !details.current && !playback.current)
             )
@@ -299,12 +346,14 @@ export function useSourceActions(
     );
     useEffect(() => {
         if (
-            [
+            (tv.errorRetryLabel === 'Retry previous channel' &&
+                tv.route.view !== 'live') ||
+            ([
                 'Retry Home title',
                 'Retry favorite',
                 'Retry History title',
             ].includes(tv.errorRetryLabel ?? '') &&
-            !['home', 'favorites', 'history'].includes(tv.route.view)
+                !isSavedView(tv.route.view))
         )
             tv.setError('');
     }, [tv.route.view, tv.errorRetryLabel]);
@@ -313,6 +362,8 @@ export function useSourceActions(
             start(item, 'open', origin),
         play: (item: Media, origin?: NavigationOrigin) =>
             start(item, 'play', origin),
+        previous: (item: Media) =>
+            start(item, 'previous', navigationOrigin('player-previous')),
         pending: !!pending,
         sourceName: pending
             ? tv.data.sources.find(

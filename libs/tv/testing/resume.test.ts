@@ -24,6 +24,8 @@ function fixture() {
         attempts: 0,
     };
     Object.defineProperties(video, {
+        paused: { value: false },
+        currentSrc: { get: () => video.src },
         load: { value: () => undefined },
         play: { value: async () => undefined },
         pause: { value: () => undefined },
@@ -93,6 +95,7 @@ for (const kind of ['movie', 'episode'] as const) {
                 1200
             );
             f.emit('loadedmetadata');
+            f.state.ready = 2;
             f.emit('playing');
             assert.equal(
                 f.saved.length,

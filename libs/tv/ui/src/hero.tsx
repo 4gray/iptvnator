@@ -1,6 +1,7 @@
 import {
     mediaTitle,
     progressLabel,
+    watchState,
     type Media,
     type Progress,
 } from '@iptvnator/tv/util';
@@ -47,7 +48,9 @@ export function Hero({
                         {progress.item.kind === 'episode'
                             ? `S${progress.item.season ?? 1} · E${progress.item.episode ?? 1} · ${progress.item.title} · `
                             : ''}
-                        {progressLabel(progress)}
+                        {watchState(progress) === 'unwatched'
+                            ? 'Next episode'
+                            : progressLabel(progress)}
                         {progress.duration > 0 ? (
                             <progress
                                 aria-label="Featured viewing progress"
@@ -71,7 +74,10 @@ export function Hero({
                                 data-focus="hero-resume"
                                 onClick={() => play(progress.item)}
                             >
-                                Continue watching ▷
+                                {watchState(progress) === 'in-progress'
+                                    ? 'Continue watching'
+                                    : 'Next episode'}{' '}
+                                ▷
                             </button>
                         ) : null}
                         <button

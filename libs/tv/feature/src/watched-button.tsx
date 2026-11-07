@@ -1,4 +1,4 @@
-import { isWatched, type Progress } from '@iptvnator/tv/util';
+import { watchState, type Progress } from '@iptvnator/tv/util';
 import type { TvModel } from './use-tv';
 
 export function WatchedButton({
@@ -16,15 +16,16 @@ export function WatchedButton({
     focusKey?: string;
     returnFocus?: string;
 }) {
+    const watched = watchState(progress) === 'watched';
     return (
         <button
             data-focus={focusKey ?? `watched:${progress.item.id}`}
             onClick={async (event) => {
                 const button = event.currentTarget;
                 beforeChange?.();
-                const saved = await tv.markWatched(
-                    progress.item.id,
-                    !isWatched(progress),
+                const saved = await tv.watch(
+                    progress.item,
+                    watched ? 'unwatched' : 'watched',
                     returnFocus ?? focusKey
                 );
                 if (
@@ -35,7 +36,7 @@ export function WatchedButton({
                     removed?.();
             }}
         >
-            {isWatched(progress) ? 'Mark as unwatched' : 'Mark as watched'}
+            {watched ? 'Mark as unwatched' : 'Mark as watched'}
         </button>
     );
 }
