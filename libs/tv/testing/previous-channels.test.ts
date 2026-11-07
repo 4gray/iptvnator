@@ -18,12 +18,6 @@ const channel = (source: Source, id: string): Media => ({
     title: `Demo channel ${id}`,
     raw: {},
 });
-const progress = (item: Media, updated: number) => ({
-    item,
-    updated,
-    seconds: 0,
-    duration: 0,
-});
 
 test('previous channel toggles only distinct confirmed channels and validates source/account ownership', () => {
     const session = new util.ConfirmedLiveChannels();
@@ -71,4 +65,24 @@ test('previous channel toggles only distinct confirmed channels and validates so
         one,
         'VOD activity is independent'
     );
+});
+
+test('a new confirmation keeps the last valid distinct channel when the newer source changes', () => {
+    const one = channel(a, '1');
+    const two = channel(b, '2');
+    const three = channel(a, '3');
+    for (const sources of [[a], [a, { ...b, username: 'edited-account' }]]) {
+        const session = new util.ConfirmedLiveChannels();
+        session.confirm(one, [a, b]);
+        session.confirm(two, [a, b]);
+        session.confirm(three, sources);
+        assert.deepEqual(session.previous(sources), one);
+        session.confirm(one, sources);
+        assert.deepEqual(session.previous(sources), three);
+    }
+    const session = new util.ConfirmedLiveChannels();
+    session.confirm(one, [a, b]);
+    session.confirm(two, [a, b]);
+    session.confirm(one, [a]);
+    assert.equal(session.previous([a]), undefined);
 });

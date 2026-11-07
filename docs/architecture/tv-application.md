@@ -346,9 +346,10 @@ video; the history cap, favorites and VOD positions keep their existing storage.
 Fullscreen Live exposes Previous channel after two distinct channels have played
 in the current session. Only a native `playing` event for the current loaded,
 ready, unpaused stream advances the pair. Repeated confirmation, failed resolution
-or native start, and obsolete events do not replace it. Each switch uses the saved
-source-action lifecycle and fresh resolution; a cross-source switch may stop video
-while connecting. Removed or changed source/account connections invalidate the
+or native start, and obsolete events do not replace it. A new confirmation keeps
+the latest valid distinct channel when a source change invalidates a candidate.
+Each switch activates the saved source and resolves a fresh link. A cross-source
+switch may stop video while connecting. Removed or changed source/account connections invalidate the
 corresponding candidate. The pair is session-only: history is not treated as a
 current playing channel after launch. Pending Previous can be canceled with Back;
 the visible Back and Go to playlist controls also retire it before leaving fullscreen.
@@ -632,9 +633,10 @@ Home, sequentially for at most three parents in the active source. Parents are
 deduplicated, successful sequences have a session cache capped at twelve, and
 route/source/provider changes cancel the lane. Named historical entries can use
 exact parent lookup, bounded to 20 pages per catalog and 15 seconds for the lane;
-unnamed entries never trigger an unfiltered portal scan. Lookup failure leaves
-Home usable and Details retains explicit retry. Other sources are activated only
-by deliberate existing Home actions; Home never scans every portal.
+unnamed entries never trigger an unfiltered portal scan. A late exact parent
+from the Home catalog resumes lookup without leaving Home. Lookup failure
+leaves Home usable and Details retains explicit retry. Other sources are
+activated only by deliberate existing Home actions; Home never scans every portal.
 Fullscreen episode playback also has Series details: it saves/stops playback and
 opens the parent episode list. Exiting fullscreen cancels a pending parent lookup;
 its late response cannot navigate away from Home.

@@ -1,7 +1,10 @@
 import { expect, Page, test } from '@playwright/test';
 import { addSource, cardAction, chooseTv, nav, start } from './helpers';
 
-async function editSaved(page: Page, edit: 'complete' | 'historical') {
+async function editSaved(
+    page: Page,
+    edit: 'complete' | 'historical' | 'historical-complete'
+) {
     await page.evaluate(
         (action) =>
             new Promise<void>((resolve, reject) => {
@@ -22,10 +25,12 @@ async function editSaved(page: Page, edit: 'complete' | 'historical') {
                             duration: number;
                             item: Record<string, unknown>;
                         }[]) {
-                            p.seconds = action === 'complete' ? 3240 : 600;
+                            p.seconds = action === 'historical' ? 600 : 3240;
                             p.duration = 3600;
-                            if (action === 'historical')
+                            if (action !== 'complete')
                                 delete p.item.parentSeries;
+                            if (action === 'historical-complete')
+                                delete p.item.seriesTitle;
                         }
                         store.put(saved, 'user');
                     };
@@ -298,6 +303,53 @@ test('TV VOD comfort series Start, ended, explicit Next and Home advance across 
     await page.screenshot({
         path: test.info().outputPath('synthetic-series-completed.png'),
     });
+});
+
+test('TV VOD comfort Home finds the successor of an old unnamed episode when its catalog parent arrives', async ({
+    page,
+}) => {
+    await start(page);
+    await syntheticSeries(page);
+    await addSource(page, 'xtream');
+    await nav(page, 'Series');
+    await page.locator('.poster-card').first().click();
+    await page.locator('[data-focus="detail-play"]').click();
+    await expect
+        .poll(() =>
+            page
+                .locator('video')
+                .evaluate((video: HTMLVideoElement) => video.currentTime)
+        )
+        .toBeGreaterThan(0.1);
+    await page.keyboard.press('Escape');
+    await editSaved(page, 'historical-complete');
+    let held = false;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    await page.route('**/xtream?**', async (route) => {
+        if (
+            new URL(route.request().url()).searchParams.get('action') ===
+            'get_series'
+        ) {
+            held = true;
+            await gate;
+        }
+        return route.fallback();
+    });
+    try {
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await expect.poll(() => held).toBe(true);
+        await expect(page.locator('.resume-card')).toHaveCount(0);
+        release();
+        await expect(page.locator('.resume-card')).toContainText(
+            'The crossing'
+        );
+        await expect(page.locator('[data-focus="hero-resume"]')).toContainText(
+            'Next episode'
+        );
+    } finally {
+        release();
+    }
 });
 
 test('TV VOD comfort pending sequence lookup is canceled by Back and late results cannot navigate', async ({

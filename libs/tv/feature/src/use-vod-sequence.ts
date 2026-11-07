@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { findParentSeries } from '@iptvnator/tv/data-access';
 import {
     LatestRequest,
@@ -29,30 +29,56 @@ export function useVodSequence(tv: TvModel) {
             ? tv.playing
             : undefined;
     const home = tv.route.view === 'home' && !tv.fullscreen;
-    const recent = tv.data.history
-        .map((progress, ordinal) => ({ progress, ordinal }))
-        .sort(
-            (a, b) =>
-                b.progress.updated - a.progress.updated || a.ordinal - b.ordinal
-        )
-        .map((entry) => entry.progress);
-    const candidates = current
-        ? [current]
-        : home
-          ? recent
-                .map((p) => p.item)
-                .filter(
-                    (e) =>
-                        e.kind === 'episode' &&
-                        e.sourceId === tv.data.activeId &&
-                        !!e.parentId
-                )
-          : [];
-    const keys = Array.from(new Set(candidates.map((e) => e.parentId))).slice(
-        0,
-        3
+    const targets = useMemo(() => {
+        const candidates = current
+            ? [current]
+            : home
+              ? tv.data.history
+                    .map((progress, ordinal) => ({ progress, ordinal }))
+                    .sort(
+                        (a, b) =>
+                            b.progress.updated - a.progress.updated ||
+                            a.ordinal - b.ordinal
+                    )
+                    .map(({ progress }) => progress.item)
+              : [];
+        const parents = [...tv.home, ...tv.data.favorites];
+        if (tv.selected) parents.push(tv.selected);
+        const result = new Map<string, { episode: Media; parent?: Media }>();
+        for (const episode of candidates) {
+            const id = episode.parentId;
+            if (
+                episode.kind !== 'episode' ||
+                episode.sourceId !== tv.data.activeId ||
+                !id ||
+                result.has(id)
+            )
+                continue;
+            result.set(id, {
+                episode,
+                parent: seriesForEpisode(episode, parents),
+            });
+            if (result.size === 3) break;
+        }
+        return result;
+    }, [
+        current,
+        home,
+        tv.data.history,
+        tv.data.activeId,
+        tv.home,
+        tv.data.favorites,
+        tv.selected,
+    ]);
+    // A delayed catalog can make an exact parent available without changing the episode.
+    const key = JSON.stringify(
+        Array.from(targets, ([id, { episode, parent }]) => [
+            id,
+            episode.id,
+            episode.seriesTitle,
+            parent?.id,
+        ])
     );
-    const key = JSON.stringify(keys);
     useLayoutEffect(() => {
         const client = tv.guideClient;
         const source = tv.data.sources.find((s) => s.id === tv.data.activeId);
@@ -83,21 +109,17 @@ export function useVodSequence(tv: TvModel) {
                     cache.current.lists.keys().next().value!
                 );
         }
-        const missing = keys.filter(
-            (id): id is string => !!id && !cache.current.lists.has(id)
+        const missing = Array.from(targets).filter(
+            ([id]) => !cache.current.lists.has(id)
         );
         setBusy(!!missing.length);
         // Sequential loading bounds provider pressure; duplicate parents share one request.
         void (async () => {
-            for (const id of missing) {
+            for (const [id, target] of missing) {
                 if (!lane.current.owns(job)) break;
-                const episode = candidates.find((e) => e.parentId === id)!;
+                const { episode } = target;
                 try {
-                    let parent = seriesForEpisode(episode, [
-                        ...tv.home,
-                        ...tv.data.favorites,
-                        tv.selected!,
-                    ]);
+                    let parent = target.parent;
                     if (!parent && episode.seriesTitle)
                         parent = await findParentSeries(
                             client,

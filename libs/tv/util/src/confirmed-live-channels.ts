@@ -45,7 +45,8 @@ export class ConfirmedLiveChannels {
             this.current = next;
             return;
         }
-        this.prior = this.current;
+        const previous = this.current ?? this.prior;
+        this.prior = previous?.item.id === item.id ? undefined : previous;
         this.current = next;
     }
     previous(sources: Source[]): Media | undefined {
