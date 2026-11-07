@@ -19,8 +19,8 @@
 import { createRequire } from 'node:module';
 import { createServer } from 'node:http';
 import { createHash } from 'node:crypto';
-import { readFileSync, existsSync, statSync } from 'node:fs';
-import { join, extname, resolve, dirname } from 'node:path';
+import { readFileSync, existsSync, realpathSync, statSync } from 'node:fs';
+import { join, extname, resolve, dirname, relative, isAbsolute, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fetchText, stalkerHeaders, stalkerUrl, normalizeXtreamServerUrl, extractDrmFromRaw } from './backend-logic.mjs';
 
@@ -296,7 +296,12 @@ function describeConnectionFailure(error) {
     return { kind: tls ? 'tls' : 'connection', canTryHttp: !error.initialResponded && code === 'ECONNREFUSED' };
 }
 
-function serveStatic(req, res, url) {
+function isInside(root, file) {
+    const path = relative(root, file);
+    return !isAbsolute(path) && path !== '..' && !path.startsWith(`..${sep}`);
+}
+
+export function serveStatic(res, url, www = WWW) {
     let pathname = decodeURIComponent(url.pathname);
     if (pathname === '/tvshell/tv.js') {
         res.writeHead(200, { 'Content-Type': MIME['.js'], 'Cache-Control': 'no-store' });
@@ -312,23 +317,25 @@ function serveStatic(req, res, url) {
         res.writeHead(404, { 'Content-Type': 'text/plain' });
         return res.end('disabled');
     }
-    let file = join(WWW, pathname);
-    if (!file.startsWith(WWW)) {
-        res.writeHead(403);
-        return res.end();
-    }
-    if (!existsSync(file) || statSync(file).isDirectory()) {
-        file = join(WWW, 'index.html');
+    const root = realpathSync(www);
+    let file = join(root, pathname);
+    if (!isInside(root, file)) return res.writeHead(403).end();
+    let actual = existsSync(file) ? realpathSync(file) : null;
+    if (actual && !isInside(root, actual)) return res.writeHead(403).end();
+    if (!actual || statSync(actual).isDirectory()) {
+        file = join(root, 'index.html');
+        actual = realpathSync(file);
+        if (!isInside(root, actual)) return res.writeHead(403).end();
     }
     const ext = extname(file).toLowerCase();
     if (file.endsWith('index.html')) {
-        let html = readFileSync(file, 'utf8');
+        let html = readFileSync(actual, 'utf8');
         html = injectTvLayer(html);
         res.writeHead(200, { 'Content-Type': MIME['.html'], 'Cache-Control': 'no-store' });
         return res.end(html);
     }
     res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream', 'Cache-Control': 'no-store' });
-    res.end(readFileSync(file));
+    res.end(readFileSync(actual));
 }
 
 /**
@@ -351,7 +358,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
         const url = new URL(req.url, `http://127.0.0.1:${PORT}`);
         try {
             if (url.pathname.startsWith('/api')) await handleApi(req, res, url);
-            else serveStatic(req, res, url);
+            else serveStatic(res, url);
         } catch (error) {
             console.error('[devserver]', error);
             if (!res.headersSent) json(res, 500, { message: 'Internal error', status: 500 });
