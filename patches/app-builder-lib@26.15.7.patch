@@ -24,3 +24,38 @@ index 9a69042fd48f4759a1c697bf23fa5b44f2da2366..193f42a8c4cb95ded694ba8ec0c27a5d
      }
      return {
          keychainFile,
+diff --git a/out/util/electronGet.js b/out/util/electronGet.js
+--- a/out/util/electronGet.js
++++ b/out/util/electronGet.js
+@@ -318,6 +318,31 @@
+         },
+     };
+     const configWithProgress = { ...config, downloadOptions };
++    if (process.env.GITHUB_ACTIONS === "true" && process.env.GH_TOKEN && config.downloader == null) {
++        const { execFile } = require("node:child_process");
++        const { promisify } = require("node:util");
++        const { getDownloaderForSystem } = require("@electron/get/dist/cjs/downloader-resolver");
++        configWithProgress.downloader = {
++            async download(url, destination, options) {
++                const asset = url.match(/^https:\/\/github\.com\/(electron-userland\/electron-builder-binaries|electron\/electron)\/releases\/download\/([a-zA-Z0-9_.@%+-]+)\/([a-zA-Z0-9_.@+-]+)$/);
++                if (asset != null) {
++                    const [, repository, tag, filename] = asset;
++                    try {
++                        await promisify(execFile)("gh", [
++                            "release", "download", decodeURIComponent(tag), "--repo", repository,
++                            "--pattern", filename, "--output", destination,
++                        ], { timeout: 180000 });
++                        return;
++                    } catch (error) {
++                        await fs.rm(destination, { force: true });
++                        builder_util_1.log.warn({ file: filename, error: error.message }, "release asset API failed; trying public download");
++                    }
++                }
++                const downloader = await getDownloaderForSystem();
++                await downloader.download(url, destination, options);
++            },
++        };
++    }
+     try {
+         let filePath;
+         try {

@@ -290,11 +290,10 @@ every source (`--error-on=any`) before installation starts; update and install
 have independent five- and ten-minute process limits with a ten-second kill
 grace period. Packaging and test gates remain unchanged.
 
-The macOS and Linux system jobs fetch the pinned dmgbuild, FPM and 7-Zip
-archives they need through GitHub's release asset API and verify each SHA-256
-before seeding Electron Builder's cache. This avoids gateway timeouts on the
-public release download URLs.
-The matrix also fetches official Electron distributions through the asset
+Electron Builder uses the GitHub release asset API for its upstream packaging
+tool downloads in CI and keeps its normal archive checksums and cache. The
+public download is a fallback when the API is unavailable.
+The matrix fetches official Electron distributions through the asset
 API and verifies them using the checksums bundled with the installed Electron
 package. Electron Builder uses the same checksums when it reads the cache.
 
