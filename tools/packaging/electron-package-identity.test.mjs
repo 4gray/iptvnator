@@ -291,7 +291,7 @@ test('GitHub Releases auto-update metadata is generated and uploaded', () => {
     assert.deepEqual(electronBuilderConfig.publish, [
         {
             provider: 'github',
-            owner: '4gray',
+            owner: 'byd7my',
             repo: 'iptvnator',
         },
     ]);

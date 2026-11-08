@@ -399,8 +399,29 @@ jobs:
             cancel-in-progress: ${{ github.event_name == 'pull_request' }}
         strategy:
             fail-fast: false
-            # A Windows release (publish_release) builds only the Windows leg.
-            matrix: ${{ fromJSON(inputs.publish_release == true && '{"include":[{"os":"windows","runner":"windows-2022","arch":"x64","embedded_mpv_platform":"win32","embedded_mpv_arch":"x64","embedded_mpv_build_runtime":false}]}' || '{"include":[{"os":"macos","runner":"macos-15-intel","arch":"x64","embedded_mpv_platform":"darwin","embedded_mpv_arch":"x64","embedded_mpv_build_runtime":true},{"os":"macos","runner":"macos-latest","arch":"arm64","embedded_mpv_platform":"darwin","embedded_mpv_arch":"arm64","embedded_mpv_build_runtime":true},{"os":"windows","runner":"windows-2022","arch":"x64","embedded_mpv_platform":"win32","embedded_mpv_arch":"x64","embedded_mpv_build_runtime":false}]}') }}
+            matrix:
+                include:
+                    # macOS builds - separate runners to avoid native module conflicts
+                    - os: macos
+                      runner: macos-15-intel
+                      arch: x64
+                      embedded_mpv_platform: darwin
+                      embedded_mpv_arch: x64
+                      embedded_mpv_build_runtime: true
+                    - os: macos
+                      runner: macos-latest
+                      arch: arm64
+                      embedded_mpv_platform: darwin
+                      embedded_mpv_arch: arm64
+                      embedded_mpv_build_runtime: true
+                    - os: windows
+                      runner: windows-2022
+                      arch: x64
+                      embedded_mpv_platform: win32
+                      embedded_mpv_arch: x64
+                      embedded_mpv_build_runtime: false
+                # A Windows release (publish_release) builds only the Windows leg.
+                exclude: ${{ fromJSON(inputs.publish_release == true && '[{"os":"macos"}]' || '[]') }}
 
         steps: &electron-build-steps
             - name: Checkout code
@@ -1692,30 +1713,6 @@ jobs:
 
                   echo "Pruned assets from draft ${release_id} (${RELEASE_TAG})."
 
-            # Windows-only stable release for the in-app updater. Only the x64
-            # installer and the two small files electron-updater reads
-            # (latest.yml and the .blockmap) are attached; the release is
-            # published, not a draft, and is not a prerelease.
-            - name: Publish Windows release
-              if: inputs.publish_release == true && needs.build-cross-platform.result == 'success'
-              uses: softprops/action-gh-release@v3
-              with:
-                  draft: false
-                  prerelease: false
-                  make_latest: true
-                  name: ${{ steps.release-meta.outputs.name }}
-                  tag_name: ${{ steps.release-meta.outputs.tag }}
-                  target_commitish: ${{ steps.release-meta.outputs.commitish }}
-                  body_path: .github/release-notes-windows-ar.md
-                  generate_release_notes: false
-                  fail_on_unmatched_files: true
-                  files: |
-                      artifacts/windows-artifacts/*-windows-x64-setup.exe
-                      artifacts/windows-artifacts/latest.yml
-                      artifacts/windows-artifacts/*-windows-x64-setup.exe.blockmap
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
             - name: Create Draft Release
               id: draft-release
               if: env.NIGHTLY != 'true' && inputs.publish_release != true && (github.event_name != 'pull_request' || steps.pr-state.outputs.state == 'open')
@@ -1751,6 +1748,30 @@ jobs:
                       artifacts/windows-artifacts/*.zip
                       artifacts/windows-artifacts/latest.yml
                       artifacts/windows-artifacts/*.blockmap
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            # Windows-only stable release for the in-app updater. Only the x64
+            # installer and the two small files electron-updater reads
+            # (latest.yml and the .blockmap) are attached; the release is
+            # published, not a draft, and is not a prerelease.
+            - name: Publish Windows release
+              if: inputs.publish_release == true && needs.build-cross-platform.result == 'success'
+              uses: softprops/action-gh-release@v3
+              with:
+                  draft: false
+                  prerelease: false
+                  make_latest: true
+                  name: ${{ steps.release-meta.outputs.name }}
+                  tag_name: ${{ steps.release-meta.outputs.tag }}
+                  target_commitish: ${{ steps.release-meta.outputs.commitish }}
+                  body_path: .github/release-notes-windows-ar.md
+                  generate_release_notes: false
+                  fail_on_unmatched_files: true
+                  files: |
+                      artifacts/windows-artifacts/*-windows-x64-setup.exe
+                      artifacts/windows-artifacts/latest.yml
+                      artifacts/windows-artifacts/*-windows-x64-setup.exe.blockmap
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
