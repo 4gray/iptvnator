@@ -275,8 +275,14 @@ module's `isFrameCopyRuntimeUsable()` / `getFrameCopyRuntimeAvailability()`):
   `<canvas data-embedded-mpv-frame>` (BGRA swizzle in the shader). Frame
   copies whose post-copy seqlock check reports a writer race are discarded
   without advancing the consumed sequence, so the next rAF retries instead
-  of uploading partial pixels. Frame data never crosses the contextBridge;
-  the bridge only exposes
+  of uploading partial pixels. On a resize generation change, the pump keeps
+  the displayed canvas and texture unchanged until it copies a complete,
+  stable frame from the new ring. It then resizes the canvas, uploads that
+  frame and draws in the same animation tick, avoiding a cleared canvas while
+  the helper prepares its first resized frame. Detaching a session clears the
+  canvas so switching streams never retains the previous stream's image while
+  waiting for a new frame. Frame data never crosses the contextBridge; the
+  bridge only exposes
   `attachEmbeddedMpvFrameView`/`detachEmbeddedMpvFrameView`.
 - Renderer: `EmbeddedMpvPlayerComponent` renders the canvas when
   `support.engine === 'frame-copy'` and skips the compositor workarounds —
@@ -470,7 +476,11 @@ Trade-offs and constraints:
   Intel Macs keep the native-view engine. Official Linux frame-copy is x64 —
   headless EGL, works under native Wayland since nothing embeds into a
   window; local system builds need `libmpv-dev`, `libegl-dev`, `libgl-dev`,
-  and `libgbm-dev`. The helper links libmpv, which is legal
+  and `libgbm-dev`. Development runtime validation accepts frame-reader modes
+  `0644` and `0755`, including node-gyp's normal executable library output.
+  Packaged readers still require `0644`; helpers require `0755` in both
+  contracts. Symlinks, unreadable files and unexpected reader permission bits
+  remain rejected. The helper links libmpv, which is legal
   out-of-process; the in-process-libmpv ban still binds the addon and frame
   reader. The helper logs the chosen EGL display tier and the GL renderer
   string to stderr. If an early tier selects Mesa software rendering (for

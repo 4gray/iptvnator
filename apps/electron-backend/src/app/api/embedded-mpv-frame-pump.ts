@@ -82,6 +82,7 @@ interface PumpState {
     width: number;
     height: number;
     lastSeq: number;
+    sourcePending: boolean;
     rafHandle: number;
 }
 
@@ -181,27 +182,17 @@ function createGl(
     return { gl, texture: texture as WebGLTexture };
 }
 
-function applySource(state: PumpState, source: EmbeddedMpvFrameSource): boolean {
+function applySource(
+    state: PumpState,
+    source: EmbeddedMpvFrameSource
+): boolean {
     try {
         const info = state.reader.open(source.shmName);
         state.width = info.width;
         state.height = info.height;
         state.frame = new Uint8Array(info.frameBytes);
         state.lastSeq = 0;
-        state.canvas.width = info.width;
-        state.canvas.height = info.height;
-        state.gl.viewport(0, 0, info.width, info.height);
-        state.gl.texImage2D(
-            state.gl.TEXTURE_2D,
-            0,
-            state.gl.RGBA,
-            info.width,
-            info.height,
-            0,
-            state.gl.RGBA,
-            state.gl.UNSIGNED_BYTE,
-            null
-        );
+        state.sourcePending = true;
         return true;
     } catch (error) {
         console.error('[embedded-mpv-pump] failed to open frame ring:', error);
@@ -220,17 +211,37 @@ function pumpTick(): void {
         pump.lastSeq
     );
     if (result) {
-        gl.texSubImage2D(
-            gl.TEXTURE_2D,
-            0,
-            0,
-            0,
-            pump.width,
-            pump.height,
-            gl.RGBA,
-            gl.UNSIGNED_BYTE,
-            frame
-        );
+        if (pump.sourcePending) {
+            if (pump.canvas.width !== pump.width)
+                pump.canvas.width = pump.width;
+            if (pump.canvas.height !== pump.height)
+                pump.canvas.height = pump.height;
+            gl.viewport(0, 0, pump.width, pump.height);
+            gl.texImage2D(
+                gl.TEXTURE_2D,
+                0,
+                gl.RGBA,
+                pump.width,
+                pump.height,
+                0,
+                gl.RGBA,
+                gl.UNSIGNED_BYTE,
+                frame
+            );
+            pump.sourcePending = false;
+        } else {
+            gl.texSubImage2D(
+                gl.TEXTURE_2D,
+                0,
+                0,
+                0,
+                pump.width,
+                pump.height,
+                gl.RGBA,
+                gl.UNSIGNED_BYTE,
+                frame
+            );
+        }
         pump.lastSeq = result.seq;
         gl.drawArrays(gl.TRIANGLES, 0, 3);
     }
@@ -241,7 +252,10 @@ function ensureSourceListener(): void {
     sourceListenerRegistered = true;
     ipcRenderer.on(
         EMBEDDED_MPV_FRAME_SOURCE_CHANGED,
-        (_event, payload: { sessionId: string; source: EmbeddedMpvFrameSource }) => {
+        (
+            _event,
+            payload: { sessionId: string; source: EmbeddedMpvFrameSource }
+        ) => {
             if (!pump || payload.sessionId !== pump.sessionId) return;
             applySource(pump, payload.source);
         }
@@ -292,6 +306,7 @@ export async function attachEmbeddedMpvFrameView(
         width: 0,
         height: 0,
         lastSeq: 0,
+        sourcePending: false,
         rafHandle: 0,
     };
     if (!applySource(state, source)) {
@@ -308,6 +323,8 @@ export function detachEmbeddedMpvFrameView(): void {
     attachEpoch++; // aborts any attach still waiting on canvas/frame source
     if (!pump) return;
     cancelAnimationFrame(pump.rafHandle);
+    pump.gl.clearColor(0, 0, 0, 1);
+    pump.gl.clear(pump.gl.COLOR_BUFFER_BIT);
     try {
         pump.reader.close();
     } catch {
