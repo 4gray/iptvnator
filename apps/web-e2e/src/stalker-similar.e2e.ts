@@ -182,7 +182,9 @@ for (const { media, title, similar, from } of scenarios) {
         const trailer = page.getByTestId(
             media === 'movie' ? 'vod-trailer' : 'series-trailer'
         );
-        await trailer.click();
+        // WebKit does not give a button keyboard focus on pointer click.
+        await trailer.focus();
+        await trailer.press('Enter');
         await expect(
             page.getByRole('dialog').locator('iframe')
         ).toHaveAttribute('src', /FakeClip_01/);
