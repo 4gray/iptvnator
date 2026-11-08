@@ -184,9 +184,8 @@ export const appConfig: ApplicationConfig = {
                 const injector = inject(EnvironmentInjector);
                 return {
                     async seed(playlist, signal) {
-                        const { StalkerContentSeedService } = await import(
-                            '@iptvnator/portal/stalker/data-access'
-                        );
+                        const { StalkerContentSeedService } =
+                            await import('./services/stalker-content-seed');
                         const seeder = runInInjectionContext(injector, () =>
                             inject(StalkerContentSeedService)
                         );

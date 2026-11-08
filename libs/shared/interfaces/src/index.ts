@@ -46,7 +46,6 @@ export * from './lib/preload-performance-marker.interface';
 export * from './lib/playlist-recently-viewed.interface';
 export * from './lib/playlist-recently-viewed.utils';
 export * from './lib/playlist-import-scope.util';
-export * from './lib/bulk-playlist.util';
 export * from './lib/playlist-refresh.interface';
 export * from './lib/playlist.interface';
 export * from './lib/portal-activity-item.interface';
@@ -136,4 +135,3 @@ export type {
     ContentCertification,
     AgeRatingDisplay,
 } from './lib/content-certification';
-export { detectProviderImportCandidates } from './lib/provider-import-detection.util';

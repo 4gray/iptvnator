@@ -16,11 +16,11 @@ import {
     RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
+import type { Playlist } from '@iptvnator/shared/interfaces';
 import {
     bulkEntriesFromJson,
     type BulkImportEntry,
-    type Playlist,
-} from '@iptvnator/shared/interfaces';
+} from '@iptvnator/shared/interfaces/bulk-playlist';
 import {
     BULK_IMPORT_SOURCE_TIMEOUT_MS,
     BulkImportRunnerService,

@@ -18,12 +18,14 @@ import {
 } from '@iptvnator/services';
 import { applyImportScopeToPlaylist } from '@iptvnator/shared/m3u-utils';
 import {
-    BulkImportEntry,
-    bulkEntryToPlaylist,
-    isDirectBulkPlaylistEntry,
     storedImportScopeFlags,
     type Playlist,
 } from '@iptvnator/shared/interfaces';
+import {
+    BulkImportEntry,
+    bulkEntryToPlaylist,
+    isDirectBulkPlaylistEntry,
+} from '@iptvnator/shared/interfaces/bulk-playlist';
 
 /** Time one source gets to download and store its catalog. */
 export const BULK_IMPORT_SOURCE_TIMEOUT_MS = 60_000;

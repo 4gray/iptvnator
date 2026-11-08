@@ -149,7 +149,13 @@ function serverKey(value: string | null | undefined): string {
     try {
         return new URL(raw).origin.toLowerCase();
     } catch {
-        return raw.replace(/\/+$/, '').toLowerCase();
+        // A loop, not /\/+$/: that pattern backtracks quadratically on a
+        // pasted value with a long run of slashes before other text.
+        let end = raw.length;
+        while (end > 0 && raw[end - 1] === '/') {
+            end--;
+        }
+        return raw.slice(0, end).toLowerCase();
     }
 }
 

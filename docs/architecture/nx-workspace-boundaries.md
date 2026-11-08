@@ -360,7 +360,9 @@ without re-exporting those functions from the eager interfaces barrel.
 `@iptvnator/shared/interfaces/provider-import` keeps provider-message detection
 and its scanners with the lazy auto-import form. The eager interfaces barrel
 re-exports only their types; re-exporting the functions shares their code with
-the initial bundle.
+the initial bundle. `@iptvnator/shared/interfaces/bulk-playlist` does the same
+for the bulk import's row parsing and dedupe, which only the lazy bulk import
+form and its runner use; the eager barrel does not re-export it.
 
 `@iptvnator/services/pwa-xtream-backup-storage` exposes the framework-free browser
 backup persistence implementation without re-exporting it from the eager services

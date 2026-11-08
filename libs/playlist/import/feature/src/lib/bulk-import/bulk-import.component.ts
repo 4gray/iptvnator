@@ -12,16 +12,18 @@ import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { SettingsStore } from '@iptvnator/services';
 import {
+    SOURCE_TYPE_ICONS,
+    type ProviderImportKind,
+} from '@iptvnator/shared/interfaces';
+import {
     BulkImportEntry,
     bulkEntriesFromJson,
     bulkEntryIssue,
     candidatesToBulkEntries,
     dedupeBulkCandidates,
-    detectProviderImportCandidates,
-    SOURCE_TYPE_ICONS,
     type BulkImportIssue,
-    type ProviderImportKind,
-} from '@iptvnator/shared/interfaces';
+} from '@iptvnator/shared/interfaces/bulk-playlist';
+import { detectProviderImportCandidates } from '@iptvnator/shared/interfaces/provider-import';
 import {
     BulkImportRunnerService,
     type BulkImportRowStatus,

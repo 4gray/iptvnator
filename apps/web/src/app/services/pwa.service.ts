@@ -1,7 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
-import { SwUpdate } from '@angular/service-worker';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
@@ -65,7 +64,6 @@ export class PwaService extends DataService {
     private readonly http = inject(HttpClient);
     private readonly snackBar = inject(LazySnackBar);
     private readonly store = inject(Store);
-    private readonly swUpdate = inject(SwUpdate);
     private readonly translateService = inject(TranslateService);
     private readonly serverStatus = inject(ServerStorageStatusService);
     private readonly settingsStore = inject(SettingsStore);
@@ -89,27 +87,6 @@ export class PwaService extends DataService {
      * protocol-relative `//xtream` (another host).
      */
     corsProxyUrl = this.backendUrl.replace(/\/+$/, '');
-
-    constructor() {
-        super();
-    }
-
-    /** The page reload; a field so specs can substitute it. */
-    reloadWindow: () => void = () => window.location.reload();
-
-    /** Uses service worker mechanism to check for available application updates */
-    checkUpdates() {
-        this.swUpdate.versionUpdates.subscribe(() => {
-            void this.snackBar
-                .open(
-                    this.translateService.instant('UPDATE_AVAILABLE'),
-                    this.translateService.instant('REFRESH')
-                )
-                .then((ref) =>
-                    ref?.onAction().subscribe(() => this.reloadWindow())
-                );
-        });
-    }
 
     getAppVersion(): string {
         return AppConfig.version;

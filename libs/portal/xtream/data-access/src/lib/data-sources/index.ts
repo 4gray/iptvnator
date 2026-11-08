@@ -3,10 +3,10 @@ import {
     PLAYLIST_DELETE_CLEANUP,
     PORTAL_CONTENT_SEEDERS,
     RuntimeCapabilitiesService,
+    type PortalContentSeeder,
 } from '@iptvnator/services';
 import { ElectronXtreamDataSource } from './electron-xtream-data-source';
 import { PwaXtreamDataSource } from './pwa-xtream-data-source';
-import { XtreamContentSeedService } from '../xtream-content-seed.service';
 import {
     IXtreamDataSource,
     XTREAM_DATA_SOURCE,
@@ -45,7 +45,20 @@ export function provideXtreamDataSource(
         {
             provide: PORTAL_CONTENT_SEEDERS,
             multi: true,
-            useExisting: XtreamContentSeedService,
+            // Only the lazily opened bulk import seeds, so the seeder loads
+            // on its first use instead of with the app's providers.
+            useFactory: (): PortalContentSeeder => {
+                const injector = inject(Injector);
+                return {
+                    async seed(playlist, signal) {
+                        const { XtreamContentSeedService } =
+                            await import('../xtream-content-seed.service');
+                        return injector
+                            .get(XtreamContentSeedService)
+                            .seed(playlist, signal);
+                    },
+                };
+            },
         },
         {
             provide: XTREAM_DATA_SOURCE,
