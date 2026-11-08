@@ -932,9 +932,12 @@ remain local when the meaning is explicit.
   (`@iptvnator/portal/shared/util`): the layouts' `LivePanelsController`
   installs `handoffFocusOnLiveSidebarChange()` over the EFFECTIVE level and
   focuses the floating restore handle at player-only or the show-categories
-  button while the rail is folded, and the shell sidebar, watching the rail's
-  fold state, focuses the control the context panel names (`focusTarget()`: its
-  hide chevron, or its first header action when the chevron is withheld) and,
+  button while the rail is folded. If a view change removes a focused
+  category control while the rail stays folded, the controller passes focus
+  to the replacement show-categories button. The shell sidebar watches the
+  rail's fold state and focuses the control the context panel names
+  (`focusTarget()`: its hide chevron, or its first header action when the
+  chevron is withheld) and,
   while none is rendered (categories loading, a failed load), the
   `tabindex="-1"` aside itself — only on transitions, and never when another
   control still owns focus.

@@ -1,11 +1,15 @@
 import {
+    afterRenderEffect,
     computed,
     ElementRef,
     inject,
     Signal,
     untracked,
 } from '@angular/core';
-import { handoffFocusOnLiveSidebarChange } from './focus-handoff';
+import {
+    focusIfFocusLost,
+    handoffFocusOnLiveSidebarChange,
+} from './focus-handoff';
 import { LIVE_CATEGORIES_POPOVER } from './live-categories-popover.token';
 import { LiveLayoutSidebarStateService } from './live-layout-sidebar-state.service';
 import { LiveSidebarState, LiveSidebarSurface } from './live-sidebar-state';
@@ -15,6 +19,9 @@ export interface LivePanelsControllerOptions {
     readonly surface: LiveSidebarSurface;
     /** The header's show-categories button, once rendered. */
     readonly showCategoriesButton: Signal<ElementRef<HTMLElement> | undefined>;
+    readonly categoryDropdownButton?: Signal<
+        ElementRef<HTMLElement> | undefined
+    >;
     /** The floating restore handle, once rendered at player-only. */
     readonly restoreButton: Signal<ElementRef<HTMLElement> | undefined>;
 }
@@ -79,6 +86,51 @@ export class LivePanelsController {
                   ? untracked(this.options.showCategoriesButton)?.nativeElement
                   : null
         );
+
+        let focusedControl: HTMLElement | null = null;
+        afterRenderEffect((onCleanup) => {
+            if (!this.isCategoriesRailFolded()) {
+                focusedControl = null;
+                return;
+            }
+
+            const showButton = options.showCategoriesButton()?.nativeElement;
+            const dropdown = options.categoryDropdownButton?.()?.nativeElement;
+            if (focusedControl && !focusedControl.isConnected) {
+                focusedControl = null;
+                focusIfFocusLost(showButton);
+            }
+
+            const listeners = new AbortController();
+            onCleanup(() => listeners.abort());
+            const listenerOptions = { signal: listeners.signal };
+            for (const control of [showButton, dropdown]) {
+                if (!control) continue;
+                const trackFocus = () => {
+                    focusedControl = control;
+                };
+                if (control.ownerDocument.activeElement === control) {
+                    trackFocus();
+                }
+                control.addEventListener('focus', trackFocus, listenerOptions);
+                control.addEventListener(
+                    'blur',
+                    () => {
+                        // A browser can fire blur before the node is detached.
+                        queueMicrotask(() => {
+                            if (
+                                focusedControl === control &&
+                                control.isConnected &&
+                                control.ownerDocument.activeElement !== control
+                            ) {
+                                focusedControl = null;
+                            }
+                        });
+                    },
+                    listenerOptions
+                );
+            }
+        });
     }
 
     /** `Cmd/Ctrl+B` and the floating restore handle. */

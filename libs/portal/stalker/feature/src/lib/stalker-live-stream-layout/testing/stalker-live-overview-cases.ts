@@ -12,6 +12,7 @@ interface OverviewHarness {
     fixture(): ComponentFixture<StalkerLiveStreamLayoutComponent>;
     component(): StalkerLiveStreamLayoutComponent;
     enterOverview(fullList?: boolean): void;
+    setFullListLoading(loading: boolean): void;
     settle(): Promise<void>;
     ensureBulk(): jest.Mock;
     fetchShort(): jest.Mock;
@@ -86,6 +87,26 @@ export function registerStalkerLiveOverviewCases(
             harness.fixture().detectChanges();
 
             expect(showButton()?.classList).toContain('sidebar-restore');
+        });
+
+        it('hands focus from the loading overview to the placeholder when the full list fails', async () => {
+            harness.enterOverview(false);
+            harness.setFullListLoading(true);
+            harness.fixture().detectChanges();
+            state().hideCategories('portal');
+            await harness.settle();
+            const overviewButton = showButton();
+            expect(
+                overviewButton?.closest('app-stalker-itv-all-items')
+            ).not.toBeNull();
+            expect(document.activeElement).toBe(overviewButton);
+
+            harness.setFullListLoading(false);
+            await harness.settle();
+
+            const placeholderButton = showButton();
+            expect(placeholderButton?.classList).toContain('sidebar-restore');
+            expect(document.activeElement).toBe(placeholderButton);
         });
 
         it('leaves the player-only level to the floating restore handle', () => {

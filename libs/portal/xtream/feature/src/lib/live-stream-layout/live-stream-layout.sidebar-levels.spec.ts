@@ -322,6 +322,46 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
         );
     });
 
+    it('hands focus from the dropdown to the "All Items" button when the category scope clears', async () => {
+        fixture.detectChanges();
+        service.hideCategories('portal');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const dropdown = query<HTMLButtonElement>(
+            '[data-test-id="live-category-dropdown"]'
+        );
+        // Closing the popover restores focus to its trigger before clearing.
+        dropdown?.focus();
+        expect(document.activeElement).toBe(dropdown);
+
+        selectedCategoryId.set(null);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(document.activeElement).toBe(
+            query('.all-items-show-categories')
+        );
+    });
+
+    it('leaves focus alone when the category scope clears after the user leaves the controls', async () => {
+        fixture.detectChanges();
+        service.hideCategories('portal');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const showButton = query<HTMLButtonElement>(
+            '[data-test-id="live-show-categories"]'
+        );
+        expect(document.activeElement).toBe(showButton);
+        showButton?.blur();
+        await fixture.whenStable();
+
+        selectedCategoryId.set(null);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(document.activeElement).toBe(document.body);
+    });
+
     it('counts the "All Items" entry like a category in the channels header', () => {
         xtreamStore.selectItemsFromSelectedCategory.mockReturnValue([
             {},

@@ -1042,6 +1042,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
             itvFullListActive.set(fullList);
             itvFullChannelList.set(defaultItvChannels());
         },
+        setFullListLoading: (loading) => itvFullListLoading.set(loading),
         settle: settleEagerEpg,
         ensureBulk: () => ensureBulkItvEpg,
         fetchShort: () => fetchChannelEpg,
@@ -1054,7 +1055,6 @@ describe('StalkerLiveStreamLayoutComponent', () => {
     it('keeps the select-a-category placeholder on portals without a usable full list', () => {
         selectedCategoryId.set(null);
         selectedItem.set(null);
-        itvFullListActive.set(false);
         fixture.detectChanges();
 
         expect(

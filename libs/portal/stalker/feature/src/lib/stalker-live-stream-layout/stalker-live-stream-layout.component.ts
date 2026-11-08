@@ -542,6 +542,9 @@ export class StalkerLiveStreamLayoutComponent
     private readonly showCategoriesButton = viewChild('showCategoriesButton', {
         read: ElementRef<HTMLElement>,
     });
+    private readonly categoryDropdownButton = viewChild('categoryDropdown', {
+        read: ElementRef<HTMLElement>,
+    });
     private readonly restoreButton = viewChild('restoreButton', {
         read: ElementRef<HTMLElement>,
     });
@@ -560,6 +563,7 @@ export class StalkerLiveStreamLayoutComponent
                 this.overview()?.showCategoriesButton() ??
                 this.contentShowCategoriesButton()
         ),
+        categoryDropdownButton: this.categoryDropdownButton,
         restoreButton: computed(
             () => this.overview()?.restoreButton() ?? this.restoreButton()
         ),

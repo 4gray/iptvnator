@@ -366,6 +366,9 @@ export class LiveStreamLayoutComponent
     private readonly showCategoriesButton = viewChild('showCategoriesButton', {
         read: ElementRef<HTMLElement>,
     });
+    private readonly categoryDropdownButton = viewChild('categoryDropdown', {
+        read: ElementRef<HTMLElement>,
+    });
     // The way back from the all-items view, which has no channels header.
     private readonly allItemsShowButton = viewChild('allItemsShowButton', {
         read: ElementRef<HTMLElement>,
@@ -380,6 +383,7 @@ export class LiveStreamLayoutComponent
         showCategoriesButton: computed(
             () => this.showCategoriesButton() ?? this.allItemsShowButton()
         ),
+        categoryDropdownButton: this.categoryDropdownButton,
         restoreButton: this.restoreButton,
     });
     readonly isSidebarCollapsed = this.livePanels.isSidebarCollapsed;
