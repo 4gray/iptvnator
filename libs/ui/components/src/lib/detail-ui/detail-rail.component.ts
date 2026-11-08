@@ -45,7 +45,6 @@ export class DetailRailComponent {
     scrollBy(direction: -1 | 1): void {
         this.scroller().nativeElement.scrollBy({
             left: direction * SCROLL_STEP_PX,
-            behavior: 'smooth',
         });
     }
 

@@ -1,21 +1,10 @@
 import {
-    StalkerContentTypes,
+    type StalkerSearchContentType,
     type StalkerVodSource,
     stalkerWithheldRowKey,
 } from '@iptvnator/portal/stalker/data-access';
 import type { ParentalLockService } from '@iptvnator/services';
 import { ALL_CATEGORIES_WITHHELD } from '@iptvnator/shared/interfaces';
-
-export type StalkerSearchContentType = 'vod' | 'series';
-
-export interface StalkerSearchResponse {
-    js?: {
-        data?: StalkerVodSource[];
-        total_items?: number;
-    };
-    message?: string;
-    status?: number;
-}
 
 /** Portals can shift items between pages mid-append — drop duplicate ids. */
 export function dedupeSearchResults(
@@ -51,30 +40,6 @@ export function resolveSearchWithheldCategoryIds(
         : parentalLock.withholdsEverything?.()
           ? ALL_CATEGORIES_WITHHELD
           : new Set(parentalLock.lockedStalkerIds(playlistId, contentType));
-}
-
-/**
- * Mirror the catalog request shape: many Ministra portals return an empty
- * list for get_ordered_list without the category/genre/sortby params the STB
- * client always sends. `max_page_items` is a HINT — plenty of portals ignore
- * it and return their own page size, which is why paging cannot rely on it
- * (progress and `total_items` decide hasMore instead).
- */
-export function buildStalkerSearchRequestParams(
-    contentType: StalkerSearchContentType,
-    search: string,
-    page: number
-): Record<string, string | number> {
-    return {
-        action: StalkerContentTypes[contentType].getContentAction,
-        type: contentType,
-        sortby: 'added',
-        search,
-        p: page,
-        max_page_items: 100,
-        category: '*',
-        ...(contentType === 'vod' ? { genre: '0' } : {}),
-    };
 }
 
 /**

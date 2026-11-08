@@ -54,6 +54,7 @@ function deferred<T>() {
 })
 class StubStalkerInlineDetailComponent {
     readonly playbackSessionKey = input.required<string>();
+    readonly similarSearchReturn = input<unknown>(null);
     readonly inlinePlayback = input<unknown>(null);
     readonly inlinePlaybackClosed = output<void>();
 }

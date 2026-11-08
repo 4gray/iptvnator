@@ -12,11 +12,12 @@ import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
     StalkerPortalRepairService,
     StalkerSessionService,
+    type StalkerSearchContentType,
 } from '@iptvnator/portal/stalker/data-access';
 import {
     DataService,
@@ -40,7 +41,10 @@ import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
+    clearNavigationStateKeys,
+    getStalkerSimilarOrigin,
     queryParamSignal,
+    STALKER_SIMILAR_ORIGIN,
     workspacePortalCommands,
 } from '@iptvnator/portal/shared/util';
 import { createLogger } from '@iptvnator/portal/shared/util';
@@ -64,7 +68,7 @@ import { StalkerVodPlaybackController } from '../stalker-vod-playback-controller
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 import { createStalkerVodDetailActions } from '../stalker-vod-detail-actions';
 import { StalkerSearchPagingController } from './stalker-search-paging.controller';
-import type { StalkerSearchContentType } from './stalker-search-results.util';
+import { StalkerWorkspaceRouteSession } from '../stalker-workspace-route-session.service';
 
 interface StalkerFilter {
     key: StalkerSearchContentType;
@@ -89,6 +93,10 @@ interface StalkerFilter {
 })
 export class StalkerSearchComponent {
     private readonly activatedRoute = inject(ActivatedRoute);
+    private readonly router = inject(Router);
+    private readonly routeSession = inject(StalkerWorkspaceRouteSession, {
+        optional: true,
+    });
     private readonly backNavigation = inject(WorkspaceBackNavigationService);
     private readonly dataService = inject(DataService);
     private readonly parentalLock = inject(ParentalLockService);
@@ -110,6 +118,11 @@ export class StalkerSearchComponent {
      * it at zero, so closing the detail must restore the spot explicitly.
      */
     private savedResultsScrollTop = 0;
+    readonly similarSearchReturn = () => {
+        const pagingId = this.router.lastSuccessfulNavigation?.()?.id;
+        if (pagingId !== undefined) this.paging.saveForSimilarReturn(pagingId);
+        return { scrollTop: this.savedResultsScrollTop, pagingId };
+    };
     private currentPlaybackOwnerKey = '';
 
     readonly filters = signal<Record<StalkerSearchContentType, boolean>>({
@@ -227,6 +240,38 @@ export class StalkerSearchComponent {
             if (routeTerm !== this.searchTerm()) {
                 this.searchTerm.set(routeTerm);
             }
+        });
+
+        effect(() => {
+            if (this.routeSession?.isReady() === false) return;
+            const playlistId = this.currentPlaylist()?._id;
+            if (
+                !playlistId ||
+                this.router.lastSuccessfulNavigation?.()?.trigger !== 'popstate'
+            )
+                return;
+            untracked(() => {
+                const origin = getStalkerSimilarOrigin(window.history.state);
+                if (!origin?.search || origin.playlistId !== playlistId) return;
+                clearNavigationStateKeys([STALKER_SIMILAR_ORIGIN]);
+                this.updateFilter(origin.catalog, true);
+                if (origin.search.pagingId !== undefined) {
+                    this.paging.restoreAfterSimilarReturn(
+                        origin.search.pagingId
+                    );
+                }
+                const item = origin.item as StalkerVodSource;
+                if (
+                    this.parentalLock.isStalkerCategoryLocked(
+                        playlistId,
+                        origin.catalog,
+                        item.category_id
+                    )
+                )
+                    return;
+                this.selectItem(item);
+                this.savedResultsScrollTop = origin.search.scrollTop;
+            });
         });
 
         effect(() => {

@@ -52,6 +52,7 @@ export * from './lib/detail-ui/detail-action-skeleton.component';
 export * from './lib/detail-ui/detail-section-header.component';
 export * from './lib/detail-ui/meta-chip.component';
 export * from './lib/detail-ui/similar-rail.component';
+export * from './lib/detail-ui/detail-similar-source';
 export * from './lib/detail-ui/trailer-dialog.component';
 export * from './lib/detail-ui/trailer-dialog.service';
 export * from './lib/detail-ui/trailer-dialog-state';

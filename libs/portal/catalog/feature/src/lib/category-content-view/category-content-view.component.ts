@@ -31,17 +31,10 @@ import {
     MenuItemRadioDirective,
 } from '@iptvnator/ui/components';
 import {
-    clearNavigationStateKeys,
-    consumeStalkerReturnMarker,
-    getOpenStalkerItemState,
-    getStalkerReturnByHistoryState,
-    isProviderOnlyDetailState,
-    normalizeStalkerHandoffIdentity,
     PortalCatalogFacade,
-    OPEN_STALKER_ITEM_STATE_KEY,
     PORTAL_CATALOG_DETAIL_COMPONENT,
     PORTAL_CATALOG_FACADE,
-    PROVIDER_ONLY_DETAIL_PRESENTATION_STATE_KEY,
+    STALKER_SIMILAR_FRAGMENT,
     PortalCatalogSortMode,
 } from '@iptvnator/portal/shared/util';
 import {
@@ -53,6 +46,7 @@ import { createCatalogWatchFilter } from './catalog-watch-filter';
 import { createCatalogHideWatched } from './catalog-hide-watched';
 import { createCatalogItemSubtitle } from './catalog-item-subtitle';
 import { createCatalogReturnFocus } from './catalog-return-focus';
+import { createStalkerCatalogHandoff } from './stalker-catalog-handoff';
 
 interface CategoryContentItem {
     id?: number | string;
@@ -87,11 +81,10 @@ interface CategoryContentItem {
 export class CategoryContentViewComponent implements OnInit, OnDestroy {
     private readonly activatedRoute = inject(ActivatedRoute);
     private readonly destroyRef = inject(DestroyRef);
-    private readonly host = inject(ElementRef<HTMLElement>);
+    private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
     private readonly gridList = viewChild(GridListComponent);
     private readonly router = inject(Router);
     private readonly focus = createCatalogReturnFocus(this.host.nativeElement);
-    private readonly providerOnlyStalkerItemId = signal<string | null>(null);
     private readonly catalog = inject(
         PORTAL_CATALOG_FACADE
     ) as PortalCatalogFacade<
@@ -99,6 +92,11 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
         CategoryContentItem,
         CategoryContentItem
     >;
+
+    private readonly stalkerHandoff = createStalkerCatalogHandoff(
+        this.catalog,
+        this.host.nativeElement
+    );
 
     readonly hideWatched = createCatalogHideWatched(
         this.catalog,
@@ -178,21 +176,7 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     readonly selectedDetailComponent = computed(() =>
         this.selectedItem() ? this.detailComponent : null
     );
-    readonly detailComponentInputs = computed<
-        Record<string, unknown> | undefined
-    >(() => {
-        if (this.catalog.provider !== 'stalker') {
-            return undefined;
-        }
-
-        const providerItemId = this.providerOnlyStalkerItemId();
-        return {
-            providerOnly:
-                providerItemId !== null &&
-                providerItemId ===
-                    this.stalkerItemIdentity(this.selectedItem()),
-        };
-    });
+    readonly detailComponentInputs = this.stalkerHandoff.detailInputs;
     readonly contentWithProgress = computed(() =>
         (this.paginatedContent() ?? []).map((item: CategoryContentItem) => ({
             ...item,
@@ -236,6 +220,7 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     private initializedRoute: {
         category: { id: string | null };
         playlistId: string | null;
+        relatedEntry: string | null;
     } | null = null;
 
     constructor() {
@@ -255,20 +240,37 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
                 return;
             }
             const playlistId = this.catalog.playlist()?.id ?? null;
-            // Query-only navigation toggles readiness too; only a new
-            // category arrival or playlist should reset the open detail.
-            if (
+            const navigation =
+                this.catalog.provider === 'stalker'
+                    ? this.router.lastSuccessfulNavigation?.()
+                    : null;
+            const fragment = navigation?.finalUrl?.fragment;
+            const relatedEntry = fragment?.startsWith(STALKER_SIMILAR_FRAGMENT)
+                ? fragment
+                : null;
+            const sameCategory =
                 this.initializedRoute?.category === category &&
-                this.initializedRoute.playlistId === playlistId
+                this.initializedRoute.playlistId === playlistId;
+            // A related detail can be a new history entry in the same category.
+            if (
+                sameCategory &&
+                this.initializedRoute?.relatedEntry === relatedEntry
             ) {
                 return;
             }
-            this.initializedRoute = { category, playlistId };
+            this.initializedRoute = { category, playlistId, relatedEntry };
             untracked(() => {
-                this.providerOnlyStalkerItemId.set(null);
-                this.catalog.initialize(category.id);
-                this.catalog.setSearchQuery?.(this.searchTerm());
-                this.openStalkerItemFromNavigationState();
+                this.stalkerHandoff.reset();
+                if (sameCategory) {
+                    this.catalog.clearSelectedItem();
+                } else {
+                    this.catalog.initialize(category.id);
+                    this.catalog.setSearchQuery?.(this.searchTerm());
+                }
+                this.stalkerHandoff.open(
+                    relatedEntry !== null,
+                    navigation?.trigger === 'popstate'
+                );
             });
         });
 
@@ -382,7 +384,7 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
             this.catalog.saveScrollPosition?.(grid.scrollTop);
         }
 
-        this.providerOnlyStalkerItemId.set(null);
+        this.stalkerHandoff.reset();
         const navigation = this.catalog.selectItem(item);
         if (navigation?.length) {
             this.router.navigate(navigation, {
@@ -413,58 +415,5 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
             queryParamsHandling: 'merge',
             replaceUrl: true,
         });
-    }
-
-    private openStalkerItemFromNavigationState(): void {
-        if (this.catalog.provider !== 'stalker') {
-            return;
-        }
-
-        const item = getOpenStalkerItemState(window.history.state);
-        if (!item) {
-            // The handoff item is gone, but its return contract can still sit
-            // on this entry: leaving with the browser's own Back never runs a
-            // back affordance, so nothing retired it. Landing here with no
-            // detail open means the handoff is over — any title opened from
-            // the list now is a fresh selection whose Back must close it
-            // rather than exit to the collection.
-            // Scoped to collection handoffs, which are the only ones that
-            // set the history-back marker: a plain `stalkerReturnTo` caller
-            // (the dashboard) keeps its existing re-navigating behaviour.
-            if (
-                !this.selectedItem() &&
-                getStalkerReturnByHistoryState(window.history.state)
-            ) {
-                consumeStalkerReturnMarker();
-            }
-            return;
-        }
-
-        const providerOnly = isProviderOnlyDetailState(window.history.state);
-        this.catalog.selectItem(item as CategoryContentItem);
-        // The item came from a stored snapshot, not the live list — let the
-        // provider refresh stale embedded data (e.g. episode lists).
-        this.catalog.refreshSnapshotSelection?.();
-        this.providerOnlyStalkerItemId.set(
-            providerOnly
-                ? this.stalkerItemIdentity(item as CategoryContentItem)
-                : null
-        );
-        clearNavigationStateKeys([
-            OPEN_STALKER_ITEM_STATE_KEY,
-            'openFavoriteItem',
-            'openRecentItem',
-            PROVIDER_ONLY_DETAIL_PRESENTATION_STATE_KEY,
-        ]);
-    }
-
-    private stalkerItemIdentity(
-        item: CategoryContentItem | null | undefined
-    ): string | null {
-        const rawId =
-            item?.id ?? item?.series_id ?? item?.movie_id ?? item?.stream_id;
-        // Shared with the return-marker binding in
-        // `resolveStalkerBackNavigation()` so the two cannot drift apart.
-        return normalizeStalkerHandoffIdentity(rawId) || null;
     }
 }

@@ -260,8 +260,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
     /**
      * TMDB recommendations found in the user's Xtream portals (batched DB
-     * match, Electron only) — Stalker catalogs are server-paginated, so
-     * "Similar" can only point at OTHER portals' libraries.
+     * match, Electron only). The detail host supplies current-portal matches.
      */
     private readonly similarInPortalsMatched = signal<CrossPortalSimilarItem[]>(
         []

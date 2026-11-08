@@ -215,7 +215,7 @@
     <div detail-extras>
         <app-similar-rail
             [title]="'XTREAM.SIMILAR' | translate"
-            [items]="hero.similarRailItems()"
+            [items]="similarRailItems()"
             (selected)="openSimilarRailItem($event)"
         />
         <app-cast-crew-row
