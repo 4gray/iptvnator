@@ -2132,7 +2132,10 @@ epoch, typed reference and lock version. Native inventory omits payload-only dev
 identity and revision fields; lookups read the full source and recheck its complete
 identity/revision before publication.
 Relative artwork resolves against the portal URL; only normalized display info is
-cached and merged in memory. Commands, membership, history timestamps,
+cached and merged in memory. Late portal metadata fills the saved provider copy
+as well as the displayed item. TMDB applies its results over the latest provider
+copy, including when the portal responds while the TMDB lookup is in flight.
+Commands, membership, history timestamps,
 loaded seasons and playback ownership are unchanged, and no enriched provider
 payload is persisted or sent through synchronization.
 

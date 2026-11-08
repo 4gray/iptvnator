@@ -29,6 +29,10 @@ interface StalkerEnrichableStore {
     selectedContentType?: () => string;
 }
 
+function providerInfo(item: StalkerVodSource): Partial<StalkerVodInfo> {
+    return item.info?.tmdb_provider_info ?? item.info ?? {};
+}
+
 export function stalkerSelectionMediaType(
     item: StalkerVodSource,
     contentType: string
@@ -45,9 +49,7 @@ export async function enrichStalkerSelectionWithTmdb(
     mediaType: TmdbMediaType,
     applyEnrichedItem: (enriched: StalkerVodSource) => void
 ): Promise<void> {
-    const info = (item.info?.tmdb_provider_info ??
-        item.info ??
-        {}) as Partial<StalkerVodInfo>;
+    const info = providerInfo(item);
     const title = info?.name?.trim() ?? '';
 
     const itemId = firstNonBlankStalkerIdText(item.id, item.stream_id);
@@ -98,7 +100,7 @@ export async function enrichStalkerSelectionWithTmdb(
                     itemId
             )
                 return;
-            const restored = { ...current, info };
+            const restored = { ...current, info: providerInfo(current) };
             applyEnrichedItem(restored);
             await enrichStalkerSelectionWithTmdb(
                 store,
@@ -117,7 +119,8 @@ export async function enrichStalkerSelectionWithTmdb(
         (matchIdentity && matches?.read(matchIdentity)?.mode === 'provider')
     ) {
         const current = isCurrent();
-        if (current) applyEnrichedItem({ ...current, info });
+        if (current)
+            applyEnrichedItem({ ...current, info: providerInfo(current) });
     }
     if (
         !enrichment.isEnabled() ||
@@ -155,15 +158,16 @@ export async function enrichStalkerSelectionWithTmdb(
     }
 
     try {
+        const currentInfo = providerInfo(current) as StalkerVodInfo;
         applyEnrichedItem({
             ...current,
             info: {
                 ...mergers.mergeStalkerInfoWithTmdb(
-                    info as StalkerVodInfo,
+                    currentInfo,
                     details,
                     mediaType
                 ),
-                tmdb_provider_info: info as StalkerVodInfo,
+                tmdb_provider_info: currentInfo,
             },
         });
     } catch (error) {

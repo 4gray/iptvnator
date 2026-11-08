@@ -4,6 +4,7 @@ import {
     type TmdbSelectionQuery,
 } from '@iptvnator/services';
 import type { StalkerVodSource } from '../models';
+import { mergeStalkerDisplayInfo } from '../stalker-display-info';
 import { enrichStalkerSelectionWithTmdb } from './stalker-tmdb-enrichment';
 
 const identity = {
@@ -26,11 +27,11 @@ const original = {
 
 afterEach(() => localStorage.clear());
 
-function fixture(name = original.name) {
+function fixture(name = original.name, description = original.description) {
     let selected: StalkerVodSource = {
         id: '42',
         is_series: true,
-        info: { ...original, name },
+        info: { ...original, name, description },
     };
     let playlistId = 'source';
     let catalog = 'vod';
@@ -187,6 +188,69 @@ it('restores original Stalker metadata and preserves it through enriched snapsho
     expect(context.store.selectedItem().info?.description).toBe(
         'Automatic plot'
     );
+});
+
+it('keeps a late portal synopsis when TMDB is run again without an overview', async () => {
+    const context = fixture(original.name, '');
+    context.enrichTv.mockResolvedValue({
+        id: 900102,
+        overview: '',
+        poster_path: '/poster.jpg',
+    });
+    await context.run();
+    context.apply(
+        mergeStalkerDisplayInfo(context.store.selectedItem(), original)
+    );
+    await context.run();
+    expect(context.store.selectedItem().info).toMatchObject({
+        description: original.description,
+        tmdb_id: 900102,
+        tmdb_provider_info: { description: original.description },
+    });
+});
+
+it('restores the late portal synopsis when switching from TMDB to provider metadata', async () => {
+    const context = fixture(original.name, '');
+    await context.run();
+    context.apply(
+        mergeStalkerDisplayInfo(context.store.selectedItem(), {
+            info: {
+                ...original,
+                description: 'Synthetic alternate TMDB overview',
+                tmdb_id: 900101,
+                tmdb_provider_info: original,
+            },
+        })
+    );
+    expect(context.store.selectedItem().info?.description).toBe(
+        'Automatic plot'
+    );
+    await context.matches.save(identity, { mode: 'provider' });
+    expect(context.store.selectedItem().info).toEqual(original);
+});
+
+it('keeps the portal synopsis when an already pending TMDB lookup finishes', async () => {
+    const context = fixture(original.name, '');
+    let resume!: () => void;
+    const response = new Promise<void>((resolve) => (resume = resolve));
+    let started!: () => void;
+    const requested = new Promise<void>((resolve) => (started = resolve));
+    context.enrichTv.mockImplementationOnce(async () => {
+        started();
+        await response;
+        return { id: 900102, overview: '', poster_path: '/poster.jpg' };
+    });
+    const pending = context.run();
+    await requested;
+    context.apply(
+        mergeStalkerDisplayInfo(context.store.selectedItem(), original)
+    );
+    resume();
+    await pending;
+    expect(context.store.selectedItem().info).toMatchObject({
+        description: original.description,
+        tmdb_provider_info: { description: original.description },
+    });
 });
 
 it('does not apply an old source choice to a different source with the same provider id', async () => {
