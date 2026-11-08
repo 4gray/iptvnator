@@ -7,6 +7,7 @@ import {
     effect,
     inject,
     input,
+    model,
     output,
     signal,
     untracked,
@@ -84,6 +85,7 @@ const RECORDING_MESSAGE_DISMISS_DELAY_MS = 5000;
 export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly playback = input.required<ResolvedPortalPlayback>();
     readonly showControls = input(true);
+    readonly liveSubtitlesOff = model(false);
     readonly recordingFolder = input('');
     readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
     readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
@@ -420,6 +422,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
 
         this.sharedControls.configure({
             playback: this.playback,
+            selectSubtitleTrack: this.applySubtitleTrack,
             seriesNavigation: this.seriesNavigation,
             recordingFolder: this.recordingFolder,
             recordingMetadata: this.recordingMetadata,
@@ -540,7 +543,13 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
             const teardown = this.controller.startSession(
                 viewport.nativeElement,
                 playback,
-                untracked(() => this.volume())
+                untracked(() => this.volume()),
+                untracked(
+                    () =>
+                        this.liveSubtitlesOff() &&
+                        this.isLivePlayback() &&
+                        this.capabilities().subtitles
+                )
             );
             onCleanup(teardown);
         });
@@ -764,9 +773,16 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         this.legacyInteractions.scheduleControlsHide();
     }
 
+    private readonly applySubtitleTrack = (trackId: number): Promise<void> => {
+        if (this.isLivePlayback()) {
+            this.liveSubtitlesOff.set(trackId === -1);
+        }
+        return this.controller.setSubtitleTrack(trackId);
+    };
+
     async selectSubtitleTrack(trackId: number): Promise<void> {
         this.legacyInteractions.revealControls(false);
-        await this.controller.setSubtitleTrack(trackId);
+        await this.applySubtitleTrack(trackId);
         this.menus.close('subtitle');
         this.legacyInteractions.scheduleControlsHide();
     }

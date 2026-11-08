@@ -97,6 +97,7 @@
     } @else if (application.embeddedMpv) {
         <app-embedded-mpv-player
             #embeddedMpvPlayer
+            [(liveSubtitlesOff)]="embeddedMpvLiveSubtitlesOff"
             [playback]="resolvedPlayback()"
             [fullscreenTarget]="fullscreenSurface"
             [mediaTitle]="resolvedMediaTitle()"

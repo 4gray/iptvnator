@@ -45,6 +45,7 @@ import { toPlayerStreamStats } from './embedded-mpv-stream-stats';
 
 export interface EmbeddedMpvControlsContext {
     readonly playback: Signal<ResolvedPortalPlayback>;
+    readonly selectSubtitleTrack?: (trackId: number) => Promise<void>;
     readonly seriesNavigation: Signal<SeriesPlaybackNavigation | null>;
     readonly recordingFolder: Signal<string>;
     /** Channel/EPG snapshot the live host captured for the recording tracker. */
@@ -228,7 +229,11 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
         seekBy: (deltaSeconds) => void this.controller.seekBy(deltaSeconds),
         setVolume: (value) => void this.controller.applyVolume(value),
         setAudioTrack: (id) => void this.controller.setAudioTrack(id),
-        setSubtitleTrack: (id) => void this.controller.setSubtitleTrack(id),
+        setSubtitleTrack: (id) =>
+            void (
+                this.configuredContext()?.selectSubtitleTrack ??
+                this.controller.setSubtitleTrack
+            )(id),
         addExternalSubtitleFile: () =>
             this.subtitleSettings.addExternalSubtitle(),
         setSubtitleDelay: (seconds) => this.subtitleSettings.setDelay(seconds),

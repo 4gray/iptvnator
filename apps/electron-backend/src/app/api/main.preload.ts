@@ -619,13 +619,15 @@ const electronApi: ElectronBridgeApi = {
     createEmbeddedMpvSession: (
         bounds: EmbeddedMpvBounds,
         title?: string,
-        initialVolume?: number
+        initialVolume?: number,
+        subtitlesOff?: boolean
     ): Promise<EmbeddedMpvSession> =>
         ipcRenderer.invoke(
             'EMBEDDED_MPV_CREATE_SESSION',
             bounds,
             title,
-            initialVolume
+            initialVolume,
+            subtitlesOff
         ),
     loadEmbeddedMpvPlayback: (
         sessionId: string,
