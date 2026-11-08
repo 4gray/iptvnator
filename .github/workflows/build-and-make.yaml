@@ -922,6 +922,25 @@ jobs:
                   spctl -a -vvv --type execute "${APP_PATH}"
                   xcrun stapler validate "${APP_PATH}"
 
+            - name: Cache verified FPM archive for Linux system packages
+              if: matrix.os == 'linux' && matrix.linux_profile == 'system'
+              shell: bash
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  set -euo pipefail
+                  # Use the GitHub asset API when the public release download returns 504.
+                  fpm_release='fpm@2.1.4'
+                  fpm_archive='fpm-1.17.0-ruby-3.4.3-linux-amd64.7z'
+                  fpm_cache="${ELECTRON_BUILDER_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/electron-builder}/${fpm_release}"
+                  fpm_download="$(mktemp -d "${RUNNER_TEMP}/iptvnator-fpm.XXXXXX")"
+                  gh release download "${fpm_release}" --repo electron-userland/electron-builder-binaries \
+                      --pattern "${fpm_archive}" --dir "${fpm_download}"
+                  printf '%s  %s\n' '44b0ec6025c14ec137f56180e62675c0eae36233cdce53d0953d9c73ced8989f' \
+                      "${fpm_download}/${fpm_archive}" | sha256sum -c -
+                  mkdir -p "${fpm_cache}"
+                  mv "${fpm_download}/${fpm_archive}" "${fpm_cache}/${fpm_archive}"
+
             - name: Make Electron app
               if: matrix.os != 'macos' || github.event_name == 'pull_request'
               env:

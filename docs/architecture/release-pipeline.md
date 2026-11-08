@@ -290,6 +290,10 @@ every source (`--error-on=any`) before installation starts; update and install
 have independent five- and ten-minute process limits with a ten-second kill
 grace period. Packaging and test gates remain unchanged.
 
+The Linux system job downloads the pinned FPM archive through GitHub's release
+asset API and verifies its SHA-256 before seeding Electron Builder's cache.
+This avoids gateway timeouts on the public release download URL.
+
 ## AppImage external-manager metadata
 
 `electron-builder.json` scopes `X-AppImage-Name`, `X-AppImage-Homepage` and

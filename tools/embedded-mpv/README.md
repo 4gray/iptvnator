@@ -122,9 +122,9 @@ ship complete corresponding source, exact build scripts and patches, notices,
 and a validated transitive license record beside the binary.
 
 The macOS builder verifies every downloaded archive against its pinned
-SHA-256 digest before extraction. FreeType uses its official SourceForge
-distribution as the primary source and the official Savannah distribution as
-a fallback; a failed or mismatched download is discarded before the next
+SHA-256 digest before extraction. FreeType has an official Savannah fallback,
+and FriBidi has a MacPorts fallback for GitHub release download failures. A
+failed or mismatched download is discarded before the next
 mirror is attempted. The runtime manifest records the selected URL for a new
 download and the complete ordered candidate list for every archive, so
 fallback use remains visible in the source provenance. Changes to the

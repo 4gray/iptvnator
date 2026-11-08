@@ -30,6 +30,9 @@ const sourcePackages = [
         id: 'fribidi',
         version: '1.0.16',
         url: 'https://github.com/fribidi/fribidi/releases/download/v1.0.16/fribidi-1.0.16.tar.xz',
+        mirrors: [
+            'https://distfiles.macports.org/fribidi/fribidi-1.0.16.tar.xz',
+        ],
         expectedSha256:
             '1b1cde5b235d40479e91be2f0e88a309e3214c8ab470ec8a2744d82a5a9ea05c',
         license: 'LGPL-2.1-or-later',
