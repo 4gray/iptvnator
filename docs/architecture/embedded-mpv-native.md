@@ -275,8 +275,14 @@ module's `isFrameCopyRuntimeUsable()` / `getFrameCopyRuntimeAvailability()`):
   `<canvas data-embedded-mpv-frame>` (BGRA swizzle in the shader). Frame
   copies whose post-copy seqlock check reports a writer race are discarded
   without advancing the consumed sequence, so the next rAF retries instead
-  of uploading partial pixels. Frame data never crosses the contextBridge;
-  the bridge only exposes
+  of uploading partial pixels. On a resize generation change, the pump keeps
+  the displayed canvas and texture unchanged until it copies a complete,
+  stable frame from the new ring. It then resizes the canvas, uploads that
+  frame and draws in the same animation tick, avoiding a cleared canvas while
+  the helper prepares its first resized frame. Detaching a session clears the
+  canvas so switching streams never retains the previous stream's image while
+  waiting for a new frame. Frame data never crosses the contextBridge; the
+  bridge only exposes
   `attachEmbeddedMpvFrameView`/`detachEmbeddedMpvFrameView`.
 - Renderer: `EmbeddedMpvPlayerComponent` renders the canvas when
   `support.engine === 'frame-copy'` and skips the compositor workarounds —
