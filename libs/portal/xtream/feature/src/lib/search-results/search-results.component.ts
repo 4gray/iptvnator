@@ -5,11 +5,13 @@ import {
     computed,
     effect,
     inject,
+    input,
     linkedSignal,
     signal,
     untracked,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatIcon } from '@angular/material/icon';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
@@ -32,15 +34,18 @@ import {
     XtreamSearchResultItem,
 } from '@iptvnator/portal/xtream/data-access';
 import {
+    GLOBAL_SEARCH_MIN_LENGTH,
     GlobalSearchResult,
     isM3uGlobalSearchResult,
 } from '@iptvnator/shared/interfaces';
 
-interface GlobalSearchResultGroup {
-    playlistId: string;
-    playlistName: string;
-    items: XtreamSearchResultItem[];
-}
+import {
+    type AdditionalGlobalSearchResult,
+    type GlobalSearchCard,
+    groupResultsByPlaylistId,
+} from './global-search-results';
+
+export type { AdditionalGlobalSearchResult } from './global-search-results';
 
 const GLOBAL_SEARCH_PAGE_SIZE = 100;
 
@@ -51,32 +56,13 @@ const GLOBAL_SEARCH_PAGE_SIZE = 100;
  */
 const IN_PORTAL_RESULTS_CHUNK = 60;
 
-function groupResultsByPlaylistId(
-    items: XtreamSearchResultItem[]
-): GlobalSearchResultGroup[] {
-    const groups = new Map<string, GlobalSearchResultGroup>();
-
-    for (const item of items) {
-        const playlistId = String(item.playlist_id ?? 'unknown');
-        const playlistName = String(item.playlist_name ?? playlistId);
-        const group = groups.get(playlistId) ?? {
-            playlistId,
-            playlistName,
-            items: [],
-        };
-        group.items.push(item);
-        groups.set(playlistId, group);
-    }
-
-    return [...groups.values()];
-}
-
 @Component({
     selector: 'app-search-results',
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         ContentCardComponent,
         FormsModule,
+        MatButtonModule,
         MatCheckboxModule,
         MatIcon,
         MatProgressSpinner,
@@ -161,14 +147,20 @@ export class SearchResultsComponent implements AfterViewInit {
         },
     ];
 
-    /** Grouped results computed once per result change (avoids recalculating on every CD cycle) */
-    readonly groupedResults = computed(() => {
-        const results = this.xtreamStore.searchResults();
-        if (!this.isGlobalSearch) {
-            return [];
-        }
-        return groupResultsByPlaylistId(results);
-    });
+    readonly additionalResults = input<readonly AdditionalGlobalSearchResult[]>(
+        []
+    );
+    readonly additionalSearchPending = input(false);
+    readonly additionalSearchFailed = input(false);
+    readonly globalResults = computed<readonly GlobalSearchCard[]>(() => [
+        ...(this.xtreamStore.isSearching()
+            ? []
+            : this.xtreamStore.searchResults()),
+        ...this.additionalResults(),
+    ]);
+    readonly groupedResults = computed(() =>
+        groupResultsByPlaylistId(this.globalResults())
+    );
 
     /** Resets to the first chunk whenever a new result set replaces the old. */
     private readonly inPortalVisibleCount = linkedSignal({
@@ -203,7 +195,7 @@ export class SearchResultsComponent implements AfterViewInit {
      */
     readonly renderedSearchResultsCount = computed(() =>
         this.isGlobalSearch
-            ? this.xtreamStore.searchResults().length
+            ? this.globalResults().length
             : this.visibleInPortalResults().length
     );
 
@@ -484,7 +476,11 @@ export class SearchResultsComponent implements AfterViewInit {
         );
     }
 
-    selectItem(item: XtreamSearchResultItem) {
+    selectItem(item: GlobalSearchCard) {
+        if ('open' in item) {
+            item.open();
+            return;
+        }
         if (isM3uGlobalSearchResult(item as GlobalSearchResult)) {
             this.selectM3uItem(item as GlobalSearchResult);
             return;
@@ -544,10 +540,6 @@ export class SearchResultsComponent implements AfterViewInit {
         }
     }
 
-    getGroupedResults() {
-        return this.groupedResults();
-    }
-
     /**
      * The in-portal search is a nested view (reached from the toolbar
      * search box or an actor page), so it offers the header's Back; the
@@ -558,7 +550,7 @@ export class SearchResultsComponent implements AfterViewInit {
     }
 
     get minSearchLength(): number {
-        return this.isGlobalSearch ? 2 : 3;
+        return this.isGlobalSearch ? GLOBAL_SEARCH_MIN_LENGTH : 3;
     }
 
     get initialDescriptionKey(): string {
@@ -567,7 +559,7 @@ export class SearchResultsComponent implements AfterViewInit {
             : 'PORTALS.SEARCH_VIEW.INITIAL_DESCRIPTION';
     }
 
-    getDisplayType(item: XtreamSearchResultItem): string {
+    getDisplayType(item: GlobalSearchCard): string {
         const result = item as GlobalSearchResult;
         if (isM3uGlobalSearchResult(result) && result.radio === 'true') {
             return 'radio';

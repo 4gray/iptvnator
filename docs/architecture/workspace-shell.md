@@ -527,7 +527,15 @@ Search is shell-owned and route-aware:
 6. Input changes are debounced before route/store updates are applied.
 7. Global search uses the header input as its primary input and writes the
    search phrase to the `q` query parameter, so history/back-forward behavior
-   matches the rest of the workspace.
+   matches the rest of the workspace. Applying the query after the debounce
+   or with Enter searches the local Xtream and M3U catalogs. A query of at
+   least two characters also searches configured Stalker portals for the
+   selected Movies and Series filters. Local results appear without waiting
+   for Stalker, and all results use the same cards and **Group results by
+   playlist** setting. An inline status shows pending searches, and a failed
+   portal offers Retry. Stalker contributes the first page from each catalog
+   and links to the full portal search when more results may be available.
+   Opening a result keeps the global query in its Back target.
 8. The URL is authoritative for the search box only when it carries search
    intent. `WorkspaceShellSearchSyncService` re-reads `q` on every
    `NavigationEnd`, but an **app-initiated** navigation that stays on the same

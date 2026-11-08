@@ -4,6 +4,7 @@ import {
     computed,
     effect,
     inject,
+    linkedSignal,
     signal,
     untracked,
     viewChild,
@@ -16,6 +17,7 @@ import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
     StalkerPortalRepairService,
+    type StalkerSearchContentType,
     StalkerSessionService,
 } from '@iptvnator/portal/stalker/data-access';
 import {
@@ -25,6 +27,7 @@ import {
 } from '@iptvnator/services';
 import {
     ALL_CATEGORIES_WITHHELD,
+    GLOBAL_SEARCH_MIN_LENGTH,
     PlaybackPositionData,
     ResolvedPortalPlayback,
     VodDetailsItem,
@@ -64,7 +67,6 @@ import { StalkerVodPlaybackController } from '../stalker-vod-playback-controller
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 import { createStalkerVodDetailActions } from '../stalker-vod-detail-actions';
 import { StalkerSearchPagingController } from './stalker-search-paging.controller';
-import type { StalkerSearchContentType } from './stalker-search-results.util';
 
 interface StalkerFilter {
     key: StalkerSearchContentType;
@@ -112,10 +114,6 @@ export class StalkerSearchComponent {
     private savedResultsScrollTop = 0;
     private currentPlaybackOwnerKey = '';
 
-    readonly filters = signal<Record<StalkerSearchContentType, boolean>>({
-        series: false,
-        vod: true,
-    });
     readonly filterConfig: StalkerFilter[] = [
         {
             key: 'vod',
@@ -130,6 +128,7 @@ export class StalkerSearchComponent {
     ];
 
     readonly searchTerm = signal('');
+    readonly minSearchLength = GLOBAL_SEARCH_MIN_LENGTH;
     readonly routeSearchTerm = queryParamSignal(
         this.activatedRoute,
         'q',
@@ -140,8 +139,26 @@ export class StalkerSearchComponent {
         const playlist = this.playlistContext.activePlaylist();
         return playlist?.macAddress ? playlist : null;
     });
+    private readonly currentPlaylistId = computed(
+        () => this.currentPlaylist()?._id
+    );
 
-    readonly selectedFilterType = signal<StalkerSearchContentType>('vod');
+    private readonly routeSearchKind = queryParamSignal(
+        this.activatedRoute,
+        'kind',
+        (kind) => (kind === 'vod' || kind === 'series' ? kind : null)
+    );
+    readonly selectedFilterType = linkedSignal<
+        readonly [string | undefined, StalkerSearchContentType | null],
+        StalkerSearchContentType
+    >({
+        source: () => [this.currentPlaylistId(), this.routeSearchKind()],
+        computation: ([, kind], previous) => kind ?? previous?.value ?? 'vod',
+    });
+    readonly filters = computed(() => ({
+        series: this.selectedFilterType() === 'series',
+        vod: this.selectedFilterType() === 'vod',
+    }));
     private readonly favoritesRefresh = createRefreshTrigger();
 
     readonly itemDetails = signal<StalkerSelectedVodItem | null>(null);
@@ -278,18 +295,7 @@ export class StalkerSearchComponent {
 
     updateFilter(key: StalkerSearchContentType, value: boolean) {
         if (value) {
-            // Single selection mode - set clicked filter, disable others
             this.selectedFilterType.set(key);
-            this.filters.update(() => {
-                const newFilters: Record<StalkerSearchContentType, boolean> = {
-                    series: false,
-                    vod: false,
-                };
-                this.filterConfig.forEach((filter) => {
-                    newFilters[filter.key] = filter.key === key;
-                });
-                return newFilters;
-            });
         }
     }
 

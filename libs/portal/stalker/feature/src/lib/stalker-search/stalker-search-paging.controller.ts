@@ -7,8 +7,10 @@ import {
 } from '@angular/core';
 import type { Logger } from '@iptvnator/portal/shared/util';
 import {
-    executeStalkerRequest,
+    loadStalkerSearchPage,
+    resolveSearchWithheldCategoryIds,
     type StalkerPortalRepairService,
+    type StalkerSearchContentType,
     type StalkerSessionService,
     type StalkerVodSource,
     withoutWithheldStalkerItems,
@@ -19,18 +21,13 @@ import {
     resetHostConnectivityGuard,
 } from '@iptvnator/services';
 import {
+    GLOBAL_SEARCH_MIN_LENGTH,
     type PlaylistMeta,
-    StalkerPortalActions,
 } from '@iptvnator/shared/interfaces';
 import { isStalkerSearchRequestCurrent } from './stalker-search-request.util';
 import {
-    buildStalkerSearchRequestParams,
     dedupeSearchResults,
     recordNewWithheldRows,
-    resolveSearchWithheldCategoryIds,
-    type StalkerSearchContentType,
-    type StalkerSearchResponse,
-    withAbsoluteScreenshotUri,
 } from './stalker-search-results.util';
 
 interface StalkerSearchPagingControllerConfig {
@@ -97,13 +94,12 @@ export class StalkerSearchPagingController {
             search: this.config.searchTerm(),
             page: this.searchPage(),
             playlistId: this.config.currentPlaylist()?._id ?? null,
-            action: StalkerPortalActions.GetOrderedList,
             // Lock/unlock re-fires the search: withheld rows are dropped at
             // page time, so the results must be rebuilt when they change.
             parentalLockVersion: this.config.parentalLock.version(),
         }),
         loader: async ({ params }) => {
-            if (params.search.length < 3) {
+            if (params.search.length < GLOBAL_SEARCH_MIN_LENGTH) {
                 this.resetSearchAccumulator();
                 return [];
             }
@@ -150,12 +146,6 @@ export class StalkerSearchPagingController {
                 this.searchWithheldIds.clear();
             }
 
-            const requestParams = buildStalkerSearchRequestParams(
-                contentType,
-                params.search,
-                params.page
-            );
-
             // A stale response (term/filter/page/portal — or the parental
             // lock — moved on while this page was in flight) must not clobber
             // the accumulated list: the request is not aborted, and a
@@ -170,23 +160,12 @@ export class StalkerSearchPagingController {
                 });
 
             try {
-                // executeStalkerRequest owns the portal-mode decision (shared
-                // predicate with URL fallback for legacy rows) and the lazy
-                // portal repair, so search cannot drift from the catalog
-                // paths.
-                const response =
-                    await executeStalkerRequest<StalkerSearchResponse>(
-                        {
-                            dataService: this.config.dataService,
-                            stalkerSession: this.config.stalkerSession,
-                            portalRepair: this.config.portalRepair,
-                        },
-                        playlist,
-                        requestParams
-                    );
-                const rawItems = (response.js?.data || []).map(
-                    (item: StalkerVodSource) =>
-                        withAbsoluteScreenshotUri(item, portalUrl)
+                const { rawItems, totalItems } = await loadStalkerSearchPage(
+                    this.config,
+                    playlist,
+                    contentType,
+                    params.search,
+                    params.page
                 );
                 const items = withoutWithheldStalkerItems(
                     rawItems,
@@ -209,7 +188,7 @@ export class StalkerSearchPagingController {
                 const merged = this.applySearchPageSuccess(
                     params.page,
                     items,
-                    response.js?.total_items,
+                    totalItems,
                     // A page made only of withheld rows still is a page the
                     // portal served; judge progress on what it sent.
                     rawItems.length > 0 &&

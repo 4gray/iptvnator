@@ -30,7 +30,7 @@
 
 **Discovery & metadata**
 
-- Global search across live TV, movies, and series _(desktop)_
+- Global search across Xtream catalogs, M3U channels, and movies and series from Stalker portals _(desktop)_
 - TMDB enrichment (opt-in, requires your own TMDB API key) — plots, cast & crew, trailers, ratings, artwork, a "Similar" rail, clickable actor pages, and a trending dashboard rail _(trending rail: desktop)_
 - Dashboard with recently watched & continue-watching
 

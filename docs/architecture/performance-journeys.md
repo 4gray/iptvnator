@@ -1189,8 +1189,9 @@ the M3U arm runs as well, because live content is included, but none of the
 four fixture channels matches. Poster artwork points at `picsum.photos` and
 is cancelled in the main process as in J3
 (`src/performance/journey-external-artwork.ts`, shared by both journeys);
-the count is kept as `evidence.externalArtworkCancelled`. The mock is not
-put behind the request ledger: global search reads only the local database.
+the count is kept as `evidence.externalArtworkCancelled`. This profile uses
+only the local database because it has M3U and Xtream sources. It runs without
+the mock request ledger.
 
 **What typing does.** The header search box
 (`app-workspace-shell-header .search-field input[type="search"]`) applies
@@ -1276,8 +1277,9 @@ the second character on would show a `dbGlobalSearch` call and its
 statements in each of those entries, even when a later key superseded the
 result.
 
-No counter is listed under `unavailable`. HTTP requests are not a J4
-counter: global search does not touch the network.
+No counter is listed under `unavailable`. J4 measures the local catalog path
+with its M3U and Xtream fixture. A desktop profile with Stalker portals also
+searches those portals when the applied query and filters qualify.
 
 ### Wall-clock
 

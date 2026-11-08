@@ -146,8 +146,8 @@ export const routes: Routes = [
                     isGlobalSearch: true,
                 },
                 loadComponent: () =>
-                    import('@iptvnator/portal/xtream/feature').then(
-                        (c) => c.GlobalSearchResultsComponent
+                    import('./global-search-route.component').then(
+                        (c) => c.GlobalSearchRouteComponent
                     ),
             },
             {

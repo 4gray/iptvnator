@@ -43,6 +43,7 @@ export class SearchLayoutComponent {
     /** Whether search is in progress */
     readonly isLoading = input<boolean>(false);
     readonly hasError = input<boolean>(false);
+    readonly hideEmpty = input(false);
     readonly retryClick = output<void>();
 
     /**
@@ -138,6 +139,7 @@ export class SearchLayoutComponent {
     /** Check if we should show the "no results" state */
     get showNoResults(): boolean {
         return (
+            !this.hideEmpty() &&
             this.searchTerm().length >= this.minSearchLength() &&
             this.resultsCount() === 0 &&
             !this.isLoading()

@@ -14,28 +14,19 @@
     padding-bottom: 1rem;
 }
 
-// Subheader row for global search (scope note + filters/options)
+.global-search-retry {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.5rem;
+}
+
+// Subheader row for global search filters and options.
 .global-search-subheader {
     display: flex;
     flex-direction: column;
     align-items: stretch;
     gap: 10px;
-
-    .global-search-note {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 0.8rem;
-        color: var(--mat-sys-on-surface-variant);
-
-        mat-icon {
-            color: var(--mat-sys-primary);
-            font-size: 16px;
-            width: 16px;
-            height: 16px;
-            flex-shrink: 0;
-        }
-    }
 
     .global-search-controls {
         display: flex;
