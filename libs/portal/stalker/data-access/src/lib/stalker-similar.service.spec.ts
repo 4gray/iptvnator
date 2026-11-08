@@ -67,6 +67,10 @@ describe(StalkerSimilarService.name, () => {
                               row('31', params.search),
                               row('1', params.search, '1982'),
                               {
+                                  ...row('5', 'Fictional Ridge (1982)', ''),
+                                  o_name: params.search,
+                              },
+                              {
                                   ...row('2', params.search),
                                   screenshot_uri: '/artwork/fixture.jpg',
                               },
@@ -99,6 +103,28 @@ describe(StalkerSimilarService.name, () => {
             ['vod', 'Fictional Ridge', 1],
             ['vod', 'Fictional Quarry', 1],
         ]);
+    });
+
+    it('allows a canonical title to end with a number that looks like a release year', async () => {
+        send.mockResolvedValue({
+            js: {
+                data: [
+                    {
+                        ...row('2', 'Fictional Ridge 2049', ''),
+                        o_name: 'Fictional Plateau 2049',
+                    },
+                ],
+            },
+        });
+
+        const results = await service.match(
+            playlist,
+            current,
+            [recommendation('Fictional Ridge 2049')],
+            new AbortController().signal
+        );
+
+        expect(results.map(({ item }) => item.id)).toEqual(['2']);
     });
 
     it('keeps the VOD origin for embedded and Ministra series and caps the search at four titles', async () => {

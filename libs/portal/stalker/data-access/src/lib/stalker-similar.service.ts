@@ -179,20 +179,28 @@ function matchesTitle(
         extractYear(providerKey(row.info?.releasedate)) ??
         extractYear(providerKey(row.releasedate)) ??
         extractYear(providerKey(row.year));
-    return [
+    if (!titleYearsCompatible(year, releaseYear)) return false;
+
+    let matches = false;
+    for (const title of [
         row.name,
         row.o_name,
         row.title,
         row.info?.name,
         row.info?.o_name,
-    ].some((title) => {
-        if (typeof title !== 'string') return false;
+    ]) {
+        if (typeof title !== 'string') continue;
         const keys = normalizeTitleKeys(title);
         const exact = wanted === keys.exact;
-        if (!exact && wanted !== keys.base) return false;
+        const baseOnly = !exact && wanted === keys.base;
+        matches ||= exact || baseOnly;
+        if (releaseYear !== null || year === null) continue;
+
         const tag = releaseTagYear(title);
-        // A trailing number in an exact canonical title can be part of its name.
-        const taggedYear = exact && tag === keys.trailingYear ? null : tag;
-        return titleYearsCompatible(year, releaseYear ?? taggedYear);
-    });
+        // A bare trailing year can be part of the name; only use it when
+        // stripping it made the title match. Bracketed tags apply across aliases.
+        if (tag === keys.trailingYear && !baseOnly) continue;
+        if (!titleYearsCompatible(year, tag)) return false;
+    }
+    return matches;
 }

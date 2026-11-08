@@ -391,11 +391,13 @@ through the existing portal request flow. Film recommendations search
 VOD films. Series recommendations search the regular series catalog and
 VOD series, keeping the destination's catalog type for episode loading.
 Only unambiguous matches by normalized title, media type and compatible
-year appear. The search works in Electron and the PWA, runs independently
-of details and playback, and stops starting new requests when the
-selection changes. Category locks are checked when rendering and opening
-a recommendation. In both Stalker and Xtream movie and series details,
-the rail follows Cast & crew. With no visible matches the rail stays hidden.
+year appear. Without an explicit release year, a conflicting release tag
+in a title alias can disqualify the row. The search works in Electron and
+the PWA, runs independently of details and playback, and stops starting
+new requests when the selection changes. Category locks are checked when
+rendering and opening a recommendation. In both Stalker and Xtream movie
+and series details, the rail follows Cast & crew. With no visible matches
+the rail stays hidden.
 The `language` param derives from the app language setting
 (`Language` enum → TMDB code, e.g. `de` → `de-DE`); cache rows are keyed per
 language, so switching the app language re-fetches localized metadata.
