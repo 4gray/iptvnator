@@ -159,6 +159,10 @@ palette in `apps/website/tailwind.config.mjs`.
 Screenshots come only from the capture script running against the mock servers.
 Never publish one taken from a real playlist or account — streams, logos and
 metadata are copyrighted, and credentials must never reach a published image.
+For the desktop-hosting shot, also build `web-backend:build` and
+`web:build-hosted` so Electron can show the server controls. The shot leaves
+the server stopped and shows no access code. The parental-lock shot leaves
+both PIN fields empty.
 
 For the release 0.25 dashboard and detail showcase, run
 `pnpm release:screenshots --cinematic --release v0-25` after the standard
@@ -212,6 +216,13 @@ reporting that as "internal-only" would hide the one ordering mistake the
 pipeline is built to prevent.
 
 ## Draft verification
+
+For a large release, add a compact GitHub summary with a link to the full
+changelog at the top of the generated version section, followed by a blank
+line, `<!-- end-github-summary -->`, and another blank line. Public extraction
+uses that summary, leaving room for GitHub's generated PR and contributor
+list. The complete authored notes stay in the committed changelog. Without
+the marker, the tag build uses the full public section as usual.
 
 The `v*` tag build creates a **draft** GitHub release.
 `pnpm run release:verify:draft` (`tools/release/verify-draft-release.mjs`) is

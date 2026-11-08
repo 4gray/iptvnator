@@ -31,6 +31,21 @@
             ]
         },
         {
+            "slug": "settings-appearance",
+            "title": "Appearance settings with six theme palettes",
+            "setup": ["open-settings-appearance"]
+        },
+        {
+            "slug": "settings-hosted-server",
+            "title": "Host a server from desktop Settings",
+            "setup": ["open-settings-hosted-server"]
+        },
+        {
+            "slug": "settings-parental-lock",
+            "title": "Set a parental lock PIN",
+            "setup": ["open-settings-parental-lock"]
+        },
+        {
             "slug": "xtream-vod-details",
             "title": "Movie details",
             "setup": [

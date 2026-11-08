@@ -884,6 +884,15 @@ describe('extractSection', () => {
 });
 
 describe('extractPublicSection', () => {
+    it('uses an editorial summary on GitHub without dropping the full changelog', () => {
+        const full = '### Features\n\n- New feature.';
+        const summary = 'Highlights and a link to the full changelog.';
+        const release = `# 0.25.0 (2026-11-08)\n\n${summary}\n\n<!-- end-github-summary -->\n\n${full}`;
+
+        assert.equal(extractPublicSection(release, '0.25.0'), summary);
+        assert.ok(extractSection(release, '0.25.0').endsWith(full));
+    });
+
     it('strips the generated internal block from a mixed release', () => {
         assert.equal(
             extractPublicSection(changelog, '0.24.0'),

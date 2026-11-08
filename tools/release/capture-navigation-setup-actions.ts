@@ -211,6 +211,28 @@ async function openSettingsSearch(
     await settleUi(page);
 }
 
+async function openAppearanceSettings(page: Page): Promise<void> {
+    await openSettings(page);
+    await page.locator('[data-test-id="settings-section-appearance"]').click();
+    await page.locator('[data-test-id="select-theme"]').waitFor();
+}
+
+async function openHostedServerSettings(page: Page): Promise<void> {
+    await openSettings(page);
+    await page.locator('[data-test-id="settings-section-server"]').click();
+    // Show the opt-in without starting a listener or creating an access code.
+    await page.locator('[data-test-id="hosted-server-start"]').scrollIntoViewIfNeeded();
+    await settleUi(page);
+}
+
+async function openParentalLockSetup(page: Page): Promise<void> {
+    await openSettings(page);
+    await page.locator('[data-test-id="settings-section-parental"]').click();
+    await page.locator('[data-test-id="parental-lock-enabled"] button[role="switch"]').click();
+    await page.locator('app-parental-lock-pin-dialog').waitFor();
+    await settleUi(page);
+}
+
 /* ------------------------------------------------------------------ */
 /* Remote control (guide shots)                                        */
 /* ------------------------------------------------------------------ */
@@ -349,6 +371,9 @@ export const SETUP_ACTIONS: Readonly<Record<string, CaptureAction>> = {
     'open-add-playlist-m3u-url': openAddPlaylistM3uUrl,
     'open-settings-epg': openSettingsEpg,
     'open-settings-search': openSettingsSearch,
+    'open-settings-appearance': openAppearanceSettings,
+    'open-settings-hosted-server': openHostedServerSettings,
+    'open-settings-parental-lock': openParentalLockSetup,
     'open-settings-tmdb': openSettingsTmdb,
     'open-settings-remote-control': openSettingsRemoteControl,
     'enable-remote-control': enableRemoteControl,

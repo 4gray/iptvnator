@@ -26,6 +26,7 @@ const workspaceRoot = path.resolve(
 
 const INTERNAL_DETAILS_BLOCK =
     /(?:^|\n\n)<details>\n<summary>Internal changes<\/summary>\n\n[\s\S]*?\n\n<\/details>(?=\n\n|$)/g;
+const GITHUB_SUMMARY_END = '\n\n<!-- end-github-summary -->\n\n';
 const CLI_USAGE =
     'Usage: extract-changelog-section.mjs [--public] <version>';
 
@@ -74,7 +75,9 @@ export function extractPublicSection(changelog, version) {
 
     return section === null
         ? null
-        : section.replace(INTERNAL_DETAILS_BLOCK, '').trim();
+        : section.split(GITHUB_SUMMARY_END, 1)[0]
+              .replace(INTERNAL_DETAILS_BLOCK, '')
+              .trim();
 }
 
 export function parseExtractArguments(args) {

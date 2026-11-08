@@ -1,0 +1,19 @@
+Generation mode: built-in ImageGen
+Image 1: apps/website/public/blog/v0-24/announce.png
+Image 2: apps/website/src/assets/logo.png
+
+Use case: ads-marketing
+Asset type: one horizontal 2:1 IPTVnator 0.25 release cover, finished editorial raster artwork.
+Image 1: official IPTVnator 0.24 cover. Reference only the uncoated paper, brushed graphite, sober condensed typography and restrained blue ink. Do not reuse its composition, centered giant Wi-Fi TV icon, or horizontal waves across the canvas.
+Image 2: original IPTVnator icon. Identity reference for the small blue mark at upper left.
+
+Create a distinctly new campaign poster in this same visual family. Concept: ONE LIBRARY, SEVERAL SCREENS. Think of a refined industrial design photograph of three physical screen-shaped frames formed by a single continuous ribbon of brushed graphite. A large landscape desktop frame with the app icon's short stem and foot stands at the back of the sculpture. A smaller tall phone frame and a lower wide TV frame are unmistakably separate devices, both linked to the first by the very same ribbon. From the desktop's foot the flat ribbon travels forward along the warm paper surface and divides neatly to form the two secondary screen outlines, like a beautifully resolved physical signal-routing sculpture. All three screens are mostly open negative space: one small separated Wi-Fi motif inside the desktop is enough. Shoot in a restrained elevated three-quarter view, so the screen sizes, positions and ribbon's connections are visually clear. Graphite metal has crisp machined edges and subtle brushed grain, with broad soft window daylight and credible short contact shadows. No floating objects. No actual devices, knobs, hardware buttons, cases, pixels, interface screenshots or literal video content. This should read as a sculptural editorial still life, not a diagram or a tech ad.
+
+Use a deliberate asymmetrical two-zone composition: left ~37% a clean print typography column, right ~63% a group of three connected graphite screens. The group is big enough to dominate, but stays entirely on the right; no metallic decoration, accent strip or ribbon runs along or across the left. On the left stack the small authentic blue icon and dark IPTVnator wordmark near the top, then a very large strong compressed graphite “0.25” centered vertically, then three small dark mono captions near the bottom. Wide outer margins, comfortable breathing room, no title overlapping the sculpture. Version numerals should feel like Druk or Monument Grotesk, caption lines like JetBrains Mono. The small blue icon is the only colored ink. Use warm cream paper, a controlled tonal range of charcoal and graphite, beautiful material detail and subtle print texture. No neon, gradient, purple, UI cards, decorative side borders, rules, watermarks or badges.
+
+Render only these exact strings, legible at social-preview size, with no additional text:
+"IPTVnator"
+"0.25"
+"Shared library"
+"Cinematic browsing"
+"Parental lock"

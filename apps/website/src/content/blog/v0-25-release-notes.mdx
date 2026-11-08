@@ -1,0 +1,132 @@
+---
+title: v0.25 - Release Notes
+description: Host a shared library from desktop, browse a redesigned dashboard and movie and series pages, and hide selected categories behind a parental PIN.
+featured: true
+pubDate: 2026-11-08
+author: 4gray
+heroImage: /iptvnator/blog/v0-25/announce.png
+tags:
+    - release
+draft: true
+---
+
+import Alert from '../../components/blog/Alert.astro';
+import BlogImageSlider from '../../components/blog/BlogImageSlider.astro';
+import ChangeTable from '../../components/blog/ChangeTable.astro';
+import LinkCards from '../../components/blog/LinkCards.astro';
+import ReleaseMeta from '../../components/blog/ReleaseMeta.astro';
+import Spoiler from '../../components/blog/Spoiler.astro';
+import StatusPill from '../../components/blog/StatusPill.astro';
+
+IPTVnator **v0.25** makes it easier to use the same library on another screen. Start a server from the desktop app, open the library in a browser on your home network, and choose what viewing activity to share. Back in the player, a redesigned dashboard and movie and series pages put the next thing to watch within reach. A new PIN lets you hide selected categories on a shared screen.
+
+The changelog records **63 feature entries, 221 fixes and 32 performance improvements**. Over the same development period, [47 GitHub issues were closed as completed](https://github.com/4gray/iptvnator/issues?q=is%3Aissue+is%3Aclosed+reason%3Acompleted+closed%3A2026-09-24..2026-11-08).
+
+<ReleaseMeta
+    version="v0.25.0"
+    releaseDate="November 8, 2026"
+    channels={['Desktop', 'Self-hosted PWA']}
+/>
+
+## What changed
+
+<ChangeTable
+    rows={[
+        { area: 'Shared library', change: 'Host an IPTVnator server from desktop Settings, or connect clients to an existing self-hosted server.', impact: 'Open the same sources on another device without adding them again' },
+        { area: 'Browsing', change: 'A cinematic dashboard, redesigned movie and series pages, and a clearer episode list.', impact: 'See what is on and pick up the right episode' },
+        { area: 'Parental lock', change: 'Protect selected Xtream categories, Stalker genres and M3U groups with a PIN.', impact: 'Keep those categories out of view on a shared screen' },
+    ]}
+/>
+
+<Alert type="info" title="About the screenshots">
+The screenshots show the real application with fictional catalog data and original artwork from the release mock server. IPTVnator is a player for sources you supply. The release cover is a generated illustration.
+</Alert>
+
+## Host a shared library from desktop
+
+<StatusPill type="new" />
+
+Open **Settings → Server** to start the built-in server. By default it stays on this device. If you turn on home-network access, open the address shown in Settings on another device and enter the access code there. If you already run a self-hosted IPTVnator server, you can connect desktop and browser clients to it instead.
+
+Share your source definitions, including uploaded M3U playlists, and preview which local sources to import. **Favorites, Recently Viewed, and movie and series watch progress** have separate sync choices. Watch progress and watched marks sync for Xtream and Stalker. The dedicated TV client can use the server’s source library while keeping its viewing activity on the TV.
+
+See the [self-hosted server guide](https://github.com/4gray/iptvnator/blob/v0.25.0/docker/README.md#run-the-server-from-the-desktop-app) for setup and the differences between desktop hosting and Docker. [Desktop hosting PR](https://github.com/4gray/iptvnator/pull/2146).
+
+![Desktop Server settings showing the local server controls before startup](/iptvnator/blog/v0-25/screenshots/settings-hosted-server-dark.png)
+
+## A new dashboard and detail pages
+
+<StatusPill type="new" />
+
+The dashboard rotates through things you were watching, favorite channels on air, and a selection of favorites and new arrivals. Hover, move keyboard focus onto the banner, or use its pause button to take your time. On movie and series pages, **Continue** tells you what will play next. Series also get a clearer episode list with runtimes, stills when available, and watched or in-progress markers. Alternate sources, external playback and reset actions stay in the detail menu.
+
+<BlogImageSlider
+    images={[
+        { src: '/iptvnator/blog/v0-25/screenshots/dashboard-live-channels-dark.png', alt: 'Dashboard with fictional continue-watching and live television rows', caption: 'The dashboard brings Continue Watching and what is on now together.' },
+        { src: '/iptvnator/blog/v0-25/screenshots/dashboard-live-channels-light.png', alt: 'The same fictional dashboard in the light theme', caption: 'The same dashboard in Light.' },
+        { src: '/iptvnator/blog/v0-25/screenshots/xtream-vod-details-dark.png', alt: 'Movie detail with a fictional backdrop, plot and playback actions', caption: 'Movie details put the plot and playback actions in one place.' },
+        { src: '/iptvnator/blog/v0-25/screenshots/xtream-series-season-open-dark.png', alt: 'Series detail with an expanded season and fictional episode stills', caption: 'An expanded season with episode stills and watch progress.' },
+    ]}
+/>
+
+## Find a setting or change the look
+
+<StatusPill type="improved" />
+
+Settings groups options under **App, Library, Devices and Data**, with a separate **Appearance** section for themes, cover size and cover titles. Try **Cream**, **Mocha**, **Night Owl** or **Black OLED** alongside Light and Dark. The palette previews show what each theme looks like before you save; System follows your device.
+
+Type an option name or a term like **player** in the Settings search box to jump to the right control. The command palette also finds settings from anywhere in the app.
+
+<BlogImageSlider
+    images={[
+        { src: '/iptvnator/blog/v0-25/screenshots/settings-appearance-dark.png', alt: 'Appearance settings with palette previews for Light, Dark, Cream, Mocha, Night Owl and Black OLED', caption: 'Appearance has its own section, with a preview for every theme.' },
+        { src: '/iptvnator/blog/v0-25/screenshots/settings-appearance-light.png', alt: 'Theme palette previews and cover options in Light', caption: 'Theme previews and cover options in the Light theme.' },
+        { src: '/iptvnator/blog/v0-25/screenshots/settings-search-dark.png', alt: 'Settings search showing matches for player controls', caption: 'Search for an option and jump directly to it.' },
+    ]}
+/>
+
+## Parental lock for shared screens
+
+<StatusPill type="new" />
+
+Set a PIN in **Settings → Parental lock**, then choose which Xtream categories, Stalker genres or M3U groups to lock. While locked, those categories and their channels stay out of view. A title can still appear if it also exists in an unlocked source. The app can lock on restart or after idle time; you can also choose **Lock now**.
+
+![The parental lock setup dialog with both PIN fields empty](/iptvnator/blog/v0-25/screenshots/settings-parental-lock-dark.png)
+
+## Playback, Live TV and imports
+
+<StatusPill type="improved" />
+
+- **Player controls.** The built-in player has a redesigned control dock. Audio, subtitles, quality and speed are grouped in one panel. An Up Next card appears near the end of supported episodes, and Embedded MPV keeps subtitles off when you switch live channels after choosing Off.
+- **Programme guide in the browser.** Self-hosted browser and Docker users can see provider-supplied Xtream and Stalker listings. M3U XMLTV is a desktop feature; desktop now also accepts XZ-compressed guide files and URLs.
+- **Choose which Xtream catalogs to load.** Desktop can import Live TV, Movies and Series independently. Disabling a catalog preserves saved items, progress and downloads.
+- **More reliable backups.** Restore preserves hidden M3U groups and can retry failed category restoration. Damaged archives are rejected before the app writes any data.
+- **Less work in the background.** The app updates screens when the data they display changes. The release also reduces guide rendering work and improves lookup for large EPG libraries.
+
+## Experimental TV apps
+
+<StatusPill type="new" />
+
+There are two ways to try IPTVnator with a TV remote. The dedicated **LG webOS and Samsung Tizen** client can browse M3U, Xtream and Stalker sources and accepts phone setup by QR code. The **Fire TV and Android TV** shell packages the browser app and a local backend in an APK and can hand an incompatible stream off to an installed player. Both paths are experimental and have separate installation steps. Selected flows were verified on LG BX; Samsung device playback is still awaiting validation. See the [TV client](https://github.com/4gray/iptvnator/blob/v0.25.0/apps/tv/README.md) and [Fire TV and Android TV](https://github.com/4gray/iptvnator/blob/v0.25.0/tv-shell/README.md) guides.
+
+<Spoiler title="See the full list of changes">
+The [full changelog](https://github.com/4gray/iptvnator/blob/v0.25.0/CHANGELOG.md#0250-2026-11-08) lists every feature, fix and performance entry, with links to the relevant changes and issues.
+</Spoiler>
+
+<Alert type="warning" title="Before updating">
+Export a backup of your playlists and viewing data before upgrading. If this is your first time connecting to a server, review the proposed source and activity imports before confirming them.
+</Alert>
+
+## Thanks
+
+Thanks to everyone who tested nightly builds, reported playback and upgrade problems, translated the app and helped others in the [Telegram community](https://t.me/iptvnator). Thanks also to the people supporting the project through [GitHub Sponsors](https://github.com/sponsors/4gray) and [Ko-fi](https://ko-fi.com/4gray).
+
+## Download
+
+<LinkCards
+    links={[
+        { label: 'Download v0.25.0', href: 'https://github.com/4gray/iptvnator/releases/tag/v0.25.0', hint: 'Official desktop installers and full release notes.', icon: 'download' },
+        { label: 'Compare v0.24.0 and v0.25.0', href: 'https://github.com/4gray/iptvnator/compare/v0.24.0...v0.25.0', hint: 'Review the changes between the two releases.', icon: 'github' },
+        { label: 'All releases', href: 'https://github.com/4gray/iptvnator/releases', hint: 'Browse earlier releases.', icon: 'github' },
+    ]}
+/>

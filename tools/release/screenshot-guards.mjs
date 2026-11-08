@@ -75,6 +75,9 @@ export const KNOWN_ACTIONS = [
     'open-epg-mapping-dialog',
     'open-settings-tmdb',
     'open-settings-search',
+    'open-settings-appearance',
+    'open-settings-hosted-server',
+    'open-settings-parental-lock',
 ];
 
 /**

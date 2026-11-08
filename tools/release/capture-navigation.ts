@@ -55,7 +55,7 @@ export async function applyTheme(
     page: Page,
     theme: 'dark' | 'light'
 ): Promise<void> {
-    await runAction(page, 'open-settings', null);
+    await runAction(page, 'open-settings-appearance', null);
     const testId = theme === 'dark' ? 'DARK_THEME' : 'LIGHT_THEME';
     const themeButton = page.locator(`[data-test-id="${testId}"]`).first();
 

@@ -68,9 +68,10 @@ Run the browser app and its backend together with Docker:
 docker compose -f docker/docker-compose.yml up --build -d
 ```
 
-Open <http://localhost:4333>. No separate backend container is needed.
-Connected clients can share source definitions. Favorites and watch progress
-have separate synchronization opt-ins; history stays local to each device.
+Open <http://localhost:4333>. No separate backend container is needed. You can
+also [run a server from the desktop app](docker/README.md#run-the-server-from-the-desktop-app).
+Connected clients can share sources. Favorites, Recently Viewed and supported
+watch progress each have their own synchronization opt-in.
 
 The PWA does not include M3U XMLTV, Embedded MPV, managed external-player
 launching, the download manager or Electron remote-control features.
