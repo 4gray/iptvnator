@@ -27,7 +27,7 @@ import {
 function validateRegularArtifact(
     filePath: string,
     accessMode: number,
-    expectedMode: number | null,
+    expectedMode: number | readonly number[] | null,
     fileSystem: EmbeddedMpvFrameCopyRuntimeFileSystem
 ): ValidationResult<nodeFileSystem.Stats> {
     let stat: nodeFileSystem.Stats;
@@ -41,10 +41,12 @@ function validateRegularArtifact(
         );
     }
 
+    const allowedModes =
+        typeof expectedMode === 'number' ? [expectedMode] : expectedMode;
     if (
         stat.isSymbolicLink() ||
         !stat.isFile() ||
-        (expectedMode !== null && (stat.mode & 0o7777) !== expectedMode)
+        (allowedModes !== null && !allowedModes.includes(stat.mode & 0o7777))
     ) {
         return validationFailure('runtime-artifact-invalid');
     }
@@ -189,7 +191,7 @@ export function validatePackage(
         [
             path.join(nativeDir, FRAME_COPY_READER_NAME),
             nodeFileSystem.constants.R_OK,
-            0o644,
+            manifestContract === 'development' ? [0o644, 0o755] : 0o644,
         ],
         [
             helperPath,

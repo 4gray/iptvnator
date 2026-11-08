@@ -476,7 +476,11 @@ Trade-offs and constraints:
   Intel Macs keep the native-view engine. Official Linux frame-copy is x64 —
   headless EGL, works under native Wayland since nothing embeds into a
   window; local system builds need `libmpv-dev`, `libegl-dev`, `libgl-dev`,
-  and `libgbm-dev`. The helper links libmpv, which is legal
+  and `libgbm-dev`. Development runtime validation accepts frame-reader modes
+  `0644` and `0755`, including node-gyp's normal executable library output.
+  Packaged readers still require `0644`; helpers require `0755` in both
+  contracts. Symlinks, unreadable files and unexpected reader permission bits
+  remain rejected. The helper links libmpv, which is legal
   out-of-process; the in-process-libmpv ban still binds the addon and frame
   reader. The helper logs the chosen EGL display tier and the GL renderer
   string to stderr. If an early tier selects Mesa software rendering (for
