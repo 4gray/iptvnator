@@ -349,7 +349,7 @@ export function withStalkerContent() {
                     saveCatalogSimilarReturn(navigationId: number): boolean {
                         const window = latestCatalogWindow;
                         if (
-                            !window?.page ||
+                            !window ||
                             window.key !== currentCatalogKey() ||
                             window.rows !== store.paginatedContent()
                         ) {

@@ -807,9 +807,13 @@ describe('withStalkerContent failure states', () => {
         expect(store.isContentRetrying()).toBe(false);
     });
 
-    it.each([false, true])(
-        'returns to loaded catalog pages only under the same lock version (relocked: %s)',
-        async (relocked) => {
+    it.each([
+        [1, false],
+        [2, false],
+        [2, true],
+    ] as const)(
+        'returns to %i loaded catalog page(s) only under the same lock version (relocked: %s)',
+        async (loadedPages, relocked) => {
             dataService.sendIpcEvent.mockImplementation(
                 async (_event, request) => {
                     const { category, p } = request.params ?? {};
@@ -820,9 +824,11 @@ describe('withStalkerContent failure states', () => {
                 store.getPaginatedContent().map((item) => item.id);
             store.setCurrentPlaylist(PLAYLIST);
             store.setSelectedCategory('5');
+            expect(store.saveCatalogSimilarReturn(21)).toBe(false);
             await waitForCondition(() => visibleIds()[0] === 'fixture-5-1');
-            store.setPage(1);
-            await waitForCondition(() => visibleIds().length === 2);
+            store.setPage(loadedPages - 1);
+            await waitForCondition(() => visibleIds().length === loadedPages);
+            const loadedIds = visibleIds();
             expect(store.saveCatalogSimilarReturn(21)).toBe(true);
 
             store.setSelectedCategory('6');
@@ -838,11 +844,15 @@ describe('withStalkerContent failure states', () => {
                 expect(visibleIds()).toEqual(['fixture-5-1']);
             } else {
                 await flushResources();
-                expect(visibleIds()).toEqual(['fixture-5-1', 'fixture-5-2']);
+                expect(visibleIds()).toEqual(loadedIds);
                 expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
                 store.setPage(store.page() + 1);
-                await waitForCondition(() => visibleIds().length === 3);
-                expect(visibleIds()[2]).toBe('fixture-5-3');
+                await waitForCondition(
+                    () => visibleIds().length === loadedPages + 1
+                );
+                expect(visibleIds().at(-1)).toBe(
+                    `fixture-5-${loadedPages + 1}`
+                );
             }
         }
     );
