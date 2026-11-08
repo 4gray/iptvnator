@@ -90,6 +90,9 @@
                         (candidateSelected)="onCandidateSelected($event)"
                     />
                 }
+                @case ('bulk') {
+                    <app-bulk-import (imported)="closeDialog()" />
+                }
             }
             @if (isM3uImport() && epgEnabled()) {
                 <div class="apd-epg-option">
@@ -215,6 +218,28 @@
                             {{ 'HOME.URL_UPLOAD.ADD_PLAYLIST' | translate }}
                         </button>
                     }
+                }
+                @case ('bulk') {
+                    <button
+                        mat-flat-button
+                        color="primary"
+                        type="button"
+                        [disabled]="
+                            bulkImport()?.importableEntries()?.length === 0 ||
+                            bulkImport()?.isImporting()
+                        "
+                        (click)="bulkImport()?.importAll()"
+                    >
+                        {{
+                            'HOME.ADD_PLAYLIST.BULK_IMPORT_BUTTON'
+                                | translate
+                                    : {
+                                          count:
+                                              bulkImport()?.importableEntries()
+                                                  ?.length ?? 0,
+                                      }
+                        }}
+                    </button>
                 }
             }
         </div>

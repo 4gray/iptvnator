@@ -118,7 +118,7 @@ describe('PlaylistFileImportService', () => {
         window.electron = {
             openPlaylistFromFile: jest.fn().mockResolvedValue(playlist),
         } as unknown as typeof window.electron;
-        await service.importFromNativeDialog(false);
+        await service.importFromNativeDialog({ autoImportEpg: false });
         expect(store.dispatch).toHaveBeenCalledWith(
             PlaylistActions.addPlaylist({
                 playlist: expect.objectContaining({
@@ -135,7 +135,7 @@ describe('PlaylistFileImportService', () => {
             name: 'test.m3u',
             text: jest.fn().mockResolvedValue('#EXTM3U'),
         } as unknown as File;
-        await service.importFile(file, false);
+        await service.importFile(file, { autoImportEpg: false });
         expect(store.dispatch).toHaveBeenCalledWith(
             expect.objectContaining({
                 autoImportEpg: false,

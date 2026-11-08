@@ -56,6 +56,13 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         keywords: ['channel name', 'country', 'prefix', 'tag'],
     },
     {
+        id: 'disable-vod',
+        section: 'general',
+        labelKey: 'SETTINGS.DISABLE_VOD',
+        descriptionKey: 'SETTINGS.DISABLE_VOD_DESCRIPTION',
+        keywords: ['vod', 'movies', 'series', 'on demand', 'import'],
+    },
+    {
         id: 'portal-connectivity-guard',
         section: 'general',
         labelKey: 'SETTINGS.PORTAL_CONNECTIVITY_GUARD',

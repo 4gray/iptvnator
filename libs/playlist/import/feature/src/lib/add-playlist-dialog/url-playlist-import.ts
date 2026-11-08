@@ -1,8 +1,15 @@
 import { DestroyRef, inject, signal } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { PlaylistActions } from '@iptvnator/m3u-state';
-import { applyPlaylistEpgImportPreference } from '@iptvnator/shared/m3u-utils';
-import { DataService, type PlaylistImportRecovery } from '@iptvnator/services';
+import {
+    applyImportScopeToPlaylist,
+    applyPlaylistEpgImportPreference,
+} from '@iptvnator/shared/m3u-utils';
+import {
+    DataService,
+    SettingsStore,
+    type PlaylistImportRecovery,
+} from '@iptvnator/services';
 import {
     measureRendererPerformancePhase,
     RENDERER_PERFORMANCE_PHASE,
@@ -13,11 +20,15 @@ export interface UrlPlaylistDraft {
     playlistUrl: string;
     playlistName?: string;
     userAgent?: string;
+    /** Section scope picked in the URL form. */
+    importLive?: boolean;
+    importVod?: boolean;
 }
 
 /** The open dialog owns acquisition; abandoned responses never reach the store. */
 export function createUrlPlaylistImport() {
     const data = inject(DataService);
+    const settings = inject(SettingsStore);
     const store = inject(Store);
     const destroyRef = inject(DestroyRef);
     const pending = signal(false);
@@ -50,8 +61,16 @@ export function createUrlPlaylistImport() {
                 draft.userAgent?.trim() || undefined
             );
             if (!current()) return;
-            const playlist = applyPlaylistEpgImportPreference(
+            const scoped = applyImportScopeToPlaylist(
                 fetched,
+                {
+                    importLive: draft.importLive,
+                    importVod: draft.importVod,
+                },
+                settings.disableVod?.() === true
+            );
+            const playlist = applyPlaylistEpgImportPreference(
+                scoped,
                 draft.autoImportEpg
             );
             const title = draft.playlistName?.trim();

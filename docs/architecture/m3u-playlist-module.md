@@ -574,6 +574,77 @@ refresh.
 `playlist-auto-refresh.e2e.ts` guards this by restarting the app against a killed
 playlist server.
 
+## Import Scope And Bulk Import
+
+Every source can import **live channels** and **VOD (movies + series)**
+independently. The scope lives on the row as `Playlist.importLive?` /
+`Playlist.importVod?`, where absent means "import" so pre-scope sources keep
+their full catalog. Only opt-outs are persisted (`storedImportScopeFlags`),
+and `normalizeImportScope` refuses a scope that disables everything.
+
+The global **Disable VOD** setting (`Settings.disableVod`, default off) wins
+over every scope: while it is on, every source is live-only, a VOD-only one
+included. It is applied where work happens and is never written to a row, so
+turning it off restores each source's own scope (M3U items return with the
+next refresh). The import forms and bulk rows show VOD unchecked and locked
+with a hint, but keep their own values. `DB_GET_PLAYLIST` projects the stored
+opt-outs from the payload onto the row: the Xtream store replaces its
+`currentPlaylist` with that read when a source opens, and without them a
+live-only source imported its whole movie and series catalog.
+
+- **M3U** — `applyImportScopeToPlaylist()` (`libs/shared/m3u-utils`) drops
+  the excluded section's items (via the `isLikelyM3uVod` heuristic) and stamps
+  the opt-out. It runs at every point a fresh item list is built: renderer
+  parsing (`PlaylistsService.handlePlaylistParsing`, fed by the `parsePlaylist`
+  action), the URL fetch results (`ElectronService` / `PwaService`), the
+  Electron refresh worker (`PlaylistRefreshPayload` carries the scope), the
+  manual file/URL refresh paths, and startup auto-update
+  (`preserveAutoUpdatedPlaylistFields`). Refreshes therefore keep a partial
+  scope instead of resurrecting the skipped section. Its `disableVod`
+  argument (the global setting) filters without stamping; the renderer passes
+  it at parsing, URL/file imports and restores, and applies it to refresh
+  worker and auto-update results (`PlaylistRefreshService`,
+  `ElectronService`), so the main process needs no copy of the setting.
+- **Xtream** — the content store (`with-content.feature.ts`) only fetches,
+  caches and reloads the enabled sections; disabled ones stay empty with a
+  `ready` load state. `importVod: false` skips both movies and series.
+- **Stalker** — the category/content loaders
+  (`with-stalker-content.feature.ts`) serve empty lists for excluded sections
+  without contacting the portal.
+- **Bulk import** — the add-source dialog's `bulk` method pastes many provider
+  handouts (or loads a `.txt`/`.json` file) and imports every recognized
+  source at once. Free text runs through `detectProviderImportCandidates`;
+  a line naming one MAC and one portal (the `portal | MAC` rows of provider
+  list files) pairs those two, so a file spanning several panels keeps each
+  row's own portal instead of reading as ambiguous; JSON accepts `{ "sources": [...] }` (or a bare array) of
+  `{type: 'xtream' | 'stalker' | 'm3u-url', ...connection, title?,
+importLive?, importVod?}` items (`bulkEntriesFromJson`,
+  `libs/shared/interfaces`). Each row carries its own title plus Live/VOD
+  toggles. Importing is a replace: `BulkImportRunnerService`
+  (`libs/playlist/import/feature`) first removes every existing source (the
+  same deletion as Settings → Remove all), then imports the rows one at a
+  time. A portal row is persisted and seeded through
+  `PORTAL_CONTENT_SEEDERS`: the Xtream seeder rejects an unreadable portal or
+  one without live channels, and the Stalker one (`StalkerContentSeedService`)
+  proves the row with a single page-1 `get_ordered_list` request — the VOD
+  category list for a VOD-only row — then warms the session's full channel
+  list through `StalkerItvCacheService` without awaiting it, so a slow crawl
+  cannot spend the row's minute; Stalker VOD/series catalogues are paged and
+  are not crawled here. An M3U row is fetched with
+  `DataService.fetchPlaylistDefinition` (or parsed, for pasted text) and
+  persisted without the per-row navigation of a single add. Each row gets
+  `BULK_IMPORT_SOURCE_TIMEOUT_MS` (one minute): a slower row is skipped with
+  a "Source too slow" popup, a failing one with an error popup, and a skipped
+  row's stored source is deleted again, so only working sources remain. The
+  dialog shows per-row progress; the run is root-provided and continues when
+  the dialog is closed. A row that cannot be imported stays listed with its
+  reason — no portal address, no MAC address, or missing connection details
+  (`bulkEntryIssue`) — and a file with no usable row says so under the list
+  instead of leaving a disabled Import button unexplained.
+- **Backup/restore** — `PlaylistBackupBaseEntry` carries the same opt-outs
+  (absent = no opinion, the merged playlist keeps its scope), and M3U restores
+  re-parse through the scope filter.
+
 ## State Management (libs/m3u-state/)
 
 ### State Structure
@@ -1284,7 +1355,6 @@ cannot start after the chunk arrives or survive an EPG off/on cycle.
 Re-enabling restores ordinary loading and freshness checks without a restart.
 Archive browsing through the programme guide is unavailable while EPG is off.
 
-
 ### Xtream channel-row programme refresh
 
 The "current programme" line under each Xtream Live TV channel used to be
@@ -1302,7 +1372,7 @@ rules, each of which exists to avoid a specific failure:
   programme that is **on air or upcoming** may replace it. A finished
   programme is never re-applied — it would keep presenting itself as current,
   and the earliest-item fallback that fills a blank row on first paint would
-  move an advanced row *backwards*.
+  move an advanced row _backwards_.
 - A cached guide whose programmes have **all** ended is dropped
   (`EpgQueueService.invalidate`) and refetched, because the queue skips any
   stream that still holds a cached answer. An **empty** answer means the

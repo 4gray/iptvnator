@@ -178,7 +178,9 @@
             "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "Otomatik yenileme tamamlanmadı: {{total}} oynatma listesinden {{updated}} tanesi güncellendi, {{failed}} tanesi başarısız oldu, {{skipped}} tanesi atlandı (URL veya dosya yolu yok).",
             "AUTO_REFRESH_UPDATE_FAILED": "Oynatma listelerinin otomatik yenilenmesi başarısız oldu. {{total}} oynatma listesinin hiçbiri güncellenemedi.",
             "AUTO_REFRESH_UPDATE_SKIPPED": "Oynatma listesi otomatik yenileme: {{total}} listeden {{updated}} tanesi güncellendi, {{skipped}} tanesi atlandı (URL veya dosya yolu yok).",
-            "AUTO_REFRESH_ENABLED": "Otomatik yenileme etkin"
+            "AUTO_REFRESH_ENABLED": "Otomatik yenileme etkin",
+            "SOURCE_BULK_NEEDS": "Sağlayıcı mesajlarını içeren bir .txt dosyası veya .json kaynak listesi.",
+            "SOURCE_BULK_ADD": "Kaynakları içe aktar"
         },
         "ADD_PLAYLIST": {
             "IMPORT_EPG": "Oynatma listesinde belirtilen program rehberini içe aktar",
@@ -197,7 +199,34 @@
             "METHOD_TEXT_LABEL": "Ham m3u metni",
             "METHOD_TEXT_SUB": "Tek seferlik listeler veya yalnızca metniniz olduğunda",
             "METHOD_AUTO_LABEL": "Otomatik algılama",
-            "METHOD_AUTO_SUB": "Sağlayıcınızın mesajını yapıştırın"
+            "METHOD_AUTO_SUB": "Sağlayıcınızın mesajını yapıştırın",
+            "METHOD_BULK_LABEL": "Toplu içe aktarma",
+            "METHOD_BULK_SUB": "Bir dosyadan birden fazla kaynağı aynı anda ekleyin",
+            "IMPORT_SCOPE_LABEL": "İçe aktarılacak bölümler",
+            "IMPORT_SCOPE_LIVE": "Canlı kanallar",
+            "IMPORT_SCOPE_VOD": "VOD (filmler ve diziler)",
+            "IMPORT_SCOPE_VOD_DISABLED": "VOD ayarlarda devre dışı, bu yüzden yalnızca canlı kanallar içe aktarılır.",
+            "BULK_FILE_BUTTON": "Dosyadan yükle",
+            "BULK_ROW_INCOMPLETE": "Eksik — eksik bilgileri tek kaynak olarak ekleyin veya bu satırı kaldırın.",
+            "BULK_NO_SOURCES": "Bu dosyada hiçbir kaynak tanınmadı.",
+            "BULK_REMOVE": "Kaynağı kaldır",
+            "BULK_IMPORT_BUTTON": "{{count}} kaynak içe aktar",
+            "BULK_INVALID_JSON": "Bu JSON bir toplu içe aktarma listesi değil. Beklenen: { \"sources\": [...] } veya [...] dizisi.",
+            "BULK_IMPORT_STARTED": "{{count}} kaynak içe aktarılıyor…",
+            "BULK_ROW_NO_PORTAL": "Bu MAC için portal adresi yok — tek bir Stalker kaynağı olarak ekleyin veya satırı kaldırın.",
+            "BULK_ROW_NO_MAC": "Bu portal için MAC adresi yok — tek bir Stalker kaynağı olarak ekleyin veya satırı kaldırın.",
+            "BULK_ROW_MISSING_DETAILS": "Bağlantı bilgileri eksik — bu kaynağı ayrı olarak ekleyin veya satırı kaldırın.",
+            "BULK_NOTHING_IMPORTABLE": "İçe aktarılacak bir şey yok — yukarıdaki eksik satırları düzeltin veya kaldırın.",
+            "BULK_REPLACE_NOTICE": "İçe aktarma mevcut tüm kaynaklarınızı değiştirir. Her kaynağın yüklenmek için bir dakikası vardır; daha yavaş veya başarısız kaynaklar atlanır.",
+            "BULK_REPLACE_FAILED": "Mevcut kaynaklarınız kaldırılamadı, bu yüzden hiçbir şey içe aktarılmadı.",
+            "BULK_SOURCE_TOO_SLOW": "Kaynak çok yavaş, “{{title}}” atlanıyor",
+            "BULK_SOURCE_FAILED": "İçe aktarma başarısız, “{{title}}” atlanıyor",
+            "BULK_IMPORT_FINISHED": "Toplu içe aktarma tamamlandı: {{imported}} içe aktarıldı, {{slow}} çok yavaş, {{failed}} başarısız.",
+            "BULK_STATUS_PENDING": "Bekliyor",
+            "BULK_STATUS_IMPORTING": "İçe aktarılıyor…",
+            "BULK_STATUS_IMPORTED": "İçe aktarıldı",
+            "BULK_STATUS_SLOW": "Çok yavaş, atlandı",
+            "BULK_STATUS_FAILED": "Başarısız, atlandı"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Dosyaları buraya sürükleyip bırakın",
@@ -733,7 +762,9 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "Yaş sınıflandırması ülkesi",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Sınıflandırma ülkesini seçin. Yerel veri yoksa ABD veya sağlayıcı verileri kullanılabilir.",
-        "AGE_RATING_COUNTRY_AUTO": "Otomatik — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Otomatik — {{country}}",
+        "DISABLE_VOD": "VOD'u devre dışı bırak",
+        "DISABLE_VOD_DESCRIPTION": "Yalnızca canlı kanalları yükle. Filmler ve diziler, kaynağın kendi içe aktarma bölümleri ne olursa olsun hiçbir kaynak için içe aktarılmaz, yenilenmez veya eşitlenmez. Geri getirmek için kapatın."
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Sunucuya kaydedilemedi. Bağlantıyı kontrol edip tekrar deneyin.",

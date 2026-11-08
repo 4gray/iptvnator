@@ -1,6 +1,7 @@
 import {
     Component,
     inject,
+    signal,
     computed,
     output,
     ElementRef,
@@ -20,6 +21,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { TranslatePipe } from '@ngx-translate/core';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { ImportScopeComponent } from '../import-scope/import-scope.component';
 import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 import { RevealDetailsDirective } from '@iptvnator/ui/components/reveal-details';
 import {
@@ -34,6 +36,7 @@ import {
     styleUrl: './url-upload.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        ImportScopeComponent,
         MatFormFieldModule,
         MatInputModule,
         MatButtonModule,
@@ -73,6 +76,9 @@ export class UrlUploadComponent {
         userAgent: [''],
     });
     readonly isDesktop = this.runtime.isElectron;
+    /** Section scope: live channels vs VOD (movies + series). */
+    readonly importLive = signal(true);
+    readonly importVod = signal(true);
     readonly userAgent = toSignal(this.form.controls.userAgent.valueChanges, {
         initialValue: '',
     });
@@ -106,6 +112,8 @@ export class UrlUploadComponent {
     }
 
     clearForm(): void {
+        this.importLive.set(true);
+        this.importVod.set(true);
         this.form.reset({
             playlistName: '',
             playlistUrl: '',

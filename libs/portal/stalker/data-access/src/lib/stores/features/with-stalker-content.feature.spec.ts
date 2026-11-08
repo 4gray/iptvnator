@@ -1,7 +1,11 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
-import { DataService, ParentalLockService } from '@iptvnator/services';
+import {
+    DataService,
+    ParentalLockService,
+    SettingsStore,
+} from '@iptvnator/services';
 import {
     CONNECTIVITY_GUARD_RESET,
     PlaylistMeta,
@@ -170,6 +174,10 @@ describe('withStalkerContent failure states', () => {
                 { provide: DataService, useValue: dataService },
                 { provide: ParentalLockService, useValue: parentalLock },
                 {
+                    provide: SettingsStore,
+                    useValue: { disableVod: () => false },
+                },
+                {
                     provide: StalkerItvCacheService,
                     useValue: createItvCacheMock(),
                 },
@@ -249,6 +257,24 @@ describe('withStalkerContent failure states', () => {
         expect((store.isCategoryResourceFailed() as Error).message).toBe(
             'get_genres failed'
         );
+    });
+
+    it('serves empty genres without portal requests for sections the scope excludes', async () => {
+        store.setSelectedContentType('vod');
+        store.setCurrentPlaylist({ ...PLAYLIST, importVod: false });
+        await flushResources();
+
+        expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+        expect(store.getCategoryResource()).toEqual([]);
+        expect(store.vodCategories()).toEqual([]);
+
+        store.setSelectedContentType('itv');
+        store.setCurrentPlaylist({ ...PLAYLIST, importLive: false });
+        await flushResources();
+
+        expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+        expect(store.getCategoryResource()).toEqual([]);
+        expect(store.itvCategories()).toEqual([]);
     });
 
     it('derives the selected category from the normalized category collections', () => {
@@ -1034,6 +1060,10 @@ describe('withStalkerContent full ITV channel list cache', () => {
             providers: [
                 TestContentStore,
                 { provide: DataService, useValue: dataService },
+                {
+                    provide: SettingsStore,
+                    useValue: { disableVod: () => false },
+                },
                 { provide: StalkerItvCacheService, useValue: itvCache },
                 {
                     provide: StalkerSessionService,

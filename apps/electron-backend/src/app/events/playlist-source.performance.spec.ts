@@ -15,11 +15,16 @@ const mockGetFilenameFromUrl = jest.fn();
 const mockParse = jest.fn();
 const mockRequestWithValidatedRedirects = jest.fn();
 
-jest.mock('@iptvnator/shared/m3u-utils', () => ({
-    createPlaylistObject: (...args: unknown[]) =>
-        mockCreatePlaylistObject(...args),
-    getFilenameFromUrl: (...args: unknown[]) => mockGetFilenameFromUrl(...args),
-}));
+jest.mock('@iptvnator/shared/m3u-utils', () => {
+    const actual = jest.requireActual('@iptvnator/shared/m3u-utils');
+    return {
+        ...actual,
+        createPlaylistObject: (...args: unknown[]) =>
+            mockCreatePlaylistObject(...args),
+        getFilenameFromUrl: (...args: unknown[]) =>
+            mockGetFilenameFromUrl(...args),
+    };
+});
 
 jest.mock('iptv-playlist-parser', () => ({
     parse: (...args: unknown[]) => mockParse(...args),

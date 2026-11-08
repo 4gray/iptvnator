@@ -178,7 +178,9 @@
             "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "التحديث التلقائي ما كملش: تحدّاو {{updated}} من {{total}} ديال قوائم التشغيل، {{failed}} فشلو، و{{skipped}} تخطاو (بلا رابط ولا مسار ملف).",
             "AUTO_REFRESH_UPDATE_FAILED": "فشل التحديث التلقائي ديال قوائم التشغيل. حتى وحدة من {{total}} ما تحدّاتش.",
             "AUTO_REFRESH_UPDATE_SKIPPED": "التحديث التلقائي ديال قوائم التشغيل: تحدّاو {{updated}} من {{total}}، و{{skipped}} تخطاو (بلا رابط ولا مسار ملف).",
-            "AUTO_REFRESH_ENABLED": "التحديث التلقائي مفعل"
+            "AUTO_REFRESH_ENABLED": "التحديث التلقائي مفعل",
+            "SOURCE_BULK_NEEDS": "ملف .txt فيه الرسائل من المزود ولا قايمة .json للمصادر.",
+            "SOURCE_BULK_ADD": "استيراد المصادر"
         },
         "ADD_PLAYLIST": {
             "IMPORT_EPG": "استيراد دليل البرامج اللي محدد فلائحة التشغيل",
@@ -197,7 +199,34 @@
             "METHOD_TEXT_LABEL": "نص m3u خام",
             "METHOD_TEXT_SUB": "للقوائم المؤقتة ولا إلى عندك غير النص",
             "METHOD_AUTO_LABEL": "اكتشاف تلقائي",
-            "METHOD_AUTO_SUB": "الصق رسالة مزوّد الخدمة"
+            "METHOD_AUTO_SUB": "الصق رسالة مزوّد الخدمة",
+            "METHOD_BULK_LABEL": "استيراد جماعي",
+            "METHOD_BULK_SUB": "زيد بزاف د المصادر دقة وحدة من ملف",
+            "IMPORT_SCOPE_LABEL": "الأقسام اللي غادي تستورد",
+            "IMPORT_SCOPE_LIVE": "القنوات المباشرة",
+            "IMPORT_SCOPE_VOD": "الفيديو عند الطلب (أفلام ومسلسلات)",
+            "IMPORT_SCOPE_VOD_DISABLED": "VOD محيّد فالإعدادات، داكشي علاش كيتستوردو غير قنوات البث المباشر.",
+            "BULK_FILE_BUTTON": "حمل من ملف",
+            "BULK_ROW_INCOMPLETE": "ناقص — زيد التفاصيل اللي ناقصة كمصدر واحد ولا حيد هاد السطر.",
+            "BULK_NO_SOURCES": "ما تجرّب حتى مصدر في هاد الملف.",
+            "BULK_REMOVE": "حيد المصدر",
+            "BULK_IMPORT_BUTTON": "استورد {{count}} د المصادر",
+            "BULK_INVALID_JSON": "هاد JSON ماشي لائحة د الاستيراد الجماعي. خاص { \"sources\": [...] } ولا مصفوفة [...].",
+            "BULK_IMPORT_STARTED": "جاري استيراد {{count}} د المصادر…",
+            "BULK_ROW_NO_PORTAL": "ما كايناش عنوان ديال البوابة لهاد الـMAC — زيدو كمصدر Stalker بوحدو ولا حيد هاد السطر.",
+            "BULK_ROW_NO_MAC": "ما كايناش عنوان MAC لهاد البوابة — زيدها كمصدر Stalker بوحدو ولا حيد هاد السطر.",
+            "BULK_ROW_MISSING_DETAILS": "تفاصيل الاتصال ناقصة — زيد هاد المصدر بوحدو ولا حيد هاد السطر.",
+            "BULK_NOTHING_IMPORTABLE": "ما كايناش شي حاجة تستورد — صلّح ولا حيد السطور الناقصة اللي فوق.",
+            "BULK_REPLACE_NOTICE": "الاستيراد كيبدّل جميع المصادر ديالك دابا. كل مصدر عندو دقيقة وحدة باش يتحمّل؛ والمصادر اللي بطيئة ولا فاشلة كيتخطاو.",
+            "BULK_REPLACE_FAILED": "ما قدرناش نحيدو المصادر ديالك، داكشي علاش ما تستورد والو.",
+            "BULK_SOURCE_TOO_SLOW": "المصدر بطيء بزاف، كنتخطاو «{{title}}»",
+            "BULK_SOURCE_FAILED": "الاستيراد فشل، كنتخطاو «{{title}}»",
+            "BULK_IMPORT_FINISHED": "الاستيراد الجماعي سالا: {{imported}} تستوردو، {{slow}} بطيئين بزاف، {{failed}} فشلو.",
+            "BULK_STATUS_PENDING": "كيتسنّى",
+            "BULK_STATUS_IMPORTING": "كيتستورد…",
+            "BULK_STATUS_IMPORTED": "تستورد",
+            "BULK_STATUS_SLOW": "بطيء بزاف، تخطّيناه",
+            "BULK_STATUS_FAILED": "فشل، تخطّيناه"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "جر وأفلت الملفات هنا",
@@ -733,7 +762,9 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "بلد التصنيف العمري",
         "AGE_RATING_COUNTRY_DESCRIPTION": "اختار بلد التصنيف. إلا ما كانتش بيانات محلية، يمكن نستعملو بيانات أمريكا ولا المزوّد.",
-        "AGE_RATING_COUNTRY_AUTO": "تلقائي — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "تلقائي — {{country}}",
+        "DISABLE_VOD": "حيّد VOD",
+        "DISABLE_VOD_DESCRIPTION": "حمّل غير قنوات البث المباشر. الأفلام والمسلسلات ما كيتستوردوش وما كيتحدثوش وما كيتزامنوش لحتى شي مصدر، كيفما كانت أقسام الاستيراد ديالو. طفيه باش يرجعو."
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "ما قدرناش نحفظو فالسيرفر. شوف الاتصال وعاود جرب.",

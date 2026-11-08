@@ -3,4 +3,5 @@
         <mat-label>{{ 'HOME.TEXT_IMPORT.LABEL' | translate }}</mat-label>
         <textarea formControlName="text" matInput></textarea>
     </mat-form-field>
+    <app-import-scope [(importLive)]="importLive" [(importVod)]="importVod" />
 </form>

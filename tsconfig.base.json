@@ -213,6 +213,9 @@
             "@iptvnator/shared/interfaces/source-definition": [
                 "libs/shared/interfaces/src/lib/source-definition.util.ts"
             ],
+            "@iptvnator/shared/interfaces/bulk-playlist": [
+                "libs/shared/interfaces/src/lib/bulk-playlist.util.ts"
+            ],
             "@iptvnator/shared/interfaces/provider-import": [
                 "libs/shared/interfaces/src/lib/provider-import-detection.util.ts"
             ],

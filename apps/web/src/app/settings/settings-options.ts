@@ -25,10 +25,12 @@ export const SETTINGS_THEME_OPTIONS: ThemeOption[] = [
     ...THEME_PRESETS.map((preset) => ({
         value: preset.value,
         presetId: preset.id,
+        icon: preset.mode === 'dark' ? 'dark_mode' : 'light_mode',
         labelKey: `THEMES.${preset.value}`,
     })),
     {
         value: Theme.SystemTheme,
+        icon: 'brightness_auto',
         labelKey: 'THEMES.SYSTEM_THEME',
     },
 ];

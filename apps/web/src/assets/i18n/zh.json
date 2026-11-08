@@ -178,7 +178,9 @@
             "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "播放列表自动刷新未完成：{{total}} 个播放列表中已更新 {{updated}} 个，{{failed}} 个失败，跳过 {{skipped}} 个（没有 URL 或文件路径）。",
             "AUTO_REFRESH_UPDATE_FAILED": "播放列表自动刷新失败。{{total}} 个播放列表均未更新。",
             "AUTO_REFRESH_UPDATE_SKIPPED": "播放列表自动刷新：{{total}} 个中已更新 {{updated}} 个，跳过 {{skipped}} 个（没有 URL 或文件路径）。",
-            "AUTO_REFRESH_ENABLED": "已启用自动刷新"
+            "AUTO_REFRESH_ENABLED": "已启用自动刷新",
+            "SOURCE_BULK_NEEDS": "包含服务商信息的 .txt 文件，或 .json 来源列表。",
+            "SOURCE_BULK_ADD": "导入来源"
         },
         "ADD_PLAYLIST": {
             "IMPORT_EPG": "导入播放列表中指定的节目指南",
@@ -197,7 +199,34 @@
             "METHOD_TEXT_LABEL": "原始 m3u 文本",
             "METHOD_TEXT_SUB": "用于一次性列表，或仅有文本时",
             "METHOD_AUTO_LABEL": "自动识别",
-            "METHOD_AUTO_SUB": "粘贴服务商发来的消息"
+            "METHOD_AUTO_SUB": "粘贴服务商发来的消息",
+            "METHOD_BULK_LABEL": "批量导入",
+            "METHOD_BULK_SUB": "从文件一次添加多个来源",
+            "IMPORT_SCOPE_LABEL": "要导入的部分",
+            "IMPORT_SCOPE_LIVE": "直播频道",
+            "IMPORT_SCOPE_VOD": "点播（电影和剧集）",
+            "IMPORT_SCOPE_VOD_DISABLED": "已在设置中禁用 VOD，因此只导入直播频道。",
+            "BULK_FILE_BUTTON": "从文件加载",
+            "BULK_ROW_INCOMPLETE": "不完整——将缺失的信息作为单个来源添加，或删除此行。",
+            "BULK_NO_SOURCES": "此文件中没有识别到任何来源。",
+            "BULK_REMOVE": "删除来源",
+            "BULK_IMPORT_BUTTON": "导入{{count}}个来源",
+            "BULK_INVALID_JSON": "该JSON不是批量导入来源列表。应为{ \"sources\": [...] }或[...]数组。",
+            "BULK_IMPORT_STARTED": "正在导入{{count}}个来源…",
+            "BULK_ROW_NO_PORTAL": "这个 MAC 没有门户地址——请作为单个 Stalker 来源添加，或删除此行。",
+            "BULK_ROW_NO_MAC": "这个门户没有 MAC 地址——请作为单个 Stalker 来源添加，或删除此行。",
+            "BULK_ROW_MISSING_DETAILS": "缺少连接信息——请单独添加此来源，或删除此行。",
+            "BULK_NOTHING_IMPORTABLE": "没有可导入的内容——请修正或删除上方不完整的行。",
+            "BULK_REPLACE_NOTICE": "导入会替换你当前的所有来源。每个来源有一分钟的加载时间；更慢或失败的来源将被跳过。",
+            "BULK_REPLACE_FAILED": "无法移除当前来源，因此没有导入任何内容。",
+            "BULK_SOURCE_TOO_SLOW": "来源太慢，跳过“{{title}}”",
+            "BULK_SOURCE_FAILED": "导入失败，跳过“{{title}}”",
+            "BULK_IMPORT_FINISHED": "批量导入完成：已导入 {{imported}} 个，太慢 {{slow}} 个，失败 {{failed}} 个。",
+            "BULK_STATUS_PENDING": "等待中",
+            "BULK_STATUS_IMPORTING": "导入中…",
+            "BULK_STATUS_IMPORTED": "已导入",
+            "BULK_STATUS_SLOW": "太慢，已跳过",
+            "BULK_STATUS_FAILED": "失败，已跳过"
         },
         "FILE_UPLOAD": {
             "DRAG_DROP": "将文件拖放到此处",
@@ -733,7 +762,9 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "年龄分级国家",
         "AGE_RATING_COUNTRY_DESCRIPTION": "选择年龄分级使用的国家。缺少本地分级时，可能使用美国或提供商的数据。",
-        "AGE_RATING_COUNTRY_AUTO": "自动 — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "自动 — {{country}}",
+        "DISABLE_VOD": "禁用 VOD",
+        "DISABLE_VOD_DESCRIPTION": "只加载直播频道。无论各源自身的导入部分如何设置，任何源都不会导入、刷新或同步电影和剧集。关闭即可恢复。"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "无法保存到服务器。请检查连接后重试。",

@@ -21,6 +21,13 @@ export interface PlaylistBackupBaseEntry {
     title: string;
     autoRefresh: boolean;
     position?: number;
+    /**
+     * Section import scope. Only opt-outs are written; absence means the
+     * source predates scopes (or imports everything) and restores keep the
+     * playlist's existing scope.
+     */
+    importLive?: boolean;
+    importVod?: boolean;
 }
 
 export interface M3uPlaylistBackupEntry extends PlaylistBackupBaseEntry {

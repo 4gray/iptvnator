@@ -11,6 +11,7 @@ import {
     isGatewayOutage,
     isServerAccessChallenge,
     ServerStorageStatusService,
+    SettingsStore,
 } from '@iptvnator/services';
 import {
     CONNECTIVITY_GUARD_RESET,
@@ -32,6 +33,7 @@ import {
     createLogger,
 } from '@iptvnator/portal/shared/util/logger';
 import { getRuntimeBackendUrl } from './runtime-config';
+import { applyImportScopeToPlaylist } from '@iptvnator/shared/m3u-utils';
 import { isSourceBackendRequest } from '@iptvnator/services/source-sync/connection';
 import { ProviderTargetClient } from './provider-target-client';
 
@@ -64,6 +66,7 @@ export class PwaService extends DataService {
     private readonly store = inject(Store);
     private readonly translateService = inject(TranslateService);
     private readonly serverStatus = inject(ServerStorageStatusService);
+    private readonly settingsStore = inject(SettingsStore);
     private readonly logger = createLogger('PwaService');
     private readonly providerTargets = new ProviderTargetClient((url) =>
         firstValueFrom(
@@ -210,13 +213,21 @@ export class PwaService extends DataService {
         const playlistId = payload.id;
         const { url } = payload;
         const userAgent = payload.userAgent?.trim() || undefined;
+        const scope = {
+            importLive: payload.importLive,
+            importVod: payload.importVod,
+        };
 
         return new Promise<void>((resolve) => {
             this.getPlaylistFromUrl(url, userAgent).subscribe({
                 next: (playlist: Playlist) => {
                     this.store.dispatch(
                         PlaylistActions.updatePlaylist({
-                            playlist: { ...playlist, url, userAgent },
+                            playlist: applyImportScopeToPlaylist(
+                                { ...playlist, url, userAgent },
+                                scope,
+                                this.settingsStore.disableVod?.() === true
+                            ),
                             playlistId,
                             refreshEpg: true,
                         })
@@ -299,13 +310,20 @@ export class PwaService extends DataService {
                 })
             )
             .subscribe((response: Playlist) => {
-                const playlist = title
-                    ? {
-                          ...response,
-                          filename: title,
-                          title,
-                      }
-                    : response;
+                const playlist = applyImportScopeToPlaylist(
+                    title
+                        ? {
+                              ...response,
+                              filename: title,
+                              title,
+                          }
+                        : response,
+                    {
+                        importLive: payload?.importLive,
+                        importVod: payload?.importVod,
+                    },
+                    this.settingsStore.disableVod?.() === true
+                );
 
                 this.store.dispatch(
                     PlaylistActions.handleAddingPlaylistByUrl({
@@ -367,9 +385,13 @@ export class PwaService extends DataService {
         return match ? parseInt(match[1], 10) : null;
     }
 
-    async forwardXtreamRequest(payload: PwaXtreamRequest, signal?: AbortSignal) {
+    async forwardXtreamRequest(
+        payload: PwaXtreamRequest,
+        signal?: AbortSignal
+    ) {
         signal?.throwIfAborted();
-        const { forwardPwaXtreamRequest } = await import('./pwa-xtream-request');
+        const { forwardPwaXtreamRequest } =
+            await import('./pwa-xtream-request');
         return forwardPwaXtreamRequest(
             {
                 http: this.http,

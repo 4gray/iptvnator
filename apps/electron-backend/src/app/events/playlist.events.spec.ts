@@ -72,11 +72,16 @@ jest.mock('iptv-playlist-parser', () => ({
     parse: (...args: unknown[]) => mockParse(...args),
 }));
 
-jest.mock('@iptvnator/shared/m3u-utils', () => ({
-    createPlaylistObject: (...args: unknown[]) =>
-        mockCreatePlaylistObject(...args),
-    getFilenameFromUrl: (...args: unknown[]) => mockGetFilenameFromUrl(...args),
-}));
+jest.mock('@iptvnator/shared/m3u-utils', () => {
+    const actual = jest.requireActual('@iptvnator/shared/m3u-utils');
+    return {
+        ...actual,
+        createPlaylistObject: (...args: unknown[]) =>
+            mockCreatePlaylistObject(...args),
+        getFilenameFromUrl: (...args: unknown[]) =>
+            mockGetFilenameFromUrl(...args),
+    };
+});
 
 jest.mock('node:fs/promises', () => ({
     readFile: (...args: unknown[]) => mockReadFile(...args),

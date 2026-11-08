@@ -135,7 +135,7 @@ test('compact methods fit longer translations at intermediate and narrow widths'
         .getByRole('button', { name: 'Playlist hinzufügen', exact: true })
         .click();
     const dialog = page.getByRole('dialog');
-    await expect(dialog.getByRole('radio')).toHaveCount(6);
+    await expect(dialog.getByRole('radio')).toHaveCount(7);
     await expect(dialog).toContainText('Xtream-Zugangsdaten');
     for (const width of [768, 320]) {
         await page.setViewportSize({ width, height: 844 });

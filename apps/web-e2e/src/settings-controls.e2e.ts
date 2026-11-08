@@ -71,10 +71,10 @@ test('@sources @web import methods keep one tab stop and select with arrows', as
     await file.press('End');
     await expectRovingGroup(
         group,
-        group.getByRole('radio', { name: /^Auto-detect/ })
+        group.getByRole('radio', { name: /^Bulk import/ })
     );
     await group
-        .getByRole('radio', { name: /^Auto-detect/ })
+        .getByRole('radio', { name: /^Bulk import/ })
         .press('ArrowRight');
     await expectRovingGroup(group, first);
 });

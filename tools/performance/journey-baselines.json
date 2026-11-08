@@ -3,13 +3,13 @@
     "journeys": {
         "launch": {
             "renderer.initialBytes": {
-                "value": 1196205,
+                "value": 1203341,
                 "unit": "bytes",
                 "slack": 4096,
-                "updatedAt": "2026-10-14",
-                "evidencePr": 1939,
+                "updatedAt": "2026-11-08",
+                "evidencePr": 2129,
                 "measuredWith": "pnpm nx build web && pnpm run perf:initial-bytes",
-                "note": "No Angular Material module is in the initial bundle since #1939: services created with the app open toasts through LazySnackBar and dialogs through LazyMatDialog, so a new eager MatSnackBar or MatDialog import brings back Material's button, ripple and the CDK a11y chunks (about 110 KB). The CDK overlay stays initial through the FullscreenOverlayContainer provider in app.config.ts. Self-hosted server storage (#1903) keeps only what must run before the first route on the startup path (the /v1/instance probe and remembered server, the connection status, the token bound to its instance, the playlist storage backend); the storage code itself loads by dynamic import in server mode only."
+                "note": "Raised from 1,196,205 for the per-source import scope and Disable VOD (#2129), which needs the maintainer's perf-baseline-increase label: the Xtream store, the playlist services and the Electron/PWA data services apply each row's import scope on every import and refresh, so that code (about 3.7 KB) runs on the startup path; upstream master 73d889885 measures 1,199,604 and this branch 1,203,341 on the same local build. Bulk import parsing, provider-message detection and both portal seeders load with the lazy bulk import form. No Angular Material module is in the initial bundle since #1939: services created with the app open toasts through LazySnackBar and dialogs through LazyMatDialog, so a new eager MatSnackBar or MatDialog import brings back Material's button, ripple and the CDK a11y chunks (about 110 KB). The CDK overlay stays initial through the FullscreenOverlayContainer provider in app.config.ts. Self-hosted server storage (#1903) keeps only what must run before the first route on the startup path (the /v1/instance probe and remembered server, the connection status, the token bound to its instance, the playlist storage backend); the storage code itself loads by dynamic import in server mode only."
             },
             "renderer.ipcCallsToFirstCard": {
                 "value": 15,
