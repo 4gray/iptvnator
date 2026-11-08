@@ -8,6 +8,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { createStalkerVodItem } from '@iptvnator/shared/interfaces';
 import { VodDetailsComponent } from '@iptvnator/ui/playback';
+import { StalkerDetailSimilar } from '../stalker-detail-similar';
 import { StalkerSeriesViewComponent } from '../stalker-series-view/stalker-series-view.component';
 import { StalkerInlineDetailComponent } from './stalker-inline-detail.component';
 
@@ -75,8 +76,10 @@ const VOD_ITEM = createStalkerVodItem(
 
 describe('StalkerInlineDetailComponent provider presentation', () => {
     let fixture: ComponentFixture<StalkerInlineDetailComponent>;
+    let bindSimilar: jest.SpyInstance;
 
     beforeEach(async () => {
+        bindSimilar = jest.spyOn(StalkerDetailSimilar.prototype, 'bind');
         await TestBed.configureTestingModule({
             imports: [StalkerInlineDetailComponent],
         })
@@ -100,7 +103,28 @@ describe('StalkerInlineDetailComponent provider presentation', () => {
         );
     });
 
-    afterEach(() => fixture.destroy());
+    afterEach(() => {
+        fixture.destroy();
+        bindSimilar.mockRestore();
+    });
+
+    it('includes the live search return position when opening a recommendation', () => {
+        const [bindings] = bindSimilar.mock.calls[0] as Parameters<
+            StalkerDetailSimilar['bind']
+        >;
+        const origin = {
+            playlistId: 'stalker-1',
+            catalog: 'vod',
+            item: { id: '42' },
+        } as const;
+        expect(bindings.origin?.(origin)).toBeNull();
+
+        fixture.componentRef.setInput('vodDetailsItem', VOD_ITEM);
+        const search = { scrollTop: 320, pagingId: 14 };
+        fixture.componentRef.setInput('similarSearchReturn', () => search);
+        expect(bindings.playlistId()).toBe(VOD_ITEM.playlistId);
+        expect(bindings.origin?.(origin)).toEqual({ ...origin, search });
+    });
 
     it('passes provider-only mode to regular VOD details', async () => {
         fixture.componentRef.setInput('categoryId', 'vod');
