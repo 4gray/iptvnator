@@ -11,7 +11,9 @@ import path from 'path';
 import type { RuntimeFile, RuntimeFixture } from './runtime.spec-data';
 import {
     cloneManifest,
+    createDevelopmentFixture,
     createFixture,
+    probeDevelopmentRuntime,
     writeManifest,
 } from './runtime-fixtures.test-helpers';
 import {
@@ -28,6 +30,18 @@ describe('embedded-mpv frame-copy package integrity', () => {
 
     afterEach(() => {
         context.dispose();
+    });
+
+    it('accepts an executable frame reader in development', () => {
+        const fixture = createDevelopmentFixture(context.rootDir, 'system-dev');
+        chmodSync(
+            path.join(fixture.nativeDir, 'embedded_mpv_frame_reader.node'),
+            0o755
+        );
+
+        expect(
+            probeDevelopmentRuntime(context.createProbe(), fixture.helperPath)
+        ).toMatchObject({ usable: true, profile: 'development' });
     });
 
     it('rejects system manifests with a private library directory', () => {
@@ -73,6 +87,19 @@ describe('embedded-mpv frame-copy package integrity', () => {
             label: 'sticky helper',
             mutate(fixture: RuntimeFixture) {
                 chmodSync(fixture.helperPath, 0o1755);
+            },
+            reason: 'runtime-artifact-invalid',
+        },
+        {
+            label: 'executable packaged reader',
+            mutate(fixture: RuntimeFixture) {
+                chmodSync(
+                    path.join(
+                        fixture.nativeDir,
+                        'embedded_mpv_frame_reader.node'
+                    ),
+                    0o755
+                );
             },
             reason: 'runtime-artifact-invalid',
         },
