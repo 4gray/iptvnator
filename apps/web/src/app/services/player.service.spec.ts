@@ -1,3 +1,4 @@
+import { Injectable } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { DataService } from '@iptvnator/services';
@@ -7,6 +8,14 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { SettingsStore } from './settings-store.service';
 import { PlayerService } from './player.service';
+
+@Injectable({ providedIn: 'root' })
+class FakeLiveFailoverListener {
+    static created = 0;
+    constructor() {
+        FakeLiveFailoverListener.created++;
+    }
+}
 
 describe('PlayerService', () => {
     let service: PlayerService;
@@ -40,6 +49,11 @@ describe('PlayerService', () => {
         });
 
         service = TestBed.inject(PlayerService);
+        FakeLiveFailoverListener.created = 0;
+        service.loadLiveFailoverListener = () =>
+            Promise.resolve({
+                ExternalLiveFailoverService: FakeLiveFailoverListener,
+            } as never);
         dialog.open.mockReset();
         dataService.sendIpcEvent.mockReset();
         settingsStore.player.mockReset();
@@ -183,5 +197,39 @@ describe('PlayerService', () => {
         );
         expect(dialog.open).not.toHaveBeenCalled();
         expect(result).toEqual(session);
+    });
+
+    it('starts the live failover listener before launching, and launches without it when its chunk fails', async () => {
+        settingsStore.player.mockReturnValue(VideoPlayer.MPV);
+        dataService.sendIpcEvent.mockImplementation(async () => {
+            expect(FakeLiveFailoverListener.created).toBe(1);
+        });
+        const playback = {
+            streamUrl: 'https://example.com/live.m3u8',
+            title: 'Example Live',
+        };
+
+        await service.openExternalPlayback(playback, 'mpv');
+        expect(dataService.sendIpcEvent).toHaveBeenCalledTimes(1);
+
+        const error = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+        try {
+            dataService.sendIpcEvent.mockReset();
+            service.loadLiveFailoverListener = () =>
+                Promise.reject(new Error('chunk failed'));
+
+            await service.openExternalPlayback(playback, 'mpv');
+
+            expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+                'OPEN_MPV_PLAYER',
+                expect.objectContaining({ url: playback.streamUrl })
+            );
+            expect(service.lastExternalPlayback()).toBe(playback);
+            expect(error).toHaveBeenCalledTimes(1);
+        } finally {
+            error.mockRestore();
+        }
     });
 });

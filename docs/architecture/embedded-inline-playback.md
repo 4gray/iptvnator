@@ -174,7 +174,10 @@ playback in the embedded MPV player:
   retries. Managed external MPV/VLC run `ExternalLiveFailoverService`
   (`apps/web/src/app/services`) on the main process's session updates and
   `player-error` events, replaying the exact launch — headers included —
-  through `PlayerService.openExternalPlayback`. External limits: a stream that
+  through `PlayerService.openExternalPlayback`. That launch imports the
+  listener on first use and waits for it before the IPC call, so it hears the
+  first session update without sitting on the initial path; a failed chunk
+  load skips failover, not the launch. External limits: a stream that
   opens and then stalls without raising an error is not detected (the renderer
   receives no position feed), and the external window cannot show retry
   progress, so hops are announced by the in-app notice and dock only.

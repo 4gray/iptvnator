@@ -3,13 +3,13 @@
     "journeys": {
         "launch": {
             "renderer.initialBytes": {
-                "value": 1201793,
+                "value": 1196205,
                 "unit": "bytes",
                 "slack": 4096,
-                "updatedAt": "2026-11-07",
-                "evidencePr": 2131,
-                "measuredWith": "pnpm nx build web && pnpm run perf:initial-bytes:check (upstream master e32b934bf measures 1,198,596 the same way)",
-                "note": "No Angular Material module is in the initial bundle since #1939: services created with the app open toasts through LazySnackBar and dialogs through LazyMatDialog, so a new eager MatSnackBar or MatDialog import brings back Material's button, ripple and the CDK a11y chunks (about 110 KB). The CDK overlay stays initial through the FullscreenOverlayContainer provider in app.config.ts. Self-hosted server storage (#1903) keeps only what must run before the first route on the startup path (the /v1/instance probe and remembered server, the connection status, the token bound to its instance, the playlist storage backend); the storage code itself loads by dynamic import in server mode only. Rebased onto upstream e32b934bf the branch measures 1,201,793 bytes against that base, so the raise over 1,196,205 still needs the maintainer perf-baseline-increase label."
+                "updatedAt": "2026-10-14",
+                "evidencePr": 1939,
+                "measuredWith": "pnpm nx build web && pnpm run perf:initial-bytes",
+                "note": "No Angular Material module is in the initial bundle since #1939: services created with the app open toasts through LazySnackBar and dialogs through LazyMatDialog, so a new eager MatSnackBar or MatDialog import brings back Material's button, ripple and the CDK a11y chunks (about 110 KB). The CDK overlay stays initial through the FullscreenOverlayContainer provider in app.config.ts. Self-hosted server storage (#1903) keeps only what must run before the first route on the startup path (the /v1/instance probe and remembered server, the connection status, the token bound to its instance, the playlist storage backend); the storage code itself loads by dynamic import in server mode only."
             },
             "renderer.ipcCallsToFirstCard": {
                 "value": 15,

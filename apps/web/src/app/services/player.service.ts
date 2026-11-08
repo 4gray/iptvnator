@@ -12,7 +12,6 @@ import {
 import type { ExternalPlayerName } from '@iptvnator/shared/interfaces';
 import { LazyMatDialog } from '@iptvnator/ui/components/lazy-dialog';
 import { dialogSize } from '@iptvnator/ui/components/dialog-size';
-import { ExternalLiveFailoverService } from './external-live-failover.service';
 import { SettingsStore } from './settings-store.service';
 
 @Injectable({
@@ -83,15 +82,17 @@ export class PlayerService {
         const player = this.settingsStore.player() ?? VideoPlayer.VideoJs;
 
         if (player === VideoPlayer.MPV) {
-            if (!hideExternalInfoDialog) {
-                this.showExternalPlayerInfoDialog();
-            }
-            return await this.openExternalPlayback(playback, 'mpv');
+            return await this.openExternalPlayback(
+                playback,
+                'mpv',
+                !hideExternalInfoDialog
+            );
         } else if (player === VideoPlayer.VLC) {
-            if (!hideExternalInfoDialog) {
-                this.showExternalPlayerInfoDialog();
-            }
-            return await this.openExternalPlayback(playback, 'vlc');
+            return await this.openExternalPlayback(
+                playback,
+                'vlc',
+                !hideExternalInfoDialog
+            );
         }
 
         return;
@@ -126,7 +127,8 @@ export class PlayerService {
 
     async openExternalPlayback(
         playback: ResolvedPortalPlayback,
-        player: ExternalPlayerName
+        player: ExternalPlayerName,
+        showInfoDialog = false
     ): Promise<ExternalPlayerSession | void> {
         if (playback.contentInfo)
             void this.activity
@@ -138,7 +140,10 @@ export class PlayerService {
                 .catch(() => undefined);
         const ipcEvent = player === 'mpv' ? OPEN_MPV_PLAYER : OPEN_VLC_PLAYER;
 
-        this.ensureLiveFailoverListener();
+        await this.ensureLiveFailoverListener();
+        if (showInfoDialog) {
+            this.showExternalPlayerInfoDialog();
+        }
         this.lastExternalPlayback.set(playback);
         return await this.dataService.sendIpcEvent<ExternalPlayerSession>(
             ipcEvent,
@@ -156,12 +161,25 @@ export class PlayerService {
         );
     }
 
+    /** The dynamic import; a field so specs can substitute it. */
+    loadLiveFailoverListener = () => import('./external-live-failover.service');
+
     /**
-     * Live failover has to be listening before the first session update. It is
-     * a light listener; its cross-source search graph loads on the first live
-     * failure, well after startup.
+     * Live failover has to be listening before the first session update, so
+     * the launch waits for it. It is imported on the first external launch:
+     * this service is created with the app, so a static import would put the
+     * listener on the initial path. Its cross-source search graph loads later
+     * still, on the first live failure. A failed chunk load costs only the
+     * failover, never the launch.
      */
-    private ensureLiveFailoverListener(): void {
-        this.injector.get(ExternalLiveFailoverService);
+    private ensureLiveFailoverListener(): Promise<void> {
+        return this.loadLiveFailoverListener().then(
+            ({ ExternalLiveFailoverService }) => {
+                this.injector.get(ExternalLiveFailoverService);
+            },
+            (error: unknown) => {
+                console.error('Could not load live channel failover:', error);
+            }
+        );
     }
 }
