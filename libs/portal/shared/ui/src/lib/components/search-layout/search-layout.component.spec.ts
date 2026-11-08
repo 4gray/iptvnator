@@ -1,3 +1,4 @@
+import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { TranslateModule, TranslatePipe } from '@ngx-translate/core';
@@ -5,13 +6,34 @@ import { MockPipe } from 'ng-mocks';
 import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
 import { SearchLayoutComponent } from './search-layout.component';
 
+@Component({
+    imports: [SearchLayoutComponent],
+    template: `
+        <app-search-layout
+            searchTerm="fixture"
+            [isLoading]="loading()"
+            [hasError]="failed()"
+        >
+            <p results-prefix>Portal preview</p>
+        </app-search-layout>
+    `,
+})
+class SearchLayoutWithPrefix {
+    readonly loading = signal(false);
+    readonly failed = signal(false);
+}
+
 describe('SearchLayoutComponent', () => {
     let fixture: ComponentFixture<SearchLayoutComponent>;
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
             // The search form inside renders the real pipe.
-            imports: [SearchLayoutComponent, TranslateModule.forRoot()],
+            imports: [
+                SearchLayoutComponent,
+                SearchLayoutWithPrefix,
+                TranslateModule.forRoot(),
+            ],
         })
             .overrideComponent(SearchLayoutComponent, {
                 remove: { imports: [TranslatePipe] },
@@ -51,6 +73,21 @@ describe('SearchLayoutComponent', () => {
         return fixture.debugElement.query(By.css('.results-container'))
             .nativeElement as HTMLElement;
     }
+
+    it.each(['empty', 'loading', 'error'])(
+        'shows independent results in the same scroller while local results are %s',
+        (state) => {
+            const host = TestBed.createComponent(SearchLayoutWithPrefix);
+            host.componentInstance.loading.set(state === 'loading');
+            host.componentInstance.failed.set(state === 'error');
+            host.detectChanges();
+
+            expect(
+                host.nativeElement.querySelector('.results-container p')
+                    ?.textContent
+            ).toBe('Portal preview');
+        }
+    );
 
     it('distinguishes a failed search from no matches and offers retry', () => {
         fixture.componentRef.setInput('searchTerm', 'matrix');

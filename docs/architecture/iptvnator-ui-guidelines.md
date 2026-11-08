@@ -1558,6 +1558,13 @@ text) and `subject` (pasted text in the add flow). Use
 `getPlaylistSourceIcon()` for a stored playlist. An icon never stands for two
 providers, and the Dashboard rail icon is never a provider icon.
 
+## Search and Collection Empty States
+
+Search, Favorites and Recently Viewed use the shared no-data view from
+`@iptvnator/playlist/shared/ui` for their empty states. Supply the relevant
+icon and translated copy so they share typography and motion. The entrance
+animation respects reduced motion.
+
 ## Icon Names
 
 `<mat-icon>` draws its text through the ligatures of the Material Icons font

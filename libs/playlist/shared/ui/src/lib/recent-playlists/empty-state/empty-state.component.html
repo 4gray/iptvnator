@@ -90,7 +90,7 @@
 
             <div class="content">
                 @if (titleKey()) {
-                    <h3 class="title small">{{ titleKey() | translate }}</h3>
+                    <h3 class="title small">{{ titleKey() | translate: titleParams() }}</h3>
                 }
                 @if (descriptionKey()) {
                     <p class="description">{{ descriptionKey() | translate }}</p>

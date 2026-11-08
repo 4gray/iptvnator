@@ -190,7 +190,7 @@ export function getGlobalCommandDefinitions(
                 'WORKSPACE.SHELL.COMMANDS.GLOBAL_SEARCH_DESCRIPTION',
             priority: 10,
             visible: hasSearchablePlaylists && route.kind !== 'global-search',
-            keywords: ['xtream', 'm3u', 'live'],
+            keywords: ['xtream', 'm3u', 'stalker', 'live'],
             run: ({ query }) => actions.openGlobalSearch(query),
         },
         {

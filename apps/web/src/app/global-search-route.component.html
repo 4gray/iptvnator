@@ -1,0 +1,63 @@
+<app-search-results
+    [additionalResults]="additionalResults()"
+    [additionalSearchPending]="searchingPlaylists()"
+    [additionalSearchFailed]="failedPlaylists().length > 0"
+>
+    <ng-container global-search-prefix>
+        <div #searchStatus tabindex="-1">
+            @if (searchingPlaylists()) {
+                <p class="search-status" role="status">
+                    {{
+                        'PORTALS.SEARCH_VIEW.GLOBAL_SEARCH_PENDING' | translate
+                    }}
+                </p>
+            }
+            @for (group of failedPlaylists(); track group.playlistId) {
+                <div class="search-actions">
+                    <span role="status">
+                        {{
+                            'PORTALS.SEARCH_VIEW.GLOBAL_SEARCH_SOURCE_FAILED'
+                                | translate: { playlist: group.playlistName }
+                        }}
+                    </span>
+                    <button
+                        type="button"
+                        mat-button
+                        (click)="
+                            searchStatus.focus(); retryStalker(group.playlistId)
+                        "
+                    >
+                        {{ 'PORTALS.GRID.RETRY' | translate }}
+                    </button>
+                </div>
+            }
+        </div>
+    </ng-container>
+    <ng-container global-search-suffix>
+        @for (group of groups(); track group.playlistId) {
+            @if (group.more.length > 0) {
+                <div class="search-actions">
+                    @for (origin of group.more; track origin) {
+                        <a
+                            mat-button
+                            [routerLink]="[
+                                '/workspace',
+                                'stalker',
+                                group.playlistId,
+                                'search',
+                            ]"
+                            [queryParams]="{ q: term(), kind: origin }"
+                        >
+                            {{
+                                (origin === 'vod'
+                                    ? 'PORTALS.SEARCH_VIEW.GLOBAL_SEARCH_MORE_VOD'
+                                    : 'PORTALS.SEARCH_VIEW.GLOBAL_SEARCH_MORE_SERIES'
+                                ) | translate: { playlist: group.playlistName }
+                            }}
+                        </a>
+                    }
+                </div>
+            }
+        }
+    </ng-container>
+</app-search-results>

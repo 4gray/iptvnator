@@ -402,6 +402,17 @@ host connectivity guard before reloading the same page. Successful empty
 responses keep the ordinary no-matches state; failed appends retain loaded rows
 and their existing tail retry. New query/source identities clear obsolete errors.
 
+Electron's global search automatically searches configured Stalker portals
+when the applied query has at least two characters and Movies or Series is
+selected. It reuses the portal search request for page one and runs up to two
+catalog requests at a time. Local results can appear while Stalker is still
+searching. Series search covers both the `series` catalog and series originating
+in `vod`. Results share the workspace cards and grouping setting, and each card
+keeps its catalog origin for parental locks and detail navigation. Failed
+catalogs can be retried per portal. When a catalog may have more matches, its
+link opens the full search with the query and catalog preselected. Changing
+the query, filters or lock state replaces the previous Stalker results.
+
 Stalker store is now feature-composed:
 
 - Facade: `libs/portal/stalker/data-access/src/lib/stalker.store.ts`

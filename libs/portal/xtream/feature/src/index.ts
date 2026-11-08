@@ -1,6 +1,5 @@
 export * from './lib/account-info/account-info.component';
 export * from './lib/category-management-dialog/category-management-dialog.component';
-export * from './lib/global-search-results/global-search-results.component';
 export * from './lib/live-stream-layout/live-stream-layout.component';
 export * from './lib/portal-channels-list/portal-channels-list.component';
 export * from './lib/recently-added/recently-added.component';

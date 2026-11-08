@@ -101,15 +101,18 @@ describe(StalkerDetailSimilar.name, () => {
     });
 
     it('ignores a response that settles after the user opens another title', async () => {
-        const oldLookup = Promise.withResolvers<StalkerSimilarMatch[]>();
-        lookup.mockReturnValueOnce(oldLookup.promise).mockResolvedValue([]);
+        let resolveOldLookup!: (matches: StalkerSimilarMatch[]) => void;
+        const oldLookup = new Promise<StalkerSimilarMatch[]>((resolve) => {
+            resolveOldLookup = resolve;
+        });
+        lookup.mockReturnValueOnce(oldLookup).mockResolvedValue([]);
         TestBed.tick();
         await Promise.resolve();
         expect(lookup).toHaveBeenCalledTimes(1);
         subject.set(item('2'));
         expect(service.items()).toEqual([]);
         TestBed.tick();
-        oldLookup.resolve([match]);
+        resolveOldLookup([match]);
         await TestBed.inject(ApplicationRef).whenStable();
         expect(lookup).toHaveBeenCalledTimes(2);
         expect(service.items()).toEqual([]);

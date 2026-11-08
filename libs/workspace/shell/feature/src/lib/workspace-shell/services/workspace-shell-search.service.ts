@@ -10,6 +10,7 @@ import {
     RuntimeCapabilitiesService,
     injectTranslationTick,
 } from '@iptvnator/services';
+import { GLOBAL_SEARCH_MIN_LENGTH } from '@iptvnator/shared/interfaces';
 import { WorkspaceSearchCapability } from '@iptvnator/workspace/shell/util';
 import { SettingsSearchService } from '@iptvnator/workspace/shell/util/settings-search';
 import {
@@ -110,7 +111,9 @@ export class WorkspaceShellSearchService {
                     'WORKSPACE.SHELL.RAIL_GLOBAL_SEARCH'
                 ),
                 statusLabel: '',
-                minLength: hasSearchablePlaylists ? 2 : 0,
+                minLength: hasSearchablePlaylists
+                    ? GLOBAL_SEARCH_MIN_LENGTH
+                    : 0,
                 advancedRouteTarget: null,
             };
         }
@@ -141,6 +144,10 @@ export class WorkspaceShellSearchService {
         const behavior = isDegradedStalkerLive
             ? 'degraded-loaded-only'
             : route.searchMode;
+        const remoteMinLength =
+            context?.provider === 'stalker' && section === 'search'
+                ? GLOBAL_SEARCH_MIN_LENGTH
+                : 3;
 
         return {
             enabled: true,
@@ -172,7 +179,8 @@ export class WorkspaceShellSearchService {
             statusLabel: isDegradedStalkerLive
                 ? this.translateText(SEARCH_LOADED_ONLY_STATUS)
                 : '',
-            minLength: route.searchMode === 'remote-search' ? 3 : 1,
+            minLength:
+                route.searchMode === 'remote-search' ? remoteMinLength : 1,
             advancedRouteTarget: null,
         };
     });

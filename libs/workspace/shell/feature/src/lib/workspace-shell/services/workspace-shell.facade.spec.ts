@@ -862,6 +862,27 @@ describe('WorkspaceShellFacade', () => {
         ).toContain('global-search');
     });
 
+    it('enables the global search command and input for a Stalker-only library', () => {
+        playlistsSignal.set([
+            {
+                _id: 'portal-a',
+                title: 'Fixture Stalker portal',
+                count: 0,
+                importDate: '',
+                autoRefresh: false,
+                portalUrl: 'https://portal.example.test/portal.php',
+                macAddress: '02:00:00:00:00:01',
+            },
+        ]);
+        facade.currentUrl.set('/workspace/dashboard');
+        expect(
+            facade.commandPaletteCommands().map((command) => command.id)
+        ).toContain('global-search');
+
+        facade.currentUrl.set('/workspace/search');
+        expect(facade.canUseSearch()).toBe(true);
+    });
+
     it('does not enable global search for empty invalid playlist metadata', () => {
         activePlaylistSignal.set(null);
         playlistsSignal.set([

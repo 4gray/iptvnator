@@ -1,0 +1,15 @@
+:host {
+    display: contents;
+}
+
+.search-status {
+    margin: 0 0 0.5rem;
+    color: var(--app-on-surface);
+}
+
+.search-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.5rem;
+}

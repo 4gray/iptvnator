@@ -15,11 +15,9 @@ import { resolveStalkerArtwork } from './stalker-artwork.utils';
 import { StalkerPortalRepairService } from './stalker-portal-repair.service';
 import { StalkerSessionService } from './stalker-session.service';
 import {
-    buildStalkerSearchRequestParams,
+    loadStalkerSearchPage,
     type StalkerSearchContentType,
-    type StalkerSearchResponse,
-} from './stalker-search-request';
-import { executeStalkerRequest } from './stores/utils/stalker-request.utils';
+} from './stalker-search-page';
 
 export interface StalkerSimilarSubject {
     catalog: StalkerSearchContentType;
@@ -151,13 +149,15 @@ export class StalkerSimilarService {
         title: string
     ): Promise<StalkerVodSource[]> {
         try {
-            const response = await executeStalkerRequest<StalkerSearchResponse>(
+            const { rawItems } = await loadStalkerSearchPage(
                 this.requestDeps,
                 playlist,
-                buildStalkerSearchRequestParams(catalog, title, 1),
+                catalog,
+                title,
+                1,
                 { silent: true }
             );
-            return Array.isArray(response?.js?.data) ? response.js.data : [];
+            return rawItems;
         } catch {
             return [];
         }

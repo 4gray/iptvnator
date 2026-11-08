@@ -2,9 +2,22 @@
 <app-search-layout
     [nearEndThresholdPx]="640"
     [searchTerm]="searchTerm()"
-    [resultsCount]="xtreamStore.searchResults().length"
-    [isLoading]="xtreamStore.isSearching()"
-    [hasError]="xtreamStore.searchError()"
+    [resultsCount]="
+        isGlobalSearch
+            ? globalResults().length
+            : xtreamStore.searchResults().length
+    "
+    [isLoading]="
+        isGlobalSearch
+            ? globalResults().length === 0 &&
+              (xtreamStore.isSearching() || additionalSearchPending())
+            : xtreamStore.isSearching()
+    "
+    [hasError]="
+        xtreamStore.searchError() &&
+        (!isGlobalSearch || globalResults().length === 0)
+    "
+    [hideEmpty]="isGlobalSearch && additionalSearchFailed()"
     (retryClick)="executeSearch()"
     [backAvailable]="backAvailable"
     [showResultsCount]="!isGlobalSearch || !groupByPlaylist()"
@@ -45,15 +58,6 @@
     <ng-container subheader>
         @if (isGlobalSearch) {
             <div class="global-search-subheader">
-                <div class="global-search-note">
-                    <mat-icon aria-hidden="true">info</mat-icon>
-                    <span>
-                        {{
-                            'PORTALS.SEARCH_VIEW.GLOBAL_SEARCH_SOURCE_NOTE'
-                                | translate
-                        }}
-                    </span>
-                </div>
                 <div class="global-search-controls">
                     <div class="global-search-filters">
                         @for (filter of filterConfig; track filter.key) {
@@ -92,6 +96,24 @@
         }
     </ng-container>
 
+    <ng-container results-prefix>
+        <ng-content select="[global-search-prefix]" />
+        @if (
+            isGlobalSearch &&
+            xtreamStore.searchError() &&
+            globalResults().length > 0
+        ) {
+            <div class="global-search-retry">
+                <span role="status">{{
+                    'PORTALS.SEARCH_VIEW.ERROR_TITLE' | translate
+                }}</span>
+                <button type="button" mat-button (click)="executeSearch()">
+                    {{ 'PORTALS.GRID.RETRY' | translate }}
+                </button>
+            </div>
+        }
+    </ng-container>
+
     <!-- Results -->
     <ng-container results>
         @if (isGlobalSearch) {
@@ -104,8 +126,7 @@
                             'XTREAM.GLOBAL_SEARCH_SUMMARY'
                                 | translate
                                     : {
-                                          count: xtreamStore.searchResults()
-                                              .length,
+                                          count: globalResults().length,
                                           playlists: groupedResults().length,
                                       }
                         }}
@@ -146,7 +167,7 @@
             } @else {
                 <!-- Flat list -->
                 <div class="results-grid">
-                    @for (item of xtreamStore.searchResults(); track item.id) {
+                    @for (item of globalResults(); track item.id) {
                         <app-content-card
                             [allowPostersOnly]="false"
                             [posterUrl]="item.poster_url ?? undefined"
@@ -184,5 +205,8 @@
                 }
             </div>
         }
+    </ng-container>
+    <ng-container empty>
+        <ng-content select="[global-search-suffix]" />
     </ng-container>
 </app-search-layout>

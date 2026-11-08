@@ -26,7 +26,7 @@ export interface StalkerVodSource {
     use_load_balancing?: unknown;
     is_series?: boolean | number | string | null | undefined;
     video_id?: string;
-    category_id?: string;
+    category_id?: string | number;
     title?: string;
     cover?: string;
     logo?: string;

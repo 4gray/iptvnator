@@ -110,6 +110,7 @@ export class EmptyStateComponent {
 
     readonly icon = input<string>('inbox');
     readonly titleKey = input<string>('');
+    readonly titleParams = input<Record<string, unknown>>();
     readonly descriptionKey = input<string>('');
     readonly primaryActionLabelKey = input<string | null>(null);
     readonly secondaryActionLabelKey = input<string | null>(null);
