@@ -131,6 +131,14 @@
     }
 }
 
+@media (prefers-reduced-motion: reduce) {
+    .no-data-state,
+    .no-data-state .content,
+    .no-data-state .empty-icon-container {
+        animation: none;
+    }
+}
+
 @keyframes fadeIn {
     from {
         opacity: 0;

@@ -295,6 +295,7 @@ describe('StalkerSearchComponent playback session key', () => {
 
 describe('StalkerSearchComponent result paging', () => {
     let component: StalkerSearchComponent;
+    const queryParamMap = new BehaviorSubject(convertToParamMap({}));
     let dataService: { sendIpcEvent: jest.Mock };
     let parentalLock: {
         active: jest.Mock<boolean, []>;
@@ -332,6 +333,7 @@ describe('StalkerSearchComponent result paging', () => {
         title: 'Search portal',
         portalUrl: 'http://demo.example/stalker_portal/server/load.php',
         macAddress: '00:1A:79:00:00:01',
+        isFullStalkerPortal: false,
     });
 
     function searchItems(prefix: string, count: number) {
@@ -342,8 +344,9 @@ describe('StalkerSearchComponent result paging', () => {
     }
 
     beforeEach(() => {
+        queryParamMap.next(convertToParamMap({}));
         dataService = {
-            sendIpcEvent: jest.fn().mockResolvedValue({ success: true }),
+            sendIpcEvent: jest.fn().mockResolvedValue({ js: { data: [] } }),
         };
         parentalLock = {
             active: jest.fn(() => false),
@@ -365,13 +368,14 @@ describe('StalkerSearchComponent result paging', () => {
             title: 'Search portal',
             portalUrl: 'http://demo.example/stalker_portal/server/load.php',
             macAddress: '00:1A:79:00:00:01',
+            isFullStalkerPortal: false,
         });
         TestBed.configureTestingModule({
             providers: [
                 {
                     provide: ActivatedRoute,
                     useValue: {
-                        queryParamMap: of(convertToParamMap({})),
+                        queryParamMap,
                         snapshot: {
                             data: {},
                             queryParamMap: convertToParamMap({}),
@@ -391,8 +395,17 @@ describe('StalkerSearchComponent result paging', () => {
                 },
                 { provide: StalkerStore, useValue: stalkerStoreMock },
                 { provide: ParentalLockService, useValue: parentalLock },
-                { provide: StalkerSessionService, useValue: {} },
-                { provide: StalkerPortalRepairService, useValue: {} },
+                {
+                    provide: StalkerSessionService,
+                    useValue: { ensureToken: async () => ({ token: '' }) },
+                },
+                {
+                    provide: StalkerPortalRepairService,
+                    useValue: {
+                        applyOverride: (playlist: unknown) => playlist,
+                        shouldAttemptRepair: () => false,
+                    },
+                },
                 {
                     provide: PORTAL_EXTERNAL_PLAYBACK,
                     useValue: { activeSession: signal(null) },
@@ -422,6 +435,62 @@ describe('StalkerSearchComponent result paging', () => {
         component = TestBed.runInInjectionContext(
             () => new StalkerSearchComponent()
         );
+    });
+
+    it('starts a prefilled two-character search in the series catalog', async () => {
+        queryParamMap.next(convertToParamMap({ q: 'up', kind: 'series' }));
+        await waitFor(() => dataService.sendIpcEvent.mock.calls.length > 0);
+
+        expect(component.filters().series).toBe(true);
+        expect(dataService.sendIpcEvent.mock.calls).toEqual([
+            [
+                expect.any(String),
+                expect.objectContaining({
+                    params: expect.objectContaining({
+                        type: 'series',
+                        search: 'up',
+                    }),
+                }),
+            ],
+        ]);
+    });
+
+    it('keeps the manual catalog until the search route moves to another portal', async () => {
+        queryParamMap.next(
+            convertToParamMap({ q: 'Fixture comet', kind: 'series' })
+        );
+        await waitFor(() => dataService.sendIpcEvent.mock.calls.length === 1);
+
+        component.updateFilter('vod', true);
+        await waitFor(() => dataService.sendIpcEvent.mock.calls.length === 2);
+        expect(component.filters().vod).toBe(true);
+
+        activePlaylist.update((playlist) => ({
+            ...playlist,
+            title: 'Renamed fixture portal',
+        }));
+        expect(component.filters().vod).toBe(true);
+
+        activePlaylist.update((playlist) => ({
+            ...playlist,
+            _id: 'playlist|two',
+        }));
+        queryParamMap.next(
+            convertToParamMap({ q: 'Fixture orbit', kind: 'series' })
+        );
+        await waitFor(() =>
+            dataService.sendIpcEvent.mock.calls.some(
+                ([, { params }]) => params.search === 'Fixture orbit'
+            )
+        );
+
+        expect(component.filters().series).toBe(true);
+        expect(
+            dataService.sendIpcEvent.mock.lastCall?.[1].params
+        ).toMatchObject({
+            search: 'Fixture orbit',
+            type: 'series',
+        });
     });
 
     it('accumulates deduplicated pages and derives hasMore from the total', () => {
@@ -729,6 +798,7 @@ describe('StalkerSearchComponent result paging', () => {
             title: 'Other portal',
             portalUrl: 'http://other.example/stalker_portal/server/load.php',
             macAddress: '00:1A:79:00:00:02',
+            isFullStalkerPortal: false,
         });
 
         expect(component.paging.searchPage()).toBe(1);

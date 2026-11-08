@@ -1,19 +1,17 @@
-import { PlaylistMeta } from '@iptvnator/shared/interfaces';
-
-type SearchablePlaylistMeta = Pick<
-    PlaylistMeta,
-    'count' | 'filePath' | 'macAddress' | 'serverUrl' | 'url'
->;
+import {
+    isStalkerAccountPlaylist,
+    type PlaylistMeta,
+} from '@iptvnator/shared/interfaces';
 
 export function isWorkspaceGlobalSearchablePlaylist(
-    playlist: SearchablePlaylistMeta
+    playlist: PlaylistMeta
 ): boolean {
     if (playlist.serverUrl) {
         return true;
     }
 
     if (playlist.macAddress) {
-        return false;
+        return isStalkerAccountPlaylist(playlist);
     }
 
     return Boolean(

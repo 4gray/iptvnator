@@ -100,7 +100,12 @@
     padding: 4rem 2rem;
 }
 
-.no-items {
+app-empty-state {
+    height: auto;
+    overflow-wrap: anywhere;
+}
+
+.search-error {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -116,41 +121,24 @@
         opacity: 0.5;
     }
 
-    .no-items-content {
-        h3 {
-            margin: 0 0 0.5rem;
-            font-size: 1.05rem;
-            font-weight: 500;
-            letter-spacing: -0.01em;
-            color: var(--app-heading-color);
-        }
-
-        p {
-            font-size: 0.85rem;
-            margin: 0;
-            color: var(--app-body-color);
-        }
-
-        .search-term-note {
-            margin-top: 1rem;
-            font-size: 0.9rem;
-            font-style: italic;
-            color: var(--app-muted-color);
-        }
+    h3 {
+        margin: 0 0 0.5rem;
+        font-size: 1.05rem;
+        font-weight: 500;
+        letter-spacing: -0.01em;
+        color: var(--app-heading-color);
     }
 
-    &.initial-state {
-        opacity: 0.8;
-
-        mat-icon {
-            color: var(--app-selection-color);
-            opacity: 0.6;
-        }
+    p {
+        font-size: 0.85rem;
+        margin: 0;
+        color: var(--app-body-color);
     }
-}
 
-.search-error button {
-    margin-top: 20px;
+    button {
+        margin-top: 20px;
+        @include controls.secondary-button;
+    }
 }
 
 // Results grid mixin for consumers
@@ -177,8 +165,4 @@
         justify-content: flex-start;
         flex-wrap: wrap;
     }
-}
-
-.search-error button {
-    @include controls.secondary-button;
 }

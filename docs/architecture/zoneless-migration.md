@@ -144,14 +144,13 @@ picker), so each marks itself on the form's `events` through
 
 `libs/playlist/m3u/feature-player` (2) goes with the playback PR.
 
-### libs/portal (8)
+### libs/portal (6)
 
 - [x] `libs/portal/shared/ui/src/lib/components/playlist-error-view/playlist-error-view.component.ts`
 - [x] `libs/portal/shared/ui/src/lib/navigation/portal-rail-links.component.ts`
 - [x] `libs/portal/stalker/feature/src/lib/stalker-catalog-detail/stalker-catalog-detail.component.ts`
 - [x] `libs/portal/stalker/feature/src/lib/stalker-favorites-button/stalker-favorites-button.component.ts`
 - [x] `libs/portal/stalker/feature/src/lib/stalker-series-view/stalker-series-view.component.ts`
-- [x] `libs/portal/xtream/feature/src/lib/global-search-results/global-search-results.component.ts`
 - [x] `libs/portal/xtream/feature/src/lib/serial-details/serial-details.component.ts`
 
 Test-only files that set Eager are not listed; they do not ship. The guard

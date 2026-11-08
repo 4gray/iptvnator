@@ -2,6 +2,8 @@
 <app-search-layout
     [nearEndThresholdPx]="640"
     [searchTerm]="searchTerm()"
+    [minSearchLength]="minSearchLength"
+    initialDescriptionKey="PORTALS.SEARCH_VIEW.STALKER_INITIAL_DESCRIPTION"
     [resultsCount]="resultsCount"
     [isLoading]="isInitialSearchLoading()"
     [hasError]="paging.searchError()"
