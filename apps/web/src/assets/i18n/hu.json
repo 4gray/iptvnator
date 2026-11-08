@@ -1499,11 +1499,11 @@
             "GROUP_BY_PLAYLIST": "Találatok lejátszási listánkénti csoportosítása",
             "VISIBLE_CATEGORIES_ONLY": "Csak látható kategóriák",
             "GLOBAL_SEARCH_PENDING": "Keresés a lejátszási listákban…",
-            "GLOBAL_SEARCH_SOURCE_FAILED": "Nem sikerült keresni ebben a lejátszási listában: {{playlist}}.",
+            "GLOBAL_SEARCH_SOURCE_FAILED": "Nem sikerült a keresés a következő lejátszási listában: {{playlist}}.",
             "GLOBAL_SEARCH_MORE_VOD": "További találatok innen: {{playlist}}",
             "GLOBAL_SEARCH_MORE_SERIES": "További sorozatok innen: {{playlist}}",
             "GLOBAL_INITIAL_DESCRIPTION": "Írjon be egy címet vagy csatornanevet a lejátszási listákban való kereséshez.",
-            "STALKER_INITIAL_DESCRIPTION": "Írja be egy film vagy sorozat címét az ebben a lejátszási listában való kereséshez.",
+            "STALKER_INITIAL_DESCRIPTION": "Adja meg annak a filmnek vagy sorozatnak a címét, amelyet ebben a lejátszási listában keres.",
             "LOADING_MORE_RESULTS": "További találatok betöltése…"
         },
         "STREAM_URL_COPIED": "Az adatfolyam URL-címe a vágólapra került",
