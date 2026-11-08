@@ -1,7 +1,11 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
-import { type DownloadItem, DownloadsService } from '@iptvnator/services';
+import {
+    copyTextToClipboard,
+    type DownloadItem,
+    DownloadsService,
+} from '@iptvnator/services';
 import { DialogService } from '@iptvnator/ui/components';
 import type {
     DownloadActionResult,
@@ -147,7 +151,7 @@ export class DownloadManagerActionsService {
             item.id,
             async () => {
                 try {
-                    await navigator.clipboard.writeText(item.url);
+                    await copyTextToClipboard(item.url);
                     this.showMessage('DOWNLOADS.URL_COPIED', 2000);
                     return { success: true };
                 } catch {
@@ -219,7 +223,7 @@ export class DownloadManagerActionsService {
             ),
             onConfirm: async () => {
                 try {
-                    await navigator.clipboard.writeText(path);
+                    await copyTextToClipboard(path);
                 } catch {
                     this.showActionError();
                 }
