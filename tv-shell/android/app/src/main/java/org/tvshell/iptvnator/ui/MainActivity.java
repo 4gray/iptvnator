@@ -618,9 +618,15 @@ public class MainActivity extends Activity {
 
     void showKeyboard() {
         if (webView == null || isFinishing()) return;
-        webView.requestFocus(View.FOCUS_DOWN);
+        // requestFocus(FOCUS_DOWN) on a WebView that already has focus moves the page focus to its
+        // first element, away from the field that asked for the keyboard.
+        if (!webView.hasFocus()) webView.requestFocus();
         InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
-        if (imm != null) imm.showSoftInput(webView, InputMethodManager.SHOW_IMPLICIT);
+        if (imm == null) return;
+        // The field may have become editable after the WebView last described it to the keyboard
+        // (tv.js holds a D-pad-focused field read-only): describe it again before showing.
+        imm.restartInput(webView);
+        imm.showSoftInput(webView, InputMethodManager.SHOW_IMPLICIT);
     }
 
     void openSettings() {

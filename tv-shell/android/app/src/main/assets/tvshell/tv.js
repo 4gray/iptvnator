@@ -398,9 +398,48 @@
         if (surface) surface.classList.add(FOCUS_CLASS);
     }
 
+    // A text field reached with the D-pad must not raise the soft keyboard: the WebView shows it
+    // for any focus that follows a key press, and the next arrow then lands on the keyboard
+    // instead of the next control. The field is held read-only while it only has the remote's
+    // focus; OK makes it editable again and opens the keyboard (see onKeyDown). Read-only rather
+    // than inputmode="none": the WebView handles OK on an editable field itself, so the page
+    // would never see the key that should open the keyboard.
+    var TEXT_INPUT_TYPE = /^(text|search|url|email|password|tel|number)$/;
+    var KEYBOARD_HELD = 'data-tv-keyboard-held';
+
+    function isTextField(el) {
+        if (el.tagName === 'TEXTAREA') return true;
+        return el.tagName === 'INPUT' && TEXT_INPUT_TYPE.test((el.getAttribute('type') || 'text').toLowerCase());
+    }
+
+    function holdKeyboard(el) {
+        if (!isAndroid || !isTextField(el) || el.readOnly || el.hasAttribute(KEYBOARD_HELD)) return;
+        el.setAttribute(KEYBOARD_HELD, '');
+        el.readOnly = true;
+        el.addEventListener('blur', releaseKeyboard, { once: true });
+    }
+
+    function releaseKeyboard(elOrEvent) {
+        var el = elOrEvent && elOrEvent.target ? elOrEvent.target : elOrEvent;
+        if (!el || !el.hasAttribute || !el.hasAttribute(KEYBOARD_HELD)) return false;
+        el.removeAttribute(KEYBOARD_HELD);
+        el.readOnly = false;
+        return true;
+    }
+
+    /** OK on a text field: make a held field editable again, then open the keyboard. */
+    function openKeyboard(el) {
+        releaseKeyboard(el);
+        // The next task: the field must be editable (and still focused) when the shell asks.
+        setTimeout(function () {
+            if (document.activeElement === el) native('showKeyboard');
+        }, 0);
+    }
+
     function setFocus(el, opts) {
         var previous = document.querySelectorAll('.' + FOCUS_CLASS);
         for (var i = 0; i < previous.length; i++) previous[i].classList.remove(FOCUS_CLASS);
+        holdKeyboard(el);
         try {
             el.focus({ preventScroll: true });
         } catch (e) {
@@ -635,6 +674,10 @@
         if (event.defaultPrevented && !event.__tvshell) return;
         var dir = DIR[event.key];
         var active = document.activeElement;
+        // Typing on a hardware or Bluetooth keyboard goes straight into a held field.
+        if (active && active.hasAttribute && active.hasAttribute(KEYBOARD_HELD) && event.key && event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
+            releaseKeyboard(active);
+        }
         if (dir) {
             if (event.ctrlKey || event.altKey || event.metaKey) return;
             // A held key repeats every 50 ms, faster than a step through a long list: the
@@ -700,9 +743,24 @@
                 else toggleFullscreen(active);
                 return;
             }
-            if (active.tagName === 'INPUT' && /^(text|search|url|email|password|tel|number)$/.test((active.getAttribute('type') || 'text').toLowerCase())) {
-                native('showKeyboard');
-                return; // let the app submit on Enter if it wants to
+            if (active.tagName === 'TEXTAREA') {
+                // The first OK on a textarea reached with the D-pad opens the keyboard instead of
+                // typing a new line; after that Enter behaves natively.
+                if (active.hasAttribute(KEYBOARD_HELD)) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    openKeyboard(active);
+                }
+                return;
+            }
+            if (isTextField(active)) {
+                if (active.hasAttribute(KEYBOARD_HELD)) {
+                    // First OK on a field reached with the D-pad: open the keyboard, don't submit.
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                }
+                openKeyboard(active);
+                return; // otherwise let the app submit on Enter if it wants to
             }
             // Android's DPAD_CENTER maps to Enter. Native checkboxes/radios only activate
             // with Space in a browser, so handle OK explicitly and prevent form submission.

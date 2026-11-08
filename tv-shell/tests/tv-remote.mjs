@@ -970,6 +970,47 @@ await page.evaluate(async () => {
 await key('ArrowDown');
 check(await page.evaluate(() => document.activeElement.id === 'synthetic-fullscreen-behind'),
     'leaving fullscreen restores navigation to the surrounding document');
+console.log('18. under the Android bridge: a text field reached with the D-pad keeps the keyboard closed until OK');
+{
+    const tvPage = await context.newPage();
+    await tvPage.addInitScript(() => {
+        window.__calls = [];
+        window.TvShell = { postMessage: (data) => { window.__calls.push(JSON.parse(data).map(String).join(' ')); } };
+    });
+    await tvPage.goto(URL_, { waitUntil: 'networkidle' });
+    await tvPage.waitForFunction(() => window.__tvShell);
+    await tvPage.evaluate(() => {
+        document.body.innerHTML = `<button id="tv-before-field" type="button" style="display:block">Synthetic action</button>
+            <input id="tv-text-field" type="text" style="display:block">
+            <button id="tv-after-field" type="button" style="display:block">Synthetic next action</button>`;
+        document.querySelector('#tv-before-field').focus();
+        window.__calls.length = 0;
+    });
+    const field = tvPage.locator('#tv-text-field');
+    const keyboardRequests = () => tvPage.evaluate(() => window.__calls.filter((call) => call.startsWith('showKeyboard')).length);
+    const press = async (k) => {
+        await tvPage.keyboard.press(k);
+        await tvPage.waitForTimeout(150);
+    };
+    await press('ArrowDown');
+    check(await field.evaluate((input) => input === document.activeElement && input.readOnly),
+        'D-pad focus holds a text field read-only, so the soft keyboard stays closed');
+    check(await keyboardRequests() === 0, 'reaching a text field does not ask the shell for the keyboard');
+    await press('Enter');
+    check(await field.evaluate((input) => input === document.activeElement && !input.readOnly),
+        'OK makes the held field editable and keeps its focus');
+    check(await keyboardRequests() === 1, 'OK asks the shell for the keyboard once');
+    await press('ArrowDown');
+    check(await tvPage.evaluate(() => document.activeElement.id === 'tv-after-field' &&
+        !document.querySelector('#tv-text-field').readOnly && !document.querySelector('#tv-text-field').hasAttribute('data-tv-keyboard-held')),
+        'leaving the field restores it');
+    await press('ArrowUp');
+    check(await field.evaluate((input) => input === document.activeElement && input.readOnly), 'returning with the D-pad holds the field again');
+    await tvPage.keyboard.type('ab');
+    check(await field.inputValue() === 'ab' && !(await field.evaluate((input) => input.readOnly)),
+        'typing on a hardware keyboard goes straight into a held field');
+    await tvPage.close();
+}
 console.log(failures ? `${failures} check(s) failed` : 'all checks passed');
 process.exitCode = failures ? 1 : 0;
 await browser.close();
