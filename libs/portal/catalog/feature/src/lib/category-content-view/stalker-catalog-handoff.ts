@@ -99,6 +99,9 @@ export function createStalkerCatalogHandoff<T extends Record<string, unknown>>(
             consumeStalkerReturnMarker();
             return;
         }
+        if (restored && origin?.catalogPagingId !== undefined) {
+            catalog.restoreCatalogSimilarReturn?.(origin.catalogPagingId);
+        }
         catalog.selectItem(item as T);
         catalog.refreshSnapshotSelection?.();
         providerOnlyItemId.set(

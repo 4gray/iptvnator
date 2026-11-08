@@ -211,7 +211,13 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
             catalog: () => (this.contentType() === 'series' ? 'series' : 'vod'),
             playlistId: () => this.catalog.playlist()?.id,
             enabled: () => !this.providerOnly(),
-            origin: (item) => item,
+            origin: (item) => {
+                const navigationId = this.router.lastSuccessfulNavigation()?.id;
+                return navigationId !== undefined &&
+                    this.catalog.saveCatalogSimilarReturn(navigationId)
+                    ? { ...item, catalogPagingId: navigationId }
+                    : item;
+            },
         });
         this.vodPosition.connect();
 

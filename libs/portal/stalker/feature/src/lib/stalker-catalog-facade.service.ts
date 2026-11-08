@@ -184,6 +184,14 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
         return saved;
     }
 
+    saveCatalogSimilarReturn(navigationId: number): boolean {
+        return this.stalkerStore.saveCatalogSimilarReturn(navigationId);
+    }
+
+    restoreCatalogSimilarReturn(navigationId: number): void {
+        this.stalkerStore.restoreCatalogSimilarReturn(navigationId);
+    }
+
     setContentSortMode(mode: PortalCatalogSortMode): void {
         void mode;
         // Stalker catalog content is server-paginated and does not support local sort modes.

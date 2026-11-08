@@ -60,7 +60,12 @@ const TestContentStore = signalStore(
 
 /** Request payload the content feature sends through `sendIpcEvent`. */
 interface StalkerIpcRequest {
-    params?: { action?: string; p?: number; search?: string };
+    params?: {
+        action?: string;
+        category?: string;
+        p?: number;
+        search?: string;
+    };
 }
 
 function createDeferred<T>() {
@@ -801,6 +806,46 @@ describe('withStalkerContent failure states', () => {
         expect(reload).not.toHaveBeenCalled();
         expect(store.isContentRetrying()).toBe(false);
     });
+
+    it.each([false, true])(
+        'returns to loaded catalog pages only under the same lock version (relocked: %s)',
+        async (relocked) => {
+            dataService.sendIpcEvent.mockImplementation(
+                async (_event, request) => {
+                    const { category, p } = request.params ?? {};
+                    return createContentResponse(`fixture-${category}-${p}`);
+                }
+            );
+            const visibleIds = () =>
+                store.getPaginatedContent().map((item) => item.id);
+            store.setCurrentPlaylist(PLAYLIST);
+            store.setSelectedCategory('5');
+            await waitForCondition(() => visibleIds()[0] === 'fixture-5-1');
+            store.setPage(1);
+            await waitForCondition(() => visibleIds().length === 2);
+            expect(store.saveCatalogSimilarReturn(21)).toBe(true);
+
+            store.setSelectedCategory('6');
+            store.setPage(0);
+            await waitForCondition(() => visibleIds()[0] === 'fixture-6-1');
+            if (relocked) parentalLock.version.update((version) => version + 1);
+            dataService.sendIpcEvent.mockClear();
+            store.setSelectedCategory('5');
+            store.restoreCatalogSimilarReturn(21);
+
+            if (relocked) {
+                await waitForCondition(() => visibleIds()[0] === 'fixture-5-1');
+                expect(visibleIds()).toEqual(['fixture-5-1']);
+            } else {
+                await flushResources();
+                expect(visibleIds()).toEqual(['fixture-5-1', 'fixture-5-2']);
+                expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+                store.setPage(store.page() + 1);
+                await waitForCondition(() => visibleIds().length === 3);
+                expect(visibleIds()[2]).toBe('fixture-5-3');
+            }
+        }
+    );
 
     it('keeps accumulated pages when an append fails and retries the same page', async () => {
         let failPageTwo = true;

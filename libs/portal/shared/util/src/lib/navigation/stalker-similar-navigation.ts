@@ -6,6 +6,7 @@ export interface StalkerSimilarOrigin {
     playlistId: string;
     catalog: 'vod' | 'series';
     item: Record<string, unknown>;
+    catalogPagingId?: number;
     search?: { scrollTop: number; pagingId?: number };
 }
 

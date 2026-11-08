@@ -34,11 +34,13 @@ for (const { media, title, similar, from } of scenarios) {
         page,
     }) => {
         const categoryId = '2001';
-        const row = (id: string, name: string) => ({
+        const pagedCatalog = from === 'catalog' && media === 'movie';
+        const similarCategoryId = pagedCatalog ? '2002' : categoryId;
+        const row = (id: string, name: string, category = categoryId) => ({
             id,
             name,
             o_name: name,
-            category_id: categoryId,
+            category_id: category,
             year: '2024',
             ...(media === 'tv' ? { is_series: '1' } : {}),
         });
@@ -46,14 +48,44 @@ for (const { media, title, similar, from } of scenarios) {
             row(String(93000 + index), `Fictional search result ${index + 1}`)
         );
         let laterSearchPages = 0;
+        let laterCatalogPages = 0;
         await configureMockProviderBackend(page);
         await interceptStalkerRequests(page);
         await page.route('**/localhost:3000/stalker**', (route) => {
             const params = new URL(route.request().url()).searchParams;
+            if (
+                pagedCatalog &&
+                params.get('action') === 'get_categories' &&
+                params.get('type') === 'vod'
+            ) {
+                return route.fulfill({
+                    json: {
+                        payload: {
+                            js: [
+                                { id: categoryId, title: 'Fixture genre' },
+                                { id: similarCategoryId, title: 'Other genre' },
+                            ],
+                        },
+                    },
+                });
+            }
             if (params.get('action') !== 'get_ordered_list') {
                 return route.fallback();
             }
             const search = params.get('search');
+            if (
+                pagedCatalog &&
+                !search &&
+                !params.get('movie_id') &&
+                params.get('category') === categoryId
+            ) {
+                const firstPage = params.get('p') === '1';
+                if (!firstPage) laterCatalogPages++;
+                const data = firstPage ? searchPageOne : [row('91001', title)];
+                return route.fulfill({
+                    json: { payload: { js: { data, total_items: 41 } } },
+                });
+            }
             if (from === 'search' && search === title) {
                 if (params.get('p') === '2') laterSearchPages++;
                 const data =
@@ -68,7 +100,7 @@ for (const { media, title, similar, from } of scenarios) {
                 params.get('type') !== 'vod' || params.get('movie_id')
                     ? []
                     : search === similar
-                      ? [row('91002', similar)]
+                      ? [row('91002', similar, similarCategoryId)]
                       : search && search !== title
                         ? []
                         : [row('91001', title)];
@@ -165,8 +197,12 @@ for (const { media, title, similar, from } of scenarios) {
                 : `/search?q=${encodeURIComponent(title)}`
         );
         await page.goto(origin);
-        const results = page.locator('app-search-layout .results-container');
-        if (from === 'search') {
+        const results = page.locator(
+            pagedCatalog
+                ? 'app-grid-list'
+                : 'app-search-layout .results-container'
+        );
+        if (from === 'search' || pagedCatalog) {
             await expect(
                 page.getByRole('button', {
                     name: 'Fictional search result 1',
@@ -201,6 +237,13 @@ for (const { media, title, similar, from } of scenarios) {
         await expect(
             page.getByRole('heading', { name: similar, exact: true })
         ).toBeVisible();
+        if (pagedCatalog) {
+            expect(
+                new URL(page.url()).pathname.endsWith(
+                    `/vod/${similarCategoryId}`
+                )
+            ).toBe(true);
+        }
         await page.locator('[data-test-id="workspace-header-back"]').click();
         await expect(
             page.getByRole('heading', { name: title, exact: true })
@@ -208,7 +251,7 @@ for (const { media, title, similar, from } of scenarios) {
         expect(
             decodeURI(new URL(page.url()).pathname + new URL(page.url()).search)
         ).toBe(decodeURI(origin));
-        if (from === 'search') {
+        if (from === 'search' || pagedCatalog) {
             await page
                 .locator('[data-test-id="workspace-header-back"]')
                 .click();
@@ -218,7 +261,7 @@ for (const { media, title, similar, from } of scenarios) {
             await expect
                 .poll(() => results.evaluate((element) => element.scrollTop))
                 .toBeGreaterThan(500);
-            expect(laterSearchPages).toBe(1);
+            expect(pagedCatalog ? laterCatalogPages : laterSearchPages).toBe(1);
         }
     });
 }
