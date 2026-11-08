@@ -36,12 +36,17 @@ export const EMBEDDED_MPV_FORBIDDEN_OPTION_KEYS: readonly string[] = [
  * Applied to every embedded session ahead of the user's options, on every
  * engine: a stalled IPTV connection then surfaces as an mpv error within
  * seconds instead of the 60 s libmpv default, and ffmpeg re-requests a
- * dropped HTTP stream on its own before the app-level reconnect has to. A
- * user line with the same key wins because it is applied later.
+ * dropped seekable HTTP response on its own before the app-level reconnect
+ * has to. A user line with the same key wins because it is applied later.
+ *
+ * `reconnect_streamed` stays off (#1682): ffmpeg treats a response without
+ * Content-Length as unknown-size, so with it every normal end of an HLS
+ * playlist or segment served without a length counts as premature and is
+ * re-requested — live HLS then stalls or never starts.
  */
 export const EMBEDDED_MPV_NETWORK_DEFAULT_OPTIONS: readonly string[] = [
     'network-timeout=10',
-    'demuxer-lavf-o=reconnect=1,reconnect_streamed=1,reconnect_delay_max=5',
+    'demuxer-lavf-o=reconnect=1,reconnect_delay_max=5',
 ];
 
 export interface EmbeddedMpvExtraOptionsValidationErrors {
