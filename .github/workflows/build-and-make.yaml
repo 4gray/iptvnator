@@ -633,14 +633,16 @@ jobs:
               # after the macOS Embedded MPV artifacts are built and manually tested.
               if: matrix.embedded_mpv_build_runtime && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'pull_request' || github.ref == 'refs/heads/master') && steps.embedded-mpv-runtime-cache.outputs.cache-hit != 'true'
               shell: bash
+              env:
+                  GH_TOKEN: ${{ github.token }}
               run: |
                   set -euo pipefail
 
-                  brew install meson ninja pkg-config nasm autoconf automake libtool xz
+                  env -u GH_TOKEN brew install meson ninja pkg-config nasm autoconf automake libtool xz
 
                   RUNTIME_PREFIX="${RUNNER_TEMP}/embedded-mpv-runtime/${{ matrix.embedded_mpv_arch }}/prefix"
                   pnpm embedded-mpv:build-runtime -- "${{ matrix.embedded_mpv_arch }}" "${RUNTIME_PREFIX}"
-                  pnpm embedded-mpv:stage-runtime -- "${{ matrix.embedded_mpv_platform }}" "${{ matrix.embedded_mpv_arch }}" "${RUNTIME_PREFIX}"
+                  env -u GH_TOKEN pnpm embedded-mpv:stage-runtime -- "${{ matrix.embedded_mpv_platform }}" "${{ matrix.embedded_mpv_arch }}" "${RUNTIME_PREFIX}"
 
             - name: Stage Windows embedded MPV runtime archive
               if: matrix.os == 'windows' && steps.embedded-mpv-runtime-cache.outputs.cache-hit != 'true'
@@ -858,6 +860,32 @@ jobs:
                       echo "APPLE_APP_SPECIFIC_PASSWORD=${APPLE_APP_SPECIFIC_PASSWORD}" >> "${GITHUB_ENV}"
                       echo "APPLE_TEAM_ID=${APPLE_TEAM_ID}" >> "${GITHUB_ENV}"
                   fi
+
+            - name: Cache verified Electron distributions
+              shell: bash
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  TARGET_ARCH: ${{ matrix.arch }}
+                  LINUX_PROFILE: ${{ matrix.linux_profile }}
+              run: |
+                  set -euo pipefail
+                  case "${RUNNER_OS}:${LINUX_PROFILE}" in
+                      macOS:*) node tools/testing/cache-electron-release.mjs darwin "${TARGET_ARCH}" ;;
+                      Windows:*) node tools/testing/cache-electron-release.mjs win32 "${TARGET_ARCH}" ;;
+                      Linux:flatpak) node tools/testing/cache-electron-release.mjs linux x64 ;;
+                      Linux:*) node tools/testing/cache-electron-release.mjs linux x64 arm64 armv7l ;;
+                  esac
+
+                  node --input-type=commonjs <<'NODE'
+                  const fs = require('node:fs');
+                  const path = 'electron-builder.json';
+                  const config = JSON.parse(fs.readFileSync(path, 'utf8'));
+                  config.electronDownload = {
+                      force: false,
+                      checksums: require('electron/checksums.json'),
+                  };
+                  fs.writeFileSync(path, JSON.stringify(config, null, 4) + '\n');
+                  NODE
 
             - name: Cache verified Electron Builder tools for packaging
               if: matrix.os == 'macos' || (matrix.os == 'linux' && matrix.linux_profile == 'system')

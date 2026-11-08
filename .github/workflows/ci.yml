@@ -570,6 +570,8 @@ jobs:
             # download failure from test failures.
             - name: Install the Electron binary
               if: steps.scope.outputs.run == 'true'
+              env:
+                  GH_TOKEN: ${{ github.token }}
               run: node tools/testing/ensure-electron-binary.mjs
 
             # Jest's transform cache (TypeScript/Angular transpilation plus

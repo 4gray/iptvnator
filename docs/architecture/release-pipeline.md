@@ -294,6 +294,9 @@ The macOS and Linux system jobs fetch the pinned dmgbuild, FPM and 7-Zip
 archives they need through GitHub's release asset API and verify each SHA-256
 before seeding Electron Builder's cache. This avoids gateway timeouts on the
 public release download URLs.
+The matrix also fetches official Electron distributions through the asset
+API and verifies them using the checksums bundled with the installed Electron
+package. Electron Builder uses the same checksums when it reads the cache.
 
 ## AppImage external-manager metadata
 

@@ -31,6 +31,8 @@ runs:
         # otherwise ldd sees no file and the check passes vacuously.
         - name: Check Electron runtime dependencies
           shell: bash
+          env:
+              GH_TOKEN: ${{ github.token }}
           run: |
               command -v xvfb-run || { echo "::error::xvfb-run is missing on the runner"; exit 1; }
               node tools/testing/ensure-electron-binary.mjs || { echo "::error::Electron binary download failed"; exit 1; }

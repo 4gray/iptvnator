@@ -185,13 +185,14 @@ function commandExists(command) {
 }
 
 function buildEnv() {
+    const { GH_TOKEN: _githubToken, ...environment } = process.env;
     const pkgConfigDirs = [
         path.join(prefix, 'lib', 'pkgconfig'),
         path.join(prefix, 'share', 'pkgconfig'),
     ].join(path.delimiter);
 
     return {
-        ...process.env,
+        ...environment,
         PATH: [path.join(prefix, 'bin'), process.env.PATH]
             .filter(Boolean)
             .join(path.delimiter),
@@ -327,7 +328,34 @@ function downloadSources() {
             archivePath,
             expectedSha256: sourcePackage.expectedSha256,
             urls: [sourcePackage.url, ...(sourcePackage.mirrors ?? [])],
-            download: ({ destinationPath, url }) =>
+            download: ({ destinationPath, url }) => {
+                const githubAsset = url.match(
+                    /^https:\/\/github\.com\/([^/]+\/[^/]+)\/releases\/download\/([^/]+)\/([^/]+)$/
+                );
+                if (process.env.GH_TOKEN && githubAsset) {
+                    const [, repository, tag, filename] = githubAsset;
+                    try {
+                        run(
+                            'gh',
+                            [
+                                'release',
+                                'download',
+                                tag,
+                                '--repo',
+                                repository,
+                                '--pattern',
+                                filename,
+                                '--output',
+                                destinationPath,
+                            ],
+                            { env: process.env }
+                        );
+                        return;
+                    } catch {
+                        fs.rmSync(destinationPath, { force: true });
+                        log('GitHub asset API failed; trying the public URL.');
+                    }
+                }
                 run('curl', [
                     '--fail',
                     '--location',
@@ -342,7 +370,8 @@ function downloadSources() {
                     '--output',
                     destinationPath,
                     url,
-                ]),
+                ]);
+            },
         });
 
         const packageSourcePath = sourcePathFor(sourcePackage.id);

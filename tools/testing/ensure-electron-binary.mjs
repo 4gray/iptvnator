@@ -16,13 +16,22 @@
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import process from 'node:process';
+import { cacheElectronRelease } from './cache-electron-release.mjs';
 
 const require = createRequire(import.meta.url);
 const { version } = require('electron/package.json');
 
 let electronPath;
 try {
-    electronPath = require('electron');
+    try {
+        electronPath = require('electron');
+    } catch (error) {
+        if (process.env.GITHUB_ACTIONS !== 'true' || !process.env.GH_TOKEN) {
+            throw error;
+        }
+        await cacheElectronRelease(process.platform, process.arch);
+        electronPath = require('electron');
+    }
 } catch (error) {
     console.error(
         `Electron ${version} binary download failed: ${error.message}`

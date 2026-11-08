@@ -122,7 +122,8 @@ ship complete corresponding source, exact build scripts and patches, notices,
 and a validated transitive license record beside the binary.
 
 The macOS builder verifies every downloaded archive against its pinned
-SHA-256 digest before extraction. FreeType has an official Savannah fallback,
+SHA-256 digest before extraction. CI uses GitHub's asset API for release
+archives hosted there. FreeType has an official Savannah fallback,
 and FriBidi has a MacPorts fallback for GitHub release download failures. A
 failed or mismatched download is discarded before the next
 mirror is attempted. The runtime manifest records the selected URL for a new
