@@ -1,6 +1,7 @@
 import {
     EpgSourceSettingsService,
     epgSourceUrlsChanged,
+    normalizeEpgSourceUrls,
 } from './epg-source-settings.service';
 import {
     coerceProvidedDefaultOnSettings,
@@ -90,6 +91,9 @@ export const SettingsStore = signalStore(
                         patchState(store, {
                             ...DEFAULT_SETTINGS,
                             ...storedSettings,
+                            epgUrl: normalizeEpgSourceUrls(
+                                storedSettings.epgUrl
+                            ),
                             language: normalizeAppLanguage(
                                 storedSettings.language
                             ),
