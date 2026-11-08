@@ -14,28 +14,41 @@ const scenarios = [
         title: 'Fictional Harbor',
         similar: 'Fictional Crossing',
         from: 'catalog',
+        sameCategory: false,
+    },
+    {
+        media: 'movie',
+        title: 'Fictional Harbor',
+        similar: 'Fictional Crossing',
+        from: 'catalog',
+        sameCategory: true,
     },
     {
         media: 'tv',
         title: 'Fictional Station',
         similar: 'Fictional Platform',
         from: 'catalog',
+        sameCategory: true,
     },
     {
         media: 'movie',
         title: 'Fictional Harbor',
         similar: 'Fictional Crossing',
         from: 'search',
+        sameCategory: true,
     },
 ] as const;
 
-for (const { media, title, similar, from } of scenarios) {
-    test(`@stalker shows a trailer and opens a similar ${media} from ${from}`, async ({
+for (const { media, title, similar, from, sameCategory } of scenarios) {
+    const pagedCatalog = from === 'catalog' && media === 'movie';
+    const scenario = pagedCatalog
+        ? `catalog (${sameCategory ? 'same category' : 'another category'})`
+        : from;
+    test(`@stalker shows a trailer and opens a similar ${media} from ${scenario}`, async ({
         page,
     }) => {
         const categoryId = '2001';
-        const pagedCatalog = from === 'catalog' && media === 'movie';
-        const similarCategoryId = pagedCatalog ? '2002' : categoryId;
+        const similarCategoryId = sameCategory ? categoryId : '2002';
         const row = (id: string, name: string, category = categoryId) => ({
             id,
             name,
@@ -55,6 +68,7 @@ for (const { media, title, similar, from } of scenarios) {
             const params = new URL(route.request().url()).searchParams;
             if (
                 pagedCatalog &&
+                !sameCategory &&
                 params.get('action') === 'get_categories' &&
                 params.get('type') === 'vod'
             ) {

@@ -215,7 +215,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
                 const navigationId = this.router.lastSuccessfulNavigation()?.id;
                 return navigationId !== undefined &&
                     this.catalog.saveCatalogSimilarReturn(navigationId)
-                    ? { ...item, catalogPagingId: navigationId }
+                    ? { ...item, catalogReturnId: navigationId }
                     : item;
             },
         });

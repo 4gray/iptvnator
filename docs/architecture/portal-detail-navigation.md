@@ -428,7 +428,8 @@ restores that title and its catalog or search context after rechecking the
 category lock. Search keeps numeric category IDs as text in the snapshot
 so the lock check can still identify the category. The latest return to a
 catalog or search keeps its loaded pages in memory while the source, list
-selection, and lock version still match.
+selection, and lock version still match. The catalog holds its saved offset
+until the original detail closes, including returns within one category.
 Collection origins use their existing history snapshots.
 
 Stalker details are represented by store state and inline detail rendering on the current screen.
