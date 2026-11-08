@@ -859,6 +859,41 @@ jobs:
                       echo "APPLE_TEAM_ID=${APPLE_TEAM_ID}" >> "${GITHUB_ENV}"
                   fi
 
+            - name: Cache verified Electron Builder tools for packaging
+              if: matrix.os == 'macos' || (matrix.os == 'linux' && matrix.linux_profile == 'system')
+              shell: bash
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  set -euo pipefail
+                  # Use the GitHub asset API when public release downloads return 504.
+                  download_dir="$(mktemp -d "${RUNNER_TEMP}/iptvnator-builder-tools.XXXXXX")"
+                  cache_tool() {
+                      local release="$1" archive="$2" sha256="$3"
+                      gh release download "${release}" --repo electron-userland/electron-builder-binaries \
+                          --pattern "${archive}" --dir "${download_dir}"
+                      printf '%s  %s\n' "${sha256}" "${download_dir}/${archive}" | shasum -a 256 -c -
+                      mkdir -p "${cache_root}/${release}"
+                      mv "${download_dir}/${archive}" "${cache_root}/${release}/${archive}"
+                  }
+
+                  if [ "${RUNNER_OS}" = 'macOS' ]; then
+                      cache_root="${ELECTRON_BUILDER_CACHE:-${HOME}/Library/Caches/electron-builder}"
+                      if [ "${RUNNER_ARCH}" = 'ARM64' ]; then
+                          arch='arm64'
+                          dmg_sha='793404d0c96687e27d5ee40a668d498c92e36a64d6c2906df511031adb33cbeb'
+                      else
+                          arch='x86_64'
+                          dmg_sha='1664972f9cc2d6e8fce3b63e42cd30078aff602669c5856939c4519921200433'
+                      fi
+                      cache_tool 'dmg-builder@1.2.5' "dmgbuild-bundle-${arch}-75c8a6c.tar.gz" "${dmg_sha}"
+                      cache_tool '7zip@1.0.0' "7zip-darwin-${arch}.tar.gz" '496a341abe210aae1a25bc202ee97f6de6c76a3dc80f91d96616be05502d72c1'
+                  else
+                      cache_root="${ELECTRON_BUILDER_CACHE:-${XDG_CACHE_HOME:-${HOME}/.cache}/electron-builder}"
+                      cache_tool 'fpm@2.1.4' 'fpm-1.17.0-ruby-3.4.3-linux-amd64.7z' '44b0ec6025c14ec137f56180e62675c0eae36233cdce53d0953d9c73ced8989f'
+                      cache_tool '7zip@1.0.0' '7zip-linux-x64.tar.gz' 'd151bb44b2a9d9bfc52813ce4cac042916394a0ab8a56bd5d221a5dc9ef8d5d7'
+                  fi
+
             - name: Make Electron app (macOS)
               if: matrix.os == 'macos' && github.event_name != 'pull_request'
               env:
@@ -921,25 +956,6 @@ jobs:
                   codesign --verify --deep --strict --verbose=4 "${APP_PATH}"
                   spctl -a -vvv --type execute "${APP_PATH}"
                   xcrun stapler validate "${APP_PATH}"
-
-            - name: Cache verified FPM archive for Linux system packages
-              if: matrix.os == 'linux' && matrix.linux_profile == 'system'
-              shell: bash
-              env:
-                  GH_TOKEN: ${{ github.token }}
-              run: |
-                  set -euo pipefail
-                  # Use the GitHub asset API when the public release download returns 504.
-                  fpm_release='fpm@2.1.4'
-                  fpm_archive='fpm-1.17.0-ruby-3.4.3-linux-amd64.7z'
-                  fpm_cache="${ELECTRON_BUILDER_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/electron-builder}/${fpm_release}"
-                  fpm_download="$(mktemp -d "${RUNNER_TEMP}/iptvnator-fpm.XXXXXX")"
-                  gh release download "${fpm_release}" --repo electron-userland/electron-builder-binaries \
-                      --pattern "${fpm_archive}" --dir "${fpm_download}"
-                  printf '%s  %s\n' '44b0ec6025c14ec137f56180e62675c0eae36233cdce53d0953d9c73ced8989f' \
-                      "${fpm_download}/${fpm_archive}" | sha256sum -c -
-                  mkdir -p "${fpm_cache}"
-                  mv "${fpm_download}/${fpm_archive}" "${fpm_cache}/${fpm_archive}"
 
             - name: Make Electron app
               if: matrix.os != 'macos' || github.event_name == 'pull_request'

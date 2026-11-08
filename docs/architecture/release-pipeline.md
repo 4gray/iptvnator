@@ -290,9 +290,10 @@ every source (`--error-on=any`) before installation starts; update and install
 have independent five- and ten-minute process limits with a ten-second kill
 grace period. Packaging and test gates remain unchanged.
 
-The Linux system job downloads the pinned FPM archive through GitHub's release
-asset API and verifies its SHA-256 before seeding Electron Builder's cache.
-This avoids gateway timeouts on the public release download URL.
+The macOS and Linux system jobs fetch the pinned dmgbuild, FPM and 7-Zip
+archives they need through GitHub's release asset API and verify each SHA-256
+before seeding Electron Builder's cache. This avoids gateway timeouts on the
+public release download URLs.
 
 ## AppImage external-manager metadata
 
