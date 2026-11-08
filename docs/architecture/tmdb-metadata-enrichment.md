@@ -394,7 +394,8 @@ Only unambiguous matches by normalized title, media type and compatible
 year appear. The search works in Electron and the PWA, runs independently
 of details and playback, and stops starting new requests when the
 selection changes. Category locks are checked when rendering and opening
-a recommendation. With no visible matches the rail stays hidden.
+a recommendation. In both Stalker and Xtream movie and series details,
+the rail follows Cast & crew. With no visible matches the rail stays hidden.
 The `language` param derives from the app language setting
 (`Language` enum → TMDB code, e.g. `de` → `de-DE`); cache rows are keyed per
 language, so switching the app language re-fetches localized metadata.
