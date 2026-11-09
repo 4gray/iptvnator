@@ -577,8 +577,8 @@
         // that list's selected entry, else its first, instead of whichever entry is level with the
         // source: the Live TV rail icon sits beside the 4th category.
         if (next && exclude && (dir === 'left' || dir === 'right')) next = { el: listEntry(next.el, exclude) };
-        // Channel list beside a preview player: Right from a channel goes to the picture instead of
-        // walking the row's own star and info buttons (the Menu key still offers those).
+        // Channel list beside a preview player: keep the row's own actions reachable. When
+        // Right leaves the row, prefer the picture over unrelated controls beside the list.
         // Left from that picture returns to the playing channel, not an overlay button in its
         // left half (the picture's centre is the source, so those count as "left" of it).
         if (dir === 'left' && exclude && exclude.tagName === 'VIDEO' && !document.fullscreenElement) {
@@ -589,7 +589,7 @@
             }
         }
         var row = dir === 'right' && exclude && exclude.closest && exclude.closest('.channel-list-item');
-        if (row) {
+        if (row && (!next || !row.contains(next.el))) {
             var preview = activeVideo();
             if (preview && preview.isConnected && (scope === document || scope.contains(preview))) {
                 var pr = preview.getBoundingClientRect();

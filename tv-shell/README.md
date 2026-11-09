@@ -202,7 +202,8 @@ cd tv-shell/android && ./gradlew :backend:check :app:assembleRelease
 | ▶⏸ ⏪ ⏩ | play/pause, −15 s, +30 s |
 
 A physical keyboard can edit a D-pad-focused text field directly. Left and
-Right adjust the focused timeline or volume slider in fullscreen.
+Right adjust the focused timeline or volume slider in fullscreen. Right
+from a channel goes through its available row actions on the way to the preview.
 
 ## Design notes
 

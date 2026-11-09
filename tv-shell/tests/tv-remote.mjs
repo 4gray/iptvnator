@@ -1036,8 +1036,9 @@ console.log('18. HTML5 video without native controls is reachable from the chann
 await page.evaluate(() => {
     document.body.innerHTML = `<div class="channel-list-item" style="position:absolute;left:20px;top:100px;width:320px">
         <button id="synthetic-channel" class="channel-content" style="width:160px">Synthetic channel</button>
-        <button>Synthetic row action</button>
+        <button id="synthetic-favorite">Synthetic favorite</button>
     </div>
+    <button style="position:absolute;left:345px;top:100px">Unrelated action</button>
     <div class="html-video-player-shell" style="position:absolute;left:380px;top:70px;width:400px;height:250px">
         <video id="synthetic-html5-video" style="width:100%;height:100%"></video>
         <div class="player-controls__bar" style="position:absolute;bottom:10px;left:30px">
@@ -1047,8 +1048,11 @@ await page.evaluate(() => {
     document.querySelector('#synthetic-channel').focus();
 });
 await key('ArrowRight');
+check(await page.evaluate(() => document.activeElement.id === 'synthetic-favorite'),
+    'Right keeps the channel favorite reachable with the D-pad');
+await key('ArrowRight');
 check(await page.evaluate(() => document.activeElement.id === 'synthetic-html5-video'),
-    'Right from the channel reaches the HTML5 picture instead of the nearer row action');
+    'Right from the row action reaches the HTML5 picture instead of an unrelated button');
 await page.evaluate(() => {
     document.querySelector('#synthetic-dock-action').focus();
     document.querySelector('#synthetic-html5-video').removeAttribute('tabindex');
