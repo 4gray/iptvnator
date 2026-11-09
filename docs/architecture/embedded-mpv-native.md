@@ -704,11 +704,15 @@ The list never appears on a command line: an option such as
 local user through `ps` / `/proc/<pid>/cmdline`.
 
 `EMBEDDED_MPV_NETWORK_DEFAULT_OPTIONS` (`network-timeout=10`,
-`demuxer-lavf-o=reconnect=1,reconnect_streamed=1,reconnect_delay_max=5`) are
+`demuxer-lavf-o=reconnect=1,reconnect_delay_max=5`) are
 part of that list on purpose: a stalled IPTV connection then surfaces as an
 mpv error within seconds instead of libmpv's 60 s default, and ffmpeg
-re-requests a dropped HTTP stream on its own before the app-level reconnect
-has to. Options mpv rejects never fail session creation, and a rejection is
+re-requests a dropped seekable HTTP response on its own before the app-level
+reconnect has to. `reconnect_streamed` is deliberately not set (#1682): ffmpeg
+records a response without `Content-Length` as unknown-size, so with it every
+normal end of an HLS playlist or segment served without a length counts as
+premature and is requested again, which stalls live HLS or keeps it from
+starting. Dropped live connections are left to the app-level reconnect below. Options mpv rejects never fail session creation, and a rejection is
 reported without any trace flag, by key only (a value may carry credentials):
 the Windows and macOS native-view engines collect the refused keys into the
 snapshot's `rejectedOptionKeys`, which the service logs once per session as a
