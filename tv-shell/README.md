@@ -201,6 +201,9 @@ cd tv-shell/android && ./gradlew :backend:check :app:assembleRelease
 | Menu | context menu of the focused item; on the picture: open the stream in VLC; **long press**: IPTVnator settings. The HDMI-CEC context-menu key and Y on a game controller do the same |
 | ▶⏸ ⏪ ⏩ | play/pause, −15 s, +30 s |
 
+A physical keyboard can edit a D-pad-focused text field directly. Left and
+Right adjust the focused timeline or volume slider in fullscreen.
+
 ## Design notes
 
 - No LAN server: the backend is embedded in Java (`WebBackend`) with the same

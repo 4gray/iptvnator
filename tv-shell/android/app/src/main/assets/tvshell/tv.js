@@ -432,6 +432,13 @@
         return true;
     }
 
+    function isHardwareEdit(event) {
+        var key = event.key;
+        if (key === 'Backspace' || key === 'Delete' || (key === 'Insert' && event.shiftKey)) return true;
+        if ((event.ctrlKey || event.metaKey) && !event.altKey) return /^[vxyz]$/i.test(key);
+        return key && key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey;
+    }
+
     /** OK on a text field: make a held field editable again, then open the keyboard. */
     function openKeyboard(el) {
         releaseKeyboard(el);
@@ -585,7 +592,7 @@
             var preview = activeVideo();
             if (preview && preview.isConnected && (scope === document || scope.contains(preview))) {
                 var pr = preview.getBoundingClientRect();
-                if (pr.width > 0 && pr.left >= row.getBoundingClientRect().right - 1) next = { el: preview };
+                if (pr.width > 0 && pr.left >= row.getBoundingClientRect().right - 1 && qualifies(preview)) next = { el: preview };
             }
         }
         // The picture covers the whole player, so it never counts as "above" the controls dock and
@@ -596,7 +603,7 @@
             if (dock && (!next || !dock.contains(next.el))) {
                 var shell = dock.closest('[class*="player-shell"]');
                 var picture = shell && shell.querySelector('video');
-                if (picture && picture.isConnected && (scope === document || scope.contains(picture))) next = { el: picture };
+                if (picture && picture.isConnected && (scope === document || scope.contains(picture)) && qualifies(picture)) next = { el: picture };
             }
         }
         if (next) {
@@ -751,8 +758,8 @@
         if (event.defaultPrevented && !event.__tvshell) return;
         var dir = DIR[event.key];
         var active = document.activeElement;
-        // Typing on a hardware or Bluetooth keyboard goes straight into a held field.
-        if (active && active.hasAttribute && active.hasAttribute(KEYBOARD_HELD) && event.key && event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
+        // Release before the browser performs the hardware keyboard's default editing action.
+        if (active && active.hasAttribute(KEYBOARD_HELD) && isHardwareEdit(event)) {
             releaseKeyboard(active);
         }
         if (dir) {
@@ -1032,6 +1039,26 @@
 
     var KEY_CODES = { ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Enter: 13 };
 
+    function stepForwardedRange(slider, key) {
+        var before = slider.value;
+        var increase = (key === 'ArrowRight') !== (getComputedStyle(slider).direction === 'rtl');
+        if (slider.step.toLowerCase() === 'any') {
+            // Chromium uses 1% of the range for an arrow press on step="any".
+            var min = Number(slider.min || '0');
+            var max = Number(slider.max || '100');
+            var span = (isFinite(max) ? max : 100) - (isFinite(min) ? min : 0);
+            slider.valueAsNumber += (increase ? 1 : -1) * Math.max(0, span) / 100;
+        } else if (increase) {
+            slider.stepUp();
+        } else {
+            slider.stepDown();
+        }
+        if (slider.value !== before) {
+            slider.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+            slider.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    }
+
     /**
      * D-pad and OK forwarded by the shell while a video is fullscreen: Chromium's fullscreen view
      * holds native focus then, so the keys never reach the page on their own. Replayed on the
@@ -1051,10 +1078,14 @@
             /* ignore */
         }
         var notHandled = target.dispatchEvent(ev);
-        // A synthetic Enter does not activate a control the way the remote's trusted OK does.
-        if (type === 'keydown' && key === 'Enter' && notHandled && target !== document &&
+        if (type !== 'keydown' || !notHandled || target === document) return true;
+        // Synthetic keys do not perform the browser's native click or range action.
+        if (key === 'Enter' &&
             (/^(BUTTON|A|SUMMARY)$/.test(target.tagName) || target.getAttribute('role') === 'button')) {
             target.click();
+        } else if ((key === 'ArrowLeft' || key === 'ArrowRight') && target === document.activeElement &&
+            target.matches('input[type="range"]:enabled') && !isDisabled(target)) {
+            stepForwardedRange(target, key);
         }
         return true;
     };

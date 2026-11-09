@@ -939,6 +939,40 @@ check(await page.evaluate(() => document.activeElement.id === 'synthetic-fullscr
     'Down from the fullscreen picture reaches a visible player control');
 check(await page.evaluate(() => Array.from(document.querySelectorAll('.tv-focus')).every((element) => document.fullscreenElement.contains(element))),
     'fullscreen focus feedback stays inside the visible fullscreen owner');
+const sliderMoves = await page.evaluate(() => {
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.max = '1';
+    slider.step = '0.25';
+    slider.value = '0.75';
+    document.fullscreenElement.append(slider);
+    slider.focus();
+    const moves = [];
+    for (const name of ['input', 'change']) {
+        slider.addEventListener(name, () => moves.push([name, slider.value]));
+    }
+    const forward = (key) => {
+        window.__tvShell.key('keydown', key);
+        window.__tvShell.key('keyup', key);
+    };
+    forward('ArrowRight');
+    forward('ArrowRight'); // already at max
+    slider.addEventListener('keydown', (event) => event.preventDefault(), { once: true });
+    forward('ArrowLeft'); // the page handled this press
+    forward('ArrowLeft');
+    slider.step = 'any';
+    slider.dir = 'rtl';
+    slider.value = '0.5';
+    forward('ArrowRight');
+    slider.remove();
+    return moves;
+});
+check(JSON.stringify(sliderMoves) === JSON.stringify([
+    ['input', '1'], ['change', '1'],
+    ['input', '0.75'], ['change', '0.75'],
+    ['input', '0.49'], ['change', '0.49'],
+]),
+    'forwarded fullscreen arrows move the range by its step and emit events only for unhandled changes');
 await page.evaluate(() => {
     document.querySelector('#synthetic-fullscreen').insertAdjacentHTML('beforeend',
         `<div class="cdk-overlay-backdrop cdk-overlay-backdrop-showing"></div>
@@ -970,7 +1004,31 @@ await page.evaluate(async () => {
 await key('ArrowDown');
 check(await page.evaluate(() => document.activeElement.id === 'synthetic-fullscreen-behind'),
     'leaving fullscreen restores navigation to the surrounding document');
-console.log('18. under the Android bridge: a text field reached with the D-pad keeps the keyboard closed until OK');
+console.log('18. HTML5 video without native controls is reachable from the channel row and controls');
+await page.evaluate(() => {
+    document.body.innerHTML = `<div class="channel-list-item" style="position:absolute;left:20px;top:100px;width:320px">
+        <button id="synthetic-channel" class="channel-content" style="width:160px">Synthetic channel</button>
+        <button>Synthetic row action</button>
+    </div>
+    <div class="html-video-player-shell" style="position:absolute;left:380px;top:70px;width:400px;height:250px">
+        <video id="synthetic-html5-video" style="width:100%;height:100%"></video>
+        <div class="player-controls__bar" style="position:absolute;bottom:10px;left:30px">
+            <button id="synthetic-dock-action">Synthetic player action</button>
+        </div>
+    </div>`;
+    document.querySelector('#synthetic-channel').focus();
+});
+await key('ArrowRight');
+check(await page.evaluate(() => document.activeElement.id === 'synthetic-html5-video'),
+    'Right from the channel reaches the HTML5 picture instead of the nearer row action');
+await page.evaluate(() => {
+    document.querySelector('#synthetic-dock-action').focus();
+    document.querySelector('#synthetic-html5-video').removeAttribute('tabindex');
+});
+await key('ArrowUp');
+check(await page.evaluate(() => document.activeElement.id === 'synthetic-html5-video'),
+    'Up from the controls returns to the HTML5 picture before it has a tabindex');
+console.log('19. under the Android bridge: a text field reached with the D-pad keeps the keyboard closed until OK');
 {
     const tvPage = await context.newPage();
     await tvPage.addInitScript(() => {
@@ -981,8 +1039,13 @@ console.log('18. under the Android bridge: a text field reached with the D-pad k
     await tvPage.waitForFunction(() => window.__tvShell);
     await tvPage.evaluate(() => {
         document.body.innerHTML = `<button id="tv-before-field" type="button" style="display:block">Synthetic action</button>
-            <input id="tv-text-field" type="text" style="display:block">
+            <form id="tv-form"><input id="tv-text-field" type="text" style="display:block"></form>
             <button id="tv-after-field" type="button" style="display:block">Synthetic next action</button>`;
+        window.__submissions = 0;
+        document.querySelector('#tv-form').addEventListener('submit', (event) => {
+            event.preventDefault();
+            window.__submissions++;
+        });
         document.querySelector('#tv-before-field').focus();
         window.__calls.length = 0;
     });
@@ -1000,6 +1063,10 @@ console.log('18. under the Android bridge: a text field reached with the D-pad k
     check(await field.evaluate((input) => input === document.activeElement && !input.readOnly),
         'OK makes the held field editable and keeps its focus');
     check(await keyboardRequests() === 1, 'OK asks the shell for the keyboard once');
+    check(await tvPage.evaluate(() => window.__submissions === 0), 'the first OK does not submit the form');
+    await press('Enter');
+    check(await tvPage.evaluate(() => window.__submissions === 1), 'the next Enter can submit the form');
+    const requestsBeforeHardwareEdits = await keyboardRequests();
     await press('ArrowDown');
     check(await tvPage.evaluate(() => document.activeElement.id === 'tv-after-field' &&
         !document.querySelector('#tv-text-field').readOnly && !document.querySelector('#tv-text-field').hasAttribute('data-tv-keyboard-held')),
@@ -1009,6 +1076,24 @@ console.log('18. under the Android bridge: a text field reached with the D-pad k
     await tvPage.keyboard.type('ab');
     check(await field.inputValue() === 'ab' && !(await field.evaluate((input) => input.readOnly)),
         'typing on a hardware keyboard goes straight into a held field');
+    for (const [key, caret, expected] of [['Backspace', 2, 'a'], ['Delete', 0, 'b']]) {
+        await press('ArrowDown');
+        await press('ArrowUp');
+        await field.evaluate((input, position) => {
+            input.value = 'ab';
+            input.setSelectionRange(position, position);
+        }, caret);
+        await press(key);
+        check(await field.inputValue() === expected, `${key} edits a held field without an initial OK`);
+    }
+    await press('ArrowDown');
+    await press('ArrowUp');
+    await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(URL_).origin });
+    await tvPage.evaluate(() => navigator.clipboard.writeText('synthetic paste'));
+    await field.evaluate((input) => input.select());
+    await press('ControlOrMeta+v');
+    check(await field.inputValue() === 'synthetic paste', 'a paste shortcut edits a held field without an initial OK');
+    check(await keyboardRequests() === requestsBeforeHardwareEdits, 'hardware edits do not request the on-screen keyboard');
     await tvPage.close();
 }
 console.log(failures ? `${failures} check(s) failed` : 'all checks passed');
