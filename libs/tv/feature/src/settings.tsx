@@ -127,9 +127,10 @@ export function Settings({
                                     Rewind and Fast Forward are supported.
                                 </p>
                                 <p class="muted">
-                                    Favorites and viewing progress stay on this
-                                    TV. Native media compatibility must be
-                                    checked on your device.
+                                    Favorites can stay on this TV or sync with
+                                    the server library. Viewing progress stays
+                                    on this TV. Native media compatibility must
+                                    be checked on your device.
                                 </p>
                             </>
                         )}

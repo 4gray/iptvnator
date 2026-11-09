@@ -42,7 +42,7 @@ export function useVodSequence(tv: TvModel) {
                     )
                     .map(({ progress }) => progress.item)
               : [];
-        const parents = [...tv.home, ...tv.data.favorites];
+        const parents = [...tv.home, ...tv.favoriteItems()];
         if (tv.selected) parents.push(tv.selected);
         const result = new Map<string, { episode: Media; parent?: Media }>();
         for (const episode of candidates) {
@@ -68,6 +68,8 @@ export function useVodSequence(tv: TvModel) {
         tv.data.activeId,
         tv.home,
         tv.data.favorites,
+        tv.data.sharedFavorites,
+        tv.data.favoritesMode,
         tv.selected,
     ]);
     // A delayed catalog can make an exact parent available without changing the episode.

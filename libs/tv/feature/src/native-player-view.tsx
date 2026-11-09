@@ -198,14 +198,12 @@ export function NativePlayerView({
                                 </button>
                             ) : null}
                             <button
-                                aria-pressed={tv.data.favorites.some(
-                                    (item) => item.id === current?.id
-                                )}
+                                aria-pressed={
+                                    !!current && tv.isFavorite(current)
+                                }
                                 onClick={() => current && tv.favorite(current)}
                             >
-                                {tv.data.favorites.some(
-                                    (item) => item.id === current?.id
-                                )
+                                {current && tv.isFavorite(current)
                                     ? '♥ Saved'
                                     : '♡ Save'}
                             </button>
