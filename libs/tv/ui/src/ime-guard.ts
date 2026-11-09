@@ -16,11 +16,13 @@ function isPhysicalEdit(event: KeyboardEvent) {
     const { key, altKey, ctrlKey, metaKey, shiftKey } = event;
     // Backspace still means Back until the field is editable.
     if (key === 'Delete' || (key === 'Insert' && shiftKey)) return true;
-    if (key.length === 1 && event.getModifierState('AltGraph')) return true;
-    if ((ctrlKey || metaKey) && !altKey) return /^[vxyz]$/i.test(key);
-    return (
-        !altKey && !ctrlKey && !metaKey && (key.length === 1 || key === 'Dead')
-    );
+    const textKey = key.length === 1 || key === 'Dead';
+    if (
+        textKey &&
+        ((!ctrlKey && !metaKey) || event.getModifierState('AltGraph'))
+    )
+        return true;
+    return (ctrlKey || metaKey) && !altKey && /^[vxyz]$/i.test(key);
 }
 
 export function installImeGuard() {
@@ -72,7 +74,15 @@ export function installImeGuard() {
     };
     const onKeyDown = (event: KeyboardEvent) => {
         const element = targetOf(event);
-        if (!element || event.defaultPrevented || event.isComposing) return;
+        if (!element || event.defaultPrevented) return;
+        if (
+            event.isComposing ||
+            event.key === 'Process' ||
+            event.keyCode === 229
+        ) {
+            release(element);
+            return;
+        }
         if (event.keyCode !== 13 && event.key !== 'Enter') {
             if (guarded.has(element) && isPhysicalEdit(event)) release(element);
             return;

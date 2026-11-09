@@ -10,10 +10,15 @@ test('a physical key starts editing a focused TV field without OK', async ({
     page,
 }) => {
     await start(page);
+    await expect(
+        page
+            .getByRole('navigation')
+            .getByRole('button', { name: 'Sources', exact: true })
+    ).toBeFocused();
     const name = page.getByRole('textbox', { name: 'Name', exact: true });
     await name.focus();
     await expect(name).toHaveJSProperty('readOnly', true);
-    await page.keyboard.press('a');
+    await name.press('a');
     await expect(name).toHaveValue('a');
     await page.keyboard.press('Backspace');
     await expect(name).toHaveValue('');

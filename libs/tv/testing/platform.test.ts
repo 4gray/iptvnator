@@ -276,7 +276,12 @@ test('physical editing keys release guarded fields without consuming the key', (
     const input = dom.window.document.querySelector('input')!;
     for (const key of [
         { key: 'a' },
+        { key: '@', altKey: true },
+        { key: 'Dead', altKey: true },
         { key: '@', ctrlKey: true, altKey: true, modifierAltGraph: true },
+        { key: 'Process' },
+        { key: 'Unidentified', keyCode: 229 },
+        { key: 'Enter', isComposing: true },
         { key: 'v', ctrlKey: true },
         { key: 'Delete' },
     ]) {
