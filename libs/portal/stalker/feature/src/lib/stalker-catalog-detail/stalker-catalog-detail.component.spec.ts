@@ -25,6 +25,7 @@ import { VodDetailsComponent } from '@iptvnator/ui/playback';
 import { EMPTY, of } from 'rxjs';
 import { buildStalkerSelectedVodItem } from '@iptvnator/portal/stalker/data-access';
 import { StalkerCatalogFacadeService } from '../stalker-catalog-facade.service';
+import { StalkerDetailSimilar } from '../stalker-detail-similar';
 import { StalkerSeriesViewComponent } from '../stalker-series-view/stalker-series-view.component';
 import { StalkerCatalogDetailComponent } from './stalker-catalog-detail.component';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
@@ -97,7 +98,12 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
     const applyPlaybackPosition = jest.fn();
     const getPlaybackPosition = jest.fn().mockResolvedValue(null);
     const savePlaybackPositionOrThrow = jest.fn().mockResolvedValue(undefined);
-    const routerMock = { navigateByUrl: jest.fn() };
+    const routerMock = {
+        navigateByUrl: jest.fn(),
+        lastSuccessfulNavigation: jest.fn((): { id: number } | null => null),
+    };
+    const saveCatalogSimilarReturn = jest.fn(() => false);
+    let bindSimilar: jest.SpyInstance;
     const locationMock = { back: jest.fn() };
     const originalHistoryState = window.history.state;
     const selectedItem = signal<unknown>({
@@ -122,6 +128,9 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
         getPlaybackPosition.mockReset().mockResolvedValue(null);
         savePlaybackPositionOrThrow.mockClear().mockResolvedValue(undefined);
         routerMock.navigateByUrl.mockReset();
+        routerMock.lastSuccessfulNavigation.mockReset().mockReturnValue(null);
+        saveCatalogSimilarReturn.mockReset().mockReturnValue(false);
+        bindSimilar = jest.spyOn(StalkerDetailSimilar.prototype, 'bind');
         locationMock.back.mockReset();
 
         await TestBed.configureTestingModule({
@@ -137,6 +146,7 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
                         resolveVodPlayback,
                         refreshPositions,
                         applyPlaybackPosition,
+                        saveCatalogSimilarReturn,
                     },
                 },
                 {
@@ -198,7 +208,29 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
 
     afterEach(() => {
         fixture.destroy();
+        bindSimilar.mockRestore();
         window.history.replaceState(originalHistoryState, '');
+    });
+
+    it('adds the catalog return id only when there is a snapshot to restore', () => {
+        const [bindings] = bindSimilar.mock.calls[0] as Parameters<
+            StalkerDetailSimilar['bind']
+        >;
+        const origin = {
+            playlistId: 'stalker-1',
+            catalog: 'vod',
+            item: { id: '42' },
+        } as const;
+        expect(bindings.origin?.(origin)).toEqual(origin);
+        expect(saveCatalogSimilarReturn).not.toHaveBeenCalled();
+
+        routerMock.lastSuccessfulNavigation.mockReturnValue({ id: 14 });
+        saveCatalogSimilarReturn.mockReturnValue(true);
+        expect(bindings.origin?.(origin)).toEqual({
+            ...origin,
+            catalogReturnId: 14,
+        });
+        expect(saveCatalogSimilarReturn).toHaveBeenCalledWith(14);
     });
 
     it('passes provider-only mode to the matching regular VOD', async () => {

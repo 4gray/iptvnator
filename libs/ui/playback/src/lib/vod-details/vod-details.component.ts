@@ -24,6 +24,8 @@ import {
     MetaChipComponent,
     PortalDetailShellComponent,
     SimilarRailComponent,
+    DETAIL_SIMILAR_SOURCE,
+    mergeSimilarRailItems,
     TrailerDialogService,
     VodMoreMenuComponent,
     scrollToCastCrewRow,
@@ -373,10 +375,23 @@ export class VodDetailsComponent {
 
     readonly scrollToCast = scrollToCastCrewRow;
 
+    private readonly localSimilar = inject(DETAIL_SIMILAR_SOURCE, {
+        optional: true,
+    });
+    readonly similarRailItems = computed(() =>
+        mergeSimilarRailItems(
+            this.localSimilar?.items() ?? [],
+            this.hero.similarRailItems()
+        )
+    );
+
     openSimilarRailItem(item: SimilarRailItem): void {
         const match = findSimilarByRailKey(this.similarInPortals(), item.key);
         if (match) {
+            this.localSimilar?.rememberOrigin();
             this.openSimilarInPortals(match);
+        } else {
+            this.localSimilar?.open(item);
         }
     }
 

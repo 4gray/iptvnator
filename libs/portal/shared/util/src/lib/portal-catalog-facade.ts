@@ -91,6 +91,8 @@ export interface PortalCatalogFacade<
      */
     saveScrollPosition?(scrollTop: number): void;
     consumeSavedScrollPosition?(): number | null;
+    /** Restore Stalker pages and scroll for a specific Similar return entry. */
+    restoreCatalogSimilarReturn?(navigationId: number): void;
     /**
      * Optional IMDb-rating capability (Xtream VOD/series). Providers without
      * structured ratings (e.g. Stalker) leave these undefined, and the rating

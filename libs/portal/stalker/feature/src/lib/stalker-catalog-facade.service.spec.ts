@@ -97,6 +97,8 @@ describe('StalkerCatalogFacadeService', () => {
             setSearchPhrase: jest.fn(),
             nextPage: jest.fn(),
             retryContentPage: jest.fn(),
+            saveCatalogSimilarReturn: jest.fn(() => false),
+            restoreCatalogSimilarReturn: jest.fn(),
             setSelectedItem: jest.fn(),
             createLinkToPlayVod: jest.fn(),
             addToFavorites: jest.fn(),
@@ -128,6 +130,32 @@ describe('StalkerCatalogFacadeService', () => {
                 },
             ],
         });
+    });
+
+    it('re-arms the catalog offset when an intermediate close consumed it', () => {
+        const catalog = TestBed.inject(StalkerCatalogFacadeService);
+        catalog.saveScrollPosition(420);
+        expect(catalog.saveCatalogSimilarReturn(21)).toBe(true);
+        expect(catalog.consumeSavedScrollPosition()).toBe(420);
+
+        catalog.restoreCatalogSimilarReturn(22);
+        expect(catalog.consumeSavedScrollPosition()).toBeNull();
+        catalog.restoreCatalogSimilarReturn(21);
+        expect(catalog.consumeSavedScrollPosition()).toBe(420);
+        catalog.restoreCatalogSimilarReturn(21);
+        expect(catalog.consumeSavedScrollPosition()).toBeNull();
+    });
+
+    it('does not re-arm a Similar offset for a different category', () => {
+        const catalog = TestBed.inject(StalkerCatalogFacadeService);
+        catalog.saveScrollPosition(420);
+        catalog.saveCatalogSimilarReturn(21);
+        const category = stalkerStoreMock['selectedCategoryId'] as ReturnType<
+            typeof signal<string | null>
+        >;
+        category.set('6');
+        catalog.restoreCatalogSimilarReturn(21);
+        expect(catalog.consumeSavedScrollPosition()).toBeNull();
     });
 
     it('refreshes an open filtered catalog after shared activity and unsubscribes on destruction', async () => {

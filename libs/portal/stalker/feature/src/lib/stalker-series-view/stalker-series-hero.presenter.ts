@@ -13,6 +13,8 @@ import {
 import { youtubeEmbedUrl } from '@iptvnator/shared/interfaces';
 import {
     createSeriesHeroState,
+    DETAIL_SIMILAR_SOURCE,
+    mergeSimilarRailItems,
     TrailerDialogService,
     type SeriesHeroQuickStart,
     type SimilarRailItem,
@@ -34,6 +36,9 @@ export class StalkerSeriesHeroPresenter {
     private readonly languageTick = injectTranslationTick();
     private readonly stalkerStore = inject(StalkerStore);
     private readonly trailerDialog = inject(TrailerDialogService);
+    private readonly localSimilar = inject(DETAIL_SIMILAR_SOURCE, {
+        optional: true,
+    });
     private readonly settingsStore = inject(SettingsStore);
     private readonly bindings = signal<StalkerSeriesHeroBindings | null>(null);
     private readonly info = computed(
@@ -90,14 +95,17 @@ export class StalkerSeriesHeroPresenter {
         language: this.languageTick,
     });
 
-    readonly similarRailItems = computed<SimilarRailItem[]>(() =>
-        (this.bindings()?.similarInPortals() ?? []).map((item) => ({
-            key: `x${item.match.playlistId}-${item.match.xtreamId}`,
-            title: item.title,
-            posterUrl: item.posterUrl,
-            year: item.year,
-            tooltip: `${item.title} — ${item.match.playlistName}`,
-        }))
+    readonly similarRailItems = computed(() =>
+        mergeSimilarRailItems(
+            this.localSimilar?.items() ?? [],
+            (this.bindings()?.similarInPortals() ?? []).map((item) => ({
+                key: `x${item.match.playlistId}-${item.match.xtreamId}`,
+                title: item.title,
+                posterUrl: item.posterUrl,
+                year: item.year,
+                tooltip: `${item.title} — ${item.match.playlistName}`,
+            }))
+        )
     );
 
     /** TMDB enrichment supplies the trailer; Stalker portals send none. */
@@ -128,7 +136,10 @@ export class StalkerSeriesHeroPresenter {
                     item.key
             );
         if (match) {
+            this.localSimilar?.rememberOrigin();
             bindings?.openSimilarInPortals(match);
+        } else {
+            this.localSimilar?.open(item);
         }
     }
 }

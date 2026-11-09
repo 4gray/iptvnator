@@ -55,10 +55,15 @@ import {
     beginTrackedExternalLaunch,
 } from '../stalker-vod-detail-actions';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
+import {
+    STALKER_DETAIL_SIMILAR_PROVIDERS,
+    StalkerDetailSimilar,
+} from '../stalker-detail-similar';
 
 @Component({
     selector: 'app-stalker-catalog-detail',
     imports: [StalkerSeriesViewComponent, VodDetailsComponent],
+    providers: STALKER_DETAIL_SIMILAR_PROVIDERS,
     templateUrl: './stalker-catalog-detail.component.html',
     changeDetection: ChangeDetectionStrategy.OnPush,
     styles: [
@@ -98,6 +103,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
     );
     readonly inlinePlayback = signal<ResolvedPortalPlayback | null>(null);
     readonly providerOnly = input(false);
+    private readonly similar = inject(StalkerDetailSimilar);
     readonly playbackSessionKey = computed(() => {
         const sourceId = this.catalog.playlist()?.id;
         const contentId = normalizeStalkerEntityId(this.selectedItem()?.id);
@@ -200,6 +206,19 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
     );
 
     constructor() {
+        this.similar.bind({
+            item: this.selectedItem,
+            catalog: () => (this.contentType() === 'series' ? 'series' : 'vod'),
+            playlistId: () => this.catalog.playlist()?.id,
+            enabled: () => !this.providerOnly(),
+            origin: (item) => {
+                const navigationId = this.router.lastSuccessfulNavigation()?.id;
+                return navigationId !== undefined &&
+                    this.catalog.saveCatalogSimilarReturn(navigationId)
+                    ? { ...item, catalogReturnId: navigationId }
+                    : item;
+            },
+        });
         this.vodPosition.connect();
 
         effect(() => {

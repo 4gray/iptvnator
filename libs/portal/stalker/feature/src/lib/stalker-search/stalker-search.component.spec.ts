@@ -8,7 +8,7 @@ import {
 } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { ActivatedRoute, convertToParamMap } from '@angular/router';
+import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { BehaviorSubject, of } from 'rxjs';
@@ -17,6 +17,7 @@ import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
+    STALKER_SIMILAR_ORIGIN,
 } from '@iptvnator/portal/shared/util';
 import {
     StalkerPortalRepairService,
@@ -54,6 +55,7 @@ function deferred<T>() {
 })
 class StubStalkerInlineDetailComponent {
     readonly playbackSessionKey = input.required<string>();
+    readonly similarSearchReturn = input<unknown>(null);
     readonly inlinePlayback = input<unknown>(null);
     readonly inlinePlaybackClosed = output<void>();
 }
@@ -296,11 +298,16 @@ describe('StalkerSearchComponent playback session key', () => {
 describe('StalkerSearchComponent result paging', () => {
     let component: StalkerSearchComponent;
     const queryParamMap = new BehaviorSubject(convertToParamMap({}));
+    const navigation = signal<{
+        id: number;
+        trigger: 'imperative' | 'popstate';
+    } | null>(null);
     let dataService: { sendIpcEvent: jest.Mock };
     let parentalLock: {
         active: jest.Mock<boolean, []>;
         version: ReturnType<typeof signal<number>>;
         lockedStalkerIds: jest.Mock<string[], [string, string]>;
+        isStalkerCategoryLocked: jest.Mock;
     };
     let stalkerStoreMock: {
         selectedItem: ReturnType<typeof signal<unknown>>;
@@ -345,6 +352,7 @@ describe('StalkerSearchComponent result paging', () => {
 
     beforeEach(() => {
         queryParamMap.next(convertToParamMap({}));
+        navigation.set(null);
         dataService = {
             sendIpcEvent: jest.fn().mockResolvedValue({ js: { data: [] } }),
         };
@@ -354,6 +362,7 @@ describe('StalkerSearchComponent result paging', () => {
             lockedStalkerIds: jest.fn(
                 (_playlistId: string, _type: string): string[] => []
             ),
+            isStalkerCategoryLocked: jest.fn(() => false),
         };
         stalkerStoreMock = {
             selectedItem: signal(null),
@@ -384,6 +393,10 @@ describe('StalkerSearchComponent result paging', () => {
                     },
                 },
                 { provide: Location, useValue: { back: jest.fn() } },
+                {
+                    provide: Router,
+                    useValue: { lastSuccessfulNavigation: navigation },
+                },
                 { provide: DataService, useValue: dataService },
                 {
                     provide: PlaylistContextFacade,
@@ -436,6 +449,86 @@ describe('StalkerSearchComponent result paging', () => {
             () => new StalkerSearchComponent()
         );
     });
+
+    it.each([false, true])(
+        'restores the search and checks the original category on Back (relocked: %s)',
+        async (relocked) => {
+            const query = 'Fixture crossing';
+            const second = { id: 'fixture-2', name: query, category_id: 9 };
+            dataService.sendIpcEvent.mockImplementation(
+                async (_event, { params }) => ({
+                    js: {
+                        data:
+                            params.search === query
+                                ? [
+                                      params.p === 1
+                                          ? {
+                                                id: 'fixture-1',
+                                                name: 'First page',
+                                            }
+                                          : second,
+                                  ]
+                                : [],
+                        total_items: params.search === query ? 2 : 0,
+                    },
+                })
+            );
+            navigation.set({ id: 21, trigger: 'imperative' });
+            queryParamMap.next(convertToParamMap({ q: query }));
+            await waitFor(() => component.searchResults().length === 1);
+            component.loadMoreSearchResults();
+            await waitFor(() => component.searchResults().length === 2);
+            component.selectItem(second);
+            const item = component.itemDetails();
+            const search = component.similarSearchReturn();
+            component.onVodBack();
+            queryParamMap.next(convertToParamMap({}));
+            await waitFor(() => component.searchResults().length === 0);
+
+            if (relocked) {
+                parentalLock.version.set(1);
+                parentalLock.active.mockReturnValue(true);
+                parentalLock.lockedStalkerIds.mockReturnValue(['9']);
+                parentalLock.isStalkerCategoryLocked.mockReturnValue(true);
+            }
+            const previousHistory = window.history.state;
+            window.history.replaceState(
+                {
+                    [STALKER_SIMILAR_ORIGIN]: {
+                        playlistId: activePlaylist()._id,
+                        catalog: 'vod',
+                        item,
+                        search: { ...search, scrollTop: 420 },
+                    },
+                },
+                ''
+            );
+            try {
+                dataService.sendIpcEvent.mockClear();
+                queryParamMap.next(convertToParamMap({ q: query }));
+                navigation.set({ id: 23, trigger: 'popstate' });
+                await flush();
+                expect(
+                    window.history.state[STALKER_SIMILAR_ORIGIN]
+                ).toBeUndefined();
+                expect(
+                    parentalLock.isStalkerCategoryLocked
+                ).toHaveBeenCalledWith(activePlaylist()._id, 'vod', '9');
+                if (relocked) {
+                    await waitFor(() => component.searchResults().length === 1);
+                    expect(component.itemDetails()).toBeNull();
+                } else {
+                    expect(component.itemDetails()?.id).toBe(second.id);
+                    expect(
+                        component.searchResults().map((entry) => entry.id)
+                    ).toEqual(['fixture-1', second.id]);
+                    expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+                }
+            } finally {
+                window.history.replaceState(previousHistory, '');
+            }
+        }
+    );
 
     it('starts a prefilled two-character search in the series catalog', async () => {
         queryParamMap.next(convertToParamMap({ q: 'up', kind: 'series' }));
@@ -567,19 +660,28 @@ describe('StalkerSearchComponent result paging', () => {
         ]);
     });
 
-    it('closes an open detail whose genre became withheld on relock', () => {
-        component.selectItem({ id: 'adult-9', name: 'A', category_id: '9' });
-        expect(component.itemDetails()).not.toBeNull();
+    it.each(['9', 9])(
+        'closes an open detail in category %p on relock',
+        (categoryId) => {
+            component.selectItem({
+                id: 'adult-9',
+                name: 'A',
+                category_id: categoryId,
+            });
+            expect(component.itemDetails()).not.toBeNull();
 
-        // Another genre locked: the detail stays.
-        component.closeWithheldDetail(new Set(['5']));
-        expect(component.itemDetails()).not.toBeNull();
+            // Another genre locked: the detail stays.
+            component.closeWithheldDetail(new Set(['5']));
+            expect(component.itemDetails()).not.toBeNull();
 
-        component.closeWithheldDetail(new Set(['9']));
-        expect(component.itemDetails()).toBeNull();
-        expect(component.vodDetailsItem()).toBeNull();
-        expect(stalkerStoreMock.setSelectedItem).toHaveBeenLastCalledWith(null);
-    });
+            component.closeWithheldDetail(new Set(['9']));
+            expect(component.itemDetails()).toBeNull();
+            expect(component.vodDetailsItem()).toBeNull();
+            expect(stalkerStoreMock.setSelectedItem).toHaveBeenLastCalledWith(
+                null
+            );
+        }
+    );
 
     it('closes a genre-less detail on relock only in fail-closed mode', () => {
         component.selectItem({ id: 'no-genre', name: 'N' });

@@ -249,8 +249,7 @@ export function buildStalkerSelectedVodItem(
                 ? true
                 : undefined,
         video_id: item.video_id,
-        category_id:
-            typeof item.category_id === 'string' ? item.category_id : undefined,
+        category_id: firstNonBlankStalkerIdText(item.category_id) || undefined,
         info: createStalkerInfo(item),
     };
 }
@@ -288,11 +287,10 @@ export function normalizeStalkerFavoriteItem(
             is_series: normalizedIsSeries ? true : undefined,
             video_id: (item as StalkerVodSource).video_id ?? source.video_id,
             category_id:
-                typeof (item as StalkerVodSource).category_id === 'string'
-                    ? (item as StalkerVodSource).category_id
-                    : typeof source.category_id === 'string'
-                      ? source.category_id
-                      : undefined,
+                firstNonBlankStalkerIdText(
+                    item.category_id,
+                    source.category_id
+                ) || undefined,
         },
     };
 }

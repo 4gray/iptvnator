@@ -381,12 +381,23 @@ component for detail→detail navigation.
 portals: recommendations are matched against ALL imported Xtream
 playlists with one batched match (`DB_MATCH_TITLES`, sent in small
 requests, see "Sending a batched match"; Electron only,
-same two-tier + year rule). Stalker detail views — where the local
-catalog is server-paginated and unmatchable — get their "Similar" rail
-purely from these cross-portal matches (shared `VodDetailsComponent` for
-movies, `stalker-series-view` for series); Xtream detail views append
-them after the local-catalog matches, deduplicated by normalized title,
-with the source playlist name on each card.
+same two-tier + year rule). Stalker and Xtream detail views append these
+matches after matches from the current catalog and remove duplicates.
+The cross-portal cards carry the source playlist name.
+
+The Stalker catalog is paginated by the portal. While TMDB is enabled,
+Stalker details search the first page for up to four recommended titles
+through the existing portal request flow. Film recommendations search
+VOD films. Series recommendations search the regular series catalog and
+VOD series, keeping the destination's catalog type for episode loading.
+Only unambiguous matches by normalized title, media type and compatible
+year appear. Without an explicit release year, a conflicting release tag
+in a title alias can disqualify the row. The search works in Electron and
+the PWA, runs independently of details and playback, and stops starting
+new requests when the selection changes. Category locks are checked when
+rendering and opening a recommendation. In both Stalker and Xtream movie
+and series details, the rail follows Cast & crew. With no visible matches
+the rail stays hidden.
 The `language` param derives from the app language setting
 (`Language` enum → TMDB code, e.g. `de` → `de-DE`); cache rows are keyed per
 language, so switching the app language re-fetches localized metadata.

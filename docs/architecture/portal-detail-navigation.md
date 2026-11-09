@@ -215,9 +215,9 @@ handler as the header Back.
   the opened detail can no longer report and silently strand the affordance.
   A row identified only by those alternate fields would open with an empty
   identity, so the builder pins the resolved id onto the handoff state item
-  and those rows keep the history return as well. The marker is set only by this
-  builder and only alongside `returnTo`, so the dashboard handoff and every
-  other `stalkerReturnTo` caller keeps its re-navigating behaviour.
+  and those rows keep the history return as well. Collection and Similar
+  handoffs set the marker alongside `returnTo`. The dashboard handoff
+  uses the ordinary `stalkerReturnTo` re-navigation.
 - Live channels in the same collections (the unified live tab of global
   favorites/recent and a portal's own favorites/recent tabs) get the live
   counterpart of that bridge, "open in playlist". Targets come from
@@ -419,6 +419,18 @@ Download handoff behavior:
   carries the marker.
 
 ## Stalker
+
+A Stalker card in the "Similar" rail uses the same inline catalog handoff
+as "View in portal". Its fragment distinguishes history entries even for
+two titles in the same category. The browser history entry for the original
+catalog or search view holds a one-shot snapshot of the open detail. Back
+restores that title and its catalog or search context after rechecking the
+category lock. Search keeps numeric category IDs as text in the snapshot
+so the lock check can still identify the category. The latest return to a
+catalog or search keeps its loaded pages in memory while the source, list
+selection, and lock version still match. The catalog holds its saved offset
+until the original detail closes, including returns within one category.
+Collection origins use their existing history snapshots.
 
 Stalker details are represented by store state and inline detail rendering on the current screen.
 

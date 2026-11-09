@@ -16,14 +16,14 @@ import {
 /**
  * Marks a Stalker handoff whose origin is exactly one history entry back, so
  * the portal detail's back affordance can step through history instead of
- * re-navigating to `stalkerReturnTo`.
+ * re-navigating to `stalkerReturnTo`. Collection and Similar handoffs
+ * both use this marker.
  *
  * The collection page keeps its active tab, scope and open inline detail only
  * in `window.history.state` (`collectionViewState` / `openCollectionDetailItem`).
  * `navigateByUrl()` starts a fresh entry without them, so the collection would
  * come back on its default `live` tab and leave the portal page one browser
- * Back away. Only this builder sets the marker, and only when it also supplies
- * `returnTo`, so every other `stalkerReturnTo` caller keeps re-navigating.
+ * Back away. A handoff with only `stalkerReturnTo` still re-navigates.
  *
  * The value is the handed-off item's identity rather than a bare `true`:
  * `openStalkerItem` is consumed on arrival, but the return keys stay on the

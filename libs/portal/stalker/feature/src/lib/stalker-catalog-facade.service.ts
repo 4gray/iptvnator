@@ -79,13 +79,13 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
     retryContent(): void {
         void this.stalkerStore.retryContentPage();
     }
-    /**
-     * Scroll offsets per list identity for inline-detail round trips. The
-     * accumulated portal pages already survive in the store (same-category
-     * re-initialisation is a no-op), so only the offset needs a home here.
-     * Bounded like the Xtream store's snapshot list.
-     */
+    /** Scroll offsets per list identity for inline-detail round trips. */
     private readonly savedScrollPositions = new Map<string, number>();
+    private similarReturnScroll: {
+        navigationId: number;
+        key: string;
+        scrollTop: number;
+    } | null = null;
     readonly selectedCategoryTitle = computed(() => {
         // No category means every item: the view supplies that title.
         if (!this.stalkerStore.selectedCategoryId()) {
@@ -182,6 +182,28 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
 
         this.savedScrollPositions.delete(key);
         return saved;
+    }
+
+    saveCatalogSimilarReturn(navigationId: number): boolean {
+        const key = this.scrollIdentity();
+        const scrollTop = this.savedScrollPositions.get(key);
+        this.similarReturnScroll =
+            scrollTop === undefined ? null : { navigationId, key, scrollTop };
+        const pagesSaved =
+            this.stalkerStore.saveCatalogSimilarReturn(navigationId);
+        return pagesSaved || this.similarReturnScroll !== null;
+    }
+
+    restoreCatalogSimilarReturn(navigationId: number): void {
+        this.stalkerStore.restoreCatalogSimilarReturn(navigationId);
+        const saved = this.similarReturnScroll;
+        if (saved?.navigationId !== navigationId) return;
+        this.similarReturnScroll = null;
+        // Closing the destination may briefly show the same list and consume
+        // its offset. Re-arm it for when the original detail closes.
+        if (saved.key === this.scrollIdentity()) {
+            this.saveScrollPosition(saved.scrollTop);
+        }
     }
 
     setContentSortMode(mode: PortalCatalogSortMode): void {

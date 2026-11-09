@@ -1,10 +1,16 @@
 import {
     ChangeDetectionStrategy,
     Component,
+    Injector,
+    inject,
     input,
     output,
 } from '@angular/core';
-import { StalkerSelectedVodItem } from '@iptvnator/portal/stalker/data-access';
+import {
+    StalkerSelectedVodItem,
+    StalkerStore,
+} from '@iptvnator/portal/stalker/data-access';
+import type { StalkerSimilarOrigin } from '@iptvnator/portal/shared/util';
 import {
     type PlaybackFallbackRequest,
     VodDetailsComponent,
@@ -16,10 +22,15 @@ import {
     VodDetailsItem,
 } from '@iptvnator/shared/interfaces';
 import { StalkerSeriesViewComponent } from '../stalker-series-view/stalker-series-view.component';
+import {
+    STALKER_DETAIL_SIMILAR_PROVIDERS,
+    StalkerDetailSimilar,
+} from '../stalker-detail-similar';
 
 @Component({
     selector: 'app-stalker-inline-detail',
     imports: [StalkerSeriesViewComponent, VodDetailsComponent],
+    providers: STALKER_DETAIL_SIMILAR_PROVIDERS,
     templateUrl: './stalker-inline-detail.component.html',
     changeDetection: ChangeDetectionStrategy.OnPush,
     styles: [
@@ -49,6 +60,9 @@ export class StalkerInlineDetailComponent {
     readonly watchedToggleBusy = input(false);
     readonly watchedToggleReady = input(true);
     readonly playbackStartPending = input(false);
+    readonly similarSearchReturn = input<
+        (() => StalkerSimilarOrigin['search']) | null
+    >(null);
 
     readonly backClicked = output<void>();
     readonly playClicked = output<VodDetailsItem>();
@@ -78,6 +92,28 @@ export class StalkerInlineDetailComponent {
         positionSeconds: number | null;
     }>();
     readonly resetProgressRequested = output<VodDetailsItem>();
+
+    constructor() {
+        const injector = inject(Injector);
+        inject(StalkerDetailSimilar).bind({
+            item: () => {
+                const vod = this.vodDetailsItem();
+                return (
+                    this.seriesItem() ??
+                    (vod?.type === 'stalker' ? vod.data : null)
+                );
+            },
+            catalog: this.categoryId,
+            playlistId: () =>
+                this.vodDetailsItem()?.playlistId ??
+                injector.get(StalkerStore).currentPlaylist()?._id,
+            enabled: () => !this.providerOnly(),
+            origin: (item) => {
+                const search = this.similarSearchReturn()?.();
+                return search ? { ...item, search } : null;
+            },
+        });
+    }
 
     onBackClicked() {
         this.backClicked.emit();

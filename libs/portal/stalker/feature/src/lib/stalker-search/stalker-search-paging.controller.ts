@@ -44,12 +44,39 @@ interface StalkerSearchPagingControllerConfig {
     closeWithheldDetail: (withheldCategoryIds: ReadonlySet<string>) => void;
 }
 
+interface SearchReturnSnapshot {
+    navigationId: number;
+    key: string;
+    page: number;
+    results: StalkerVodSource[];
+    hasMore: boolean;
+    retryAppend: boolean;
+    withheldIds: string[];
+}
+
+function searchKey(
+    playlist: PlaylistMeta,
+    type: StalkerSearchContentType,
+    term: string,
+    lockVersion: number
+): string {
+    return JSON.stringify([
+        playlist._id,
+        playlist.sourceSyncRevision,
+        type,
+        term,
+        lockVersion,
+    ]);
+}
+
 /**
  * Owns the result paging of the Stalker search page: the portal page being
  * requested, the pages accumulated into one list and the parental-lock
  * bookkeeping that decides whether paging continues.
  */
 export class StalkerSearchPagingController {
+    // Retain one return snapshot in memory. Portal rows never enter history state.
+    private static similarReturn: SearchReturnSnapshot | null = null;
     /** Lock version the accumulated results were built under. */
     private searchResultsLockVersion: number | null = null;
     /**
@@ -98,7 +125,7 @@ export class StalkerSearchPagingController {
             // page time, so the results must be rebuilt when they change.
             parentalLockVersion: this.config.parentalLock.version(),
         }),
-        loader: async ({ params }) => {
+        loader: async ({ params, abortSignal }) => {
             if (params.search.length < GLOBAL_SEARCH_MIN_LENGTH) {
                 this.resetSearchAccumulator();
                 return [];
@@ -135,12 +162,12 @@ export class StalkerSearchPagingController {
                 this.searchPage.set(1);
                 return this.accumulatedSearchResults();
             }
-            const withheldKey = JSON.stringify([
-                params.playlistId,
+            const withheldKey = searchKey(
+                playlist,
                 contentType,
                 params.search,
-                params.parentalLockVersion,
-            ]);
+                params.parentalLockVersion
+            );
             if (params.page === 1 || this.searchWithheldKey !== withheldKey) {
                 this.searchWithheldKey = withheldKey;
                 this.searchWithheldIds.clear();
@@ -151,6 +178,7 @@ export class StalkerSearchPagingController {
             // the accumulated list: the request is not aborted, and a
             // pre-relock response was filtered with the pre-relock set.
             const isCurrent = (): boolean =>
+                !abortSignal.aborted &&
                 isStalkerSearchRequestCurrent(params, {
                     search: this.config.searchTerm(),
                     contentType: this.config.selectedFilterType(),
@@ -214,6 +242,52 @@ export class StalkerSearchPagingController {
             }
         },
     });
+
+    saveForSimilarReturn(navigationId: number): void {
+        const results = this.accumulatedSearchResults();
+        if (!results.length || this.isInitialSearchLoading()) return;
+        StalkerSearchPagingController.similarReturn = {
+            navigationId,
+            key: this.searchWithheldKey,
+            page: this.searchPage(),
+            results,
+            hasMore: this.searchHasMore(),
+            retryAppend:
+                this.searchAppendError() || this.isAppendingSearchResults(),
+            withheldIds: [...this.searchWithheldIds],
+        };
+    }
+
+    restoreAfterSimilarReturn(navigationId: number): void {
+        const snapshot = StalkerSearchPagingController.similarReturn;
+        if (snapshot?.navigationId !== navigationId) return;
+        StalkerSearchPagingController.similarReturn = null;
+        const playlist = this.config.currentPlaylist();
+        const lockVersion = this.config.parentalLock.version();
+        if (
+            !playlist ||
+            snapshot.key !==
+                searchKey(
+                    playlist,
+                    this.config.selectedFilterType(),
+                    this.config.searchTerm(),
+                    lockVersion
+                )
+        )
+            return;
+
+        this.searchWithheldKey = snapshot.key;
+        this.searchResultsLockVersion = lockVersion;
+        this.searchWithheldIds.clear();
+        for (const id of snapshot.withheldIds) this.searchWithheldIds.add(id);
+        this.searchPage.set(snapshot.page);
+        this.searchHasMore.set(snapshot.hasMore);
+        this.searchError.set(false);
+        this.searchAppendError.set(snapshot.retryAppend);
+        this.accumulatedSearchResults.set(snapshot.results);
+        // A local resource value cancels an initial load already in flight.
+        this.searchResultsResource.set(snapshot.results);
+    }
 
     /**
      * Empties the accumulator and every paging flag — used whenever there is

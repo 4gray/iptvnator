@@ -135,6 +135,37 @@ interface StalkerOrderedListResponse {
 interface StalkerContentResourceStoreContract extends StalkerContentFeatureStoreContract {
     categoryResource: ResourceState<StalkerCategoryItem[]>;
     getContentResource: ResourceState<StalkerContentItem[]>;
+    setPage?(page: number): void;
+}
+
+interface CatalogWindow {
+    key: string;
+    page: number;
+    rows: StalkerContentItem[];
+}
+
+interface CatalogReturn extends CatalogWindow {
+    navigationId: number;
+    totalCount: number;
+    withheldKey: string;
+    withheldIds: string[];
+}
+
+function catalogWindowKey(params: {
+    currentPlaylist: PlaylistMeta | undefined;
+    contentType: StalkerContentType;
+    category: string | null | undefined;
+    search: string;
+    parentalLockVersion: number;
+}): string {
+    return JSON.stringify([
+        stalkerPlaylistKey(params.currentPlaylist),
+        params.currentPlaylist?.sourceSyncRevision,
+        params.contentType,
+        params.category,
+        params.search,
+        params.parentalLockVersion,
+    ]);
 }
 
 function getCategoriesByType(
@@ -304,7 +335,57 @@ export function withStalkerContent() {
                 let withheldSeenKey = '';
                 const withheldSeenIds = new Set<string>();
                 let lastParentalLockVersion: number | null = null;
-                return {
+                let latestCatalogWindow: CatalogWindow | null = null;
+                let catalogReturn: CatalogReturn | null = null;
+                const currentCatalogKey = () =>
+                    catalogWindowKey({
+                        currentPlaylist: storeContext.currentPlaylist(),
+                        contentType: storeContext.selectedContentType(),
+                        category: storeContext.selectedCategoryId(),
+                        search: storeContext.searchPhrase(),
+                        parentalLockVersion: parentalLock.version(),
+                    });
+                const props = {
+                    saveCatalogSimilarReturn(navigationId: number): boolean {
+                        const window = latestCatalogWindow;
+                        if (
+                            !window ||
+                            window.key !== currentCatalogKey() ||
+                            window.rows !== store.paginatedContent()
+                        ) {
+                            return false;
+                        }
+                        catalogReturn = {
+                            ...window,
+                            navigationId,
+                            totalCount: store.totalCount(),
+                            withheldKey: withheldSeenKey,
+                            withheldIds: [...withheldSeenIds],
+                        };
+                        return true;
+                    },
+                    restoreCatalogSimilarReturn(navigationId: number): void {
+                        const snapshot = catalogReturn;
+                        if (snapshot?.navigationId !== navigationId) return;
+                        catalogReturn = null;
+                        if (snapshot.key !== currentCatalogKey()) return;
+
+                        withheldSeenKey = snapshot.withheldKey;
+                        withheldSeenIds.clear();
+                        for (const id of snapshot.withheldIds) {
+                            withheldSeenIds.add(id);
+                        }
+                        latestCatalogWindow = snapshot;
+                        lastParentalLockVersion = parentalLock.version();
+                        storeContext.setPage?.(snapshot.page);
+                        patchState(store, {
+                            paginatedContent: snapshot.rows,
+                            totalCount: snapshot.totalCount,
+                            contentError: null,
+                            appendError: null,
+                        });
+                        props.getContentResource.set(snapshot.rows);
+                    },
                     categoryResource: resource({
                         params: () => ({
                             contentType: storeContext.selectedContentType(),
@@ -902,6 +983,11 @@ export function withStalkerContent() {
                                         appendError: null,
                                         hasMoreChannels: false,
                                     });
+                                    latestCatalogWindow = {
+                                        key: catalogWindowKey(params),
+                                        page: params.pageIndex - 1,
+                                        rows: nextContent,
+                                    };
                                     skipWithheldPage(
                                         nextContent.length < totalCount
                                     );
@@ -937,6 +1023,7 @@ export function withStalkerContent() {
                         },
                     }),
                 };
+                return props;
             }
         ),
         withComputed((store) => {

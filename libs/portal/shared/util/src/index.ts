@@ -36,6 +36,7 @@ export * from './lib/navigation/portal-rail-links';
 export * from './lib/navigation/provider-detail-mode';
 export * from './lib/navigation/portal-route.utils';
 export * from './lib/navigation/workspace-portal-navigation';
+export * from './lib/navigation/stalker-similar-navigation';
 export * from './lib/collection';
 export * from './lib/xtream-catchup.util';
 export * from './lib/external-playback-button-state';
