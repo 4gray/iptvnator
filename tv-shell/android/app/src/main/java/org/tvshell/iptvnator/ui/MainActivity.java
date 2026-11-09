@@ -525,6 +525,19 @@ public class MainActivity extends Activity {
                 // Enter keydown + keypress with KeyboardEvent.repeat === false, so the page cannot filter
                 // repeats itself; drop them here like the media keys above. D-pad repeats stay (hold to scroll).
                 if (action == KeyEvent.ACTION_DOWN && event.getRepeatCount() > 0) return true;
+                if (customView != null) return forwardToPage(event, "Enter");
+                return super.dispatchKeyEvent(event);
+            case KeyEvent.KEYCODE_DPAD_UP:
+                if (customView != null) return forwardToPage(event, "ArrowUp");
+                return super.dispatchKeyEvent(event);
+            case KeyEvent.KEYCODE_DPAD_DOWN:
+                if (customView != null) return forwardToPage(event, "ArrowDown");
+                return super.dispatchKeyEvent(event);
+            case KeyEvent.KEYCODE_DPAD_LEFT:
+                if (customView != null) return forwardToPage(event, "ArrowLeft");
+                return super.dispatchKeyEvent(event);
+            case KeyEvent.KEYCODE_DPAD_RIGHT:
+                if (customView != null) return forwardToPage(event, "ArrowRight");
                 return super.dispatchKeyEvent(event);
             default:
                 return super.dispatchKeyEvent(event);
@@ -542,6 +555,21 @@ public class MainActivity extends Activity {
             return;
         }
         js("window.__tvShell ? window.__tvShell.back() : (history.length > 1 ? (history.back(), true) : false)");
+    }
+
+    /**
+     * In fullscreen the WebView is hidden and Chromium's fullscreen view holds focus, so D-pad and
+     * OK never reach the page: the player controls could not be reached and OK did nothing. Hand
+     * them to the page script instead, which replays them on the focused element. The key names
+     * are constants from the switch above, never user input.
+     */
+    private boolean forwardToPage(KeyEvent event, String key) {
+        int action = event.getAction();
+        if (action == KeyEvent.ACTION_DOWN || action == KeyEvent.ACTION_UP) {
+            String type = action == KeyEvent.ACTION_DOWN ? "keydown" : "keyup";
+            js("window.__tvShell && window.__tvShell.key && window.__tvShell.key('" + type + "','" + key + "')");
+        }
+        return true;
     }
 
     private void media(String action) {

@@ -535,6 +535,17 @@
         } finally {
             reach.top = reach.right = reach.bottom = reach.left = 0;
         }
+        // The picture covers the whole player, so it never counts as "above" the controls dock and
+        // Up would skip it for an overlay button in a corner. Leaving the dock upwards returns to
+        // the picture instead (Down from the picture enters the dock, Up from it reaches the overlay).
+        if (dir === 'up' && exclude && exclude.closest) {
+            var dock = exclude.closest('.player-controls__bar');
+            if (dock && (!next || !dock.contains(next.el))) {
+                var shell = dock.closest('[class*="player-shell"]');
+                var picture = shell && shell.querySelector('video');
+                if (picture && picture.isConnected && (scope === document || scope.contains(picture))) next = { el: picture };
+            }
+        }
         if (next) {
             setFocus(next.el);
             return true;
@@ -955,6 +966,35 @@
             default: return false;
         }
         revealPlayerControls(media);
+        return true;
+    };
+
+    var KEY_CODES = { ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Enter: 13 };
+
+    /**
+     * D-pad and OK forwarded by the shell while a video is fullscreen: Chromium's fullscreen view
+     * holds native focus then, so the keys never reach the page on their own. Replayed on the
+     * focused element so the same handlers (this layer's, then the app's shortcuts) see them.
+     */
+    api.key = function (type, key) {
+        var code = KEY_CODES[key];
+        if (!code || (type !== 'keydown' && type !== 'keyup')) return false;
+        var active = document.activeElement;
+        var target = active && active !== document.body ? active : document;
+        var ev = new KeyboardEvent(type, { key: key, code: key, bubbles: true, cancelable: true });
+        // The constructor ignores keyCode/which; players that still read them need the values.
+        try {
+            Object.defineProperty(ev, 'keyCode', { get: function () { return code; } });
+            Object.defineProperty(ev, 'which', { get: function () { return code; } });
+        } catch (e) {
+            /* ignore */
+        }
+        var notHandled = target.dispatchEvent(ev);
+        // A synthetic Enter does not activate a control the way the remote's trusted OK does.
+        if (type === 'keydown' && key === 'Enter' && notHandled && target !== document &&
+            (/^(BUTTON|A|SUMMARY)$/.test(target.tagName) || target.getAttribute('role') === 'button')) {
+            target.click();
+        }
         return true;
     };
 
