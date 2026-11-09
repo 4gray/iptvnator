@@ -1,5 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { chooseTv, addSource, backend, nav, start } from './helpers';
+import {
+    fillTvField,
+    chooseTv,
+    addSource,
+    backend,
+    nav,
+    start,
+} from './helpers';
 
 test('automatic retries are bounded and a network return can restart recovery', async ({
     page,
@@ -185,7 +192,7 @@ test('one home server address can explicitly connect its shared sources', async 
         libraryReads++;
         return route.fulfill({ json: [] });
     });
-    await page.getByLabel('IPTVnator backend URL').fill(backend);
+    await fillTvField(page.getByLabel('IPTVnator backend URL'), backend);
     await page.getByRole('button', { name: 'Check and connect' }).click();
     await expect(
         page.getByRole('button', { name: 'Use this server’s sources' })

@@ -1,31 +1,48 @@
 /**
  * Text-like controls whose focus must not summon the TV keyboard while the
- * user arrows through a form; editing starts only on explicit Enter or click.
+ * user arrows through a form. OK, a click, or a physical edit starts editing.
  */
 const editable =
     'input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="hidden"]):not([type="file"]):not([type="image"]):not([type="color"]),textarea';
 
+type TextField = HTMLInputElement | HTMLTextAreaElement;
+
 function targetOf(event: Event) {
     const target = event.target as HTMLElement | null;
-    return target?.matches?.(editable)
-        ? (target as HTMLInputElement | HTMLTextAreaElement)
-        : null;
+    return target?.matches?.(editable) ? (target as TextField) : null;
+}
+
+function isPhysicalEdit(event: KeyboardEvent) {
+    const { key, altKey, ctrlKey, metaKey, shiftKey } = event;
+    // Backspace still means Back until the field is editable.
+    if (key === 'Delete' || (key === 'Insert' && shiftKey)) return true;
+    if (key.length === 1 && event.getModifierState('AltGraph')) return true;
+    if ((ctrlKey || metaKey) && !altKey) return /^[vxyz]$/i.test(key);
+    return (
+        !altKey && !ctrlKey && !metaKey && (key.length === 1 || key === 'Dead')
+    );
 }
 
 export function installImeGuard() {
+    const guarded = new WeakSet<TextField>();
     let activating = false;
-    const activate = (element: HTMLInputElement | HTMLTextAreaElement) => {
+    const release = (element: TextField) => {
+        if (guarded.delete(element)) element.readOnly = false;
+    };
+    const activate = (element: TextField, selectText: boolean) => {
         activating = true;
         try {
-            element.readOnly = false;
+            release(element);
             // Refocus so firmwares that only summon the keyboard on a focus
             // transition fire for an already-focused field.
             if (document.activeElement === element) element.blur();
             element.focus();
-            try {
-                element.select();
-            } catch {
-                /* number/email fields do not support selection */
+            if (selectText) {
+                try {
+                    element.select();
+                } catch {
+                    /* number/email fields do not support selection */
+                }
             }
         } finally {
             activating = false;
@@ -33,31 +50,37 @@ export function installImeGuard() {
     };
     const onFocus = (event: FocusEvent) => {
         const element = targetOf(event);
-        if (element && !activating) element.readOnly = true;
+        if (element && !element.readOnly && !activating) {
+            guarded.add(element);
+            element.readOnly = true;
+        }
     };
     // Read-only controls are barred from constraint validation: before a
     // form can submit, its required fields must be editable again so the
     // browser can still refuse empty values.
     const unlockForm = (element: HTMLElement | null) => {
         const form = element?.closest?.('form');
-        for (const field of form?.querySelectorAll<
-            HTMLInputElement | HTMLTextAreaElement
-        >(editable) ?? [])
-            field.readOnly = false;
+        for (const field of form?.querySelectorAll<TextField>(editable) ?? [])
+            release(field);
     };
     const onClick = (event: MouseEvent) => {
         const element = targetOf(event);
-        if (element?.readOnly) return activate(element);
+        if (element && guarded.has(element)) return activate(element, false);
         const target = event.target as HTMLElement | null;
-        if (target?.matches?.('button')) unlockForm(target);
+        const button = target?.closest?.('button');
+        if (button?.type === 'submit') unlockForm(button);
     };
     const onKeyDown = (event: KeyboardEvent) => {
-        if (event.keyCode !== 13 && event.key !== 'Enter') return;
         const element = targetOf(event);
-        if (element?.readOnly) {
+        if (!element || event.defaultPrevented || event.isComposing) return;
+        if (event.keyCode !== 13 && event.key !== 'Enter') {
+            if (guarded.has(element) && isPhysicalEdit(event)) release(element);
+            return;
+        }
+        if (guarded.has(element)) {
             event.preventDefault();
-            activate(element);
-        } else if (element) {
+            activate(element, true);
+        } else {
             unlockForm(element);
         }
     };
@@ -70,5 +93,7 @@ export function installImeGuard() {
         document.removeEventListener('focusout', onFocus, true);
         document.removeEventListener('click', onClick, true);
         document.removeEventListener('keydown', onKeyDown, true);
+        for (const field of document.querySelectorAll<TextField>(editable))
+            release(field);
     };
 }

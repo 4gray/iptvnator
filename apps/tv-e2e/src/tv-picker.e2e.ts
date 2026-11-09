@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { workspaceRoot } from '@nx/devkit';
-import { addSource, nav, start } from './helpers';
+import { fillTvField, addSource, nav, start } from './helpers';
 
 test('TV picker separates remote focus, confirmation and Back cancellation', async ({
     page,
@@ -103,7 +103,10 @@ test('long TV choices have large rows, scrolling, filtering and pointer selectio
     const output = join(workspaceRoot, 'dist/tv-p1-verification');
     await mkdir(output, { recursive: true });
     await page.screenshot({ path: join(output, 'category-picker.png') });
-    await page.getByRole('searchbox', { name: 'Filter Category' }).fill('079');
+    await fillTvField(
+        page.getByRole('searchbox', { name: 'Filter Category' }),
+        '079'
+    );
     await expect(dialog.getByRole('option')).toHaveCount(1);
     await dialog.getByRole('option').click();
     await expect(trigger).toHaveAttribute('data-value', '79');

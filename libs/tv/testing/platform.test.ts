@@ -167,13 +167,8 @@ test('IME guard keeps focus read-only until Enter or click starts editing', (t) 
     assert.equal(input.readOnly, false, 'explicit click starts editing');
     input.blur();
     remove();
-    input.readOnly = false;
     input.focus();
-    assert.equal(
-        input.readOnly,
-        false,
-        'cleanup removes the read-only guard'
-    );
+    assert.equal(input.readOnly, false, 'cleanup removes the read-only guard');
 });
 
 test('Backspace and caret keys belong to text entry only while editable', (t) => {
@@ -191,9 +186,17 @@ test('Backspace and caret keys belong to text entry only while editable', (t) =>
         input.dispatchEvent(event);
         return event;
     };
-    assert.equal(backspaceEdits(backspace()), true, 'editable field keeps deletion');
+    assert.equal(
+        backspaceEdits(backspace()),
+        true,
+        'editable field keeps deletion'
+    );
     input.readOnly = true;
-    assert.equal(backspaceEdits(backspace()), false, 'read-only field passes Back');
+    assert.equal(
+        backspaceEdits(backspace()),
+        false,
+        'read-only field passes Back'
+    );
     assert.equal(editingText(input), false);
     input.readOnly = false;
     assert.equal(editingText(input), true);
@@ -220,7 +223,10 @@ test('IME guard unlocks form fields on submit so required checks still run', (t)
     const required = dom.window.document.createElement('input');
     required.required = true;
     const save = dom.window.document.createElement('button');
-    form.append(required, save);
+    const other = dom.window.document.createElement('input');
+    const locked = dom.window.document.createElement('input');
+    locked.readOnly = true;
+    form.append(required, other, locked, save);
     dom.window.document.body.append(form);
     const remove = installImeGuard();
     required.focus();
@@ -236,10 +242,9 @@ test('IME guard unlocks form fields on submit so required checks still run', (t)
         false,
         'submit attempt re-enables constraint validation'
     );
-    required.readOnly = true;
-    const other = dom.window.document.createElement('input');
-    other.readOnly = true;
-    form.append(other);
+    other.focus();
+    required.focus();
+    assert.equal(other.readOnly, true);
     const enter = () =>
         required.dispatchEvent(
             new dom.window.KeyboardEvent('keydown', {
@@ -257,6 +262,36 @@ test('IME guard unlocks form fields on submit so required checks still run', (t)
         false,
         'implicit submission also unlocks the form'
     );
+    assert.equal(
+        locked.readOnly,
+        true,
+        'fields owned by the app stay read-only'
+    );
+    remove();
+});
+
+test('physical editing keys release guarded fields without consuming the key', (t) => {
+    const dom = browser(t);
+    const remove = installImeGuard();
+    const input = dom.window.document.querySelector('input')!;
+    for (const key of [
+        { key: 'a' },
+        { key: '@', ctrlKey: true, altKey: true, modifierAltGraph: true },
+        { key: 'v', ctrlKey: true },
+        { key: 'Delete' },
+    ]) {
+        input.focus();
+        assert.equal(input.readOnly, true);
+        const event = new dom.window.KeyboardEvent('keydown', {
+            ...key,
+            bubbles: true,
+            cancelable: true,
+        });
+        input.dispatchEvent(event);
+        assert.equal(input.readOnly, false, key.key);
+        assert.equal(event.defaultPrevented, false, key.key);
+        input.blur();
+    }
     remove();
 });
 

@@ -3,7 +3,14 @@ import { expect, test } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { workspaceRoot } from '@nx/devkit';
-import { chooseTv, addSource, backend, nav, start } from './helpers';
+import {
+    fillTvField,
+    chooseTv,
+    addSource,
+    backend,
+    nav,
+    start,
+} from './helpers';
 
 test('categories retain drafts and save only their own field across relaunch', async ({
     page,
@@ -16,9 +23,10 @@ test('categories retain drafts and save only their own field across relaunch', a
     await category('Appearance').click();
     await chooseTv(page, 'Home composition', 'shelf');
     await category('Metadata').click();
-    await page
-        .getByLabel('TMDB API key or read access token')
-        .fill('unsaved-fixture');
+    await fillTvField(
+        page.getByLabel('TMDB API key or read access token'),
+        'unsaved-fixture'
+    );
     await category('Programme guide').click();
     await page.getByLabel('Show provider programme guide').uncheck();
     await page
@@ -84,7 +92,7 @@ test('remote category navigation, text editing, Back and return restore focus', 
     await expect(epg).toBeFocused();
     await page.getByRole('tab', { name: 'Metadata', exact: false }).click();
     const key = page.getByLabel('TMDB API key or read access token');
-    await key.fill('editable');
+    await fillTvField(key, 'editable');
     await key.focus();
     await page.keyboard.press('ArrowLeft');
     await expect(key).toBeFocused();
@@ -147,7 +155,7 @@ test('phone setup owns remote and Tab focus, Back closes it in the selected cate
     page,
 }) => {
     await start(page);
-    await page.getByLabel('IPTVnator backend URL').fill(backend);
+    await fillTvField(page.getByLabel('IPTVnator backend URL'), backend);
     await page.getByRole('button', { name: 'Check and connect' }).click();
     await expect(page.locator('.connection-status')).toHaveText('Connected');
     await nav(page, 'Settings');
@@ -184,14 +192,19 @@ test('library drafts and metadata write errors survive switching categories', as
     await start(page);
     await nav(page, 'Settings');
     await page.getByRole('tab', { name: 'Library', exact: false }).click();
-    await page.getByLabel('Library server URL').fill('http://draft.invalid');
-    await page
-        .getByLabel('Library access token (if required)')
-        .fill('draft-fixture');
+    await fillTvField(
+        page.getByLabel('Library server URL'),
+        'http://draft.invalid'
+    );
+    await fillTvField(
+        page.getByLabel('Library access token (if required)'),
+        'draft-fixture'
+    );
     await page.getByRole('tab', { name: 'Metadata', exact: false }).click();
-    await page
-        .getByLabel('TMDB API key or read access token')
-        .fill('metadata-fixture');
+    await fillTvField(
+        page.getByLabel('TMDB API key or read access token'),
+        'metadata-fixture'
+    );
     await page.evaluate(() => {
         const original = IDBObjectStore.prototype.put;
         let fail = true;
@@ -288,7 +301,7 @@ test('phone modal blocks pointer and programmatic focus behind the QR', async ({
     page,
 }) => {
     await start(page);
-    await page.getByLabel('IPTVnator backend URL').fill(backend);
+    await fillTvField(page.getByLabel('IPTVnator backend URL'), backend);
     await page.getByRole('button', { name: 'Check and connect' }).click();
     await expect(page.locator('.connection-status')).toHaveText('Connected');
     await nav(page, 'Settings');
@@ -320,9 +333,10 @@ test('return falls back to the category when the remembered control is disabled'
     await nav(page, 'Settings');
     const category = page.getByRole('tab', { name: 'Metadata', exact: false });
     await category.click();
-    await page
-        .getByLabel('TMDB API key or read access token')
-        .fill('unsaved-fixture');
+    await fillTvField(
+        page.getByLabel('TMDB API key or read access token'),
+        'unsaved-fixture'
+    );
     await page
         .getByRole('button', { name: 'Check TMDB key', exact: true })
         .focus();
@@ -399,7 +413,7 @@ test('panel arrows keep Metadata controls in the active category', async ({
     const key = page.getByLabel('TMDB API key or read access token');
     await expect(key).toBeFocused();
     await expect(category).toHaveAttribute('aria-selected', 'true');
-    await key.fill('navigation-fixture');
+    await fillTvField(key, 'navigation-fixture');
     await page.keyboard.press('ArrowUp');
     await expect(page.getByLabel('Use TMDB metadata')).toBeFocused();
     await page.keyboard.press('ArrowDown');

@@ -1,6 +1,6 @@
 import { checkHorizontalRail } from './horizontal-rail';
 import { expect, Page, test } from '@playwright/test';
-import { chooseTv, addSource, nav, start } from './helpers';
+import { fillTvField, chooseTv, addSource, nav, start } from './helpers';
 
 const svg =
     '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect width="200" height="200" fill="#37544b"/><circle cx="100" cy="74" r="35" fill="#a5c7b5"/><path d="M35 200v-30a65 65 0 0 1 130 0v30" fill="#a5c7b5"/></svg>';
@@ -138,9 +138,10 @@ async function setup(
         .getByRole('tab', { name: 'Metadata · TMDB', exact: false })
         .click();
     await page.getByLabel('Use TMDB metadata').check();
-    await page
-        .getByLabel('TMDB API key or read access token')
-        .fill('fake-person-key');
+    await fillTvField(
+        page.getByLabel('TMDB API key or read access token'),
+        'fake-person-key'
+    );
     await page.getByRole('button', { name: 'Save TMDB settings' }).click();
     await expect(page.locator('.tmdb-settings [role=status]')).toContainText(
         'saved'
