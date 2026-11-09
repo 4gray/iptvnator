@@ -116,6 +116,7 @@ async function start(lanAddress: string): Promise<void> {
         const code = accessCode();
         const process = utilityProcess.fork(entry, [], {
             env: {
+                ...globalThis.process.env,
                 IPTVNATOR_STORAGE: 'server',
                 IPTVNATOR_DATA_DIR: dataDir(),
                 IPTVNATOR_ACCESS_TOKEN: code,
