@@ -87,6 +87,11 @@
             '.' + FOCUS_CLASS + '{outline:3px solid var(--app-focus-ring,#7cc4ff)!important;outline-offset:2px!important;' +
             'scroll-margin:32px;box-shadow:0 0 0 3px rgba(0,0,0,.55)!important;border-radius:6px}' +
             'video.' + FOCUS_CLASS + '{outline-offset:-3px!important}' +
+            // In fullscreen the picture fills the screen, so a ring on it (or on the fullscreen
+            // root itself) is a frame around the TV, not a focus cue. Controls inside keep theirs.
+            '.' + FOCUS_CLASS + ':fullscreen,:fullscreen video.' + FOCUS_CLASS + ',' +
+            '.' + FOCUS_CLASS + ':-webkit-full-screen,:-webkit-full-screen video.' + FOCUS_CLASS +
+            '{outline:none!important;box-shadow:none!important}' +
             'body.tv-shell *{cursor:none!important}' +
             'body.tv-shell ::-webkit-scrollbar{width:0;height:0}' +
             (fullMotion() ? '' : LITE_MOTION_CSS);
