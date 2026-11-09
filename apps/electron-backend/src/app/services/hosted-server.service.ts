@@ -119,6 +119,7 @@ async function start(lanAddress: string): Promise<void> {
                 ...globalThis.process.env,
                 IPTVNATOR_STORAGE: 'server',
                 IPTVNATOR_DATA_DIR: dataDir(),
+                IPTVNATOR_SOURCE_PROFILE: '',
                 IPTVNATOR_ACCESS_TOKEN: code,
                 IPTVNATOR_HOSTED_ASSETS: assets,
                 IPTVNATOR_HOSTED_LAN: lanHost,
