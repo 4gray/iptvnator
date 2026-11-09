@@ -2005,6 +2005,11 @@ EPG array requests reconciliation even when the committed URLs already match
 (for example retrying a failed cleanup); removing a row marks that array dirty,
 and only successful saving clears it. Startup reconciliation always runs.
 
+`SettingsStore` normalizes saved global XMLTV sources on load. It accepts a
+single legacy string and skips non-string or blank entries while keeping
+local guide paths. The startup refresh and channel rows read this list from
+the store.
+
 `EpgSourceSettingsService` waits for `PlaylistsService.getAllPlaylists()` (which
 performs the legacy playlist migration) before invoking `EPG_RECONCILE_SOURCES`.
 Startup includes an empty global list and does not prune after a failed settings

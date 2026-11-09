@@ -24,10 +24,11 @@ export class EpgSourceReconciliationError extends Error {
     }
 }
 
-function normalizeEpgSourceUrls(urls: string[] | string | undefined): string[] {
+export function normalizeEpgSourceUrls(urls: unknown): string[] {
     return [
         ...new Set(
-            (Array.isArray(urls) ? urls : [urls ?? ''])
+            (Array.isArray(urls) ? urls : [urls])
+                .filter((url): url is string => typeof url === 'string')
                 .map((url) => url.trim())
                 .filter(Boolean)
         ),

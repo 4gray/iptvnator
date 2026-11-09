@@ -87,6 +87,26 @@ describe('SettingsStore dashboard rail settings', () => {
         expect(preferences.enabled()).toBe(true);
     });
 
+    it.each([
+        {
+            saved: [null, 'https://example.test/guide.xml', '/tmp/guide.xml'],
+            expected: ['https://example.test/guide.xml', '/tmp/guide.xml'],
+        },
+        {
+            saved: 'https://example.test/legacy-guide.xml',
+            expected: ['https://example.test/legacy-guide.xml'],
+        },
+    ])(
+        'loads usable EPG sources from saved settings: $saved',
+        async ({ saved, expected }) => {
+            storage.get.mockReturnValue(of({ epgUrl: saved }));
+            const store = injector.get(SettingsStore);
+            await store.loadSettings();
+
+            expect(store.getSettings().epgUrl).toEqual(expected);
+        }
+    );
+
     it.each([false, true])(
         'uses the latest committed EPG save after an earlier enable finishes (later write fails: %s)',
         async (failNewWrite) => {

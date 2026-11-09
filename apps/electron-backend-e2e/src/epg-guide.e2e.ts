@@ -7,8 +7,11 @@ import {
     expect,
     importM3uPlaylistFromUrl,
     launchElectronApp,
+    openSources,
     openWorkspaceSection,
+    restartElectronApp,
     test,
+    waitForM3uCatalog,
 } from './electron-test-fixtures';
 
 function formatXmltvDate(date: Date): string {
@@ -40,6 +43,72 @@ function xmltvWithCurrentProgramme(
 </tv>
 `;
 }
+
+test('@epg @electron loads saved sources and a global guide after skipping a null EPG entry', async ({
+    dataDir,
+}) => {
+    const guide = await createMutableTextServer(
+        xmltvWithCurrentProgramme('guide-news', 'Guide News', 'Guide Bulletin'),
+        { contentType: 'application/xml', resourcePath: '/guide.xml' }
+    );
+    const playlist = await createMutableTextServer(
+        buildM3uContent([
+            {
+                name: 'Guide News',
+                tvgId: 'guide-news',
+                url: 'https://example.test/guide-news.m3u8',
+            },
+        ]),
+        { contentType: 'application/x-mpegurl', resourcePath: '/playlist.m3u' }
+    );
+    let app = await launchElectronApp(dataDir);
+    try {
+        await importM3uPlaylistFromUrl(app.mainWindow, playlist.resourceUrl);
+        await waitForM3uCatalog(app.mainWindow);
+        await app.mainWindow.evaluate(async (guideUrl) => {
+            const database = await new Promise<IDBDatabase>(
+                (resolve, reject) => {
+                    const request = indexedDB.open('ngStorage', 1);
+                    request.onupgradeneeded = () =>
+                        request.result.createObjectStore('localStorage');
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                }
+            );
+            try {
+                await new Promise<void>((resolve, reject) => {
+                    const transaction = database.transaction(
+                        'localStorage',
+                        'readwrite'
+                    );
+                    transaction.oncomplete = () => resolve();
+                    transaction.onabort = () => reject(transaction.error);
+                    transaction
+                        .objectStore('localStorage')
+                        .put({ epgUrl: [null, guideUrl] }, 'settings');
+                });
+            } finally {
+                database.close();
+            }
+        }, guide.resourceUrl);
+
+        app = await restartElectronApp(app, dataDir);
+        await openSources(app.mainWindow);
+        await app.mainWindow
+            .locator('app-source-row .source-row__body')
+            .click();
+        await waitForM3uCatalog(app.mainWindow);
+        await expect(
+            channelItemByTitle(app.mainWindow, 'Guide News').locator(
+                '.epg-title'
+            )
+        ).toHaveText('Guide Bulletin', { timeout: 30000 });
+    } finally {
+        await closeElectronApp(app);
+        await playlist.close();
+        await guide.close();
+    }
+});
 
 /** True when the now-line is painted inside the visible programme lane. */
 function nowLineInLane(page: Page): Promise<boolean> {

@@ -188,14 +188,8 @@ export class AppComponent implements OnInit {
                     // The switch re-renders every date with the new locale;
                     // its data is a lazy chunk that must be registered first.
                     void this.dateLocales.use(resolvedLang);
-                    // Fetch EPG if URLs are configured (only fetch stale data)
-                    if (
-                        this.epgBridge.supportsImport &&
-                        settings.epgUrl?.length > 0 &&
-                        settings.epgUrl?.some((u) => u !== '')
-                    ) {
-                        this.fetchStaleEpgData(settings.epgUrl);
-                    }
+                    if (this.epgBridge.supportsImport)
+                        void this.fetchStaleEpgData();
 
                     if (settings.theme) {
                         this.settingsService.changeTheme(settings.theme);
@@ -227,8 +221,11 @@ export class AppComponent implements OnInit {
      * Fetches EPG data only for URLs that have stale or missing data.
      * Data is considered fresh if updated within the last 12 hours.
      */
-    private async fetchStaleEpgData(urls: string[]): Promise<void> {
+    private async fetchStaleEpgData(): Promise<void> {
         await this.settingsStore.loadSettings();
+        const urls = this.settingsStore.epgUrl();
+        if (urls.length === 0) return;
+
         const revision = this.epgSources.revision();
         const fetchCurrentSources = async (sources: string[]) => {
             await this.epgSources.waitForReconciliation();
