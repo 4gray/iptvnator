@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'preact/hooks';
 import type { NativePlayer } from '@iptvnator/tv/data-access';
-import { installRemote } from '@iptvnator/tv/ui';
+import { installImeGuard, installRemote } from '@iptvnator/tv/ui';
 import type { Media } from '@iptvnator/tv/util';
 
 export function useTvRemote(state: {
@@ -13,9 +13,9 @@ export function useTvRemote(state: {
 }) {
     const latest = useRef(state);
     latest.current = state;
-    useEffect(
-        () =>
-            installRemote(
+    useEffect(() => {
+        const removeImeGuard = installImeGuard();
+        const removeRemote = installRemote(
                 () => latest.current.back(),
                 () => latest.current.fullscreen,
                 (action) => {
@@ -40,7 +40,10 @@ export function useTvRemote(state: {
                     if (action === 'rewind') p?.seek(-10);
                     if (action === 'forward') p?.seek(10);
                 }
-            ),
-        []
-    );
+        );
+        return () => {
+            removeImeGuard();
+            removeRemote();
+        };
+    }, []);
 }

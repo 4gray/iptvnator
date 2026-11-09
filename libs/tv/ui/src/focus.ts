@@ -1,4 +1,7 @@
 import {
+    backspaceEdits,
+    editingText,
+    editingTextarea,
     isBackKey,
     mediaKeyAction,
     type TvMediaAction,
@@ -55,13 +58,7 @@ export function installRemote(
                     40: 'ArrowDown',
                 } as Record<number, string>
             )[code] ?? event.key;
-        if (
-            isBackKey(event) &&
-            !(
-                event.key === 'Backspace' &&
-                event.target instanceof HTMLInputElement
-            )
-        ) {
+        if (isBackKey(event) && !backspaceEdits(event)) {
             event.preventDefault();
             back();
             return;
@@ -75,14 +72,12 @@ export function installRemote(
         if (!direction.startsWith('Arrow')) return;
         const from = document.activeElement as HTMLElement;
         const horizontal = /Left|Right/.test(direction);
-        // Keep caret/slider movement native; vertical arrows leave single-line
-        // fields. Selects own vertical choice changes and leave horizontally.
+        // Keep caret/slider movement native while a field is editable;
+        // read-only fields and vertical arrows leave single-line fields.
+        // Selects own vertical choice changes and leave horizontally.
         if (
-            from?.matches('textarea') ||
-            (horizontal &&
-                from?.matches(
-                    'input:not([type="checkbox"]):not([type="radio"])'
-                )) ||
+            editingTextarea(from) ||
+            (horizontal && editingText(from)) ||
             (!horizontal && from?.matches('select'))
         )
             return;

@@ -1,4 +1,9 @@
-import { isBackKey } from '@iptvnator/tv/util';
+import {
+    backspaceEdits,
+    editingText,
+    editingTextarea,
+    isBackKey,
+} from '@iptvnator/tv/util';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 
@@ -106,19 +111,10 @@ export function useSettingsNavigation(memory: SettingsMemory) {
                 } as Record<number, string>
             )[event.keyCode] ?? event.key;
         const inPanel = !!target.closest('[data-settings-panel]');
-        const back =
-            isBackKey(event) &&
-            !(event.key === 'Backspace' && target.matches('input,textarea'));
-        // Text inputs retain horizontal caret movement. Native selects leave
-        // horizontally, as in the shared remote engine.
-        if (
-            inPanel &&
-            (back ||
-                (key === 'ArrowLeft' &&
-                    !target.matches(
-                        'textarea,input:not([type="checkbox"]):not([type="radio"])'
-                    )))
-        ) {
+        const back = isBackKey(event) && !backspaceEdits(event);
+        // Editable text inputs retain horizontal caret movement. Native
+        // selects leave horizontally, as in the shared remote engine.
+        if (inPanel && (back || (key === 'ArrowLeft' && !editingText(target)))) {
             event.preventDefault();
             event.stopPropagation();
             categoryButton()?.focus();
@@ -134,14 +130,12 @@ export function useSettingsNavigation(memory: SettingsMemory) {
             inPanel &&
             ['ArrowUp', 'ArrowDown', 'ArrowRight'].includes(key)
         ) {
-            // Selects own choice keys and text inputs own the caret. All other
-            // moves stay in this form rather than crossing into the categories.
+            // Selects own choice keys and editable text inputs own the caret.
+            // Other moves stay in this form rather than crossing categories.
             if (
-                (target.matches('select,textarea') && key !== 'ArrowRight') ||
-                (key === 'ArrowRight' &&
-                    target.matches(
-                        'textarea,input:not([type="checkbox"]):not([type="radio"])'
-                    ))
+                ((target.matches('select') || editingTextarea(target)) &&
+                    key !== 'ArrowRight') ||
+                (key === 'ArrowRight' && editingText(target))
             )
                 return;
             event.preventDefault();
