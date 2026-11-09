@@ -559,16 +559,25 @@ public class MainActivity extends Activity {
 
     /**
      * In fullscreen the WebView is hidden and Chromium's fullscreen view holds focus, so D-pad and
-     * OK never reach the page: the player controls could not be reached and OK did nothing. Hand
-     * them to the page script instead, which replays them on the focused element. The key names
-     * are constants from the switch above, never user input.
+     * OK may not reach the page. Let the page route those keys to its controls and keep native
+     * delivery for keys it declines, such as input inside a trailer frame or text caret movement.
+     * The key names are constants from the switch above.
      */
     private boolean forwardToPage(KeyEvent event, String key) {
         int action = event.getAction();
-        if (action == KeyEvent.ACTION_DOWN || action == KeyEvent.ACTION_UP) {
-            String type = action == KeyEvent.ACTION_DOWN ? "keydown" : "keyup";
-            js("window.__tvShell && window.__tvShell.key && window.__tvShell.key('" + type + "','" + key + "')");
+        if (webView == null || (action != KeyEvent.ACTION_DOWN && action != KeyEvent.ACTION_UP)) {
+            return super.dispatchKeyEvent(event);
         }
+        View fullscreenView = customView;
+        KeyEvent nativeKey = new KeyEvent(event);
+        String type = action == KeyEvent.ACTION_DOWN ? "keydown" : "keyup";
+        webView.evaluateJavascript(
+            "window.__tvShell && window.__tvShell.key && window.__tvShell.key('" + type + "','" + key + "')",
+            handled -> {
+                if (!"true".equals(handled) && customView == fullscreenView) {
+                    fullscreenView.dispatchKeyEvent(nativeKey);
+                }
+            });
         return true;
     }
 
@@ -648,13 +657,14 @@ public class MainActivity extends Activity {
         if (webView == null || isFinishing()) return;
         // requestFocus(FOCUS_DOWN) on a WebView that already has focus moves the page focus to its
         // first element, away from the field that asked for the keyboard.
-        if (!webView.hasFocus()) webView.requestFocus();
+        View inputView = customView != null ? customView : webView;
+        if (!inputView.hasFocus()) inputView.requestFocus();
         InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
         if (imm == null) return;
         // The field may have become editable after the WebView last described it to the keyboard
         // (tv.js holds a D-pad-focused field read-only): describe it again before showing.
-        imm.restartInput(webView);
-        imm.showSoftInput(webView, InputMethodManager.SHOW_IMPLICIT);
+        imm.restartInput(inputView);
+        imm.showSoftInput(inputView, InputMethodManager.SHOW_IMPLICIT);
     }
 
     void openSettings() {

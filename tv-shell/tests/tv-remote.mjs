@@ -973,6 +973,21 @@ check(JSON.stringify(sliderMoves) === JSON.stringify([
     ['input', '0.49'], ['change', '0.49'],
 ]),
     'forwarded fullscreen arrows move the range by its step and emit events only for unhandled changes');
+const search = page.locator('#synthetic-fullscreen-search');
+await page.evaluate(() => {
+    const input = document.createElement('input');
+    input.id = 'synthetic-fullscreen-search';
+    input.type = 'search';
+    input.value = 'test';
+    document.fullscreenElement.append(input);
+    input.focus();
+    input.setSelectionRange(2, 2);
+});
+check(await page.evaluate(() => ['keydown', 'keyup'].every((type) => !window.__tvShell.key(type, 'ArrowLeft'))),
+    'fullscreen search leaves caret movement to the native key');
+await key('ArrowLeft');
+check(await search.evaluate((input) => input.selectionStart === 1), 'the native key moves the search caret');
+await search.evaluate((input) => input.remove());
 await page.evaluate(() => {
     document.querySelector('#synthetic-fullscreen').insertAdjacentHTML('beforeend',
         `<div class="cdk-overlay-backdrop cdk-overlay-backdrop-showing"></div>
@@ -1004,6 +1019,19 @@ await page.evaluate(async () => {
 await key('ArrowDown');
 check(await page.evaluate(() => document.activeElement.id === 'synthetic-fullscreen-behind'),
     'leaving fullscreen restores navigation to the surrounding document');
+await page.evaluate(() => {
+    const frame = document.createElement('iframe');
+    frame.id = 'synthetic-fullscreen-frame';
+    document.body.append(frame);
+});
+await page.locator('#synthetic-fullscreen-frame').evaluate(async (frame) => {
+    await frame.requestFullscreen();
+    frame.focus();
+});
+check(await page.evaluate(() => ['ArrowRight', 'Enter'].every((key) =>
+    ['keydown', 'keyup'].every((type) => !window.__tvShell.key(type, key)))),
+    'a fullscreen trailer frame keeps native arrows and OK');
+await page.evaluate(() => document.exitFullscreen());
 console.log('18. HTML5 video without native controls is reachable from the channel row and controls');
 await page.evaluate(() => {
     document.body.innerHTML = `<div class="channel-list-item" style="position:absolute;left:20px;top:100px;width:320px">
@@ -1028,6 +1056,20 @@ await page.evaluate(() => {
 await key('ArrowUp');
 check(await page.evaluate(() => document.activeElement.id === 'synthetic-html5-video'),
     'Up from the controls returns to the HTML5 picture before it has a tabindex');
+await page.evaluate(() => {
+    const video = document.querySelector('#synthetic-html5-video');
+    Object.defineProperty(video, 'duration', { value: Infinity });
+    document.querySelector('.player-controls__bar').insertAdjacentHTML('beforeend',
+        '<input type="range" class="player-controls__slider--timeline" max="120">');
+    window.__rewindPresses = 0;
+    video.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowLeft') window.__rewindPresses++;
+    });
+    video.focus();
+});
+await key('ArrowLeft');
+check(await page.evaluate(() => window.__rewindPresses === 1 && document.activeElement.id === 'synthetic-html5-video'),
+    'Left reaches the player shortcut for raw-TS VOD with an infinite element duration');
 console.log('19. under the Android bridge: a text field reached with the D-pad keeps the keyboard closed until OK');
 {
     const tvPage = await context.newPage();
@@ -1093,6 +1135,16 @@ console.log('19. under the Android bridge: a text field reached with the D-pad k
     await field.evaluate((input) => input.select());
     await press('ControlOrMeta+v');
     check(await field.inputValue() === 'synthetic paste', 'a paste shortcut edits a held field without an initial OK');
+    await press('ArrowDown');
+    await press('ArrowUp');
+    await field.evaluate((input) => {
+        input.select();
+        input.dispatchEvent(new KeyboardEvent('keydown', {
+            key: '@', ctrlKey: true, altKey: true, modifierAltGraph: true, bubbles: true,
+        }));
+    });
+    await tvPage.keyboard.insertText('@');
+    check(await field.inputValue() === '@', 'AltGr can type the first character into a held field');
     check(await keyboardRequests() === requestsBeforeHardwareEdits, 'hardware edits do not request the on-screen keyboard');
     await tvPage.close();
 }

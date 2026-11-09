@@ -435,6 +435,7 @@
     function isHardwareEdit(event) {
         var key = event.key;
         if (key === 'Backspace' || key === 'Delete' || (key === 'Insert' && event.shiftKey)) return true;
+        if (key && key.length === 1 && event.getModifierState('AltGraph')) return true;
         if ((event.ctrlKey || event.metaKey) && !event.altKey) return /^[vxyz]$/i.test(key);
         return key && key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey;
     }
@@ -694,8 +695,11 @@
         return false;
     }
 
-    /** VOD has a finite duration; a live stream reports Infinity (or NaN before metadata). */
     function canSeek(media) {
+        // A shared timeline reflects the engine's seek capability, even for raw-TS VOD whose
+        // video element duration is Infinity. It remains rendered during temporary buffering.
+        var player = media.closest('[class*="player-shell"]');
+        if (player && player.querySelector('.player-controls__slider--timeline')) return true;
         var d = media.duration;
         return typeof d === 'number' && isFinite(d) && d > 0;
     }
@@ -1069,6 +1073,12 @@
         if (!code || (type !== 'keydown' && type !== 'keyup')) return false;
         var active = document.activeElement;
         var target = active && active !== document.body ? active : document;
+        var fullscreen = document.fullscreenElement;
+        var dir = DIR[key];
+        if (type === 'keyup' && dir) heldArrow = null;
+        // The fullscreen Android view can deliver trusted input to frames and text editors.
+        if ((fullscreen && fullscreen.tagName === 'IFRAME') || target.tagName === 'IFRAME' ||
+            (dir && isTextField(target) && (type === 'keyup' || passThroughArrow(target, dir)))) return false;
         var ev = new KeyboardEvent(type, { key: key, code: key, bubbles: true, cancelable: true });
         // The constructor ignores keyCode/which; players that still read them need the values.
         try {
