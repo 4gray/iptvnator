@@ -514,6 +514,36 @@
         return true;
     }
 
+    /**
+     * The entry to land on when entering the list that holds `el` from outside it: the selected
+     * one, else the first. A list is the nearest ancestor (not holding `from`) with several
+     * elements of `el`'s tag and first class; anything else keeps `el`.
+     */
+    function listEntry(el, from) {
+        var token = el.classList && el.classList[0];
+        if (!token || !window.CSS || !CSS.escape) return el;
+        var sel = el.tagName.toLowerCase() + '.' + CSS.escape(token);
+        for (var box = el.parentElement; box && box !== document.body; box = box.parentElement) {
+            if (box.contains(from)) return el;
+            var items = box.querySelectorAll(sel);
+            if (items.length < 2) continue;
+            // Only a stacked list: a toolbar (a player header's Back, Favorite, ... row) keeps the
+            // nearest button, or Right would jump to its first one.
+            var a = items[0].getBoundingClientRect(), b = items[1].getBoundingClientRect();
+            if (b.top < a.bottom - 1) return el;
+            var chosen = box.querySelector(sel + '.selected,' + sel + '.active,' + sel + '[aria-selected="true"],' +
+                sel + '[aria-current]:not([aria-current="false"])');
+            // The mark can sit on the entry's row instead (channel rows mark .active on the wrapper).
+            for (var i = 0; !chosen && i < items.length; i++) {
+                var mark = items[i].closest('.selected,.active,[aria-selected="true"]');
+                if (mark && box.contains(mark) && mark !== box) chosen = items[i];
+            }
+            chosen = chosen || items[0];
+            return chosen.isConnected && qualifies(chosen) ? chosen : el;
+        }
+        return el;
+    }
+
     function move(dir, retried) {
         var scope = navigationScope();
         var active = document.activeElement;
@@ -534,6 +564,29 @@
             next = findNext(dir, src, scope, exclude);
         } finally {
             reach.top = reach.right = reach.bottom = reach.left = 0;
+        }
+        // A sideways step into another list (rail to categories, categories to channels) lands on
+        // that list's selected entry, else its first, instead of whichever entry is level with the
+        // source: the Live TV rail icon sits beside the 4th category.
+        if (next && exclude && (dir === 'left' || dir === 'right')) next = { el: listEntry(next.el, exclude) };
+        // Channel list beside a preview player: Right from a channel goes to the picture instead of
+        // walking the row's own star and info buttons (the Menu key still offers those).
+        // Left from that picture returns to the playing channel, not an overlay button in its
+        // left half (the picture's centre is the source, so those count as "left" of it).
+        if (dir === 'left' && exclude && exclude.tagName === 'VIDEO' && !document.fullscreenElement) {
+            var playing = document.querySelector('.channel-list-item.active .channel-content');
+            if (playing && qualifies(playing) && (scope === document || scope.contains(playing)) &&
+                playing.getBoundingClientRect().right <= exclude.getBoundingClientRect().left + 1) {
+                next = { el: playing };
+            }
+        }
+        var row = dir === 'right' && exclude && exclude.closest && exclude.closest('.channel-list-item');
+        if (row) {
+            var preview = activeVideo();
+            if (preview && preview.isConnected && (scope === document || scope.contains(preview))) {
+                var pr = preview.getBoundingClientRect();
+                if (pr.width > 0 && pr.left >= row.getBoundingClientRect().right - 1) next = { el: preview };
+            }
         }
         // The picture covers the whole player, so it never counts as "above" the controls dock and
         // Up would skip it for an overlay button in a corner. Leaving the dock upwards returns to
@@ -611,7 +664,9 @@
         // On the video: Left/Right stay with the app (seek); Up/Down navigate
         // to the player controls and the rest of the page (the TV remote owns
         // the volume anyway).
-        if (tag === 'VIDEO' || tag === 'AUDIO') return horizontal;
+        // A live picture has nothing to seek: Left goes back to the list beside it (see move),
+        // Right stays with the player and shows its controls.
+        if (tag === 'VIDEO' || tag === 'AUDIO') return horizontal && (dir === 'right' || canSeek(el) || !!document.fullscreenElement);
         // Expanded comboboxes keep Up/Down for their active descendant; horizontal
         // arrows follow the input caret rule so the remote can reach other controls.
         var role = el.getAttribute('role');
@@ -630,6 +685,12 @@
         if (el.closest('.mat-mdc-slider,mat-slider')) return horizontal;
         if (el.closest('[data-tv-passthrough]')) return true;
         return false;
+    }
+
+    /** VOD has a finite duration; a live stream reports Infinity (or NaN before metadata). */
+    function canSeek(media) {
+        var d = media.duration;
+        return typeof d === 'number' && isFinite(d) && d > 0;
     }
 
     function revealPlayerControls(el) {
