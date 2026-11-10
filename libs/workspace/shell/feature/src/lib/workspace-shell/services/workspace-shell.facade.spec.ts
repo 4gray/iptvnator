@@ -974,6 +974,41 @@ describe('WorkspaceShellFacade', () => {
         );
     });
 
+    it('shows a portal guide action only for its owning live route and folds the category panel while it is open', () => {
+        const headerContext = TestBed.inject(WorkspaceHeaderContextService);
+        const open = signal(false);
+        const id = 'xtream-epg-guide';
+        headerContext.setAction({
+            id,
+            icon: 'grid_view',
+            tooltipKey: 'TOP_MENU.OPEN_EPG_GUIDE',
+            ariaLabelKey: 'TOP_MENU.OPEN_EPG_GUIDE',
+            owner: {
+                provider: 'xtreams',
+                playlistId: 'synthetic-portal',
+                section: 'live',
+            },
+            hidesContextPanel: open,
+            palette: { labelKey: 'TOP_MENU.OPEN_EPG_GUIDE' },
+            run: jest.fn(),
+        });
+        const commands = () =>
+            facade.commandPaletteCommands().map((command) => command.id);
+        facade.currentUrl.set('/workspace/xtreams/synthetic-portal/live/1');
+        expect(facade.headerShortcut()?.id).toBe(id);
+        expect(commands()).toContain(id);
+        expect(facade.showContextPanel()).toBe(true);
+        open.set(true);
+        expect(facade.showContextPanel()).toBe(false);
+        expect(facade.headerSidebarToggle()).toBeNull();
+        facade.currentUrl.set('/workspace/xtreams/another-portal/live/1');
+        expect(facade.headerShortcut()).toBeNull();
+        expect(commands()).not.toContain(id);
+        expect(facade.showContextPanel()).toBe(true);
+        facade.currentUrl.set('/workspace/xtreams/synthetic-portal/vod');
+        expect(facade.headerShortcut()).toBeNull();
+    });
+
     it('disables the programme guide command while the header action reports disabled', () => {
         const headerContext = TestBed.inject(WorkspaceHeaderContextService);
 

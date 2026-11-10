@@ -35,9 +35,13 @@ describe('XtreamApiService', () => {
         dataService.sendIpcEvent.mockResolvedValue({ payload: [] });
         await service.getCategories(credentials, 'live', { signal });
         expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
-            XTREAM_REQUEST, expect.not.objectContaining({ signal }), signal
+            XTREAM_REQUEST,
+            expect.not.objectContaining({ signal }),
+            signal
         );
-        expect(dataService.sendIpcEvent.mock.calls[0][1]).not.toHaveProperty('signal');
+        expect(dataService.sendIpcEvent.mock.calls[0][1]).not.toHaveProperty(
+            'signal'
+        );
     });
 
     describe.each(['live', 'vod', 'series'] as const)(
@@ -234,6 +238,22 @@ describe('XtreamApiService', () => {
                     username: 'demo',
                 },
             })
+        );
+    });
+
+    it('keeps an empty full guide when the legacy action is unsupported', async () => {
+        dataService.sendIpcEvent
+            .mockResolvedValueOnce({ payload: { epg_listings: [] } })
+            .mockRejectedValueOnce(new Error('synthetic unsupported action'));
+        await expect(service.getFullEpg(credentials, 101)).resolves.toEqual([]);
+        expect(dataService.sendIpcEvent).toHaveBeenCalledTimes(2);
+    });
+
+    it('reports a full guide failure when neither action responds', async () => {
+        const error = new Error('synthetic provider outage');
+        dataService.sendIpcEvent.mockRejectedValue(error);
+        await expect(service.getFullEpg(credentials, 101)).rejects.toThrow(
+            error.message
         );
     });
 

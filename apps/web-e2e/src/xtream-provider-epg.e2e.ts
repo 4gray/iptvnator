@@ -20,6 +20,44 @@ test.beforeEach(async ({ page, request }) => {
     await interceptXtreamRequests(page);
 });
 
+test('@xtream @epg PWA opens the multi-channel programme guide in both themes', async ({
+    page,
+}) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.route('**/live/**', (route) => route.abort());
+    await addXtreamPortal(page, EPG_PORTAL);
+    await page.getByRole('link', { name: 'Live TV', exact: true }).click();
+    await page
+        .locator('.context-panel .category-item')
+        .filter({ hasText: 'EPG Focus' })
+        .click();
+    await page
+        .locator('app-live-stream-layout [data-test-id="channel-item"]')
+        .filter({ hasText: 'Timezone News' })
+        .click();
+
+    const guide = page.locator('app-epg-guide');
+    const shortcut = page.locator('[data-test-id="xtream-epg-guide"]');
+    await shortcut.click();
+    for (const dark of [false, true]) {
+        await applyUiTheme(page, dark);
+        await expect(
+            guide.getByRole('grid', { name: 'Programme guide' })
+        ).toBeVisible();
+        await expect(
+            guide.getByRole('button', { name: 'Global Headlines', exact: true })
+        ).toBeVisible();
+        await expect(
+            guide.getByRole('button', { name: 'Night Sports', exact: true })
+        ).toBeVisible();
+    }
+    await page.keyboard.press('g');
+    await expect(guide).toHaveCount(0);
+    await expect(
+        page.locator('app-live-stream-layout app-epg-timeline')
+    ).toBeVisible();
+});
+
 test('@xtream @epg PWA keeps CJK narrow titles upright without rotating other scripts differently', async ({
     page,
 }) => {

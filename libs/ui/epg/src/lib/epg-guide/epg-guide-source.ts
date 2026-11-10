@@ -33,6 +33,7 @@ export interface EpgGuideWindow {
     readonly channels: readonly EpgGuideChannel[];
     readonly fromMs: number;
     readonly toMs: number;
+    readonly signal?: AbortSignal;
 }
 
 export interface EpgGuideCatchUp {
@@ -67,8 +68,14 @@ export interface EpgGuideSource {
     setScope(id: string): void;
     /** Programmes overlapping the window, keyed by `EpgGuideChannel.id`. */
     loadPrograms(range: EpgGuideWindow): Promise<Map<string, EpgProgram[]>>;
+    /** Per-stream sources publish each row as it arrives. */
+    readonly programBatchSize?: number;
     /** Ids of channels with at least one programme in the window. */
     loadCoverage(range: EpgGuideWindow): Promise<Set<string>>;
+    /** Checking every channel requires provider requests, so wait for the filter. */
+    readonly deferredCoverage?: boolean;
+    /** Source changes that don't change the channel catalogue. */
+    readonly revision?: Signal<unknown>;
     readonly activeChannelId: Signal<string | null>;
     /**
      * False while the host plays something other than the active channel's
@@ -79,7 +86,10 @@ export interface EpgGuideSource {
     /** Switch playback; the guide stays open. */
     activate(channelId: string): void;
     /** Optional programme search; the toolbar hides its field when absent. */
-    searchPrograms?(query: string): Promise<EpgGuideSearchHit[]>;
+    searchPrograms?(
+        query: string,
+        signal?: AbortSignal
+    ): Promise<EpgGuideSearchHit[]>;
     readonly catchUp?: EpgGuideCatchUp;
 }
 

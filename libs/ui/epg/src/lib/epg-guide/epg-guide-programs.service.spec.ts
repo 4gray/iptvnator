@@ -39,13 +39,16 @@ describe('EpgGuideProgramsService', () => {
     >();
     const loadCoverage = jest.fn<Promise<Set<string>>, [unknown]>();
     let service: EpgGuideProgramsService;
+    let source: EpgGuideSource;
+    const revision = signal(0);
 
     beforeEach(() => {
         loadPrograms.mockReset();
         loadCoverage.mockReset();
         loadCoverage.mockResolvedValue(new Set());
         channels.set([channel('a'), channel('b'), channel('c', null)]);
-        const source: EpgGuideSource = {
+        revision.set(0);
+        source = {
             channels,
             scopes: signal([]),
             scopeId: signal('all'),
@@ -54,6 +57,7 @@ describe('EpgGuideProgramsService', () => {
             loadCoverage,
             activeChannelId: signal(null),
             activate: jest.fn(),
+            revision,
         };
         TestBed.configureTestingModule({
             providers: [
@@ -65,6 +69,72 @@ describe('EpgGuideProgramsService', () => {
         // Consume the constructor effect's first run (a no-op by design) so
         // each test starts from a clean, predictable call count.
         TestBed.flushEffects();
+    });
+
+    it('checks deferred coverage only on request and aborts a cancelled scan', async () => {
+        Object.assign(source, { deferredCoverage: true });
+        let resolve!: (ids: Set<string>) => void;
+        loadCoverage.mockImplementation(
+            () => new Promise((done) => (resolve = done))
+        );
+        service.setWindow(1000, 2000);
+        expect(loadCoverage).not.toHaveBeenCalled();
+        service.setCoverageRequested(true);
+        expect(loadCoverage).toHaveBeenCalledTimes(1);
+        expect(service.coverageStatus()).toBe('loading');
+        const request = loadCoverage.mock.calls[0][0] as {
+            signal: AbortSignal;
+        };
+        service.setCoverageRequested(false);
+        expect(request.signal.aborted).toBe(true);
+        resolve(new Set(['a']));
+        await flush();
+        expect(service.coverageLoaded()).toBe(false);
+        expect(service.isCovered('b')).toBe(true);
+    });
+
+    it('aborts visible-row work and invalidates cached programmes after a source revision', async () => {
+        let finish!: (programs: Map<string, EpgProgram[]>) => void;
+        loadPrograms
+            .mockResolvedValueOnce(new Map([['a', [programFor('a')]]]))
+            .mockImplementationOnce(
+                () => new Promise((resolve) => (finish = resolve))
+            );
+        service.setWindow(1000, 2000);
+        service.ensureLoaded([channels()[0]]);
+        await flush();
+        expect(service.programsFor('a')).toHaveLength(1);
+        service.ensureLoaded([channels()[1]]);
+        const request = loadPrograms.mock.calls[1][0] as {
+            signal: AbortSignal;
+        };
+        revision.update((value) => value + 1);
+        TestBed.flushEffects();
+        expect(request.signal.aborted).toBe(true);
+        finish(new Map([['b', [programFor('b')]]]));
+        await flush();
+        expect(service.programsFor('a')).toEqual([]);
+        expect(service.programsFor('b')).toEqual([]);
+        expect(service.statusFor('a')).toBe('idle');
+    });
+
+    it('retires pending per-stream requests when the rows scroll out of range', async () => {
+        Object.assign(source, { programBatchSize: 1 });
+        let finish!: (programs: Map<string, EpgProgram[]>) => void;
+        loadPrograms.mockImplementationOnce(
+            () => new Promise((resolve) => (finish = resolve))
+        );
+        loadPrograms.mockResolvedValue(new Map([['b', [programFor('b')]]]));
+        service.setWindow(1000, 2000);
+        service.ensureLoaded([channels()[0]]);
+        const first = loadPrograms.mock.calls[0][0] as { signal: AbortSignal };
+        service.ensureLoaded([channels()[1]]);
+        finish(new Map([['a', [programFor('a')]]]));
+        await flush();
+        expect(first.signal.aborted).toBe(true);
+        expect(service.statusFor('a')).toBe('idle');
+        expect(service.programsFor('a')).toEqual([]);
+        expect(service.programsFor('b')).toHaveLength(1);
     });
 
     it('reports "none" for channels without an EPG key and never requests them', async () => {

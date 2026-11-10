@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { MockPipe } from 'ng-mocks';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslateModule, TranslatePipe } from '@ngx-translate/core';
 import { By } from '@angular/platform-browser';
 import { Subject, of } from 'rxjs';
 import {
@@ -115,7 +115,11 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         runtime.supportsProviderCatchUp = true;
 
         await TestBed.configureTestingModule({
-            imports: [LiveStreamLayoutComponent, NoopAnimationsModule],
+            imports: [
+                TranslateModule.forRoot(),
+                LiveStreamLayoutComponent,
+                NoopAnimationsModule,
+            ],
             providers: [
                 {
                     provide: EpgArchiveDownloadService,

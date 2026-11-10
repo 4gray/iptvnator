@@ -184,6 +184,13 @@ test('compositing report', async ({ dataDir, request }) => {
         await clickCategoryByNameExact(page, live.categoryName);
         await toggleFavoriteForChannel(page, getXtreamTitle(live.items[0]));
         await measure('live-tv', TILE_POOL_SETTLE_MS);
+        await page.getByTestId('channel-item').first().click();
+        await measure('xtream-live-playing', TILE_POOL_SETTLE_MS);
+        const guideShortcut = page.getByTestId('xtream-epg-guide');
+        await guideShortcut.click();
+        await expect(page.locator('app-epg-guide')).toBeVisible();
+        await measure('xtream-programme-guide', TILE_POOL_SETTLE_MS);
+        await guideShortcut.click();
 
         await page.getByRole('link', { exact: true, name: 'Movies' }).click();
         await clickCategoryByNameExact(page, vod.categoryName);

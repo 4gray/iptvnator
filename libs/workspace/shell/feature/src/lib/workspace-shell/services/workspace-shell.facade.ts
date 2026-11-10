@@ -121,8 +121,16 @@ export class WorkspaceShellFacade {
     );
     readonly dashboardXtreamContext = this.routeState.dashboardXtreamContext;
     readonly contextPanel = this.routeState.contextPanel;
-    readonly showContextPanel = this.routeState.showContextPanel;
-    readonly hasContextPanelContent = this.routeState.hasContextPanelContent;
+    readonly showContextPanel = computed(
+        () =>
+            this.routeState.showContextPanel() &&
+            !this.header.headerShortcut()?.hidesContextPanel?.()
+    );
+    readonly hasContextPanelContent = computed(
+        () =>
+            this.routeState.hasContextPanelContent() &&
+            !this.header.headerShortcut()?.hidesContextPanel?.()
+    );
     readonly contextDrawerLabelKeys = this.routeState.contextDrawerLabelKeys;
     readonly showXtreamImportOverlay =
         this.xtreamImport.showXtreamImportOverlay;

@@ -85,6 +85,14 @@
         <i aria-hidden="true"></i>
         <span>{{ 'EPG.GUIDE.ONLY_WITH_EPG' | translate }}</span>
     </label>
+    @if (coverageStatus() !== 'idle') {
+        <span class="guide-toolbar__count" role="status">
+            {{
+                (coverageStatus() === 'loading' ? 'EPG.FETCH_EPG' : 'EPG.ERROR')
+                    | translate
+            }}
+        </span>
+    }
 
     <button
         type="button"

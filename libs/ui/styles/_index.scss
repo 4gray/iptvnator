@@ -5,6 +5,7 @@
 //   @use '../../../../../../ui/styles/portal-layout' as portal;
 
 @forward 'portal-layout';
+@forward 'epg-guide-dock' as epg-guide-*;
 @forward 'content-grid';
 @forward 'portal-sidebar';
 @forward 'panel-header';

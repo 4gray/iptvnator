@@ -56,13 +56,14 @@ import {
     restorePortalChannelSortMode,
 } from '@iptvnator/portal/shared/util';
 import {
-    FavoriteItem,
-    FavoritesService,
     findCurrentEpgItem,
     XtreamUrlService,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
 import {
+    EPG_GUIDE_SOURCE,
+    EpgGuideComponent,
+    EpgGuideNowPlayingComponent,
     EpgArchiveCopyService,
     EpgDateNavigationDirection,
     EpgListViewComponent,
@@ -115,13 +116,21 @@ import {
     type XtreamLiveChannelItem,
 } from './xtream-live-channel-navigation.service';
 
+import { XtreamEpgGuideSourceService } from './xtream-epg-guide-source.service';
+import { XtreamLiveGuideService } from './xtream-live-guide.service';
+import { toSharedEpgProgram } from '../portal-channels-list/epg-preview-program';
+
 const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
 
 @Component({
     selector: 'app-live-stream-layout',
     templateUrl: './live-stream-layout.component.html',
     styleUrls: ['./live-stream-layout.component.scss'],
+    host: { '(document:fullscreenchange)': 'guide.closeOnFullscreen()' },
     providers: [
+        XtreamEpgGuideSourceService,
+        XtreamLiveGuideService,
+        { provide: EPG_GUIDE_SOURCE, useExisting: XtreamEpgGuideSourceService },
         LiveStreamAutoOpenStateService,
         XtreamLiveChannelNavigationService,
         // The fullscreen channel panel inside the player renders this
@@ -132,6 +141,8 @@ const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
         },
     ],
     imports: [
+        EpgGuideComponent,
+        EpgGuideNowPlayingComponent,
         EpgListViewComponent,
         EpgTimelineComponent,
         MatButtonModule,
@@ -160,7 +171,8 @@ export class LiveStreamLayoutComponent
     private readonly hostElement = inject(ElementRef<HTMLElement>);
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
-    private readonly favoritesService = inject(FavoritesService);
+    readonly guide = inject(XtreamLiveGuideService);
+    private readonly guideSource = inject(XtreamEpgGuideSourceService);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly recordRecentItem = injectXtreamRecentHistory();
     readonly archiveContextKey = computed(() =>
@@ -246,7 +258,7 @@ export class LiveStreamLayoutComponent
         return item.xtream_id ? item : null;
     });
     readonly controlledEpgPrograms = computed<EpgProgram[]>(() =>
-        this.epgItems().map((program) => this.toControlledEpgProgram(program))
+        this.epgItems().map(toSharedEpgProgram)
     );
     private readonly recordingsService = inject(RecordingsService);
     /** Channel/EPG snapshot for the embedded-MPV recording tracker. */
@@ -468,9 +480,26 @@ export class LiveStreamLayoutComponent
     readonly activeStreamUrl = computed(
         () => this.activePlayback()?.streamUrl ?? ''
     );
-    favorites = new Map<number, boolean>();
+    readonly guideNowPlayingProgram = computed(() => {
+        const program = findCurrentEpgItem(
+            this.epgItems(),
+            epgProviderClockMs(this.currentTimeMs(), this.epgOffsetMinutes())
+        );
+        return (
+            this.activeCatchupProgram() ??
+            (program ? toSharedEpgProgram(program) : null)
+        );
+    });
 
     constructor() {
+        this.guide.bind(computed(() => !!this.activeStreamUrl()));
+        this.guideSource.bind((item, channels) =>
+            this.playLive(item, true, channels)
+        );
+        effect(() =>
+            this.guideSource.setLivePlayback(!this.showReturnToLive())
+        );
+
         effect(() => {
             const playlistId = this.xtreamStore.currentPlaylist()?.id ?? null;
             if (this.activePlaylistId && this.activePlaylistId !== playlistId) {
@@ -667,18 +696,6 @@ export class LiveStreamLayoutComponent
         this.liveChannelSortMode.set(
             restorePortalChannelSortMode(LIVE_CHANNEL_SORT_STORAGE_KEY)
         );
-
-        const playlist = this.xtreamStore.currentPlaylist();
-        if (playlist) {
-            this.favoritesService
-                .getFavorites(playlist.id)
-                .subscribe((favorites) => {
-                    // Map using content.id instead of xtream_id
-                    favorites.forEach((fav: FavoriteItem) => {
-                        this.favorites.set(fav.xtream_id, true);
-                    });
-                });
-        }
     }
 
     playLive(
@@ -694,7 +711,7 @@ export class LiveStreamLayoutComponent
         // Keep both root/recently-added playback and same-category replays in
         // sync with the category rail. For already-selected channels this is a
         // store no-op.
-        if (!remote) this.selectLiveItemCategory(item);
+        if (!remote && !this.guide.isOpen()) this.selectLiveItemCategory(item);
         this.activeLiveItemId.set(item.xtream_id);
         this.activeLiveProviderCategoryId =
             this.resolveLiveProviderCategoryId(item);
@@ -800,6 +817,9 @@ export class LiveStreamLayoutComponent
 
     @HostListener('document:keydown', ['$event'])
     handleSidebarShortcut(event: KeyboardEvent): void {
+        this.guide.handleKey(event);
+        if (event.defaultPrevented || this.guide.isOpen()) return;
+
         if (
             (event.metaKey || event.ctrlKey) &&
             event.key.toLowerCase() === 'b' &&
@@ -1031,25 +1051,6 @@ export class LiveStreamLayoutComponent
             this.getCatchupPlaybackTitle(item, program),
             item.poster_url ?? item.stream_icon ?? null
         );
-    }
-
-    private toControlledEpgProgram(program: EpgItem): EpgProgram {
-        return {
-            start: program.start,
-            stop: program.stop ?? program.end,
-            channel: program.channel_id ?? program.id,
-            title: program.title,
-            desc: program.description ?? null,
-            category: null,
-            startTimestamp: getProgramTimestampSeconds(
-                program.start,
-                program.start_timestamp
-            ),
-            stopTimestamp: getProgramTimestampSeconds(
-                program.stop ?? program.end,
-                program.stop_timestamp
-            ),
-        };
     }
 
     private toLiveEpgPanelSummary(

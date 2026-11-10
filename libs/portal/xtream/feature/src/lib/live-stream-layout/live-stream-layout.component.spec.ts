@@ -9,7 +9,7 @@ import {
     convertToParamMap,
 } from '@angular/router';
 import { MockPipe } from 'ng-mocks';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslateModule, TranslatePipe } from '@ngx-translate/core';
 import { BehaviorSubject, Subject, of } from 'rxjs';
 import {
     LIVE_EPG_PANEL_STATE_STORAGE_KEY,
@@ -178,7 +178,11 @@ describe('LiveStreamLayoutComponent', () => {
         routeQueryParamMap = new BehaviorSubject(convertToParamMap({}));
 
         await TestBed.configureTestingModule({
-            imports: [LiveStreamLayoutComponent, NoopAnimationsModule],
+            imports: [
+                TranslateModule.forRoot(),
+                LiveStreamLayoutComponent,
+                NoopAnimationsModule,
+            ],
             providers: [
                 {
                     provide: EpgArchiveDownloadService,

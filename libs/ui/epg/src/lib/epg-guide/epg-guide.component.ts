@@ -96,7 +96,7 @@ export class EpgGuideComponent implements OnDestroy {
     readonly viewport = viewChild<CdkVirtualScrollViewport>('viewport');
 
     /** Day, zoom, density, filters, clock and the derived day geometry. */
-    readonly view = new EpgGuideViewState();
+    readonly view = new EpgGuideViewState(!this.source.deferredCoverage);
     readonly dayKey = this.view.dayKey;
     readonly zoom = this.view.zoom;
     readonly density = this.view.density;
@@ -115,13 +115,23 @@ export class EpgGuideComponent implements OnDestroy {
     readonly scopes = this.source.scopes;
     readonly scopeId = this.source.scopeId;
     readonly activeChannelId = this.source.activeChannelId;
-    readonly coverageLoaded = this.programsService.coverageLoaded;
+    readonly coverageFilterAvailable = computed(
+        () =>
+            this.source.deferredCoverage ||
+            this.programsService.coverageLoaded()
+    );
+    readonly coverageStatus = computed(() =>
+        this.source.deferredCoverage
+            ? this.programsService.coverageStatus()
+            : 'idle'
+    );
     private readonly search = new EpgGuideSearchController(
         this.source.searchPrograms?.bind(this.source)
     );
     readonly searchEnabled = this.search.enabled;
     readonly searchQuery = this.search.query;
     readonly searchResults = this.search.results;
+    readonly searchStatus = this.search.status;
     readonly searchPanelVisible = this.search.panelVisible;
     readonly catchUpAvailable = this.source.catchUp !== undefined;
     readonly channelColumnPx = EPG_GUIDE_CHANNEL_COLUMN_PX;
@@ -217,12 +227,19 @@ export class EpgGuideComponent implements OnDestroy {
             });
         });
         effect(() => {
+            this.source.revision?.();
             const rows = this.rows();
             untracked(() => {
                 this.reconcileFocus(rows);
                 this.viewportController.loadRenderedRange();
             });
         });
+        if (this.source.revision) {
+            effect(() => {
+                this.source.revision?.();
+                untracked(() => this.search.setQuery(''));
+            });
+        }
         effect(() => {
             const viewport = this.viewport();
             if (!viewport) {
@@ -312,6 +329,7 @@ export class EpgGuideComponent implements OnDestroy {
 
     setOnlyWithEpg(value: boolean): void {
         this.view.onlyWithEpg.set(value);
+        this.programsService.setCoverageRequested(value);
     }
 
     setDensity(value: EpgGuideDensity): void {

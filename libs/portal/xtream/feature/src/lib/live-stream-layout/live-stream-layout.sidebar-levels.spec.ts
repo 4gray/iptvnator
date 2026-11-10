@@ -10,7 +10,7 @@ import {
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslateModule, TranslatePipe } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
 import { Subject, of } from 'rxjs';
 import {
@@ -142,7 +142,11 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
         xtreamStore.selectItemsFromSelectedCategory.mockReturnValue([]);
 
         await TestBed.configureTestingModule({
-            imports: [LiveStreamLayoutComponent, NoopAnimationsModule],
+            imports: [
+                TranslateModule.forRoot(),
+                LiveStreamLayoutComponent,
+                NoopAnimationsModule,
+            ],
             providers: [
                 {
                     provide: EpgArchiveDownloadService,

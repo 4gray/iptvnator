@@ -344,6 +344,7 @@ export class XtreamApiService extends XtreamEpgNormalizer {
         streamId: number,
         options?: XtreamRequestOptions
     ): Promise<EpgItem[]> {
+        let primaryAnswered = false;
         try {
             const response: EpgResponse = await this.sendRequest(
                 credentials,
@@ -359,6 +360,7 @@ export class XtreamApiService extends XtreamEpgNormalizer {
                 response,
                 credentials.serverTimezone
             );
+            primaryAnswered = true;
             if (items.length > 0) {
                 return items;
             }
@@ -366,21 +368,26 @@ export class XtreamApiService extends XtreamEpgNormalizer {
             // Fall back to the legacy typo endpoint below.
         }
 
-        const fallbackResponse: EpgResponse = await this.sendRequest(
-            credentials,
-            {
-                action: XtreamCodeActions.GetSimpleDateTable,
-                username: credentials.username,
-                password: credentials.password,
-                stream_id: streamId,
-            },
-            options
-        );
-
-        return this.normalizeFullEpgItems(
-            fallbackResponse,
-            credentials.serverTimezone
-        );
+        try {
+            const fallbackResponse: EpgResponse = await this.sendRequest(
+                credentials,
+                {
+                    action: XtreamCodeActions.GetSimpleDateTable,
+                    username: credentials.username,
+                    password: credentials.password,
+                    stream_id: streamId,
+                },
+                options
+            );
+            return this.normalizeFullEpgItems(
+                fallbackResponse,
+                credentials.serverTimezone
+            );
+        } catch (error) {
+            // A valid empty guide is still an answer on panels without the legacy action.
+            if (primaryAnswered) return [];
+            throw error;
+        }
     }
 
     /**

@@ -26,6 +26,7 @@ export interface XtreamLiveChannelItem {
     readonly name?: string;
     readonly poster_url?: string;
     readonly stream_icon?: string;
+    readonly epg_channel_id?: string | null;
     readonly title?: string;
     readonly tmdb_id?: number | null;
     readonly release_year?: number | null;

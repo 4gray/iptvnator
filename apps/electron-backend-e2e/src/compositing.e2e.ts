@@ -85,6 +85,14 @@ test.describe('Compositing budget', () => {
                 page.getByTestId('channel-item').first()
             ).toBeVisible();
             expect((await clipMasks()).masks, 'Live TV').toEqual([]);
+            await page.getByTestId('channel-item').first().click();
+            const guideShortcut = page.getByTestId('xtream-epg-guide');
+            await guideShortcut.click();
+            await expect(page.locator('app-epg-guide')).toBeVisible();
+            expect((await clipMasks()).masks, 'Xtream programme guide').toEqual(
+                []
+            );
+            await guideShortcut.click();
 
             await page
                 .getByRole('link', { exact: true, name: 'Movies' })

@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { signalStore, withState } from '@ngrx/signals';
+import { patchState, signalStore, withState } from '@ngrx/signals';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import { EpgItem } from '@iptvnator/shared/interfaces';
 import { XtreamApiService } from '../../services/xtream-api.service';
@@ -54,6 +54,7 @@ interface TestStoreSetup {
 
 function configureStore(setup: TestStoreSetup) {
     const TestEpgStore = signalStore(
+        { protectedState: false },
         withState({
             currentPlaylist: { ...PLAYLIST, userAgent: setup.userAgent },
             selectedItem: setup.selectedItem,
@@ -106,6 +107,25 @@ function configureStore(setup: TestStoreSetup) {
 
 describe('withEpg', () => {
     afterEach(() => TestBed.resetTestingModule());
+
+    it('keeps the newest channel guide when a previous channel replies last', async () => {
+        const { store, xtreamApiService } = configureStore({
+            selectedItem: { xtream_id: 101 },
+        });
+        let finish!: (items: EpgItem[]) => void;
+        xtreamApiService.getFullEpg.mockImplementationOnce(
+            () => new Promise((resolve) => (finish = resolve))
+        );
+        const old = store.loadEpg();
+        patchState(store, { selectedItem: { xtream_id: 102 } });
+        const newest = [buildProgram('Synthetic Programme B', 100, 200)];
+        xtreamApiService.getFullEpg.mockResolvedValueOnce(newest);
+        await store.loadEpg();
+        finish([buildProgram('Synthetic Programme A', 100, 200)]);
+        await old;
+        expect(store.epgItems()).toEqual(newest);
+        expect(store.isLoadingEpg()).toBe(false);
+    });
 
     it('forwards the playlist User-Agent for selected and row guides', async () => {
         const { store, xtreamApiService } = configureStore({

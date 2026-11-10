@@ -7,11 +7,7 @@ import {
     withHooks,
     withState,
 } from '@ngrx/signals';
-import {
-    buildXtreamEpgMappingKey,
-    EpgItem,
-    epgProviderClockMs,
-} from '@iptvnator/shared/interfaces';
+import { EpgItem, epgProviderClockMs } from '@iptvnator/shared/interfaces';
 import {
     EpgPreferencesService,
     EpgSourceSettingsService,
@@ -22,6 +18,7 @@ import {
     XtreamApiService,
     XtreamCredentials,
 } from '../../services/xtream-api.service';
+import { XtreamFullEpgService } from '../../services/xtream-full-epg.service';
 import { XtreamXmltvFallbackService } from '../../services/xtream-xmltv-fallback.service';
 import { createLogger } from '@iptvnator/portal/shared/util/logger';
 
@@ -108,6 +105,7 @@ export function withEpg() {
         withMethods((store) => {
             const apiService = inject(XtreamApiService);
             const fallbackService = inject(XtreamXmltvFallbackService);
+            const fullEpg = inject(XtreamFullEpgService);
             const runtime = inject(RuntimeCapabilitiesService);
             const settingsStore = inject(SettingsStore);
             const sources = inject(EpgSourceSettingsService);
@@ -144,13 +142,7 @@ export function withEpg() {
             const preferUploaded = (): boolean =>
                 settingsStore.preferUploadedEpgOverXtream?.() ?? false;
 
-            const fetchFullProvider = (
-                credentials: XtreamCredentials,
-                xtreamId: number
-            ): Promise<EpgItem[]> =>
-                apiService.getFullEpg(credentials, xtreamId, {
-                    suppressErrorLog: true,
-                });
+            let loadGeneration = 0;
 
             return {
                 /**
@@ -161,7 +153,11 @@ export function withEpg() {
                  * sets `preferUploadedEpgOverXtream`.
                  */
                 async loadEpg(): Promise<EpgItem[]> {
+                    const generation = ++loadGeneration;
                     const sourceRevision = sources.revision();
+                    const isCurrent = () =>
+                        generation === loadGeneration &&
+                        sourceRevision === sources.revision();
                     if (!supportsProviderEpg()) {
                         patchState(store, {
                             epgItems: [],
@@ -187,39 +183,17 @@ export function withEpg() {
 
                     patchState(store, { epgItems: [], isLoadingEpg: true });
 
-                    // Resolve manual EPG mapping before the provider waterfall.
-                    // The mapping dialog saves under the playlist-scoped
-                    // Xtream key, so look it up and use the mapped EPG
-                    // channel ID for the XMLTV / provider lookup.
-                    let epgChannelId = selectedItem?.epg_channel_id ?? null;
-                    const playlistId = storeAny.currentPlaylist?.()?.id;
-                    if (runtime.supportsEpgMapping && playlistId) {
-                        try {
-                            const mapping =
-                                await window.electron?.getEpgMapping?.(
-                                    buildXtreamEpgMappingKey(
-                                        playlistId,
-                                        xtreamId
-                                    )
-                                );
-                            if (mapping?.epgChannelId?.trim()) {
-                                epgChannelId = mapping.epgChannelId.trim();
-                            }
-                        } catch {
-                            // Non-fatal; keep original epgChannelId.
-                        }
-                    }
-
                     try {
-                        const epgItems =
-                            await fallbackService.resolveCurrentEpg({
-                                epgChannelId,
-                                preferUploaded: preferUploaded(),
-                                fetchProvider: () =>
-                                    fetchFullProvider(credentials, xtreamId),
-                            });
+                        const epgItems = await fullEpg.load(
+                            {
+                                ...credentials,
+                                id: storeAny.currentPlaylist?.()?.id,
+                            },
+                            xtreamId,
+                            selectedItem?.epg_channel_id ?? null
+                        );
 
-                        if (sourceRevision !== sources.revision()) return [];
+                        if (!isCurrent()) return [];
                         patchState(store, {
                             epgItems,
                             isLoadingEpg: false,
@@ -227,7 +201,7 @@ export function withEpg() {
 
                         return epgItems;
                     } catch (error) {
-                        if (sourceRevision !== sources.revision()) return [];
+                        if (!isCurrent()) return [];
                         logger.error('Error loading EPG', error);
                         patchState(store, {
                             epgItems: [],
@@ -270,6 +244,7 @@ export function withEpg() {
                  * Clear EPG data
                  */
                 clearEpg(): void {
+                    loadGeneration++;
                     patchState(store, initialEpgState);
                 },
             };

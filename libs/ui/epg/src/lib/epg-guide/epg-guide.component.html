@@ -8,7 +8,8 @@
         [scopes]="scopes()"
         [scopeId]="scopeId()"
         [onlyWithEpg]="onlyWithEpg()"
-        [coverageLoaded]="coverageLoaded()"
+        [coverageLoaded]="coverageFilterAvailable()"
+        [coverageStatus]="coverageStatus()"
         [density]="density()"
         [zoom]="zoom()"
         [filter]="filter()"
@@ -27,33 +28,55 @@
     />
 
     @if (searchPanelVisible()) {
-        <div class="epg-guide__search-results" role="listbox">
-            @for (
-                hit of searchResults();
-                track hit.program.channel + hit.program.start + $index
-            ) {
-                <button
-                    type="button"
-                    class="epg-guide__search-result"
-                    role="option"
-                    [attr.aria-selected]="false"
-                    (click)="openSearchResult(hit)"
-                >
-                    <span class="epg-guide__search-title">{{
-                        hit.program.title
-                    }}</span>
-                    <span class="epg-guide__search-meta">
-                        {{
-                            searchHitStartMs(hit)
-                                | date: 'EEE d MMM HH:mm' : '' : currentLocale()
-                        }}
-                        · {{ hit.channelName ?? hit.program.channel }}
-                    </span>
-                </button>
-            } @empty {
-                <div class="epg-guide__search-empty">
-                    {{ 'EPG.GUIDE.NO_RESULTS' | translate }}
+        <div
+            class="epg-guide__search-results"
+            [attr.role]="searchResults().length ? 'listbox' : null"
+            [attr.aria-label]="
+                searchResults().length
+                    ? ('EPG.GUIDE.SEARCH_PROGRAMMES' | translate)
+                    : null
+            "
+        >
+            @if (searchStatus() !== 'idle') {
+                <div class="epg-guide__search-empty" role="status">
+                    {{
+                        (searchStatus() === 'loading'
+                            ? 'EPG.FETCH_EPG'
+                            : 'EPG.ERROR'
+                        ) | translate
+                    }}
                 </div>
+            } @else {
+                @for (
+                    hit of searchResults();
+                    track hit.program.channel + hit.program.start + $index
+                ) {
+                    <button
+                        type="button"
+                        class="epg-guide__search-result"
+                        role="option"
+                        [attr.aria-selected]="false"
+                        (click)="openSearchResult(hit)"
+                    >
+                        <span class="epg-guide__search-title">{{
+                            hit.program.title
+                        }}</span>
+                        <span class="epg-guide__search-meta">
+                            {{
+                                searchHitStartMs(hit)
+                                    | date
+                                        : 'EEE d MMM HH:mm'
+                                        : ''
+                                        : currentLocale()
+                            }}
+                            · {{ hit.channelName ?? hit.program.channel }}
+                        </span>
+                    </button>
+                } @empty {
+                    <div class="epg-guide__search-empty">
+                        {{ 'EPG.GUIDE.NO_RESULTS' | translate }}
+                    </div>
+                }
             }
         </div>
     }

@@ -96,6 +96,8 @@ export class StubEpgTimelineComponent {
     readonly summaryLabelKey = input('');
     readonly offsetMinutes = input(0);
     readonly programActivated = output<EpgProgramActivationEvent>();
+    readonly guideAvailable = input(false);
+    readonly openGuide = output<void>();
     readonly returnToLive = output<void>();
     readonly selectedDateChange = output<string>();
     readonly collapsedChange = output<boolean>();

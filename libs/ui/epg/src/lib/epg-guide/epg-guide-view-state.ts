@@ -41,7 +41,9 @@ export class EpgGuideViewState {
     readonly dayKey = signal(getTodayEpgDateKey());
     readonly zoom = signal(this.preferences.zoom);
     readonly density = signal<EpgGuideDensity>(this.preferences.density);
-    readonly onlyWithEpg = signal(this.preferences.onlyWithEpg);
+    readonly onlyWithEpg = signal(
+        this.rememberCoverageFilter && this.preferences.onlyWithEpg
+    );
     readonly filter = signal('');
     readonly nowMs = signal(Date.now());
     /** The viewport's horizontal offset; the ruler and now-line follow it. */
@@ -82,12 +84,14 @@ export class EpgGuideViewState {
         CLOCK_TICK_MS
     );
 
-    constructor() {
+    constructor(private readonly rememberCoverageFilter = true) {
         effect(() =>
             persistEpgGuidePreferences({
                 density: this.density(),
                 zoom: this.zoom(),
-                onlyWithEpg: this.onlyWithEpg(),
+                onlyWithEpg: this.rememberCoverageFilter
+                    ? this.onlyWithEpg()
+                    : this.preferences.onlyWithEpg,
             })
         );
     }

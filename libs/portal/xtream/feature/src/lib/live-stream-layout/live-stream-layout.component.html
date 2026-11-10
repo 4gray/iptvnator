@@ -1,7 +1,7 @@
 @let isEmbeddedPlayer = usesEmbeddedPlayer();
 @let streamUrl = activeStreamUrl();
 
-@if (showLiveChannelSidebar()) {
+@if (showLiveChannelSidebar() && !guide.isOpen()) {
     <div
         class="sidebar"
         [class.sidebar-collapsed]="isSidebarCollapsed()"
@@ -144,8 +144,12 @@
         />
     </div>
 }
-<div class="content-container">
-    @if (isSidebarCollapsed()) {
+<div
+    class="content-container"
+    [class.is-guide]="guide.isOpen()"
+    [class.is-guide-collapsed]="guide.collapsed()"
+>
+    @if (isSidebarCollapsed() && !guide.isOpen()) {
         <button
             #restoreButton
             mat-icon-button
@@ -160,7 +164,12 @@
     }
     @if (streamUrl) {
         @if (isEmbeddedPlayer) {
-            <div class="video-player">
+            <div
+                class="video-player"
+                [attr.data-player-shortcuts-suspended]="
+                    guide.isOpen() ? '' : null
+                "
+            >
                 <app-web-player-view
                     [playbackSessionKey]="playbackSessionKey()"
                     [streamUrl]="streamUrl"
@@ -173,9 +182,23 @@
                     "
                     (recordingStopped)="onRecordingStopped($event)"
                 />
+                @if (guide.isOpen()) {
+                    <ng-container *ngTemplateOutlet="guideNowPlaying" />
+                }
+            </div>
+        } @else if (guide.isOpen()) {
+            <div class="video-player guide-dock--external">
+                <ng-container *ngTemplateOutlet="guideNowPlaying" />
             </div>
         }
-        @if (supportsProviderEpg) {
+        @if (guide.isOpen()) {
+            <app-epg-guide
+                class="epg-guide-host"
+                tabindex="-1"
+                (close)="guide.close()"
+            />
+        }
+        @if (supportsProviderEpg && !guide.isOpen()) {
             <div
                 class="epg"
                 [class.epg--inline]="isEmbeddedPlayer"
@@ -266,6 +289,8 @@
     <div class="epg-content">
         @if (epgViewMode() === 'list') {
             <app-epg-list-view
+                [guideAvailable]="guide.available()"
+                (openGuide)="guide.open()"
                 [programs]="controlledEpgPrograms()"
                 [offsetMinutes]="epgOffsetMinutes()"
                 [channelName]="activePlayback()?.title ?? ''"
@@ -289,6 +314,8 @@
             />
         } @else {
             <app-epg-timeline
+                [guideAvailable]="guide.available()"
+                (openGuide)="guide.open()"
                 [programs]="controlledEpgPrograms()"
                 [offsetMinutes]="epgOffsetMinutes()"
                 [channelName]="activePlayback()?.title ?? ''"
@@ -328,5 +355,17 @@
         (playbackRequested)="
             playLive($event, true, fullscreenList.filteredChannels())
         "
+    />
+</ng-template>
+
+<ng-template #guideNowPlaying>
+    <app-epg-guide-now-playing
+        [channelName]="activePlayback()?.title ?? ''"
+        [program]="guideNowPlayingProgram()"
+        [offsetMinutes]="epgOffsetMinutes()"
+        [collapsed]="guide.collapsed()"
+        [collapsible]="usesEmbeddedPlayer()"
+        (closeRequested)="guide.close()"
+        (collapsedChange)="guide.setCollapsed($event)"
     />
 </ng-template>
