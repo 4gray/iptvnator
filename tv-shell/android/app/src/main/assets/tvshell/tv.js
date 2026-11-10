@@ -701,6 +701,11 @@
         var player = media.closest('[class*="player-shell"]');
         if (player && player.querySelector('.player-controls__slider--timeline')) return true;
         var d = media.duration;
+        if (isFinite(d) && d > 0) return true;
+        // Legacy Video.js keeps the corrected raw-TS duration on the player.
+        var root = media.closest('.video-js');
+        var engine = root && root.player;
+        d = engine && typeof engine.duration === 'function' ? engine.duration() : NaN;
         return typeof d === 'number' && isFinite(d) && d > 0;
     }
 

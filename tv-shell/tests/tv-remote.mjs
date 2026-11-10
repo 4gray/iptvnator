@@ -1074,6 +1074,27 @@ await page.evaluate(() => {
 await key('ArrowLeft');
 check(await page.evaluate(() => window.__rewindPresses === 1 && document.activeElement.id === 'synthetic-html5-video'),
     'Left reaches the player shortcut for raw-TS VOD with an infinite element duration');
+await page.evaluate(() => {
+    const video = document.querySelector('#synthetic-html5-video');
+    const vendor = document.createElement('div');
+    vendor.className = 'video-js';
+    vendor.player = { duration: () => 120 };
+    document.querySelector('.player-controls__slider--timeline').remove();
+    video.before(vendor);
+    vendor.append(video);
+    video.focus();
+});
+await key('ArrowLeft');
+check(await page.evaluate(() => window.__rewindPresses === 2 && document.activeElement.id === 'synthetic-html5-video'),
+    'Left reaches legacy Video.js shortcuts when the engine reports a finite duration');
+await page.evaluate(() => {
+    document.querySelector('.video-js').player.duration = () => Infinity;
+    document.querySelector('.channel-list-item').classList.add('active');
+    document.querySelector('#synthetic-html5-video').focus();
+});
+await key('ArrowLeft');
+check(await page.evaluate(() => document.activeElement.id === 'synthetic-channel'),
+    'Left still returns from a live Video.js stream to the playing channel');
 console.log('19. under the Android bridge: a text field reached with the D-pad keeps the keyboard closed until OK');
 {
     const tvPage = await context.newPage();
