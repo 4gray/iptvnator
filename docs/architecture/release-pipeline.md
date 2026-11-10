@@ -339,17 +339,18 @@ scope. The PR scope job takes the place of nightly version resolution on PRs
 and cancels older scope checks for the same PR.
 
 The website-only job builds the site with offline release data and checks the
-four nonempty PNG files at their published paths. For a full build the Linux
-system job performs the same screenshot check once, so it must pass before
-draft or nightly publication. Linux jobs also validate the AppStream XML and
-the packaged metadata for their profiles.
+four nonempty PNG files at their published paths. Every Linux packaging
+profile performs the same screenshot check and validates the AppStream XML
+and packaged metadata.
 
 Every non-fork PR build publishes its artifacts to a rolling **draft** release
 tagged `test-pr-<n>`; a non-PR, non-tag build (a dispatch on a branch) uses
 `test-<branch>`, the shape master pushes used before the nightly channel took
 over. The tag is stable per PR, so the draft is updated in place and a PR has
-at most one. If a new diff only changes the website, an older draft can remain
-until the PR closes; its title and body identify the packaged commit.
+at most one. If a new diff only changes the website, already running packages
+can finish. The release job checks that the PR is open at the built head
+before pruning or uploading, so an older draft can remain until the PR
+closes. Its title and body identify the packaged commit.
 
 `cleanup-pr-draft.yml` deletes a PR's draft when the PR closes. That event is
 the fast path, not a guarantee: GitHub does not run a `pull_request: closed`

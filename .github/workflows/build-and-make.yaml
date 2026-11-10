@@ -6,7 +6,7 @@ name: Build and Make Electron App
 #
 # Known accepted edge case: if a PR built a test-pr-<n> draft and later
 # reverts its code changes so only docs or website changes remain, new pushes
-# skip packaging and the draft keeps assets from the older commit. The
+# skip packaging and any existing draft keeps assets from the older commit. The
 # draft's title/body name the exact commit they were built from, and
 # cleanup-pr-draft.yml deletes the draft when the PR closes, so the stale
 # window is visible and bounded; refreshing drafts on skipped runs is not
@@ -813,12 +813,12 @@ jobs:
               run: appstreamcli validate --pedantic --no-net apps/electron-backend/linux/com.fourgray.iptvnator.metainfo.xml
 
             - name: Build website for AppStream
-              if: matrix.os == 'linux' && matrix.linux_profile == 'system'
+              if: matrix.os == 'linux'
               env: *offline-website
               run: *build-appstream-website
 
             - name: Verify AppStream website assets
-              if: matrix.os == 'linux' && matrix.linux_profile == 'system'
+              if: matrix.os == 'linux'
               shell: bash
               run: *verify-appstream-website
 
@@ -1755,18 +1755,24 @@ jobs:
                       echo "body=" >> "${GITHUB_OUTPUT}"
                   fi
 
-            # A PR can be closed while this workflow is still running; the
-            # cleanup workflow deletes the PR draft on close. Re-check the live
-            # PR state right before touching the draft so a late-finishing run
-            # cannot recreate a draft for a closed PR.
+            # Check the live head immediately before updating the draft. A
+            # late build can outlive a PR close or a push that skips packaging.
             - name: Check PR is still open
               if: github.event_name == 'pull_request'
               id: pr-state
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  PR_NUMBER: ${{ github.event.pull_request.number }}
+                  HEAD_SHA: ${{ github.event.pull_request.head.sha }}
               run: |
                   set -euo pipefail
-                  echo "state=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.pull_request.number }}" --jq '.state')" >> "${GITHUB_OUTPUT}"
+                  live="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '[.state, .head.sha] | join(" ")')"
+                  if [[ "${live}" == "open ${HEAD_SHA}" ]]; then
+                      echo "current=true" >> "${GITHUB_OUTPUT}"
+                  else
+                      echo "PR closed or advanced after this build; keeping the existing draft."
+                      echo "current=false" >> "${GITHUB_OUTPUT}"
+                  fi
 
             # The rolling draft keeps assets across runs and the release action
             # only replaces same-name files. If the app version changes between
@@ -1775,7 +1781,7 @@ jobs:
             # full current set right after. Only drafts are pruned; published
             # releases are never touched.
             - name: Prune stale draft assets
-              if: env.NIGHTLY != 'true' && (github.event_name != 'pull_request' || steps.pr-state.outputs.state == 'open')
+              if: env.NIGHTLY != 'true' && (github.event_name != 'pull_request' || steps.pr-state.outputs.current == 'true')
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   RELEASE_TAG: ${{ steps.release-meta.outputs.tag }}
@@ -1798,7 +1804,7 @@ jobs:
 
             - name: Create Draft Release
               id: draft-release
-              if: env.NIGHTLY != 'true' && (github.event_name != 'pull_request' || steps.pr-state.outputs.state == 'open')
+              if: env.NIGHTLY != 'true' && (github.event_name != 'pull_request' || steps.pr-state.outputs.current == 'true')
               uses: softprops/action-gh-release@v3
               with:
                   draft: true
