@@ -532,13 +532,9 @@ test('the committed baselines file is valid and every entry names its evidence f
     }
 });
 
-const windowsWithoutBash =
-    process.platform === 'win32' &&
-    spawnSync('bash', ['--version'], { stdio: 'ignore' }).status !== 0;
-
 test(
     'journeys run when the PR diff is unavailable or removes a runtime path',
-    { skip: windowsWithoutBash },
+    { skip: process.platform === 'win32' },
     async (t) => {
         const root = await mkdtemp(path.join(os.tmpdir(), 'journey-scope-'));
         t.after(() => rm(root, { recursive: true, force: true }));
@@ -547,9 +543,13 @@ test(
             (step) => step.id === 'scope'
         );
         const output = path.join(root, 'scope-output');
-        const env = Object.fromEntries(
-            Object.entries(process.env).filter(([key]) => !/^GIT_/i.test(key))
-        );
+        const env = {
+            ...Object.fromEntries(
+                Object.entries(process.env).filter(([key]) => !/^GIT_/i.test(key))
+            ),
+            GIT_CONFIG_GLOBAL: '/dev/null',
+            GIT_CONFIG_NOSYSTEM: '1',
+        };
         const git = (...args) =>
             execFileSync(
                 'git',
@@ -588,14 +588,14 @@ test(
         git('add', 'runtime.js');
         git('commit', '-m', 'base');
         const missingParent = await run();
-        const push = await run('push');
-        const dispatch = await run('workflow_dispatch');
 
         await writeFile(path.join(root, 'README.md'), 'synthetic docs');
         await writeFile(path.join(root, 'apps/website/page.astro'), 'synthetic site');
         git('add', 'README.md', 'apps/website/page.astro');
         git('commit', '-m', 'website and docs');
         const docsOnly = await run();
+        const push = await run('push');
+        const dispatch = await run('workflow_dispatch');
 
         git('mv', 'runtime.js', 'apps/website/moved.js');
         git('commit', '-m', 'move runtime path into site');
