@@ -3,7 +3,14 @@ import { workspaceRoot } from '@nx/devkit';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { mkdir } from 'node:fs/promises';
-import { chooseTv, addSource, nav, start } from './helpers';
+import {
+    chooseTv,
+    addSource,
+    backend,
+    fillTvField,
+    nav,
+    start,
+} from './helpers';
 import { enableMarketingTmdb } from './marketing-tmdb';
 
 test('a physical key starts editing a focused TV field without OK', async ({
@@ -50,6 +57,27 @@ test('clicking into existing text preserves the pointer caret', async ({
     await expect(name).toHaveValue(
         value.slice(0, selection.start) + 'z' + value.slice(selection.start)
     );
+});
+
+test('an invalid source submission keeps native validation visible', async ({
+    page,
+}) => {
+    await start(page);
+    const name = page.getByRole('textbox', { name: 'Name', exact: true });
+    const url = page.getByLabel('Provider URL');
+    await fillTvField(page.getByLabel('IPTVnator backend URL'), backend);
+    await name.focus();
+    await expect(name).toHaveJSProperty('readOnly', true);
+
+    await page.getByRole('button', { name: 'Save and connect' }).click();
+    await expect(name).toBeFocused();
+    await expect(name).toHaveJSProperty('willValidate', true);
+    await expect(name).not.toHaveJSProperty('validationMessage', '');
+
+    await page.keyboard.press('ArrowDown');
+    await expect(url).toBeFocused();
+    await expect(url).toHaveJSProperty('readOnly', true);
+    await expect(name).toHaveJSProperty('readOnly', true);
 });
 
 test('packaged classic script boots and connects from file protocol', async ({

@@ -27,6 +27,7 @@ function isPhysicalEdit(event: KeyboardEvent) {
 
 export function installImeGuard() {
     const guarded = new WeakSet<TextField>();
+    const invalidFields = new Set<TextField>();
     let activating = false;
     const release = (element: TextField) => {
         if (guarded.delete(element)) element.readOnly = false;
@@ -52,10 +53,20 @@ export function installImeGuard() {
     };
     const onFocus = (event: FocusEvent) => {
         const element = targetOf(event);
-        if (element && !element.readOnly && !activating) {
-            guarded.add(element);
-            element.readOnly = true;
+        if (!element || element.readOnly || activating) return;
+        if (event.type === 'focusin' && invalidFields.has(element)) {
+            invalidFields.clear();
+            return;
         }
+        guarded.add(element);
+        element.readOnly = true;
+    };
+    const onInvalid = (event: Event) => {
+        const element = targetOf(event);
+        if (!element) return;
+        // The browser focuses the first invalid field to show its message.
+        if (!invalidFields.size) setTimeout(() => invalidFields.clear(), 0);
+        invalidFields.add(element);
     };
     // Read-only controls are barred from constraint validation: before a
     // form can submit, its required fields must be editable again so the
@@ -73,6 +84,7 @@ export function installImeGuard() {
         if (button?.type === 'submit') unlockForm(button);
     };
     const onKeyDown = (event: KeyboardEvent) => {
+        invalidFields.clear();
         const element = targetOf(event);
         if (!element || event.defaultPrevented) return;
         if (
@@ -96,11 +108,13 @@ export function installImeGuard() {
     };
     document.addEventListener('focusin', onFocus, true);
     document.addEventListener('focusout', onFocus, true);
+    document.addEventListener('invalid', onInvalid, true);
     document.addEventListener('click', onClick, true);
     document.addEventListener('keydown', onKeyDown, true);
     return () => {
         document.removeEventListener('focusin', onFocus, true);
         document.removeEventListener('focusout', onFocus, true);
+        document.removeEventListener('invalid', onInvalid, true);
         document.removeEventListener('click', onClick, true);
         document.removeEventListener('keydown', onKeyDown, true);
         for (const field of document.querySelectorAll<TextField>(editable))
