@@ -1,14 +1,12 @@
 name: Build and Make Electron App
 
-# Docs-only changes never affect the packaged app, so they skip the build
-# matrix. apps/website/** is intentionally NOT ignored: the Linux build job
-# builds the website to verify AppStream screenshot assets. Tag pushes are
-# unaffected — GitHub does not evaluate paths filters for tags, so v* release
-# builds always run.
+# The workflow keeps running on website PRs to verify the AppStream screenshots
+# in the built site. The packaging jobs skip PRs with no changes outside the
+# website. Tag pushes always run the full build; path filters do not apply to tags.
 #
 # Known accepted edge case: if a PR built a test-pr-<n> draft and later
-# reverts its code changes so the remaining diff is docs-only, new pushes
-# skip this workflow and the draft keeps assets from the older commit. The
+# reverts its code changes so only docs or website changes remain, new pushes
+# skip packaging and the draft keeps assets from the older commit. The
 # draft's title/body name the exact commit they were built from, and
 # cleanup-pr-draft.yml deletes the draft when the PR closes, so the stale
 # window is visible and bounded; refreshing drafts on skipped runs is not
@@ -85,8 +83,79 @@ jobs:
                   echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
                   echo "Nightly version: ${VERSION}"
 
+    appstream-website:
+        name: Check website PR scope and AppStream assets
+        if: github.event_name == 'pull_request'
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        outputs:
+            website-only: ${{ steps.scope.outputs.website-only }}
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v7
+              with:
+                  # The first parent of the PR merge checkout is its base.
+                  fetch-depth: 2
+                  persist-credentials: false
+
+            - name: Check whether the PR only changes the website
+              id: scope
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  # Unavailable diffs and moves across the boundary need packaging.
+                  if git diff --quiet --no-renames --ignore-submodules=none HEAD^1 HEAD -- . ':(top,exclude)apps/website/'; then
+                      echo 'website-only=true' >> "${GITHUB_OUTPUT}"
+                      echo 'No changes outside apps/website. Checking AppStream website assets.' >> "${GITHUB_STEP_SUMMARY}"
+                  else
+                      echo 'website-only=false' >> "${GITHUB_OUTPUT}"
+                  fi
+
+            - name: Install pnpm
+              if: steps.scope.outputs.website-only == 'true'
+              uses: pnpm/action-setup@v6.1.0
+
+            - name: Setup Node.js
+              if: steps.scope.outputs.website-only == 'true'
+              uses: actions/setup-node@v7
+              with:
+                  node-version-file: '.nvmrc'
+                  cache: 'pnpm'
+
+            - name: Install website dependencies
+              if: steps.scope.outputs.website-only == 'true'
+              run: pnpm install --frozen-lockfile --ignore-scripts
+
+            - name: Build website
+              if: steps.scope.outputs.website-only == 'true'
+              env: &offline-website
+                  WEBSITE_SKIP_RELEASE_FETCH: '1'
+              run: &build-appstream-website pnpm nx build website --skip-nx-cache
+
+            - name: Verify built screenshots
+              if: steps.scope.outputs.website-only == 'true'
+              shell: bash
+              run: &verify-appstream-website |
+                  set -euo pipefail
+
+                  for screenshot in player playlists epg settings; do
+                      asset="dist/apps/website/appstream/${screenshot}.png"
+                      if [[ ! -f "${asset}" || ! -s "${asset}" ]]; then
+                          echo "::error::Missing or empty AppStream website asset: ${asset}"
+                          exit 1
+                      fi
+                  done
+
     linux-embedded-mpv-runtime:
         name: Build pinned Linux Embedded MPV runtime
+        needs: appstream-website
+        # Non-PR builds can start immediately after the PR-only job is skipped.
+        if: >-
+            ${{ !cancelled() &&
+                (github.event_name != 'pull_request' ||
+                (needs.appstream-website.result == 'success' &&
+                 needs.appstream-website.outputs.website-only != 'true')) }}
         runs-on: ubuntu-22.04
         timeout-minutes: 120
         # Concurrency lives on the build jobs, not the workflow: cancelling a
@@ -383,7 +452,12 @@ jobs:
 
     build-cross-platform:
         name: Build on ${{ matrix.os }} ${{ matrix.arch }}
-        needs: nightly-version
+        needs: [nightly-version, appstream-website]
+        if: >-
+            ${{ !cancelled() && needs.nightly-version.result == 'success' &&
+                (github.event_name != 'pull_request' ||
+                (needs.appstream-website.result == 'success' &&
+                 needs.appstream-website.outputs.website-only != 'true')) }}
         runs-on: ${{ matrix.runner }}
         timeout-minutes: 120
         concurrency:
@@ -733,22 +807,15 @@ jobs:
               if: matrix.os == 'linux'
               run: appstreamcli validate --pedantic --no-net apps/electron-backend/linux/com.fourgray.iptvnator.metainfo.xml
 
-            - name: Build website
-              if: matrix.os == 'linux'
-              run: pnpm nx build website --skip-nx-cache
+            - name: Build website for AppStream
+              if: matrix.os == 'linux' && matrix.linux_profile == 'system'
+              env: *offline-website
+              run: *build-appstream-website
 
             - name: Verify AppStream website assets
-              if: matrix.os == 'linux'
+              if: matrix.os == 'linux' && matrix.linux_profile == 'system'
               shell: bash
-              run: |
-                  set -euo pipefail
-
-                  for screenshot in player playlists epg settings; do
-                      if ! find dist/apps/website -path "*/appstream/${screenshot}.png" -print -quit | grep -q .; then
-                          echo "::error::Missing AppStream website asset for ${screenshot}.png"
-                          exit 1
-                      fi
-                  done
+              run: *verify-appstream-website
 
             - name: Override macOS arch in electron-builder.json
               if: matrix.os == 'macos'

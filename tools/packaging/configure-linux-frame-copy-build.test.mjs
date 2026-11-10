@@ -440,9 +440,10 @@ test('keeps non-Linux builds independent from the Linux runtime prerequisite', (
 
     assert.ok(crossPlatformJob);
     assert.ok(linuxJob);
-    // The nightly-version job is a cheap, platform-neutral prerequisite; the
-    // Linux runtime build must stay out of the non-Linux dependency list.
-    assert.deepEqual(crossPlatformJob.needs, 'nightly-version');
+    assert.deepEqual(crossPlatformJob.needs, [
+        'nightly-version',
+        'appstream-website',
+    ]);
     assert.deepEqual(
         crossPlatformJob.strategy.matrix.include.map(({ os, arch }) => ({
             os,
@@ -495,6 +496,118 @@ test('keeps non-Linux builds independent from the Linux runtime prerequisite', (
     ]);
     assert.match(buildWorkflow, /steps:\s+&electron-build-steps/);
     assert.match(buildWorkflow, /steps:\s+\*electron-build-steps/);
+});
+
+test('only website changes in a PR merge tree can skip Electron packaging', (t) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'packaging-pr-'));
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+    const repo = path.join(root, 'repo');
+    fs.mkdirSync(path.join(repo, 'apps', 'website'), { recursive: true });
+    const output = path.join(root, 'output');
+    const jobs = buildWorkflowConfig.jobs;
+    const scopeJob = jobs['appstream-website'];
+    const scope = scopeJob.steps.find((step) => step.id === 'scope');
+
+    function git(...args) {
+        const result = spawnSync(
+            'git',
+            [
+                '-c',
+                'user.name=Fixture',
+                '-c',
+                'user.email=fixture@example.test',
+                '-c',
+                'commit.gpgsign=false',
+                '-c',
+                'core.hooksPath=/dev/null',
+                ...args,
+            ],
+            { cwd: repo, encoding: 'utf8' }
+        );
+        assert.equal(result.status, 0, result.stderr);
+    }
+
+    function check(expected) {
+        fs.writeFileSync(output, '');
+        const result = spawnSync('bash', ['-c', scope.run], {
+            cwd: repo,
+            encoding: 'utf8',
+            env: {
+                ...process.env,
+                GITHUB_OUTPUT: output,
+                GITHUB_STEP_SUMMARY: path.join(root, 'summary'),
+            },
+        });
+        assert.equal(result.status, 0, result.stderr);
+        assert.equal(
+            fs.readFileSync(output, 'utf8'),
+            `website-only=${expected}\n`
+        );
+    }
+
+    git('init', '-b', 'main');
+    fs.writeFileSync(path.join(repo, 'apps/website/page.astro'), 'before');
+    fs.writeFileSync(path.join(repo, 'pnpm-lock.yaml'), 'before');
+    git('add', '.');
+    git('commit', '-m', 'base');
+    check(false); // A missing parent keeps packaging enabled.
+
+    git('switch', '-c', 'site');
+    fs.writeFileSync(path.join(repo, 'apps/website/page.astro'), 'after');
+    git('commit', '-am', 'site change');
+    git('switch', 'main');
+    fs.writeFileSync(path.join(repo, 'pnpm-lock.yaml'), 'updated on base');
+    git('commit', '-am', 'base change');
+    git('merge', '--no-ff', '--no-edit', 'site');
+    check(true);
+
+    git('mv', 'pnpm-lock.yaml', 'apps/website/moved.yaml');
+    git('commit', '-m', 'move into site');
+    check(false);
+
+    assert.equal(scopeJob.if, "github.event_name == 'pull_request'");
+    assert.equal(scopeJob.steps[0].with['fetch-depth'], 2);
+    assert.equal(jobs['linux-embedded-mpv-runtime'].needs, 'appstream-website');
+    for (const job of [
+        jobs['linux-embedded-mpv-runtime'],
+        jobs['build-cross-platform'],
+    ]) {
+        assert.match(job.if, /github\.event_name != 'pull_request'/);
+        assert.match(
+            job.if,
+            /needs\.appstream-website\.result == 'success'\s*&&\s*needs\.appstream-website\.outputs\.website-only != 'true'/
+        );
+    }
+});
+
+test('standalone AppStream check rejects a missing or empty built screenshot', (t) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'appstream-website-'));
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+    const output = path.join(root, 'dist/apps/website/appstream');
+    fs.mkdirSync(output, { recursive: true });
+    const job = buildWorkflowConfig.jobs['appstream-website'];
+    const step = job.steps.find(({ name }) => name === 'Verify built screenshots');
+    const packageStep = buildWorkflowConfig.jobs['build-linux'].steps.find(
+        ({ name }) => name === 'Verify AppStream website assets'
+    );
+    assert.equal(packageStep.run, step.run);
+    assert.equal(
+        packageStep.if,
+        "matrix.os == 'linux' && matrix.linux_profile == 'system'"
+    );
+    const verify = () =>
+        spawnSync('bash', ['-c', step.run], { cwd: root, encoding: 'utf8' });
+    for (const name of ['player', 'playlists', 'epg']) {
+        fs.writeFileSync(path.join(output, `${name}.png`), 'fixture');
+    }
+    const missing = verify();
+    assert.equal(missing.status, 1);
+    assert.match(missing.stdout, /settings\.png/);
+
+    fs.writeFileSync(path.join(output, 'settings.png'), '');
+    assert.equal(verify().status, 1);
+    fs.writeFileSync(path.join(output, 'settings.png'), 'fixture');
+    assert.equal(verify().status, 0);
 });
 
 test('Linux runtime toolchain installs fontconfig generators without network wraps', () => {
