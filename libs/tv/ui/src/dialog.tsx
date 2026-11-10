@@ -1,4 +1,5 @@
-import { backspaceEdits, isBackKey } from '@iptvnator/tv/util';
+import { isBackKey } from '@iptvnator/tv/util';
+import { backspaceEdits } from './focus';
 import { createPortal } from 'preact/compat';
 import type { ComponentChildren } from 'preact';
 import { useLayoutEffect, useRef } from 'preact/hooks';

@@ -2,16 +2,16 @@ import { test, type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
 import {
-    backspaceEdits,
     detectTvPlatform,
-    editingText,
     isBackKey,
     mediaKeyAction,
     tvPlatformLabels,
     type TvMediaAction,
 } from '@iptvnator/tv/util';
 import {
+    backspaceEdits,
     currentTvPlatform,
+    editingText,
     installImeGuard,
     installRemote,
     platformBack,

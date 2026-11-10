@@ -1,6 +1,6 @@
-import { backspaceEdits, isBackKey } from '@iptvnator/tv/util';
+import { isBackKey } from '@iptvnator/tv/util';
 import { useEffect, useLayoutEffect, useRef } from 'preact/hooks';
-import { restoreFocus } from '@iptvnator/tv/ui';
+import { backspaceEdits, restoreFocus } from '@iptvnator/tv/ui';
 import type { TvModel } from './use-tv';
 import type { useLiveBrowse } from './use-live-browse';
 

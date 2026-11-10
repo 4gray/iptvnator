@@ -26,33 +26,6 @@ export function isBackKey(event: { key: string; keyCode: number }): boolean {
     );
 }
 
-const textFieldSelector =
-    'textarea,input:not([type="checkbox"]):not([type="radio"])';
-
-/** The element is a text field accepting input right now (not read-only). */
-export function editingText(target: Element | null): boolean {
-    return (
-        !!target?.matches?.(textFieldSelector) &&
-        !(target as HTMLInputElement).readOnly
-    );
-}
-
-/** The element is a textarea accepting input right now (not read-only). */
-export function editingTextarea(target: Element | null): boolean {
-    return (
-        !!target?.matches?.('textarea') &&
-        !(target as HTMLTextAreaElement).readOnly
-    );
-}
-
-/** Backspace deletes text only while the target field is editable. */
-export function backspaceEdits(event: {
-    key: string;
-    target: EventTarget | null;
-}): boolean {
-    return event.key === 'Backspace' && editingText(event.target as Element);
-}
-
 export const tvMediaKeys = [
     { name: 'MediaPlay', code: 415, action: 'play' },
     { name: 'MediaPause', code: 19, action: 'pause' },

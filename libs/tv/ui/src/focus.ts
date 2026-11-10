@@ -1,7 +1,4 @@
 import {
-    backspaceEdits,
-    editingText,
-    editingTextarea,
     isBackKey,
     mediaKeyAction,
     type TvMediaAction,
@@ -10,6 +7,34 @@ import { registerTvKeys } from './platform';
 
 const selectors =
     'button:not(:disabled):not([data-tv-pointer-only]),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),summary,[data-tv-scroll]';
+
+const textFieldSelector =
+    'textarea,input:not([type="checkbox"]):not([type="radio"])';
+
+/** The element is a text field accepting input right now (not read-only). */
+export function editingText(target: Element | null): boolean {
+    return (
+        !!target?.matches?.(textFieldSelector) &&
+        !(target as HTMLInputElement).readOnly
+    );
+}
+
+/** The element is a textarea accepting input right now (not read-only). */
+export function editingTextarea(target: Element | null): boolean {
+    return (
+        !!target?.matches?.('textarea') &&
+        !(target as HTMLTextAreaElement).readOnly
+    );
+}
+
+/** Backspace deletes text only while the target field is editable. */
+export function backspaceEdits(event: {
+    key: string;
+    target: EventTarget | null;
+}): boolean {
+    return event.key === 'Backspace' && editingText(event.target as Element);
+}
+
 export function focusKey() {
     return (document.activeElement as HTMLElement)?.dataset.focus ?? '';
 }

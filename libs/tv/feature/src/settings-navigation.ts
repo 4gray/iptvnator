@@ -1,9 +1,5 @@
-import {
-    backspaceEdits,
-    editingText,
-    editingTextarea,
-    isBackKey,
-} from '@iptvnator/tv/util';
+import { backspaceEdits, editingText, editingTextarea } from '@iptvnator/tv/ui';
+import { isBackKey } from '@iptvnator/tv/util';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 
@@ -114,7 +110,10 @@ export function useSettingsNavigation(memory: SettingsMemory) {
         const back = isBackKey(event) && !backspaceEdits(event);
         // Editable text inputs retain horizontal caret movement. Native
         // selects leave horizontally, as in the shared remote engine.
-        if (inPanel && (back || (key === 'ArrowLeft' && !editingText(target)))) {
+        if (
+            inPanel &&
+            (back || (key === 'ArrowLeft' && !editingText(target)))
+        ) {
             event.preventDefault();
             event.stopPropagation();
             categoryButton()?.focus();

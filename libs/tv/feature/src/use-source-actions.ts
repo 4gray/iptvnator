@@ -1,12 +1,7 @@
 import { isCollectionView, isSavedView } from './navigation';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
-import { restoreFocus } from '@iptvnator/tv/ui';
-import {
-    backspaceEdits,
-    isBackKey,
-    type Media,
-    type Source,
-} from '@iptvnator/tv/util';
+import { backspaceEdits, restoreFocus } from '@iptvnator/tv/ui';
+import { isBackKey, type Media, type Source } from '@iptvnator/tv/util';
 import { navigationOrigin, type NavigationOrigin } from './use-route-history';
 import type { TvModel } from './use-tv';
 
