@@ -561,9 +561,14 @@ public class MainActivity extends Activity {
      * In fullscreen the WebView is hidden and Chromium's fullscreen view holds focus, so D-pad and
      * OK may not reach the page. Let the page route those keys to its controls and keep native
      * delivery for keys it declines, such as input inside a trailer frame or text caret movement.
-     * The key names are constants from the switch above.
+     * The key names are constants from the switch above. Ctrl, Alt and Meta combinations stay on
+     * the native path: the replay carries no modifier flags, so the page guards that skip modified
+     * arrows would see a plain arrow and seek or move focus instead of moving the caret.
      */
     private boolean forwardToPage(KeyEvent event, String key) {
+        if (event.isCtrlPressed() || event.isAltPressed() || event.isMetaPressed()) {
+            return super.dispatchKeyEvent(event);
+        }
         int action = event.getAction();
         if (webView == null || (action != KeyEvent.ACTION_DOWN && action != KeyEvent.ACTION_UP)) {
             return super.dispatchKeyEvent(event);
