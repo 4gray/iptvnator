@@ -17,10 +17,10 @@ describe('XtreamGuideScheduleCache', () => {
                 })
         );
         const current = () => undefined;
-        const first = cache.load(1, current, fetch);
-        const duplicate = cache.load(1, current, fetch);
-        const second = cache.load(2, current, fetch);
-        const third = cache.load(3, current, fetch);
+        const first = cache.load('1', current, fetch);
+        const duplicate = cache.load('1', current, fetch);
+        const second = cache.load('2', current, fetch);
+        const third = cache.load('3', current, fetch);
         expect(fetch).toHaveBeenCalledTimes(2);
         finish[0]([]);
         expect(await first).toEqual([]);
@@ -39,15 +39,15 @@ describe('XtreamGuideScheduleCache', () => {
         const pending = () =>
             new Promise<EpgProgram[]>((resolve) => (finish = resolve));
         const signal = new AbortController();
-        const first = cache.load(1, () => undefined, pending);
+        const first = cache.load('1', () => undefined, pending);
         const second = cache.load(
-            2,
+            '2',
             () => undefined,
             async () => []
         );
         const fetchThird = jest.fn(async () => []);
         const third = cache.load(
-            3,
+            '3',
             () => signal.signal.throwIfAborted(),
             fetchThird
         );
@@ -61,7 +61,7 @@ describe('XtreamGuideScheduleCache', () => {
         await rejected;
         expect(fetchThird).not.toHaveBeenCalled();
         const fresh = jest.fn(async () => []);
-        await cache.load(1, () => undefined, fresh);
+        await cache.load('1', () => undefined, fresh);
         expect(fresh).toHaveBeenCalledTimes(1);
     });
 });

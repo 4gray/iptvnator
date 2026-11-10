@@ -4,6 +4,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import {
     FavoritesService,
+    FavoriteItem,
     XtreamFullEpgService,
     XtreamPlaylistData,
     XtreamStore,
@@ -30,13 +31,24 @@ const playlist: XtreamPlaylistData = {
     password: 'sample',
 };
 const one = {
+    id: 11,
     xtream_id: 101,
     category_id: 7,
     title: 'Synthetic Channel A',
     epg_channel_id: 'sample.a',
 };
-const two = { xtream_id: 102, category_id: 8, title: 'Synthetic Channel B' };
-const hidden = { xtream_id: 103, category_id: 9, title: 'Synthetic Hidden' };
+const two = {
+    id: 12,
+    xtream_id: 102,
+    category_id: 8,
+    title: 'Synthetic Channel B',
+};
+const hidden = {
+    id: 13,
+    xtream_id: 103,
+    category_id: 9,
+    title: 'Synthetic Hidden',
+};
 const categories = [
     {
         id: 7,
@@ -81,10 +93,14 @@ describe('XtreamEpgGuideSourceService', () => {
     const selectedType = signal('live');
     const lockRevision = signal(0);
     const sourceRevision = signal(0);
+    const liveStreams = signal<XtreamLiveChannelItem[]>([]);
+    const runtime = { supportsXtreamSqliteDataSource: true };
+    let favorites: Pick<
+        FavoriteItem,
+        'content_id' | 'xtream_id' | 'type' | 'catalog_status'
+    >[];
     const load = jest.fn<Promise<EpgItem[]>, unknown[]>();
-    const locked = jest.fn(
-        (_playlist: string, _type: string, id: number) => id === 80
-    );
+    const locked = jest.fn<boolean, [string, string, number]>();
     let service: XtreamEpgGuideSourceService;
 
     beforeEach(() => {
@@ -92,10 +108,14 @@ describe('XtreamEpgGuideSourceService', () => {
         selectedType.set('live');
         sourceRevision.set(0);
         lockRevision.set(0);
+        runtime.supportsXtreamSqliteDataSource = true;
+        liveStreams.set([one, two, hidden]);
+        favorites = [
+            { content_id: one.id, xtream_id: one.xtream_id, type: 'movie' },
+            { content_id: two.id, xtream_id: two.xtream_id, type: 'live' },
+        ];
         load.mockReset().mockResolvedValue([program(101)]);
-        locked
-            .mockReset()
-            .mockImplementation((_playlist, _type, id) => id === 80);
+        locked.mockReset().mockImplementation((...args) => args[2] === 80);
         TestBed.configureTestingModule({
             imports: [TranslateModule.forRoot()],
             providers: [
@@ -107,7 +127,7 @@ describe('XtreamEpgGuideSourceService', () => {
                         selectedContentType: selectedType,
                         selectedCategoryId: signal<number | null>(null),
                         getCategoriesBySelectedType: signal(categories),
-                        liveStreams: signal([one, two, hidden]),
+                        liveStreams,
                     },
                 },
                 {
@@ -123,7 +143,7 @@ describe('XtreamEpgGuideSourceService', () => {
                 },
                 {
                     provide: RuntimeCapabilitiesService,
-                    useValue: { supportsXtreamSqliteDataSource: true },
+                    useValue: runtime,
                 },
                 {
                     provide: SettingsStore,
@@ -140,11 +160,7 @@ describe('XtreamEpgGuideSourceService', () => {
                 {
                     provide: FavoritesService,
                     useValue: {
-                        getFavorites: () =>
-                            of([
-                                { xtream_id: 101, type: 'movie' },
-                                { xtream_id: 102, type: 'live' },
-                            ]),
+                        getFavorites: () => of(favorites),
                     },
                 },
             ],
@@ -173,6 +189,130 @@ describe('XtreamEpgGuideSourceService', () => {
         await Promise.resolve();
         service.setScope('favorites');
         expect(service.channels()).toEqual([]);
+    });
+
+    it('keeps duplicate stream copies in their respective categories and plays the scoped copy', () => {
+        locked.mockReturnValue(false);
+        lockRevision.update((value) => value + 1);
+        const copy = {
+            ...one,
+            id: 21,
+            category_id: '008',
+            title: 'Synthetic Channel A Copy',
+        };
+        liveStreams.set([one, two, copy]);
+        const play = jest.fn();
+        service.bind(play);
+        expect(
+            service.channels().filter((channel) => channel.id === '101')
+        ).toHaveLength(1);
+        service.setScope('7');
+        expect(service.channels()).toEqual([
+            expect.objectContaining({ name: one.title }),
+        ]);
+        service.setScope('8');
+        expect(service.channels().map((channel) => channel.name)).toContain(
+            copy.title
+        );
+        service.activate('101');
+        expect(play).toHaveBeenCalledWith(
+            copy,
+            expect.arrayContaining([copy, two])
+        );
+    });
+
+    it('keeps uncategorized and unknown-category PWA streams in All Channels without including locked streams', async () => {
+        runtime.supportsXtreamSqliteDataSource = false;
+        locked.mockImplementation((...args) => args[2] === 8);
+        lockRevision.update((value) => value + 1);
+        const uncategorized = {
+            id: 104,
+            xtream_id: 104,
+            title: 'Synthetic Unassigned',
+        };
+        const unknown = {
+            id: 105,
+            xtream_id: 105,
+            category_id: '99',
+            title: 'Synthetic Unknown Group',
+        };
+        liveStreams.set([
+            { ...one, category_id: '007' },
+            { ...two, category_id: '008' },
+            uncategorized,
+            unknown,
+        ]);
+        expect(service.channels().map((channel) => channel.id)).toEqual([
+            '101',
+            '104',
+            '105',
+        ]);
+        service.setScope('7');
+        expect(service.channels().map((channel) => channel.id)).toEqual([
+            '101',
+        ]);
+        load.mockImplementation(async (_playlist, id) =>
+            id === 104 ? [program(104)] : []
+        );
+        expect(await service.searchPrograms('programme')).toEqual([
+            expect.objectContaining({
+                channelName: uncategorized.title,
+                channelId: null,
+            }),
+        ]);
+    });
+
+    it('excludes unresolved favorites and chooses the resolved catalog row among duplicate streams', async () => {
+        locked.mockReturnValue(false);
+        lockRevision.update((value) => value + 1);
+        const copy = {
+            ...two,
+            id: 22,
+            category_id: 7,
+            title: 'Synthetic Channel B Copy',
+        };
+        liveStreams.set([one, copy, { ...two, id: String(two.id) }]);
+        favorites = [
+            {
+                content_id: one.id,
+                xtream_id: one.xtream_id,
+                type: 'live',
+                catalog_status: 'missing',
+            },
+            {
+                content_id: two.id,
+                xtream_id: two.xtream_id,
+                type: 'live',
+                catalog_status: 'present',
+            },
+        ];
+        service.open();
+        await Promise.resolve();
+        service.setScope('favorites');
+        expect(service.channels()).toEqual([
+            expect.objectContaining({ name: two.title }),
+        ]);
+    });
+
+    it('keeps successful search matches on both sides of a failed channel', async () => {
+        locked.mockReturnValue(false);
+        lockRevision.update((value) => value + 1);
+        const third = {
+            id: 14,
+            xtream_id: 104,
+            category_id: 7,
+            title: 'Synthetic Channel C',
+        };
+        liveStreams.set([one, two, third]);
+        load.mockImplementation(async (_playlist, id) => {
+            if (id === 102) throw new Error('synthetic provider failure');
+            return [program(Number(id))];
+        });
+        expect(
+            (await service.searchPrograms('programme')).map(
+                (hit) => hit.channelId
+            )
+        ).toEqual(['101', '104']);
     });
 
     it('loads full schedules with the shared source-priority resolver and clips by overlap', async () => {

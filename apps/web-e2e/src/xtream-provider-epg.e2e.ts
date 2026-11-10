@@ -51,6 +51,14 @@ test('@xtream @epg PWA opens the multi-channel programme guide in both themes', 
             guide.getByRole('button', { name: 'Night Sports', exact: true })
         ).toBeVisible();
     }
+    await page.setViewportSize({ width: 320, height: 700 });
+    const nowPlayingBody = page.locator(
+        'app-epg-guide-now-playing .now-playing__body'
+    );
+    await expect(nowPlayingBody).toContainText('Global Headlines');
+    await expect
+        .poll(async () => (await nowPlayingBody.boundingBox())?.width ?? 0)
+        .toBeGreaterThan(80);
     await page.keyboard.press('g');
     await expect(guide).toHaveCount(0);
     await expect(

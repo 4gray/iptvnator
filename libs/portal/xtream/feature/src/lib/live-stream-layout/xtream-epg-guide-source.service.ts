@@ -21,7 +21,11 @@ import {
     RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
-import { EpgProgram, foldSearchText } from '@iptvnator/shared/interfaces';
+import {
+    EpgProgram,
+    foldSearchText,
+    isCatalogUnavailable,
+} from '@iptvnator/shared/interfaces';
 import type {
     EpgGuideChannel,
     EpgGuideScope,
@@ -42,6 +46,23 @@ const SEARCH_LIMIT = 20;
 
 function name(item: XtreamLiveChannelItem): string {
     return item.title || item.name || '';
+}
+
+function categoryKey(id: string | number | null | undefined): string {
+    const raw = String(id ?? '').trim();
+    const numeric = Number(raw);
+    return raw && Number.isFinite(numeric) ? String(numeric) : raw;
+}
+
+function rowsByStreamId(
+    items: readonly XtreamLiveChannelItem[]
+): Map<string, XtreamLiveChannelItem> {
+    const rows = new Map<string, XtreamLiveChannelItem>();
+    for (const item of items) {
+        const id = String(item.xtream_id);
+        if (!rows.has(id)) rows.set(id, item);
+    }
+    return rows;
 }
 
 function overlaps(program: EpgProgram, window: EpgGuideWindow): boolean {
@@ -69,7 +90,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     private readonly cache = new XtreamGuideScheduleCache();
     private cacheRevision: unknown;
     private session = new AbortController();
-    private readonly favorites = signal<ReadonlySet<number>>(new Set());
+    private readonly favorites = signal<ReadonlyMap<number, number>>(new Map());
 
     readonly deferredCoverage = true;
     readonly programBatchSize = 1;
@@ -96,21 +117,35 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         });
     });
 
-    private readonly catalog = computed(() => {
-        const categories = new Set(
-            this.categories().map((category) =>
-                Number(category.category_id ?? category.id)
-            )
-        );
+    private readonly items = computed(() => {
+        const playlist = this.playlist();
+        if (!playlist || this.store.selectedContentType() !== 'live') return [];
         const streams =
             this.store.liveStreams() as unknown as XtreamLiveChannelItem[];
-        const items = sortPortalChannelItems(
-            streams.filter((item) => categories.has(Number(item.category_id))),
+        const categories = new Set(
+            this.categories().map((category) =>
+                categoryKey(category.category_id ?? category.id)
+            )
+        );
+        const sqlite = this.runtime.supportsXtreamSqliteDataSource;
+        this.parentalLock.version();
+        return sortPortalChannelItems(
+            streams.filter((item) => {
+                const key = categoryKey(item.category_id);
+                return sqlite
+                    ? categories.has(key)
+                    : !this.parentalLock.isXtreamCategoryLocked(
+                          playlist.id,
+                          'live',
+                          key ? Number(key) : NaN
+                      );
+            }),
             this.navigation.sortMode(),
             name
         );
-        return new Map(items.map((item) => [String(item.xtream_id), item]));
     });
+
+    private readonly catalog = computed(() => rowsByStreamId(this.items()));
 
     readonly revision = computed(() => ({
         playlist: this.playlist(),
@@ -133,7 +168,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
                 kind: 'favorites',
             },
             ...this.categories().map((category) => ({
-                id: String(category.category_id ?? category.id),
+                id: categoryKey(category.category_id ?? category.id),
                 label: category.category_name ?? category.name ?? '',
                 kind: 'group' as const,
             })),
@@ -145,14 +180,26 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         computation: () => ALL,
     });
 
-    private readonly scopedItems = computed(() => {
+    private readonly scopedRows = computed(() => {
         const scope = this.scopeId();
-        const items = [...this.catalog().values()];
-        if (scope === ALL) return items;
-        if (scope === FAVORITES)
-            return items.filter((item) => this.favorites().has(item.xtream_id));
-        return items.filter((item) => String(item.category_id) === scope);
+        if (scope === ALL) return this.catalog();
+        const items = this.items();
+        if (scope === FAVORITES) {
+            const favorites = this.favorites();
+            return rowsByStreamId(
+                items.filter(
+                    (item) => favorites.get(item.xtream_id) === Number(item.id)
+                )
+            );
+        }
+        return rowsByStreamId(
+            items.filter((item) => categoryKey(item.category_id) === scope)
+        );
     });
+
+    private readonly scopedItems = computed(() => [
+        ...this.scopedRows().values(),
+    ]);
 
     readonly channels = computed<EpgGuideChannel[]>(() =>
         this.scopedItems().map((item, index) => ({
@@ -188,20 +235,26 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         this.session = new AbortController();
         const signal = this.session.signal;
         const playlistId = this.playlist()?.id;
-        this.setScope(String(this.store.selectedCategoryId() ?? ALL));
+        this.setScope(categoryKey(this.store.selectedCategoryId()) || ALL);
         if (playlistId) {
             void firstValueFrom(
                 this.favoritesService.getFavorites(playlistId)
             ).then(
                 (items) => {
                     if (!signal.aborted && this.playlist()?.id === playlistId) {
-                        this.favorites.set(
-                            new Set(
-                                items
-                                    .filter((item) => item.type === 'live')
-                                    .map((item) => item.xtream_id)
-                            )
-                        );
+                        const favorites = new Map<number, number>();
+                        for (const item of items) {
+                            if (
+                                item.type === 'live' &&
+                                item.content_id != null &&
+                                !isCatalogUnavailable({
+                                    catalogStatus: item.catalog_status,
+                                })
+                            ) {
+                                favorites.set(item.xtream_id, item.content_id);
+                            }
+                        }
+                        this.favorites.set(favorites);
                     }
                 },
                 () => undefined
@@ -212,7 +265,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     close(): void {
         this.session.abort();
         this.cache.clear();
-        this.favorites.set(new Set());
+        this.favorites.set(new Map());
         this.scopeId.set(ALL);
     }
 
@@ -223,20 +276,21 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
 
     activate(id: string): void {
         if (this.session.signal.aborted) return;
-        const item = this.catalog().get(id);
+        const item = this.scopedRows().get(id);
         if (item) this.play?.(item, this.scopedItems());
     }
 
     async loadPrograms(
         window: EpgGuideWindow
     ): Promise<Map<string, EpgProgram[]>> {
-        const load = this.scheduleReader(window.signal);
+        const { read } = this.scheduleReader(window.signal);
+        const rows = this.scopedRows();
         const results = await Promise.all(
             window.channels.map(async ({ id }) => {
                 try {
                     return [
                         id,
-                        (await load(id)).filter((program) =>
+                        (await read(rows.get(id))).filter((program) =>
                             overlaps(program, window)
                         ),
                     ] as const;
@@ -254,10 +308,15 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     }
 
     async loadCoverage(window: EpgGuideWindow): Promise<Set<string>> {
-        const load = this.scheduleReader(window.signal);
+        const { read } = this.scheduleReader(window.signal);
+        const rows = this.scopedRows();
         const covered = new Set<string>();
         for (const { id } of window.channels) {
-            if ((await load(id)).some((program) => overlaps(program, window)))
+            if (
+                (await read(rows.get(id))).some((program) =>
+                    overlaps(program, window)
+                )
+            )
                 covered.add(id);
         }
         return covered;
@@ -267,12 +326,22 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         query: string,
         signal?: AbortSignal
     ): Promise<EpgGuideSearchHit[]> {
-        const load = this.scheduleReader(signal);
+        const { read, checkCurrent } = this.scheduleReader(signal);
         const term = foldSearchText(query);
-        const visible = new Set(this.channels().map((channel) => channel.id));
+        const scoped = this.scopedRows();
         const hits: EpgGuideSearchHit[] = [];
+        let failed = false;
         for (const [id, item] of this.catalog()) {
-            for (const program of await load(id)) {
+            let programs: EpgProgram[];
+            const displayed = scoped.get(id);
+            try {
+                programs = await read(displayed ?? item);
+            } catch {
+                checkCurrent();
+                failed = true;
+                continue;
+            }
+            for (const program of programs) {
                 if (
                     !foldSearchText(
                         `${program.title} ${program.desc ?? ''}`
@@ -280,19 +349,21 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
                 )
                     continue;
                 hits.push({
-                    channelId: visible.has(id) ? id : null,
-                    channelName: name(item),
+                    channelId: displayed ? id : null,
+                    channelName: name(displayed ?? item),
                     program,
                 });
                 if (hits.length === SEARCH_LIMIT) return hits;
             }
         }
+        if (failed && !hits.length)
+            throw new Error(
+                'Programme search could not check the full catalogue'
+            );
         return hits;
     }
 
-    private scheduleReader(
-        signal?: AbortSignal
-    ): (id: string) => Promise<EpgProgram[]> {
+    private scheduleReader(signal?: AbortSignal) {
         const revision = this.revision();
         const session = this.session.signal;
         if (this.cacheRevision !== revision) {
@@ -305,12 +376,11 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
             if (revision !== this.revision())
                 throw new DOMException('EPG source changed', 'AbortError');
         };
-        return async (id) => {
-            const item = revision.catalog.get(id);
+        const read = async (item: XtreamLiveChannelItem | undefined) => {
             const playlist = revision.playlist;
             if (!playlist || !item) return [];
             const programs = await this.cache.load(
-                item.xtream_id,
+                `${item.xtream_id}:${item.epg_channel_id ?? ''}`,
                 checkCurrent,
                 async () =>
                     (
@@ -326,5 +396,6 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
             checkCurrent();
             return programs;
         };
+        return { read, checkCurrent };
     }
 }

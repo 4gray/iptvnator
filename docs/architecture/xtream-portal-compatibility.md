@@ -782,14 +782,16 @@ The Xtream Live TV header, command palette, timeline and list panel, and `G`
 open the shared multi-channel programme guide while a channel is playing.
 The guide keeps the player mounted in the dock and temporarily replaces the
 live sidebars. It uses the current playlist's visible, unlocked live catalogue
-and can scope it to a category or live favorites.
+and can scope it to a category or resolved live favorites. A stream shared by
+multiple categories appears in each of those scopes and once in All Channels.
 
 Xtream supplies full schedules per stream. The guide starts with the rendered
 rows, shares in-flight work and a bounded in-memory cache, and limits request
 concurrency. It checks the current scope's coverage only when the user turns
 on **Only with EPG**. Programme search reads the available live catalogue
-on demand, including channels outside the viewport. Large scopes can take
-longer to search or filter. Closing the guide or replacing a request discards
+on demand, including channels outside the viewport. A failed schedule does not
+discard matches from other channels. Large scopes can take longer to search or
+filter. Closing the guide or replacing a request discards
 queued work and stale replies. Guide and player use the same full EPG resolver,
 including manual XMLTV mappings and the user's source priority.
 

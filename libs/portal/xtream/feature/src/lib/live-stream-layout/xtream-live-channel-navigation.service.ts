@@ -20,6 +20,7 @@ import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { foldSearchText } from '@iptvnator/shared/interfaces';
 
 export interface XtreamLiveChannelItem {
+    readonly id?: string | number;
     readonly added?: string;
     readonly category_id?: string | number;
     readonly last_modified?: string;

@@ -65,4 +65,27 @@
             }
         }
     }
+
+    @media (max-width: 640px) {
+        .content-container.is-guide,
+        .content-container.is-guide.is-guide-collapsed {
+            .video-player {
+                flex-direction: column;
+                align-items: flex-start;
+                height: auto;
+                min-height: 48px;
+                gap: 8px;
+                padding: 8px 12px;
+
+                > app-web-player-view {
+                    width: min(100%, 144px);
+                    height: auto;
+                }
+
+                > app-epg-guide-now-playing {
+                    width: 100%;
+                }
+            }
+        }
+    }
 }

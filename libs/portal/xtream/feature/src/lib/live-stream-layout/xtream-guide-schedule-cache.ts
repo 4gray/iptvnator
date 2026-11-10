@@ -6,8 +6,8 @@ const CACHED_STREAMS = 256;
 
 /** The guide can scan an entire portal without retaining every schedule. */
 export class XtreamGuideScheduleCache {
-    private readonly cached = new Map<number, EpgProgram[]>();
-    private readonly pending = new Map<number, Promise<EpgProgram[]>>();
+    private readonly cached = new Map<string, EpgProgram[]>();
+    private readonly pending = new Map<string, Promise<EpgProgram[]>>();
     private readonly slots = new Set<Promise<void>>();
 
     clear(): void {
@@ -16,7 +16,7 @@ export class XtreamGuideScheduleCache {
     }
 
     async load(
-        id: number,
+        id: string,
         checkCurrent: () => void,
         fetch: () => Promise<EpgProgram[]>
     ): Promise<EpgProgram[]> {

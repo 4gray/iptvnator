@@ -41,18 +41,17 @@ export class XtreamLiveGuideService {
 
     readonly isOpen = signal(false);
     readonly collapsed = signal(restoreEpgGuideDockCollapsed());
+    private readonly enabled = computed(
+        () => this.runtime.supportsProviderEpg && this.preferences.enabled()
+    );
     readonly available = computed(
-        () =>
-            this.runtime.supportsProviderEpg &&
-            this.preferences.enabled() &&
-            !!this.playing()?.() &&
-            !!this.source.playlist()
+        () => this.enabled() && !!this.playing()?.() && !!this.source.playlist()
     );
 
     constructor() {
         effect((onCleanup) => {
             const playlistId = this.source.playlist()?.id;
-            if (!playlistId) return;
+            if (!playlistId || !this.enabled()) return;
             const action = {
                 id: ACTION,
                 owner: { provider: 'xtreams', playlistId, section: 'live' },
