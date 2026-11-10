@@ -346,7 +346,7 @@ export class XtreamApiService extends XtreamEpgNormalizer {
     ): Promise<EpgItem[]> {
         let primaryWasEmpty = false;
         try {
-            const response: EpgResponse = await this.sendRequest(
+            const response: EpgResponse | [] = await this.sendRequest(
                 credentials,
                 {
                     action: XtreamCodeActions.GetSimpleDataTable,
@@ -369,7 +369,7 @@ export class XtreamApiService extends XtreamEpgNormalizer {
         }
 
         try {
-            const fallbackResponse: EpgResponse = await this.sendRequest(
+            const fallbackResponse: EpgResponse | [] = await this.sendRequest(
                 credentials,
                 {
                     action: XtreamCodeActions.GetSimpleDateTable,
@@ -384,6 +384,7 @@ export class XtreamApiService extends XtreamEpgNormalizer {
                 credentials.serverTimezone
             );
         } catch (error) {
+            options?.signal?.throwIfAborted();
             // A valid empty guide is still an answer on panels without the legacy action.
             if (primaryWasEmpty) return [];
             throw error;

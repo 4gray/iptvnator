@@ -100,6 +100,7 @@ describe('XtreamEpgGuideSourceService', () => {
         'content_id' | 'xtream_id' | 'type' | 'catalog_status' | 'category_id'
     >[];
     const load = jest.fn<Promise<EpgItem[]>, unknown[]>();
+    const isFavorite = jest.fn<Promise<boolean>, [number, string]>();
     const locked = jest.fn<boolean, [string, string, number]>();
     let service: XtreamEpgGuideSourceService;
 
@@ -125,6 +126,7 @@ describe('XtreamEpgGuideSourceService', () => {
             },
         ];
         load.mockReset().mockResolvedValue([program(101)]);
+        isFavorite.mockReset().mockResolvedValue(false);
         locked.mockReset().mockImplementation((...args) => args[2] === 80);
         TestBed.configureTestingModule({
             imports: [TranslateModule.forRoot()],
@@ -171,6 +173,7 @@ describe('XtreamEpgGuideSourceService', () => {
                     provide: FavoritesService,
                     useValue: {
                         getFavorites: () => of(favorites),
+                        isFavorite,
                     },
                 },
             ],
@@ -340,6 +343,38 @@ describe('XtreamEpgGuideSourceService', () => {
             one.xtream_id,
             'sample.copy'
         );
+    });
+
+    it('uses a compatible visible copy when the native favorite resolves to a hidden row', async () => {
+        const compatible = {
+            ...one,
+            id: 15,
+            title: 'Synthetic Compatible Copy',
+        };
+        liveStreams.set([
+            one,
+            compatible,
+            { ...hidden, xtream_id: one.xtream_id },
+        ]);
+        favorites = [
+            {
+                content_id: hidden.id,
+                xtream_id: one.xtream_id,
+                category_id: hidden.category_id,
+                type: 'live',
+            },
+        ];
+        isFavorite.mockImplementation(async (id) => id === compatible.id);
+        service.open();
+        service.setScope('favorites');
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        expect(isFavorite.mock.calls).toEqual([
+            [one.id, playlist.id],
+            [compatible.id, playlist.id],
+        ]);
+        expect(service.channels()).toEqual([
+            expect.objectContaining({ name: compatible.title }),
+        ]);
     });
 
     it('keeps successful search matches on both sides of a failed channel', async () => {

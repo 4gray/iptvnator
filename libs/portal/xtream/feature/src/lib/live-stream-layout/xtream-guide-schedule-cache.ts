@@ -19,6 +19,10 @@ export class XtreamGuideScheduleCache {
         this.pending.clear();
     }
 
+    expiresAt(id: string): number {
+        return this.cached.get(id)?.expiresAt ?? 0;
+    }
+
     async load(
         id: string,
         checkCurrent: () => void,

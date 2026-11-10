@@ -272,6 +272,8 @@ describe('XtreamApiService', () => {
         { error: 'synthetic unavailable' },
         { epg_listings: 'synthetic invalid listing' },
         { epg_listings: [{ id: 'synthetic incomplete listing' }] },
+        { epg_listings: [{ start: 'invalid', stop: 'invalid' }] },
+        { epg_listings: [{ start_timestamp: '200', stop_timestamp: '100' }] },
     ])(
         'rejects a malformed legacy full schedule after the primary fails: %j',
         async (payload) => {
@@ -284,7 +286,14 @@ describe('XtreamApiService', () => {
         }
     );
 
-    it('falls back to the legacy full-epg action and normalizes the response', async () => {
+    it('accepts a bare empty legacy schedule after the primary fails', async () => {
+        dataService.sendIpcEvent
+            .mockRejectedValueOnce(new Error('synthetic primary failure'))
+            .mockResolvedValueOnce({ payload: [] });
+        await expect(service.getFullEpg(credentials, 101)).resolves.toEqual([]);
+    });
+
+    it('falls back to the legacy full-epg action when the primary times are invalid', async () => {
         dataService.sendIpcEvent.mockImplementation(
             async (_type: string, payload: unknown) => {
                 const action = (
@@ -294,7 +303,13 @@ describe('XtreamApiService', () => {
                 ).params.action;
 
                 if (action === 'get_simple_data_table') {
-                    return { payload: { epg_listings: [] } };
+                    return {
+                        payload: {
+                            epg_listings: [
+                                { start: 'invalid', stop: 'invalid' },
+                            ],
+                        },
+                    };
                 }
 
                 return {

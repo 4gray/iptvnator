@@ -21,11 +21,7 @@ import {
     RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
-import {
-    EpgProgram,
-    foldSearchText,
-    isCatalogUnavailable,
-} from '@iptvnator/shared/interfaces';
+import { EpgProgram, foldSearchText } from '@iptvnator/shared/interfaces';
 import type {
     EpgGuideChannel,
     EpgGuideScope,
@@ -35,6 +31,10 @@ import type {
     EpgGuideWindow,
 } from '@iptvnator/ui/epg';
 import { toSharedEpgProgram } from '../portal-channels-list/epg-preview-program';
+import {
+    resolveVisibleXtreamFavoriteCopies,
+    xtreamGuideFavoriteRows,
+} from './xtream-guide-favorites';
 import { XtreamGuideScheduleCache } from './xtream-guide-schedule-cache';
 import {
     XtreamLiveChannelItem,
@@ -64,6 +64,10 @@ function rowsByStreamId(
         if (!rows.has(id)) rows.set(id, item);
     }
     return rows;
+}
+
+function scheduleKey(item: XtreamLiveChannelItem): string {
+    return `${item.xtream_id}:${item.epg_channel_id ?? ''}`;
 }
 
 function overlaps(program: EpgProgram, window: EpgGuideWindow): boolean {
@@ -241,29 +245,30 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         const playlistId = this.playlist()?.id;
         this.setScope(categoryKey(this.store.selectedCategoryId()) || ALL);
         if (playlistId) {
+            const current = () =>
+                !signal.aborted && this.playlist()?.id === playlistId;
             void firstValueFrom(
                 this.favoritesService.getFavorites(playlistId)
             ).then(
-                (items) => {
-                    if (!signal.aborted && this.playlist()?.id === playlistId) {
-                        const favorites = new Map<number, number>();
-                        for (const item of items) {
-                            if (
-                                item.type === 'live' &&
-                                item.content_id != null &&
-                                !isCatalogUnavailable({
-                                    catalogStatus: item.catalog_status,
-                                })
-                            ) {
-                                favorites.set(
-                                    item.xtream_id,
-                                    this.runtime.supportsXtreamSqliteDataSource
-                                        ? item.content_id
-                                        : item.category_id
-                                );
-                            }
-                        }
-                        this.favorites.set(favorites);
+                async (items) => {
+                    if (!current()) return;
+                    const sqlite = this.runtime.supportsXtreamSqliteDataSource;
+                    const favorites = xtreamGuideFavoriteRows(items, sqlite);
+                    this.favorites.set(favorites);
+                    if (sqlite) {
+                        const resolved =
+                            await resolveVisibleXtreamFavoriteCopies(
+                                favorites,
+                                this.items(),
+                                (id) =>
+                                    this.favoritesService.isFavorite(
+                                        id,
+                                        playlistId
+                                    ),
+                                signal
+                            );
+                        if (resolved !== favorites && current())
+                            this.favorites.set(resolved);
                     }
                 },
                 () => undefined
@@ -314,6 +319,11 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
                     result !== null
             )
         );
+    }
+
+    programsExpireAt(id: string): number {
+        const item = this.scopedRows().get(id);
+        return item ? this.cache.expiresAt(scheduleKey(item)) : 0;
     }
 
     async loadCoverage(window: EpgGuideWindow): Promise<Set<string>> {
@@ -395,7 +405,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
             const playlist = revision.playlist;
             if (!playlist || !item) return [];
             const programs = await this.cache.load(
-                `${item.xtream_id}:${item.epg_channel_id ?? ''}`,
+                scheduleKey(item),
                 checkCurrent,
                 async () =>
                     (

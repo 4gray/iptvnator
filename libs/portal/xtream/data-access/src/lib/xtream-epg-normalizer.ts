@@ -77,7 +77,7 @@ export class XtreamEpgNormalizer {
     private normalizeListings(
         listings: RawEpgListing[],
         serverTimezone: string | undefined,
-        useChannelId: boolean
+        fullSchedule: boolean
     ): EpgItem[] {
         return listings
             .map((item, index) => {
@@ -101,7 +101,7 @@ export class XtreamEpgNormalizer {
                     id: String(item.id ?? index),
                     epg_id: String(
                         item.epg_id ??
-                            (useChannelId ? item.channel_id : '') ??
+                            (fullSchedule ? item.channel_id : '') ??
                             ''
                     ),
                     title: this.decodeBase64Unicode(
@@ -119,7 +119,11 @@ export class XtreamEpgNormalizer {
                     stop_timestamp: String(stopTimestamp ?? ''),
                 } satisfies EpgItem;
             })
-            .filter((item) => Boolean(item.start) && Boolean(item.stop))
+            .filter((item) =>
+                fullSchedule
+                    ? Date.parse(item.stop) > Date.parse(item.start)
+                    : Boolean(item.start) && Boolean(item.stop)
+            )
             .sort(
                 (left, right) =>
                     this.getEpgItemTimestampMs(
@@ -134,17 +138,23 @@ export class XtreamEpgNormalizer {
     }
 
     normalizeFullEpgItems(
-        response: EpgResponse,
+        response: EpgResponse | [],
         serverTimezone?: string
     ): EpgItem[] {
+        if (Array.isArray(response) && response.length === 0) return [];
         if (
+            Array.isArray(response) ||
             !response?.epg_listings ||
             typeof response.epg_listings !== 'object'
         ) {
             throw new Error('Invalid full EPG listing');
         }
         const listings = this.getEpgListings(response);
-        const items = this.normalizeListings(listings, serverTimezone, true);
+        const items = this.normalizeListings(
+            listings.filter((item) => item && typeof item === 'object'),
+            serverTimezone,
+            true
+        );
         if (!items.length && listings.length) {
             throw new Error('Invalid full EPG listing');
         }
@@ -153,7 +163,7 @@ export class XtreamEpgNormalizer {
 
     private parseUnixTimestamp(value: unknown): number | null {
         const parsed = Number.parseInt(String(value ?? ''), 10);
-        return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+        return parsed > 0 && parsed <= 8_640_000_000_000 ? parsed : null;
     }
 
     private toIsoString(timestamp: number | null): string | null {

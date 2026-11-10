@@ -5,6 +5,7 @@ import {
     inject,
     Injectable,
     signal,
+    untracked,
 } from '@angular/core';
 import { createDevLogger, EpgProgram } from '@iptvnator/shared/interfaces';
 import {
@@ -61,6 +62,7 @@ export class EpgGuideProgramsService {
     >();
     private coverageRequest?: AbortController;
     private coverageRequested = false;
+    private readonly rowExpiry = new Map<string, number>();
     private visibleRows = new Set<string>();
     /** Last channel reference seen by the constructor effect (see below). */
     private seenChannels: readonly EpgGuideChannel[] | null = null;
@@ -105,7 +107,7 @@ export class EpgGuideProgramsService {
             return;
         }
         this.coverageRequested = requested;
-        if (requested && !this.coverageLoaded()) {
+        if (requested) {
             this.requestCoverage();
         } else if (!requested) {
             this.coverageRequest?.abort();
@@ -161,11 +163,14 @@ export class EpgGuideProgramsService {
             }
             if (cancelled.length) this.patchStatuses(cancelled);
         }
+        const now = Date.now();
         const pending = channels.filter((channel) => {
             const status = this.statusFor(channel.id);
             return (
                 hasEpgKey(channel) &&
                 (status === 'idle' ||
+                    (status === 'loaded' &&
+                        (this.rowExpiry.get(channel.id) ?? Infinity) <= now) ||
                     (status === 'error' && !previousRows.has(channel.id)))
             );
         });
@@ -210,6 +215,11 @@ export class EpgGuideProgramsService {
                 const next = new Map(this.programs());
                 for (const channel of request.channels) {
                     next.set(channel.id, result?.get(channel.id) ?? EMPTY);
+                    const expiresAt = result?.has(channel.id)
+                        ? this.source.programsExpireAt?.(channel.id)
+                        : undefined;
+                    if (expiresAt !== undefined)
+                        this.rowExpiry.set(channel.id, expiresAt);
                 }
                 this.programs.set(next);
                 this.patchStatuses(
@@ -218,6 +228,16 @@ export class EpgGuideProgramsService {
                         result?.has(channel.id) ? 'loaded' : 'error',
                     ])
                 );
+                const coverage = this.coverage();
+                if (this.source.deferredCoverage && coverage && result) {
+                    let updated: Set<string> | undefined;
+                    for (const [id, programs] of result) {
+                        if (coverage.has(id) === programs.length > 0) continue;
+                        updated ??= new Set(coverage);
+                        this.updateCoverage(updated, id, programs);
+                    }
+                    if (updated) this.coverage.set(updated);
+                }
             });
     }
 
@@ -230,6 +250,9 @@ export class EpgGuideProgramsService {
             return;
         }
         const request = new AbortController();
+        const initialRows = this.source.deferredCoverage
+            ? untracked(this.programs)
+            : undefined;
         this.coverageRequest = request;
         this.coverageStatus.set('loading');
         const keyed = this.source.channels().filter(hasEpgKey);
@@ -276,13 +299,33 @@ export class EpgGuideProgramsService {
                 }
                 set.forEach((id) => merged.add(id));
             }
+            // A viewport retry can succeed while the scan is still on later rows.
+            if (initialRows) {
+                for (const [id, programs] of this.programs()) {
+                    if (
+                        programs !== initialRows.get(id) &&
+                        this.statusFor(id) === 'loaded'
+                    )
+                        this.updateCoverage(merged, id, programs);
+                }
+            }
             this.coverage.set(merged);
             this.coverageStatus.set('idle');
         });
     }
 
+    private updateCoverage(
+        covered: Set<string>,
+        id: string,
+        programs: readonly EpgProgram[]
+    ): void {
+        if (programs.length) covered.add(id);
+        else covered.delete(id);
+    }
+
     private invalidate(): void {
         this.cancelProgramRequests();
+        this.rowExpiry.clear();
         this.visibleRows.clear();
         this.coverageRequest?.abort();
         this.coverageStatus.set('idle');

@@ -211,6 +211,7 @@ export class EpgGuideComponent implements OnDestroy {
         effect(() => {
             const axis = this.view.axis();
             const offset = this.offsetMinutes();
+            if (this.source.programsExpireAt) this.view.nowMs();
             untracked(() => {
                 this.programsService.setWindow(
                     epgProviderClockMs(axis.startMs, offset),

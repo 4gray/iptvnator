@@ -205,6 +205,63 @@ describe('EpgGuideProgramsService', () => {
         expect(service.programsFor('a')).toEqual([]);
     });
 
+    it('refreshes rendered rows after their provider cache entry expires', async () => {
+        jest.useFakeTimers({ now: 1000 });
+        try {
+            const programsExpireAt = jest.fn().mockReturnValue(2000);
+            Object.assign(source, { programsExpireAt });
+            const row = channels()[0];
+            loadPrograms
+                .mockResolvedValueOnce(new Map([['a', []]]))
+                .mockResolvedValueOnce(new Map([['a', [programFor('a')]]]));
+            service.setWindow(1000, 2000);
+            service.ensureLoaded([row]);
+            await flush();
+            service.ensureLoaded([row]);
+            expect(loadPrograms).toHaveBeenCalledTimes(1);
+            jest.setSystemTime(2000);
+            programsExpireAt.mockReturnValue(3000);
+            service.ensureLoaded([row]);
+            await flush();
+            expect(loadPrograms).toHaveBeenCalledTimes(2);
+            expect(service.programsFor('a')).toEqual([programFor('a')]);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it.each([true, false])(
+        'removes a recovered empty row when coverage resolves first: %s',
+        async (coverageFirst) => {
+            Object.assign(source, { deferredCoverage: true });
+            let finishCoverage!: (ids: Set<string>) => void;
+            loadCoverage.mockImplementation(
+                () => new Promise((resolve) => (finishCoverage = resolve))
+            );
+            const row = channels()[0];
+            loadPrograms
+                .mockResolvedValueOnce(new Map())
+                .mockResolvedValueOnce(new Map([['a', []]]));
+            service.setWindow(1000, 2000);
+            service.setCoverageRequested(true);
+            service.ensureLoaded([row]);
+            await flush();
+            if (coverageFirst) {
+                finishCoverage(new Set(['a']));
+                await flush();
+            }
+            expect(service.isCovered('a')).toBe(true);
+            service.ensureLoaded([]);
+            service.ensureLoaded([row]);
+            await flush();
+            if (!coverageFirst) {
+                finishCoverage(new Set(['a']));
+                await flush();
+            }
+            expect(service.isCovered('a')).toBe(false);
+        }
+    );
+
     it('loads coverage for the whole scope when the window is set and answers isCovered', async () => {
         loadCoverage.mockResolvedValue(new Set(['a']));
         expect(service.coverageLoaded()).toBe(false);
