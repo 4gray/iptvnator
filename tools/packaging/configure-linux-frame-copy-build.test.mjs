@@ -578,6 +578,17 @@ test('only website changes in a PR merge tree can skip Electron packaging', (t) 
             /needs\.appstream-website\.result == 'success'\s*&&\s*needs\.appstream-website\.outputs\.website-only != 'true'/
         );
     }
+    // Skip propagation must stop at successful prerequisites on non-PR builds.
+    for (const id of ['build-linux', 'create-release']) {
+        const job = jobs[id];
+        assert.match(job.if, /!cancelled\(\)/);
+        for (const need of job.needs) {
+            assert.ok(
+                job.if.includes(`needs.${need}.result == 'success'`),
+                `${id} must require ${need} to succeed`
+            );
+        }
+    }
 });
 
 test('standalone AppStream check rejects a missing or empty built screenshot', (t) => {

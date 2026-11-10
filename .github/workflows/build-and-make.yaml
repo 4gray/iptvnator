@@ -1484,6 +1484,9 @@ jobs:
         needs:
             - linux-embedded-mpv-runtime
             - nightly-version
+        if: >-
+            ${{ !cancelled() && needs.linux-embedded-mpv-runtime.result == 'success' &&
+                needs.nightly-version.result == 'success' }}
         runs-on: ${{ matrix.runner }}
         timeout-minutes: 120
         concurrency:
@@ -1523,7 +1526,12 @@ jobs:
             - nightly-version
             - build-cross-platform
             - build-linux
-        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+        if: >-
+            ${{ !cancelled() && needs.nightly-version.result == 'success' &&
+                needs.build-cross-platform.result == 'success' &&
+                needs.build-linux.result == 'success' &&
+                (github.event_name != 'pull_request' ||
+                 github.event.pull_request.head.repo.full_name == github.repository) }}
         runs-on: ubuntu-latest
         concurrency:
             group: ${{ github.workflow }}-release-${{ github.event.pull_request.number || github.ref }}
