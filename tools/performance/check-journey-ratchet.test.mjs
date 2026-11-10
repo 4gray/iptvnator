@@ -532,72 +532,87 @@ test('the committed baselines file is valid and every entry names its evidence f
     }
 });
 
-test('journeys run when the PR diff is unavailable or removes a runtime path', async (t) => {
-    const root = await mkdtemp(path.join(os.tmpdir(), 'journey-scope-'));
-    t.after(() => rm(root, { recursive: true, force: true }));
-    const workflow = parseYaml(await readFile(ciWorkflowPath, 'utf8'));
-    const scope = workflow.jobs['performance-journeys-scope'].steps.find(
-        (step) => step.id === 'scope'
-    );
-    const output = path.join(root, 'scope-output');
-    const git = (...args) =>
-        execFileSync('git', [
-            '-C',
-            root,
-            '-c',
-            'user.name=Fixture',
-            '-c',
-            'user.email=fixture@example.test',
-            '-c',
-            'commit.gpgsign=false',
-            '-c',
-            'core.hooksPath=/dev/null',
-            '-c',
-            'diff.renames=true',
-            ...args,
-        ]);
+const windowsWithoutBash =
+    process.platform === 'win32' &&
+    spawnSync('bash', ['--version'], { stdio: 'ignore' }).status !== 0;
 
-    async function run(event = 'pull_request') {
-        await writeFile(output, '');
-        const result = spawnSync('bash', ['-c', scope.run], {
-            cwd: root,
-            encoding: 'utf8',
-            env: { ...process.env, EVENT_NAME: event, GITHUB_OUTPUT: output },
-        });
-        assert.equal(result.status, 0, result.stderr);
-        return (await readFile(output, 'utf8')).trim();
-    }
+test(
+    'journeys run when the PR diff is unavailable or removes a runtime path',
+    { skip: windowsWithoutBash },
+    async (t) => {
+        const root = await mkdtemp(path.join(os.tmpdir(), 'journey-scope-'));
+        t.after(() => rm(root, { recursive: true, force: true }));
+        const workflow = parseYaml(await readFile(ciWorkflowPath, 'utf8'));
+        const scope = workflow.jobs['performance-journeys-scope'].steps.find(
+            (step) => step.id === 'scope'
+        );
+        const output = path.join(root, 'scope-output');
+        const env = Object.fromEntries(
+            Object.entries(process.env).filter(([key]) => !/^GIT_/i.test(key))
+        );
+        const git = (...args) =>
+            execFileSync(
+                'git',
+                [
+                    '-C',
+                    root,
+                    '-c',
+                    'user.name=Fixture',
+                    '-c',
+                    'user.email=fixture@example.test',
+                    '-c',
+                    'commit.gpgsign=false',
+                    '-c',
+                    'core.hooksPath=/dev/null',
+                    '-c',
+                    'diff.renames=true',
+                    ...args,
+                ],
+                { env }
+            );
 
-    git('init', '-b', 'main');
-    await mkdir(path.join(root, 'apps/website'), { recursive: true });
-    await writeFile(path.join(root, 'runtime.js'), 'synthetic fixture');
-    git('add', 'runtime.js');
-    git('commit', '-m', 'base');
-    const missingParent = await run();
-    const push = await run('push');
-    const dispatch = await run('workflow_dispatch');
-
-    await writeFile(path.join(root, 'README.md'), 'synthetic docs');
-    await writeFile(path.join(root, 'apps/website/page.astro'), 'synthetic site');
-    git('add', 'README.md', 'apps/website/page.astro');
-    git('commit', '-m', 'website and docs');
-    const docsOnly = await run();
-
-    git('mv', 'runtime.js', 'apps/website/moved.js');
-    git('commit', '-m', 'move runtime path into site');
-    const boundaryMove = await run();
-
-    assert.deepEqual(
-        { missingParent, push, dispatch, docsOnly, boundaryMove },
-        {
-            missingParent: 'run=true',
-            push: 'run=true',
-            dispatch: 'run=true',
-            docsOnly: 'run=false',
-            boundaryMove: 'run=true',
+        async function run(event = 'pull_request') {
+            await writeFile(output, '');
+            const result = spawnSync('bash', ['-c', scope.run], {
+                cwd: root,
+                encoding: 'utf8',
+                env: { ...env, EVENT_NAME: event, GITHUB_OUTPUT: output },
+            });
+            assert.equal(result.status, 0, result.stderr);
+            return (await readFile(output, 'utf8')).trim();
         }
-    );
-});
+
+        git('init', '-b', 'main');
+        await mkdir(path.join(root, 'apps/website'), { recursive: true });
+        await writeFile(path.join(root, 'runtime.js'), 'synthetic fixture');
+        git('add', 'runtime.js');
+        git('commit', '-m', 'base');
+        const missingParent = await run();
+        const push = await run('push');
+        const dispatch = await run('workflow_dispatch');
+
+        await writeFile(path.join(root, 'README.md'), 'synthetic docs');
+        await writeFile(path.join(root, 'apps/website/page.astro'), 'synthetic site');
+        git('add', 'README.md', 'apps/website/page.astro');
+        git('commit', '-m', 'website and docs');
+        const docsOnly = await run();
+
+        git('mv', 'runtime.js', 'apps/website/moved.js');
+        git('commit', '-m', 'move runtime path into site');
+        const boundaryMove = await run();
+
+        assert.deepEqual(
+            { missingParent, push, dispatch, docsOnly, boundaryMove },
+            {
+                missingParent: 'run=true',
+                push: 'run=true',
+                dispatch: 'run=true',
+                docsOnly: 'run=false',
+                boundaryMove: 'run=true',
+            }
+        );
+    }
+);
 
 test('the Performance journeys job checks every journey-run baseline', async () => {
     const committed = JSON.parse(
