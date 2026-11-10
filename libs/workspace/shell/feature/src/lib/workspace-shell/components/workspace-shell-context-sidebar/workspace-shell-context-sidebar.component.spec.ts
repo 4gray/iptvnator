@@ -11,7 +11,6 @@ import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { LiveLayoutSidebarStateService } from '@iptvnator/portal/shared/util';
-import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { WorkspaceShellContextSidebarComponent } from './workspace-shell-context-sidebar.component';
 import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
@@ -66,15 +65,13 @@ class MockWorkspaceSourcesFiltersPanelComponent {}
 describe('WorkspaceShellContextSidebarComponent', () => {
     let fixture: ComponentFixture<WorkspaceShellContextSidebarComponent>;
     let liveSidebarService: LiveLayoutSidebarStateService;
-    const xtreamSelectedCategoryId = signal<number | null>(1);
-    const stalkerSelectedCategoryId = signal<string | null>('7');
     const drawerOpen = signal(false);
+    const xtreamBlocked = signal(false);
 
     beforeEach(async () => {
         localStorage.removeItem('live-sidebar-state:portal');
-        xtreamSelectedCategoryId.set(1);
-        stalkerSelectedCategoryId.set('7');
         drawerOpen.set(false);
+        xtreamBlocked.set(false);
 
         await TestBed.configureTestingModule({
             imports: [WorkspaceShellContextSidebarComponent],
@@ -85,11 +82,9 @@ describe('WorkspaceShellContextSidebarComponent', () => {
                 },
                 {
                     provide: XtreamStore,
-                    useValue: { selectedCategoryId: xtreamSelectedCategoryId },
-                },
-                {
-                    provide: StalkerStore,
-                    useValue: { selectedCategoryId: stalkerSelectedCategoryId },
+                    useValue: {
+                        isContentBlocked: xtreamBlocked,
+                    },
                 },
                 {
                     provide: TranslateService,
@@ -221,8 +216,7 @@ describe('WorkspaceShellContextSidebarComponent', () => {
             );
         });
 
-        it('keeps the rail on the live root (no selected category) at categories-hidden, since no channels rail exists to host the way back', () => {
-            xtreamSelectedCategoryId.set(null);
+        it('folds the rail on the live root (no selected category) at categories-hidden too, since the all-items view carries the way back', () => {
             setupLiveCategory('live');
 
             liveSidebarService.setState('portal', 'categories-hidden');
@@ -232,12 +226,30 @@ describe('WorkspaceShellContextSidebarComponent', () => {
                 'aside.context-panel--route'
             );
             expect(aside.classList.contains('context-panel--collapsed')).toBe(
+                true
+            );
+
+            liveSidebarService.setState('portal', 'expanded');
+            fixture.detectChanges();
+            expect(aside.classList.contains('context-panel--collapsed')).toBe(
+                false
+            );
+        });
+
+        it('keeps the rail visible while the Xtream content gate blocks the live layout, which would carry the way back', () => {
+            setupLiveCategory('live');
+            liveSidebarService.setState('portal', 'categories-hidden');
+            xtreamBlocked.set(true);
+            fixture.detectChanges();
+
+            const aside = fixture.nativeElement.querySelector(
+                'aside.context-panel--route'
+            );
+            expect(aside.classList.contains('context-panel--collapsed')).toBe(
                 false
             );
 
-            // Player-only still folds it: the floating restore handle lives
-            // in the content area and stays reachable there.
-            liveSidebarService.setState('portal', 'collapsed');
+            xtreamBlocked.set(false);
             fixture.detectChanges();
             expect(aside.classList.contains('context-panel--collapsed')).toBe(
                 true
@@ -265,8 +277,7 @@ describe('WorkspaceShellContextSidebarComponent', () => {
         });
 
         it('hands focus to the panel whenever the rail actually unfolds, including from player-only on the live root', async () => {
-            xtreamSelectedCategoryId.set(null);
-            liveSidebarService.setState('portal', 'categories-hidden');
+            liveSidebarService.setState('portal', 'expanded');
             setupLiveCategory('live');
             const panel = fixture.debugElement.query(
                 By.directive(MockWorkspaceContextPanelComponent)
@@ -274,7 +285,6 @@ describe('WorkspaceShellContextSidebarComponent', () => {
 
             (document.activeElement as HTMLElement | null)?.blur();
 
-            // Root at categories-hidden: the rail is visible, no transition.
             liveSidebarService.collapse('portal');
             fixture.detectChanges();
             liveSidebarService.expand('portal');
@@ -294,9 +304,9 @@ describe('WorkspaceShellContextSidebarComponent', () => {
             fixture.nativeElement.appendChild(control);
             panel.focusTarget.mockReturnValue(control);
             (document.activeElement as HTMLElement | null)?.blur();
-            liveSidebarService.collapse('portal');
+            liveSidebarService.setState('portal', 'categories-hidden');
             fixture.detectChanges();
-            liveSidebarService.expand('portal');
+            liveSidebarService.showCategories('portal');
             fixture.detectChanges();
             await new Promise<void>((resolve) =>
                 queueMicrotask(() => resolve())

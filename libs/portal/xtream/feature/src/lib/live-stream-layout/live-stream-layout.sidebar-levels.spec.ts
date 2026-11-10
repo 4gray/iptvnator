@@ -121,7 +121,7 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
         currentPlaylist: signal({ _id: 'pl-1', title: 'Playlist' }),
         liveStreams: emptyList,
         isContentInitialized: signal(true),
-        selectItemsFromSelectedCategory: jest.fn(() => []),
+        selectItemsFromSelectedCategory: jest.fn((): unknown[] => []),
         constructStreamUrl: jest.fn(() => ''),
         openPlayer: jest.fn(),
         setSelectedItem: jest.fn(),
@@ -139,6 +139,7 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
         categoriesPopover.close.mockClear();
         categoriesPopover.showCategoriesPanel.mockClear();
         selectedCategoryId.set(1);
+        xtreamStore.selectItemsFromSelectedCategory.mockReturnValue([]);
 
         await TestBed.configureTestingModule({
             imports: [LiveStreamLayoutComponent, NoopAnimationsModule],
@@ -257,6 +258,123 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
         // No category and no search term: the layout renders no rail at all.
         expect(query('.sidebar')).toBeNull();
         expect(query('[data-test-id="live-category-dropdown"]')).toBeNull();
+    });
+
+    it('offers the way back from the "All Items" grid while the rail is folded, and only then', () => {
+        selectedCategoryId.set(null);
+        fixture.detectChanges();
+        expect(query('[data-test-id="live-show-categories"]')).toBeNull();
+
+        service.hideCategories('portal');
+        fixture.detectChanges();
+
+        const button = query<HTMLButtonElement>(
+            '[data-test-id="live-show-categories"]'
+        );
+        expect(button).not.toBeNull();
+        expect(query('.category-content-header--rail-folded')).not.toBeNull();
+        expect(button?.getAttribute('aria-label')).toBe(
+            'LAYOUT.SHOW_CATEGORIES'
+        );
+
+        button?.click();
+        expect(categoriesPopover.showCategoriesPanel).toHaveBeenCalledTimes(1);
+
+        service.collapse('portal');
+        fixture.detectChanges();
+        expect(query('[data-test-id="live-show-categories"]')).toBeNull();
+        expect(query('.sidebar-restore')).not.toBeNull();
+    });
+
+    it('keeps the same show-categories button, and its focus, across the loading to ready swap', async () => {
+        xtreamStore.selectedTypeContentLoading.set(true);
+        selectedCategoryId.set(null);
+        fixture.detectChanges();
+        service.hideCategories('portal');
+        fixture.detectChanges();
+        await new Promise<void>((resolve) => queueMicrotask(() => resolve()));
+
+        const button = query('[data-test-id="live-show-categories"]');
+        expect(button).not.toBeNull();
+        expect(query('.live-loading-content')).not.toBeNull();
+        expect(document.activeElement).toBe(button);
+
+        xtreamStore.selectedTypeContentLoading.set(false);
+        fixture.detectChanges();
+
+        expect(query('.live-all-items-content')).not.toBeNull();
+        expect(query('[data-test-id="live-show-categories"]')).toBe(button);
+        expect(document.activeElement).toBe(button);
+        xtreamStore.selectedTypeContentLoading.set(false);
+    });
+
+    it('hands focus to the "All Items" show-categories button when the rail folds', async () => {
+        selectedCategoryId.set(null);
+        fixture.detectChanges();
+        (document.activeElement as HTMLElement | null)?.blur();
+
+        service.hideCategories('portal');
+        fixture.detectChanges();
+        await new Promise<void>((resolve) => queueMicrotask(() => resolve()));
+
+        expect(document.activeElement).toBe(
+            query('[data-test-id="live-show-categories"]')
+        );
+    });
+
+    it('hands focus from the dropdown to the "All Items" button when the category scope clears', async () => {
+        fixture.detectChanges();
+        service.hideCategories('portal');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const dropdown = query<HTMLButtonElement>(
+            '[data-test-id="live-category-dropdown"]'
+        );
+        // Closing the popover restores focus to its trigger before clearing.
+        dropdown?.focus();
+        expect(document.activeElement).toBe(dropdown);
+
+        selectedCategoryId.set(null);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(document.activeElement).toBe(
+            query('.all-items-show-categories')
+        );
+    });
+
+    it('leaves focus alone when the category scope clears after the user leaves the controls', async () => {
+        fixture.detectChanges();
+        service.hideCategories('portal');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const showButton = query<HTMLButtonElement>(
+            '[data-test-id="live-show-categories"]'
+        );
+        expect(document.activeElement).toBe(showButton);
+        showButton?.blur();
+        await fixture.whenStable();
+
+        selectedCategoryId.set(null);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(document.activeElement).toBe(document.body);
+    });
+
+    it('counts the "All Items" entry like a category in the channels header', () => {
+        xtreamStore.selectItemsFromSelectedCategory.mockReturnValue([
+            {},
+            {},
+            {},
+        ]);
+        selectedCategoryId.set(null);
+        fixture.detectChanges();
+        expect(fixture.componentInstance.sidebarItemCount()).toBe(3);
+
+        selectedCategoryId.set(1);
+        fixture.detectChanges();
+        expect(fixture.componentInstance.sidebarItemCount()).toBe(7);
     });
 
     it('turns the heading into a category dropdown that opens the shell popover', () => {

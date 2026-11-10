@@ -1,5 +1,6 @@
 import {
     Component,
+    computed,
     input,
     signal,
     ChangeDetectionStrategy,
@@ -75,6 +76,11 @@ describe('XtreamContentGateComponent', () => {
                     provide: XtreamStore,
                     useValue: {
                         contentInitBlockReason,
+                        isContentBlocked: computed(
+                            () =>
+                                !!contentInitBlockReason() ||
+                                isPendingRestoreBlocked()
+                        ),
                         isContentInitialized,
                         isPendingRestoreBlocked,
                         portalStatus,

@@ -224,6 +224,16 @@ export function withContent() {
              * Current import phase label key source
              */
             currentImportPhase: computed(() => store.importPhase()),
+
+            /**
+             * Content cannot load (or a restore is still pending), so the
+             * content gate shows an error view instead of the route.
+             */
+            isContentBlocked: computed(
+                () =>
+                    !!store.contentInitBlockReason() ||
+                    store.isPendingRestoreBlocked()
+            ),
         })),
 
         withMethods((store) => {

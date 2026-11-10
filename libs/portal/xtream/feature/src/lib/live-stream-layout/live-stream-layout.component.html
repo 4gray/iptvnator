@@ -48,9 +48,9 @@
                                 ) | translate)
                         }}
                     </span>
-                    @if (selectedCategoryInfo()?.count) {
+                    @if (sidebarItemCount()) {
                         <span class="category-count">{{
-                            selectedCategoryInfo()?.count
+                            sidebarItemCount()
                         }}</span>
                     }
                     <mat-icon class="category-dropdown__caret"
@@ -68,9 +68,9 @@
                                 ) | translate)
                         }}
                     </h2>
-                    @if (selectedCategoryInfo()?.count) {
+                    @if (sidebarItemCount()) {
                         <span class="category-count">{{
-                            selectedCategoryInfo()?.count
+                            sidebarItemCount()
                         }}</span>
                     }
                 </div>
@@ -188,6 +188,23 @@
             </div>
         }
     } @else if (!showLiveChannelSidebar()) {
+        <!-- The way back to the folded categories rail, for the views with no
+             channels header. Outside the loading switch so the same button
+             (and its focus) survives the loading to ready swap. -->
+        @if (livePanels.isCategoriesRailFolded()) {
+            <button
+                #allItemsShowButton
+                mat-icon-button
+                type="button"
+                class="all-items-show-categories"
+                data-test-id="live-show-categories"
+                [attr.aria-label]="'LAYOUT.SHOW_CATEGORIES' | translate"
+                [matTooltip]="'LAYOUT.SHOW_CATEGORIES' | translate"
+                (click)="livePanels.showCategories()"
+            >
+                <mat-icon>chevron_right</mat-icon>
+            </button>
+        }
         @if (isSelectedTypeContentLoading()) {
             <div class="live-loading-content">
                 <app-portal-channels-list
@@ -199,7 +216,12 @@
             </div>
         } @else {
             <div class="live-all-items-content category-content-layout">
-                <div class="category-content-header">
+                <div
+                    class="category-content-header"
+                    [class.category-content-header--rail-folded]="
+                        livePanels.isCategoriesRailFolded()
+                    "
+                >
                     <div class="category-meta">
                         <h2 class="category-title">
                             {{ 'PORTALS.ALL_ITEMS' | translate }}

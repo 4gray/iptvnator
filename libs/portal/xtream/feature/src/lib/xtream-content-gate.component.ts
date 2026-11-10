@@ -60,11 +60,10 @@ export class XtreamContentGateComponent {
     private readonly xtreamStore = inject(XtreamStore);
 
     readonly contentInitBlockReason = this.xtreamStore.contentInitBlockReason;
-    readonly isPendingRestoreBlocked = this.xtreamStore.isPendingRestoreBlocked;
-    readonly effectiveBlockReason = computed(
-        () =>
-            this.contentInitBlockReason() ??
-            (this.isPendingRestoreBlocked() ? 'error' : null)
+    readonly effectiveBlockReason = computed(() =>
+        this.xtreamStore.isContentBlocked()
+            ? (this.contentInitBlockReason() ?? 'error')
+            : null
     );
     private readonly errorViewKey = computed(() => {
         switch (this.effectiveBlockReason()) {

@@ -366,16 +366,24 @@ export class LiveStreamLayoutComponent
     private readonly showCategoriesButton = viewChild('showCategoriesButton', {
         read: ElementRef<HTMLElement>,
     });
+    private readonly categoryDropdownButton = viewChild('categoryDropdown', {
+        read: ElementRef<HTMLElement>,
+    });
+    // The way back from the all-items view, which has no channels header.
+    private readonly allItemsShowButton = viewChild('allItemsShowButton', {
+        read: ElementRef<HTMLElement>,
+    });
     private readonly restoreButton = viewChild('restoreButton', {
         read: ElementRef<HTMLElement>,
     });
     // Nested panel levels, category dropdown bridge and focus handoff; the
-    // template binds to it directly. Search-only rails (no selected
-    // category) keep their plain heading.
+    // template binds to it directly.
     readonly livePanels = createLivePanelsController({
         surface: 'portal',
-        hasSelectedCategory: computed(() => !!this.selectedCategoryId()),
-        showCategoriesButton: this.showCategoriesButton,
+        showCategoriesButton: computed(
+            () => this.showCategoriesButton() ?? this.allItemsShowButton()
+        ),
+        categoryDropdownButton: this.categoryDropdownButton,
         restoreButton: this.restoreButton,
     });
     readonly isSidebarCollapsed = this.livePanels.isSidebarCollapsed;
@@ -426,6 +434,11 @@ export class LiveStreamLayoutComponent
             count,
         };
     });
+
+    /** Count badge of the channels header; "All Items" has no category entry. */
+    readonly sidebarItemCount = computed(
+        () => this.selectedCategoryInfo()?.count ?? this.liveRootItemCount()
+    );
 
     private unsubscribeRemoteChannelChange?: () => void;
     private unsubscribeRemoteCommand?: () => void;
