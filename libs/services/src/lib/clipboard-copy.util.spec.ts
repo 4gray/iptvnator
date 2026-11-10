@@ -2,13 +2,30 @@ import { copyTextToClipboard } from './clipboard-copy.util';
 
 describe('copyTextToClipboard', () => {
     const originalClipboard = navigator.clipboard;
+    const originalExecCommand = Object.getOwnPropertyDescriptor(
+        document,
+        'execCommand'
+    );
+    const execCommand = jest.fn<boolean, [string]>();
+
+    beforeEach(() => {
+        execCommand.mockReset();
+        Object.defineProperty(document, 'execCommand', {
+            configurable: true,
+            value: execCommand,
+        });
+    });
 
     afterEach(() => {
         Object.defineProperty(navigator, 'clipboard', {
             configurable: true,
             value: originalClipboard,
         });
-        jest.restoreAllMocks();
+        if (originalExecCommand) {
+            Object.defineProperty(document, 'execCommand', originalExecCommand);
+        } else {
+            Reflect.deleteProperty(document, 'execCommand');
+        }
     });
 
     it('resolves without a fallback when the Clipboard API succeeds', async () => {
@@ -17,8 +34,6 @@ describe('copyTextToClipboard', () => {
             configurable: true,
             value: { writeText },
         });
-        const execCommand = jest.spyOn(document, 'execCommand');
-
         await copyTextToClipboard('https://example.test/stream.m3u8');
 
         expect(writeText).toHaveBeenCalledWith(
@@ -35,11 +50,12 @@ describe('copyTextToClipboard', () => {
             configurable: true,
             value: { writeText },
         });
-        jest.spyOn(document, 'execCommand').mockReturnValue(true);
+        execCommand.mockReturnValue(true);
 
         await expect(
             copyTextToClipboard('https://example.test/stream.m3u8')
         ).resolves.toBeUndefined();
+        expect(execCommand).toHaveBeenCalledWith('copy');
     });
 
     it('removes the temporary textarea after a successful fallback', async () => {
@@ -49,7 +65,7 @@ describe('copyTextToClipboard', () => {
                 writeText: jest.fn().mockRejectedValue(new Error('nope')),
             },
         });
-        jest.spyOn(document, 'execCommand').mockReturnValue(true);
+        execCommand.mockReturnValue(true);
 
         await copyTextToClipboard('https://example.test/stream.m3u8');
 
@@ -64,7 +80,7 @@ describe('copyTextToClipboard', () => {
                 writeText: jest.fn().mockRejectedValue(originalError),
             },
         });
-        jest.spyOn(document, 'execCommand').mockReturnValue(false);
+        execCommand.mockReturnValue(false);
 
         await expect(
             copyTextToClipboard('https://example.test/stream.m3u8')

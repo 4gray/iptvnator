@@ -202,7 +202,9 @@ default behavior for every inline engine.
 
 The surrounding panel uses the app's widget surface and text tokens in both
 themes. Its header keeps a single-line, ellipsized title and a labelled copy
-icon beside the secondary Close player action; below 600 px of panel width,
+icon beside the secondary Close player action. The header keeps its layout
+space when it fades after three seconds without mouse activity. Keyboard
+focus reveals the header even while idle. Below 600 px of panel width,
 actions move below the title. The detail shell aligns the player with the
 episode section and separates them by 24 px (16 px below 800 px of pane width).
 
