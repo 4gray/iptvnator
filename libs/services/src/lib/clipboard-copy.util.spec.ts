@@ -72,6 +72,31 @@ describe('copyTextToClipboard', () => {
         expect(document.querySelectorAll('textarea')).toHaveLength(0);
     });
 
+    it('restores the focused control after the fallback moves focus', async () => {
+        Object.defineProperty(navigator, 'clipboard', {
+            configurable: true,
+            value: {
+                writeText: jest.fn().mockRejectedValue(new Error('nope')),
+            },
+        });
+        execCommand.mockImplementation(() => {
+            const textarea = document.querySelector('textarea');
+            textarea?.focus();
+            expect(document.activeElement).toBe(textarea);
+            return true;
+        });
+        const button = document.createElement('button');
+        document.body.append(button);
+        button.focus();
+
+        try {
+            await copyTextToClipboard('https://example.test/stream.m3u8');
+            expect(document.activeElement).toBe(button);
+        } finally {
+            button.remove();
+        }
+    });
+
     it('throws the original error when both the API and the fallback fail', async () => {
         const originalError = new Error('Document is not focused');
         Object.defineProperty(navigator, 'clipboard', {

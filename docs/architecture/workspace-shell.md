@@ -828,10 +828,11 @@ Startup window mode (`Settings.startupWindowMode`, issue #1455):
    the request with `setFullScreen(true)` right after `show()` wherever
    `isFullScreen()` is still false — never unconditionally, or the
    platforms that honoured the option would animate a second toggle. The
-   saved normal bounds are restored when they overlap a connected display's
-   work area by at least 100 px in each dimension. Otherwise the window starts
-   centered on the primary display. The close handler persists
-   `getNormalBounds()`. `maximized` calls `maximize()` right before the
+   saved normal bounds are restored when the top edge is inside a connected
+   display's work area and the bounds overlap that area by at least 100 px in
+   each dimension. Otherwise the window starts centered on the primary display.
+   The close handler persists `getNormalBounds()`. `maximized` calls
+   `maximize()` right before the
    first `show()`, never earlier: `maximize()` on a hidden window shows it,
    and a blank window would flash. That first show happens at
    `ready-to-show` or the main frame's `did-finish-load`, whichever comes

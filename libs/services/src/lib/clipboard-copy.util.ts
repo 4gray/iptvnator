@@ -24,24 +24,27 @@ export async function copyTextToClipboard(text: string): Promise<void> {
 }
 
 function copyWithExecCommandFallback(text: string): boolean {
+    const previousFocus = document.activeElement;
     const textarea = document.createElement('textarea');
     textarea.value = text;
     // Keep it out of the visible/scrollable viewport and out of tab order.
     textarea.style.position = 'fixed';
     textarea.style.top = '0';
     textarea.style.left = '-9999px';
+    textarea.tabIndex = -1;
     textarea.setAttribute('readonly', '');
     document.body.appendChild(textarea);
-    textarea.select();
-    textarea.setSelectionRange(0, text.length);
 
-    let copied = false;
     try {
-        copied = document.execCommand('copy');
+        textarea.select();
+        textarea.setSelectionRange(0, text.length);
+        return document.execCommand('copy');
     } catch {
-        copied = false;
+        return false;
     } finally {
-        document.body.removeChild(textarea);
+        textarea.remove();
+        if (previousFocus instanceof HTMLElement && previousFocus.isConnected) {
+            previousFocus.focus({ preventScroll: true });
+        }
     }
-    return copied;
 }

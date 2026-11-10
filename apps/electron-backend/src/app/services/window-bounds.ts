@@ -1,4 +1,4 @@
-import { Rectangle } from 'electron';
+import type { Rectangle } from 'electron';
 
 /**
  * Minimum width/height (in pixels) the saved window bounds must overlap a
@@ -23,7 +23,8 @@ function intersectionSize(
 }
 
 /**
- * Drops saved window bounds that no longer land on any connected display.
+ * Drops saved window bounds if the title bar is off-screen or too little of
+ * the window overlaps the display.
  *
  * `BrowserWindow`'s constructor positions the window at whatever `x`/`y` was
  * last persisted, even past every current display's work area: unplugging
@@ -43,6 +44,7 @@ export function resolveVisibleWindowBounds(
     const isVisible = displayWorkAreas.some((workArea) => {
         const overlap = intersectionSize(savedBounds, workArea);
         return (
+            savedBounds.y >= workArea.y &&
             overlap.width >= MIN_VISIBLE_OVERLAP &&
             overlap.height >= MIN_VISIBLE_OVERLAP
         );
