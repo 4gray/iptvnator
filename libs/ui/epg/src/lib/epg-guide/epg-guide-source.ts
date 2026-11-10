@@ -76,7 +76,7 @@ export interface EpgGuideSource {
     loadPrograms(range: EpgGuideWindow): Promise<Map<string, EpgProgram[]>>;
     /** Per-stream sources publish each row as it arrives. */
     readonly programBatchSize?: number;
-    /** Ids of channels with at least one programme in the window. */
+    /** Ids with programmes in the window or unknown coverage after a failed lookup. */
     loadCoverage(range: EpgGuideWindow): Promise<Set<string>>;
     /** Checking every channel requires provider requests, so wait for the filter. */
     readonly deferredCoverage?: boolean;

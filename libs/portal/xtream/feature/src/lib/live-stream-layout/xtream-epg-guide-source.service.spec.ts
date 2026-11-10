@@ -97,7 +97,7 @@ describe('XtreamEpgGuideSourceService', () => {
     const runtime = { supportsXtreamSqliteDataSource: true };
     let favorites: Pick<
         FavoriteItem,
-        'content_id' | 'xtream_id' | 'type' | 'catalog_status'
+        'content_id' | 'xtream_id' | 'type' | 'catalog_status' | 'category_id'
     >[];
     const load = jest.fn<Promise<EpgItem[]>, unknown[]>();
     const locked = jest.fn<boolean, [string, string, number]>();
@@ -111,8 +111,18 @@ describe('XtreamEpgGuideSourceService', () => {
         runtime.supportsXtreamSqliteDataSource = true;
         liveStreams.set([one, two, hidden]);
         favorites = [
-            { content_id: one.id, xtream_id: one.xtream_id, type: 'movie' },
-            { content_id: two.id, xtream_id: two.xtream_id, type: 'live' },
+            {
+                content_id: one.id,
+                xtream_id: one.xtream_id,
+                category_id: one.category_id,
+                type: 'movie',
+            },
+            {
+                content_id: two.id,
+                xtream_id: two.xtream_id,
+                category_id: two.category_id,
+                type: 'live',
+            },
         ];
         load.mockReset().mockResolvedValue([program(101)]);
         locked.mockReset().mockImplementation((...args) => args[2] === 80);
@@ -276,12 +286,14 @@ describe('XtreamEpgGuideSourceService', () => {
             {
                 content_id: one.id,
                 xtream_id: one.xtream_id,
+                category_id: one.category_id,
                 type: 'live',
                 catalog_status: 'missing',
             },
             {
                 content_id: two.id,
                 xtream_id: two.xtream_id,
+                category_id: two.category_id,
                 type: 'live',
                 catalog_status: 'present',
             },
@@ -292,6 +304,42 @@ describe('XtreamEpgGuideSourceService', () => {
         expect(service.channels()).toEqual([
             expect.objectContaining({ name: two.title }),
         ]);
+    });
+
+    it('uses the resolved PWA favorite category when provider stream IDs repeat', async () => {
+        runtime.supportsXtreamSqliteDataSource = false;
+        const favorite = {
+            ...one,
+            id: one.xtream_id,
+            category_id: '008',
+            title: 'Synthetic Channel A Copy',
+            epg_channel_id: 'sample.copy',
+        };
+        liveStreams.set([{ ...one, id: one.xtream_id }, favorite]);
+        favorites = [
+            {
+                content_id: one.xtream_id,
+                xtream_id: one.xtream_id,
+                category_id: 8,
+                type: 'live',
+            },
+        ];
+        service.open();
+        await Promise.resolve();
+        service.setScope('favorites');
+        expect(service.channels()).toEqual([
+            expect.objectContaining({ name: favorite.title }),
+        ]);
+        await service.loadPrograms({
+            channels: service.channels(),
+            fromMs: 100000,
+            toMs: 200000,
+        });
+        expect(load).toHaveBeenCalledWith(
+            playlist,
+            one.xtream_id,
+            'sample.copy'
+        );
     });
 
     it('keeps successful search matches on both sides of a failed channel', async () => {
@@ -358,6 +406,23 @@ describe('XtreamEpgGuideSourceService', () => {
             }),
         ]);
         expect(load.mock.calls.map((call) => call[1])).toEqual([101, 102]);
+    });
+
+    it('filters confirmed empty schedules and continues after a failed lookup', async () => {
+        locked.mockReturnValue(false);
+        lockRevision.update((value) => value + 1);
+        const third = { ...one, id: 14, xtream_id: 104 };
+        liveStreams.set([one, two, third]);
+        load.mockImplementation(async (_playlist, id) => {
+            if (id === 101) throw new Error('synthetic provider failure');
+            return id === 104 ? [program(104)] : [];
+        });
+        const coverage = await service.loadCoverage({
+            channels: service.channels(),
+            fromMs: 100000,
+            toMs: 200000,
+        });
+        expect([...coverage]).toEqual(['101', '104']);
     });
 
     it('discards replies and stops scans after changing the playlist or guide source', async () => {

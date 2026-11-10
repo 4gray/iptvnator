@@ -187,9 +187,12 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         const items = this.items();
         if (scope === FAVORITES) {
             const favorites = this.favorites();
+            const sqlite = this.runtime.supportsXtreamSqliteDataSource;
             return rowsByStreamId(
                 items.filter(
-                    (item) => favorites.get(item.xtream_id) === Number(item.id)
+                    (item) =>
+                        favorites.get(item.xtream_id) ===
+                        Number(sqlite ? item.id : (item.category_id ?? 0))
                 )
             );
         }
@@ -252,7 +255,12 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
                                     catalogStatus: item.catalog_status,
                                 })
                             ) {
-                                favorites.set(item.xtream_id, item.content_id);
+                                favorites.set(
+                                    item.xtream_id,
+                                    this.runtime.supportsXtreamSqliteDataSource
+                                        ? item.content_id
+                                        : item.category_id
+                                );
                             }
                         }
                         this.favorites.set(favorites);
@@ -309,14 +317,17 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     }
 
     async loadCoverage(window: EpgGuideWindow): Promise<Set<string>> {
-        const { read } = this.scheduleReader(window.signal);
+        const { read, checkCurrent } = this.scheduleReader(window.signal);
         const rows = this.scopedRows();
         const covered = new Set<string>();
         for (const { id } of window.channels) {
+            const programs = await read(rows.get(id)).catch(() => {
+                checkCurrent();
+                return null;
+            });
             if (
-                (await read(rows.get(id))).some((program) =>
-                    overlaps(program, window)
-                )
+                !programs ||
+                programs.some((program) => overlaps(program, window))
             )
                 covered.add(id);
         }

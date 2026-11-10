@@ -363,11 +363,7 @@ export class XtreamApiService extends XtreamEpgNormalizer {
             if (items.length > 0) {
                 return items;
             }
-            const listings = response?.epg_listings;
-            primaryWasEmpty =
-                typeof listings === 'object' &&
-                listings !== null &&
-                Object.keys(listings).length === 0;
+            primaryWasEmpty = true;
         } catch {
             // Fall back to the legacy typo endpoint below.
         }

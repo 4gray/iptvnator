@@ -67,7 +67,19 @@ export class XtreamEpgNormalizer {
         response: EpgResponse,
         serverTimezone?: string
     ): EpgItem[] {
-        return this.getEpgListings(response)
+        return this.normalizeListings(
+            this.getEpgListings(response),
+            serverTimezone,
+            false
+        );
+    }
+
+    private normalizeListings(
+        listings: RawEpgListing[],
+        serverTimezone: string | undefined,
+        useChannelId: boolean
+    ): EpgItem[] {
+        return listings
             .map((item, index) => {
                 const startTimestamp = this.parseUnixTimestamp(
                     item.start_timestamp
@@ -87,7 +99,11 @@ export class XtreamEpgNormalizer {
 
                 return {
                     id: String(item.id ?? index),
-                    epg_id: String(item.epg_id ?? ''),
+                    epg_id: String(
+                        item.epg_id ??
+                            (useChannelId ? item.channel_id : '') ??
+                            ''
+                    ),
                     title: this.decodeBase64Unicode(
                         String(item.title ?? '')
                     ).trim(),
@@ -121,54 +137,18 @@ export class XtreamEpgNormalizer {
         response: EpgResponse,
         serverTimezone?: string
     ): EpgItem[] {
-        return this.getEpgListings(response)
-            .map((item, index) => {
-                const startTimestamp = this.parseUnixTimestamp(
-                    item.start_timestamp
-                );
-                const stopTimestamp = this.parseUnixTimestamp(
-                    item.stop_timestamp
-                );
-                const normalizedStart =
-                    this.toIsoString(startTimestamp) ??
-                    this.normalizeDateString(item.start, serverTimezone);
-                const normalizedStop =
-                    this.toIsoString(stopTimestamp) ??
-                    this.normalizeDateString(
-                        item.stop ?? item.end,
-                        serverTimezone
-                    );
-
-                return {
-                    id: String(item.id ?? index),
-                    epg_id: String(item.epg_id ?? item.channel_id ?? ''),
-                    title: this.decodeBase64Unicode(
-                        String(item.title ?? '')
-                    ).trim(),
-                    description: this.decodeBase64Unicode(
-                        String(item.description ?? '')
-                    ).trim(),
-                    lang: String(item.lang ?? ''),
-                    start: normalizedStart,
-                    end: normalizedStop,
-                    stop: normalizedStop,
-                    channel_id: String(item.channel_id ?? ''),
-                    start_timestamp: String(startTimestamp ?? ''),
-                    stop_timestamp: String(stopTimestamp ?? ''),
-                } satisfies EpgItem;
-            })
-            .filter((item) => Boolean(item.start) && Boolean(item.stop))
-            .sort(
-                (left, right) =>
-                    this.getEpgItemTimestampMs(
-                        left.start,
-                        left.start_timestamp
-                    ) -
-                    this.getEpgItemTimestampMs(
-                        right.start,
-                        right.start_timestamp
-                    )
-            );
+        if (
+            !response?.epg_listings ||
+            typeof response.epg_listings !== 'object'
+        ) {
+            throw new Error('Invalid full EPG listing');
+        }
+        const listings = this.getEpgListings(response);
+        const items = this.normalizeListings(listings, serverTimezone, true);
+        if (!items.length && listings.length) {
+            throw new Error('Invalid full EPG listing');
+        }
+        return items;
     }
 
     private parseUnixTimestamp(value: unknown): number | null {

@@ -99,9 +99,10 @@ export class XtreamLiveGuideService {
             this.blocked()
         )
             return;
+        const focused = document.activeElement;
         this.returnFocus =
-            document.activeElement instanceof HTMLElement
-                ? document.activeElement
+            focused instanceof HTMLElement && focused !== document.body
+                ? focused
                 : null;
         this.source.open();
         this.isOpen.set(true);

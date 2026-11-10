@@ -1,3 +1,5 @@
+@let drawerOpen = facade.showContextPanel() && contextDrawer.isOpen();
+
 <div
     class="workspace-shell"
     appPlaylistDropZone
@@ -17,7 +19,7 @@
          true at phone width (the toggle is CSS-hidden above it and the
          service closes on viewport growth), so desktop is never inerted. -->
     <app-workspace-shell-rail
-        [attr.inert]="contextDrawer.isOpen() ? '' : null"
+        [attr.inert]="drawerOpen ? '' : null"
         [isMacOS]="facade.isMacOS"
         [workspaceLinks]="facade.workspaceLinks()"
         [primaryContextLinks]="facade.primaryContextLinks()"
@@ -29,7 +31,7 @@
 
     <app-workspace-shell-header
         #workspaceHeader
-        [attr.inert]="contextDrawer.isOpen() ? '' : null"
+        [attr.inert]="drawerOpen ? '' : null"
         [backTarget]="facade.backTarget()"
         [playlistTitle]="facade.playlistTitle()"
         [playlistSubtitle]="facade.playlistSubtitle()"
@@ -48,7 +50,7 @@
         [isSettingsRoute]="facade.isSettingsRoute()"
         [parentalLockState]="facade.parentalLockState()"
         [showContextDrawerToggle]="facade.hasContextPanelContent()"
-        [isContextDrawerOpen]="contextDrawer.isOpen()"
+        [isContextDrawerOpen]="drawerOpen"
         [contextDrawerToggleAriaKey]="facade.contextDrawerLabelKeys().aria"
         [contextDrawerTooltipKey]="facade.contextDrawerLabelKeys().tooltip"
         (backRequested)="facade.goBack()"
@@ -74,11 +76,11 @@
         [appLayoutSlide]="facade.showContextPanel()"
         layoutSlideTargets=".workspace-content-frame"
     >
-        @if (facade.showContextPanel()) {
+        @if (facade.contextPanel() !== 'none') {
             <!-- Phone-only (CSS-hidden above 640px): tapping the scrim is
                  one of the two ways to close the drawer, so it renders
                  whenever the drawer is open. -->
-            @if (contextDrawer.isOpen()) {
+            @if (drawerOpen) {
                 <div
                     class="context-drawer-backdrop"
                     data-test-id="context-drawer-backdrop"
@@ -94,13 +96,15 @@
                  hear that a named modal surface opened; the desktop sidebar
                  is an always-visible complementary landmark, not a dialog. -->
             <app-workspace-shell-context-sidebar
-                [class.drawer-open]="contextDrawer.isOpen()"
-                [cdkTrapFocus]="contextDrawer.isOpen()"
-                [cdkTrapFocusAutoCapture]="contextDrawer.isOpen()"
-                [attr.role]="contextDrawer.isOpen() ? 'dialog' : null"
-                [attr.aria-modal]="contextDrawer.isOpen() ? 'true' : null"
+                [hidden]="!facade.showContextPanel()"
+                [attr.inert]="facade.showContextPanel() ? null : ''"
+                [class.drawer-open]="drawerOpen"
+                [cdkTrapFocus]="drawerOpen"
+                [cdkTrapFocusAutoCapture]="drawerOpen"
+                [attr.role]="drawerOpen ? 'dialog' : null"
+                [attr.aria-modal]="drawerOpen ? 'true' : null"
                 [attr.aria-label]="
-                    contextDrawer.isOpen()
+                    drawerOpen
                         ? (facade.contextDrawerLabelKeys().tooltip | translate)
                         : null
                 "
@@ -125,7 +129,7 @@
                 #workspaceContent
                 class="workspace-content"
                 tabindex="-1"
-                [attr.inert]="contextDrawer.isOpen() ? '' : null"
+                [attr.inert]="drawerOpen ? '' : null"
             >
                 <router-outlet />
             </main>
@@ -136,7 +140,7 @@
         @if (facade.externalPlaybackSession(); as session) {
             <footer
                 class="workspace-now-playing"
-                [attr.inert]="contextDrawer.isOpen() ? '' : null"
+                [attr.inert]="drawerOpen ? '' : null"
             >
                 <app-external-playback-dock
                     [session]="session"

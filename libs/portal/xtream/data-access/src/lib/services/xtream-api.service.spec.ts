@@ -268,6 +268,22 @@ describe('XtreamApiService', () => {
         );
     });
 
+    it.each([
+        { error: 'synthetic unavailable' },
+        { epg_listings: 'synthetic invalid listing' },
+        { epg_listings: [{ id: 'synthetic incomplete listing' }] },
+    ])(
+        'rejects a malformed legacy full schedule after the primary fails: %j',
+        async (payload) => {
+            dataService.sendIpcEvent
+                .mockRejectedValueOnce(new Error('synthetic primary failure'))
+                .mockResolvedValueOnce({ payload });
+            await expect(service.getFullEpg(credentials, 101)).rejects.toThrow(
+                'Invalid full EPG listing'
+            );
+        }
+    );
+
     it('falls back to the legacy full-epg action and normalizes the response', async () => {
         dataService.sendIpcEvent.mockImplementation(
             async (_type: string, payload: unknown) => {
@@ -442,7 +458,6 @@ describe('XtreamApiService', () => {
         // must not enter the conversion.
         const listing = {
             id: 'current',
-            epg_id: 'channel-101.mock',
             title: Buffer.from('Current Show').toString('base64'),
             description: '',
             start: '2026-09-06 22:30:00',
@@ -465,12 +480,14 @@ describe('XtreamApiService', () => {
 
         expect(shortItems[0]).toEqual(
             expect.objectContaining({
+                epg_id: '',
                 start: '2026-09-06T19:30:00.000Z',
                 stop: '2026-09-06T20:00:00.000Z',
             })
         );
         expect(fullItems[0]).toEqual(
             expect.objectContaining({
+                epg_id: 'channel-101.mock',
                 start: '2026-09-06T19:30:00.000Z',
                 stop: '2026-09-06T20:00:00.000Z',
             })

@@ -70,9 +70,23 @@ test('@epg @xtream @electron opens the multi-channel guide without remounting th
         await sidebar.evaluate((element) =>
             element.setAttribute('data-guide-test-sidebar', 'original')
         );
-        await shortcut.click();
+        const categoryPanel = page.locator(
+            'app-workspace-shell-context-sidebar'
+        );
+        await categoryPanel
+            .getByRole('button', { name: 'Search', exact: true })
+            .click();
+        const categorySearch = categoryPanel.getByRole('searchbox', {
+            name: 'Search categories',
+        });
+        await categorySearch.fill(fixture.categoryName);
+        await categorySearch.blur();
+        await expect(page.locator('body')).toBeFocused();
+        await page.keyboard.press('g');
 
         const guide = page.locator('app-epg-guide');
+        await expect(categoryPanel).toHaveAttribute('inert', '');
+        await expect(categoryPanel).toBeHidden();
         const firstRow = guide.getByRole('button', {
             name: first.name,
             exact: true,
@@ -127,6 +141,8 @@ test('@epg @xtream @electron opens the multi-channel guide without remounting th
             'original'
         );
         await expect(shortcut).toBeFocused();
+        await expect(categorySearch).toBeVisible();
+        await expect(categorySearch).toHaveValue(fixture.categoryName);
         await expect(sidebar).toHaveAttribute(
             'data-guide-test-sidebar',
             'original'
