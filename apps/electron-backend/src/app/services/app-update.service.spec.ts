@@ -593,6 +593,21 @@ describe('AppUpdateService', () => {
         expect(updater.quitAndInstall).toHaveBeenCalledTimes(1);
     });
 
+    it('ignores a second install while quitting and accepts a retry after failure', () => {
+        const { service, updater } = createService();
+        const update = { version: '0.24.0' };
+        updater.emit('update-downloaded', update);
+
+        service.installUpdate();
+        service.installUpdate();
+        expect(updater.quitAndInstall).toHaveBeenCalledTimes(1);
+
+        updater.emit('error', new Error('Synthetic install failure'));
+        updater.emit('update-downloaded', update);
+        service.installUpdate();
+        expect(updater.quitAndInstall).toHaveBeenCalledTimes(2);
+    });
+
     it('stands the close guard down before quitAndInstall', () => {
         // quitAndInstall closes the windows before 'before-quit' (macOS), so
         // an armed unsaved-settings guard would intercept that close and
@@ -780,6 +795,46 @@ describe('AppUpdateService', () => {
             // The retained download still belongs to the channel it was found on.
             verdictChannel: 'stable',
         });
+    });
+
+    it('checks the latest saved channel after an in-flight check settles', async () => {
+        const { service, updater, win } = createService();
+        let finishStable!: () => void;
+        const stable = new Promise<void>((resolve) => {
+            finishStable = resolve;
+        });
+        updater.checkForUpdates
+            .mockImplementationOnce(async () => {
+                await stable;
+                updater.emit('update-available', { version: '0.24.0' });
+            })
+            .mockImplementationOnce(async () => {
+                updater.emit('update-available', {
+                    version: '0.25.0-nightly.20261110.1',
+                });
+            });
+
+        const pending = service.checkForUpdates();
+        service.setChannel('nightly');
+        expect(updater.checkForUpdates).toHaveBeenCalledTimes(1);
+
+        finishStable();
+        await expect(pending).resolves.toMatchObject({
+            channel: 'nightly',
+            verdictChannel: 'nightly',
+            latestVersion: '0.25.0-nightly.20261110.1',
+        });
+        expect(updater.checkForUpdates).toHaveBeenCalledTimes(2);
+        expect(updater.setFeedURL).toHaveBeenLastCalledWith(
+            expect.objectContaining({ repo: 'iptvnator-nightly' })
+        );
+        expect(win.webContents.send).not.toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                channel: 'nightly',
+                latestVersion: '0.24.0',
+            })
+        );
     });
 
     it('stamps every verdict with the channel it was checked on', async () => {

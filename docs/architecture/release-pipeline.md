@@ -459,7 +459,10 @@ button that submits the settings form
 (`SettingsAboutSectionComponent.saveAndCheckForAppUpdate` →
 `SettingsComponent.onSubmit()`). No renderer-side check follows: the saved
 channel reaches `persistAppUpdateChannel`, whose change listener calls
-`AppUpdateService.setChannel`, which already re-checks an idle updater. A
+`AppUpdateService.setChannel`, which checks the saved channel. If a check is
+already running, it finishes before the service checks the latest saved
+channel. The service skips superseded availability results. The main process
+also accepts one install request at a time and releases that guard on failure. A
 download in flight or finished belongs to the previous channel and is kept
 by `setChannel`, so in those states the plain check stays and only the hint
 is shown. Because that kept download outlives the channel it was found on,
