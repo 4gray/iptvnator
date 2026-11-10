@@ -26,7 +26,7 @@
     margin-inline-start: auto;
 }
 
-.server-status__retry {
+.server-status__secondary {
     @include controls.secondary-button(sm);
 }
 
@@ -34,8 +34,8 @@
     @include controls.ghost-icon-button(44px, 18px);
 }
 
-a[mat-button] {
-    @include controls.ghost-button;
+.server-status__primary {
+    @include controls.accent-button(sm);
 }
 
 button,

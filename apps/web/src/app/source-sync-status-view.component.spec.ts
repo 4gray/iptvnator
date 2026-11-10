@@ -52,6 +52,16 @@ describe(SourceSyncStatusViewComponent.name, () => {
         expect(root.querySelector('input[type="password"]')).not.toBeNull();
     });
 
+    it('disables retry while the first inventory is connecting', async () => {
+        const { fixture, root, sync } = await setup(false);
+        sync.state.set('connecting');
+        fixture.detectChanges();
+
+        const retry = root.querySelector<HTMLButtonElement>('button');
+        expect(retry?.disabled).toBe(true);
+        expect(root.querySelector('a')).not.toBeNull();
+    });
+
     it('keeps recovery available when the first inventory has not loaded', async () => {
         const { root } = await setup(false);
         expect(root.querySelector('a')).not.toBeNull();

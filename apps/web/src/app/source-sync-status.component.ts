@@ -28,20 +28,7 @@ import { SourceSyncStatusViewComponent } from './source-sync-status-view.compone
             }
         }
     `,
-    styles: `
-        section {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 20px;
-            color: var(--app-on-surface);
-            background: var(--app-widget-bg);
-        }
-        button {
-            app-region: no-drag;
-        }
-    `,
+    styleUrl: './source-sync-status.component.scss',
 })
 export class SourceSyncStatusComponent {
     readonly available = !!sourceConnection() || sourceConnectionReadFailed();

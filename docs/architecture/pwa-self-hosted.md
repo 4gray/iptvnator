@@ -347,7 +347,11 @@ connection banner. Once a local source inventory is ready, a connectivity
 notice can be hidden for the current app session without changing profiles or
 stopping background retries. Settings → Server can still check the connection
 and shows the result there. A missing inventory, rejected token, or server
-identity error keeps its recovery controls visible. A successful projection
+identity error keeps its recovery controls visible. The status panel uses a
+secondary connection check and an icon-only dismiss action for a cached
+outage. Blocking recovery gives retry the primary role and keeps the Server
+settings link available while the first connection is in progress. Disconnect
+in Server settings uses the destructive tint. A successful projection
 publishes its inventory change to refresh mounted views. Its collection
 revision advances only after the local
 initialization receipt is persisted, so a failed write retries the inventory

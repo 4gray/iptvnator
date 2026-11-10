@@ -31,10 +31,15 @@ import { SourceSyncService, tokenKey } from '@iptvnator/services/source-sync';
                 class="server-status"
                 data-test-id="source-connection-recovery"
             >
-                <span>{{ 'SOURCE_SYNC.CONNECTION_RECOVERY' | translate }}</span>
-                <a mat-button routerLink="/workspace/settings/server">{{
-                    'SOURCE_SYNC.TITLE' | translate
-                }}</a>
+                <span class="server-status__message">{{
+                    'SOURCE_SYNC.CONNECTION_RECOVERY' | translate
+                }}</span>
+                <a
+                    mat-flat-button
+                    class="server-status__primary"
+                    routerLink="/workspace/settings/server"
+                    >{{ 'SOURCE_SYNC.TITLE' | translate }}</a
+                >
             </section>
         }
         @if (
@@ -67,15 +72,19 @@ import { SourceSyncService, tokenKey } from '@iptvnator/services/source-sync';
                 }
                 <div class="server-status__actions">
                     @if (!canDismiss()) {
-                        <a mat-button routerLink="/workspace/settings/server">{{
-                            'SOURCE_SYNC.TITLE' | translate
-                        }}</a>
+                        <a
+                            mat-flat-button
+                            class="server-status__secondary"
+                            routerLink="/workspace/settings/server"
+                            >{{ 'SOURCE_SYNC.TITLE' | translate }}</a
+                        >
                     }
                     <button
                         mat-flat-button
                         type="button"
-                        class="server-status__retry"
-                        [disabled]="busy()"
+                        [class.server-status__primary]="!canDismiss()"
+                        [class.server-status__secondary]="canDismiss()"
+                        [disabled]="busy() || sync.state() === 'connecting'"
                         [attr.aria-busy]="busy()"
                         (click)="retry()"
                     >
