@@ -12,22 +12,26 @@ const buildWorkflowConfig = parse(
         'utf8'
     )
 );
-const windowsWithoutBash =
-    process.platform === 'win32' &&
-    spawnSync('bash', ['--version'], { stdio: 'ignore' }).status !== 0;
+const posixOnly = { skip: process.platform === 'win32' };
 
 test(
     'only website changes in a PR merge tree can skip Electron packaging',
-    { skip: windowsWithoutBash },
+    posixOnly,
     (t) => {
         const root = fs.mkdtempSync(path.join(os.tmpdir(), 'packaging-pr-'));
         t.after(() => fs.rmSync(root, { recursive: true, force: true }));
         const repo = path.join(root, 'repo');
         fs.mkdirSync(path.join(repo, 'apps', 'website'), { recursive: true });
         const output = path.join(root, 'output');
-        const env = Object.fromEntries(
-            Object.entries(process.env).filter(([key]) => !/^GIT_/i.test(key))
-        );
+        const env = {
+            ...Object.fromEntries(
+                Object.entries(process.env).filter(
+                    ([key]) => !/^GIT_/i.test(key)
+                )
+            ),
+            GIT_CONFIG_GLOBAL: '/dev/null',
+            GIT_CONFIG_NOSYSTEM: '1',
+        };
         const jobs = buildWorkflowConfig.jobs;
         const scopeJob = jobs['appstream-website'];
         const scope = scopeJob.steps.find((step) => step.id === 'scope');
@@ -99,7 +103,10 @@ test(
             group: '${{ github.workflow }}-appstream-scope-${{ github.event.pull_request.number }}',
             'cancel-in-progress': true,
         });
-        assert.equal(jobs['linux-embedded-mpv-runtime'].needs, 'appstream-website');
+        assert.equal(
+            jobs['linux-embedded-mpv-runtime'].needs,
+            'appstream-website'
+        );
         for (const job of [
             jobs['linux-embedded-mpv-runtime'],
             jobs['build-cross-platform'],
@@ -126,21 +133,28 @@ test(
 
 test(
     'standalone AppStream check rejects a missing or empty built screenshot',
-    { skip: windowsWithoutBash },
+    posixOnly,
     (t) => {
-        const root = fs.mkdtempSync(path.join(os.tmpdir(), 'appstream-website-'));
+        const root = fs.mkdtempSync(
+            path.join(os.tmpdir(), 'appstream-website-')
+        );
         t.after(() => fs.rmSync(root, { recursive: true, force: true }));
         const output = path.join(root, 'dist/apps/website/appstream');
         fs.mkdirSync(output, { recursive: true });
         const job = buildWorkflowConfig.jobs['appstream-website'];
-        const step = job.steps.find(({ name }) => name === 'Verify built screenshots');
+        const step = job.steps.find(
+            ({ name }) => name === 'Verify built screenshots'
+        );
         const packageStep = buildWorkflowConfig.jobs['build-linux'].steps.find(
             ({ name }) => name === 'Verify AppStream website assets'
         );
         assert.equal(packageStep.run, step.run);
         assert.equal(packageStep.if, "matrix.os == 'linux'");
         const verify = () =>
-            spawnSync('bash', ['-c', step.run], { cwd: root, encoding: 'utf8' });
+            spawnSync('bash', ['-c', step.run], {
+                cwd: root,
+                encoding: 'utf8',
+            });
         for (const name of ['player', 'playlists', 'epg']) {
             fs.writeFileSync(path.join(output, `${name}.png`), 'fixture');
         }
@@ -157,7 +171,7 @@ test(
 
 test(
     'a superseded or closed PR cannot change the rolling draft',
-    { skip: windowsWithoutBash },
+    posixOnly,
     (t) => {
         const root = fs.mkdtempSync(path.join(os.tmpdir(), 'draft-head-'));
         t.after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -186,9 +200,15 @@ test(
                 },
             });
             assert.equal(result.status, 0, result.stderr);
-            assert.equal(fs.readFileSync(output, 'utf8'), `current=${current}\n`);
+            assert.equal(
+                fs.readFileSync(output, 'utf8'),
+                `current=${current}\n`
+            );
         }
-        for (const name of ['Prune stale draft assets', 'Create Draft Release']) {
+        for (const name of [
+            'Prune stale draft assets',
+            'Create Draft Release',
+        ]) {
             assert.match(
                 steps.find((step) => step.name === name).if,
                 /steps\.pr-state\.outputs\.current == 'true'/
