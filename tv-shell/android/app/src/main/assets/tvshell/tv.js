@@ -87,6 +87,11 @@
             '.' + FOCUS_CLASS + '{outline:3px solid var(--app-focus-ring,#7cc4ff)!important;outline-offset:2px!important;' +
             'scroll-margin:32px;box-shadow:0 0 0 3px rgba(0,0,0,.55)!important;border-radius:6px}' +
             'video.' + FOCUS_CLASS + '{outline-offset:-3px!important}' +
+            // In fullscreen the picture fills the screen, so a ring on it (or on the fullscreen
+            // root itself) is a frame around the TV, not a focus cue. Controls inside keep theirs.
+            '.' + FOCUS_CLASS + ':fullscreen,:fullscreen video.' + FOCUS_CLASS + ',' +
+            '.' + FOCUS_CLASS + ':-webkit-full-screen,:-webkit-full-screen video.' + FOCUS_CLASS +
+            '{outline:none!important;box-shadow:none!important}' +
             'body.tv-shell *{cursor:none!important}' +
             'body.tv-shell ::-webkit-scrollbar{width:0;height:0}' +
             (fullMotion() ? '' : LITE_MOTION_CSS);
@@ -398,9 +403,56 @@
         if (surface) surface.classList.add(FOCUS_CLASS);
     }
 
+    // A text field reached with the D-pad must not raise the soft keyboard: the WebView shows it
+    // for any focus that follows a key press, and the next arrow then lands on the keyboard
+    // instead of the next control. The field is held read-only while it only has the remote's
+    // focus; OK makes it editable again and opens the keyboard (see onKeyDown). Read-only rather
+    // than inputmode="none": the WebView handles OK on an editable field itself, so the page
+    // would never see the key that should open the keyboard.
+    var TEXT_INPUT_TYPE = /^(text|search|url|email|password|tel|number)$/;
+    var KEYBOARD_HELD = 'data-tv-keyboard-held';
+
+    function isTextField(el) {
+        if (el.tagName === 'TEXTAREA') return true;
+        return el.tagName === 'INPUT' && TEXT_INPUT_TYPE.test((el.getAttribute('type') || 'text').toLowerCase());
+    }
+
+    function holdKeyboard(el) {
+        if (!isAndroid || !isTextField(el) || el.readOnly || el.hasAttribute(KEYBOARD_HELD)) return;
+        el.setAttribute(KEYBOARD_HELD, '');
+        el.readOnly = true;
+        el.addEventListener('blur', releaseKeyboard, { once: true });
+    }
+
+    function releaseKeyboard(elOrEvent) {
+        var el = elOrEvent && elOrEvent.target ? elOrEvent.target : elOrEvent;
+        if (!el || !el.hasAttribute || !el.hasAttribute(KEYBOARD_HELD)) return false;
+        el.removeAttribute(KEYBOARD_HELD);
+        el.readOnly = false;
+        return true;
+    }
+
+    function isHardwareEdit(event) {
+        var key = event.key;
+        if (key === 'Backspace' || key === 'Delete' || (key === 'Insert' && event.shiftKey)) return true;
+        if (key && key.length === 1 && event.getModifierState('AltGraph')) return true;
+        if ((event.ctrlKey || event.metaKey) && !event.altKey) return /^[vxyz]$/i.test(key);
+        return key && key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey;
+    }
+
+    /** OK on a text field: make a held field editable again, then open the keyboard. */
+    function openKeyboard(el) {
+        releaseKeyboard(el);
+        // The next task: the field must be editable (and still focused) when the shell asks.
+        setTimeout(function () {
+            if (document.activeElement === el) native('showKeyboard');
+        }, 0);
+    }
+
     function setFocus(el, opts) {
         var previous = document.querySelectorAll('.' + FOCUS_CLASS);
         for (var i = 0; i < previous.length; i++) previous[i].classList.remove(FOCUS_CLASS);
+        holdKeyboard(el);
         try {
             el.focus({ preventScroll: true });
         } catch (e) {
@@ -470,6 +522,36 @@
         return true;
     }
 
+    /**
+     * The entry to land on when entering the list that holds `el` from outside it: the selected
+     * one, else the first. A list is the nearest ancestor (not holding `from`) with several
+     * elements of `el`'s tag and first class; anything else keeps `el`.
+     */
+    function listEntry(el, from) {
+        var token = el.classList && el.classList[0];
+        if (!token || !window.CSS || !CSS.escape) return el;
+        var sel = el.tagName.toLowerCase() + '.' + CSS.escape(token);
+        for (var box = el.parentElement; box && box !== document.body; box = box.parentElement) {
+            if (box.contains(from)) return el;
+            var items = box.querySelectorAll(sel);
+            if (items.length < 2) continue;
+            // Only a stacked list: a toolbar (a player header's Back, Favorite, ... row) keeps the
+            // nearest button, or Right would jump to its first one.
+            var a = items[0].getBoundingClientRect(), b = items[1].getBoundingClientRect();
+            if (b.top < a.bottom - 1) return el;
+            var chosen = box.querySelector(sel + '.selected,' + sel + '.active,' + sel + '[aria-selected="true"],' +
+                sel + '[aria-current]:not([aria-current="false"])');
+            // The mark can sit on the entry's row instead (channel rows mark .active on the wrapper).
+            for (var i = 0; !chosen && i < items.length; i++) {
+                var mark = items[i].closest('.selected,.active,[aria-selected="true"]');
+                if (mark && box.contains(mark) && mark !== box) chosen = items[i];
+            }
+            chosen = chosen || items[0];
+            return chosen.isConnected && qualifies(chosen) ? chosen : el;
+        }
+        return el;
+    }
+
     function move(dir, retried) {
         var scope = navigationScope();
         var active = document.activeElement;
@@ -490,6 +572,40 @@
             next = findNext(dir, src, scope, exclude);
         } finally {
             reach.top = reach.right = reach.bottom = reach.left = 0;
+        }
+        // A sideways step into another list (rail to categories, categories to channels) lands on
+        // that list's selected entry, else its first, instead of whichever entry is level with the
+        // source: the Live TV rail icon sits beside the 4th category.
+        if (next && exclude && (dir === 'left' || dir === 'right')) next = { el: listEntry(next.el, exclude) };
+        // Channel list beside a preview player: keep the row's own actions reachable. When
+        // Right leaves the row, prefer the picture over unrelated controls beside the list.
+        // Left from that picture returns to the playing channel, not an overlay button in its
+        // left half (the picture's centre is the source, so those count as "left" of it).
+        if (dir === 'left' && exclude && exclude.tagName === 'VIDEO' && !document.fullscreenElement) {
+            var playing = document.querySelector('.channel-list-item.active .channel-content');
+            if (playing && qualifies(playing) && (scope === document || scope.contains(playing)) &&
+                playing.getBoundingClientRect().right <= exclude.getBoundingClientRect().left + 1) {
+                next = { el: playing };
+            }
+        }
+        var row = dir === 'right' && exclude && exclude.closest && exclude.closest('.channel-list-item');
+        if (row && (!next || !row.contains(next.el))) {
+            var preview = activeVideo();
+            if (preview && preview.isConnected && (scope === document || scope.contains(preview))) {
+                var pr = preview.getBoundingClientRect();
+                if (pr.width > 0 && pr.left >= row.getBoundingClientRect().right - 1 && qualifies(preview)) next = { el: preview };
+            }
+        }
+        // The picture covers the whole player, so it never counts as "above" the controls dock and
+        // Up would skip it for an overlay button in a corner. Leaving the dock upwards returns to
+        // the picture instead (Down from the picture enters the dock, Up from it reaches the overlay).
+        if (dir === 'up' && exclude && exclude.closest) {
+            var dock = exclude.closest('.player-controls__bar');
+            if (dock && (!next || !dock.contains(next.el))) {
+                var shell = dock.closest('[class*="player-shell"]');
+                var picture = shell && shell.querySelector('video');
+                if (picture && picture.isConnected && (scope === document || scope.contains(picture)) && qualifies(picture)) next = { el: picture };
+            }
         }
         if (next) {
             setFocus(next.el);
@@ -556,7 +672,9 @@
         // On the video: Left/Right stay with the app (seek); Up/Down navigate
         // to the player controls and the rest of the page (the TV remote owns
         // the volume anyway).
-        if (tag === 'VIDEO' || tag === 'AUDIO') return horizontal;
+        // A live picture has nothing to seek: Left goes back to the list beside it (see move),
+        // Right stays with the player and shows its controls.
+        if (tag === 'VIDEO' || tag === 'AUDIO') return horizontal && (dir === 'right' || canSeek(el) || !!document.fullscreenElement);
         // Expanded comboboxes keep Up/Down for their active descendant; horizontal
         // arrows follow the input caret rule so the remote can reach other controls.
         var role = el.getAttribute('role');
@@ -575,6 +693,20 @@
         if (el.closest('.mat-mdc-slider,mat-slider')) return horizontal;
         if (el.closest('[data-tv-passthrough]')) return true;
         return false;
+    }
+
+    function canSeek(media) {
+        // A shared timeline reflects the engine's seek capability, even for raw-TS VOD whose
+        // video element duration is Infinity. It remains rendered during temporary buffering.
+        var player = media.closest('[class*="player-shell"]');
+        if (player && player.querySelector('.player-controls__slider--timeline')) return true;
+        var d = media.duration;
+        if (isFinite(d) && d > 0) return true;
+        // Legacy Video.js keeps the corrected raw-TS duration on the player.
+        var root = media.closest('.video-js');
+        var engine = root && root.player;
+        d = engine && typeof engine.duration === 'function' ? engine.duration() : NaN;
+        return typeof d === 'number' && isFinite(d) && d > 0;
     }
 
     function revealPlayerControls(el) {
@@ -635,6 +767,10 @@
         if (event.defaultPrevented && !event.__tvshell) return;
         var dir = DIR[event.key];
         var active = document.activeElement;
+        // Release before the browser performs the hardware keyboard's default editing action.
+        if (active && active.hasAttribute(KEYBOARD_HELD) && isHardwareEdit(event)) {
+            releaseKeyboard(active);
+        }
         if (dir) {
             if (event.ctrlKey || event.altKey || event.metaKey) return;
             // A held key repeats every 50 ms, faster than a step through a long list: the
@@ -700,9 +836,24 @@
                 else toggleFullscreen(active);
                 return;
             }
-            if (active.tagName === 'INPUT' && /^(text|search|url|email|password|tel|number)$/.test((active.getAttribute('type') || 'text').toLowerCase())) {
-                native('showKeyboard');
-                return; // let the app submit on Enter if it wants to
+            if (active.tagName === 'TEXTAREA') {
+                // The first OK on a textarea reached with the D-pad opens the keyboard instead of
+                // typing a new line; after that Enter behaves natively.
+                if (active.hasAttribute(KEYBOARD_HELD)) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    openKeyboard(active);
+                }
+                return;
+            }
+            if (isTextField(active)) {
+                if (active.hasAttribute(KEYBOARD_HELD)) {
+                    // First OK on a field reached with the D-pad: open the keyboard, don't submit.
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                }
+                openKeyboard(active);
+                return; // otherwise let the app submit on Enter if it wants to
             }
             // Android's DPAD_CENTER maps to Enter. Native checkboxes/radios only activate
             // with Space in a browser, so handle OK explicitly and prevent form submission.
@@ -892,6 +1043,65 @@
             default: return false;
         }
         revealPlayerControls(media);
+        return true;
+    };
+
+    var KEY_CODES = { ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Enter: 13 };
+
+    function stepForwardedRange(slider, key) {
+        var before = slider.value;
+        var increase = (key === 'ArrowRight') !== (getComputedStyle(slider).direction === 'rtl');
+        if (slider.step.toLowerCase() === 'any') {
+            // Chromium uses 1% of the range for an arrow press on step="any".
+            var min = Number(slider.min || '0');
+            var max = Number(slider.max || '100');
+            var span = (isFinite(max) ? max : 100) - (isFinite(min) ? min : 0);
+            slider.valueAsNumber += (increase ? 1 : -1) * Math.max(0, span) / 100;
+        } else if (increase) {
+            slider.stepUp();
+        } else {
+            slider.stepDown();
+        }
+        if (slider.value !== before) {
+            slider.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+            slider.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    }
+
+    /**
+     * D-pad and OK forwarded by the shell while a video is fullscreen: Chromium's fullscreen view
+     * holds native focus then, so the keys never reach the page on their own. Replayed on the
+     * focused element so the same handlers (this layer's, then the app's shortcuts) see them.
+     */
+    api.key = function (type, key) {
+        var code = KEY_CODES[key];
+        if (!code || (type !== 'keydown' && type !== 'keyup')) return false;
+        var active = document.activeElement;
+        var target = active && active !== document.body ? active : document;
+        var fullscreen = document.fullscreenElement;
+        var dir = DIR[key];
+        if (type === 'keyup' && dir) heldArrow = null;
+        // The fullscreen Android view can deliver trusted input to frames and text editors.
+        if ((fullscreen && fullscreen.tagName === 'IFRAME') || target.tagName === 'IFRAME' ||
+            (dir && isTextField(target) && (type === 'keyup' || passThroughArrow(target, dir)))) return false;
+        var ev = new KeyboardEvent(type, { key: key, code: key, bubbles: true, cancelable: true });
+        // The constructor ignores keyCode/which; players that still read them need the values.
+        try {
+            Object.defineProperty(ev, 'keyCode', { get: function () { return code; } });
+            Object.defineProperty(ev, 'which', { get: function () { return code; } });
+        } catch (e) {
+            /* ignore */
+        }
+        var notHandled = target.dispatchEvent(ev);
+        if (type !== 'keydown' || !notHandled || target === document) return true;
+        // Synthetic keys do not perform the browser's native click or range action.
+        if (key === 'Enter' &&
+            (/^(BUTTON|A|SUMMARY)$/.test(target.tagName) || target.getAttribute('role') === 'button')) {
+            target.click();
+        } else if ((key === 'ArrowLeft' || key === 'ArrowRight') && target === document.activeElement &&
+            target.matches('input[type="range"]:enabled') && !isDisabled(target)) {
+            stepForwardedRange(target, key);
+        }
         return true;
     };
 

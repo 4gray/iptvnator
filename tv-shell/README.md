@@ -195,11 +195,15 @@ cd tv-shell/android && ./gradlew :backend:check :app:assembleRelease
 
 | Remote | Action |
 | --- | --- |
-| D-pad | move between elements; on the picture: ◀ ▶ seek, ▲ ▼ leave the picture / reach the controls; in a text field the arrows move the caret until it cannot move further; in the source switcher's search: ▲ ▼ highlight a source without leaving the field |
+| D-pad | move between elements (landing on a text field does not open the keyboard); on the picture: ◀ ▶ seek, ▲ ▼ leave the picture / reach the controls; in a text field the arrows move the caret until it cannot move further; in the source switcher's search: ▲ ▼ highlight a source without leaving the field |
 | OK | activate; on the picture: fullscreen; on a text field: keyboard. A held OK is one activation |
 | Back | close dialog/menu → leave fullscreen → previous page → (twice) exit the app; **hold**: IPTVnator settings (remotes without a Menu key) |
 | Menu | context menu of the focused item; on the picture: open the stream in VLC; **long press**: IPTVnator settings. The HDMI-CEC context-menu key and Y on a game controller do the same |
 | ▶⏸ ⏪ ⏩ | play/pause, −15 s, +30 s |
+
+A physical keyboard can edit a D-pad-focused text field directly. Left and
+Right adjust the focused timeline or volume slider in fullscreen. Right
+from a channel goes through its available row actions on the way to the preview.
 
 ## Design notes
 
