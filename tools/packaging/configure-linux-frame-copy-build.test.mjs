@@ -566,7 +566,15 @@ test('only website changes in a PR merge tree can skip Electron packaging', (t) 
     check(false);
 
     assert.equal(scopeJob.if, "github.event_name == 'pull_request'");
+    assert.equal(
+        jobs['nightly-version'].if,
+        "github.event_name != 'pull_request'"
+    );
     assert.equal(scopeJob.steps[0].with['fetch-depth'], 2);
+    assert.deepEqual(scopeJob.concurrency, {
+        group: '${{ github.workflow }}-appstream-scope-${{ github.event.pull_request.number }}',
+        'cancel-in-progress': true,
+    });
     assert.equal(jobs['linux-embedded-mpv-runtime'].needs, 'appstream-website');
     for (const job of [
         jobs['linux-embedded-mpv-runtime'],
@@ -578,7 +586,7 @@ test('only website changes in a PR merge tree can skip Electron packaging', (t) 
             /needs\.appstream-website\.result == 'success'\s*&&\s*needs\.appstream-website\.outputs\.website-only != 'true'/
         );
     }
-    // Skip propagation must stop at successful prerequisites on non-PR builds.
+    // Skipped planning jobs must not propagate past successful builds.
     for (const id of ['build-linux', 'create-release']) {
         const job = jobs[id];
         assert.match(job.if, /!cancelled\(\)/);

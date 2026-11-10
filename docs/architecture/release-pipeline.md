@@ -335,7 +335,8 @@ first parent. If there are no changes outside `apps/website/`, it skips
 Electron packaging and checks the website instead. Moves across that boundary
 and changes to shared files run the full matrix. A missing comparison also
 runs the matrix. Nightly pushes, tags and manual runs keep their packaging
-scope.
+scope. The PR scope job takes the place of nightly version resolution on PRs
+and cancels older scope checks for the same PR.
 
 The website-only job builds the site with offline release data and checks the
 four nonempty PNG files at their published paths. For a full build the Linux

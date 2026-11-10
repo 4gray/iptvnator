@@ -56,6 +56,7 @@ jobs:
     # different versions. Empty output means "not a nightly build".
     nightly-version:
         name: Resolve nightly version
+        if: github.event_name != 'pull_request'
         runs-on: ubuntu-latest
         timeout-minutes: 5
         outputs:
@@ -88,6 +89,9 @@ jobs:
         if: github.event_name == 'pull_request'
         runs-on: ubuntu-latest
         timeout-minutes: 15
+        concurrency:
+            group: ${{ github.workflow }}-appstream-scope-${{ github.event.pull_request.number }}
+            cancel-in-progress: true
         outputs:
             website-only: ${{ steps.scope.outputs.website-only }}
         steps:
@@ -454,10 +458,11 @@ jobs:
         name: Build on ${{ matrix.os }} ${{ matrix.arch }}
         needs: [nightly-version, appstream-website]
         if: >-
-            ${{ !cancelled() && needs.nightly-version.result == 'success' &&
-                (github.event_name != 'pull_request' ||
-                (needs.appstream-website.result == 'success' &&
-                 needs.appstream-website.outputs.website-only != 'true')) }}
+            ${{ !cancelled() &&
+                ((github.event_name == 'pull_request' &&
+                  needs.appstream-website.result == 'success' &&
+                  needs.appstream-website.outputs.website-only != 'true') ||
+                 (github.event_name != 'pull_request' && needs.nightly-version.result == 'success')) }}
         runs-on: ${{ matrix.runner }}
         timeout-minutes: 120
         concurrency:
@@ -581,7 +586,7 @@ jobs:
               # builds the same version. The script also sets the electron-
               # builder publish channel to "nightly", which names the updater
               # metadata nightly-mac.yml / nightly.yml / nightly-linux.yml.
-              if: needs.nightly-version.outputs.version != ''
+              if: needs.nightly-version.result == 'success' && needs.nightly-version.outputs.version != ''
               # Windows runners default to PowerShell, where "${NIGHTLY_VERSION}"
               # expands to nothing and the script rejects the empty version.
               shell: bash
@@ -1484,9 +1489,10 @@ jobs:
         needs:
             - linux-embedded-mpv-runtime
             - nightly-version
+        # Explicit status checks keep a skipped planning job from propagating.
         if: >-
             ${{ !cancelled() && needs.linux-embedded-mpv-runtime.result == 'success' &&
-                needs.nightly-version.result == 'success' }}
+                (github.event_name == 'pull_request' || needs.nightly-version.result == 'success') }}
         runs-on: ${{ matrix.runner }}
         timeout-minutes: 120
         concurrency:
@@ -1527,11 +1533,11 @@ jobs:
             - build-cross-platform
             - build-linux
         if: >-
-            ${{ !cancelled() && needs.nightly-version.result == 'success' &&
-                needs.build-cross-platform.result == 'success' &&
+            ${{ !cancelled() && needs.build-cross-platform.result == 'success' &&
                 needs.build-linux.result == 'success' &&
-                (github.event_name != 'pull_request' ||
-                 github.event.pull_request.head.repo.full_name == github.repository) }}
+                ((github.event_name == 'pull_request' &&
+                  github.event.pull_request.head.repo.full_name == github.repository) ||
+                 (github.event_name != 'pull_request' && needs.nightly-version.result == 'success')) }}
         runs-on: ubuntu-latest
         concurrency:
             group: ${{ github.workflow }}-release-${{ github.event.pull_request.number || github.ref }}
