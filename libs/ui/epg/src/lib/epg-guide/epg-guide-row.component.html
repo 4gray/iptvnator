@@ -42,7 +42,9 @@
     role="gridcell"
     [style.width.px]="trackWidthPx()"
 >
-    @if (showEmpty()) {
+    @if (status() === 'error') {
+        <span class="epg-guide-row__empty">{{ 'EPG.ERROR' | translate }}</span>
+    } @else if (showEmpty()) {
         <span class="epg-guide-row__empty">{{
             'EPG.GUIDE.NO_PROGRAMME_INFO_LONG' | translate
         }}</span>

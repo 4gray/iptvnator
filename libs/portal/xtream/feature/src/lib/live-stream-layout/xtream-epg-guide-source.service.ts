@@ -30,6 +30,7 @@ import type {
     EpgGuideChannel,
     EpgGuideScope,
     EpgGuideSearchHit,
+    EpgGuideSearchUpdate,
     EpgGuideSource,
     EpgGuideWindow,
 } from '@iptvnator/ui/epg';
@@ -324,23 +325,23 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
 
     async searchPrograms(
         query: string,
-        signal?: AbortSignal
+        signal?: AbortSignal,
+        report?: (update: EpgGuideSearchUpdate) => void
     ): Promise<EpgGuideSearchHit[]> {
         const { read, checkCurrent } = this.scheduleReader(signal);
         const term = foldSearchText(query);
         const scoped = this.scopedRows();
+        const catalog = this.catalog();
         const hits: EpgGuideSearchHit[] = [];
+        let checked = 0;
         let failed = false;
-        for (const [id, item] of this.catalog()) {
-            let programs: EpgProgram[];
-            const displayed = scoped.get(id);
-            try {
-                programs = await read(displayed ?? item);
-            } catch {
+        for (const [id, item] of catalog) {
+            const channel = scoped.get(id) ?? item;
+            const programs = await read(channel).catch(() => {
                 checkCurrent();
                 failed = true;
-                continue;
-            }
+                return [];
+            });
             for (const program of programs) {
                 if (
                     !foldSearchText(
@@ -349,12 +350,15 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
                 )
                     continue;
                 hits.push({
-                    channelId: displayed ? id : null,
-                    channelName: name(displayed ?? item),
+                    channelId: id,
+                    channelName: name(channel),
                     program,
                 });
-                if (hits.length === SEARCH_LIMIT) return hits;
+                if (hits.length === SEARCH_LIMIT) break;
             }
+            checked++;
+            report?.({ matches: hits.slice(), checked, total: catalog.size });
+            if (hits.length === SEARCH_LIMIT) break;
         }
         if (failed && !hits.length)
             throw new Error(

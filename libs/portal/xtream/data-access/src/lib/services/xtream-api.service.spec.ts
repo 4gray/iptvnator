@@ -257,6 +257,17 @@ describe('XtreamApiService', () => {
         );
     });
 
+    it('does not turn an invalid primary payload and a failed fallback into an empty guide', async () => {
+        dataService.sendIpcEvent
+            .mockResolvedValueOnce({
+                payload: { error: 'synthetic unavailable' },
+            })
+            .mockRejectedValueOnce(new Error('synthetic fallback failure'));
+        await expect(service.getFullEpg(credentials, 101)).rejects.toThrow(
+            'synthetic fallback failure'
+        );
+    });
+
     it('falls back to the legacy full-epg action and normalizes the response', async () => {
         dataService.sendIpcEvent.mockImplementation(
             async (_type: string, payload: unknown) => {

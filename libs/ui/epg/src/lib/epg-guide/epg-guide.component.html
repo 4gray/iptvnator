@@ -28,55 +28,60 @@
     />
 
     @if (searchPanelVisible()) {
-        <div
-            class="epg-guide__search-results"
-            [attr.role]="searchResults().length ? 'listbox' : null"
-            [attr.aria-label]="
-                searchResults().length
-                    ? ('EPG.GUIDE.SEARCH_PROGRAMMES' | translate)
-                    : null
-            "
-        >
+        <div class="epg-guide__search-results">
             @if (searchStatus() !== 'idle') {
-                <div class="epg-guide__search-empty" role="status">
-                    {{
+                <div class="epg-guide__search-empty">
+                    <span role="status">{{
                         (searchStatus() === 'loading'
                             ? 'EPG.FETCH_EPG'
                             : 'EPG.ERROR'
                         ) | translate
-                    }}
+                    }}</span>
+                    @if (searchProgress(); as progress) {
+                        <span
+                            >{{ progress.checked }} / {{ progress.total }}</span
+                        >
+                    }
                 </div>
-            } @else {
-                @for (
-                    hit of searchResults();
-                    track hit.program.channel + hit.program.start + $index
-                ) {
-                    <button
-                        type="button"
-                        class="epg-guide__search-result"
-                        role="option"
-                        [attr.aria-selected]="false"
-                        (click)="openSearchResult(hit)"
-                    >
-                        <span class="epg-guide__search-title">{{
-                            hit.program.title
-                        }}</span>
-                        <span class="epg-guide__search-meta">
-                            {{
-                                searchHitStartMs(hit)
-                                    | date
-                                        : 'EEE d MMM HH:mm'
-                                        : ''
-                                        : currentLocale()
-                            }}
-                            · {{ hit.channelName ?? hit.program.channel }}
-                        </span>
-                    </button>
-                } @empty {
-                    <div class="epg-guide__search-empty">
-                        {{ 'EPG.GUIDE.NO_RESULTS' | translate }}
-                    </div>
-                }
+            }
+            @if (searchResults().length) {
+                <div
+                    role="listbox"
+                    [attr.aria-label]="
+                        'EPG.GUIDE.SEARCH_PROGRAMMES' | translate
+                    "
+                >
+                    @for (
+                        hit of searchResults();
+                        track hit.program.channel + hit.program.start + $index
+                    ) {
+                        <button
+                            type="button"
+                            class="epg-guide__search-result"
+                            role="option"
+                            [attr.aria-selected]="false"
+                            (click)="openSearchResult(hit)"
+                        >
+                            <span class="epg-guide__search-title">{{
+                                hit.program.title
+                            }}</span>
+                            <span class="epg-guide__search-meta">
+                                {{
+                                    searchHitStartMs(hit)
+                                        | date
+                                            : 'EEE d MMM HH:mm'
+                                            : ''
+                                            : currentLocale()
+                                }}
+                                · {{ hit.channelName ?? hit.program.channel }}
+                            </span>
+                        </button>
+                    }
+                </div>
+            } @else if (searchStatus() === 'idle') {
+                <div class="epg-guide__search-empty">
+                    {{ 'EPG.GUIDE.NO_RESULTS' | translate }}
+                </div>
             }
         </div>
     }

@@ -188,14 +188,21 @@ describe('EpgGuideProgramsService', () => {
         expect(service.programsFor('a')).toEqual([]);
     });
 
-    it('marks a failed batch as loaded-empty instead of retrying on every scroll', async () => {
+    it('retries a failed row when it returns to the viewport without retrying visible rows repeatedly', async () => {
         loadPrograms.mockRejectedValue(new Error('ipc down'));
         service.setWindow(1_000, 2_000);
         service.ensureLoaded(channels());
         await flush();
-        expect(service.statusFor('a')).toBe('loaded');
+        expect(service.statusFor('a')).toBe('error');
         service.ensureLoaded(channels());
         expect(loadPrograms).toHaveBeenCalledTimes(1);
+        service.ensureLoaded([]);
+        loadPrograms.mockResolvedValue(new Map([['a', []]]));
+        service.ensureLoaded([channels()[0]]);
+        await flush();
+        expect(loadPrograms).toHaveBeenCalledTimes(2);
+        expect(service.statusFor('a')).toBe('loaded');
+        expect(service.programsFor('a')).toEqual([]);
     });
 
     it('loads coverage for the whole scope when the window is set and answers isCovered', async () => {

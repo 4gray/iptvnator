@@ -131,6 +131,7 @@ export class EpgGuideComponent implements OnDestroy {
     readonly searchEnabled = this.search.enabled;
     readonly searchQuery = this.search.query;
     readonly searchResults = this.search.results;
+    readonly searchProgress = this.search.progress;
     readonly searchStatus = this.search.status;
     readonly searchPanelVisible = this.search.panelVisible;
     readonly catchUpAvailable = this.source.catchUp !== undefined;

@@ -2,6 +2,22 @@ import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { XtreamGuideScheduleCache } from './xtream-guide-schedule-cache';
 
 describe('XtreamGuideScheduleCache', () => {
+    it('reuses an empty schedule briefly and requests it again after expiry', async () => {
+        const cache = new XtreamGuideScheduleCache();
+        const clock = jest.spyOn(Date, 'now').mockReturnValue(0);
+        const fetch = jest.fn(async () => []);
+        try {
+            await cache.load('1', () => undefined, fetch);
+            clock.mockReturnValue(60_000);
+            await cache.load('1', () => undefined, fetch);
+            expect(fetch).toHaveBeenCalledTimes(1);
+            clock.mockReturnValue(300_000);
+            await cache.load('1', () => undefined, fetch);
+            expect(fetch).toHaveBeenCalledTimes(2);
+        } finally {
+            clock.mockRestore();
+        }
+    });
     it('coalesces duplicate requests and limits provider work to two slots', async () => {
         const cache = new XtreamGuideScheduleCache();
         const finish: Array<(programs: EpgProgram[]) => void> = [];

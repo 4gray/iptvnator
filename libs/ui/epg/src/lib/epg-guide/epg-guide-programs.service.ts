@@ -23,7 +23,8 @@ export const EPG_GUIDE_LOAD_CHUNK = 100;
  */
 export const EPG_GUIDE_COVERAGE_CHUNK = 1000;
 
-export type EpgGuideRowStatus = 'idle' | 'loading' | 'loaded' | 'none';
+export type EpgGuideRowStatus =
+    'idle' | 'loading' | 'loaded' | 'none' | 'error';
 
 const EMPTY: readonly EpgProgram[] = [];
 
@@ -60,6 +61,7 @@ export class EpgGuideProgramsService {
     >();
     private coverageRequest?: AbortController;
     private coverageRequested = false;
+    private visibleRows = new Set<string>();
     /** Last channel reference seen by the constructor effect (see below). */
     private seenChannels: readonly EpgGuideChannel[] | null = null;
     private seenRevision: unknown;
@@ -141,8 +143,10 @@ export class EpgGuideProgramsService {
         if (!range) {
             return;
         }
+        const previousRows = this.visibleRows;
+        const visible = new Set(channels.map((channel) => channel.id));
+        this.visibleRows = visible;
         if (this.source.programBatchSize) {
-            const visible = new Set(channels.map((channel) => channel.id));
             const cancelled: Array<[string, EpgGuideRowStatus]> = [];
             for (const [request, rows] of this.programRequests) {
                 if (rows.some((row) => visible.has(row.id))) continue;
@@ -157,10 +161,14 @@ export class EpgGuideProgramsService {
             }
             if (cancelled.length) this.patchStatuses(cancelled);
         }
-        const pending = channels.filter(
-            (channel) =>
-                this.statusFor(channel.id) === 'idle' && hasEpgKey(channel)
-        );
+        const pending = channels.filter((channel) => {
+            const status = this.statusFor(channel.id);
+            return (
+                hasEpgKey(channel) &&
+                (status === 'idle' ||
+                    (status === 'error' && !previousRows.has(channel.id)))
+            );
+        });
         if (pending.length === 0) {
             return;
         }
@@ -188,7 +196,7 @@ export class EpgGuideProgramsService {
                 () => {
                     if (!controller.signal.aborted)
                         debugEpgGuidePrograms(
-                            'loadPrograms failed for a chunk; marking as loaded-empty',
+                            'loadPrograms failed for a chunk',
                             { channelCount: request.channels.length }
                         );
                     return null;
@@ -205,7 +213,10 @@ export class EpgGuideProgramsService {
                 }
                 this.programs.set(next);
                 this.patchStatuses(
-                    request.channels.map((channel) => [channel.id, 'loaded'])
+                    request.channels.map((channel) => [
+                        channel.id,
+                        result?.has(channel.id) ? 'loaded' : 'error',
+                    ])
                 );
             });
     }
@@ -272,6 +283,7 @@ export class EpgGuideProgramsService {
 
     private invalidate(): void {
         this.cancelProgramRequests();
+        this.visibleRows.clear();
         this.coverageRequest?.abort();
         this.coverageStatus.set('idle');
         this.programs.set(new Map());

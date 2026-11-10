@@ -54,6 +54,12 @@ export interface EpgGuideSearchHit {
     program: EpgProgram;
 }
 
+export interface EpgGuideSearchUpdate {
+    readonly matches: readonly EpgGuideSearchHit[];
+    readonly checked: number;
+    readonly total: number;
+}
+
 /**
  * Everything the guide needs from its host. The host owns scope state,
  * playback and the player; the guide owns rendering, caching and keyboard
@@ -88,7 +94,8 @@ export interface EpgGuideSource {
     /** Optional programme search; the toolbar hides its field when absent. */
     searchPrograms?(
         query: string,
-        signal?: AbortSignal
+        signal?: AbortSignal,
+        report?: (update: EpgGuideSearchUpdate) => void
     ): Promise<EpgGuideSearchHit[]>;
     readonly catchUp?: EpgGuideCatchUp;
 }

@@ -2,7 +2,7 @@ import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
-import { MockPipe } from 'ng-mocks';
+import { MockComponent, MockPipe } from 'ng-mocks';
 import { TranslateModule, TranslatePipe } from '@ngx-translate/core';
 import { By } from '@angular/platform-browser';
 import { Subject, of } from 'rxjs';
@@ -18,6 +18,8 @@ import {
 import {
     EpgArchiveCopyService,
     EpgArchiveDownloadService,
+    EpgGuideComponent,
+    EpgGuideNowPlayingComponent,
     EpgListViewComponent,
     EpgTimelineComponent,
 } from '@iptvnator/ui/epg';
@@ -83,6 +85,11 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         supportsXtreamSqliteDataSource: false,
         supportsDownloads: true,
         supportsProviderCatchUp: true,
+        supportsProviderEpg: true,
+    };
+    const portalPlayer = {
+        isEmbeddedPlayer: signal(true),
+        openExternalPlayback: jest.fn(),
     };
     const xtreamStore = {
         getCategoriesBySelectedType: signal([
@@ -113,6 +120,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
     beforeEach(async () => {
         epgItems.set([]);
         runtime.supportsProviderCatchUp = true;
+        portalPlayer.isEmbeddedPlayer.set(true);
 
         await TestBed.configureTestingModule({
             imports: [
@@ -172,10 +180,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 },
                 {
                     provide: PORTAL_PLAYER,
-                    useValue: {
-                        isEmbeddedPlayer: () => true,
-                        openExternalPlayback: jest.fn(),
-                    },
+                    useValue: portalPlayer,
                 },
                 { provide: ParentalLockService, useValue: parentalLock },
             ],
@@ -183,6 +188,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             .overrideComponent(LiveStreamLayoutComponent, {
                 remove: {
                     imports: [
+                        EpgGuideComponent,
                         EpgListViewComponent,
                         EpgTimelineComponent,
                         GridListComponent,
@@ -194,6 +200,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 add: {
                     imports: [
                         StubEpgTimelineComponent,
+                        MockComponent(EpgGuideComponent),
                         StubGridListComponent,
                         StubPortalChannelsListComponent,
                         MockPipe(
@@ -220,6 +227,20 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
     const webPlayer = () =>
         fixture.debugElement.query(By.directive(StubWebPlayerViewComponent))
             .componentInstance as StubWebPlayerViewComponent;
+
+    it('keeps the external guide summary compact without changing the dock preference', () => {
+        portalPlayer.isEmbeddedPlayer.set(false);
+        component.guide.collapsed.set(false);
+        component.playLive(sampleChannel);
+        component.guide.isOpen.set(true);
+        fixture.detectChanges();
+        const summary = fixture.debugElement.query(
+            By.directive(EpgGuideNowPlayingComponent)
+        );
+        expect(summary.componentInstance.collapsed()).toBe(true);
+        expect(summary.componentInstance.collapsible()).toBe(false);
+        expect(component.guide.collapsed()).toBe(false);
+    });
 
     it('offers archive playback where provider catch-up can play', () => {
         expect(component.archivePlaybackAvailable()).toBe(true);

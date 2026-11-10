@@ -3,10 +3,14 @@ import { EpgProgram } from '@iptvnator/shared/interfaces';
 const CONCURRENT_REQUESTS = 2;
 const REQUEST_PAUSE_MS = 200;
 const CACHED_STREAMS = 256;
+const SCHEDULE_TTL_MS = 5 * 60_000;
 
 /** The guide can scan an entire portal without retaining every schedule. */
 export class XtreamGuideScheduleCache {
-    private readonly cached = new Map<string, EpgProgram[]>();
+    private readonly cached = new Map<
+        string,
+        { programs: EpgProgram[]; expiresAt: number }
+    >();
     private readonly pending = new Map<string, Promise<EpgProgram[]>>();
     private readonly slots = new Set<Promise<void>>();
 
@@ -25,8 +29,10 @@ export class XtreamGuideScheduleCache {
             const cached = this.cached.get(id);
             if (cached) {
                 this.cached.delete(id);
-                this.cached.set(id, cached);
-                return cached;
+                if (cached.expiresAt > Date.now()) {
+                    this.cached.set(id, cached);
+                    return cached.programs;
+                }
             }
             const pending = this.pending.get(id);
             if (pending) return pending;
@@ -44,7 +50,10 @@ export class XtreamGuideScheduleCache {
         try {
             const programs = await work;
             if (this.pending.get(id) === work) {
-                this.cached.set(id, programs);
+                this.cached.set(id, {
+                    programs,
+                    expiresAt: Date.now() + SCHEDULE_TTL_MS,
+                });
                 if (this.cached.size > CACHED_STREAMS) {
                     const oldest = this.cached.keys().next().value;
                     if (oldest !== undefined) this.cached.delete(oldest);

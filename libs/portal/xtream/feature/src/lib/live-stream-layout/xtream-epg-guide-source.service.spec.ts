@@ -257,7 +257,7 @@ describe('XtreamEpgGuideSourceService', () => {
         expect(await service.searchPrograms('programme')).toEqual([
             expect.objectContaining({
                 channelName: uncategorized.title,
-                channelId: null,
+                channelId: '104',
             }),
         ]);
     });
@@ -308,11 +308,17 @@ describe('XtreamEpgGuideSourceService', () => {
             if (id === 102) throw new Error('synthetic provider failure');
             return [program(Number(id))];
         });
+        const report = jest.fn();
         expect(
-            (await service.searchPrograms('programme')).map(
+            (await service.searchPrograms('programme', undefined, report)).map(
                 (hit) => hit.channelId
             )
         ).toEqual(['101', '104']);
+        expect(report).toHaveBeenNthCalledWith(1, {
+            checked: 1,
+            total: 3,
+            matches: [expect.objectContaining({ channelId: '101' })],
+        });
     });
 
     it('loads full schedules with the shared source-priority resolver and clips by overlap', async () => {
@@ -347,7 +353,7 @@ describe('XtreamEpgGuideSourceService', () => {
         const result = await service.searchPrograms('programme');
         expect(result).toEqual([
             expect.objectContaining({
-                channelId: null,
+                channelId: '102',
                 channelName: two.title,
             }),
         ]);

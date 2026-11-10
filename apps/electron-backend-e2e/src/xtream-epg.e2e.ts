@@ -64,6 +64,12 @@ test('@epg @xtream @electron opens the multi-channel guide without remounting th
         await player.evaluate((element) =>
             element.setAttribute('data-guide-test-player', 'original')
         );
+        const sidebar = page.locator(
+            'app-live-stream-layout .sidebar app-portal-channels-list'
+        );
+        await sidebar.evaluate((element) =>
+            element.setAttribute('data-guide-test-sidebar', 'original')
+        );
         await shortcut.click();
 
         const guide = page.locator('app-epg-guide');
@@ -121,6 +127,10 @@ test('@epg @xtream @electron opens the multi-channel guide without remounting th
             'original'
         );
         await expect(shortcut).toBeFocused();
+        await expect(sidebar).toHaveAttribute(
+            'data-guide-test-sidebar',
+            'original'
+        );
         await expect(
             channelItemByTitle(page, first.name ?? '').first()
         ).toBeVisible();

@@ -344,7 +344,7 @@ export class XtreamApiService extends XtreamEpgNormalizer {
         streamId: number,
         options?: XtreamRequestOptions
     ): Promise<EpgItem[]> {
-        let primaryAnswered = false;
+        let primaryWasEmpty = false;
         try {
             const response: EpgResponse = await this.sendRequest(
                 credentials,
@@ -360,10 +360,14 @@ export class XtreamApiService extends XtreamEpgNormalizer {
                 response,
                 credentials.serverTimezone
             );
-            primaryAnswered = true;
             if (items.length > 0) {
                 return items;
             }
+            const listings = response?.epg_listings;
+            primaryWasEmpty =
+                typeof listings === 'object' &&
+                listings !== null &&
+                Object.keys(listings).length === 0;
         } catch {
             // Fall back to the legacy typo endpoint below.
         }
@@ -385,7 +389,7 @@ export class XtreamApiService extends XtreamEpgNormalizer {
             );
         } catch (error) {
             // A valid empty guide is still an answer on panels without the legacy action.
-            if (primaryAnswered) return [];
+            if (primaryWasEmpty) return [];
             throw error;
         }
     }

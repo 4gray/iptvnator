@@ -1,11 +1,12 @@
 @let isEmbeddedPlayer = usesEmbeddedPlayer();
 @let streamUrl = activeStreamUrl();
 
-@if (showLiveChannelSidebar() && !guide.isOpen()) {
+@if (showLiveChannelSidebar()) {
     <div
         class="sidebar"
         [class.sidebar-collapsed]="isSidebarCollapsed()"
-        [attr.inert]="isSidebarCollapsed() ? '' : null"
+        [class.sidebar--guide-hidden]="guide.isOpen()"
+        [attr.inert]="isSidebarCollapsed() || guide.isOpen() ? '' : null"
         appResizable
         [minWidth]="250"
         [maxWidth]="600"
@@ -363,7 +364,7 @@
         [channelName]="activePlayback()?.title ?? ''"
         [program]="guideNowPlayingProgram()"
         [offsetMinutes]="epgOffsetMinutes()"
-        [collapsed]="guide.collapsed()"
+        [collapsed]="guide.collapsed() || !usesEmbeddedPlayer()"
         [collapsible]="usesEmbeddedPlayer()"
         (closeRequested)="guide.close()"
         (collapsedChange)="guide.setCollapsed($event)"
