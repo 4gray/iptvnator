@@ -286,6 +286,16 @@ export class SettingsFormFacade {
         this.restartPendingControls.set([]);
     }
 
+    applyTransferredTmdbKey(): void {
+        const apiKey = this.settingsStore.getSettings().tmdb?.apiKey ?? '';
+        this.savedSnapshot = {
+            ...this.savedSnapshot,
+            tmdb: { ...this.savedSnapshot.tmdb, apiKey },
+        };
+        this.form.controls.tmdb.controls.apiKey.setValue(apiKey);
+        this.settingsSnackbar.tmdbKeySaved();
+    }
+
     /** Applies saved values while keeping edits made during Save available. */
     applySavedSettings(): void {
         if (this.changedPaths().length) this.form.markAsDirty();

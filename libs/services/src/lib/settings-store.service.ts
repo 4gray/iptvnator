@@ -20,16 +20,11 @@ import {
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { firstValueFrom } from 'rxjs';
 import {
-    DEFAULT_DASHBOARD_RAILS_SETTINGS,
     DEFAULT_TMDB_SETTINGS,
     ElectronBridgeTrustOptions,
     EpgViewMode,
-    Language,
     Settings,
-    StartupBehavior,
     STORE_KEY,
-    StreamFormat,
-    Theme,
     VideoPlayer,
     normalizeAppUpdateChannel,
     normalizeAppLanguage,
@@ -38,7 +33,6 @@ import {
     normalizeDashboardRailsSettings,
     normalizeParentalLockRelockMinutes,
     normalizeStartupWindowMode,
-    DEFAULT_PARENTAL_LOCK_RELOCK_MINUTES,
 } from '@iptvnator/shared/interfaces';
 
 import {
@@ -47,6 +41,11 @@ import {
     SettingsStorageState,
     verifySavedEmbeddedMpvPlayer,
 } from './settings-store.defaults';
+
+import {
+    savedTmdbKey,
+    writeTransferredTmdbKey,
+} from './settings-tmdb-transfer-storage';
 
 export type { SettingsStorageFailure } from './settings-store.defaults';
 
@@ -229,6 +228,38 @@ export const SettingsStore = signalStore(
                 }
                 if (enableEpg && epgSave === epgSaveRevision)
                     await epgPreferences.apply(true);
+            },
+
+            async readSavedTmdbKey(): Promise<string> {
+                const saved = (await firstValueFrom(
+                    storage.get(STORE_KEY.Settings)
+                )) as Partial<Settings> | undefined;
+                if (storage.backingEngine === 'memory')
+                    throw new Error('Local settings storage is unavailable');
+                return savedTmdbKey(saved);
+            },
+
+            async saveTransferredTmdbKey(
+                apiKey: string,
+                expectedKey: string,
+                isCurrent: () => boolean
+            ): Promise<boolean> {
+                if (
+                    !(await writeTransferredTmdbKey(
+                        storage,
+                        apiKey,
+                        expectedKey,
+                        isCurrent
+                    ))
+                )
+                    return false;
+                patchState(store, {
+                    tmdb: {
+                        ...(store.tmdb?.() ?? DEFAULT_TMDB_SETTINGS),
+                        apiKey,
+                    },
+                });
+                return true;
             },
 
             getSettings() {
