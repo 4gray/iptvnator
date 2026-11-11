@@ -3,15 +3,48 @@ import {
     STORE_KEY,
     type Settings,
 } from '@iptvnator/shared/interfaces';
-import type { StorageMap } from '@ngx-pwa/local-storage';
+import { inject, Injectable } from '@angular/core';
+import { StorageMap } from '@ngx-pwa/local-storage';
+import { firstValueFrom } from 'rxjs';
+import { SettingsStore } from '@iptvnator/services';
 
-export function savedTmdbKey(settings?: Partial<Settings>): string {
+@Injectable()
+export class SettingsTmdbTransferStorage {
+    private readonly storage = inject(StorageMap);
+    private readonly settings = inject(SettingsStore);
+
+    async readSavedTmdbKey(): Promise<string> {
+        const saved = (await firstValueFrom(
+            this.storage.get(STORE_KEY.Settings)
+        )) as Partial<Settings> | undefined;
+        if (this.storage.backingEngine === 'memory')
+            throw new Error('Local settings storage is unavailable');
+        return savedTmdbKey(saved);
+    }
+
+    async saveTransferredTmdbKey(
+        apiKey: string,
+        expectedKey: string,
+        isCurrent: () => boolean
+    ): Promise<boolean> {
+        const saved = await writeTransferredTmdbKey(
+            this.storage,
+            apiKey,
+            expectedKey,
+            isCurrent
+        );
+        if (saved) this.settings.applySavedTmdbKey(apiKey);
+        return saved;
+    }
+}
+
+function savedTmdbKey(settings?: Partial<Settings>): string {
     const key = settings?.tmdb?.apiKey;
     return typeof key === 'string' ? key.trim() : '';
 }
 
 /** Use the same IndexedDB store as StorageMap so ordinary settings writes serialize with this update. */
-export function writeTransferredTmdbKey(
+function writeTransferredTmdbKey(
     storage: StorageMap,
     apiKey: string,
     expectedKey: string,

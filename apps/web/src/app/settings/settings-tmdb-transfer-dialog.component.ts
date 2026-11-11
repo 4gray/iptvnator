@@ -12,7 +12,6 @@ import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { TranslateModule } from '@ngx-translate/core';
-import { SettingsStore } from '@iptvnator/services';
 import { requestSourceServer } from '@iptvnator/services/source-sync';
 import {
     CONNECTION_KEY,
@@ -29,6 +28,9 @@ import {
     DialogShellComponent,
 } from '@iptvnator/ui/components';
 
+import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
+import { SettingsTmdbTransferStorage } from './settings-tmdb-transfer-storage';
+
 type Stage = 'choose' | 'send' | 'waiting' | 'ready' | 'sent' | 'closed';
 
 @Component({
@@ -43,12 +45,13 @@ type Stage = 'choose' | 'send' | 'waiting' | 'ready' | 'sent' | 'closed';
         ReactiveFormsModule,
         TranslateModule,
     ],
+    providers: [provideFormFieldDefaults(), SettingsTmdbTransferStorage],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './settings-tmdb-transfer-dialog.component.html',
     styles: ['mat-form-field { width: 100%; }'],
 })
 export class SettingsTmdbTransferDialogComponent {
-    private readonly settings = inject(SettingsStore);
+    private readonly settings = inject(SettingsTmdbTransferStorage);
     private readonly dialog =
         inject<MatDialogRef<SettingsTmdbTransferDialogComponent, boolean>>(
             MatDialogRef

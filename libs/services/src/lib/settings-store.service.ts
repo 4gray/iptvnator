@@ -42,11 +42,6 @@ import {
     verifySavedEmbeddedMpvPlayer,
 } from './settings-store.defaults';
 
-import {
-    savedTmdbKey,
-    writeTransferredTmdbKey,
-} from './settings-tmdb-transfer-storage';
-
 export type { SettingsStorageFailure } from './settings-store.defaults';
 
 export const SettingsStore = signalStore(
@@ -230,36 +225,13 @@ export const SettingsStore = signalStore(
                     await epgPreferences.apply(true);
             },
 
-            async readSavedTmdbKey(): Promise<string> {
-                const saved = (await firstValueFrom(
-                    storage.get(STORE_KEY.Settings)
-                )) as Partial<Settings> | undefined;
-                if (storage.backingEngine === 'memory')
-                    throw new Error('Local settings storage is unavailable');
-                return savedTmdbKey(saved);
-            },
-
-            async saveTransferredTmdbKey(
-                apiKey: string,
-                expectedKey: string,
-                isCurrent: () => boolean
-            ): Promise<boolean> {
-                if (
-                    !(await writeTransferredTmdbKey(
-                        storage,
-                        apiKey,
-                        expectedKey,
-                        isCurrent
-                    ))
-                )
-                    return false;
+            applySavedTmdbKey(apiKey: string): void {
                 patchState(store, {
                     tmdb: {
                         ...(store.tmdb?.() ?? DEFAULT_TMDB_SETTINGS),
                         apiKey,
                     },
                 });
-                return true;
             },
 
             getSettings() {
