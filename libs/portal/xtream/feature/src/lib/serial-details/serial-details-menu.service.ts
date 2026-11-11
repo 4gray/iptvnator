@@ -12,7 +12,11 @@ import {
     XTREAM_DATA_SOURCE,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
-import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
+import {
+    copyTextToClipboard,
+    RuntimeCapabilitiesService,
+    SettingsStore,
+} from '@iptvnator/services';
 import { captureHistoryOwner } from '@iptvnator/services/history-events';
 import { sourceConnection } from '@iptvnator/services/source-sync/connection';
 import {
@@ -295,7 +299,7 @@ export class SerialDetailsMenuService {
             return;
         }
         try {
-            await navigator.clipboard.writeText(playback.streamUrl);
+            await copyTextToClipboard(playback.streamUrl);
             this.notify('PORTALS.STREAM_URL_COPIED');
         } catch (error) {
             this.logger.warn('Copying the stream URL failed', error);

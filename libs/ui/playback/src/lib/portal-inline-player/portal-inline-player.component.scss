@@ -22,6 +22,28 @@
     // Allow the nowrap title to shrink instead of widening the grid track
     // and pushing the actions out of the viewport.
     min-width: 0;
+    opacity: 1;
+    transition: opacity 0.2s ease;
+}
+
+.player-shell__header--idle {
+    opacity: 0;
+    // Keep the row's grid space reserved (no layout shift on return) while
+    // keeping invisible buttons out of pointer hit testing.
+    pointer-events: none;
+}
+
+.player-shell__header--idle:has(:focus-visible) {
+    // A keyboard user tabbed into a hidden control: bring it back instead
+    // of leaving focus on an invisible button.
+    opacity: 1;
+    pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .player-shell__header {
+        transition: none;
+    }
 }
 
 .player-shell__eyebrow {
