@@ -141,21 +141,23 @@ export class XtreamGuideExternalPlayback {
         );
     });
 
-    readonly idleStream = computed(() => {
+    readonly idlePlayback = computed(() => {
         const active = this.playback?.activeSession();
         const followed = this.panelSessionId();
         const playlistId = this.store.currentPlaylist()?.id;
         this.lock.version();
-        return [active?.id, followed].some((id) => {
+        for (const id of [active?.id, followed]) {
             const entry = id ? this.sessions.state(id) : undefined;
-            return (
+            if (
                 !!entry?.session.playbackIdle &&
                 (entry.session.status === 'opened' ||
                     entry.session.status === 'playing') &&
                 entry.source.playlistId === playlistId &&
                 !isXtreamLiveCategoryWithheld(this.lock, entry.source)
-            );
-        });
+            )
+                return entry.source;
+        }
+        return undefined;
     });
 
     readonly unverifiedPlayback = computed(() => {

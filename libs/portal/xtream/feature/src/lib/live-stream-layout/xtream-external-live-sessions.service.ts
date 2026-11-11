@@ -226,6 +226,17 @@ export class XtreamExternalLiveSessions {
         )
             launch.opened = true;
         if (
+            launch &&
+            !launch.opened &&
+            session.mediaLoaded === false &&
+            session.playbackIdle &&
+            this.playback?.activeSession()?.id === id
+        )
+            launch.restoreSessionId ??= this.latestOpened(
+                owner.playlistId,
+                id
+            )?.id;
+        if (
             session.status === 'error' ||
             session.playbackIdle ||
             (session.mediaLoaded === false &&
@@ -267,6 +278,9 @@ export class XtreamExternalLiveSessions {
     private needsClose(entry: Active): boolean {
         return (
             !!entry.launch?.cancelled ||
+            (!!entry.launch?.restoreSessionId &&
+                !entry.launch.opened &&
+                entry.session.playbackIdle === true) ||
             isXtreamLiveCategoryWithheld(this.lock, entry.source)
         );
     }
@@ -283,7 +297,11 @@ export class XtreamExternalLiveSessions {
             }
             return;
         }
-        if (this.playback?.activeSession()?.id === session.id) {
+        if (
+            this.playback?.activeSession()?.id === session.id &&
+            (entry.launch?.cancelled ||
+                isXtreamLiveCategoryWithheld(this.lock, entry.source))
+        ) {
             entry.hidden = true;
             this.playback.dismissActiveSession?.();
         }

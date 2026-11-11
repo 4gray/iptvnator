@@ -297,7 +297,7 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
         expect(xtreamStore.setSelectedItem).toHaveBeenLastCalledWith(next);
     });
 
-    it.each(['mpv', 'vlc'] as const)(
+    it.each(['mpv', 'vlc', 'first MPV failure'] as const)(
         'retains remote tuning after %s goes idle',
         (player) => {
             const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
@@ -310,9 +310,9 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
             component.playLive(playing, true, [playing, next]);
             const session = {
                 id: 'synthetic-idle',
-                player,
+                player: player === 'vlc' ? 'vlc' : 'mpv',
                 status: 'opened',
-                mediaLoaded: true,
+                mediaLoaded: player !== 'first MPV failure',
                 title: 'Synthetic Channel',
                 streamUrl: component.activeStreamUrl(),
                 canClose: true,
@@ -335,6 +335,13 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
             onChannelChange.mock.lastCall?.[0]({ direction: 'up' });
             expect(xtreamStore.constructStreamUrl).toHaveBeenLastCalledWith(
                 next
+            );
+            onRemoteControlCommand.mock.lastCall?.[0]({
+                type: 'channel-select-number',
+                number: 1,
+            });
+            expect(xtreamStore.constructStreamUrl).toHaveBeenLastCalledWith(
+                playing
             );
         }
     );

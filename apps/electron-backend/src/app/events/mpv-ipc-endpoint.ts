@@ -3,21 +3,28 @@ import { randomUUID } from 'node:crypto';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { externalPlayerProcessTeardownGate } from './external-player-process';
 
-interface MpvIpcEndpoint {
+interface PlayerIpcEndpoint {
     path: string;
     dispose(): void;
 }
 
-export function createMpvIpcEndpoint(): MpvIpcEndpoint | undefined {
+export function createMpvIpcEndpoint(): PlayerIpcEndpoint | undefined {
     if (process.platform === 'win32')
         return {
             path: `\\\\.\\pipe\\iptvnator-mpv-${randomUUID()}`,
             dispose: () => undefined,
         };
 
+    return createPrivatePlayerIpcEndpoint('mpv');
+}
+
+export function createPrivatePlayerIpcEndpoint(
+    player: 'mpv' | 'vlc'
+): PlayerIpcEndpoint | undefined {
+    if (process.platform === 'win32') return undefined;
     try {
         // Keep the URL-bearing connection off paths other local users can bind.
-        const directory = mkdtempSync('/tmp/iptvnator-mpv-');
+        const directory = mkdtempSync(`/tmp/iptvnator-${player}-`);
         return {
             path: `${directory}/ipc`,
             dispose: () => {
@@ -33,11 +40,11 @@ export function createMpvIpcEndpoint(): MpvIpcEndpoint | undefined {
     }
 }
 
-export function spawnMpvWithEndpoint(
+export function spawnPlayerWithEndpoint(
     command: string,
     args: string[],
     tracksProcess: boolean,
-    endpoint?: MpvIpcEndpoint
+    endpoint?: PlayerIpcEndpoint
 ) {
     try {
         externalPlayerProcessTeardownGate.assertLaunchAllowed();

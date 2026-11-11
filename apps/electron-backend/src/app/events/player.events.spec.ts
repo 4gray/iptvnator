@@ -554,7 +554,8 @@ describe('external player launch handlers', () => {
                 externalPlayerSessions.getSession(sessionId ?? '')?.launchId
             ).toBe('synthetic-launch');
             proc.emit('error', new Error('spawn ENOENT'));
-            if (channel === 'OPEN_VLC_PLAYER') {
+            const args: string[] = (spawn as jest.Mock).mock.calls[0][1];
+            if (args.some((arg) => arg.startsWith('--rc-unix='))) {
                 await waitForSpawnCallCount(2);
                 retry.emit('error', new Error('spawn ENOENT'));
             }
@@ -606,6 +607,14 @@ describe('external player launch handlers', () => {
                         expect(
                             (spawn as unknown as jest.Mock).mock.calls[0][0]
                         ).toBe('flatpak-spawn');
+                        if (channel === 'OPEN_VLC_PLAYER')
+                            expect(
+                                (spawn as jest.Mock).mock.calls[0][1]
+                            ).not.toEqual(
+                                expect.arrayContaining([
+                                    expect.stringMatching(/^--rc-/),
+                                ])
+                            );
                     }
                 );
             } finally {

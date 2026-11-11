@@ -15,6 +15,7 @@ jest.mock('./external-player-runtime', () => {
 import { EventEmitter } from 'events';
 import { createConnection } from 'net';
 import { externalPlayerSessions } from './external-player-runtime';
+import { externalPlayerProcessTeardownGate } from './external-player-process';
 import {
     MPV_IPC_COMMAND_TIMEOUT_MS,
     loadFreshMpvGuideMedia,
@@ -163,6 +164,42 @@ describe('sendMpvCommand', () => {
             externalPlayerSessions.markClosed(session.id);
         }
     );
+
+    it('keeps the idle MPV child closable if teardown starts before the fresh write', async () => {
+        const session = externalPlayerSessions.beginSession({
+            player: 'mpv',
+            title: 'Synthetic Channel',
+            streamUrl,
+        });
+        const socket = nextSocket();
+        const gate = jest
+            .spyOn(externalPlayerProcessTeardownGate, 'assertLaunchAllowed')
+            .mockImplementationOnce(() => {
+                throw new Error('Synthetic player still stopping');
+            });
+        try {
+            const opening = loadFreshMpvGuideMedia(
+                session.id,
+                socketPath,
+                streamUrl,
+                () => true,
+                new AbortController().signal
+            );
+            socket.emit('connect');
+            await expect(opening).resolves.toBe(true);
+            expect(socket.write).not.toHaveBeenCalled();
+            expect(externalPlayerSessions.getSession(session.id)).toMatchObject(
+                {
+                    status: 'error',
+                    errorCode: 'previous-closing',
+                    canClose: true,
+                }
+            );
+        } finally {
+            gate.mockRestore();
+            externalPlayerSessions.markClosed(session.id);
+        }
+    });
 
     it('sends a request_id and resolves with the matching reply', async () => {
         const socket = nextSocket();

@@ -527,13 +527,10 @@ export class LiveStreamLayoutComponent
               null)
     );
     private readonly remoteAnchor = computed(() => {
-        const unverified = this.unverifiedVlcSource()?.channel;
-        if (
-            this.usesSelectionForRemote() ||
-            (!unverified && !this.externalGuide.idleStream())
-        )
-            return null;
-        const item = unverified ?? this.channelNavigation.activeItem();
+        if (this.usesSelectionForRemote()) return null;
+        const item = (
+            this.unverifiedVlcSource() ?? this.externalGuide.idlePlayback()
+        )?.channel;
         return item &&
             this.channelNavigation
                 .remoteChannels()
@@ -611,7 +608,11 @@ export class LiveStreamLayoutComponent
         });
         effect(() => {
             const source =
-                this.socketlessRemoteSource() ?? this.unverifiedVlcSource();
+                this.socketlessRemoteSource() ??
+                this.unverifiedVlcSource() ??
+                (!this.externalGuide.confirmed()
+                    ? this.externalGuide.idlePlayback()
+                    : undefined);
             if (!source?.channel) return;
             const { channel, queue } = source;
             untracked(() =>
@@ -630,7 +631,7 @@ export class LiveStreamLayoutComponent
                       !!this.externalGuide.unverifiedPlayback() ||
                       (this.guide.isOpen() &&
                           (this.externalGuide.launching() ||
-                              this.externalGuide.idleStream()))
+                              !!this.externalGuide.idlePlayback()))
             )
         );
         this.guideSource.bind(

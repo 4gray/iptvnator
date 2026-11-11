@@ -4,7 +4,10 @@ import { spawn, type ChildProcess } from 'child_process';
 import { EventEmitter } from 'node:events';
 import { existsSync, statSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { createMpvIpcEndpoint, spawnMpvWithEndpoint } from './mpv-ipc-endpoint';
+import {
+    createMpvIpcEndpoint,
+    spawnPlayerWithEndpoint,
+} from './mpv-ipc-endpoint';
 
 describe('MPV IPC endpoint', () => {
     it('isolates each launch and removes only its directory on child exit', () => {
@@ -22,7 +25,7 @@ describe('MPV IPC endpoint', () => {
             expect(statSync(directory).mode & 0o777).toBe(0o700);
             const child = new EventEmitter();
             jest.mocked(spawn).mockReturnValueOnce(child as ChildProcess);
-            spawnMpvWithEndpoint('/synthetic/mpv', [], false, first);
+            spawnPlayerWithEndpoint('/synthetic/mpv', [], false, first);
             child.emit('exit', 0);
             expect(existsSync(directory)).toBe(false);
             expect(existsSync(dirname(second.path))).toBe(true);
@@ -40,7 +43,7 @@ describe('MPV IPC endpoint', () => {
                 throw new Error('Synthetic spawn error');
             });
             expect(() =>
-                spawnMpvWithEndpoint('/synthetic/mpv', [], false, endpoint)
+                spawnPlayerWithEndpoint('/synthetic/mpv', [], false, endpoint)
             ).toThrow('Synthetic spawn error');
             if (process.platform !== 'win32')
                 expect(existsSync(dirname(endpoint.path))).toBe(false);

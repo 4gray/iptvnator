@@ -19,6 +19,7 @@ import {
     markVlcOpened,
     sendVlcRcCommand,
     sendVlcRcCommands,
+    type VlcRcAddress,
 } from './vlc-rc';
 
 export interface VlcReuseAttemptState {
@@ -41,7 +42,7 @@ interface VlcReuseOptions {
     startTime?: number;
     state: VlcReuseAttemptState;
     startPositionPolling: (
-        port: number,
+        port: VlcRcAddress,
         contentInfo: PlayerContentInfo,
         sessionId: string,
         onSnapshot?: (snapshot: ExternalPlaybackSnapshot) => void,
@@ -53,7 +54,7 @@ interface VlcReuseOptions {
 /** Owns the one VLC child/RC port retained when instance reuse is enabled. */
 export class VlcReusableProcess {
     private process: ChildProcess | null = null;
-    private rcPort: number | null = null;
+    private rcPort: VlcRcAddress | null = null;
     private processSessionId: string | null = null;
     private readonly processSessionIds = new WeakMap<ChildProcess, string>();
     private readonly recoveringChildren = new WeakSet<ChildProcess>();
@@ -64,6 +65,10 @@ export class VlcReusableProcess {
         ChildProcess,
         Promise<void> | null
     >();
+
+    hasPrivateControl(): boolean {
+        return typeof this.rcPort === 'string';
+    }
 
     currentSessionId(): string | null {
         return this.processSessionId;
@@ -89,7 +94,11 @@ export class VlcReusableProcess {
         );
     }
 
-    track(process: ChildProcess, rcPort: number, sessionId: string): void {
+    track(
+        process: ChildProcess,
+        rcPort: VlcRcAddress,
+        sessionId: string
+    ): void {
         this.process = process;
         this.rcPort = rcPort;
         this.processSessionId = sessionId;

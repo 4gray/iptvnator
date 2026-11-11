@@ -44,7 +44,10 @@ import {
     MpvReuseAttemptState,
 } from './mpv-reusable-process';
 import { completeFreshMpvLaunch } from './mpv-ipc-command';
-import { createMpvIpcEndpoint, spawnMpvWithEndpoint } from './mpv-ipc-endpoint';
+import {
+    createMpvIpcEndpoint,
+    spawnPlayerWithEndpoint,
+} from './mpv-ipc-endpoint';
 import { attachMpvOutputHandlers } from './mpv-output-errors';
 import {
     startPositionPolling,
@@ -275,7 +278,7 @@ async function launchMpvPlayer(
             // Reuse teardown yields while waiting for the old child. Another
             // external process may enter teardown during that window, so the
             // process-wide invariant must be checked at the actual spawn too.
-            const proc = spawnMpvWithEndpoint(
+            const proc = spawnPlayerWithEndpoint(
                 spawnSpec.command,
                 spawnSpec.args,
                 tracksProcess,
@@ -306,7 +309,6 @@ async function launchMpvPlayer(
 
             proc.on('exit', (code) => {
                 media?.abort();
-                traceExternalPlayer('mpv exited', { code });
                 const processSessionId = reusableMpvProcess.sessionIdFor(
                     proc,
                     session.id

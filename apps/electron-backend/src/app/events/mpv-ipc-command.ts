@@ -4,7 +4,10 @@ import {
     externalPlayerSessions,
     traceExternalPlayer,
 } from './external-player-runtime';
-import { markExternalPlayerOpened } from './external-player-idle-monitor';
+import {
+    allowExternalPlayerMediaDispatch,
+    markExternalPlayerOpened,
+} from './external-player-idle-monitor';
 
 /**
  * Bounds connect, write and the wait for mpv's reply. It matches the IPC
@@ -184,7 +187,9 @@ export async function loadFreshMpvGuideMedia(
     while (shouldDispatch()) {
         try {
             await sendMpvCommand(socketPath, 'loadfile', [url, 'replace'], {
-                shouldDispatch,
+                shouldDispatch: () =>
+                    shouldDispatch() &&
+                    allowExternalPlayerMediaDispatch(sessionId),
                 media: {
                     signal,
                     onOutcome: (loaded) => {

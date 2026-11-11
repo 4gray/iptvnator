@@ -339,4 +339,31 @@ describe('XtreamExternalLiveSessions', () => {
         relock();
         expect(closeSession).toHaveBeenCalledWith(opened);
     });
+
+    it('closes the failed idle replacement before restoring the surviving Stop control', async () => {
+        const nativeClose = jest.fn(async (id: string) =>
+            session(id, newUrl, 'closed')
+        );
+        Object.defineProperty(window.electron, 'closeExternalPlayerSession', {
+            value: nativeClose,
+        });
+        const playing = session('synthetic-survivor', oldUrl, 'opened');
+        const idle = {
+            ...session('synthetic-idle', newUrl, 'opened'),
+            mediaLoaded: false,
+            playbackIdle: true,
+        };
+        guard
+            .begin({ ...original, channel: { xtream_id: 101 } })
+            .finish(playing);
+        activeSession.set(idle);
+        guard
+            .begin({ ...replacement, channel: { xtream_id: 102 } })
+            .finish(idle);
+        expect(nativeClose).toHaveBeenCalledWith(idle.id, true);
+        expect(restoreDisplacedSession).not.toHaveBeenCalled();
+        expect(dismissActiveSession).not.toHaveBeenCalled();
+        await Promise.resolve();
+        expect(restoreDisplacedSession).toHaveBeenCalledWith(playing, idle.id);
+    });
 });

@@ -95,6 +95,7 @@ describe('XtreamEpgGuideSourceService', () => {
     const selectedType = signal('live');
     const lockRevision = signal(0);
     const sourceRevision = signal(0);
+    const stripCountryPrefix = signal(false);
     const liveStreams = signal<XtreamLiveChannelItem[]>([]);
     const runtime = { supportsXtreamSqliteDataSource: true };
     let favorites: Pick<
@@ -118,6 +119,7 @@ describe('XtreamEpgGuideSourceService', () => {
         currentPlaylist.set(playlist);
         selectedType.set('live');
         sourceRevision.set(0);
+        stripCountryPrefix.set(false);
         lockRevision.set(0);
         runtime.supportsXtreamSqliteDataSource = true;
         liveStreams.set([one, two, hidden]);
@@ -169,7 +171,10 @@ describe('XtreamEpgGuideSourceService', () => {
                 },
                 {
                     provide: SettingsStore,
-                    useValue: { preferUploadedEpgOverXtream: signal(false) },
+                    useValue: {
+                        preferUploadedEpgOverXtream: signal(false),
+                        stripCountryPrefix,
+                    },
                 },
                 {
                     provide: ParentalLockService,
@@ -196,6 +201,25 @@ describe('XtreamEpgGuideSourceService', () => {
         service.open();
     });
     afterEach(() => service.close());
+
+    it('strips channel prefixes from guide and search labels without changing their keys', async () => {
+        liveStreams.set([{ ...one, title: 'DE: Synthetic Channel' }]);
+        const original = service.channels()[0];
+        expect(original.name).toBe('DE: Synthetic Channel');
+        stripCountryPrefix.set(true);
+        expect(service.channels()[0]).toMatchObject({
+            id: original.id,
+            epgKey: original.epgKey,
+            name: 'Synthetic Channel',
+        });
+        expect(await service.searchPrograms('programme')).toEqual([
+            expect.objectContaining({
+                channelName: 'Synthetic Channel',
+                channelId: original.id,
+                channelEpgKey: original.epgKey,
+            }),
+        ]);
+    });
 
     it('does not read or sort the live catalogue for the dock while the guide is closed', () => {
         service.close();

@@ -1,6 +1,20 @@
 import { externalPlayerSessions } from './external-player-runtime';
+import { externalPlayerProcessTeardownGate } from './external-player-process';
 
 const IDLE_CHECK_INTERVAL_MS = 2_000;
+
+export function allowExternalPlayerMediaDispatch(sessionId: string): boolean {
+    try {
+        externalPlayerProcessTeardownGate.assertLaunchAllowed();
+        return true;
+    } catch (error) {
+        externalPlayerSessions.markError(sessionId, String(error), {
+            code: 'previous-closing',
+            canClose: true,
+        });
+        return false;
+    }
+}
 
 /** The process can stay open after its stream stops. */
 export function markExternalPlayerOpened(

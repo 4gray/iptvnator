@@ -49,13 +49,14 @@ function exit(proc: ReturnType<typeof child>, code = 0) {
 
 function mockRc(
     respond: (
-        port: number,
+        port: number | string,
         command: string,
         reply: (data?: string) => void
     ) => void
 ) {
     (createConnection as unknown as jest.Mock).mockImplementation(
-        ({ port }) => {
+        (address: string | { port: number }) => {
+            const port = typeof address === 'string' ? address : address.port;
             const socket = Object.assign(new EventEmitter(), {
                 destroyed: false,
                 write: (command: string) => {
@@ -270,10 +271,13 @@ describe('VLC exact playback ownership', () => {
         const url = 'https://example.test/synthetic%20channel.ts';
         let input = 'https://example.test/synthetic-old.ts';
         let playbackTime = 0;
-        mockRc((_port, command, reply) => {
+        mockRc((port, command, reply) => {
+            expect(typeof port).toBe('string');
             if (command === 'status\n')
-                reply(`( new input: ${input} )\n( state playing )\n`);
-            if (command === 'get_time\n') reply(`> \n${playbackTime}\r\n`);
+                reply(
+                    `( new input: ${input} )\r\n( play state: 3 )\r\nstatus: returned 0 (no error)\n`
+                );
+            if (command === 'get_time\n') reply(`${playbackTime}\r\n`);
         });
         const opening = openVlcPlayer({
             title: 'Synthetic Channel',
@@ -281,11 +285,27 @@ describe('VLC exact playback ownership', () => {
             launchId: 'synthetic-guide-launch',
         });
         await tick();
-        ports[0]();
-        await tick();
         proc.emit('spawn');
         const session = await opening;
         expect(session).toMatchObject({ status: 'opened', mediaLoaded: false });
+        const args = spawnMock.mock.lastCall?.[1] as string[];
+        expect(ports).toHaveLength(0);
+        expect(args.some((arg) => arg.startsWith('--rc-host=127.'))).toBe(
+            false
+        );
+        if (process.platform === 'win32') {
+            expect(session.mediaObservationUnavailable).toBe(true);
+            exit(proc);
+            return;
+        }
+        expect(args).toEqual(
+            expect.arrayContaining([
+                '--extraintf=oldrc',
+                '--rc-fake-tty',
+                '--rc-host=',
+            ])
+        );
+        expect(args.some((arg) => arg.startsWith('--rc-unix='))).toBe(true);
         await jest.advanceTimersByTimeAsync(2_000);
         await tick();
         await tick();

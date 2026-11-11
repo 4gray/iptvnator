@@ -16,6 +16,7 @@ import {
     SettingsStore,
 } from '@iptvnator/services';
 import { EpgProgram, foldSearchText } from '@iptvnator/shared/interfaces';
+import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
 import type {
     EpgGuideChannel,
     EpgGuideScope,
@@ -43,7 +44,7 @@ const ALL = 'all';
 const FAVORITES = 'favorites';
 const SEARCH_LIMIT = 20;
 
-function name(item: XtreamLiveChannelItem): string {
+function channelName(item: XtreamLiveChannelItem): string {
     return item.title || item.name || '';
 }
 
@@ -112,7 +113,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
                       );
             }),
             this.navigation.sortMode(),
-            name
+            channelName
         );
     });
 
@@ -192,7 +193,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         this.scopedItems().map((item, index) => ({
             id: String(item.xtream_id),
             number: index + 1,
-            name: name(item),
+            name: this.displayChannelName(item),
             logoUrl: item.poster_url || item.stream_icon || null,
             epgKey: channelEpgKey(item),
         }))
@@ -248,6 +249,13 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         onConfirmed?: () => void
     ) => void;
     private canRetryUnverified?: () => boolean;
+
+    private displayChannelName(item: XtreamLiveChannelItem): string {
+        return applyChannelNameStrip(
+            channelName(item),
+            this.settings.stripCountryPrefix?.()
+        );
+    }
 
     bind(
         play: NonNullable<XtreamEpgGuideSourceService['play']>,
@@ -398,7 +406,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
                 hits.push({
                     channelId: String(channel.xtream_id),
                     channelEpgKey: channelEpgKey(channel),
-                    channelName: name(channel),
+                    channelName: this.displayChannelName(channel),
                     program,
                 });
                 if (hits.length === SEARCH_LIMIT) break;

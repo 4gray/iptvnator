@@ -6,6 +6,14 @@ import {
 } from './external-player-runtime';
 import { markExternalPlayerOpened } from './external-player-idle-monitor';
 
+export type VlcRcAddress = number | string;
+
+function connectVlc(address: VlcRcAddress) {
+    return typeof address === 'string'
+        ? createConnection(address)
+        : createConnection({ port: address, host: '127.0.0.1' });
+}
+
 export function buildVlcEnqueueCommands(options: {
     url: string;
     title?: string;
@@ -57,14 +65,16 @@ export function buildVlcEnqueueCommands(options: {
 }
 
 export function sendVlcRcCommand(
-    port: number,
+    port: VlcRcAddress,
     command: string,
     onDispatched?: () => void,
     shouldDispatch?: () => boolean
 ): Promise<boolean> {
     return new Promise((resolve, reject) => {
-        const client = createConnection({ port, host: '127.0.0.1' });
+        const client = connectVlc(port);
         let settled = false;
+        let response = '';
+        const commandName = command.split(' ', 1)[0];
         const finish = (error?: Error, dispatched = true) => {
             if (settled) return;
             settled = true;
@@ -93,14 +103,25 @@ export function sendVlcRcCommand(
             }
         });
         client.on('data', (chunk) => {
-            if (chunk.toString().includes('>')) finish();
+            if (typeof port !== 'string') {
+                if (chunk.toString().includes('>')) finish();
+                return;
+            }
+            response += chunk.toString();
+            const result = legacyCommandResult(response, commandName);
+            if (result !== undefined)
+                finish(
+                    result === 0
+                        ? undefined
+                        : new Error('VLC RC command failed')
+                );
         });
         client.on('error', (error) => finish(error));
     });
 }
 
 export async function sendVlcRcCommands(
-    port: number,
+    port: VlcRcAddress,
     commands: string[],
     onCommandSent?: (command: string, index: number) => void,
     shouldDispatch?: (index: number) => boolean
@@ -122,6 +143,21 @@ export function parseVlcRcNumericResponse(data: string): string {
     return data.match(/>\s*(-?\d+(?:\.\d+)?)/)?.[1] ?? '';
 }
 
+function parseVlcRcNumericLine(data: string): string | undefined {
+    return data.match(/^[> \t]*(-?\d+(?:\.\d+)?)[ \t]*\r?$/m)?.[1];
+}
+
+function legacyCommandResult(
+    response: string,
+    command: string
+): number | undefined {
+    const result = response
+        .split(/\r?\n/)
+        .find((line) => line.startsWith(`${command}: returned `));
+    const code = result?.match(/: returned (-?\d+) \(/)?.[1];
+    return code === undefined ? undefined : Number(code);
+}
+
 export function parseVlcRcPlaybackState(data: string): string | null {
     const legacy = data
         .match(/\(\s*(play|pause|stop|unknown)\s+state:\s*-?\d+\s*\)/i)?.[1]
@@ -140,12 +176,12 @@ export function parseVlcRcPlaybackState(data: string): string | null {
 }
 
 function getVlcCommandResponse(
-    port: number,
+    port: VlcRcAddress,
     command: string,
     complete?: (data: string) => boolean
 ): Promise<string> {
     return new Promise((resolve) => {
-        const client = createConnection({ port, host: '127.0.0.1' });
+        const client = connectVlc(port);
         let data = '';
         let settled = false;
         const finish = (result: string) => {
@@ -163,7 +199,9 @@ function getVlcCommandResponse(
             const received =
                 complete?.(data) ??
                 (command === 'status'
-                    ? parseVlcRcPlaybackState(data) !== null
+                    ? typeof port === 'string'
+                        ? legacyCommandResult(data, command) !== undefined
+                        : parseVlcRcPlaybackState(data) !== null
                     : data.includes('>'));
             if (received) finish(data);
         });
@@ -172,12 +210,12 @@ function getVlcCommandResponse(
 }
 
 export async function getVlcPlaybackState(
-    port: number
+    port: VlcRcAddress
 ): Promise<string | null> {
     return parseVlcRcPlaybackState(await getVlcCommandResponse(port, 'status'));
 }
 
-export function markVlcOpened(sessionId: string, getPort: () => number) {
+export function markVlcOpened(sessionId: string, getPort: () => VlcRcAddress) {
     const session = externalPlayerSessions.getSession(sessionId);
     const mediaUrl =
         session?.launchId && !session.contentInfo
@@ -224,15 +262,13 @@ export function markVlcOpened(sessionId: string, getPort: () => number) {
                     )?.[1]
                     ?.trim();
                 if (!input) return null;
-                const parseTime = (data: string) =>
-                    data.match(/^[> \t]*(-?\d+(?:\.\d+)?)[ \t]*\r?$/m)?.[1];
                 const clock = await getVlcCommandResponse(
                     port,
                     'get_time',
-                    (data) => parseTime(data) !== undefined
+                    (data) => parseVlcRcNumericLine(data) !== undefined
                 );
                 if (getPort() !== port) return undefined;
-                const elapsed = parseTime(clock);
+                const elapsed = parseVlcRcNumericLine(clock);
                 if (elapsed === undefined) return null;
                 if (Number(elapsed) <= 0) return false;
                 if (!matchesVlcInput(input, mediaUrl)) return null;
@@ -266,18 +302,19 @@ function matchesVlcInput(
 }
 
 export async function getVlcPlaybackSnapshot(
-    port: number
+    port: VlcRcAddress
 ): Promise<ExternalPlaybackSnapshot | null> {
+    const legacy = typeof port === 'string';
+    const parse = legacy ? parseVlcRcNumericLine : parseVlcRcNumericResponse;
+    const complete = legacy
+        ? (data: string) => parseVlcRcNumericLine(data) !== undefined
+        : undefined;
     const time = parseInt(
-        parseVlcRcNumericResponse(
-            await getVlcCommandResponse(port, 'get_time')
-        ),
+        parse(await getVlcCommandResponse(port, 'get_time', complete)) ?? '',
         10
     );
     const duration = parseInt(
-        parseVlcRcNumericResponse(
-            await getVlcCommandResponse(port, 'get_length')
-        ),
+        parse(await getVlcCommandResponse(port, 'get_length', complete)) ?? '',
         10
     );
     if (Number.isNaN(time)) return null;
