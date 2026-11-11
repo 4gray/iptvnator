@@ -17,6 +17,9 @@ renders checking, no-update, error, download and install states. Router
 navigation preserves the unsaved-settings guard; checks use the saved update
 channel. Repeating the command on About checks again; a download in progress or
 ready to install is preserved and shown instead of starting another check.
+Route navigation and native close requests share the settings confirmation
+through the save or discard, so competing exits produce one dialog and one
+decision.
 macOS places commands in the application menu; Windows/Linux place
 Settings in Edit and update checking in Help. Their frameless title bar has an
 Open menu button beside the window controls that opens the native menu as a
