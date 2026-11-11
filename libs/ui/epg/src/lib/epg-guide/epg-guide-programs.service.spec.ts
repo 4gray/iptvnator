@@ -227,6 +227,40 @@ describe('EpgGuideProgramsService', () => {
         }
     );
 
+    it('paces coverage rechecks and rotates through expired channels', async () => {
+        const rows = Array.from({ length: 40 }, (_, index) =>
+            channel(`sample-${index}`)
+        );
+        channels.set(rows);
+        TestBed.flushEffects();
+        Object.assign(source, {
+            deferredCoverage: true,
+            programsExpireAt: () => 2000,
+        });
+        loadCoverage.mockImplementation(async ({ channels }, report) => {
+            for (const { id } of channels) report?.(id, []);
+            return new Set();
+        });
+        service.setWindow(1000, 4000);
+        service.setCoverageRequested(true);
+        await flush();
+        expect(loadCoverage.mock.calls[0][0].channels).toEqual(rows);
+
+        service.refreshExpiredCoverage(2000);
+        await flush();
+        service.refreshExpiredCoverage(61_999);
+        expect(loadCoverage).toHaveBeenCalledTimes(2);
+        expect(loadCoverage.mock.calls[1][0].channels).toEqual(
+            rows.slice(0, 12)
+        );
+
+        service.refreshExpiredCoverage(62_000);
+        await flush();
+        expect(loadCoverage.mock.calls[2][0].channels).toEqual(
+            rows.slice(12, 24)
+        );
+    });
+
     it.each([true, false])(
         'shows an incomplete scan and applies a successful retry (scan first: %s)',
         async (scanFirst) => {

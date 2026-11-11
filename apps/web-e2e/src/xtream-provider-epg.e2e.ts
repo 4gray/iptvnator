@@ -172,6 +172,70 @@ test('@xtream @epg PWA opens the multi-channel programme guide in both themes', 
     ).toContainText('Synthetic Refreshed Programme');
 });
 
+test('@xtream @epg PWA fits a long channel name and programme in the compact dock', async ({
+    page,
+}) => {
+    const title =
+        'Synthetic Regional International Documentary Network Test Channel';
+    await page.route('**/localhost:3000/xtream**', async (route) => {
+        const action = new URL(route.request().url()).searchParams.get(
+            'action'
+        );
+        if (action !== 'get_live_streams') return route.fallback();
+        await route.fulfill({
+            json: {
+                payload: [
+                    {
+                        name: title,
+                        stream_id: 10000,
+                        category_id: '100',
+                        stream_type: 'live',
+                    },
+                ],
+            },
+        });
+    });
+    await page.route('**/live/**', (route) => route.abort());
+    await addXtreamPortal(page, EPG_PORTAL);
+    await page.getByRole('link', { name: 'Live TV', exact: true }).click();
+    await page
+        .locator('app-live-stream-layout')
+        .getByText(title, { exact: true })
+        .first()
+        .click();
+    await page.locator('[data-test-id="xtream-epg-guide"]').click();
+    await page.setViewportSize({ width: 320, height: 568 });
+
+    const dock = page.locator('app-epg-guide-now-playing');
+    await expect(dock.locator('.now-playing__on')).toBeVisible();
+    await expect(
+        dock.getByRole('button', { name: /^Close guide/ })
+    ).toBeInViewport();
+    const bounds = await dock.evaluate((element) => {
+        const dockBounds = element
+            .closest('.video-player')!
+            .getBoundingClientRect();
+        const channel = element
+            .querySelector('.now-playing__eyebrow > span')!
+            .getBoundingClientRect();
+        const programme = element
+            .querySelector('.now-playing__title')!
+            .getBoundingClientRect();
+        return {
+            overhang: Math.max(
+                0,
+                dockBounds.top - channel.top,
+                channel.bottom - dockBounds.bottom
+            ),
+            channelWidth: channel.width,
+            programmeWidth: programme.width,
+        };
+    });
+    expect(bounds.overhang).toBe(0);
+    expect(bounds.channelWidth).toBeGreaterThan(0);
+    expect(bounds.programmeWidth).toBeGreaterThan(0);
+});
+
 test('@xtream @epg PWA keeps CJK narrow titles upright without rotating other scripts differently', async ({
     page,
 }) => {

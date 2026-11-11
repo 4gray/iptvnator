@@ -785,8 +785,9 @@ guide can open.
 The guide keeps the player mounted in the dock and hides the live sidebars
 while preserving their browsing state. Short screens show a compact dock so
 schedule rows remain visible. If an external channel switch fails and the
-player restores the previous session, the guide keeps its scope and search,
-and the dock and player panel return to the restored channel. The guide uses
+player restores the previous session or rejects a switch while the old session
+is still playing, the guide keeps its scope and search. The dock, player panel
+and remote channel order follow the confirmed session. The guide uses
 the current playlist's visible, unlocked live catalogue and can scope it to
 a category or resolved live favorites.
 A stream shared by multiple categories appears in each of those scopes and
@@ -805,8 +806,9 @@ that obtains a schedule also updates the corresponding visible failed row.
 It checks the current scope's coverage only when the user turns on **Only with
 EPG** and keeps channels whose coverage could not be checked until a successful
 lookup determines whether they have programmes. It hides confirmed empty
-rows as results arrive and keeps them hidden during rechecks. It rechecks
-expired results across the current scope while the filter is on, and reports
+rows as results arrive and keeps them hidden during rechecks. While the filter
+is on, it rotates through expired results in batches of up to 12 per minute.
+Rendered rows and the playing channel still refresh on schedule expiry. It reports
 failed checks, including unavailable
 XMLTV reads. Programme search reads the available live
 catalogue on demand, including channels outside the viewport, and publishes

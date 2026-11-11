@@ -22,7 +22,9 @@ export function createXtreamGuideNowPlaying(
     } | null>(null);
     const currentSchedule = computed(() => {
         const current = schedule();
-        return current?.key === playingKey() && current.revision === revision()
+        return current &&
+            current.key === playingKey() &&
+            current.revision === revision()
             ? current.value
             : null;
     });

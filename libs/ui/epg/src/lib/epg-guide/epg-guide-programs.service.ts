@@ -7,6 +7,7 @@ import {
     signal,
 } from '@angular/core';
 import { createDevLogger, EpgProgram } from '@iptvnator/shared/interfaces';
+import { createCoverageRefreshBudget } from './epg-guide-coverage-refresh';
 import {
     EPG_GUIDE_SOURCE,
     EpgGuideChannel,
@@ -80,6 +81,7 @@ export class EpgGuideProgramsService {
     >();
     private coverageRequest?: CoverageScan;
     private coverageRequested = false;
+    private readonly coverageRefresh = createCoverageRefreshBudget();
     private readonly failedCoverage = new Set<string>();
     private readonly rowExpiry = new Map<string, number>();
     private visibleRows = new Set<string>();
@@ -151,16 +153,11 @@ export class EpgGuideProgramsService {
     }
 
     refreshExpiredCoverage(nowMs: number): void {
-        if (!this.coverageRequested || this.coverageRequest) return;
         const checks = this.coverage();
-        const expired =
-            checks &&
-            this.source
-                .channels()
-                .filter(
-                    ({ id }) => (checks.get(id)?.expiresAt ?? Infinity) <= nowMs
-                );
-        if (expired?.length) this.requestCoverage(expired);
+        if (!this.coverageRequested || this.coverageRequest || !checks) return;
+        const scope = this.source.channels();
+        const expired = this.coverageRefresh.collect(nowMs, scope, checks);
+        if (expired.length) this.requestCoverage(expired);
     }
 
     /** Request programmes for rows that are idle, discarding obsolete per-stream work. */
@@ -435,6 +432,7 @@ export class EpgGuideProgramsService {
         this.coverageRequest?.controller.abort();
         clearTimeout(this.coverageRequest?.progress?.timer);
         this.coverageRequest = undefined;
+        this.coverageRefresh.reset();
         this.failedCoverage.clear();
     }
 

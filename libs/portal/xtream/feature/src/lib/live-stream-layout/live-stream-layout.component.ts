@@ -136,6 +136,7 @@ type GuideExternalChannel = {
     item: XtreamLiveChannelItem;
     archive: EpgProgram | null;
     playback: ResolvedPortalPlayback;
+    captureNavigation?: () => void;
 };
 
 @Component({
@@ -867,7 +868,14 @@ export class LiveStreamLayoutComponent
                   this.readGuideSchedule(item, signal)
               )
             : this.xtreamStore.constructStreamUrl(item);
-        this.channelNavigation.capture(item, displayedChannels, remote);
+        const captureNavigation = () =>
+            this.channelNavigation.capture(item, displayedChannels, remote);
+        const deferNavigation =
+            !!streamUrl &&
+            startPlayback &&
+            !this.usesEmbeddedPlayer() &&
+            this.guide.isOpen();
+        if (!deferNavigation) captureNavigation();
         this.activeCatchupProgram.set(null);
         // Keep both root/recently-added playback and same-category replays in
         // sync with the category rail. For already-selected channels this is a
@@ -916,7 +924,12 @@ export class LiveStreamLayoutComponent
         if (this.usesEmbeddedPlayer() || !startPlayback) {
             return;
         }
-        this.openExternalGuideChannel(playlist?.id, item, null);
+        this.openExternalGuideChannel(
+            playlist?.id,
+            item,
+            null,
+            deferNavigation ? captureNavigation : undefined
+        );
     }
 
     async onProgramActivated(event: EpgProgramActivationEvent): Promise<void> {
@@ -1211,19 +1224,30 @@ export class LiveStreamLayoutComponent
     private openExternalGuideChannel(
         playlistId: string | undefined,
         item: XtreamLiveChannelItem,
-        archive: EpgProgram | null
+        archive: EpgProgram | null,
+        captureNavigation?: () => void
     ): void {
         const playback = this.activePlayback();
         if (!playback?.streamUrl) return;
         const launch = playlistId
-            ? { playlistId, item, archive, playback }
+            ? { playlistId, item, archive, playback, captureNavigation }
             : undefined;
         this.externalPanelPlayback = playback;
         this.pendingExternalLaunch = launch;
         if (launch) this.guideExternalRequests.set(playback.streamUrl, launch);
-        const clear = () => {
-            if (this.pendingExternalLaunch === launch)
-                this.pendingExternalLaunch = undefined;
+        const recover = () => {
+            if (
+                this.pendingExternalLaunch !== launch ||
+                this.destroyRef.destroyed
+            )
+                return;
+            this.pendingExternalLaunch = undefined;
+            const confirmed = this.guideExternalSession();
+            if (
+                confirmed &&
+                confirmed.session === this.externalPlayback?.activeSession()
+            )
+                this.syncExternalGuidePlayback(confirmed);
         };
         const result = this.xtreamStore.openPlayer(
             playback.streamUrl,
@@ -1236,19 +1260,21 @@ export class LiveStreamLayoutComponent
                 !isLiveExternalPlayerSession(session) ||
                 session.status === 'error'
             )
-                clear();
-        }, clear);
+                recover();
+        }, recover);
     }
 
     private syncExternalGuidePlayback({
         item,
         archive,
         playback,
+        captureNavigation,
     }: GuideExternalChannel): void {
         const current = this.activePlayback();
         // A browse-only preview owns the panel until another channel is played.
-        if (current !== this.externalPanelPlayback || current === playback)
-            return;
+        if (current !== this.externalPanelPlayback) return;
+        captureNavigation?.();
+        if (current === playback) return;
         this.externalPanelPlayback = playback;
         this.activePlayback.set(playback);
         this.activeLiveItemId.set(item.xtream_id);
@@ -1256,7 +1282,6 @@ export class LiveStreamLayoutComponent
             this.resolveLiveProviderCategoryId(item);
         this.activeGuideItem.set(item);
         this.activeCatchupProgram.set(archive);
-        this.channelNavigation.capture(item, undefined, true);
         this.xtreamStore.setSelectedItem({ ...item });
         void this.xtreamStore.loadEpg((signal) =>
             this.readGuideSchedule(item, signal)

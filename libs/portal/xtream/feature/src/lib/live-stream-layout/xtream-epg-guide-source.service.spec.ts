@@ -197,6 +197,17 @@ describe('XtreamEpgGuideSourceService', () => {
     });
     afterEach(() => service.close());
 
+    it('does not read or sort the live catalogue for the dock while the guide is closed', () => {
+        service.close();
+        const sortMode = jest.spyOn(
+            TestBed.inject(XtreamLiveChannelNavigationService),
+            'sortMode'
+        );
+        service.setPlayback(one, true);
+        expect(service.playingScheduleItems()).toBeNull();
+        expect(sortMode).not.toHaveBeenCalled();
+    });
+
     it('refreshes the dock schedule for a playing stream outside the guide scope', async () => {
         jest.useFakeTimers();
         try {

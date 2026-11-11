@@ -281,11 +281,87 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
 
         fail(new Error('synthetic launch failure'));
         await Promise.resolve();
+        fixture.detectChanges();
+        component.guide.close();
+        expect(component.activeStreamUrl()).toBe('https://example.com/live.ts');
+        expect(xtreamStore.setSelectedItem).toHaveBeenLastCalledWith(playing);
+        component.guide.open();
         xtreamStore.constructStreamUrl.mockReturnValueOnce(
             'https://example.com/second.ts'
         );
         source.activate('102');
         expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(3);
+    });
+
+    it('commits the remote channel order only after an external guide switch opens', () => {
+        const playing = { ...sampleChannel, category_id: 1 };
+        const neighbor = { ...playing, xtream_id: 103 };
+        const next = { ...playing, xtream_id: 102, category_id: 2 };
+        const nextNeighbor = { ...next, xtream_id: 104 };
+        const categories = xtreamStore.getCategoriesBySelectedType();
+        xtreamStore.getCategoriesBySelectedType.set([
+            ...categories,
+            { category_id: 2, category_name: 'Synthetic Group' },
+        ]);
+        try {
+            emptyList.set([playing, neighbor, next, nextNeighbor]);
+            portalPlayer.isEmbeddedPlayer.set(false);
+            component.playLive(playing, true, [playing, neighbor]);
+            const original: ExternalPlayerSession = {
+                id: 'synthetic-first',
+                streamUrl: component.activeStreamUrl(),
+                title: 'Synthetic Channel',
+                player: 'mpv',
+                status: 'playing',
+                startedAt: '2026-04-04T10:00:00Z',
+                updatedAt: '2026-04-04T10:00:00Z',
+                canClose: true,
+            };
+            externalSession.set(original);
+            component.guide.open();
+            fixture.detectChanges();
+            const source = fixture.debugElement.injector.get(
+                XtreamEpgGuideSourceService
+            );
+            const queue = () =>
+                component.channelNavigation
+                    .remoteChannels()
+                    .map(({ xtream_id }) => xtream_id);
+            source.setScope('2');
+            xtreamStore.constructStreamUrl.mockReturnValueOnce(
+                'https://example.com/second.ts'
+            );
+            source.activate('102');
+            const replacement: ExternalPlayerSession = {
+                ...original,
+                id: 'synthetic-second',
+                streamUrl: component.activeStreamUrl(),
+                status: 'launching',
+            };
+            externalSession.set(replacement);
+            fixture.detectChanges();
+            expect(queue()).toEqual([101, 103]);
+            externalSession.set({
+                ...original,
+                restoredFromSessionId: replacement.id,
+            });
+            fixture.detectChanges();
+            expect(queue()).toEqual([101, 103]);
+
+            xtreamStore.constructStreamUrl.mockReturnValueOnce(
+                replacement.streamUrl
+            );
+            source.activate('102');
+            externalSession.set({
+                ...replacement,
+                id: 'synthetic-retry',
+                status: 'opened',
+            });
+            fixture.detectChanges();
+            expect(queue()).toEqual([102, 104]);
+        } finally {
+            xtreamStore.getCategoriesBySelectedType.set(categories);
+        }
     });
 
     it.each([
