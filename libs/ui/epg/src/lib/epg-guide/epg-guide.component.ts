@@ -38,6 +38,7 @@ import {
 import {
     EPG_GUIDE_CHANNEL_COLUMN_PX,
     EpgGuideDensity,
+    findGuideProgramme,
 } from './epg-guide-layout.util';
 import {
     EpgGuideProgramsService,
@@ -176,6 +177,7 @@ export class EpgGuideComponent implements OnDestroy {
      */
     private focusedRowId: string | null = null;
     private recordedFocus: EpgGuideFocus | null = null;
+    private focusedProgramme?: TimelineRenderBlock['block'];
     /**
      * The row that carries the grid's single `tabindex="0"`: the focused one,
      * else the playing one, else the first — so Tab always reaches the grid,
@@ -228,7 +230,6 @@ export class EpgGuideComponent implements OnDestroy {
                     this.programsService.refreshExpiredCoverage(now);
             });
         });
-        let focusedProgramme: TimelineRenderBlock['block'] | undefined;
         effect(() => {
             const focused = this.focus();
             const moved = focused !== this.recordedFocus;
@@ -241,7 +242,7 @@ export class EpgGuideComponent implements OnDestroy {
             const channelId = this.focusedRowId;
             const block = focused?.block;
             if (!focused || block == null || channelId === null) {
-                focusedProgramme = undefined;
+                this.focusedProgramme = undefined;
                 return;
             }
             const { row } = focused;
@@ -250,15 +251,10 @@ export class EpgGuideComponent implements OnDestroy {
                 if (this.rows()[row]?.id !== channelId) return;
                 const blocks = this.blocksFor(row);
                 if (moved) {
-                    focusedProgramme = blocks[block]?.block;
-                    if (focusedProgramme) return;
+                    this.focusedProgramme = blocks[block]?.block;
+                    if (this.focusedProgramme) return;
                 }
-                const index = blocks.findIndex(
-                    ({ block: item }) =>
-                        item.startMs === focusedProgramme?.startMs &&
-                        item.stopMs === focusedProgramme.stopMs &&
-                        item.program.title === focusedProgramme.program.title
-                );
+                const index = findGuideProgramme(blocks, this.focusedProgramme);
                 if (index !== block) {
                     this.focus.set({ row, block: index < 0 ? null : index });
                     this.viewportController.focusRovingTargetOnRow(row);
@@ -460,8 +456,8 @@ export class EpgGuideComponent implements OnDestroy {
     /**
      * Keep the roving focus on the channel it was put on rather than on a row
      * number the list has moved under it. If the channel is removed, move to
-     * a neighbouring row or the empty viewport. Rows that move regain focus
-     * on the channel cell, since their programme positions may have changed.
+     * a neighbouring row or the empty viewport. A moved row keeps the same
+     * programme if it is still present.
      */
     private reconcileFocus(rows: readonly EpgGuideChannel[]): void {
         const focused = this.focus();
@@ -472,8 +468,13 @@ export class EpgGuideComponent implements OnDestroy {
         const row = rows.findIndex((channel) => channel.id === channelId);
         if (row === focused.row) return;
         const next = row < 0 ? Math.min(focused.row, rows.length - 1) : row;
+        const block =
+            row >= 0 && focused.block !== null
+                ? findGuideProgramme(this.blocksFor(row), this.focusedProgramme)
+                : -1;
         this.focusedRowId = rows[next]?.id ?? null;
-        this.recordedFocus = next < 0 ? null : { row: next, block: null };
+        this.recordedFocus =
+            next < 0 ? null : { row: next, block: block < 0 ? null : block };
         this.focus.set(this.recordedFocus);
         this.viewportController.restoreFocus(this.recordedFocus);
     }

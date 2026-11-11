@@ -113,6 +113,7 @@ import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 import { injectXtreamRecentHistory } from '../xtream-recent-history';
 
 import {
+    replaceXtreamQueuedCopy,
     XtreamLiveChannelNavigationService,
     type XtreamLiveChannelItem,
 } from './xtream-live-channel-navigation.service';
@@ -589,7 +590,7 @@ export class LiveStreamLayoutComponent
                 !this.guideArchiveProgram()
             ) {
                 if (!sameGuideChannel(playing, item))
-                    this.switchGuideChannelCopy(item, channels);
+                    this.switchGuideChannelCopy(item);
                 return;
             }
             this.playLive(item, true, channels);
@@ -932,7 +933,8 @@ export class LiveStreamLayoutComponent
             tracksExternalPlayback ? captureNavigation : undefined,
             tracksExternalPlayback && remote
                 ? this.channelNavigation.remoteChannels()
-                : scope
+                : scope,
+            remote
         );
     }
 
@@ -1040,7 +1042,9 @@ export class LiveStreamLayoutComponent
     }
 
     private handleRemoteChannelChange(direction: 'up' | 'down'): void {
-        const activeItem = this.remoteLiveItem();
+        const activeItem = this.usesEmbeddedPlayer()
+            ? this.remoteLiveItem()
+            : (this.externalGuide.remoteTuningItem() ?? this.remoteLiveItem());
         if (!activeItem?.xtream_id) {
             return;
         }
@@ -1053,7 +1057,7 @@ export class LiveStreamLayoutComponent
             (item) => item.xtream_id
         );
 
-        if (!nextItem) {
+        if (!nextItem || nextItem.xtream_id === activeItem.xtream_id) {
             return;
         }
 
@@ -1300,19 +1304,21 @@ export class LiveStreamLayoutComponent
         );
     }
 
-    private switchGuideChannelCopy(
-        item: XtreamLiveChannelItem,
-        channels: readonly XtreamLiveChannelItem[]
-    ): void {
+    private switchGuideChannelCopy(item: XtreamLiveChannelItem): void {
         if (this.usesEmbeddedPlayer()) {
             this.selectGuideLiveItem(item);
-            this.channelNavigation.capture(item, channels, true);
+            this.channelNavigation.capture(
+                item,
+                replaceXtreamQueuedCopy(
+                    this.channelNavigation.remoteChannels(),
+                    item
+                )
+            );
             return;
         }
         this.externalGuide.replaceConfirmedCopy(
             item,
-            this.readLiveProviderCategoryId(item),
-            () => this.channelNavigation.capture(item, channels, true)
+            this.readLiveProviderCategoryId(item)
         );
     }
 

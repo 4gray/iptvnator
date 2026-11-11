@@ -416,6 +416,45 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(3);
     });
 
+    it('advances remote tuning past a pending switch and resets after failure', async () => {
+        const playing = { ...sampleChannel, category_id: 1 };
+        const next = { ...playing, xtream_id: 102 };
+        const third = { ...playing, xtream_id: 103 };
+        emptyList.set([playing, next, third]);
+        portalPlayer.isEmbeddedPlayer.set(false);
+        component.playLive(playing, true, [playing, next, third]);
+        publishExternalSession({
+            id: 'synthetic-remote',
+            streamUrl: component.activeStreamUrl(),
+            title: playing.name,
+            player: 'mpv',
+            status: 'playing',
+            startedAt: '2026-04-04T10:00:00Z',
+            updatedAt: '2026-04-04T10:00:00Z',
+            canClose: true,
+        });
+        fixture.detectChanges();
+        const advance = () =>
+            onChannelChange.mock.lastCall?.[0]({ direction: 'down' });
+        xtreamStore.constructStreamUrl
+            .mockReturnValueOnce('https://example.test/second.ts')
+            .mockReturnValueOnce('https://example.test/third.ts');
+        xtreamStore.openPlayer
+            .mockReturnValueOnce(undefined)
+            .mockRejectedValueOnce(new Error('Synthetic remote failure'));
+        advance();
+        expect(xtreamStore.constructStreamUrl).toHaveBeenLastCalledWith(next);
+        advance();
+        expect(xtreamStore.constructStreamUrl).toHaveBeenLastCalledWith(third);
+        fixture.detectChanges();
+        expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
+            expect.objectContaining({ channelNumber: 1 })
+        );
+        await Promise.resolve();
+        advance();
+        expect(xtreamStore.constructStreamUrl).toHaveBeenLastCalledWith(next);
+    });
+
     it('commits the remote channel order only after an external guide switch opens', () => {
         const playing = { ...sampleChannel, category_id: 1 };
         const neighbor = { ...playing, xtream_id: 103 };
@@ -817,12 +856,29 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         expect(component.channelNavigation.remoteChannels()).toEqual([allowed]);
     });
 
-    it.each(['direct', 'failed replacement', 'unrelated session'] as const)(
+    it.each([
+        'direct',
+        'failed replacement',
+        'unrelated session',
+        'switched copy',
+    ] as const)(
         'reattaches external playback when Live TV reopens (%s)',
         (scenario) => {
             const playing = { ...sampleChannel, category_id: 1 };
             const next = { ...playing, xtream_id: 102 };
-            emptyList.set([playing, next]);
+            const copy = {
+                ...playing,
+                category_id: 2,
+                epg_channel_id: 'synthetic.copy',
+            };
+            const switched = scenario === 'switched copy';
+            const categories = xtreamStore.getCategoriesBySelectedType();
+            if (switched)
+                xtreamStore.getCategoriesBySelectedType.set([
+                    ...categories,
+                    { category_id: 2, category_name: 'Synthetic Copy Group' },
+                ]);
+            emptyList.set(switched ? [playing, next, copy] : [playing, next]);
             portalPlayer.isEmbeddedPlayer.set(false);
             component.playLive(playing, true, [next, playing]);
             const session: ExternalPlayerSession = {
@@ -837,6 +893,16 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             };
             publishExternalSession(session);
             fixture.detectChanges();
+            if (switched) {
+                component.guide.open();
+                fixture.detectChanges();
+                const source = fixture.debugElement.injector.get(
+                    XtreamEpgGuideSourceService
+                );
+                source.setScope('2');
+                source.activate('101');
+                fixture.detectChanges();
+            }
             if (scenario === 'failed replacement') {
                 xtreamStore.constructStreamUrl.mockReturnValueOnce(
                     'https://example.test/replacement.ts'
@@ -871,7 +937,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             expect(component.activeStreamUrl()).toBe(session.streamUrl);
             expect(component.channelNavigation.remoteChannels()).toEqual([
                 next,
-                playing,
+                switched ? copy : playing,
             ]);
             component.guide.open();
             fixture.detectChanges();
@@ -886,6 +952,8 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             fixture.detectChanges();
             expect(component.activePlayback()).toBeNull();
             expect(component.guide.available()).toBe(false);
+            if (switched)
+                xtreamStore.getCategoriesBySelectedType.set(categories);
         }
     );
 

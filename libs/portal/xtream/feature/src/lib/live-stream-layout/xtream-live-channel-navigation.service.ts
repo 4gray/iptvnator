@@ -40,6 +40,17 @@ function channelCopyKey(item: XtreamLiveChannelItem): string {
     return `${item.xtream_id}:${Number(item.category_id)}`;
 }
 
+export function replaceXtreamQueuedCopy(
+    queue: readonly XtreamLiveChannelItem[],
+    item: XtreamLiveChannelItem
+): readonly XtreamLiveChannelItem[] {
+    return queue.some((entry) => entry.xtream_id === item.xtream_id)
+        ? queue.map((entry) =>
+              entry.xtream_id === item.xtream_id ? item : entry
+          )
+        : [item];
+}
+
 /** Browse state is independent from the ordered list that started playback. */
 @Injectable()
 export class XtreamLiveChannelNavigationService {

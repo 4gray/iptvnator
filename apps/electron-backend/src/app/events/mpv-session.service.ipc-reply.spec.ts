@@ -248,6 +248,24 @@ describe('reused MPV IPC replies', () => {
         expect(proc.kill).not.toHaveBeenCalled();
     });
 
+    it('blocks a pending loadfile while the current MPV owner is stopping', async () => {
+        const { session: previous } = await launchReusableSession();
+        const socket = createMpvSocketMock({ connect: false });
+        createConnectionMock.mockReturnValue(socket);
+        const opening = openMpvPlayer({
+            title: 'Synthetic Replacement',
+            url: 'https://example.test/replacement.m3u8',
+        });
+        await nextTick();
+        const rejected = expect(opening).rejects.toThrow(
+            'previous external player is still shutting down'
+        );
+        const closing = externalPlayerSessions.closeSession(previous.id, true);
+        socket.emit('connect');
+        await Promise.all([rejected, closing]);
+        expect(socket.write).not.toHaveBeenCalled();
+    });
+
     it('lets a stale Stop for the previous session pass while the loadfile reply is pending', async () => {
         const { proc, session: previous } = await launchReusableSession();
         const sockets = mockUnansweredSockets();

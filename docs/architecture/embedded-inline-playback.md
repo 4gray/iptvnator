@@ -1022,8 +1022,8 @@ close rejects and keeps the exact session live so a replacement cannot overlap
 it. A process-wide teardown gate starts before any potentially slow teardown
 preparation, including VLC position flush and a reused player's MPV IPC or VLC
 RC quit command, and rejects both player launches until that exact child
-reports exit; `ChildProcess.killed` is never treated as proof. A VLC reuse
-connection checks the gate again before dispatching its first content command.
+reports exit; `ChildProcess.killed` is never treated as proof. Reuse connections
+check the gate again before dispatching content commands.
 If bounded teardown fails while a fresh launch IPC is pending, the IPC rejects and
 the exact session becomes a closable error instead of remaining in Opening.
 If a pre-content reuse failure has no still-live displaced session to restore,

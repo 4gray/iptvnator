@@ -25,7 +25,10 @@ import {
     XtreamExternalLiveSessions,
     type XtreamLiveSource,
 } from './xtream-external-live-sessions.service';
-import type { XtreamLiveChannelItem } from './xtream-live-channel-navigation.service';
+import {
+    replaceXtreamQueuedCopy,
+    type XtreamLiveChannelItem,
+} from './xtream-live-channel-navigation.service';
 
 interface GuideLaunch {
     lockSource: XtreamLiveSource;
@@ -34,6 +37,7 @@ interface GuideLaunch {
     playback: ResolvedPortalPlayback;
     captureNavigation?: () => void;
     ended?: () => boolean;
+    remote?: boolean;
 }
 
 type ConfirmedLaunch = GuideLaunch & { session: ExternalPlayerSession };
@@ -132,6 +136,17 @@ export class XtreamGuideExternalPlayback {
         );
     });
 
+    remoteTuningItem(): XtreamLiveChannelItem | undefined {
+        const pending = this.pending();
+        return pending?.remote &&
+            !pending.ended?.() &&
+            pending.lockSource.playlistId ===
+                this.store.currentPlaylist()?.id &&
+            !isXtreamLiveCategoryWithheld(this.lock, pending.lockSource)
+            ? pending.item
+            : undefined;
+    }
+
     constructor() {
         effect(() => {
             const active = this.playback?.activeSession();
@@ -177,7 +192,8 @@ export class XtreamGuideExternalPlayback {
         archive: EpgProgram | null,
         categoryId: XtreamLiveSource['categoryId'],
         captureNavigation?: () => void,
-        queue?: readonly XtreamLiveChannelItem[]
+        queue?: readonly XtreamLiveChannelItem[],
+        remote = false
     ): void {
         if (!playback?.streamUrl) return;
         const playlistId = this.store.currentPlaylist()?.id;
@@ -195,6 +211,7 @@ export class XtreamGuideExternalPlayback {
                   archive,
                   playback,
                   captureNavigation,
+                  remote,
               }
             : undefined;
         this.panelPlayback = playback;
@@ -263,16 +280,24 @@ export class XtreamGuideExternalPlayback {
 
     replaceConfirmedCopy(
         item: XtreamLiveChannelItem,
-        categoryId: XtreamLiveSource['categoryId'],
-        captureNavigation: () => void
+        categoryId: XtreamLiveSource['categoryId']
     ): void {
         const playing = this.confirmed();
         if (!playing) return;
+        const queue = replaceXtreamQueuedCopy(
+            playing.lockSource.queue ?? [],
+            item
+        );
         const copy = {
             ...playing,
             item,
-            lockSource: { ...playing.lockSource, categoryId, channel: item },
-            captureNavigation,
+            lockSource: {
+                ...playing.lockSource,
+                categoryId,
+                channel: item,
+                queue,
+            },
+            captureNavigation: () => this.panel?.capture(item, queue),
         };
         this.requests.set(playing.session.streamUrl, copy);
         this.playing.set(copy);

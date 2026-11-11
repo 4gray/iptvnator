@@ -32,6 +32,20 @@ export const EPG_GUIDE_CHANNEL_COLUMN_PX = 232;
 /** Rows loaded ahead of the rendered range, in each direction. */
 export const EPG_GUIDE_ROW_BUFFER = 10;
 
+export function findGuideProgramme(
+    blocks: readonly TimelineRenderBlock[],
+    programme: TimelineRenderBlock['block'] | undefined
+): number {
+    return programme
+        ? blocks.findIndex(
+              ({ block }) =>
+                  block.startMs === programme.startMs &&
+                  block.stopMs === programme.stopMs &&
+                  block.program.title === programme.program.title
+          )
+        : -1;
+}
+
 /**
  * Guide rows are shorter (44–60px) than the timeline ribbon, so the shared
  * `TIMELINE_MIN_BLOCK_WIDTH_PX`/`TIMELINE_BLOCK_GAP_PX` floor (40px/4px) is

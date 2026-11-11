@@ -121,15 +121,15 @@ export function sendMpvCommand(
         };
 
         client.on('connect', () => {
-            if (options.shouldDispatch && !options.shouldDispatch()) {
-                settle({ reply: false });
-                return;
-            }
-            traceExternalPlayer('mpv ipc command', {
-                command,
-                argsCount: args.length,
-            });
             try {
+                if (options.shouldDispatch && !options.shouldDispatch()) {
+                    settle({ reply: false });
+                    return;
+                }
+                traceExternalPlayer('mpv ipc command', {
+                    command,
+                    argsCount: args.length,
+                });
                 client.write(request);
                 dispatched = true;
                 options.onDispatched?.();

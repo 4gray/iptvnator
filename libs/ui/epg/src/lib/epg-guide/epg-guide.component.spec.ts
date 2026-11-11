@@ -69,6 +69,7 @@ describe('EpgGuideComponent', () => {
     const searchHits = signal<EpgGuideSearchHit[]>([]);
     const revision = signal(0);
     let schedule: EpgProgram[];
+    let covered: Set<string>;
     const activate = jest.fn();
     const setScope = jest.fn();
     const dialogOpen = jest.fn<
@@ -82,6 +83,7 @@ describe('EpgGuideComponent', () => {
         searchHits.set([]);
         revision.set(0);
         schedule = [nowProgram('a')];
+        covered = new Set(['a']);
         activate.mockReset();
         setScope.mockReset();
         dialogOpen.mockClear();
@@ -107,7 +109,7 @@ describe('EpgGuideComponent', () => {
                         ),
                     ])
                 ),
-            loadCoverage: async () => new Set(['a']),
+            loadCoverage: async () => covered,
             activeChannelId,
             livePlayback,
             activate,
@@ -337,18 +339,28 @@ describe('EpgGuideComponent', () => {
 
     it('moves the roving focus with its channel and then to a surviving row', async () => {
         schedule.push(nowProgram('c'));
+        covered.add('c');
         await settle(fixture);
         component.focusCell(2, 0);
         await settle(fixture);
         expect(component.focus()).toEqual({ row: 2, block: 0 });
 
-        // The first channel disappears: the focus follows 'c' to its new index.
-        channels.set([channel('b', null, 2), channel('c', 'c', 3)]);
+        // An uncovered channel above 'c' disappears from the visible rows.
+        component.setOnlyWithEpg(true);
         await settle(fixture);
-        expect(component.rows().map((row) => row.id)).toEqual(['b', 'c']);
-        expect(component.focus()).toEqual({ row: 1, block: null });
+        expect(component.rows().map((row) => row.id)).toEqual(['a', 'c']);
+        expect(component.focus()).toEqual({ row: 1, block: 0 });
+        const card = fixture.nativeElement.querySelector(
+            '.epg-guide-row__block[tabindex="0"]'
+        ) as HTMLElement;
+        expect(document.activeElement).toBe(card);
+        component.onKeydown(keydown('i', card));
+        expect(dialogOpen).toHaveBeenCalledWith(
+            expect.objectContaining({ channelName: 'Channel c' })
+        );
 
         // Move to a surviving channel when a filter hides the focused row.
+        component.setOnlyWithEpg(false);
         component.setFilter('channel b');
         await settle(fixture);
         expect(component.rows().map((row) => row.id)).toEqual(['b']);
@@ -357,7 +369,7 @@ describe('EpgGuideComponent', () => {
         // Undoing the filter follows the new focused channel.
         component.setFilter('');
         await settle(fixture);
-        expect(component.focus()).toEqual({ row: 0, block: null });
+        expect(component.focus()).toEqual({ row: 1, block: null });
     });
 
     it('opens a search hit with its own channel and focuses that row', async () => {

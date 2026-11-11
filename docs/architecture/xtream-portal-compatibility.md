@@ -787,7 +787,9 @@ while preserving their browsing state. Short screens show a compact dock so
 schedule rows remain visible. If an external channel switch fails and the
 player restores the previous session or rejects a switch while the old session
 is still playing, the guide keeps its scope and search. The dock, player panel
-and remote controls follow the confirmed session. Browsing another channel
+and remote status follow the confirmed session. Consecutive remote tuning
+commands advance from the latest requested channel until it opens or fails.
+Browsing another channel
 does not replace the remote order or detach the guide. If a relock withholds that
 channel or the pending replacement, the guide hides the withheld channel and
 closes its external session even if it finishes opening later, reports a
@@ -808,7 +810,8 @@ once in All Channels. Choosing another copy of a stream already playing
 switches its EPG mapping without restarting playback. If the same stream is
 still opening, the last choice supplies its mapping when it opens. Programme
 details play the copy they describe while it remains available. Remote tuning
-also retains the category copy saved in the queue.
+also retains the category copy saved in the queue. Changing the copy of the
+playing channel replaces that entry in the saved queue and preserves its order.
 
 Xtream supplies full schedules per stream. The guide starts with the rendered
 rows, shares in-flight work and a bounded five-minute in-memory cache, and

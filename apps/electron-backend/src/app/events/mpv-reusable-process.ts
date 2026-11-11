@@ -2,6 +2,7 @@ import { ChildProcess } from 'child_process';
 import {
     ExternalPlayerSession,
     PlayerContentInfo,
+    readExternalPlayerErrorCode,
 } from '@iptvnator/shared/interfaces';
 import { redactSensitiveData } from '@iptvnator/shared/logging';
 import { joinMpvHeaderFields } from '../util/mpv-string-list.util';
@@ -263,7 +264,11 @@ export class MpvReusableProcess {
             await this.applyReuseCommands(
                 options,
                 reusedSocketPath,
-                () => !closeRequested && !cancelled(),
+                () => {
+                    if (closeRequested || cancelled()) return false;
+                    externalPlayerProcessTeardownGate.assertLaunchAllowed();
+                    return true;
+                },
                 onContentDispatched
             );
             if (closeRequested) return await finishRequestedClose();
@@ -289,6 +294,8 @@ export class MpvReusableProcess {
             if (current?.status === 'closed') return current;
             if (closeRequested) return await finishRequestedClose();
             if (cancelled()) return await settleCancelled();
+            if (readExternalPlayerErrorCode(error) === 'previous-closing')
+                throw error;
             if (current?.status === 'error' && hasExited(reusedProcess)) {
                 // The child died while its reply was in flight and its exit
                 // handler already reported the failure; a fresh launch under
