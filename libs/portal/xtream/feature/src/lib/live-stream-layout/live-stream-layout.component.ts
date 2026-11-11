@@ -515,17 +515,15 @@ export class LiveStreamLayoutComponent
     private readonly guideExternalSession = linkedSignal({
         source: () => ({
             playlistId: this.xtreamStore.currentPlaylist()?.id,
-            url: this.activeStreamUrl(),
             session: this.externalPlayback?.activeSession(),
         }),
         computation: (
-            { playlistId, url, session },
+            { playlistId, session },
             previous
         ):
             | (GuideExternalChannel & { session: ExternalPlayerSession })
             | null => {
             if (
-                !url ||
                 !isLiveExternalPlayerSession(session) ||
                 session.status === 'error'
             )

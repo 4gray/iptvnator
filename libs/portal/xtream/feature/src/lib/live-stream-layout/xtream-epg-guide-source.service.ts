@@ -360,13 +360,17 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     ): Promise<EpgGuideSearchHit[]> {
         const { read, checkCurrent } = this.schedules.reader(signal);
         const term = foldSearchText(query);
-        const scoped = this.scopedRows();
-        const catalog = this.catalog();
+        const catalog = new Map<string, XtreamLiveChannelItem>();
+        for (const rows of [this.scopedItems(), this.items()]) {
+            for (const item of rows) {
+                const key = scheduleKey(item);
+                if (!catalog.has(key)) catalog.set(key, item);
+            }
+        }
         const hits: EpgGuideSearchHit[] = [];
         let checked = 0;
         let failed = false;
-        for (const [id, item] of catalog) {
-            const channel = scoped.get(id) ?? item;
+        for (const channel of catalog.values()) {
             const programs = await read(channel).catch(() => {
                 checkCurrent();
                 failed = true;
@@ -380,7 +384,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
                 )
                     continue;
                 hits.push({
-                    channelId: id,
+                    channelId: String(channel.xtream_id),
                     channelEpgKey: channelEpgKey(channel),
                     channelName: name(channel),
                     program,

@@ -416,54 +416,79 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         }
     });
 
-    it('stops the confirmed external channel on relock and never restores its panel', () => {
-        const playing = { ...sampleChannel, category_id: 1 };
-        const next = { ...playing, xtream_id: 102, category_id: 2 };
-        portalPlayer.isEmbeddedPlayer.set(false);
-        component.playLive(playing, true);
-        const original: ExternalPlayerSession = {
-            id: 'synthetic-locked-session',
-            streamUrl: component.activeStreamUrl(),
-            title: 'Synthetic Locked Channel',
-            player: 'mpv',
-            status: 'playing',
-            startedAt: '2026-04-04T10:00:00Z',
-            updatedAt: '2026-04-04T10:00:00Z',
-            canClose: true,
-        };
-        externalSession.set(original);
-        component.guide.open();
-        fixture.detectChanges();
-        xtreamStore.constructStreamUrl.mockReturnValueOnce(
-            'https://example.com/second.ts'
-        );
-        component.playLive(next, true);
-        const pending = {
-            ...original,
-            id: 'synthetic-pending-session',
-            streamUrl: component.activeStreamUrl(),
-            status: 'launching',
-        } as const;
-        externalSession.set(pending);
-        fixture.detectChanges();
+    it.each(['playing', 'replacement'] as const)(
+        'stops the %s external channel when parental controls relock it',
+        (locked) => {
+            const playing = { ...sampleChannel, category_id: 1 };
+            const next = { ...playing, xtream_id: 102, category_id: 2 };
+            portalPlayer.isEmbeddedPlayer.set(false);
+            component.playLive(playing, true);
+            const original: ExternalPlayerSession = {
+                id: 'synthetic-locked-session',
+                streamUrl: component.activeStreamUrl(),
+                title: 'Synthetic Locked Channel',
+                player: 'mpv',
+                status: 'playing',
+                startedAt: '2026-04-04T10:00:00Z',
+                updatedAt: '2026-04-04T10:00:00Z',
+                canClose: true,
+            };
+            externalSession.set(original);
+            component.guide.open();
+            fixture.detectChanges();
+            xtreamStore.constructStreamUrl.mockReturnValueOnce(
+                'https://example.com/second.ts'
+            );
+            component.playLive(next, true);
+            const pending = {
+                ...original,
+                id: 'synthetic-pending-session',
+                streamUrl: component.activeStreamUrl(),
+                status: 'launching',
+                canClose: false,
+            } as const;
+            externalSession.set(pending);
+            fixture.detectChanges();
 
-        parentalLock.isXtreamCategoryLocked.mockImplementation(
-            (_playlist, _type, category) => category === 1
-        );
-        parentalLock.active.set(true);
-        parentalLock.version.update((version) => version + 1);
-        fixture.detectChanges();
-        expect(closeSession).toHaveBeenCalledWith(original);
-        expect(component.guide.available()).toBe(false);
+            parentalLock.isXtreamCategoryLocked.mockImplementation(
+                (_playlist, _type, category) =>
+                    category === (locked === 'playing' ? 1 : 2)
+            );
+            parentalLock.active.set(true);
+            parentalLock.version.update((version) => version + 1);
+            fixture.detectChanges();
+            if (locked === 'replacement') {
+                expect(component.activeStreamUrl()).toBe('');
+                expect(closeSession).not.toHaveBeenCalled();
+                const opened = {
+                    ...pending,
+                    status: 'opened',
+                    canClose: true,
+                } as const;
+                externalSession.set(opened);
+                fixture.detectChanges();
+                expect(closeSession).toHaveBeenCalledWith(opened);
+                expect(component.guide.available()).toBe(false);
+                expect(xtreamStore.loadEpg).not.toHaveBeenCalled();
+                return;
+            }
+            expect(closeSession).toHaveBeenCalledWith(original);
+            expect(component.guide.available()).toBe(false);
 
-        externalSession.set({ ...original, restoredFromSessionId: pending.id });
-        fixture.detectChanges();
-        expect(component.guideNowPlayingChannel()).toBe('');
-        expect(component.activeStreamUrl()).toBe(pending.streamUrl);
-        expect(xtreamStore.setSelectedItem).not.toHaveBeenCalledWith(playing);
-        expect(xtreamStore.loadEpg).not.toHaveBeenCalled();
-        expect(closeSession).toHaveBeenCalledTimes(1);
-    });
+            externalSession.set({
+                ...original,
+                restoredFromSessionId: pending.id,
+            });
+            fixture.detectChanges();
+            expect(component.guideNowPlayingChannel()).toBe('');
+            expect(component.activeStreamUrl()).toBe(pending.streamUrl);
+            expect(xtreamStore.setSelectedItem).not.toHaveBeenCalledWith(
+                playing
+            );
+            expect(xtreamStore.loadEpg).not.toHaveBeenCalled();
+            expect(closeSession).toHaveBeenCalledTimes(1);
+        }
+    );
 
     it.each([
         'restores original',

@@ -788,7 +788,8 @@ schedule rows remain visible. If an external channel switch fails and the
 player restores the previous session or rejects a switch while the old session
 is still playing, the guide keeps its scope and search. The dock, player panel
 and remote controls follow the confirmed session. If a relock withholds that
-channel, the guide hides it and closes its external session. The guide uses
+channel or the pending replacement, the guide hides the withheld channel and
+closes its external session even if it finishes opening later. The guide uses
 the current playlist's visible, unlocked live catalogue and can scope it to
 a category or resolved live favorites.
 A stream shared by multiple categories appears in each of those scopes and
@@ -812,7 +813,8 @@ is on, it rotates through expired results in batches of up to 12 per minute.
 Rendered rows and the playing channel still refresh on schedule expiry. Failed
 checks, including unavailable XMLTV reads, stay visible as unknown and retry
 within the same budget. Programme search reads the available live
-catalogue on demand, including channels outside the viewport, and publishes
+catalogue on demand, including channels outside the viewport and distinct
+schedules for streams shared by multiple categories. Search publishes
 matches and progress as it scans. A match keeps the category copy that supplied
 its schedule, even if the guide scope changes before the match opens. A failed
 schedule does not discard matches from other channels. Large scopes can take longer to

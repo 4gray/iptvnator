@@ -680,7 +680,7 @@ describe('XtreamEpgGuideSourceService', () => {
         expect(load.mock.calls.map((call) => call[1])).toEqual([101, 102]);
     });
 
-    it('identifies the channel copy whose schedule produced a search hit', async () => {
+    it('searches distinct schedules and identifies the copy that produced the hit', async () => {
         locked.mockReturnValue(false);
         lockRevision.update((value) => value + 1);
         const copy = {
@@ -690,12 +690,16 @@ describe('XtreamEpgGuideSourceService', () => {
             epg_channel_id: 'synthetic.copy',
         };
         liveStreams.set([one, copy]);
-        service.setScope('8');
+        service.setScope('all');
+        expect(service.channels()).toHaveLength(1);
+        load.mockImplementation(async (_playlist, _id, epgKey) =>
+            epgKey === copy.epg_channel_id ? [program(copy.xtream_id)] : []
+        );
         const [hit] = await service.searchPrograms('programme');
-        expect(hit.channelEpgKey).toBe(service.channels()[0].epgKey);
-        service.setScope('7');
         expect(hit.channelId).toBe(service.channels()[0].id);
         expect(hit.channelEpgKey).not.toBe(service.channels()[0].epgKey);
+        service.setScope('8');
+        expect(hit.channelEpgKey).toBe(service.channels()[0].epgKey);
     });
 
     it('filters confirmed empty schedules and continues after a failed lookup', async () => {
