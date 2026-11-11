@@ -189,10 +189,14 @@ async function shutdownWorker(): Promise<void> {
     state = { state: 'stopped' };
 }
 
-function run(operation: () => Promise<void>): Promise<HostedServerStatus> {
+function enqueue<T>(operation: () => T | Promise<T>): Promise<T> {
     const result = transition.then(operation);
-    transition = result.catch(() => undefined);
-    return result.then(status);
+    transition = result.then(() => undefined, () => undefined);
+    return result;
+}
+
+function run(operation: () => Promise<void>): Promise<HostedServerStatus> {
+    return enqueue(operation).then(status);
 }
 
 export function restoreHostedServer(): Promise<HostedServerStatus> {
@@ -213,7 +217,8 @@ export function registerHostedServerEvents(
 ): void {
     registerHostedCloudflareEvents(
         getWindow,
-        () => state.state === 'running' && !!state.httpsOrigin && !state.httpsError
+        () => state.state === 'running' && !!state.httpsOrigin && !state.httpsError,
+        enqueue
     );
     const checkSender = (event: IpcMainInvokeEvent) => {
         if (

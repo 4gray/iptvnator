@@ -64,17 +64,18 @@ describe('hosted Cloudflare connector', () => {
         ingress = true;
         registerHostedCloudflareEvents(
             () => ({ webContents: sender }) as never,
-            () => ingress
+            () => ingress,
+            (operation) => Promise.resolve().then(operation)
         );
     });
     afterEach(() => {
         stopHostedCloudflare();
         rmSync(dir, { recursive: true, force: true });
     });
-    it('rejects untrusted frames and missing ingress', () => {
+    it('rejects untrusted frames and missing ingress', async () => {
         expect(() => invoke('status', { sender, senderFrame: {} })).toThrow();
         ingress = false;
-        expect(() => invoke({ start: true, token })).toThrow('ingress');
+        await expect(invoke({ start: true, token })).rejects.toThrow('ingress');
         expect(spawn).not.toHaveBeenCalled();
     });
     it('encrypts the token, keeps it out of arguments, and stops on request', async () => {
@@ -85,10 +86,31 @@ describe('hosted Cloudflare connector', () => {
             queueMicrotask(() => processChild.emit('spawn'));
             return processChild as never;
         });
+        process.env.TUNNEL_LOGFILE = 'synthetic-log';
+        process.env.TUNNEL_LOGLEVEL = 'debug';
+        process.env.TUNNEL_TOKEN_FILE = 'synthetic-token-file';
         const result = await invoke({ start: true, token });
+        delete process.env.TUNNEL_LOGFILE;
+        delete process.env.TUNNEL_LOGLEVEL;
+        delete process.env.TUNNEL_TOKEN_FILE;
         expect(result).toMatchObject({ state: 'running', savedToken: true });
         const [, args, options] = jest.mocked(spawn).mock.calls.at(-1)!;
-        expect(args).toEqual(['tunnel', '--no-autoupdate', 'run']);
+        expect(args).toEqual([
+            'tunnel',
+            '--config',
+            join(dir, 'hosted-server', 'cloudflare-config.yml'),
+            '--no-autoupdate',
+            'run',
+        ]);
+        expect(
+            readFileSync(
+                join(dir, 'hosted-server', 'cloudflare-config.yml'),
+                'utf8'
+            )
+        ).toBe('{}\n');
+        expect(options?.env).not.toHaveProperty('TUNNEL_LOGFILE');
+        expect(options?.env).not.toHaveProperty('TUNNEL_LOGLEVEL');
+        expect(options?.env).not.toHaveProperty('TUNNEL_TOKEN_FILE');
         expect(options).toMatchObject({
             env: { TUNNEL_TOKEN: token },
             stdio: 'ignore',
@@ -100,21 +122,38 @@ describe('hosted Cloudflare connector', () => {
                 'utf8'
             )
         ).toBe(`encrypted:${token}`);
-        expect(invoke('stop')).toMatchObject({ state: 'stopping' });
+        expect(await invoke('stop')).toMatchObject({ state: 'stopping' });
         processChild.emit('exit', 0);
-        expect(invoke('status')).toMatchObject({ state: 'stopped' });
-        expect(invoke('forget')).toMatchObject({ savedToken: false });
+        expect(await invoke('status')).toMatchObject({ state: 'stopped' });
+        expect(await invoke('forget')).toMatchObject({ savedToken: false });
     });
-    it('refuses credential storage when encryption is unavailable', () => {
+    it('refuses credential storage when encryption is unavailable', async () => {
         jest.mocked(safeStorage.isEncryptionAvailable).mockReturnValue(false);
-        expect(() => invoke({ start: true, token })).toThrow(
+        await expect(invoke({ start: true, token })).rejects.toThrow(
             'Secure credential'
         );
     });
-    it('reports a missing bundled executable', () => {
+    it('clears an old process error when stopped', async () => {
+        const processChild = Object.assign(new EventEmitter(), {
+            kill: jest.fn(),
+        });
+        jest.mocked(spawn).mockImplementationOnce(() => {
+            queueMicrotask(() =>
+                processChild.emit('error', new Error('synthetic failure'))
+            );
+            return processChild as never;
+        });
+        expect(await invoke({ start: true, token })).toMatchObject({
+            state: 'error',
+        });
+        expect(await invoke('stop')).toMatchObject({ state: 'stopped' });
+    });
+    it('reports a missing bundled executable', async () => {
         jest.mocked(app).isPackaged = false;
-        expect(invoke('status')).toMatchObject({ state: 'unavailable' });
-        expect(() => invoke({ start: true, token })).toThrow('unavailable');
+        expect(await invoke('status')).toMatchObject({ state: 'unavailable' });
+        await expect(invoke({ start: true, token })).rejects.toThrow(
+            'unavailable'
+        );
         jest.mocked(app).isPackaged = true;
     });
 });

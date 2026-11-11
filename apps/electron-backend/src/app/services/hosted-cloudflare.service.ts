@@ -74,7 +74,17 @@ export function stopHostedCloudflare(): void {
     if (child) {
         phase = 'stopping';
         child.kill();
+    } else {
+        phase = 'stopped';
     }
+}
+function connectorEnvironment(secret: string): NodeJS.ProcessEnv {
+    const env = Object.fromEntries(
+        Object.entries(process.env).filter(
+            ([key]) => !/^(TUNNEL_|CLOUDFLARED_|NO_AUTOUPDATE$)/i.test(key)
+        )
+    );
+    return { ...env, TUNNEL_TOKEN: secret };
 }
 function start(token?: string): Promise<HostedCloudflareStatus> {
     if (child) throw new Error('Connector is already running or stopping');
@@ -82,15 +92,26 @@ function start(token?: string): Promise<HostedCloudflareStatus> {
         throw new Error('Bundled connector is unavailable');
     if (token !== undefined) saveToken(token);
     const secret = token ?? readToken();
+    const config = join(
+        getIptvnatorDataRoot(),
+        'hosted-server',
+        'cloudflare-config.yml'
+    );
+    // Avoid loading unrelated settings or logging destinations from the user's home directory.
+    writeFileSync(config, '{}\n', { mode: 0o600 });
     phase = 'starting';
     return new Promise((resolve) => {
         let processChild: ChildProcess;
         try {
-            processChild = spawn(executable(), ['tunnel', '--no-autoupdate', 'run'], {
-                env: { ...process.env, TUNNEL_TOKEN: secret },
-                stdio: 'ignore',
-                windowsHide: true,
-            });
+            processChild = spawn(
+                executable(),
+                ['tunnel', '--config', config, '--no-autoupdate', 'run'],
+                {
+                    env: connectorEnvironment(secret),
+                    stdio: 'ignore',
+                    windowsHide: true,
+                }
+            );
         } catch {
             phase = 'error';
             resolve(status());
@@ -119,7 +140,8 @@ function start(token?: string): Promise<HostedCloudflareStatus> {
 }
 export function registerHostedCloudflareEvents(
     getWindow: () => BrowserWindow | null,
-    ingressActive: () => boolean
+    ingressActive: () => boolean,
+    enqueue: <T>(operation: () => T | Promise<T>) => Promise<T>
 ): void {
     ipcMain.handle(
         HOSTED_CLOUDFLARE_CONTROL,
@@ -129,30 +151,33 @@ export function registerHostedCloudflareEvents(
                 event.senderFrame !== event.sender.mainFrame
             )
                 throw new Error('Invalid connector request');
-            if (command === 'status') return status();
-            if (command === 'stop') {
-                stopHostedCloudflare();
-                return status();
-            }
-            if (command === 'forget') {
-                if (child) throw new Error('Stop the connector first');
-                rmSync(credential(), { force: true });
-                return status();
-            }
-            if (
-                command &&
-                typeof command === 'object' &&
-                'start' in command &&
-                command.start === true
-            ) {
-                if (!ingressActive())
-                    throw new Error('Hosted HTTPS ingress is unavailable');
-                const token = 'token' in command ? command.token : undefined;
-                if (token !== undefined && typeof token !== 'string')
-                    throw new Error('Invalid tunnel token');
-                return start(typeof token === 'string' ? token : undefined);
-            }
-            throw new Error('Invalid connector command');
+            return enqueue(() => {
+                if (command === 'status') return status();
+                if (command === 'stop') {
+                    stopHostedCloudflare();
+                    return status();
+                }
+                if (command === 'forget') {
+                    if (child) throw new Error('Stop the connector first');
+                    rmSync(credential(), { force: true });
+                    return status();
+                }
+                if (
+                    command &&
+                    typeof command === 'object' &&
+                    'start' in command &&
+                    command.start === true
+                ) {
+                    if (!ingressActive())
+                        throw new Error('Hosted HTTPS ingress is unavailable');
+                    const token =
+                        'token' in command ? command.token : undefined;
+                    if (token !== undefined && typeof token !== 'string')
+                        throw new Error('Invalid tunnel token');
+                    return start(typeof token === 'string' ? token : undefined);
+                }
+                throw new Error('Invalid connector command');
+            });
         }
     );
 }

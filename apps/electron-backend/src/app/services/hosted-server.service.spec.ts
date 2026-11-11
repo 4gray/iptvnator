@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { app, ipcMain, utilityProcess, type BrowserWindow } from 'electron';
 import { getIptvnatorDataRoot } from '@iptvnator/shared/database/path-utils';
 import {
+    HOSTED_CLOUDFLARE_CONTROL,
     HOSTED_SERVER_ACCESS_CODE,
     HOSTED_SERVER_CONTROL,
     HOSTED_SERVER_PORT,
@@ -330,6 +331,69 @@ describe('desktop hosted server lifecycle', () => {
                 httpsOrigin: 'https://user:password@library.example.test',
             })
         ).toThrow();
+    });
+
+    it('queues connector start behind an in-flight HTTPS shutdown', async () => {
+        addAssets(
+            join(directory, 'hosted-backend/main.cjs'),
+            join(directory, 'hosted-pwa')
+        );
+        const worker = nextWorker(ready);
+        await control({ start: true });
+        let closeRequest:
+            { httpsOrigin: string; requestId: string } | undefined;
+        let closeStarted!: () => void;
+        const closing = new Promise<void>((resolve) => {
+            closeStarted = resolve;
+        });
+        worker.postMessage.mockImplementation((command: unknown) => {
+            if (typeof command === 'string') {
+                queueMicrotask(() => worker.emit('exit', 0));
+                return;
+            }
+            const request = command as {
+                httpsOrigin: string;
+                requestId: string;
+            };
+            if (request.httpsOrigin) {
+                queueMicrotask(() =>
+                    worker.emit('message', {
+                        https: true,
+                        requestId: request.requestId,
+                        origin: request.httpsOrigin,
+                    })
+                );
+            } else {
+                closeRequest = request;
+                closeStarted();
+            }
+        });
+        await control({ httpsOrigin: 'https://library.example.test' });
+        const shutdown = control({ httpsOrigin: '' });
+        await closing;
+        let settled = false;
+        const start = invoke(HOSTED_CLOUDFLARE_CONTROL, {
+            start: true,
+            token: 'synthetic_test_token_123456',
+        });
+        const outcome = start.then(
+            () => {
+                settled = true;
+            },
+            (error: Error) => {
+                settled = true;
+                return error;
+            }
+        );
+        await Promise.resolve();
+        expect(settled).toBe(false);
+        worker.emit('message', {
+            https: true,
+            requestId: closeRequest?.requestId,
+            origin: '',
+        });
+        await shutdown;
+        expect((await outcome).message).toContain('ingress');
     });
 
     it.each([
