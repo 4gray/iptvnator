@@ -870,8 +870,9 @@ All Channels. Background favorites
 synchronization also refreshes membership while the guide is open.
 Rechecking the same playlist keeps the guide open and preserves its scope and
 search query. Guide and player use the same full EPG resolver, including
-manual XMLTV mappings and the user's source priority. Temporary failures on
-the legacy provider action remain errors even if the primary action returned
+manual XMLTV mappings and the user's source priority. The renderer loads the
+provider response parser only when an EPG response arrives. Temporary failures
+on the legacy provider action remain errors even if the primary action returned
 an empty schedule.
 
 The global `Settings.epgEnabled` opt-out gates short/full provider requests and

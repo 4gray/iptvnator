@@ -1,4 +1,4 @@
-import { XtreamEpgNormalizer, EpgResponse } from '../xtream-epg-normalizer';
+import type { EpgResponse } from '../xtream-epg-normalizer';
 import { inject, Injectable } from '@angular/core';
 import { EpgPreferencesService, DataService } from '@iptvnator/services';
 import { createLogger } from '@iptvnator/portal/shared/util/logger';
@@ -61,12 +61,15 @@ const XTREAM_ACCOUNT_ACTIONS = [
     'get_profile',
 ] as const;
 
-/**
- * Service for all Xtream Codes API interactions.
- * Extracts API communication logic from the XtreamStore.
- */
+async function loadEpgNormalizer(signal?: AbortSignal) {
+    const { XtreamEpgNormalizer } = await import('../xtream-epg-normalizer');
+    signal?.throwIfAborted();
+    return new XtreamEpgNormalizer();
+}
+
+/** Service for all Xtream Codes API interactions. */
 @Injectable({ providedIn: 'root' })
-export class XtreamApiService extends XtreamEpgNormalizer {
+export class XtreamApiService {
     private readonly dataService = inject(DataService);
     private readonly epgPreferences = inject(EpgPreferencesService);
     private readonly logger = createLogger('XtreamApiService');
@@ -305,10 +308,9 @@ export class XtreamApiService extends XtreamEpgNormalizer {
             options
         );
 
-        return this.normalizeShortEpgItems(
-            response,
-            credentials.serverTimezone
-        );
+        return (
+            await loadEpgNormalizer(options?.signal)
+        ).normalizeShortEpgItems(response, credentials.serverTimezone);
     }
 
     /**
@@ -320,18 +322,16 @@ export class XtreamApiService extends XtreamEpgNormalizer {
         streamId: number,
         options?: XtreamRequestOptions
     ): Promise<EpgItem[]> {
-        const fetchSchedule = async (action: XtreamCodeActions) =>
-            this.normalizeFullEpgItems(
-                await this.sendRequest<EpgResponse | []>(
-                    credentials,
-                    {
-                        action,
-                        stream_id: streamId,
-                    },
-                    options
-                ),
-                credentials.serverTimezone
+        const fetchSchedule = async (action: XtreamCodeActions) => {
+            const response = await this.sendRequest<EpgResponse | []>(
+                credentials,
+                { action, stream_id: streamId },
+                options
             );
+            return (
+                await loadEpgNormalizer(options?.signal)
+            ).normalizeFullEpgItems(response, credentials.serverTimezone);
+        };
         const unsupported = (status?: number) =>
             status === 404 || status === 405 || status === 501;
         let primaryError: { status?: number } | null | undefined;
