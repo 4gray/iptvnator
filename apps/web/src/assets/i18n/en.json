@@ -2351,8 +2351,11 @@
         }
     },
     "HOSTED_SERVER": {
-        "HTTPS_TITLE": "Optional HTTPS / Cloudflare Tunnel",
-        "HTTPS_DESCRIPTION": "Use an HTTPS proxy or an existing Cloudflare Tunnel on this computer. Home-network access keeps working independently. Start the server first, then configure your proxy and enable its HTTPS address here.",
+        "ACCESS_METHOD": "Access method",
+        "ACCESS_LOCAL": "Local HTTP",
+        "ACCESS_HTTPS": "Existing HTTPS proxy or Cloudflare Tunnel",
+        "HTTPS_SETUP": "Set up HTTPS access",
+        "HTTPS_DESCRIPTION": "Enter the public address of your HTTPS proxy or Cloudflare Tunnel. Starting the server opens a local origin for your proxy.",
         "HTTPS_GUIDE": "Set up a protected HTTPS address",
         "HTTPS_ADDRESS": "Public HTTPS address",
         "HTTPS_INVALID": "Enter an HTTPS address without a path, query, fragment or credentials.",
@@ -2361,7 +2364,7 @@
         "HTTPS_ENABLED": "Local HTTPS origin enabled. Your external proxy manages the connection and sign-in; public reachability has not been verified.",
         "HTTPS_FAILED": "Could not enable the HTTPS origin. Check that port 4335 is available. Home-network access is unchanged.",
         "HTTPS_LOCAL_ORIGIN": "Proxy to this local origin, preserving the public Host header:",
-        "HTTPS_AUTH": "Configure gateway sign-in before publishing the address. For Cloudflare, create an Access policy and enable Protect with Access. The IPTVnator access code is still required. Stopping HTTPS closes this local origin; it does not delete your tunnel. Enable HTTPS again after restarting the server.",
+        "HTTPS_AUTH": "Configure gateway sign-in before publishing the address. For Cloudflare, create an Access policy and enable Protect with Access. Devices also need the IPTVnator access code. Stopping HTTPS closes the local origin and leaves your tunnel in place. Enable HTTPS again after restarting IPTVnator.",
         "TITLE": "Server on this computer",
         "DESCRIPTION": "Runs while IPTVnator is open, even when minimized. Quitting the app stops the server.",
         "SETUP_GUIDE": "How to run a server on this computer",

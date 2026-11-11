@@ -53,6 +53,15 @@ test('starts locally, reconnects through the hosted library, and stops on reques
         await expect(
             page.getByTestId('hosted-server-share-lan').locator('input')
         ).not.toBeChecked();
+        await page
+            .getByRole('radio', {
+                name: 'Existing HTTPS proxy or Cloudflare Tunnel',
+            })
+            .check();
+        await expect(page.getByTestId('hosted-server-start')).toBeDisabled();
+        await page
+            .getByTestId('hosted-https-origin')
+            .fill('https://library.example.test');
         await page.getByTestId('hosted-server-start').click();
         await expect(page.getByTestId('hosted-server-status')).toHaveText(
             'Server running'
@@ -65,10 +74,6 @@ test('starts locally, reconnects through the hosted library, and stops on reques
         expect(identity.auth).toBe('token');
         expect(identity.instanceId).toEqual(expect.any(String));
 
-        await page
-            .getByTestId('hosted-https-origin')
-            .fill('https://library.example.test');
-        await page.getByTestId('hosted-https-start').click();
         await expect(page.getByTestId('hosted-https-stop')).toBeVisible();
         const remoteOrigin = 'http://127.0.0.1:4335';
         const remoteHeaders = {
@@ -100,7 +105,7 @@ test('starts locally, reconnects through the hosted library, and stops on reques
             ).status
         ).toBe(403);
         await page.getByTestId('hosted-https-stop').click();
-        await expect(page.getByTestId('hosted-https-start')).toBeVisible();
+        await expect(page.getByTestId('hosted-https-setup')).toBeVisible();
         await expect(
             proxyGet(remoteOrigin + '/', { headers: remoteHeaders })
         ).rejects.toThrow();

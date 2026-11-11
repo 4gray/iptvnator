@@ -6,12 +6,14 @@ import {
     computed,
     signal,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatInputModule } from '@angular/material/input';
+import { MatRadioModule } from '@angular/material/radio';
 import { FormsModule } from '@angular/forms';
 import { QRCodeComponent } from 'angularx-qrcode';
 import { parseHostedHttpsOrigin } from '@iptvnator/shared/interfaces';
@@ -31,6 +33,7 @@ import { timer } from 'rxjs';
     selector: 'app-settings-hosted-server',
     providers: [provideFormFieldDefaults()],
     imports: [
+        NgTemplateOutlet,
         SettingsSyncStatusComponent,
         MatIconModule,
         MatButtonModule,
@@ -38,6 +41,7 @@ import { timer } from 'rxjs';
         MatFormFieldModule,
         MatSelectModule,
         MatInputModule,
+        MatRadioModule,
         FormsModule,
         QRCodeComponent,
         TranslateModule,
@@ -76,6 +80,7 @@ export class SettingsHostedServerComponent {
     });
     readonly code = signal('');
     readonly feedback = signal('');
+    readonly accessMethod = signal<'local' | 'https'>('local');
     readonly httpsAddress = signal('');
     readonly httpsInvalid = signal(false);
     readonly qrAddress = signal('');
@@ -105,51 +110,76 @@ export class SettingsHostedServerComponent {
     }
 
     async control(
-        command: Exclude<HostedServerCommand, 'status'>
+        command: Exclude<HostedServerCommand, 'status'>,
+        httpsOrigin?: string
     ): Promise<void> {
         if (this.busy()) return;
+        const httpsCommand =
+            typeof command === 'object' && 'httpsOrigin' in command;
         this.transition++;
         this.busy.set(true);
         this.code.set('');
         this.feedback.set('');
         this.status.update((current) => ({
             ...current,
-            state:
-                typeof command === 'object' && 'httpsOrigin' in command
-                    ? current.state
-                    : command === 'stop'
-                      ? 'stopping'
-                      : 'starting',
+            state: httpsCommand
+                ? current.state
+                : command === 'stop'
+                  ? 'stopping'
+                  : 'starting',
             error: undefined,
         }));
         try {
-            this.status.set(
-                await window.electron.hostedServerControl!(command)
-            );
+            const status = await window.electron.hostedServerControl!(command);
+            this.status.set(status);
+            if (httpsOrigin && status.state === 'running') {
+                this.status.set(
+                    await window.electron.hostedServerControl!({ httpsOrigin })
+                );
+            }
         } catch {
-            this.status.set({ state: 'error', error: 'startup' });
+            if (httpsCommand || this.status().state === 'running') {
+                this.status.update((current) => ({
+                    ...current,
+                    httpsError: true,
+                }));
+            } else {
+                this.status.set({ state: 'error', error: 'startup' });
+            }
         } finally {
             this.busy.set(false);
         }
     }
 
     start(): void {
+        if (this.busy()) return;
         const address = this.shareLan() ? this.address() : '';
         if (address === undefined) return;
+        const useHttps = this.accessMethod() === 'https';
+        const httpsOrigin = useHttps ? this.readHttpsOrigin() : undefined;
+        if (useHttps && !httpsOrigin) return;
         void this.control(
-            address ? { start: true, lanAddress: address } : { start: true }
+            address ? { start: true, lanAddress: address } : { start: true },
+            httpsOrigin
         );
     }
 
     enableHttps(): void {
+        if (this.status().state !== 'running') return;
+        const httpsOrigin = this.readHttpsOrigin();
+        if (httpsOrigin) void this.control({ httpsOrigin });
+    }
+
+    private readHttpsOrigin(): string | undefined {
         try {
             const origin = parseHostedHttpsOrigin(
                 this.httpsAddress().trim()
             ).origin;
             this.httpsInvalid.set(false);
-            void this.control({ httpsOrigin: origin });
+            return origin;
         } catch {
             this.httpsInvalid.set(true);
+            return undefined;
         }
     }
 

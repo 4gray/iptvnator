@@ -84,6 +84,7 @@
                         type="button"
                         class="hosted-power"
                         (click)="control('stop')"
+                        [disabled]="busy()"
                         data-test-id="hosted-server-stop"
                     >
                         {{ 'HOSTED_SERVER.STOP' | translate }}
@@ -95,9 +96,108 @@
                     [hidden]="!code()"
                     >{{ code() }}</code
                 >
+                @if (status().httpsOrigin; as origin) {
+                    <p class="server-message" role="status">
+                        {{ 'HOSTED_SERVER.HTTPS_ENABLED' | translate }}
+                    </p>
+                    <div class="server-actions">
+                        <code class="hosted-value">{{ origin }}</code>
+                        <button
+                            mat-button
+                            type="button"
+                            (click)="copyAddress(origin)"
+                        >
+                            {{ 'HOSTED_SERVER.COPY_ADDRESS' | translate }}
+                        </button>
+                        <button
+                            mat-button
+                            type="button"
+                            (click)="
+                                qrAddress.set(
+                                    qrAddress() === origin ? '' : origin
+                                )
+                            "
+                        >
+                            {{ 'SETTINGS.SHOW_QR_CODE' | translate }}
+                        </button>
+                        <button
+                            mat-button
+                            type="button"
+                            [disabled]="busy()"
+                            (click)="
+                                accessMethod.set('local');
+                                control({ httpsOrigin: '' })
+                            "
+                            data-test-id="hosted-https-stop"
+                        >
+                            {{ 'HOSTED_SERVER.HTTPS_STOP' | translate }}
+                        </button>
+                    </div>
+                } @else if (accessMethod() === 'https') {
+                    <ng-container [ngTemplateOutlet]="httpsSetup" />
+                    <div class="server-actions">
+                        <button
+                            mat-flat-button
+                            type="button"
+                            [disabled]="busy() || !httpsAddress().trim()"
+                            (click)="enableHttps()"
+                            data-test-id="hosted-https-start"
+                        >
+                            {{ 'HOSTED_SERVER.HTTPS_START' | translate }}
+                        </button>
+                        <button
+                            mat-button
+                            type="button"
+                            [disabled]="busy()"
+                            (click)="accessMethod.set('local')"
+                        >
+                            {{ 'CANCEL' | translate }}
+                        </button>
+                    </div>
+                } @else {
+                    <div class="server-actions">
+                        <button
+                            mat-button
+                            type="button"
+                            [disabled]="busy()"
+                            (click)="accessMethod.set('https')"
+                            data-test-id="hosted-https-setup"
+                        >
+                            {{ 'HOSTED_SERVER.HTTPS_SETUP' | translate }}
+                        </button>
+                    </div>
+                }
+                @if (status().httpsError) {
+                    <p
+                        role="alert"
+                        class="server-message server-message--error"
+                    >
+                        {{ 'HOSTED_SERVER.HTTPS_FAILED' | translate }}
+                    </p>
+                }
             } @else if (
                 status().state === 'stopped' || status().state === 'error'
             ) {
+                <p class="server-message" id="hosted-access-method-label">
+                    {{ 'HOSTED_SERVER.ACCESS_METHOD' | translate }}
+                </p>
+                <mat-radio-group
+                    class="server-actions"
+                    aria-labelledby="hosted-access-method-label"
+                    [value]="accessMethod()"
+                    (change)="accessMethod.set($event.value)"
+                    data-test-id="hosted-access-method"
+                >
+                    <mat-radio-button value="local">
+                        {{ 'HOSTED_SERVER.ACCESS_LOCAL' | translate }}
+                    </mat-radio-button>
+                    <mat-radio-button value="https">
+                        {{ 'HOSTED_SERVER.ACCESS_HTTPS' | translate }}
+                    </mat-radio-button>
+                </mat-radio-group>
+                @if (accessMethod() === 'https') {
+                    <ng-container [ngTemplateOutlet]="httpsSetup" />
+                }
                 <div class="server-actions hosted-controls">
                     <div class="hosted-sharing">
                         <mat-checkbox
@@ -168,7 +268,11 @@
                         <button
                             mat-flat-button
                             type="button"
-                            [disabled]="shareLan() && !address()"
+                            [disabled]="
+                                (shareLan() && !address()) ||
+                                (accessMethod() === 'https' &&
+                                    !httpsAddress().trim())
+                            "
                             (click)="start()"
                             class="settings-primary-button"
                             data-test-id="hosted-server-start"
@@ -188,94 +292,44 @@
                 }
             </p>
         </div>
-        <header class="settings-group__header server-header">
-            <h3>{{ 'HOSTED_SERVER.HTTPS_TITLE' | translate }}</h3>
-            <p>{{ 'HOSTED_SERVER.HTTPS_DESCRIPTION' | translate }}</p>
-            <a
-                class="server-help"
-                [href]="guides.https"
-                target="_blank"
-                rel="noopener noreferrer"
-                >{{ 'HOSTED_SERVER.HTTPS_GUIDE' | translate }}</a
-            >
-        </header>
-        <div class="settings-card server-fields">
-            @if (status().httpsOrigin; as origin) {
-                <p class="server-message" role="status">
-                    {{ 'HOSTED_SERVER.HTTPS_ENABLED' | translate }}
-                </p>
-                <div class="server-actions">
-                    <code class="hosted-value">{{ origin }}</code>
-                    <button
-                        mat-button
-                        type="button"
-                        (click)="copyAddress(origin)"
-                    >
-                        {{ 'HOSTED_SERVER.COPY_ADDRESS' | translate }}
-                    </button>
-                    <button
-                        mat-button
-                        type="button"
-                        (click)="
-                            qrAddress.set(qrAddress() === origin ? '' : origin)
-                        "
-                    >
-                        {{ 'SETTINGS.SHOW_QR_CODE' | translate }}
-                    </button>
-                    <button
-                        mat-button
-                        type="button"
-                        [disabled]="busy()"
-                        (click)="control({ httpsOrigin: '' })"
-                        data-test-id="hosted-https-stop"
-                    >
-                        {{ 'HOSTED_SERVER.HTTPS_STOP' | translate }}
-                    </button>
-                </div>
-            } @else {
-                <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                    <mat-label>{{
-                        'HOSTED_SERVER.HTTPS_ADDRESS' | translate
-                    }}</mat-label>
-                    <input
-                        matInput
-                        type="url"
-                        [ngModel]="httpsAddress()"
-                        (ngModelChange)="
-                            httpsAddress.set($event); httpsInvalid.set(false)
-                        "
-                        [disabled]="busy() || status().state !== 'running'"
-                        placeholder="https://library.example.com"
-                        data-test-id="hosted-https-origin"
-                    />
-                </mat-form-field>
-                @if (httpsInvalid()) {
-                    <p
-                        role="alert"
-                        class="server-message server-message--error"
-                    >
-                        {{ 'HOSTED_SERVER.HTTPS_INVALID' | translate }}
-                    </p>
-                }
-                <div class="server-actions">
-                    <button
-                        mat-flat-button
-                        type="button"
-                        [disabled]="
-                            busy() ||
-                            status().state !== 'running' ||
-                            !httpsAddress().trim()
-                        "
-                        (click)="enableHttps()"
-                        data-test-id="hosted-https-start"
-                    >
-                        {{ 'HOSTED_SERVER.HTTPS_START' | translate }}
-                    </button>
-                </div>
-            }
-            @if (status().httpsError) {
-                <p role="alert" class="server-message server-message--error">
-                    {{ 'HOSTED_SERVER.HTTPS_FAILED' | translate }}
+        <ng-template #httpsSetup>
+            <p class="server-message">
+                {{ 'HOSTED_SERVER.HTTPS_DESCRIPTION' | translate }}
+                <a
+                    class="server-help"
+                    [href]="guides.https"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    >{{ 'HOSTED_SERVER.HTTPS_GUIDE' | translate }}</a
+                >
+            </p>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>{{
+                    'HOSTED_SERVER.HTTPS_ADDRESS' | translate
+                }}</mat-label>
+                <input
+                    matInput
+                    type="url"
+                    [ngModel]="httpsAddress()"
+                    (ngModelChange)="
+                        httpsAddress.set($event); httpsInvalid.set(false)
+                    "
+                    [disabled]="busy()"
+                    [attr.aria-invalid]="httpsInvalid()"
+                    [attr.aria-describedby]="
+                        httpsInvalid() ? 'hosted-https-invalid' : null
+                    "
+                    placeholder="https://library.example.com"
+                    data-test-id="hosted-https-origin"
+                />
+            </mat-form-field>
+            @if (httpsInvalid()) {
+                <p
+                    id="hosted-https-invalid"
+                    role="alert"
+                    class="server-message server-message--error"
+                >
+                    {{ 'HOSTED_SERVER.HTTPS_INVALID' | translate }}
                 </p>
             }
             <p class="server-message">
@@ -285,7 +339,7 @@
             <p class="server-message">
                 {{ 'HOSTED_SERVER.HTTPS_AUTH' | translate }}
             </p>
-        </div>
+        </ng-template>
         @if (
             qrAddress() &&
             (qrAddress() === status().lanUrl ||

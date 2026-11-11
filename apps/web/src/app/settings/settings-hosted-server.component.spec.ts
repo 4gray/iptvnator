@@ -161,6 +161,74 @@ describe('hosted server settings', () => {
         expect(component.status().lanUrl).toBe(lanUrl);
     });
 
+    it('shows the access options and requires an HTTPS address before starting', async () => {
+        await jest.advanceTimersByTimeAsync(0);
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        const start = root.querySelector<HTMLButtonElement>(
+            '[data-test-id="hosted-server-start"]'
+        );
+        const method = root.querySelector<HTMLInputElement>(
+            '[data-test-id="hosted-access-method"] input[value="https"]'
+        );
+        expect(start?.disabled).toBe(false);
+        expect(
+            root.querySelector('[data-test-id="hosted-https-origin"]')
+        ).toBeNull();
+        expect(method).not.toBeNull();
+        method?.click();
+        fixture.detectChanges();
+        expect(start?.disabled).toBe(true);
+        expect(
+            root.querySelector('[data-test-id="hosted-https-origin"]')
+        ).not.toBeNull();
+        component.httpsAddress.set('http://library.example.test');
+        fixture.detectChanges();
+        start?.click();
+        fixture.detectChanges();
+        expect(control.mock.calls).toEqual([['status']]);
+        expect(root.querySelector('[role="alert"]')?.textContent).toContain(
+            'HOSTED_SERVER.HTTPS_INVALID'
+        );
+    });
+
+    it('starts LAN and HTTPS in order and leaves LAN running if HTTPS fails', async () => {
+        await jest.advanceTimersByTimeAsync(0);
+        component.accessMethod.set('https');
+        component.lanChoice.set(true);
+        component.httpsAddress.set('https://library.example.test/');
+        control
+            .mockResolvedValueOnce({ state: 'running', localUrl, lanUrl })
+            .mockRejectedValueOnce(new Error('synthetic HTTPS error'));
+        component.start();
+        component.start();
+        await jest.advanceTimersByTimeAsync(0);
+        expect(control.mock.calls).toEqual([
+            ['status'],
+            [{ start: true, lanAddress: address }],
+            [{ httpsOrigin: 'https://library.example.test' }],
+        ]);
+        expect(component.status()).toEqual({
+            state: 'running',
+            localUrl,
+            lanUrl,
+            httpsError: true,
+        });
+        expect(component.busy()).toBe(false);
+    });
+
+    it('waits for the local server before opening an HTTPS origin', async () => {
+        await jest.advanceTimersByTimeAsync(0);
+        component.accessMethod.set('https');
+        component.httpsAddress.set('https://library.example.test');
+        control.mockResolvedValueOnce({ state: 'error', error: 'port' });
+        component.start();
+        await jest.advanceTimersByTimeAsync(0);
+        expect(control.mock.calls).toEqual([['status'], [{ start: true }]]);
+        expect(component.status()).toEqual({ state: 'error', error: 'port' });
+        expect(component.httpsAddress()).toBe('https://library.example.test');
+    });
+
     it('keeps the code hidden after toggling it off and reports failures without exposing details', async () => {
         accessCode.mockResolvedValueOnce('synthetic-code');
         await component.showCode();
