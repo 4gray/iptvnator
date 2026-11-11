@@ -785,10 +785,10 @@ guide can open.
 The guide keeps the player mounted in the dock and hides the live sidebars
 while preserving their browsing state. Short screens show a compact dock so
 schedule rows remain visible. If an external channel switch fails and the
-player restores the previous session, the guide keeps its scope and search
-and marks the restored channel as playing. It uses the current playlist's
-visible, unlocked live catalogue and can scope it to a category or resolved
-live favorites.
+player restores the previous session, the guide keeps its scope and search,
+and the dock and player panel return to the restored channel. The guide uses
+the current playlist's visible, unlocked live catalogue and can scope it to
+a category or resolved live favorites.
 A stream shared by multiple categories appears in each of those scopes and
 once in All Channels.
 
@@ -798,9 +798,9 @@ limits request concurrency. Switching channels from the guide uses that
 same schedule for the player panel. The grid releases rows outside its rendered range
 and buffer. Rendered rows and the playing stream's dock revalidate after their
 schedules expire, even if the playing row is outside the current scope. The
-dock follows the playing copy's XMLTV identity and keeps the player panel
-current when the guide closes. Failed
-rows retry when they return to the viewport. A coverage scan
+dock follows the playing copy's latest XMLTV identity after a catalog recheck
+and keeps the player panel current when the guide closes. Failed rows retry
+when they return to the viewport. A coverage scan
 that obtains a schedule also updates the corresponding visible failed row.
 It checks the current scope's coverage only when the user turns on **Only with
 EPG** and keeps channels whose coverage could not be checked until a successful

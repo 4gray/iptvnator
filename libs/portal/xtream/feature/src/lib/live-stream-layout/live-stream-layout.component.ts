@@ -121,7 +121,10 @@ import {
     type XtreamLiveChannelItem,
 } from './xtream-live-channel-navigation.service';
 
-import { XtreamEpgGuideSourceService } from './xtream-epg-guide-source.service';
+import {
+    sameGuideChannel,
+    XtreamEpgGuideSourceService,
+} from './xtream-epg-guide-source.service';
 import { XtreamLiveGuideService } from './xtream-live-guide.service';
 import { scheduleKey } from './xtream-guide-schedules';
 import { toSharedEpgProgram } from '../portal-channels-list/epg-preview-program';
@@ -132,6 +135,7 @@ type GuideExternalChannel = {
     playlistId: string;
     item: XtreamLiveChannelItem;
     archive: EpgProgram | null;
+    playback: ResolvedPortalPlayback;
 };
 
 @Component({
@@ -503,6 +507,8 @@ export class LiveStreamLayoutComponent
         GuideExternalChannel
     >();
     private pendingExternalLaunch?: GuideExternalChannel;
+    private externalPanelPlayback?: ResolvedPortalPlayback;
+    private externalPanelSessionId?: string;
     private readonly guideExternalSession = linkedSignal({
         source: () => ({
             playlistId: this.xtreamStore.currentPlaylist()?.id,
@@ -532,7 +538,7 @@ export class LiveStreamLayoutComponent
                     ? playing
                     : this.guideExternalRequests.get(session.streamUrl);
             if (!confirmed || confirmed.playlistId !== playlistId) return null;
-            if (session.streamUrl === url) {
+            if (confirmed === this.pendingExternalLaunch) {
                 this.guideExternalRequests.clear();
                 this.pendingExternalLaunch = undefined;
             }
@@ -583,6 +589,7 @@ export class LiveStreamLayoutComponent
         if (
             !selected ||
             !playing ||
+            !sameGuideChannel(selected, playing) ||
             scheduleKey(selected) !== scheduleKey(playing)
         )
             return null;
@@ -607,6 +614,21 @@ export class LiveStreamLayoutComponent
                 return;
             this.playLive(item, true, channels);
         });
+        effect(() => {
+            const session = this.externalPlayback?.activeSession();
+            untracked(() => {
+                const confirmed = this.guideExternalSession();
+                if (
+                    !session ||
+                    confirmed?.session !== session ||
+                    (this.externalPanelSessionId === session.id &&
+                        !session.restoredFromSessionId)
+                )
+                    return;
+                this.externalPanelSessionId = session.id;
+                this.syncExternalGuidePlayback(confirmed);
+            });
+        });
         effect(() =>
             this.guideSource.setPlayback(
                 this.guideChannel(),
@@ -615,15 +637,18 @@ export class LiveStreamLayoutComponent
         );
         effect(() => {
             const items = this.guideSource.playingScheduleItems();
-            const playing = this.guideChannel();
+            if (!items) return;
+            const playing = this.guideSource.playingItem();
             const selected = this.selectedLiveItem();
-            if (
-                items &&
-                playing &&
-                selected &&
-                scheduleKey(playing) === scheduleKey(selected)
-            )
-                untracked(() => this.xtreamStore.setGuideSchedule(items));
+            if (playing && selected && sameGuideChannel(playing, selected))
+                untracked(() => {
+                    if (playing.epg_channel_id !== selected.epg_channel_id)
+                        this.xtreamStore.setSelectedItem({
+                            ...selected,
+                            epg_channel_id: playing.epg_channel_id,
+                        });
+                    this.xtreamStore.setGuideSchedule(items);
+                });
         });
 
         effect(() => {
@@ -633,6 +658,8 @@ export class LiveStreamLayoutComponent
                 this.activePlaylistId = null;
                 this.guideExternalRequests.clear();
                 this.pendingExternalLaunch = undefined;
+                this.externalPanelPlayback = undefined;
+                this.externalPanelSessionId = undefined;
                 this.activePlayback.set(null);
                 this.activeLiveItemId.set(null);
                 this.activeGuideItem.set(null);
@@ -836,13 +863,9 @@ export class LiveStreamLayoutComponent
     ) {
         this.playbackRequestId += 1;
         const streamUrl = this.guide.isOpen()
-            ? this.xtreamStore.constructStreamUrl(item, async (signal) => {
-                  const schedule = await this.guideSource.playbackSchedule(
-                      item,
-                      signal
-                  );
-                  return this.destroyRef.destroyed ? [] : schedule;
-              })
+            ? this.xtreamStore.constructStreamUrl(item, (signal) =>
+                  this.readGuideSchedule(item, signal)
+              )
             : this.xtreamStore.constructStreamUrl(item);
         this.channelNavigation.capture(item, displayedChannels, remote);
         this.activeCatchupProgram.set(null);
@@ -1192,7 +1215,10 @@ export class LiveStreamLayoutComponent
     ): void {
         const playback = this.activePlayback();
         if (!playback?.streamUrl) return;
-        const launch = playlistId ? { playlistId, item, archive } : undefined;
+        const launch = playlistId
+            ? { playlistId, item, archive, playback }
+            : undefined;
+        this.externalPanelPlayback = playback;
         this.pendingExternalLaunch = launch;
         if (launch) this.guideExternalRequests.set(playback.streamUrl, launch);
         const clear = () => {
@@ -1212,6 +1238,37 @@ export class LiveStreamLayoutComponent
             )
                 clear();
         }, clear);
+    }
+
+    private syncExternalGuidePlayback({
+        item,
+        archive,
+        playback,
+    }: GuideExternalChannel): void {
+        const current = this.activePlayback();
+        // A browse-only preview owns the panel until another channel is played.
+        if (current !== this.externalPanelPlayback || current === playback)
+            return;
+        this.externalPanelPlayback = playback;
+        this.activePlayback.set(playback);
+        this.activeLiveItemId.set(item.xtream_id);
+        this.activeLiveProviderCategoryId =
+            this.resolveLiveProviderCategoryId(item);
+        this.activeGuideItem.set(item);
+        this.activeCatchupProgram.set(archive);
+        this.channelNavigation.capture(item, undefined, true);
+        this.xtreamStore.setSelectedItem({ ...item });
+        void this.xtreamStore.loadEpg((signal) =>
+            this.readGuideSchedule(item, signal)
+        );
+    }
+
+    private async readGuideSchedule(
+        item: XtreamLiveChannelItem,
+        signal: AbortSignal
+    ) {
+        const schedule = await this.guideSource.playbackSchedule(item, signal);
+        return this.destroyRef.destroyed ? [] : schedule;
     }
 
     private toLiveEpgPanelSummary(

@@ -120,6 +120,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         constructStreamUrl: jest.fn(() => 'https://example.com/live.ts'),
         openPlayer: jest.fn(),
         setSelectedItem: jest.fn(),
+        loadEpg: jest.fn(),
         setSelectedCategory: jest.fn(),
         loadMoreContent: jest.fn(),
     };
@@ -131,6 +132,8 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         externalSession.set(null);
         emptyList.set([]);
         xtreamStore.openPlayer.mockReset();
+        xtreamStore.setSelectedItem.mockClear();
+        xtreamStore.loadEpg.mockClear();
 
         await TestBed.configureTestingModule({
             imports: [
@@ -369,6 +372,14 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             }
             const original = outcome === 'restores original';
             const confirmed = original ? session : replacement;
+            if (original) {
+                externalSession.set({
+                    ...replacement,
+                    restoredFromSessionId: third.id,
+                });
+                fixture.detectChanges();
+                expect(component.guideNowPlayingChannel()).toBe(session.title);
+            }
             externalSession.set({
                 ...confirmed,
                 status: 'playing',
@@ -389,6 +400,17 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 String(original ? sampleChannel.xtream_id : 102)
             );
             expect(source.livePlayback()).toBe(true);
+            component.guide.close();
+            expect(component.activePlayback()?.streamUrl).toBe(
+                confirmed.streamUrl
+            );
+            expect(xtreamStore.setSelectedItem).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    xtream_id: original ? sampleChannel.xtream_id : 102,
+                })
+            );
+            expect(xtreamStore.loadEpg).toHaveBeenCalled();
+            expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(3);
         }
     );
 

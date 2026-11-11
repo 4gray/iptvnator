@@ -49,6 +49,16 @@ function categoryKey(id: string | number | null | undefined): string {
     return raw && Number.isFinite(numeric) ? String(numeric) : raw;
 }
 
+export function sameGuideChannel(
+    left: XtreamLiveChannelItem,
+    right: XtreamLiveChannelItem
+): boolean {
+    return (
+        left.xtream_id === right.xtream_id &&
+        categoryKey(left.category_id) === categoryKey(right.category_id)
+    );
+}
+
 function rowsByStreamId(
     items: readonly XtreamLiveChannelItem[]
 ): Map<string, XtreamLiveChannelItem> {
@@ -224,15 +234,10 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         return item ? String(item.xtream_id) : null;
     });
     readonly livePlayback = computed(() => this.playback().live);
-    private readonly playingItem = computed(() => {
+    readonly playingItem = computed(() => {
         const item = this.playback().item;
         return item
-            ? this.items().find(
-                  (row) =>
-                      scheduleKey(row) === scheduleKey(item) &&
-                      categoryKey(row.category_id) ===
-                          categoryKey(item.category_id)
-              )
+            ? this.items().find((row) => sameGuideChannel(row, item))
             : undefined;
     });
     private readonly schedules = injectXtreamGuideSchedules(

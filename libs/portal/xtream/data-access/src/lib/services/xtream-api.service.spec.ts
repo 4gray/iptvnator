@@ -44,6 +44,21 @@ describe('XtreamApiService', () => {
         );
     });
 
+    it('does not dispatch an EPG request cancelled while preferences load', async () => {
+        const preferences = TestBed.inject(EpgPreferencesService);
+        preferences.beginLoad();
+        const controller = new AbortController();
+        dataService.sendIpcEvent.mockResolvedValue({ payload: [] });
+        const result = service.getFullEpg(credentials, 101, {
+            sessionId: 'synthetic-guide',
+            signal: controller.signal,
+        });
+        controller.abort();
+        await preferences.apply(true);
+        await expect(result).rejects.toMatchObject({ name: 'AbortError' });
+        expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+    });
+
     describe.each(['live', 'vod', 'series'] as const)(
         '%s catalog validation',
         (type) => {

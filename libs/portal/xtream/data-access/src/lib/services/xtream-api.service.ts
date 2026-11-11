@@ -332,26 +332,24 @@ export class XtreamApiService extends XtreamEpgNormalizer {
                 ),
                 credentials.serverTimezone
             );
-        const unsupported = (error: { status?: number } | null) =>
-            error?.status === 404 ||
-            error?.status === 405 ||
-            error?.status === 501;
+        const unsupported = (status?: number) =>
+            status === 404 || status === 405 || status === 501;
+        let primaryError: { status?: number } | null | undefined;
         const primary = await fetchSchedule(
             XtreamCodeActions.GetSimpleDataTable
-        ).then(
-            (items) => ({ items }),
-            (error: { status?: number } | null) => ({ error })
-        );
-        if ('items' in primary && primary.items.length) return primary.items;
+        ).catch((error: { status?: number } | null) => {
+            primaryError = error;
+        });
+        if (primary?.length) return primary;
         const legacy = await fetchSchedule(
             XtreamCodeActions.GetSimpleDateTable
         ).catch((error: { status?: number } | null) => {
             options?.signal?.throwIfAborted();
-            if ('items' in primary && unsupported(error)) return primary.items;
+            if (primary && unsupported(error?.status)) return primary;
             throw error;
         });
-        if (!legacy.length && 'error' in primary && !unsupported(primary.error))
-            throw primary.error;
+        if (!legacy.length && !primary && !unsupported(primaryError?.status))
+            throw primaryError;
         return legacy;
     }
 
@@ -361,33 +359,39 @@ export class XtreamApiService extends XtreamEpgNormalizer {
     private async sendRequest<TResponse>(
         credentials: XtreamCredentials,
         params: Record<string, string | number>,
-        options?: XtreamRequestOptions
+        {
+            signal,
+            requestId,
+            sessionId,
+            suppressErrorLog,
+        }: XtreamRequestOptions = {}
     ): Promise<TResponse> {
-        options?.signal?.throwIfAborted();
+        signal?.throwIfAborted();
         const normalizedUrl = normalizeXtreamServerUrl(credentials.serverUrl);
+        const userAgent = credentials.userAgent?.trim();
         const serializedParams: Record<string, string> = {
             username: credentials.username.trim(),
             password: credentials.password.trim(),
         };
-        Object.entries(params).forEach(([key, value]) => {
+        for (const [key, value] of Object.entries(params)) {
             serializedParams[key] = String(value);
-        });
+        }
 
-        const request = async () =>
-            this.dataService.sendIpcEvent(
+        const request = async () => {
+            signal?.throwIfAborted();
+            return this.dataService.sendIpcEvent(
                 XTREAM_REQUEST,
                 {
                     url: normalizedUrl,
-                    ...(credentials.userAgent?.trim()
-                        ? { userAgent: credentials.userAgent.trim() }
-                        : {}),
+                    ...(userAgent && { userAgent }),
                     params: serializedParams,
-                    requestId: options?.requestId,
-                    sessionId: options?.sessionId,
-                    suppressErrorLog: options?.suppressErrorLog,
+                    requestId,
+                    sessionId,
+                    suppressErrorLog,
                 },
-                ...(options?.signal ? ([options.signal] as const) : [])
+                ...(signal ? ([signal] as const) : [])
             );
+        };
         const isEpg = [
             XtreamCodeActions.GetShortEpg,
             XtreamCodeActions.GetSimpleDataTable,
@@ -403,6 +407,7 @@ export class XtreamApiService extends XtreamEpgNormalizer {
             status?: number;
             type?: string;
         };
+        signal?.throwIfAborted();
 
         // The IPC layer catches errors and returns { type: 'ERROR', message, status }
         // instead of rejecting. Convert that back into a thrown error so callers

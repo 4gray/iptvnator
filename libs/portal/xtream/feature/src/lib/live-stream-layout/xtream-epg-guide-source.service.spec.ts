@@ -254,6 +254,22 @@ describe('XtreamEpgGuideSourceService', () => {
         expect(load).toHaveBeenCalledTimes(1);
     });
 
+    it('refreshes the playing copy when a catalogue recheck changes its EPG ID', async () => {
+        service.setPlayback(one, true);
+        const initial = [program(1)];
+        const refreshed = [program(2)];
+        load.mockResolvedValueOnce(initial).mockResolvedValueOnce(refreshed);
+        TestBed.flushEffects();
+        await service.playbackSchedule(one);
+        expect(service.playingScheduleItems()).toBe(initial);
+
+        const updated = { ...one, epg_channel_id: 'synthetic.updated' };
+        liveStreams.set([updated, two]);
+        TestBed.flushEffects();
+        await service.playbackSchedule(updated);
+        expect(service.playingScheduleItems()).toBe(refreshed);
+    });
+
     it('does not replace the playing copy schedule when another category uses a different EPG key', async () => {
         locked.mockReturnValue(false);
         lockRevision.update((value) => value + 1);
