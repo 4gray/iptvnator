@@ -158,6 +158,38 @@ describe('MPV launch queue', () => {
         expect(spawnMock).toHaveBeenCalledTimes(1);
     });
 
+    it('cancels only the exact queued launch when its channel is relocked', async () => {
+        const { proc } = await launchReusableSession();
+        const sockets = mockUnansweredSockets();
+        const first = openMpvPlayer({
+            title: 'Synthetic Allowed Channel',
+            url: 'https://example.test/allowed.m3u8',
+        });
+        const requestId = await writtenRequestId(sockets[0]);
+        const second = openMpvPlayer({
+            title: 'Synthetic Restricted Channel',
+            url: 'https://example.test/restricted.m3u8',
+        });
+        const queuedId = externalPlayerSessions.getActiveSessionId() as string;
+        await expect(
+            externalPlayerSessions.closeSession(queuedId, true)
+        ).resolves.toMatchObject({ id: queuedId, status: 'closed' });
+        sockets[0].emit(
+            'data',
+            Buffer.from(
+                JSON.stringify({ request_id: requestId, error: 'success' }) +
+                    '\n'
+            )
+        );
+        await expect(first).resolves.toMatchObject({ status: 'opened' });
+        await expect(second).resolves.toMatchObject({
+            id: queuedId,
+            status: 'closed',
+        });
+        expect(commandsOf(sockets)).toEqual(['loadfile']);
+        expect(proc.kill).not.toHaveBeenCalled();
+    });
+
     it('lets Stop on the newest queued launch cancel every launch queued before it', async () => {
         const { proc } = await launchReusableSession();
         const sockets = mockSocketsQuittingInto(proc);

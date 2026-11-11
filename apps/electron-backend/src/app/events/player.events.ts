@@ -179,8 +179,8 @@ ipcMain.handle('SET_VLC_REUSE_INSTANCE', (_event, reuseInstance: boolean) => {
 
 ipcMain.handle(
     CLOSE_EXTERNAL_PLAYER_SESSION,
-    async (_event, sessionId: string) => {
-        return externalPlayerSessions.closeSession(sessionId);
+    async (_event, sessionId: string, exact?: boolean) => {
+        return externalPlayerSessions.closeSession(sessionId, exact === true);
     }
 );
 

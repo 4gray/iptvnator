@@ -3,6 +3,7 @@ import {
     effect,
     inject,
     Injectable,
+    signal,
     untracked,
 } from '@angular/core';
 import {
@@ -48,6 +49,7 @@ export class XtreamExternalLiveSessions {
     private readonly lock = inject(ParentalLockService);
     private readonly pending = new Map<string, Launch[]>();
     private readonly sessions = new Map<string, Active>();
+    private readonly revision = signal(0);
 
     constructor() {
         const unsubscribe = window.electron?.onExternalPlayerSessionUpdate?.(
@@ -60,6 +62,11 @@ export class XtreamExternalLiveSessions {
                 this.sessions.forEach((entry) => this.enforce(entry))
             );
         });
+    }
+
+    snapshot(id: string): ExternalPlayerSession | undefined {
+        this.revision();
+        return this.sessions.get(id)?.session;
     }
 
     begin(
@@ -91,7 +98,8 @@ export class XtreamExternalLiveSessions {
         const current = this.sessions.get(id);
         if (!isLiveExternalPlayerSession(session)) {
             if (current?.launch) current.launch.retired = true;
-            this.sessions.delete(id);
+            if (this.sessions.delete(id))
+                this.revision.update((value) => value + 1);
             return;
         }
         const launch =
@@ -103,9 +111,11 @@ export class XtreamExternalLiveSessions {
         if (!owner) return;
         if (launch) launch.sessionId = session.id;
         const entry = current ?? { session, source: owner, launch };
+        const changed = !current || current.session !== session;
         entry.session = session;
         entry.source = owner;
         this.sessions.set(session.id, entry);
+        if (changed) this.revision.update((value) => value + 1);
         this.enforce(entry);
     }
 
@@ -113,23 +123,33 @@ export class XtreamExternalLiveSessions {
         const { session, source } = entry;
         if (!session.canClose || entry.closing || !this.playback) return;
         if (!isXtreamLiveCategoryWithheld(this.lock, source)) return;
-        entry.closing = true;
         const bridge = window.electron;
-        const close =
-            this.playback.activeSession()?.id !== session.id &&
-            bridge?.closeExternalPlayerSession
-                ? bridge
-                      .closeExternalPlayerSession(session.id)
-                      .then((closed) =>
+        if (
+            !bridge?.closeExternalPlayerSession &&
+            session.status === 'launching'
+        )
+            return;
+        entry.closing = true;
+        if (this.playback.activeSession()?.id === session.id)
+            this.playback.dismissActiveSession?.();
+        const close = bridge?.closeExternalPlayerSession
+            ? bridge
+                  .closeExternalPlayerSession(session.id, true)
+                  .then((result) => {
+                      if (isLiveExternalPlayerSession(result)) {
+                          // An in-flight queue entry has not attached its own closer yet.
+                          entry.closing = false;
+                          if (entry.session !== session) this.enforce(entry);
+                      } else
                           this.update(
-                              closed ?? {
+                              result ?? {
                                   ...session,
                                   status: 'closed',
                                   canClose: false,
                               }
-                          )
-                      )
-                : this.playback.closeSession(session);
+                          );
+                  })
+            : this.playback.closeSession(session);
         void close.catch(() => {
             entry.closing = false;
         });

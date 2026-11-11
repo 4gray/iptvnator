@@ -37,8 +37,10 @@ export interface QueuedMpvLaunch {
 export class MpvLaunchQueue {
     private pending: Promise<unknown> | null = null;
     private latest = 0;
+    private latestRunnable = 0;
     private cancelledThrough = 0;
     private inFlightSessionId: string | null = null;
+    private inFlightNumber = 0;
     // The last launch that actually started. With reuse off its detached
     // child is not stored, so it is the only handle on that player once the
     // launch settled with an unconfirmed teardown.
@@ -57,29 +59,48 @@ export class MpvLaunchQueue {
     ): Promise<ExternalPlayerSession> {
         const previous = this.pending;
         const number = ++this.latest;
+        this.latestRunnable = number;
+        let started = false;
         let stop: Promise<void> | null = null;
         // Fixed at the first Stop, so a retry never reaches a newer player.
         let stopTargets: string[] | null = null;
         if (previous) {
-            externalPlayerSessions.attachCloser(session.id, () => {
-                this.cancelledThrough = Math.max(this.cancelledThrough, number);
-                // A late Stop for an older queued launch only cancels it.
-                stopTargets ??=
-                    number === this.latest ? this.stopTargets(session.id) : [];
-                stop = Promise.all(
-                    stopTargets.map((id) =>
-                        externalPlayerSessions.closeSession(id)
-                    )
-                ).then(() => undefined);
-                return stop;
-            });
+            externalPlayerSessions.attachCloser(
+                session.id,
+                () => {
+                    this.cancelledThrough = Math.max(
+                        this.cancelledThrough,
+                        number
+                    );
+                    // A late Stop for an older queued launch only cancels it.
+                    stopTargets ??=
+                        number === this.latest
+                            ? this.stopTargets(session.id)
+                            : [];
+                    stop = Promise.all(
+                        stopTargets.map((id) =>
+                            externalPlayerSessions.closeSession(id)
+                        )
+                    ).then(() => undefined);
+                    return stop;
+                },
+                () => {
+                    if (started) return false;
+                    if (this.latestRunnable === number)
+                        this.latestRunnable = this.inFlightNumber;
+                    return true;
+                }
+            );
         }
         const queue: QueuedMpvLaunch = {
             queued: previous !== null,
             cancelled: () =>
-                number <= this.cancelledThrough || number !== this.latest,
+                number <= this.cancelledThrough ||
+                number !== this.latestRunnable,
             pendingStop: () => stop,
             markInFlight: () => {
+                started = true;
+                this.inFlightNumber = number;
                 this.inFlightSessionId = session.id;
                 this.lastStartedSessionId = session.id;
             },
@@ -92,6 +113,7 @@ export class MpvLaunchQueue {
         const result = (previous ? previous.then(run) : run()).finally(() => {
             if (this.inFlightSessionId === session.id) {
                 this.inFlightSessionId = null;
+                this.inFlightNumber = 0;
             }
             if (this.pending === settled) this.pending = null;
         });

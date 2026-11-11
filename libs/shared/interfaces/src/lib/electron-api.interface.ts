@@ -1391,7 +1391,8 @@ export interface ElectronBridgeApi {
         callback: (data: EmbeddedMpvSession) => void
     ) => () => void;
     closeExternalPlayerSession: (
-        sessionId: string
+        sessionId: string,
+        exact?: boolean
     ) => Promise<ExternalPlayerSession | null>;
     getEmbeddedMpvSupport: () => Promise<EmbeddedMpvSupport>;
     prepareEmbeddedMpv?: () => Promise<EmbeddedMpvSupport>;

@@ -1080,6 +1080,10 @@ Stop, so a retried Stop never reaches a player started later, and a late Stop
 for an older queued launch cancels only that launch. The cancelled launch
 settles only once its own Stop has: if the exit cannot be confirmed it stays a
 closable error, so Stop can be retried. App shutdown cancels the whole queue.
+Parental relock uses an exact session close. When the session is queued, this
+cancels only that launch and lets an allowed in-flight launch finish. After
+the queued launch starts, an exact close waits for its own closer instead of
+invoking the queued Stop handler on another player.
 A queued launch that finds the teardown gate closed, because the launch before
 it could not confirm its child's exit, restores the session that still owns
 that child, preferring the last launch that started (with reuse off its

@@ -130,7 +130,7 @@ describe('XtreamExternalLiveSessions', () => {
         });
         guard.begin(oldUrl, original)(session('old', oldUrl, 'opened'));
         relock();
-        expect(nativeClose).toHaveBeenCalledWith('old');
+        expect(nativeClose).toHaveBeenCalledWith('old', true);
         expect(closeSession).not.toHaveBeenCalled();
         await Promise.resolve();
         version.update((value) => value + 1);

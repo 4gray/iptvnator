@@ -24,6 +24,7 @@ interface UpdateExternalPlayerSessionOptions {
 interface ExternalPlayerSessionRuntime {
     snapshot: ExternalPlayerSession;
     close?: () => Promise<void> | void;
+    cancelQueued?: () => boolean;
 }
 
 interface MarkExternalPlayerSessionErrorOptions {
@@ -110,7 +111,8 @@ export class ExternalPlayerSessionRegistry {
 
     attachCloser(
         id: string,
-        close: () => Promise<void> | void
+        close: () => Promise<void> | void,
+        cancelQueued?: () => boolean
     ): ExternalPlayerSession | null {
         const runtime = this.sessions.get(id);
         if (!runtime) {
@@ -118,6 +120,7 @@ export class ExternalPlayerSessionRegistry {
         }
 
         runtime.close = close;
+        runtime.cancelQueued = cancelQueued;
         return this.updateSession(id, { canClose: true });
     }
 
@@ -193,7 +196,10 @@ export class ExternalPlayerSessionRegistry {
         });
     }
 
-    async closeSession(id: string): Promise<ExternalPlayerSession | null> {
+    async closeSession(
+        id: string,
+        exact = false
+    ): Promise<ExternalPlayerSession | null> {
         const runtime = this.sessions.get(id);
         if (!runtime) {
             return null;
@@ -206,6 +212,12 @@ export class ExternalPlayerSessionRegistry {
         if (runtime.snapshot.status === 'closed') {
             return runtime.snapshot;
         }
+
+        if (exact && runtime.cancelQueued)
+            return runtime.cancelQueued()
+                ? this.markClosed(id)
+                : runtime.snapshot;
+        if (exact && !runtime.close) return runtime.snapshot;
 
         // A failed closer cannot prove that the underlying process stopped.
         // Preserve the live session and propagate the failure so callers do

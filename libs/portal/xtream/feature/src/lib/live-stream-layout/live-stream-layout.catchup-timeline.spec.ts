@@ -487,7 +487,9 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 publishExternalSession(opened);
                 fixture.detectChanges();
                 expect(closeSession).toHaveBeenCalledWith(opened);
-                expect(component.guide.available()).toBe(false);
+                expect(component.guide.available()).toBe(
+                    locked !== 'replacement'
+                );
                 expect(xtreamStore.loadEpg).toHaveBeenCalledTimes(1);
                 expect(xtreamStore.setSelectedItem).toHaveBeenLastCalledWith(
                     playing
@@ -613,6 +615,63 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         ).not.toBeNull();
         expect(component.guideNowPlayingChannel()).toBe(confirmed.title);
         expect(closeSession).not.toHaveBeenCalled();
+    });
+
+    it('keeps the confirmed detached channel after a replacement exits', async () => {
+        const playing = { ...sampleChannel, category_id: 1 };
+        const next = { ...playing, xtream_id: 102 };
+        portalPlayer.isEmbeddedPlayer.set(false);
+        component.playLive(playing, true, [playing, next]);
+        const original: ExternalPlayerSession = {
+            id: 'synthetic-detached',
+            streamUrl: component.activeStreamUrl(),
+            title: 'Synthetic Playing Channel',
+            player: 'mpv',
+            status: 'opened',
+            startedAt: '2026-04-04T10:00:00Z',
+            updatedAt: '2026-04-04T10:00:00Z',
+            canClose: true,
+        };
+        publishExternalSession(original);
+        component.guide.open();
+        fixture.detectChanges();
+        xtreamStore.constructStreamUrl.mockReturnValueOnce(
+            'https://example.test/replacement.ts'
+        );
+        let fail!: (error: Error) => void;
+        xtreamStore.openPlayer.mockReturnValueOnce(
+            new Promise((_resolve, reject) => {
+                fail = reject;
+            })
+        );
+        component.playLive(next, true);
+        const replacement = {
+            ...original,
+            id: 'synthetic-replacement',
+            streamUrl: component.activeStreamUrl(),
+            status: 'launching',
+        } as const;
+        publishExternalSession(replacement);
+        fixture.detectChanges();
+        publishExternalSession({
+            ...replacement,
+            status: 'error',
+            canClose: false,
+        });
+        fail(new Error('Synthetic launch failure'));
+        await Promise.resolve();
+        fixture.detectChanges();
+        expect(component.guide.isOpen()).toBe(true);
+        expect(component.guideNowPlayingChannel()).toBe(original.title);
+        expect(component.activeStreamUrl()).toBe(original.streamUrl);
+
+        onExternalPlayerSessionUpdate.mock.lastCall?.[0]({
+            ...original,
+            status: 'closed',
+            canClose: false,
+        });
+        fixture.detectChanges();
+        expect(component.guide.isOpen()).toBe(false);
     });
 
     it.each(['preview', 'pending'] as const)(

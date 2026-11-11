@@ -791,9 +791,10 @@ and remote controls follow the confirmed session. Browsing another channel
 does not replace the remote order or detach the guide. If a relock withholds that
 channel or the pending replacement, the guide hides the withheld channel and
 closes its external session even if it finishes opening later, reports a
-closable error or has already left the dock. Retiring only the pending switch keeps the confirmed channel
-and its guide available. The guide uses
-the current playlist's visible, unlocked live catalogue and can scope it to
+closable error or has already left the dock. Cancelling a queued replacement
+leaves the allowed player running. If a replacement fails, the confirmed
+channel stays in the guide until it actually closes or another opens. The
+guide uses the current playlist's visible, unlocked live catalogue and can scope it to
 a category or resolved live favorites.
 A stream shared by multiple categories appears in each of those scopes and
 once in All Channels. Choosing another copy of a stream already playing

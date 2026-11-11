@@ -621,8 +621,12 @@ const electronApi: ElectronBridgeApi = {
             startTime,
             headers
         ),
-    closeExternalPlayerSession: (sessionId: string) =>
-        ipcRenderer.invoke('CLOSE_EXTERNAL_PLAYER_SESSION', sessionId),
+    closeExternalPlayerSession: (sessionId: string, exact?: boolean) =>
+        ipcRenderer.invoke(
+            'CLOSE_EXTERNAL_PLAYER_SESSION',
+            sessionId,
+            ...(exact ? [true] : [])
+        ),
     getEmbeddedMpvSupport: (): Promise<EmbeddedMpvSupport> =>
         ipcRenderer.invoke('EMBEDDED_MPV_SUPPORT'),
     prepareEmbeddedMpv: (): Promise<EmbeddedMpvSupport> =>
