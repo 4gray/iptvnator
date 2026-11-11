@@ -73,6 +73,10 @@ export function findCurrentEpgItem(
     );
 }
 
+export type XtreamGuideEpgRead = (
+    signal: AbortSignal
+) => Promise<EpgItem[] | null>;
+
 export function withEpg() {
     const logger = createLogger('withEpg');
     type ParentSelectionStoreLike = {
@@ -143,6 +147,7 @@ export function withEpg() {
                 settingsStore.preferUploadedEpgOverXtream?.() ?? false;
 
             let loadGeneration = 0;
+            let guideRead: AbortController | undefined;
 
             return {
                 /**
@@ -152,8 +157,13 @@ export function withEpg() {
                  * has an `epg_channel_id`. The order is reversed when the user
                  * sets `preferUploadedEpgOverXtream`.
                  */
-                async loadEpg(): Promise<EpgItem[]> {
+                async loadEpg(
+                    readGuide?: XtreamGuideEpgRead
+                ): Promise<EpgItem[]> {
                     const generation = ++loadGeneration;
+                    guideRead?.abort();
+                    guideRead = readGuide ? new AbortController() : undefined;
+                    const signal = guideRead?.signal;
                     const sourceRevision = sources.revision();
                     const isCurrent = () =>
                         generation === loadGeneration &&
@@ -184,14 +194,21 @@ export function withEpg() {
                     patchState(store, { epgItems: [], isLoadingEpg: true });
 
                     try {
-                        const epgItems = await fullEpg.load(
-                            {
-                                ...credentials,
-                                id: storeAny.currentPlaylist?.()?.id,
-                            },
-                            xtreamId,
-                            selectedItem?.epg_channel_id ?? null
-                        );
+                        const guideItems =
+                            readGuide && signal
+                                ? await readGuide(signal)
+                                : null;
+                        if (!isCurrent()) return [];
+                        const epgItems =
+                            guideItems ??
+                            (await fullEpg.load(
+                                {
+                                    ...credentials,
+                                    id: storeAny.currentPlaylist?.()?.id,
+                                },
+                                xtreamId,
+                                selectedItem?.epg_channel_id ?? null
+                            ));
 
                         if (!isCurrent()) return [];
                         patchState(store, {
@@ -245,6 +262,8 @@ export function withEpg() {
                  */
                 clearEpg(): void {
                     loadGeneration++;
+                    guideRead?.abort();
+                    guideRead = undefined;
                     patchState(store, initialEpgState);
                 },
             };

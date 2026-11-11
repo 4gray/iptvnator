@@ -268,6 +268,22 @@ describe('XtreamApiService', () => {
         });
     });
 
+    it.each([404, 503])(
+        'keeps an empty legacy response only when the primary failure is unsupported (%s)',
+        async (status) => {
+            dataService.sendIpcEvent
+                .mockResolvedValueOnce({
+                    type: 'ERROR',
+                    status,
+                    message: 'synthetic provider failure',
+                })
+                .mockResolvedValueOnce({ payload: { epg_listings: [] } });
+            const result = service.getFullEpg(credentials, 101);
+            if (status === 404) await expect(result).resolves.toEqual([]);
+            else await expect(result).rejects.toMatchObject({ status });
+        }
+    );
+
     it('reports a full guide failure when neither action responds', async () => {
         const error = new Error('synthetic provider outage');
         dataService.sendIpcEvent.mockRejectedValue(error);
@@ -308,10 +324,14 @@ describe('XtreamApiService', () => {
     );
 
     it.each([{ payload: [] }, { payload: { epg_listings: null } }])(
-        'accepts an explicit empty legacy schedule after the primary fails: %j',
+        'accepts an explicit empty legacy schedule when the primary action is unsupported: %j',
         async (response) => {
             dataService.sendIpcEvent
-                .mockRejectedValueOnce(new Error('synthetic primary failure'))
+                .mockResolvedValueOnce({
+                    type: 'ERROR',
+                    status: 404,
+                    message: 'synthetic unsupported action',
+                })
                 .mockResolvedValueOnce(response);
             await expect(service.getFullEpg(credentials, 101)).resolves.toEqual(
                 []

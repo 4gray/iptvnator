@@ -126,6 +126,7 @@
         #viewport
         class="epg-guide__viewport"
         role="grid"
+        [attr.tabindex]="rows().length ? null : 0"
         [attr.aria-label]="'EPG.GUIDE.TITLE' | translate"
         [attr.aria-rowcount]="rows().length"
         [itemSize]="rowHeightPx()"

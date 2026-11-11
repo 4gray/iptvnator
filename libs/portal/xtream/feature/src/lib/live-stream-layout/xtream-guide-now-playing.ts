@@ -6,7 +6,7 @@ const DOCK_RETRY_MS = 30_000;
 
 /** Keeps the dock current even when its channel is outside the rendered scope. */
 export function createXtreamGuideNowPlaying(
-    channelId: Signal<string | null>,
+    playingKey: Signal<string | null>,
     revision: Signal<unknown>,
     target: () => XtreamLiveChannelItem | undefined,
     read: (
@@ -16,13 +16,13 @@ export function createXtreamGuideNowPlaying(
     expiresAt: (item: XtreamLiveChannelItem) => number
 ) {
     const schedule = signal<{
-        id: string;
+        key: string;
         revision: unknown;
         programs: EpgProgram[];
     } | null>(null);
     const programs = computed(() => {
         const current = schedule();
-        return current?.id === channelId() && current.revision === revision()
+        return current?.key === playingKey() && current.revision === revision()
             ? current.programs
             : null;
     });
@@ -53,9 +53,13 @@ export function createXtreamGuideNowPlaying(
 
     return {
         programs,
-        publish(id: string, sourceRevision: unknown, items: EpgProgram[]) {
-            if (id === channelId())
-                schedule.set({ id, revision: sourceRevision, programs: items });
+        publish(key: string, sourceRevision: unknown, items: EpgProgram[]) {
+            if (key === playingKey())
+                schedule.set({
+                    key,
+                    revision: sourceRevision,
+                    programs: items,
+                });
         },
         clear: () => schedule.set(null),
     };

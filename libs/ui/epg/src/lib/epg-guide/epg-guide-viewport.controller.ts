@@ -176,9 +176,11 @@ export class EpgGuideViewportController {
         ) {
             return;
         }
-        const target = element?.querySelector<HTMLElement>(
-            '[data-epg-guide-grid][tabindex="0"]'
-        );
+        const target = this.host.rows().length
+            ? element?.querySelector<HTMLElement>(
+                  '[data-epg-guide-grid][tabindex="0"]'
+              )
+            : element;
         if (typeof target?.focus === 'function') {
             target.focus({ preventScroll: true });
         }
@@ -198,7 +200,11 @@ export class EpgGuideViewportController {
             this.host.afterRender(() => this.focusRovingTarget());
         const rendered = (range: ListRange | null) =>
             range === null || (range.start <= row && row < range.end);
-        if (!viewport || rendered(this.renderedRange)) {
+        if (
+            !viewport ||
+            !this.host.rows().length ||
+            rendered(this.renderedRange)
+        ) {
             focus();
             return;
         }

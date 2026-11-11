@@ -25,8 +25,15 @@ test('@xtream @epg PWA opens the multi-channel programme guide in both themes', 
 }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     let refreshed = false;
+    let countSwitchReads = false;
+    const switchReads: (string | null)[] = [];
     await page.route('**/localhost:3000/xtream**', async (route) => {
         const params = new URL(route.request().url()).searchParams;
+        if (
+            countSwitchReads &&
+            params.get('action') === 'get_simple_data_table'
+        )
+            switchReads.push(params.get('stream_id'));
         if (
             !refreshed ||
             params.get('action') !== 'get_simple_data_table' ||
@@ -86,6 +93,23 @@ test('@xtream @epg PWA opens the multi-channel programme guide in both themes', 
             guide.getByRole('button', { name: 'Night Sports', exact: true })
         ).toBeVisible();
     }
+    for (const row of await guide.locator('app-epg-guide-row').all()) {
+        await expect(
+            row.locator('.epg-guide-row__block, .epg-guide-row__empty').first()
+        ).toBeAttached();
+    }
+    const channelRows = guide.locator('.epg-guide-row__channel');
+    countSwitchReads = true;
+    for (const index of [1, 0]) {
+        await channelRows.nth(index).click();
+        await expect(channelRows.nth(index)).toHaveAttribute(
+            'aria-pressed',
+            'true'
+        );
+    }
+    expect(switchReads).toEqual([]);
+    countSwitchReads = false;
+
     const search = guide.getByPlaceholder('Search programmes…');
     await search.fill('Global Headlines');
     const results = guide.getByRole('listbox');

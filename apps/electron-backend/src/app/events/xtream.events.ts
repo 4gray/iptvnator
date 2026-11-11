@@ -296,7 +296,9 @@ ipcMain.handle(
             }
             // Electron drops status codes on rejected IPC calls.
             if (
-                payload.params?.action === XtreamCodeActions.GetSimpleDateTable
+                payload.params?.action ===
+                    XtreamCodeActions.GetSimpleDateTable ||
+                payload.params?.action === XtreamCodeActions.GetSimpleDataTable
             ) {
                 const http = readHttpStatus(error);
                 if (http)

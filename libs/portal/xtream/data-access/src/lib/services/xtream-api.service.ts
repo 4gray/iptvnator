@@ -332,22 +332,27 @@ export class XtreamApiService extends XtreamEpgNormalizer {
                 ),
                 credentials.serverTimezone
             );
+        const unsupported = (error: { status?: number } | null) =>
+            error?.status === 404 ||
+            error?.status === 405 ||
+            error?.status === 501;
         const primary = await fetchSchedule(
             XtreamCodeActions.GetSimpleDataTable
-        ).catch(() => null);
-        if (primary?.length) return primary;
-        return fetchSchedule(XtreamCodeActions.GetSimpleDateTable).catch(
-            (error: { status?: number } | null) => {
-                options?.signal?.throwIfAborted();
-                const status = error?.status;
-                if (
-                    primary &&
-                    (status === 404 || status === 405 || status === 501)
-                )
-                    return primary;
-                throw error;
-            }
+        ).then(
+            (items) => ({ items }),
+            (error: { status?: number } | null) => ({ error })
         );
+        if ('items' in primary && primary.items.length) return primary.items;
+        const legacy = await fetchSchedule(
+            XtreamCodeActions.GetSimpleDateTable
+        ).catch((error: { status?: number } | null) => {
+            options?.signal?.throwIfAborted();
+            if ('items' in primary && unsupported(error)) return primary.items;
+            throw error;
+        });
+        if (!legacy.length && 'error' in primary && !unsupported(primary.error))
+            throw primary.error;
+        return legacy;
     }
 
     /**

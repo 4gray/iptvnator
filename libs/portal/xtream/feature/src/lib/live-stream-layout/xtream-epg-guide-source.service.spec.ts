@@ -203,7 +203,7 @@ describe('XtreamEpgGuideSourceService', () => {
             locked.mockReturnValue(false);
             lockRevision.update((value) => value + 1);
             service.setScope('8');
-            service.setPlayback(one.xtream_id, true);
+            service.setPlayback(one, true);
             const first = {
                 ...program(101),
                 title: 'Synthetic Initial Programme',
@@ -229,6 +229,66 @@ describe('XtreamEpgGuideSourceService', () => {
             expect(load).toHaveBeenCalledTimes(2);
         } finally {
             jest.useRealTimers();
+        }
+    });
+
+    it('shares an in-flight and cached grid schedule with the player', async () => {
+        let finish!: (items: EpgItem[]) => void;
+        load.mockImplementationOnce(
+            () => new Promise((resolve) => (finish = resolve))
+        );
+        const rows = service.loadPrograms({
+            channels: service.channels(),
+            fromMs: 100000,
+            toMs: 200000,
+        });
+        const playing = service.playbackSchedule(one);
+        const raw = [program(101)];
+        expect(load).toHaveBeenCalledTimes(1);
+        finish(raw);
+        await rows;
+        await expect(playing).resolves.toBe(raw);
+        const cached = service.playbackSchedule(one);
+        service.close();
+        await expect(cached).resolves.toBe(raw);
+        expect(load).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not replace the playing copy schedule when another category uses a different EPG key', async () => {
+        locked.mockReturnValue(false);
+        lockRevision.update((value) => value + 1);
+        const copy = {
+            ...one,
+            id: 21,
+            category_id: 8,
+            epg_channel_id: 'synthetic.copy',
+        };
+        liveStreams.set([one, copy]);
+        load.mockImplementation(async (_playlist, _id, key) => [
+            {
+                ...program(101),
+                title:
+                    key === copy.epg_channel_id
+                        ? 'Synthetic Copy Programme'
+                        : 'Synthetic Original Programme',
+            },
+        ]);
+        service.setPlayback(copy, true);
+        TestBed.flushEffects();
+        for (const scope of ['8', '7']) {
+            service.setScope(scope);
+            const rows = await service.loadPrograms({
+                channels: service.channels(),
+                fromMs: 100000,
+                toMs: 200000,
+            });
+            if (scope === '7')
+                expect(rows.get('101')?.[0].title).toBe(
+                    'Synthetic Original Programme'
+                );
+            expect(service.playingSchedule()?.[0].title).toBe(
+                'Synthetic Copy Programme'
+            );
         }
     });
 

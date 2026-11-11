@@ -5,13 +5,13 @@ const REQUEST_PAUSE_MS = 200;
 const CACHED_STREAMS = 256;
 const SCHEDULE_TTL_MS = 5 * 60_000;
 
-type FetchSchedule = (options: {
+type FetchSchedule<T> = (options: {
     signal: AbortSignal;
     sessionId?: string;
-}) => Promise<EpgProgram[]>;
+}) => Promise<T>;
 
-interface PendingSchedule {
-    readonly work: Promise<EpgProgram[]>;
+interface PendingSchedule<T> {
+    readonly work: Promise<T>;
     readonly abort: () => void;
     consumers: number;
 }
@@ -36,12 +36,12 @@ function waitFor<T>(
 }
 
 /** The guide can scan an entire portal without retaining every schedule. */
-export class XtreamGuideScheduleCache {
+export class XtreamGuideScheduleCache<T = EpgProgram[]> {
     private readonly cached = new Map<
         string,
-        { programs: EpgProgram[]; expiresAt: number }
+        { value: T; expiresAt: number }
     >();
-    private readonly pending = new Map<string, PendingSchedule>();
+    private readonly pending = new Map<string, PendingSchedule<T>>();
     private readonly slots = new Set<Promise<void>>();
     private controller = new AbortController();
 
@@ -62,12 +62,19 @@ export class XtreamGuideScheduleCache {
         return this.cached.get(id)?.expiresAt ?? 0;
     }
 
+    peek(id: string): T | undefined {
+        const cached = this.cached.get(id);
+        return cached && cached.expiresAt > Date.now()
+            ? cached.value
+            : undefined;
+    }
+
     async load(
         id: string,
         checkCurrent: () => void,
-        fetch: FetchSchedule,
+        fetch: FetchSchedule<T>,
         consumer?: AbortSignal
-    ): Promise<EpgProgram[]> {
+    ): Promise<T> {
         const signals = consumer
             ? [this.controller.signal, consumer]
             : [this.controller.signal];
@@ -79,7 +86,7 @@ export class XtreamGuideScheduleCache {
                 this.cached.delete(id);
                 if (cached.expiresAt > Date.now()) {
                     this.cached.set(id, cached);
-                    return cached.programs;
+                    return cached.value;
                 }
             }
             const entry = this.pending.get(id);
@@ -90,13 +97,13 @@ export class XtreamGuideScheduleCache {
         }
     }
 
-    private start(id: string, fetch: FetchSchedule): PendingSchedule {
+    private start(id: string, fetch: FetchSchedule<T>): PendingSchedule<T> {
         const controller = new AbortController();
         const sessionId = globalThis.crypto.randomUUID?.();
         const work = waitFor(fetch({ signal: controller.signal, sessionId }), [
             controller.signal,
         ]);
-        const entry: PendingSchedule = {
+        const entry: PendingSchedule<T> = {
             work,
             consumers: 0,
             abort: () => {
@@ -119,9 +126,9 @@ export class XtreamGuideScheduleCache {
 
     private async consume(
         id: string,
-        entry: PendingSchedule,
+        entry: PendingSchedule<T>,
         signals: readonly AbortSignal[]
-    ): Promise<EpgProgram[]> {
+    ): Promise<T> {
         entry.consumers++;
         try {
             return await waitFor(entry.work, signals);
@@ -133,16 +140,12 @@ export class XtreamGuideScheduleCache {
         }
     }
 
-    private finish(
-        id: string,
-        entry: PendingSchedule,
-        programs?: EpgProgram[]
-    ): void {
+    private finish(id: string, entry: PendingSchedule<T>, value?: T): void {
         if (this.pending.get(id) !== entry) return;
         this.pending.delete(id);
-        if (!programs) return;
+        if (value === undefined) return;
         this.cached.set(id, {
-            programs,
+            value,
             expiresAt: Date.now() + SCHEDULE_TTL_MS,
         });
         if (this.cached.size > CACHED_STREAMS) {

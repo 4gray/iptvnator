@@ -123,13 +123,14 @@ import {
 
 import { XtreamEpgGuideSourceService } from './xtream-epg-guide-source.service';
 import { XtreamLiveGuideService } from './xtream-live-guide.service';
+import { scheduleKey } from './xtream-guide-schedules';
 import { toSharedEpgProgram } from '../portal-channels-list/epg-preview-program';
 
 const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
 
 type GuideExternalChannel = {
     playlistId: string;
-    channelId: number;
+    item: XtreamLiveChannelItem;
     archive: EpgProgram | null;
 };
 
@@ -473,6 +474,9 @@ export class LiveStreamLayoutComponent
     );
     readonly activePlayback = signal<ResolvedPortalPlayback | null>(null);
     private readonly activeLiveItemId = signal<number | null>(null);
+    private readonly activeGuideItem = signal<XtreamLiveChannelItem | null>(
+        null
+    );
     /**
      * Provider category id of the playing channel, for the parental lock.
      * `null`: nothing playing (or no category); `'unknown'`: Electron has
@@ -535,10 +539,10 @@ export class LiveStreamLayoutComponent
             return { ...confirmed, session };
         },
     });
-    private readonly guideChannelId = computed(() =>
+    private readonly guideChannel = computed(() =>
         this.usesEmbeddedPlayer()
-            ? this.activeLiveItemId()
-            : (this.guideExternalSession()?.channelId ?? null)
+            ? this.activeGuideItem()
+            : (this.guideExternalSession()?.item ?? null)
     );
     private readonly guideArchiveProgram = computed(() =>
         this.usesEmbeddedPlayer()
@@ -574,7 +578,13 @@ export class LiveStreamLayoutComponent
                             )
                 ) ?? null
             );
-        if (this.selectedLiveItem()?.xtream_id !== this.guideChannelId())
+        const selected = this.selectedLiveItem();
+        const playing = this.guideChannel();
+        if (
+            !selected ||
+            !playing ||
+            scheduleKey(selected) !== scheduleKey(playing)
+        )
             return null;
         const program = findCurrentEpgItem(this.epgItems(), now);
         return program ? toSharedEpgProgram(program) : null;
@@ -591,7 +601,7 @@ export class LiveStreamLayoutComponent
         this.guideSource.bind((item, channels) => {
             if (
                 !this.usesEmbeddedPlayer() &&
-                this.pendingExternalLaunch?.channelId === item.xtream_id &&
+                this.pendingExternalLaunch?.item.xtream_id === item.xtream_id &&
                 !this.pendingExternalLaunch.archive
             )
                 return;
@@ -599,7 +609,7 @@ export class LiveStreamLayoutComponent
         });
         effect(() =>
             this.guideSource.setPlayback(
-                this.guideChannelId(),
+                this.guideChannel(),
                 this.guideArchiveProgram() === null
             )
         );
@@ -613,6 +623,7 @@ export class LiveStreamLayoutComponent
                 this.pendingExternalLaunch = undefined;
                 this.activePlayback.set(null);
                 this.activeLiveItemId.set(null);
+                this.activeGuideItem.set(null);
                 this.activeCatchupProgram.set(null);
             }
         });
@@ -645,6 +656,7 @@ export class LiveStreamLayoutComponent
                 this.playbackRequestId += 1;
                 this.activePlayback.set(null);
                 this.activeLiveItemId.set(null);
+                this.activeGuideItem.set(null);
                 this.activeCatchupProgram.set(null);
                 this.activeLiveProviderCategoryId = null;
             });
@@ -811,7 +823,15 @@ export class LiveStreamLayoutComponent
         remote = false
     ) {
         this.playbackRequestId += 1;
-        const streamUrl = this.xtreamStore.constructStreamUrl(item);
+        const streamUrl = this.guide.isOpen()
+            ? this.xtreamStore.constructStreamUrl(item, async (signal) => {
+                  const schedule = await this.guideSource.playbackSchedule(
+                      item,
+                      signal
+                  );
+                  return this.destroyRef.destroyed ? [] : schedule;
+              })
+            : this.xtreamStore.constructStreamUrl(item);
         this.channelNavigation.capture(item, displayedChannels, remote);
         this.activeCatchupProgram.set(null);
         // Keep both root/recently-added playback and same-category replays in
@@ -819,6 +839,7 @@ export class LiveStreamLayoutComponent
         // store no-op.
         if (!remote && !this.guide.isOpen()) this.selectLiveItemCategory(item);
         this.activeLiveItemId.set(item.xtream_id);
+        this.activeGuideItem.set(item);
         this.activeLiveProviderCategoryId =
             this.resolveLiveProviderCategoryId(item);
         const playlist = this.xtreamStore.currentPlaylist();
@@ -860,7 +881,7 @@ export class LiveStreamLayoutComponent
         if (this.usesEmbeddedPlayer() || !startPlayback) {
             return;
         }
-        this.openExternalGuideChannel(playlist?.id, item.xtream_id, null);
+        this.openExternalGuideChannel(playlist?.id, item, null);
     }
 
     async onProgramActivated(event: EpgProgramActivationEvent): Promise<void> {
@@ -1137,6 +1158,7 @@ export class LiveStreamLayoutComponent
         }
 
         this.activePlaylistId = playlist.id;
+        this.activeGuideItem.set(item);
         this.activeCatchupProgram.set(program);
         this.activePlayback.set({
             streamUrl: catchupUrl,
@@ -1148,19 +1170,17 @@ export class LiveStreamLayoutComponent
             return;
         }
 
-        this.openExternalGuideChannel(playlist.id, item.xtream_id, program);
+        this.openExternalGuideChannel(playlist.id, item, program);
     }
 
     private openExternalGuideChannel(
         playlistId: string | undefined,
-        channelId: number,
+        item: XtreamLiveChannelItem,
         archive: EpgProgram | null
     ): void {
         const playback = this.activePlayback();
         if (!playback?.streamUrl) return;
-        const launch = playlistId
-            ? { playlistId, channelId, archive }
-            : undefined;
+        const launch = playlistId ? { playlistId, item, archive } : undefined;
         this.pendingExternalLaunch = launch;
         if (launch) this.guideExternalRequests.set(playback.streamUrl, launch);
         const clear = () => {

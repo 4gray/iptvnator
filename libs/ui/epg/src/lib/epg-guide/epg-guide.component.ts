@@ -31,7 +31,10 @@ import { EpgDateNavigationDirection } from '../epg-date';
 import { EpgProgrammeDialogService } from '../epg-programme-dialog.service';
 import { TimelineRenderBlock } from '../epg-timeline/epg-timeline-render.util';
 import { EpgGuideDialogController } from './epg-guide-dialog.controller';
-import { EpgGuideKeyboardController } from './epg-guide-keyboard.controller';
+import {
+    EpgGuideKeyboardController,
+    type EpgGuideFocus,
+} from './epg-guide-keyboard.controller';
 import {
     EPG_GUIDE_CHANNEL_COLUMN_PX,
     EpgGuideDensity,
@@ -176,6 +179,7 @@ export class EpgGuideComponent implements OnDestroy {
      * whenever the focus moves and reconciled whenever the rows change.
      */
     private focusedRowId: string | null = null;
+    private recordedFocus: EpgGuideFocus | null = null;
     /**
      * The row that carries the grid's single `tabindex="0"`: the focused one,
      * else the playing one, else the first — so Tab always reaches the grid,
@@ -227,13 +231,12 @@ export class EpgGuideComponent implements OnDestroy {
                     this.programsService.refreshExpiredCoverage(now);
             });
         });
-        let previousFocus: ReturnType<typeof this.focus> | undefined;
         let focusedProgramme: TimelineRenderBlock['block'] | undefined;
         effect(() => {
             const focused = this.focus();
-            const moved = focused !== previousFocus;
+            const moved = focused !== this.recordedFocus;
             if (moved) {
-                previousFocus = focused;
+                this.recordedFocus = focused;
                 this.focusedRowId = focused
                     ? (untracked(this.rows)[focused.row]?.id ?? null)
                     : null;
@@ -320,9 +323,7 @@ export class EpgGuideComponent implements OnDestroy {
      */
     @HostListener('document:keydown', ['$event'])
     onKeydown(event: KeyboardEvent): void {
-        if (!this.keyboard.handle(event)) {
-            return;
-        }
+        if (!this.keyboard.handle(event)) return;
         event.preventDefault();
         this.viewportController.focusRovingTargetOnRow(this.tabbableRow());
     }
@@ -346,6 +347,8 @@ export class EpgGuideComponent implements OnDestroy {
 
     /** Pointer focus: the roving tabindex follows the mouse, without scrolling. */
     focusCell(row: number, block: number | null): void {
+        const focused = this.focus();
+        if (focused?.row === row && focused.block === block) return;
         this.focus.set({ row, block });
     }
 
@@ -416,25 +419,19 @@ export class EpgGuideComponent implements OnDestroy {
      * left alone; `commitRow` then only closes.
      */
     activateRow(channel: EpgGuideChannel | undefined): void {
-        if (!channel) {
-            return;
-        }
+        if (!channel) return;
         // The active row is left alone only while its live stream plays; in
         // catch-up the same click is the way back to live.
         const alreadyLive =
             channel.id === this.activeChannelId() &&
             (this.source.livePlayback?.() ?? true);
-        if (alreadyLive) {
-            return;
-        }
+        if (alreadyLive) return;
         this.source.activate(channel.id);
         this.channelActivated.emit(channel.id);
     }
 
     commitRow(channel: EpgGuideChannel | undefined): void {
-        if (!channel) {
-            return;
-        }
+        if (!channel) return;
         this.activateRow(channel);
         this.close.emit();
     }
@@ -448,12 +445,8 @@ export class EpgGuideComponent implements OnDestroy {
      * at all.
      */
     private ownsTarget(target: EventTarget | null): boolean {
-        if (target === null) {
-            return true;
-        }
-        if (!(target instanceof Node)) {
-            return false;
-        }
+        if (target === null) return true;
+        if (!(target instanceof Node)) return false;
         return (
             target === document.body ||
             target === document.documentElement ||
@@ -463,11 +456,9 @@ export class EpgGuideComponent implements OnDestroy {
 
     /**
      * Keep the roving focus on the channel it was put on rather than on a row
-     * number the list has moved under it, and drop it when that channel is no
-     * longer shown — `tabbableRow` then falls back to the playing row. A focus
-     * that follows its channel loses its block: the list changed underneath, so
-     * the programmes behind that index may have moved with it, and the row is
-     * what Enter acts on.
+     * number the list has moved under it. If the channel is removed, move to
+     * a neighbouring row or the empty viewport. Rows that move regain focus
+     * on the channel cell, since their programme positions may have changed.
      */
     private reconcileFocus(rows: readonly EpgGuideChannel[]): void {
         const focused = this.focus();
@@ -476,13 +467,12 @@ export class EpgGuideComponent implements OnDestroy {
             return;
         }
         const row = rows.findIndex((channel) => channel.id === channelId);
-        if (row < 0) {
-            this.focus.set(null);
-            return;
-        }
-        if (row !== focused.row) {
-            this.focus.set({ row, block: null });
-        }
+        if (row === focused.row) return;
+        const next = row < 0 ? Math.min(focused.row, rows.length - 1) : row;
+        this.focusedRowId = rows[next]?.id ?? null;
+        this.recordedFocus = next < 0 ? null : { row: next, block: null };
+        this.focus.set(this.recordedFocus);
+        this.viewportController.focusRovingTargetOnRow(Math.max(0, next));
     }
 
     private revealRow(rowIndex: number): void {

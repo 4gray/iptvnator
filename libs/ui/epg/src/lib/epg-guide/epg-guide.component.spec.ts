@@ -71,11 +71,10 @@ describe('EpgGuideComponent', () => {
     let schedule: EpgProgram[];
     const activate = jest.fn();
     const setScope = jest.fn();
-    const dialogOpen = jest.fn(
-        (
-            _data: EpgItemDialogData
-        ): Observable<EpgItemDialogAction | undefined> => of(undefined)
-    );
+    const dialogOpen = jest.fn<
+        Observable<EpgItemDialogAction | undefined>,
+        [EpgItemDialogData]
+    >(() => of(undefined));
 
     beforeEach(() => {
         localStorage.clear();
@@ -336,7 +335,7 @@ describe('EpgGuideComponent', () => {
         outside.remove();
     });
 
-    it('moves the roving focus with its channel and drops it with the row', async () => {
+    it('moves the roving focus with its channel and then to a surviving row', async () => {
         schedule.push(nowProgram('c'));
         await settle(fixture);
         component.focusCell(2, 0);
@@ -349,17 +348,16 @@ describe('EpgGuideComponent', () => {
         expect(component.rows().map((row) => row.id)).toEqual(['b', 'c']);
         expect(component.focus()).toEqual({ row: 1, block: null });
 
-        // A filter that hides the focused channel clears the focus instead of
-        // leaving it pointing at whatever moved into that row.
+        // Move to a surviving channel when a filter hides the focused row.
         component.setFilter('channel b');
         await settle(fixture);
         expect(component.rows().map((row) => row.id)).toEqual(['b']);
-        expect(component.focus()).toBeNull();
+        expect(component.focus()).toEqual({ row: 0, block: null });
 
-        // Undoing the filter must not bring the stale focus back.
+        // Undoing the filter follows the new focused channel.
         component.setFilter('');
         await settle(fixture);
-        expect(component.focus()).toBeNull();
+        expect(component.focus()).toEqual({ row: 0, block: null });
     });
 
     it('opens a search hit with its own channel and focuses that row', async () => {
@@ -462,6 +460,11 @@ describe('EpgGuideComponent', () => {
         expect(cells().map((cell) => cell.getAttribute('tabindex'))).toEqual([
             '0',
         ]);
+        expect(document.activeElement).toBe(cells()[0]);
+        component.setFilter('synthetic unmatched channel');
+        await settle(fixture);
+        expect(viewportEl.getAttribute('tabindex')).toBe('0');
+        expect(document.activeElement).toBe(viewportEl);
     });
 
     it('restores the channel tab stop when its focused programme disappears', async () => {

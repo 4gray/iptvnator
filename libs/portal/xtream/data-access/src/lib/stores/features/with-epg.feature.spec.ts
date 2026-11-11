@@ -127,6 +127,28 @@ describe('withEpg', () => {
         expect(store.isLoadingEpg()).toBe(false);
     });
 
+    it('reuses guide EPG for the player and cancels an abandoned guide read', async () => {
+        const { store, xtreamApiService } = configureStore({
+            selectedItem: { xtream_id: 101 },
+        });
+        const abandoned = store.loadEpg(
+            (signal) =>
+                new Promise((_resolve, reject) => {
+                    signal.addEventListener(
+                        'abort',
+                        () => reject(signal.reason),
+                        { once: true }
+                    );
+                })
+        );
+        patchState(store, { selectedItem: { xtream_id: 102 } });
+        const items = [buildProgram('Synthetic Cached Programme', 100, 200)];
+        await store.loadEpg(async () => items);
+        await abandoned;
+        expect(store.epgItems()).toBe(items);
+        expect(xtreamApiService.getFullEpg).not.toHaveBeenCalled();
+    });
+
     it('forwards the playlist User-Agent for selected and row guides', async () => {
         const { store, xtreamApiService } = configureStore({
             selectedItem: { xtream_id: 101 },

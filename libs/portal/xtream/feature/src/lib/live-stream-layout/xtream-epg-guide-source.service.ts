@@ -2,17 +2,12 @@ import {
     computed,
     inject,
     Injectable,
-    Injector,
     linkedSignal,
     signal,
 } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import { sortPortalChannelItems } from '@iptvnator/portal/shared/util';
-import {
-    XtreamApiService,
-    XtreamFullEpgService,
-    XtreamStore,
-} from '@iptvnator/portal/xtream/data-access';
+import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import {
     EpgSourceSettingsService,
     injectTranslationTick,
@@ -29,10 +24,12 @@ import type {
     EpgGuideSource,
     EpgGuideWindow,
 } from '@iptvnator/ui/epg';
-import { toSharedEpgProgram } from '../portal-channels-list/epg-preview-program';
 import { injectXtreamGuideFavorites } from './xtream-guide-favorites';
 import { createXtreamGuideNowPlaying } from './xtream-guide-now-playing';
-import { XtreamGuideScheduleCache } from './xtream-guide-schedule-cache';
+import {
+    injectXtreamGuideSchedules,
+    scheduleKey,
+} from './xtream-guide-schedules';
 import {
     XtreamLiveChannelItem,
     XtreamLiveChannelNavigationService,
@@ -63,10 +60,6 @@ function rowsByStreamId(
     return rows;
 }
 
-function scheduleKey(item: XtreamLiveChannelItem): string {
-    return `${item.xtream_id}:${item.epg_channel_id ?? ''}`;
-}
-
 function overlaps(program: EpgProgram, window: EpgGuideWindow): boolean {
     const start = program.startTimestamp
         ? program.startTimestamp * 1000
@@ -84,15 +77,9 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     private readonly sources = inject(EpgSourceSettingsService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly parentalLock = inject(ParentalLockService);
-    private readonly injector = inject(Injector);
     private readonly navigation = inject(XtreamLiveChannelNavigationService);
     private readonly translate = inject(TranslateService);
     private readonly languageTick = injectTranslationTick();
-    private api?: XtreamApiService;
-    private readonly cache = new XtreamGuideScheduleCache(
-        (sessionId) => void this.api?.cancelSession(sessionId)
-    );
-    private cacheRevision: unknown;
     private readonly session = signal<AbortController | null>(null);
 
     readonly deferredCoverage = true;
@@ -229,24 +216,45 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     );
 
     private readonly playback = signal({
-        id: null as string | null,
+        item: null as XtreamLiveChannelItem | null,
         live: true,
     });
-    readonly activeChannelId = computed(() => this.playback().id);
+    readonly activeChannelId = computed(() => {
+        const item = this.playback().item;
+        return item ? String(item.xtream_id) : null;
+    });
     readonly livePlayback = computed(() => this.playback().live);
-    private readonly dock = createXtreamGuideNowPlaying(
-        this.activeChannelId,
+    private readonly playingItem = computed(() => {
+        const item = this.playback().item;
+        return item
+            ? this.items().find(
+                  (row) =>
+                      scheduleKey(row) === scheduleKey(item) &&
+                      categoryKey(row.category_id) ===
+                          categoryKey(item.category_id)
+              )
+            : undefined;
+    });
+    private readonly schedules = injectXtreamGuideSchedules(
         this.revision,
-        () => {
-            const id = this.activeChannelId();
-            return id && this.session() && this.livePlayback()
-                ? this.catalog().get(id)
-                : undefined;
-        },
-        (item, signal) => this.scheduleReader(signal).read(item),
-        (item) => this.cache.expiresAt(scheduleKey(item))
+        this.session,
+        (key, revision, programs) => this.dock.publish(key, revision, programs)
+    );
+    private readonly dock = createXtreamGuideNowPlaying(
+        computed(() => {
+            const item = this.playingItem();
+            return item ? scheduleKey(item) : null;
+        }),
+        this.revision,
+        () =>
+            this.session() && this.livePlayback()
+                ? this.playingItem()
+                : undefined,
+        (item, signal) => this.schedules.reader(signal).read(item),
+        this.schedules.expiresAt
     );
     readonly playingSchedule = this.dock.programs;
+    readonly playbackSchedule = this.schedules.forPlayback;
     private play?: (
         item: XtreamLiveChannelItem,
         scope: readonly XtreamLiveChannelItem[]
@@ -256,11 +264,8 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         this.play = play;
     }
 
-    setPlayback(channelId: number | null, live: boolean): void {
-        this.playback.set({
-            id: channelId === null ? null : String(channelId),
-            live,
-        });
+    setPlayback(item: XtreamLiveChannelItem | null, live: boolean): void {
+        this.playback.set({ item, live });
     }
 
     open(): void {
@@ -272,7 +277,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     close(): void {
         this.session()?.abort();
         this.session.set(null);
-        this.cache.clear();
+        this.schedules.clear();
         this.dock.clear();
         this.favorites.set(new Map());
         this.scopeId.set(ALL);
@@ -292,7 +297,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     async loadPrograms(
         window: EpgGuideWindow
     ): Promise<Map<string, EpgProgram[]>> {
-        const { read } = this.scheduleReader(window.signal);
+        const { read } = this.schedules.reader(window.signal);
         const rows = this.scopedRows();
         const results = await Promise.all(
             window.channels.map(async ({ id }) => {
@@ -313,7 +318,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
 
     programsExpireAt(id: string): number {
         const item = this.scopedRows().get(id);
-        return item ? this.cache.expiresAt(scheduleKey(item)) : 0;
+        return item ? this.schedules.expiresAt(item) : 0;
     }
 
     async loadCoverage(
@@ -323,7 +328,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
             programs: EpgProgram[] | null
         ) => void
     ): Promise<Set<string>> {
-        const { read, checkCurrent } = this.scheduleReader(window.signal);
+        const { read, checkCurrent } = this.schedules.reader(window.signal);
         const rows = this.scopedRows();
         const covered = new Set<string>();
         for (const { id } of window.channels) {
@@ -343,7 +348,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         signal?: AbortSignal,
         report?: (update: EpgGuideSearchUpdate) => void
     ): Promise<EpgGuideSearchHit[]> {
-        const { read, checkCurrent } = this.scheduleReader(signal);
+        const { read, checkCurrent } = this.schedules.reader(signal);
         const term = foldSearchText(query);
         const scoped = this.scopedRows();
         const catalog = this.catalog();
@@ -380,45 +385,5 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
                 'Programme search could not check the full catalogue'
             );
         return hits;
-    }
-
-    private scheduleReader(signal?: AbortSignal) {
-        const revision = this.revision();
-        const session = this.session()?.signal;
-        if (!session) throw new DOMException('EPG guide closed', 'AbortError');
-        const fullEpg = this.injector.get(XtreamFullEpgService);
-        this.api ??= this.injector.get(XtreamApiService);
-        if (this.cacheRevision !== revision) {
-            this.cacheRevision = revision;
-            this.cache.clear();
-        }
-        const checkCurrent = () => {
-            signal?.throwIfAborted();
-            session.throwIfAborted();
-            if (revision !== this.revision())
-                throw new DOMException('EPG source changed', 'AbortError');
-        };
-        const read = async (item: XtreamLiveChannelItem | undefined) => {
-            const playlist = revision.playlist;
-            if (!playlist || !item) return [];
-            const programs = await this.cache.load(
-                scheduleKey(item),
-                checkCurrent,
-                async (options) =>
-                    (
-                        await fullEpg.load(
-                            playlist,
-                            item.xtream_id,
-                            item.epg_channel_id ?? null,
-                            options
-                        )
-                    ).map(toSharedEpgProgram),
-                signal
-            );
-            checkCurrent();
-            this.dock.publish(String(item.xtream_id), revision, programs);
-            return programs;
-        };
-        return { read, checkCurrent };
     }
 }
