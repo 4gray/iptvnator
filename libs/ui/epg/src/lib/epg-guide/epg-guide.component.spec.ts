@@ -160,7 +160,7 @@ describe('EpgGuideComponent', () => {
         component.close.subscribe(close);
         activate.mockImplementation((id: string) => activeChannelId.set(id));
         component.activateRow(component.rows()[2]);
-        expect(activate).toHaveBeenCalledWith('c');
+        expect(activate).toHaveBeenCalledWith('c', component.rows()[2].epgKey);
         expect(close).not.toHaveBeenCalled();
         // click, click, dblclick: the second click and the commit must not
         // restart the stream that is already playing.
@@ -231,14 +231,14 @@ describe('EpgGuideComponent', () => {
                 archiveUnavailableNote: true,
             })
         );
-        expect(activate).toHaveBeenCalledWith('c');
+        expect(activate).toHaveBeenCalledWith('c', row.epgKey);
     });
 
     it('re-activates the active row while catch-up plays, so the host can return to live', async () => {
         livePlayback.set(false);
         await settle(fixture);
         component.activateRow(component.rows()[0]);
-        expect(activate).toHaveBeenCalledWith('a');
+        expect(activate).toHaveBeenCalledWith('a', component.rows()[0].epgKey);
         livePlayback.set(true);
         activate.mockClear();
         component.activateRow(component.rows()[0]);

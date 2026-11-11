@@ -303,10 +303,18 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
             this.scopeId.set(id);
     }
 
-    activate(id: string): void {
+    activate(id: string, epgKey?: string | null): void {
         if (!this.session()) return;
-        const item = this.scopedRows().get(id);
-        if (item) this.play?.(item, this.scopedItems());
+        const scoped = this.scopedRows().get(id);
+        if (!epgKey || (scoped && channelEpgKey(scoped) === epgKey)) {
+            if (scoped) this.play?.(scoped, this.scopedItems());
+            return;
+        }
+        const exact = this.items().find(
+            (item) =>
+                String(item.xtream_id) === id && channelEpgKey(item) === epgKey
+        );
+        if (exact) this.play?.(exact, [exact]);
     }
 
     async loadPrograms(

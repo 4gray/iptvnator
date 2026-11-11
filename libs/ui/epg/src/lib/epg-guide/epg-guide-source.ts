@@ -102,7 +102,7 @@ export interface EpgGuideSource {
      */
     readonly livePlayback?: Signal<boolean>;
     /** Switch playback; the guide stays open. */
-    activate(channelId: string): void;
+    activate(channelId: string, epgKey?: string | null): void;
     /** Optional programme search; the toolbar hides its field when absent. */
     searchPrograms?(
         query: string,

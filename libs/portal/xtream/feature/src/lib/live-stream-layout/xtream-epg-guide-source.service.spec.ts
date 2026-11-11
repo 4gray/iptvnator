@@ -359,6 +359,7 @@ describe('XtreamEpgGuideSourceService', () => {
         expect(service.channels()).toEqual([
             expect.objectContaining({ name: one.title }),
         ]);
+        const originalKey = service.channels()[0].epgKey;
         service.setScope('8');
         expect(service.channels().map((channel) => channel.name)).toContain(
             copy.title
@@ -368,6 +369,16 @@ describe('XtreamEpgGuideSourceService', () => {
             copy,
             expect.arrayContaining([copy, two])
         );
+        play.mockClear();
+        service.activate('101', originalKey);
+        expect(play).toHaveBeenCalledWith(one, [one]);
+        play.mockClear();
+        locked.mockImplementation(
+            (_playlist, _type, category) => category === 70
+        );
+        lockRevision.update((value) => value + 1);
+        service.activate('101', originalKey);
+        expect(play).not.toHaveBeenCalled();
     });
 
     it('keeps uncategorized and unknown-category PWA streams in All Channels without including locked streams', async () => {

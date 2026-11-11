@@ -425,9 +425,11 @@ export class EpgGuideComponent implements OnDestroy {
         // catch-up the same click is the way back to live.
         const alreadyLive =
             channel.id === this.activeChannelId() &&
-            (this.source.livePlayback?.() ?? true);
+            (this.source.livePlayback?.() ?? true) &&
+            this.source.channels().find((row) => row.id === channel.id)
+                ?.epgKey === channel.epgKey;
         if (alreadyLive) return;
-        this.source.activate(channel.id);
+        this.source.activate(channel.id, channel.epgKey);
         this.channelActivated.emit(channel.id);
     }
 

@@ -163,7 +163,9 @@
             <mat-icon>chevron_right</mat-icon>
         </button>
     }
-    @if (streamUrl) {
+    @if (
+        streamUrl || (!isEmbeddedPlayer && guide.isOpen() && guide.available())
+    ) {
         @if (isEmbeddedPlayer) {
             <div
                 class="video-player"

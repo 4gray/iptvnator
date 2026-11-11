@@ -630,6 +630,22 @@ export class LiveStreamLayoutComponent
             )
         );
         this.guideSource.bind((item, channels) => {
+            const pending = this.pendingExternalLaunch;
+            if (
+                !this.usesEmbeddedPlayer() &&
+                pending?.item.xtream_id === item.xtream_id &&
+                !pending.archive
+            ) {
+                if (!sameGuideChannel(pending.item, item)) {
+                    pending.item = item;
+                    pending.categoryId = this.readLiveProviderCategoryId(item);
+                    pending.captureNavigation = () =>
+                        this.channelNavigation.capture(item, channels);
+                    if (this.activePlayback() === pending.playback)
+                        this.selectGuideLiveItem(item);
+                }
+                return;
+            }
             const playing = this.guideChannel();
             if (
                 playing?.xtream_id === item.xtream_id &&
@@ -639,12 +655,6 @@ export class LiveStreamLayoutComponent
                     this.switchGuideChannelCopy(item, channels);
                 return;
             }
-            if (
-                !this.usesEmbeddedPlayer() &&
-                this.pendingExternalLaunch?.item.xtream_id === item.xtream_id &&
-                !this.pendingExternalLaunch.archive
-            )
-                return;
             this.playLive(item, true, channels);
         });
         effect(() => {
@@ -915,14 +925,16 @@ export class LiveStreamLayoutComponent
                   this.readGuideSchedule(item, signal)
               )
             : this.xtreamStore.constructStreamUrl(item);
+        const tracksExternalPlayback =
+            !this.usesEmbeddedPlayer() && !!this.externalPlayback;
+        const scope =
+            displayedChannels ??
+            (!tracksExternalPlayback || (startPlayback && !remote)
+                ? this.channelNavigation.displayedChannels()
+                : []);
         const captureNavigation = () =>
-            this.channelNavigation.capture(item, displayedChannels, remote);
-        const deferNavigation =
-            !!streamUrl &&
-            startPlayback &&
-            !this.usesEmbeddedPlayer() &&
-            this.guide.isOpen();
-        if (!deferNavigation) captureNavigation();
+            this.channelNavigation.capture(item, scope, remote);
+        if (!tracksExternalPlayback) captureNavigation();
         this.activeCatchupProgram.set(null);
         // Keep both root/recently-added playback and same-category replays in
         // sync with the category rail. For already-selected channels this is a
@@ -975,7 +987,7 @@ export class LiveStreamLayoutComponent
             playlist?.id,
             item,
             null,
-            deferNavigation ? captureNavigation : undefined
+            tracksExternalPlayback ? captureNavigation : undefined
         );
     }
 
@@ -1162,12 +1174,9 @@ export class LiveStreamLayoutComponent
      * both. A row whose category is not in the list resolves to null rather
      * than to a guess that could collide with a locked provider id.
      */
-    private resolveLiveProviderCategoryId(
+    private readLiveProviderCategoryId(
         item: XtreamLiveChannelItem
     ): number | null | 'unknown' {
-        // Every resolution retires the lookups before it, including one for
-        // a same-id channel of another playlist that resolved synchronously.
-        const generation = ++this.liveCategoryLookupGeneration;
         const categoryId = Number(item.category_id);
         if (!Number.isFinite(categoryId)) {
             return null;
@@ -1180,9 +1189,17 @@ export class LiveStreamLayoutComponent
                 Number((candidate as { id?: number }).id) === categoryId
         ) as { xtream_id?: number } | undefined;
         const providerId = Number(category?.xtream_id);
-        if (Number.isFinite(providerId)) {
-            return providerId;
-        }
+        return Number.isFinite(providerId) ? providerId : 'unknown';
+    }
+
+    private resolveLiveProviderCategoryId(
+        item: XtreamLiveChannelItem
+    ): number | null | 'unknown' {
+        // Every resolution retires lookups from the previous selection.
+        const generation = ++this.liveCategoryLookupGeneration;
+        const providerId = this.readLiveProviderCategoryId(item);
+        if (providerId !== 'unknown') return providerId;
+        const categoryId = Number(item.category_id);
         // Not in the visible list — a hidden category (search can play its
         // channels). Resolve through the unfiltered rows; until that lands
         // the id is unknown and a relock stops the channel.
@@ -1339,9 +1356,9 @@ export class LiveStreamLayoutComponent
         captureNavigation,
     }: GuideExternalChannel): void {
         const current = this.activePlayback();
+        captureNavigation?.();
         // A browse-only preview owns the panel until another channel is played.
         if (current && current !== this.externalPanelPlayback) return;
-        captureNavigation?.();
         if (current === playback && this.activeGuideItem() === item) return;
         this.externalPanelPlayback = playback;
         this.activePlayback.set(playback);
@@ -1371,16 +1388,16 @@ export class LiveStreamLayoutComponent
         }
         const playing = this.confirmedExternalSession();
         if (!playing) return;
-        this.syncExternalGuidePlayback({ ...playing, item });
-        if (this.activeGuideItem() !== item) return;
-        this.channelNavigation.capture(item, channels, true);
         const copy = {
             ...playing,
             item,
-            categoryId: this.activeLiveProviderCategoryId,
+            categoryId: this.readLiveProviderCategoryId(item),
+            captureNavigation: () =>
+                this.channelNavigation.capture(item, channels, true),
         };
         this.guideExternalRequests.set(playing.session.streamUrl, copy);
         this.guideExternalSession.set(copy);
+        this.syncExternalGuidePlayback(copy);
     }
 
     private async readGuideSchedule(
