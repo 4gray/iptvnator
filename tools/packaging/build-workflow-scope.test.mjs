@@ -111,6 +111,7 @@ test(
             jobs['linux-embedded-mpv-runtime'],
             jobs['build-cross-platform'],
         ]) {
+            assert.match(job.if, /!cancelled\(\)/);
             assert.match(job.if, /github\.event_name != 'pull_request'/);
             assert.match(
                 job.if,
