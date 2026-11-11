@@ -1,4 +1,4 @@
-import { spawn } from 'child_process';
+import { spawn, type SpawnOptions } from 'child_process';
 import { randomUUID } from 'node:crypto';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { externalPlayerProcessTeardownGate } from './external-player-process';
@@ -44,14 +44,17 @@ export function spawnPlayerWithEndpoint(
     command: string,
     args: string[],
     tracksProcess: boolean,
-    endpoint?: PlayerIpcEndpoint
+    endpoint?: PlayerIpcEndpoint,
+    stdio: SpawnOptions['stdio'] = tracksProcess
+        ? ['ignore', 'pipe', 'pipe']
+        : 'ignore'
 ) {
     try {
         externalPlayerProcessTeardownGate.assertLaunchAllowed();
         const child = spawn(command, args, {
             shell: false,
             detached: !tracksProcess,
-            stdio: tracksProcess ? ['ignore', 'pipe', 'pipe'] : 'ignore',
+            stdio,
         });
         if (endpoint) {
             child.once('exit', endpoint.dispose);

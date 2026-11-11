@@ -70,6 +70,31 @@ export class VlcReusableProcess {
         return typeof this.rcPort === 'string';
     }
 
+    replacementCloser(
+        privateControl: boolean
+    ): (() => Promise<void>) | undefined {
+        const { process, processSessionId, rcPort } = this;
+        if (
+            !process ||
+            !processSessionId ||
+            (rcPort && (!privateControl || typeof rcPort === 'string'))
+        )
+            return undefined;
+        return async () => {
+            if (externalPlayerSessions.getSession(processSessionId)?.canClose)
+                await externalPlayerSessions.closeSession(
+                    processSessionId,
+                    true
+                );
+            // VLC can stop its media and close the session without exiting.
+            if (!hasExited(process)) {
+                this.recoveringChildren.add(process);
+                await externalPlayerProcessTeardownGate.terminate(process);
+            }
+            this.clear(process);
+        };
+    }
+
     currentSessionId(): string | null {
         return this.processSessionId;
     }

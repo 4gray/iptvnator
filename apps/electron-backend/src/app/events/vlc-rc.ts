@@ -322,7 +322,8 @@ export async function getVlcPlaybackSnapshot(
         parse(await getVlcCommandResponse(port, 'get_length', complete)) ?? '',
         10
     );
-    if (Number.isNaN(time)) return null;
+    if (Number.isNaN(time) || (legacy && time === 0 && duration === 0))
+        return null;
     return {
         positionSeconds: time,
         durationSeconds: Number.isNaN(duration) ? null : duration,

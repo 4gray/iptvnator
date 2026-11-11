@@ -24,6 +24,7 @@ import {
 } from '../services/store.service';
 import { externalPlayerSessions } from './external-player-runtime';
 import { externalPlayerProcessTeardownGate } from './external-player-process';
+import { getVlcPlaybackSnapshot } from './vlc-rc';
 import { openVlcPlayer, shutdownVlcSession } from './vlc-session.service';
 
 const spawnMock = spawn as unknown as jest.Mock;
@@ -366,47 +367,110 @@ describe('VLC exact playback ownership', () => {
         exit(proc);
     });
 
-    it('waits for the exact VLC child without private control before retrying its input', async () => {
-        const platform = Object.getOwnPropertyDescriptor(process, 'platform');
-        Object.defineProperty(process, 'platform', { value: 'win32' });
+    it.each([false, true])(
+        'waits for the exact VLC child without private control before a replacement (new input: %s)',
+        async (newInput) => {
+            const platform = Object.getOwnPropertyDescriptor(
+                process,
+                'platform'
+            );
+            Object.defineProperty(process, 'platform', { value: 'win32' });
+            const first = child();
+            const second = child();
+            spawnMock.mockReturnValueOnce(first).mockReturnValueOnce(second);
+            const request = {
+                title: 'Synthetic Channel',
+                url: 'https://example.test/synthetic.ts',
+            };
+            try {
+                const initial = openVlcPlayer({
+                    ...request,
+                    launchId: 'synthetic-first',
+                });
+                first.emit('spawn');
+                const prior = await initial;
+                expect(prior).toMatchObject({
+                    mediaObservationUnavailable: true,
+                    canClose: true,
+                });
+                const retry = openVlcPlayer({
+                    ...request,
+                    url: newInput
+                        ? 'https://example.test/synthetic-other.ts'
+                        : request.url,
+                    launchId: 'synthetic-retry',
+                });
+                await tick();
+                expect(first.kill).toHaveBeenCalledTimes(1);
+                expect(spawnMock).toHaveBeenCalledTimes(1);
+                exit(first);
+                await tick();
+                expect(spawnMock).toHaveBeenCalledTimes(2);
+                expect(spawnMock.mock.lastCall?.[2]).toMatchObject({
+                    detached: false,
+                    stdio: 'ignore',
+                });
+                expect(ports).toHaveLength(0);
+                second.emit('spawn');
+                expect((await retry).id).not.toBe(prior.id);
+                expect(
+                    externalPlayerSessions.getSession(prior.id)?.status
+                ).toBe('closed');
+            } finally {
+                exit(first);
+                exit(second);
+                if (platform)
+                    Object.defineProperty(process, 'platform', platform);
+            }
+        }
+    );
+
+    it('terminates an open TCP-controlled window before taking its slot even if its media session closed', async () => {
         const first = child();
         const second = child();
         spawnMock.mockReturnValueOnce(first).mockReturnValueOnce(second);
-        const request = {
-            title: 'Synthetic Channel',
-            url: 'https://example.test/synthetic.ts',
-        };
+        const opening = open('synthetic-first');
+        await tick();
+        ports[0]();
+        await tick();
+        first.emit('spawn');
+        const prior = await opening;
+        externalPlayerSessions.markClosed(prior.id);
         try {
-            const initial = openVlcPlayer({
-                ...request,
-                launchId: 'synthetic-first',
+            const replacement = openVlcPlayer({
+                title: 'Synthetic Channel',
+                url: 'https://example.test/synthetic-next.ts',
+                launchId: 'synthetic-guide-launch',
             });
-            first.emit('spawn');
-            const prior = await initial;
-            expect(prior).toMatchObject({
-                mediaObservationUnavailable: true,
-                canClose: true,
-            });
-            const retry = openVlcPlayer({
-                ...request,
-                launchId: 'synthetic-retry',
-            });
-            await tick();
             expect(first.kill).toHaveBeenCalledTimes(1);
             expect(spawnMock).toHaveBeenCalledTimes(1);
-            exit(first);
+            exit(first, 1);
             await tick();
             expect(spawnMock).toHaveBeenCalledTimes(2);
+            expect(spawnMock.mock.lastCall?.[2]).toMatchObject({
+                detached: false,
+                stdio: 'ignore',
+            });
             second.emit('spawn');
-            expect((await retry).id).not.toBe(prior.id);
-            expect(externalPlayerSessions.getSession(prior.id)?.status).toBe(
-                'closed'
-            );
+            expect((await replacement).status).toBe('opened');
         } finally {
             exit(first);
             exit(second);
-            if (platform) Object.defineProperty(process, 'platform', platform);
         }
+    });
+
+    it('discards a stopped Unix RC snapshot without treating a real zero position as stopped', async () => {
+        let duration = 0;
+        mockRc((_address, command, reply) => {
+            reply(`${command === 'get_length\n' ? duration : 0}\r\n`);
+        });
+        const socket = '/tmp/synthetic-vlc-control';
+        await expect(getVlcPlaybackSnapshot(socket)).resolves.toBeNull();
+        duration = 300;
+        await expect(getVlcPlaybackSnapshot(socket)).resolves.toEqual({
+            positionSeconds: 0,
+            durationSeconds: 300,
+        });
     });
 
     it('rejects the add command during unrelated teardown and keeps the VLC child closable', async () => {

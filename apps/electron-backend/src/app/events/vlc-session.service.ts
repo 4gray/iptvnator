@@ -222,6 +222,7 @@ export async function openVlcPlayer({
         requestedClose: null,
     };
     let freshTeardownUnconfirmed = false;
+    let closeRetained: (() => Promise<void>) | undefined;
 
     try {
         const isFlatpak = isRunningInFlatpak();
@@ -265,17 +266,11 @@ export async function openVlcPlayer({
         });
 
         const guideLaunch = !!session.launchId && !contentInfo;
-        if (
-            reuseInstance &&
-            guideLaunch &&
-            previousProcessSessionId &&
-            !reusableVlcProcess.hasPrivateControl()
-        ) {
+        if (reuseInstance)
+            closeRetained = reusableVlcProcess.replacementCloser(guideLaunch);
+        if (closeRetained) {
             try {
-                await externalPlayerSessions.closeSession(
-                    previousProcessSessionId,
-                    true
-                );
+                await closeRetained();
             } catch (error) {
                 reuseState.teardownUnconfirmed = true;
                 throw error;
@@ -454,15 +449,14 @@ export async function openVlcPlayer({
                         playerArgs
                     )
                 );
-                // Reuse ownership exists only when an RC port was allocated.
-                // Without it this child is a normal one-shot process whose
-                // exact session closer must still terminate it.
-                const trackProcess = reuseInstance && !isRetry && !!rcPort;
+                const trackProcess =
+                    reuseInstance && (guideLaunch || (!isRetry && !!rcPort));
                 const proc = spawnPlayerWithEndpoint(
                     spawnSpec.command,
                     spawnSpec.args,
                     trackProcess,
-                    isRetry ? undefined : privateEndpoint
+                    isRetry ? undefined : privateEndpoint,
+                    guideLaunch ? 'ignore' : undefined
                 );
                 getPlaybackRcPort = () =>
                     !isRetry &&
@@ -479,8 +473,12 @@ export async function openVlcPlayer({
                     }
                 });
 
-                if (trackProcess && !!rcPort) {
-                    reusableVlcProcess.track(proc, rcPort, session.id);
+                if (trackProcess) {
+                    reusableVlcProcess.track(
+                        proc,
+                        isRetry ? 0 : rcPort,
+                        session.id
+                    );
                     traceExternalPlayer('tracking vlc process for reuse', {
                         rcPort,
                     });
@@ -752,6 +750,8 @@ export async function openVlcPlayer({
                       session.id
                   )
                 : null;
+        if (reuseState.teardownUnconfirmed && !restoredSession && closeRetained)
+            externalPlayerSessions.attachCloser(session.id, closeRetained);
         externalPlayerSessions.markError(
             session.id,
             error instanceof Error ? error.message : String(error),

@@ -1267,9 +1267,15 @@ Current contract:
 - AppImage, deb/rpm, snap, macOS, and Windows keep the existing direct process spawn flow.
 - VLC keeps the current external-session flow in Flatpak, including the RC port used for progress polling.
 - MPV is intentionally reduced in Flatpak: the app does not reuse an existing MPV instance there and does not open the Unix socket bridge used for non-Flatpak progress polling.
-- VLC instance reuse is also gated off in Flatpak. Outside Flatpak the user can opt in via the "Reuse VLC instance" setting; the app then keeps a single tracked VLC process and drives subsequent stream loads through its RC interface (`clear` + `add <url> :http-*`) instead of spawning a new window per click.
+- VLC instance reuse is also gated off in Flatpak. Outside Flatpak, "Reuse VLC
+  instance" keeps a single tracked process. When it can use the existing control
+  endpoint, the app switches media through RC. Xtream Live TV requires a private
+  Unix endpoint for RC; when unavailable, the app waits for the previous process
+  to exit before starting another. It also stops the retained process when changing
+  control modes, even if VLC already marked its media session closed. Raw output
+  from Xtream Live TV launches is discarded because it can contain stream URLs.
 
-This keeps non-Flatpak behavior unchanged while allowing Flatpak builds to open host-installed external players.
+Flatpak can open host-installed players without app-managed instance reuse.
 
 ## Typed Playback Payload
 
