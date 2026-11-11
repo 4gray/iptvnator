@@ -75,7 +75,12 @@ export class EpgGuideDialogController {
         const rowIndex =
             hit.channelId === null
                 ? -1
-                : rows.findIndex((row) => row.id === hit.channelId);
+                : rows.findIndex(
+                      (row) =>
+                          row.id === hit.channelId &&
+                          (hit.channelEpgKey === undefined ||
+                              row.epgKey === hit.channelEpgKey)
+                  );
         const channel = rowIndex < 0 ? null : rows[rowIndex];
         if (channel) {
             this.host.focusRow(rowIndex);

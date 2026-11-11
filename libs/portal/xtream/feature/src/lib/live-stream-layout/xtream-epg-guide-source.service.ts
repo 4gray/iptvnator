@@ -49,6 +49,10 @@ function categoryKey(id: string | number | null | undefined): string {
     return raw && Number.isFinite(numeric) ? String(numeric) : raw;
 }
 
+function channelEpgKey(item: XtreamLiveChannelItem): string {
+    return `${categoryKey(item.category_id)}:${scheduleKey(item)}`;
+}
+
 export function sameGuideChannel(
     left: XtreamLiveChannelItem,
     right: XtreamLiveChannelItem
@@ -221,7 +225,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
             number: index + 1,
             name: name(item),
             logoUrl: item.poster_url || item.stream_icon || null,
-            epgKey: String(item.xtream_id),
+            epgKey: channelEpgKey(item),
         }))
     );
 
@@ -377,6 +381,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
                     continue;
                 hits.push({
                     channelId: id,
+                    channelEpgKey: channelEpgKey(channel),
                     channelName: name(channel),
                     program,
                 });

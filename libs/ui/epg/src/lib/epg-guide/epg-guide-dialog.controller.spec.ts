@@ -202,4 +202,18 @@ describe('EpgGuideDialogController', () => {
             })
         ).toBe(START_MS + 60 * MINUTE_MS);
     });
+
+    it('keeps the original search label if the displayed row is another copy', () => {
+        const test = harness();
+        test.controller.openSearchResult({
+            channelId: 'b',
+            channelEpgKey: 'synthetic-other-copy',
+            channelName: 'Synthetic Other Copy',
+            program: program(),
+        });
+        expect(test.focusRow).not.toHaveBeenCalled();
+        expect(test.open).toHaveBeenCalledWith(
+            expect.objectContaining({ channelName: 'Synthetic Other Copy' })
+        );
+    });
 });

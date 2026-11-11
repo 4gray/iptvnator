@@ -81,8 +81,10 @@ export class EpgGuideProgramsService {
     >();
     private coverageRequest?: CoverageScan;
     private coverageRequested = false;
-    private readonly coverageRefresh = createCoverageRefreshBudget();
     private readonly failedCoverage = new Set<string>();
+    private readonly coverageRefresh = createCoverageRefreshBudget(
+        this.failedCoverage
+    );
     private readonly rowExpiry = new Map<string, number>();
     private visibleRows = new Set<string>();
     /** Last channel reference seen by the constructor effect (see below). */

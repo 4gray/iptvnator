@@ -77,12 +77,15 @@ function epgItem(title: string, fromHour: number, toHour: number): EpgItem {
 describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
     let fixture: ComponentFixture<LiveStreamLayoutComponent>;
     let component: LiveStreamLayoutComponent;
+    let previousElectron: Window['electron'];
     const emptyList = signal<unknown[]>([]);
     const epgItems = signal<EpgItem[]>([]);
     const parentalLock = {
         version: signal(0),
         active: signal(false),
-        isXtreamCategoryLocked: jest.fn(() => false),
+        isXtreamCategoryLocked: jest.fn(
+            (_playlist: string, _type: string, _category: number) => false
+        ),
     };
     const databaseService = {
         getAllXtreamCategories: jest.fn(async () => [] as unknown[]),
@@ -92,12 +95,20 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         supportsDownloads: true,
         supportsProviderCatchUp: true,
         supportsProviderEpg: true,
+        supportsRemoteControl: true,
     };
     const portalPlayer = {
         isEmbeddedPlayer: signal(true),
         openExternalPlayback: jest.fn(),
     };
     const externalSession = signal<ExternalPlayerSession | null>(null);
+    const closeSession = jest.fn(
+        async (_session: ExternalPlayerSession) => undefined
+    );
+    const updateRemoteControlStatus = jest.fn();
+    const onChannelChange = jest.fn(
+        (_change: (event: { direction: 'up' | 'down' }) => void) => jest.fn()
+    );
     const xtreamStore = {
         getCategoriesBySelectedType: signal([
             { category_id: 1, category_name: 'News' },
@@ -126,6 +137,18 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
     };
 
     beforeEach(async () => {
+        previousElectron = window.electron;
+        Object.defineProperty(window, 'electron', {
+            configurable: true,
+            value: { updateRemoteControlStatus, onChannelChange },
+        });
+        updateRemoteControlStatus.mockClear();
+        onChannelChange.mockClear();
+        closeSession.mockClear();
+        parentalLock.active.set(false);
+        parentalLock.version.set(0);
+        parentalLock.isXtreamCategoryLocked.mockReset().mockReturnValue(false);
+        xtreamStore.selectedItem.set(sampleChannel);
         epgItems.set([]);
         runtime.supportsProviderCatchUp = true;
         portalPlayer.isEmbeddedPlayer.set(true);
@@ -197,7 +220,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 },
                 {
                     provide: PORTAL_EXTERNAL_PLAYBACK,
-                    useValue: { activeSession: externalSession },
+                    useValue: { activeSession: externalSession, closeSession },
                 },
                 { provide: ParentalLockService, useValue: parentalLock },
             ],
@@ -239,7 +262,13 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         fixture.detectChanges();
     });
 
-    afterEach(() => fixture.destroy());
+    afterEach(() => {
+        fixture.destroy();
+        Object.defineProperty(window, 'electron', {
+            configurable: true,
+            value: previousElectron,
+        });
+    });
 
     const webPlayer = () =>
         fixture.debugElement.query(By.directive(StubWebPlayerViewComponent))
@@ -296,7 +325,12 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
     it('commits the remote channel order only after an external guide switch opens', () => {
         const playing = { ...sampleChannel, category_id: 1 };
         const neighbor = { ...playing, xtream_id: 103 };
-        const next = { ...playing, xtream_id: 102, category_id: 2 };
+        const next = {
+            ...playing,
+            name: 'Synthetic Replacement Channel',
+            xtream_id: 102,
+            category_id: 2,
+        };
         const nextNeighbor = { ...next, xtream_id: 104 };
         const categories = xtreamStore.getCategoriesBySelectedType();
         xtreamStore.getCategoriesBySelectedType.set([
@@ -339,8 +373,20 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 status: 'launching',
             };
             externalSession.set(replacement);
+            xtreamStore.selectedItem.set(next);
             fixture.detectChanges();
             expect(queue()).toEqual([101, 103]);
+            expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    channelName: playing.name,
+                    channelNumber: 1,
+                })
+            );
+            onChannelChange.mock.lastCall?.[0]({ direction: 'up' });
+            expect(xtreamStore.constructStreamUrl).toHaveBeenLastCalledWith(
+                neighbor,
+                expect.any(Function)
+            );
             externalSession.set({
                 ...original,
                 restoredFromSessionId: replacement.id,
@@ -359,9 +405,64 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             });
             fixture.detectChanges();
             expect(queue()).toEqual([102, 104]);
+            expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    channelName: next.name,
+                    channelNumber: 1,
+                })
+            );
         } finally {
             xtreamStore.getCategoriesBySelectedType.set(categories);
         }
+    });
+
+    it('stops the confirmed external channel on relock and never restores its panel', () => {
+        const playing = { ...sampleChannel, category_id: 1 };
+        const next = { ...playing, xtream_id: 102, category_id: 2 };
+        portalPlayer.isEmbeddedPlayer.set(false);
+        component.playLive(playing, true);
+        const original: ExternalPlayerSession = {
+            id: 'synthetic-locked-session',
+            streamUrl: component.activeStreamUrl(),
+            title: 'Synthetic Locked Channel',
+            player: 'mpv',
+            status: 'playing',
+            startedAt: '2026-04-04T10:00:00Z',
+            updatedAt: '2026-04-04T10:00:00Z',
+            canClose: true,
+        };
+        externalSession.set(original);
+        component.guide.open();
+        fixture.detectChanges();
+        xtreamStore.constructStreamUrl.mockReturnValueOnce(
+            'https://example.com/second.ts'
+        );
+        component.playLive(next, true);
+        const pending = {
+            ...original,
+            id: 'synthetic-pending-session',
+            streamUrl: component.activeStreamUrl(),
+            status: 'launching',
+        } as const;
+        externalSession.set(pending);
+        fixture.detectChanges();
+
+        parentalLock.isXtreamCategoryLocked.mockImplementation(
+            (_playlist, _type, category) => category === 1
+        );
+        parentalLock.active.set(true);
+        parentalLock.version.update((version) => version + 1);
+        fixture.detectChanges();
+        expect(closeSession).toHaveBeenCalledWith(original);
+        expect(component.guide.available()).toBe(false);
+
+        externalSession.set({ ...original, restoredFromSessionId: pending.id });
+        fixture.detectChanges();
+        expect(component.guideNowPlayingChannel()).toBe('');
+        expect(component.activeStreamUrl()).toBe(pending.streamUrl);
+        expect(xtreamStore.setSelectedItem).not.toHaveBeenCalledWith(playing);
+        expect(xtreamStore.loadEpg).not.toHaveBeenCalled();
+        expect(closeSession).toHaveBeenCalledTimes(1);
     });
 
     it.each([

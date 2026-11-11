@@ -179,6 +179,14 @@ describe('EpgGuideProgramsService', () => {
             await flush();
             expect(service.isCovered('a')).toBe(true);
             expect(service.coverageStatus()).toBe('error');
+            jest.setSystemTime(62_000);
+            service.refreshExpiredCoverage(62_000);
+            await flush();
+            expect(
+                loadCoverage.mock.calls[2][0].channels.map(({ id }) => id)
+            ).toEqual(['a']);
+            expect(service.isCovered('a')).toBe(false);
+            expect(service.coverageStatus()).toBe('idle');
         } finally {
             jest.useRealTimers();
         }

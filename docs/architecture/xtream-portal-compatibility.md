@@ -787,7 +787,8 @@ while preserving their browsing state. Short screens show a compact dock so
 schedule rows remain visible. If an external channel switch fails and the
 player restores the previous session or rejects a switch while the old session
 is still playing, the guide keeps its scope and search. The dock, player panel
-and remote channel order follow the confirmed session. The guide uses
+and remote controls follow the confirmed session. If a relock withholds that
+channel, the guide hides it and closes its external session. The guide uses
 the current playlist's visible, unlocked live catalogue and can scope it to
 a category or resolved live favorites.
 A stream shared by multiple categories appears in each of those scopes and
@@ -808,12 +809,13 @@ EPG** and keeps channels whose coverage could not be checked until a successful
 lookup determines whether they have programmes. It hides confirmed empty
 rows as results arrive and keeps them hidden during rechecks. While the filter
 is on, it rotates through expired results in batches of up to 12 per minute.
-Rendered rows and the playing channel still refresh on schedule expiry. It reports
-failed checks, including unavailable
-XMLTV reads. Programme search reads the available live
+Rendered rows and the playing channel still refresh on schedule expiry. Failed
+checks, including unavailable XMLTV reads, stay visible as unknown and retry
+within the same budget. Programme search reads the available live
 catalogue on demand, including channels outside the viewport, and publishes
-matches and progress as it scans. A failed schedule
-does not discard matches from other channels. Large scopes can take longer to
+matches and progress as it scans. A match keeps the category copy that supplied
+its schedule, even if the guide scope changes before the match opens. A failed
+schedule does not discard matches from other channels. Large scopes can take longer to
 search or filter. Closing the guide cancels its in-flight provider requests.
 Replacing a search or viewport request cancels work once no other guide
 consumer needs it, including XMLTV reads waiting on a mapping. Visibility
