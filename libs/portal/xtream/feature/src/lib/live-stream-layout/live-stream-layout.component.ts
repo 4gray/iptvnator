@@ -496,6 +496,12 @@ export class LiveStreamLayoutComponent
         () => this.activePlayback()?.streamUrl ?? ''
     );
     private readonly externalGuide = inject(XtreamGuideExternalPlayback);
+    private readonly socketlessRemoteSource = computed(() => {
+        const playback = this.externalGuide.unverifiedPlayback();
+        return playback?.session.mediaObservationUnavailable
+            ? playback.source
+            : undefined;
+    });
     private readonly usesSelectionForRemote = computed(
         () =>
             this.usesEmbeddedPlayer() ||
@@ -508,7 +514,9 @@ export class LiveStreamLayoutComponent
     private readonly remoteLiveItem = computed(() =>
         this.usesSelectionForRemote()
             ? this.selectedLiveItem()
-            : (this.externalGuide.confirmed()?.item ?? null)
+            : (this.socketlessRemoteSource()?.channel ??
+              this.externalGuide.confirmed()?.item ??
+              null)
     );
     private readonly guideChannel = computed(() =>
         this.usesEmbeddedPlayer()
@@ -578,12 +586,24 @@ export class LiveStreamLayoutComponent
                 this.selectGuideLiveItem(item);
             },
         });
+        effect(() => {
+            const source = this.socketlessRemoteSource();
+            if (!source?.channel) return;
+            const { channel, queue } = source;
+            untracked(() =>
+                this.channelNavigation.capture(
+                    channel,
+                    queue ?? [channel],
+                    'replace'
+                )
+            );
+        });
         this.guide.bind(
             computed(() =>
                 this.usesEmbeddedPlayer()
                     ? !!this.activeStreamUrl()
                     : !!this.externalGuide.confirmed() ||
-                      this.externalGuide.unverifiedStream() ||
+                      !!this.externalGuide.unverifiedPlayback() ||
                       (this.guide.isOpen() &&
                           (this.externalGuide.launching() ||
                               this.externalGuide.idleStream()))
@@ -1105,9 +1125,12 @@ export class LiveStreamLayoutComponent
             (item) => item.xtream_id
         );
 
-        const archive = selectionBased
-            ? this.activeCatchupProgram()
-            : this.guideArchiveProgram();
+        const socketless = this.socketlessRemoteSource();
+        const archive = socketless
+            ? socketless.archive
+            : selectionBased
+              ? this.activeCatchupProgram()
+              : this.guideArchiveProgram();
         if (
             !nextItem ||
             (nextItem.xtream_id === activeItem.xtream_id &&

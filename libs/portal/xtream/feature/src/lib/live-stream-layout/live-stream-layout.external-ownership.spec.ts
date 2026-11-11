@@ -13,9 +13,11 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
         emptyList,
         epgItems,
         onChannelChange,
+        onRemoteControlCommand,
         portalPlayer,
         publishExternalSession,
         restoreElectron,
+        updateRemoteControlStatus,
         xtreamStore,
     } = setupLiveStreamLayoutNativeFixture();
 
@@ -247,6 +249,49 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
         fixture.detectChanges();
         expect(component.guide.isOpen()).toBe(true);
         expect(committed).not.toHaveBeenCalled();
+    });
+
+    it('keeps the socketless MPV remote queue for arrows and numeric tuning', () => {
+        const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
+        const component = fixture.componentInstance;
+        const playing = { ...sampleChannel, category_id: 1 };
+        const next = {
+            ...playing,
+            xtream_id: playing.xtream_id + 1,
+            name: 'Synthetic Next',
+        };
+        emptyList.set([playing, next]);
+        xtreamStore.selectedItem.set(playing);
+        portalPlayer.isEmbeddedPlayer.set(false);
+        fixture.detectChanges();
+        component.playLive(playing, true, [playing, next]);
+        publishExternalSession({
+            id: 'synthetic-remote-socketless',
+            player: 'mpv',
+            status: 'opened',
+            mediaLoaded: false,
+            playbackUnverified: true,
+            mediaObservationUnavailable: true,
+            title: 'Synthetic Channel',
+            streamUrl: component.activeStreamUrl(),
+            canClose: true,
+            startedAt: '2026-04-04T10:00:00Z',
+            updatedAt: '2026-04-04T10:00:00Z',
+        });
+        fixture.detectChanges();
+        expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
+            expect.objectContaining({ isLiveView: true, channelNumber: 1 })
+        );
+        expect(component.guideNowPlayingChannel()).toBe('');
+        onChannelChange.mock.lastCall?.[0]({ direction: 'up' });
+        expect(xtreamStore.constructStreamUrl).toHaveBeenLastCalledWith(next);
+        onRemoteControlCommand.mock.lastCall?.[0]({
+            type: 'channel-select-number',
+            number: 1,
+        });
+        expect(xtreamStore.constructStreamUrl).toHaveBeenLastCalledWith(
+            playing
+        );
     });
 
     it('returns to live when tuning within a one-channel archive queue', async () => {

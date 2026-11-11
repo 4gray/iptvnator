@@ -195,6 +195,28 @@ describe('XtreamExternalLiveSessions', () => {
         }
     });
 
+    it('hides a relocked session again when restored during its pending close', () => {
+        const nativeClose = jest.fn(() => new Promise(() => undefined));
+        Object.defineProperty(window.electron, 'closeExternalPlayerSession', {
+            value: nativeClose,
+        });
+        const opened = session('old', oldUrl, 'opened');
+        activeSession.set(opened);
+        guard.begin(original).finish(opened);
+        relock();
+        expect(dismissActiveSession).toHaveBeenCalledTimes(1);
+
+        const queued = session('new', newUrl, 'launching');
+        activeSession.set(queued);
+        guard.begin(replacement).finish(queued);
+        const restored = { ...opened, restoredFromSessionId: queued.id };
+        activeSession.set(restored);
+        receive(restored);
+
+        expect(dismissActiveSession).toHaveBeenCalledTimes(2);
+        expect(nativeClose.mock.calls).toEqual([[opened.id, true]]);
+    });
+
     it('restores Stop after unlocking an active session whose parental close failed', async () => {
         jest.useFakeTimers();
         try {

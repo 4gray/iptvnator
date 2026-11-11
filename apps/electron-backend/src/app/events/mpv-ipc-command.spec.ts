@@ -87,6 +87,7 @@ describe('sendMpvCommand', () => {
             status: 'opened',
             mediaLoaded: false,
             playbackUnverified: true,
+            mediaObservationUnavailable: true,
         });
         expect(createConnectionMock).not.toHaveBeenCalled();
     });
@@ -229,6 +230,61 @@ describe('sendMpvCommand', () => {
         );
         expect(onOutcome).toHaveBeenCalledWith(true);
     });
+
+    it.each([true, false])(
+        'observes outer siblings after a nested redirect (%s)',
+        async (loaded) => {
+            const socket = nextSocket();
+            const onOutcome = jest.fn();
+            const pending = sendMpvCommand(
+                socketPath,
+                'loadfile',
+                [streamUrl],
+                {
+                    media: { signal: new AbortController().signal, onOutcome },
+                }
+            );
+            socket.emit('connect');
+            reply(socket, {
+                request_id: writtenRequest(socket).request_id,
+                error: 'success',
+                data: { playlist_entry_id: 2 },
+            });
+            await pending;
+            reply(
+                socket,
+                {
+                    event: 'end-file',
+                    reason: 'redirect',
+                    playlist_entry_id: 2,
+                    playlist_insert_id: 3,
+                    playlist_insert_num_entries: 2,
+                },
+                {
+                    event: 'end-file',
+                    reason: 'redirect',
+                    playlist_entry_id: 3,
+                    playlist_insert_id: 5,
+                    playlist_insert_num_entries: 1,
+                },
+                { event: 'end-file', reason: 'error', playlist_entry_id: 5 }
+            );
+            expect(onOutcome).not.toHaveBeenCalled();
+            reply(
+                socket,
+                { event: 'start-file', playlist_entry_id: 4 },
+                loaded
+                    ? { event: 'file-loaded' }
+                    : {
+                          event: 'end-file',
+                          reason: 'error',
+                          playlist_entry_id: 4,
+                      }
+            );
+            expect(onOutcome).toHaveBeenCalledTimes(1);
+            expect(onOutcome).toHaveBeenCalledWith(loaded);
+        }
+    );
 
     it('reports unavailable confirmation when an acknowledged media observer expires', async () => {
         jest.useFakeTimers();

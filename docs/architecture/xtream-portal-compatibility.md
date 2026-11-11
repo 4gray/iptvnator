@@ -792,7 +792,7 @@ schedule rows remain visible. If an external channel switch fails and the
 player restores the previous session or rejects a switch while the old session
 is still playing, the guide keeps its scope and search. Enter and double-click
 close the guide only after the requested stream opens. MPV IPC confirms the
-requested entry, including an entry inserted by a playlist redirect; a fresh
+requested entry, including siblings left by nested playlist redirects; a fresh
 process reports media readiness even when paused. VLC RC checks the requested
 input and observes its playback clock. If the player cannot verify readiness,
 the guide remains available and a committed selection keeps it open for a retry.
@@ -801,13 +801,15 @@ The dock, player panel and remote status follow the confirmed session.
 Consecutive remote tuning
 commands advance from the latest requested channel until it opens or fails.
 IINA keeps the selection-based remote queue because its launcher can exit
-while playback continues.
+while playback continues. MPV without an observation bridge keeps the queue
+captured when the channel was selected, without confirming guide playback.
 Browsing another channel does not replace the remote order or detach the
 guide. Starting archive playback from a preview commits that preview's order
 when the archive session opens. If a relock withholds that
 channel or the pending replacement, the guide hides the withheld channel and
 closes its external session even if it finishes opening later, reports a
-closable error or has already left the dock. If teardown fails, unlocking the
+closable error, has already left the dock or returns while teardown is pending.
+If teardown fails, unlocking the
 category restores Stop for that same active session. Cancelling a queued replacement
 leaves the allowed player running. If a replacement fails, the guide follows
 the newest allowed session in the playlist that has opened and is still live. The

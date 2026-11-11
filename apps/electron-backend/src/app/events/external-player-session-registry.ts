@@ -23,6 +23,7 @@ interface UpdateExternalPlayerSessionOptions {
     playbackIdle?: boolean;
     playbackUnverified?: boolean;
     mediaLoaded?: boolean;
+    mediaObservationUnavailable?: boolean;
 }
 
 interface ExternalPlayerSessionRuntime {

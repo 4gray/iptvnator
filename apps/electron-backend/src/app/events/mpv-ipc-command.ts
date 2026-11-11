@@ -92,6 +92,7 @@ export function markMpvOpened(
         externalPlayerSessions.updateSession(sessionId, {
             mediaLoaded: false,
             playbackUnverified: socketPath ? undefined : true,
+            mediaObservationUnavailable: socketPath ? undefined : true,
         });
     return markExternalPlayerOpened(
         sessionId,
@@ -187,7 +188,7 @@ export function sendMpvCommand(
         let buffered = '';
         let timeoutHandle: NodeJS.Timeout | null = null;
         const media = options.media;
-        let expected: { first: number; last: number } | undefined;
+        let expected: { first: number; last: number }[] | undefined;
         let startedEntry: number | undefined;
         const earlyEvents: MpvIpcMessage[] = [];
         const disconnect = () => {
@@ -207,14 +208,18 @@ export function sendMpvCommand(
                 event.event === 'file-loaded'
                     ? startedEntry
                     : readEntryId(event);
-            if (
-                entry === undefined ||
-                entry < expected.first ||
-                entry > expected.last
-            )
-                return;
+            if (entry === undefined) return;
+            const index = expected.findIndex(
+                ({ first, last }) => entry >= first && entry <= last
+            );
+            if (index < 0) return;
             if (event.event === 'file-loaded') finishMedia(true);
             else if (event.event === 'end-file') {
+                const [range] = expected.splice(index, 1);
+                if (range.first < entry)
+                    expected.push({ first: range.first, last: entry - 1 });
+                if (entry < range.last)
+                    expected.push({ first: entry + 1, last: range.last });
                 const first = event.playlist_insert_id;
                 const count = event.playlist_insert_num_entries;
                 if (event.reason === 'redirect') {
@@ -224,11 +229,12 @@ export function sendMpvCommand(
                         Number.isSafeInteger(first) &&
                         Number.isSafeInteger(count) &&
                         first > 0 &&
-                        count > 0
+                        count > 0 &&
+                        Number.isSafeInteger(first + count - 1)
                     )
-                        expected = { first, last: first + count - 1 };
+                        expected.push({ first, last: first + count - 1 });
                     else finishMedia(undefined);
-                } else if (entry === expected.last) finishMedia(false);
+                } else if (expected.length === 0) finishMedia(false);
             }
         };
         const settle = (
@@ -249,7 +255,7 @@ export function sendMpvCommand(
                     if (outcome.reply && media) finishMedia(undefined);
                     else disconnect();
                 } else {
-                    expected = { first: entry, last: entry };
+                    expected = [{ first: entry, last: entry }];
                     media?.signal.addEventListener('abort', disconnect, {
                         once: true,
                     });

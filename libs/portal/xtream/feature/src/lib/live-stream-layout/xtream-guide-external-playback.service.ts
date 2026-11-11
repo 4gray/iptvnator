@@ -159,21 +159,21 @@ export class XtreamGuideExternalPlayback {
         });
     });
 
-    readonly unverifiedStream = computed(() => {
+    readonly unverifiedPlayback = computed(() => {
         const active = this.playback?.activeSession();
         if (
             !active?.playbackUnverified ||
             active.playbackIdle ||
             (active.status !== 'opened' && active.status !== 'playing')
         )
-            return false;
+            return undefined;
         const source = this.sessions.state(active.id)?.source;
         this.lock.version();
-        return (
-            !!source &&
+        return source &&
             source.playlistId === this.store.currentPlaylist()?.id &&
             !isXtreamLiveCategoryWithheld(this.lock, source)
-        );
+            ? { session: active, source }
+            : undefined;
     });
 
     remoteTuningItem(): XtreamLiveChannelItem | undefined {

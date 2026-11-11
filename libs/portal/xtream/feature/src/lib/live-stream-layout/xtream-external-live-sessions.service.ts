@@ -230,6 +230,10 @@ export class XtreamExternalLiveSessions {
             }
             return;
         }
+        if (this.playback?.activeSession()?.id === session.id) {
+            entry.hidden = true;
+            this.playback.dismissActiveSession?.();
+        }
         if (!session.canClose || entry.closing || entry.retry || !this.playback)
             return;
         const bridge = window.electron;
@@ -239,10 +243,6 @@ export class XtreamExternalLiveSessions {
         )
             return;
         entry.closing = true;
-        if (this.playback.activeSession()?.id === session.id) {
-            entry.hidden = true;
-            this.playback.dismissActiveSession?.();
-        }
         const close = bridge?.closeExternalPlayerSession
             ? bridge
                   .closeExternalPlayerSession(session.id, true)

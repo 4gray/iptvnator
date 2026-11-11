@@ -109,6 +109,8 @@ export interface ExternalPlayerSession {
     playbackUnverified?: boolean;
     /** Whether this launch has confirmed media loading, when supported. */
     mediaLoaded?: boolean;
+    /** This runtime has no media observation bridge for the player. */
+    mediaObservationUnavailable?: boolean;
     /** Exact failed replacement displaced by this restored live session. */
     restoredFromSessionId?: string;
 }
