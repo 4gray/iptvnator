@@ -8,6 +8,7 @@ import {
 
 interface CreateExternalPlayerSessionOptions {
     player: ExternalPlayerName;
+    launchId?: string;
     title: string;
     thumbnail?: string | null;
     streamUrl: string;
@@ -58,6 +59,10 @@ export class ExternalPlayerSessionRegistry {
         const startedAt = new Date().toISOString();
         const session: ExternalPlayerSession = {
             id: crypto.randomUUID(),
+            ...(typeof options.launchId === 'string' &&
+            options.launchId.length <= 128
+                ? { launchId: options.launchId }
+                : {}),
             player: options.player,
             status: 'launching',
             title: options.title,

@@ -84,6 +84,8 @@ export function readExternalPlayerErrorCode(
 
 export interface ExternalPlayerSession {
     id: string;
+    /** Correlates native lifecycle events with the requesting renderer launch. */
+    launchId?: string;
     player: ExternalPlayerName;
     status: ExternalPlayerSessionStatus;
     title: string;

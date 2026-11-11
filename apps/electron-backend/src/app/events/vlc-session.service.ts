@@ -57,6 +57,7 @@ export interface OpenVlcPlayerRequest {
     contentInfo?: PlayerContentInfo;
     startTime?: number;
     headers?: Record<string, string>;
+    launchId?: string;
 }
 
 const reusableVlcProcess = new VlcReusableProcess();
@@ -183,12 +184,14 @@ export async function openVlcPlayer({
     contentInfo,
     startTime,
     headers,
+    launchId,
 }: OpenVlcPlayerRequest) {
     externalPlayerProcessTeardownGate.assertLaunchAllowed();
     const displacedSessionId = externalPlayerSessions.getActiveSessionId();
     const previousProcessSessionId = reusableVlcProcess.currentSessionId();
     const session = externalPlayerSessions.beginSession({
         player: 'vlc',
+        launchId,
         title,
         thumbnail,
         streamUrl: url,

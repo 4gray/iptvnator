@@ -63,7 +63,8 @@ export class EpgGuideRowComponent {
     /** Single click on the channel cell or the on-now card. */
     readonly channelActivated = output<void>();
     /** Double click: activate and close the guide. */
-    readonly channelCommitted = output<void>();
+    readonly channelCommitted = output<boolean>();
+    private gestureStartedOnActive = false;
     readonly detailsRequested = output<TimelineRenderBlock>();
     readonly watchRequested = output<TimelineRenderBlock>();
     /**
@@ -107,14 +108,20 @@ export class EpgGuideRowComponent {
         return this.roving() && this.focusedBlock() === index ? 0 : -1;
     }
 
-    onChannelClick(): void {
+    onChannelClick(event: MouseEvent): void {
+        if (event.detail < 2) this.gestureStartedOnActive = this.active();
         this.focusRequested.emit(null);
         this.channelActivated.emit();
     }
 
-    onBlockClick(item: TimelineRenderBlock, index: number): void {
+    onBlockClick(
+        item: TimelineRenderBlock,
+        index: number,
+        event: MouseEvent
+    ): void {
         this.focusRequested.emit(index);
         if (item.block.when === 'now') {
+            if (event.detail < 2) this.gestureStartedOnActive = this.active();
             this.channelActivated.emit();
         } else {
             this.detailsRequested.emit(item);
@@ -123,8 +130,13 @@ export class EpgGuideRowComponent {
 
     onBlockDoubleClick(item: TimelineRenderBlock): void {
         if (item.block.when === 'now') {
-            this.channelCommitted.emit();
+            this.commitGesture();
         }
+    }
+
+    commitGesture(): void {
+        this.channelCommitted.emit(this.gestureStartedOnActive);
+        this.gestureStartedOnActive = false;
     }
 
     onWatchClick(event: Event, item: TimelineRenderBlock): void {

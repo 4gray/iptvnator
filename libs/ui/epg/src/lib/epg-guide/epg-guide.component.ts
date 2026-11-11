@@ -429,9 +429,9 @@ export class EpgGuideComponent implements OnDestroy {
         this.channelActivated.emit(channel.id);
     }
 
-    commitRow(channel: EpgGuideChannel | undefined): void {
+    commitRow(channel: EpgGuideChannel | undefined, allowRetry = true): void {
         if (!channel) return;
-        if (this.source.retryActive?.(channel, this.rows()))
+        if (allowRetry && this.source.retryActive?.(channel, this.rows()))
             this.channelActivated.emit(channel.id);
         else this.activateRow(channel);
         this.close.emit();

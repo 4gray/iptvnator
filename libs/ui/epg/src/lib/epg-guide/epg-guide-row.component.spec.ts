@@ -113,6 +113,28 @@ describe('EpgGuideRowComponent', () => {
         component = fixture.componentInstance;
     });
 
+    it('allows a double-click retry only when the row was active on its first click', () => {
+        render([]);
+        const committed = jest.fn();
+        component.channelCommitted.subscribe(committed);
+        const channel = fixture.nativeElement.querySelector(
+            '.epg-guide-row__channel'
+        ) as HTMLElement;
+        const click = (detail: number) =>
+            channel.dispatchEvent(
+                new MouseEvent('click', { detail, bubbles: true })
+            );
+        click(1);
+        fixture.componentRef.setInput('active', true);
+        fixture.detectChanges();
+        click(2);
+        channel.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+        click(1);
+        click(2);
+        channel.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+        expect(committed.mock.calls).toEqual([[false], [true]]);
+    });
+
     it('activates the channel when the on-now card is clicked', () => {
         render([program('on now', -20, 40)]);
         const activated = jest.fn();

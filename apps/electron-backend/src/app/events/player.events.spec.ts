@@ -63,6 +63,7 @@ import {
     shouldUseMpvSocketBridge,
 } from './player.events';
 import { openVlcPlayer } from './vlc-session.service';
+import { externalPlayerSessions } from './external-player-runtime';
 import { waitForLoginShellPath } from '../startup/login-shell-path';
 
 function createPathExists(existingPaths: string[]) {
@@ -533,10 +534,22 @@ describe('external player launch handlers', () => {
                 getIpcMainHandler(channel)(
                     {},
                     'https://example.com/live.m3u8',
-                    'Live'
+                    'Live',
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    'synthetic-launch'
                 )
             ).catch(() => undefined);
             await afterLaunch();
+            const sessionId = externalPlayerSessions.getActiveSessionId();
+            expect(
+                externalPlayerSessions.getSession(sessionId ?? '')?.launchId
+            ).toBe('synthetic-launch');
             proc.emit('error', new Error('spawn ENOENT'));
             await launch;
         } finally {

@@ -454,7 +454,9 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             parentalLock.version.update((version) => version + 1);
             fixture.detectChanges();
             if (locked === 'opened replacement') {
-                expect(closeSession).toHaveBeenCalledWith(openedReplacement);
+                expect(closeSession).toHaveBeenCalledWith(
+                    expect.objectContaining(openedReplacement)
+                );
                 expect(component.guide.isOpen()).toBe(true);
                 expect(component.activeStreamUrl()).toBe(original.streamUrl);
                 return;
@@ -472,7 +474,9 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 } as const;
                 publishExternalSession(opened);
                 fixture.detectChanges();
-                expect(closeSession).toHaveBeenCalledWith(opened);
+                expect(closeSession).toHaveBeenCalledWith(
+                    expect.objectContaining(opened)
+                );
                 expect(component.guide.available()).toBe(true);
                 expect(xtreamStore.loadEpg).toHaveBeenCalledTimes(1);
                 expect(xtreamStore.setSelectedItem).toHaveBeenLastCalledWith(
@@ -480,7 +484,9 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 );
                 return;
             }
-            expect(closeSession).toHaveBeenCalledWith(original);
+            expect(closeSession).toHaveBeenCalledWith(
+                expect.objectContaining(original)
+            );
             expect(component.guide.available()).toBe(false);
 
             publishExternalSession({

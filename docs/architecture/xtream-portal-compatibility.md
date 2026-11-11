@@ -783,8 +783,8 @@ open the shared multi-channel programme guide while a channel is playing.
 With MPV or VLC selected, the preload must support session updates and the
 session must have opened before the guide can open. When the player reports
 the stream stopped, an open guide keeps its schedule visible and lets the
-user retry. If VLC's playback state cannot be read, Enter or double-click on
-the active row explicitly retries it.
+user retry. If VLC's playback state cannot be read, Enter or a double-click
+that starts on the active row explicitly retries it.
 The guide keeps the player mounted in the dock and hides the live sidebars
 while preserving their browsing state. Short screens show a compact dock so
 schedule rows remain visible. If an external channel switch fails and the
@@ -807,6 +807,8 @@ Returning to Live TV in external-player mode reattaches the guide to a
 session still playing in the same playlist, including a failed replacement's survivor
 or left the global dock when another playlist started playing. Each session
 keeps its own category and queue, even when launches share a stream URL.
+Native lifecycle events carry the requesting launch's identifier so
+unrelated players at the same URL cannot claim that session.
 The queue saved for a same-channel replay is the queue it preserves.
 Restoring a surviving session restores that session's order even if the
 channel is the same. Guide tuning captures the rows visible after filtering.

@@ -222,6 +222,20 @@ describe('XtreamLiveChannelNavigationService', () => {
         expect(service.canReveal()).toBe(false);
     });
 
+    it('reveals the playing category copy when the browsed copy shares its ID', async () => {
+        const copy = { ...first, category_id: '20' };
+        liveStreams.set([first, second, copy, other]);
+        selectedCategoryId.set(10);
+        service.capture(copy, [copy, other]);
+        expect(service.canReveal()).toBe(true);
+        await service.reveal();
+        expect(selectedCategoryId()).toBe(20);
+        expect(service.revealRequest()).toMatchObject({
+            channelId: first.xtream_id,
+            categoryId: 20,
+        });
+    });
+
     it.each([false, true])(
         'reveals from a category route=%s without touching playback or queue',
         async (categoryRoute) => {

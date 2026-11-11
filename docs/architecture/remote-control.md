@@ -171,7 +171,8 @@ categories from eligible queue entries.
 
 A conditional **Show playing channel** icon in the channel header appears when
 the playing channel is absent from the browsed results and its category remains
-accessible. It clears `q` and the store query, returns to that category, expands
+accessible. Xtream checks the exact category copy of the playing stream.
+It clears `q` and the store query, returns to that category, expands
 the sidebar, then scrolls and focuses the playing row. It never starts playback
 or changes the playback/session/catchup identity. A collapsed sidebar first uses
 its existing restore action. Removed categories are not recreated or unhidden.

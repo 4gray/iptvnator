@@ -584,7 +584,8 @@ const electronApi: ElectronBridgeApi = {
         origin?: string,
         contentInfo?: PlayerContentInfo,
         startTime?: number,
-        headers?: Record<string, string>
+        headers?: Record<string, string>,
+        launchId?: string
     ): Promise<ExternalPlayerSession> =>
         ipcRenderer.invoke(
             'OPEN_MPV_PLAYER',
@@ -596,7 +597,8 @@ const electronApi: ElectronBridgeApi = {
             origin,
             contentInfo,
             startTime,
-            headers
+            headers,
+            launchId
         ),
     openInVlc: (
         url: string,
@@ -607,7 +609,8 @@ const electronApi: ElectronBridgeApi = {
         origin?: string,
         contentInfo?: PlayerContentInfo,
         startTime?: number,
-        headers?: Record<string, string>
+        headers?: Record<string, string>,
+        launchId?: string
     ): Promise<ExternalPlayerSession> =>
         ipcRenderer.invoke(
             'OPEN_VLC_PLAYER',
@@ -619,7 +622,8 @@ const electronApi: ElectronBridgeApi = {
             origin,
             contentInfo,
             startTime,
-            headers
+            headers,
+            launchId
         ),
     closeExternalPlayerSession: (sessionId: string, exact?: boolean) =>
         ipcRenderer.invoke(

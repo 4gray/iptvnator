@@ -59,6 +59,7 @@ export interface OpenExternalPlayerRequest {
     contentInfo?: PlayerContentInfo;
     startTime?: number;
     headers?: Record<string, string>;
+    launchId?: string;
 }
 
 const reusableMpvProcess = new MpvReusableProcess();
@@ -112,6 +113,7 @@ export function openMpvPlayer(
     const displacedSessionId = externalPlayerSessions.getActiveSessionId();
     const session = externalPlayerSessions.beginSession({
         player: 'mpv',
+        launchId: request.launchId,
         title: request.title,
         thumbnail: request.thumbnail,
         streamUrl: request.url,

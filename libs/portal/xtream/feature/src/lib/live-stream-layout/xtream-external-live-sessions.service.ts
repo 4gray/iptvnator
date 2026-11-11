@@ -41,7 +41,6 @@ export function isXtreamLiveCategoryWithheld(
 type Launch = {
     source: XtreamLiveSource;
     ended: WritableSignal<boolean>;
-    sessionId?: string;
     retired?: boolean;
 };
 type Active = {
@@ -60,7 +59,7 @@ export class XtreamExternalLiveSessions {
     });
     private readonly lock = inject(ParentalLockService);
     private readonly destroyRef = inject(DestroyRef);
-    private readonly pending = new Map<string, Launch[]>();
+    private readonly pending = new Map<string, Launch>();
     private readonly sessions = new Map<string, Active>();
     private readonly revision = signal(0);
 
@@ -118,16 +117,15 @@ export class XtreamExternalLiveSessions {
         return latest;
     }
 
-    begin(url: string, source: XtreamLiveSource) {
+    begin(source: XtreamLiveSource) {
+        const launchId = crypto.randomUUID();
         const launch: Launch = { source, ended: signal(false) };
-        const pending = this.pending.get(url) ?? [];
-        pending.push(launch);
-        this.pending.set(url, pending);
+        this.pending.set(launchId, launch);
         return {
+            launchId,
             ended: launch.ended.asReadonly(),
             finish: (result?: ExternalPlayerSession | void) => {
-                pending.splice(pending.indexOf(launch), 1);
-                if (!pending.length) this.pending.delete(url);
+                this.pending.delete(launchId);
                 if (!result || launch.retired) return;
                 const current = this.sessions.get(result.id);
                 const latest = current?.session;
@@ -155,29 +153,24 @@ export class XtreamExternalLiveSessions {
     ): void {
         const id = session.id;
         const current = this.sessions.get(id);
-        const associated = current?.launch ?? request;
+        const launch =
+            current?.launch ??
+            request ??
+            (session.launchId ? this.pending.get(session.launchId) : undefined);
         if (!isLiveExternalPlayerSession(session)) {
-            if (associated) {
-                associated.retired = true;
-                associated.ended.set(true);
+            if (launch) {
+                launch.retired = true;
+                launch.ended.set(true);
             }
             clearTimeout(current?.retry);
             if (this.sessions.delete(id))
                 this.revision.update((value) => value + 1);
             return;
         }
-        const launch =
-            associated ??
-            this.pending
-                .get(session.streamUrl)
-                ?.find((entry) => !entry.sessionId);
         const owner = source ?? current?.source ?? launch?.source;
         if (!owner) return;
-        if (launch) {
-            launch.sessionId = session.id;
-            if (session.status === 'error' || session.playbackIdle)
-                launch.ended.set(true);
-        }
+        if (session.status === 'error' || session.playbackIdle)
+            launch?.ended.set(true);
         const entry = current ?? { session, source: owner, launch };
         const changed =
             !current || current.session !== session || current.source !== owner;

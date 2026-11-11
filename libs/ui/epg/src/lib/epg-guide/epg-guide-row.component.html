@@ -7,8 +7,8 @@
         [attr.aria-label]="channel().name"
         [attr.aria-pressed]="active()"
         (focus)="focusRequested.emit(null)"
-        (click)="onChannelClick()"
-        (dblclick)="channelCommitted.emit()"
+        (click)="onChannelClick($event)"
+        (dblclick)="commitGesture()"
     >
         <span class="epg-guide-row__num">{{ channel().number }}</span>
         <span class="epg-guide-row__logo">
@@ -84,7 +84,7 @@
                     : ''
             "
             [attr.aria-label]="item.block.program.title"
-            (click)="onBlockClick(item, index)"
+            (click)="onBlockClick(item, index, $event)"
             (dblclick)="onBlockDoubleClick(item)"
         >
             @if (item.block.when === 'now') {

@@ -239,9 +239,7 @@ export class XtreamGuideExternalPlayback {
                   }
                 : undefined;
         this.panelPlayback = playback;
-        const lifecycle =
-            launch &&
-            this.sessions.begin(playback.streamUrl, launch.lockSource);
+        const lifecycle = launch && this.sessions.begin(launch.lockSource);
         if (launch) {
             launch.ended = lifecycle?.ended;
             this.requests.set(playback.streamUrl, launch);
@@ -253,13 +251,20 @@ export class XtreamGuideExternalPlayback {
             const confirmed = this.confirmed();
             if (confirmed) this.syncPanel(confirmed);
         };
-        void Promise.resolve(
-            this.store.openPlayer(
-                playback.streamUrl,
-                playback.title,
-                playback.thumbnail
-            )
-        ).then(
+        const args = [
+            playback.streamUrl,
+            playback.title,
+            playback.thumbnail,
+        ] as const;
+        const opening = lifecycle
+            ? this.store.openPlayer(
+                  ...args,
+                  undefined,
+                  undefined,
+                  lifecycle.launchId
+              )
+            : this.store.openPlayer(...args);
+        void Promise.resolve(opening).then(
             (session) => {
                 lifecycle?.finish(session);
                 if (

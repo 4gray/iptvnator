@@ -156,11 +156,11 @@ export class XtreamLiveChannelNavigationService {
         const active = this.activeItem();
         return (
             !!active &&
-            this.accessibleChannels().some(
-                (item) => Number(item.xtream_id) === Number(active.xtream_id)
+            this.accessibleChannels().some((item) =>
+                sameXtreamChannelCopy(item, active)
             ) &&
-            !this.displayedChannels().some(
-                (item) => Number(item.xtream_id) === Number(active.xtream_id)
+            !this.displayedChannels().some((item) =>
+                sameXtreamChannelCopy(item, active)
             )
         );
     });
@@ -171,8 +171,10 @@ export class XtreamLiveChannelNavigationService {
     } | null>(null);
     readonly revealRequest = computed(() => {
         const request = this.pendingReveal();
+        const active = this.activeItem();
         return request &&
-            request.channelId === this.activeItem()?.xtream_id &&
+            request.channelId === active?.xtream_id &&
+            request.categoryId === Number(active.category_id) &&
             request.categoryId === this.store.selectedCategoryId() &&
             !this.query().trim()
             ? request
@@ -270,8 +272,9 @@ export class XtreamLiveChannelNavigationService {
     async reveal(): Promise<void> {
         if (!this.canReveal()) return;
         const active = this.activeItem();
-        const target = this.accessibleChannels().find(
-            (item) => item.xtream_id === active?.xtream_id
+        if (!active) return;
+        const target = this.accessibleChannels().find((item) =>
+            sameXtreamChannelCopy(item, active)
         );
         if (!target) return;
         const categoryId = Number(target.category_id);
@@ -295,15 +298,17 @@ export class XtreamLiveChannelNavigationService {
             : Promise.resolve(true);
         try {
             const navigated = await navigation;
+            const current = this.activeItem();
             if (
                 navigated === false ||
                 this.destroyRef.destroyed ||
                 sequence !== this.requestSequence ||
                 owner !== this.owner() ||
                 this.navigationGeneration > generation + 1 ||
-                this.activeItem()?.xtream_id !== target.xtream_id ||
-                !this.accessibleChannels().some(
-                    (item) => item.xtream_id === target.xtream_id
+                !current ||
+                !sameXtreamChannelCopy(current, target) ||
+                !this.accessibleChannels().some((item) =>
+                    sameXtreamChannelCopy(item, target)
                 ) ||
                 (this.store.selectedCategoryId() !== previousCategory &&
                     this.store.selectedCategoryId() !== categoryId)

@@ -78,9 +78,25 @@ export function setupLiveStreamLayoutNativeFixture() {
     const onExternalPlayerSessionUpdate = jest.fn(
         (_update: (session: ExternalPlayerSession) => void) => jest.fn()
     );
+    const launchIds = new Map<string, string>();
     function publishExternalSession(session: ExternalPlayerSession | null) {
         externalSession.set(session);
-        if (session) onExternalPlayerSessionUpdate.mock.lastCall?.[0](session);
+        if (!session) return;
+        const used = new Set(launchIds.values());
+        const candidate =
+            launchIds.get(session.id) ??
+            xtreamStore.openPlayer.mock.calls.find(
+                ([url, , , , , id]) =>
+                    url === session.streamUrl &&
+                    typeof id === 'string' &&
+                    !used.has(id)
+            )?.[5];
+        const launchId = typeof candidate === 'string' ? candidate : undefined;
+        if (launchId) launchIds.set(session.id, launchId);
+        onExternalPlayerSessionUpdate.mock.lastCall?.[0]({
+            ...session,
+            launchId,
+        });
     }
     const onChannelChange = jest.fn(
         (_change: (event: { direction: 'up' | 'down' }) => void) => jest.fn()
@@ -125,6 +141,7 @@ export function setupLiveStreamLayoutNativeFixture() {
         updateRemoteControlStatus.mockClear();
         onChannelChange.mockClear();
         onExternalPlayerSessionUpdate.mockClear();
+        launchIds.clear();
         closeSession.mockClear();
         parentalLock.active.set(false);
         parentalLock.version.set(0);

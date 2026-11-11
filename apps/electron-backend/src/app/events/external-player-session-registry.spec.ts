@@ -18,6 +18,7 @@ describe('ExternalPlayerSessionRegistry', () => {
     it('creates launching sessions and marks them opened', () => {
         const session = registry.beginSession({
             player: 'mpv',
+            launchId: 'synthetic-launch',
             title: 'Example',
             streamUrl: 'https://example.com/video.m3u8',
         });
@@ -28,6 +29,10 @@ describe('ExternalPlayerSessionRegistry', () => {
         const opened = registry.markOpened(session.id);
         expect(opened?.status).toBe('opened');
         expect(updates.at(-1)?.status).toBe('opened');
+        expect(updates.map((update) => update.launchId)).toEqual([
+            'synthetic-launch',
+            'synthetic-launch',
+        ]);
     });
 
     it('numbers sessions in the order they began', () => {

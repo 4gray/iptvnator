@@ -48,6 +48,7 @@ import {
 } from '@iptvnator/portal/shared/util/logger';
 
 interface PlayerLaunchPayload {
+    readonly launchId?: string;
     readonly headers?: Record<string, string>;
     readonly origin?: string;
     readonly referer?: string;
@@ -230,10 +231,11 @@ export class ElectronService extends DataService {
             return undefined as T;
         }
 
-        if (type === 'OPEN_MPV_PLAYER') {
+        if (type === 'OPEN_MPV_PLAYER' || type === 'OPEN_VLC_PLAYER') {
             const data = payload as PlayerLaunchPayload;
+            const mpv = type === 'OPEN_MPV_PLAYER';
             try {
-                return (await window.electron.openInMpv(
+                return (await window.electron[mpv ? 'openInMpv' : 'openInVlc'](
                     data.url,
                     data.title ?? '',
                     data.thumbnail ?? '',
@@ -242,32 +244,15 @@ export class ElectronService extends DataService {
                     data.origin ?? undefined,
                     data.contentInfo,
                     data.startTime,
-                    data.headers ?? undefined
+                    data.headers ?? undefined,
+                    data.launchId
                 )) as T;
             } catch (error: unknown) {
-                this.showPlayerLaunchError('MPV', error);
-                this.logger.error('MPV launch error:', error);
-                throw error;
-            }
-        }
-
-        if (type === 'OPEN_VLC_PLAYER') {
-            const data = payload as PlayerLaunchPayload;
-            try {
-                return (await window.electron.openInVlc(
-                    data.url,
-                    data.title ?? '',
-                    data.thumbnail ?? '',
-                    data['user-agent'],
-                    data.referer ?? undefined,
-                    data.origin ?? undefined,
-                    data.contentInfo,
-                    data.startTime,
-                    data.headers ?? undefined
-                )) as T;
-            } catch (error: unknown) {
-                this.showPlayerLaunchError('VLC', error);
-                this.logger.error('VLC launch error:', error);
+                this.showPlayerLaunchError(mpv ? 'MPV' : 'VLC', error);
+                this.logger.error(
+                    mpv ? 'MPV launch error:' : 'VLC launch error:',
+                    error
+                );
                 throw error;
             }
         }

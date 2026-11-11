@@ -165,7 +165,8 @@ export function withPlayer() {
                     title: string,
                     thumbnail: string | null = null,
                     startTime?: number,
-                    contentInfo?: unknown
+                    contentInfo?: unknown,
+                    launchId?: string
                 ) {
                     const playlist = getPlaylistFromStore();
                     const storeAny = store as ParentPlayerStoreLike;
@@ -183,7 +184,9 @@ export function withPlayer() {
                         playlist?.referrer,
                         playlist?.origin,
                         contentInfo,
-                        startTime
+                        startTime,
+                        undefined,
+                        launchId
                     );
                 },
 
