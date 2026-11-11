@@ -3,7 +3,7 @@ import { XtreamGuideScheduleCache } from './xtream-guide-schedule-cache';
 
 describe('XtreamGuideScheduleCache', () => {
     it('reuses an empty schedule briefly and requests it again after expiry', async () => {
-        const cache = new XtreamGuideScheduleCache();
+        const cache = new XtreamGuideScheduleCache(jest.fn());
         const clock = jest.spyOn(Date, 'now').mockReturnValue(0);
         const fetch = jest.fn(async () => []);
         try {
@@ -19,7 +19,7 @@ describe('XtreamGuideScheduleCache', () => {
         }
     });
     it('coalesces duplicate requests and limits provider work to two slots', async () => {
-        const cache = new XtreamGuideScheduleCache();
+        const cache = new XtreamGuideScheduleCache(jest.fn());
         const finish: Array<(programs: EpgProgram[]) => void> = [];
         let onThirdStart!: () => void;
         const thirdStarted = new Promise<void>(
@@ -49,35 +49,35 @@ describe('XtreamGuideScheduleCache', () => {
         await Promise.all([second, third]);
     });
 
-    it('abandons queued work on cancellation and never reuses an old source response', async () => {
-        const cache = new XtreamGuideScheduleCache();
-        let finish!: (programs: EpgProgram[]) => void;
-        const pending = () =>
-            new Promise<EpgProgram[]>((resolve) => (finish = resolve));
-        const signal = new AbortController();
-        const first = cache.load('1', () => undefined, pending);
-        const second = cache.load(
-            '2',
-            () => undefined,
-            async () => []
-        );
-        const fetchThird = jest.fn(async () => []);
-        const third = cache.load(
-            '3',
-            () => signal.signal.throwIfAborted(),
-            fetchThird
-        );
-        const rejected = expect(third).rejects.toMatchObject({
-            name: 'AbortError',
-        });
-        signal.abort();
+    it('aborts stalled transport and queued work without delaying a new session', async () => {
+        const cancelTransport = jest.fn();
+        const cache = new XtreamGuideScheduleCache(cancelTransport);
+        const pending = jest.fn<
+            Promise<EpgProgram[]>,
+            [{ signal: AbortSignal; sessionId?: string }]
+        >(() => new Promise<EpgProgram[]>(() => undefined));
+        const current = () => undefined;
+        const first = cache.load('1', current, pending);
+        const second = cache.load('2', current, pending);
+        const queued = cache.load('3', current, pending);
+        const oldResults = Promise.allSettled([first, second, queued]);
+        expect(pending).toHaveBeenCalledTimes(2);
+        const oldRequest = pending.mock.calls[0][0];
+
         cache.clear();
-        finish([]);
-        await Promise.all([first, second]);
-        await rejected;
-        expect(fetchThird).not.toHaveBeenCalled();
-        const fresh = jest.fn(async () => []);
-        await cache.load('1', () => undefined, fresh);
-        expect(fresh).toHaveBeenCalledTimes(1);
+        expect(oldRequest.signal.aborted).toBe(true);
+        expect(cancelTransport).toHaveBeenCalledWith(oldRequest.sessionId);
+        await expect(cache.load('1', current, async () => [])).resolves.toEqual(
+            []
+        );
+        expect(await oldResults).toEqual(
+            Array.from({ length: 3 }, () =>
+                expect.objectContaining({
+                    status: 'rejected',
+                    reason: expect.objectContaining({ name: 'AbortError' }),
+                })
+            )
+        );
+        expect(pending).toHaveBeenCalledTimes(2);
     });
 });

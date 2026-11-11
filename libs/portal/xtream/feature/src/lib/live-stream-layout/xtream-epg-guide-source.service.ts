@@ -11,6 +11,7 @@ import { firstValueFrom } from 'rxjs';
 import { sortPortalChannelItems } from '@iptvnator/portal/shared/util';
 import {
     FavoritesService,
+    XtreamApiService,
     XtreamFullEpgService,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
@@ -92,7 +93,10 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     private readonly navigation = inject(XtreamLiveChannelNavigationService);
     private readonly translate = inject(TranslateService);
     private readonly languageTick = injectTranslationTick();
-    private readonly cache = new XtreamGuideScheduleCache();
+    private api?: XtreamApiService;
+    private readonly cache = new XtreamGuideScheduleCache(
+        (sessionId) => void this.api?.cancelSession(sessionId)
+    );
     private cacheRevision: unknown;
     private session = new AbortController();
     private readonly favorites = signal<ReadonlyMap<number, number>>(new Map());
@@ -313,12 +317,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
                 }
             })
         );
-        return new Map(
-            results.filter(
-                (result): result is NonNullable<typeof result> =>
-                    result !== null
-            )
-        );
+        return new Map(results.filter((result) => result !== null));
     }
 
     programsExpireAt(id: string): number {
@@ -392,6 +391,8 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     private scheduleReader(signal?: AbortSignal) {
         const revision = this.revision();
         const session = this.session.signal;
+        const fullEpg = this.injector.get(XtreamFullEpgService);
+        this.api ??= this.injector.get(XtreamApiService);
         if (this.cacheRevision !== revision) {
             this.cacheRevision = revision;
             this.cache.clear();
@@ -408,15 +409,14 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
             const programs = await this.cache.load(
                 scheduleKey(item),
                 checkCurrent,
-                async () =>
+                async (options) =>
                     (
-                        await this.injector
-                            .get(XtreamFullEpgService)
-                            .load(
-                                playlist,
-                                item.xtream_id,
-                                item.epg_channel_id ?? null
-                            )
+                        await fullEpg.load(
+                            playlist,
+                            item.xtream_id,
+                            item.epg_channel_id ?? null,
+                            options
+                        )
                     ).map(toSharedEpgProgram)
             );
             checkCurrent();

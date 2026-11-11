@@ -46,10 +46,15 @@ describe('XtreamFullEpgService', () => {
                 password: 'sample',
                 userAgent: 'Synthetic Client',
             };
+            const options = {
+                sessionId: 'synthetic-guide-session',
+                signal: new AbortController().signal,
+            };
             await TestBed.inject(XtreamFullEpgService).load(
                 credentials,
                 101,
-                'synthetic.original'
+                'synthetic.original',
+                options
             );
             expect(getEpgMapping).toHaveBeenCalledWith(
                 'xtream:synthetic-portal:101'
@@ -60,7 +65,7 @@ describe('XtreamFullEpgService', () => {
             expect(getFullEpg).toHaveBeenCalledWith(
                 expect.objectContaining({ userAgent: credentials.userAgent }),
                 101,
-                { suppressErrorLog: true }
+                { ...options, suppressErrorLog: true }
             );
         } finally {
             Object.defineProperty(window, 'electron', {

@@ -4,7 +4,11 @@ import {
     buildXtreamEpgMappingKey,
     EpgItem,
 } from '@iptvnator/shared/interfaces';
-import { XtreamApiService, XtreamCredentials } from './xtream-api.service';
+import {
+    XtreamApiService,
+    XtreamCredentials,
+    XtreamRequestOptions,
+} from './xtream-api.service';
 import { XtreamXmltvFallbackService } from './xtream-xmltv-fallback.service';
 
 @Injectable({ providedIn: 'root' })
@@ -17,7 +21,8 @@ export class XtreamFullEpgService {
     async load(
         { id, ...credentials }: XtreamCredentials & { id?: string },
         streamId: number,
-        epgChannelId: string | null
+        epgChannelId: string | null,
+        options?: Pick<XtreamRequestOptions, 'signal' | 'sessionId'>
     ): Promise<EpgItem[]> {
         const preferUploaded =
             this.settings.preferUploadedEpgOverXtream?.() ?? false;
@@ -37,6 +42,7 @@ export class XtreamFullEpgService {
             preferUploaded,
             fetchProvider: () =>
                 this.api.getFullEpg(credentials, streamId, {
+                    ...options,
                     suppressErrorLog: true,
                 }),
         });

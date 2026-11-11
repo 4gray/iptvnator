@@ -44,13 +44,14 @@ export class XtreamLiveGuideService {
     private readonly enabled = computed(
         () => this.runtime.supportsProviderEpg && this.preferences.enabled()
     );
+    private readonly playlistId = computed(() => this.source.playlist()?.id);
     readonly available = computed(
-        () => this.enabled() && !!this.playing()?.() && !!this.source.playlist()
+        () => this.enabled() && !!this.playing()?.() && !!this.playlistId()
     );
 
     constructor() {
         effect((onCleanup) => {
-            const playlistId = this.source.playlist()?.id;
+            const playlistId = this.playlistId();
             if (!playlistId || !this.enabled()) return;
             const action = {
                 id: ACTION,

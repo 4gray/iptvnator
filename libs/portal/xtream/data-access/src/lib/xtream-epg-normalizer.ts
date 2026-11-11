@@ -143,9 +143,13 @@ export class XtreamEpgNormalizer {
     ): EpgItem[] {
         if (Array.isArray(response)) {
             if (!response.length) return [];
-        } else {
-            const listing = response?.epg_listings;
-            if (listing === null && !('error' in response)) return [];
+        } else if (
+            response &&
+            typeof response === 'object' &&
+            !('error' in response)
+        ) {
+            const listing = response.epg_listings;
+            if (listing === null) return [];
             if (listing && typeof listing === 'object') {
                 const rows = Object.values(listing);
                 const items = this.normalizeListings(

@@ -798,8 +798,10 @@ lookup determines whether they have programmes. Programme search
 reads the available live catalogue on demand, including channels outside the
 viewport, and publishes matches and progress as it scans. A failed schedule
 does not discard matches from other channels. Large scopes can take longer to
-search or filter. Closing the guide or replacing a request discards queued work
-and stale replies. Guide and player use the same full EPG resolver, including
+search or filter. Closing the guide cancels its in-flight provider requests.
+Replacing a search or viewport request discards queued work and stale replies.
+Rechecking the same playlist keeps the guide open and preserves its scope and
+search query. Guide and player use the same full EPG resolver, including
 manual XMLTV mappings and the user's source priority.
 
 The global `Settings.epgEnabled` opt-out gates short/full provider requests and

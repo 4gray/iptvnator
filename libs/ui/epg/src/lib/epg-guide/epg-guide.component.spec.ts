@@ -67,6 +67,7 @@ describe('EpgGuideComponent', () => {
     const livePlayback = signal(true);
     const offsetMinutes = signal(0);
     const searchHits = signal<EpgGuideSearchHit[]>([]);
+    const revision = signal(0);
     const activate = jest.fn();
     const setScope = jest.fn();
     const dialogOpen = jest.fn(
@@ -79,6 +80,7 @@ describe('EpgGuideComponent', () => {
         localStorage.clear();
         offsetMinutes.set(0);
         searchHits.set([]);
+        revision.set(0);
         activate.mockReset();
         setScope.mockReset();
         dialogOpen.mockClear();
@@ -91,6 +93,7 @@ describe('EpgGuideComponent', () => {
         livePlayback.set(true);
         const source: EpgGuideSource = {
             channels,
+            revision,
             scopes: signal([{ id: 'all', label: 'All channels', kind: 'all' }]),
             scopeId: signal('all'),
             setScope,
@@ -247,6 +250,15 @@ describe('EpgGuideComponent', () => {
         expect(component.searchQuery()).toBe('');
         expect(component.searchResults()).toEqual([]);
         expect(setScope).toHaveBeenCalledWith('all');
+    });
+
+    it('keeps the query and restarts search when the guide source is refreshed', async () => {
+        await settle(fixture);
+        component.onSearchQueryChange('synthetic');
+        revision.update((value) => value + 1);
+        fixture.detectChanges();
+        expect(component.searchQuery()).toBe('synthetic');
+        expect(component.searchStatus()).toBe('loading');
     });
 
     it('closes on Escape and steps days with PageUp/PageDown', async () => {

@@ -271,6 +271,7 @@ describe('XtreamApiService', () => {
     it.each([
         { error: 'synthetic unavailable' },
         { epg_listings: null, error: 'synthetic unavailable' },
+        { epg_listings: [], error: 'synthetic unavailable' },
         { epg_listings: 'synthetic invalid listing' },
         { epg_listings: [{ id: 'synthetic incomplete listing' }] },
         { epg_listings: [{ start: 'invalid', stop: 'invalid' }] },

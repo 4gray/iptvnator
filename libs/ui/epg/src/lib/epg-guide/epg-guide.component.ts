@@ -240,7 +240,7 @@ export class EpgGuideComponent implements OnDestroy {
         if (this.source.revision) {
             effect(() => {
                 this.source.revision?.();
-                untracked(() => this.search.setQuery(''));
+                untracked(() => this.search.setQuery(this.search.query()));
             });
         }
         effect(() => {

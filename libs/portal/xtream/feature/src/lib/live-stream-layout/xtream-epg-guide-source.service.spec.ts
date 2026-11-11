@@ -4,6 +4,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import {
     FavoritesService,
+    XtreamApiService,
     FavoriteItem,
     XtreamFullEpgService,
     XtreamPlaylistData,
@@ -169,6 +170,10 @@ describe('XtreamEpgGuideSourceService', () => {
                     },
                 },
                 { provide: XtreamFullEpgService, useValue: { load } },
+                {
+                    provide: XtreamApiService,
+                    useValue: { cancelSession: jest.fn() },
+                },
                 {
                     provide: FavoritesService,
                     useValue: {
@@ -341,7 +346,8 @@ describe('XtreamEpgGuideSourceService', () => {
         expect(load).toHaveBeenCalledWith(
             playlist,
             one.xtream_id,
-            'sample.copy'
+            'sample.copy',
+            expect.objectContaining({ signal: expect.any(AbortSignal) })
         );
     });
 
@@ -416,7 +422,12 @@ describe('XtreamEpgGuideSourceService', () => {
             toMs: 200000,
         });
         expect(result.get('101')).toHaveLength(1);
-        expect(load).toHaveBeenCalledWith(playlist, 101, 'sample.a');
+        expect(load).toHaveBeenCalledWith(
+            playlist,
+            101,
+            'sample.a',
+            expect.objectContaining({ signal: expect.any(AbortSignal) })
+        );
         const report = jest.fn();
         const coverage = await service.loadCoverage(
             { channels: service.channels(), fromMs: 100000, toMs: 200000 },

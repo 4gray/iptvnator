@@ -42,6 +42,11 @@ it('hides the header and palette contribution and closes the guide when EPG is d
     playing.set(true);
     header.action()?.run();
     expect(guide.isOpen()).toBe(true);
+    const originalAction = header.action();
+    source.playlist.set({ id: 'synthetic-portal' });
+    TestBed.flushEffects();
+    expect(header.action()).toBe(originalAction);
+    expect(guide.isOpen()).toBe(true);
     enabled.set(false);
     TestBed.flushEffects();
     expect(header.action()).toBeNull();

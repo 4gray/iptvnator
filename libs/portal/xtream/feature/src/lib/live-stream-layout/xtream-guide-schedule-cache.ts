@@ -13,10 +13,22 @@ export class XtreamGuideScheduleCache {
     >();
     private readonly pending = new Map<string, Promise<EpgProgram[]>>();
     private readonly slots = new Set<Promise<void>>();
+    private controller = new AbortController();
+    private sessionId?: string;
+
+    constructor(
+        private readonly cancelTransport: (sessionId: string) => void
+    ) {}
 
     clear(): void {
+        const sessionId = this.pending.size ? this.sessionId : undefined;
+        this.controller.abort();
+        this.controller = new AbortController();
+        this.sessionId = undefined;
         this.cached.clear();
         this.pending.clear();
+        this.slots.clear();
+        if (sessionId) this.cancelTransport(sessionId);
     }
 
     expiresAt(id: string): number {
@@ -26,9 +38,14 @@ export class XtreamGuideScheduleCache {
     async load(
         id: string,
         checkCurrent: () => void,
-        fetch: () => Promise<EpgProgram[]>
+        fetch: (options: {
+            signal: AbortSignal;
+            sessionId?: string;
+        }) => Promise<EpgProgram[]>
     ): Promise<EpgProgram[]> {
+        const signal = this.controller.signal;
         for (;;) {
+            signal.throwIfAborted();
             checkCurrent();
             const cached = this.cached.get(id);
             if (cached) {
@@ -44,7 +61,14 @@ export class XtreamGuideScheduleCache {
             await Promise.race([...this.slots]);
         }
 
-        const work = fetch();
+        this.sessionId ??= globalThis.crypto.randomUUID?.();
+        const request = fetch({ signal, sessionId: this.sessionId });
+        let cancel!: () => void;
+        const cancelled = new Promise<never>((_, reject) => {
+            cancel = () => reject(signal.reason);
+            signal.addEventListener('abort', cancel, { once: true });
+        });
+        const work = Promise.race([request, cancelled]);
         this.pending.set(id, work);
         const slot = work.then(this.pause, this.pause).finally(() => {
             this.slots.delete(slot);
@@ -65,6 +89,7 @@ export class XtreamGuideScheduleCache {
             }
             return programs;
         } finally {
+            signal.removeEventListener('abort', cancel);
             if (this.pending.get(id) === work) this.pending.delete(id);
         }
     }
