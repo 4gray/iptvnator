@@ -24,6 +24,7 @@ interface UpdateExternalPlayerSessionOptions {
     playbackUnverified?: boolean;
     mediaLoaded?: boolean;
     mediaObservationUnavailable?: boolean;
+    mediaReadinessTimedOut?: boolean;
 }
 
 interface ExternalPlayerSessionRuntime {

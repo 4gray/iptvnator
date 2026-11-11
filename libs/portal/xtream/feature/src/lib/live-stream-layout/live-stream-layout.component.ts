@@ -498,7 +498,8 @@ export class LiveStreamLayoutComponent
     private readonly externalGuide = inject(XtreamGuideExternalPlayback);
     private readonly socketlessRemoteSource = computed(() => {
         const playback = this.externalGuide.unverifiedPlayback();
-        return playback?.session.mediaObservationUnavailable
+        return playback?.session.player === 'mpv' &&
+            playback.session.mediaObservationUnavailable
             ? playback.source
             : undefined;
     });

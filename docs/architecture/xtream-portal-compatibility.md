@@ -793,9 +793,13 @@ player restores the previous session or rejects a switch while the old session
 is still playing, the guide keeps its scope and search. Enter and double-click
 close the guide only after the requested stream opens. A fresh or reused MPV
 process with IPC confirms its requested playlist entry, including siblings left
-by nested redirects, and allows retry after a readiness timeout. VLC RC checks
+by nested redirects, and allows retry after a readiness timeout. If the socket
+never accepts a command, MPV retries with the original URL argument after its
+idle process exits. Stop prevents that fallback and any pending IPC write.
+VLC RC checks
 the requested input and observes its playback clock. A readable zero stays
-pending; a different active URL remains unverified.
+pending; a different active URL remains unverified. Temporary RC failures keep
+the committed selection pending until a readiness timeout or terminal outcome.
 If the player cannot verify readiness, the guide stays available for a retry and a
 committed selection keeps it open. Committing the still-playing channel cancels
 every outstanding switch away from it, including timed-out launches that can

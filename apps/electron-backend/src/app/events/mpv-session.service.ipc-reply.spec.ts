@@ -211,6 +211,73 @@ describe('reused MPV IPC replies', () => {
         proc.emit('exit', 0);
     });
 
+    it.each([
+        'fallback',
+        'Stop before connect',
+        'Stop during fallback',
+    ] as const)(
+        'starts no unrequested media when fresh IPC is unavailable (%s)',
+        async (outcome) => {
+            jest.useFakeTimers({ doNotFake: ['setImmediate'] });
+            const idle = createMockChildProcess();
+            const positional = createMockChildProcess();
+            spawnMock.mockReturnValueOnce(idle);
+            if (outcome === 'fallback')
+                spawnMock.mockReturnValueOnce(positional);
+            (store.get as jest.Mock).mockImplementation((key, fallback) =>
+                key === MPV_PLAYER_PATH
+                    ? '/usr/bin/mpv'
+                    : key === MPV_REUSE_INSTANCE
+                      ? false
+                      : fallback
+            );
+            const socket = createMpvSocketMock({ connect: false });
+            createConnectionMock.mockReturnValueOnce(socket);
+            const url = 'https://example.test/synthetic.ts';
+            const opening = openMpvPlayer({
+                title: 'Synthetic Channel',
+                url,
+                launchId: 'synthetic-guide-fallback',
+            });
+            await jest.advanceTimersByTimeAsync(100);
+            const id = externalPlayerSessions.getActiveSessionId()!;
+            if (outcome !== 'Stop before connect')
+                await jest.advanceTimersByTimeAsync(MPV_IPC_COMMAND_TIMEOUT_MS);
+            const stop =
+                outcome === 'fallback'
+                    ? undefined
+                    : externalPlayerSessions.closeSession(id, true);
+            if (outcome === 'Stop before connect') socket.emit('connect');
+            expect(socket.write).not.toHaveBeenCalled();
+            expect(idle.kill).toHaveBeenCalled();
+            expect(spawnMock).toHaveBeenCalledTimes(1);
+
+            Object.defineProperty(idle, 'exitCode', { value: 0 });
+            idle.emit('exit', 0);
+            await nextTick();
+            await jest.advanceTimersByTimeAsync(100);
+            const session = await opening;
+            await stop;
+            if (outcome === 'fallback') {
+                expect(spawnMock).toHaveBeenCalledTimes(2);
+                expect(spawnMock.mock.lastCall?.[1]).toContain(url);
+                expect(session).toMatchObject({
+                    id,
+                    status: 'opened',
+                    mediaLoaded: false,
+                    mediaObservationUnavailable: true,
+                });
+                Object.defineProperty(positional, 'exitCode', { value: 0 });
+                positional.emit('exit', 0);
+            } else {
+                expect(spawnMock).toHaveBeenCalledTimes(1);
+                expect(externalPlayerSessions.getSession(id)?.status).toBe(
+                    'closed'
+                );
+            }
+        }
+    );
+
     it('falls back to a fresh launch when mpv rejects the content command', async () => {
         const reusedProc = await launchReusableInstance();
         const freshProc = createMockChildProcess();

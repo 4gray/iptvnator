@@ -111,6 +111,8 @@ export interface ExternalPlayerSession {
     mediaLoaded?: boolean;
     /** This runtime has no media observation bridge for the player. */
     mediaObservationUnavailable?: boolean;
+    /** The readiness window expired without confirming this launch. */
+    mediaReadinessTimedOut?: boolean;
     /** Exact failed replacement displaced by this restored live session. */
     restoredFromSessionId?: string;
 }

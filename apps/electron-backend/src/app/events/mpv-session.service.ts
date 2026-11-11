@@ -1,4 +1,4 @@
-import { spawn } from 'child_process';
+import { spawn, type ChildProcess } from 'child_process';
 import {
     ExternalPlayerSession,
     PlayerContentInfo,
@@ -12,6 +12,7 @@ import {
 } from '../services/store.service';
 import {
     buildExternalPlayerSpawnSpec,
+    buildFreshMpvArgs,
     buildPlayerArgsWithCustomArguments,
     getDefaultMpvPath,
     isRunningInFlatpak,
@@ -125,7 +126,13 @@ export function openMpvPlayer(
 }
 
 async function launchMpvPlayer(
-    {
+    request: OpenExternalPlayerRequest,
+    session: ExternalPlayerSession,
+    displacedSessionId: string | null,
+    queue: QueuedMpvLaunch,
+    forcePositional = false
+): Promise<ExternalPlayerSession> {
+    const {
         url,
         title,
         userAgent,
@@ -134,11 +141,7 @@ async function launchMpvPlayer(
         contentInfo,
         startTime,
         headers,
-    }: OpenExternalPlayerRequest,
-    session: ExternalPlayerSession,
-    displacedSessionId: string | null,
-    queue: QueuedMpvLaunch
-): Promise<ExternalPlayerSession> {
+    } = request;
     const current = externalPlayerSessions.getSession(session.id);
     // Stopped while it waited in the queue, directly or by a later Stop.
     if (current?.status === 'closed') return current;
@@ -204,7 +207,7 @@ async function launchMpvPlayer(
                 parseExternalPlayerArguments(customMpvArguments).length,
         });
 
-        if (reuseInstance) {
+        if (reuseInstance && !forcePositional) {
             const reused = await reusableMpvProcess.tryReuse({
                 session,
                 previousProcessSessionId,
@@ -222,73 +225,46 @@ async function launchMpvPlayer(
             if (reused) return reused;
         }
 
-        traceExternalPlayer('create new mpv instance');
-
-        let socketPath: string | null = null;
-        const args: string[] = [];
-
-        if (useMpvSocketBridge) {
-            socketPath =
-                process.platform === 'win32'
-                    ? `\\\\.\\pipe\\mpv-${Date.now()}`
-                    : `/tmp/mpvsocket-${Date.now()}`;
-            args.push(`--input-ipc-server=${socketPath}`, '--idle=yes');
-        }
-
-        args.push('--ytdl=no');
-
-        if (effectiveUserAgent) {
-            args.push(`--user-agent=${effectiveUserAgent}`);
-        }
-
-        if (effectiveReferer) {
-            args.push(`--referrer=${effectiveReferer}`);
-        }
-
-        if (headerFields.length > 0) {
-            args.push(
-                `--http-header-fields=${joinMpvHeaderFields(headerFields)}`
-            );
-        }
-
-        if (title) {
-            args.push(`--force-media-title=${title}`);
-        }
-
-        if (startTime) {
-            args.push(`--start=${startTime}`);
-        }
+        const socketPath = !useMpvSocketBridge
+            ? null
+            : process.platform === 'win32'
+              ? `\\\\.\\pipe\\mpv-${Date.now()}`
+              : `/tmp/mpvsocket-${Date.now()}`;
+        const args = buildFreshMpvArgs(socketPath, {
+            userAgent: effectiveUserAgent,
+            referer: effectiveReferer,
+            headerArgument: joinMpvHeaderFields(headerFields),
+            title,
+            startTime,
+        });
 
         const guideLaunch = !!session.launchId && !contentInfo;
         const media =
             guideLaunch &&
             socketPath &&
+            !forcePositional &&
             !/(?:^|[\\/])iina(?:-cli)?$/i.test(mpvLaunchContext.playerPath)
                 ? new AbortController()
                 : undefined;
         if (!media) args.push(url);
 
-        await new Promise<void>((resolve, reject) => {
+        let fallingBack = false;
+        let stopRequested = false;
+        const proc = await new Promise<ChildProcess>((resolve, reject) => {
             let settled = false;
             let startConfirmationTimer: NodeJS.Timeout | null = null;
             const resolveLaunch = () => {
-                if (settled) {
-                    return;
-                }
+                if (settled) return;
                 settled = true;
-                if (startConfirmationTimer) {
+                if (startConfirmationTimer)
                     clearTimeout(startConfirmationTimer);
-                }
-                resolve();
+                resolve(proc);
             };
             const rejectLaunch = (error: Error) => {
-                if (settled) {
-                    return;
-                }
+                if (settled) return;
                 settled = true;
-                if (startConfirmationTimer) {
+                if (startConfirmationTimer)
                     clearTimeout(startConfirmationTimer);
-                }
                 reject(error);
             };
             const spawnSpec = buildExternalPlayerSpawnSpec(
@@ -316,6 +292,7 @@ async function launchMpvPlayer(
                 );
                 reusableMpvProcess.clear(proc);
                 stopPositionPolling(processSessionId);
+                if (fallingBack) return resolveLaunch();
                 externalPlayerSessions.markError(
                     processSessionId,
                     `Failed to start MPV player: ${err.message}`,
@@ -335,6 +312,7 @@ async function launchMpvPlayer(
                 );
                 reusableMpvProcess.clear(proc);
                 stopPositionPolling(processSessionId);
+                if (fallingBack) return resolveLaunch();
 
                 if (code !== 0 && code !== null) {
                     console.error(
@@ -363,11 +341,11 @@ async function launchMpvPlayer(
                 traceExternalPlayer('stored mpv process for reuse', {
                     socketPath,
                 });
-            } else {
-                proc.unref();
-            }
+            } else proc.unref();
 
             externalPlayerSessions.attachCloser(session.id, async () => {
+                stopRequested = true;
+                media?.abort();
                 if (
                     reuseInstance &&
                     !reusableMpvProcess.owns(proc, session.id)
@@ -397,14 +375,12 @@ async function launchMpvPlayer(
             }
 
             startConfirmationTimer = setTimeout(() => {
-                if (!proc.killed) {
-                    resolveLaunch();
-                }
+                if (!proc.killed) resolveLaunch();
             }, 100);
             startConfirmationTimer.unref();
         });
 
-        return await completeFreshMpvLaunch(
+        const opened = await completeFreshMpvLaunch(
             session,
             socketPath,
             () =>
@@ -412,6 +388,24 @@ async function launchMpvPlayer(
                 reusableMpvProcess.currentSessionId() === session.id,
             guideLaunch,
             media?.signal
+        );
+        if (opened) return opened;
+        fallingBack = true;
+        try {
+            await externalPlayerProcessTeardownGate.terminate(proc);
+        } catch (error) {
+            fallingBack = false;
+            freshTeardownUnconfirmed = true;
+            throw error;
+        }
+        if (stopRequested)
+            return externalPlayerSessions.markClosed(session.id) ?? session;
+        return launchMpvPlayer(
+            request,
+            session,
+            displacedSessionId,
+            queue,
+            true
         );
     } catch (error) {
         console.error('Error opening MPV player:', error);

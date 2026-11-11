@@ -86,13 +86,15 @@ export function markMpvOpened(
     hasOwner = () => true,
     confirmFreshMedia = false
 ) {
+    const current = externalPlayerSessions.getSession(sessionId);
     if (
         confirmFreshMedia &&
-        externalPlayerSessions.getSession(sessionId)?.status === 'launching'
+        current?.status === 'launching' &&
+        current.mediaLoaded !== true
     )
         externalPlayerSessions.updateSession(sessionId, {
             mediaLoaded: false,
-            playbackUnverified: socketPath ? undefined : true,
+            playbackUnverified: socketPath ? current.playbackUnverified : true,
             mediaObservationUnavailable: socketPath ? undefined : true,
         });
     return markExternalPlayerOpened(
@@ -122,21 +124,32 @@ export async function completeFreshMpvLaunch(
     hasOwner: () => boolean,
     guideLaunch: boolean,
     signal?: AbortSignal
-): Promise<ExternalPlayerSession> {
+): Promise<ExternalPlayerSession | null> {
+    if (socketPath && signal && !signal.aborted) {
+        const current = externalPlayerSessions.getSession(session.id);
+        if (current?.status === 'launching')
+            externalPlayerSessions.updateSession(session.id, {
+                mediaLoaded: false,
+            });
+        if (
+            !(await loadFreshMpvGuideMedia(
+                session.id,
+                socketPath,
+                session.streamUrl,
+                hasOwner,
+                signal
+            ))
+        )
+            return null;
+    }
+    if (signal?.aborted)
+        return externalPlayerSessions.getSession(session.id) ?? session;
     markMpvOpened(
         session.id,
         guideLaunch && !signal ? null : socketPath,
         hasOwner,
         guideLaunch
     );
-    if (socketPath && signal)
-        await loadFreshMpvGuideMedia(
-            session.id,
-            socketPath,
-            session.streamUrl,
-            hasOwner,
-            signal
-        );
     return externalPlayerSessions.getSession(session.id) ?? session;
 }
 
@@ -147,14 +160,16 @@ export async function loadFreshMpvGuideMedia(
     url: string,
     hasOwner: () => boolean,
     signal: AbortSignal
-): Promise<void> {
+): Promise<boolean> {
     const deadline = Date.now() + MPV_IPC_COMMAND_TIMEOUT_MS;
     const shouldDispatch = () => {
         const status = externalPlayerSessions.getSession(sessionId)?.status;
         return (
             !signal.aborted &&
             hasOwner() &&
-            (status === 'opened' || status === 'playing')
+            (status === 'launching' ||
+                status === 'opened' ||
+                status === 'playing')
         );
     };
     while (shouldDispatch()) {
@@ -169,22 +184,24 @@ export async function loadFreshMpvGuideMedia(
                     },
                 },
             });
-            return;
+            return true;
         } catch (error) {
             if (
                 error instanceof MpvIpcCommandError &&
                 !error.dispatched &&
-                Date.now() < deadline
+                shouldDispatch()
             ) {
+                if (Date.now() >= deadline) return false;
                 await new Promise<void>((resolve) =>
                     setTimeout(resolve, 50).unref()
                 );
                 continue;
             }
             if (shouldDispatch()) publishMpvMediaOutcome(sessionId, undefined);
-            return;
+            return true;
         }
     }
+    return true;
 }
 
 function parseReplyLine(line: string): MpvIpcMessage | null {

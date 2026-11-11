@@ -38,8 +38,8 @@ const MAX_PENDING_HISTORY_WRITES = 20;
  * the player, or handed to MPV/VLC. Writers therefore `defer` the write under
  * what the playback will be known by, and whoever observes the playback
  * `confirm`s it: the inline players once the stream has advanced for a
- * couple of seconds, and the external-player session as soon as MPV/VLC is
- * launched. A stream that fails before that point never reaches history or
+ * couple of seconds, and the external-player session when it confirms media
+ * or opens without readiness support. A stream that fails before that point never reaches history or
  * the dashboard hero.
  *
  * A write deferred with a session key is only confirmed by the same key: the
@@ -57,8 +57,7 @@ export class PlaybackHistoryGate {
     private pending: PendingHistoryWrite[] = [];
 
     constructor() {
-        // MPV/VLC cannot report whether a live stream plays, so a launch
-        // that opened is the confirmation. Subscribed here rather than in
+        // Subscribed here rather than in
         // the app-wide external-playback service so the gate stays off the
         // initial bundle: it is created by the first deferred write, which
         // always precedes the launch it waits for.
@@ -68,10 +67,18 @@ export class PlaybackHistoryGate {
             if (session.status === 'launching') {
                 launching.add(session.id);
             } else if (
-                launching.delete(session.id) &&
-                (session.status === 'opened' || session.status === 'playing')
+                session.status === 'opened' ||
+                session.status === 'playing'
             ) {
-                this.confirm({ streamUrls: [session.streamUrl] });
+                if (
+                    session.mediaLoaded === false &&
+                    !session.mediaObservationUnavailable
+                )
+                    return;
+                if (launching.delete(session.id))
+                    this.confirm({ streamUrls: [session.streamUrl] });
+            } else {
+                launching.delete(session.id);
             }
         });
     }

@@ -191,6 +191,30 @@ describe('PlaybackHistoryGate', () => {
             expect(commit).not.toHaveBeenCalled();
         });
 
+        it.each(['confirmed', 'failed', 'unsupported'] as const)(
+            'records external history only after readiness is %s',
+            (outcome) => {
+                const commit = jest.fn();
+                gate.defer({ streamUrls: [streamUrl] }, commit);
+                emit({ status: 'launching' });
+                emit({ status: 'opened', mediaLoaded: false });
+                expect(commit).not.toHaveBeenCalled();
+                if (outcome === 'failed') {
+                    emit({ status: 'closed' });
+                    emit({ status: 'opened', mediaLoaded: true });
+                    expect(commit).not.toHaveBeenCalled();
+                } else {
+                    emit({
+                        status: 'opened',
+                        mediaLoaded: outcome === 'confirmed',
+                        mediaObservationUnavailable: outcome === 'unsupported',
+                    });
+                    emit({ status: 'playing', mediaLoaded: true });
+                    expect(commit).toHaveBeenCalledTimes(1);
+                }
+            }
+        );
+
         it('ignores idle and restoration updates from an older session at the same URL', () => {
             const first = jest.fn();
             gate.defer({ streamUrls: [streamUrl] }, first);

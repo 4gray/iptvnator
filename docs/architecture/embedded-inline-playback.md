@@ -1351,11 +1351,11 @@ reaches history.
   engine or format swap of the same stream keeps its progress. The radio
   `AudioPlayerComponent` confirms the same way (with the host's session key
   when given).
-- MPV/VLC cannot report whether a live stream plays, so the gate itself
-  subscribes to the Electron external-player session updates and confirms a
-  session's `streamUrl` once it is `opened` or `playing`; a launch that ends
-  in `error` is not recorded. (Subscribing in the gate, which the first
-  deferred write creates, keeps it off the initial bundle.) That
+- The gate subscribes to Electron external-player session updates and confirms
+  the `streamUrl` of an `opened` or `playing` session once it verifies the
+  requested media. Players without readiness support confirm on opening. A
+  launch that ends before confirmation is not recorded. (Subscribing in the
+  gate, which the first deferred write creates, keeps it off the initial bundle.) That
   confirmation carries no session key, so an "Open in MPV/VLC" recovery
   launch is also confirmed by the `WebPlayerViewComponent` that requested
   it, under its own session key, once the launch has opened. M3U keeps

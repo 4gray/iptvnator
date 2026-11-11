@@ -227,7 +227,10 @@ export class XtreamExternalLiveSessions {
         if (
             session.status === 'error' ||
             session.playbackIdle ||
-            (session.mediaLoaded === false && session.playbackUnverified)
+            (session.mediaLoaded === false &&
+                (session.mediaObservationUnavailable ||
+                    session.mediaReadinessTimedOut ||
+                    (session.player === 'mpv' && session.playbackUnverified)))
         )
             launch?.ended.set(true);
         const entry = current ?? { session, source: owner, launch };

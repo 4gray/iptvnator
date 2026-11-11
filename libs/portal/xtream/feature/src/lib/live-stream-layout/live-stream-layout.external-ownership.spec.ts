@@ -75,7 +75,12 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
         expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(3);
     });
 
-    it.each(['loaded', 'timed out', 'unverified VLC'] as const)(
+    it.each([
+        'loaded',
+        'timed out',
+        'unverified VLC',
+        'VLC timed out',
+    ] as const)(
         'keeps an acknowledged switch pending until its requested media is %s',
         async (outcome) => {
             const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
@@ -132,10 +137,9 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
             expect(committed).not.toHaveBeenCalled();
             const replacement = {
                 ...current,
-                player:
-                    outcome === 'unverified VLC'
-                        ? ('vlc' as const)
-                        : current.player,
+                player: outcome.includes('VLC')
+                    ? ('vlc' as const)
+                    : current.player,
                 id: 'synthetic-confirmed',
                 streamUrl: nextUrl,
             };
@@ -148,14 +152,19 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
                     ...replacement,
                     mediaLoaded: false,
                     playbackUnverified: true,
+                    mediaReadinessTimedOut:
+                        outcome === 'VLC timed out' || undefined,
                 });
                 fixture.detectChanges();
                 expect(component.guide.isOpen()).toBe(true);
                 expect(source.activeChannelId()).toBe(String(first.xtream_id));
                 expect(committed).not.toHaveBeenCalled();
                 source.activate('202');
-                expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(4);
-                return;
+                if (outcome !== 'unverified VLC') {
+                    expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(4);
+                    return;
+                }
+                expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(3);
             }
             publishExternalSession({ ...replacement, mediaLoaded: true });
             fixture.detectChanges();

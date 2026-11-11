@@ -161,7 +161,7 @@ export class XtreamGuideExternalPlayback {
     readonly unverifiedPlayback = computed(() => {
         const active = this.playback?.activeSession();
         if (
-            !active?.playbackUnverified ||
+            !(active?.playbackUnverified || active?.mediaReadinessTimedOut) ||
             active.playbackIdle ||
             (active.status !== 'opened' && active.status !== 'playing')
         )

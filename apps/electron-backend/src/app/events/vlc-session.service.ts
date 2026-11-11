@@ -521,7 +521,11 @@ export async function openVlcPlayer({
                     externalPlayerSessions.updateSession(session.id, {
                         playbackIdle: undefined,
                         ...(session.launchId && !contentInfo
-                            ? { mediaLoaded: false, playbackUnverified: true }
+                            ? {
+                                  mediaLoaded: false,
+                                  playbackUnverified: true,
+                                  mediaObservationUnavailable: true,
+                              }
                             : {}),
                     });
 

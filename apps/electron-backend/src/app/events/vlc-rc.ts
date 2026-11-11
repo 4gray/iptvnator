@@ -188,8 +188,22 @@ export function markVlcOpened(sessionId: string, getPort: () => number) {
         externalPlayerSessions.updateSession(sessionId, {
             mediaLoaded: false,
             playbackUnverified: port ? undefined : true,
+            mediaObservationUnavailable: port ? undefined : true,
         });
     if (!port) return markExternalPlayerOpened(sessionId);
+    if (mediaUrl)
+        setTimeout(() => {
+            const current = externalPlayerSessions.getSession(sessionId);
+            if (
+                getPort() === port &&
+                current?.mediaLoaded === false &&
+                (current.status === 'opened' || current.status === 'playing')
+            )
+                externalPlayerSessions.updateSession(sessionId, {
+                    mediaReadinessTimedOut: true,
+                    playbackUnverified: true,
+                });
+        }, 30_000).unref();
     return markExternalPlayerOpened(
         sessionId,
         async () => {
@@ -226,6 +240,7 @@ export function markVlcOpened(sessionId: string, getPort: () => number) {
                     mediaLoaded: true,
                     playbackIdle: false,
                     playbackUnverified: undefined,
+                    mediaReadinessTimedOut: undefined,
                 });
             }
             return state === 'stopped'
