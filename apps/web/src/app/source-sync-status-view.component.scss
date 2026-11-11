@@ -1,0 +1,51 @@
+@use '../../../../libs/ui/styles/app-controls' as controls;
+
+.server-status {
+    position: relative;
+    z-index: 20;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 16px;
+    padding: 8px 20px;
+    color: var(--app-on-surface);
+    background: var(--app-widget-bg);
+}
+
+.server-status__message {
+    flex: 1 1 18rem;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.server-status__actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-inline-start: auto;
+}
+
+.server-status__secondary {
+    @include controls.secondary-button(sm);
+}
+
+.server-status__dismiss {
+    @include controls.ghost-icon-button(44px, 18px);
+}
+
+.server-status__primary {
+    @include controls.accent-button(sm);
+}
+
+button,
+a,
+input {
+    app-region: no-drag;
+}
+
+input {
+    color: var(--app-on-surface);
+    background: var(--app-content-bg);
+    max-width: 100%;
+}

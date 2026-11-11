@@ -1,0 +1,28 @@
+@use '../../../../libs/ui/styles/app-controls' as controls;
+
+section {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    color: var(--app-on-surface);
+    background: var(--app-widget-bg);
+}
+
+button {
+    // This is the recovery action when the lazy Material view fails to load.
+    min-height: 32px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: controls.$radius-sm;
+    background: color-mix(in srgb, var(--app-on-surface) 10%, transparent);
+    color: var(--app-heading-color);
+    font: 600 12.5px var(--app-font-family);
+    cursor: pointer;
+    app-region: no-drag;
+}
+
+button:hover {
+    background: color-mix(in srgb, var(--app-on-surface) 16%, transparent);
+}

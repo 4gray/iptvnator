@@ -41,8 +41,12 @@
     <div class="settings-card server-fields" data-setting-id="source-server">
         @if (sync.connection) {
             <app-settings-sync-status
-                [state]="sync.state()"
-                [stateKey]="sync.stateKey()"
+                [state]="checking() ? 'connecting' : sync.state()"
+                [stateKey]="
+                    checking()
+                        ? 'SOURCE_SYNC.STATE_connecting'
+                        : sync.errorKey() || sync.stateKey()
+                "
                 [lastSync]="sync.lastSync()"
                 testId="source-server-state"
             />
@@ -107,11 +111,12 @@
                     type="button"
                     mat-flat-button
                     [disabled]="busy()"
+                    [attr.aria-busy]="checking()"
                     (click)="refresh()"
                     data-test-id="source-server-refresh"
                 >
                     <mat-icon aria-hidden="true">refresh</mat-icon>
-                    {{ 'SOURCE_SYNC.REFRESH' | translate }}
+                    {{ 'SOURCE_SYNC.CHECK_CONNECTION' | translate }}
                 </button>
                 <button
                     type="button"
@@ -128,6 +133,7 @@
                 <button
                     type="button"
                     mat-flat-button
+                    class="app-destructive-button"
                     [disabled]="busy()"
                     (click)="disconnect()"
                 >

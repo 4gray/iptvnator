@@ -299,6 +299,9 @@ for (const failReceipt of [false, true]) {
             if (failReceipt) {
                 const notice = page.getByTestId('source-sync-status');
                 await expect(notice).toContainText('Server unavailable');
+                await expect(
+                    notice.getByRole('button', { name: /hide server notice/i })
+                ).toHaveCount(0);
                 await notice.getByRole('link', { name: 'Server' }).click();
                 await expect(
                     page.getByTestId('source-server-connect')
@@ -559,6 +562,62 @@ test('restores the original Electron library after disconnect despite an inherit
     }
 });
 
+test('hides the Electron server outage until restart without leaving the shared library @electron @m3u', async () => {
+    const server = await startSourceSyncServer();
+    const directory = mkdtempSync(
+        join(tmpdir(), 'iptvnator-sync-hide-notice-')
+    );
+    let desktop: Awaited<ReturnType<typeof launchElectronApp>> | undefined;
+    try {
+        const { instanceId } = await (
+            await fetch(`${server.apiUrl}/v1/instance`)
+        ).json();
+        writeFileSync(
+            join(directory, 'source-server.json'),
+            JSON.stringify({ apiUrl: server.apiUrl, instanceId })
+        );
+        desktop = await launchElectronApp(directory);
+        const page = desktop.mainWindow;
+        await openSources(page);
+        await addTextSource(page, 'Synthetic offline source');
+        await openSources(page);
+        const source = page
+            .getByText('Synthetic offline source', {
+                exact: true,
+            })
+            .first();
+        await expect(source).toBeVisible();
+        await server.close();
+        await page.evaluate(() => window.dispatchEvent(new Event('online')));
+        const notice = page.getByTestId('source-sync-status');
+        await expect(notice).toContainText('Saved sources are available.');
+        await notice
+            .getByRole('button', {
+                name: 'Hide server notice until next launch',
+            })
+            .press('Enter');
+        await expect(notice).toHaveCount(0);
+        await expect(page.getByRole('main')).toBeFocused();
+        await expect(source).toBeVisible();
+        await closeElectronApp(desktop);
+        desktop = undefined;
+        desktop = await launchElectronApp(directory);
+        await openSources(desktop.mainWindow);
+        await expect(
+            desktop.mainWindow.getByTestId('source-sync-status')
+        ).toContainText('Saved sources are available.');
+        await expect(
+            desktop.mainWindow
+                .getByText('Synthetic offline source', { exact: true })
+                .first()
+        ).toBeVisible();
+    } finally {
+        if (desktop) await closeElectronApp(desktop);
+        await server.close();
+        rmSync(directory, { recursive: true, force: true });
+    }
+});
+
 test('authenticates the PWA and retains its isolated source cache while NAS is offline @web @m3u', async ({
     browser,
 }) => {
@@ -611,12 +670,33 @@ test('authenticates the PWA and retains its isolated source cache while NAS is o
         });
         await server.close();
         await page.reload();
-        await expect(status).toContainText('Server unavailable', {
+        const notice = page.getByTestId('source-sync-status');
+        await expect(notice).toContainText('Saved sources are available.', {
             timeout: 25000,
         });
-        await expect(
-            page.getByText('Authenticated NAS source', { exact: true }).first()
-        ).toBeVisible();
+        const source = page
+            .getByText('Authenticated NAS source', { exact: true })
+            .first();
+        await expect(source).toBeVisible();
+        await notice
+            .getByRole('button', {
+                name: 'Hide server notice until next launch',
+            })
+            .click();
+        await expect(notice).toHaveCount(0);
+        await openSettings(page);
+        await openSettingsSection(page, 'server');
+        await page.getByRole('button', { name: 'Check connection' }).click();
+        await expect(page.getByTestId('source-server-refresh')).toBeEnabled();
+        await expect(page.getByTestId('source-server-state')).toContainText(
+            'Server unavailable'
+        );
+        await expect(notice).toHaveCount(0);
+        await openSources(page);
+        await expect(source).toBeVisible();
+        await page.reload();
+        await expect(notice).toContainText('Saved sources are available.');
+        await expect(source).toBeVisible();
     } finally {
         await context.close();
         await server.close();

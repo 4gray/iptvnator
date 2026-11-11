@@ -74,6 +74,10 @@ export class SourceSyncService {
     private metadataDirty = false;
     private cleanupQueue?: SourceCleanupQueue;
 
+    get hasCachedLibrary(): boolean {
+        return this.store?.ready ?? false;
+    }
+
     async initialize(): Promise<void> {
         if (!this.connection) {
             if (this.connectionReadFailed) {
@@ -157,7 +161,6 @@ export class SourceSyncService {
             .exclusive(async () => {
                 try {
                     const wasReady = this.store!.ready;
-                    this.errorKey.set(null);
                     if (!this.store!.ready) this.state.set('connecting');
                     // Finish previous deletions before a reused ID can be projected.
                     await this.cleanupQueue!.retry();
@@ -206,6 +209,7 @@ export class SourceSyncService {
                     if (response.status === 304) {
                         this.failures = 0;
                         this.nextPollAt = 0;
+                        this.errorKey.set(null);
                         this.state.set('connected');
                         this.lastSync.set(Date.now());
                         if (this.metadataDirty) {
@@ -253,6 +257,7 @@ export class SourceSyncService {
                     this.store!.ready = true;
                     this.failures = 0;
                     this.nextPollAt = 0;
+                    this.errorKey.set(null);
                     this.state.set('connected');
                     this.lastSync.set(Date.now());
                     this.metadataDirty = false;
@@ -267,11 +272,12 @@ export class SourceSyncService {
                     this.nextPollAt =
                         Date.now() +
                         Math.min(120000, 15000 * 2 ** this.failures++);
-                    if (
+                    this.errorKey.set(
                         error instanceof Error &&
-                        error.message.startsWith('SOURCE_SYNC.')
-                    )
-                        this.errorKey.set(error.message);
+                            error.message.startsWith('SOURCE_SYNC.')
+                            ? error.message
+                            : null
+                    );
                     if (
                         this.state() !== 'locked' &&
                         this.state() !== 'conflict'
@@ -297,10 +303,10 @@ export class SourceSyncService {
     private async request(
         request: SourceServerRequest
     ): Promise<SourceServerResponse> {
+        const mutation = !['instance', 'list', 'get'].includes(
+            request.operation
+        );
         try {
-            const mutation = !['instance', 'list', 'get'].includes(
-                request.operation
-            );
             if (mutation && this.state() !== 'connected') {
                 throw new Error(
                     this.state() === 'locked'
@@ -318,11 +324,13 @@ export class SourceSyncService {
                     (response.body as { code?: string })?.code ===
                         'instance_changed'
                         ? 'INSTANCE_CHANGED'
-                        : response.status === 401
-                          ? 'LOCKED'
-                          : response.status === 412
-                            ? 'CONFLICT'
-                            : 'REQUEST_FAILED';
+                        : response.status >= 500
+                          ? 'OFFLINE'
+                          : response.status === 401
+                            ? 'LOCKED'
+                            : response.status === 412
+                              ? 'CONFLICT'
+                              : 'REQUEST_FAILED';
                 this.state.set(
                     response.status === 401
                         ? 'locked'
@@ -332,7 +340,7 @@ export class SourceSyncService {
                 );
                 throw new Error(`SOURCE_SYNC.${key}`);
             }
-            if (!['instance', 'list', 'get'].includes(request.operation)) {
+            if (mutation) {
                 this.metadataDirty = true;
                 queueMicrotask(() => void this.refresh());
             }
@@ -342,14 +350,14 @@ export class SourceSyncService {
                 error instanceof Error
                     ? error.message.match(/SOURCE_SYNC\.[A-Z_]+/)?.[0]
                     : undefined;
-            if (key === 'SOURCE_SYNC.INSTANCE_CHANGED') {
+            if (key === 'SOURCE_SYNC.INSTANCE_CHANGED')
                 invalidateSourceVerification();
-                this.errorKey.set(key);
-            }
+            if (mutation || key === 'SOURCE_SYNC.INSTANCE_CHANGED')
+                this.errorKey.set(key ?? 'SOURCE_SYNC.REQUEST_FAILED');
             if (key === 'SOURCE_SYNC.LOCKED') this.state.set('locked');
             if (!['locked', 'conflict'].includes(this.state()))
                 this.state.set('offline');
-            if (!['list', 'instance', 'get'].includes(request.operation)) {
+            if (mutation) {
                 const message =
                     error instanceof Error &&
                     error.message.startsWith('SOURCE_SYNC.')
