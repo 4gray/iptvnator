@@ -155,6 +155,48 @@ describe('reused MPV IPC replies', () => {
         }
     );
 
+    it('confirms a fresh paused stream when MPV exposes its initial position', async () => {
+        jest.useFakeTimers({ doNotFake: ['setImmediate'] });
+        const proc = createMockChildProcess();
+        spawnMock.mockReturnValueOnce(proc);
+        (store.get as jest.Mock).mockImplementation((key, fallback) =>
+            key === MPV_PLAYER_PATH
+                ? '/usr/bin/mpv'
+                : key === MPV_REUSE_INSTANCE
+                  ? false
+                  : fallback
+        );
+        const written: string[] = [];
+        createConnectionMock
+            .mockImplementationOnce(() =>
+                createMpvSocketMock({ written, data: false })
+            )
+            .mockImplementationOnce(() =>
+                createMpvSocketMock({ written, data: 0 })
+            );
+        const opening = openMpvPlayer({
+            title: 'Synthetic Channel',
+            url: 'https://example.test/synthetic.ts',
+            launchId: 'synthetic-guide-launch',
+        });
+        await jest.advanceTimersByTimeAsync(100);
+        const session = await opening;
+        expect(session.mediaLoaded).toBe(false);
+        await jest.advanceTimersByTimeAsync(2_000);
+        await nextTick();
+        await nextTick();
+        await nextTick();
+        expect(written.map((chunk) => JSON.parse(chunk).command[1])).toEqual([
+            'idle-active',
+            'time-pos',
+        ]);
+        expect(externalPlayerSessions.getSession(session.id)?.mediaLoaded).toBe(
+            true
+        );
+        Object.defineProperty(proc, 'exitCode', { value: 0 });
+        proc.emit('exit', 0);
+    });
+
     it('falls back to a fresh launch when mpv rejects the content command', async () => {
         const reusedProc = await launchReusableInstance();
         const freshProc = createMockChildProcess();

@@ -173,6 +173,61 @@ describe('sendMpvCommand', () => {
         expect(socket.destroyed).toBe(true);
     });
 
+    it('follows a matching redirect and ignores media outside its inserted entries', async () => {
+        const socket = nextSocket();
+        const onOutcome = jest.fn();
+        const pending = sendMpvCommand(socketPath, 'loadfile', [streamUrl], {
+            media: { signal: new AbortController().signal, onOutcome },
+        });
+        socket.emit('connect');
+        reply(
+            socket,
+            { event: 'start-file', playlist_entry_id: 2 },
+            {
+                event: 'end-file',
+                reason: 'redirect',
+                playlist_entry_id: 2,
+                playlist_insert_id: 3,
+                playlist_insert_num_entries: 2,
+            },
+            { event: 'start-file', playlist_entry_id: 20 },
+            { event: 'file-loaded' }
+        );
+        reply(socket, {
+            request_id: writtenRequest(socket).request_id,
+            error: 'success',
+            data: { playlist_entry_id: 2 },
+        });
+        await pending;
+        expect(onOutcome).not.toHaveBeenCalled();
+        reply(
+            socket,
+            { event: 'start-file', playlist_entry_id: 4 },
+            { event: 'file-loaded' }
+        );
+        expect(onOutcome).toHaveBeenCalledWith(true);
+    });
+
+    it('reports unavailable confirmation when an acknowledged media observer expires', async () => {
+        jest.useFakeTimers();
+        const socket = nextSocket();
+        const onOutcome = jest.fn();
+        const pending = sendMpvCommand(socketPath, 'loadfile', [streamUrl], {
+            media: { signal: new AbortController().signal, onOutcome },
+        });
+        socket.emit('connect');
+        reply(socket, {
+            request_id: writtenRequest(socket).request_id,
+            error: 'success',
+            data: { playlist_entry_id: 2 },
+        });
+        await pending;
+        await jest.runOnlyPendingTimersAsync();
+        expect(onOutcome).toHaveBeenCalledTimes(1);
+        expect(onOutcome).toHaveBeenCalledWith(undefined);
+        expect(socket.destroyed).toBe(true);
+    });
+
     it('gives consecutive commands distinct request ids', async () => {
         const first = nextSocket();
         const second = nextSocket();

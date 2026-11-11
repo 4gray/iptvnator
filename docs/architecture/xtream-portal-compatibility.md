@@ -791,10 +791,12 @@ while preserving their browsing state. Short screens show a compact dock so
 schedule rows remain visible. If an external channel switch fails and the
 player restores the previous session or rejects a switch while the old session
 is still playing, the guide keeps its scope and search. Enter and double-click
-close the guide only after the requested stream opens. With MPV IPC, a reused
-process confirms that its requested playlist entry loaded; a fresh process
-confirms playback through its own socket. The dock, player panel
-and remote status follow the confirmed session. Consecutive remote tuning
+close the guide only after the requested stream opens. MPV IPC confirms the
+requested entry, including an entry inserted by a playlist redirect; a fresh
+process reports media readiness even when paused. VLC RC checks the requested
+input. If readiness cannot be confirmed, the guide stays open for a retry.
+The dock, player panel and remote status follow the confirmed session.
+Consecutive remote tuning
 commands advance from the latest requested channel until it opens or fails.
 IINA keeps the selection-based remote queue because its launcher can exit
 while playback continues.

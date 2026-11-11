@@ -181,6 +181,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 ...(mode === 'unverified VLC' && {
                     playbackIdle: false,
                     playbackUnverified: true,
+                    mediaLoaded: false,
                 }),
                 status: 'playing',
                 startedAt: '2026-04-04T10:00:00Z',

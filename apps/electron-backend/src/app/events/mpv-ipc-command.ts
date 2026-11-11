@@ -24,13 +24,18 @@ export interface MpvIpcCommandOptions {
     shouldDispatch?: () => boolean;
     /** Runs right after the command was written, before any reply. */
     onDispatched?: () => void;
-    media?: { signal: AbortSignal; onOutcome: (loaded: boolean) => void };
+    media?: {
+        signal: AbortSignal;
+        onOutcome: (loaded: boolean | undefined) => void;
+    };
 }
 
 type MpvIpcMessage = Partial<MpvIpcReply> & {
     event?: string;
     playlist_entry_id?: number;
     reason?: string;
+    playlist_insert_id?: number;
+    playlist_insert_num_entries?: number;
 };
 
 /**
@@ -52,6 +57,27 @@ export class MpvIpcCommandError extends Error {
 }
 
 let nextRequestId = 1;
+
+export function publishMpvMediaOutcome(
+    sessionId: string,
+    loaded: boolean | undefined
+): void {
+    const current = externalPlayerSessions.getSession(sessionId);
+    if (!current || current.status === 'closed' || current.status === 'error')
+        return;
+    externalPlayerSessions.updateSession(
+        sessionId,
+        loaded === undefined
+            ? { playbackUnverified: true }
+            : loaded
+              ? {
+                    mediaLoaded: true,
+                    playbackIdle: false,
+                    playbackUnverified: undefined,
+                }
+              : { playbackIdle: true }
+    );
+}
 
 export function markMpvOpened(
     sessionId: string,
@@ -85,13 +111,18 @@ export function markMpvOpened(
                           ?.mediaLoaded &&
                       canRead()
                   ) {
-                      const playing = await sendMpvCommand(
+                      const position = await sendMpvCommand(
                           socketPath,
                           'get_property',
-                          ['core-idle'],
+                          ['time-pos'],
                           { shouldDispatch: canRead }
                       ).catch(() => false as const);
-                      if (playing && playing.data === false && canRead())
+                      if (
+                          position &&
+                          typeof position.data === 'number' &&
+                          Number.isFinite(position.data) &&
+                          canRead()
+                      )
                           externalPlayerSessions.updateSession(sessionId, {
                               mediaLoaded: true,
                           });
@@ -154,23 +185,49 @@ export function sendMpvCommand(
         let buffered = '';
         let timeoutHandle: NodeJS.Timeout | null = null;
         const media = options.media;
-        let expectedEntry: number | undefined;
+        let expected: { first: number; last: number } | undefined;
         let startedEntry: number | undefined;
-        let observed: { entry: number; loaded: boolean } | undefined;
+        const earlyEvents: MpvIpcMessage[] = [];
         const disconnect = () => {
             if (timeoutHandle) clearTimeout(timeoutHandle);
             media?.signal.removeEventListener('abort', disconnect);
-            expectedEntry = undefined;
+            expected = undefined;
             if (!client.destroyed) client.destroy();
         };
-        const publishMedia = () => {
+        const finishMedia = (loaded: boolean | undefined) => {
+            disconnect();
+            if (!media?.signal.aborted) media?.onOutcome(loaded);
+        };
+        const observe = (event: MpvIpcMessage) => {
+            if (!expected) return;
+            if (event.event === 'start-file') startedEntry = readEntryId(event);
+            const entry =
+                event.event === 'file-loaded'
+                    ? startedEntry
+                    : readEntryId(event);
             if (
-                expectedEntry === undefined ||
-                observed?.entry !== expectedEntry
+                entry === undefined ||
+                entry < expected.first ||
+                entry > expected.last
             )
                 return;
-            disconnect();
-            if (!media?.signal.aborted) media?.onOutcome(observed.loaded);
+            if (event.event === 'file-loaded') finishMedia(true);
+            else if (event.event === 'end-file') {
+                const first = event.playlist_insert_id;
+                const count = event.playlist_insert_num_entries;
+                if (event.reason === 'redirect') {
+                    if (
+                        typeof first === 'number' &&
+                        typeof count === 'number' &&
+                        Number.isSafeInteger(first) &&
+                        Number.isSafeInteger(count) &&
+                        first > 0 &&
+                        count > 0
+                    )
+                        expected = { first, last: first + count - 1 };
+                    else finishMedia(undefined);
+                } else if (entry === expected.last) finishMedia(false);
+            }
         };
         const settle = (
             outcome: { reply: MpvIpcReply | false } | { error: Error }
@@ -182,22 +239,25 @@ export function sendMpvCommand(
                 disconnect();
                 reject(outcome.error);
             } else {
-                expectedEntry =
+                const entry =
                     media && !media.signal.aborted && outcome.reply
                         ? readEntryId(outcome.reply.data)
                         : undefined;
-                if (expectedEntry === undefined) disconnect();
-                else {
+                if (entry === undefined) {
+                    if (outcome.reply && media) finishMedia(undefined);
+                    else disconnect();
+                } else {
+                    expected = { first: entry, last: entry };
                     media?.signal.addEventListener('abort', disconnect, {
                         once: true,
                     });
                     timeoutHandle = setTimeout(
-                        disconnect,
+                        () => finishMedia(undefined),
                         MPV_MEDIA_OBSERVATION_TIMEOUT_MS
                     ).unref();
                 }
                 resolve(outcome.reply);
-                publishMedia();
+                earlyEvents.splice(0).forEach(observe);
             }
         };
         const fail = (message: string, mpvError: string | null = null) =>
@@ -213,16 +273,14 @@ export function sendMpvCommand(
             const reply = parseReplyLine(line);
             if (!reply) return;
             if (media && dispatched && reply.event) {
-                if (reply.event === 'start-file')
-                    startedEntry = readEntryId(reply);
-                if (reply.event === 'file-loaded' && startedEntry !== undefined)
-                    observed = { entry: startedEntry, loaded: true };
-                if (reply.event === 'end-file' && reply.reason !== 'redirect') {
-                    const entry = readEntryId(reply);
-                    if (entry !== undefined)
-                        observed = { entry, loaded: false };
-                }
-                publishMedia();
+                if (settled) observe(reply);
+                else if (
+                    earlyEvents.length < 16 &&
+                    ['start-file', 'file-loaded', 'end-file'].includes(
+                        reply.event
+                    )
+                )
+                    earlyEvents.push(reply);
                 return;
             }
             if (settled || reply.request_id !== requestId) return;
@@ -261,20 +319,28 @@ export function sendMpvCommand(
             }
         });
         client.on('data', (chunk) => {
-            if (settled && expectedEntry === undefined) return;
+            if (settled && !expected) return;
             buffered += chunk.toString();
             const lines = buffered.split('\n');
             buffered = lines.pop() ?? '';
             for (const line of lines) {
                 if (line.trim()) consumeLine(line);
-                if (settled && expectedEntry === undefined) return;
+                if (settled && !expected) return;
             }
         });
         client.on('error', (error) =>
-            settled ? disconnect() : fail(error.message)
+            settled
+                ? expected
+                    ? finishMedia(undefined)
+                    : disconnect()
+                : fail(error.message)
         );
         client.on('close', () =>
-            settled ? disconnect() : fail('socket closed before reply')
+            settled
+                ? expected
+                    ? finishMedia(undefined)
+                    : disconnect()
+                : fail('socket closed before reply')
         );
         timeoutHandle = setTimeout(
             () => fail('reply timed out'),

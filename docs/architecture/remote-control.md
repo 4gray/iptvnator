@@ -155,6 +155,8 @@ Xtream and Stalker live views keep a component-owned playback queue through
 captures the actual displayed order, including search/sort and a fullscreen
 panel's own filter. Remote up/down, numeric selection and the published channel
 number use that queue while category or search browsing remains independent.
+In Xtream, up or down returns from an archive to the same channel's live
+stream if it is the only channel in the queue.
 Xtream history handoffs from global search or Recently Added capture the
 eligible destination category in the selected channel sort order; an unrelated
 previous category/query does not define that queue. Explicit All Items clicks

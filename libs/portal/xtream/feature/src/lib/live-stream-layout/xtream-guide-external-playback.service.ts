@@ -20,6 +20,7 @@ import type {
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import {
+    hasXtreamOpenedMedia,
     isXtreamLiveCategoryWithheld,
     XtreamExternalLiveSessions,
     type XtreamLiveSource,
@@ -54,15 +55,6 @@ interface GuidePanel {
     ): void;
 }
 
-function hasOpened(
-    session: ExternalPlayerSession | null | undefined
-): session is ExternalPlayerSession & { status: 'opened' | 'playing' } {
-    return (
-        !session?.playbackIdle &&
-        (session?.status === 'opened' || session?.status === 'playing')
-    );
-}
-
 /** The live panel follows confirmed playback, independently of browse previews. */
 @Injectable()
 export class XtreamGuideExternalPlayback {
@@ -92,7 +84,7 @@ export class XtreamGuideExternalPlayback {
         ): ConfirmedLaunch | null => {
             if (!playlistId || !this.hasSessionUpdates) return null;
             const prior = previous?.value;
-            const activeSource = hasOpened(active)
+            const activeSource = hasXtreamOpenedMedia(active)
                 ? this.sessions.state(active.id)?.source
                 : undefined;
             const owned = activeSource?.playlistId === playlistId;
@@ -107,7 +99,7 @@ export class XtreamGuideExternalPlayback {
                     ? active
                     : (this.sessions.latestOpened(playlistId, active?.id) ??
                       (owned ? active : previousSession));
-            if (!hasOpened(session)) return null;
+            if (!hasXtreamOpenedMedia(session)) return null;
             const source = this.sessions.state(session.id)?.source;
             if (!source) return null;
             const launch =
@@ -130,7 +122,16 @@ export class XtreamGuideExternalPlayback {
 
     readonly launching = computed(() => {
         const active = this.playback?.activeSession();
-        if (active?.status !== 'launching' || this.playing()) return false;
+        if (!active || this.playing()) return false;
+        if (
+            active.status !== 'launching' &&
+            !(
+                active.mediaLoaded === false &&
+                !active.playbackIdle &&
+                (active.status === 'opened' || active.status === 'playing')
+            )
+        )
+            return false;
         const source = this.sessions.state(active.id)?.source;
         this.lock.version();
         return (

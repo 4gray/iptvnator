@@ -1,6 +1,9 @@
 import { createConnection } from 'net';
 import { buildHttpHeaderFields } from './external-player-playback-request';
-import { ExternalPlaybackSnapshot } from './external-player-runtime';
+import {
+    ExternalPlaybackSnapshot,
+    externalPlayerSessions,
+} from './external-player-runtime';
 import { markExternalPlayerOpened } from './external-player-idle-monitor';
 
 export function buildVlcEnqueueCommands(options: {
@@ -170,14 +173,44 @@ export async function getVlcPlaybackState(
 }
 
 export function markVlcOpened(sessionId: string, getPort: () => number) {
-    if (!getPort()) return markExternalPlayerOpened(sessionId);
+    const session = externalPlayerSessions.getSession(sessionId);
+    const mediaUrl =
+        session?.launchId && !session.contentInfo
+            ? session.streamUrl
+            : undefined;
+    const port = getPort();
+    if (mediaUrl && session?.status === 'launching')
+        externalPlayerSessions.updateSession(sessionId, {
+            mediaLoaded: false,
+            playbackUnverified: port ? undefined : true,
+        });
+    if (!port) return markExternalPlayerOpened(sessionId);
     return markExternalPlayerOpened(
         sessionId,
         async () => {
             const port = getPort();
             if (!port) return undefined;
-            const state = await getVlcPlaybackState(port);
+            const response = await getVlcCommandResponse(port, 'status');
+            const state = parseVlcRcPlaybackState(response);
             if (getPort() !== port) return undefined;
+            if (
+                mediaUrl &&
+                (state === 'playing' || state === 'paused') &&
+                externalPlayerSessions.getSession(sessionId)?.mediaLoaded ===
+                    false
+            ) {
+                const input = response
+                    .match(
+                        /\(\s*new input:[ \t]*([^\r\n]+)\)[ \t]*(?:\r?\n|$)/i
+                    )?.[1]
+                    ?.trim();
+                if (!matchesVlcInput(input, mediaUrl)) return null;
+                externalPlayerSessions.updateSession(sessionId, {
+                    mediaLoaded: true,
+                    playbackIdle: false,
+                    playbackUnverified: undefined,
+                });
+            }
             return state === 'stopped'
                 ? true
                 : state === 'playing' || state === 'paused'
@@ -186,6 +219,18 @@ export function markVlcOpened(sessionId: string, getPort: () => number) {
         },
         true
     );
+}
+
+function matchesVlcInput(
+    input: string | undefined,
+    streamUrl: string
+): boolean {
+    if (input === streamUrl) return true;
+    try {
+        return input === decodeURIComponent(streamUrl);
+    } catch {
+        return false;
+    }
 }
 
 export async function getVlcPlaybackSnapshot(

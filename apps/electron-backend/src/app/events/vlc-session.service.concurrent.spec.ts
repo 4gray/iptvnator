@@ -256,6 +256,52 @@ describe('VLC exact playback ownership', () => {
         }
     );
 
+    it('confirms only the requested VLC input even when instance reuse is disabled', async () => {
+        jest.useFakeTimers({ doNotFake: ['setImmediate'] });
+        (store.get as jest.Mock).mockImplementation((key, fallback) =>
+            key === VLC_PLAYER_PATH
+                ? '/usr/bin/vlc'
+                : key === VLC_REUSE_INSTANCE
+                  ? false
+                  : fallback
+        );
+        const proc = child();
+        spawnMock.mockReturnValueOnce(proc);
+        const url = 'https://example.test/synthetic%20channel.ts';
+        let input = 'https://example.test/synthetic-old.ts';
+        mockRc((_port, command, reply) => {
+            if (command === 'status\n')
+                reply(`( new input: ${input} )\n( state playing )\n`);
+        });
+        const opening = openVlcPlayer({
+            title: 'Synthetic Channel',
+            url,
+            launchId: 'synthetic-guide-launch',
+        });
+        await tick();
+        ports[0]();
+        await tick();
+        proc.emit('spawn');
+        const session = await opening;
+        expect(session).toMatchObject({ status: 'opened', mediaLoaded: false });
+        await jest.advanceTimersByTimeAsync(2_000);
+        await tick();
+        await tick();
+        expect(externalPlayerSessions.getSession(session.id)).toMatchObject({
+            mediaLoaded: false,
+            playbackUnverified: true,
+        });
+        input = decodeURIComponent(url);
+        await jest.advanceTimersByTimeAsync(2_000);
+        await tick();
+        await tick();
+        expect(externalPlayerSessions.getSession(session.id)).toMatchObject({
+            mediaLoaded: true,
+            playbackIdle: false,
+        });
+        exit(proc);
+    });
+
     it('rejects the add command during unrelated teardown and keeps the VLC child closable', async () => {
         const proc = child();
         const blocker = child();

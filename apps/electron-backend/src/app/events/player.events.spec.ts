@@ -525,7 +525,10 @@ describe('external player launch handlers', () => {
     ): Promise<void> {
         (waitForLoginShellPath as jest.Mock).mockReturnValueOnce(wait);
         const proc = createMockChildProcess();
-        (spawn as unknown as jest.Mock).mockReturnValue(proc);
+        const retry = createMockChildProcess();
+        (spawn as jest.Mock)
+            .mockReturnValueOnce(proc)
+            .mockReturnValueOnce(retry);
         const consoleErrorSpy = jest
             .spyOn(console, 'error')
             .mockImplementation(() => undefined);
@@ -551,6 +554,10 @@ describe('external player launch handlers', () => {
                 externalPlayerSessions.getSession(sessionId ?? '')?.launchId
             ).toBe('synthetic-launch');
             proc.emit('error', new Error('spawn ENOENT'));
+            if (channel === 'OPEN_VLC_PLAYER') {
+                await waitForSpawnCallCount(2);
+                retry.emit('error', new Error('spawn ENOENT'));
+            }
             await launch;
         } finally {
             consoleErrorSpy.mockRestore();

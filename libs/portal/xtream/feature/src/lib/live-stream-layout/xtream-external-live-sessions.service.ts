@@ -38,6 +38,17 @@ export function isXtreamLiveCategoryWithheld(
               lock.isXtreamCategoryLocked(playlistId, 'live', categoryId);
 }
 
+export function hasXtreamOpenedMedia(
+    session: ExternalPlayerSession | null | undefined
+): session is ExternalPlayerSession & { status: 'opened' | 'playing' } {
+    return (
+        (session?.status === 'opened' || session?.status === 'playing') &&
+        !session.playbackIdle &&
+        (session.mediaLoaded !== false ||
+            (session.player === 'vlc' && session.playbackUnverified === true))
+    );
+}
+
 type Launch = {
     source: XtreamLiveSource;
     ended: WritableSignal<boolean>;
@@ -101,9 +112,8 @@ export class XtreamExternalLiveSessions {
                 session.id === excludeId ||
                 source.playlistId !== playlistId ||
                 !source.channel ||
-                session.playbackIdle ||
-                isXtreamLiveCategoryWithheld(this.lock, source) ||
-                (session.status !== 'opened' && session.status !== 'playing')
+                !hasXtreamOpenedMedia(session) ||
+                isXtreamLiveCategoryWithheld(this.lock, source)
             )
                 continue;
             const newer =
@@ -170,7 +180,13 @@ export class XtreamExternalLiveSessions {
         }
         const owner = source ?? current?.source ?? launch?.source;
         if (!owner) return;
-        if (session.status === 'error' || session.playbackIdle)
+        if (
+            session.status === 'error' ||
+            session.playbackIdle ||
+            (session.player === 'mpv' &&
+                session.mediaLoaded === false &&
+                session.playbackUnverified)
+        )
             launch?.ended.set(true);
         const entry = current ?? { session, source: owner, launch };
         const changed =

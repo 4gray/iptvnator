@@ -266,7 +266,7 @@ export async function openVlcPlayer({
         }
 
         let rcPort = 0;
-        if (contentInfo || reuseInstance) {
+        if (contentInfo || reuseInstance || session.launchId) {
             try {
                 rcPort = await getFreePort();
                 traceExternalPlayer('using vlc rc port', { rcPort });
@@ -412,7 +412,11 @@ export async function openVlcPlayer({
                     stdio: trackProcess ? ['ignore', 'pipe', 'pipe'] : 'ignore',
                 });
                 getPlaybackRcPort = () =>
-                    trackProcess && reusableVlcProcess.canPoll(proc, session.id)
+                    !isRetry &&
+                    !externalPlayerProcessTeardownGate.isStopping(proc) &&
+                    (trackProcess
+                        ? reusableVlcProcess.canPoll(proc, session.id)
+                        : !!session.launchId)
                         ? rcPort
                         : 0;
 
@@ -510,11 +514,15 @@ export async function openVlcPlayer({
                 });
                 if (
                     isRetry &&
-                    externalPlayerSessions.getSession(session.id)
-                        ?.playbackIdle !== undefined
+                    (session.launchId ||
+                        externalPlayerSessions.getSession(session.id)
+                            ?.playbackIdle !== undefined)
                 )
                     externalPlayerSessions.updateSession(session.id, {
                         playbackIdle: undefined,
+                        ...(session.launchId && !contentInfo
+                            ? { mediaLoaded: false, playbackUnverified: true }
+                            : {}),
                     });
 
                 if (!isRetry && rcPort > 0 && contentInfo) {

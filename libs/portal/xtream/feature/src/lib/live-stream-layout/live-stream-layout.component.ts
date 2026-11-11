@@ -592,6 +592,7 @@ export class LiveStreamLayoutComponent
             (item, channels, retry, onConfirmed) => {
                 if (
                     !this.usesEmbeddedPlayer() &&
+                    !retry &&
                     this.externalGuide.replacePendingCopy(
                         item,
                         () => this.readLiveProviderCategoryId(item),
@@ -618,10 +619,7 @@ export class LiveStreamLayoutComponent
         effect(() =>
             this.guideSource.setPlayback(
                 this.guideChannel(),
-                this.guideArchiveProgram() === null &&
-                    (this.usesEmbeddedPlayer() ||
-                        this.externalGuide.confirmed()?.session.mediaLoaded !==
-                            false)
+                this.guideArchiveProgram() === null
             )
         );
         effect(() => {
@@ -1084,9 +1082,11 @@ export class LiveStreamLayoutComponent
     }
 
     private handleRemoteChannelChange(direction: 'up' | 'down'): void {
-        const activeItem = this.usesSelectionForRemote()
-            ? this.remoteLiveItem()
-            : (this.externalGuide.remoteTuningItem() ?? this.remoteLiveItem());
+        const selectionBased = this.usesSelectionForRemote();
+        const tuning = selectionBased
+            ? undefined
+            : this.externalGuide.remoteTuningItem();
+        const activeItem = tuning ?? this.remoteLiveItem();
         if (!activeItem?.xtream_id) {
             return;
         }
@@ -1099,7 +1099,14 @@ export class LiveStreamLayoutComponent
             (item) => item.xtream_id
         );
 
-        if (!nextItem || nextItem.xtream_id === activeItem.xtream_id) {
+        const archive = selectionBased
+            ? this.activeCatchupProgram()
+            : this.guideArchiveProgram();
+        if (
+            !nextItem ||
+            (nextItem.xtream_id === activeItem.xtream_id &&
+                (tuning || !archive))
+        ) {
             return;
         }
 

@@ -16,6 +16,7 @@ import {
 } from './external-player-runtime';
 import {
     markMpvOpened,
+    publishMpvMediaOutcome,
     sendMpvCommand,
     type MpvIpcCommandOptions,
 } from './mpv-ipc-command';
@@ -291,23 +292,11 @@ export class MpvReusableProcess {
                 media && {
                     signal: media.signal,
                     onOutcome: (loaded) => {
-                        const current = externalPlayerSessions.getSession(
-                            session.id
-                        );
                         if (
-                            this.processSessionIds.get(reusedProcess) !==
-                                session.id ||
-                            !current ||
-                            current.status === 'closed' ||
-                            current.status === 'error'
+                            this.processSessionIds.get(reusedProcess) ===
+                            session.id
                         )
-                            return;
-                        externalPlayerSessions.updateSession(
-                            session.id,
-                            loaded
-                                ? { mediaLoaded: true, playbackIdle: false }
-                                : { playbackIdle: true }
-                        );
+                            publishMpvMediaOutcome(session.id, loaded);
                     },
                 }
             );
