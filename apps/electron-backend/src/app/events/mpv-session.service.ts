@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from 'child_process';
+import type { ChildProcess } from 'child_process';
 import {
     ExternalPlayerSession,
     PlayerContentInfo,
@@ -44,6 +44,7 @@ import {
     MpvReuseAttemptState,
 } from './mpv-reusable-process';
 import { completeFreshMpvLaunch } from './mpv-ipc-command';
+import { createMpvIpcEndpoint, spawnMpvWithEndpoint } from './mpv-ipc-endpoint';
 import { attachMpvOutputHandlers } from './mpv-output-errors';
 import {
     startPositionPolling,
@@ -225,11 +226,11 @@ async function launchMpvPlayer(
             if (reused) return reused;
         }
 
-        const socketPath = !useMpvSocketBridge
-            ? null
-            : process.platform === 'win32'
-              ? `\\\\.\\pipe\\mpv-${Date.now()}`
-              : `/tmp/mpvsocket-${Date.now()}`;
+        const endpoint = useMpvSocketBridge
+            ? createMpvIpcEndpoint()
+            : undefined;
+        const socketPath = endpoint?.path ?? null;
+        const tracksProcess = reuseInstance && !!socketPath;
         const args = buildFreshMpvArgs(socketPath, {
             userAgent: effectiveUserAgent,
             referer: effectiveReferer,
@@ -274,12 +275,12 @@ async function launchMpvPlayer(
             // Reuse teardown yields while waiting for the old child. Another
             // external process may enter teardown during that window, so the
             // process-wide invariant must be checked at the actual spawn too.
-            externalPlayerProcessTeardownGate.assertLaunchAllowed();
-            const proc = spawn(spawnSpec.command, spawnSpec.args, {
-                shell: false,
-                detached: !reuseInstance,
-                stdio: reuseInstance ? ['ignore', 'pipe', 'pipe'] : 'ignore',
-            });
+            const proc = spawnMpvWithEndpoint(
+                spawnSpec.command,
+                spawnSpec.args,
+                tracksProcess,
+                endpoint
+            );
 
             attachMpvOutputHandlers(proc);
 
@@ -336,18 +337,15 @@ async function launchMpvPlayer(
                 resolveLaunch();
             });
 
-            if (reuseInstance && socketPath) {
+            if (tracksProcess && socketPath) {
                 reusableMpvProcess.track(proc, socketPath, session.id);
-                traceExternalPlayer('stored mpv process for reuse', {
-                    socketPath,
-                });
             } else proc.unref();
 
             externalPlayerSessions.attachCloser(session.id, async () => {
                 stopRequested = true;
                 media?.abort();
                 if (
-                    reuseInstance &&
+                    tracksProcess &&
                     !reusableMpvProcess.owns(proc, session.id)
                 ) {
                     return;
@@ -384,7 +382,7 @@ async function launchMpvPlayer(
             session,
             socketPath,
             () =>
-                !reuseInstance ||
+                !tracksProcess ||
                 reusableMpvProcess.currentSessionId() === session.id,
             guideLaunch,
             media?.signal

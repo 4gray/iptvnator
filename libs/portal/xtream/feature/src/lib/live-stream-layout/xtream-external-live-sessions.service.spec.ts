@@ -250,6 +250,49 @@ describe('XtreamExternalLiveSessions', () => {
         );
     });
 
+    it.each([
+        'closed',
+        'error',
+        'closable error',
+        'newer launch',
+        'already playing',
+    ] as const)(
+        'only restores a survivor after a terminal replacement that still owns the dock (%s)',
+        (outcome) => {
+            const playing = session('synthetic-survivor', oldUrl, 'opened');
+            const replacing = session(
+                'synthetic-switch',
+                newUrl,
+                outcome === 'already playing' ? 'opened' : 'launching'
+            );
+            guard
+                .begin({ ...original, channel: { xtream_id: 101 } })
+                .finish(playing);
+            guard
+                .begin({ ...replacement, channel: { xtream_id: 102 } })
+                .finish(replacing);
+            activeSession.set(
+                outcome === 'newer launch'
+                    ? session('synthetic-newer', newUrl, 'launching')
+                    : replacing
+            );
+            receive({
+                ...replacing,
+                status:
+                    outcome === 'error' || outcome === 'closable error'
+                        ? 'error'
+                        : 'closed',
+                canClose: outcome === 'closable error',
+            });
+            if (outcome === 'closed' || outcome === 'error')
+                expect(restoreDisplacedSession).toHaveBeenCalledWith(
+                    playing,
+                    replacing.id
+                );
+            else expect(restoreDisplacedSession).not.toHaveBeenCalled();
+        }
+    );
+
     it('restores Stop after unlocking an active session whose parental close failed', async () => {
         jest.useFakeTimers();
         try {

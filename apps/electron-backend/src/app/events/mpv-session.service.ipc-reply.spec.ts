@@ -155,61 +155,75 @@ describe('reused MPV IPC replies', () => {
         }
     );
 
-    it('loads the requested guide entry through the fresh MPV socket', async () => {
-        jest.useFakeTimers({ doNotFake: ['setImmediate'] });
-        const proc = createMockChildProcess();
-        spawnMock.mockReturnValueOnce(proc);
-        (store.get as jest.Mock).mockImplementation((key, fallback) =>
-            key === MPV_PLAYER_PATH
-                ? '/usr/bin/mpv'
-                : key === MPV_REUSE_INSTANCE
-                  ? false
-                  : fallback
-        );
-        const sockets = mockUnansweredSockets();
-        const url = 'https://example.test/synthetic.ts';
-        const opening = openMpvPlayer({
-            title: 'Synthetic Channel',
-            url,
-            launchId: 'synthetic-guide-launch',
-        });
-        await jest.advanceTimersByTimeAsync(100);
-        await nextTick();
-        expect(spawnMock.mock.lastCall?.[1]).not.toContain(url);
-        const socket = sockets[0];
-        const request = JSON.parse(socket.write.mock.calls[0][0]);
-        expect(request.command).toEqual(['loadfile', url, 'replace']);
-        const push = (...lines: object[]) =>
-            socket.emit(
-                'data',
-                Buffer.from(
-                    lines.map((line) => JSON.stringify(line)).join('\n') + '\n'
-                )
+    it.each(['entry ID', 'legacy acknowledgement'] as const)(
+        'loads the requested guide entry through fresh MPV with %s',
+        async (outcome) => {
+            jest.useFakeTimers({ doNotFake: ['setImmediate'] });
+            const proc = createMockChildProcess();
+            spawnMock.mockReturnValueOnce(proc);
+            (store.get as jest.Mock).mockImplementation((key, fallback) =>
+                key === MPV_PLAYER_PATH
+                    ? '/usr/bin/mpv'
+                    : key === MPV_REUSE_INSTANCE
+                      ? false
+                      : fallback
             );
-        push({
-            request_id: request.request_id,
-            error: 'success',
-            data: { playlist_entry_id: 2 },
-        });
-        const session = await opening;
-        expect(session.mediaLoaded).toBe(false);
-        push(
-            { event: 'start-file', playlist_entry_id: 7 },
-            { event: 'file-loaded' }
-        );
-        expect(externalPlayerSessions.getSession(session.id)?.mediaLoaded).toBe(
-            false
-        );
-        push(
-            { event: 'start-file', playlist_entry_id: 2 },
-            { event: 'file-loaded' }
-        );
-        expect(externalPlayerSessions.getSession(session.id)?.mediaLoaded).toBe(
-            true
-        );
-        Object.defineProperty(proc, 'exitCode', { value: 0 });
-        proc.emit('exit', 0);
-    });
+            const sockets = mockUnansweredSockets();
+            const url = 'https://example.test/synthetic.ts';
+            const opening = openMpvPlayer({
+                title: 'Synthetic Channel',
+                url,
+                launchId: 'synthetic-guide-launch',
+            });
+            await jest.advanceTimersByTimeAsync(100);
+            await nextTick();
+            expect(spawnMock.mock.lastCall?.[1]).not.toContain(url);
+            const socket = sockets[0];
+            const request = JSON.parse(socket.write.mock.calls[0][0]);
+            expect(request.command).toEqual(['loadfile', url, 'replace']);
+            const push = (...lines: object[]) =>
+                socket.emit(
+                    'data',
+                    Buffer.from(
+                        lines.map((line) => JSON.stringify(line)).join('\n') +
+                            '\n'
+                    )
+                );
+            push({
+                request_id: request.request_id,
+                error: 'success',
+                data:
+                    outcome === 'entry ID'
+                        ? { playlist_entry_id: 2 }
+                        : undefined,
+            });
+            const session = await opening;
+            expect(session.mediaLoaded).toBe(false);
+            push(
+                { event: 'start-file', playlist_entry_id: 7 },
+                { event: 'file-loaded' }
+            );
+            expect(
+                externalPlayerSessions.getSession(session.id)?.mediaLoaded
+            ).toBe(false);
+            push(
+                { event: 'start-file', playlist_entry_id: 2 },
+                { event: 'file-loaded' }
+            );
+            if (outcome === 'entry ID')
+                expect(
+                    externalPlayerSessions.getSession(session.id)?.mediaLoaded
+                ).toBe(true);
+            else
+                expect(session).toMatchObject({
+                    mediaLoaded: false,
+                    playbackUnverified: true,
+                    mediaObservationUnavailable: true,
+                });
+            Object.defineProperty(proc, 'exitCode', { value: 0 });
+            proc.emit('exit', 0);
+        }
+    );
 
     it.each([
         'fallback',

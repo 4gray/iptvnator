@@ -20,6 +20,8 @@ export interface MpvIpcReply {
     data?: unknown;
 }
 
+type MpvMediaOutcome = boolean | 'unsupported' | undefined;
+
 export interface MpvIpcCommandOptions {
     /** Checked once connected; a `false` skips the write and resolves `false`. */
     shouldDispatch?: () => boolean;
@@ -27,7 +29,7 @@ export interface MpvIpcCommandOptions {
     onDispatched?: () => void;
     media?: {
         signal: AbortSignal;
-        onOutcome: (loaded: boolean | undefined) => void;
+        onOutcome: (loaded: MpvMediaOutcome) => void;
     };
 }
 
@@ -61,15 +63,20 @@ let nextRequestId = 1;
 
 export function publishMpvMediaOutcome(
     sessionId: string,
-    loaded: boolean | undefined
+    loaded: MpvMediaOutcome
 ): void {
     const current = externalPlayerSessions.getSession(sessionId);
     if (!current || current.status === 'closed' || current.status === 'error')
         return;
     externalPlayerSessions.updateSession(
         sessionId,
-        loaded === undefined
-            ? { playbackUnverified: true }
+        loaded === undefined || loaded === 'unsupported'
+            ? {
+                  playbackUnverified: true,
+                  ...(loaded === 'unsupported' && {
+                      mediaObservationUnavailable: true,
+                  }),
+              }
             : loaded
               ? {
                     mediaLoaded: true,
@@ -95,7 +102,9 @@ export function markMpvOpened(
         externalPlayerSessions.updateSession(sessionId, {
             mediaLoaded: false,
             playbackUnverified: socketPath ? current.playbackUnverified : true,
-            mediaObservationUnavailable: socketPath ? undefined : true,
+            mediaObservationUnavailable: socketPath
+                ? current.mediaObservationUnavailable
+                : true,
         });
     return markExternalPlayerOpened(
         sessionId,
@@ -262,7 +271,7 @@ export function sendMpvCommand(
             expected = undefined;
             if (!client.destroyed) client.destroy();
         };
-        const finishMedia = (loaded: boolean | undefined) => {
+        const finishMedia = (loaded: MpvMediaOutcome) => {
             disconnect();
             if (!media?.signal.aborted) media?.onOutcome(loaded);
         };
@@ -317,7 +326,7 @@ export function sendMpvCommand(
                         ? readEntryId(outcome.reply.data)
                         : undefined;
                 if (entry === undefined) {
-                    if (outcome.reply && media) finishMedia(undefined);
+                    if (outcome.reply && media) finishMedia('unsupported');
                     else disconnect();
                 } else {
                     expected = [{ first: entry, last: entry }];

@@ -796,6 +796,9 @@ process with IPC confirms its requested playlist entry, including siblings left
 by nested redirects, and allows retry after a readiness timeout. If the socket
 never accepts a command, MPV retries with the original URL argument after its
 idle process exits. Stop prevents that fallback and any pending IPC write.
+The Unix socket lives in a private directory owned by the app user and is
+removed when the child exits. Older MPV versions that acknowledge without an
+entry ID keep the remote queue without confirming guide playback.
 VLC RC checks
 the requested input and observes its playback clock. A readable zero stays
 pending; a different active URL remains unverified. Temporary RC failures keep
@@ -805,8 +808,8 @@ committed selection keeps it open. Committing the still-playing channel cancels
 every outstanding switch away from it, including timed-out launches that can
 still start playing. An unverified VLC launch cannot replace confirmed playback.
 The dock, player panel and remote status follow the confirmed session. When a
-switch is cancelled, the dock restores Stop for the surviving session if the
-cancelled launch still owns the dock.
+switch fails or is cancelled, the dock restores Stop for the surviving session
+if the terminal launch still owns the dock.
 Consecutive remote tuning
 commands advance from the latest requested channel until it opens or fails.
 IINA keeps the selection-based remote queue because its launcher can exit
