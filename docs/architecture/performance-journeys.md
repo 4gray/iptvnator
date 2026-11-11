@@ -1381,7 +1381,10 @@ persisted status (`xtream-import-status:<id>:<type>`) reads `completed` and
 the type has rows, unless the portal has no categories of that type. Rows
 are required because a refresh deletes the catalog without resetting the
 status. `xtream-import-wait.e2e.ts` holds the account check past the overlay
-window and fails without it. Two J4 counters are enforced since #1899
+window and fails without it. Tests reopening a persisted source from outside
+the Xtream workspace can use `waitForXtreamCatalog(page, { cached: true })`.
+That path checks SQLite and waits for any overlay to clear without first
+waiting for one to appear. Two J4 counters are enforced since #1899
 (see [Enforced journey counters](#enforced-journey-counters)).
 
 ## `renderer.initialBytes`
