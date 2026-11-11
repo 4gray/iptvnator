@@ -257,7 +257,12 @@ changing source exclusions or coverage ratchets to correct a reporting problem.
 | --------------------- | ----------------------------------------------- |
 | Web app browser flows | `pnpm nx run web-e2e:e2e -- --project=chromium` |
 | Electron flows        | `pnpm nx run electron-backend-e2e:e2e`          |
+| Desktop-hosted server | `pnpm nx run electron-backend-e2e:hosted-server` |
 | VOD multi-source      | `pnpm nx run electron-backend-e2e:e2e-ci--src/vod-multi-source.e2e.ts` |
+
+The Windows hosted server job runs the dedicated Electron target. It checks
+that the server's instance ID matches the one in its dedicated SQLite database
+after restarting the desktop with an active source profile.
 
 The Web E2E CI job runs Chromium with `--workers=2`; retry and timeout
 settings remain defined by the Playwright configuration. This override applies

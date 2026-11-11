@@ -142,6 +142,49 @@ describe('desktop hosted server lifecycle', () => {
         rmSync(directory, { recursive: true, force: true });
     });
 
+    it('inherits the parent environment and overrides hosted server settings', async () => {
+        jest.replaceProperty(process, 'env', {
+            SystemRoot: 'C:\\SyntheticWindows',
+            PATH: 'C:\\SyntheticWindows\\System32',
+            TEMP: directory,
+            IPTVNATOR_STORAGE: 'local',
+            IPTVNATOR_DATA_DIR: 'parent-data',
+            IPTVNATOR_E2E_DATA_DIR: directory,
+            IPTVNATOR_SOURCE_PROFILE: 'a'.repeat(64),
+            IPTVNATOR_ACCESS_TOKEN: 'parent-token',
+            IPTVNATOR_HOSTED_ASSETS: 'parent-assets',
+            IPTVNATOR_HOSTED_LAN: '192.168.40.99',
+            PORT: '9999',
+        });
+        const parentEnvironment = { ...process.env };
+        const entry = join(directory, 'hosted-backend/main.cjs');
+        const assets = join(directory, 'hosted-pwa');
+        addAssets(entry, assets);
+        nextWorker(ready);
+
+        expect(await control({ start: true })).toMatchObject({
+            state: 'running',
+        });
+        expect(utilityProcess.fork).toHaveBeenCalledWith(
+            entry,
+            [],
+            expect.objectContaining({
+                env: {
+                    ...parentEnvironment,
+                    IPTVNATOR_STORAGE: 'server',
+                    IPTVNATOR_DATA_DIR: join(directory, 'hosted-server'),
+                    IPTVNATOR_E2E_DATA_DIR: '',
+                    IPTVNATOR_SOURCE_PROFILE: '',
+                    IPTVNATOR_ACCESS_TOKEN: invoke(HOSTED_SERVER_ACCESS_CODE),
+                    IPTVNATOR_HOSTED_ASSETS: assets,
+                    IPTVNATOR_HOSTED_LAN: '',
+                    PORT: String(HOSTED_SERVER_PORT),
+                },
+            })
+        );
+        expect(process.env).toEqual(parentEnvironment);
+    });
+
     it('starts only once for concurrent requests and restores the same local access code', async () => {
         const entry = join(directory, 'hosted-backend/main.cjs');
         const assets = join(directory, 'hosted-pwa');

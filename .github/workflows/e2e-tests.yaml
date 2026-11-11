@@ -137,6 +137,41 @@ jobs:
                       dist/test-results/electron-backend-e2e/
                   retention-days: 7
 
+    hosted-server-smoke:
+        name: Hosted server smoke on Windows
+        runs-on: windows-latest
+        timeout-minutes: 30
+        env:
+            CI: true
+            NX_SKIP_NX_CACHE: true
+        steps:
+            - uses: actions/checkout@v7
+
+            - name: Install pnpm
+              uses: pnpm/action-setup@v6.1.0
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v7
+              with:
+                  node-version-file: '.nvmrc'
+                  cache: 'pnpm'
+
+            - name: Install Dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Run hosted server smoke
+              run: pnpm nx run electron-backend-e2e:hosted-server
+
+            - name: Upload hosted server test results
+              if: always()
+              uses: actions/upload-artifact@v7
+              with:
+                  name: playwright-report-hosted-server-windows
+                  path: |
+                      dist/playwright-report/electron-backend-e2e/
+                      dist/test-results/electron-backend-e2e/
+                  retention-days: 7
+
     electron-e2e-summary:
         name: Electron E2E summary
         runs-on: ubuntu-latest

@@ -140,6 +140,27 @@ describe('SettingsUnloadGuardService', () => {
             );
             expect(unsubscribeCloseRequests).toHaveBeenCalled();
         });
+
+        it('discards a close decision that arrives after destroy', async () => {
+            let resolveConfirm!: (value: boolean) => void;
+            host.confirmClose.mockReturnValueOnce(
+                new Promise<boolean>((resolve) => {
+                    resolveConfirm = resolve;
+                })
+            );
+            activateInElectron();
+            form.markAsDirty();
+            closeRequestCallback?.(1);
+            expect(host.confirmClose).toHaveBeenCalledTimes(1);
+
+            service.ngOnDestroy();
+            resolveConfirm(true);
+            await flushAsyncWork();
+
+            expect(electronStub.confirmWindowClose).not.toHaveBeenCalled();
+            expect(electronStub.cancelWindowClose).not.toHaveBeenCalled();
+            await expect(service.confirmLeave()).resolves.toBe(true);
+        });
     });
 
     describe('updater-driven app quit (Electron)', () => {
@@ -326,6 +347,25 @@ describe('SettingsUnloadGuardService', () => {
     });
 
     describe('intercepted window close (Electron)', () => {
+        it('finishes only the native close when it shares a navigation decision', async () => {
+            let decide!: (proceed: boolean) => void;
+            host.confirmClose.mockReturnValue(
+                new Promise<boolean>((resolve) => {
+                    decide = resolve;
+                })
+            );
+            activateInElectron();
+
+            const navigating = service.confirmLeave();
+            closeRequestCallback?.(1);
+            decide(true);
+
+            await expect(navigating).resolves.toBe(false);
+            await flushAsyncWork();
+            expect(host.confirmClose).toHaveBeenCalledTimes(1);
+            expect(electronStub.confirmWindowClose).toHaveBeenCalledTimes(1);
+        });
+
         it('confirms the close once the user saves or discards', async () => {
             activateInElectron();
             form.markAsDirty();

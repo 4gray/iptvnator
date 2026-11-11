@@ -43,6 +43,7 @@ export class SettingsUnloadGuardService implements OnDestroy {
     private host: SettingsUnloadGuardHost | null = null;
     private unsubscribeCloseRequests: (() => void) | null = null;
     private unregisterFromInstallService: (() => void) | null = null;
+    private leaveConfirmation?: Promise<boolean>;
     private confirmationPending = false;
     /**
      * Intent of the confirmation currently on screen. A close request
@@ -106,6 +107,25 @@ export class SettingsUnloadGuardService implements OnDestroy {
         this.dispose();
     }
 
+    /** Let an intercepted close finish without also navigating away. */
+    readonly confirmLeave = async (): Promise<boolean> =>
+        !this.confirmationPending &&
+        (await this.confirmChanges()) &&
+        !this.confirmationPending;
+
+    private confirmChanges(): Promise<boolean> {
+        if (!this.host) return Promise.resolve(true);
+        if (this.leaveConfirmation) return this.leaveConfirmation;
+
+        const confirmation = this.host.confirmClose().finally(() => {
+            if (this.leaveConfirmation === confirmation) {
+                this.leaveConfirmation = undefined;
+            }
+        });
+        this.leaveConfirmation = confirmation;
+        return confirmation;
+    }
+
     /**
      * Suspends DOM protection for installing a downloaded update. The
      * updater closes the window while the form may still be dirty; a
@@ -142,6 +162,7 @@ export class SettingsUnloadGuardService implements OnDestroy {
         this.unsubscribeCloseRequests = null;
         this.unregisterFromInstallService?.();
         this.unregisterFromInstallService = null;
+        this.leaveConfirmation = undefined;
         this.suspended = false;
         this.queuedCloseRequest = false;
         this.syncCloseGuard(false);
@@ -206,7 +227,9 @@ export class SettingsUnloadGuardService implements OnDestroy {
         let reAskClose = false;
 
         try {
-            const proceed = await host.confirmClose();
+            const proceed = await this.confirmChanges();
+            // A navigation that already left settings disarmed the main guard.
+            if (this.host !== host) return false;
             // Re-read after the dialog: a cross-intent request may have
             // escalated it while the user was deciding.
             const finalIntent = this.activeIntent ?? intent;

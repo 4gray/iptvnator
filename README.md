@@ -134,11 +134,16 @@ remote. Tested on the Dreambox DM520 and Vu+ Uno 4K SE.
 Support development through [GitHub Sponsors](https://github.com/sponsors/4gray),
 [Ko-fi](https://ko-fi.com/4gray), or a star on GitHub.
 
-<!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
+## Contributors
 
-[![All Contributors](https://img.shields.io/badge/all_contributors-13-orange.svg?style=flat-square)](https://github.com/4gray/iptvnator/graphs/contributors)
+[![GitHub commit contributors](https://img.shields.io/github/contributors/4gray/iptvnator)](https://github.com/4gray/iptvnator/graphs/contributors)
 
-<!-- ALL-CONTRIBUTORS-BADGE:END -->
+<details>
+<summary>Show contributors</summary>
+
+[![Contributor avatars](https://contrib.rocks/image?repo=4gray/iptvnator)](https://github.com/4gray/iptvnator/graphs/contributors)
+
+</details>
 
 ## License and trademark
 
