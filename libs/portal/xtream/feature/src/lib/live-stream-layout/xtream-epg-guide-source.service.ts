@@ -1,17 +1,14 @@
 import {
     computed,
-    effect,
     inject,
     Injectable,
     Injector,
     linkedSignal,
     signal,
-    untracked,
 } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import { sortPortalChannelItems } from '@iptvnator/portal/shared/util';
 import {
-    FavoritesService,
     XtreamApiService,
     XtreamFullEpgService,
     XtreamStore,
@@ -33,7 +30,7 @@ import type {
     EpgGuideWindow,
 } from '@iptvnator/ui/epg';
 import { toSharedEpgProgram } from '../portal-channels-list/epg-preview-program';
-import { loadXtreamGuideFavorites } from './xtream-guide-favorites';
+import { injectXtreamGuideFavorites } from './xtream-guide-favorites';
 import { XtreamGuideScheduleCache } from './xtream-guide-schedule-cache';
 import {
     XtreamLiveChannelItem,
@@ -87,7 +84,6 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly parentalLock = inject(ParentalLockService);
     private readonly injector = inject(Injector);
-    private readonly favoritesService = inject(FavoritesService);
     private readonly navigation = inject(XtreamLiveChannelNavigationService);
     private readonly translate = inject(TranslateService);
     private readonly languageTick = injectTranslationTick();
@@ -97,7 +93,6 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     );
     private cacheRevision: unknown;
     private readonly session = signal<AbortController | null>(null);
-    private readonly favorites = signal<ReadonlyMap<number, number>>(new Map());
 
     readonly deferredCoverage = true;
     readonly programBatchSize = 1;
@@ -152,6 +147,12 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         );
     });
 
+    private readonly favorites = injectXtreamGuideFavorites(
+        this.session,
+        () => this.playlist()?.id,
+        this.items,
+        () => this.runtime.supportsXtreamSqliteDataSource
+    );
     private readonly catalog = computed(() => rowsByStreamId(this.items()));
 
     readonly revision = computed(() => ({
@@ -236,33 +237,6 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         item: XtreamLiveChannelItem,
         scope: readonly XtreamLiveChannelItem[]
     ) => void;
-
-    constructor() {
-        effect((onCleanup) => {
-            const session = this.session();
-            const id = this.playlist()?.id;
-            if (!session || !id) return;
-            const visible = this.items();
-            const refresh = new AbortController();
-            onCleanup(() => refresh.abort());
-            const signal = AbortSignal.any([session.signal, refresh.signal]);
-            untracked(() => {
-                void loadXtreamGuideFavorites(
-                    this.favoritesService,
-                    id,
-                    visible,
-                    this.runtime.supportsXtreamSqliteDataSource,
-                    signal
-                ).then(
-                    (favorites) => {
-                        if (!signal.aborted && visible === this.items())
-                            this.favorites.set(favorites);
-                    },
-                    () => undefined
-                );
-            });
-        });
-    }
 
     bind(play: NonNullable<XtreamEpgGuideSourceService['play']>): void {
         this.play = play;

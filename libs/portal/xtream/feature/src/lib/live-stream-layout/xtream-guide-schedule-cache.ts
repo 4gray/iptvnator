@@ -16,14 +16,23 @@ interface PendingSchedule {
     consumers: number;
 }
 
-function waitFor<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
-    let abort!: () => void;
+function waitFor<T>(
+    work: Promise<T>,
+    signals: readonly AbortSignal[]
+): Promise<T> {
+    let abort!: (event: Event) => void;
     return new Promise<T>((resolve, reject) => {
-        abort = () => reject(signal.reason);
+        abort = (event) => reject((event.target as AbortSignal).reason);
         work.then(resolve, reject);
-        if (signal.aborted) abort();
-        else signal.addEventListener('abort', abort, { once: true });
-    }).finally(() => signal.removeEventListener('abort', abort));
+        const retired = signals.find((signal) => signal.aborted);
+        if (retired) reject(retired.reason);
+        else
+            signals.forEach((signal) =>
+                signal.addEventListener('abort', abort, { once: true })
+            );
+    }).finally(() =>
+        signals.forEach((signal) => signal.removeEventListener('abort', abort))
+    );
 }
 
 /** The guide can scan an entire portal without retaining every schedule. */
@@ -59,11 +68,11 @@ export class XtreamGuideScheduleCache {
         fetch: FetchSchedule,
         consumer?: AbortSignal
     ): Promise<EpgProgram[]> {
-        const signal = consumer
-            ? AbortSignal.any([this.controller.signal, consumer])
-            : this.controller.signal;
+        const signals = consumer
+            ? [this.controller.signal, consumer]
+            : [this.controller.signal];
         for (;;) {
-            signal.throwIfAborted();
+            signals.forEach((signal) => signal.throwIfAborted());
             checkCurrent();
             const cached = this.cached.get(id);
             if (cached) {
@@ -74,20 +83,19 @@ export class XtreamGuideScheduleCache {
                 }
             }
             const entry = this.pending.get(id);
-            if (entry) return this.consume(id, entry, signal);
+            if (entry) return this.consume(id, entry, signals);
             if (this.slots.size < CONCURRENT_REQUESTS)
-                return this.consume(id, this.start(id, fetch), signal);
-            await waitFor(Promise.race([...this.slots]), signal);
+                return this.consume(id, this.start(id, fetch), signals);
+            await waitFor(Promise.race([...this.slots]), signals);
         }
     }
 
     private start(id: string, fetch: FetchSchedule): PendingSchedule {
         const controller = new AbortController();
         const sessionId = globalThis.crypto.randomUUID?.();
-        const work = waitFor(
-            fetch({ signal: controller.signal, sessionId }),
-            controller.signal
-        );
+        const work = waitFor(fetch({ signal: controller.signal, sessionId }), [
+            controller.signal,
+        ]);
         const entry: PendingSchedule = {
             work,
             consumers: 0,
@@ -112,11 +120,11 @@ export class XtreamGuideScheduleCache {
     private async consume(
         id: string,
         entry: PendingSchedule,
-        signal: AbortSignal
+        signals: readonly AbortSignal[]
     ): Promise<EpgProgram[]> {
         entry.consumers++;
         try {
-            return await waitFor(entry.work, signal);
+            return await waitFor(entry.work, signals);
         } finally {
             if (--entry.consumers === 0 && this.pending.get(id) === entry) {
                 this.pending.delete(id);

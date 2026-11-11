@@ -780,6 +780,8 @@ and private-network checks.
 
 The Xtream Live TV header, command palette, timeline and list panel, and `G`
 open the shared multi-channel programme guide while a channel is playing.
+With MPV or VLC selected, the external session must have opened before the
+guide can open.
 The guide keeps the player mounted in the dock and hides the live sidebars
 while preserving their browsing state. It uses the current playlist's visible,
 unlocked live catalogue and can scope it to a category or resolved live favorites.
@@ -801,7 +803,8 @@ does not discard matches from other channels. Large scopes can take longer to
 search or filter. Closing the guide cancels its in-flight provider requests.
 Replacing a search or viewport request cancels work once no other guide
 consumer needs it. Visibility changes refresh the guide's favorites and
-return a removed category scope to All Channels.
+return a removed category scope to All Channels. Background favorites
+synchronization also refreshes membership while the guide is open.
 Rechecking the same playlist keeps the guide open and preserves its scope and
 search query. Guide and player use the same full EPG resolver, including
 manual XMLTV mappings and the user's source priority.

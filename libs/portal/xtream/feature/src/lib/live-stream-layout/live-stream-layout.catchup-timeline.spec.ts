@@ -8,6 +8,7 @@ import { By } from '@angular/platform-browser';
 import { Subject, of } from 'rxjs';
 import {
     LiveLayoutSidebarStateService,
+    PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYER,
 } from '@iptvnator/portal/shared/util';
 import {
@@ -31,7 +32,11 @@ import {
     RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
-import { EpgItem, EpgProgram } from '@iptvnator/shared/interfaces';
+import {
+    EpgItem,
+    EpgProgram,
+    type ExternalPlayerSession,
+} from '@iptvnator/shared/interfaces';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { LiveStreamLayoutComponent } from './live-stream-layout.component';
 import {
@@ -91,6 +96,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         isEmbeddedPlayer: signal(true),
         openExternalPlayback: jest.fn(),
     };
+    const externalSession = signal<ExternalPlayerSession | null>(null);
     const xtreamStore = {
         getCategoriesBySelectedType: signal([
             { category_id: 1, category_name: 'News' },
@@ -121,6 +127,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         epgItems.set([]);
         runtime.supportsProviderCatchUp = true;
         portalPlayer.isEmbeddedPlayer.set(true);
+        externalSession.set(null);
 
         await TestBed.configureTestingModule({
             imports: [
@@ -182,6 +189,10 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                     provide: PORTAL_PLAYER,
                     useValue: portalPlayer,
                 },
+                {
+                    provide: PORTAL_EXTERNAL_PLAYBACK,
+                    useValue: { activeSession: externalSession },
+                },
                 { provide: ParentalLockService, useValue: parentalLock },
             ],
         })
@@ -231,8 +242,24 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
     it('keeps the external guide summary compact without changing the dock preference', () => {
         portalPlayer.isEmbeddedPlayer.set(false);
         component.guide.collapsed.set(false);
-        component.playLive(sampleChannel);
-        component.guide.isOpen.set(true);
+        component.playLive(sampleChannel, false);
+        expect(component.guide.available()).toBe(false);
+
+        component.playLive(sampleChannel, true);
+        const session: ExternalPlayerSession = {
+            id: 'synthetic-external-session',
+            streamUrl: component.activeStreamUrl(),
+            title: 'Synthetic Live Channel',
+            player: 'mpv',
+            status: 'launching',
+            startedAt: '2026-04-04T10:00:00Z',
+            updatedAt: '2026-04-04T10:00:00Z',
+            canClose: true,
+        };
+        externalSession.set(session);
+        expect(component.guide.available()).toBe(false);
+        externalSession.set({ ...session, status: 'playing' });
+        component.guide.open();
         fixture.detectChanges();
         const summary = fixture.debugElement.query(
             By.directive(EpgGuideNowPlayingComponent)
@@ -240,6 +267,14 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         expect(summary.componentInstance.collapsed()).toBe(true);
         expect(summary.componentInstance.collapsible()).toBe(false);
         expect(component.guide.collapsed()).toBe(false);
+
+        xtreamStore.constructStreamUrl.mockReturnValueOnce(
+            'https://example.com/next.ts'
+        );
+        component.playLive({ ...sampleChannel, xtream_id: 102 }, true);
+        fixture.detectChanges();
+        expect(component.guide.isOpen()).toBe(true);
+        expect(component.guideNowPlayingChannel()).toBe(session.title);
     });
 
     it('offers archive playback where provider catch-up can play', () => {

@@ -16,6 +16,7 @@ import {
     untracked,
     forwardRef,
     inject,
+    linkedSignal,
     OnDestroy,
     OnInit,
     signal,
@@ -47,9 +48,11 @@ import {
     getAdjacentChannelItem,
     getChannelItemByNumber,
     isTypingInInput,
+    isLiveExternalPlayerSession,
     LiveEpgPanelState,
     persistLiveEpgPanelState,
     persistPortalChannelSortMode,
+    PORTAL_EXTERNAL_PLAYBACK,
     queryParamSignal,
     REMOTE_CONTROL_RESET_STATUS,
     restoreLiveEpgPanelState,
@@ -87,6 +90,7 @@ import {
     EpgItem,
     EpgProgram,
     epgProviderClockMs,
+    type ExternalPlayerSession,
     filterRecordingProgramsOverlap,
     playlistDisplayLabel,
     RecordingStartMetadata,
@@ -480,7 +484,44 @@ export class LiveStreamLayoutComponent
     readonly activeStreamUrl = computed(
         () => this.activePlayback()?.streamUrl ?? ''
     );
+    private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK, {
+        optional: true,
+    });
+    private readonly guideExternalSession = linkedSignal({
+        source: () => ({
+            playlistId: this.xtreamStore.currentPlaylist()?.id,
+            url: this.activeStreamUrl(),
+            session: this.externalPlayback?.activeSession(),
+        }),
+        computation: (
+            { playlistId, url, session },
+            previous
+        ): ExternalPlayerSession | null => {
+            if (
+                !isLiveExternalPlayerSession(session) ||
+                session.status === 'error'
+            )
+                return null;
+            // Hold the current session while the guide switches to a new channel.
+            return session.streamUrl === url ||
+                (previous?.source.playlistId === playlistId &&
+                    previous?.value?.id === session.id)
+                ? session
+                : null;
+        },
+    });
+    readonly guideNowPlayingChannel = computed(
+        () =>
+            (this.usesEmbeddedPlayer()
+                ? this.activePlayback()?.title
+                : this.guideExternalSession()?.title) ?? ''
+    );
     readonly guideNowPlayingProgram = computed(() => {
+        if (
+            !this.usesEmbeddedPlayer() &&
+            this.guideExternalSession()?.streamUrl !== this.activeStreamUrl()
+        )
+            return null;
         const program = findCurrentEpgItem(
             this.epgItems(),
             epgProviderClockMs(this.currentTimeMs(), this.epgOffsetMinutes())
@@ -492,12 +533,29 @@ export class LiveStreamLayoutComponent
     });
 
     constructor() {
-        this.guide.bind(computed(() => !!this.activeStreamUrl()));
+        this.guide.bind(
+            computed(() => {
+                const url = this.activeStreamUrl();
+                if (!url || this.usesEmbeddedPlayer()) return !!url;
+                const session = this.guideExternalSession();
+                return (
+                    !!session &&
+                    (this.guide.isOpen() ||
+                        (session.streamUrl === url &&
+                            session.status !== 'launching'))
+                );
+            })
+        );
         this.guideSource.bind((item, channels) =>
             this.playLive(item, true, channels)
         );
         effect(() =>
-            this.guideSource.setLivePlayback(!this.showReturnToLive())
+            this.guideSource.setLivePlayback(
+                !this.showReturnToLive() &&
+                    (this.usesEmbeddedPlayer() ||
+                        this.guideExternalSession()?.streamUrl ===
+                            this.activeStreamUrl())
+            )
         );
 
         effect(() => {

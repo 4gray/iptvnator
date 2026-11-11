@@ -1,6 +1,8 @@
 import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
-import type {
-    FavoriteItem,
+import { effect, inject, signal, untracked, type Signal } from '@angular/core';
+import {
+    type FavoriteItem,
+    type TypedXtreamCollectionRef,
     FavoritesService,
 } from '@iptvnator/portal/xtream/data-access';
 import { firstValueFrom } from 'rxjs';
@@ -30,7 +32,7 @@ function xtreamGuideFavoriteRows(
 async function resolveVisibleXtreamFavoriteCopies(
     favorites: ReadonlyMap<number, number>,
     rows: readonly XtreamLiveChannelItem[],
-    isFavorite: (id: number) => Promise<boolean>,
+    isFavorite: (ref: TypedXtreamCollectionRef) => Promise<boolean>,
     signal: AbortSignal
 ): Promise<ReadonlyMap<number, number>> {
     if (!favorites.size) return favorites;
@@ -43,7 +45,15 @@ async function resolveVisibleXtreamFavoriteCopies(
         const id = Number(row.id);
         if (
             Number.isSafeInteger(id) &&
-            (await isFavorite(id).catch(() => false))
+            (await isFavorite({
+                id,
+                providerId: row.xtream_id,
+                type: 'live',
+                identity: {
+                    tmdbId: row.tmdb_id ?? undefined,
+                    releaseYear: row.release_year ?? undefined,
+                },
+            }).catch(() => false))
         ) {
             resolved ??= new Map(favorites);
             resolved.set(row.xtream_id, id);
@@ -52,7 +62,7 @@ async function resolveVisibleXtreamFavoriteCopies(
     return resolved ?? favorites;
 }
 
-export async function loadXtreamGuideFavorites(
+async function loadXtreamGuideFavorites(
     service: FavoritesService,
     playlistId: string,
     visible: readonly XtreamLiveChannelItem[],
@@ -69,4 +79,54 @@ export async function loadXtreamGuideFavorites(
               signal
           )
         : favorites;
+}
+
+export function injectXtreamGuideFavorites(
+    session: Signal<AbortController | null>,
+    playlistId: () => string | undefined,
+    rows: Signal<readonly XtreamLiveChannelItem[]>,
+    sqlite: () => boolean
+) {
+    const service = inject(FavoritesService);
+    const favorites = signal<ReadonlyMap<number, number>>(new Map());
+    const revision = signal(0);
+    effect((onCleanup) => {
+        const owner = session();
+        const id = playlistId();
+        if (!owner || !id) return;
+        const visible = rows();
+        const requestedRevision = revision();
+        const refresh = new AbortController();
+        const { signal } = refresh;
+        onCleanup(() => refresh.abort());
+        owner.signal.addEventListener('abort', () => refresh.abort(), {
+            once: true,
+            signal,
+        });
+        window.addEventListener(
+            'iptvnator-favorites-changed',
+            () => revision.update((value) => value + 1),
+            { signal }
+        );
+        untracked(() => {
+            void loadXtreamGuideFavorites(
+                service,
+                id,
+                visible,
+                sqlite(),
+                signal
+            ).then(
+                (items) => {
+                    if (
+                        !signal.aborted &&
+                        visible === rows() &&
+                        requestedRevision === revision()
+                    )
+                        favorites.set(items);
+                },
+                () => undefined
+            );
+        });
+    });
+    return favorites;
 }

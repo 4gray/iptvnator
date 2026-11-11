@@ -361,7 +361,7 @@
 
 <ng-template #guideNowPlaying>
     <app-epg-guide-now-playing
-        [channelName]="activePlayback()?.title ?? ''"
+        [channelName]="guideNowPlayingChannel()"
         [program]="guideNowPlayingProgram()"
         [offsetMinutes]="epgOffsetMinutes()"
         [collapsed]="guide.collapsed() || !usesEmbeddedPlayer()"

@@ -5,6 +5,7 @@ import { of } from 'rxjs';
 import {
     FavoritesService,
     XtreamApiService,
+    type TypedXtreamCollectionRef,
     FavoriteItem,
     XtreamFullEpgService,
     XtreamPlaylistData,
@@ -101,7 +102,10 @@ describe('XtreamEpgGuideSourceService', () => {
         'content_id' | 'xtream_id' | 'type' | 'catalog_status' | 'category_id'
     >[];
     const load = jest.fn<Promise<EpgItem[]>, unknown[]>();
-    const isFavorite = jest.fn<Promise<boolean>, [number, string]>();
+    const isFavorite = jest.fn<
+        Promise<boolean>,
+        [TypedXtreamCollectionRef, string]
+    >();
     const locked = jest.fn<boolean, [string, string, number]>();
     let service: XtreamEpgGuideSourceService;
 
@@ -361,6 +365,8 @@ describe('XtreamEpgGuideSourceService', () => {
             ...one,
             id: 15,
             title: 'Synthetic Compatible Copy',
+            tmdb_id: 10,
+            release_year: 2020,
         };
         liveStreams.set([
             one,
@@ -375,13 +381,35 @@ describe('XtreamEpgGuideSourceService', () => {
                 type: 'live',
             },
         ];
-        isFavorite.mockImplementation(async (id) => id === compatible.id);
+        isFavorite.mockImplementation(
+            async (ref) =>
+                ref.identity?.tmdbId === compatible.tmdb_id &&
+                ref.identity.releaseYear === compatible.release_year
+        );
         service.open();
         service.setScope('favorites');
         await settleFavorites();
         expect(isFavorite.mock.calls).toEqual([
-            [one.id, playlist.id],
-            [compatible.id, playlist.id],
+            [
+                expect.objectContaining({
+                    id: one.id,
+                    type: 'live',
+                    providerId: one.xtream_id,
+                }),
+                playlist.id,
+            ],
+            [
+                expect.objectContaining({
+                    id: compatible.id,
+                    type: 'live',
+                    providerId: compatible.xtream_id,
+                    identity: {
+                        tmdbId: compatible.tmdb_id,
+                        releaseYear: compatible.release_year,
+                    },
+                }),
+                playlist.id,
+            ],
         ]);
         expect(service.channels()).toEqual([
             expect.objectContaining({ name: compatible.title }),
@@ -418,7 +446,33 @@ describe('XtreamEpgGuideSourceService', () => {
         expect(service.channels().map(({ name }) => name)).toEqual([
             copy.title,
         ]);
-        expect(isFavorite).toHaveBeenCalledWith(copy.id, playlist.id);
+        expect(isFavorite).toHaveBeenCalledWith(
+            expect.objectContaining({
+                id: copy.id,
+                type: 'live',
+                providerId: copy.xtream_id,
+            }),
+            playlist.id
+        );
+    });
+
+    it('refreshes favorite membership after the sync runtime announces a change', async () => {
+        favorites = [];
+        service.setScope('favorites');
+        await settleFavorites();
+        expect(service.channels()).toEqual([]);
+
+        favorites = [
+            {
+                content_id: one.id,
+                xtream_id: one.xtream_id,
+                category_id: one.category_id,
+                type: 'live',
+            },
+        ];
+        window.dispatchEvent(new Event('iptvnator-favorites-changed'));
+        await settleFavorites();
+        expect(service.channels().map(({ id }) => id)).toEqual(['101']);
     });
 
     it('falls back to All Channels when the browsed category becomes locked', () => {
