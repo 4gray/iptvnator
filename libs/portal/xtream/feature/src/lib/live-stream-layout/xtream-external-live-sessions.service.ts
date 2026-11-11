@@ -94,12 +94,14 @@ export class XtreamExternalLiveSessions {
         excludeId?: string
     ): ExternalPlayerSession | undefined {
         this.revision();
+        this.lock.version();
         let latest: ExternalPlayerSession | undefined;
         for (const { session, source } of this.sessions.values()) {
             if (
                 session.id === excludeId ||
                 source.playlistId !== playlistId ||
                 !source.channel ||
+                isXtreamLiveCategoryWithheld(this.lock, source) ||
                 (session.status !== 'opened' && session.status !== 'playing')
             )
                 continue;

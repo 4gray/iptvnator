@@ -182,7 +182,9 @@ export class XtreamLiveChannelNavigationService {
         this.requestSequence++;
         this.pendingReveal.set(null);
         const owner = this.owner();
-        if (!preserveQueue && this.activeItem()?.xtream_id !== item.xtream_id) {
+        const active = this.activeItem();
+        const key = channelCopyKey(item);
+        if (!preserveQueue && (!active || channelCopyKey(active) !== key)) {
             this.queue.capture(
                 owner,
                 JSON.stringify([
@@ -190,7 +192,11 @@ export class XtreamLiveChannelNavigationService {
                     this.query(),
                     this.sortMode(),
                 ]),
-                items,
+                items.filter(
+                    (candidate) =>
+                        candidate.xtream_id !== item.xtream_id ||
+                        channelCopyKey(candidate) === key
+                ),
                 item
             );
         }

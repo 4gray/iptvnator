@@ -818,8 +818,47 @@ export class LiveStreamLayoutComponent
         startPlayback = !this.settingsStore.openStreamOnDoubleClick(),
         displayedChannels?: readonly XtreamLiveChannelItem[],
         remote = false
-    ) {
-        this.playbackRequestId += 1;
+    ): void {
+        const requestId = ++this.playbackRequestId;
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        if (
+            startPlayback &&
+            playlistId &&
+            !this.usesEmbeddedPlayer() &&
+            this.externalGuide.hasBridge
+        ) {
+            const category = this.readLiveProviderCategoryId(item);
+            const start = (resolved: typeof category) => {
+                if (
+                    !this.isCurrentPlaybackRequest(requestId, playlistId) ||
+                    this.isLiveCategoryWithheld(playlistId, resolved)
+                )
+                    return;
+                this.applyLivePlayback(
+                    item,
+                    true,
+                    displayedChannels,
+                    remote,
+                    resolved
+                );
+            };
+            if (category === 'unknown')
+                void this.lookupLiveProviderCategoryId(playlistId, item).then(
+                    start
+                );
+            else start(category);
+            return;
+        }
+        this.applyLivePlayback(item, startPlayback, displayedChannels, remote);
+    }
+
+    private applyLivePlayback(
+        item: XtreamLiveChannelItem,
+        startPlayback: boolean,
+        displayedChannels: readonly XtreamLiveChannelItem[] | undefined,
+        remote: boolean,
+        category?: number | null | 'unknown'
+    ): void {
         const streamUrl = this.guide.isOpen()
             ? this.xtreamStore.constructStreamUrl(item, (signal) =>
                   this.readGuideSchedule(item, signal)
@@ -842,8 +881,10 @@ export class LiveStreamLayoutComponent
         if (!remote && !this.guide.isOpen()) this.selectLiveItemCategory(item);
         this.activeLiveItemId.set(item.xtream_id);
         this.activeGuideItem.set(item);
-        this.activeLiveProviderCategoryId =
-            this.resolveLiveProviderCategoryId(item);
+        this.activeLiveProviderCategoryId = this.resolveLiveProviderCategoryId(
+            item,
+            category
+        );
         const playlist = this.xtreamStore.currentPlaylist();
         this.activePlaylistId = playlist?.id ?? null;
         this.activePlayback.set({
@@ -1093,44 +1134,68 @@ export class LiveStreamLayoutComponent
     }
 
     private resolveLiveProviderCategoryId(
-        item: XtreamLiveChannelItem
+        item: XtreamLiveChannelItem,
+        resolved?: number | null | 'unknown'
     ): number | null | 'unknown' {
         // Every resolution retires lookups from the previous selection.
         const generation = ++this.liveCategoryLookupGeneration;
+        if (resolved !== undefined) return resolved;
         const providerId = this.readLiveProviderCategoryId(item);
         if (providerId !== 'unknown') return providerId;
-        const categoryId = Number(item.category_id);
         // Not in the visible list — a hidden category (search can play its
         // channels). Resolve through the unfiltered rows; until that lands
         // the id is unknown and a relock stops the channel.
         const playlistId = this.xtreamStore.currentPlaylist()?.id;
         if (playlistId) {
-            void this.databaseService
-                .getAllXtreamCategories(playlistId, 'live')
-                .then((rows) => {
+            void this.lookupLiveProviderCategoryId(playlistId, item).then(
+                (resolved) => {
                     if (
+                        resolved === 'unknown' ||
                         generation !== this.liveCategoryLookupGeneration ||
                         this.xtreamStore.currentPlaylist()?.id !== playlistId ||
                         this.activeLiveItemId() !== item.xtream_id
                     ) {
                         return;
                     }
-                    const row = rows.find(
-                        (candidate) => Number(candidate.id) === categoryId
+                    this.activeLiveProviderCategoryId = resolved;
+                    this.externalGuide.resolveCategory(
+                        this.activeStreamUrl(),
+                        item,
+                        resolved
                     );
-                    const resolved = Number(row?.xtream_id);
-                    if (Number.isFinite(resolved)) {
-                        this.activeLiveProviderCategoryId = resolved;
-                        this.externalGuide.resolveCategory(
-                            this.activeStreamUrl(),
-                            item,
-                            resolved
-                        );
-                    }
-                })
-                .catch(() => undefined);
+                }
+            );
         }
         return 'unknown';
+    }
+
+    private async lookupLiveProviderCategoryId(
+        playlistId: string,
+        item: XtreamLiveChannelItem
+    ): Promise<number | 'unknown'> {
+        try {
+            const rows = await this.databaseService.getAllXtreamCategories(
+                playlistId,
+                'live'
+            );
+            const categoryId = Number(item.category_id);
+            const resolved = Number(
+                rows.find((row) => Number(row.id) === categoryId)?.xtream_id
+            );
+            return Number.isFinite(resolved) ? resolved : 'unknown';
+        } catch {
+            return 'unknown';
+        }
+    }
+
+    private isCurrentPlaybackRequest(
+        requestId: number,
+        playlistId: string
+    ): boolean {
+        return (
+            requestId === this.playbackRequestId &&
+            this.xtreamStore.currentPlaylist()?.id === playlistId
+        );
     }
 
     private selectLiveItemCategory(item: XtreamLiveChannelItem): void {
@@ -1163,9 +1228,23 @@ export class LiveStreamLayoutComponent
         }
 
         const requestId = ++this.playbackRequestId;
+        const external =
+            !this.usesEmbeddedPlayer() && this.externalGuide.hasBridge;
+        const category = this.readLiveProviderCategoryId(item);
+        const resolved =
+            external && category === 'unknown'
+                ? await this.lookupLiveProviderCategoryId(playlist.id, item)
+                : category;
+        if (
+            !this.isCurrentPlaybackRequest(requestId, playlist.id) ||
+            (external && this.isLiveCategoryWithheld(playlist.id, resolved))
+        )
+            return;
         this.activeLiveItemId.set(item.xtream_id);
-        this.activeLiveProviderCategoryId =
-            this.resolveLiveProviderCategoryId(item);
+        this.activeLiveProviderCategoryId = this.resolveLiveProviderCategoryId(
+            item,
+            external ? resolved : undefined
+        );
         const catchupUrl = await this.xtreamUrlService.resolveCatchupUrl(
             playlist.id,
             {
@@ -1181,9 +1260,9 @@ export class LiveStreamLayoutComponent
             playlist.serverTimezone
         );
         if (
-            requestId !== this.playbackRequestId ||
-            this.xtreamStore.currentPlaylist()?.id !== playlist.id ||
-            this.activeLiveItemId() !== item.xtream_id
+            !this.isCurrentPlaybackRequest(requestId, playlist.id) ||
+            this.activeLiveItemId() !== item.xtream_id ||
+            (external && this.isLiveCategoryWithheld(playlist.id, resolved))
         ) {
             return;
         }

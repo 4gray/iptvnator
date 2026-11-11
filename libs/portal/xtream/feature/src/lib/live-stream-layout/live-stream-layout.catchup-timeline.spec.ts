@@ -335,6 +335,33 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(3);
     });
 
+    it.each([false, true])(
+        'resolves hidden categories before external playback (locked: %s)',
+        async (locked) => {
+            runtime.supportsXtreamSqliteDataSource = true;
+            portalPlayer.isEmbeddedPlayer.set(false);
+            parentalLock.active.set(true);
+            parentalLock.isXtreamCategoryLocked.mockImplementation(
+                (_playlist, _type, category) => locked && category === 7
+            );
+            let resolve!: (rows: unknown[]) => void;
+            databaseService.getAllXtreamCategories.mockReturnValueOnce(
+                new Promise<unknown[]>((done) => (resolve = done))
+            );
+            try {
+                component.playLive({ ...sampleChannel, category_id: 99 }, true);
+                expect(xtreamStore.openPlayer).not.toHaveBeenCalled();
+                resolve([{ id: 99, xtream_id: 7 }]);
+                await fixture.whenStable();
+                expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(
+                    locked ? 0 : 1
+                );
+            } finally {
+                runtime.supportsXtreamSqliteDataSource = false;
+            }
+        }
+    );
+
     it('allows retry after a replacement opens and closes before rendering', async () => {
         const playing = { ...sampleChannel, category_id: 1 };
         const next = { ...playing, xtream_id: 102 };
@@ -940,6 +967,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         'opens intermediate',
         'restores intermediate',
         'restores intermediate after late launch update',
+        'restores detached intermediate',
     ] as const)(
         'tracks the confirmed external channel during overlapping switches (%s)',
         (outcome) => {
@@ -1013,8 +1041,9 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 fixture.detectChanges();
                 expect(component.guide.isOpen()).toBe(true);
             }
+            const detached = outcome === 'restores detached intermediate';
             const restoreIntermediate =
-                late || outcome === 'restores intermediate';
+                late || detached || outcome === 'restores intermediate';
             if (restoreIntermediate) {
                 publishExternalSession(third);
                 fixture.detectChanges();
@@ -1030,15 +1059,26 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 fixture.detectChanges();
                 expect(component.guideNowPlayingChannel()).toBe(session.title);
             }
-            publishExternalSession({
+            const opened = {
                 ...confirmed,
-                status: 'playing',
+                status: 'playing' as const,
                 restoredFromSessionId: original
                     ? replacement.id
                     : restoreIntermediate
                       ? third.id
                       : undefined,
-            });
+            };
+            if (detached) {
+                onExternalPlayerSessionUpdate.mock.lastCall?.[0]({
+                    ...opened,
+                    restoredFromSessionId: undefined,
+                });
+                publishExternalSession({
+                    ...third,
+                    status: 'error',
+                    canClose: false,
+                });
+            } else publishExternalSession(opened);
             fixture.detectChanges();
 
             const source = fixture.debugElement.injector.get(

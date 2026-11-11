@@ -87,10 +87,16 @@ export class XtreamGuideExternalPlayback {
                 hasOpened(active) &&
                 this.sessions.state(active.id)?.source.playlistId ===
                     playlistId;
+            const previousSession =
+                prior?.lockSource.playlistId === playlistId &&
+                prior.session.id !== active?.id
+                    ? this.sessions.state(prior.session.id)?.session
+                    : undefined;
             const session = owned
                 ? active
-                : this.survivor(playlistId, active?.id, prior);
-            if (!session) return null;
+                : (this.sessions.latestOpened(playlistId, active?.id) ??
+                  previousSession);
+            if (!hasOpened(session)) return null;
             const source = this.sessions.state(session.id)?.source;
             if (!source) return null;
             const requested = this.requests.get(session.streamUrl);
@@ -289,22 +295,6 @@ export class XtreamGuideExternalPlayback {
             return false;
         this.syncPanel(confirmed);
         return true;
-    }
-
-    private survivor(
-        playlistId: string,
-        activeId: string | undefined,
-        prior: ConfirmedLaunch | null | undefined
-    ) {
-        if (
-            prior &&
-            prior.lockSource.playlistId === playlistId &&
-            prior.session.id !== activeId
-        ) {
-            const session = this.sessions.state(prior.session.id)?.session;
-            if (hasOpened(session)) return session;
-        }
-        return this.sessions.latestOpened(playlistId, activeId);
     }
 
     private reattach(source: XtreamLiveSource): GuideLaunch | undefined {

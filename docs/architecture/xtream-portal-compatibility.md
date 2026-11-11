@@ -792,8 +792,8 @@ does not replace the remote order or detach the guide. If a relock withholds tha
 channel or the pending replacement, the guide hides the withheld channel and
 closes its external session even if it finishes opening later, reports a
 closable error or has already left the dock. Cancelling a queued replacement
-leaves the allowed player running. If a replacement fails, the confirmed
-channel stays in the guide until it actually closes or another opens. The
+leaves the allowed player running. If a replacement fails, the guide follows
+the newest allowed session in the playlist that has opened and is still live. The
 app retries an exact close if the external player cannot confirm its exit.
 A replacement that opens and exits before the guide updates clears its
 pending switch, restores the surviving channel's panel, and can be retried.

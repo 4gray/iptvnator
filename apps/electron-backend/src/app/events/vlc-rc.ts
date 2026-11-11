@@ -75,11 +75,11 @@ export function sendVlcRcCommand(
         );
 
         client.on('connect', () => {
-            if (shouldDispatch && !shouldDispatch()) {
-                finish(undefined, false);
-                return;
-            }
             try {
+                if (shouldDispatch && !shouldDispatch()) {
+                    finish(undefined, false);
+                    return;
+                }
                 client.write(`${command}\n`);
                 onDispatched?.();
             } catch (error) {

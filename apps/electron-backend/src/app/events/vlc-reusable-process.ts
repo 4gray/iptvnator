@@ -2,6 +2,7 @@ import { ChildProcess } from 'child_process';
 import {
     ExternalPlayerSession,
     PlayerContentInfo,
+    readExternalPlayerErrorCode,
 } from '@iptvnator/shared/interfaces';
 import { externalPlayerProcessTeardownGate } from './external-player-process';
 import {
@@ -221,7 +222,13 @@ export class VlcReusableProcess {
                         options.stopPositionPolling(reusedProcessSessionId);
                     }
                 },
-                () => !closeRequested && !superseded() && !lostChild()
+                () => {
+                    if (closeRequested || superseded() || lostChild())
+                        return false;
+                    if (!state.contentMutated)
+                        externalPlayerProcessTeardownGate.assertLaunchAllowed();
+                    return true;
+                }
             );
             if (closeRequested) return await finishRequestedClose();
             if (superseded()) return retire();
@@ -260,6 +267,8 @@ export class VlcReusableProcess {
             if (closeRequested) return await finishRequestedClose();
             if (superseded()) return retire();
             if (lostChild()) return state.contentMutated ? retire() : null;
+            if (readExternalPlayerErrorCode(error) === 'previous-closing')
+                throw error;
             console.error(
                 'Failed to reuse existing VLC, spawning fresh:',
                 error

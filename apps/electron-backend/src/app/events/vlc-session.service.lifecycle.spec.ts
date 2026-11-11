@@ -247,47 +247,36 @@ describe('vlc-session.service process lifecycle', () => {
             });
         });
 
-        it('guards reused VLC teardown while its protocol quit is pending', async () => {
+        it('blocks a pending reuse command while the current VLC owner is stopping', async () => {
             const proc = createMockChildProcess();
             await openTrackedVlcInstance(proc);
-            const sockets: EventEmitter[] = [];
-            (createConnection as unknown as jest.Mock).mockImplementation(
-                () => {
-                    const socket = Object.assign(new EventEmitter(), {
-                        destroyed: false,
-                        write: jest.fn((data: string) => {
-                            if (data !== 'quit\n') {
-                                setImmediate(() =>
-                                    socket.emit('data', Buffer.from('> '))
-                                );
-                            }
-                            return true;
-                        }),
-                        destroy: jest.fn(() => {
-                            socket.destroyed = true;
-                        }),
-                    });
-                    sockets.push(socket);
-                    setImmediate(() => socket.emit('connect'));
-                    return socket;
-                }
-            );
+            installRcSocketMock('ack');
             const session = await openVlcPlayer({
-                title: 'Second',
-                url: 'https://example.com/two.m3u8',
+                title: 'Synthetic Current',
+                url: 'https://example.test/current.m3u8',
             });
-            const closing = externalPlayerSessions.closeSession(session.id);
+            rcWrites.length = 0;
+            const opening = openVlcPlayer({
+                title: 'Synthetic Replacement',
+                url: 'https://example.test/replacement.m3u8',
+            });
+            const rejected = expect(opening).rejects.toThrow(
+                'previous external player is still shutting down'
+            );
+            const closing = externalPlayerSessions.closeSession(
+                session.id,
+                true
+            );
 
             try {
+                await rejected;
+                await new Promise<void>((resolve) => setImmediate(resolve));
+                expect(rcWrites).toEqual(['quit\n']);
                 expect(() =>
                     externalPlayerProcessTeardownGate.assertLaunchAllowed()
                 ).toThrow('previous external player is still shutting down');
             } finally {
-                while (sockets.length === 0) {
-                    await Promise.resolve();
-                }
                 Object.defineProperty(proc, 'exitCode', { value: 0 });
-                sockets.at(-1)?.emit('data', Buffer.from('> '));
                 proc.emit('exit', 0);
                 await closing;
             }

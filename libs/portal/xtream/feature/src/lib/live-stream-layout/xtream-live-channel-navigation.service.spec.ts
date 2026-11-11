@@ -203,6 +203,16 @@ describe('XtreamLiveChannelNavigationService', () => {
         expect(service.activeItem()).toBeNull();
     });
 
+    it('captures a new queue when the confirmed channel is a different category copy', () => {
+        const copy = { ...first, category_id: '20' };
+        liveStreams.set([first, second, copy, other]);
+        service.capture(first, [first, second]);
+        expect(service.remoteChannels()).toEqual([first, second]);
+
+        service.capture(copy, [first, copy, other]);
+        expect(service.remoteChannels()).toEqual([copy, other]);
+    });
+
     it('shows reveal only when the playing channel is absent from the actual filtered list', () => {
         service.capture(first);
         expect(service.canReveal()).toBe(false);
