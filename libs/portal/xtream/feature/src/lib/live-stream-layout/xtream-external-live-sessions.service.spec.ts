@@ -284,7 +284,11 @@ describe('XtreamExternalLiveSessions', () => {
                         : 'closed',
                 canClose: outcome === 'closable error',
             });
-            if (outcome === 'closed' || outcome === 'error')
+            if (
+                outcome === 'closed' ||
+                outcome === 'error' ||
+                outcome === 'already playing'
+            )
                 expect(restoreDisplacedSession).toHaveBeenCalledWith(
                     playing,
                     replacing.id

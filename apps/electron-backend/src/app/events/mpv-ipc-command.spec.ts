@@ -18,11 +18,10 @@ import { externalPlayerSessions } from './external-player-runtime';
 import { externalPlayerProcessTeardownGate } from './external-player-process';
 import {
     MPV_IPC_COMMAND_TIMEOUT_MS,
-    loadFreshMpvGuideMedia,
-    markMpvOpened,
     MpvIpcCommandError,
     sendMpvCommand,
 } from './mpv-ipc-command';
+import { loadFreshMpvGuideMedia, markMpvOpened } from './mpv-ipc-playback';
 
 type SocketMock = EventEmitter & {
     write: jest.Mock;
@@ -152,6 +151,17 @@ describe('sendMpvCommand', () => {
                 expect(
                     externalPlayerSessions.getSession(session.id)?.mediaLoaded
                 ).toBe(true);
+                reply(
+                    socket,
+                    { event: 'start-file', playlist_entry_id: 20 },
+                    { event: 'file-loaded' }
+                );
+                expect(
+                    externalPlayerSessions.getSession(session.id)
+                ).toMatchObject({
+                    mediaLoaded: false,
+                    playbackUnverified: true,
+                });
             } else {
                 await jest.advanceTimersByTimeAsync(30_000);
                 expect(
@@ -277,6 +287,15 @@ describe('sendMpvCommand', () => {
             );
             expect(onOutcome).toHaveBeenCalledTimes(1);
             expect(onOutcome).toHaveBeenCalledWith(loaded);
+            expect(socket.destroyed).toBe(!loaded);
+            if (loaded) {
+                reply(socket, {
+                    event: 'end-file',
+                    reason: 'stop',
+                    playlist_entry_id: 2,
+                });
+                expect(onOutcome).toHaveBeenLastCalledWith(false);
+            }
             expect(socket.destroyed).toBe(true);
         }
     );

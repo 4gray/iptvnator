@@ -152,6 +152,16 @@ describe('reused MPV IPC replies', () => {
                     playbackIdle: !loaded,
                 }
             );
+            if (loaded) {
+                push(
+                    { event: 'end-file', reason: 'stop', playlist_entry_id: 2 },
+                    { event: 'start-file', playlist_entry_id: 3 },
+                    { event: 'file-loaded' }
+                );
+                expect(
+                    externalPlayerSessions.getSession(session.id)?.mediaLoaded
+                ).toBe(false);
+            }
         }
     );
 

@@ -159,8 +159,10 @@ function legacyCommandResult(
 }
 
 export function parseVlcRcPlaybackState(data: string): string | null {
-    const legacy = data
-        .match(/\(\s*(play|pause|stop|unknown)\s+state:\s*-?\d+\s*\)/i)?.[1]
+    const legacy = Array.from(
+        data.matchAll(/\(\s*(play|pause|stop|unknown)\s+state:\s*-?\d+\s*\)/gi)
+    )
+        .at(-1)?.[1]
         ?.toLowerCase();
     if (legacy === 'play') return 'playing';
     if (legacy === 'pause') return 'paused';
@@ -183,6 +185,7 @@ function getVlcCommandResponse(
     return new Promise((resolve) => {
         const client = connectVlc(port);
         let data = '';
+        const unixStatus = command === 'status' && typeof port === 'string';
         let settled = false;
         const finish = (result: string) => {
             if (settled) return;
@@ -199,11 +202,14 @@ function getVlcCommandResponse(
             const received =
                 complete?.(data) ??
                 (command === 'status'
-                    ? typeof port === 'string'
+                    ? unixStatus
                         ? legacyCommandResult(data, command) !== undefined
                         : parseVlcRcPlaybackState(data) !== null
                     : data.includes('>'));
-            if (received) finish(data);
+            if (received)
+                finish(
+                    unixStatus ? data.split(/^status: returned /m, 1)[0] : data
+                );
         });
         client.on('error', () => finish(''));
     });
@@ -251,10 +257,12 @@ export function markVlcOpened(sessionId: string, getPort: () => VlcRcAddress) {
             const state = parseVlcRcPlaybackState(response);
             if (getPort() !== port) return undefined;
             if (mediaUrl && (state === 'playing' || state === 'paused')) {
-                const input = response
-                    .match(
-                        /\(\s*new input:[ \t]*([^\r\n]+)\)[ \t]*(?:\r?\n|$)/i
-                    )?.[1]
+                const input = Array.from(
+                    response.matchAll(
+                        /\(\s*new input:[ \t]*([^\r\n]+)\)[ \t]*\r?$/gim
+                    )
+                )
+                    .at(-1)?.[1]
                     ?.trim();
                 if (!input) return null;
                 const matches = matchesVlcInput(input, mediaUrl);

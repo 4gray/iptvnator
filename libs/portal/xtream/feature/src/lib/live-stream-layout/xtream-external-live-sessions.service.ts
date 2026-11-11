@@ -224,7 +224,7 @@ export class XtreamExternalLiveSessions {
             clearTimeout(current?.retry);
             if (this.sessions.delete(id))
                 this.revision.update((value) => value + 1);
-            if (launch) this.restoreAfterFailedSwitch(launch, id);
+            if (launch) this.restoreSurvivingSession(launch, id);
             return;
         }
         const owner = source ?? current?.source ?? launch?.source;
@@ -266,10 +266,7 @@ export class XtreamExternalLiveSessions {
         this.enforce(entry);
     }
 
-    private restoreAfterFailedSwitch(
-        launch: Launch,
-        displacedId: string
-    ): void {
+    private restoreSurvivingSession(launch: Launch, displacedId: string): void {
         if (this.playback?.activeSession()?.id !== displacedId) return;
         const explicit = launch.restoreSessionId
             ? this.state(launch.restoreSessionId)
@@ -278,7 +275,7 @@ export class XtreamExternalLiveSessions {
             explicit &&
             !isXtreamLiveCategoryWithheld(this.lock, explicit.source)
                 ? explicit.session
-                : !launch.cancelled && !launch.opened
+                : !launch.cancelled
                   ? this.latestOpened(launch.source.playlistId, displacedId)
                   : undefined;
         if (hasXtreamOpenedMedia(survivor))

@@ -14,12 +14,8 @@ import {
     externalPlayerSessions,
     traceExternalPlayer,
 } from './external-player-runtime';
-import {
-    markMpvOpened,
-    publishMpvMediaOutcome,
-    sendMpvCommand,
-    type MpvIpcCommandOptions,
-} from './mpv-ipc-command';
+import { sendMpvCommand, type MpvIpcCommandOptions } from './mpv-ipc-command';
+import { markMpvOpened, publishMpvMediaOutcome } from './mpv-ipc-playback';
 
 /**
  * The per-file start of a reuse load: the requested offset, else zero. A

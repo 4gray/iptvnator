@@ -43,7 +43,7 @@ import {
     MpvReusableProcess,
     MpvReuseAttemptState,
 } from './mpv-reusable-process';
-import { completeFreshMpvLaunch } from './mpv-ipc-command';
+import { completeFreshMpvLaunch } from './mpv-ipc-playback';
 import {
     createMpvIpcEndpoint,
     spawnPlayerWithEndpoint,

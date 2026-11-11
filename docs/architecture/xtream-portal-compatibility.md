@@ -793,7 +793,8 @@ player restores the previous session or rejects a switch while the old session
 is still playing, the guide keeps its scope and search. Enter and double-click
 close the guide only after the requested stream opens. A fresh or reused MPV
 process with IPC confirms its requested playlist entry, including siblings left
-by nested redirects, and allows retry after a readiness timeout. If the socket
+by nested redirects, and clears confirmation when that input ends or another
+entry takes over. It allows retry after a readiness timeout. If the socket
 never accepts a command, MPV retries with the original URL argument after its
 idle process exits. Stop prevents that fallback and any pending IPC write.
 The Unix socket lives in a private directory owned by the app user and is
@@ -801,7 +802,8 @@ removed when the child exits. Older MPV versions that acknowledge without an
 entry ID keep the remote queue without confirming guide playback.
 VLC guide launches use a private Unix socket for control where available, and
 otherwise open directly without an unauthenticated TCP control port. VLC RC
-checks the requested input and observes its playback clock. A readable zero stays
+checks the requested input in the status reply and observes its playback clock.
+A readable zero stays
 pending; a different active URL invalidates confirmation. Retrying a direct
 launch of the same input closes its exact unverified process first. Temporary RC
 failures keep the committed selection pending until a readiness timeout or
@@ -810,9 +812,9 @@ If the player cannot verify readiness, the guide stays available for a retry and
 committed selection keeps it open. Committing the still-playing channel cancels
 every outstanding switch away from it, including timed-out launches that can
 still start playing. An unverified VLC launch cannot replace confirmed playback.
-The dock, player panel and remote status follow the confirmed session. When a
-switch fails or is cancelled, the dock restores Stop for the surviving session
-if the terminal launch still owns the dock. An idle failed replacement closes
+The dock, player panel and remote status follow the confirmed session. The dock
+restores Stop for the surviving session when a launch that still owns the dock
+ends. An idle failed replacement closes
 before that restore. When the first launch fails, including before opening, its
 channel and queue remain available for remote tuning without now-playing details.
 Consecutive remote tuning

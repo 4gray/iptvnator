@@ -276,7 +276,10 @@ describe('VLC exact playback ownership', () => {
             expect(typeof port).toBe('string');
             if (command === 'status\n')
                 reply(
-                    `( new input: ${input} )\r\n( play state: 3 )\r\nstatus: returned 0 (no error)\n`
+                    '( new input: https://example.test/synthetic-stale.ts )\r\n' +
+                        '( stop state: 0 )\r\n' +
+                        `( new input: ${input} )\r\n( play state: 3 )\r\n` +
+                        'status: returned 0 (no error)\r\n( stop state: 5 )\r\n'
                 );
             if (command === 'get_time\n') reply(`${playbackTime}\r\n`);
         });

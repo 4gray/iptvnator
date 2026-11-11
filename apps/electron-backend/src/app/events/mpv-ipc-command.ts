@@ -1,13 +1,5 @@
 import { createConnection } from 'net';
-import type { ExternalPlayerSession } from '@iptvnator/shared/interfaces';
-import {
-    externalPlayerSessions,
-    traceExternalPlayer,
-} from './external-player-runtime';
-import {
-    allowExternalPlayerMediaDispatch,
-    markExternalPlayerOpened,
-} from './external-player-idle-monitor';
+import { traceExternalPlayer } from './external-player-runtime';
 
 /**
  * Bounds connect, write and the wait for mpv's reply. It matches the IPC
@@ -23,7 +15,7 @@ export interface MpvIpcReply {
     data?: unknown;
 }
 
-type MpvMediaOutcome = boolean | 'unsupported' | undefined;
+export type MpvMediaOutcome = boolean | 'unsupported' | undefined;
 
 export interface MpvIpcCommandOptions {
     /** Checked once connected; a `false` skips the write and resolves `false`. */
@@ -63,160 +55,6 @@ export class MpvIpcCommandError extends Error {
 }
 
 let nextRequestId = 1;
-
-export function publishMpvMediaOutcome(
-    sessionId: string,
-    loaded: MpvMediaOutcome
-): void {
-    const current = externalPlayerSessions.getSession(sessionId);
-    if (!current || current.status === 'closed' || current.status === 'error')
-        return;
-    externalPlayerSessions.updateSession(
-        sessionId,
-        loaded === undefined || loaded === 'unsupported'
-            ? {
-                  playbackUnverified: true,
-                  ...(loaded === 'unsupported' && {
-                      mediaObservationUnavailable: true,
-                  }),
-              }
-            : loaded
-              ? {
-                    mediaLoaded: true,
-                    playbackIdle: false,
-                    playbackUnverified: undefined,
-                }
-              : { playbackIdle: true }
-    );
-}
-
-export function markMpvOpened(
-    sessionId: string,
-    socketPath?: string | null,
-    hasOwner = () => true,
-    confirmFreshMedia = false
-) {
-    const current = externalPlayerSessions.getSession(sessionId);
-    if (
-        confirmFreshMedia &&
-        current?.status === 'launching' &&
-        current.mediaLoaded !== true
-    )
-        externalPlayerSessions.updateSession(sessionId, {
-            mediaLoaded: false,
-            playbackUnverified: socketPath ? current.playbackUnverified : true,
-            mediaObservationUnavailable: socketPath
-                ? current.mediaObservationUnavailable
-                : true,
-        });
-    return markExternalPlayerOpened(
-        sessionId,
-        socketPath
-            ? async (shouldDispatch) => {
-                  if (!hasOwner()) return undefined;
-                  const canRead = () => shouldDispatch() && hasOwner();
-                  const reply = await sendMpvCommand(
-                      socketPath,
-                      'get_property',
-                      ['idle-active'],
-                      { shouldDispatch: canRead }
-                  );
-                  if (!canRead()) return undefined;
-                  return reply && typeof reply.data === 'boolean'
-                      ? reply.data
-                      : null;
-              }
-            : undefined
-    );
-}
-
-export async function completeFreshMpvLaunch(
-    session: ExternalPlayerSession,
-    socketPath: string | null,
-    hasOwner: () => boolean,
-    guideLaunch: boolean,
-    signal?: AbortSignal
-): Promise<ExternalPlayerSession | null> {
-    if (socketPath && signal && !signal.aborted) {
-        const current = externalPlayerSessions.getSession(session.id);
-        if (current?.status === 'launching')
-            externalPlayerSessions.updateSession(session.id, {
-                mediaLoaded: false,
-            });
-        if (
-            !(await loadFreshMpvGuideMedia(
-                session.id,
-                socketPath,
-                session.streamUrl,
-                hasOwner,
-                signal
-            ))
-        )
-            return null;
-    }
-    if (signal?.aborted)
-        return externalPlayerSessions.getSession(session.id) ?? session;
-    markMpvOpened(
-        session.id,
-        guideLaunch && !signal ? null : socketPath,
-        hasOwner,
-        guideLaunch
-    );
-    return externalPlayerSessions.getSession(session.id) ?? session;
-}
-
-/** Dispatch once the new child exposes IPC, then observe the exact loadfile entry. */
-export async function loadFreshMpvGuideMedia(
-    sessionId: string,
-    socketPath: string,
-    url: string,
-    hasOwner: () => boolean,
-    signal: AbortSignal
-): Promise<boolean> {
-    const deadline = Date.now() + MPV_IPC_COMMAND_TIMEOUT_MS;
-    const shouldDispatch = () => {
-        const status = externalPlayerSessions.getSession(sessionId)?.status;
-        return (
-            !signal.aborted &&
-            hasOwner() &&
-            (status === 'launching' ||
-                status === 'opened' ||
-                status === 'playing')
-        );
-    };
-    while (shouldDispatch()) {
-        try {
-            await sendMpvCommand(socketPath, 'loadfile', [url, 'replace'], {
-                shouldDispatch: () =>
-                    shouldDispatch() &&
-                    allowExternalPlayerMediaDispatch(sessionId),
-                media: {
-                    signal,
-                    onOutcome: (loaded) => {
-                        if (shouldDispatch())
-                            publishMpvMediaOutcome(sessionId, loaded);
-                    },
-                },
-            });
-            return true;
-        } catch (error) {
-            if (
-                error instanceof MpvIpcCommandError &&
-                !error.dispatched &&
-                shouldDispatch()
-            ) {
-                if (Date.now() >= deadline) return false;
-                await new Promise<void>((resolve) =>
-                    setTimeout(resolve, 50).unref()
-                );
-                continue;
-            }
-            if (shouldDispatch()) publishMpvMediaOutcome(sessionId, undefined);
-            return true;
-        }
-    }
-    return true;
-}
 
 function parseReplyLine(line: string): MpvIpcMessage | null {
     try {
@@ -291,9 +129,16 @@ export function sendMpvCommand(
             const index = expected.findIndex(
                 ({ first, last }) => entry >= first && entry <= last
             );
-            if (index < 0) return;
-            if (event.event === 'file-loaded') finishMedia(true);
-            else if (event.event === 'end-file') {
+            if (index < 0) {
+                if (event.event === 'start-file' && timeoutHandle === null)
+                    finishMedia(undefined);
+                return;
+            }
+            if (event.event === 'file-loaded') {
+                if (timeoutHandle) clearTimeout(timeoutHandle);
+                timeoutHandle = null;
+                if (!media?.signal.aborted) media?.onOutcome(true);
+            } else if (event.event === 'end-file') {
                 const [range] = expected.splice(index, 1);
                 if (range.first < entry)
                     expected.push({ first: range.first, last: entry - 1 });
