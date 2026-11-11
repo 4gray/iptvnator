@@ -518,6 +518,17 @@ export class LiveStreamLayoutComponent
               this.externalGuide.confirmed()?.item ??
               null)
     );
+    private readonly idleRemoteAnchor = computed(() => {
+        if (this.usesSelectionForRemote() || !this.externalGuide.idleStream())
+            return null;
+        const item = this.channelNavigation.activeItem();
+        return item &&
+            this.channelNavigation
+                .remoteChannels()
+                .some((channel) => sameXtreamChannelCopy(channel, item))
+            ? item
+            : null;
+    });
     private readonly guideChannel = computed(() =>
         this.usesEmbeddedPlayer()
             ? this.activeGuideItem()
@@ -807,11 +818,16 @@ export class LiveStreamLayoutComponent
             const selectedContentType = this.xtreamStore.selectedContentType();
             const selectedItem = this.remoteLiveItem();
             const channels = this.getVisibleChannels();
-            const activeProgram = this.usesSelectionForRemote()
-                ? (this.activeCatchupProgram() ?? this.currentEpgItem())
-                : this.guideNowPlayingProgram();
+            const activeProgram = selectedItem
+                ? this.usesSelectionForRemote()
+                    ? (this.activeCatchupProgram() ?? this.currentEpgItem())
+                    : this.guideNowPlayingProgram()
+                : null;
 
-            if (selectedContentType !== 'live' || !selectedItem?.xtream_id) {
+            if (
+                selectedContentType !== 'live' ||
+                !(selectedItem || this.idleRemoteAnchor())
+            ) {
                 remoteControl.updateRemoteControlStatus({
                     portal: 'xtream',
                     isLiveView: false,
@@ -822,13 +838,13 @@ export class LiveStreamLayoutComponent
 
             const currentIndex = channels.findIndex(
                 (item) =>
-                    Number(item.xtream_id) === Number(selectedItem.xtream_id)
+                    Number(item.xtream_id) === Number(selectedItem?.xtream_id)
             );
 
             remoteControl.updateRemoteControlStatus({
                 portal: 'xtream',
                 isLiveView: true,
-                channelName: selectedItem.title ?? selectedItem.name,
+                channelName: selectedItem?.title ?? selectedItem?.name,
                 channelNumber: currentIndex >= 0 ? currentIndex + 1 : undefined,
                 epgTitle: activeProgram?.title,
                 epgStart: activeProgram?.start,
@@ -1112,7 +1128,8 @@ export class LiveStreamLayoutComponent
         const tuning = selectionBased
             ? undefined
             : this.externalGuide.remoteTuningItem();
-        const activeItem = tuning ?? this.remoteLiveItem();
+        const idle = this.idleRemoteAnchor();
+        const activeItem = tuning ?? this.remoteLiveItem() ?? idle;
         if (!activeItem?.xtream_id) {
             return;
         }
@@ -1134,7 +1151,7 @@ export class LiveStreamLayoutComponent
         if (
             !nextItem ||
             (nextItem.xtream_id === activeItem.xtream_id &&
-                (tuning || !archive))
+                (tuning || !(archive || idle)))
         ) {
             return;
         }

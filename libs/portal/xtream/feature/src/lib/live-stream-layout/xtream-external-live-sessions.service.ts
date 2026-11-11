@@ -54,6 +54,7 @@ type Launch = {
     ended: WritableSignal<boolean>;
     retired?: boolean;
     cancelled?: boolean;
+    opened?: boolean;
 };
 type Active = {
     session: ExternalPlayerSession;
@@ -138,15 +139,6 @@ export class XtreamExternalLiveSessions {
         return {
             launchId,
             ended: launch.ended.asReadonly(),
-            cancel: () => {
-                if (launch.cancelled || launch.retired) return;
-                launch.cancelled = true;
-                launch.ended.set(true);
-                this.revision.update((value) => value + 1);
-                this.sessions.forEach((entry) => {
-                    if (entry.launch === launch) this.enforce(entry);
-                });
-            },
             finish: (result?: ExternalPlayerSession | void) => {
                 this.pending.delete(launchId);
                 if (!result || launch.retired) return;
@@ -163,6 +155,34 @@ export class XtreamExternalLiveSessions {
                 );
             },
         };
+    }
+
+    cancelPendingSwitches(playlistId: string, channelId: number): boolean {
+        const launches = new Set(this.pending.values());
+        this.sessions.forEach(({ launch }) => {
+            if (launch) launches.add(launch);
+        });
+        const cancelled = new Set<Launch>();
+        for (const launch of launches) {
+            const { source } = launch;
+            if (
+                launch.ended() ||
+                launch.opened ||
+                source.playlistId !== playlistId ||
+                !source.channel ||
+                (source.channel.xtream_id === channelId && !source.archive)
+            )
+                continue;
+            launch.cancelled = true;
+            launch.ended.set(true);
+            cancelled.add(launch);
+        }
+        if (!cancelled.size) return false;
+        this.revision.update((value) => value + 1);
+        for (const entry of [...this.sessions.values()].reverse())
+            if (entry.launch && cancelled.has(entry.launch))
+                this.enforce(entry);
+        return true;
     }
 
     update(session: ExternalPlayerSession, source?: XtreamLiveSource): void {
@@ -192,6 +212,12 @@ export class XtreamExternalLiveSessions {
         }
         const owner = source ?? current?.source ?? launch?.source;
         if (!owner) return;
+        if (
+            launch &&
+            session.mediaLoaded !== false &&
+            hasXtreamOpenedMedia(session)
+        )
+            launch.opened = true;
         if (
             session.status === 'error' ||
             session.playbackIdle ||

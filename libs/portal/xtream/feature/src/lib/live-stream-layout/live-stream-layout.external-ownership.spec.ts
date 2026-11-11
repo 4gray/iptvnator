@@ -157,12 +157,13 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
         }
     );
 
-    it('cancels an exact pending launch when committing the still-playing channel', () => {
+    it('cancels every pending launch when committing the still-playing channel', () => {
         const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
         const component = fixture.componentInstance;
         const playing = { ...sampleChannel, category_id: 1 };
         const next = { ...playing, xtream_id: 202 };
-        emptyList.set([playing, next]);
+        const last = { ...playing, xtream_id: 203 };
+        emptyList.set([playing, next, last]);
         portalPlayer.isEmbeddedPlayer.set(false);
         const nativeClose = jest.fn(() => new Promise(() => undefined));
         Object.defineProperty(window.electron, 'closeExternalPlayerSession', {
@@ -188,31 +189,78 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
         const source = fixture.debugElement.injector.get(
             XtreamEpgGuideSourceService
         );
-        const nextUrl = 'https://example.test/synthetic-next.ts';
-        xtreamStore.constructStreamUrl.mockReturnValueOnce(nextUrl);
-        xtreamStore.openPlayer.mockImplementationOnce(
-            () => new Promise(() => undefined)
-        );
-        source.activate('202');
+        const pending = [next, last].map((item) => ({
+            id: `synthetic-late-${item.xtream_id}`,
+            url: `https://example.test/synthetic-${item.xtream_id}.ts`,
+            row: String(item.xtream_id),
+        }));
+        for (const { row, url } of pending) {
+            xtreamStore.constructStreamUrl.mockReturnValueOnce(url);
+            xtreamStore.openPlayer.mockImplementationOnce(
+                () => new Promise(() => undefined)
+            );
+            source.activate(row);
+        }
         const commit = jest.fn();
         source.activate(String(playing.xtream_id), null, undefined, commit);
         expect(commit).toHaveBeenCalledTimes(1);
-        expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(2);
-
-        publishExternalSession({
-            ...current,
-            id: 'synthetic-late-replacement',
-            streamUrl: nextUrl,
-            title: 'Synthetic Replacement',
-        });
-        fixture.detectChanges();
-        expect(nativeClose).toHaveBeenCalledWith(
-            'synthetic-late-replacement',
-            true
-        );
+        expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(3);
+        for (const { id, url } of pending) {
+            publishExternalSession({
+                ...current,
+                id,
+                streamUrl: url,
+                title: 'Synthetic Replacement',
+            });
+            fixture.detectChanges();
+            expect(nativeClose).toHaveBeenCalledWith(id, true);
+        }
+        expect(nativeClose).toHaveBeenCalledTimes(2);
         expect(component.guideNowPlayingChannel()).toBe(current.title);
         expect(source.activeChannelId()).toBe(String(playing.xtream_id));
     });
+
+    it.each(['mpv', 'vlc'] as const)(
+        'retains remote tuning after %s goes idle',
+        (player) => {
+            const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
+            const component = fixture.componentInstance;
+            const playing = { ...sampleChannel, category_id: 1 };
+            const next = { ...playing, xtream_id: playing.xtream_id + 1 };
+            emptyList.set([playing, next]);
+            portalPlayer.isEmbeddedPlayer.set(false);
+            fixture.detectChanges();
+            component.playLive(playing, true, [playing, next]);
+            const session = {
+                id: 'synthetic-idle',
+                player,
+                status: 'opened',
+                mediaLoaded: true,
+                title: 'Synthetic Channel',
+                streamUrl: component.activeStreamUrl(),
+                canClose: true,
+                startedAt: '2026-04-04T10:00:00Z',
+                updatedAt: '2026-04-04T10:00:00Z',
+            } as const;
+            publishExternalSession(session);
+            fixture.detectChanges();
+            publishExternalSession({ ...session, playbackIdle: true });
+            fixture.detectChanges();
+
+            expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    isLiveView: true,
+                    channelName: undefined,
+                    channelNumber: undefined,
+                })
+            );
+            expect(component.guideNowPlayingChannel()).toBe('');
+            onChannelChange.mock.lastCall?.[0]({ direction: 'up' });
+            expect(xtreamStore.constructStreamUrl).toHaveBeenLastCalledWith(
+                next
+            );
+        }
+    );
 
     it('keeps a socketless MPV guide available without confirming a committed row', () => {
         const fixture = TestBed.createComponent(LiveStreamLayoutComponent);

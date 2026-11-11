@@ -37,7 +37,6 @@ interface GuideLaunch {
     archive: EpgProgram | null;
     playback: ResolvedPortalPlayback;
     ended?: () => boolean;
-    cancel?: () => void;
     remote?: boolean;
     onConfirmed?: () => void;
 }
@@ -266,10 +265,7 @@ export class XtreamGuideExternalPlayback {
                 : undefined;
         this.panelPlayback = playback;
         const lifecycle = launch && this.sessions.begin(launch.lockSource);
-        if (launch) {
-            launch.ended = lifecycle?.ended;
-            launch.cancel = lifecycle?.cancel;
-        }
+        if (launch) launch.ended = lifecycle?.ended;
         this.pending.set(launch);
         const recover = () => {
             if (this.pending() !== launch || this.destroyRef.destroyed) return;
@@ -336,17 +332,13 @@ export class XtreamGuideExternalPlayback {
     }
 
     cancelPendingSwitch(item: XtreamLiveChannelItem): boolean {
-        const pending = this.pending();
+        const playlistId = this.store.currentPlaylist()?.id;
         if (
-            !pending ||
-            pending.ended?.() ||
-            pending.lockSource.playlistId !==
-                this.store.currentPlaylist()?.id ||
-            (pending.item.xtream_id === item.xtream_id && !pending.archive)
+            !playlistId ||
+            !this.sessions.cancelPendingSwitches(playlistId, item.xtream_id)
         )
             return false;
-        pending.cancel?.();
-        this.pending.set(undefined);
+        if (this.pending()?.ended?.()) this.pending.set(undefined);
         const confirmed = this.confirmed();
         if (confirmed) this.syncPanel(confirmed);
         return true;

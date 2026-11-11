@@ -794,9 +794,10 @@ is still playing, the guide keeps its scope and search. Enter and double-click
 close the guide only after the requested stream opens. MPV IPC confirms the
 requested entry, including siblings left by nested playlist redirects; a fresh
 process reports media readiness even when paused. VLC RC checks the requested
-input and observes its playback clock. If the player cannot verify readiness,
-the guide remains available and a committed selection keeps it open for a retry.
-Committing the still-playing channel cancels a pending switch to another channel.
+input and observes its playback clock; a readable zero stays pending. If the
+player cannot verify readiness, the guide stays available for a retry and a
+committed selection keeps it open. Committing the still-playing channel cancels
+every outstanding switch away from it.
 The dock, player panel and remote status follow the confirmed session.
 Consecutive remote tuning
 commands advance from the latest requested channel until it opens or fails.

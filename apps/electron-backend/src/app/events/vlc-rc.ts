@@ -209,7 +209,8 @@ export function markVlcOpened(sessionId: string, getPort: () => number) {
                         /\(\s*new input:[ \t]*([^\r\n]+)\)[ \t]*(?:\r?\n|$)/i
                     )?.[1]
                     ?.trim();
-                if (!matchesVlcInput(input, mediaUrl)) return null;
+                if (!matchesVlcInput(input, mediaUrl))
+                    return input ? false : null;
                 const parseTime = (data: string) =>
                     data.match(/^[> \t]*(-?\d+(?:\.\d+)?)[ \t]*\r?$/m)?.[1];
                 const clock = await getVlcCommandResponse(
@@ -218,7 +219,9 @@ export function markVlcOpened(sessionId: string, getPort: () => number) {
                     (data) => parseTime(data) !== undefined
                 );
                 if (getPort() !== port) return undefined;
-                if (!(Number(parseTime(clock)) > 0)) return null;
+                const elapsed = parseTime(clock);
+                if (elapsed === undefined) return null;
+                if (Number(elapsed) <= 0) return false;
                 externalPlayerSessions.updateSession(sessionId, {
                     mediaLoaded: true,
                     playbackIdle: false,
