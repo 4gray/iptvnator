@@ -1,6 +1,8 @@
 import { Clipboard } from '@angular/cdk/clipboard';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import type {
+    HostedCloudflareCommand,
+    HostedCloudflareStatus,
     HostedServerCommand,
     HostedServerStatus,
 } from '@iptvnator/shared/interfaces';
@@ -11,6 +13,17 @@ const address = '192.168.40.5';
 const otherAddress = '192.168.40.6';
 const localUrl = 'http://127.0.0.1:4334';
 const lanUrl = `http://${address}:4334`;
+const httpsOrigin = 'https://library.example.test';
+const connectorStopped: HostedCloudflareStatus = {
+    state: 'stopped',
+    savedToken: false,
+    secureStorage: true,
+};
+const connectorRunning: HostedCloudflareStatus = {
+    ...connectorStopped,
+    state: 'running',
+    savedToken: true,
+};
 
 describe('hosted server settings', () => {
     const originalElectron = window.electron;
@@ -19,6 +32,10 @@ describe('hosted server settings', () => {
         [HostedServerCommand]
     >();
     const accessCode = jest.fn<Promise<string>, []>();
+    const connector = jest.fn<
+        Promise<HostedCloudflareStatus>,
+        [HostedCloudflareCommand]
+    >();
     const copy = jest.fn();
     let fixture: ComponentFixture<SettingsHostedServerComponent>;
     let component: SettingsHostedServerComponent;
@@ -227,6 +244,141 @@ describe('hosted server settings', () => {
         expect(control.mock.calls).toEqual([['status'], [{ start: true }]]);
         expect(component.status()).toEqual({ state: 'error', error: 'port' });
         expect(component.httpsAddress()).toBe('https://library.example.test');
+    });
+
+    it('offers the bundled tunnel only when the desktop connector is available', async () => {
+        await jest.advanceTimersByTimeAsync(0);
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        expect(root.querySelector('input[value="cloudflare"]')).toBeNull();
+
+        window.electron.hostedCloudflareControl = connector;
+        connector.mockResolvedValue(connectorStopped);
+        await jest.advanceTimersByTimeAsync(3000);
+        fixture.detectChanges();
+        expect(root.querySelector('input[value="cloudflare"]')).not.toBeNull();
+    });
+
+    it('requires Access confirmation and a token, then hides remote sharing until sign-in is verified', async () => {
+        window.electron.hostedCloudflareControl = connector;
+        connector
+            .mockResolvedValueOnce(connectorStopped)
+            .mockResolvedValueOnce(connectorRunning);
+        await jest.advanceTimersByTimeAsync(0);
+        component.accessMethod.set('cloudflare');
+        component.httpsAddress.set(httpsOrigin);
+        component.lanChoice.set(true);
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        const start = root.querySelector<HTMLButtonElement>(
+            '[data-test-id="hosted-server-start"]'
+        );
+        const token = root.querySelector<HTMLInputElement>(
+            '[data-test-id="hosted-cloudflare-token"]'
+        );
+        expect(token?.type).toBe('password');
+        expect(start?.disabled).toBe(true);
+        component.cloudflareProtected.set(true);
+        fixture.detectChanges();
+        expect(start?.disabled).toBe(true);
+        component.cloudflareToken.set('synthetic-token');
+        fixture.detectChanges();
+        expect(start?.disabled).toBe(false);
+
+        control
+            .mockResolvedValueOnce({ state: 'running', localUrl, lanUrl })
+            .mockResolvedValueOnce({
+                state: 'running',
+                localUrl,
+                lanUrl,
+                httpsOrigin,
+            });
+        start?.click();
+        await jest.advanceTimersByTimeAsync(0);
+        component.qrAddress.set(httpsOrigin);
+        fixture.detectChanges();
+        expect(control.mock.calls).toEqual([
+            ['status'],
+            [{ start: true, lanAddress: address }],
+            [{ httpsOrigin }],
+        ]);
+        expect(connector.mock.calls).toEqual([
+            ['status'],
+            [{ start: true, token: 'synthetic-token' }],
+        ]);
+        expect(component.cloudflareToken()).toBe('');
+        expect(
+            root.querySelector('[data-test-id="hosted-server-address"]')
+        ).not.toBeNull();
+        expect(
+            root.querySelector('[data-test-id="hosted-https-address"]')
+        ).toBeNull();
+        expect(root.querySelector('qrcode')).toBeNull();
+        component.qrAddress.set('');
+        root.querySelector<HTMLInputElement>(
+            '[data-test-id="hosted-cloudflare-verified"] input'
+        )?.click();
+        fixture.detectChanges();
+        expect(
+            root.querySelector('[data-test-id="hosted-https-address"]')
+        ).not.toBeNull();
+
+        connector.mockResolvedValueOnce({
+            ...connectorRunning,
+            state: 'error',
+        });
+        control.mockResolvedValueOnce({
+            state: 'running',
+            localUrl,
+            lanUrl,
+            httpsOrigin,
+        });
+        await jest.advanceTimersByTimeAsync(3000);
+        fixture.detectChanges();
+        expect(component.cloudflareVerified()).toBe(false);
+        expect(
+            root.querySelector('[data-test-id="hosted-https-address"]')
+        ).toBeNull();
+    });
+
+    it('closes managed HTTPS after a connector start failure and preserves LAN access', async () => {
+        window.electron.hostedCloudflareControl = connector;
+        connector
+            .mockResolvedValueOnce({
+                ...connectorStopped,
+                savedToken: true,
+            })
+            .mockRejectedValueOnce(new Error('private bridge error'));
+        await jest.advanceTimersByTimeAsync(0);
+        component.status.set({ state: 'running', localUrl, lanUrl });
+        component.accessMethod.set('cloudflare');
+        component.httpsAddress.set(httpsOrigin);
+        component.cloudflareProtected.set(true);
+        control
+            .mockResolvedValueOnce({
+                state: 'running',
+                localUrl,
+                lanUrl,
+                httpsOrigin,
+            })
+            .mockResolvedValueOnce({ state: 'running', localUrl, lanUrl });
+
+        component.enableHttps();
+        await jest.advanceTimersByTimeAsync(0);
+        expect(connector).toHaveBeenLastCalledWith({ start: true });
+        expect(control.mock.calls).toEqual([
+            ['status'],
+            [{ httpsOrigin }],
+            [{ httpsOrigin: '' }],
+        ]);
+        expect(component.status()).toEqual({
+            state: 'running',
+            localUrl,
+            lanUrl,
+        });
+        expect(component.cloudflareError()).toBe(
+            'HOSTED_SERVER.CLOUDFLARE_FAILED'
+        );
     });
 
     it('keeps the code hidden after toggling it off and reports failures without exposing details', async () => {

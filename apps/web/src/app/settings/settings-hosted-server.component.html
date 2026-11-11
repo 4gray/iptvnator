@@ -63,7 +63,10 @@
                             {{ 'SETTINGS.SHOW_QR_CODE' | translate }}
                         </button>
                     }
-                    @if (status().lanUrl || status().httpsOrigin) {
+                    @if (
+                        status().lanUrl ||
+                        (status().httpsOrigin && canShareHttps())
+                    ) {
                         <button
                             mat-button
                             type="button"
@@ -93,57 +96,95 @@
                 <code
                     id="hosted-server-code"
                     class="hosted-value"
-                    [hidden]="!code()"
+                    [hidden]="!code() || (!status().lanUrl && !canShareHttps())"
                     >{{ code() }}</code
                 >
                 @if (status().httpsOrigin; as origin) {
-                    <p class="server-message" role="status">
-                        {{ 'HOSTED_SERVER.HTTPS_ENABLED' | translate }}
-                    </p>
+                    @if (isManagedHttps()) {
+                        <p class="server-message" role="status">
+                            {{
+                                'HOSTED_SERVER.CLOUDFLARE_STATE_' +
+                                    cloudflare().state | translate
+                            }}
+                        </p>
+                        @if (cloudflare().state === 'running') {
+                            <p class="server-message">
+                                {{
+                                    'HOSTED_SERVER.CLOUDFLARE_VERIFY'
+                                        | translate
+                                }}
+                            </p>
+                            <mat-checkbox
+                                [checked]="cloudflareVerified()"
+                                [disabled]="busy()"
+                                (change)="
+                                    cloudflareVerified.set($event.checked)
+                                "
+                                data-test-id="hosted-cloudflare-verified"
+                            >
+                                {{
+                                    'HOSTED_SERVER.CLOUDFLARE_VERIFIED'
+                                        | translate
+                                }}
+                            </mat-checkbox>
+                        }
+                    } @else {
+                        <p class="server-message" role="status">
+                            {{ 'HOSTED_SERVER.HTTPS_ENABLED' | translate }}
+                        </p>
+                    }
                     <div class="server-actions">
-                        <code class="hosted-value">{{ origin }}</code>
-                        <button
-                            mat-button
-                            type="button"
-                            (click)="copyAddress(origin)"
-                        >
-                            {{ 'HOSTED_SERVER.COPY_ADDRESS' | translate }}
-                        </button>
-                        <button
-                            mat-button
-                            type="button"
-                            (click)="
-                                qrAddress.set(
-                                    qrAddress() === origin ? '' : origin
-                                )
-                            "
-                        >
-                            {{ 'SETTINGS.SHOW_QR_CODE' | translate }}
-                        </button>
+                        @if (canShareHttps()) {
+                            <code
+                                class="hosted-value"
+                                data-test-id="hosted-https-address"
+                                >{{ origin }}</code
+                            >
+                            <button
+                                mat-button
+                                type="button"
+                                (click)="copyAddress(origin)"
+                            >
+                                {{ 'HOSTED_SERVER.COPY_ADDRESS' | translate }}
+                            </button>
+                            <button
+                                mat-button
+                                type="button"
+                                (click)="
+                                    qrAddress.set(
+                                        qrAddress() === origin ? '' : origin
+                                    )
+                                "
+                            >
+                                {{ 'SETTINGS.SHOW_QR_CODE' | translate }}
+                            </button>
+                        }
                         <button
                             mat-button
                             type="button"
                             [disabled]="busy()"
-                            (click)="
-                                accessMethod.set('local');
-                                control({ httpsOrigin: '' })
-                            "
+                            (click)="stopHttps()"
                             data-test-id="hosted-https-stop"
                         >
                             {{ 'HOSTED_SERVER.HTTPS_STOP' | translate }}
                         </button>
                     </div>
-                } @else if (accessMethod() === 'https') {
+                } @else if (accessMethod() !== 'local') {
                     <ng-container [ngTemplateOutlet]="httpsSetup" />
                     <div class="server-actions">
                         <button
                             mat-flat-button
                             type="button"
-                            [disabled]="busy() || !httpsAddress().trim()"
+                            [disabled]="busy() || !httpsSetupComplete()"
                             (click)="enableHttps()"
                             data-test-id="hosted-https-start"
                         >
-                            {{ 'HOSTED_SERVER.HTTPS_START' | translate }}
+                            {{
+                                (accessMethod() === 'cloudflare'
+                                    ? 'HOSTED_SERVER.CLOUDFLARE_START'
+                                    : 'HOSTED_SERVER.HTTPS_START'
+                                ) | translate
+                            }}
                         </button>
                         <button
                             mat-button
@@ -165,6 +206,18 @@
                         >
                             {{ 'HOSTED_SERVER.HTTPS_SETUP' | translate }}
                         </button>
+                        @if (cloudflareAvailable()) {
+                            <button
+                                mat-button
+                                type="button"
+                                [disabled]="busy()"
+                                (click)="accessMethod.set('cloudflare')"
+                            >
+                                {{
+                                    'HOSTED_SERVER.CLOUDFLARE_SETUP' | translate
+                                }}
+                            </button>
+                        }
                     </div>
                 }
                 @if (status().httpsError) {
@@ -194,8 +247,13 @@
                     <mat-radio-button value="https">
                         {{ 'HOSTED_SERVER.ACCESS_HTTPS' | translate }}
                     </mat-radio-button>
+                    @if (cloudflareAvailable()) {
+                        <mat-radio-button value="cloudflare">
+                            {{ 'HOSTED_SERVER.ACCESS_CLOUDFLARE' | translate }}
+                        </mat-radio-button>
+                    }
                 </mat-radio-group>
-                @if (accessMethod() === 'https') {
+                @if (accessMethod() !== 'local') {
                     <ng-container [ngTemplateOutlet]="httpsSetup" />
                 }
                 <div class="server-actions hosted-controls">
@@ -270,8 +328,8 @@
                             type="button"
                             [disabled]="
                                 (shareLan() && !address()) ||
-                                (accessMethod() === 'https' &&
-                                    !httpsAddress().trim())
+                                (accessMethod() !== 'local' &&
+                                    !httpsSetupComplete())
                             "
                             (click)="start()"
                             class="settings-primary-button"
@@ -281,6 +339,11 @@
                         </button>
                     </div>
                 </div>
+            }
+            @if (cloudflareError()) {
+                <p role="alert" class="server-message server-message--error">
+                    {{ cloudflareError() | translate }}
+                </p>
             }
             <p
                 class="server-message"
@@ -294,7 +357,12 @@
         </div>
         <ng-template #httpsSetup>
             <p class="server-message">
-                {{ 'HOSTED_SERVER.HTTPS_DESCRIPTION' | translate }}
+                {{
+                    (accessMethod() === 'cloudflare'
+                        ? 'HOSTED_SERVER.CLOUDFLARE_DESCRIPTION'
+                        : 'HOSTED_SERVER.HTTPS_DESCRIPTION'
+                    ) | translate
+                }}
                 <a
                     class="server-help"
                     [href]="guides.https"
@@ -337,13 +405,77 @@
                 <code>http://127.0.0.1:4335</code>
             </p>
             <p class="server-message">
-                {{ 'HOSTED_SERVER.HTTPS_AUTH' | translate }}
+                {{
+                    (accessMethod() === 'cloudflare'
+                        ? 'HOSTED_SERVER.CLOUDFLARE_AUTH'
+                        : 'HOSTED_SERVER.HTTPS_AUTH'
+                    ) | translate
+                }}
             </p>
+            @if (accessMethod() === 'cloudflare') {
+                @if (cloudflare().secureStorage) {
+                    <mat-form-field
+                        appearance="outline"
+                        subscriptSizing="dynamic"
+                    >
+                        <mat-label>{{
+                            'HOSTED_SERVER.CLOUDFLARE_TOKEN' | translate
+                        }}</mat-label>
+                        <input
+                            matInput
+                            type="password"
+                            autocomplete="off"
+                            spellcheck="false"
+                            [disabled]="busy()"
+                            [ngModel]="cloudflareToken()"
+                            (ngModelChange)="cloudflareToken.set($event)"
+                            data-test-id="hosted-cloudflare-token"
+                        />
+                        <mat-hint>{{
+                            (cloudflare().savedToken
+                                ? 'HOSTED_SERVER.CLOUDFLARE_TOKEN_SAVED'
+                                : 'HOSTED_SERVER.CLOUDFLARE_TOKEN_HINT'
+                            ) | translate
+                        }}</mat-hint>
+                    </mat-form-field>
+                } @else {
+                    <p class="server-message" role="status">
+                        {{
+                            'HOSTED_SERVER.CLOUDFLARE_STORAGE_UNAVAILABLE'
+                                | translate
+                        }}
+                    </p>
+                }
+                @if (
+                    cloudflare().savedToken &&
+                    (cloudflare().state === 'stopped' ||
+                        cloudflare().state === 'error')
+                ) {
+                    <div class="server-actions">
+                        <button
+                            mat-button
+                            type="button"
+                            [disabled]="busy()"
+                            (click)="forgetCloudflare()"
+                        >
+                            {{ 'HOSTED_SERVER.CLOUDFLARE_FORGET' | translate }}
+                        </button>
+                    </div>
+                }
+                <mat-checkbox
+                    [checked]="cloudflareProtected()"
+                    [disabled]="busy()"
+                    (change)="cloudflareProtected.set($event.checked)"
+                    data-test-id="hosted-cloudflare-protected"
+                >
+                    {{ 'HOSTED_SERVER.CLOUDFLARE_PROTECTED' | translate }}
+                </mat-checkbox>
+            }
         </ng-template>
         @if (
             qrAddress() &&
             (qrAddress() === status().lanUrl ||
-                qrAddress() === status().httpsOrigin)
+                (qrAddress() === status().httpsOrigin && canShareHttps()))
         ) {
             <div
                 class="settings-card"

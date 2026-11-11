@@ -24,10 +24,20 @@ import { MatButtonModule } from '@angular/material/button';
 import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-defaults';
 import { TranslateModule } from '@ngx-translate/core';
 import type {
+    HostedCloudflareCommand,
+    HostedCloudflareStatus,
     HostedServerCommand,
     HostedServerStatus,
 } from '@iptvnator/shared/interfaces';
 import { timer } from 'rxjs';
+
+type CloudflareStart = Extract<HostedCloudflareCommand, { start: true }>;
+
+const unavailableConnector: HostedCloudflareStatus = {
+    state: 'unavailable',
+    savedToken: false,
+    secureStorage: false,
+};
 
 @Component({
     selector: 'app-settings-hosted-server',
@@ -80,10 +90,47 @@ export class SettingsHostedServerComponent {
     });
     readonly code = signal('');
     readonly feedback = signal('');
-    readonly accessMethod = signal<'local' | 'https'>('local');
+    readonly accessMethod = signal<'local' | 'https' | 'cloudflare'>('local');
     readonly httpsAddress = signal('');
     readonly httpsInvalid = signal(false);
     readonly qrAddress = signal('');
+    readonly cloudflare = signal(unavailableConnector);
+    readonly cloudflareAvailable = computed(
+        () => this.cloudflare().state !== 'unavailable'
+    );
+    readonly cloudflareToken = signal('');
+    readonly cloudflareProtected = signal(false);
+    readonly cloudflareVerified = signal(false);
+    readonly cloudflareError = signal('');
+    readonly canStartCloudflare = computed(
+        () =>
+            this.cloudflareAvailable() &&
+            !this.connectorStatusUnknown() &&
+            this.cloudflare().secureStorage &&
+            this.cloudflareProtected() &&
+            (!!this.cloudflareToken().trim() || this.cloudflare().savedToken)
+    );
+    readonly httpsSetupComplete = computed(
+        () =>
+            !!this.httpsAddress().trim() &&
+            (this.accessMethod() !== 'cloudflare' || this.canStartCloudflare())
+    );
+    private readonly managedIngress = signal(false);
+    private readonly connectorStatusUnknown = signal(false);
+    readonly isManagedHttps = computed(
+        () =>
+            this.managedIngress() ||
+            (this.cloudflareAvailable() &&
+                this.cloudflare().state !== 'stopped')
+    );
+    readonly canShareHttps = computed(
+        () =>
+            !this.connectorStatusUnknown() &&
+            (!this.isManagedHttps() ||
+                (!this.busy() &&
+                    this.cloudflare().state === 'running' &&
+                    this.cloudflareVerified()))
+    );
     private transition = 0;
     private readonly clipboard = inject(Clipboard);
     private readonly destroyRef = inject(DestroyRef);
@@ -99,10 +146,20 @@ export class SettingsHostedServerComponent {
     private async readStatus(): Promise<void> {
         const transition = this.transition;
         try {
-            const status = await window.electron.hostedServerControl!('status');
+            const [status, cloudflare] = await Promise.all([
+                window.electron.hostedServerControl!('status'),
+                window.electron
+                    .hostedCloudflareControl?.('status')
+                    .catch(() => null),
+            ]);
             if (transition !== this.transition) return;
+            this.connectorStatusUnknown.set(cloudflare === null);
+            if (cloudflare) this.cloudflare.set(cloudflare);
+            if (cloudflare?.state !== 'running')
+                this.cloudflareVerified.set(false);
             this.status.set(status);
             if (status.state !== 'running') this.code.set('');
+            if (!status.httpsOrigin) this.managedIngress.set(false);
         } catch {
             if (transition === this.transition)
                 this.status.set({ state: 'error', error: 'startup' });
@@ -111,7 +168,8 @@ export class SettingsHostedServerComponent {
 
     async control(
         command: Exclude<HostedServerCommand, 'status'>,
-        httpsOrigin?: string
+        httpsOrigin?: string,
+        cloudflareStart?: CloudflareStart
     ): Promise<void> {
         if (this.busy()) return;
         const httpsCommand =
@@ -120,6 +178,8 @@ export class SettingsHostedServerComponent {
         this.busy.set(true);
         this.code.set('');
         this.feedback.set('');
+        this.cloudflareError.set('');
+        this.cloudflareVerified.set(false);
         this.status.update((current) => ({
             ...current,
             state: httpsCommand
@@ -130,13 +190,18 @@ export class SettingsHostedServerComponent {
             error: undefined,
         }));
         try {
-            const status = await window.electron.hostedServerControl!(command);
+            let status = await window.electron.hostedServerControl!(command);
             this.status.set(status);
             if (httpsOrigin && status.state === 'running') {
-                this.status.set(
-                    await window.electron.hostedServerControl!({ httpsOrigin })
-                );
+                status = await window.electron.hostedServerControl!({
+                    httpsOrigin,
+                });
+                this.status.set(status);
             }
+            if (cloudflareStart && status.httpsOrigin && !status.httpsError)
+                await this.startCloudflare(cloudflareStart);
+            if (!this.status().httpsOrigin) this.managedIngress.set(false);
+            if (command === 'stop') this.cloudflareProtected.set(false);
         } catch {
             if (httpsCommand || this.status().state === 'running') {
                 this.status.update((current) => ({
@@ -155,19 +220,78 @@ export class SettingsHostedServerComponent {
         if (this.busy()) return;
         const address = this.shareLan() ? this.address() : '';
         if (address === undefined) return;
-        const useHttps = this.accessMethod() === 'https';
+        const useHttps = this.accessMethod() !== 'local';
+        const useCloudflare = this.accessMethod() === 'cloudflare';
+        if (useCloudflare && !this.canStartCloudflare()) return;
         const httpsOrigin = useHttps ? this.readHttpsOrigin() : undefined;
         if (useHttps && !httpsOrigin) return;
+        if (useCloudflare) this.managedIngress.set(true);
         void this.control(
             address ? { start: true, lanAddress: address } : { start: true },
-            httpsOrigin
+            httpsOrigin,
+            useCloudflare ? this.cloudflareStartCommand() : undefined
         );
     }
 
     enableHttps(): void {
-        if (this.status().state !== 'running') return;
+        if (this.status().state !== 'running' || this.busy()) return;
+        const useCloudflare = this.accessMethod() === 'cloudflare';
+        if (useCloudflare && !this.canStartCloudflare()) return;
         const httpsOrigin = this.readHttpsOrigin();
-        if (httpsOrigin) void this.control({ httpsOrigin });
+        if (!httpsOrigin) return;
+        if (useCloudflare) this.managedIngress.set(true);
+        void this.control(
+            { httpsOrigin },
+            undefined,
+            useCloudflare ? this.cloudflareStartCommand() : undefined
+        );
+    }
+
+    async stopHttps(): Promise<void> {
+        await this.control({ httpsOrigin: '' });
+        if (!this.status().httpsOrigin) {
+            this.accessMethod.set('local');
+            this.cloudflareProtected.set(false);
+        }
+    }
+
+    async forgetCloudflare(): Promise<void> {
+        if (this.busy()) return;
+        this.transition++;
+        this.busy.set(true);
+        this.cloudflareError.set('');
+        try {
+            this.cloudflare.set(
+                await window.electron.hostedCloudflareControl!('forget')
+            );
+            this.cloudflareToken.set('');
+        } catch {
+            this.cloudflareError.set('HOSTED_SERVER.CLOUDFLARE_FORGET_FAILED');
+        } finally {
+            this.busy.set(false);
+        }
+    }
+
+    private cloudflareStartCommand(): CloudflareStart {
+        const token = this.cloudflareToken().trim();
+        return token ? { start: true, token } : { start: true };
+    }
+
+    private async startCloudflare(command: CloudflareStart): Promise<void> {
+        this.cloudflareToken.set('');
+        try {
+            const result =
+                await window.electron.hostedCloudflareControl!(command);
+            this.cloudflare.set(result);
+            if (result.state === 'running') return;
+        } catch {
+            // Bridge errors can contain credential or process details.
+        }
+        this.cloudflareError.set('HOSTED_SERVER.CLOUDFLARE_FAILED');
+        const status = await window.electron.hostedServerControl!({
+            httpsOrigin: '',
+        });
+        this.status.set(status);
     }
 
     private readHttpsOrigin(): string | undefined {
