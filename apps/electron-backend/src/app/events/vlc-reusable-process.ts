@@ -183,6 +183,10 @@ export class VlcReusableProcess {
                     state.contentMutated = true;
                     this.processSessionId = session.id;
                     this.processSessionIds.set(reusedProcess, session.id);
+                    if (reusedProcessSessionId)
+                        externalPlayerSessions.markClosed(
+                            reusedProcessSessionId
+                        );
                     options.stopPositionPolling();
                 },
                 () => !closeRequested

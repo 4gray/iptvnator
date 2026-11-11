@@ -554,7 +554,10 @@ export class LiveStreamLayoutComponent
             current: this.activePlayback,
             currentItem: this.activeGuideItem,
             select: (item) => this.selectGuideLiveItem(item),
-            restore: ({ item, archive, playback }) => {
+            capture: (item, queue) =>
+                this.channelNavigation.capture(item, queue),
+            restore: ({ item, archive, playback, lockSource }) => {
+                this.activePlaylistId = lockSource.playlistId;
                 this.activePlayback.set(playback);
                 this.activeLiveItemId.set(item.xtream_id);
                 this.activeCatchupProgram.set(archive);
@@ -565,7 +568,8 @@ export class LiveStreamLayoutComponent
             computed(() =>
                 this.usesEmbeddedPlayer()
                     ? !!this.activeStreamUrl()
-                    : !!this.externalGuide.confirmed()
+                    : !!this.externalGuide.confirmed() ||
+                      (this.guide.isOpen() && this.externalGuide.launching())
             )
         );
         this.guideSource.bind((item, channels) => {
@@ -574,7 +578,8 @@ export class LiveStreamLayoutComponent
                 this.externalGuide.replacePendingCopy(
                     item,
                     () => this.readLiveProviderCategoryId(item),
-                    () => this.channelNavigation.capture(item, channels)
+                    () => this.channelNavigation.capture(item, channels),
+                    channels
                 )
             )
                 return;
@@ -883,7 +888,10 @@ export class LiveStreamLayoutComponent
             item,
             null,
             this.activeLiveProviderCategoryId,
-            tracksExternalPlayback ? captureNavigation : undefined
+            tracksExternalPlayback ? captureNavigation : undefined,
+            tracksExternalPlayback && remote
+                ? this.channelNavigation.remoteChannels()
+                : scope
         );
     }
 
@@ -1197,7 +1205,9 @@ export class LiveStreamLayoutComponent
             this.activePlayback(),
             item,
             program,
-            this.activeLiveProviderCategoryId
+            this.activeLiveProviderCategoryId,
+            undefined,
+            this.channelNavigation.remoteChannels()
         );
     }
 

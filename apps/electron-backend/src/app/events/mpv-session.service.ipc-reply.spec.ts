@@ -284,14 +284,14 @@ describe('reused MPV IPC replies', () => {
             )
         );
 
-        // The exit landed on the session that owned the child at that
-        // moment, and a dead player is never reported as opened.
+        // The child changed owners when loadfile was written. Neither the
+        // replaced session nor the new one can advertise a dead player.
         await expect(opening).resolves.toMatchObject({
             id: replacementId,
             status: 'closed',
         });
         expect(externalPlayerSessions.getSession(previous.id)?.status).toBe(
-            'opened'
+            'closed'
         );
         expect(spawnMock).toHaveBeenCalledTimes(1);
     });
@@ -653,7 +653,7 @@ describe('reused MPV IPC replies', () => {
                 errorCode: 'closed-unexpectedly',
             });
             expect(externalPlayerSessions.getSession(previous.id)?.status).toBe(
-                'opened'
+                'closed'
             );
             expect(spawnMock).toHaveBeenCalledTimes(1);
         } finally {

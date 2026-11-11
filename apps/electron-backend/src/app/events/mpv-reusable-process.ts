@@ -240,6 +240,7 @@ export class MpvReusableProcess {
             this.processSessionId = session.id;
             this.processSessionIds.set(reusedProcess, session.id);
             if (reusedProcessSessionId) {
+                externalPlayerSessions.markClosed(reusedProcessSessionId);
                 options.stopPositionPolling(reusedProcessSessionId);
             }
         };

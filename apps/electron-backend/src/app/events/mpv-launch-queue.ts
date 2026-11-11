@@ -88,6 +88,21 @@ export class MpvLaunchQueue {
                     if (started) return false;
                     if (this.latestRunnable === number)
                         this.latestRunnable = this.inFlightNumber;
+                    for (const candidate of [
+                        this.inFlightSessionId,
+                        this.storedOwnerSessionId(),
+                        this.lastStartedSessionId,
+                    ]) {
+                        if (
+                            candidate &&
+                            candidate !== session.id &&
+                            externalPlayerSessions.restoreActiveSession(
+                                candidate,
+                                session.id
+                            )
+                        )
+                            break;
+                    }
                     return true;
                 }
             );

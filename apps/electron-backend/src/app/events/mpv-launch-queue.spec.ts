@@ -165,6 +165,7 @@ describe('MPV launch queue', () => {
             title: 'Synthetic Allowed Channel',
             url: 'https://example.test/allowed.m3u8',
         });
+        const allowedId = externalPlayerSessions.getActiveSessionId();
         const requestId = await writtenRequestId(sockets[0]);
         const second = openMpvPlayer({
             title: 'Synthetic Restricted Channel',
@@ -174,6 +175,7 @@ describe('MPV launch queue', () => {
         await expect(
             externalPlayerSessions.closeSession(queuedId, true)
         ).resolves.toMatchObject({ id: queuedId, status: 'closed' });
+        expect(externalPlayerSessions.getActiveSessionId()).toBe(allowedId);
         sockets[0].emit(
             'data',
             Buffer.from(

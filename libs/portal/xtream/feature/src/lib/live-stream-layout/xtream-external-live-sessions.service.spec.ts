@@ -137,4 +137,30 @@ describe('XtreamExternalLiveSessions', () => {
         TestBed.flushEffects();
         expect(nativeClose).toHaveBeenCalledTimes(1);
     });
+
+    it('retries the exact session after native teardown cannot be confirmed', async () => {
+        jest.useFakeTimers();
+        try {
+            const nativeClose = jest
+                .fn(async (id: string) => session(id, oldUrl, 'closed'))
+                .mockRejectedValueOnce(new Error('Synthetic teardown failure'));
+            Object.defineProperty(
+                window.electron,
+                'closeExternalPlayerSession',
+                { value: nativeClose }
+            );
+            guard.begin(oldUrl, original)(session('old', oldUrl, 'opened'));
+            relock();
+            expect(nativeClose).toHaveBeenCalledTimes(1);
+            await jest.advanceTimersByTimeAsync(1000);
+            expect(nativeClose.mock.calls).toEqual([
+                ['old', true],
+                ['old', true],
+            ]);
+            await jest.advanceTimersByTimeAsync(2000);
+            expect(nativeClose).toHaveBeenCalledTimes(2);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
 });

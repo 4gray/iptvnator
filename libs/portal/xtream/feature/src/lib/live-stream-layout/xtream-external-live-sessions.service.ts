@@ -11,11 +11,20 @@ import {
     PORTAL_EXTERNAL_PLAYBACK,
 } from '@iptvnator/portal/shared/util';
 import { ParentalLockService } from '@iptvnator/services';
-import type { ExternalPlayerSession } from '@iptvnator/shared/interfaces';
+import type {
+    EpgProgram,
+    ExternalPlayerSession,
+    ResolvedPortalPlayback,
+} from '@iptvnator/shared/interfaces';
+import type { XtreamLiveChannelItem } from './xtream-live-channel-navigation.service';
 
 export interface XtreamLiveSource {
     playlistId: string;
     categoryId: number | null | 'unknown';
+    channel?: XtreamLiveChannelItem;
+    archive?: EpgProgram | null;
+    playback?: ResolvedPortalPlayback;
+    queue?: readonly XtreamLiveChannelItem[];
 }
 
 export function isXtreamLiveCategoryWithheld(
@@ -38,6 +47,7 @@ type Active = {
     source: XtreamLiveSource;
     launch?: Launch;
     closing?: boolean;
+    retry?: ReturnType<typeof setTimeout>;
 };
 
 /** Enforce parental locks on owned sessions even after they leave the global dock. */
@@ -47,6 +57,7 @@ export class XtreamExternalLiveSessions {
         optional: true,
     });
     private readonly lock = inject(ParentalLockService);
+    private readonly destroyRef = inject(DestroyRef);
     private readonly pending = new Map<string, Launch[]>();
     private readonly sessions = new Map<string, Active>();
     private readonly revision = signal(0);
@@ -55,7 +66,10 @@ export class XtreamExternalLiveSessions {
         const unsubscribe = window.electron?.onExternalPlayerSessionUpdate?.(
             (session) => this.update(session)
         );
-        if (unsubscribe) inject(DestroyRef).onDestroy(unsubscribe);
+        this.destroyRef.onDestroy(() => {
+            unsubscribe?.();
+            this.sessions.forEach((entry) => clearTimeout(entry.retry));
+        });
         effect(() => {
             this.lock.version();
             untracked(() =>
@@ -64,9 +78,13 @@ export class XtreamExternalLiveSessions {
         });
     }
 
-    snapshot(id: string): ExternalPlayerSession | undefined {
+    state(
+        id: string
+    ):
+        | { session: ExternalPlayerSession; source: XtreamLiveSource }
+        | undefined {
         this.revision();
-        return this.sessions.get(id)?.session;
+        return this.sessions.get(id);
     }
 
     begin(
@@ -98,6 +116,7 @@ export class XtreamExternalLiveSessions {
         const current = this.sessions.get(id);
         if (!isLiveExternalPlayerSession(session)) {
             if (current?.launch) current.launch.retired = true;
+            clearTimeout(current?.retry);
             if (this.sessions.delete(id))
                 this.revision.update((value) => value + 1);
             return;
@@ -121,8 +140,14 @@ export class XtreamExternalLiveSessions {
 
     private enforce(entry: Active): void {
         const { session, source } = entry;
-        if (!session.canClose || entry.closing || !this.playback) return;
-        if (!isXtreamLiveCategoryWithheld(this.lock, source)) return;
+        if (this.sessions.get(session.id) !== entry) return;
+        if (!isXtreamLiveCategoryWithheld(this.lock, source)) {
+            clearTimeout(entry.retry);
+            entry.retry = undefined;
+            return;
+        }
+        if (!session.canClose || entry.closing || entry.retry || !this.playback)
+            return;
         const bridge = window.electron;
         if (
             !bridge?.closeExternalPlayerSession &&
@@ -152,6 +177,15 @@ export class XtreamExternalLiveSessions {
             : this.playback.closeSession(session);
         void close.catch(() => {
             entry.closing = false;
+            if (
+                this.destroyRef.destroyed ||
+                this.sessions.get(session.id) !== entry
+            )
+                return;
+            entry.retry = setTimeout(() => {
+                entry.retry = undefined;
+                this.enforce(entry);
+            }, 1000);
         });
     }
 }
