@@ -1076,22 +1076,22 @@ describe('LiveStreamLayoutComponent', () => {
     });
 
     it('starts external playback from remote channel navigation when double-click opening is enabled', () => {
+        const firstChannel = { ...sampleChannel, category_id: '1' };
         const nextChannel = {
-            ...sampleChannel,
-            category_id: '1',
+            ...firstChannel,
             xtream_id: 102,
             name: 'Channel 102',
         };
         settingsStore.openStreamOnDoubleClick.set(true);
         portalPlayer.isEmbeddedPlayer.mockReturnValue(false);
-        selectedItem.set(sampleChannel);
+        selectedItem.set(firstChannel);
         xtreamStore.selectItemsFromSelectedCategory.mockReturnValue([
-            sampleChannel,
+            firstChannel,
             nextChannel,
         ]);
 
-        liveStreams.set([{ ...sampleChannel, category_id: '1' }, nextChannel]);
-        component.playLive(sampleChannel);
+        liveStreams.set([firstChannel, nextChannel]);
+        component.playLive(firstChannel);
         xtreamStore.openPlayer.mockClear();
         (
             component as unknown as {

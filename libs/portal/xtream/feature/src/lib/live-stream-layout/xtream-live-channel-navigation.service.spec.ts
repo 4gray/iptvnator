@@ -168,6 +168,26 @@ describe('XtreamLiveChannelNavigationService', () => {
         expect(service.canReveal()).toBe(false);
     });
 
+    it('resolves the queued category copy when another category has the same stream', () => {
+        const copy = {
+            ...second,
+            category_id: '20',
+            epg_channel_id: 'synthetic.other',
+        };
+        const queued = { ...second, epg_channel_id: 'synthetic.queued' };
+        liveStreams.set([first, queued, copy]);
+        service.capture(first, [first, queued]);
+        const refreshed = {
+            ...queued,
+            category_id: '010',
+            epg_channel_id: 'synthetic.updated',
+        };
+        liveStreams.set([first, refreshed, copy]);
+        expect(service.remoteChannels()).toEqual([first, refreshed]);
+        liveStreams.set([first, copy]);
+        expect(service.remoteChannels()).toEqual([first]);
+    });
+
     it('invalidates a queue when its source or content type changes', () => {
         service.capture(first);
         currentPlaylist.set({ id: 'source-2' });

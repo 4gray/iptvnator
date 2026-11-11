@@ -790,8 +790,8 @@ is still playing, the guide keeps its scope and search. The dock, player panel
 and remote controls follow the confirmed session. Browsing another channel
 does not replace the remote order or detach the guide. If a relock withholds that
 channel or the pending replacement, the guide hides the withheld channel and
-closes its external session even if it finishes opening later or reports a
-closable error. Retiring only the pending switch keeps the confirmed channel
+closes its external session even if it finishes opening later, reports a
+closable error or has already left the dock. Retiring only the pending switch keeps the confirmed channel
 and its guide available. The guide uses
 the current playlist's visible, unlocked live catalogue and can scope it to
 a category or resolved live favorites.
@@ -799,7 +799,8 @@ A stream shared by multiple categories appears in each of those scopes and
 once in All Channels. Choosing another copy of a stream already playing
 switches its EPG mapping without restarting playback. If the same stream is
 still opening, the last choice supplies its mapping when it opens. Programme
-details play the copy they describe while it remains available.
+details play the copy they describe while it remains available. Remote tuning
+also retains the category copy saved in the queue.
 
 Xtream supplies full schedules per stream. The guide starts with the rendered
 rows, shares in-flight work and a bounded five-minute in-memory cache, and

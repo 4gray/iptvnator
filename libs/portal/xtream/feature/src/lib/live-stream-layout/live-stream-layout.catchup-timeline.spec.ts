@@ -106,6 +106,13 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         async (_session: ExternalPlayerSession) => undefined
     );
     const updateRemoteControlStatus = jest.fn();
+    const onExternalPlayerSessionUpdate = jest.fn(
+        (_update: (session: ExternalPlayerSession) => void) => jest.fn()
+    );
+    function publishExternalSession(session: ExternalPlayerSession | null) {
+        externalSession.set(session);
+        if (session) onExternalPlayerSessionUpdate.mock.lastCall?.[0](session);
+    }
     const onChannelChange = jest.fn(
         (_change: (event: { direction: 'up' | 'down' }) => void) => jest.fn()
     );
@@ -140,10 +147,15 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         previousElectron = window.electron;
         Object.defineProperty(window, 'electron', {
             configurable: true,
-            value: { updateRemoteControlStatus, onChannelChange },
+            value: {
+                updateRemoteControlStatus,
+                onChannelChange,
+                onExternalPlayerSessionUpdate,
+            },
         });
         updateRemoteControlStatus.mockClear();
         onChannelChange.mockClear();
+        onExternalPlayerSessionUpdate.mockClear();
         closeSession.mockClear();
         parentalLock.active.set(false);
         parentalLock.version.set(0);
@@ -152,7 +164,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         epgItems.set([]);
         runtime.supportsProviderCatchUp = true;
         portalPlayer.isEmbeddedPlayer.set(true);
-        externalSession.set(null);
+        publishExternalSession(null);
         emptyList.set([]);
         xtreamStore.openPlayer.mockReset();
         xtreamStore.setSelectedItem.mockClear();
@@ -280,7 +292,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         emptyList.set([playing, next]);
         portalPlayer.isEmbeddedPlayer.set(false);
         component.playLive(playing, true);
-        externalSession.set({
+        publishExternalSession({
             id: 'synthetic-session',
             streamUrl: component.activeStreamUrl(),
             title: 'Synthetic Live Channel',
@@ -351,7 +363,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 updatedAt: '2026-04-04T10:00:00Z',
                 canClose: true,
             };
-            externalSession.set(original);
+            publishExternalSession(original);
             component.guide.open();
             fixture.detectChanges();
             const source = fixture.debugElement.injector.get(
@@ -372,7 +384,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 streamUrl: component.activeStreamUrl(),
                 status: 'launching',
             };
-            externalSession.set(replacement);
+            publishExternalSession(replacement);
             xtreamStore.selectedItem.set(next);
             fixture.detectChanges();
             expect(queue()).toEqual([101, 103]);
@@ -387,7 +399,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 neighbor,
                 expect.any(Function)
             );
-            externalSession.set({
+            publishExternalSession({
                 ...original,
                 restoredFromSessionId: replacement.id,
             });
@@ -398,7 +410,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 replacement.streamUrl
             );
             source.activate('102');
-            externalSession.set({
+            publishExternalSession({
                 ...replacement,
                 id: 'synthetic-retry',
                 status: 'opened',
@@ -437,7 +449,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 updatedAt: '2026-04-04T10:00:00Z',
                 canClose: true,
             };
-            externalSession.set(original);
+            publishExternalSession(original);
             component.guide.open();
             fixture.detectChanges();
             xtreamStore.constructStreamUrl.mockReturnValueOnce(
@@ -451,7 +463,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 status: 'launching',
                 canClose: false,
             } as const;
-            externalSession.set(pending);
+            publishExternalSession(pending);
             fixture.detectChanges();
 
             parentalLock.isXtreamCategoryLocked.mockImplementation(
@@ -472,7 +484,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                     status: locked === 'replacement' ? 'opened' : 'error',
                     canClose: true,
                 } as const;
-                externalSession.set(opened);
+                publishExternalSession(opened);
                 fixture.detectChanges();
                 expect(closeSession).toHaveBeenCalledWith(opened);
                 expect(component.guide.available()).toBe(false);
@@ -485,7 +497,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             expect(closeSession).toHaveBeenCalledWith(original);
             expect(component.guide.available()).toBe(false);
 
-            externalSession.set({
+            publishExternalSession({
                 ...original,
                 restoredFromSessionId: pending.id,
             });
@@ -524,7 +536,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 component.playLive(playing, true);
                 const playback = component.activePlayback()!;
                 if (!embedded)
-                    externalSession.set({
+                    publishExternalSession({
                         id: 'synthetic-copy-switch-session',
                         streamUrl: playback.streamUrl,
                         title: 'Synthetic Channel',
@@ -576,7 +588,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             updatedAt: '2026-04-04T10:00:00Z',
             canClose: true,
         };
-        externalSession.set(confirmed);
+        publishExternalSession(confirmed);
         fixture.detectChanges();
         xtreamStore.constructStreamUrl.mockReturnValueOnce(
             'https://example.com/preview.ts'
@@ -636,7 +648,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                     updatedAt: '2026-04-04T10:00:00Z',
                     canClose: true,
                 };
-                externalSession.set(original);
+                publishExternalSession(original);
                 fixture.detectChanges();
                 if (state === 'preview') component.playLive(next, false);
                 component.guide.open();
@@ -654,7 +666,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 source.setScope('2');
                 source.activate(String(copy.xtream_id));
                 if (state === 'pending')
-                    externalSession.set({
+                    publishExternalSession({
                         ...original,
                         id: 'synthetic-pending',
                         streamUrl: playback!.streamUrl,
@@ -703,9 +715,9 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 updatedAt: '2026-04-04T10:00:00Z',
                 canClose: true,
             };
-            externalSession.set(session);
+            publishExternalSession(session);
             expect(component.guide.available()).toBe(false);
-            externalSession.set({ ...session, status: 'playing' });
+            publishExternalSession({ ...session, status: 'playing' });
             component.guide.open();
             fixture.detectChanges();
             const summary = fixture.debugElement.query(
@@ -732,7 +744,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             const late =
                 outcome === 'restores intermediate after late launch update';
             if (!late) {
-                externalSession.set(replacement);
+                publishExternalSession(replacement);
                 fixture.detectChanges();
             }
             expect(component.guide.isOpen()).toBe(true);
@@ -750,28 +762,28 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 streamUrl: component.activeStreamUrl(),
             };
             if (late) {
-                externalSession.set(replacement);
+                publishExternalSession(replacement);
                 fixture.detectChanges();
                 expect(component.guide.isOpen()).toBe(true);
             }
             const restoreIntermediate =
                 late || outcome === 'restores intermediate';
             if (restoreIntermediate) {
-                externalSession.set(third);
+                publishExternalSession(third);
                 fixture.detectChanges();
                 expect(component.guide.isOpen()).toBe(true);
             }
             const original = outcome === 'restores original';
             const confirmed = original ? session : replacement;
             if (original) {
-                externalSession.set({
+                publishExternalSession({
                     ...replacement,
                     restoredFromSessionId: third.id,
                 });
                 fixture.detectChanges();
                 expect(component.guideNowPlayingChannel()).toBe(session.title);
             }
-            externalSession.set({
+            publishExternalSession({
                 ...confirmed,
                 status: 'playing',
                 restoredFromSessionId: original

@@ -36,6 +36,10 @@ export interface XtreamLiveChannelItem {
     readonly xtream_id: number;
 }
 
+function channelCopyKey(item: XtreamLiveChannelItem): string {
+    return `${item.xtream_id}:${Number(item.category_id)}`;
+}
+
 /** Browse state is independent from the ordered list that started playback. */
 @Injectable()
 export class XtreamLiveChannelNavigationService {
@@ -94,13 +98,13 @@ export class XtreamLiveChannelNavigationService {
     readonly remoteChannels = computed(() => {
         const available = new Map(
             this.accessibleChannels().map((item) => [
-                Number(item.xtream_id),
+                channelCopyKey(item),
                 item,
             ])
         );
         return this.queue
             .items(this.owner())
-            .map((item) => available.get(Number(item.xtream_id)))
+            .map((item) => available.get(channelCopyKey(item)))
             .filter(
                 (item): item is XtreamLiveChannelItem => item !== undefined
             );
