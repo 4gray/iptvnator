@@ -13,10 +13,10 @@ import {
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
 import {
-    copyTextToClipboard,
     RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
+import { copyTextToClipboard } from '@iptvnator/services/clipboard-copy';
 import { captureHistoryOwner } from '@iptvnator/services/history-events';
 import { sourceConnection } from '@iptvnator/services/source-sync/connection';
 import {

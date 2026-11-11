@@ -8,10 +8,10 @@ import {
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import {
-    copyTextToClipboard,
     RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
+import { copyTextToClipboard } from '@iptvnator/services/clipboard-copy';
 import {
     VideoPlayer,
     type ExternalPlayerName,
