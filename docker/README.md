@@ -195,6 +195,9 @@ For an existing Cloudflare Tunnel:
    Confirm an uninvited account is denied, then sign in and enter the IPTVnator
    access code. Check that `/api/v1/sources` still rejects a missing/wrong code.
 
+On Android and Fire TV, open Access-protected addresses in a browser. The APK's
+hosted-library connection cannot complete the Cloudflare Access sign-in redirect.
+
 IPTVnator does not install, start, stop or store credentials for `cloudflared`.
 Stopping HTTPS in IPTVnator disconnects the local origin; revoke viewer access,
 stop the connector or delete Cloudflare resources separately when retiring it.
