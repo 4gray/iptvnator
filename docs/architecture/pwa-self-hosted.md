@@ -60,9 +60,8 @@ existing guarded hosted-server IPC. Main validates it, serializes the command
 with server lifecycle operations, and waits for a correlated worker reply.
 The worker serializes configuration and shutdown. Remote stop closes active
 connections without stopping LAN/loopback port 4334. Remote exposure is opt-in
-again after each server restart; no credentials or external configuration are
-persisted. An unacknowledged command stops the worker rather than reporting a
-potentially exposed origin as stopped.
+again after each server restart. An unacknowledged command stops the worker
+rather than reporting a potentially exposed origin as stopped.
 
 The remote listener accepts only loopback peers, its configured public Host
 and an absent or exactly matching HTTPS Origin. It rejects the loopback Host
@@ -71,8 +70,12 @@ CORS reflects origins only after listener admission; standalone Docker CORS
 is unchanged. The existing access-code middleware remains in force. Viewer
 authentication for the whole site belongs to the trusted local gateway; for
 Cloudflare the operator configures Access and connector JWT validation before
-publishing a route. The app controls the local listener, not cloudflared or
-external resources, and does not claim public connectivity. See the
+publishing a route. Desktop builds with `IPTVNATOR_BUNDLE_CLOUDFLARED=1` include
+a checksum-pinned connector under the app's resources directory. Electron starts
+that executable only with active HTTPS ingress, stores its tunnel token with
+OS-backed encryption, and stops the process when HTTPS or hosting stops. A running
+connector status reflects process state. Operators verify connectivity and viewer
+authorization in Cloudflare and their browser. See the
 [HTTPS setup guide](../../docker/README.md#optional-https-and-cloudflare-tunnel).
 
 The desktop package includes `web-backend:build` and `web:build-hosted`. The

@@ -157,13 +157,14 @@ and import the desktop's original local sources into the shared library.
 
 ## Optional HTTPS and Cloudflare Tunnel
 
-Desktop **Settings → Server → Optional HTTPS / Cloudflare Tunnel** enables a
-separate origin at `http://127.0.0.1:4335` for a proxy running on the same
-computer. Start the library server first. Enter its public address, such as
-`https://library.example.com`, then choose **Enable HTTPS access**. Only that
-exact HTTPS origin is accepted; paths and credentials are not allowed. The
-proxy must preserve the public `Host` and `Origin` headers. Forwarded headers
-cannot grant access. Do not proxy port 4334 or expose either port on the router.
+In desktop **Settings → Server**, choose how devices will reach the library
+before starting the server. For an existing HTTPS proxy or Cloudflare Tunnel,
+enter its public address, such as `https://library.example.com`. You can also
+enable HTTPS after starting a local server. IPTVnator opens a separate origin at
+`http://127.0.0.1:4335` for the proxy on the same computer. The public address
+must be an exact HTTPS origin without a path or credentials. Preserve the public
+`Host` and `Origin` headers. Do not proxy port 4334 or expose either port on the
+router.
 
 Home-network HTTP continues to work independently. Both paths use the same
 running server, library database and access code. **Stop HTTPS access** closes
@@ -185,22 +186,27 @@ For an existing Cloudflare Tunnel:
    and team name. This makes the connector validate Access tokens before it
    forwards requests. See Cloudflare's
    [origin parameters](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/configure-tunnels/origin-parameters/).
-4. Run your existing `cloudflared` connector on this computer using Cloudflare's
-   platform instructions. Its token belongs to the connector, not the IPTVnator
-   address or access-code field. For an existing protected token file, the
-   cross-platform command is `cloudflared tunnel run --token-file <path>`
+4. Select **Cloudflare Tunnel (bundled connector)** when the desktop build
+   offers it. Enter the public address, paste the tunnel token into the token
+   field, and confirm the Access settings. IPTVnator stores the token in
+   OS-backed credential storage and runs the bundled connector. For a connector
+   you run separately on this computer, select **Existing HTTPS proxy or
+   Cloudflare Tunnel**. For an existing protected token file, use
+   `cloudflared tunnel run --token-file <path>`
    ([run parameters](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/configure-tunnels/run-parameters/)).
 5. Enable the matching HTTPS address in IPTVnator. From a signed-out browser,
    verify that Access requires sign-in for the page and `/api/v1/instance`.
    Confirm an uninvited account is denied, then sign in and enter the IPTVnator
    access code. Check that `/api/v1/sources` still rejects a missing/wrong code.
+   For the bundled connector, confirm the browser check before sharing its QR.
 
 On Android and Fire TV, open Access-protected addresses in a browser. The APK's
 hosted-library connection cannot complete the Cloudflare Access sign-in redirect.
 
-IPTVnator does not install, start, stop or store credentials for `cloudflared`.
-Stopping HTTPS in IPTVnator disconnects the local origin; revoke viewer access,
-stop the connector or delete Cloudflare resources separately when retiring it.
+Stopping HTTPS closes the local origin and stops a connector launched by
+IPTVnator. Manage separately launched connectors and Cloudflare resources in
+Cloudflare. A desktop package builder can opt into the pinned connector with
+`IPTVNATOR_BUNDLE_CLOUDFLARED=1`. This setting belongs to the package build.
 For another HTTPS proxy, apply equivalent gateway authentication to the entire
 hostname and disable caching for authenticated traffic. The gateway owns viewer
 authentication; IPTVnator continues enforcing its access code on protected APIs.
