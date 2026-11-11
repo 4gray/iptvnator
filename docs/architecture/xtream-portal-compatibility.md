@@ -796,14 +796,16 @@ expire. Failed rows retry when they return to the viewport. A coverage scan
 that obtains a schedule also updates the corresponding visible failed row.
 It checks the current scope's coverage only when the user turns on **Only with
 EPG** and keeps channels whose coverage could not be checked until a successful
-lookup determines whether they have programmes. Programme search
+lookup determines whether they have programmes. The filter shows an error
+while coverage is incomplete. Programme search
 reads the available live catalogue on demand, including channels outside the
 viewport, and publishes matches and progress as it scans. A failed schedule
 does not discard matches from other channels. Large scopes can take longer to
 search or filter. Closing the guide cancels its in-flight provider requests.
 Replacing a search or viewport request cancels work once no other guide
-consumer needs it. Visibility changes refresh the guide's favorites and
-return a removed category scope to All Channels. Background favorites
+consumer needs it, including XMLTV reads waiting on a mapping. Visibility
+changes refresh the guide's favorites and return a removed category scope to
+All Channels. Background favorites
 synchronization also refreshes membership while the guide is open.
 Rechecking the same playlist keeps the guide open and preserves its scope and
 search query. Guide and player use the same full EPG resolver, including

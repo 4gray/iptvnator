@@ -116,6 +116,41 @@ describe('EpgGuideProgramsService', () => {
         expect(loadPrograms).toHaveBeenCalledTimes(1);
     });
 
+    it.each([true, false])(
+        'shows an incomplete scan and applies a successful retry (scan first: %s)',
+        async (scanFirst) => {
+            Object.assign(source, { deferredCoverage: true });
+            let finish!: (ids: Set<string>) => void;
+            loadCoverage.mockImplementation(
+                (_window, report) =>
+                    new Promise((resolve) => {
+                        report?.('a', null);
+                        report?.('b', []);
+                        finish = resolve;
+                    })
+            );
+            service.setWindow(1000, 2000);
+            service.setCoverageRequested(true);
+            if (scanFirst) {
+                finish(new Set(['a']));
+                await flush();
+                expect(service.coverageStatus()).toBe('error');
+                expect(service.isCovered('a')).toBe(true);
+                expect(service.isCovered('b')).toBe(false);
+            }
+
+            loadPrograms.mockResolvedValue(new Map([['a', []]]));
+            service.ensureLoaded([channels()[0]]);
+            await flush();
+            if (!scanFirst) {
+                finish(new Set(['a']));
+                await flush();
+            }
+            expect(service.coverageStatus()).toBe('idle');
+            expect(service.isCovered('a')).toBe(false);
+        }
+    );
+
     it('aborts visible-row work and invalidates cached programmes after a source revision', async () => {
         let finish!: (programs: Map<string, EpgProgram[]>) => void;
         loadPrograms
@@ -339,9 +374,7 @@ describe('EpgGuideProgramsService', () => {
         await flush();
         expect(service.statusFor('a')).toBe('idle');
         expect(loadCoverage.mock.calls.length).toBe(callsBefore + 1);
-        const requested = loadCoverage.mock.calls[callsBefore][0] as {
-            channels: EpgGuideChannel[];
-        };
+        const requested = loadCoverage.mock.calls[callsBefore][0];
         const requestedIds = requested.channels.map((item) => item.id);
         expect(requestedIds).toContain('z');
         expect(requestedIds).not.toContain('b');
@@ -378,9 +411,7 @@ describe('EpgGuideProgramsService', () => {
         expect(requestedPrograms.channels.map((item) => item.id)).not.toContain(
             'empty'
         );
-        const requestedCoverage = loadCoverage.mock.calls[0][0] as {
-            channels: EpgGuideChannel[];
-        };
+        const requestedCoverage = loadCoverage.mock.calls[0][0];
         expect(requestedCoverage.channels.map((item) => item.id)).not.toContain(
             'empty'
         );

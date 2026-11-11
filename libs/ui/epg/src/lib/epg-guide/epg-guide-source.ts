@@ -78,10 +78,13 @@ export interface EpgGuideSource {
     programsExpireAt?(channelId: string): number;
     /** Per-stream sources publish each row as it arrives. */
     readonly programBatchSize?: number;
-    /** Ids with programmes or unknown coverage. Providers can report schedules already fetched during the scan. */
+    /** Ids with programmes or unknown coverage. A reported null means the check failed. */
     loadCoverage(
         range: EpgGuideWindow,
-        reportPrograms?: (channelId: string, programs: EpgProgram[]) => void
+        reportPrograms?: (
+            channelId: string,
+            programs: EpgProgram[] | null
+        ) => void
     ): Promise<Set<string>>;
     /** Checking every channel requires provider requests, so wait for the filter. */
     readonly deferredCoverage?: boolean;

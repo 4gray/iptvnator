@@ -24,6 +24,7 @@ export class XtreamFullEpgService {
         epgChannelId: string | null,
         options?: Pick<XtreamRequestOptions, 'signal' | 'sessionId'>
     ): Promise<EpgItem[]> {
+        options?.signal?.throwIfAborted();
         const preferUploaded =
             this.settings.preferUploadedEpgOverXtream?.() ?? false;
         if (this.runtime.supportsEpgMapping && id) {
@@ -40,6 +41,7 @@ export class XtreamFullEpgService {
         return this.xmltv.resolveCurrentEpg({
             epgChannelId,
             preferUploaded,
+            signal: options?.signal,
             fetchProvider: () =>
                 this.api.getFullEpg(credentials, streamId, {
                     ...options,

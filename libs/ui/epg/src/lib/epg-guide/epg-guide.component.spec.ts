@@ -68,6 +68,7 @@ describe('EpgGuideComponent', () => {
     const offsetMinutes = signal(0);
     const searchHits = signal<EpgGuideSearchHit[]>([]);
     const revision = signal(0);
+    let schedule: EpgProgram[];
     const activate = jest.fn();
     const setScope = jest.fn();
     const dialogOpen = jest.fn(
@@ -81,6 +82,7 @@ describe('EpgGuideComponent', () => {
         offsetMinutes.set(0);
         searchHits.set([]);
         revision.set(0);
+        schedule = [nowProgram('a')];
         activate.mockReset();
         setScope.mockReset();
         dialogOpen.mockClear();
@@ -101,7 +103,9 @@ describe('EpgGuideComponent', () => {
                 new Map(
                     window.channels.map((item) => [
                         item.id,
-                        item.id === 'a' ? [nowProgram('a')] : [],
+                        schedule.filter(
+                            (program) => program.channel === item.id
+                        ),
                     ])
                 ),
             loadCoverage: async () => new Set(['a']),
@@ -333,6 +337,7 @@ describe('EpgGuideComponent', () => {
     });
 
     it('moves the roving focus with its channel and drops it with the row', async () => {
+        schedule.push(nowProgram('c'));
         await settle(fixture);
         component.focusCell(2, 0);
         await settle(fixture);
@@ -457,6 +462,28 @@ describe('EpgGuideComponent', () => {
         expect(cells().map((cell) => cell.getAttribute('tabindex'))).toEqual([
             '0',
         ]);
+    });
+
+    it('restores the channel tab stop when its focused programme disappears', async () => {
+        await settle(fixture);
+        const card = fixture.nativeElement.querySelector(
+            '.epg-guide-row__block'
+        ) as HTMLElement;
+        component.focusCell(0, 0);
+        await settle(fixture);
+        card.focus();
+        expect(document.activeElement).toBe(card);
+
+        schedule = [];
+        revision.update((value) => value + 1);
+        await settle(fixture);
+
+        const cell = fixture.nativeElement.querySelector(
+            '.epg-guide-row__channel'
+        ) as HTMLElement;
+        expect(card.isConnected).toBe(false);
+        expect(cell.getAttribute('tabindex')).toBe('0');
+        expect(document.activeElement).toBe(cell);
     });
 
     it('jumps to now on N without scrolling back to a focus left off-screen', async () => {

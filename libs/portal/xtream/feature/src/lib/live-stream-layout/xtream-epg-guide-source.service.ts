@@ -300,7 +300,10 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
 
     async loadCoverage(
         window: EpgGuideWindow,
-        reportPrograms?: (channelId: string, programs: EpgProgram[]) => void
+        reportPrograms?: (
+            channelId: string,
+            programs: EpgProgram[] | null
+        ) => void
     ): Promise<Set<string>> {
         const { read, checkCurrent } = this.scheduleReader(window.signal);
         const rows = this.scopedRows();
@@ -312,7 +315,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
             });
             const matches = programs?.filter((item) => overlaps(item, window));
             if (!matches || matches.length) covered.add(id);
-            if (matches) reportPrograms?.(id, matches);
+            reportPrograms?.(id, matches ?? null);
         }
         return covered;
     }

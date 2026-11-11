@@ -567,12 +567,14 @@ describe('XtreamEpgGuideSourceService', () => {
             if (id === 101) throw new Error('synthetic provider failure');
             return id === 104 ? [program(104)] : [];
         });
-        const coverage = await service.loadCoverage({
-            channels: service.channels(),
-            fromMs: 100000,
-            toMs: 200000,
-        });
+        const report = jest.fn();
+        const coverage = await service.loadCoverage(
+            { channels: service.channels(), fromMs: 100000, toMs: 200000 },
+            report
+        );
         expect([...coverage]).toEqual(['101', '104']);
+        expect(report).toHaveBeenCalledWith('101', null);
+        expect(report).toHaveBeenCalledWith('102', []);
     });
 
     it('discards replies and stops scans after changing the playlist or guide source', async () => {

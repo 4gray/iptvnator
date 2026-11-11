@@ -123,28 +123,33 @@ export class XtreamXmltvFallbackService {
         epgChannelId: string | null | undefined;
         preferUploaded: boolean;
         fetchProvider: () => Promise<EpgItem[]>;
+        signal?: AbortSignal;
     }): Promise<EpgItem[]> {
+        args.signal?.throwIfAborted();
         const id = (args.epgChannelId ?? '').trim();
 
         if (!id) return args.fetchProvider();
+        const readXmltv = () => {
+            args.signal?.throwIfAborted();
+            return this.getProgramsForChannel(id);
+        };
 
         if (args.preferUploaded) {
-            const xmltv = await this.getProgramsForChannel(id);
-            if (xmltv.length > 0) return xmltv;
-            return args.fetchProvider();
+            const xmltv = await readXmltv();
+            return xmltv.length ? xmltv : args.fetchProvider();
         }
 
         try {
             const provider = await args.fetchProvider();
-            if (provider.length > 0) return provider;
+            if (provider.length) return provider;
         } catch (error) {
             if (error instanceof Error && error.name === 'AbortError')
                 throw error;
-            const xmltv = await this.getProgramsForChannel(id);
+            const xmltv = await readXmltv();
             if (!xmltv.length) throw error;
             return xmltv;
         }
-        return this.getProgramsForChannel(id);
+        return readXmltv();
     }
 }
 

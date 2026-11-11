@@ -1,4 +1,4 @@
-import { computed, effect, signal } from '@angular/core';
+import { computed, effect, signal, type WritableSignal } from '@angular/core';
 import { foldSearchText, EpgProgram } from '@iptvnator/shared/interfaces';
 import {
     EpgDateNavigationDirection,
@@ -41,9 +41,7 @@ export class EpgGuideViewState {
     readonly dayKey = signal(getTodayEpgDateKey());
     readonly zoom = signal(this.preferences.zoom);
     readonly density = signal<EpgGuideDensity>(this.preferences.density);
-    readonly onlyWithEpg = signal(
-        this.rememberCoverageFilter && this.preferences.onlyWithEpg
-    );
+    readonly onlyWithEpg: WritableSignal<boolean>;
     readonly filter = signal('');
     readonly nowMs = signal(Date.now());
     /** The viewport's horizontal offset; the ruler and now-line follow it. */
@@ -84,12 +82,15 @@ export class EpgGuideViewState {
         CLOCK_TICK_MS
     );
 
-    constructor(private readonly rememberCoverageFilter = true) {
+    constructor(rememberCoverageFilter = true) {
+        this.onlyWithEpg = signal(
+            rememberCoverageFilter && this.preferences.onlyWithEpg
+        );
         effect(() =>
             persistEpgGuidePreferences({
                 density: this.density(),
                 zoom: this.zoom(),
-                onlyWithEpg: this.rememberCoverageFilter
+                onlyWithEpg: rememberCoverageFilter
                     ? this.onlyWithEpg()
                     : this.preferences.onlyWithEpg,
             })

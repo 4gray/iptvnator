@@ -221,12 +221,42 @@ export class EpgGuideComponent implements OnDestroy {
                 this.viewportController.loadRenderedRange();
             });
         });
+        let previousFocus: ReturnType<typeof this.focus> | undefined;
+        let focusedProgramme: TimelineRenderBlock['block'] | undefined;
         effect(() => {
             const focused = this.focus();
-            untracked(() => {
+            const moved = focused !== previousFocus;
+            if (moved) {
+                previousFocus = focused;
                 this.focusedRowId = focused
-                    ? (this.rows()[focused.row]?.id ?? null)
+                    ? (untracked(this.rows)[focused.row]?.id ?? null)
                     : null;
+            }
+            const channelId = this.focusedRowId;
+            const block = focused?.block;
+            if (!focused || block == null || channelId === null) {
+                focusedProgramme = undefined;
+                return;
+            }
+            const { row } = focused;
+            this.programsFor(channelId);
+            untracked(() => {
+                if (this.rows()[row]?.id !== channelId) return;
+                const blocks = this.blocksFor(row);
+                if (moved) {
+                    focusedProgramme = blocks[block]?.block;
+                    if (focusedProgramme) return;
+                }
+                const index = blocks.findIndex(
+                    ({ block: item }) =>
+                        item.startMs === focusedProgramme?.startMs &&
+                        item.stopMs === focusedProgramme.stopMs &&
+                        item.program.title === focusedProgramme.program.title
+                );
+                if (index !== block) {
+                    this.focus.set({ row, block: index < 0 ? null : index });
+                    this.viewportController.focusRovingTargetOnRow(row);
+                }
             });
         });
         effect(() => {
