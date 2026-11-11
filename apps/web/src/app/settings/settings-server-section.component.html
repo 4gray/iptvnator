@@ -50,6 +50,10 @@
                 [lastSync]="sync.lastSync()"
                 testId="source-server-state"
             />
+        } @else if (savedConnection()) {
+            <p class="server-message">
+                {{ 'SOURCE_SYNC.STATE_local' | translate }}
+            </p>
         }
         @if (localServerUrl(); as url) {
             @if (sync.connection?.apiUrl === url + '/api') {
@@ -74,6 +78,7 @@
             <mat-label>{{ 'SOURCE_SYNC.URL' | translate }}</mat-label>
             <input
                 matInput
+                #serverUrl
                 name="sourceServerUrl"
                 type="url"
                 [formControl]="urlControl"
@@ -100,7 +105,12 @@
                 [readOnly]="busy()"
                 data-test-id="source-server-token"
             />
-            <mat-hint>{{ 'SOURCE_SYNC.TOKEN_HINT' | translate }}</mat-hint>
+            <mat-hint>{{
+                (isSavedServer() && savedConnection()?.hasToken
+                    ? 'SOURCE_SYNC.SAVED_TOKEN'
+                    : 'SOURCE_SYNC.TOKEN_HINT'
+                ) | translate
+            }}</mat-hint>
         </mat-form-field>
         <p class="server-message">
             {{ 'SOURCE_SYNC.RESTART_HINT' | translate }}
@@ -140,6 +150,16 @@
                     {{ 'SOURCE_SYNC.DISCONNECT' | translate }}
                 </button>
             }
+            @if (savedConnection()) {
+                <button
+                    type="button"
+                    mat-button
+                    [disabled]="busy()"
+                    (click)="forgetServer(serverUrl)"
+                >
+                    {{ 'SOURCE_SYNC.FORGET_SERVER' | translate }}
+                </button>
+            }
             <button
                 type="button"
                 mat-flat-button
@@ -162,7 +182,9 @@
                             !token &&
                             sync.state() === 'connected'
                           ? 'SOURCE_SYNC.STATE_connected'
-                          : 'SOURCE_SYNC.CONNECT'
+                          : isSavedServer()
+                            ? 'SOURCE_SYNC.RECONNECT'
+                            : 'SOURCE_SYNC.CONNECT'
                     ) | translate
                 }}
             </button>

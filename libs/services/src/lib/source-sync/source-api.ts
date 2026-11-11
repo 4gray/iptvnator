@@ -122,6 +122,7 @@ export async function requestSourceServer(
     const route = sourceRequestRoute(request);
     const url = `${connection.apiUrl}${route.path}`;
     if (request.operation !== 'instance') assertSourceRequestAllowed(url);
+    let discoveryRefusal: number | undefined;
     try {
         const response = await fetch(url, {
             method: route.method,
@@ -173,11 +174,16 @@ export async function requestSourceServer(
             (request.operation === 'instance' && response.status === 404)
                 ? undefined
                 : await response.json().catch((error) => {
-                      if (
-                          request.operation === 'instance' &&
-                          response.status < 400
-                      )
-                          rejectSourceInstance(409, connection);
+                      if (request.operation === 'instance') {
+                          const { status } = response;
+                          discoveryRefusal =
+                              status === 401 || status === 403 ? status : 409;
+                          if (status < 400)
+                              rejectSourceInstance(
+                                  discoveryRefusal,
+                                  connection
+                              );
+                      }
                       throw error;
                   });
         if (
@@ -192,7 +198,11 @@ export async function requestSourceServer(
             ...(response.status === 304 ? {} : { body }),
         };
     } catch {
-        const refusal = sourceVerificationRefusal();
+        // An anonymous probe reports only a refusal from its own response.
+        const refusal =
+            request.operation === 'instance'
+                ? discoveryRefusal
+                : sourceVerificationRefusal();
         if (refusal && sourceConnection() === connection)
             return { status: refusal };
         // Covers direct import callers as well as SourceSyncService mutations.

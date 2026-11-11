@@ -208,7 +208,7 @@ for (const legacy of [false, true]) {
             .toBe(`pending:${WEB_BACKEND_URL}`);
         offline = false;
         await status
-            .getByRole('button', { name: 'Refresh', exact: true })
+            .getByRole('button', { name: 'Retry connection', exact: true })
             .click();
         await expect(status).toHaveCount(0);
         await page.goto('/workspace/sources');

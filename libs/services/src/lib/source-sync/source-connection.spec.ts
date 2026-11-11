@@ -3,7 +3,12 @@ import {
     verifySourceInstance,
     assertSourceRequestAllowed,
 } from './source-authorization';
-import { saveBrowserSourceConnection } from './source-browser-settings';
+import {
+    disconnectBrowserSourceConnection,
+    forgetSavedBrowserSourceConnection,
+    readSavedBrowserSourceConnection,
+    saveBrowserSourceConnection,
+} from './source-browser-settings';
 import {
     prepareSourceConnection,
     sourceConnection,
@@ -25,6 +30,35 @@ describe('source server selection and authorization', () => {
     afterEach(() => {
         window.electron = originalElectron;
         globalThis.fetch = originalFetch;
+    });
+
+    it('keeps the token in the tab while a disconnected browser starts locally', async () => {
+        const connection = {
+            apiUrl: 'https://nas.test/api',
+            instanceId: 'nas',
+        };
+        saveBrowserSourceConnection(connection, 'synthetic-token');
+        await prepareSourceConnection();
+        expect(disconnectBrowserSourceConnection()).toBe(true);
+
+        const probe = jest.fn();
+        globalThis.fetch = probe;
+        await prepareSourceConnection(connection.apiUrl);
+        expect(sourceProfileName()).toBe('iptvnator');
+        expect(probe).not.toHaveBeenCalled();
+        expect(sessionStorage.getItem(tokenKey(connection))).toBe(
+            'synthetic-token'
+        );
+        expect(readSavedBrowserSourceConnection()).toEqual({
+            ...connection,
+            hasToken: true,
+        });
+
+        forgetSavedBrowserSourceConnection();
+        await prepareSourceConnection(connection.apiUrl);
+        expect(probe).not.toHaveBeenCalled();
+        expect(readSavedBrowserSourceConnection()).toBeNull();
+        expect(sessionStorage.getItem(tokenKey(connection))).toBeNull();
     });
 
     it.each([

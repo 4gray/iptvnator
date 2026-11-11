@@ -4,11 +4,13 @@ import {
     SOURCE_SYNC_CONNECTION,
     SOURCE_SYNC_DISCONNECT,
     SOURCE_SYNC_REQUEST,
+    SOURCE_SYNC_SAVED_CONNECTION,
 } from '@iptvnator/shared/interfaces/ipc-commands';
 import {
     readSourceServerConfig,
+    readSavedSourceServerConfig,
     saveSourceServerConfig,
-    clearSourceServerConfig,
+    disconnectSourceServerConfig,
     sourceServerToken,
 } from '../services/source-server-config';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
@@ -27,6 +29,8 @@ jest.mock('../services/source-server-config', () => ({
     readSourceServerConfig: jest.fn(),
     saveSourceServerConfig: jest.fn(),
     clearSourceServerConfig: jest.fn(),
+    disconnectSourceServerConfig: jest.fn(),
+    readSavedSourceServerConfig: jest.fn().mockReturnValue(null),
     sourceServerToken: jest.fn(() => 'synthetic-nas-token'),
 }));
 jest.mock('../util/validated-axios', () => ({
@@ -58,6 +62,7 @@ describe('native source transport and connection IPC', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         (readSourceServerConfig as jest.Mock).mockReturnValue(connection);
+        (readSavedSourceServerConfig as jest.Mock).mockReturnValue(null);
         (requestWithValidatedRedirects as jest.Mock).mockResolvedValue({
             status: 200,
             headers: { etag: '"revision"' },
@@ -399,7 +404,40 @@ describe('native source transport and connection IPC', () => {
             instanceId: 'nas',
         });
         await handler(SOURCE_SYNC_DISCONNECT)();
-        expect(clearSourceServerConfig).toHaveBeenCalledTimes(1);
+        expect(disconnectSourceServerConfig).toHaveBeenCalledTimes(1);
         expect(requestWithValidatedRedirects).not.toHaveBeenCalled();
+    });
+
+    it('exposes saved metadata and withholds the token if a replacement server answers', async () => {
+        (readSourceServerConfig as jest.Mock).mockReturnValue(null);
+        (readSavedSourceServerConfig as jest.Mock).mockReturnValue(connection);
+        const event = { returnValue: undefined as unknown };
+        const read = (ipcMain.on as jest.Mock).mock.calls.find(
+            ([name]) => name === SOURCE_SYNC_SAVED_CONNECTION
+        )![1];
+        read(event);
+        expect(event.returnValue).toEqual({
+            apiUrl: connection.apiUrl,
+            instanceId: connection.instanceId,
+            hasToken: true,
+        });
+
+        (requestWithValidatedRedirects as jest.Mock).mockResolvedValueOnce({
+            status: 200,
+            headers: {},
+            data: { ...instance, instanceId: 'replacement' },
+        });
+        await expect(
+            handler(SOURCE_SYNC_CONFIGURE)(
+                {},
+                connection.apiUrl,
+                '',
+                true,
+                connection.instanceId
+            )
+        ).rejects.toThrow('SOURCE_SYNC.SAVED_INSTANCE_CHANGED');
+        expect(requestWithValidatedRedirects).toHaveBeenCalledTimes(1);
+        expect(sourceServerToken).not.toHaveBeenCalled();
+        expect(saveSourceServerConfig).not.toHaveBeenCalled();
     });
 });

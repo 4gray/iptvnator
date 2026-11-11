@@ -37,9 +37,10 @@ import {
 } from '@iptvnator/shared/interfaces/source-definition';
 import {
     SourceSyncService,
-    assertSourceInstance,
-    saveBrowserSourceConnection,
+    connectBrowserSourceServer,
     disconnectBrowserSourceConnection,
+    forgetSavedBrowserSourceConnection,
+    readSavedBrowserSourceConnection,
     readLocalSourcesForImport,
     requestSourceServer,
 } from '@iptvnator/services/source-sync';
@@ -99,29 +100,46 @@ export class SettingsServerSectionComponent {
     readonly connecting = signal(false);
     readonly message = signal('');
     readonly preview = signal<Playlist[] | null>(null);
-    readonly urlControl = new FormControl(this.sync.connection?.apiUrl ?? '', {
-        nonNullable: true,
-        validators: [
-            Validators.required,
-            (control) => {
-                try {
-                    normalizeSourceServerUrl(control.value.trim());
-                    return null;
-                } catch {
-                    return { serverUrl: true };
-                }
-            },
-        ],
-    });
+    readonly savedConnection = signal(
+        this.sync.connection || this.sync.connectionReadFailed
+            ? null
+            : window.electron?.sourceSyncConfigure
+              ? (window.electron.sourceSyncSavedConnection?.() ?? null)
+              : readSavedBrowserSourceConnection()
+    );
+    readonly urlControl = new FormControl(
+        this.sync.connection?.apiUrl ?? this.savedConnection()?.apiUrl ?? '',
+        {
+            nonNullable: true,
+            validators: [
+                Validators.required,
+                (control) => {
+                    try {
+                        normalizeSourceServerUrl(control.value.trim());
+                        return null;
+                    } catch {
+                        return { serverUrl: true };
+                    }
+                },
+            ],
+        }
+    );
     token = '';
 
     isCurrentServer(): boolean {
+        return this.matchesAddress(this.sync.connection?.apiUrl);
+    }
+
+    isSavedServer(): boolean {
+        return this.matchesAddress(this.savedConnection()?.apiUrl);
+    }
+
+    private matchesAddress(apiUrl?: string): boolean {
+        if (!apiUrl) return false;
         const input = this.urlControl.value.trim().replace(/\/+$/, '');
-        if (!this.sync.connection) return false;
         try {
             return (
-                input === this.sync.connection.apiUrl ||
-                normalizeSourceServerUrl(input) === this.sync.connection.apiUrl
+                input === apiUrl || normalizeSourceServerUrl(input) === apiUrl
             );
         } catch {
             return false;
@@ -156,54 +174,30 @@ export class SettingsServerSectionComponent {
         this.connecting.set(true);
         try {
             const input = this.urlControl.value.trim().replace(/\/+$/, '');
+            const saved = this.isSavedServer() ? this.savedConnection() : null;
+            const reuse = this.token ? null : saved;
             const apiUrl =
-                input === this.sync.connection?.apiUrl
+                input === this.sync.connection?.apiUrl ||
+                input === saved?.apiUrl
                     ? input
                     : normalizeSourceServerUrl(input);
             if (window.electron?.sourceSyncConfigure) {
                 await window.electron.sourceSyncConfigure(
                     apiUrl,
                     this.token,
-                    !this.isCurrentServer()
+                    !this.isCurrentServer(),
+                    reuse?.instanceId
                 );
                 this.token = '';
                 if (this.isCurrentServer()) await this.sync.refresh();
             } else {
-                const response = await fetch(`${apiUrl}/v1/instance`, {
-                    redirect: 'error',
-                    signal: AbortSignal.timeout(10000),
-                });
-                if (!response.ok)
-                    throw new Error(
-                        [401, 403].includes(response.status)
-                            ? 'SOURCE_SYNC.LOCKED'
-                            : 'SOURCE_SYNC.CONNECTION_FAILED'
-                    );
-                const instance: unknown = await response.json().catch(() => {
-                    throw new Error('SOURCE_SYNC.INCOMPATIBLE');
-                });
-                assertSourceInstance(instance);
-                if (
-                    this.isCurrentServer() &&
-                    instance.instanceId !== this.sync.connection?.instanceId
-                )
-                    throw new Error('SOURCE_SYNC.INSTANCE_CHANGED');
-                const check = await fetch(`${apiUrl}/v1/sources`, {
-                    headers: this.token
-                        ? { Authorization: `Bearer ${this.token}` }
-                        : {},
-                    redirect: 'error',
-                    signal: AbortSignal.timeout(10000),
-                });
-                if (!check.ok)
-                    throw new Error(
-                        [401, 403].includes(check.status)
-                            ? 'SOURCE_SYNC.LOCKED'
-                            : 'SOURCE_SYNC.CONNECTION_FAILED'
-                    );
-                saveBrowserSourceConnection(
-                    { apiUrl, instanceId: instance.instanceId! },
-                    this.token
+                await connectBrowserSourceServer(
+                    apiUrl,
+                    this.token,
+                    this.isCurrentServer()
+                        ? this.sync.connection?.instanceId
+                        : undefined,
+                    reuse
                 );
                 this.token = '';
                 if (this.isCurrentServer()) await this.sync.refresh();
@@ -214,6 +208,27 @@ export class SettingsServerSectionComponent {
         } finally {
             this.busy.set(false);
             this.connecting.set(false);
+        }
+    }
+
+    async forgetServer(urlInput: HTMLInputElement): Promise<void> {
+        if (this.busy()) return;
+        this.busy.set(true);
+        this.message.set('');
+        try {
+            if (window.electron?.sourceSyncForget)
+                await window.electron.sourceSyncForget();
+            else forgetSavedBrowserSourceConnection();
+            if (this.isSavedServer()) {
+                this.urlControl.reset('');
+                this.token = '';
+            }
+            this.savedConnection.set(null);
+            urlInput.focus();
+        } catch (error) {
+            this.showError(error);
+        } finally {
+            this.busy.set(false);
         }
     }
 

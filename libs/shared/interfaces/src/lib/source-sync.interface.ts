@@ -37,6 +37,10 @@ export interface SourceServerConnection {
     instanceId: string;
 }
 
+export interface SavedSourceServerConnection extends SourceServerConnection {
+    hasToken: boolean;
+}
+
 /** Narrow IPC surface; paths and arbitrary headers are never caller-supplied. */
 export interface SourceServerRequest {
     operation:

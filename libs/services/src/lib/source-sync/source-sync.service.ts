@@ -264,31 +264,23 @@ export class SourceSyncService {
                     if (changed || !wasReady) this.changes.next();
                 } catch (error) {
                     invalidateSourceVerification();
-                    if (
-                        error instanceof Error &&
-                        error.message === 'SOURCE_SYNC.LOCKED'
-                    )
-                        this.state.set('locked');
+                    const key = error instanceof Error ? error.message : '';
+                    this.state.set(
+                        key === 'SOURCE_SYNC.LOCKED'
+                            ? 'locked'
+                            : key === 'SOURCE_SYNC.CONFLICT'
+                              ? 'conflict'
+                              : 'offline'
+                    );
                     this.nextPollAt =
                         Date.now() +
                         Math.min(120000, 15000 * 2 ** this.failures++);
                     this.errorKey.set(
-                        error instanceof Error &&
-                            error.message.startsWith('SOURCE_SYNC.')
-                            ? error.message
-                            : null
+                        key.startsWith('SOURCE_SYNC.') ? key : null
                     );
-                    if (
-                        this.state() !== 'locked' &&
-                        this.state() !== 'conflict'
-                    )
-                        this.state.set('offline');
-                    if (
-                        error instanceof Error &&
-                        error.message === 'SOURCE_SYNC.INSTANCE_CHANGED'
-                    ) {
+                    if (key === 'SOURCE_SYNC.INSTANCE_CHANGED') {
                         this.snackBar.open(
-                            this.translate.instant(error.message),
+                            this.translate.instant(key),
                             this.translate.instant('CLOSE')
                         );
                     }

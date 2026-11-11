@@ -12,6 +12,7 @@ import { getIptvnatorDataRoot } from '@iptvnator/shared/database/path-utils';
 import {
     activateSourceServerProfile,
     clearSourceServerConfig,
+    disconnectSourceServerConfig,
     readSourceServerConfig,
     saveSourceServerConfig,
     sourceServerToken,
@@ -116,11 +117,17 @@ describe('source-server connection persistence', () => {
         }
     );
     it('removes the active profile before Electron relaunches after disconnect', () => {
-        saveSourceServerConfig(connection, '');
+        saveSourceServerConfig(connection, 'synthetic-token');
         activateSourceServerProfile();
         expect(process.env.IPTVNATOR_SOURCE_PROFILE).toBeDefined();
-        clearSourceServerConfig();
+        disconnectSourceServerConfig();
+        activateSourceServerProfile();
         expect(readSourceServerConfig()).toBeNull();
         expect(process.env.IPTVNATOR_SOURCE_PROFILE).toBeUndefined();
+        const stored = JSON.parse(
+            readFileSync(join(directory, 'source-server.json'), 'utf8')
+        );
+        expect(stored).toMatchObject({ ...connection, disconnected: true });
+        expect(sourceServerToken(stored)).toBe('synthetic-token');
     });
 });

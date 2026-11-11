@@ -214,7 +214,8 @@ describe('source server settings', () => {
         expect(configure).toHaveBeenCalledWith(
             'https://nas.test/iptvnator/api',
             'new-token',
-            true
+            true,
+            undefined
         );
         expect(component.token).toBe('');
         expect(component.busy()).toBe(false);
@@ -237,7 +238,8 @@ describe('source server settings', () => {
         expect(configure).toHaveBeenCalledWith(
             origin + '/api',
             'synthetic-code',
-            true
+            true,
+            undefined
         );
         expect(component.token).toBe('');
         await component.connectHosted(origin);
@@ -391,7 +393,8 @@ describe('source server settings', () => {
                 expect(configure).toHaveBeenCalledWith(
                     apiUrl,
                     'renewed-token',
-                    false
+                    false,
+                    undefined
                 );
             } finally {
                 sync.connection.apiUrl = original;

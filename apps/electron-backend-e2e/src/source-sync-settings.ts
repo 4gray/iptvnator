@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
     closeElectronApp,
+    electronMainPath,
     launchElectronApp,
     openSettings,
     openSettingsSection,
@@ -121,6 +122,124 @@ export async function verifySourceSettingsRecovery() {
         if (desktop) await closeElectronApp(desktop);
         server.closeAllConnections();
         await new Promise<void>((resolve) => server.close(() => resolve()));
+        rmSync(directory, { recursive: true, force: true });
+    }
+}
+
+export async function verifySourceReconnectAfterRestart() {
+    const token = 'synthetic-reconnect-token';
+    const server = await startSourceSyncServer(token);
+    const directory = mkdtempSync(
+        join(tmpdir(), 'iptvnator-source-reconnect-')
+    );
+    let desktop: Awaited<ReturnType<typeof launchElectronApp>> | undefined;
+    const entryPoint = join(directory, 'protected-storage.cjs');
+    const launch = async () => {
+        desktop = await launchElectronApp(directory, { entryPoint });
+        return desktop;
+    };
+    try {
+        // Install the same protected-storage fixture before each process bootstraps.
+        writeFileSync(
+            entryPoint,
+            `
+const { app, safeStorage } = require('electron');
+const { randomBytes, createCipheriv, createDecipheriv } = require('node:crypto');
+const key = Buffer.alloc(32, 17);
+safeStorage.isEncryptionAvailable = () => true;
+safeStorage.getSelectedStorageBackend = () => 'gnome_libsecret';
+safeStorage.encryptString = (value) => {
+    const iv = randomBytes(12);
+    const cipher = createCipheriv('aes-256-gcm', key, iv);
+    const data = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
+    return Buffer.concat([iv, cipher.getAuthTag(), data]);
+};
+safeStorage.decryptString = (value) => {
+    const decipher = createDecipheriv('aes-256-gcm', key, value.subarray(0, 12));
+    decipher.setAuthTag(value.subarray(12, 28));
+    return Buffer.concat([decipher.update(value.subarray(28)), decipher.final()]).toString('utf8');
+};
+// Playwright launches the replacement process so it can attach to it.
+app.relaunch = () => undefined;
+require(${JSON.stringify(electronMainPath)});
+`
+        );
+        const { instanceId } = await (
+            await fetch(`${server.apiUrl}/v1/instance`)
+        ).json();
+        writeFileSync(
+            join(directory, 'source-server.json'),
+            JSON.stringify({ apiUrl: server.apiUrl, instanceId })
+        );
+        let client = await launch();
+        let page = client.mainWindow;
+        await page
+            .getByRole('button', { name: 'Open settings', exact: true })
+            .click();
+        await openSettingsSection(page, 'server');
+        await page.getByTestId('source-server-token').fill(token);
+        await page.getByTestId('source-server-connect').click();
+        await expect(page.getByTestId('source-server-state')).toHaveText(
+            'Connected'
+        );
+
+        let exit = client.electronApp.waitForEvent('close');
+        await page
+            .getByRole('button', { name: 'Disconnect', exact: true })
+            .click({ noWaitAfter: true });
+        await exit;
+        client = await launch();
+        page = client.mainWindow;
+        await openSettings(page);
+        await openSettingsSection(page, 'server');
+        await expect(page.getByTestId('source-server-state')).toHaveCount(0);
+        await expect(
+            page.getByText('Local library', { exact: true })
+        ).toBeVisible();
+        await expect(page.getByTestId('source-server-url')).toHaveValue(
+            server.apiUrl
+        );
+        await expect(page.getByTestId('source-server-token')).toHaveValue('');
+        await expect(page.getByText('Saved access token')).toBeVisible();
+
+        exit = client.electronApp.waitForEvent('close');
+        await page
+            .getByRole('button', { name: 'Reconnect', exact: true })
+            .click({ noWaitAfter: true });
+        await exit;
+        client = await launch();
+        page = client.mainWindow;
+        await openSettings(page);
+        await openSettingsSection(page, 'server');
+        await expect(page.getByTestId('source-server-state')).toHaveText(
+            'Connected'
+        );
+
+        exit = client.electronApp.waitForEvent('close');
+        await page
+            .getByRole('button', { name: 'Disconnect', exact: true })
+            .click({ noWaitAfter: true });
+        await exit;
+        client = await launch();
+        page = client.mainWindow;
+        await openSettings(page);
+        await openSettingsSection(page, 'server');
+        await page
+            .getByRole('button', { name: 'Forget server', exact: true })
+            .click();
+        await expect(page.getByTestId('source-server-url')).toHaveValue('');
+        await closeElectronApp(client);
+        client = await launch();
+        page = client.mainWindow;
+        await openSettings(page);
+        await openSettingsSection(page, 'server');
+        await expect(page.getByTestId('source-server-url')).toHaveValue('');
+        await expect(
+            page.getByRole('button', { name: 'Reconnect', exact: true })
+        ).toHaveCount(0);
+    } finally {
+        if (desktop) await closeElectronApp(desktop);
+        await server.close();
         rmSync(directory, { recursive: true, force: true });
     }
 }
