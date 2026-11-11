@@ -50,3 +50,16 @@ export type HostedServerWorkerMessage =
     | { ready: true; instanceId: string }
     | { https: true; requestId: string; origin: string; failed?: boolean }
     | { error: 'port' | 'startup' };
+
+/** The connector process state; running does not verify external tunnel connectivity. */
+export const HOSTED_CLOUDFLARE_CONTROL = 'hosted-cloudflare:control';
+export type HostedCloudflareCommand =
+    | 'status'
+    | 'stop'
+    | 'forget'
+    | { start: true; token?: string };
+export interface HostedCloudflareStatus {
+    state: 'unavailable' | 'stopped' | 'starting' | 'running' | 'stopping' | 'error';
+    savedToken: boolean;
+    secureStorage: boolean;
+}

@@ -31,6 +31,10 @@ import {
     setHostedServerSession,
 } from './hosted-server-session';
 import { configureHostedHttps } from './hosted-https-control';
+import {
+    registerHostedCloudflareEvents,
+    stopHostedCloudflare,
+} from './hosted-cloudflare.service';
 const PORT = HOSTED_SERVER_PORT;
 const dataDir = () => join(getIptvnatorDataRoot(), 'hosted-server');
 
@@ -148,6 +152,7 @@ async function start(lanAddress: string): Promise<void> {
                 if (child !== process) return;
                 child = undefined;
                 setHostedServerSession();
+                stopHostedCloudflare();
                 if (state.state !== 'stopping')
                     state = { state: 'error', error: failure };
                 reject(new Error());
@@ -168,6 +173,7 @@ async function start(lanAddress: string): Promise<void> {
 }
 
 async function shutdownWorker(): Promise<void> {
+    stopHostedCloudflare();
     const process = child;
     if (process) {
         state = { state: 'stopping' };
@@ -198,12 +204,17 @@ export function stopHostedServerForRestart(): Promise<HostedServerStatus> {
 }
 
 export function stopHostedServerOnQuit(): void {
+    stopHostedCloudflare();
     child?.kill();
 }
 
 export function registerHostedServerEvents(
     getWindow: () => BrowserWindow | null
 ): void {
+    registerHostedCloudflareEvents(
+        getWindow,
+        () => state.state === 'running' && !!state.httpsOrigin && !state.httpsError
+    );
     const checkSender = (event: IpcMainInvokeEvent) => {
         if (
             event.sender !== getWindow()?.webContents ||
@@ -230,6 +241,7 @@ export function registerHostedServerEvents(
                 ? parseHostedHttpsOrigin(command.httpsOrigin).origin
                 : '';
             return run(async () => {
+                stopHostedCloudflare();
                 if (!child || state.state !== 'running')
                     throw new Error('Server is unavailable');
                 try {

@@ -1,4 +1,4 @@
-import type { HostedServerCommand, HostedServerStatus } from './hosted-server.interface';
+import type { HostedServerCommand, HostedServerStatus, HostedCloudflareCommand, HostedCloudflareStatus } from './hosted-server.interface';
 export type ElectronBridgeAppMenuAction = 'settings' | 'check-for-updates';
 import type { AppUpdateChannel } from './app-update-channel.util';
 import type { SourceProbeContext, SourceHealthResult } from './source-health';
@@ -775,6 +775,7 @@ export interface ElectronBridgeApi {
             tokenPersisted: boolean;
         }
     >;
+    hostedCloudflareControl?: (command: HostedCloudflareCommand) => Promise<HostedCloudflareStatus>;
     hostedServerControl?: (command: HostedServerCommand) => Promise<HostedServerStatus>;
     hostedServerAccessCode?: () => Promise<string>;
     sourceSyncDisconnect?: () => Promise<void>;
