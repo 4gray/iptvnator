@@ -10,6 +10,7 @@ import {
     inject,
     input,
     output,
+    signal,
     ChangeDetectionStrategy,
 } from '@angular/core';
 import { registerWorkspaceBack } from '@iptvnator/portal/shared/data-access';
@@ -53,6 +54,9 @@ import {
         // on body, while preserving already-handled events and overlay guards.
         '(keydown.escape)': 'onEscape($event)',
         '[class.shell-host--watch]': 'isWatch()',
+        '[class.shell-host--pointer-focus]': 'pointerFocus()',
+        '(focus)': 'onFocus()',
+        '(blur)': 'onBlur()',
         '(document:keydown.escape)': 'onEscape($event)',
     },
 })
@@ -93,6 +97,16 @@ export class PortalDetailShellComponent {
 
     readonly isWatch = computed(() => this.playbackActive());
 
+    /**
+     * Whether the shell's current focus came from a pointer. Chromium only
+     * withholds `:focus-visible` from a clicked element until the next
+     * keypress, so arrow-key seeking would ring the whole page (#2170). The
+     * verdict is frozen when focus arrives; Tab focus still draws the ring.
+     */
+    protected readonly pointerFocus = signal(false);
+    /** The window, not the shell, lost focus: its return keeps the verdict. */
+    private windowBlurred = false;
+
     constructor() {
         registerWorkspaceBack({
             available: this.backAvailable,
@@ -120,6 +134,21 @@ export class PortalDetailShellComponent {
             }
             wasWatch = watch;
         });
+    }
+
+    onFocus(): void {
+        if (this.windowBlurred) {
+            this.windowBlurred = false;
+            return;
+        }
+        this.pointerFocus.set(
+            !this.host.nativeElement.matches(':focus-visible')
+        );
+    }
+
+    onBlur(): void {
+        const element = this.host.nativeElement;
+        this.windowBlurred = element.ownerDocument.activeElement === element;
     }
 
     onScrollKey(event: KeyboardEvent): void {

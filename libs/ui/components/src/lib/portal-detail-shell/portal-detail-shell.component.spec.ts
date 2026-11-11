@@ -103,6 +103,44 @@ describe('PortalDetailShellComponent', () => {
         expect(document.activeElement).not.toBe(shell);
     });
 
+    it('keeps a pointer-focused shell ringless after later keypresses (#2170)', () => {
+        const shell = requiredQuery('app-portal-detail-shell');
+        let focusVisible = false;
+        jest.spyOn(shell, 'matches').mockImplementation((selector: string) =>
+            selector === ':focus-visible' ? focusVisible : false
+        );
+        shell.blur();
+        // Mouse focus: Chromium does not match :focus-visible yet.
+        shell.dispatchEvent(new FocusEvent('focus'));
+        fixture.detectChanges();
+        expect(shell.classList).toContain('shell-host--pointer-focus');
+        // Keyboard focus (Tab) keeps the ring.
+        focusVisible = true;
+        shell.dispatchEvent(new FocusEvent('focus'));
+        fixture.detectChanges();
+        expect(shell.classList).not.toContain('shell-host--pointer-focus');
+    });
+
+    it('keeps the pointer verdict when the window loses and regains focus', () => {
+        const shell = requiredQuery('app-portal-detail-shell');
+        let focusVisible = false;
+        jest.spyOn(shell, 'matches').mockImplementation((selector: string) =>
+            selector === ':focus-visible' ? focusVisible : false
+        );
+        shell.focus();
+        shell.dispatchEvent(new FocusEvent('focus'));
+        fixture.detectChanges();
+        expect(shell.classList).toContain('shell-host--pointer-focus');
+        // Window blur: the shell stays the document's active element, and
+        // the key pressed before it has promoted the focus to :focus-visible.
+        expect(document.activeElement).toBe(shell);
+        shell.dispatchEvent(new FocusEvent('blur'));
+        focusVisible = true;
+        shell.dispatchEvent(new FocusEvent('focus'));
+        fixture.detectChanges();
+        expect(shell.classList).toContain('shell-host--pointer-focus');
+    });
+
     it('keeps native scrolling on the shell without forwarding keys to the player', () => {
         const shell = requiredQuery('app-portal-detail-shell');
         const globalKey = jest.fn();
