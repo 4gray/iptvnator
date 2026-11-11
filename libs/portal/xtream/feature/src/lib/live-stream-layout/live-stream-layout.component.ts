@@ -127,6 +127,12 @@ import { toSharedEpgProgram } from '../portal-channels-list/epg-preview-program'
 
 const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
 
+type GuideExternalChannel = {
+    session: ExternalPlayerSession;
+    channelId: number;
+    archive: EpgProgram | null;
+};
+
 @Component({
     selector: 'app-live-stream-layout',
     templateUrl: './live-stream-layout.component.html',
@@ -499,11 +505,9 @@ export class LiveStreamLayoutComponent
         computation: (
             { playlistId, url, channelId, archive, session },
             previous
-        ): {
-            session: ExternalPlayerSession;
-            channelId: number;
-            archive: EpgProgram | null;
-        } | null => {
+        ):
+            | (GuideExternalChannel & { pending?: GuideExternalChannel })
+            | null => {
             if (
                 !url ||
                 !isLiveExternalPlayerSession(session) ||
@@ -514,13 +518,27 @@ export class LiveStreamLayoutComponent
                 previous?.source.playlistId === playlistId
                     ? previous?.value
                     : null;
+            const matched =
+                session.streamUrl === url && channelId !== null
+                    ? { session, channelId, archive }
+                    : null;
             // A replacement launch has not displaced the playing channel yet.
             if (session.status === 'launching')
-                return session.streamUrl === url ? (playing ?? null) : null;
-            if (playing?.session.id === session.id)
-                return { ...playing, session };
-            return session.streamUrl === url && channelId !== null
-                ? { session, channelId, archive }
+                return playing && matched
+                    ? { ...playing, pending: matched }
+                    : (playing ?? null);
+            const confirmed =
+                playing?.session.id === session.id
+                    ? playing
+                    : playing?.pending?.session.id === session.id
+                      ? playing.pending
+                      : matched;
+            return confirmed
+                ? {
+                      session,
+                      channelId: confirmed.channelId,
+                      archive: confirmed.archive,
+                  }
                 : null;
         },
     });

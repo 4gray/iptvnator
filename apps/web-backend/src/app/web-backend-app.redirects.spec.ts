@@ -5,6 +5,7 @@ import {
 import { isHostConnectivityFastFailMessage } from '@iptvnator/shared/interfaces';
 import axios from 'axios';
 import express from 'express';
+import { EventEmitter, once } from 'node:events';
 import { createWebBackendApp, WebBackendHttpClient } from './web-backend-app';
 import {
     registerProviderTarget,
@@ -71,6 +72,44 @@ describe('provider proxy redirect boundary', () => {
 });
 
 describe('redirect routes and admission lifecycle', () => {
+    it('closes a stalled Xtream provider request when the browser disconnects', async () => {
+        const activity = new EventEmitter();
+        const provider = express().get('/player_api.php', (_req, res) => {
+            res.once('close', () => activity.emit('closed'));
+            activity.emit('started');
+        });
+        await withServer(provider, async (providerUrl) => {
+            await withServer(
+                createWebBackendApp({ allowPrivateNetworkTargets: true }),
+                async (backend) => {
+                    const id = await registerProviderTarget(
+                        backend,
+                        providerUrl
+                    );
+                    const controller = new AbortController();
+                    const started = once(activity, 'started', {
+                        signal: AbortSignal.timeout(2000),
+                    });
+                    const request = fetch(
+                        `${backend}/xtream?targetId=${id}&action=get_simple_data_table`,
+                        {
+                            signal: controller.signal,
+                        }
+                    );
+                    await started;
+                    const closed = once(activity, 'closed', {
+                        signal: AbortSignal.timeout(2000),
+                    });
+                    controller.abort();
+                    await expect(request).rejects.toMatchObject({
+                        name: 'AbortError',
+                    });
+                    await closed;
+                }
+            );
+        });
+    });
+
     it.each(['/xtream', '/stalker', '/parse', '/parse-xml'])(
         '%s follows an allowed local redirect and parses the final body',
         async (route) => {

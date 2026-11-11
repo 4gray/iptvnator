@@ -425,6 +425,8 @@ export interface ElectronBridgeEpgSearchResult {
 
 export interface ElectronBridgeEpgLookupOptions {
     sourceUrls?: string[];
+    /** For getChannelPrograms: distinguish an unavailable database from an empty schedule. */
+    rejectOnError?: boolean;
 }
 
 /**

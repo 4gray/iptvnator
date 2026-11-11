@@ -289,6 +289,9 @@ export function createWebBackendApp(
             return;
         }
         const url = new URL(registeredUrl.href);
+        const upstream = new AbortController();
+        const abortUpstream = () => upstream.abort();
+        res.once('close', abortUpstream);
 
         let guardToken: HostRequestToken | null = null;
         // The URL actually requested, so a failure on a redirect hop can be
@@ -331,11 +334,13 @@ export function createWebBackendApp(
                         ? { 'User-Agent': req.query.userAgent.trim() }
                         : undefined,
                 timeout: PROVIDER_REQUEST_TIMEOUT_MS.xtream,
+                signal: upstream.signal,
                 onConnect: () => {
                     connected = true;
                     reportProviderRequestConnected(hostGuard, guardToken);
                 },
             });
+            upstream.signal.throwIfAborted();
             reportProviderRequestSuccess(hostGuard, guardToken);
             guardToken = null;
 
@@ -344,6 +349,7 @@ export function createWebBackendApp(
                 payload: response.data,
             });
         } catch (error) {
+            if (upstream.signal.aborted) return;
             reportProviderRequestFailure(hostGuard, guardToken, error, {
                 requestUrl,
                 connected,
@@ -364,6 +370,7 @@ export function createWebBackendApp(
                 res.json(normalizeProviderError(error));
             }
         } finally {
+            res.off('close', abortUpstream);
             releaseProviderRequest(hostGuard, guardToken);
         }
     });

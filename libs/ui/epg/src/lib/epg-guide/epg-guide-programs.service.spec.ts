@@ -116,6 +116,36 @@ describe('EpgGuideProgramsService', () => {
         expect(loadPrograms).toHaveBeenCalledTimes(1);
     });
 
+    it('hides confirmed empty rows during a pending scan while unverified rows stay visible', async () => {
+        jest.useFakeTimers();
+        try {
+            Object.assign(source, { deferredCoverage: true });
+            channels.set([channel('a'), channel('b'), channel('c')]);
+            TestBed.flushEffects();
+            let finish!: (ids: Set<string>) => void;
+            loadCoverage.mockImplementation(
+                (_window, report) =>
+                    new Promise((resolve) => {
+                        report?.('a', []);
+                        report?.('b', null);
+                        finish = resolve;
+                    })
+            );
+            service.setWindow(1000, 2000);
+            service.setCoverageRequested(true);
+            await jest.advanceTimersByTimeAsync(250);
+            expect(service.coverageStatus()).toBe('loading');
+            expect(service.isCovered('a')).toBe(false);
+            expect(service.isCovered('b')).toBe(true);
+            expect(service.isCovered('c')).toBe(true);
+            finish(new Set(['b', 'c']));
+            await flush();
+            expect(service.coverageStatus()).toBe('error');
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
     it.each([true, false])(
         'shows an incomplete scan and applies a successful retry (scan first: %s)',
         async (scanFirst) => {

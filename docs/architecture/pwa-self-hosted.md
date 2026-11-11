@@ -159,6 +159,8 @@ Xtream import signals travel as a separate, renderer-local argument to
 on-demand `pwa-xtream-request.ts` transport unsubscribes the caller's pending
 target-registration wait or catalog GET when aborted. A category failure can
 therefore settle sibling requests before releasing the import's busy hold.
+The Xtream proxy also cancels the provider GET when the browser disconnects,
+so an abandoned guide row or import does not keep an upstream socket busy.
 Xtream uses the same bounded `ProviderTargetClient` as M3U and Stalker, so its
 one missing-target recovery attempt is covered by the same abort subscription.
 Provider-target registrations remain shared between independent callers;

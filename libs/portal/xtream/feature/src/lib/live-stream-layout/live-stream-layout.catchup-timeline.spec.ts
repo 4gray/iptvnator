@@ -240,66 +240,81 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         fixture.debugElement.query(By.directive(StubWebPlayerViewComponent))
             .componentInstance as StubWebPlayerViewComponent;
 
-    it('keeps the external guide summary compact without changing the dock preference', () => {
-        portalPlayer.isEmbeddedPlayer.set(false);
-        component.guide.collapsed.set(false);
-        component.playLive(sampleChannel, false);
-        expect(component.guide.available()).toBe(false);
+    it.each([true, false])(
+        'tracks the confirmed external channel during overlapping switches (restored: %s)',
+        (restored) => {
+            portalPlayer.isEmbeddedPlayer.set(false);
+            component.guide.collapsed.set(false);
+            component.playLive(sampleChannel, false);
+            expect(component.guide.available()).toBe(false);
 
-        component.playLive(sampleChannel, true);
-        const session: ExternalPlayerSession = {
-            id: 'synthetic-external-session',
-            streamUrl: component.activeStreamUrl(),
-            title: 'Synthetic Live Channel',
-            player: 'mpv',
-            status: 'launching',
-            startedAt: '2026-04-04T10:00:00Z',
-            updatedAt: '2026-04-04T10:00:00Z',
-            canClose: true,
-        };
-        externalSession.set(session);
-        expect(component.guide.available()).toBe(false);
-        externalSession.set({ ...session, status: 'playing' });
-        component.guide.open();
-        fixture.detectChanges();
-        const summary = fixture.debugElement.query(
-            By.directive(EpgGuideNowPlayingComponent)
-        );
-        expect(summary.componentInstance.collapsed()).toBe(true);
-        expect(summary.componentInstance.collapsible()).toBe(false);
-        expect(component.guide.collapsed()).toBe(false);
+            component.playLive(sampleChannel, true);
+            const session: ExternalPlayerSession = {
+                id: 'synthetic-external-session',
+                streamUrl: component.activeStreamUrl(),
+                title: 'Synthetic Live Channel',
+                player: 'mpv',
+                status: 'launching',
+                startedAt: '2026-04-04T10:00:00Z',
+                updatedAt: '2026-04-04T10:00:00Z',
+                canClose: true,
+            };
+            externalSession.set(session);
+            expect(component.guide.available()).toBe(false);
+            externalSession.set({ ...session, status: 'playing' });
+            component.guide.open();
+            fixture.detectChanges();
+            const summary = fixture.debugElement.query(
+                By.directive(EpgGuideNowPlayingComponent)
+            );
+            expect(summary.componentInstance.collapsed()).toBe(true);
+            expect(summary.componentInstance.collapsible()).toBe(false);
+            expect(component.guide.collapsed()).toBe(false);
 
-        xtreamStore.constructStreamUrl.mockReturnValueOnce(
-            'https://example.com/next.ts'
-        );
-        component.playLive({ ...sampleChannel, xtream_id: 102 }, true);
-        fixture.detectChanges();
-        expect(component.guide.isOpen()).toBe(true);
-        expect(component.guideNowPlayingChannel()).toBe(session.title);
+            xtreamStore.constructStreamUrl.mockReturnValueOnce(
+                'https://example.com/next.ts'
+            );
+            component.playLive({ ...sampleChannel, xtream_id: 102 }, true);
+            fixture.detectChanges();
+            expect(component.guide.isOpen()).toBe(true);
+            expect(component.guideNowPlayingChannel()).toBe(session.title);
 
-        const replacement = {
-            ...session,
-            id: 'synthetic-replacement',
-            streamUrl: component.activeStreamUrl(),
-        };
-        externalSession.set(replacement);
-        fixture.detectChanges();
-        expect(component.guide.isOpen()).toBe(true);
-        externalSession.set({
-            ...session,
-            status: 'playing',
-            restoredFromSessionId: replacement.id,
-        });
-        fixture.detectChanges();
+            const replacement = {
+                ...session,
+                id: 'synthetic-replacement',
+                streamUrl: component.activeStreamUrl(),
+                title: 'Synthetic Replacement Channel',
+            };
+            externalSession.set(replacement);
+            fixture.detectChanges();
+            expect(component.guide.isOpen()).toBe(true);
 
-        const source = fixture.debugElement.injector.get(
-            XtreamEpgGuideSourceService
-        );
-        expect(component.guide.isOpen()).toBe(true);
-        expect(component.guideNowPlayingChannel()).toBe(session.title);
-        expect(source.activeChannelId()).toBe(String(sampleChannel.xtream_id));
-        expect(source.livePlayback()).toBe(true);
-    });
+            xtreamStore.constructStreamUrl.mockReturnValueOnce(
+                'https://example.com/third.ts'
+            );
+            component.playLive({ ...sampleChannel, xtream_id: 103 }, true);
+            fixture.detectChanges();
+            expect(component.guide.isOpen()).toBe(true);
+
+            const confirmed = restored ? session : replacement;
+            externalSession.set({
+                ...confirmed,
+                status: 'playing',
+                restoredFromSessionId: restored ? replacement.id : undefined,
+            });
+            fixture.detectChanges();
+
+            const source = fixture.debugElement.injector.get(
+                XtreamEpgGuideSourceService
+            );
+            expect(component.guide.isOpen()).toBe(true);
+            expect(component.guideNowPlayingChannel()).toBe(confirmed.title);
+            expect(source.activeChannelId()).toBe(
+                String(restored ? sampleChannel.xtream_id : 102)
+            );
+            expect(source.livePlayback()).toBe(true);
+        }
+    );
 
     it('offers archive playback where provider catch-up can play', () => {
         expect(component.archivePlaybackAvailable()).toBe(true);
