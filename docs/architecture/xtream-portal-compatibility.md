@@ -802,8 +802,10 @@ entry ID keep the remote queue without confirming guide playback.
 VLC guide launches use a private Unix socket for control where available, and
 otherwise open directly without an unauthenticated TCP control port. VLC RC
 checks the requested input and observes its playback clock. A readable zero stays
-pending; a different active URL remains unverified. Temporary RC failures keep
-the committed selection pending until a readiness timeout or terminal outcome.
+pending; a different active URL invalidates confirmation. Retrying a direct
+launch of the same input closes its exact unverified process first. Temporary RC
+failures keep the committed selection pending until a readiness timeout or
+terminal outcome.
 If the player cannot verify readiness, the guide stays available for a retry and a
 committed selection keeps it open. Committing the still-playing channel cancels
 every outstanding switch away from it, including timed-out launches that can
@@ -811,8 +813,8 @@ still start playing. An unverified VLC launch cannot replace confirmed playback.
 The dock, player panel and remote status follow the confirmed session. When a
 switch fails or is cancelled, the dock restores Stop for the surviving session
 if the terminal launch still owns the dock. An idle failed replacement closes
-before that restore. When the first launch fails, its channel and queue remain
-available for remote tuning without now-playing details.
+before that restore. When the first launch fails, including before opening, its
+channel and queue remain available for remote tuning without now-playing details.
 Consecutive remote tuning
 commands advance from the latest requested channel until it opens or fails.
 IINA keeps the selection-based remote queue because its launcher can exit

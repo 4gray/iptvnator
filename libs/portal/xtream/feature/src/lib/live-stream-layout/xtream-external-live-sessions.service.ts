@@ -50,7 +50,7 @@ export function hasXtreamOpenedMedia(
 
 type Launch = {
     source: XtreamLiveSource;
-    ended: WritableSignal<boolean>;
+    ended: WritableSignal<false | 'ended' | 'failed'>;
     retired?: boolean;
     cancelled?: boolean;
     opened?: boolean;
@@ -134,7 +134,10 @@ export class XtreamExternalLiveSessions {
 
     begin(source: XtreamLiveSource) {
         const launchId = crypto.randomUUID();
-        const launch: Launch = { source, ended: signal(false) };
+        const launch: Launch = {
+            source,
+            ended: signal<false | 'ended' | 'failed'>(false),
+        };
         this.pending.set(launchId, launch);
         return {
             launchId,
@@ -180,7 +183,7 @@ export class XtreamExternalLiveSessions {
                 continue;
             launch.cancelled = true;
             launch.restoreSessionId = restoreSessionId;
-            launch.ended.set(true);
+            launch.ended.set('ended');
             cancelled.add(launch);
         }
         if (!cancelled.size) return false;
@@ -206,10 +209,17 @@ export class XtreamExternalLiveSessions {
             current?.launch ??
             request ??
             (session.launchId ? this.pending.get(session.launchId) : undefined);
+        if (
+            session.status === 'error' &&
+            launch &&
+            !launch.opened &&
+            !launch.cancelled
+        )
+            launch.ended.set('failed');
         if (!isLiveExternalPlayerSession(session)) {
             if (launch) {
                 launch.retired = true;
-                launch.ended.set(true);
+                launch.ended.update((ended) => ended || 'ended');
             }
             clearTimeout(current?.retry);
             if (this.sessions.delete(id))
@@ -244,7 +254,7 @@ export class XtreamExternalLiveSessions {
                     session.mediaReadinessTimedOut ||
                     (session.player === 'mpv' && session.playbackUnverified)))
         )
-            launch?.ended.set(true);
+            launch?.ended.update((ended) => ended || 'ended');
         const entry = current ?? { session, source: owner, launch };
         const changed =
             !current || current.session !== session || current.source !== owner;

@@ -36,7 +36,7 @@ interface GuideLaunch {
     item: XtreamLiveChannelItem;
     archive: EpgProgram | null;
     playback: ResolvedPortalPlayback;
-    ended?: () => boolean;
+    ended?: () => false | 'ended' | 'failed';
     remote?: boolean;
     onConfirmed?: () => void;
 }
@@ -66,6 +66,7 @@ export class XtreamGuideExternalPlayback {
     private readonly store = inject(XtreamStore);
     private readonly destroyRef = inject(DestroyRef);
     private readonly pending = signal<GuideLaunch | undefined>(undefined);
+    private readonly failedTuning = signal<GuideLaunch | undefined>(undefined);
     private panel?: GuidePanel;
     private panelPlayback?: ResolvedPortalPlayback;
     private readonly panelSessionId = signal<string | undefined>(undefined);
@@ -132,33 +133,30 @@ export class XtreamGuideExternalPlayback {
             )
         )
             return false;
-        const source = this.sessions.state(active.id)?.source;
-        this.lock.version();
-        return (
-            !!source &&
-            source.playlistId === this.store.currentPlaylist()?.id &&
-            !isXtreamLiveCategoryWithheld(this.lock, source)
-        );
+        return this.isAllowed(this.sessions.state(active.id)?.source);
     });
 
     readonly idlePlayback = computed(() => {
-        const active = this.playback?.activeSession();
-        const followed = this.panelSessionId();
-        const playlistId = this.store.currentPlaylist()?.id;
-        this.lock.version();
-        for (const id of [active?.id, followed]) {
+        const ids = [this.playback?.activeSession()?.id, this.panelSessionId()];
+        for (const id of ids) {
             const entry = id ? this.sessions.state(id) : undefined;
             if (
-                !!entry?.session.playbackIdle &&
+                entry?.session.playbackIdle &&
                 (entry.session.status === 'opened' ||
                     entry.session.status === 'playing') &&
-                entry.source.playlistId === playlistId &&
-                !isXtreamLiveCategoryWithheld(this.lock, entry.source)
+                this.isAllowed(entry.source)
             )
                 return entry.source;
         }
         return undefined;
     });
+
+    stoppedTuningSource(): XtreamLiveSource | undefined {
+        const idle = this.idlePlayback();
+        if (idle) return idle;
+        const failed = this.failedTuning()?.lockSource;
+        return this.isAllowed(failed) ? failed : undefined;
+    }
 
     readonly unverifiedPlayback = computed(() => {
         const active = this.playback?.activeSession();
@@ -169,23 +167,25 @@ export class XtreamGuideExternalPlayback {
         )
             return undefined;
         const source = this.sessions.state(active.id)?.source;
-        this.lock.version();
-        return source &&
-            source.playlistId === this.store.currentPlaylist()?.id &&
-            !isXtreamLiveCategoryWithheld(this.lock, source)
-            ? { session: active, source }
-            : undefined;
+        return this.isAllowed(source) ? { session: active, source } : undefined;
     });
 
     remoteTuningItem(): XtreamLiveChannelItem | undefined {
         const pending = this.pending();
         return pending?.remote &&
             !pending.ended?.() &&
-            pending.lockSource.playlistId ===
-                this.store.currentPlaylist()?.id &&
-            !isXtreamLiveCategoryWithheld(this.lock, pending.lockSource)
+            this.isAllowed(pending.lockSource)
             ? pending.item
             : undefined;
+    }
+
+    private isAllowed(source?: XtreamLiveSource): source is XtreamLiveSource {
+        this.lock.version();
+        return (
+            !!source &&
+            source.playlistId === this.store.currentPlaylist()?.id &&
+            !isXtreamLiveCategoryWithheld(this.lock, source)
+        );
     }
 
     canRetryUnverifiedStream(): boolean {
@@ -211,7 +211,10 @@ export class XtreamGuideExternalPlayback {
                         ? pending
                         : undefined;
                 if (confirmedRequest || ended) this.pending.set(undefined);
+                if (ended === 'failed' && !playing)
+                    this.failedTuning.set(pending);
                 if (!playing) return;
+                this.failedTuning.set(undefined);
                 const id = playing.session.id;
                 if (
                     !ended &&
@@ -232,6 +235,7 @@ export class XtreamGuideExternalPlayback {
 
     reset(): void {
         this.pending.set(undefined);
+        this.failedTuning.set(undefined);
         this.panelPlayback = undefined;
         this.panelSessionId.set(undefined);
     }
@@ -269,11 +273,12 @@ export class XtreamGuideExternalPlayback {
         const lifecycle = launch && this.sessions.begin(launch.lockSource);
         if (launch) launch.ended = lifecycle?.ended;
         this.pending.set(launch);
-        const recover = () => {
+        const recover = (failed: boolean) => {
             if (this.pending() !== launch || this.destroyRef.destroyed) return;
             this.pending.set(undefined);
             const confirmed = this.confirmed();
             if (confirmed) this.syncPanel(confirmed);
+            else if (failed) this.failedTuning.set(launch);
         };
         const args = [
             playback.streamUrl,
@@ -296,11 +301,11 @@ export class XtreamGuideExternalPlayback {
                     !isLiveExternalPlayerSession(session) ||
                     session.status === 'error'
                 )
-                    recover();
+                    recover(!session || session.status === 'error');
             },
             () => {
                 lifecycle?.finish();
-                recover();
+                recover(true);
             }
         );
     }
@@ -379,7 +384,11 @@ export class XtreamGuideExternalPlayback {
         item: XtreamLiveChannelItem,
         categoryId: number
     ): void {
-        for (const launch of [this.pending(), this.playing()])
+        for (const launch of [
+            this.pending(),
+            this.playing(),
+            this.failedTuning(),
+        ])
             if (launch?.playback.streamUrl === url && launch.item === item)
                 launch.lockSource.categoryId = categoryId;
     }
@@ -394,14 +403,10 @@ export class XtreamGuideExternalPlayback {
     }
 
     private reattach(source: XtreamLiveSource): GuideLaunch | undefined {
-        const item = source.channel;
-        if (!source.playback || !item) return;
-        return {
-            lockSource: source,
-            item,
-            archive: source.archive ?? null,
-            playback: source.playback,
-        };
+        const { channel: item, playback, archive } = source;
+        return item && playback
+            ? { lockSource: source, item, archive: archive ?? null, playback }
+            : undefined;
     }
 
     private syncPanel(launch: ConfirmedLaunch): void {

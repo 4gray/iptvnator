@@ -297,9 +297,15 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
         expect(xtreamStore.setSelectedItem).toHaveBeenLastCalledWith(next);
     });
 
-    it.each(['mpv', 'vlc', 'first MPV failure'] as const)(
-        'retains remote tuning after %s goes idle',
-        (player) => {
+    it.each([
+        'mpv',
+        'vlc',
+        'first MPV failure',
+        'native error',
+        'rejected invocation',
+    ] as const)(
+        'retains remote tuning after %s stops or fails',
+        async (outcome) => {
             const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
             const component = fixture.componentInstance;
             const playing = { ...sampleChannel, category_id: 1 };
@@ -307,21 +313,40 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
             emptyList.set([playing, next]);
             portalPlayer.isEmbeddedPlayer.set(false);
             fixture.detectChanges();
+            if (outcome === 'rejected invocation')
+                xtreamStore.openPlayer.mockRejectedValueOnce(
+                    new Error('Synthetic player failed')
+                );
+            else if (outcome === 'native error')
+                xtreamStore.openPlayer.mockReturnValueOnce(
+                    new Promise(() => undefined)
+                );
             component.playLive(playing, true, [playing, next]);
             const session = {
                 id: 'synthetic-idle',
-                player: player === 'vlc' ? 'vlc' : 'mpv',
+                player: outcome === 'vlc' ? 'vlc' : 'mpv',
                 status: 'opened',
-                mediaLoaded: player !== 'first MPV failure',
+                mediaLoaded: outcome !== 'first MPV failure',
                 title: 'Synthetic Channel',
                 streamUrl: component.activeStreamUrl(),
                 canClose: true,
                 startedAt: '2026-04-04T10:00:00Z',
                 updatedAt: '2026-04-04T10:00:00Z',
             } as const;
-            publishExternalSession(session);
-            fixture.detectChanges();
-            publishExternalSession({ ...session, playbackIdle: true });
+            if (outcome === 'native error')
+                publishExternalSession({
+                    ...session,
+                    launchId: xtreamStore.openPlayer.mock.lastCall?.[5],
+                    status: 'error',
+                    canClose: false,
+                });
+            else if (outcome === 'rejected invocation')
+                await fixture.whenStable();
+            else {
+                publishExternalSession(session);
+                fixture.detectChanges();
+                publishExternalSession({ ...session, playbackIdle: true });
+            }
             fixture.detectChanges();
 
             expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(

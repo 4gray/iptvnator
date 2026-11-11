@@ -250,18 +250,23 @@ export function markVlcOpened(sessionId: string, getPort: () => VlcRcAddress) {
             const response = await getVlcCommandResponse(port, 'status');
             const state = parseVlcRcPlaybackState(response);
             if (getPort() !== port) return undefined;
-            if (
-                mediaUrl &&
-                (state === 'playing' || state === 'paused') &&
-                externalPlayerSessions.getSession(sessionId)?.mediaLoaded ===
-                    false
-            ) {
+            if (mediaUrl && (state === 'playing' || state === 'paused')) {
                 const input = response
                     .match(
                         /\(\s*new input:[ \t]*([^\r\n]+)\)[ \t]*(?:\r?\n|$)/i
                     )?.[1]
                     ?.trim();
                 if (!input) return null;
+                const matches = matchesVlcInput(input, mediaUrl);
+                if (externalPlayerSessions.getSession(sessionId)?.mediaLoaded) {
+                    if (matches) return false;
+                    externalPlayerSessions.updateSession(sessionId, {
+                        mediaLoaded: false,
+                        playbackIdle: false,
+                        playbackUnverified: true,
+                    });
+                    return null;
+                }
                 const clock = await getVlcCommandResponse(
                     port,
                     'get_time',
@@ -271,7 +276,7 @@ export function markVlcOpened(sessionId: string, getPort: () => VlcRcAddress) {
                 const elapsed = parseVlcRcNumericLine(clock);
                 if (elapsed === undefined) return null;
                 if (Number(elapsed) <= 0) return false;
-                if (!matchesVlcInput(input, mediaUrl)) return null;
+                if (!matches) return null;
                 externalPlayerSessions.updateSession(sessionId, {
                     mediaLoaded: true,
                     playbackIdle: false,

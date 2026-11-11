@@ -191,6 +191,20 @@ export async function openVlcPlayer({
     launchId,
 }: OpenVlcPlayerRequest) {
     externalPlayerProcessTeardownGate.assertLaunchAllowed();
+    const activeId = externalPlayerSessions.getActiveSessionId();
+    const active = activeId && externalPlayerSessions.getSession(activeId);
+    if (
+        launchId &&
+        !contentInfo &&
+        active &&
+        active.player === 'vlc' &&
+        active.streamUrl === url &&
+        active.mediaObservationUnavailable &&
+        active.canClose
+    ) {
+        await externalPlayerSessions.closeSession(active.id, true);
+        externalPlayerProcessTeardownGate.assertLaunchAllowed();
+    }
     const displacedSessionId = externalPlayerSessions.getActiveSessionId();
     const previousProcessSessionId = reusableVlcProcess.currentSessionId();
     const session = externalPlayerSessions.beginSession({

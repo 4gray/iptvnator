@@ -354,7 +354,59 @@ describe('VLC exact playback ownership', () => {
             playbackIdle: false,
             mediaReadinessTimedOut: undefined,
         });
+        input = 'https://example.test/synthetic-other.ts';
+        await jest.advanceTimersByTimeAsync(2_000);
+        await tick();
+        await tick();
+        expect(externalPlayerSessions.getSession(session.id)).toMatchObject({
+            mediaLoaded: false,
+            playbackIdle: false,
+            playbackUnverified: true,
+        });
         exit(proc);
+    });
+
+    it('waits for the exact VLC child without private control before retrying its input', async () => {
+        const platform = Object.getOwnPropertyDescriptor(process, 'platform');
+        Object.defineProperty(process, 'platform', { value: 'win32' });
+        const first = child();
+        const second = child();
+        spawnMock.mockReturnValueOnce(first).mockReturnValueOnce(second);
+        const request = {
+            title: 'Synthetic Channel',
+            url: 'https://example.test/synthetic.ts',
+        };
+        try {
+            const initial = openVlcPlayer({
+                ...request,
+                launchId: 'synthetic-first',
+            });
+            first.emit('spawn');
+            const prior = await initial;
+            expect(prior).toMatchObject({
+                mediaObservationUnavailable: true,
+                canClose: true,
+            });
+            const retry = openVlcPlayer({
+                ...request,
+                launchId: 'synthetic-retry',
+            });
+            await tick();
+            expect(first.kill).toHaveBeenCalledTimes(1);
+            expect(spawnMock).toHaveBeenCalledTimes(1);
+            exit(first);
+            await tick();
+            expect(spawnMock).toHaveBeenCalledTimes(2);
+            second.emit('spawn');
+            expect((await retry).id).not.toBe(prior.id);
+            expect(externalPlayerSessions.getSession(prior.id)?.status).toBe(
+                'closed'
+            );
+        } finally {
+            exit(first);
+            exit(second);
+            if (platform) Object.defineProperty(process, 'platform', platform);
+        }
     });
 
     it('rejects the add command during unrelated teardown and keeps the VLC child closable', async () => {
