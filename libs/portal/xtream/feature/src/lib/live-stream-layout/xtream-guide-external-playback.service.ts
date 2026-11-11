@@ -56,7 +56,10 @@ interface GuidePanel {
 function hasOpened(
     session: ExternalPlayerSession | null | undefined
 ): session is ExternalPlayerSession & { status: 'opened' | 'playing' } {
-    return session?.status === 'opened' || session?.status === 'playing';
+    return (
+        !session?.playbackIdle &&
+        (session?.status === 'opened' || session?.status === 'playing')
+    );
 }
 
 /** The live panel follows confirmed playback, independently of browse previews. */
@@ -127,6 +130,18 @@ export class XtreamGuideExternalPlayback {
     readonly launching = computed(() => {
         const active = this.playback?.activeSession();
         if (active?.status !== 'launching' || this.playing()) return false;
+        const source = this.sessions.state(active.id)?.source;
+        this.lock.version();
+        return (
+            !!source &&
+            source.playlistId === this.store.currentPlaylist()?.id &&
+            !isXtreamLiveCategoryWithheld(this.lock, source)
+        );
+    });
+
+    readonly idleStream = computed(() => {
+        const active = this.playback?.activeSession();
+        if (!active?.playbackIdle) return false;
         const source = this.sessions.state(active.id)?.source;
         this.lock.version();
         return (

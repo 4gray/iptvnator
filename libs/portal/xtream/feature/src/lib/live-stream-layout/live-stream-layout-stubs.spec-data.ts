@@ -6,6 +6,7 @@ import {
     signal,
 } from '@angular/core';
 import {
+    EpgItem,
     EpgProgram,
     RecordingStartMetadata,
     RecordingStoppedEvent,
@@ -116,3 +117,28 @@ export const playlist = {
     username: 'demo',
     password: 'secret',
 };
+
+export const HOUR = 3600;
+const T0 = Date.parse('2026-04-04T10:00:00.000Z') / 1000;
+
+export function epgItem(
+    title: string,
+    fromHour: number,
+    toHour: number
+): EpgItem {
+    const start = new Date((T0 + fromHour * HOUR) * 1000).toISOString();
+    const stop = new Date((T0 + toHour * HOUR) * 1000).toISOString();
+    return {
+        id: title,
+        epg_id: `epg-${title}`,
+        title,
+        description: '',
+        lang: 'en',
+        start,
+        stop,
+        end: stop,
+        channel_id: 'channel-101',
+        start_timestamp: String(T0 + fromHour * HOUR),
+        stop_timestamp: String(T0 + toHour * HOUR),
+    };
+}

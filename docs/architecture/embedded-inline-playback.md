@@ -1024,6 +1024,8 @@ preparation, including VLC position flush and a reused player's MPV IPC or VLC
 RC quit command, and rejects both player launches until that exact child
 reports exit; `ChildProcess.killed` is never treated as proof. Reuse connections
 check the gate again before dispatching content commands.
+If an unrelated child is stopping, a rejected reuse restores its still-playing
+owner in the dock.
 If bounded teardown fails while a fresh launch IPC is pending, the IPC rejects and
 the exact session becomes a closable error instead of remaining in Opening.
 If a pre-content reuse failure has no still-live displaced session to restore,
@@ -1109,6 +1111,9 @@ exit is confirmed, or as a closable error when it is not. No `seek` follows
 travels as the per-file `start` option. The `loadfile` reply only acknowledges
 the command; a stream that later fails to open is reported through the reused
 child's output and exit, not through the reply.
+For streams without saved position metadata, the MPV socket reports when
+playback becomes idle. The exact session remains closable, while the guide
+can stop marking its channel as playing and accept another launch.
 If Stop is observed before a pending MPV content command or VLC enqueue command
 is dispatched, that command is skipped. A source handoff also fails closed
 while a live session has no closer (`canClose: false`); renderer Dismiss is not

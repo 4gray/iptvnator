@@ -43,6 +43,7 @@ import {
     MpvReuseAttemptState,
 } from './mpv-reusable-process';
 import { attachMpvOutputHandlers } from './mpv-output-errors';
+import { markMpvOpened } from './mpv-idle-monitor';
 import {
     startPositionPolling,
     stopPositionPolling,
@@ -392,7 +393,7 @@ async function launchMpvPlayer(
             startConfirmationTimer.unref();
         });
 
-        return externalPlayerSessions.markOpened(session.id) ?? session;
+        return markMpvOpened(session.id, socketPath) ?? session;
     } catch (error) {
         console.error('Error opening MPV player:', error);
         if (!reuseState.teardownUnconfirmed && !freshTeardownUnconfirmed) {

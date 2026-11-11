@@ -4,7 +4,10 @@ import {
     PlayerContentInfo,
     readExternalPlayerErrorCode,
 } from '@iptvnator/shared/interfaces';
-import { externalPlayerProcessTeardownGate } from './external-player-process';
+import {
+    externalPlayerProcessTeardownGate,
+    hasExited,
+} from './external-player-process';
 import {
     ExternalPlaybackSnapshot,
     externalPlayerSessions,
@@ -54,6 +57,8 @@ export class VlcReusableProcess {
     private readonly processSessionIds = new WeakMap<ChildProcess, string>();
     private reuseOrder = 0;
     private dispatchedReuse = 0;
+    private stopGeneration = 0;
+    private readonly storedStops = new WeakMap<ChildProcess, Promise<void>>();
 
     currentSessionId(): string | null {
         return this.processSessionId;
@@ -87,11 +92,15 @@ export class VlcReusableProcess {
         stopPositionPolling: () => void,
         guardFutureLaunches = false
     ): void {
+        this.stopGeneration += 1;
         const process = this.process;
         if (!process || process.killed) return;
         traceExternalPlayer(reason);
         if (guardFutureLaunches) {
-            externalPlayerProcessTeardownGate.terminateInBackground(process);
+            const stopping =
+                externalPlayerProcessTeardownGate.terminate(process);
+            this.storedStops.set(process, stopping);
+            void stopping.catch(() => undefined);
         } else {
             process.kill();
         }
@@ -111,6 +120,8 @@ export class VlcReusableProcess {
             rcPort: reusedRcPort,
         });
         const { session, state } = options;
+        const stopGeneration = this.stopGeneration;
+        const cancelled = () => this.stopGeneration !== stopGeneration;
         let reusedProcessSessionId =
             this.processSessionIds.get(reusedProcess) ??
             options.previousProcessSessionId;
@@ -128,11 +139,32 @@ export class VlcReusableProcess {
         let closeRequested = false;
         let retryableClose: Promise<void> | null = null;
         let launchClose: Promise<void> | null = null;
+        let ownsFailedTeardown = false;
+        const settleCancelled = async () => {
+            try {
+                await (this.storedStops.get(reusedProcess) ??
+                    externalPlayerProcessTeardownGate.terminate(reusedProcess, {
+                        sendTerminationSignal: false,
+                    }));
+            } catch (error) {
+                ownsFailedTeardown = true;
+                return (
+                    externalPlayerSessions.markError(
+                        session.id,
+                        error instanceof Error ? error.message : String(error),
+                        { canClose: true }
+                    ) ?? session
+                );
+            }
+            return retire();
+        };
 
         const ownsReusedProcess = () =>
+            ownsFailedTeardown ||
             this.processSessionIds.get(reusedProcess) === session.id ||
             externalPlayerSessions.getActiveSessionId() === session.id;
         const closeReusedProcess = async () => {
+            if (hasExited(reusedProcess)) return;
             externalPlayerProcessTeardownGate.beginTeardown(reusedProcess);
             try {
                 await sendVlcRcCommand(reusedRcPort, 'quit');
@@ -164,6 +196,7 @@ export class VlcReusableProcess {
             const owner = this.processSessionIds.get(reusedProcess);
             if (
                 exact &&
+                !ownsFailedTeardown &&
                 !launchClose &&
                 owner !== session.id &&
                 (!state.contentMutated || superseded())
@@ -223,7 +256,12 @@ export class VlcReusableProcess {
                     }
                 },
                 () => {
-                    if (closeRequested || superseded() || lostChild())
+                    if (
+                        closeRequested ||
+                        cancelled() ||
+                        superseded() ||
+                        lostChild()
+                    )
                         return false;
                     if (!state.contentMutated)
                         externalPlayerProcessTeardownGate.assertLaunchAllowed();
@@ -231,6 +269,7 @@ export class VlcReusableProcess {
                 }
             );
             if (closeRequested) return await finishRequestedClose();
+            if (cancelled()) return await settleCancelled();
             if (superseded()) return retire();
             if (lostChild()) return state.contentMutated ? retire() : null;
             traceExternalPlayer('loaded new url in existing vlc instance');
@@ -265,10 +304,21 @@ export class VlcReusableProcess {
             const current = externalPlayerSessions.getSession(session.id);
             if (current?.status === 'closed') return current;
             if (closeRequested) return await finishRequestedClose();
+            if (cancelled()) return await settleCancelled();
             if (superseded()) return retire();
             if (lostChild()) return state.contentMutated ? retire() : null;
-            if (readExternalPlayerErrorCode(error) === 'previous-closing')
+            if (readExternalPlayerErrorCode(error) === 'previous-closing') {
+                const owner = this.processSessionIds.get(reusedProcess);
+                if (
+                    owner &&
+                    !externalPlayerProcessTeardownGate.isStopping(reusedProcess)
+                )
+                    externalPlayerSessions.restoreActiveSession(
+                        owner,
+                        session.id
+                    );
                 throw error;
+            }
             console.error(
                 'Failed to reuse existing VLC, spawning fresh:',
                 error
@@ -302,6 +352,7 @@ export class VlcReusableProcess {
                     : (reusedProcessSessionId ?? session.id)
             );
             if (closeRequested) return await finishRequestedClose();
+            if (cancelled()) return await settleCancelled();
             return null;
         }
     }

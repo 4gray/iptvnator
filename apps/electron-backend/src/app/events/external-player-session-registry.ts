@@ -19,6 +19,7 @@ interface UpdateExternalPlayerSessionOptions {
     error?: string;
     errorCode?: ExternalPlayerErrorCode;
     canClose?: boolean;
+    playbackIdle?: boolean;
 }
 
 interface ExternalPlayerSessionRuntime {

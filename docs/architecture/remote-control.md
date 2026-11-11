@@ -158,7 +158,9 @@ number use that queue while category or search browsing remains independent.
 Xtream history handoffs from global search or Recently Added capture the
 eligible destination category in the selected channel sort order; an unrelated
 previous category/query does not define that queue. Explicit All Items clicks
-still capture their displayed list. Same-channel replay and remote selection preserve it. Source/type changes and
+still capture their displayed list. An external archive launched from an
+Xtream preview uses its displayed order once playback opens. Same-channel
+replay and remote selection preserve the current queue. Source/type changes and
 view destruction discard it; ITV and radio never share an owner.
 
 Stalker captures before asynchronous URL resolution and commits only the winning

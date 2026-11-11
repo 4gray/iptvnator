@@ -101,6 +101,8 @@ export interface ExternalPlayerSession {
     error?: string;
     errorCode?: ExternalPlayerErrorCode;
     canClose: boolean;
+    /** MPV is still running but no longer playing this stream. */
+    playbackIdle?: boolean;
     /** Exact failed replacement displaced by this restored live session. */
     restoredFromSessionId?: string;
 }

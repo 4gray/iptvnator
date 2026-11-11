@@ -781,7 +781,8 @@ and private-network checks.
 The Xtream Live TV header, command palette, timeline and list panel, and `G`
 open the shared multi-channel programme guide while a channel is playing.
 With MPV or VLC selected, the external session must have opened before the
-guide can open.
+guide can open. If MPV stays open after the stream ends, an open guide keeps
+its schedule visible and lets the user retry the channel.
 The guide keeps the player mounted in the dock and hides the live sidebars
 while preserving their browsing state. Short screens show a compact dock so
 schedule rows remain visible. If an external channel switch fails and the
@@ -789,8 +790,9 @@ player restores the previous session or rejects a switch while the old session
 is still playing, the guide keeps its scope and search. The dock, player panel
 and remote status follow the confirmed session. Consecutive remote tuning
 commands advance from the latest requested channel until it opens or fails.
-Browsing another channel
-does not replace the remote order or detach the guide. If a relock withholds that
+Browsing another channel does not replace the remote order or detach the
+guide. Starting archive playback from a preview commits that preview's order
+when the archive session opens. If a relock withholds that
 channel or the pending replacement, the guide hides the withheld channel and
 closes its external session even if it finishes opening later, reports a
 closable error or has already left the dock. Cancelling a queued replacement

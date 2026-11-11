@@ -1,6 +1,6 @@
 /**
- * Pure helper and launch-argument coverage for the VLC session service.
- * Instance reuse, process exit, and spawn-error handling live in
+ * Helper, launch argument, and spawn error coverage for VLC.
+ * Instance reuse and process exit coverage live in
  * `vlc-session.service.lifecycle.spec.ts`.
  */
 jest.mock('electron', () => ({
@@ -38,6 +38,7 @@ jest.mock('../services/store.service', () => ({
 import { spawn, type ChildProcess } from 'child_process';
 import { EventEmitter } from 'events';
 import { createServer } from 'net';
+import { externalPlayerSessions } from './external-player-runtime';
 import {
     VLC_PLAYER_ARGUMENTS,
     VLC_PLAYER_PATH,
@@ -424,6 +425,50 @@ describe('vlc-session.service helpers and launch args', () => {
                 stdio: ['ignore', 'pipe', 'pipe'],
             });
             expect(proc.unref).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('spawn error handling', () => {
+        it('rejects with an actionable error when VLC fails to start', async () => {
+            const proc = createMockChildProcess();
+            spawnMock.mockReturnValueOnce(proc);
+            const openPromise = openVlcPlayer({ title: 'S', url: streamUrl });
+            const sessionId = externalPlayerSessions.getActiveSessionId();
+            await waitForSpawnCallCount(1);
+
+            proc.emit('error', new Error('boom'));
+
+            await expect(openPromise).rejects.toThrow(
+                "Failed to start VLC player: boom. Make sure VLC is installed and the path '/usr/bin/vlc' is correct."
+            );
+            expect(
+                externalPlayerSessions.getSession(sessionId as string)?.status
+            ).toBe('error');
+        });
+
+        it('retries without the RC interface after a start error', async () => {
+            Object.defineProperty(process, 'platform', { value: 'win32' });
+            mockStoreValues({
+                [VLC_PLAYER_PATH]: '/usr/bin/vlc',
+                [VLC_REUSE_INSTANCE]: true,
+            });
+            const proc = createMockChildProcess();
+            const retryProc = createMockChildProcess();
+            spawnMock.mockReturnValueOnce(proc).mockReturnValueOnce(retryProc);
+
+            const openPromise = openVlcPlayer({ title: 'S', url: streamUrl });
+            await waitForSpawnCallCount(1);
+            expect(spawnMock.mock.calls[0][1]).toContain('--rc-quiet');
+            proc.emit('error', new Error('rc unsupported'));
+            await waitForSpawnCallCount(2);
+
+            const retryArgs = spawnMock.mock.calls[1][1] as string[];
+            expect(retryArgs.join(' ')).not.toContain('--extraintf');
+            expect(retryArgs.join(' ')).not.toContain('--rc-host');
+            expect(retryArgs).not.toContain('--rc-quiet');
+            retryProc.emit('spawn');
+            const session = await openPromise;
+            expect(session.status).toBe('opened');
         });
     });
 });

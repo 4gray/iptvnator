@@ -44,6 +44,7 @@ import {
 } from '../services/store.service';
 import * as externalPlayerRuntime from './external-player-runtime';
 import { externalPlayerSessions } from './external-player-runtime';
+import { externalPlayerProcessTeardownGate } from './external-player-process';
 import { MPV_IPC_COMMAND_TIMEOUT_MS } from './mpv-ipc-command';
 import {
     createMpvSocketMock,
@@ -248,23 +249,52 @@ describe('reused MPV IPC replies', () => {
         expect(proc.kill).not.toHaveBeenCalled();
     });
 
-    it('blocks a pending loadfile while the current MPV owner is stopping', async () => {
-        const { session: previous } = await launchReusableSession();
-        const socket = createMpvSocketMock({ connect: false });
-        createConnectionMock.mockReturnValue(socket);
-        const opening = openMpvPlayer({
-            title: 'Synthetic Replacement',
-            url: 'https://example.test/replacement.m3u8',
+    it('keeps the exact MPV session closable when its stream becomes idle', async () => {
+        jest.useFakeTimers();
+        const opening = launchReusableSession();
+        await jest.advanceTimersByTimeAsync(100);
+        const { session } = await opening;
+        mockMpvSockets({ data: true });
+        await jest.advanceTimersByTimeAsync(2010);
+        expect(externalPlayerSessions.getSession(session.id)).toMatchObject({
+            status: 'opened',
+            playbackIdle: true,
+            canClose: true,
         });
-        await nextTick();
-        const rejected = expect(opening).rejects.toThrow(
-            'previous external player is still shutting down'
-        );
-        const closing = externalPlayerSessions.closeSession(previous.id, true);
-        socket.emit('connect');
-        await Promise.all([rejected, closing]);
-        expect(socket.write).not.toHaveBeenCalled();
     });
+
+    it.each([false, true])(
+        'blocks a pending loadfile while a player is stopping (unrelated: %s)',
+        async (unrelated) => {
+            const { session: previous } = await launchReusableSession();
+            const socket = createMpvSocketMock({ connect: false });
+            createConnectionMock.mockReturnValue(socket);
+            const opening = openMpvPlayer({
+                title: 'Synthetic Replacement',
+                url: 'https://example.test/replacement.m3u8',
+            });
+            await nextTick();
+            const rejected = expect(opening).rejects.toThrow(
+                'previous external player is still shutting down'
+            );
+            const other = unrelated ? createMockChildProcess() : undefined;
+            if (other) externalPlayerProcessTeardownGate.beginTeardown(other);
+            const closing = other
+                ? undefined
+                : externalPlayerSessions.closeSession(previous.id, true);
+            socket.emit('connect');
+            try {
+                await Promise.all([rejected, closing]);
+                expect(socket.write).not.toHaveBeenCalled();
+                if (other)
+                    expect(externalPlayerSessions.getActiveSessionId()).toBe(
+                        previous.id
+                    );
+            } finally {
+                other?.emit('exit', 0);
+            }
+        }
+    );
 
     it('lets a stale Stop for the previous session pass while the loadfile reply is pending', async () => {
         const { proc, session: previous } = await launchReusableSession();

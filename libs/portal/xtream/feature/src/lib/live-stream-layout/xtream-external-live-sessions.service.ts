@@ -101,6 +101,7 @@ export class XtreamExternalLiveSessions {
                 session.id === excludeId ||
                 source.playlistId !== playlistId ||
                 !source.channel ||
+                session.playbackIdle ||
                 isXtreamLiveCategoryWithheld(this.lock, source) ||
                 (session.status !== 'opened' && session.status !== 'playing')
             )
@@ -174,7 +175,8 @@ export class XtreamExternalLiveSessions {
         if (!owner) return;
         if (launch) {
             launch.sessionId = session.id;
-            if (session.status === 'error') launch.ended.set(true);
+            if (session.status === 'error' || session.playbackIdle)
+                launch.ended.set(true);
         }
         const entry = current ?? { session, source: owner, launch };
         const changed =

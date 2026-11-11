@@ -465,6 +465,10 @@ export class LiveStreamLayoutComponent
     private unsubscribeRemoteCommand?: () => void;
     private playbackRequestId = 0;
     private activePlaylistId: string | null = null;
+    private archivePreview?: {
+        item: XtreamLiveChannelItem;
+        queue: readonly XtreamLiveChannelItem[];
+    };
 
     readonly usesEmbeddedPlayer = computed(() =>
         this.portalPlayer.isEmbeddedPlayer()
@@ -570,7 +574,9 @@ export class LiveStreamLayoutComponent
                 this.usesEmbeddedPlayer()
                     ? !!this.activeStreamUrl()
                     : !!this.externalGuide.confirmed() ||
-                      (this.guide.isOpen() && this.externalGuide.launching())
+                      (this.guide.isOpen() &&
+                          (this.externalGuide.launching() ||
+                              this.externalGuide.idleStream()))
             )
         );
         this.guideSource.bind((item, channels) => {
@@ -622,6 +628,7 @@ export class LiveStreamLayoutComponent
             if (this.activePlaylistId && this.activePlaylistId !== playlistId) {
                 this.playbackRequestId += 1;
                 this.activePlaylistId = null;
+                this.archivePreview = undefined;
                 this.externalGuide.reset();
                 this.activePlayback.set(null);
                 this.activeLiveItemId.set(null);
@@ -869,9 +876,13 @@ export class LiveStreamLayoutComponent
             !this.usesEmbeddedPlayer() && this.externalGuide.hasBridge;
         const scope =
             displayedChannels ??
-            (!tracksExternalPlayback || (startPlayback && !remote)
+            (!tracksExternalPlayback || !remote
                 ? this.channelNavigation.displayedChannels()
                 : []);
+        this.archivePreview =
+            tracksExternalPlayback && !startPlayback
+                ? { item, queue: scope }
+                : undefined;
         const captureNavigation = () =>
             this.channelNavigation.capture(item, scope, remote);
         if (!tracksExternalPlayback) captureNavigation();
@@ -1234,6 +1245,16 @@ export class LiveStreamLayoutComponent
         const requestId = ++this.playbackRequestId;
         const external =
             !this.usesEmbeddedPlayer() && this.externalGuide.hasBridge;
+        const preview = this.archivePreview;
+        const confirmed = this.externalGuide.confirmed();
+        const queue =
+            preview &&
+            this.activePlaylistId === playlist.id &&
+            sameGuideChannel(preview.item, item)
+                ? preview.queue
+                : confirmed && sameGuideChannel(confirmed.item, item)
+                  ? this.channelNavigation.remoteChannels()
+                  : this.channelNavigation.displayedChannels();
         const category = this.readLiveProviderCategoryId(item);
         const resolved =
             external && category === 'unknown'
@@ -1289,8 +1310,10 @@ export class LiveStreamLayoutComponent
             item,
             program,
             this.activeLiveProviderCategoryId,
-            undefined,
-            this.channelNavigation.remoteChannels()
+            external
+                ? () => this.channelNavigation.capture(item, queue)
+                : undefined,
+            queue
         );
     }
 

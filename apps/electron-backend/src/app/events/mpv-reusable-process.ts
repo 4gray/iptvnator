@@ -6,12 +6,16 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { redactSensitiveData } from '@iptvnator/shared/logging';
 import { joinMpvHeaderFields } from '../util/mpv-string-list.util';
-import { externalPlayerProcessTeardownGate } from './external-player-process';
+import {
+    externalPlayerProcessTeardownGate,
+    hasExited,
+} from './external-player-process';
 import {
     externalPlayerSessions,
     traceExternalPlayer,
 } from './external-player-runtime';
 import { sendMpvCommand } from './mpv-ipc-command';
+import { markMpvOpened } from './mpv-idle-monitor';
 
 /**
  * The per-file start of a reuse load: the requested offset, else zero. A
@@ -25,10 +29,6 @@ function reuseStartSeconds(startTime: number | undefined): number {
         startTime >= 0
         ? startTime
         : 0;
-}
-
-function hasExited(child: ChildProcess): boolean {
-    return child.exitCode !== null || child.signalCode !== null;
 }
 
 export interface MpvReuseAttemptState {
@@ -288,14 +288,24 @@ export class MpvReusableProcess {
             } else {
                 options.stopPositionPolling(session.id);
             }
-            return externalPlayerSessions.markOpened(session.id) ?? session;
+            return markMpvOpened(session.id, reusedSocketPath) ?? session;
         } catch (error) {
             const current = externalPlayerSessions.getSession(session.id);
             if (current?.status === 'closed') return current;
             if (closeRequested) return await finishRequestedClose();
             if (cancelled()) return await settleCancelled();
-            if (readExternalPlayerErrorCode(error) === 'previous-closing')
+            if (readExternalPlayerErrorCode(error) === 'previous-closing') {
+                const owner = this.processSessionIds.get(reusedProcess);
+                if (
+                    owner &&
+                    !externalPlayerProcessTeardownGate.isStopping(reusedProcess)
+                )
+                    externalPlayerSessions.restoreActiveSession(
+                        owner,
+                        session.id
+                    );
                 throw error;
+            }
             if (current?.status === 'error' && hasExited(reusedProcess)) {
                 // The child died while its reply was in flight and its exit
                 // handler already reported the failure; a fresh launch under
