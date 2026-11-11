@@ -1,8 +1,12 @@
 import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
-import type { FavoriteItem } from '@iptvnator/portal/xtream/data-access';
+import type {
+    FavoriteItem,
+    FavoritesService,
+} from '@iptvnator/portal/xtream/data-access';
+import { firstValueFrom } from 'rxjs';
 import type { XtreamLiveChannelItem } from './xtream-live-channel-navigation.service';
 
-export function xtreamGuideFavoriteRows(
+function xtreamGuideFavoriteRows(
     items: readonly FavoriteItem[],
     sqlite: boolean
 ): ReadonlyMap<number, number> {
@@ -23,7 +27,7 @@ export function xtreamGuideFavoriteRows(
 }
 
 /** Native collection reads may resolve a stream to its hidden category copy. */
-export async function resolveVisibleXtreamFavoriteCopies(
+async function resolveVisibleXtreamFavoriteCopies(
     favorites: ReadonlyMap<number, number>,
     rows: readonly XtreamLiveChannelItem[],
     isFavorite: (id: number) => Promise<boolean>,
@@ -46,4 +50,23 @@ export async function resolveVisibleXtreamFavoriteCopies(
         }
     }
     return resolved ?? favorites;
+}
+
+export async function loadXtreamGuideFavorites(
+    service: FavoritesService,
+    playlistId: string,
+    visible: readonly XtreamLiveChannelItem[],
+    sqlite: boolean,
+    signal: AbortSignal
+): Promise<ReadonlyMap<number, number>> {
+    const items = await firstValueFrom(service.getFavorites(playlistId));
+    const favorites = xtreamGuideFavoriteRows(items, sqlite);
+    return sqlite
+        ? resolveVisibleXtreamFavoriteCopies(
+              favorites,
+              visible,
+              (id) => service.isFavorite(id, playlistId),
+              signal
+          )
+        : favorites;
 }

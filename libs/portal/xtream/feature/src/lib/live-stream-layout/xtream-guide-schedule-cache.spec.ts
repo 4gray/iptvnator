@@ -80,4 +80,42 @@ describe('XtreamGuideScheduleCache', () => {
         );
         expect(pending).toHaveBeenCalledTimes(2);
     });
+
+    it('releases a slot only after all consumers of that request cancel', async () => {
+        const cancelTransport = jest.fn();
+        const cache = new XtreamGuideScheduleCache(cancelTransport);
+        const pending = jest.fn<
+            Promise<EpgProgram[]>,
+            [{ signal: AbortSignal; sessionId?: string }]
+        >(() => new Promise<EpgProgram[]>(() => undefined));
+        const viewport = new AbortController();
+        const search = new AbortController();
+        const current = () => undefined;
+        const viewportResult = expect(
+            cache.load('1', current, pending, viewport.signal)
+        ).rejects.toMatchObject({ name: 'AbortError' });
+        const searchResult = expect(
+            cache.load('1', current, pending, search.signal)
+        ).rejects.toMatchObject({ name: 'AbortError' });
+        const otherResult = expect(
+            cache.load('2', current, pending)
+        ).rejects.toMatchObject({ name: 'AbortError' });
+        const fresh = jest.fn(async () => []);
+        const queued = cache.load('3', current, fresh);
+        const shared = pending.mock.calls[0][0];
+        expect(pending).toHaveBeenCalledTimes(2);
+
+        viewport.abort();
+        await viewportResult;
+        expect(shared.signal.aborted).toBe(false);
+        expect(fresh).not.toHaveBeenCalled();
+
+        search.abort();
+        await searchResult;
+        expect(shared.signal.aborted).toBe(true);
+        expect(cancelTransport).toHaveBeenCalledWith(shared.sessionId);
+        await expect(queued).resolves.toEqual([]);
+        cache.clear();
+        await otherResult;
+    });
 });

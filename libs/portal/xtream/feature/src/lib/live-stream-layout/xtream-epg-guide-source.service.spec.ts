@@ -105,6 +105,11 @@ describe('XtreamEpgGuideSourceService', () => {
     const locked = jest.fn<boolean, [string, string, number]>();
     let service: XtreamEpgGuideSourceService;
 
+    async function settleFavorites(): Promise<void> {
+        TestBed.flushEffects();
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    }
+
     beforeEach(() => {
         currentPlaylist.set(playlist);
         selectedType.set('live');
@@ -204,7 +209,7 @@ describe('XtreamEpgGuideSourceService', () => {
     });
 
     it('keeps movie favorites with a colliding stream ID out of the live favorites scope', async () => {
-        await Promise.resolve();
+        await settleFavorites();
         service.setScope('favorites');
         expect(service.channels()).toEqual([]);
     });
@@ -307,7 +312,7 @@ describe('XtreamEpgGuideSourceService', () => {
             },
         ];
         service.open();
-        await Promise.resolve();
+        await settleFavorites();
         service.setScope('favorites');
         expect(service.channels()).toEqual([
             expect.objectContaining({ name: two.title }),
@@ -333,7 +338,7 @@ describe('XtreamEpgGuideSourceService', () => {
             },
         ];
         service.open();
-        await Promise.resolve();
+        await settleFavorites();
         service.setScope('favorites');
         expect(service.channels()).toEqual([
             expect.objectContaining({ name: favorite.title }),
@@ -373,7 +378,7 @@ describe('XtreamEpgGuideSourceService', () => {
         isFavorite.mockImplementation(async (id) => id === compatible.id);
         service.open();
         service.setScope('favorites');
-        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        await settleFavorites();
         expect(isFavorite.mock.calls).toEqual([
             [one.id, playlist.id],
             [compatible.id, playlist.id],
@@ -381,6 +386,50 @@ describe('XtreamEpgGuideSourceService', () => {
         expect(service.channels()).toEqual([
             expect.objectContaining({ name: compatible.title }),
         ]);
+    });
+
+    it('re-resolves a favorite when the visible copy changes while the guide stays open', async () => {
+        locked.mockReturnValue(false);
+        lockRevision.update((value) => value + 1);
+        const copy = {
+            ...one,
+            id: 24,
+            category_id: 8,
+            title: 'Synthetic Favorite Copy',
+        };
+        liveStreams.set([one, copy]);
+        favorites = [
+            {
+                content_id: one.id,
+                xtream_id: one.xtream_id,
+                category_id: one.category_id,
+                type: 'live',
+            },
+        ];
+        isFavorite.mockResolvedValue(true);
+        service.setScope('favorites');
+        await settleFavorites();
+        expect(service.channels().map(({ name }) => name)).toEqual([one.title]);
+
+        locked.mockImplementation((_id, _type, category) => category === 70);
+        lockRevision.update((value) => value + 1);
+        await settleFavorites();
+        expect(service.scopeId()).toBe('favorites');
+        expect(service.channels().map(({ name }) => name)).toEqual([
+            copy.title,
+        ]);
+        expect(isFavorite).toHaveBeenCalledWith(copy.id, playlist.id);
+    });
+
+    it('falls back to All Channels when the browsed category becomes locked', () => {
+        locked.mockReturnValue(false);
+        lockRevision.update((value) => value + 1);
+        service.setScope('8');
+        expect(service.scopeId()).toBe('8');
+        locked.mockImplementation((_id, _type, category) => category === 80);
+        lockRevision.update((value) => value + 1);
+        expect(service.scopeId()).toBe('all');
+        expect(service.channels().map(({ id }) => id)).toEqual(['101']);
     });
 
     it('keeps successful search matches on both sides of a failed channel', async () => {

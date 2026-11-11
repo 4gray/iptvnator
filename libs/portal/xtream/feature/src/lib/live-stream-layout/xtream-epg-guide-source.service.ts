@@ -1,13 +1,14 @@
 import {
     computed,
+    effect,
     inject,
     Injectable,
     Injector,
     linkedSignal,
     signal,
+    untracked,
 } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
-import { firstValueFrom } from 'rxjs';
 import { sortPortalChannelItems } from '@iptvnator/portal/shared/util';
 import {
     FavoritesService,
@@ -32,10 +33,7 @@ import type {
     EpgGuideWindow,
 } from '@iptvnator/ui/epg';
 import { toSharedEpgProgram } from '../portal-channels-list/epg-preview-program';
-import {
-    resolveVisibleXtreamFavoriteCopies,
-    xtreamGuideFavoriteRows,
-} from './xtream-guide-favorites';
+import { loadXtreamGuideFavorites } from './xtream-guide-favorites';
 import { XtreamGuideScheduleCache } from './xtream-guide-schedule-cache';
 import {
     XtreamLiveChannelItem,
@@ -98,7 +96,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         (sessionId) => void this.api?.cancelSession(sessionId)
     );
     private cacheRevision: unknown;
-    private session = new AbortController();
+    private readonly session = signal<AbortController | null>(null);
     private readonly favorites = signal<ReadonlyMap<number, number>>(new Map());
 
     readonly deferredCoverage = true;
@@ -185,8 +183,13 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     });
 
     readonly scopeId = linkedSignal({
-        source: () => this.playlist()?.id,
-        computation: () => ALL,
+        source: () => ({ id: this.playlist()?.id, scopes: this.scopes() }),
+        computation: ({ id, scopes }, previous): string =>
+            previous &&
+            previous.source.id === id &&
+            scopes.some((scope) => scope.id === previous.value)
+                ? previous.value
+                : ALL,
     });
 
     private readonly scopedRows = computed(() => {
@@ -234,6 +237,33 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         scope: readonly XtreamLiveChannelItem[]
     ) => void;
 
+    constructor() {
+        effect((onCleanup) => {
+            const session = this.session();
+            const id = this.playlist()?.id;
+            if (!session || !id) return;
+            const visible = this.items();
+            const refresh = new AbortController();
+            onCleanup(() => refresh.abort());
+            const signal = AbortSignal.any([session.signal, refresh.signal]);
+            untracked(() => {
+                void loadXtreamGuideFavorites(
+                    this.favoritesService,
+                    id,
+                    visible,
+                    this.runtime.supportsXtreamSqliteDataSource,
+                    signal
+                ).then(
+                    (favorites) => {
+                        if (!signal.aborted && visible === this.items())
+                            this.favorites.set(favorites);
+                    },
+                    () => undefined
+                );
+            });
+        });
+    }
+
     bind(play: NonNullable<XtreamEpgGuideSourceService['play']>): void {
         this.play = play;
     }
@@ -244,44 +274,13 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
 
     open(): void {
         this.close();
-        this.session = new AbortController();
-        const signal = this.session.signal;
-        const playlistId = this.playlist()?.id;
+        this.session.set(new AbortController());
         this.setScope(categoryKey(this.store.selectedCategoryId()) || ALL);
-        if (playlistId) {
-            const current = () =>
-                !signal.aborted && this.playlist()?.id === playlistId;
-            void firstValueFrom(
-                this.favoritesService.getFavorites(playlistId)
-            ).then(
-                async (items) => {
-                    if (!current()) return;
-                    const sqlite = this.runtime.supportsXtreamSqliteDataSource;
-                    const favorites = xtreamGuideFavoriteRows(items, sqlite);
-                    this.favorites.set(favorites);
-                    if (sqlite) {
-                        const resolved =
-                            await resolveVisibleXtreamFavoriteCopies(
-                                favorites,
-                                this.items(),
-                                (id) =>
-                                    this.favoritesService.isFavorite(
-                                        id,
-                                        playlistId
-                                    ),
-                                signal
-                            );
-                        if (resolved !== favorites && current())
-                            this.favorites.set(resolved);
-                    }
-                },
-                () => undefined
-            );
-        }
     }
 
     close(): void {
-        this.session.abort();
+        this.session()?.abort();
+        this.session.set(null);
         this.cache.clear();
         this.favorites.set(new Map());
         this.scopeId.set(ALL);
@@ -293,7 +292,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     }
 
     activate(id: string): void {
-        if (this.session.signal.aborted) return;
+        if (!this.session()) return;
         const item = this.scopedRows().get(id);
         if (item) this.play?.(item, this.scopedItems());
     }
@@ -390,7 +389,8 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
 
     private scheduleReader(signal?: AbortSignal) {
         const revision = this.revision();
-        const session = this.session.signal;
+        const session = this.session()?.signal;
+        if (!session) throw new DOMException('EPG guide closed', 'AbortError');
         const fullEpg = this.injector.get(XtreamFullEpgService);
         this.api ??= this.injector.get(XtreamApiService);
         if (this.cacheRevision !== revision) {
@@ -417,7 +417,8 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
                             item.epg_channel_id ?? null,
                             options
                         )
-                    ).map(toSharedEpgProgram)
+                    ).map(toSharedEpgProgram),
+                signal
             );
             checkCurrent();
             return programs;
