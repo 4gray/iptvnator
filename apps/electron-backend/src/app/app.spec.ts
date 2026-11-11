@@ -18,6 +18,7 @@ jest.mock('electron', () => ({
         buildFromTemplate: jest.fn(),
     },
     screen: {
+        getAllDisplays: jest.fn(),
         getPrimaryDisplay: jest.fn(),
     },
     session: {
@@ -58,7 +59,7 @@ import App from './app';
 import { app as electronApp, BrowserWindow, screen, shell } from 'electron';
 import * as path from 'path';
 import { pathToFileURL } from 'url';
-import { store } from './services/store.service';
+import { store, WINDOW_BOUNDS } from './services/store.service';
 import { markZoomLevelApplied } from './services/window-zoom-level';
 import { getPendingFullScreenTarget } from './services/native-fullscreen-transitions';
 
@@ -152,9 +153,13 @@ describe('Electron app security helpers', () => {
         appInternals.rendererLoadingEnabled = false;
         appInternals.mainWindowListeners.length = 0;
         (electronApp as unknown as { isPackaged: boolean }).isPackaged = false;
-        (screen.getPrimaryDisplay as jest.Mock).mockReturnValue({
-            workAreaSize: { height: 720, width: 1280 },
-        });
+        const workAreaSize = { height: 720, width: 1280 };
+        const primaryDisplay = {
+            workAreaSize,
+            workArea: { x: 0, y: 0, ...workAreaSize },
+        };
+        (screen.getPrimaryDisplay as jest.Mock).mockReturnValue(primaryDisplay);
+        (screen.getAllDisplays as jest.Mock).mockReturnValue([primaryDisplay]);
         (store.get as jest.Mock).mockReturnValue(undefined);
         mockHasSwitch.mockReturnValue(false);
     });
@@ -373,6 +378,42 @@ describe('Electron app security helpers', () => {
             expect(mainWindow.maximize).not.toHaveBeenCalled();
             expect(mainWindow.setFullScreen).not.toHaveBeenCalled();
             expect(mainWindow.show).toHaveBeenCalledTimes(1);
+        });
+
+        it('centers the window when its saved display is disconnected', () => {
+            (store.get as jest.Mock).mockImplementation((key: string) =>
+                key === WINDOW_BOUNDS
+                    ? { x: -1100, y: 20, width: 1000, height: 650 }
+                    : undefined
+            );
+
+            const mainWindow = createWindowViaOnReady();
+
+            expect(BrowserWindow).toHaveBeenCalledWith(
+                expect.not.objectContaining({ x: expect.any(Number) })
+            );
+            expect(mainWindow.center).toHaveBeenCalledTimes(1);
+        });
+
+        it('restores bounds on a connected secondary display', () => {
+            const bounds = { x: -1100, y: 20, width: 1000, height: 650 };
+            jest.mocked(screen.getAllDisplays).mockReturnValueOnce([
+                screen.getPrimaryDisplay(),
+                {
+                    ...screen.getPrimaryDisplay(),
+                    workArea: { x: -1280, y: 0, width: 1280, height: 720 },
+                },
+            ]);
+            (store.get as jest.Mock).mockImplementation((key: string) =>
+                key === WINDOW_BOUNDS ? bounds : undefined
+            );
+
+            const mainWindow = createWindowViaOnReady();
+
+            expect(BrowserWindow).toHaveBeenCalledWith(
+                expect.objectContaining(bounds)
+            );
+            expect(mainWindow.center).not.toHaveBeenCalled();
         });
 
         it('shows the window at did-finish-load when ready-to-show has not come yet', () => {

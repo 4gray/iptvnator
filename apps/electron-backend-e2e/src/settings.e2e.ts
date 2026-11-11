@@ -551,6 +551,66 @@ test.describe('Electron Settings', () => {
         }
     });
 
+    test('@settings @electron shares one unsaved-settings decision between navigation and window close', async ({
+        dataDir,
+    }) => {
+        const app = await launchElectronApp(dataDir);
+        const page = app.mainWindow;
+
+        try {
+            await openSettings(page);
+            await selectSettingsOption(page, 'select-language', 'de');
+            await expect(
+                page.getByTestId('settings-unsaved-bar')
+            ).toBeVisible();
+            await page.evaluate(() => window.electron.getWindowState());
+
+            const stay = page.getByTestId('unsaved-dialog-stay');
+            for (const choice of ['stay', 'save']) {
+                await page.locator('a[href$="/workspace/dashboard"]').click();
+                await expect(stay).toHaveCount(1);
+                await page.evaluate(() => {
+                    delete document.documentElement.dataset['closeRequested'];
+                    const stop = window.electron.onWindowCloseRequested?.(
+                        () => {
+                            document.documentElement.dataset['closeRequested'] =
+                                '';
+                            stop?.();
+                        }
+                    );
+                });
+                await app.electronApp.evaluate(({ BrowserWindow }) => {
+                    BrowserWindow.getAllWindows()[0].close();
+                });
+                await expect(
+                    page.locator('html[data-close-requested]')
+                ).toHaveCount(1);
+                await expect(stay).toHaveCount(1);
+                await page.getByTestId(`unsaved-dialog-${choice}`).click();
+
+                if (choice === 'stay') {
+                    await expect(stay).toHaveCount(0);
+                    await expect(
+                        page.getByTestId('settings-unsaved-bar')
+                    ).toBeVisible();
+                }
+            }
+            await expect.poll(() => app.electronApp.windows().length).toBe(0);
+        } finally {
+            await closeElectronApp(app);
+        }
+
+        const relaunch = await launchElectronApp(dataDir);
+        try {
+            await openSettings(relaunch.mainWindow);
+            await expect(
+                relaunch.mainWindow.getByTestId('select-language')
+            ).toContainText('Deutsch');
+        } finally {
+            await closeElectronApp(relaunch);
+        }
+    });
+
     test('@settings @persistence @electron persists the EPG view mode across app restart', async ({
         dataDir,
     }) => {
