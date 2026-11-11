@@ -1085,8 +1085,12 @@ cancels only that launch and lets an allowed in-flight launch finish. After
 the queued launch starts, an exact close waits for its own closer instead of
 invoking the queued Stop handler on another player. Cancelling the active
 queue entry republishes the surviving session so the dock can still stop it.
+An exact close before the first content command preserves the reused child's
+previous owner and republishes it when it can still be stopped.
 Once a reused process accepts a replacement content command, its previous
 session retires; the replacement alone reports the child's eventual exit.
+Overlapping VLC replacements retire the actual owner at the first RC write;
+an older replacement stops sending commands when a newer one takes ownership.
 VLC's fallback launch without RC applies only while the original session
 still owns that child.
 A queued launch that finds the teardown gate closed, because the launch before

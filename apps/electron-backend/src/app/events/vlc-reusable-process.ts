@@ -42,7 +42,7 @@ interface VlcReuseOptions {
         onSnapshot?: (snapshot: ExternalPlaybackSnapshot) => void,
         onStopped?: () => void
     ) => void;
-    stopPositionPolling: () => void;
+    stopPositionPolling: (sessionId: string) => void;
 }
 
 /** Owns the one VLC child/RC port retained when instance reuse is enabled. */
@@ -51,6 +51,8 @@ export class VlcReusableProcess {
     private rcPort: number | null = null;
     private processSessionId: string | null = null;
     private readonly processSessionIds = new WeakMap<ChildProcess, string>();
+    private reuseOrder = 0;
+    private dispatchedReuse = 0;
 
     currentSessionId(): string | null {
         return this.processSessionId;
@@ -108,9 +110,18 @@ export class VlcReusableProcess {
             rcPort: reusedRcPort,
         });
         const { session, state } = options;
-        const reusedProcessSessionId =
+        let reusedProcessSessionId =
             this.processSessionIds.get(reusedProcess) ??
             options.previousProcessSessionId;
+        const order = ++this.reuseOrder;
+        const superseded = () =>
+            order < this.dispatchedReuse || this.process !== reusedProcess;
+        const retire = () => {
+            const snapshot = externalPlayerSessions.getSession(session.id);
+            return snapshot?.status === 'error'
+                ? snapshot
+                : (externalPlayerSessions.markClosed(session.id) ?? session);
+        };
         let closeRequested = false;
         let retryableClose: Promise<void> | null = null;
         let launchClose: Promise<void> | null = null;
@@ -144,9 +155,23 @@ export class VlcReusableProcess {
             return externalPlayerSessions.markClosed(session.id) ?? session;
         };
 
-        externalPlayerSessions.attachCloser(session.id, () => {
+        externalPlayerSessions.attachCloser(session.id, (exact) => {
             closeRequested = true;
             state.closeRequested = true;
+            const owner = this.processSessionIds.get(reusedProcess);
+            if (
+                exact &&
+                !launchClose &&
+                owner !== session.id &&
+                (!state.contentMutated || superseded())
+            ) {
+                if (owner)
+                    externalPlayerSessions.restoreActiveSession(
+                        owner,
+                        session.id
+                    );
+                return;
+            }
             if (!ownsReusedProcess()) return;
             if (!retryableClose) {
                 const closeAttempt = closeReusedProcess();
@@ -181,17 +206,23 @@ export class VlcReusableProcess {
                 (_command, index) => {
                     if (index !== 0) return;
                     state.contentMutated = true;
+                    this.dispatchedReuse = order;
+                    reusedProcessSessionId =
+                        this.processSessionIds.get(reusedProcess) ??
+                        reusedProcessSessionId;
                     this.processSessionId = session.id;
                     this.processSessionIds.set(reusedProcess, session.id);
-                    if (reusedProcessSessionId)
+                    if (reusedProcessSessionId) {
                         externalPlayerSessions.markClosed(
                             reusedProcessSessionId
                         );
-                    options.stopPositionPolling();
+                        options.stopPositionPolling(reusedProcessSessionId);
+                    }
                 },
-                () => !closeRequested
+                () => !closeRequested && !superseded()
             );
             if (closeRequested) return await finishRequestedClose();
+            if (superseded()) return retire();
             traceExternalPlayer('loaded new url in existing vlc instance');
 
             let lastSnapshot: ExternalPlaybackSnapshot | null = null;
@@ -218,14 +249,13 @@ export class VlcReusableProcess {
                         externalPlayerSessions.markClosed(session.id);
                     }
                 );
-            } else {
-                options.stopPositionPolling();
             }
             return externalPlayerSessions.markOpened(session.id) ?? session;
         } catch (error) {
             const current = externalPlayerSessions.getSession(session.id);
             if (current?.status === 'closed') return current;
             if (closeRequested) return await finishRequestedClose();
+            if (superseded()) return retire();
             console.error(
                 'Failed to reuse existing VLC, spawning fresh:',
                 error
@@ -253,7 +283,11 @@ export class VlcReusableProcess {
                 throw teardownError;
             }
             this.clear(reusedProcess);
-            options.stopPositionPolling();
+            options.stopPositionPolling(
+                state.contentMutated
+                    ? session.id
+                    : (reusedProcessSessionId ?? session.id)
+            );
             if (closeRequested) return await finishRequestedClose();
             return null;
         }

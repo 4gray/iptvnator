@@ -148,24 +148,52 @@ describe('vlc-session.service process lifecycle', () => {
             });
         });
 
-        it('reuses the tracked VLC instance through RC commands', async () => {
+        it.each([false, true])(
+            'reuses the tracked VLC instance through RC commands (overlap: %s)',
+            async (overlap) => {
+                const proc = createMockChildProcess();
+                await openTrackedVlcInstance(proc);
+                installRcSocketMock('ack');
+
+                const earlier = overlap
+                    ? openVlcPlayer({ title: 'Earlier', url: streamUrl })
+                    : undefined;
+                const session = await openVlcPlayer({
+                    title: 'Second',
+                    url: 'https://example.com/two.m3u8',
+                    referer: 'https://ref.example',
+                });
+
+                expect(spawnMock).toHaveBeenCalledTimes(1);
+                expect(rcWrites).toEqual([
+                    ...(overlap ? ['clear\n'] : []),
+                    'clear\n',
+                    'add https://example.com/two.m3u8 :start-time=0 ' +
+                        ':http-referrer=https://ref.example :meta-title=Second\n',
+                ]);
+                expect(session.status).toBe('opened');
+                if (earlier) expect((await earlier).status).toBe('closed');
+            }
+        );
+
+        it('keeps the previous process owner when exact cancellation precedes clear', async () => {
             const proc = createMockChildProcess();
             await openTrackedVlcInstance(proc);
+            const previous = externalPlayerSessions.getActiveSessionId();
             installRcSocketMock('ack');
-
-            const session = await openVlcPlayer({
-                title: 'Second',
-                url: 'https://example.com/two.m3u8',
-                referer: 'https://ref.example',
+            const opening = openVlcPlayer({
+                title: 'Synthetic Replacement',
+                url: 'https://example.test/replacement.m3u8',
             });
+            const id = externalPlayerSessions.getActiveSessionId() as string;
 
-            expect(spawnMock).toHaveBeenCalledTimes(1);
-            expect(rcWrites).toEqual([
-                'clear\n',
-                'add https://example.com/two.m3u8 :start-time=0 ' +
-                    ':http-referrer=https://ref.example :meta-title=Second\n',
-            ]);
-            expect(session.status).toBe('opened');
+            const closed = { id, status: 'closed' };
+            const result = await externalPlayerSessions.closeSession(id, true);
+            expect(result).toMatchObject(closed);
+            await expect(opening).resolves.toMatchObject(closed);
+            expect(externalPlayerSessions.getActiveSessionId()).toBe(previous);
+            expect(rcWrites).toEqual([]);
+            expect(proc.kill).not.toHaveBeenCalled();
         });
 
         it('reports exit code 1 on the reused session without retrying its original launch', async () => {

@@ -688,9 +688,57 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         }
     );
 
-    it.each([false, true])(
-        'reattaches external playback when Live TV reopens (failed replacement: %s)',
-        (failed) => {
+    it('keeps the allowed session when a queued copy of the same URL is relocked', () => {
+        const allowed = { ...sampleChannel, category_id: 1 };
+        const restricted = {
+            ...allowed,
+            category_id: 2,
+            epg_channel_id: 'synthetic.restricted',
+        };
+        emptyList.set([allowed, restricted]);
+        portalPlayer.isEmbeddedPlayer.set(false);
+        component.playLive(allowed, true, [allowed]);
+        const opening: ExternalPlayerSession = {
+            id: 'synthetic-allowed',
+            streamUrl: component.activeStreamUrl(),
+            title: 'Synthetic Channel',
+            player: 'mpv',
+            status: 'launching',
+            startedAt: '2026-04-04T10:00:00Z',
+            updatedAt: '2026-04-04T10:00:00Z',
+            canClose: true,
+        };
+        publishExternalSession(opening);
+        fixture.detectChanges();
+        component.playLive(restricted, true, [restricted]);
+        const queued = { ...opening, id: 'synthetic-restricted' };
+        publishExternalSession(queued);
+        fixture.detectChanges();
+        parentalLock.isXtreamCategoryLocked.mockImplementation(
+            (_playlist, _type, category) => category === 2
+        );
+        parentalLock.active.set(true);
+        parentalLock.version.update((version) => version + 1);
+        fixture.detectChanges();
+        publishExternalSession({
+            ...opening,
+            restoredFromSessionId: queued.id,
+        });
+        onExternalPlayerSessionUpdate.mock.lastCall?.[0]({
+            ...queued,
+            status: 'closed',
+            canClose: false,
+        });
+        publishExternalSession({ ...opening, status: 'opened' });
+        fixture.detectChanges();
+
+        expect(component.guide.available()).toBe(true);
+        expect(component.channelNavigation.remoteChannels()).toEqual([allowed]);
+    });
+
+    it.each(['direct', 'failed replacement', 'unrelated session'] as const)(
+        'reattaches external playback when Live TV reopens (%s)',
+        (scenario) => {
             const playing = { ...sampleChannel, category_id: 1 };
             const next = { ...playing, xtream_id: 102 };
             emptyList.set([playing, next]);
@@ -708,7 +756,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             };
             publishExternalSession(session);
             fixture.detectChanges();
-            if (failed) {
+            if (scenario === 'failed replacement') {
                 xtreamStore.constructStreamUrl.mockReturnValueOnce(
                     'https://example.test/replacement.ts'
                 );
@@ -728,6 +776,13 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 fixture.detectChanges();
             }
             fixture.destroy();
+            if (scenario === 'unrelated session') {
+                publishExternalSession({
+                    ...session,
+                    id: 'synthetic-unrelated',
+                    streamUrl: 'https://example.test/unrelated.ts',
+                });
+            }
             fixture = TestBed.createComponent(LiveStreamLayoutComponent);
             component = fixture.componentInstance;
             fixture.detectChanges();
@@ -741,7 +796,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             fixture.detectChanges();
             expect(component.guideNowPlayingChannel()).toBe(session.title);
             expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(
-                failed ? 2 : 1
+                scenario === 'failed replacement' ? 2 : 1
             );
             xtreamStore.currentPlaylist.set({
                 ...playlist,

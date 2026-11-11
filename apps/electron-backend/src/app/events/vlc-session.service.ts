@@ -253,10 +253,7 @@ export async function openVlcPlayer({
                 startTime,
                 state: reuseState,
                 startPositionPolling: startVlcPositionPolling,
-                stopPositionPolling: () =>
-                    stopVlcPositionPolling(
-                        previousProcessSessionId ?? undefined
-                    ),
+                stopPositionPolling: stopVlcPositionPolling,
             });
             if (reused) return reused;
         }

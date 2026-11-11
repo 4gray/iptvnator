@@ -227,6 +227,27 @@ describe('reused MPV IPC replies', () => {
         expect(sockets).toHaveLength(1);
     });
 
+    it('keeps the previous process owner when exact cancellation precedes loadfile', async () => {
+        const { proc, session: previous } = await launchReusableSession();
+        const socket = createMpvSocketMock({ connect: false });
+        createConnectionMock.mockReturnValue(socket);
+        const opening = openMpvPlayer({
+            title: 'Synthetic Replacement',
+            url: 'https://example.test/replacement.m3u8',
+        });
+        const id = externalPlayerSessions.getActiveSessionId() as string;
+        while (!createConnectionMock.mock.calls.length) await nextTick();
+
+        await expect(
+            externalPlayerSessions.closeSession(id, true)
+        ).resolves.toMatchObject({ id, status: 'closed' });
+        socket.emit('connect');
+        await expect(opening).resolves.toMatchObject({ id, status: 'closed' });
+        expect(externalPlayerSessions.getActiveSessionId()).toBe(previous.id);
+        expect(socket.write).not.toHaveBeenCalled();
+        expect(proc.kill).not.toHaveBeenCalled();
+    });
+
     it('lets a stale Stop for the previous session pass while the loadfile reply is pending', async () => {
         const { proc, session: previous } = await launchReusableSession();
         const sockets = mockUnansweredSockets();

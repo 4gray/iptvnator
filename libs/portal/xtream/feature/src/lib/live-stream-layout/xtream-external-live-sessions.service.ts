@@ -87,11 +87,15 @@ export class XtreamExternalLiveSessions {
         return this.sessions.get(id);
     }
 
-    latestOpened(playlistId: string): ExternalPlayerSession | undefined {
+    latestOpened(
+        playlistId: string,
+        excludeId?: string
+    ): ExternalPlayerSession | undefined {
         this.revision();
         let latest: ExternalPlayerSession | undefined;
         for (const { session, source } of this.sessions.values()) {
             if (
+                session.id === excludeId ||
                 source.playlistId !== playlistId ||
                 !source.channel ||
                 (session.status !== 'opened' && session.status !== 'playing')

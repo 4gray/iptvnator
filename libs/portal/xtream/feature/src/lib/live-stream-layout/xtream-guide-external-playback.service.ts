@@ -79,40 +79,32 @@ export class XtreamGuideExternalPlayback {
             { playlistId, active },
             previous
         ): ConfirmedLaunch | null => {
-            const prior =
-                previous?.value?.lockSource.playlistId === playlistId
-                    ? previous?.value
-                    : null;
-            if (!hasOpened(active)) {
-                if (prior && prior.session.id !== active?.id) {
-                    const session = this.sessions.state(
-                        prior.session.id
-                    )?.session;
-                    if (hasOpened(session)) return { ...prior, session };
-                }
-                const survivor =
-                    playlistId && this.sessions.latestOpened(playlistId);
-                const launch =
-                    survivor && survivor.id !== active?.id
-                        ? this.reattach(survivor)
-                        : undefined;
-                return launch && survivor
-                    ? { ...launch, session: survivor }
-                    : null;
-            }
+            if (!playlistId) return null;
+            const prior = previous?.value;
+            const owned =
+                hasOpened(active) &&
+                this.sessions.state(active.id)?.source.playlistId ===
+                    playlistId;
+            const session = owned
+                ? active
+                : this.survivor(playlistId, active?.id, prior);
+            if (!session) return null;
+            const source = this.sessions.state(session.id)?.source;
+            if (!source) return null;
+            const requested = this.requests.get(session.streamUrl);
             const launch =
-                prior?.session.id === active.id
+                prior?.session.id === session.id && prior.lockSource === source
                     ? prior
-                    : (this.requests.get(active.streamUrl) ??
-                      this.reattach(active));
-            if (!launch || launch.lockSource.playlistId !== playlistId)
-                return null;
+                    : requested?.lockSource === source
+                      ? requested
+                      : this.reattach(source);
+            if (!launch) return null;
             if (launch === this.pending) {
                 this.requests.clear();
-                this.requests.set(active.streamUrl, launch);
+                this.requests.set(session.streamUrl, launch);
                 this.pending = undefined;
             }
-            return { ...launch, session: active };
+            return { ...launch, session };
         },
     });
 
@@ -128,11 +120,12 @@ export class XtreamGuideExternalPlayback {
     readonly launching = computed(() => {
         const active = this.playback?.activeSession();
         if (active?.status !== 'launching' || this.playing()) return false;
-        const pending = this.requests.get(active.streamUrl);
+        const source = this.sessions.state(active.id)?.source;
         this.lock.version();
         return (
-            !!pending &&
-            !isXtreamLiveCategoryWithheld(this.lock, pending.lockSource)
+            !!source &&
+            source.playlistId === this.store.currentPlaylist()?.id &&
+            !isXtreamLiveCategoryWithheld(this.lock, source)
         );
     });
 
@@ -287,10 +280,25 @@ export class XtreamGuideExternalPlayback {
         return true;
     }
 
-    private reattach(session: ExternalPlayerSession): GuideLaunch | undefined {
-        const source = this.sessions.state(session.id)?.source;
-        const item = source?.channel;
-        if (!source?.playback || !item) return;
+    private survivor(
+        playlistId: string,
+        activeId: string | undefined,
+        prior: ConfirmedLaunch | null | undefined
+    ) {
+        if (
+            prior &&
+            prior.lockSource.playlistId === playlistId &&
+            prior.session.id !== activeId
+        ) {
+            const session = this.sessions.state(prior.session.id)?.session;
+            if (hasOpened(session)) return session;
+        }
+        return this.sessions.latestOpened(playlistId, activeId);
+    }
+
+    private reattach(source: XtreamLiveSource): GuideLaunch | undefined {
+        const item = source.channel;
+        if (!source.playback || !item) return;
         return {
             lockSource: source,
             item,

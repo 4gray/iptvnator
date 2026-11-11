@@ -207,8 +207,22 @@ export class MpvReusableProcess {
             return externalPlayerSessions.markClosed(session.id) ?? session;
         };
 
-        externalPlayerSessions.attachCloser(session.id, () => {
+        externalPlayerSessions.attachCloser(session.id, (exact) => {
             closeRequested = true;
+            const owner = this.processSessionIds.get(reusedProcess);
+            if (
+                exact &&
+                !state.contentMutated &&
+                !launchClose &&
+                owner !== session.id
+            ) {
+                if (owner)
+                    externalPlayerSessions.restoreActiveSession(
+                        owner,
+                        session.id
+                    );
+                return;
+            }
             if (!ownsReusedProcess()) return;
             if (!retryableClose) {
                 const closeAttempt = closeReusedProcess();
