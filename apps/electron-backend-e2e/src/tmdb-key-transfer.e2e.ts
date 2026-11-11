@@ -186,22 +186,39 @@ test('transfers and rotates the personal TMDB key between PWA and Electron @elec
         );
 
         await Promise.all([replace.click(), compete.click()]);
+        const keyChanged = (client: Page) =>
+            client.getByText('The saved key changed during this transfer.', {
+                exact: false,
+            });
         await expect
             .poll(async () =>
                 Promise.all(
-                    [page, contender].map(
-                        async (client) =>
-                            await client
-                                .getByText(
-                                    'The saved key changed during this transfer.',
-                                    { exact: false }
-                                )
-                                .isVisible()
+                    [page, contender].map((client) =>
+                        keyChanged(client).isVisible()
                     )
                 ).then((outcomes) => outcomes.filter(Boolean).length)
             )
             .toBe(1);
+        const staleTab = (await keyChanged(page).isVisible())
+            ? page
+            : contender;
+        await staleTab
+            .getByRole('dialog')
+            .getByRole('button', { name: 'Close', exact: true })
+            .click();
+        await expect(staleTab.getByTestId('tmdb-api-key')).toHaveValue(
+            rotatedKey
+        );
+        await setSwitch(
+            staleTab.getByTestId('tmdb-enabled').getByRole('switch'),
+            false
+        );
+        await saveSettings(staleTab);
         await page.reload();
+        await expect(
+            page.getByTestId('tmdb-enabled').getByRole('switch')
+        ).not.toBeChecked();
+        await switchOn(page);
         await expect(page.getByTestId('tmdb-api-key')).toHaveValue(rotatedKey);
     } finally {
         if (desktop) await closeElectronApp(desktop);

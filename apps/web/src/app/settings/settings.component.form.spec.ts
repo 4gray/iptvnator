@@ -118,6 +118,26 @@ describe('SettingsComponent form', () => {
         );
     });
 
+    it('keeps a staged key edit when another tab saves a replacement', async () => {
+        await fixture.whenStable();
+        const key = component.settingsForm.controls.tmdb.controls.apiKey;
+        key.setValue('synthetic-draft-key');
+        key.markAsDirty();
+        settingsStore.savedTmdbApiKey.set('synthetic-other-tab-key');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(key.value).toBe('synthetic-draft-key');
+        expect(component.form.changedPaths()).toContain('tmdb.apiKey');
+        await component.form.save(() => undefined);
+        expect(settingsStore.updateSettings).toHaveBeenCalledWith(
+            expect.objectContaining({
+                tmdb: { enabled: false, apiKey: 'synthetic-draft-key' },
+            }),
+            expect.anything()
+        );
+    });
+
     it('stages the desktop portal pause setting until Save', async () => {
         const checkbox = (fixture.nativeElement as HTMLElement).querySelector(
             '[data-test-id="portal-connectivity-toggle"] button[role="switch"]'
@@ -618,7 +638,9 @@ describe('SettingsComponent form', () => {
             expect(component.unsavedMessageKey()).toBe(
                 'SETTINGS.UNSAVED_CHANGES_ONE'
             );
-            expect(settingsCtx.dirtySections()).toEqual(new Set(['appearance']));
+            expect(settingsCtx.dirtySections()).toEqual(
+                new Set(['appearance'])
+            );
 
             component.settingsForm
                 .get('dashboardRails.hero')
@@ -906,6 +928,7 @@ describe('SettingsComponent form', () => {
             expect(settingsStore.updateSettings).toHaveBeenCalledWith(
                 {
                     ...component.settingsForm.value,
+                    tmdb: { enabled: false },
                     trustedPrivateNetworkEpgUrls: [],
                     trustedInsecureTlsHosts: [],
                     // Parental lock settings are not on the form; Save

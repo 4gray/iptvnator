@@ -1,6 +1,7 @@
 import { normalizeAgeRatingCountry } from '@iptvnator/shared/interfaces/age-rating';
 import {
     DestroyRef,
+    effect,
     inject,
     Injectable,
     signal,
@@ -104,6 +105,10 @@ export class SettingsFormFacade {
         this.form.valueChanges
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe(() => this.refreshChangedPaths());
+        effect(() => {
+            const key = this.settingsStore.savedTmdbApiKey();
+            if (key !== undefined) untracked(() => this.syncSavedTmdbKey(key));
+        });
     }
 
     /** Trimmed, non-empty EPG source URLs currently in the form */
@@ -244,6 +249,11 @@ export class SettingsFormFacade {
             this.form,
             this.settingsStore.getSettings()
         );
+        if (
+            settings.tmdb?.apiKey ===
+            (this.savedSnapshot.tmdb.apiKey?.trim() ?? '')
+        )
+            delete settings.tmdb.apiKey;
         let cleanupError: EpgSourceReconciliationError | undefined;
         try {
             await this.settingsStore.updateSettings(settings, {
@@ -259,7 +269,10 @@ export class SettingsFormFacade {
         if (saveRevision !== this.saveRevision) return;
         if (window.electron) {
             try {
-                await window.electron.updateSettings(settings);
+                await window.electron.updateSettings({
+                    ...settings,
+                    tmdb: this.settingsStore.getSettings().tmdb,
+                });
             } catch (error) {
                 if (saveRevision !== this.saveRevision) return;
                 throw new SettingsRuntimeUpdateError(error);
@@ -273,6 +286,8 @@ export class SettingsFormFacade {
         }
         if (cleanupError) throw cleanupError;
         this.takeSavedSnapshot(submittedSnapshot);
+        const savedTmdbKey = this.settingsStore.savedTmdbApiKey();
+        if (savedTmdbKey !== undefined) this.syncSavedTmdbKey(savedTmdbKey);
         onSaved();
         this.refreshRestartPending();
     }
@@ -288,12 +303,19 @@ export class SettingsFormFacade {
 
     applyTransferredTmdbKey(): void {
         const apiKey = this.settingsStore.getSettings().tmdb?.apiKey ?? '';
+        this.syncSavedTmdbKey(apiKey, true);
+        this.settingsSnackbar.tmdbKeySaved();
+    }
+
+    private syncSavedTmdbKey(apiKey: string, replaceDraft = false): void {
+        const control = this.form.controls.tmdb.controls.apiKey;
+        const hasDraft = control.value !== this.savedSnapshot.tmdb.apiKey;
         this.savedSnapshot = {
             ...this.savedSnapshot,
             tmdb: { ...this.savedSnapshot.tmdb, apiKey },
         };
-        this.form.controls.tmdb.controls.apiKey.setValue(apiKey);
-        this.settingsSnackbar.tmdbKeySaved();
+        if (replaceDraft || !hasDraft) control.setValue(apiKey);
+        else this.refreshChangedPaths();
     }
 
     /** Applies saved values while keeping edits made during Save available. */

@@ -1,6 +1,6 @@
 import { EpgPreferencesService } from './epg-preferences.service';
 import { EpgSourceSettingsService } from './epg-source-settings.service';
-import { Injector } from '@angular/core';
+import { type DestroyableInjector, Injector } from '@angular/core';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { of, Subject } from 'rxjs';
 import {
@@ -14,6 +14,7 @@ import {
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import { SettingsStore } from './settings-store.service';
+import { TMDB_KEY_CHANGE } from './settings-store.defaults';
 
 const expectedDashboardRails = (
     overrides: Partial<DashboardRailsSettings> = {}
@@ -32,7 +33,7 @@ const expectedDashboardRails = (
 
 describe('SettingsStore dashboard rail settings', () => {
     let storedSettings: Partial<Settings> | null;
-    let injector: Injector;
+    let injector: DestroyableInjector;
     let storage: {
         get: jest.Mock;
         set: jest.Mock;
@@ -58,6 +59,8 @@ describe('SettingsStore dashboard rail settings', () => {
         });
     });
 
+    afterEach(() => injector.destroy());
+
     it('reflects a committed TMDB transfer without writing settings again', async () => {
         storedSettings = {
             tmdb: { enabled: true, apiKey: 'synthetic-old-key' },
@@ -69,6 +72,31 @@ describe('SettingsStore dashboard rail settings', () => {
             enabled: true,
             apiKey: 'synthetic-new-key',
         });
+        expect(storage.set).not.toHaveBeenCalled();
+    });
+
+    it('rereads the key after another tab commits without touching unrelated settings', async () => {
+        storedSettings = {
+            tmdb: { enabled: true, apiKey: 'synthetic-old-key' },
+        };
+        const store = injector.get(SettingsStore);
+        await store.loadSettings();
+        storedSettings = {
+            tmdb: { enabled: false, apiKey: 'synthetic-new-key' },
+            showCaptions: true,
+        };
+        window.dispatchEvent(
+            new StorageEvent('storage', {
+                key: TMDB_KEY_CHANGE,
+                newValue: 'synthetic-change-notification',
+            })
+        );
+        await Promise.resolve();
+        expect(store.tmdb?.()).toEqual({
+            enabled: true,
+            apiKey: 'synthetic-new-key',
+        });
+        expect(store.getSettings().showCaptions).toBe(false);
         expect(storage.set).not.toHaveBeenCalled();
     });
 

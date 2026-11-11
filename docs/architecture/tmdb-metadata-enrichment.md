@@ -55,6 +55,9 @@ key once; claim, cancellation, expiration or server restart discards the server
 copy. The receiving device needs writable IndexedDB. It compares the previous
 key and saves the replacement in one transaction. A failed local write can be
 retried in the same open dialog before expiry.
+Ordinary settings saves preserve the key already in IndexedDB unless the user
+edits that field. Other tabs reread the key after a save notification. The
+notification contains no key, and a tab keeps any unsaved key edit.
 If the claim response is lost, start a new transfer. The sender reads the local
 saved key directly, so a draft or embedded build key is never sent. Neither the
 session nor the key is saved in the server library or shared user state.
