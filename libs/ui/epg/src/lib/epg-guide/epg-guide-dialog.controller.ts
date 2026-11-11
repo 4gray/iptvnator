@@ -1,5 +1,9 @@
 import { getProgramTimeMs } from '../epg-program.utils';
-import { EpgItemDialogAction } from '../epg-item-description/epg-item-description.component';
+import { EMPTY, finalize } from 'rxjs';
+import {
+    EpgItemDialogAction,
+    EpgItemDialogData,
+} from '../epg-item-description/epg-item-description.component';
 import { EpgProgrammeDialogService } from '../epg-programme-dialog.service';
 import { TimelineRenderBlock } from '../epg-timeline/epg-timeline-render.util';
 import {
@@ -18,6 +22,7 @@ export interface EpgGuideDialogHost {
     /** Switch playback to the channel (a no-op when it already plays). */
     activate(channel: EpgGuideChannel): void;
     catchUp(): EpgGuideCatchUp | undefined;
+    isChannelVisible?(epgKey: string): boolean;
 }
 
 /**
@@ -26,6 +31,7 @@ export interface EpgGuideDialogHost {
  * owns rows, focus and playback and supplies them through the host.
  */
 export class EpgGuideDialogController {
+    private details?: { epgKey: string; owner: AbortController };
     constructor(
         private readonly programmeDialog: EpgProgrammeDialogService,
         private readonly host: EpgGuideDialogHost
@@ -39,26 +45,20 @@ export class EpgGuideDialogController {
             return;
         }
         const when = item.block.when;
-        this.programmeDialog
-            .open({
-                ...item.block.program,
-                channelName: channel.name,
-                channelLogo: channel.logoUrl,
-                primaryAction:
-                    when === 'now'
-                        ? 'live'
-                        : item.canCatchUp
-                          ? 'timeshift'
-                          : null,
-                archiveUnavailableNote: when === 'past' && !item.canCatchUp,
-            })
-            .subscribe((result: EpgItemDialogAction | undefined) => {
-                if (result === 'live') {
-                    this.host.activate(channel);
-                } else if (result === 'timeshift') {
-                    this.host.catchUp()?.watch(channel, item.block.program);
-                }
-            });
+        this.openForChannel(channel.epgKey, {
+            ...item.block.program,
+            channelName: channel.name,
+            channelLogo: channel.logoUrl,
+            primaryAction:
+                when === 'now' ? 'live' : item.canCatchUp ? 'timeshift' : null,
+            archiveUnavailableNote: when === 'past' && !item.canCatchUp,
+        }).subscribe((result: EpgItemDialogAction | undefined) => {
+            if (result === 'live') {
+                this.host.activate(channel);
+            } else if (result === 'timeshift') {
+                this.host.catchUp()?.watch(channel, item.block.program);
+            }
+        });
     }
 
     watch(channel: EpgGuideChannel, item: TimelineRenderBlock): void {
@@ -85,20 +85,46 @@ export class EpgGuideDialogController {
         if (channel) {
             this.host.focusRow(rowIndex);
         }
-        this.programmeDialog
-            .open(
-                channel
-                    ? {
-                          ...hit.program,
-                          channelName: channel.name,
-                          channelLogo: channel.logoUrl,
-                      }
-                    : {
-                          ...hit.program,
-                          channelName: hit.channelName ?? null,
-                      }
-            )
-            .subscribe();
+        this.openForChannel(
+            hit.channelEpgKey ?? channel?.epgKey,
+            channel
+                ? {
+                      ...hit.program,
+                      channelName: channel.name,
+                      channelLogo: channel.logoUrl,
+                  }
+                : {
+                      ...hit.program,
+                      channelName: hit.channelName ?? null,
+                  }
+        ).subscribe();
+    }
+
+    checkVisibility(): void {
+        if (this.details && !this.host.isChannelVisible?.(this.details.epgKey))
+            this.close();
+    }
+
+    close(): void {
+        this.details?.owner.abort();
+        this.details = undefined;
+    }
+
+    private openForChannel(
+        epgKey: string | null | undefined,
+        data: EpgItemDialogData
+    ) {
+        if (!epgKey || !this.host.isChannelVisible)
+            return this.programmeDialog.open(data);
+        if (!this.host.isChannelVisible(epgKey)) return EMPTY;
+        this.close();
+        const details = { epgKey, owner: new AbortController() };
+        this.details = details;
+        return this.programmeDialog.open(data, details.owner.signal).pipe(
+            finalize(() => {
+                if (this.details === details) this.details = undefined;
+            })
+        );
     }
 
     /**

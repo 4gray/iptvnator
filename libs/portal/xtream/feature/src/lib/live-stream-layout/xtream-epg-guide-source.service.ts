@@ -235,8 +235,13 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     });
     readonly activeChannelId = computed(() => {
         const item = this.playback().item;
-        return item ? String(item.xtream_id) : null;
+        if (!item) return null;
+        const id = String(item.xtream_id);
+        const row = this.scopedRows().get(id);
+        return row && sameGuideChannel(row, item) ? id : null;
     });
+    isChannelVisible = (epgKey: string) =>
+        this.items().some((item) => channelEpgKey(item) === epgKey);
     readonly livePlayback = computed(() => this.playback().live);
     readonly playingItem = computed(() => {
         const item = this.playback().item;

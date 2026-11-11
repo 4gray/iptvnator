@@ -416,7 +416,11 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         }
     });
 
-    it.each(['playing', 'replacement'] as const)(
+    it.each([
+        'playing',
+        'replacement',
+        'replacement with closable error',
+    ] as const)(
         'stops the %s external channel when parental controls relock it',
         (locked) => {
             const playing = { ...sampleChannel, category_id: 1 };
@@ -457,19 +461,25 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             parentalLock.active.set(true);
             parentalLock.version.update((version) => version + 1);
             fixture.detectChanges();
-            if (locked === 'replacement') {
-                expect(component.activeStreamUrl()).toBe('');
+            if (locked !== 'playing') {
+                expect(component.activeStreamUrl()).toBe(original.streamUrl);
+                expect(
+                    fixture.debugElement.query(By.directive(EpgGuideComponent))
+                ).not.toBeNull();
                 expect(closeSession).not.toHaveBeenCalled();
                 const opened = {
                     ...pending,
-                    status: 'opened',
+                    status: locked === 'replacement' ? 'opened' : 'error',
                     canClose: true,
                 } as const;
                 externalSession.set(opened);
                 fixture.detectChanges();
                 expect(closeSession).toHaveBeenCalledWith(opened);
                 expect(component.guide.available()).toBe(false);
-                expect(xtreamStore.loadEpg).not.toHaveBeenCalled();
+                expect(xtreamStore.loadEpg).toHaveBeenCalledTimes(1);
+                expect(xtreamStore.setSelectedItem).toHaveBeenLastCalledWith(
+                    playing
+                );
                 return;
             }
             expect(closeSession).toHaveBeenCalledWith(original);
@@ -490,6 +500,65 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         }
     );
 
+    it.each([true, false])(
+        'switches EPG copies without restarting playback (embedded: %s)',
+        (embedded) => {
+            const playing = {
+                ...sampleChannel,
+                category_id: 1,
+                epg_channel_id: 'synthetic.first',
+            };
+            const copy = {
+                ...playing,
+                category_id: 2,
+                epg_channel_id: 'synthetic.copy',
+            };
+            const categories = xtreamStore.getCategoriesBySelectedType();
+            xtreamStore.getCategoriesBySelectedType.set([
+                ...categories,
+                { category_id: 2, category_name: 'Synthetic Copy Group' },
+            ]);
+            try {
+                emptyList.set([playing, copy]);
+                portalPlayer.isEmbeddedPlayer.set(embedded);
+                component.playLive(playing, true);
+                const playback = component.activePlayback()!;
+                if (!embedded)
+                    externalSession.set({
+                        id: 'synthetic-copy-switch-session',
+                        streamUrl: playback.streamUrl,
+                        title: 'Synthetic Channel',
+                        player: 'mpv',
+                        status: 'playing',
+                        startedAt: '2026-04-04T10:00:00Z',
+                        updatedAt: '2026-04-04T10:00:00Z',
+                        canClose: true,
+                    });
+                component.guide.open();
+                fixture.detectChanges();
+                const source = fixture.debugElement.injector.get(
+                    XtreamEpgGuideSourceService
+                );
+                expect(source.activeChannelId()).toBe('101');
+                source.setScope('2');
+                expect(source.activeChannelId()).toBeNull();
+                source.activate('101');
+                fixture.detectChanges();
+                expect(source.activeChannelId()).toBe('101');
+                expect(source.playingItem()).toBe(copy);
+                expect(component.activePlayback()).toBe(playback);
+                expect(xtreamStore.setSelectedItem).toHaveBeenLastCalledWith(
+                    copy
+                );
+                expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(
+                    embedded ? 0 : 1
+                );
+            } finally {
+                xtreamStore.getCategoriesBySelectedType.set(categories);
+            }
+        }
+    );
+
     it.each([
         'restores original',
         'opens intermediate',
@@ -498,12 +567,15 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
     ] as const)(
         'tracks the confirmed external channel during overlapping switches (%s)',
         (outcome) => {
+            const playing = { ...sampleChannel, category_id: 1 };
+            const next = { ...playing, xtream_id: 102 };
+            emptyList.set([playing, next]);
             portalPlayer.isEmbeddedPlayer.set(false);
             component.guide.collapsed.set(false);
-            component.playLive(sampleChannel, false);
+            component.playLive(playing, false);
             expect(component.guide.available()).toBe(false);
 
-            component.playLive(sampleChannel, true);
+            component.playLive(playing, true);
             const session: ExternalPlayerSession = {
                 id: 'synthetic-external-session',
                 streamUrl: component.activeStreamUrl(),
@@ -529,7 +601,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             xtreamStore.constructStreamUrl.mockReturnValueOnce(
                 'https://example.com/next.ts'
             );
-            component.playLive({ ...sampleChannel, xtream_id: 102 }, true);
+            component.playLive(next, true);
             fixture.detectChanges();
             expect(component.guide.isOpen()).toBe(true);
             expect(component.guideNowPlayingChannel()).toBe(session.title);

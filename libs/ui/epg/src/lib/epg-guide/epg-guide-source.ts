@@ -92,6 +92,8 @@ export interface EpgGuideSource {
     readonly deferredCoverage?: boolean;
     /** Source changes that don't change the channel catalogue. */
     readonly revision?: Signal<unknown>;
+    /** Whether a copy is still available anywhere in the catalogue. */
+    isChannelVisible?(epgKey: string): boolean;
     readonly activeChannelId: Signal<string | null>;
     /**
      * False while the host plays something other than the active channel's

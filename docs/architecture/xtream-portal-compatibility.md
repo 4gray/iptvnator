@@ -789,11 +789,14 @@ player restores the previous session or rejects a switch while the old session
 is still playing, the guide keeps its scope and search. The dock, player panel
 and remote controls follow the confirmed session. If a relock withholds that
 channel or the pending replacement, the guide hides the withheld channel and
-closes its external session even if it finishes opening later. The guide uses
+closes its external session even if it finishes opening later or reports a
+closable error. Retiring only the pending switch keeps the confirmed channel
+and its guide available. The guide uses
 the current playlist's visible, unlocked live catalogue and can scope it to
 a category or resolved live favorites.
 A stream shared by multiple categories appears in each of those scopes and
-once in All Channels.
+once in All Channels. Choosing another copy of a stream already playing
+switches its EPG mapping without restarting playback.
 
 Xtream supplies full schedules per stream. The guide starts with the rendered
 rows, shares in-flight work and a bounded five-minute in-memory cache, and
@@ -816,7 +819,8 @@ within the same budget. Programme search reads the available live
 catalogue on demand, including channels outside the viewport and distinct
 schedules for streams shared by multiple categories. Search publishes
 matches and progress as it scans. A match keeps the category copy that supplied
-its schedule, even if the guide scope changes before the match opens. A failed
+its schedule, even if the guide scope changes before the match opens. Guide
+details close when their channel is withheld. A failed
 schedule does not discard matches from other channels. Large scopes can take longer to
 search or filter. Closing the guide cancels its in-flight provider requests.
 Replacing a search or viewport request cancels work once no other guide

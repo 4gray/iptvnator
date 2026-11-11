@@ -209,6 +209,7 @@ export class EpgGuideComponent implements OnDestroy {
             focusRow: (rowIndex) => this.revealRow(rowIndex),
             activate: (channel) => this.activateRow(channel),
             catchUp: () => this.source.catchUp,
+            isChannelVisible: this.source.isChannelVisible?.bind(this.source),
         }
     );
 
@@ -275,7 +276,10 @@ export class EpgGuideComponent implements OnDestroy {
         if (this.source.revision) {
             effect(() => {
                 this.source.revision?.();
-                untracked(() => this.search.setQuery(this.search.query()));
+                untracked(() => {
+                    this.dialogs.checkVisibility();
+                    this.search.setQuery(this.search.query());
+                });
             });
         }
         effect(() => {
@@ -306,6 +310,7 @@ export class EpgGuideComponent implements OnDestroy {
     }
 
     ngOnDestroy(): void {
+        this.dialogs.close();
         this.view.destroy();
         this.search.destroy();
     }

@@ -1,5 +1,5 @@
 import { EpgProgram } from '@iptvnator/shared/interfaces';
-import { of } from 'rxjs';
+import { NEVER, of } from 'rxjs';
 import { EpgProgrammeDialogService } from '../epg-programme-dialog.service';
 import { TimelineRenderBlock } from '../epg-timeline/epg-timeline-render.util';
 import {
@@ -61,7 +61,10 @@ interface Harness {
     offsetMinutes: number;
 }
 
-function harness(offsetMinutes = 0): Harness {
+function harness(
+    offsetMinutes = 0,
+    isChannelVisible?: (epgKey: string) => boolean
+): Harness {
     const open = jest.fn(() => of(undefined));
     const focusRow = jest.fn();
     const activate = jest.fn();
@@ -74,6 +77,7 @@ function harness(offsetMinutes = 0): Harness {
         focusRow,
         activate,
         catchUp: () => catchUp,
+        isChannelVisible,
     };
     return {
         controller: new EpgGuideDialogController(
@@ -215,5 +219,29 @@ describe('EpgGuideDialogController', () => {
         expect(test.open).toHaveBeenCalledWith(
             expect.objectContaining({ channelName: 'Synthetic Other Copy' })
         );
+    });
+
+    it('dismisses an off-scope search hit when its channel becomes unavailable', () => {
+        let allowed = true;
+        const test = harness(
+            0,
+            (key) => key === 'synthetic-other-copy' && allowed
+        );
+        test.open.mockReturnValue(NEVER);
+        const hit = {
+            channelId: 'b',
+            channelEpgKey: 'synthetic-other-copy',
+            channelName: 'Synthetic Other Copy',
+            program: program(),
+        };
+        test.controller.openSearchResult(hit);
+        const owner: AbortSignal = test.open.mock.calls[0][1];
+        test.controller.checkVisibility();
+        expect(owner.aborted).toBe(false);
+        allowed = false;
+        test.controller.checkVisibility();
+        expect(owner.aborted).toBe(true);
+        test.controller.openSearchResult(hit);
+        expect(test.open).toHaveBeenCalledTimes(1);
     });
 });

@@ -77,6 +77,24 @@ describe('EpgProgrammeDialogService', () => {
         ).toBe('Evening Show');
     });
 
+    it('closes only the programme dialog owned by an aborted guide', async () => {
+        const fixture = TestBed.createComponent(HostComponent);
+        const service = TestBed.inject(EpgProgrammeDialogService);
+        const material = TestBed.inject(MatDialog);
+        const owner = new AbortController();
+        service.open(programme, owner.signal).subscribe();
+        service.open({
+            ...programme,
+            title: 'Synthetic Independent Programme',
+        });
+        const [owned, independent] = material.openDialogs;
+        owner.abort();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(material.openDialogs).not.toContain(owned);
+        expect(material.openDialogs).toContain(independent);
+    });
+
     it('offers one dismiss first and the primary action last', async () => {
         const container = await openDialog({
             ...programme,

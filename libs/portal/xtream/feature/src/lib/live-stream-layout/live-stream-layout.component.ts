@@ -523,11 +523,7 @@ export class LiveStreamLayoutComponent
         ):
             | (GuideExternalChannel & { session: ExternalPlayerSession })
             | null => {
-            if (
-                !isLiveExternalPlayerSession(session) ||
-                session.status === 'error'
-            )
-                return null;
+            if (!isLiveExternalPlayerSession(session)) return null;
             const playing =
                 previous?.value?.playlistId === playlistId
                     ? previous?.value
@@ -539,24 +535,34 @@ export class LiveStreamLayoutComponent
                     ? playing
                     : this.guideExternalRequests.get(session.streamUrl);
             if (!confirmed || confirmed.playlistId !== playlistId) return null;
-            if (confirmed === this.pendingExternalLaunch) {
+            if (
+                confirmed === this.pendingExternalLaunch &&
+                session.status !== 'error'
+            ) {
                 this.guideExternalRequests.clear();
+                this.guideExternalRequests.set(session.streamUrl, confirmed);
                 this.pendingExternalLaunch = undefined;
             }
             return { ...confirmed, session };
         },
     });
-    private readonly confirmedExternalSession = computed(() => {
+    private readonly externalSessionWithheld = computed(() => {
         this.parentalLock.version();
-        const confirmed = this.guideExternalSession();
-        if (!confirmed) return null;
+        const tracked = this.guideExternalSession();
+        if (!tracked) return false;
         const categoryId =
-            confirmed.playback === this.activePlayback()
+            tracked.playback === this.activePlayback()
                 ? this.activeLiveProviderCategoryId
-                : confirmed.categoryId;
-        return this.isLiveCategoryWithheld(confirmed.playlistId, categoryId)
-            ? null
-            : confirmed;
+                : tracked.categoryId;
+        return this.isLiveCategoryWithheld(tracked.playlistId, categoryId);
+    });
+    private readonly confirmedExternalSession = computed(() => {
+        const tracked = this.guideExternalSession();
+        return tracked &&
+            tracked.session.status !== 'error' &&
+            !this.externalSessionWithheld()
+            ? tracked
+            : null;
     });
     private readonly remoteLiveItem = computed(() =>
         this.usesEmbeddedPlayer() || !this.externalPlayback
@@ -624,6 +630,15 @@ export class LiveStreamLayoutComponent
             )
         );
         this.guideSource.bind((item, channels) => {
+            const playing = this.guideChannel();
+            if (
+                playing?.xtream_id === item.xtream_id &&
+                !this.guideArchiveProgram()
+            ) {
+                if (!sameGuideChannel(playing, item))
+                    this.switchGuideChannelCopy(item, channels);
+                return;
+            }
             if (
                 !this.usesEmbeddedPlayer() &&
                 this.pendingExternalLaunch?.item.xtream_id === item.xtream_id &&
@@ -649,7 +664,7 @@ export class LiveStreamLayoutComponent
         });
         effect(() => {
             const raw = this.guideExternalSession();
-            if (!raw || this.confirmedExternalSession()) {
+            if (!raw || !this.externalSessionWithheld()) {
                 this.withheldExternalSessionId = undefined;
                 return;
             }
@@ -715,6 +730,15 @@ export class LiveStreamLayoutComponent
                 )
                     return;
                 this.playbackRequestId += 1;
+                const confirmed = this.confirmedExternalSession();
+                if (
+                    !this.usesEmbeddedPlayer() &&
+                    confirmed &&
+                    this.activePlayback() === this.externalPanelPlayback
+                ) {
+                    this.syncExternalGuidePlayback(confirmed);
+                    return;
+                }
                 this.activePlayback.set(null);
                 this.activeLiveItemId.set(null);
                 this.activeGuideItem.set(null);
@@ -1316,20 +1340,47 @@ export class LiveStreamLayoutComponent
     }: GuideExternalChannel): void {
         const current = this.activePlayback();
         // A browse-only preview owns the panel until another channel is played.
-        if (current !== this.externalPanelPlayback) return;
+        if (current && current !== this.externalPanelPlayback) return;
         captureNavigation?.();
-        if (current === playback) return;
+        if (current === playback && this.activeGuideItem() === item) return;
         this.externalPanelPlayback = playback;
         this.activePlayback.set(playback);
         this.activeLiveItemId.set(item.xtream_id);
+        this.activeCatchupProgram.set(archive);
+        this.selectGuideLiveItem(item);
+    }
+
+    private selectGuideLiveItem(item: XtreamLiveChannelItem): void {
         this.activeLiveProviderCategoryId =
             this.resolveLiveProviderCategoryId(item);
         this.activeGuideItem.set(item);
-        this.activeCatchupProgram.set(archive);
         this.xtreamStore.setSelectedItem({ ...item });
         void this.xtreamStore.loadEpg((signal) =>
             this.readGuideSchedule(item, signal)
         );
+    }
+
+    private switchGuideChannelCopy(
+        item: XtreamLiveChannelItem,
+        channels: readonly XtreamLiveChannelItem[]
+    ): void {
+        if (this.usesEmbeddedPlayer()) {
+            this.selectGuideLiveItem(item);
+            this.channelNavigation.capture(item, channels, true);
+            return;
+        }
+        const playing = this.confirmedExternalSession();
+        if (!playing) return;
+        this.syncExternalGuidePlayback({ ...playing, item });
+        if (this.activeGuideItem() !== item) return;
+        this.channelNavigation.capture(item, channels, true);
+        const copy = {
+            ...playing,
+            item,
+            categoryId: this.activeLiveProviderCategoryId,
+        };
+        this.guideExternalRequests.set(playing.session.streamUrl, copy);
+        this.guideExternalSession.set(copy);
     }
 
     private async readGuideSchedule(
