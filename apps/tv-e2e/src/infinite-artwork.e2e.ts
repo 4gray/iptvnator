@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { addSource, backend, nav, start } from './helpers';
+import { fillTvField, addSource, backend, nav, start } from './helpers';
 
 test('Stalker relative screenshots render as 2:3 posters and scrolling appends provider pages', async ({
     page,
@@ -189,9 +189,10 @@ test('a query change cancels an in-flight append and its late result cannot repo
             e.scrollTop = e.scrollHeight;
         });
         await pending;
-        await page
-            .getByLabel('Search this source')
-            .fill('no-title-with-this-exact-phrase');
+        await fillTvField(
+            page.getByLabel('Search this source'),
+            'no-title-with-this-exact-phrase'
+        );
         await expect(page.locator('.virtual-collection')).toHaveAttribute(
             'data-loaded',
             '0'

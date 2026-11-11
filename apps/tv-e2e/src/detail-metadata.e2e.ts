@@ -1,7 +1,7 @@
 import { expect, Page, test } from '@playwright/test';
 import { workspaceRoot } from '@nx/devkit';
 import { resolve } from 'node:path';
-import { addSource, nav, start } from './helpers';
+import { fillTvField, addSource, nav, start } from './helpers';
 import { checkHorizontalRail } from './horizontal-rail';
 
 const artwork =
@@ -90,9 +90,10 @@ async function enable(page: Page) {
         .getByRole('tab', { name: 'Metadata · TMDB', exact: false })
         .click();
     await page.getByLabel('Use TMDB metadata').check();
-    await page
-        .getByLabel('TMDB API key or read access token')
-        .fill('fixture-key');
+    await fillTvField(
+        page.getByLabel('TMDB API key or read access token'),
+        'fixture-key'
+    );
     await page.getByRole('button', { name: 'Save TMDB settings' }).click();
     await expect(page.locator('.tmdb-settings [role=status]')).toContainText(
         'saved'

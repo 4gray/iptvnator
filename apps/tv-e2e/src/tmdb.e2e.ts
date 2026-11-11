@@ -1,5 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
-import { chooseTv, addSource, nav, start } from './helpers';
+import { fillTvField, chooseTv, addSource, nav, start } from './helpers';
 
 const svg =
     '<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900"><rect width="1600" height="900" fill="#275947"/><circle cx="1250" cy="300" r="230" fill="#d6b884"/></svg>';
@@ -28,7 +28,10 @@ async function enable(page: Page, key = 'fake-tv-key') {
         .getByRole('tab', { name: 'Metadata · TMDB', exact: false })
         .click();
     await page.getByLabel('Use TMDB metadata').check();
-    await page.getByLabel('TMDB API key or read access token').fill(key);
+    await fillTvField(
+        page.getByLabel('TMDB API key or read access token'),
+        key
+    );
     await page.getByRole('button', { name: 'Save TMDB settings' }).click();
     await expect(page.locator('.tmdb-settings [role=status]')).toContainText(
         'saved'
@@ -107,9 +110,10 @@ test('@tmdb opt-in, key validation, language and relaunch preserve provider iden
     expect(
         requests.some((request) => request.path.includes('language=de-DE'))
     ).toBe(true);
-    await page
-        .getByLabel('TMDB API key or read access token')
-        .fill('eyJ.fake-tv-read-token');
+    await fillTvField(
+        page.getByLabel('TMDB API key or read access token'),
+        'eyJ.fake-tv-read-token'
+    );
     await page.getByRole('button', { name: 'Check TMDB key' }).click();
     await expect(page.locator('.tmdb-settings [role=status]')).toHaveText(
         'TMDB key is valid. Save your changes to use this key and language.'

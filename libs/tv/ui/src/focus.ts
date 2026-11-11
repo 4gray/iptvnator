@@ -7,6 +7,34 @@ import { registerTvKeys } from './platform';
 
 const selectors =
     'button:not(:disabled):not([data-tv-pointer-only]),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),summary,[data-tv-scroll]';
+
+const textFieldSelector =
+    'textarea,input:not([type="checkbox"]):not([type="radio"])';
+
+/** The element is a text field accepting input right now (not read-only). */
+export function editingText(target: Element | null): boolean {
+    return (
+        !!target?.matches?.(textFieldSelector) &&
+        !(target as HTMLInputElement).readOnly
+    );
+}
+
+/** The element is a textarea accepting input right now (not read-only). */
+export function editingTextarea(target: Element | null): boolean {
+    return (
+        !!target?.matches?.('textarea') &&
+        !(target as HTMLTextAreaElement).readOnly
+    );
+}
+
+/** Backspace deletes text only while the target field is editable. */
+export function backspaceEdits(event: {
+    key: string;
+    target: EventTarget | null;
+}): boolean {
+    return event.key === 'Backspace' && editingText(event.target as Element);
+}
+
 export function focusKey() {
     return (document.activeElement as HTMLElement)?.dataset.focus ?? '';
 }
@@ -55,13 +83,7 @@ export function installRemote(
                     40: 'ArrowDown',
                 } as Record<number, string>
             )[code] ?? event.key;
-        if (
-            isBackKey(event) &&
-            !(
-                event.key === 'Backspace' &&
-                event.target instanceof HTMLInputElement
-            )
-        ) {
+        if (isBackKey(event) && !backspaceEdits(event)) {
             event.preventDefault();
             back();
             return;
@@ -75,14 +97,12 @@ export function installRemote(
         if (!direction.startsWith('Arrow')) return;
         const from = document.activeElement as HTMLElement;
         const horizontal = /Left|Right/.test(direction);
-        // Keep caret/slider movement native; vertical arrows leave single-line
-        // fields. Selects own vertical choice changes and leave horizontally.
+        // Keep caret/slider movement native while a field is editable;
+        // read-only fields and vertical arrows leave single-line fields.
+        // Selects own vertical choice changes and leave horizontally.
         if (
-            from?.matches('textarea') ||
-            (horizontal &&
-                from?.matches(
-                    'input:not([type="checkbox"]):not([type="radio"])'
-                )) ||
+            editingTextarea(from) ||
+            (horizontal && editingText(from)) ||
             (!horizontal && from?.matches('select'))
         )
             return;

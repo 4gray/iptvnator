@@ -1,6 +1,6 @@
 import { isBackKey } from '@iptvnator/tv/util';
 import { useEffect, useLayoutEffect, useRef } from 'preact/hooks';
-import { restoreFocus } from '@iptvnator/tv/ui';
+import { backspaceEdits, restoreFocus } from '@iptvnator/tv/ui';
 import type { TvModel } from './use-tv';
 import type { useLiveBrowse } from './use-live-browse';
 
@@ -27,11 +27,7 @@ export function usePlayerPlaylist(
             )
                 return;
             if (!isBackKey(event)) return;
-            if (
-                event.key === 'Backspace' &&
-                (event.target as HTMLElement).matches('input,textarea')
-            )
-                return;
+            if (backspaceEdits(event)) return;
             event.preventDefault();
             event.stopImmediatePropagation();
             returning.current = false;
