@@ -121,6 +121,17 @@ describe('XtreamExternalLiveSessions', () => {
         expect(closeSession).not.toHaveBeenCalled();
     });
 
+    it('does not restore the old category when a launch response arrives after a copy switch', () => {
+        const finish = guard.begin(oldUrl, original);
+        const opened = session('old', oldUrl, 'opened');
+        receive(opened);
+        guard.update(opened, replacement);
+        finish(opened);
+        relock();
+        expect(guard.state('old')?.source).toBe(replacement);
+        expect(closeSession).not.toHaveBeenCalled();
+    });
+
     it('closes an older native session by ID without dismissing the current dock', async () => {
         const nativeClose = jest.fn(async (id: string) =>
             session(id, oldUrl, 'closed')

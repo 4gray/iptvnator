@@ -551,7 +551,11 @@ export async function openVlcPlayer({
                         }, rejectSpawn);
                         return;
                     }
-                    if (!isRetry && rcPort > 0) {
+                    if (
+                        processSessionId === session.id &&
+                        !isRetry &&
+                        rcPort > 0
+                    ) {
                         traceExternalPlayer(
                             'retry vlc without rc interface after start error'
                         );
@@ -599,6 +603,7 @@ export async function openVlcPlayer({
 
                     if (
                         code === 1 &&
+                        processSessionId === session.id &&
                         !closeRequested &&
                         !isRetry &&
                         rcPort > 0

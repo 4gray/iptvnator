@@ -1087,6 +1087,8 @@ invoking the queued Stop handler on another player. Cancelling the active
 queue entry republishes the surviving session so the dock can still stop it.
 Once a reused process accepts a replacement content command, its previous
 session retires; the replacement alone reports the child's eventual exit.
+VLC's fallback launch without RC applies only while the original session
+still owns that child.
 A queued launch that finds the teardown gate closed, because the launch before
 it could not confirm its child's exit, restores the session that still owns
 that child, preferring the last launch that started (with reuse off its

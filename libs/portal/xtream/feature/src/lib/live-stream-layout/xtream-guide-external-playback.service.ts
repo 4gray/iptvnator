@@ -84,9 +84,21 @@ export class XtreamGuideExternalPlayback {
                     ? previous?.value
                     : null;
             if (!hasOpened(active)) {
-                if (!prior || prior.session.id === active?.id) return null;
-                const session = this.sessions.state(prior.session.id)?.session;
-                return hasOpened(session) ? { ...prior, session } : null;
+                if (prior && prior.session.id !== active?.id) {
+                    const session = this.sessions.state(
+                        prior.session.id
+                    )?.session;
+                    if (hasOpened(session)) return { ...prior, session };
+                }
+                const survivor =
+                    playlistId && this.sessions.latestOpened(playlistId);
+                const launch =
+                    survivor && survivor.id !== active?.id
+                        ? this.reattach(survivor)
+                        : undefined;
+                return launch && survivor
+                    ? { ...launch, session: survivor }
+                    : null;
             }
             const launch =
                 prior?.session.id === active.id
@@ -127,16 +139,16 @@ export class XtreamGuideExternalPlayback {
     constructor() {
         effect(() => {
             const active = this.playback?.activeSession();
+            const playing = this.confirmed();
             untracked(() => {
-                const playing = this.confirmed();
+                if (!playing) return;
+                const id = playing.session.id;
                 if (
-                    !active ||
-                    playing?.session !== active ||
-                    (this.panelSessionId === active.id &&
-                        !active.restoredFromSessionId)
+                    this.panelSessionId === id &&
+                    !(active?.id === id && active.restoredFromSessionId)
                 )
                     return;
-                this.panelSessionId = active.id;
+                this.panelSessionId = id;
                 this.syncPanel(playing);
             });
         });

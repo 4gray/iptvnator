@@ -168,6 +168,26 @@ describe('vlc-session.service process lifecycle', () => {
             expect(session.status).toBe('opened');
         });
 
+        it('reports exit code 1 on the reused session without retrying its original launch', async () => {
+            Object.defineProperty(process, 'platform', { value: 'win32' });
+            const proc = createMockChildProcess();
+            await openTrackedVlcInstance(proc);
+            installRcSocketMock('ack');
+            const replacement = await openVlcPlayer({
+                title: 'Synthetic Replacement',
+                url: 'https://example.test/replacement.m3u8',
+            });
+            Object.defineProperty(proc, 'exitCode', { value: 1 });
+            proc.emit('exit', 1);
+            expect(
+                externalPlayerSessions.getSession(replacement.id)
+            ).toMatchObject({
+                status: 'error',
+                errorCode: 'closed-unexpectedly',
+            });
+            expect(spawnMock).toHaveBeenCalledTimes(1);
+        });
+
         it('quits a reused VLC process and waits for its exact exit on close', async () => {
             const proc = createMockChildProcess();
             await openTrackedVlcInstance(proc);

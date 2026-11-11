@@ -87,6 +87,28 @@ export class XtreamExternalLiveSessions {
         return this.sessions.get(id);
     }
 
+    latestOpened(playlistId: string): ExternalPlayerSession | undefined {
+        this.revision();
+        let latest: ExternalPlayerSession | undefined;
+        for (const { session, source } of this.sessions.values()) {
+            if (
+                source.playlistId !== playlistId ||
+                !source.channel ||
+                (session.status !== 'opened' && session.status !== 'playing')
+            )
+                continue;
+            const newer =
+                !latest ||
+                (session.launchOrder !== undefined &&
+                latest.launchOrder !== undefined
+                    ? session.launchOrder >= latest.launchOrder
+                    : Date.parse(session.startedAt) >=
+                      Date.parse(latest.startedAt));
+            if (newer) latest = session;
+        }
+        return latest;
+    }
+
     begin(
         url: string,
         source: XtreamLiveSource
@@ -99,14 +121,15 @@ export class XtreamExternalLiveSessions {
             pending.splice(pending.indexOf(launch), 1);
             if (!pending.length) this.pending.delete(url);
             if (!result || launch.retired) return;
-            const latest = this.sessions.get(result.id)?.session;
+            const current = this.sessions.get(result.id);
+            const latest = current?.session;
             this.update(
                 latest &&
                     latest.status !== 'launching' &&
                     isLiveExternalPlayerSession(result)
                     ? latest
                     : result,
-                source
+                current?.source ?? source
             );
         };
     }
@@ -130,7 +153,8 @@ export class XtreamExternalLiveSessions {
         if (!owner) return;
         if (launch) launch.sessionId = session.id;
         const entry = current ?? { session, source: owner, launch };
-        const changed = !current || current.session !== session;
+        const changed =
+            !current || current.session !== session || current.source !== owner;
         entry.session = session;
         entry.source = owner;
         this.sessions.set(session.id, entry);

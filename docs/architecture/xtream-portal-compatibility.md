@@ -796,7 +796,8 @@ leaves the allowed player running. If a replacement fails, the confirmed
 channel stays in the guide until it actually closes or another opens. The
 app retries an exact close if the external player cannot confirm its exit.
 Returning to Live TV reattaches the guide to an external session still playing
-in the same playlist. The guide uses the current playlist's visible, unlocked
+in the same playlist, including a session that survived a failed replacement.
+The guide uses the current playlist's visible, unlocked
 live catalogue and can scope it to a category or resolved live favorites.
 A stream shared by multiple categories appears in each of those scopes and
 once in All Channels. Choosing another copy of a stream already playing
