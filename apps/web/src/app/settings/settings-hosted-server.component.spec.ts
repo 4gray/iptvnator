@@ -130,6 +130,37 @@ describe('hosted server settings', () => {
         expect(component.status().state).toBe('stopped');
     });
 
+    it('enables HTTPS alongside LAN and rejects credentials and paths before IPC', async () => {
+        await jest.advanceTimersByTimeAsync(0);
+        component.status.set({ state: 'running', localUrl, lanUrl });
+        component.httpsAddress.set('https://user:secret@library.example.test');
+        component.enableHttps();
+        expect(component.httpsInvalid()).toBe(true);
+        expect(control).toHaveBeenCalledTimes(1);
+        component.httpsAddress.set('https://library.example.test/');
+        control.mockResolvedValueOnce({
+            state: 'running',
+            localUrl,
+            lanUrl,
+            httpsOrigin: 'https://library.example.test',
+        });
+        component.enableHttps();
+        expect(component.status().state).toBe('running');
+        await jest.advanceTimersByTimeAsync(0);
+        expect(control).toHaveBeenLastCalledWith({
+            httpsOrigin: 'https://library.example.test',
+        });
+        expect(component.status().lanUrl).toBe(lanUrl);
+        control.mockResolvedValueOnce({
+            state: 'running',
+            localUrl,
+            lanUrl,
+            httpsOrigin: '',
+        });
+        await component.control({ httpsOrigin: '' });
+        expect(component.status().lanUrl).toBe(lanUrl);
+    });
+
     it('keeps the code hidden after toggling it off and reports failures without exposing details', async () => {
         accessCode.mockResolvedValueOnce('synthetic-code');
         await component.showCode();

@@ -6,7 +6,8 @@ import type { Express } from 'express';
 export function listenHosted(
     app: Express,
     host: string,
-    port: number
+    port: number,
+    httpsOrigin?: URL
 ): Promise<Server> {
     const lan = host !== '127.0.0.1';
     const peers = new BlockList();
@@ -32,18 +33,30 @@ export function listenHosted(
     }
     const server = createServer((request, response) => {
         const authority = `${host}:${request.socket.localPort}`;
+        const origin = request.headers.origin;
+        const local =
+            !httpsOrigin &&
+            request.headers.host === authority &&
+            (!origin || origin === `http://${authority}`);
+        // The configured proxy connects over loopback and preserves Host.
+        // Forwarded headers do not decide whether a request is trusted.
+        const proxied =
+            !lan &&
+            request.socket.remoteAddress === '127.0.0.1' &&
+            httpsOrigin !== undefined &&
+            request.headers.host === httpsOrigin.host &&
+            (!origin || origin === httpsOrigin.origin);
         // Reject unrelated browser origins and DNS rebinding to this listener.
         if (
             (lan &&
                 (!request.socket.remoteAddress ||
                     !peers.check(request.socket.remoteAddress, 'ipv4'))) ||
-            request.headers.host !== authority ||
-            (request.headers.origin &&
-                request.headers.origin !== `http://${authority}`)
+            (!local && !proxied)
         ) {
             response.writeHead(403).end();
             return;
         }
+        if (proxied) response.setHeader('Cache-Control', 'no-store');
         app(request, response);
     });
     return new Promise((resolve, reject) => {

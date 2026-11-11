@@ -5,6 +5,7 @@ import {
 import type { HostedServerWorkerMessage } from '@iptvnator/shared/interfaces';
 import { createHostedWebApp } from './app/hosted-web-app';
 import { listenHosted } from './app/hosted-listener';
+import { HostedHttpsListener } from './app/hosted-https-listener';
 import { closeGracefully } from './app/graceful-shutdown';
 import { createWebBackendApp } from './app/web-backend-app';
 import {
@@ -19,7 +20,7 @@ import { describeStorageError } from './app/storage/storage-route-errors';
 
 type HostPort = {
     postMessage(message: HostedServerWorkerMessage): void;
-    once(event: 'message', listener: (event: { data: unknown }) => void): void;
+    on(event: 'message', listener: (event: { data: unknown }) => void): void;
 };
 
 const parentPort = (process as NodeJS.Process & { parentPort?: HostPort })
@@ -60,6 +61,8 @@ async function start(): Promise<void> {
         storage,
         accessToken: config.accessToken,
         maxDocumentBytes: config.maxDocumentBytes,
+        // Each hosted listener enforces an exact Host/Origin pair before CORS.
+        ...(hostedAssets ? { clientOrigins: ['*'] } : {}),
     });
     if (hostedAssets) {
         if (!storage || !config.accessToken) {
@@ -70,14 +73,52 @@ async function start(): Promise<void> {
         const listeners: ReturnType<typeof app.listen>[] = [];
         try {
             const hostedApp = createHostedWebApp(app, hostedAssets);
-            listeners.push(await listenHosted(hostedApp, '127.0.0.1', port));
+            const remote = new HostedHttpsListener(hostedApp);
+            const localListener = await listenHosted(
+                hostedApp,
+                '127.0.0.1',
+                port
+            );
+            listeners.push(localListener);
             const lan = process.env.IPTVNATOR_HOSTED_LAN;
             if (lan) listeners.push(await listenHosted(hostedApp, lan, port));
-            parentPort!.once('message', ({ data }) => {
+            let transition = Promise.resolve();
+            parentPort!.on('message', ({ data }) => {
+                if (
+                    data &&
+                    typeof data === 'object' &&
+                    'httpsOrigin' in data &&
+                    typeof data.httpsOrigin === 'string' &&
+                    'requestId' in data &&
+                    typeof data.requestId === 'string'
+                ) {
+                    const origin = data.httpsOrigin;
+                    const requestId = data.requestId;
+                    transition = transition.then(async () => {
+                        try {
+                            parentPort!.postMessage({
+                                https: true,
+                                requestId,
+                                origin: await remote.configure(origin),
+                            });
+                        } catch {
+                            parentPort!.postMessage({
+                                https: true,
+                                requestId,
+                                origin: '',
+                                failed: true,
+                            });
+                        }
+                    });
+                }
                 if (data === 'stop') {
-                    void Promise.all(
-                        listeners.map((listener) => closeGracefully(listener))
-                    ).then(() => {
+                    transition = transition.then(async () => {
+                        await remote.stop();
+                        await Promise.all(
+                            listeners.map((listener) =>
+                                closeGracefully(listener)
+                            )
+                        );
                         storage.database.close();
                         process.exit(0);
                     });

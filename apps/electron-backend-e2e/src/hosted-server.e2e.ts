@@ -1,3 +1,4 @@
+import { get } from 'node:http';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -11,6 +12,29 @@ import {
     openSettingsSection,
     workspaceRoot,
 } from './electron-test-fixtures';
+
+// Node fetch rewrites Host; exercise a proxy-preserved Host with raw HTTP.
+function proxyGet(url: string, options: { headers: Record<string, string> }) {
+    return new Promise<{
+        status: number;
+        json: () => Promise<Record<string, unknown>>;
+    }>((resolve, reject) => {
+        get(url, options, (response) => {
+            let body = '';
+            response.setEncoding('utf8');
+            response.on('data', (chunk) => {
+                body += chunk;
+            });
+            response.on('end', () =>
+                resolve({
+                    status: response.statusCode!,
+                    json: async () => JSON.parse(body),
+                })
+            );
+            response.on('error', reject);
+        }).on('error', reject);
+    });
+}
 
 test.skip(
     process.env['IPTVNATOR_E2E_HOSTED_SERVER'] !== '1',
@@ -40,6 +64,53 @@ test('starts locally, reconnects through the hosted library, and stops on reques
         ).json();
         expect(identity.auth).toBe('token');
         expect(identity.instanceId).toEqual(expect.any(String));
+
+        await page
+            .getByTestId('hosted-https-origin')
+            .fill('https://library.example.test');
+        await page.getByTestId('hosted-https-start').click();
+        await expect(page.getByTestId('hosted-https-stop')).toBeVisible();
+        const remoteOrigin = 'http://127.0.0.1:4335';
+        const remoteHeaders = {
+            host: 'library.example.test',
+            origin: 'https://library.example.test',
+        };
+        expect(
+            (
+                await proxyGet(remoteOrigin + '/api/v1/instance', {
+                    headers: remoteHeaders,
+                }).then((response) => response.json())
+            )['instanceId']
+        ).toBe(identity.instanceId);
+        expect(
+            (
+                await proxyGet(remoteOrigin + '/api/v1/sources', {
+                    headers: remoteHeaders,
+                })
+            ).status
+        ).toBe(401);
+        expect(
+            (
+                await proxyGet(remoteOrigin + '/', {
+                    headers: {
+                        ...remoteHeaders,
+                        origin: 'https://attacker.test',
+                    },
+                })
+            ).status
+        ).toBe(403);
+        await page.getByTestId('hosted-https-stop').click();
+        await expect(page.getByTestId('hosted-https-start')).toBeVisible();
+        await expect(
+            proxyGet(remoteOrigin + '/', { headers: remoteHeaders })
+        ).rejects.toThrow();
+        expect(
+            (
+                await fetch(origin + '/api/v1/instance').then((response) =>
+                    response.json()
+                )
+            )['instanceId']
+        ).toBe(identity.instanceId);
 
         // Keep the process restart under the fixture's ownership.
         await desktop.electronApp.evaluate(({ app }) => {
@@ -76,7 +147,9 @@ test('starts locally, reconnects through the hosted library, and stops on reques
             'Connected'
         );
         expect(
-            (await (await fetch(origin + '/api/v1/instance')).json()).instanceId
+            (await (await fetch(origin + '/api/v1/instance')).json())[
+                'instanceId'
+            ]
         ).toBe(identity.instanceId);
         const databaseInstanceId = await desktop.electronApp.evaluate(
             (_electron, { dependency, file }) => {

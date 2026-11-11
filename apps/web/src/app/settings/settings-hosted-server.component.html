@@ -27,7 +27,7 @@
                     <p class="server-message">
                         {{ 'HOSTED_SERVER.DEVICES' | translate }}
                     </p>
-                } @else {
+                } @else if (!status().httpsOrigin) {
                     <p class="server-message">
                         {{
                             (status().lanAddress
@@ -51,6 +51,19 @@
                         >
                             {{ 'HOSTED_SERVER.COPY_ADDRESS' | translate }}
                         </button>
+                        <button
+                            mat-button
+                            type="button"
+                            (click)="
+                                qrAddress.set(
+                                    qrAddress() === address ? '' : address
+                                )
+                            "
+                        >
+                            {{ 'SETTINGS.SHOW_QR_CODE' | translate }}
+                        </button>
+                    }
+                    @if (status().lanUrl || status().httpsOrigin) {
                         <button
                             mat-button
                             type="button"
@@ -175,5 +188,120 @@
                 }
             </p>
         </div>
+        <header class="settings-group__header server-header">
+            <h3>{{ 'HOSTED_SERVER.HTTPS_TITLE' | translate }}</h3>
+            <p>{{ 'HOSTED_SERVER.HTTPS_DESCRIPTION' | translate }}</p>
+            <a
+                class="server-help"
+                [href]="guides.https"
+                target="_blank"
+                rel="noopener noreferrer"
+                >{{ 'HOSTED_SERVER.HTTPS_GUIDE' | translate }}</a
+            >
+        </header>
+        <div class="settings-card server-fields">
+            @if (status().httpsOrigin; as origin) {
+                <p class="server-message" role="status">
+                    {{ 'HOSTED_SERVER.HTTPS_ENABLED' | translate }}
+                </p>
+                <div class="server-actions">
+                    <code class="hosted-value">{{ origin }}</code>
+                    <button
+                        mat-button
+                        type="button"
+                        (click)="copyAddress(origin)"
+                    >
+                        {{ 'HOSTED_SERVER.COPY_ADDRESS' | translate }}
+                    </button>
+                    <button
+                        mat-button
+                        type="button"
+                        (click)="
+                            qrAddress.set(qrAddress() === origin ? '' : origin)
+                        "
+                    >
+                        {{ 'SETTINGS.SHOW_QR_CODE' | translate }}
+                    </button>
+                    <button
+                        mat-button
+                        type="button"
+                        [disabled]="busy()"
+                        (click)="control({ httpsOrigin: '' })"
+                        data-test-id="hosted-https-stop"
+                    >
+                        {{ 'HOSTED_SERVER.HTTPS_STOP' | translate }}
+                    </button>
+                </div>
+            } @else {
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                    <mat-label>{{
+                        'HOSTED_SERVER.HTTPS_ADDRESS' | translate
+                    }}</mat-label>
+                    <input
+                        matInput
+                        type="url"
+                        [ngModel]="httpsAddress()"
+                        (ngModelChange)="
+                            httpsAddress.set($event); httpsInvalid.set(false)
+                        "
+                        [disabled]="busy() || status().state !== 'running'"
+                        placeholder="https://library.example.com"
+                        data-test-id="hosted-https-origin"
+                    />
+                </mat-form-field>
+                @if (httpsInvalid()) {
+                    <p
+                        role="alert"
+                        class="server-message server-message--error"
+                    >
+                        {{ 'HOSTED_SERVER.HTTPS_INVALID' | translate }}
+                    </p>
+                }
+                <div class="server-actions">
+                    <button
+                        mat-flat-button
+                        type="button"
+                        [disabled]="
+                            busy() ||
+                            status().state !== 'running' ||
+                            !httpsAddress().trim()
+                        "
+                        (click)="enableHttps()"
+                        data-test-id="hosted-https-start"
+                    >
+                        {{ 'HOSTED_SERVER.HTTPS_START' | translate }}
+                    </button>
+                </div>
+            }
+            @if (status().httpsError) {
+                <p role="alert" class="server-message server-message--error">
+                    {{ 'HOSTED_SERVER.HTTPS_FAILED' | translate }}
+                </p>
+            }
+            <p class="server-message">
+                {{ 'HOSTED_SERVER.HTTPS_LOCAL_ORIGIN' | translate }}
+                <code>http://127.0.0.1:4335</code>
+            </p>
+            <p class="server-message">
+                {{ 'HOSTED_SERVER.HTTPS_AUTH' | translate }}
+            </p>
+        </div>
+        @if (
+            qrAddress() &&
+            (qrAddress() === status().lanUrl ||
+                qrAddress() === status().httpsOrigin)
+        ) {
+            <div
+                class="settings-card"
+                role="img"
+                [attr.aria-label]="qrAddress()"
+            >
+                <qrcode
+                    [qrdata]="qrAddress()"
+                    [width]="180"
+                    errorCorrectionLevel="M"
+                />
+            </div>
+        }
     </section>
 }

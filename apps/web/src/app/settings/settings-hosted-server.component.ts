@@ -11,6 +11,10 @@ import { Clipboard } from '@angular/cdk/clipboard';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
+import { MatInputModule } from '@angular/material/input';
+import { FormsModule } from '@angular/forms';
+import { QRCodeComponent } from 'angularx-qrcode';
+import { parseHostedHttpsOrigin } from '@iptvnator/shared/interfaces';
 import { SERVER_GUIDES } from './settings-server-about-dialog.component';
 import { SettingsSyncStatusComponent } from './settings-sync-status.component';
 import { MatIconModule } from '@angular/material/icon';
@@ -33,6 +37,9 @@ import { timer } from 'rxjs';
         MatCheckboxModule,
         MatFormFieldModule,
         MatSelectModule,
+        MatInputModule,
+        FormsModule,
+        QRCodeComponent,
         TranslateModule,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -69,6 +76,9 @@ export class SettingsHostedServerComponent {
     });
     readonly code = signal('');
     readonly feedback = signal('');
+    readonly httpsAddress = signal('');
+    readonly httpsInvalid = signal(false);
+    readonly qrAddress = signal('');
     private transition = 0;
     private readonly clipboard = inject(Clipboard);
     private readonly destroyRef = inject(DestroyRef);
@@ -104,7 +114,12 @@ export class SettingsHostedServerComponent {
         this.feedback.set('');
         this.status.update((current) => ({
             ...current,
-            state: command === 'stop' ? 'stopping' : 'starting',
+            state:
+                typeof command === 'object' && 'httpsOrigin' in command
+                    ? current.state
+                    : command === 'stop'
+                      ? 'stopping'
+                      : 'starting',
             error: undefined,
         }));
         try {
@@ -124,6 +139,18 @@ export class SettingsHostedServerComponent {
         void this.control(
             address ? { start: true, lanAddress: address } : { start: true }
         );
+    }
+
+    enableHttps(): void {
+        try {
+            const origin = parseHostedHttpsOrigin(
+                this.httpsAddress().trim()
+            ).origin;
+            this.httpsInvalid.set(false);
+            void this.control({ httpsOrigin: origin });
+        } catch {
+            this.httpsInvalid.set(true);
+        }
     }
 
     copyAddress(address: string): void {

@@ -6,6 +6,7 @@ const guide = 'https://github.com/4gray/iptvnator/blob/master/docker/README.md';
 
 export const SERVER_GUIDES = {
     desktop: guide + '#run-the-server-from-the-desktop-app',
+    https: guide + '#optional-https-and-cloudflare-tunnel',
     connection: guide + '#connect-your-clients',
 };
 

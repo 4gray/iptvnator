@@ -287,6 +287,51 @@ describe('desktop hosted server lifecycle', () => {
         expect(getHostedServerAccessCode()).toBe('');
     });
 
+    it('enables and stops HTTPS independently while preserving the running LAN worker and access code', async () => {
+        addAssets(
+            join(directory, 'hosted-backend/main.cjs'),
+            join(directory, 'hosted-pwa')
+        );
+        const worker = nextWorker(ready);
+        await control({ start: true, lanAddress });
+        const code = invoke(HOSTED_SERVER_ACCESS_CODE);
+        worker.postMessage.mockImplementation((...args: unknown[]) => {
+            const command = args[0] as
+                { httpsOrigin: string; requestId: string } | string;
+            queueMicrotask(() => {
+                if (typeof command === 'string') worker.emit('exit', 0);
+                else
+                    worker.emit('message', {
+                        https: true,
+                        requestId: command.requestId,
+                        origin: command.httpsOrigin,
+                    });
+            });
+        });
+        expect(
+            await control({ httpsOrigin: 'https://library.example.test/' })
+        ).toMatchObject({
+            state: 'running',
+            lanUrl,
+            httpsOrigin: 'https://library.example.test',
+        });
+        expect(await control({ httpsOrigin: '' })).toMatchObject({
+            state: 'running',
+            lanUrl,
+            httpsOrigin: '',
+        });
+        expect(utilityProcess.fork).toHaveBeenCalledTimes(1);
+        expect(invoke(HOSTED_SERVER_ACCESS_CODE)).toBe(code);
+        expect(() =>
+            control({ httpsOrigin: 'http://library.example.test' })
+        ).toThrow();
+        expect(() =>
+            control({
+                httpsOrigin: 'https://user:password@library.example.test',
+            })
+        ).toThrow();
+    });
+
     it.each([
         ['port conflict', { error: 'port' }, 'port'],
         ['worker exit before readiness', undefined, 'startup'],

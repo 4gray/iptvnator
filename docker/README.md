@@ -155,6 +155,63 @@ Under **Connection on this device**, you can connect the desktop to its own
 server or to another server. Connecting to your own server lets you preview
 and import the desktop's original local sources into the shared library.
 
+## Optional HTTPS and Cloudflare Tunnel
+
+Desktop **Settings → Server → Optional HTTPS / Cloudflare Tunnel** enables a
+separate origin at `http://127.0.0.1:4335` for a proxy running on the same
+computer. Start the library server first. Enter its public address, such as
+`https://library.example.com`, then choose **Enable HTTPS access**. Only that
+exact HTTPS origin is accepted; paths and credentials are not allowed. The
+proxy must preserve the public `Host` and `Origin` headers. Forwarded headers
+cannot grant access. Do not proxy port 4334 or expose either port on the router.
+
+Home-network HTTP continues to work independently. Both paths use the same
+running server, library database and access code. **Stop HTTPS access** closes
+only the proxy origin and its active connections. **Stop server** and quitting
+IPTVnator stop both paths. After a server restart, enable HTTPS again explicitly.
+The status confirms the local listener only, not public DNS, TLS or connectivity.
+**Show QR code** shares only the address. Share the access code separately;
+neither it nor connector credentials are included in the QR code.
+
+For an existing Cloudflare Tunnel:
+
+1. Create a self-hosted Cloudflare Access application for the entire hostname
+   with an Allow policy for yourself and explicitly invited viewers. Configure
+   this before publishing a route; do not use a Bypass policy.
+2. In the tunnel's published application route, use service
+   `http://127.0.0.1:4335`. Set **HTTP Host Header** to the hostname you entered
+   in IPTVnator, including any non-default public port.
+3. Enable **Protect with Access**, using the Access application's audience tag
+   and team name. This makes the connector validate Access tokens before it
+   forwards requests. See Cloudflare's
+   [origin parameters](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/configure-tunnels/origin-parameters/).
+4. Run your existing `cloudflared` connector on this computer using Cloudflare's
+   platform instructions. Its token belongs to the connector, not the IPTVnator
+   address or access-code field. For an existing protected token file, the
+   cross-platform command is `cloudflared tunnel run --token-file <path>`
+   ([run parameters](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/configure-tunnels/run-parameters/)).
+5. Enable the matching HTTPS address in IPTVnator. From a signed-out browser,
+   verify that Access requires sign-in for the page and `/api/v1/instance`.
+   Confirm an uninvited account is denied, then sign in and enter the IPTVnator
+   access code. Check that `/api/v1/sources` still rejects a missing/wrong code.
+
+IPTVnator does not install, start, stop or store credentials for `cloudflared`.
+Stopping HTTPS in IPTVnator disconnects the local origin; revoke viewer access,
+stop the connector or delete Cloudflare resources separately when retiring it.
+For another HTTPS proxy, apply equivalent gateway authentication to the entire
+hostname and disable caching for authenticated traffic. The gateway owns viewer
+authentication; IPTVnator continues enforcing its access code on protected APIs.
+Use normal certificate validation. HTTPS browser playback may block HTTP-only
+media; use a supported external player instead of disabling browser security.
+
+Automatic Cloudflare sign-in is not available in this build. Distribution needs
+a registered public OAuth client, verified publisher domain and registered
+redirect. Cloudflare requires PKCE with `S256` and token authentication `none`
+for desktop clients. The authenticated scope catalog must confirm the required
+account/zone discovery, Tunnel, DNS and Access scopes before provisioning is
+implemented; API-token permissions must not be assumed to be OAuth scope IDs.
+See [Cloudflare OAuth client prerequisites](https://developers.cloudflare.com/fundamentals/oauth/create-an-oauth-client/).
+
 ## Server Storage
 
 The image opens a server storage database on the `/data` volume

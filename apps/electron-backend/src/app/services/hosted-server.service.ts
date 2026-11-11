@@ -15,6 +15,7 @@ import {
     HOSTED_SERVER_ACCESS_CODE,
     HOSTED_SERVER_CONTROL,
     HOSTED_SERVER_PORT,
+    parseHostedHttpsOrigin,
     type HostedServerStatus,
     type HostedServerWorkerMessage,
 } from '@iptvnator/shared/interfaces';
@@ -29,6 +30,7 @@ import {
     HOSTED_SERVER_LOCAL_URL,
     setHostedServerSession,
 } from './hosted-server-session';
+import { configureHostedHttps } from './hosted-https-control';
 const PORT = HOSTED_SERVER_PORT;
 const dataDir = () => join(getIptvnatorDataRoot(), 'hosted-server');
 
@@ -136,7 +138,7 @@ async function start(lanAddress: string): Promise<void> {
             process.once('message', (message: HostedServerWorkerMessage) => {
                 clearTimeout(timeout);
                 if ('ready' in message) resolve(message.instanceId);
-                else {
+                else if ('error' in message) {
                     failure = message.error;
                     reject(new Error());
                 }
@@ -217,6 +219,33 @@ export function registerHostedServerEvents(
                 store.set(HOSTED_SERVER_ENABLED, false);
                 await shutdownWorker();
             });
+        if (
+            command &&
+            typeof command === 'object' &&
+            'httpsOrigin' in command
+        ) {
+            if (typeof command.httpsOrigin !== 'string')
+                throw new Error('Invalid HTTPS origin');
+            const origin = command.httpsOrigin
+                ? parseHostedHttpsOrigin(command.httpsOrigin).origin
+                : '';
+            return run(async () => {
+                if (!child || state.state !== 'running')
+                    throw new Error('Server is unavailable');
+                try {
+                    const result = await configureHostedHttps(child, origin);
+                    state = {
+                        ...state,
+                        httpsOrigin: result.origin,
+                        httpsError: !!result.failed,
+                    };
+                } catch {
+                    // An unacknowledged command has unknown exposure: fail closed.
+                    child?.kill();
+                    state = { state: 'error', error: 'startup' };
+                }
+            });
+        }
         if (
             command &&
             typeof command === 'object' &&

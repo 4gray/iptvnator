@@ -1,3 +1,4 @@
+import { get } from 'node:http';
 import { EventEmitter, once } from 'node:events';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { type AddressInfo, type Server } from 'node:net';
@@ -5,6 +6,29 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { HostedServerWorkerMessage } from '@iptvnator/shared/interfaces';
 import type { ServerDatabase } from './app/storage/server-database';
+
+// Node fetch rewrites Host; exercise a proxy-preserved Host with raw HTTP.
+function proxyGet(url: string, options: { headers: Record<string, string> }) {
+    return new Promise<{
+        status: number;
+        json: () => Promise<Record<string, unknown>>;
+    }>((resolve, reject) => {
+        get(url, options, (response) => {
+            let body = '';
+            response.setEncoding('utf8');
+            response.on('data', (chunk) => {
+                body += chunk;
+            });
+            response.on('end', () =>
+                resolve({
+                    status: response.statusCode!,
+                    json: async () => JSON.parse(body),
+                })
+            );
+            response.on('error', reject);
+        }).on('error', reject);
+    });
+}
 
 jest.mock('./app/hosted-listener', () => {
     const actual = jest.requireActual<typeof import('./app/hosted-listener')>(
@@ -130,11 +154,62 @@ describe('hosted web backend worker', () => {
                 instanceId: database?.instanceId,
             });
         }
+        const remoteOrigin = 'https://library.example.test';
+        const configure = async (httpsOrigin: string, requestId: string) => {
+            const response = once(parent, 'reply');
+            parent.emit('message', { data: { httpsOrigin, requestId } });
+            return (await response)[0];
+        };
+        expect(await configure(remoteOrigin, 'enable')).toEqual({
+            https: true,
+            requestId: 'enable',
+            origin: remoteOrigin,
+        });
+        const remote = 'http://127.0.0.1:4335';
+        const headers = { host: 'library.example.test', origin: remoteOrigin };
+        expect(
+            (
+                await proxyGet(remote + '/api/v1/instance', { headers }).then(
+                    (response) => response.json()
+                )
+            ).instanceId
+        ).toBe(database?.instanceId);
+        expect(
+            (await proxyGet(remote + '/api/v1/sources', { headers })).status
+        ).toBe(401);
+        expect(
+            (
+                await proxyGet(remote + '/api/v1/sources', {
+                    headers: {
+                        ...headers,
+                        authorization: 'Bearer synthetic-access-code',
+                    },
+                })
+            ).status
+        ).toBe(200);
+        expect(
+            (
+                await proxyGet(remote + '/', {
+                    headers: { ...headers, origin: 'https://attacker.test' },
+                })
+            ).status
+        ).toBe(403);
+        expect(await configure('', 'disable')).toEqual({
+            https: true,
+            requestId: 'disable',
+            origin: '',
+        });
+        await expect(proxyGet(remote + '/', { headers })).rejects.toThrow();
+        expect(database?.sqlite.open).toBe(true);
+        expect(servers.slice(0, 2).every((server) => server.listening)).toBe(
+            true
+        );
+        await configure(remoteOrigin, 'enable-again');
         parent.emit('message', { data: 'stop' });
         expect(await exited).toBe(0);
         expect(servers.every((server) => !server.listening)).toBe(true);
         expect(database?.sqlite.open).toBe(false);
-    });
+    }, 15000); // Includes the worker's five-second graceful shutdown deadline.
 
     it.each(['port', 'startup'] as const)(
         'closes the first listener and storage when the second reports a %s failure',
