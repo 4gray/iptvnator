@@ -216,13 +216,15 @@ export class EpgGuideComponent implements OnDestroy {
         effect(() => {
             const axis = this.view.axis();
             const offset = this.offsetMinutes();
-            if (this.source.programsExpireAt) this.view.nowMs();
+            const now = this.source.programsExpireAt ? this.view.nowMs() : null;
             untracked(() => {
                 this.programsService.setWindow(
                     epgProviderClockMs(axis.startMs, offset),
                     epgProviderClockMs(axis.endMs, offset)
                 );
                 this.viewportController.loadRenderedRange();
+                if (now !== null)
+                    this.programsService.refreshExpiredCoverage(now);
             });
         });
         let previousFocus: ReturnType<typeof this.focus> | undefined;

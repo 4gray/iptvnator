@@ -176,6 +176,49 @@ describe('EpgGuideProgramsService', () => {
     });
 
     it.each([true, false])(
+        'rechecks expired coverage outside the viewport (programmes appeared: %s)',
+        async (hasProgrammes) => {
+            jest.useFakeTimers();
+            try {
+                jest.setSystemTime(1000);
+                Object.assign(source, {
+                    deferredCoverage: true,
+                    programsExpireAt: (id: string) =>
+                        id === 'a' && Date.now() < 2000 ? 2000 : 3000,
+                });
+                loadCoverage.mockImplementationOnce(async (_window, report) => {
+                    report?.('a', []);
+                    report?.('b', []);
+                    return new Set();
+                });
+                service.setWindow(1000, 4000);
+                service.setCoverageRequested(true);
+                await flush();
+                expect(service.isCovered('a')).toBe(false);
+                expect(service.isCovered('b')).toBe(false);
+
+                jest.setSystemTime(2000);
+                loadCoverage.mockImplementationOnce(async (_window, report) => {
+                    report?.('a', hasProgrammes ? [programFor('a')] : []);
+                    return new Set(hasProgrammes ? ['a'] : []);
+                });
+                service.refreshExpiredCoverage(2000);
+                service.refreshExpiredCoverage(2000);
+                await flush();
+                expect(loadCoverage).toHaveBeenCalledTimes(2);
+                expect(
+                    loadCoverage.mock.calls[1][0].channels.map(({ id }) => id)
+                ).toEqual(['a']);
+                expect(loadPrograms).not.toHaveBeenCalled();
+                expect(service.isCovered('a')).toBe(hasProgrammes);
+                expect(service.isCovered('b')).toBe(false);
+            } finally {
+                jest.useRealTimers();
+            }
+        }
+    );
+
+    it.each([true, false])(
         'shows an incomplete scan and applies a successful retry (scan first: %s)',
         async (scanFirst) => {
             Object.assign(source, { deferredCoverage: true });

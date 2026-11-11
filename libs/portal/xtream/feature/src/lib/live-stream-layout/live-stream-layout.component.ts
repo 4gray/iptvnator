@@ -128,7 +128,7 @@ import { toSharedEpgProgram } from '../portal-channels-list/epg-preview-program'
 const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
 
 type GuideExternalChannel = {
-    session: ExternalPlayerSession;
+    playlistId: string;
     channelId: number;
     archive: EpgProgram | null;
 };
@@ -494,57 +494,43 @@ export class LiveStreamLayoutComponent
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK, {
         optional: true,
     });
-    private readonly guideExternalState = linkedSignal({
+    private readonly guideExternalRequests = new Map<
+        string,
+        GuideExternalChannel
+    >();
+    private readonly guideExternalSession = linkedSignal({
         source: () => ({
             playlistId: this.xtreamStore.currentPlaylist()?.id,
             url: this.activeStreamUrl(),
-            channelId: this.activeLiveItemId(),
-            archive: this.activeCatchupProgram(),
             session: this.externalPlayback?.activeSession(),
         }),
         computation: (
-            { playlistId, url, channelId, archive, session },
+            { playlistId, url, session },
             previous
-        ): {
-            playing: GuideExternalChannel | null;
-            pending: ReadonlyMap<string, GuideExternalChannel>;
-        } | null => {
+        ):
+            | (GuideExternalChannel & { session: ExternalPlayerSession })
+            | null => {
             if (
                 !url ||
                 !isLiveExternalPlayerSession(session) ||
                 session.status === 'error'
             )
                 return null;
-            const prior =
-                previous?.source.playlistId === playlistId
+            const playing =
+                previous?.value?.playlistId === playlistId
                     ? previous?.value
                     : null;
-            const matched =
-                session.streamUrl === url && channelId !== null
-                    ? { session, channelId, archive }
-                    : null;
             // A replacement launch has not displaced the playing channel yet.
-            if (session.status === 'launching') {
-                if (!matched) return prior ?? null;
-                const pending = new Map(prior?.pending);
-                pending.set(session.id, matched);
-                return { playing: prior?.playing ?? null, pending };
-            }
+            if (session.status === 'launching') return playing ?? null;
             const confirmed =
-                prior?.playing?.session.id === session.id
-                    ? prior.playing
-                    : (prior?.pending.get(session.id) ?? matched);
-            return confirmed
-                ? {
-                      playing: { ...confirmed, session },
-                      pending: new Map(),
-                  }
-                : null;
+                playing?.session.id === session.id
+                    ? playing
+                    : this.guideExternalRequests.get(session.streamUrl);
+            if (!confirmed || confirmed.playlistId !== playlistId) return null;
+            if (session.streamUrl === url) this.guideExternalRequests.clear();
+            return { ...confirmed, session };
         },
     });
-    private readonly guideExternalSession = computed(
-        () => this.guideExternalState()?.playing ?? null
-    );
     private readonly guideChannelId = computed(() =>
         this.usesEmbeddedPlayer()
             ? this.activeLiveItemId()
@@ -613,6 +599,7 @@ export class LiveStreamLayoutComponent
             if (this.activePlaylistId && this.activePlaylistId !== playlistId) {
                 this.playbackRequestId += 1;
                 this.activePlaylistId = null;
+                this.guideExternalRequests.clear();
                 this.activePlayback.set(null);
                 this.activeLiveItemId.set(null);
                 this.activeCatchupProgram.set(null);
@@ -862,11 +849,7 @@ export class LiveStreamLayoutComponent
         if (this.usesEmbeddedPlayer() || !startPlayback) {
             return;
         }
-        this.xtreamStore.openPlayer(
-            streamUrl,
-            item.title ?? item.name ?? '',
-            item.poster_url ?? item.stream_icon ?? null
-        );
+        this.openExternalGuideChannel(playlist?.id, item.xtream_id, null);
     }
 
     async onProgramActivated(event: EpgProgramActivationEvent): Promise<void> {
@@ -1154,10 +1137,26 @@ export class LiveStreamLayoutComponent
             return;
         }
 
+        this.openExternalGuideChannel(playlist.id, item.xtream_id, program);
+    }
+
+    private openExternalGuideChannel(
+        playlistId: string | undefined,
+        channelId: number,
+        archive: EpgProgram | null
+    ): void {
+        const playback = this.activePlayback();
+        if (!playback?.streamUrl) return;
+        if (playlistId)
+            this.guideExternalRequests.set(playback.streamUrl, {
+                playlistId,
+                channelId,
+                archive,
+            });
         this.xtreamStore.openPlayer(
-            catchupUrl,
-            this.getCatchupPlaybackTitle(item, program),
-            item.poster_url ?? item.stream_icon ?? null
+            playback.streamUrl,
+            playback.title,
+            playback.thumbnail
         );
     }
 

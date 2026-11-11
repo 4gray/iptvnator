@@ -244,6 +244,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         'restores original',
         'opens intermediate',
         'restores intermediate',
+        'restores intermediate after late launch update',
     ] as const)(
         'tracks the confirmed external channel during overlapping switches (%s)',
         (outcome) => {
@@ -289,8 +290,12 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 streamUrl: component.activeStreamUrl(),
                 title: 'Synthetic Replacement Channel',
             };
-            externalSession.set(replacement);
-            fixture.detectChanges();
+            const late =
+                outcome === 'restores intermediate after late launch update';
+            if (!late) {
+                externalSession.set(replacement);
+                fixture.detectChanges();
+            }
             expect(component.guide.isOpen()).toBe(true);
 
             xtreamStore.constructStreamUrl.mockReturnValueOnce(
@@ -305,7 +310,14 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 id: 'synthetic-third',
                 streamUrl: component.activeStreamUrl(),
             };
-            if (outcome === 'restores intermediate') {
+            if (late) {
+                externalSession.set(replacement);
+                fixture.detectChanges();
+                expect(component.guide.isOpen()).toBe(true);
+            }
+            const restoreIntermediate =
+                late || outcome === 'restores intermediate';
+            if (restoreIntermediate) {
                 externalSession.set(third);
                 fixture.detectChanges();
                 expect(component.guide.isOpen()).toBe(true);
@@ -317,7 +329,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 status: 'playing',
                 restoredFromSessionId: original
                     ? replacement.id
-                    : outcome === 'restores intermediate'
+                    : restoreIntermediate
                       ? third.id
                       : undefined,
             });

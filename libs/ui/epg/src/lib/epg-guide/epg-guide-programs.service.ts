@@ -34,7 +34,7 @@ const debugEpgGuidePrograms = createDevLogger('EpgGuideProgramsService');
 interface CoverageScan {
     controller: AbortController;
     progress?: {
-        updates: Map<string, boolean>;
+        confirmed: Set<string>;
         uncovered: Map<string, number>;
         timer?: ReturnType<typeof setTimeout>;
     };
@@ -97,15 +97,12 @@ export class EpgGuideProgramsService {
         effect(() => {
             const next = this.source.channels();
             const revision = this.source.revision?.();
-            if (next === this.seenChannels && revision === this.seenRevision) {
+            if (next === this.seenChannels && revision === this.seenRevision)
                 return;
-            }
             const first = this.seenChannels === null;
             this.seenChannels = next;
             this.seenRevision = revision;
-            if (first) {
-                return;
-            }
+            if (first) return;
             this.invalidate();
             this.requestCoverage();
         });
@@ -115,9 +112,8 @@ export class EpgGuideProgramsService {
         if (
             !this.source.deferredCoverage ||
             requested === this.coverageRequested
-        ) {
+        )
             return;
-        }
         this.coverageRequested = requested;
         if (requested) {
             this.requestCoverage();
@@ -128,9 +124,7 @@ export class EpgGuideProgramsService {
     }
 
     setWindow(fromMs: number, toMs: number): void {
-        if (this.range?.fromMs === fromMs && this.range?.toMs === toMs) {
-            return;
-        }
+        if (this.range?.fromMs === fromMs && this.range?.toMs === toMs) return;
         this.range = { fromMs, toMs };
         this.invalidate();
         this.requestCoverage();
@@ -154,12 +148,21 @@ export class EpgGuideProgramsService {
         );
     }
 
+    refreshExpiredCoverage(nowMs: number): void {
+        if (!this.coverageRequested || this.coverageRequest) return;
+        const uncovered = this.uncovered();
+        const expired =
+            uncovered &&
+            this.source
+                .channels()
+                .filter(({ id }) => (uncovered.get(id) ?? Infinity) <= nowMs);
+        if (expired?.length) this.requestCoverage(expired);
+    }
+
     /** Request programmes for rows that are idle, discarding obsolete per-stream work. */
     ensureLoaded(channels: readonly EpgGuideChannel[]): void {
         const range = this.range;
-        if (!range) {
-            return;
-        }
+        if (!range) return;
         const previousRows = this.visibleRows;
         const visible = new Set(channels.map((channel) => channel.id));
         this.visibleRows = visible;
@@ -193,9 +196,7 @@ export class EpgGuideProgramsService {
                     (status === 'error' && !previousRows.has(channel.id)))
             );
         });
-        if (pending.length === 0) {
-            return;
-        }
+        if (!pending.length) return;
         this.patchStatuses(pending.map((channel) => [channel.id, 'loading']));
         const batchSize = this.source.programBatchSize ?? EPG_GUIDE_LOAD_CHUNK;
         for (let start = 0; start < pending.length; start += batchSize) {
@@ -307,7 +308,8 @@ export class EpgGuideProgramsService {
     ): void {
         const progress = scan.progress;
         if (!progress) return;
-        progress.updates.set(id, hasPrograms);
+        progress.confirmed.add(id);
+        this.failedCoverage.delete(id);
         const expiry = this.negativeCoverageExpiry(id, hasPrograms);
         if (progress.uncovered.get(id) === expiry) return;
         if (expiry === undefined) progress.uncovered.delete(id);
@@ -318,23 +320,23 @@ export class EpgGuideProgramsService {
         }, COVERAGE_BATCH_MS);
     }
 
-    private requestCoverage(): void {
+    private requestCoverage(recheck?: readonly EpgGuideChannel[]): void {
         const range = this.range;
-        if (
-            !range ||
-            (this.source.deferredCoverage && !this.coverageRequested)
-        ) {
+        if (!range || (this.source.deferredCoverage && !this.coverageRequested))
             return;
-        }
         const request = new AbortController();
         const scan: CoverageScan = { controller: request };
         if (this.source.deferredCoverage) {
-            scan.progress = { updates: new Map(), uncovered: new Map() };
-            this.uncovered.set(null);
+            scan.progress = {
+                confirmed: new Set(),
+                uncovered: new Map(recheck ? this.uncovered() : null),
+            };
+            if (!recheck) this.uncovered.set(null);
         }
         this.coverageRequest = scan;
         this.coverageStatus.set('loading');
-        const keyed = this.source.channels().filter(hasEpgKey);
+        const channels = recheck ?? this.source.channels();
+        const keyed = channels.filter(hasEpgKey);
         const chunks: EpgGuideChannel[][] = [];
         for (
             let start = 0;
@@ -351,7 +353,8 @@ export class EpgGuideProgramsService {
                         (id, programs) => {
                             if (request.signal.aborted) return;
                             if (programs === null) {
-                                this.failedCoverage.add(id);
+                                if (!scan.progress?.confirmed.has(id))
+                                    this.failedCoverage.add(id);
                                 return;
                             }
                             this.reportCoverage(scan, id, programs.length > 0);
@@ -369,9 +372,7 @@ export class EpgGuideProgramsService {
                     )
             )
         ).then((sets) => {
-            if (request.signal.aborted) {
-                return;
-            }
+            if (request.signal.aborted) return;
             this.coverageRequest = undefined;
             clearTimeout(scan.progress?.timer);
             if (sets.some((set) => set === null)) {
@@ -386,19 +387,12 @@ export class EpgGuideProgramsService {
             }
             const merged = new Set<string>();
             for (const set of sets) set?.forEach((id) => merged.add(id));
-            // A viewport retry can succeed while the scan is still on later rows.
-            for (const [id, hasPrograms] of scan.progress?.updates ?? []) {
-                this.failedCoverage.delete(id);
-                if (hasPrograms) merged.add(id);
-                else merged.delete(id);
-            }
-            const uncovered = new Map<string, number>();
-            for (const { id } of this.source.channels()) {
-                if (!merged.has(id))
-                    uncovered.set(
-                        id,
-                        scan.progress?.uncovered.get(id) ?? Infinity
-                    );
+            const uncovered =
+                scan.progress?.uncovered ?? new Map<string, number>();
+            for (const { id } of channels) {
+                if (scan.progress?.confirmed.has(id)) continue;
+                if (merged.has(id)) uncovered.delete(id);
+                else uncovered.set(id, Infinity);
             }
             this.uncovered.set(uncovered);
             this.coverageStatus.set(
