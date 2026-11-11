@@ -37,7 +37,7 @@ export function createSourcesRouter(
     const sendTag = (res: Response, etag: string) =>
         res.set({
             ETag: etag,
-            'Cache-Control': 'no-cache',
+            'Cache-Control': res.get('Cache-Control') ?? 'no-cache',
             'Access-Control-Expose-Headers': 'ETag',
         });
     const read = (id: string): Playlist => {

@@ -5,7 +5,10 @@ import express, { type Express, type Response } from 'express';
 export function createHostedWebApp(api: Express, assets: string): Express {
     const index = readFileSync(join(assets, 'index.html'), 'utf8');
     const sendIndex = (res: Response) =>
-        res.set('Cache-Control', 'no-cache').type('html').send(index);
+        res
+            .set('Cache-Control', res.get('Cache-Control') ?? 'no-cache')
+            .type('html')
+            .send(index);
     const app = express();
     app.disable('x-powered-by');
     app.use('/api', api);

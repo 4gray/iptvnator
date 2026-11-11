@@ -11,6 +11,7 @@ import type { ServerDatabase } from './app/storage/server-database';
 function proxyGet(url: string, options: { headers: Record<string, string> }) {
     return new Promise<{
         status: number;
+        cacheControl?: string;
         json: () => Promise<Record<string, unknown>>;
     }>((resolve, reject) => {
         get(url, options, (response) => {
@@ -22,6 +23,7 @@ function proxyGet(url: string, options: { headers: Record<string, string> }) {
             response.on('end', () =>
                 resolve({
                     status: response.statusCode!,
+                    cacheControl: response.headers['cache-control'],
                     json: async () => JSON.parse(body),
                 })
             );
@@ -147,6 +149,7 @@ describe('hosted web backend worker', () => {
             const { port } = server.address() as AddressInfo;
             const origin = `http://127.0.0.1:${port}`;
             const page = await fetch(origin + '/workspace/dashboard');
+            expect(page.headers.get('cache-control')).toBe('no-cache');
             expect(await page.text()).toContain('Synthetic hosted app');
             const api = await fetch(origin + '/api/v1/instance');
             expect(api.status).toBe(200);
@@ -168,6 +171,9 @@ describe('hosted web backend worker', () => {
         const remote = 'http://127.0.0.1:4335';
         const headers = { host: 'library.example.test', origin: remoteOrigin };
         expect(
+            await proxyGet(remote + '/workspace/dashboard', { headers })
+        ).toMatchObject({ status: 200, cacheControl: 'no-store' });
+        expect(
             (
                 await proxyGet(remote + '/api/v1/instance', { headers }).then(
                     (response) => response.json()
@@ -178,15 +184,13 @@ describe('hosted web backend worker', () => {
             (await proxyGet(remote + '/api/v1/sources', { headers })).status
         ).toBe(401);
         expect(
-            (
-                await proxyGet(remote + '/api/v1/sources', {
-                    headers: {
-                        ...headers,
-                        authorization: 'Bearer synthetic-access-code',
-                    },
-                })
-            ).status
-        ).toBe(200);
+            await proxyGet(remote + '/api/v1/sources', {
+                headers: {
+                    ...headers,
+                    authorization: 'Bearer synthetic-access-code',
+                },
+            })
+        ).toMatchObject({ status: 200, cacheControl: 'no-store' });
         expect(
             (
                 await proxyGet(remote + '/', {
