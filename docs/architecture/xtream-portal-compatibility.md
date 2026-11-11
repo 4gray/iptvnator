@@ -791,14 +791,15 @@ while preserving their browsing state. Short screens show a compact dock so
 schedule rows remain visible. If an external channel switch fails and the
 player restores the previous session or rejects a switch while the old session
 is still playing, the guide keeps its scope and search. Enter and double-click
-close the guide only after the requested stream opens. MPV IPC confirms the
-requested entry, including siblings left by nested playlist redirects; a fresh
-process reports media readiness even when paused and allows retry after a
-readiness timeout. VLC RC checks the requested input and observes its playback
-clock. A readable zero stays pending; a different active URL remains unverified.
+close the guide only after the requested stream opens. A fresh or reused MPV
+process with IPC confirms its requested playlist entry, including siblings left
+by nested redirects, and allows retry after a readiness timeout. VLC RC checks
+the requested input and observes its playback clock. A readable zero stays
+pending; a different active URL remains unverified.
 If the player cannot verify readiness, the guide stays available for a retry and a
 committed selection keeps it open. Committing the still-playing channel cancels
-every outstanding switch away from it.
+every outstanding switch away from it, including timed-out launches that can
+still start playing. An unverified VLC launch cannot replace confirmed playback.
 The dock, player panel and remote status follow the confirmed session. When a
 switch is cancelled, the dock restores Stop for the surviving session if the
 cancelled launch still owns the dock.

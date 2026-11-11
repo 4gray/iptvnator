@@ -75,7 +75,7 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
         expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(3);
     });
 
-    it.each(['loaded', 'timed out'] as const)(
+    it.each(['loaded', 'timed out', 'unverified VLC'] as const)(
         'keeps an acknowledged switch pending until its requested media is %s',
         async (outcome) => {
             const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
@@ -132,6 +132,10 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
             expect(committed).not.toHaveBeenCalled();
             const replacement = {
                 ...current,
+                player:
+                    outcome === 'unverified VLC'
+                        ? ('vlc' as const)
+                        : current.player,
                 id: 'synthetic-confirmed',
                 streamUrl: nextUrl,
             };
@@ -139,7 +143,7 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
             fixture.detectChanges();
             expect(committed).not.toHaveBeenCalled();
             expect(source.activeChannelId()).toBe(String(first.xtream_id));
-            if (outcome === 'timed out') {
+            if (outcome !== 'loaded') {
                 publishExternalSession({
                     ...replacement,
                     mediaLoaded: false,
@@ -147,6 +151,7 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
                 });
                 fixture.detectChanges();
                 expect(component.guide.isOpen()).toBe(true);
+                expect(source.activeChannelId()).toBe(String(first.xtream_id));
                 expect(committed).not.toHaveBeenCalled();
                 source.activate('202');
                 expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(4);
@@ -202,6 +207,14 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
             );
             source.activate(row);
         }
+        publishExternalSession({
+            ...current,
+            id: pending[0].id,
+            streamUrl: pending[0].url,
+            mediaLoaded: false,
+            playbackUnverified: true,
+        });
+        fixture.detectChanges();
         const commit = jest.fn();
         source.activate(String(playing.xtream_id), null, undefined, commit);
         expect(commit).toHaveBeenCalledTimes(1);

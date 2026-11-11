@@ -197,9 +197,8 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 XtreamEpgGuideSourceService
             );
             if (mode === 'unverified VLC') {
+                expect(source.activeChannelId()).toBeNull();
                 source.activate('101');
-                expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(1);
-                expect(source.retryActive(source.channels()[0])).toBe(true);
                 expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(2);
                 return;
             }

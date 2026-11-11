@@ -44,8 +44,7 @@ export function hasXtreamOpenedMedia(
     return (
         (session?.status === 'opened' || session?.status === 'playing') &&
         !session.playbackIdle &&
-        (session.mediaLoaded !== false ||
-            (session.player === 'vlc' && session.playbackUnverified === true))
+        session.mediaLoaded !== false
     );
 }
 
@@ -171,7 +170,8 @@ export class XtreamExternalLiveSessions {
         for (const launch of launches) {
             const { source } = launch;
             if (
-                launch.ended() ||
+                launch.retired ||
+                launch.cancelled ||
                 launch.opened ||
                 source.playlistId !== playlistId ||
                 !source.channel ||
@@ -227,9 +227,7 @@ export class XtreamExternalLiveSessions {
         if (
             session.status === 'error' ||
             session.playbackIdle ||
-            (session.player === 'mpv' &&
-                session.mediaLoaded === false &&
-                session.playbackUnverified)
+            (session.mediaLoaded === false && session.playbackUnverified)
         )
             launch?.ended.set(true);
         const entry = current ?? { session, source: owner, launch };

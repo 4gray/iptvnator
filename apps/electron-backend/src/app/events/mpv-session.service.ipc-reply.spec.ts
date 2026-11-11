@@ -155,7 +155,7 @@ describe('reused MPV IPC replies', () => {
         }
     );
 
-    it('confirms a fresh paused stream when MPV exposes its initial position', async () => {
+    it('loads the requested guide entry through the fresh MPV socket', async () => {
         jest.useFakeTimers({ doNotFake: ['setImmediate'] });
         const proc = createMockChildProcess();
         spawnMock.mockReturnValueOnce(proc);
@@ -166,30 +166,44 @@ describe('reused MPV IPC replies', () => {
                   ? false
                   : fallback
         );
-        const written: string[] = [];
-        createConnectionMock
-            .mockImplementationOnce(() =>
-                createMpvSocketMock({ written, data: false })
-            )
-            .mockImplementationOnce(() =>
-                createMpvSocketMock({ written, data: 0 })
-            );
+        const sockets = mockUnansweredSockets();
+        const url = 'https://example.test/synthetic.ts';
         const opening = openMpvPlayer({
             title: 'Synthetic Channel',
-            url: 'https://example.test/synthetic.ts',
+            url,
             launchId: 'synthetic-guide-launch',
         });
         await jest.advanceTimersByTimeAsync(100);
+        await nextTick();
+        expect(spawnMock.mock.lastCall?.[1]).not.toContain(url);
+        const socket = sockets[0];
+        const request = JSON.parse(socket.write.mock.calls[0][0]);
+        expect(request.command).toEqual(['loadfile', url, 'replace']);
+        const push = (...lines: object[]) =>
+            socket.emit(
+                'data',
+                Buffer.from(
+                    lines.map((line) => JSON.stringify(line)).join('\n') + '\n'
+                )
+            );
+        push({
+            request_id: request.request_id,
+            error: 'success',
+            data: { playlist_entry_id: 2 },
+        });
         const session = await opening;
         expect(session.mediaLoaded).toBe(false);
-        await jest.advanceTimersByTimeAsync(2_000);
-        await nextTick();
-        await nextTick();
-        await nextTick();
-        expect(written.map((chunk) => JSON.parse(chunk).command[1])).toEqual([
-            'idle-active',
-            'time-pos',
-        ]);
+        push(
+            { event: 'start-file', playlist_entry_id: 7 },
+            { event: 'file-loaded' }
+        );
+        expect(externalPlayerSessions.getSession(session.id)?.mediaLoaded).toBe(
+            false
+        );
+        push(
+            { event: 'start-file', playlist_entry_id: 2 },
+            { event: 'file-loaded' }
+        );
         expect(externalPlayerSessions.getSession(session.id)?.mediaLoaded).toBe(
             true
         );

@@ -1,4 +1,5 @@
 import { createConnection } from 'net';
+import type { ExternalPlayerSession } from '@iptvnator/shared/interfaces';
 import {
     externalPlayerSessions,
     traceExternalPlayer,
@@ -88,22 +89,12 @@ export function markMpvOpened(
     if (
         confirmFreshMedia &&
         externalPlayerSessions.getSession(sessionId)?.status === 'launching'
-    ) {
+    )
         externalPlayerSessions.updateSession(sessionId, {
             mediaLoaded: false,
             playbackUnverified: socketPath ? undefined : true,
             mediaObservationUnavailable: socketPath ? undefined : true,
         });
-        if (socketPath)
-            setTimeout(() => {
-                if (
-                    hasOwner() &&
-                    externalPlayerSessions.getSession(sessionId)
-                        ?.mediaLoaded === false
-                )
-                    publishMpvMediaOutcome(sessionId, undefined);
-            }, MPV_MEDIA_OBSERVATION_TIMEOUT_MS).unref();
-    }
     return markExternalPlayerOpened(
         sessionId,
         socketPath
@@ -116,28 +107,6 @@ export function markMpvOpened(
                       ['idle-active'],
                       { shouldDispatch: canRead }
                   );
-                  if (
-                      confirmFreshMedia &&
-                      reply &&
-                      reply.data === false &&
-                      !externalPlayerSessions.getSession(sessionId)
-                          ?.mediaLoaded &&
-                      canRead()
-                  ) {
-                      const position = await sendMpvCommand(
-                          socketPath,
-                          'get_property',
-                          ['time-pos'],
-                          { shouldDispatch: canRead }
-                      ).catch(() => false as const);
-                      if (
-                          position &&
-                          typeof position.data === 'number' &&
-                          Number.isFinite(position.data) &&
-                          canRead()
-                      )
-                          publishMpvMediaOutcome(sessionId, true);
-                  }
                   if (!canRead()) return undefined;
                   return reply && typeof reply.data === 'boolean'
                       ? reply.data
@@ -145,6 +114,77 @@ export function markMpvOpened(
               }
             : undefined
     );
+}
+
+export async function completeFreshMpvLaunch(
+    session: ExternalPlayerSession,
+    socketPath: string | null,
+    hasOwner: () => boolean,
+    guideLaunch: boolean,
+    signal?: AbortSignal
+): Promise<ExternalPlayerSession> {
+    markMpvOpened(
+        session.id,
+        guideLaunch && !signal ? null : socketPath,
+        hasOwner,
+        guideLaunch
+    );
+    if (socketPath && signal)
+        await loadFreshMpvGuideMedia(
+            session.id,
+            socketPath,
+            session.streamUrl,
+            hasOwner,
+            signal
+        );
+    return externalPlayerSessions.getSession(session.id) ?? session;
+}
+
+/** Dispatch once the new child exposes IPC, then observe the exact loadfile entry. */
+export async function loadFreshMpvGuideMedia(
+    sessionId: string,
+    socketPath: string,
+    url: string,
+    hasOwner: () => boolean,
+    signal: AbortSignal
+): Promise<void> {
+    const deadline = Date.now() + MPV_IPC_COMMAND_TIMEOUT_MS;
+    const shouldDispatch = () => {
+        const status = externalPlayerSessions.getSession(sessionId)?.status;
+        return (
+            !signal.aborted &&
+            hasOwner() &&
+            (status === 'opened' || status === 'playing')
+        );
+    };
+    while (shouldDispatch()) {
+        try {
+            await sendMpvCommand(socketPath, 'loadfile', [url, 'replace'], {
+                shouldDispatch,
+                media: {
+                    signal,
+                    onOutcome: (loaded) => {
+                        if (shouldDispatch())
+                            publishMpvMediaOutcome(sessionId, loaded);
+                    },
+                },
+            });
+            return;
+        } catch (error) {
+            if (
+                error instanceof MpvIpcCommandError &&
+                !error.dispatched &&
+                Date.now() < deadline
+            ) {
+                await new Promise<void>((resolve) =>
+                    setTimeout(resolve, 50).unref()
+                );
+                continue;
+            }
+            if (shouldDispatch()) publishMpvMediaOutcome(sessionId, undefined);
+            return;
+        }
+    }
 }
 
 function parseReplyLine(line: string): MpvIpcMessage | null {

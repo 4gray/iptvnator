@@ -502,6 +502,13 @@ export class LiveStreamLayoutComponent
             ? playback.source
             : undefined;
     });
+    private readonly unverifiedVlcSource = computed(() => {
+        const playback = this.externalGuide.unverifiedPlayback();
+        return playback?.session.player === 'vlc' &&
+            !this.externalGuide.confirmed()
+            ? playback.source
+            : undefined;
+    });
     private readonly usesSelectionForRemote = computed(
         () =>
             this.usesEmbeddedPlayer() ||
@@ -518,10 +525,14 @@ export class LiveStreamLayoutComponent
               this.externalGuide.confirmed()?.item ??
               null)
     );
-    private readonly idleRemoteAnchor = computed(() => {
-        if (this.usesSelectionForRemote() || !this.externalGuide.idleStream())
+    private readonly remoteAnchor = computed(() => {
+        const unverified = this.unverifiedVlcSource()?.channel;
+        if (
+            this.usesSelectionForRemote() ||
+            (!unverified && !this.externalGuide.idleStream())
+        )
             return null;
-        const item = this.channelNavigation.activeItem();
+        const item = unverified ?? this.channelNavigation.activeItem();
         return item &&
             this.channelNavigation
                 .remoteChannels()
@@ -598,7 +609,8 @@ export class LiveStreamLayoutComponent
             },
         });
         effect(() => {
-            const source = this.socketlessRemoteSource();
+            const source =
+                this.socketlessRemoteSource() ?? this.unverifiedVlcSource();
             if (!source?.channel) return;
             const { channel, queue } = source;
             untracked(() =>
@@ -826,7 +838,7 @@ export class LiveStreamLayoutComponent
 
             if (
                 selectedContentType !== 'live' ||
-                !(selectedItem || this.idleRemoteAnchor())
+                !(selectedItem || this.remoteAnchor())
             ) {
                 remoteControl.updateRemoteControlStatus({
                     portal: 'xtream',
@@ -1133,8 +1145,8 @@ export class LiveStreamLayoutComponent
         const tuning = selectionBased
             ? undefined
             : this.externalGuide.remoteTuningItem();
-        const idle = this.idleRemoteAnchor();
-        const activeItem = tuning ?? this.remoteLiveItem() ?? idle;
+        const anchor = this.remoteAnchor();
+        const activeItem = tuning ?? this.remoteLiveItem() ?? anchor;
         if (!activeItem?.xtream_id) {
             return;
         }
@@ -1156,7 +1168,7 @@ export class LiveStreamLayoutComponent
         if (
             !nextItem ||
             (nextItem.xtream_id === activeItem.xtream_id &&
-                (tuning || !(archive || idle)))
+                (tuning || !(archive || anchor)))
         ) {
             return;
         }

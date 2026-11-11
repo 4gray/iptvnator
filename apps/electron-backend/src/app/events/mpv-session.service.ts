@@ -42,7 +42,7 @@ import {
     MpvReusableProcess,
     MpvReuseAttemptState,
 } from './mpv-reusable-process';
-import { markMpvOpened } from './mpv-ipc-command';
+import { completeFreshMpvLaunch } from './mpv-ipc-command';
 import { attachMpvOutputHandlers } from './mpv-output-errors';
 import {
     startPositionPolling,
@@ -259,7 +259,14 @@ async function launchMpvPlayer(
             args.push(`--start=${startTime}`);
         }
 
-        args.push(url);
+        const guideLaunch = !!session.launchId && !contentInfo;
+        const media =
+            guideLaunch &&
+            socketPath &&
+            !/(?:^|[\\/])iina(?:-cli)?$/i.test(mpvLaunchContext.playerPath)
+                ? new AbortController()
+                : undefined;
+        if (!media) args.push(url);
 
         await new Promise<void>((resolve, reject) => {
             let settled = false;
@@ -301,6 +308,7 @@ async function launchMpvPlayer(
             attachMpvOutputHandlers(proc);
 
             proc.on('error', (err) => {
+                media?.abort();
                 console.error('Failed to start MPV player:', err);
                 const processSessionId = reusableMpvProcess.sessionIdFor(
                     proc,
@@ -319,6 +327,7 @@ async function launchMpvPlayer(
             });
 
             proc.on('exit', (code) => {
+                media?.abort();
                 traceExternalPlayer('mpv exited', { code });
                 const processSessionId = reusableMpvProcess.sessionIdFor(
                     proc,
@@ -395,15 +404,14 @@ async function launchMpvPlayer(
             startConfirmationTimer.unref();
         });
 
-        return (
-            markMpvOpened(
-                session.id,
-                socketPath,
-                () =>
-                    !reuseInstance ||
-                    reusableMpvProcess.currentSessionId() === session.id,
-                !!session.launchId && !contentInfo
-            ) ?? session
+        return await completeFreshMpvLaunch(
+            session,
+            socketPath,
+            () =>
+                !reuseInstance ||
+                reusableMpvProcess.currentSessionId() === session.id,
+            guideLaunch,
+            media?.signal
         );
     } catch (error) {
         console.error('Error opening MPV player:', error);
