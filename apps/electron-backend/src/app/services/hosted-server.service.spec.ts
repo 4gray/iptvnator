@@ -144,12 +144,12 @@ describe('desktop hosted server lifecycle', () => {
 
     it('inherits the parent environment and overrides hosted server settings', async () => {
         jest.replaceProperty(process, 'env', {
-            ...process.env,
             SystemRoot: 'C:\\SyntheticWindows',
             PATH: 'C:\\SyntheticWindows\\System32',
             TEMP: directory,
             IPTVNATOR_STORAGE: 'local',
             IPTVNATOR_DATA_DIR: 'parent-data',
+            IPTVNATOR_E2E_DATA_DIR: directory,
             IPTVNATOR_SOURCE_PROFILE: 'a'.repeat(64),
             IPTVNATOR_ACCESS_TOKEN: 'parent-token',
             IPTVNATOR_HOSTED_ASSETS: 'parent-assets',
@@ -173,6 +173,7 @@ describe('desktop hosted server lifecycle', () => {
                     ...parentEnvironment,
                     IPTVNATOR_STORAGE: 'server',
                     IPTVNATOR_DATA_DIR: join(directory, 'hosted-server'),
+                    IPTVNATOR_E2E_DATA_DIR: '',
                     IPTVNATOR_SOURCE_PROFILE: '',
                     IPTVNATOR_ACCESS_TOKEN: invoke(HOSTED_SERVER_ACCESS_CODE),
                     IPTVNATOR_HOSTED_ASSETS: assets,

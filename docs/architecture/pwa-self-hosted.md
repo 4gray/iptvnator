@@ -51,6 +51,8 @@ Hosted storage, data paths, access code, assets, LAN binding and port override
 any inherited values so the worker always uses its dedicated server profile.
 The desktop's `IPTVNATOR_SOURCE_PROFILE` is cleared in the worker environment,
 so switching desktop server connections does not change the hosted database.
+The worker also clears `IPTVNATOR_E2E_DATA_DIR`, which otherwise takes
+precedence over the hosted data directory during Electron tests.
 
 The desktop package includes `web-backend:build` and `web:build-hosted`. The
 latter emits a separate PWA bundle, so the Electron renderer and Docker
