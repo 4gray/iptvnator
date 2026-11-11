@@ -505,6 +505,14 @@ export async function openVlcPlayer({
                     }
                     return requestedClose;
                 });
+                if (
+                    isRetry &&
+                    externalPlayerSessions.getSession(session.id)
+                        ?.playbackIdle !== undefined
+                )
+                    externalPlayerSessions.updateSession(session.id, {
+                        playbackIdle: undefined,
+                    });
 
                 if (!isRetry && rcPort > 0 && contentInfo) {
                     startVlcPositionPolling(

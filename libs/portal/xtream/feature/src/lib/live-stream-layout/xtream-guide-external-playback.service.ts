@@ -76,7 +76,7 @@ export class XtreamGuideExternalPlayback {
     private readonly pending = signal<GuideLaunch | undefined>(undefined);
     private panel?: GuidePanel;
     private panelPlayback?: ResolvedPortalPlayback;
-    private panelSessionId?: string;
+    private readonly panelSessionId = signal<string | undefined>(undefined);
 
     readonly hasSessionUpdates =
         !!this.playback &&
@@ -145,14 +145,19 @@ export class XtreamGuideExternalPlayback {
 
     readonly idleStream = computed(() => {
         const active = this.playback?.activeSession();
-        if (!active?.playbackIdle) return false;
-        const source = this.sessions.state(active.id)?.source;
+        const followed = this.panelSessionId();
+        const playlistId = this.store.currentPlaylist()?.id;
         this.lock.version();
-        return (
-            !!source &&
-            source.playlistId === this.store.currentPlaylist()?.id &&
-            !isXtreamLiveCategoryWithheld(this.lock, source)
-        );
+        return [active?.id, followed].some((id) => {
+            const entry = id ? this.sessions.state(id) : undefined;
+            return (
+                !!entry?.session.playbackIdle &&
+                (entry.session.status === 'opened' ||
+                    entry.session.status === 'playing') &&
+                entry.source.playlistId === playlistId &&
+                !isXtreamLiveCategoryWithheld(this.lock, entry.source)
+            );
+        });
     });
 
     remoteTuningItem(): XtreamLiveChannelItem | undefined {
@@ -190,11 +195,11 @@ export class XtreamGuideExternalPlayback {
                 const id = playing.session.id;
                 if (
                     !ended &&
-                    this.panelSessionId === id &&
+                    this.panelSessionId() === id &&
                     !(active?.id === id && active.restoredFromSessionId)
                 )
                     return;
-                this.panelSessionId = id;
+                this.panelSessionId.set(id);
                 this.syncPanel(playing);
             });
         });
@@ -208,7 +213,7 @@ export class XtreamGuideExternalPlayback {
         this.requests.clear();
         this.pending.set(undefined);
         this.panelPlayback = undefined;
-        this.panelSessionId = undefined;
+        this.panelSessionId.set(undefined);
     }
 
     start(

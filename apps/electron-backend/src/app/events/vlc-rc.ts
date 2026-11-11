@@ -166,6 +166,7 @@ export function markVlcOpened(sessionId: string, getPort: () => number) {
         const port = getPort();
         if (!port) return undefined;
         const state = await getVlcPlaybackState(port);
+        if (getPort() !== port) return undefined;
         return state === 'stopped'
             ? true
             : state === 'playing' || state === 'paused'

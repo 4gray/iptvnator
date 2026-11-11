@@ -848,6 +848,20 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                     ? 2
                     : 1
             );
+            if (scenario === 'unrelated session') {
+                onExternalPlayerSessionUpdate.mock.lastCall?.[0]({
+                    ...session,
+                    playbackIdle: true,
+                });
+                fixture.detectChanges();
+                expect(component.guide.isOpen()).toBe(true);
+                const source = fixture.debugElement.injector.get(
+                    XtreamEpgGuideSourceService
+                );
+                expect(source.activeChannelId()).toBeNull();
+                source.activate(String(playing.xtream_id));
+                expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(2);
+            }
             xtreamStore.currentPlaylist.set({
                 ...playlist,
                 id: 'synthetic-next-playlist',
