@@ -44,6 +44,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         mpvPlayerPath,
         xtreamStore,
     } = setupLiveStreamLayoutNativeFixture();
+    const launchedUrl = () => xtreamStore.openPlayer.mock.lastCall?.[0];
 
     beforeEach(() => {
         fixture = TestBed.createComponent(LiveStreamLayoutComponent);
@@ -234,9 +235,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             expect(component.activeStreamUrl()).toBe(
                 'https://example.com/live.ts'
             );
-            expect(xtreamStore.setSelectedItem).toHaveBeenLastCalledWith(
-                playing
-            );
+            expect(xtreamStore.setSelectedItem).not.toHaveBeenCalledWith(next);
             component.guide.open();
             xtreamStore.constructStreamUrl.mockReturnValueOnce(
                 'https://example.com/second.ts'
@@ -415,7 +414,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 const replacement: ExternalPlayerSession = {
                     ...original,
                     id: 'synthetic-second',
-                    streamUrl: component.activeStreamUrl(),
+                    streamUrl: launchedUrl(),
                     status: 'launching',
                 };
                 publishExternalSession(replacement);
@@ -431,7 +430,8 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 onChannelChange.mock.lastCall?.[0]({ direction: 'up' });
                 expect(xtreamStore.constructStreamUrl).toHaveBeenLastCalledWith(
                     neighbor,
-                    expect.any(Function)
+                    undefined,
+                    false
                 );
                 publishExternalSession({
                     ...original,
@@ -475,7 +475,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 const reopened = {
                     ...replacement,
                     id: 'synthetic-retry',
-                    streamUrl: component.activeStreamUrl(),
+                    streamUrl: launchedUrl(),
                     status: 'opened' as const,
                 };
                 publishExternalSession(reopened);
@@ -540,7 +540,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             const pending = {
                 ...original,
                 id: 'synthetic-pending-session',
-                streamUrl: component.activeStreamUrl(),
+                streamUrl: launchedUrl(),
                 status: 'launching',
                 canClose: false,
             } as const;
@@ -586,9 +586,9 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                     expect.objectContaining(opened)
                 );
                 expect(component.guide.available()).toBe(true);
-                expect(xtreamStore.loadEpg).toHaveBeenCalledTimes(1);
-                expect(xtreamStore.setSelectedItem).toHaveBeenLastCalledWith(
-                    playing
+                expect(xtreamStore.loadEpg).not.toHaveBeenCalled();
+                expect(xtreamStore.setSelectedItem).not.toHaveBeenCalledWith(
+                    next
                 );
                 return;
             }
@@ -603,7 +603,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             });
             fixture.detectChanges();
             expect(component.guideNowPlayingChannel()).toBe('');
-            expect(component.activeStreamUrl()).toBe(pending.streamUrl);
+            expect(component.activeStreamUrl()).toBe('');
             expect(xtreamStore.setSelectedItem).not.toHaveBeenCalledWith(
                 playing
             );
@@ -748,7 +748,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             const replacement = {
                 ...original,
                 id: 'synthetic-replacement',
-                streamUrl: component.activeStreamUrl(),
+                streamUrl: launchedUrl(),
                 status: 'launching',
             } as const;
             publishExternalSession(replacement);
@@ -1037,12 +1037,14 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                     publishExternalSession({
                         ...original,
                         id: 'synthetic-pending',
-                        streamUrl: playback!.streamUrl,
+                        streamUrl: launchedUrl(),
                         status: 'opened',
                     });
                 fixture.detectChanges();
                 expect(source.playingItem()).toBe(copy);
-                expect(component.activePlayback()).toBe(playback);
+                if (state === 'preview')
+                    expect(component.activePlayback()).toBe(playback);
+                else expect(component.activeStreamUrl()).toBe(launchedUrl());
                 expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(
                     state === 'preview' ? 1 : 2
                 );
@@ -1107,7 +1109,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             const replacement = {
                 ...session,
                 id: 'synthetic-replacement',
-                streamUrl: component.activeStreamUrl(),
+                streamUrl: launchedUrl(),
                 title: 'Synthetic Replacement Channel',
             };
             const late =
@@ -1128,7 +1130,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             const third = {
                 ...session,
                 id: 'synthetic-third',
-                streamUrl: component.activeStreamUrl(),
+                streamUrl: launchedUrl(),
             };
             if (late) {
                 publishExternalSession(replacement);
@@ -1188,12 +1190,13 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             expect(component.activePlayback()?.streamUrl).toBe(
                 confirmed.streamUrl
             );
-            expect(xtreamStore.setSelectedItem).toHaveBeenLastCalledWith(
-                expect.objectContaining({
-                    xtream_id: original ? sampleChannel.xtream_id : 102,
-                })
-            );
-            expect(xtreamStore.loadEpg).toHaveBeenCalled();
+            if (original)
+                expect(xtreamStore.setSelectedItem).not.toHaveBeenCalled();
+            else
+                expect(xtreamStore.setSelectedItem).toHaveBeenLastCalledWith(
+                    expect.objectContaining({ xtream_id: 102 })
+                );
+            if (!original) expect(xtreamStore.loadEpg).toHaveBeenCalled();
             expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(3);
         }
     );

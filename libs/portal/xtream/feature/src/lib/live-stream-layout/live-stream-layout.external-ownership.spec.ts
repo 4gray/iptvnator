@@ -69,7 +69,8 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
 
         expect(xtreamStore.constructStreamUrl).toHaveBeenLastCalledWith(
             local,
-            expect.any(Function)
+            undefined,
+            false
         );
         expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(3);
     });
@@ -218,6 +219,60 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
         expect(nativeClose).toHaveBeenCalledTimes(2);
         expect(component.guideNowPlayingChannel()).toBe(current.title);
         expect(source.activeChannelId()).toBe(String(playing.xtream_id));
+    });
+
+    it('keeps the confirmed panel selected when the guide closes during a switch', () => {
+        const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
+        const component = fixture.componentInstance;
+        const playing = { ...sampleChannel, category_id: 1 };
+        const next = { ...playing, xtream_id: 202 };
+        emptyList.set([playing, next]);
+        portalPlayer.isEmbeddedPlayer.set(false);
+        fixture.detectChanges();
+        component.playLive(playing, true);
+        const current = {
+            id: 'synthetic-confirmed-panel',
+            player: 'mpv',
+            status: 'opened',
+            mediaLoaded: true,
+            title: 'Synthetic Channel',
+            streamUrl: component.activeStreamUrl(),
+            canClose: true,
+            startedAt: '2026-04-04T10:00:00Z',
+            updatedAt: '2026-04-04T10:00:00Z',
+        } as const;
+        publishExternalSession(current);
+        fixture.detectChanges();
+        component.guide.open();
+        fixture.detectChanges();
+        const source = fixture.debugElement.injector.get(
+            XtreamEpgGuideSourceService
+        );
+        const nextUrl = 'https://example.test/synthetic-next.ts';
+        xtreamStore.constructStreamUrl.mockReturnValueOnce(nextUrl);
+        xtreamStore.openPlayer.mockImplementationOnce(
+            () => new Promise(() => undefined)
+        );
+        source.activate(String(next.xtream_id));
+        expect(xtreamStore.openPlayer.mock.lastCall?.[0]).toBe(nextUrl);
+        expect(xtreamStore.constructStreamUrl).toHaveBeenLastCalledWith(
+            next,
+            undefined,
+            false
+        );
+        component.guide.close();
+        fixture.detectChanges();
+        expect(component.activeStreamUrl()).toBe(current.streamUrl);
+        expect(xtreamStore.setSelectedItem).not.toHaveBeenCalledWith(next);
+
+        publishExternalSession({
+            ...current,
+            id: 'synthetic-new-panel',
+            streamUrl: nextUrl,
+        });
+        fixture.detectChanges();
+        expect(component.activeStreamUrl()).toBe(nextUrl);
+        expect(xtreamStore.setSelectedItem).toHaveBeenLastCalledWith(next);
     });
 
     it.each(['mpv', 'vlc'] as const)(

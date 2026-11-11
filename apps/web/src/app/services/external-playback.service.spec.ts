@@ -72,6 +72,30 @@ describe('ExternalPlaybackService', () => {
         expect(service.visibleSession()).toEqual(current);
     });
 
+    it('restores Stop for a survivor only while the cancelled switch owns the dock', () => {
+        const survivor = createSession({
+            id: 'synthetic-survivor',
+            status: 'opened',
+        });
+        const cancelled = createSession({
+            id: 'synthetic-cancelled',
+            launchOrder: 2,
+        });
+        listener?.(survivor);
+        listener?.(cancelled);
+        listener?.({ ...cancelled, status: 'closed', canClose: false });
+        service.restoreDisplacedSession(survivor, cancelled.id);
+        expect(service.visibleSession()).toMatchObject({
+            id: survivor.id,
+            canClose: true,
+        });
+
+        const newer = createSession({ id: 'synthetic-newer', launchOrder: 3 });
+        listener?.(newer);
+        service.restoreDisplacedSession(survivor, cancelled.id);
+        expect(service.visibleSession()).toBe(newer);
+    });
+
     it('keeps the newest launch when an older launch republishes as launching', () => {
         const older = createSession({
             id: 'session-older',

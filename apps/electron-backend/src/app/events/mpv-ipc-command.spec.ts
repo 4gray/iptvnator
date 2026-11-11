@@ -32,7 +32,7 @@ const createConnectionMock = createConnection as unknown as jest.Mock;
 const socketPath = '/tmp/mpv-ipc-command.sock';
 const streamUrl = 'https://example.com/stream.m3u8?token=secret-token';
 
-function nextSocket(): SocketMock {
+function makeSocket(): SocketMock {
     const socket: SocketMock = Object.assign(new EventEmitter(), {
         write: jest.fn(() => true),
         destroy: jest.fn(() => {
@@ -40,6 +40,11 @@ function nextSocket(): SocketMock {
         }),
         destroyed: false,
     });
+    return socket;
+}
+
+function nextSocket(): SocketMock {
+    const socket = makeSocket();
     createConnectionMock.mockReturnValueOnce(socket);
     return socket;
 }
@@ -90,6 +95,53 @@ describe('sendMpvCommand', () => {
             mediaObservationUnavailable: true,
         });
         expect(createConnectionMock).not.toHaveBeenCalled();
+    });
+
+    it('makes stalled fresh media retryable and clears uncertainty when it starts', async () => {
+        jest.useFakeTimers({ doNotFake: ['queueMicrotask'] });
+        let ready = false;
+        createConnectionMock.mockImplementation(() => {
+            const socket = makeSocket();
+            socket.write.mockImplementation(() => {
+                const { command, request_id } = writtenRequest(socket);
+                queueMicrotask(() =>
+                    reply(
+                        socket,
+                        command[1] === 'idle-active'
+                            ? { request_id, error: 'success', data: false }
+                            : ready
+                              ? { request_id, error: 'success', data: 0 }
+                              : { request_id, error: 'property unavailable' }
+                    )
+                );
+            });
+            queueMicrotask(() => socket.emit('connect'));
+            return socket;
+        });
+        const session = externalPlayerSessions.beginSession({
+            player: 'mpv',
+            title: 'Synthetic Channel',
+            streamUrl,
+        });
+        try {
+            markMpvOpened(session.id, socketPath, undefined, true);
+            await jest.advanceTimersByTimeAsync(29_999);
+            expect(externalPlayerSessions.getSession(session.id)).toMatchObject(
+                { mediaLoaded: false, playbackUnverified: undefined }
+            );
+            await jest.advanceTimersByTimeAsync(1);
+            expect(externalPlayerSessions.getSession(session.id)).toMatchObject(
+                { mediaLoaded: false, playbackUnverified: true }
+            );
+            ready = true;
+            await jest.advanceTimersByTimeAsync(2_001);
+            expect(externalPlayerSessions.getSession(session.id)).toMatchObject(
+                { mediaLoaded: true, playbackUnverified: undefined }
+            );
+        } finally {
+            externalPlayerSessions.markClosed(session.id);
+            createConnectionMock.mockReset();
+        }
     });
 
     it('sends a request_id and resolves with the matching reply', async () => {

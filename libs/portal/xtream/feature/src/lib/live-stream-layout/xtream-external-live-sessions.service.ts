@@ -55,6 +55,7 @@ type Launch = {
     retired?: boolean;
     cancelled?: boolean;
     opened?: boolean;
+    restoreSessionId?: string;
 };
 type Active = {
     session: ExternalPlayerSession;
@@ -157,7 +158,11 @@ export class XtreamExternalLiveSessions {
         };
     }
 
-    cancelPendingSwitches(playlistId: string, channelId: number): boolean {
+    cancelPendingSwitches(
+        playlistId: string,
+        channelId: number,
+        restoreSessionId: string
+    ): boolean {
         const launches = new Set(this.pending.values());
         this.sessions.forEach(({ launch }) => {
             if (launch) launches.add(launch);
@@ -174,6 +179,7 @@ export class XtreamExternalLiveSessions {
             )
                 continue;
             launch.cancelled = true;
+            launch.restoreSessionId = restoreSessionId;
             launch.ended.set(true);
             cancelled.add(launch);
         }
@@ -281,7 +287,7 @@ export class XtreamExternalLiveSessions {
                               !this.needsClose(entry)
                           )
                               this.enforce(entry);
-                      } else
+                      } else {
                           this.update(
                               result ?? {
                                   ...session,
@@ -289,6 +295,23 @@ export class XtreamExternalLiveSessions {
                                   canClose: false,
                               }
                           );
+                          const survivor = entry.launch?.restoreSessionId;
+                          const restore = survivor
+                              ? this.state(survivor)
+                              : undefined;
+                          if (
+                              restore &&
+                              hasXtreamOpenedMedia(restore.session) &&
+                              !isXtreamLiveCategoryWithheld(
+                                  this.lock,
+                                  restore.source
+                              )
+                          )
+                              this.playback?.restoreDisplacedSession?.(
+                                  restore.session,
+                                  session.id
+                              );
+                      }
                   })
             : this.playback.closeSession(session);
         void close.catch(() => {

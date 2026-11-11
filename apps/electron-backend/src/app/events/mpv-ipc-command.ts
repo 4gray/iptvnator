@@ -88,12 +88,22 @@ export function markMpvOpened(
     if (
         confirmFreshMedia &&
         externalPlayerSessions.getSession(sessionId)?.status === 'launching'
-    )
+    ) {
         externalPlayerSessions.updateSession(sessionId, {
             mediaLoaded: false,
             playbackUnverified: socketPath ? undefined : true,
             mediaObservationUnavailable: socketPath ? undefined : true,
         });
+        if (socketPath)
+            setTimeout(() => {
+                if (
+                    hasOwner() &&
+                    externalPlayerSessions.getSession(sessionId)
+                        ?.mediaLoaded === false
+                )
+                    publishMpvMediaOutcome(sessionId, undefined);
+            }, MPV_MEDIA_OBSERVATION_TIMEOUT_MS).unref();
+    }
     return markExternalPlayerOpened(
         sessionId,
         socketPath
@@ -126,9 +136,7 @@ export function markMpvOpened(
                           Number.isFinite(position.data) &&
                           canRead()
                       )
-                          externalPlayerSessions.updateSession(sessionId, {
-                              mediaLoaded: true,
-                          });
+                          publishMpvMediaOutcome(sessionId, true);
                   }
                   if (!canRead()) return undefined;
                   return reply && typeof reply.data === 'boolean'

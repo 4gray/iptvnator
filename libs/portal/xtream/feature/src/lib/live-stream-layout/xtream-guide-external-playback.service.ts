@@ -263,7 +263,7 @@ export class XtreamGuideExternalPlayback {
                       onConfirmed,
                   }
                 : undefined;
-        this.panelPlayback = playback;
+        this.panelPlayback = this.panel?.current() ?? playback;
         const lifecycle = launch && this.sessions.begin(launch.lockSource);
         if (launch) launch.ended = lifecycle?.ended;
         this.pending.set(launch);
@@ -332,15 +332,18 @@ export class XtreamGuideExternalPlayback {
     }
 
     cancelPendingSwitch(item: XtreamLiveChannelItem): boolean {
-        const playlistId = this.store.currentPlaylist()?.id;
+        const confirmed = this.confirmed();
         if (
-            !playlistId ||
-            !this.sessions.cancelPendingSwitches(playlistId, item.xtream_id)
+            !confirmed ||
+            !this.sessions.cancelPendingSwitches(
+                confirmed.lockSource.playlistId,
+                item.xtream_id,
+                confirmed.session.id
+            )
         )
             return false;
         if (this.pending()?.ended?.()) this.pending.set(undefined);
-        const confirmed = this.confirmed();
-        if (confirmed) this.syncPanel(confirmed);
+        this.syncPanel(confirmed);
         return true;
     }
 

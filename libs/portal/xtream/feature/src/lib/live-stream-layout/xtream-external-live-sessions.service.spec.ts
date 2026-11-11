@@ -36,6 +36,7 @@ describe('XtreamExternalLiveSessions', () => {
     const activeSession = signal<ExternalPlayerSession | null>(null);
     const dismissActiveSession = jest.fn();
     const restoreDismissedSession = jest.fn();
+    const restoreDisplacedSession = jest.fn();
     const closeSession = jest.fn(
         async (_session: ExternalPlayerSession) => undefined
     );
@@ -60,6 +61,7 @@ describe('XtreamExternalLiveSessions', () => {
         closeSession.mockClear();
         dismissActiveSession.mockClear();
         restoreDismissedSession.mockClear();
+        restoreDisplacedSession.mockClear();
         activeSession.set(null);
         locked.set(false);
         version.set(0);
@@ -72,6 +74,7 @@ describe('XtreamExternalLiveSessions', () => {
                         activeSession,
                         dismissActiveSession,
                         restoreDismissedSession,
+                        restoreDisplacedSession,
                     },
                 },
                 {
@@ -215,6 +218,36 @@ describe('XtreamExternalLiveSessions', () => {
 
         expect(dismissActiveSession).toHaveBeenCalledTimes(2);
         expect(nativeClose.mock.calls).toEqual([[opened.id, true]]);
+    });
+
+    it('restores the exact surviving player after closing a cancelled switch', async () => {
+        const close = jest.fn(async (id: string) =>
+            session(id, newUrl, 'closed')
+        );
+        Object.defineProperty(window.electron, 'closeExternalPlayerSession', {
+            value: close,
+        });
+        const playing = session('synthetic-survivor', oldUrl, 'opened');
+        const cancelled = {
+            ...session('synthetic-cancelled', newUrl, 'launching'),
+            canClose: true,
+        };
+        guard
+            .begin({ ...original, channel: { xtream_id: 101 } })
+            .finish(playing);
+        guard
+            .begin({ ...replacement, channel: { xtream_id: 102 } })
+            .finish(cancelled);
+        activeSession.set(cancelled);
+        expect(
+            guard.cancelPendingSwitches(original.playlistId, 101, playing.id)
+        ).toBe(true);
+        await Promise.resolve();
+        expect(close).toHaveBeenCalledWith(cancelled.id, true);
+        expect(restoreDisplacedSession).toHaveBeenCalledWith(
+            playing,
+            cancelled.id
+        );
     });
 
     it('restores Stop after unlocking an active session whose parental close failed', async () => {

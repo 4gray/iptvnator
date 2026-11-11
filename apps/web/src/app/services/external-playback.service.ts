@@ -58,6 +58,17 @@ export class ExternalPlaybackService {
             this.dismissedSessionId.set(null);
     }
 
+    restoreDisplacedSession(
+        session: ExternalPlayerSession,
+        displacedId: string
+    ): void {
+        if (this.activeSession()?.id === displacedId)
+            this.handleSessionUpdate({
+                ...session,
+                restoredFromSessionId: displacedId,
+            });
+    }
+
     async closeActiveSession(): Promise<void> {
         await this.closeSession(this.activeSession());
     }

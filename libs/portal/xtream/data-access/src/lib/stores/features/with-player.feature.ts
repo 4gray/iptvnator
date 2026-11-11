@@ -98,7 +98,8 @@ export function withPlayer() {
                  */
                 constructStreamUrl(
                     item: XtreamPlayableItem,
-                    readGuide?: XtreamGuideEpgRead
+                    readGuide?: XtreamGuideEpgRead,
+                    select = true
                 ): string {
                     const credentials = getCredentialsFromStore();
                     if (!credentials) {
@@ -109,6 +110,7 @@ export function withPlayer() {
                         credentials,
                         item.xtream_id
                     );
+                    if (!select) return streamUrl;
 
                     // Set selected item in parent store and load EPG
                     const storeAny = store as ParentPlayerStoreLike;
