@@ -28,12 +28,19 @@ const ANSI_SEQUENCE = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'g');
 
 type Probe = { requestId: string; deadlineAt: number };
 
-/** A portal that answers every request with 401, like an HTTP auth gate. */
+/** A portal that refuses account requests and returns two legacy EPG failures. */
 async function startRefusingPortal(): Promise<{
     origin: string;
     close: () => Promise<void>;
 }> {
-    const server = createServer((_request, response) => {
+    const server = createServer((request, response) => {
+        const params = new URL(request.url ?? '/', 'http://example.test')
+            .searchParams;
+        if (params.get('action') === 'get_simple_date_table') {
+            response.writeHead(params.get('stream_id') === '101' ? 404 : 503);
+            response.end();
+            return;
+        }
         response.writeHead(401, {
             'content-type': 'text/plain',
             'www-authenticate': 'Basic realm="portal"',
@@ -106,11 +113,24 @@ async function runAgainstRefusingPortal(
                         },
                         ...(probe ? { probe } : {}),
                     });
+                const legacyEpg = (streamId: string) =>
+                    window.electron.xtreamRequest({
+                        url: origin,
+                        params: {
+                            username,
+                            password,
+                            action: 'get_simple_date_table',
+                            stream_id: streamId,
+                        },
+                        suppressErrorLog: true,
+                    });
                 return {
                     stalkerCancelled: await stalker(expired('stalker-cancel')),
                     xtreamCancelled: await xtream(expired('xtream-cancel')),
                     stalkerRefused: await stalker(),
                     xtreamRefused: await xtream(),
+                    legacyUnsupported: await legacyEpg('101'),
+                    legacyUnavailable: await legacyEpg('102'),
                 };
             },
             {
@@ -134,6 +154,12 @@ async function runAgainstRefusingPortal(
         expect(outcomes.xtreamCancelled).toEqual(cancelled);
         expect(outcomes.stalkerRefused).toEqual(refused);
         expect(outcomes.xtreamRefused).toEqual(refused);
+        expect(outcomes.legacyUnsupported).toMatchObject({
+            portalRequestFailure: { kind: 'http', status: 404 },
+        });
+        expect(outcomes.legacyUnavailable).toMatchObject({
+            portalRequestFailure: { kind: 'http', status: 503 },
+        });
 
         // One warning per refusal; the cancellations stay silent; Electron
         // never saw a rejected handler.

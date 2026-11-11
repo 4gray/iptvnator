@@ -12,6 +12,7 @@ import {
     XTREAM_CANCEL_SESSION,
     XTREAM_CLIENT_USER_AGENT,
     XTREAM_MAIN_PERFORMANCE_PHASE,
+    XtreamCodeActions,
     createPortalRequestFailureEnvelope,
     normalizeXtreamServerUrl,
     describeXtreamConnectionFailure,
@@ -20,6 +21,7 @@ import { emitPortalDebugEvent } from './portal-debug.events';
 import {
     classifyExpectedPortalFailure,
     logPortalRequestFailure,
+    readHttpStatus,
 } from './portal-request-outcome';
 import { UnsafeUrlError } from './url-safety';
 import {
@@ -291,6 +293,17 @@ ipcMain.handle(
             }
             if (expected) {
                 return createPortalRequestFailureEnvelope(expected);
+            }
+            // Electron drops status codes on rejected IPC calls.
+            if (
+                payload.params?.action === XtreamCodeActions.GetSimpleDateTable
+            ) {
+                const http = readHttpStatus(error);
+                if (http)
+                    return createPortalRequestFailureEnvelope({
+                        kind: 'http',
+                        ...http,
+                    });
             }
 
             // Format error response

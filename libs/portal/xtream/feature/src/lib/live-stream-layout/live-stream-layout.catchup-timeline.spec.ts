@@ -39,6 +39,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { LiveStreamLayoutComponent } from './live-stream-layout.component';
+import { XtreamEpgGuideSourceService } from './xtream-epg-guide-source.service';
 import {
     playlist,
     sampleChannel,
@@ -275,6 +276,29 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         fixture.detectChanges();
         expect(component.guide.isOpen()).toBe(true);
         expect(component.guideNowPlayingChannel()).toBe(session.title);
+
+        const replacement = {
+            ...session,
+            id: 'synthetic-replacement',
+            streamUrl: component.activeStreamUrl(),
+        };
+        externalSession.set(replacement);
+        fixture.detectChanges();
+        expect(component.guide.isOpen()).toBe(true);
+        externalSession.set({
+            ...session,
+            status: 'playing',
+            restoredFromSessionId: replacement.id,
+        });
+        fixture.detectChanges();
+
+        const source = fixture.debugElement.injector.get(
+            XtreamEpgGuideSourceService
+        );
+        expect(component.guide.isOpen()).toBe(true);
+        expect(component.guideNowPlayingChannel()).toBe(session.title);
+        expect(source.activeChannelId()).toBe(String(sampleChannel.xtream_id));
+        expect(source.livePlayback()).toBe(true);
     });
 
     it('offers archive playback where provider catch-up can play', () => {

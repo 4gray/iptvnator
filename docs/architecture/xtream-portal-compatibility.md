@@ -783,8 +783,12 @@ open the shared multi-channel programme guide while a channel is playing.
 With MPV or VLC selected, the external session must have opened before the
 guide can open.
 The guide keeps the player mounted in the dock and hides the live sidebars
-while preserving their browsing state. It uses the current playlist's visible,
-unlocked live catalogue and can scope it to a category or resolved live favorites.
+while preserving their browsing state. Short screens show a compact dock so
+schedule rows remain visible. If an external channel switch fails and the
+player restores the previous session, the guide keeps its scope and search
+and marks the restored channel as playing. It uses the current playlist's
+visible, unlocked live catalogue and can scope it to a category or resolved
+live favorites.
 A stream shared by multiple categories appears in each of those scopes and
 once in All Channels.
 
@@ -792,14 +796,15 @@ Xtream supplies full schedules per stream. The guide starts with the rendered
 rows, shares in-flight work and a bounded five-minute in-memory cache, and
 limits request concurrency. The grid releases rows outside its rendered range
 and buffer. Rendered rows revalidate after their schedules
-expire. Failed rows retry when they return to the viewport. A coverage scan
+expire, updating the dock when the playing stream's schedule changes. Failed
+rows retry when they return to the viewport. A coverage scan
 that obtains a schedule also updates the corresponding visible failed row.
 It checks the current scope's coverage only when the user turns on **Only with
 EPG** and keeps channels whose coverage could not be checked until a successful
 lookup determines whether they have programmes. The filter shows an error
-while coverage is incomplete. Programme search
-reads the available live catalogue on demand, including channels outside the
-viewport, and publishes matches and progress as it scans. A failed schedule
+while coverage is incomplete. Programme search reads the available live
+catalogue on demand, including channels outside the viewport, and publishes
+matches and progress as it scans. A failed schedule
 does not discard matches from other channels. Large scopes can take longer to
 search or filter. Closing the guide cancels its in-flight provider requests.
 Replacing a search or viewport request cancels work once no other guide
@@ -809,7 +814,9 @@ All Channels. Background favorites
 synchronization also refreshes membership while the guide is open.
 Rechecking the same playlist keeps the guide open and preserves its scope and
 search query. Guide and player use the same full EPG resolver, including
-manual XMLTV mappings and the user's source priority.
+manual XMLTV mappings and the user's source priority. Temporary failures on
+the legacy provider action remain errors even if the primary action returned
+an empty schedule.
 
 The global `Settings.epgEnabled` opt-out gates short/full provider requests and
 XMLTV fallbacks, including collections and dashboard previews. Turning it off

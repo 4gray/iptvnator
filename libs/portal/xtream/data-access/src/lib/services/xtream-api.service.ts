@@ -102,11 +102,7 @@ export class XtreamApiService extends XtreamEpgNormalizer {
             try {
                 const response = await this.sendRequest<XtreamAccountInfo>(
                     credentials,
-                    {
-                        ...(action ? { action } : {}),
-                        username: credentials.username,
-                        password: credentials.password,
-                    },
+                    action ? { action } : {},
                     options
                 );
 
@@ -145,11 +141,7 @@ export class XtreamApiService extends XtreamEpgNormalizer {
 
         const response = await this.sendRequest(
             credentials,
-            {
-                action: actionMap[type],
-                username: credentials.username,
-                password: credentials.password,
-            },
+            { action: actionMap[type] },
             options
         );
 
@@ -168,11 +160,7 @@ export class XtreamApiService extends XtreamEpgNormalizer {
     ): Promise<XtreamLiveStream[]> {
         const response = await this.sendRequest(
             credentials,
-            {
-                action: XtreamCodeActions.GetLiveStreams,
-                username: credentials.username,
-                password: credentials.password,
-            },
+            { action: XtreamCodeActions.GetLiveStreams },
             options
         );
 
@@ -193,8 +181,6 @@ export class XtreamApiService extends XtreamEpgNormalizer {
             credentials,
             {
                 action: XtreamCodeActions.GetVodStreams,
-                username: credentials.username,
-                password: credentials.password,
                 ...(options?.categoryId !== undefined
                     ? { category_id: options.categoryId }
                     : {}),
@@ -235,11 +221,7 @@ export class XtreamApiService extends XtreamEpgNormalizer {
     ): Promise<XtreamSerieItem[]> {
         const response = await this.sendRequest(
             credentials,
-            {
-                action: XtreamCodeActions.GetSeries,
-                username: credentials.username,
-                password: credentials.password,
-            },
+            { action: XtreamCodeActions.GetSeries },
             options
         );
 
@@ -279,8 +261,6 @@ export class XtreamApiService extends XtreamEpgNormalizer {
             credentials,
             {
                 action: XtreamCodeActions.GetVodInfo,
-                username: credentials.username,
-                password: credentials.password,
                 vod_id: vodId,
             },
             options
@@ -299,8 +279,6 @@ export class XtreamApiService extends XtreamEpgNormalizer {
             credentials,
             {
                 action: XtreamCodeActions.GetSeriesInfo,
-                username: credentials.username,
-                password: credentials.password,
                 series_id: seriesId,
             },
             options
@@ -321,8 +299,6 @@ export class XtreamApiService extends XtreamEpgNormalizer {
             credentials,
             {
                 action: XtreamCodeActions.GetShortEpg,
-                username: credentials.username,
-                password: credentials.password,
                 stream_id: streamId,
                 limit,
             },
@@ -350,8 +326,6 @@ export class XtreamApiService extends XtreamEpgNormalizer {
                     credentials,
                     {
                         action,
-                        username: credentials.username,
-                        password: credentials.password,
                         stream_id: streamId,
                     },
                     options
@@ -363,10 +337,14 @@ export class XtreamApiService extends XtreamEpgNormalizer {
         ).catch(() => null);
         if (primary?.length) return primary;
         return fetchSchedule(XtreamCodeActions.GetSimpleDateTable).catch(
-            (error: unknown) => {
+            (error: { status?: number } | null) => {
                 options?.signal?.throwIfAborted();
-                // A valid empty guide is an answer on panels without the legacy action.
-                if (primary) return primary;
+                const status = error?.status;
+                if (
+                    primary &&
+                    (status === 404 || status === 405 || status === 501)
+                )
+                    return primary;
                 throw error;
             }
         );
@@ -382,13 +360,12 @@ export class XtreamApiService extends XtreamEpgNormalizer {
     ): Promise<TResponse> {
         options?.signal?.throwIfAborted();
         const normalizedUrl = normalizeXtreamServerUrl(credentials.serverUrl);
-        const serializedParams: Record<string, string> = {};
+        const serializedParams: Record<string, string> = {
+            username: credentials.username.trim(),
+            password: credentials.password.trim(),
+        };
         Object.entries(params).forEach(([key, value]) => {
-            const serializedValue = String(value);
-            serializedParams[key] =
-                key === 'username' || key === 'password'
-                    ? serializedValue.trim()
-                    : serializedValue;
+            serializedParams[key] = String(value);
         });
 
         const request = async () =>
@@ -418,6 +395,7 @@ export class XtreamApiService extends XtreamEpgNormalizer {
             : request())) as {
             message?: string;
             payload?: unknown;
+            status?: number;
             type?: string;
         };
 
@@ -428,7 +406,12 @@ export class XtreamApiService extends XtreamEpgNormalizer {
             response?.type === 'ERROR' ||
             (!response?.payload && response?.message)
         ) {
-            throw new Error(response?.message ?? 'Request failed');
+            throw Object.assign(
+                new Error(response?.message ?? 'Request failed'),
+                {
+                    status: response?.status,
+                }
+            );
         }
 
         return response?.payload as TResponse;

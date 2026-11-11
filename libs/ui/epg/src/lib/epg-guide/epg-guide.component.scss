@@ -149,6 +149,10 @@ $ruler-height: 34px;
     color: $text-tertiary;
     flex: 0 0 auto;
 
+    @media (max-height: 400px) {
+        display: none;
+    }
+
     kbd {
         font: 10px $font-mono;
         color: $text-secondary;

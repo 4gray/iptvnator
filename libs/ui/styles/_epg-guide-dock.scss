@@ -66,7 +66,7 @@
         }
     }
 
-    @media (max-width: 640px) {
+    @media (max-width: 640px) and (min-height: 601px) {
         .content-container.is-guide,
         .content-container.is-guide.is-guide-collapsed {
             .video-player {
@@ -85,6 +85,17 @@
                 > app-epg-guide-now-playing {
                     width: 100%;
                 }
+            }
+        }
+    }
+
+    @media (max-height: 400px), (max-width: 640px) and (max-height: 600px) {
+        .content-container.is-guide .video-player {
+            height: 48px;
+            padding: 6px 12px;
+
+            > app-web-player-view {
+                display: none;
             }
         }
     }

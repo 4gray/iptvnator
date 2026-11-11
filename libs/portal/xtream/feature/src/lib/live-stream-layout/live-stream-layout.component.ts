@@ -72,6 +72,7 @@ import {
     EpgListViewComponent,
     EpgProgramActivationEvent,
     EpgTimelineComponent,
+    getProgramTimeMs,
     getTodayEpgDateKey,
     shiftEpgDateKey,
 } from '@iptvnator/ui/epg';
@@ -491,70 +492,98 @@ export class LiveStreamLayoutComponent
         source: () => ({
             playlistId: this.xtreamStore.currentPlaylist()?.id,
             url: this.activeStreamUrl(),
+            channelId: this.activeLiveItemId(),
+            archive: this.activeCatchupProgram(),
             session: this.externalPlayback?.activeSession(),
         }),
         computation: (
-            { playlistId, url, session },
+            { playlistId, url, channelId, archive, session },
             previous
-        ): ExternalPlayerSession | null => {
+        ): {
+            session: ExternalPlayerSession;
+            channelId: number;
+            archive: EpgProgram | null;
+        } | null => {
             if (
+                !url ||
                 !isLiveExternalPlayerSession(session) ||
                 session.status === 'error'
             )
                 return null;
-            // Hold the current session while the guide switches to a new channel.
-            return session.streamUrl === url ||
-                (previous?.source.playlistId === playlistId &&
-                    previous?.value?.id === session.id)
-                ? session
+            const playing =
+                previous?.source.playlistId === playlistId
+                    ? previous?.value
+                    : null;
+            // A replacement launch has not displaced the playing channel yet.
+            if (session.status === 'launching')
+                return session.streamUrl === url ? (playing ?? null) : null;
+            if (playing?.session.id === session.id)
+                return { ...playing, session };
+            return session.streamUrl === url && channelId !== null
+                ? { session, channelId, archive }
                 : null;
         },
     });
+    private readonly guideChannelId = computed(() =>
+        this.usesEmbeddedPlayer()
+            ? this.activeLiveItemId()
+            : (this.guideExternalSession()?.channelId ?? null)
+    );
+    private readonly guideArchiveProgram = computed(() =>
+        this.usesEmbeddedPlayer()
+            ? this.activeCatchupProgram()
+            : (this.guideExternalSession()?.archive ?? null)
+    );
     readonly guideNowPlayingChannel = computed(
         () =>
             (this.usesEmbeddedPlayer()
                 ? this.activePlayback()?.title
-                : this.guideExternalSession()?.title) ?? ''
+                : this.guideExternalSession()?.session.title) ?? ''
     );
     readonly guideNowPlayingProgram = computed(() => {
-        if (
-            !this.usesEmbeddedPlayer() &&
-            this.guideExternalSession()?.streamUrl !== this.activeStreamUrl()
-        )
+        const archive = this.guideArchiveProgram();
+        if (archive) return archive;
+        const now = epgProviderClockMs(
+            this.currentTimeMs(),
+            this.epgOffsetMinutes()
+        );
+        const schedule = this.guideSource.playingSchedule();
+        if (schedule)
+            return (
+                schedule.find(
+                    (program) =>
+                        getProgramTimeMs(
+                            program.start,
+                            program.startTimestamp
+                        ) <= now &&
+                        now <
+                            getProgramTimeMs(
+                                program.stop,
+                                program.stopTimestamp
+                            )
+                ) ?? null
+            );
+        if (this.selectedLiveItem()?.xtream_id !== this.guideChannelId())
             return null;
-        const program = findCurrentEpgItem(
-            this.epgItems(),
-            epgProviderClockMs(this.currentTimeMs(), this.epgOffsetMinutes())
-        );
-        return (
-            this.activeCatchupProgram() ??
-            (program ? toSharedEpgProgram(program) : null)
-        );
+        const program = findCurrentEpgItem(this.epgItems(), now);
+        return program ? toSharedEpgProgram(program) : null;
     });
 
     constructor() {
         this.guide.bind(
-            computed(() => {
-                const url = this.activeStreamUrl();
-                if (!url || this.usesEmbeddedPlayer()) return !!url;
-                const session = this.guideExternalSession();
-                return (
-                    !!session &&
-                    (this.guide.isOpen() ||
-                        (session.streamUrl === url &&
-                            session.status !== 'launching'))
-                );
-            })
+            computed(() =>
+                this.usesEmbeddedPlayer()
+                    ? !!this.activeStreamUrl()
+                    : !!this.guideExternalSession()
+            )
         );
         this.guideSource.bind((item, channels) =>
             this.playLive(item, true, channels)
         );
         effect(() =>
-            this.guideSource.setLivePlayback(
-                !this.showReturnToLive() &&
-                    (this.usesEmbeddedPlayer() ||
-                        this.guideExternalSession()?.streamUrl ===
-                            this.activeStreamUrl())
+            this.guideSource.setPlayback(
+                this.guideChannelId(),
+                this.guideArchiveProgram() === null
             )
         );
 

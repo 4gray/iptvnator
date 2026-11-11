@@ -24,6 +24,36 @@ test('@xtream @epg PWA opens the multi-channel programme guide in both themes', 
     page,
 }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
+    let refreshed = false;
+    await page.route('**/localhost:3000/xtream**', async (route) => {
+        const params = new URL(route.request().url()).searchParams;
+        if (
+            !refreshed ||
+            params.get('action') !== 'get_simple_data_table' ||
+            params.get('stream_id') !== '10000'
+        ) {
+            await route.fallback();
+            return;
+        }
+        const now = Math.floor(Date.now() / 1000);
+        await route.fulfill({
+            json: {
+                payload: {
+                    epg_listings: [
+                        {
+                            id: 'synthetic-refreshed',
+                            title: Buffer.from(
+                                'Synthetic Refreshed Programme'
+                            ).toString('base64'),
+                            channel_id: 'synthetic',
+                            start_timestamp: String(now - 1200),
+                            stop_timestamp: String(now + 3600),
+                        },
+                    ],
+                },
+            },
+        });
+    });
     await page.route('**/live/**', (route) => route.abort());
     await addXtreamPortal(page, EPG_PORTAL);
     await page.getByRole('link', { name: 'Live TV', exact: true }).click();
@@ -75,15 +105,40 @@ test('@xtream @epg PWA opens the multi-channel programme guide in both themes', 
     await search.fill('');
     await search.blur();
 
-    await page.setViewportSize({ width: 320, height: 700 });
     const nowPlayingBody = page.locator(
         'app-epg-guide-now-playing .now-playing__body'
     );
     await expect(nowPlayingBody).toContainText('Global Headlines');
+    refreshed = true;
+    await page.clock.setFixedTime(new Date(Date.now() + 360_000));
+    await guide.getByRole('button', { name: 'Next day' }).click();
+    await guide.getByRole('button', { name: 'Now', exact: true }).click();
+    await expect(
+        guide.getByRole('button', {
+            name: 'Synthetic Refreshed Programme',
+            exact: true,
+        })
+    ).toBeVisible();
+    await expect(nowPlayingBody).toContainText('Synthetic Refreshed Programme');
+
+    await page.setViewportSize({ width: 320, height: 700 });
     await expect
         .poll(async () => (await nowPlayingBody.boundingBox())?.width ?? 0)
         .toBeGreaterThan(80);
-    await page.keyboard.press('g');
+    for (const [width, height] of [
+        [320, 568],
+        [568, 320],
+    ]) {
+        await page.setViewportSize({ width, height });
+        await expect
+            .poll(
+                async () =>
+                    (await guide.locator('.epg-guide__viewport').boundingBox())
+                        ?.height ?? 0
+            )
+            .toBeGreaterThanOrEqual(52);
+    }
+    await guide.press('g');
     await expect(guide).toHaveCount(0);
     await expect(
         page.locator('app-live-stream-layout app-epg-timeline')

@@ -244,9 +244,28 @@ describe('XtreamApiService', () => {
     it('keeps an empty full guide when the legacy action is unsupported', async () => {
         dataService.sendIpcEvent
             .mockResolvedValueOnce({ payload: { epg_listings: [] } })
-            .mockRejectedValueOnce(new Error('synthetic unsupported action'));
+            .mockResolvedValueOnce({
+                type: 'ERROR',
+                status: 404,
+                message: 'synthetic unsupported action',
+            });
         await expect(service.getFullEpg(credentials, 101)).resolves.toEqual([]);
         expect(dataService.sendIpcEvent).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps a transient legacy action failure distinct from an empty guide', async () => {
+        dataService.sendIpcEvent
+            .mockResolvedValueOnce({ payload: { epg_listings: [] } })
+            .mockResolvedValueOnce({
+                type: 'ERROR',
+                status: 503,
+                message: 'synthetic provider outage',
+            });
+        await expect(
+            service.getFullEpg(credentials, 101)
+        ).rejects.toMatchObject({
+            status: 503,
+        });
     });
 
     it('reports a full guide failure when neither action responds', async () => {

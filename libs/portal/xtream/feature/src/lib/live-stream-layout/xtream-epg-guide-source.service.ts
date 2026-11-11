@@ -227,12 +227,24 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         }))
     );
 
-    readonly activeChannelId = computed(() => {
-        const id = this.navigation.activeItem()?.xtream_id;
-        return id ? String(id) : null;
+    private readonly playback = signal({
+        id: null as string | null,
+        live: true,
     });
-    private readonly live = signal(true);
-    readonly livePlayback = this.live.asReadonly();
+    readonly activeChannelId = computed(() => this.playback().id);
+    readonly livePlayback = computed(() => this.playback().live);
+    private readonly schedule = signal<{
+        id: string;
+        revision: unknown;
+        programs: EpgProgram[];
+    } | null>(null);
+    readonly playingSchedule = computed(() => {
+        const schedule = this.schedule();
+        return schedule?.id === this.activeChannelId() &&
+            schedule.revision === this.revision()
+            ? schedule.programs
+            : null;
+    });
     private play?: (
         item: XtreamLiveChannelItem,
         scope: readonly XtreamLiveChannelItem[]
@@ -242,8 +254,11 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         this.play = play;
     }
 
-    setLivePlayback(live: boolean): void {
-        this.live.set(live);
+    setPlayback(channelId: number | null, live: boolean): void {
+        this.playback.set({
+            id: channelId === null ? null : String(channelId),
+            live,
+        });
     }
 
     open(): void {
@@ -256,6 +271,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         this.session()?.abort();
         this.session.set(null);
         this.cache.clear();
+        this.schedule.set(null);
         this.favorites.set(new Map());
         this.scopeId.set(ALL);
     }
@@ -398,6 +414,10 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
                 signal
             );
             checkCurrent();
+            const id = String(item.xtream_id);
+            if (id === this.activeChannelId()) {
+                this.schedule.set({ id, revision, programs });
+            }
             return programs;
         };
         return { read, checkCurrent };
