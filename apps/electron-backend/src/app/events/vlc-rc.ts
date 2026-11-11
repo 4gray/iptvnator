@@ -119,11 +119,19 @@ export function parseVlcRcNumericResponse(data: string): string {
 }
 
 export function parseVlcRcPlaybackState(data: string): string | null {
+    const legacy = data
+        .match(/\(\s*(play|pause|stop|unknown)\s+state:\s*-?\d+\s*\)/i)?.[1]
+        ?.toLowerCase();
+    if (legacy === 'play') return 'playing';
+    if (legacy === 'pause') return 'paused';
+    if (legacy === 'stop') return 'stopped';
     return (
         data
             .match(/\(\s*state\s+([^)]+)\s*\)/i)?.[1]
             ?.trim()
-            .toLowerCase() ?? null
+            .toLowerCase() ??
+        legacy ??
+        null
     );
 }
 

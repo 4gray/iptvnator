@@ -199,46 +199,50 @@ describe('VLC exact playback ownership', () => {
         exit(retry);
     });
 
-    it('keeps reading the first child after a second takes the reuse slot', async () => {
-        jest.useFakeTimers({ doNotFake: ['setImmediate'] });
-        const first = child();
-        const second = child();
-        spawnMock.mockReturnValueOnce(first).mockReturnValueOnce(second);
-        let firstState = 'playing';
-        mockRc((port, command, reply) => {
-            if (command === 'status\n')
-                reply(
-                    `( state ${port === 43210 ? firstState : 'playing'} )\n> `
-                );
-        });
-        const firstOpening = open('first');
-        const secondOpening = open('second');
-        await tick();
-        ports[0]();
-        await tick();
-        first.emit('spawn');
-        const session = await firstOpening;
-        await jest.advanceTimersByTimeAsync(2_000);
-        await tick();
-        await tick();
-        expect(
-            externalPlayerSessions.getSession(session.id)?.playbackIdle
-        ).toBe(false);
+    it.each([
+        ['( state playing )', '( state stopped )'],
+        ['( play state: 3 )', '( stop state: 5 )'],
+    ])(
+        'keeps reading the first child after a second takes the reuse slot (%s)',
+        async (playing, stopped) => {
+            jest.useFakeTimers({ doNotFake: ['setImmediate'] });
+            const first = child();
+            const second = child();
+            spawnMock.mockReturnValueOnce(first).mockReturnValueOnce(second);
+            let firstState = playing;
+            mockRc((port, command, reply) => {
+                if (command === 'status\n')
+                    reply(`${port === 43210 ? firstState : playing}\n`);
+            });
+            const firstOpening = open('first');
+            const secondOpening = open('second');
+            await tick();
+            ports[0]();
+            await tick();
+            first.emit('spawn');
+            const session = await firstOpening;
+            await jest.advanceTimersByTimeAsync(2_000);
+            await tick();
+            await tick();
+            expect(
+                externalPlayerSessions.getSession(session.id)?.playbackIdle
+            ).toBe(false);
 
-        ports[1]();
-        await tick();
-        second.emit('spawn');
-        await secondOpening;
-        firstState = 'stopped';
-        await jest.advanceTimersByTimeAsync(2_000);
-        await tick();
-        await tick();
-        expect(
-            externalPlayerSessions.getSession(session.id)?.playbackIdle
-        ).toBe(true);
-        exit(first);
-        exit(second);
-    });
+            ports[1]();
+            await tick();
+            second.emit('spawn');
+            await secondOpening;
+            firstState = stopped;
+            await jest.advanceTimersByTimeAsync(2_000);
+            await tick();
+            await tick();
+            expect(
+                externalPlayerSessions.getSession(session.id)?.playbackIdle
+            ).toBe(true);
+            exit(first);
+            exit(second);
+        }
+    );
 
     it('allows exact close to retry an unconfirmed teardown after clear was sent', async () => {
         jest.useFakeTimers({ doNotFake: ['setImmediate'] });

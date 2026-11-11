@@ -195,6 +195,17 @@ describe('vlc-session.service helpers and launch args', () => {
             );
             expect(parseVlcRcPlaybackState('garbage')).toBeNull();
         });
+
+        it.each([
+            ['( play state: 3 )', 'playing'],
+            ['( pause state: 4 )', 'paused'],
+            ['( stop state: 5 )', 'stopped'],
+            ['( unknown state: -1 )', 'unknown'],
+        ])('normalizes a legacy RC reply %s', (reply, state) => {
+            expect(parseVlcRcPlaybackState(`status change: ${reply}\r\n`)).toBe(
+                state
+            );
+        });
     });
 
     describe('openVlcPlayer launch args', () => {

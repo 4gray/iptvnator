@@ -1117,7 +1117,8 @@ child's output and exit, not through the reply.
 For streams without saved position metadata, MPV's socket and VLC's RC
 connection report when playback becomes idle or stopped. The exact session
 remains closable. Polling continues for the exact session so resuming in the
-player updates the guide. VLC's greeting prompt is not a status reply.
+player updates the guide. VLC's greeting prompt is not a status reply; the
+monitor reads both Lua RC and legacy Windows RC states.
 If Stop is observed before a pending MPV content command or VLC enqueue command
 is dispatched, that command is skipped. A source handoff also fails closed
 while a live session has no closer (`canClose: false`); renderer Dismiss is not

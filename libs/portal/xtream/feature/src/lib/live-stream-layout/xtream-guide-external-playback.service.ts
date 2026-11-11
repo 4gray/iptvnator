@@ -293,6 +293,8 @@ export class XtreamGuideExternalPlayback {
         const pending = this.pending();
         if (
             !pending ||
+            pending.lockSource.playlistId !==
+                this.store.currentPlaylist()?.id ||
             pending.ended?.() ||
             pending.archive ||
             pending.item.xtream_id !== item.xtream_id
