@@ -121,6 +121,29 @@ describe('PortalDetailShellComponent', () => {
         expect(shell.classList).not.toContain('shell-host--pointer-focus');
     });
 
+    it('switches an already keyboard-focused shell to pointer focus on a primary press', () => {
+        const shell = requiredQuery('app-portal-detail-shell');
+        jest.spyOn(shell, 'matches').mockImplementation(
+            (selector) => selector === ':focus-visible'
+        );
+        const pressPointer = (button: number) => {
+            shell.dispatchEvent(new MouseEvent('pointerdown', { button }));
+            fixture.detectChanges();
+        };
+
+        requiredQuery('.play-btn').focus();
+        pressPointer(0);
+        expect(shell.classList).not.toContain('shell-host--pointer-focus');
+
+        shell.focus();
+        pressPointer(2);
+        expect(shell.classList).not.toContain('shell-host--pointer-focus');
+
+        pressPointer(0);
+        expect(document.activeElement).toBe(shell);
+        expect(shell.classList).toContain('shell-host--pointer-focus');
+    });
+
     it('keeps the pointer verdict when the window loses and regains focus', () => {
         const shell = requiredQuery('app-portal-detail-shell');
         let focusVisible = false;
