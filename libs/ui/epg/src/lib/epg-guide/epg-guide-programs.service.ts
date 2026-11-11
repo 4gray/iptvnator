@@ -35,7 +35,7 @@ interface CoverageScan {
     controller: AbortController;
     progress?: {
         updates: Map<string, boolean>;
-        uncovered: Set<string>;
+        uncovered: Map<string, number>;
         timer?: ReturnType<typeof setTimeout>;
     };
 }
@@ -62,7 +62,9 @@ export class EpgGuideProgramsService {
     private readonly statuses = signal<ReadonlyMap<string, EpgGuideRowStatus>>(
         new Map()
     );
-    private readonly uncovered = signal<ReadonlySet<string> | null>(null);
+    private readonly uncovered = signal<ReadonlyMap<string, number> | null>(
+        null
+    );
 
     private range: { fromMs: number; toMs: number } | null = null;
     private readonly programRequests = new Map<
@@ -144,8 +146,12 @@ export class EpgGuideProgramsService {
 
     /** Unknown (coverage not loaded yet, or a chunk failed) counts as covered
      * so rows never blink. */
-    isCovered(channelId: string): boolean {
-        return !this.uncovered()?.has(channelId);
+    isCovered(channelId: string, nowMs?: number): boolean {
+        const expiry = this.uncovered()?.get(channelId);
+        return (
+            expiry === undefined ||
+            (expiry < Infinity && expiry <= (nowMs ?? Date.now()))
+        );
     }
 
     /** Request programmes for rows that are idle, discarding obsolete per-stream work. */
@@ -236,7 +242,7 @@ export class EpgGuideProgramsService {
                 );
                 const uncovered = this.uncovered();
                 if (this.source.deferredCoverage && result) {
-                    let updated: Set<string> | undefined;
+                    let updated: Map<string, number> | undefined;
                     for (const [id, programs] of result) {
                         const hasPrograms = programs.length > 0;
                         const scan = this.coverageRequest;
@@ -251,11 +257,15 @@ export class EpgGuideProgramsService {
                         ) {
                             this.coverageStatus.set('idle');
                         }
-                        if (!uncovered || uncovered.has(id) !== hasPrograms)
-                            continue;
-                        if (hasPrograms)
-                            (updated ??= new Set(uncovered)).delete(id);
-                        else (updated ??= new Set(uncovered)).add(id);
+                        if (!uncovered) continue;
+                        const expiry = this.negativeCoverageExpiry(
+                            id,
+                            hasPrograms
+                        );
+                        if (uncovered.get(id) === expiry) continue;
+                        updated ??= new Map(uncovered);
+                        if (expiry === undefined) updated.delete(id);
+                        else updated.set(id, expiry);
                     }
                     if (updated) this.uncovered.set(updated);
                 }
@@ -281,6 +291,15 @@ export class EpgGuideProgramsService {
         );
     }
 
+    private negativeCoverageExpiry(
+        id: string,
+        hasPrograms: boolean
+    ): number | undefined {
+        return hasPrograms
+            ? undefined
+            : (this.source.programsExpireAt?.(id) ?? Infinity);
+    }
+
     private reportCoverage(
         scan: CoverageScan,
         id: string,
@@ -289,12 +308,13 @@ export class EpgGuideProgramsService {
         const progress = scan.progress;
         if (!progress) return;
         progress.updates.set(id, hasPrograms);
-        if (progress.uncovered.has(id) !== hasPrograms) return;
-        if (hasPrograms) progress.uncovered.delete(id);
-        else progress.uncovered.add(id);
+        const expiry = this.negativeCoverageExpiry(id, hasPrograms);
+        if (progress.uncovered.get(id) === expiry) return;
+        if (expiry === undefined) progress.uncovered.delete(id);
+        else progress.uncovered.set(id, expiry);
         progress.timer ??= setTimeout(() => {
             progress.timer = undefined;
-            this.uncovered.set(new Set(progress.uncovered));
+            this.uncovered.set(new Map(progress.uncovered));
         }, COVERAGE_BATCH_MS);
     }
 
@@ -309,7 +329,7 @@ export class EpgGuideProgramsService {
         const request = new AbortController();
         const scan: CoverageScan = { controller: request };
         if (this.source.deferredCoverage) {
-            scan.progress = { updates: new Map(), uncovered: new Set() };
+            scan.progress = { updates: new Map(), uncovered: new Map() };
             this.uncovered.set(null);
         }
         this.coverageRequest = scan;
@@ -365,26 +385,22 @@ export class EpgGuideProgramsService {
                 return;
             }
             const merged = new Set<string>();
-            for (const set of sets) {
-                if (set === null) {
-                    continue;
-                }
-                set.forEach((id) => merged.add(id));
-            }
+            for (const set of sets) set?.forEach((id) => merged.add(id));
             // A viewport retry can succeed while the scan is still on later rows.
             for (const [id, hasPrograms] of scan.progress?.updates ?? []) {
                 this.failedCoverage.delete(id);
                 if (hasPrograms) merged.add(id);
                 else merged.delete(id);
             }
-            this.uncovered.set(
-                new Set(
-                    this.source
-                        .channels()
-                        .map(({ id }) => id)
-                        .filter((id) => !merged.has(id))
-                )
-            );
+            const uncovered = new Map<string, number>();
+            for (const { id } of this.source.channels()) {
+                if (!merged.has(id))
+                    uncovered.set(
+                        id,
+                        scan.progress?.uncovered.get(id) ?? Infinity
+                    );
+            }
+            this.uncovered.set(uncovered);
             this.coverageStatus.set(
                 this.failedCoverage.size ? 'error' : 'idle'
             );

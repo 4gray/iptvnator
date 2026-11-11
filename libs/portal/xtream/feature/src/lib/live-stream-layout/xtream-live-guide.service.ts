@@ -149,13 +149,19 @@ export class XtreamLiveGuideService {
     }
 
     handleKey(event: KeyboardEvent): void {
+        const escapeDock =
+            event.key === 'Escape' &&
+            this.isOpen() &&
+            event.target instanceof Element &&
+            this.element.nativeElement.contains(event.target) &&
+            !!event.target.closest('app-epg-guide-now-playing');
         if (
             event.defaultPrevented ||
             event.ctrlKey ||
             event.metaKey ||
             event.altKey ||
             isTypingInInput(event) ||
-            event.key.toLowerCase() !== 'g' ||
+            (!escapeDock && event.key.toLowerCase() !== 'g') ||
             (!this.isOpen() && !this.available()) ||
             this.blocked() ||
             event
@@ -167,7 +173,8 @@ export class XtreamLiveGuideService {
                 )
         )
             return;
-        this.toggle();
+        if (escapeDock) this.close();
+        else this.toggle();
         event.preventDefault();
     }
 

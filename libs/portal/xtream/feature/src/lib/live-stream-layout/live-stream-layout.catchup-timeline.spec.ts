@@ -240,9 +240,13 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         fixture.debugElement.query(By.directive(StubWebPlayerViewComponent))
             .componentInstance as StubWebPlayerViewComponent;
 
-    it.each([true, false])(
-        'tracks the confirmed external channel during overlapping switches (restored: %s)',
-        (restored) => {
+    it.each([
+        'restores original',
+        'opens intermediate',
+        'restores intermediate',
+    ] as const)(
+        'tracks the confirmed external channel during overlapping switches (%s)',
+        (outcome) => {
             portalPlayer.isEmbeddedPlayer.set(false);
             component.guide.collapsed.set(false);
             component.playLive(sampleChannel, false);
@@ -296,11 +300,26 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             fixture.detectChanges();
             expect(component.guide.isOpen()).toBe(true);
 
-            const confirmed = restored ? session : replacement;
+            const third = {
+                ...session,
+                id: 'synthetic-third',
+                streamUrl: component.activeStreamUrl(),
+            };
+            if (outcome === 'restores intermediate') {
+                externalSession.set(third);
+                fixture.detectChanges();
+                expect(component.guide.isOpen()).toBe(true);
+            }
+            const original = outcome === 'restores original';
+            const confirmed = original ? session : replacement;
             externalSession.set({
                 ...confirmed,
                 status: 'playing',
-                restoredFromSessionId: restored ? replacement.id : undefined,
+                restoredFromSessionId: original
+                    ? replacement.id
+                    : outcome === 'restores intermediate'
+                      ? third.id
+                      : undefined,
             });
             fixture.detectChanges();
 
@@ -310,7 +329,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             expect(component.guide.isOpen()).toBe(true);
             expect(component.guideNowPlayingChannel()).toBe(confirmed.title);
             expect(source.activeChannelId()).toBe(
-                String(restored ? sampleChannel.xtream_id : 102)
+                String(original ? sampleChannel.xtream_id : 102)
             );
             expect(source.livePlayback()).toBe(true);
         }

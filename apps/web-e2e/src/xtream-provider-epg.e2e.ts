@@ -138,7 +138,10 @@ test('@xtream @epg PWA opens the multi-channel programme guide in both themes', 
             )
             .toBeGreaterThanOrEqual(52);
     }
-    await guide.press('g');
+    await page
+        .locator('app-epg-guide-now-playing')
+        .getByRole('button', { name: /^Close guide/ })
+        .press('Escape');
     await expect(guide).toHaveCount(0);
     await expect(
         page.locator('app-live-stream-layout app-epg-timeline')

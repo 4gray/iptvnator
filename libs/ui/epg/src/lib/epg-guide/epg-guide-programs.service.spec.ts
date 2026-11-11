@@ -146,6 +146,35 @@ describe('EpgGuideProgramsService', () => {
         }
     });
 
+    it('makes an expired empty row eligible for a fresh schedule without toggling the filter', async () => {
+        jest.useFakeTimers();
+        try {
+            jest.setSystemTime(1000);
+            const programsExpireAt = jest.fn().mockReturnValue(2000);
+            Object.assign(source, { deferredCoverage: true, programsExpireAt });
+            loadCoverage.mockImplementation(async (_window, report) => {
+                report?.('a', []);
+                return new Set(['b']);
+            });
+            service.setWindow(1000, 4000);
+            service.setCoverageRequested(true);
+            await flush();
+            expect(service.isCovered('a')).toBe(false);
+
+            jest.setSystemTime(2000);
+            expect(service.isCovered('a')).toBe(true);
+            programsExpireAt.mockReturnValue(3000);
+            const programme = programFor('a');
+            loadPrograms.mockResolvedValue(new Map([['a', [programme]]]));
+            service.ensureLoaded([channels()[0]]);
+            await flush();
+            expect(service.isCovered('a')).toBe(true);
+            expect(service.programsFor('a')).toEqual([programme]);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
     it.each([true, false])(
         'shows an incomplete scan and applies a successful retry (scan first: %s)',
         async (scanFirst) => {

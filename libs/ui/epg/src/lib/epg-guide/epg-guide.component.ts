@@ -138,11 +138,15 @@ export class EpgGuideComponent implements OnDestroy {
     readonly channelColumnPx = EPG_GUIDE_CHANNEL_COLUMN_PX;
 
     readonly totalCount = computed(() => this.source.channels().length);
-    readonly rows = computed(() =>
-        this.view.filterRows(this.source.channels(), (channelId) =>
-            this.programsService.isCovered(channelId)
-        )
-    );
+    readonly rows = computed(() => {
+        const now =
+            this.source.programsExpireAt && this.view.onlyWithEpg()
+                ? this.view.nowMs()
+                : undefined;
+        return this.view.filterRows(this.source.channels(), (channelId) =>
+            this.programsService.isCovered(channelId, now)
+        );
+    });
     readonly activeRowIndex = computed(() => {
         const activeId = this.activeChannelId();
         return activeId === null

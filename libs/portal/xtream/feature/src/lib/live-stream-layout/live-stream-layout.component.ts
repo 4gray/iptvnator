@@ -494,7 +494,7 @@ export class LiveStreamLayoutComponent
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK, {
         optional: true,
     });
-    private readonly guideExternalSession = linkedSignal({
+    private readonly guideExternalState = linkedSignal({
         source: () => ({
             playlistId: this.xtreamStore.currentPlaylist()?.id,
             url: this.activeStreamUrl(),
@@ -505,16 +505,17 @@ export class LiveStreamLayoutComponent
         computation: (
             { playlistId, url, channelId, archive, session },
             previous
-        ):
-            | (GuideExternalChannel & { pending?: GuideExternalChannel })
-            | null => {
+        ): {
+            playing: GuideExternalChannel | null;
+            pending: ReadonlyMap<string, GuideExternalChannel>;
+        } | null => {
             if (
                 !url ||
                 !isLiveExternalPlayerSession(session) ||
                 session.status === 'error'
             )
                 return null;
-            const playing =
+            const prior =
                 previous?.source.playlistId === playlistId
                     ? previous?.value
                     : null;
@@ -523,25 +524,27 @@ export class LiveStreamLayoutComponent
                     ? { session, channelId, archive }
                     : null;
             // A replacement launch has not displaced the playing channel yet.
-            if (session.status === 'launching')
-                return playing && matched
-                    ? { ...playing, pending: matched }
-                    : (playing ?? null);
+            if (session.status === 'launching') {
+                if (!matched) return prior ?? null;
+                const pending = new Map(prior?.pending);
+                pending.set(session.id, matched);
+                return { playing: prior?.playing ?? null, pending };
+            }
             const confirmed =
-                playing?.session.id === session.id
-                    ? playing
-                    : playing?.pending?.session.id === session.id
-                      ? playing.pending
-                      : matched;
+                prior?.playing?.session.id === session.id
+                    ? prior.playing
+                    : (prior?.pending.get(session.id) ?? matched);
             return confirmed
                 ? {
-                      session,
-                      channelId: confirmed.channelId,
-                      archive: confirmed.archive,
+                      playing: { ...confirmed, session },
+                      pending: new Map(),
                   }
                 : null;
         },
     });
+    private readonly guideExternalSession = computed(
+        () => this.guideExternalState()?.playing ?? null
+    );
     private readonly guideChannelId = computed(() =>
         this.usesEmbeddedPlayer()
             ? this.activeLiveItemId()

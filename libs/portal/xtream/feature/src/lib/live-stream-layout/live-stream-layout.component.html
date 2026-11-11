@@ -366,6 +366,7 @@
         [offsetMinutes]="epgOffsetMinutes()"
         [collapsed]="guide.collapsed() || !usesEmbeddedPlayer()"
         [collapsible]="usesEmbeddedPlayer()"
+        (keydown)="guide.handleKey($event)"
         (closeRequested)="guide.close()"
         (collapsedChange)="guide.setCollapsed($event)"
     />

@@ -802,7 +802,8 @@ that obtains a schedule also updates the corresponding visible failed row.
 It checks the current scope's coverage only when the user turns on **Only with
 EPG** and keeps channels whose coverage could not be checked until a successful
 lookup determines whether they have programmes. It hides confirmed empty
-rows as results arrive and reports failed checks, including unavailable XMLTV
+rows as results arrive, rechecks them after schedule expiry, and reports
+failed checks, including unavailable XMLTV
 reads. Programme search reads the available live
 catalogue on demand, including channels outside the viewport, and publishes
 matches and progress as it scans. A failed schedule
