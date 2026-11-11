@@ -170,7 +170,10 @@ export class XtreamGuideExternalPlayback {
 
     canRetryUnverifiedStream(): boolean {
         const session = this.confirmed()?.session;
-        return session?.player === 'vlc' && session.playbackIdle === undefined;
+        return (
+            session?.player === 'vlc' &&
+            (session.playbackUnverified || session.playbackIdle === undefined)
+        );
     }
 
     constructor() {
@@ -182,7 +185,9 @@ export class XtreamGuideExternalPlayback {
             const ended = pending?.ended?.();
             untracked(() => {
                 const confirmedRequest =
-                    pending && playing?.lockSource === pending.lockSource
+                    pending &&
+                    playing?.lockSource === pending.lockSource &&
+                    playing.session.mediaLoaded !== false
                         ? pending
                         : undefined;
                 if (confirmedRequest || ended) {

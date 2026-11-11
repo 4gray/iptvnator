@@ -178,6 +178,10 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 streamUrl: component.activeStreamUrl(),
                 title: 'Synthetic Live Channel',
                 player: mode === 'unverified VLC' ? 'vlc' : 'mpv',
+                ...(mode === 'unverified VLC' && {
+                    playbackIdle: false,
+                    playbackUnverified: true,
+                }),
                 status: 'playing',
                 startedAt: '2026-04-04T10:00:00Z',
                 updatedAt: '2026-04-04T10:00:00Z',

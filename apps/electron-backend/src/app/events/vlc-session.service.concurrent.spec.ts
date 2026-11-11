@@ -233,6 +233,13 @@ describe('VLC exact playback ownership', () => {
             await tick();
             second.emit('spawn');
             await secondOpening;
+            firstState = '( unknown state: -1 )';
+            await jest.advanceTimersByTimeAsync(2_000);
+            await tick();
+            await tick();
+            expect(externalPlayerSessions.getSession(session.id)).toMatchObject(
+                { playbackIdle: false, playbackUnverified: true }
+            );
             firstState = stopped;
             await jest.advanceTimersByTimeAsync(2_000);
             await tick();
@@ -240,6 +247,10 @@ describe('VLC exact playback ownership', () => {
             expect(
                 externalPlayerSessions.getSession(session.id)?.playbackIdle
             ).toBe(true);
+            expect(
+                externalPlayerSessions.getSession(session.id)
+                    ?.playbackUnverified
+            ).toBeUndefined();
             exit(first);
             exit(second);
         }

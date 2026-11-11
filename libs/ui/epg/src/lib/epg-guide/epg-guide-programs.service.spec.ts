@@ -140,6 +140,34 @@ describe('EpgGuideProgramsService', () => {
         expect(loadCoverage).not.toHaveBeenCalled();
     });
 
+    it('uses an empty recovered dock schedule to clear failed coverage', async () => {
+        Object.assign(source, { deferredCoverage: true });
+        channels.set([channel('a')]);
+        activeChannelId.set('a');
+        TestBed.flushEffects();
+        loadPrograms.mockResolvedValue(new Map());
+        loadCoverage.mockRejectedValueOnce(
+            new Error('Synthetic coverage failure')
+        );
+        service.setWindow(1000, 2000);
+        service.setCoverageRequested(true);
+        service.ensureLoaded([channels()[0]]);
+        await flush();
+        await flush();
+        expect(service.statusFor('a')).toBe('error');
+        expect(service.isCovered('a')).toBe(true);
+        expect(service.coverageStatus()).toBe('error');
+        TestBed.flushEffects();
+
+        recoveredPrograms.set([]);
+        TestBed.flushEffects();
+        expect(service.statusFor('a')).toBe('loaded');
+        expect(service.isCovered('a')).toBe(false);
+        expect(service.coverageStatus()).toBe('idle');
+        expect(loadCoverage).toHaveBeenCalledTimes(1);
+        expect(loadPrograms).toHaveBeenCalledTimes(1);
+    });
+
     it('hides confirmed empty rows during a pending scan while unverified rows stay visible', async () => {
         jest.useFakeTimers();
         try {

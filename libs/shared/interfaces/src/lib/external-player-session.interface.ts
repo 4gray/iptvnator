@@ -105,6 +105,10 @@ export interface ExternalPlayerSession {
     canClose: boolean;
     /** Whether the running player has stopped this stream, when observable. */
     playbackIdle?: boolean;
+    /** Latest status read failed; playbackIdle remains the last known state. */
+    playbackUnverified?: boolean;
+    /** Whether this launch has confirmed media loading, when supported. */
+    mediaLoaded?: boolean;
     /** Exact failed replacement displaced by this restored live session. */
     restoredFromSessionId?: string;
 }

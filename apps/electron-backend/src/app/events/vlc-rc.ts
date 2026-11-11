@@ -171,17 +171,21 @@ export async function getVlcPlaybackState(
 
 export function markVlcOpened(sessionId: string, getPort: () => number) {
     if (!getPort()) return markExternalPlayerOpened(sessionId);
-    return markExternalPlayerOpened(sessionId, async () => {
-        const port = getPort();
-        if (!port) return undefined;
-        const state = await getVlcPlaybackState(port);
-        if (getPort() !== port) return undefined;
-        return state === 'stopped'
-            ? true
-            : state === 'playing' || state === 'paused'
-              ? false
-              : null;
-    });
+    return markExternalPlayerOpened(
+        sessionId,
+        async () => {
+            const port = getPort();
+            if (!port) return undefined;
+            const state = await getVlcPlaybackState(port);
+            if (getPort() !== port) return undefined;
+            return state === 'stopped'
+                ? true
+                : state === 'playing' || state === 'paused'
+                  ? false
+                  : null;
+        },
+        true
+    );
 }
 
 export async function getVlcPlaybackSnapshot(

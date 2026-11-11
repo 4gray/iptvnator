@@ -14,7 +14,11 @@ import {
     externalPlayerSessions,
     traceExternalPlayer,
 } from './external-player-runtime';
-import { markMpvOpened, sendMpvCommand } from './mpv-ipc-command';
+import {
+    markMpvOpened,
+    sendMpvCommand,
+    type MpvIpcCommandOptions,
+} from './mpv-ipc-command';
 
 /**
  * The per-file start of a reuse load: the requested offset, else zero. A
@@ -58,6 +62,10 @@ interface MpvReuseOptions {
 export class MpvReusableProcess {
     private process: ChildProcess | null = null;
     private socketPath: string | null = null;
+    private readonly mediaObservers = new WeakMap<
+        ChildProcess,
+        AbortController
+    >();
     private processSessionId: string | null = null;
     private readonly processSessionIds = new WeakMap<ChildProcess, string>();
     // Bumped whenever the stored player is stopped (reuse disabled or app
@@ -249,7 +257,18 @@ export class MpvReusableProcess {
         // session instead of terminating the new playback, and the previous
         // session's position poll can no longer read the new stream's
         // position under the old content.
+        const media =
+            session.launchId && !options.contentInfo
+                ? new AbortController()
+                : undefined;
         const onContentDispatched = () => {
+            this.mediaObservers.get(reusedProcess)?.abort();
+            if (media) {
+                this.mediaObservers.set(reusedProcess, media);
+                externalPlayerSessions.updateSession(session.id, {
+                    mediaLoaded: false,
+                });
+            }
             state.contentMutated = true;
             this.processSessionId = session.id;
             this.processSessionIds.set(reusedProcess, session.id);
@@ -268,7 +287,29 @@ export class MpvReusableProcess {
                     externalPlayerProcessTeardownGate.assertLaunchAllowed();
                     return true;
                 },
-                onContentDispatched
+                onContentDispatched,
+                media && {
+                    signal: media.signal,
+                    onOutcome: (loaded) => {
+                        const current = externalPlayerSessions.getSession(
+                            session.id
+                        );
+                        if (
+                            this.processSessionIds.get(reusedProcess) !==
+                                session.id ||
+                            !current ||
+                            current.status === 'closed' ||
+                            current.status === 'error'
+                        )
+                            return;
+                        externalPlayerSessions.updateSession(
+                            session.id,
+                            loaded
+                                ? { mediaLoaded: true, playbackIdle: false }
+                                : { playbackIdle: true }
+                        );
+                    },
+                }
             );
             if (closeRequested) return await finishRequestedClose();
             if (cancelled()) return await settleCancelled();
@@ -365,7 +406,8 @@ export class MpvReusableProcess {
         options: MpvReuseOptions,
         socketPath: string,
         shouldDispatch: () => boolean,
-        onContentDispatched: () => void
+        onContentDispatched: () => void,
+        media?: MpvIpcCommandOptions['media']
     ): Promise<void> {
         if (options.effectiveUserAgent) {
             const dispatched = await sendMpvCommand(
@@ -415,7 +457,7 @@ export class MpvReusableProcess {
             socketPath,
             'loadfile',
             loadFileArgs,
-            { shouldDispatch, onDispatched: onContentDispatched }
+            { shouldDispatch, onDispatched: onContentDispatched, media }
         );
         if (!reply) return;
         traceExternalPlayer('loaded new url in existing mpv instance');

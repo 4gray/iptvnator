@@ -119,11 +119,16 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
         publishExternalSession(current);
         fixture.detectChanges();
         expect(committed).not.toHaveBeenCalled();
-        publishExternalSession({
+        const replacement = {
             ...current,
             id: 'synthetic-confirmed',
             streamUrl: nextUrl,
-        });
+        };
+        publishExternalSession({ ...replacement, mediaLoaded: false });
+        fixture.detectChanges();
+        expect(committed).not.toHaveBeenCalled();
+        expect(source.livePlayback()).toBe(false);
+        publishExternalSession({ ...replacement, mediaLoaded: true });
         fixture.detectChanges();
         expect(committed).toHaveBeenCalledTimes(1);
     });

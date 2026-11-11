@@ -103,6 +103,76 @@ describe('sendMpvCommand', () => {
         expect(socket.destroy).toHaveBeenCalledTimes(1);
     });
 
+    it.each([true, false])(
+        'observes media for the acknowledged playlist entry (%s)',
+        async (loaded) => {
+            const socket = nextSocket();
+            const onOutcome = jest.fn();
+            const pending = sendMpvCommand(
+                socketPath,
+                'loadfile',
+                [streamUrl],
+                {
+                    media: { signal: new AbortController().signal, onOutcome },
+                }
+            );
+            socket.emit('connect');
+            reply(socket, {
+                request_id: writtenRequest(socket).request_id,
+                error: 'success',
+                data: { playlist_entry_id: 2 },
+            });
+            await expect(pending).resolves.toMatchObject({ error: 'success' });
+            expect(onOutcome).not.toHaveBeenCalled();
+            expect(socket.destroyed).toBe(false);
+
+            reply(
+                socket,
+                { event: 'start-file', playlist_entry_id: 1 },
+                { event: 'file-loaded' }
+            );
+            expect(onOutcome).not.toHaveBeenCalled();
+            reply(
+                socket,
+                { event: 'start-file', playlist_entry_id: 2 },
+                loaded
+                    ? { event: 'file-loaded' }
+                    : {
+                          event: 'end-file',
+                          reason: 'error',
+                          playlist_entry_id: 2,
+                      }
+            );
+            expect(onOutcome).toHaveBeenCalledTimes(1);
+            expect(onOutcome).toHaveBeenCalledWith(loaded);
+            expect(socket.destroyed).toBe(true);
+        }
+    );
+
+    it('releases an acknowledged media observer when superseded', async () => {
+        const socket = nextSocket();
+        const controller = new AbortController();
+        const onOutcome = jest.fn();
+        const pending = sendMpvCommand(socketPath, 'loadfile', [streamUrl], {
+            media: { signal: controller.signal, onOutcome },
+        });
+        socket.emit('connect');
+        reply(socket, {
+            request_id: writtenRequest(socket).request_id,
+            error: 'success',
+            data: { playlist_entry_id: 2 },
+        });
+        await pending;
+        controller.abort();
+        reply(
+            socket,
+            { event: 'start-file', playlist_entry_id: 2 },
+            { event: 'file-loaded' }
+        );
+        expect(onOutcome).not.toHaveBeenCalled();
+        expect(socket.destroyed).toBe(true);
+    });
+
     it('gives consecutive commands distinct request ids', async () => {
         const first = nextSocket();
         const second = nextSocket();

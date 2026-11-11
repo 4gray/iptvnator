@@ -401,7 +401,8 @@ async function launchMpvPlayer(
                 socketPath,
                 () =>
                     !reuseInstance ||
-                    reusableMpvProcess.currentSessionId() === session.id
+                    reusableMpvProcess.currentSessionId() === session.id,
+                !!session.launchId && !contentInfo
             ) ?? session
         );
     } catch (error) {

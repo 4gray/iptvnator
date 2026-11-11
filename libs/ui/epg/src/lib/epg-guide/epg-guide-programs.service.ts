@@ -248,42 +248,19 @@ export class EpgGuideProgramsService {
                                 !this.source.programBatchSize ||
                                 this.visibleRows.has(id)
                         )
-                        .map(({ id }) => [id, result?.get(id)])
+                        .map(({ id }) => [id, result?.get(id)]),
+                    result ?? []
                 );
-                const checks = this.coverage();
-                if (this.source.deferredCoverage && result) {
-                    let updated: Map<string, CoverageCheck> | undefined;
-                    for (const [id, programs] of result) {
-                        const hasPrograms = programs.length > 0;
-                        const scan = this.coverageRequest;
-                        if (scan?.progress) {
-                            this.reportCoverage(scan, id, hasPrograms);
-                            continue;
-                        }
-                        if (
-                            checks &&
-                            this.failedCoverage.delete(id) &&
-                            this.failedCoverage.size === 0
-                        ) {
-                            this.coverageStatus.set('idle');
-                        }
-                        if (!checks) continue;
-                        const check = changedCoverage(
-                            checks.get(id),
-                            hasPrograms,
-                            this.source.programsExpireAt?.(id) ?? Infinity
-                        );
-                        if (check) (updated ??= new Map(checks)).set(id, check);
-                    }
-                    if (updated) this.coverage.set(updated);
-                }
             });
     }
 
     private storePrograms(
         entries: ReadonlyArray<
             readonly [string, readonly EpgProgram[] | undefined]
-        >
+        >,
+        coverageEntries: Iterable<
+            readonly [string, readonly EpgProgram[] | undefined]
+        > = entries
     ): void {
         const next = new Map(this.programs());
         for (const [id, programs] of entries) {
@@ -295,6 +272,27 @@ export class EpgGuideProgramsService {
         this.patchStatuses(
             entries.map(([id, programs]) => [id, programs ? 'loaded' : 'error'])
         );
+        if (!this.source.deferredCoverage) return;
+        const checks = this.coverage();
+        const scan = this.coverageRequest;
+        let updated: Map<string, CoverageCheck> | undefined;
+        for (const [id, programs] of coverageEntries) {
+            if (!programs) continue;
+            const hasPrograms = programs.length > 0;
+            if (scan?.progress) {
+                this.reportCoverage(scan, id, hasPrograms);
+            } else if (checks) {
+                if (this.failedCoverage.delete(id) && !this.failedCoverage.size)
+                    this.coverageStatus.set('idle');
+                const check = changedCoverage(
+                    checks.get(id),
+                    hasPrograms,
+                    this.source.programsExpireAt?.(id) ?? Infinity
+                );
+                if (check) (updated ??= new Map(checks)).set(id, check);
+            }
+        }
+        if (updated) this.coverage.set(updated);
     }
 
     private reportCoverage(

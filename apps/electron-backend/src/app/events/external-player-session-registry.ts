@@ -21,6 +21,8 @@ interface UpdateExternalPlayerSessionOptions {
     errorCode?: ExternalPlayerErrorCode;
     canClose?: boolean;
     playbackIdle?: boolean;
+    playbackUnverified?: boolean;
+    mediaLoaded?: boolean;
 }
 
 interface ExternalPlayerSessionRuntime {

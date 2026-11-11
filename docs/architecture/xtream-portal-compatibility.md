@@ -784,13 +784,16 @@ With MPV or VLC selected, the preload must support session updates and the
 session must have opened before the guide can open. When the player reports
 the stream stopped, an open guide keeps its schedule visible and lets the
 user retry. If VLC's playback state cannot be read, Enter or a double-click
-that starts on the active row explicitly retries it.
+that starts on the active row explicitly retries it, even after an earlier
+successful VLC status read.
 The guide keeps the player mounted in the dock and hides the live sidebars
 while preserving their browsing state. Short screens show a compact dock so
 schedule rows remain visible. If an external channel switch fails and the
 player restores the previous session or rejects a switch while the old session
 is still playing, the guide keeps its scope and search. Enter and double-click
-close the guide only after the requested stream opens. The dock, player panel
+close the guide only after the requested stream opens. With MPV IPC, a reused
+process confirms that its requested playlist entry loaded; a fresh process
+confirms playback through its own socket. The dock, player panel
 and remote status follow the confirmed session. Consecutive remote tuning
 commands advance from the latest requested channel until it opens or fails.
 IINA keeps the selection-based remote queue because its launcher can exit

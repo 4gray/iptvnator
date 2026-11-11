@@ -1113,7 +1113,8 @@ exit is confirmed, or as a closable error when it is not. No `seek` follows
 `loadfile`: mpv rejects a seek before the file is loaded, so the resume offset
 travels as the per-file `start` option. The `loadfile` reply only acknowledges
 the command; a stream that later fails to open is reported through the reused
-child's output and exit, not through the reply.
+child's output and exit, not through the reply. Xtream guide requests observe
+the corresponding MPV playlist entry for media load confirmation separately.
 For streams without saved position metadata, MPV's socket and VLC's RC
 connection report when playback becomes idle or stopped. The exact session
 remains closable. Polling continues for the exact session so resuming in the

@@ -618,7 +618,10 @@ export class LiveStreamLayoutComponent
         effect(() =>
             this.guideSource.setPlayback(
                 this.guideChannel(),
-                this.guideArchiveProgram() === null
+                this.guideArchiveProgram() === null &&
+                    (this.usesEmbeddedPlayer() ||
+                        this.externalGuide.confirmed()?.session.mediaLoaded !==
+                            false)
             )
         );
         effect(() => {

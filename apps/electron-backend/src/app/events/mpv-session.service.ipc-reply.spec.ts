@@ -105,6 +105,56 @@ describe('reused MPV IPC replies', () => {
         expect(Number.isInteger(requests[0].request_id)).toBe(true);
     });
 
+    it.each([true, false])(
+        'publishes reused guide media readiness separately from opening (%s)',
+        async (loaded) => {
+            await launchReusableInstance();
+            const sockets = mockUnansweredSockets();
+            const opening = openMpvPlayer({
+                title: 'Synthetic Channel',
+                url: 'https://example.test/synthetic.ts',
+                launchId: 'synthetic-guide-launch',
+            });
+            await nextTick();
+            const socket = sockets[0];
+            const push = (...lines: object[]) =>
+                socket.emit(
+                    'data',
+                    Buffer.from(
+                        lines.map((line) => JSON.stringify(line)).join('\n') +
+                            '\n'
+                    )
+                );
+            push({
+                request_id: await writtenRequestId(socket),
+                error: 'success',
+                data: { playlist_entry_id: 2 },
+            });
+            const session = await opening;
+            expect(session).toMatchObject({
+                status: 'opened',
+                mediaLoaded: false,
+            });
+            push(
+                { event: 'start-file', playlist_entry_id: 2 },
+                loaded
+                    ? { event: 'file-loaded' }
+                    : {
+                          event: 'end-file',
+                          reason: 'error',
+                          playlist_entry_id: 2,
+                      }
+            );
+            expect(externalPlayerSessions.getSession(session.id)).toMatchObject(
+                {
+                    status: 'opened',
+                    mediaLoaded: loaded,
+                    playbackIdle: !loaded,
+                }
+            );
+        }
+    );
+
     it('falls back to a fresh launch when mpv rejects the content command', async () => {
         const reusedProc = await launchReusableInstance();
         const freshProc = createMockChildProcess();

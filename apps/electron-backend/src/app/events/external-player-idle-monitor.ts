@@ -5,7 +5,10 @@ const IDLE_CHECK_INTERVAL_MS = 2_000;
 /** The process can stay open after its stream stops. */
 export function markExternalPlayerOpened(
     sessionId: string,
-    readIdle?: (isCurrent: () => boolean) => Promise<boolean | null | undefined>
+    readIdle?: (
+        isCurrent: () => boolean
+    ) => Promise<boolean | null | undefined>,
+    reportUnreadable = false
 ) {
     const opened = externalPlayerSessions.markOpened(sessionId);
     if (!readIdle || opened?.status !== 'opened' || opened.contentInfo)
@@ -18,20 +21,18 @@ export function markExternalPlayerOpened(
     const schedule = () => setTimeout(check, IDLE_CHECK_INTERVAL_MS).unref();
     const check = async () => {
         if (!isCurrent()) return;
-        try {
-            const idle = await readIdle(isCurrent);
-            if (idle === undefined || !isCurrent()) return;
-            if (
-                idle !== null &&
-                externalPlayerSessions.getSession(sessionId)?.playbackIdle !==
-                    idle
-            )
-                externalPlayerSessions.updateSession(sessionId, {
-                    playbackIdle: idle,
-                });
-        } catch {
-            // A missing IPC reply does not prove that playback ended.
-        }
+        const idle = await readIdle(isCurrent).catch(() => null);
+        if (idle === undefined || !isCurrent()) return;
+        const current = externalPlayerSessions.getSession(sessionId);
+        const unreadable = reportUnreadable && idle === null ? true : undefined;
+        if (
+            (idle !== null && current?.playbackIdle !== idle) ||
+            (reportUnreadable && current?.playbackUnverified !== unreadable)
+        )
+            externalPlayerSessions.updateSession(sessionId, {
+                playbackIdle: idle ?? current?.playbackIdle,
+                ...(reportUnreadable ? { playbackUnverified: unreadable } : {}),
+            });
         if (isCurrent()) schedule();
     };
     schedule();
