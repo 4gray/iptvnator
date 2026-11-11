@@ -32,7 +32,9 @@ import {
 } from '@iptvnator/services';
 import {
     EpgItem,
+    type ElectronBridgeRemoteControlCommand,
     type ExternalPlayerSession,
+    VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { LiveStreamLayoutComponent } from './live-stream-layout.component';
@@ -101,6 +103,12 @@ export function setupLiveStreamLayoutNativeFixture() {
     const onChannelChange = jest.fn(
         (_change: (event: { direction: 'up' | 'down' }) => void) => jest.fn()
     );
+    const onRemoteControlCommand = jest.fn(
+        (_command: (event: ElectronBridgeRemoteControlCommand) => void) =>
+            jest.fn()
+    );
+    const player = signal(VideoPlayer.MPV);
+    const mpvPlayerPath = signal('');
     const xtreamStore = {
         getCategoriesBySelectedType: signal([
             { category_id: 1, category_name: 'News' },
@@ -135,11 +143,15 @@ export function setupLiveStreamLayoutNativeFixture() {
             value: {
                 updateRemoteControlStatus,
                 onChannelChange,
+                onRemoteControlCommand,
                 onExternalPlayerSessionUpdate,
             },
         });
         updateRemoteControlStatus.mockClear();
         onChannelChange.mockClear();
+        onRemoteControlCommand.mockClear();
+        player.set(VideoPlayer.MPV);
+        mpvPlayerPath.set('');
         onExternalPlayerSessionUpdate.mockClear();
         launchIds.clear();
         closeSession.mockClear();
@@ -208,6 +220,8 @@ export function setupLiveStreamLayoutNativeFixture() {
                 {
                     provide: SettingsStore,
                     useValue: {
+                        player,
+                        mpvPlayerPath,
                         openStreamOnDoubleClick: signal(false),
                         resolvedEpgViewMode: signal('timeline'),
                         resolvedEpgOffsetMinutes: signal(0),
@@ -273,6 +287,8 @@ export function setupLiveStreamLayoutNativeFixture() {
         publishExternalSession,
         restoreElectron,
         onChannelChange,
+        onRemoteControlCommand,
+        mpvPlayerPath,
         xtreamStore,
     };
 }

@@ -5,9 +5,16 @@ import {
     inject,
     Injectable,
     signal,
+    untracked,
 } from '@angular/core';
 import { createDevLogger, EpgProgram } from '@iptvnator/shared/interfaces';
-import { createCoverageRefreshBudget } from './epg-guide-coverage-refresh';
+import {
+    changedCoverage,
+    createCoverageRefreshBudget,
+    NO_PROGRAMMES,
+    type CoverageCheck,
+    type CoverageScan,
+} from './epg-guide-coverage-refresh';
 import {
     EPG_GUIDE_SOURCE,
     EpgGuideChannel,
@@ -31,21 +38,6 @@ const EMPTY: readonly EpgProgram[] = [];
 const COVERAGE_BATCH_MS = 200;
 
 const debugEpgGuidePrograms = createDevLogger('EpgGuideProgramsService');
-
-type CoverageCheck = { hasPrograms: boolean; expiresAt: number };
-const NO_PROGRAMMES: CoverageCheck = {
-    hasPrograms: false,
-    expiresAt: Infinity,
-};
-
-interface CoverageScan {
-    controller: AbortController;
-    progress?: {
-        confirmed: Set<string>;
-        checks: Map<string, CoverageCheck>;
-        timer?: ReturnType<typeof setTimeout>;
-    };
-}
 
 /** A channel is only ever requested when it carries a real, non-blank key. */
 function hasEpgKey(channel: EpgGuideChannel): boolean {
@@ -117,6 +109,22 @@ export class EpgGuideProgramsService {
             this.invalidate();
             this.requestCoverage();
         });
+        if (this.source.recoveredPrograms) {
+            effect(() => {
+                const statuses = this.statuses();
+                const id = this.source.activeChannelId();
+                if (
+                    !this.range ||
+                    !id ||
+                    !this.visibleRows.has(id) ||
+                    statuses.get(id) !== 'error'
+                )
+                    return;
+                const recovered = this.source.recoveredPrograms?.(this.range);
+                if (recovered)
+                    untracked(() => this.storePrograms([[id, recovered]]));
+            });
+        }
     }
 
     setCoverageRequested(requested: boolean): void {
@@ -260,10 +268,10 @@ export class EpgGuideProgramsService {
                             this.coverageStatus.set('idle');
                         }
                         if (!checks) continue;
-                        const check = this.changedCoverage(
+                        const check = changedCoverage(
                             checks.get(id),
-                            id,
-                            hasPrograms
+                            hasPrograms,
+                            this.source.programsExpireAt?.(id) ?? Infinity
                         );
                         if (check) (updated ??= new Map(checks)).set(id, check);
                     }
@@ -289,20 +297,6 @@ export class EpgGuideProgramsService {
         );
     }
 
-    private changedCoverage(
-        previous: CoverageCheck | undefined,
-        id: string,
-        hasPrograms: boolean
-    ): CoverageCheck | undefined {
-        const expiresAt = this.source.programsExpireAt?.(id) ?? Infinity;
-        if (
-            previous?.hasPrograms !== hasPrograms ||
-            previous.expiresAt !== expiresAt
-        )
-            return { hasPrograms, expiresAt };
-        return undefined;
-    }
-
     private reportCoverage(
         scan: CoverageScan,
         id: string,
@@ -317,10 +311,10 @@ export class EpgGuideProgramsService {
         } else {
             progress.confirmed.add(id);
             this.failedCoverage.delete(id);
-            const check = this.changedCoverage(
+            const check = changedCoverage(
                 progress.checks.get(id),
-                id,
-                hasPrograms
+                hasPrograms,
+                this.source.programsExpireAt?.(id) ?? Infinity
             );
             if (!check) return;
             progress.checks.set(id, check);

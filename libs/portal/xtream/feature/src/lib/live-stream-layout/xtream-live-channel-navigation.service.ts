@@ -61,6 +61,17 @@ function channelCopyKey(item: XtreamLiveChannelItem): string {
     return `${item.xtream_id}:${xtreamCategoryKey(item.category_id)}`;
 }
 
+function rowsWithActiveCopy(
+    items: readonly XtreamLiveChannelItem[],
+    active: XtreamLiveChannelItem
+): XtreamLiveChannelItem[] {
+    return items.filter(
+        (item) =>
+            item.xtream_id !== active.xtream_id ||
+            sameXtreamChannelCopy(item, active)
+    );
+}
+
 export function replaceXtreamQueuedCopy(
     queue: readonly XtreamLiveChannelItem[],
     item: XtreamLiveChannelItem
@@ -227,7 +238,6 @@ export class XtreamLiveChannelNavigationService {
         this.requestSequence++;
         this.pendingReveal.set(null);
         const owner = this.owner();
-        const key = channelCopyKey(item);
         if (this.shouldReplaceQueue(item, policy)) {
             this.queue.capture(
                 owner,
@@ -236,11 +246,7 @@ export class XtreamLiveChannelNavigationService {
                     this.query(),
                     this.sortMode(),
                 ]),
-                items.filter(
-                    (candidate) =>
-                        candidate.xtream_id !== item.xtream_id ||
-                        channelCopyKey(candidate) === key
-                ),
+                rowsWithActiveCopy(items, item),
                 item
             );
         }
@@ -252,9 +258,10 @@ export class XtreamLiveChannelNavigationService {
         items: readonly XtreamLiveChannelItem[],
         policy: QueuePolicy = 'on-channel-change'
     ): readonly XtreamLiveChannelItem[] {
-        return this.shouldReplaceQueue(item, policy)
-            ? items
-            : this.queue.items(this.owner());
+        if (!this.shouldReplaceQueue(item, policy))
+            return this.queue.items(this.owner());
+        const rows = xtreamRowsByStreamId(rowsWithActiveCopy(items, item));
+        return rows.has(String(item.xtream_id)) ? [...rows.values()] : [item];
     }
 
     private shouldReplaceQueue(

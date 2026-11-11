@@ -76,6 +76,10 @@ export interface EpgGuideSource {
     setScope(id: string): void;
     /** Programmes overlapping the window, keyed by `EpgGuideChannel.id`. */
     loadPrograms(range: EpgGuideWindow): Promise<Map<string, EpgProgram[]>>;
+    /** An already fetched schedule for the active row when its own read failed. */
+    recoveredPrograms?(
+        window: Pick<EpgGuideWindow, 'fromMs' | 'toMs'>
+    ): readonly EpgProgram[] | null;
     /** Per-stream cache expiry for a successfully loaded row. */
     programsExpireAt?(channelId: string): number;
     /** Per-stream sources publish each row as it arrives. */

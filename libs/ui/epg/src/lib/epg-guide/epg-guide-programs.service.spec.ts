@@ -44,6 +44,8 @@ describe('EpgGuideProgramsService', () => {
     let service: EpgGuideProgramsService;
     let source: EpgGuideSource;
     const revision = signal(0);
+    const activeChannelId = signal<string | null>(null);
+    const recoveredPrograms = signal<EpgProgram[] | null>(null);
 
     beforeEach(() => {
         loadPrograms.mockReset();
@@ -51,6 +53,8 @@ describe('EpgGuideProgramsService', () => {
         loadCoverage.mockResolvedValue(new Set());
         channels.set([channel('a'), channel('b'), channel('c', null)]);
         revision.set(0);
+        activeChannelId.set(null);
+        recoveredPrograms.set(null);
         source = {
             channels,
             scopes: signal([]),
@@ -58,7 +62,8 @@ describe('EpgGuideProgramsService', () => {
             setScope: jest.fn(),
             loadPrograms,
             loadCoverage,
-            activeChannelId: signal(null),
+            activeChannelId,
+            recoveredPrograms,
             activate: jest.fn(),
             revision,
         };
@@ -114,6 +119,25 @@ describe('EpgGuideProgramsService', () => {
         expect(service.programsFor('a')).toEqual([programme]);
         expect(service.statusFor('a')).toBe('loaded');
         expect(loadPrograms).toHaveBeenCalledTimes(1);
+    });
+
+    it('uses the recovered dock schedule when coverage is disabled', async () => {
+        Object.assign(source, { deferredCoverage: true });
+        activeChannelId.set('a');
+        loadPrograms.mockResolvedValue(new Map());
+        service.setWindow(1000, 2000);
+        service.ensureLoaded([channels()[0]]);
+        await flush();
+        expect(service.statusFor('a')).toBe('error');
+        TestBed.flushEffects();
+
+        const programme = programFor('a');
+        recoveredPrograms.set([programme]);
+        TestBed.flushEffects();
+        expect(service.programsFor('a')).toEqual([programme]);
+        expect(service.statusFor('a')).toBe('loaded');
+        expect(loadPrograms).toHaveBeenCalledTimes(1);
+        expect(loadCoverage).not.toHaveBeenCalled();
     });
 
     it('hides confirmed empty rows during a pending scan while unverified rows stay visible', async () => {

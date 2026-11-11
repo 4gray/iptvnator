@@ -94,6 +94,7 @@ import {
     RecordingStoppedEvent,
     ResolvedPortalPlayback,
     toRecordingProgramSnapshot,
+    VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import {
     PortalChannelsListComponent,
@@ -495,8 +496,17 @@ export class LiveStreamLayoutComponent
         () => this.activePlayback()?.streamUrl ?? ''
     );
     private readonly externalGuide = inject(XtreamGuideExternalPlayback);
+    private readonly usesSelectionForRemote = computed(
+        () =>
+            this.usesEmbeddedPlayer() ||
+            !this.externalGuide.hasSessionUpdates ||
+            (this.settingsStore.player?.() === VideoPlayer.MPV &&
+                /(?:^|[\\/])iina(?:-cli)?$/i.test(
+                    this.settingsStore.mpvPlayerPath?.()?.trim() ?? ''
+                ))
+    );
     private readonly remoteLiveItem = computed(() =>
-        this.usesEmbeddedPlayer() || !this.externalGuide.hasSessionUpdates
+        this.usesSelectionForRemote()
             ? this.selectedLiveItem()
             : (this.externalGuide.confirmed()?.item ?? null)
     );
@@ -768,11 +778,9 @@ export class LiveStreamLayoutComponent
             const selectedContentType = this.xtreamStore.selectedContentType();
             const selectedItem = this.remoteLiveItem();
             const channels = this.getVisibleChannels();
-            const activeProgram =
-                this.usesEmbeddedPlayer() ||
-                !this.externalGuide.hasSessionUpdates
-                    ? (this.activeCatchupProgram() ?? this.currentEpgItem())
-                    : this.guideNowPlayingProgram();
+            const activeProgram = this.usesSelectionForRemote()
+                ? (this.activeCatchupProgram() ?? this.currentEpgItem())
+                : this.guideNowPlayingProgram();
 
             if (selectedContentType !== 'live' || !selectedItem?.xtream_id) {
                 remoteControl.updateRemoteControlStatus({
@@ -882,9 +890,10 @@ export class LiveStreamLayoutComponent
             : this.xtreamStore.constructStreamUrl(item);
         const tracksExternalPlayback =
             !this.usesEmbeddedPlayer() && this.externalGuide.hasSessionUpdates;
+        const captureOnSelection = this.usesSelectionForRemote();
         const scope =
             displayedChannels ??
-            (!tracksExternalPlayback || !remote
+            (captureOnSelection || !remote
                 ? this.channelNavigation.displayedChannels()
                 : []);
         this.archivePreview =
@@ -892,7 +901,7 @@ export class LiveStreamLayoutComponent
                 ? { item, queue: scope }
                 : undefined;
         const queuePolicy = remote ? 'preserve' : 'on-channel-change';
-        if (!tracksExternalPlayback)
+        if (captureOnSelection)
             this.channelNavigation.capture(item, scope, queuePolicy);
         this.activeCatchupProgram.set(null);
         // Keep both root/recently-added playback and same-category replays in
@@ -1058,7 +1067,7 @@ export class LiveStreamLayoutComponent
     }
 
     private handleRemoteChannelChange(direction: 'up' | 'down'): void {
-        const activeItem = this.usesEmbeddedPlayer()
+        const activeItem = this.usesSelectionForRemote()
             ? this.remoteLiveItem()
             : (this.externalGuide.remoteTuningItem() ?? this.remoteLiveItem());
         if (!activeItem?.xtream_id) {

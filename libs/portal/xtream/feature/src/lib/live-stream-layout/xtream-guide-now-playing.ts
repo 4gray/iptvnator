@@ -1,6 +1,10 @@
 import { computed, effect, signal, type Signal } from '@angular/core';
+import type { EpgGuideWindow } from '@iptvnator/ui/epg';
 import type { XtreamLiveChannelItem } from './xtream-live-channel-navigation.service';
-import type { XtreamGuideSchedule } from './xtream-guide-schedules';
+import {
+    programmeOverlapsGuideWindow,
+    type XtreamGuideSchedule,
+} from './xtream-guide-schedules';
 
 const DOCK_RETRY_MS = 30_000;
 
@@ -56,6 +60,10 @@ export function createXtreamGuideNowPlaying(
     return {
         programs: computed(() => currentSchedule()?.programs ?? null),
         items: computed(() => currentSchedule()?.items ?? null),
+        recoveredPrograms: (window: Pick<EpgGuideWindow, 'fromMs' | 'toMs'>) =>
+            currentSchedule()?.programs.filter((program) =>
+                programmeOverlapsGuideWindow(program, window)
+            ) ?? null,
         publish(
             key: string,
             sourceRevision: unknown,

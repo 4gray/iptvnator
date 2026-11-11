@@ -238,6 +238,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     );
     readonly playingSchedule = this.dock.programs;
     readonly playingScheduleItems = this.dock.items;
+    readonly recoveredPrograms = this.dock.recoveredPrograms;
     readonly playbackSchedule = this.schedules.forPlayback;
     private play?: (
         item: XtreamLiveChannelItem,
@@ -346,10 +347,8 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         return new Map(results.filter((result) => result !== null));
     }
 
-    programsExpireAt(id: string): number {
-        const item = this.scopedRows().get(id);
-        return item ? this.schedules.expiresAt(item) : 0;
-    }
+    programsExpireAt = (id: string): number =>
+        this.schedules.expiresAt(this.scopedRows().get(id));
 
     async loadCoverage(
         window: EpgGuideWindow,

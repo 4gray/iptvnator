@@ -230,6 +230,15 @@ describe('XtreamEpgGuideSourceService', () => {
             expect(service.playingSchedule()?.[0].title).toBe(first.title);
             await jest.advanceTimersByTimeAsync(300_000);
             expect(service.playingSchedule()?.[0].title).toBe(next.title);
+            expect(
+                service.recoveredPrograms({
+                    fromMs: 100_000,
+                    toMs: 200_000,
+                })?.[0]?.title
+            ).toBe(next.title);
+            expect(
+                service.recoveredPrograms({ fromMs: 200_000, toMs: 300_000 })
+            ).toEqual([]);
             expect(load.mock.calls.map(([, streamId]) => streamId)).toEqual([
                 101, 101,
             ]);

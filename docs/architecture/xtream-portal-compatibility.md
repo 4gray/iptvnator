@@ -792,6 +792,8 @@ player restores the previous session or rejects a switch while the old session
 is still playing, the guide keeps its scope and search. The dock, player panel
 and remote status follow the confirmed session. Consecutive remote tuning
 commands advance from the latest requested channel until it opens or fails.
+IINA keeps the selection-based remote queue because its launcher can exit
+while playback continues.
 Browsing another channel does not replace the remote order or detach the
 guide. Starting archive playback from a preview commits that preview's order
 when the archive session opens. If a relock withholds that
@@ -830,8 +832,8 @@ and buffer. Rendered rows and the playing stream's dock revalidate after their
 schedules expire, even if the playing row is outside the current scope. The
 dock follows the playing copy's latest XMLTV identity after a catalog recheck
 and keeps the player panel current when the guide closes. Failed rows retry
-when they return to the viewport. A coverage scan
-that obtains a schedule also updates the corresponding visible failed row.
+when they return to the viewport. A coverage scan or a dock refresh that
+obtains a schedule also updates the corresponding visible failed row.
 It checks the current scope's coverage only when the user turns on **Only with
 EPG** and keeps channels whose coverage could not be checked until a successful
 lookup determines whether they have programmes. It hides confirmed empty

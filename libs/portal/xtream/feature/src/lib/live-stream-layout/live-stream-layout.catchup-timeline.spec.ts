@@ -40,6 +40,8 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         publishExternalSession,
         restoreElectron,
         onChannelChange,
+        onRemoteControlCommand,
+        mpvPlayerPath,
         xtreamStore,
     } = setupLiveStreamLayoutNativeFixture();
 
@@ -98,6 +100,39 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             sampleChannel
         );
         expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps remote tuning after the IINA launcher exits', () => {
+        const playing = { ...sampleChannel, category_id: 1 };
+        const next = { ...playing, xtream_id: 102 };
+        const last = { ...playing, xtream_id: 103 };
+        const channels = [playing, next, last];
+        emptyList.set(channels);
+        xtreamStore.selectedItem.set(playing);
+        portalPlayer.isEmbeddedPlayer.set(false);
+        mpvPlayerPath.set('/Applications/IINA.app/Contents/MacOS/iina-cli');
+        component.playLive(playing, true, channels);
+        publishExternalSession({
+            id: 'synthetic-launcher',
+            player: 'mpv',
+            status: 'closed',
+            title: 'Synthetic Channel',
+            streamUrl: component.activeStreamUrl(),
+            canClose: false,
+            startedAt: '2026-04-04T10:00:00Z',
+            updatedAt: '2026-04-04T10:00:00Z',
+        });
+        fixture.detectChanges();
+        expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
+            expect.objectContaining({ isLiveView: true, channelNumber: 1 })
+        );
+        onChannelChange.mock.lastCall?.[0]({ direction: 'down' });
+        expect(xtreamStore.constructStreamUrl).toHaveBeenLastCalledWith(next);
+        onRemoteControlCommand.mock.lastCall?.[0]({
+            type: 'channel-select-number',
+            number: 3,
+        });
+        expect(xtreamStore.constructStreamUrl).toHaveBeenLastCalledWith(last);
     });
 
     it('returns focus to the workspace when the guide shortcut becomes disabled', () => {
@@ -818,9 +853,10 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                     ...categories,
                     { category_id: 2, category_name: 'Synthetic Copy Group' },
                 ]);
-            emptyList.set(switched ? [playing, next, copy] : [playing, next]);
+            const channels = switched ? [copy, next, playing] : [next, playing];
+            emptyList.set(channels);
             portalPlayer.isEmbeddedPlayer.set(false);
-            component.playLive(playing, true, [next, playing]);
+            component.playLive(playing, true, channels);
             let session: ExternalPlayerSession = {
                 id: 'synthetic-return',
                 streamUrl: component.activeStreamUrl(),

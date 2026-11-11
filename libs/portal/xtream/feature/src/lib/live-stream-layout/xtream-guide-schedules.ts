@@ -22,7 +22,7 @@ export function scheduleKey(item: XtreamLiveChannelItem): string {
 
 export function programmeOverlapsGuideWindow(
     program: EpgProgram,
-    window: EpgGuideWindow
+    window: Pick<EpgGuideWindow, 'fromMs' | 'toMs'>
 ): boolean {
     const start = program.startTimestamp
         ? program.startTimestamp * 1000
@@ -100,8 +100,8 @@ export function injectXtreamGuideSchedules(
     return {
         reader,
         clear: () => cache.clear(),
-        expiresAt: (item: XtreamLiveChannelItem) =>
-            cache.expiresAt(scheduleKey(item)),
+        expiresAt: (item: XtreamLiveChannelItem | undefined) =>
+            item ? cache.expiresAt(scheduleKey(item)) : 0,
         async forPlayback(
             item: XtreamLiveChannelItem,
             signal?: AbortSignal
