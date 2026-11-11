@@ -15,6 +15,7 @@ import {
     VideoPlayer,
     type ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
+import type { LiveChannelFailoverService } from '@iptvnator/playback/data-access';
 import type { ExternalPlaybackRecoveryCoordinator } from './external-playback-recovery-coordinator';
 import type {
     PlaybackBinding,
@@ -22,7 +23,11 @@ import type {
 } from './playback-recovery-session';
 import type { WebPlayerApplicationHandoffCoordinator } from './web-player-application-handoff';
 import type { WebPlayerApplicationToken } from './web-player-application-state';
-import { createWebPlayerRecommendations } from './web-player-recovery-policy';
+import {
+    createWebPlayerRecommendations,
+    toInlinePlaybackPlayer,
+} from './web-player-recovery-policy';
+import { WebPlayerLiveFailover } from './web-player-live-failover';
 
 export interface WebPlayerRecoveryControllerDeps {
     readonly recoverySession: PlaybackRecoverySession;
@@ -41,6 +46,8 @@ export interface WebPlayerRecoveryControllerDeps {
     readonly alternativeSourceCount: () => number;
     readonly managedExternalPlayersAvailable: () => boolean;
     readonly tryAutoLiveFormat?: (issue: PlaybackDiagnostic) => boolean;
+    /** Live failover's cross-source router; absent in hosts without it. */
+    readonly liveChannelFailover?: LiveChannelFailoverService;
     readonly emitPlaybackFailed: (code: PlaybackDiagnosticCode) => void;
     readonly emitExternalFallbackRequested: (
         request: PlaybackFallbackRequest
@@ -94,7 +101,28 @@ export class WebPlayerRecoveryController {
         });
     });
 
-    constructor(private readonly deps: WebPlayerRecoveryControllerDeps) {}
+    private readonly liveFailover: WebPlayerLiveFailover | null;
+
+    constructor(private readonly deps: WebPlayerRecoveryControllerDeps) {
+        this.liveFailover = deps.liveChannelFailover
+            ? new WebPlayerLiveFailover({
+                  failover: deps.liveChannelFailover,
+                  playback: deps.playback,
+                  sessionKey: deps.playbackSessionKey,
+                  isLive: deps.resolvedIsLive,
+                  active: computed(
+                      () =>
+                          toInlinePlaybackPlayer(deps.selectedPlayer()) !== null
+                  ),
+                  retry: () => this.retryPlayback(),
+              })
+            : null;
+    }
+
+    /** The engine reported that the stream plays. */
+    notifyPlaybackStarted(): void {
+        this.liveFailover?.onStarted();
+    }
 
     handlePlaybackIssue(
         issue: PlaybackDiagnostic | null,
@@ -128,6 +156,13 @@ export class WebPlayerRecoveryController {
             return;
         }
         if (!recoverySession.recordFailure(binding)) {
+            return;
+        }
+        // A live failover retry remounts the engine, which clears this
+        // diagnostic anyway; keeping the card out of that path avoids a flash
+        // of manual actions between attempts.
+        if (this.liveFailover?.onIssue(issue)) {
+            this.clearDiagnostic();
             return;
         }
         this.diagnosticOwnerToken.set(this.diagnosticIntentToken());

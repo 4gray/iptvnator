@@ -733,7 +733,9 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "年齡分級國家",
         "AGE_RATING_COUNTRY_DESCRIPTION": "選擇年齡分級使用的國家。缺少當地分級時，可能使用美國或供應商的資料。",
-        "AGE_RATING_COUNTRY_AUTO": "自動 — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "自動 — {{country}}",
+        "LIVE_CHANNEL_FAILOVER": "直播頻道容錯切換",
+        "LIVE_CHANNEL_FAILOVER_DESCRIPTION": "當直播頻道在內建播放器中失敗時，會重試 3 次（每次 10 秒），然後依清單順序在你的其他來源中尋找同一頻道，並切換到第一個能播放它的來源。"
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "無法儲存到伺服器。請檢查連線後再試一次。",
@@ -873,7 +875,12 @@
             "STATS_CONTAINER": "容器",
             "STATS_BUFFER": "緩衝",
             "STATS_DROPPED_FRAMES": "丟棄影格",
-            "STATS_UNAVAILABLE": "尚無串流資料"
+            "STATS_UNAVAILABLE": "尚無串流資料",
+            "FAILOVER_RETRYING": "串流播放失敗。正在重試（{{attempt}}/{{maxAttempts}}）…",
+            "FAILOVER_SEARCHING": "正在其他來源中尋找「{{channel}}」…",
+            "FAILOVER_HOPPING": "正在嘗試來源 {{index}}/{{total}}：{{source}} — {{channel}}",
+            "FAILOVER_SWITCHED": "已切換到 {{source}} — {{channel}}",
+            "FAILOVER_EXHAUSTED": "找不到可播放「{{channel}}」的來源"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

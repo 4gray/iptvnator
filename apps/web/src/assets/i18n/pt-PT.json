@@ -733,7 +733,9 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "País da classificação etária",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Escolha o país da classificação. Na ausência de dados locais, podem ser usados dados dos EUA ou do fornecedor.",
-        "AGE_RATING_COUNTRY_AUTO": "Automático — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Automático — {{country}}",
+        "LIVE_CHANNEL_FAILOVER": "Comutação de canais em direto",
+        "LIVE_CHANNEL_FAILOVER_DESCRIPTION": "Quando um canal em direto falha no leitor integrado, é tentado novamente 3 vezes (10 segundos cada) e depois o mesmo canal é procurado nas suas outras fontes, pela ordem da lista, mudando para a primeira fonte que o reproduzir."
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Não foi possível guardar no servidor. Verifica a ligação e tenta novamente.",
@@ -873,7 +875,12 @@
             "STATS_CONTAINER": "Formato de contentor",
             "STATS_BUFFER": "Buffer",
             "STATS_DROPPED_FRAMES": "Fotogramas perdidos",
-            "STATS_UNAVAILABLE": "Ainda não há dados da transmissão."
+            "STATS_UNAVAILABLE": "Ainda não há dados da transmissão.",
+            "FAILOVER_RETRYING": "A emissão falhou. A tentar novamente ({{attempt}}/{{maxAttempts}})…",
+            "FAILOVER_SEARCHING": "A procurar “{{channel}}” nas suas outras fontes…",
+            "FAILOVER_HOPPING": "A testar a fonte {{index}}/{{total}}: {{source}} — {{channel}}",
+            "FAILOVER_SWITCHED": "Mudou para {{source}} — {{channel}}",
+            "FAILOVER_EXHAUSTED": "Nenhuma fonte funcional encontrada para “{{channel}}”"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

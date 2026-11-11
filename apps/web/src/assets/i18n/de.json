@@ -733,7 +733,9 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "Land der Altersfreigabe",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Wählen Sie das Land der Altersfreigabe. Fehlende lokale Angaben werden durch US- oder Anbieterdaten ergänzt.",
-        "AGE_RATING_COUNTRY_AUTO": "Automatisch — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Automatisch — {{country}}",
+        "LIVE_CHANNEL_FAILOVER": "Sender-Failover",
+        "LIVE_CHANNEL_FAILOVER_DESCRIPTION": "Wenn ein Livesender im eingebetteten Player ausfällt, wird er dreimal erneut versucht (je 10 Sekunden). Danach wird derselbe Sender in deinen anderen Quellen in Listenreihenfolge gesucht und zur ersten Quelle gewechselt, die ihn abspielt."
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Speichern auf dem Server fehlgeschlagen. Prüfen Sie die Verbindung und versuchen Sie es erneut.",
@@ -873,7 +875,12 @@
             "STATS_CONTAINER": "Container",
             "STATS_BUFFER": "Puffer",
             "STATS_DROPPED_FRAMES": "Verworfene Bilder",
-            "STATS_UNAVAILABLE": "Noch keine Stream-Daten"
+            "STATS_UNAVAILABLE": "Noch keine Stream-Daten",
+            "FAILOVER_RETRYING": "Stream fehlgeschlagen. Neuer Versuch ({{attempt}}/{{maxAttempts}})…",
+            "FAILOVER_SEARCHING": "Suche nach „{{channel}}“ in deinen anderen Quellen…",
+            "FAILOVER_HOPPING": "Teste Quelle {{index}}/{{total}}: {{source}} — {{channel}}",
+            "FAILOVER_SWITCHED": "Gewechselt zu {{source}} — {{channel}}",
+            "FAILOVER_EXHAUSTED": "Keine funktionierende Quelle für „{{channel}}“ gefunden"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

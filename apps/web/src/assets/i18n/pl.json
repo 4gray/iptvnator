@@ -733,7 +733,9 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "Kraj klasyfikacji wiekowej",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Wybierz kraj klasyfikacji. Jeśli brakuje danych lokalnych, mogą zostać użyte dane z USA lub od dostawcy.",
-        "AGE_RATING_COUNTRY_AUTO": "Automatycznie — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Automatycznie — {{country}}",
+        "LIVE_CHANNEL_FAILOVER": "Przełączanie kanałów na żywo",
+        "LIVE_CHANNEL_FAILOVER_DESCRIPTION": "Gdy kanał na żywo nie działa we wbudowanym odtwarzaczu, jest ponawiany 3 razy (po 10 sekund), a potem ten sam kanał jest wyszukiwany w Twoich pozostałych źródłach w kolejności listy i następuje przełączenie na pierwsze źródło, które go odtwarza."
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Nie udało się zapisać na serwerze. Sprawdź połączenie i spróbuj ponownie.",
@@ -873,7 +875,12 @@
             "STATS_CONTAINER": "Kontener",
             "STATS_BUFFER": "Bufor",
             "STATS_DROPPED_FRAMES": "Utracone klatki",
-            "STATS_UNAVAILABLE": "Brak danych strumienia"
+            "STATS_UNAVAILABLE": "Brak danych strumienia",
+            "FAILOVER_RETRYING": "Strumień nie działa. Ponawianie ({{attempt}}/{{maxAttempts}})…",
+            "FAILOVER_SEARCHING": "Szukanie „{{channel}}” w pozostałych źródłach…",
+            "FAILOVER_HOPPING": "Próba źródła {{index}}/{{total}}: {{source}} — {{channel}}",
+            "FAILOVER_SWITCHED": "Przełączono na {{source}} — {{channel}}",
+            "FAILOVER_EXHAUSTED": "Nie znaleziono działającego źródła dla „{{channel}}”"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

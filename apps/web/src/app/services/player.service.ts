@@ -1,5 +1,5 @@
 import { PLAYBACK_ACTIVITY_EVENTS } from '@iptvnator/services/activity-events';
-import { Injectable, inject } from '@angular/core';
+import { Injectable, Injector, inject, signal } from '@angular/core';
 import { DataService } from '@iptvnator/services';
 import {
     ExternalPlayerSession,
@@ -24,6 +24,15 @@ export class PlayerService {
     private lazyDialog = inject(LazyMatDialog);
     private dataService = inject(DataService);
     private settingsStore = inject(SettingsStore);
+    private readonly injector = inject(Injector);
+    /**
+     * The playback the most recent external launch sent, recorded before the
+     * IPC call so a session update that arrives during it can still be
+     * matched. Live failover replays it after the player reports the stream
+     * unusable, so headers and credentials travel with the retry instead of
+     * being rebuilt from the session snapshot (which has neither).
+     */
+    readonly lastExternalPlayback = signal<ResolvedPortalPlayback | null>(null);
 
     isEmbeddedPlayer(
         player = this.settingsStore.player() ?? VideoPlayer.VideoJs
@@ -73,15 +82,17 @@ export class PlayerService {
         const player = this.settingsStore.player() ?? VideoPlayer.VideoJs;
 
         if (player === VideoPlayer.MPV) {
-            if (!hideExternalInfoDialog) {
-                this.showExternalPlayerInfoDialog();
-            }
-            return await this.openExternalPlayback(playback, 'mpv');
+            return await this.openExternalPlayback(
+                playback,
+                'mpv',
+                !hideExternalInfoDialog
+            );
         } else if (player === VideoPlayer.VLC) {
-            if (!hideExternalInfoDialog) {
-                this.showExternalPlayerInfoDialog();
-            }
-            return await this.openExternalPlayback(playback, 'vlc');
+            return await this.openExternalPlayback(
+                playback,
+                'vlc',
+                !hideExternalInfoDialog
+            );
         }
 
         return;
@@ -116,7 +127,8 @@ export class PlayerService {
 
     async openExternalPlayback(
         playback: ResolvedPortalPlayback,
-        player: ExternalPlayerName
+        player: ExternalPlayerName,
+        showInfoDialog = false
     ): Promise<ExternalPlayerSession | void> {
         if (playback.contentInfo)
             void this.activity
@@ -128,6 +140,11 @@ export class PlayerService {
                 .catch(() => undefined);
         const ipcEvent = player === 'mpv' ? OPEN_MPV_PLAYER : OPEN_VLC_PLAYER;
 
+        await this.ensureLiveFailoverListener();
+        if (showInfoDialog) {
+            this.showExternalPlayerInfoDialog();
+        }
+        this.lastExternalPlayback.set(playback);
         return await this.dataService.sendIpcEvent<ExternalPlayerSession>(
             ipcEvent,
             {
@@ -140,6 +157,28 @@ export class PlayerService {
                 headers: playback.headers,
                 contentInfo: playback.contentInfo,
                 startTime: playback.startTime,
+            }
+        );
+    }
+
+    /** The dynamic import; a field so specs can substitute it. */
+    loadLiveFailoverListener = () => import('./external-live-failover.service');
+
+    /**
+     * Live failover has to be listening before the first session update, so
+     * the launch waits for it. It is imported on the first external launch:
+     * this service is created with the app, so a static import would put the
+     * listener on the initial path. Its cross-source search graph loads later
+     * still, on the first live failure. A failed chunk load costs only the
+     * failover, never the launch.
+     */
+    private ensureLiveFailoverListener(): Promise<void> {
+        return this.loadLiveFailoverListener().then(
+            ({ ExternalLiveFailoverService }) => {
+                this.injector.get(ExternalLiveFailoverService);
+            },
+            (error: unknown) => {
+                console.error('Could not load live channel failover:', error);
             }
         );
     }

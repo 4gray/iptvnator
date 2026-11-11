@@ -733,7 +733,9 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "Korhatár-besorolás országa",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Válassza ki, melyik ország korhatár-besorolását szeretné látni. Ha ehhez az országhoz nincs adat, az amerikai vagy a szolgáltató által megadott besorolás jelenhet meg.",
-        "AGE_RATING_COUNTRY_AUTO": "Automatikus — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Automatikus — {{country}}",
+        "LIVE_CHANNEL_FAILOVER": "Élő csatornák átváltása",
+        "LIVE_CHANNEL_FAILOVER_DESCRIPTION": "Ha egy élő csatorna hibázik a beépített lejátszóban, 3 újrapróbálkozás történik (egyenként 10 másodperc), majd ugyanaz a csatorna a többi forrásodban, a lista sorrendjében keresődik, és a lejátszó az első olyan forrásra vált, amely lejátssza."
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Nem sikerült menteni a kiszolgálóra. Ellenőrizze a kapcsolatot, majd próbálja újra.",
@@ -873,7 +875,12 @@
             "STATS_CONTAINER": "Konténer",
             "STATS_BUFFER": "Puffer",
             "STATS_DROPPED_FRAMES": "Eldobott képkockák",
-            "STATS_UNAVAILABLE": "Még nincsenek adatfolyam-adatok"
+            "STATS_UNAVAILABLE": "Még nincsenek adatfolyam-adatok",
+            "FAILOVER_RETRYING": "A stream hibás. Újrapróbálkozás ({{attempt}}/{{maxAttempts}})…",
+            "FAILOVER_SEARCHING": "„{{channel}}” keresése a többi forrásban…",
+            "FAILOVER_HOPPING": "{{index}}/{{total}}. forrás próbája: {{source}} — {{channel}}",
+            "FAILOVER_SWITCHED": "Átváltva: {{source}} — {{channel}}",
+            "FAILOVER_EXHAUSTED": "Nem található működő forrás ehhez: „{{channel}}”"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

@@ -733,7 +733,9 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "Країна вікового рейтингу",
         "AGE_RATING_COUNTRY_DESCRIPTION": "Виберіть країну класифікації. За відсутності місцевого рейтингу використовуються дані США або провайдера.",
-        "AGE_RATING_COUNTRY_AUTO": "Автоматично — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "Автоматично — {{country}}",
+        "LIVE_CHANNEL_FAILOVER": "Перемикання каналів у разі збою",
+        "LIVE_CHANNEL_FAILOVER_DESCRIPTION": "Якщо прямий ефір каналу переривається у вбудованому плеєрі, він перезапускається 3 рази (по 10 секунд), потім той самий канал шукається в інших ваших джерелах у порядку списку, і плеєр перемикається на перше джерело, де він відтворюється."
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "Не вдалося зберегти дані на сервері. Перевірте з’єднання та спробуйте ще раз.",
@@ -873,7 +875,12 @@
             "STATS_CONTAINER": "Контейнер",
             "STATS_BUFFER": "Буфер",
             "STATS_DROPPED_FRAMES": "Пропущені кадри",
-            "STATS_UNAVAILABLE": "Даних про трансляцію немає"
+            "STATS_UNAVAILABLE": "Даних про трансляцію немає",
+            "FAILOVER_RETRYING": "Збій потоку. Повторна спроба ({{attempt}}/{{maxAttempts}})…",
+            "FAILOVER_SEARCHING": "Пошук «{{channel}}» в інших джерелах…",
+            "FAILOVER_HOPPING": "Перевірка джерела {{index}}/{{total}}: {{source}} — {{channel}}",
+            "FAILOVER_SWITCHED": "Перемкнено на {{source}} — {{channel}}",
+            "FAILOVER_EXHAUSTED": "Не знайдено робочого джерела для «{{channel}}»"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

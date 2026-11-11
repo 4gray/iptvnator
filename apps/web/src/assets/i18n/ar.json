@@ -733,7 +733,9 @@
         },
         "AGE_RATING_COUNTRY_LABEL": "بلد التصنيف العمري",
         "AGE_RATING_COUNTRY_DESCRIPTION": "اختر بلد التصنيف. عند غياب البيانات المحلية، يمكن استخدام بيانات الولايات المتحدة أو المزوّد.",
-        "AGE_RATING_COUNTRY_AUTO": "تلقائي — {{country}}"
+        "AGE_RATING_COUNTRY_AUTO": "تلقائي — {{country}}",
+        "LIVE_CHANNEL_FAILOVER": "تبديل القنوات المباشرة عند الفشل",
+        "LIVE_CHANNEL_FAILOVER_DESCRIPTION": "عندما تفشل قناة مباشرة في المشغّل المدمج، تتم إعادة المحاولة 3 مرات (10 ثوانٍ لكل مرة)، ثم يتم البحث عن القناة نفسها في مصادرك الأخرى بترتيب القائمة والتبديل إلى أول مصدر يشغّلها."
     },
     "SERVER_STORAGE": {
         "WRITE_FAILED": "تعذّر الحفظ على الخادم. تحقق من الاتصال وحاول مرة أخرى.",
@@ -873,7 +875,12 @@
             "STATS_CONTAINER": "الحاوية",
             "STATS_BUFFER": "التخزين المؤقت",
             "STATS_DROPPED_FRAMES": "الإطارات المفقودة",
-            "STATS_UNAVAILABLE": "لا توجد بيانات بث بعد"
+            "STATS_UNAVAILABLE": "لا توجد بيانات بث بعد",
+            "FAILOVER_RETRYING": "فشل البث. إعادة المحاولة ({{attempt}}/{{maxAttempts}})…",
+            "FAILOVER_SEARCHING": "جارٍ البحث عن «{{channel}}» في مصادرك الأخرى…",
+            "FAILOVER_HOPPING": "تجربة المصدر {{index}}/{{total}}: {{source}} — {{channel}}",
+            "FAILOVER_SWITCHED": "تم التبديل إلى {{source}} — {{channel}}",
+            "FAILOVER_EXHAUSTED": "لم يتم العثور على مصدر يعمل لـ«{{channel}}»"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
