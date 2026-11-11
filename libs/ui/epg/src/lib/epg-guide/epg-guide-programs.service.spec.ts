@@ -160,6 +160,31 @@ describe('EpgGuideProgramsService', () => {
         expect(service.programsFor('b')).toHaveLength(1);
     });
 
+    it('drops completed per-stream rows outside the rendered range', async () => {
+        Object.assign(source, {
+            programBatchSize: 1,
+            programsExpireAt: () => Infinity,
+        });
+        const [first, second] = channels();
+        loadPrograms
+            .mockResolvedValueOnce(new Map([['a', [programFor('a')]]]))
+            .mockResolvedValueOnce(new Map([['b', [programFor('b')]]]))
+            .mockResolvedValueOnce(new Map([['a', [programFor('a')]]]));
+        service.setWindow(1000, 2000);
+        service.ensureLoaded([first]);
+        await flush();
+        expect(service.statusFor('a')).toBe('loaded');
+        service.ensureLoaded([second]);
+        await flush();
+        expect(service.programsFor('a')).toEqual([]);
+        expect(service.statusFor('a')).toBe('idle');
+        expect(service.programsFor('b')).toHaveLength(1);
+        service.ensureLoaded([first]);
+        await flush();
+        expect(service.programsFor('a')).toHaveLength(1);
+        expect(loadPrograms).toHaveBeenCalledTimes(3);
+    });
+
     it('reports "none" for channels without an EPG key and never requests them', async () => {
         loadPrograms.mockResolvedValue(new Map());
         service.setWindow(1_000, 2_000);
@@ -256,7 +281,10 @@ describe('EpgGuideProgramsService', () => {
     it.each([true, false])(
         'removes a recovered empty row when coverage resolves first: %s',
         async (coverageFirst) => {
-            Object.assign(source, { deferredCoverage: true });
+            Object.assign(source, {
+                deferredCoverage: true,
+                programBatchSize: 1,
+            });
             let finishCoverage!: (ids: Set<string>) => void;
             loadCoverage.mockImplementation(
                 () => new Promise((resolve) => (finishCoverage = resolve))
@@ -278,6 +306,7 @@ describe('EpgGuideProgramsService', () => {
             service.ensureLoaded([row]);
             await flush();
             if (!coverageFirst) {
+                service.ensureLoaded([]);
                 finishCoverage(new Set(['a']));
                 await flush();
             }

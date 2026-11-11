@@ -1,10 +1,10 @@
+import { PLAYER_SHORTCUTS_SUSPENDED_SELECTOR } from '../player-controls/controls-shortcuts';
+
 export interface EmbeddedMpvShortcutHandlers {
     isAvailable: () => boolean;
     /**
-     * The player's host element, used to opt out of every shortcut while an
-     * ancestor is `inert` (e.g. behind the workspace's phone context
-     * drawer): inert strips pointer and Tab access, but this document-level
-     * listener still fires, so shortcuts must check it themselves.
+     * The player's host element, used to yield document shortcuts to an
+     * owning surface such as a modal drawer or the programme guide.
      */
     hostElement?: () => HTMLElement | null;
     /**
@@ -44,10 +44,11 @@ export class EmbeddedMpvShortcuts {
             return;
         }
 
-        // Inside an inert region the player is outside the interaction
-        // model entirely — the modal surface above it owns the keyboard,
-        // including Escape.
-        if (handlers.hostElement?.()?.closest('[inert]')) {
+        if (
+            handlers
+                .hostElement?.()
+                ?.closest(PLAYER_SHORTCUTS_SUSPENDED_SELECTOR)
+        ) {
             return;
         }
 

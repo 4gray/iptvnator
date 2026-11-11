@@ -5,7 +5,6 @@ import {
     inject,
     Injectable,
     signal,
-    untracked,
 } from '@angular/core';
 import { createDevLogger, EpgProgram } from '@iptvnator/shared/interfaces';
 import {
@@ -60,7 +59,10 @@ export class EpgGuideProgramsService {
         AbortController,
         EpgGuideChannel[]
     >();
-    private coverageRequest?: AbortController;
+    private coverageRequest?: {
+        controller: AbortController;
+        updates?: Map<string, boolean>;
+    };
     private coverageRequested = false;
     private readonly rowExpiry = new Map<string, number>();
     private visibleRows = new Set<string>();
@@ -74,7 +76,7 @@ export class EpgGuideProgramsService {
     constructor() {
         inject(DestroyRef).onDestroy(() => {
             this.cancelProgramRequests();
-            this.coverageRequest?.abort();
+            this.cancelCoverageRequest();
         });
         // A new channel set (scope change) invalidates everything, including
         // coverage: the toggle must be answered for the new rows. The first
@@ -110,7 +112,7 @@ export class EpgGuideProgramsService {
         if (requested) {
             this.requestCoverage();
         } else if (!requested) {
-            this.coverageRequest?.abort();
+            this.cancelCoverageRequest();
             this.coverageStatus.set('idle');
         }
     }
@@ -149,19 +151,23 @@ export class EpgGuideProgramsService {
         const visible = new Set(channels.map((channel) => channel.id));
         this.visibleRows = visible;
         if (this.source.programBatchSize) {
-            const cancelled: Array<[string, EpgGuideRowStatus]> = [];
             for (const [request, rows] of this.programRequests) {
                 if (rows.some((row) => visible.has(row.id))) continue;
                 request.abort();
                 this.programRequests.delete(request);
-                cancelled.push(
-                    ...rows.map((row): [string, EpgGuideRowStatus] => [
-                        row.id,
-                        'idle',
-                    ])
-                );
             }
-            if (cancelled.length) this.patchStatuses(cancelled);
+            const departed = [...previousRows].filter((id) => !visible.has(id));
+            if (departed.length) {
+                const programs = new Map(this.programs());
+                const statuses = new Map(this.statuses());
+                for (const id of departed) {
+                    programs.delete(id);
+                    if (statuses.get(id) !== 'none') statuses.delete(id);
+                    this.rowExpiry.delete(id);
+                }
+                this.programs.set(programs);
+                this.statuses.set(statuses);
+            }
         }
         const now = Date.now();
         const pending = channels.filter((channel) => {
@@ -213,13 +219,22 @@ export class EpgGuideProgramsService {
                     return;
                 }
                 this.storePrograms(
-                    request.channels.map(({ id }) => [id, result?.get(id)])
+                    request.channels
+                        .filter(
+                            ({ id }) =>
+                                !this.source.programBatchSize ||
+                                this.visibleRows.has(id)
+                        )
+                        .map(({ id }) => [id, result?.get(id)])
                 );
                 const coverage = this.coverage();
-                if (this.source.deferredCoverage && coverage && result) {
+                if (this.source.deferredCoverage && result) {
                     let updated: Set<string> | undefined;
                     for (const [id, programs] of result) {
-                        if (coverage.has(id) === programs.length > 0) continue;
+                        const hasPrograms = programs.length > 0;
+                        this.coverageRequest?.updates?.set(id, hasPrograms);
+                        if (!coverage || coverage.has(id) === hasPrograms)
+                            continue;
                         updated ??= new Set(coverage);
                         this.updateCoverage(updated, id, programs);
                     }
@@ -256,10 +271,10 @@ export class EpgGuideProgramsService {
             return;
         }
         const request = new AbortController();
-        const initialRows = this.source.deferredCoverage
-            ? untracked(this.programs)
+        const updates = this.source.deferredCoverage
+            ? new Map<string, boolean>()
             : undefined;
-        this.coverageRequest = request;
+        this.coverageRequest = { controller: request, updates };
         this.coverageStatus.set('loading');
         const keyed = this.source.channels().filter(hasEpgKey);
         const chunks: EpgGuideChannel[][] = [];
@@ -276,8 +291,9 @@ export class EpgGuideProgramsService {
                     .loadCoverage(
                         { channels, ...range, signal: request.signal },
                         (id, programs) => {
+                            if (request.signal.aborted) return;
+                            updates?.delete(id);
                             if (
-                                !request.signal.aborted &&
                                 this.visibleRows.has(id) &&
                                 this.statusFor(id) === 'error'
                             ) {
@@ -294,6 +310,7 @@ export class EpgGuideProgramsService {
             if (request.signal.aborted) {
                 return;
             }
+            this.coverageRequest = undefined;
             // Fail open: if any chunk failed, coverage stays unknown (`null`)
             // rather than publishing a partial/empty set that would hide rows
             // that do have programmes.
@@ -313,14 +330,9 @@ export class EpgGuideProgramsService {
                 set.forEach((id) => merged.add(id));
             }
             // A viewport retry can succeed while the scan is still on later rows.
-            if (initialRows) {
-                for (const [id, programs] of this.programs()) {
-                    if (
-                        programs !== initialRows.get(id) &&
-                        this.statusFor(id) === 'loaded'
-                    )
-                        this.updateCoverage(merged, id, programs);
-                }
+            for (const [id, hasPrograms] of updates ?? []) {
+                if (hasPrograms) merged.add(id);
+                else merged.delete(id);
             }
             this.coverage.set(merged);
             this.coverageStatus.set('idle');
@@ -340,7 +352,7 @@ export class EpgGuideProgramsService {
         this.cancelProgramRequests();
         this.rowExpiry.clear();
         this.visibleRows.clear();
-        this.coverageRequest?.abort();
+        this.cancelCoverageRequest();
         this.coverageStatus.set('idle');
         this.programs.set(new Map());
         this.statuses.set(
@@ -352,6 +364,11 @@ export class EpgGuideProgramsService {
             )
         );
         this.coverage.set(null);
+    }
+
+    private cancelCoverageRequest(): void {
+        this.coverageRequest?.controller.abort();
+        this.coverageRequest = undefined;
     }
 
     private cancelProgramRequests(): void {

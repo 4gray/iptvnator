@@ -788,7 +788,8 @@ once in All Channels.
 
 Xtream supplies full schedules per stream. The guide starts with the rendered
 rows, shares in-flight work and a bounded five-minute in-memory cache, and
-limits request concurrency. Rendered rows revalidate after their schedules
+limits request concurrency. The grid releases rows outside its rendered range
+and buffer. Rendered rows revalidate after their schedules
 expire. Failed rows retry when they return to the viewport. A coverage scan
 that obtains a schedule also updates the corresponding visible failed row.
 It checks the current scope's coverage only when the user turns on **Only with
@@ -828,6 +829,9 @@ or with an error status cannot fast-fail playback.
 The local XMLTV parts keep the XMLTV capabilities and stay off in the PWA:
 the `epg_channel_id` fallback and `preferUploadedEpgOverXtream`
 (`XtreamXmltvFallbackService`), and manual EPG mapping (`supportsEpgMapping`).
+When the provider is preferred, a missing or failed provider schedule falls
+back to available XMLTV. If both fail to provide a schedule, a provider error
+remains an error so the guide can retry it.
 The PWA hides the catch-up actions of the EPG panel (watch, copy, download):
 `RuntimeCapabilitiesService.supportsProviderCatchUp` is false there until a
 manual check against a real provider shows that the browser players play the

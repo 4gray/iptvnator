@@ -141,30 +141,22 @@ export class XtreamEpgNormalizer {
         response: EpgResponse | [],
         serverTimezone?: string
     ): EpgItem[] {
-        if (Array.isArray(response) && response.length === 0) return [];
-        if (
-            !Array.isArray(response) &&
-            response?.epg_listings === null &&
-            !('error' in response)
-        )
-            return [];
-        if (
-            Array.isArray(response) ||
-            !response?.epg_listings ||
-            typeof response.epg_listings !== 'object'
-        ) {
-            throw new Error('Invalid full EPG listing');
+        if (Array.isArray(response)) {
+            if (!response.length) return [];
+        } else {
+            const listing = response?.epg_listings;
+            if (listing === null && !('error' in response)) return [];
+            if (listing && typeof listing === 'object') {
+                const rows = Object.values(listing);
+                const items = this.normalizeListings(
+                    rows.filter((item) => item && typeof item === 'object'),
+                    serverTimezone,
+                    true
+                );
+                if (items.length || !rows.length) return items;
+            }
         }
-        const listings = this.getEpgListings(response);
-        const items = this.normalizeListings(
-            listings.filter((item) => item && typeof item === 'object'),
-            serverTimezone,
-            true
-        );
-        if (!items.length && listings.length) {
-            throw new Error('Invalid full EPG listing');
-        }
-        return items;
+        throw new Error('Invalid full EPG listing');
     }
 
     private parseUnixTimestamp(value: unknown): number | null {

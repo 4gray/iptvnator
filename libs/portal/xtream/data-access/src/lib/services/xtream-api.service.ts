@@ -344,51 +344,32 @@ export class XtreamApiService extends XtreamEpgNormalizer {
         streamId: number,
         options?: XtreamRequestOptions
     ): Promise<EpgItem[]> {
-        let primaryWasEmpty = false;
-        try {
-            const response: EpgResponse | [] = await this.sendRequest(
-                credentials,
-                {
-                    action: XtreamCodeActions.GetSimpleDataTable,
-                    username: credentials.username,
-                    password: credentials.password,
-                    stream_id: streamId,
-                },
-                options
-            );
-            const items = this.normalizeFullEpgItems(
-                response,
+        const fetchSchedule = async (action: XtreamCodeActions) =>
+            this.normalizeFullEpgItems(
+                await this.sendRequest<EpgResponse | []>(
+                    credentials,
+                    {
+                        action,
+                        username: credentials.username,
+                        password: credentials.password,
+                        stream_id: streamId,
+                    },
+                    options
+                ),
                 credentials.serverTimezone
             );
-            if (items.length > 0) {
-                return items;
+        const primary = await fetchSchedule(
+            XtreamCodeActions.GetSimpleDataTable
+        ).catch(() => null);
+        if (primary?.length) return primary;
+        return fetchSchedule(XtreamCodeActions.GetSimpleDateTable).catch(
+            (error: unknown) => {
+                options?.signal?.throwIfAborted();
+                // A valid empty guide is an answer on panels without the legacy action.
+                if (primary) return primary;
+                throw error;
             }
-            primaryWasEmpty = true;
-        } catch {
-            // Fall back to the legacy typo endpoint below.
-        }
-
-        try {
-            const fallbackResponse: EpgResponse | [] = await this.sendRequest(
-                credentials,
-                {
-                    action: XtreamCodeActions.GetSimpleDateTable,
-                    username: credentials.username,
-                    password: credentials.password,
-                    stream_id: streamId,
-                },
-                options
-            );
-            return this.normalizeFullEpgItems(
-                fallbackResponse,
-                credentials.serverTimezone
-            );
-        } catch (error) {
-            options?.signal?.throwIfAborted();
-            // A valid empty guide is still an answer on panels without the legacy action.
-            if (primaryWasEmpty) return [];
-            throw error;
-        }
+        );
     }
 
     /**

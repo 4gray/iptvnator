@@ -58,6 +58,39 @@ describe('XtreamXmltvFallbackService', () => {
         return TestBed.inject(XtreamXmltvFallbackService);
     }
 
+    it('uses uploaded XMLTV after provider failure and preserves the error when XMLTV is empty', async () => {
+        const service = makeService();
+        const providerError = new Error('Invalid full EPG listing');
+        const fetchProvider = jest.fn().mockRejectedValue(providerError);
+        const channel = 'sample.guide';
+        bridge.getChannelPrograms
+            .mockResolvedValueOnce([
+                {
+                    channel,
+                    start: '2026-05-07T08:00:00Z',
+                    stop: '2026-05-07T09:00:00Z',
+                    title: 'Synthetic Programme',
+                    desc: null,
+                    category: null,
+                },
+            ])
+            .mockResolvedValueOnce([]);
+        const args = {
+            epgChannelId: channel,
+            preferUploaded: false,
+            fetchProvider,
+        };
+        await expect(service.resolveCurrentEpg(args)).resolves.toEqual([
+            expect.objectContaining({
+                channel_id: channel,
+                title: 'Synthetic Programme',
+            }),
+        ]);
+        await expect(service.resolveCurrentEpg(args)).rejects.toBe(
+            providerError
+        );
+    });
+
     it('returns [] when window.electron bridge is unavailable', async () => {
         delete (window as { electron?: unknown }).electron;
         const service = makeService();
