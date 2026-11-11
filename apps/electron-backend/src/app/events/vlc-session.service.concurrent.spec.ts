@@ -239,4 +239,54 @@ describe('VLC exact playback ownership', () => {
         exit(first);
         exit(second);
     });
+
+    it('allows exact close to retry an unconfirmed teardown after clear was sent', async () => {
+        jest.useFakeTimers({ doNotFake: ['setImmediate'] });
+        const proc = child();
+        spawnMock.mockReturnValueOnce(proc);
+        const opening = open('first');
+        await tick();
+        ports[0]();
+        await tick();
+        proc.emit('spawn');
+        await opening;
+
+        let addSent!: () => void;
+        const pendingAdd = new Promise<void>((resolve) => (addSent = resolve));
+        mockRc((_port, command, reply) => {
+            if (command === 'clear\n') reply();
+            if (command.startsWith('add ')) addSent();
+        });
+        const replacement = open('replacement');
+        const id = externalPlayerSessions.getActiveSessionId() as string;
+        const failedLaunch =
+            expect(replacement).rejects.toThrow('did not exit');
+        await pendingAdd;
+        await jest.advanceTimersByTimeAsync(2_000);
+        expect(proc.kill).toHaveBeenCalledTimes(1);
+
+        const exactClose = externalPlayerSessions.closeSession(id, true);
+        const failedClose = expect(exactClose).rejects.toThrow('did not exit');
+        await tick();
+        expect(externalPlayerSessions.getSession(id)?.status).toBe('launching');
+        await jest.advanceTimersByTimeAsync(5_000);
+        await Promise.all([failedLaunch, failedClose]);
+        expect(externalPlayerSessions.getSession(id)).toMatchObject({
+            status: 'error',
+            canClose: true,
+        });
+
+        mockRc((_port, command, reply) => {
+            if (command === 'quit\n') {
+                reply();
+                exit(proc);
+            }
+        });
+        await expect(
+            externalPlayerSessions.closeSession(id, true)
+        ).resolves.toMatchObject({
+            status: 'closed',
+        });
+        expect(spawnMock).toHaveBeenCalledTimes(1);
+    });
 });

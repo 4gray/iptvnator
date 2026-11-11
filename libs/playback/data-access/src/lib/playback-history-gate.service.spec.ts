@@ -140,6 +140,7 @@ describe('PlaybackHistoryGate', () => {
 
     describe('MPV/VLC sessions', () => {
         const originalElectron = window.electron;
+        const streamUrl = 'https://example.test/synthetic-video.mkv';
         let emit: (session: Partial<ExternalPlayerSession>) => void;
 
         beforeEach(() => {
@@ -151,7 +152,8 @@ describe('PlaybackHistoryGate', () => {
                     ) => {
                         emit = (session) =>
                             callback({
-                                streamUrl: 'http://vod/1.mkv',
+                                id: 'synthetic-session',
+                                streamUrl,
                                 ...session,
                             } as ExternalPlayerSession);
                         return () => undefined;
@@ -170,7 +172,7 @@ describe('PlaybackHistoryGate', () => {
 
         it('confirms a stream once its external player has opened', () => {
             const commit = jest.fn();
-            gate.defer({ streamUrls: ['http://vod/1.mkv'] }, commit);
+            gate.defer({ streamUrls: [streamUrl] }, commit);
 
             emit({ status: 'launching' });
             expect(commit).not.toHaveBeenCalled();
@@ -181,12 +183,43 @@ describe('PlaybackHistoryGate', () => {
 
         it('does not confirm a launch that failed', () => {
             const commit = jest.fn();
-            gate.defer({ streamUrls: ['http://vod/1.mkv'] }, commit);
+            gate.defer({ streamUrls: [streamUrl] }, commit);
 
             emit({ status: 'launching' });
             emit({ status: 'error' });
 
             expect(commit).not.toHaveBeenCalled();
+        });
+
+        it('ignores idle and restoration updates from an older session at the same URL', () => {
+            const first = jest.fn();
+            gate.defer({ streamUrls: [streamUrl] }, first);
+            emit({ id: 'synthetic-first', status: 'launching' });
+            emit({ id: 'synthetic-first', status: 'opened' });
+            expect(first).toHaveBeenCalledTimes(1);
+
+            const failed = jest.fn();
+            gate.defer({ streamUrls: [streamUrl] }, failed);
+            emit({ id: 'synthetic-failed', status: 'launching' });
+            emit({ id: 'synthetic-failed', status: 'error' });
+            emit({
+                id: 'synthetic-first',
+                status: 'opened',
+                playbackIdle: true,
+            });
+            emit({
+                id: 'synthetic-first',
+                status: 'opened',
+                playbackIdle: false,
+            });
+            emit({
+                id: 'synthetic-first',
+                status: 'opened',
+                restoredFromSessionId: 'synthetic-failed',
+            });
+            emit({ id: 'synthetic-first', status: 'playing' });
+
+            expect(failed).not.toHaveBeenCalled();
         });
     });
 

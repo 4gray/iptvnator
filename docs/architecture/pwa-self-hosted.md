@@ -1550,7 +1550,8 @@ No absence-based deletion, automatic pruning or receipt TTL is introduced.
 The native Xtream browsing cap remains 100; archival storage is retained.
 
 History continues to use `PlaybackHistoryGate`: confirmed inline progress or the
-existing external launch confirmation records a start. Downloaded progress,
+first successful transition of an external launch records a start. Idle updates
+and restored external sessions do not confirm another start. Downloaded progress,
 watched marks, opening a detail view and provider link resolution never manufacture
 history. Xtream collections retain their existing parent-series history; Stalker
 keeps regular, embedded and lazy series modes. Portable references reuse favorites:

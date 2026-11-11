@@ -557,6 +557,7 @@ export async function openVlcPlayer({
                     );
                     reusableVlcProcess.clear(proc);
                     stopVlcPositionPolling(processSessionId);
+                    if (reusableVlcProcess.isRecovering(proc)) return;
                     if (closeRequested) {
                         void requestedClose?.then(() => {
                             // A spawn failure reports `close` without an
@@ -603,6 +604,7 @@ export async function openVlcPlayer({
                     );
                     reusableVlcProcess.clear(proc);
                     stopVlcPositionPolling(processSessionId);
+                    if (reusableVlcProcess.isRecovering(proc)) return;
 
                     if (
                         !closeRequested &&

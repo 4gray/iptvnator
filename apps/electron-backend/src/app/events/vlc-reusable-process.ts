@@ -56,6 +56,7 @@ export class VlcReusableProcess {
     private rcPort: number | null = null;
     private processSessionId: string | null = null;
     private readonly processSessionIds = new WeakMap<ChildProcess, string>();
+    private readonly recoveringChildren = new WeakSet<ChildProcess>();
     private reuseOrder = 0;
     private dispatchedReuse = 0;
     private stopGeneration = 0;
@@ -74,6 +75,10 @@ export class VlcReusableProcess {
 
     owns(process: ChildProcess, sessionId: string): boolean {
         return this.processSessionIds.get(process) === sessionId;
+    }
+
+    isRecovering(process: ChildProcess): boolean {
+        return this.recoveringChildren.has(process);
     }
 
     canPoll(process: ChildProcess, sessionId: string): boolean {
@@ -156,6 +161,7 @@ export class VlcReusableProcess {
         let closeRequested = false;
         let retryableClose: Promise<void> | null = null;
         let launchClose: Promise<void> | null = null;
+        let fallbackTeardown: Promise<void> | undefined;
         let ownsFailedTeardown = false;
         const settleCancelled = async () => {
             const stopped = this.storedStops.has(reusedProcess);
@@ -230,7 +236,7 @@ export class VlcReusableProcess {
             }
             if (!ownsReusedProcess()) return;
             if (!retryableClose) {
-                const closeAttempt = closeReusedProcess();
+                const closeAttempt = fallbackTeardown ?? closeReusedProcess();
                 retryableClose = closeAttempt;
                 launchClose ??= closeAttempt;
                 void closeAttempt.catch((error) => {
@@ -348,26 +354,18 @@ export class VlcReusableProcess {
                 error
             );
 
-            if (state.contentMutated) {
-                if (reusedProcessSessionId) {
-                    this.processSessionIds.set(
-                        reusedProcess,
-                        reusedProcessSessionId
-                    );
-                } else {
-                    this.processSessionIds.delete(reusedProcess);
-                }
-            }
+            if (state.contentMutated)
+                this.recoveringChildren.add(reusedProcess);
             try {
-                await externalPlayerProcessTeardownGate.terminate(
-                    reusedProcess
-                );
+                fallbackTeardown =
+                    externalPlayerProcessTeardownGate.terminate(reusedProcess);
+                await fallbackTeardown;
             } catch (teardownError) {
-                if (state.contentMutated) {
-                    this.processSessionIds.set(reusedProcess, session.id);
-                }
                 state.teardownUnconfirmed = true;
                 throw teardownError;
+            } finally {
+                fallbackTeardown = undefined;
+                this.recoveringChildren.delete(reusedProcess);
             }
             this.clear(reusedProcess);
             options.stopPositionPolling(

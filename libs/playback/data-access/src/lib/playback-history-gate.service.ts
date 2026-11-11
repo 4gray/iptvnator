@@ -62,8 +62,15 @@ export class PlaybackHistoryGate {
         // the app-wide external-playback service so the gate stays off the
         // initial bundle: it is created by the first deferred write, which
         // always precedes the launch it waits for.
+        const launching = new Set<string>();
         window.electron?.onExternalPlayerSessionUpdate?.((session) => {
-            if (session.status === 'opened' || session.status === 'playing') {
+            if (session.restoredFromSessionId) return;
+            if (session.status === 'launching') {
+                launching.add(session.id);
+            } else if (
+                launching.delete(session.id) &&
+                (session.status === 'opened' || session.status === 'playing')
+            ) {
                 this.confirm({ streamUrls: [session.streamUrl] });
             }
         });

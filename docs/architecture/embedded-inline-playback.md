@@ -1140,9 +1140,9 @@ restoring stale content metadata. Such an error still participates in every
 replacement close. Stop during an in-flight MPV or VLC reuse command, including
 the teardown wait after a failed command and VLC's subsequent fallback
 port-allocation wait, settles that exact close and cancels the fallback spawn.
-If a partially applied reuse
-command is instead recovered by a fresh spawn, the old child's exit is retired
-under its previous session so it cannot close the replacement session. A
+If a partially applied reuse command is recovered by a fresh spawn, the
+replacement owns the old child until teardown is confirmed. That child's
+exit does not close the replacement session while recovery is in progress. A
 during-start Stop also settles VLC's launch IPC when a spawn error reports
 `close` without `exit`. The dock keeps Stop as the only global teardown action
 while that exact closer remains live; safe Dismiss is available only after an
