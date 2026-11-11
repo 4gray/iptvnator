@@ -326,7 +326,10 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         return item ? this.cache.expiresAt(scheduleKey(item)) : 0;
     }
 
-    async loadCoverage(window: EpgGuideWindow): Promise<Set<string>> {
+    async loadCoverage(
+        window: EpgGuideWindow,
+        reportPrograms?: (channelId: string, programs: EpgProgram[]) => void
+    ): Promise<Set<string>> {
         const { read, checkCurrent } = this.scheduleReader(window.signal);
         const rows = this.scopedRows();
         const covered = new Set<string>();
@@ -335,11 +338,9 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
                 checkCurrent();
                 return null;
             });
-            if (
-                !programs ||
-                programs.some((program) => overlaps(program, window))
-            )
-                covered.add(id);
+            const matches = programs?.filter((item) => overlaps(item, window));
+            if (!matches || matches.length) covered.add(id);
+            if (matches) reportPrograms?.(id, matches);
         }
         return covered;
     }

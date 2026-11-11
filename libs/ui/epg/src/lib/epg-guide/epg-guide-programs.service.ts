@@ -212,21 +212,8 @@ export class EpgGuideProgramsService {
                 if (controller.signal.aborted) {
                     return;
                 }
-                const next = new Map(this.programs());
-                for (const channel of request.channels) {
-                    next.set(channel.id, result?.get(channel.id) ?? EMPTY);
-                    const expiresAt = result?.has(channel.id)
-                        ? this.source.programsExpireAt?.(channel.id)
-                        : undefined;
-                    if (expiresAt !== undefined)
-                        this.rowExpiry.set(channel.id, expiresAt);
-                }
-                this.programs.set(next);
-                this.patchStatuses(
-                    request.channels.map((channel) => [
-                        channel.id,
-                        result?.has(channel.id) ? 'loaded' : 'error',
-                    ])
+                this.storePrograms(
+                    request.channels.map(({ id }) => [id, result?.get(id)])
                 );
                 const coverage = this.coverage();
                 if (this.source.deferredCoverage && coverage && result) {
@@ -239,6 +226,25 @@ export class EpgGuideProgramsService {
                     if (updated) this.coverage.set(updated);
                 }
             });
+    }
+
+    private storePrograms(
+        entries: ReadonlyArray<
+            readonly [string, readonly EpgProgram[] | undefined]
+        >
+    ): void {
+        const next = new Map(this.programs());
+        for (const [id, programs] of entries) {
+            next.set(id, programs ?? EMPTY);
+            const expiresAt = programs
+                ? this.source.programsExpireAt?.(id)
+                : undefined;
+            if (expiresAt !== undefined) this.rowExpiry.set(id, expiresAt);
+        }
+        this.programs.set(next);
+        this.patchStatuses(
+            entries.map(([id, programs]) => [id, programs ? 'loaded' : 'error'])
+        );
     }
 
     private requestCoverage(): void {
@@ -267,11 +273,18 @@ export class EpgGuideProgramsService {
         Promise.all(
             chunks.map((channels) =>
                 this.source
-                    .loadCoverage({
-                        channels,
-                        ...range,
-                        signal: request.signal,
-                    })
+                    .loadCoverage(
+                        { channels, ...range, signal: request.signal },
+                        (id, programs) => {
+                            if (
+                                !request.signal.aborted &&
+                                this.visibleRows.has(id) &&
+                                this.statusFor(id) === 'error'
+                            ) {
+                                this.storePrograms([[id, programs]]);
+                            }
+                        }
+                    )
                     .then(
                         (covered) => covered,
                         () => null

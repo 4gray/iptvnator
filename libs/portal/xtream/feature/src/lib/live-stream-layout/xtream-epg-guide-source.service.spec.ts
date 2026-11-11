@@ -417,12 +417,13 @@ describe('XtreamEpgGuideSourceService', () => {
         });
         expect(result.get('101')).toHaveLength(1);
         expect(load).toHaveBeenCalledWith(playlist, 101, 'sample.a');
-        const coverage = await service.loadCoverage({
-            channels: service.channels(),
-            fromMs: 100000,
-            toMs: 200000,
-        });
+        const report = jest.fn();
+        const coverage = await service.loadCoverage(
+            { channels: service.channels(), fromMs: 100000, toMs: 200000 },
+            report
+        );
         expect([...coverage]).toEqual(['101']);
+        expect(report).toHaveBeenCalledWith('101', result.get('101'));
         expect(load).toHaveBeenCalledTimes(1);
     });
 

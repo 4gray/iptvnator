@@ -78,8 +78,11 @@ export interface EpgGuideSource {
     programsExpireAt?(channelId: string): number;
     /** Per-stream sources publish each row as it arrives. */
     readonly programBatchSize?: number;
-    /** Ids with programmes in the window or unknown coverage after a failed lookup. */
-    loadCoverage(range: EpgGuideWindow): Promise<Set<string>>;
+    /** Ids with programmes or unknown coverage. Providers can report schedules already fetched during the scan. */
+    loadCoverage(
+        range: EpgGuideWindow,
+        reportPrograms?: (channelId: string, programs: EpgProgram[]) => void
+    ): Promise<Set<string>>;
     /** Checking every channel requires provider requests, so wait for the filter. */
     readonly deferredCoverage?: boolean;
     /** Source changes that don't change the channel catalogue. */

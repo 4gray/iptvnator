@@ -270,6 +270,7 @@ describe('XtreamApiService', () => {
 
     it.each([
         { error: 'synthetic unavailable' },
+        { epg_listings: null, error: 'synthetic unavailable' },
         { epg_listings: 'synthetic invalid listing' },
         { epg_listings: [{ id: 'synthetic incomplete listing' }] },
         { epg_listings: [{ start: 'invalid', stop: 'invalid' }] },
@@ -286,12 +287,17 @@ describe('XtreamApiService', () => {
         }
     );
 
-    it('accepts a bare empty legacy schedule after the primary fails', async () => {
-        dataService.sendIpcEvent
-            .mockRejectedValueOnce(new Error('synthetic primary failure'))
-            .mockResolvedValueOnce({ payload: [] });
-        await expect(service.getFullEpg(credentials, 101)).resolves.toEqual([]);
-    });
+    it.each([{ payload: [] }, { payload: { epg_listings: null } }])(
+        'accepts an explicit empty legacy schedule after the primary fails: %j',
+        async (response) => {
+            dataService.sendIpcEvent
+                .mockRejectedValueOnce(new Error('synthetic primary failure'))
+                .mockResolvedValueOnce(response);
+            await expect(service.getFullEpg(credentials, 101)).resolves.toEqual(
+                []
+            );
+        }
+    );
 
     it('falls back to the legacy full-epg action when the primary times are invalid', async () => {
         dataService.sendIpcEvent.mockImplementation(

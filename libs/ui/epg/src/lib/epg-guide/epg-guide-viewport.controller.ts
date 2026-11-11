@@ -22,6 +22,7 @@ const ACTIVE_ROW_MARGIN = 3;
 const INITIAL_LOAD_ROWS = 30;
 
 export interface EpgGuideViewportHost {
+    guideElement(): HTMLElement;
     viewport(): CdkVirtualScrollViewport | undefined;
     rows(): readonly EpgGuideChannel[];
     rowHeightPx(): number;
@@ -165,9 +166,14 @@ export class EpgGuideViewportController {
     focusRovingTarget(): void {
         const element = this.host.viewport()?.elementRef.nativeElement;
         const active = document.activeElement;
-        // Only a focus inside the grid, or one already lost to the page, is
-        // moved: a deferred call must not take it from a control used since.
-        if (active && active !== document.body && !element?.contains(active)) {
+        // The guide host receives focus on entry. Leave any toolbar control
+        // focused since the keypress alone.
+        if (
+            active &&
+            active !== document.body &&
+            active !== this.host.guideElement() &&
+            !element?.contains(active)
+        ) {
             return;
         }
         const target = element?.querySelector<HTMLElement>(

@@ -24,7 +24,7 @@ interface RawEpgListing {
  * EPG API response
  */
 export interface EpgResponse {
-    epg_listings?: RawEpgListing[] | Record<string, RawEpgListing>;
+    epg_listings?: RawEpgListing[] | Record<string, RawEpgListing> | null;
 }
 
 export class XtreamEpgNormalizer {
@@ -142,6 +142,12 @@ export class XtreamEpgNormalizer {
         serverTimezone?: string
     ): EpgItem[] {
         if (Array.isArray(response) && response.length === 0) return [];
+        if (
+            !Array.isArray(response) &&
+            response?.epg_listings === null &&
+            !('error' in response)
+        )
+            return [];
         if (
             Array.isArray(response) ||
             !response?.epg_listings ||

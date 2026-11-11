@@ -39,6 +39,11 @@ test('@xtream @epg PWA opens the multi-channel programme guide in both themes', 
     const guide = page.locator('app-epg-guide');
     const shortcut = page.locator('[data-test-id="xtream-epg-guide"]');
     await shortcut.click();
+    await expect(guide).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(
+        guide.locator('[data-epg-guide-grid][tabindex="0"]')
+    ).toBeFocused();
     for (const dark of [false, true]) {
         await applyUiTheme(page, dark);
         await expect(
@@ -51,6 +56,25 @@ test('@xtream @epg PWA opens the multi-channel programme guide in both themes', 
             guide.getByRole('button', { name: 'Night Sports', exact: true })
         ).toBeVisible();
     }
+    const search = guide.getByPlaceholder('Search programmes…');
+    await search.fill('Global Headlines');
+    const results = guide.getByRole('listbox');
+    const match = results
+        .getByRole('option')
+        .filter({ hasText: 'Global Headlines' })
+        .first();
+    await expect(match).toBeVisible();
+    await expect
+        .poll(async () =>
+            Math.abs(
+                ((await results.boundingBox())?.width ?? 0) -
+                    ((await match.boundingBox())?.width ?? 0)
+            )
+        )
+        .toBeLessThan(1);
+    await search.fill('');
+    await search.blur();
+
     await page.setViewportSize({ width: 320, height: 700 });
     const nowPlayingBody = page.locator(
         'app-epg-guide-now-playing .now-playing__body'

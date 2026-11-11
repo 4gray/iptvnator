@@ -789,7 +789,8 @@ once in All Channels.
 Xtream supplies full schedules per stream. The guide starts with the rendered
 rows, shares in-flight work and a bounded five-minute in-memory cache, and
 limits request concurrency. Rendered rows revalidate after their schedules
-expire. Failed rows retry when they return to the viewport.
+expire. Failed rows retry when they return to the viewport. A coverage scan
+that obtains a schedule also updates the corresponding visible failed row.
 It checks the current scope's coverage only when the user turns on **Only with
 EPG** and keeps channels whose coverage could not be checked until a successful
 lookup determines whether they have programmes. Programme search

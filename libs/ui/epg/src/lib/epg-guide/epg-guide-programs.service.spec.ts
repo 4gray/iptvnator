@@ -37,7 +37,10 @@ describe('EpgGuideProgramsService', () => {
         Promise<Map<string, EpgProgram[]>>,
         [unknown]
     >();
-    const loadCoverage = jest.fn<Promise<Set<string>>, [unknown]>();
+    const loadCoverage = jest.fn<
+        Promise<Set<string>>,
+        Parameters<EpgGuideSource['loadCoverage']>
+    >();
     let service: EpgGuideProgramsService;
     let source: EpgGuideSource;
     const revision = signal(0);
@@ -91,6 +94,26 @@ describe('EpgGuideProgramsService', () => {
         await flush();
         expect(service.coverageLoaded()).toBe(false);
         expect(service.isCovered('b')).toBe(true);
+    });
+
+    it('uses the coverage scan to recover a visible failed row without fetching it again', async () => {
+        Object.assign(source, { deferredCoverage: true });
+        loadPrograms.mockResolvedValue(new Map());
+        service.setWindow(1000, 2000);
+        service.ensureLoaded([channels()[0]]);
+        await flush();
+        expect(service.statusFor('a')).toBe('error');
+
+        const programme = programFor('a');
+        loadCoverage.mockImplementation(async (_window, report) => {
+            report?.('a', [programme]);
+            return new Set(['a']);
+        });
+        service.setCoverageRequested(true);
+        await flush();
+        expect(service.programsFor('a')).toEqual([programme]);
+        expect(service.statusFor('a')).toBe('loaded');
+        expect(loadPrograms).toHaveBeenCalledTimes(1);
     });
 
     it('aborts visible-row work and invalidates cached programmes after a source revision', async () => {

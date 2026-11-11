@@ -185,6 +185,7 @@ export class EpgGuideComponent implements OnDestroy {
     });
 
     private readonly viewportController = new EpgGuideViewportController({
+        guideElement: () => this.hostElement.nativeElement,
         viewport: () => this.viewport(),
         rows: () => this.rows(),
         rowHeightPx: () => this.rowHeightPx(),

@@ -97,7 +97,9 @@ function harness(rowCount = 100): Harness {
     const ensureLoaded = jest.fn();
     const setScrollLeft = jest.fn();
     const rows = channels(rowCount);
+    const guide = document.createElement('div');
     const host: EpgGuideViewportHost = {
+        guideElement: () => guide,
         viewport: () => viewport,
         rows: () => rows,
         rowHeightPx: () => 60,
@@ -270,7 +272,11 @@ describe('EpgGuideViewportController', () => {
         roving.setAttribute('data-epg-guide-grid', '');
         roving.tabIndex = 0;
         test.element.append(passive, roving);
-        document.body.append(test.element);
+        const guide = test.host.guideElement();
+        guide.tabIndex = -1;
+        guide.append(test.element);
+        document.body.append(guide);
+        guide.focus();
 
         test.controller.focusRovingTarget();
         expect(document.activeElement).toBe(roving);
@@ -285,7 +291,7 @@ describe('EpgGuideViewportController', () => {
         expect(document.activeElement).toBe(outside);
 
         outside.remove();
-        test.element.remove();
+        guide.remove();
     });
 
     it('focuses the roving target only once its row is rendered', () => {
