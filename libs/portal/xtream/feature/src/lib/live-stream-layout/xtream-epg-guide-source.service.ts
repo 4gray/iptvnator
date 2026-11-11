@@ -238,7 +238,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     private readonly schedules = injectXtreamGuideSchedules(
         this.revision,
         this.session,
-        (key, revision, programs) => this.dock.publish(key, revision, programs)
+        (key, revision, schedule) => this.dock.publish(key, revision, schedule)
     );
     private readonly dock = createXtreamGuideNowPlaying(
         computed(() => {
@@ -254,6 +254,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         this.schedules.expiresAt
     );
     readonly playingSchedule = this.dock.programs;
+    readonly playingScheduleItems = this.dock.items;
     readonly playbackSchedule = this.schedules.forPlayback;
     private play?: (
         item: XtreamLiveChannelItem,

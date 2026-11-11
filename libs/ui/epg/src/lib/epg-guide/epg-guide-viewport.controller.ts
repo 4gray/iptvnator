@@ -165,17 +165,7 @@ export class EpgGuideViewportController {
      */
     focusRovingTarget(): void {
         const element = this.host.viewport()?.elementRef.nativeElement;
-        const active = document.activeElement;
-        // The guide host receives focus on entry. Leave any toolbar control
-        // focused since the keypress alone.
-        if (
-            active &&
-            active !== document.body &&
-            active !== this.host.guideElement() &&
-            !element?.contains(active)
-        ) {
-            return;
-        }
+        if (!this.canFocusGrid(element)) return;
         const target = this.host.rows().length
             ? element?.querySelector<HTMLElement>(
                   '[data-epg-guide-grid][tabindex="0"]'
@@ -184,6 +174,23 @@ export class EpgGuideViewportController {
         if (typeof target?.focus === 'function') {
             target.focus({ preventScroll: true });
         }
+    }
+
+    restoreFocus(focused: EpgGuideFocus | null): void {
+        const element = this.host.viewport()?.elementRef.nativeElement;
+        if (!this.canFocusGrid(element)) return;
+        if (element?.clientHeight) this.revealFocus(focused);
+        this.focusRovingTargetOnRow(focused?.row ?? 0);
+    }
+
+    private canFocusGrid(viewport?: HTMLElement): boolean {
+        const active = document.activeElement;
+        return (
+            !active ||
+            active === document.body ||
+            active === this.host.guideElement() ||
+            !!viewport?.contains(active)
+        );
     }
 
     /**

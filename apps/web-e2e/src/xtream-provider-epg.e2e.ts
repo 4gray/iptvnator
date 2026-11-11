@@ -169,7 +169,7 @@ test('@xtream @epg PWA opens the multi-channel programme guide in both themes', 
     await expect(guide).toHaveCount(0);
     await expect(
         page.locator('app-live-stream-layout app-epg-timeline')
-    ).toBeVisible();
+    ).toContainText('Synthetic Refreshed Programme');
 });
 
 test('@xtream @epg PWA keeps CJK narrow titles upright without rotating other scripts differently', async ({

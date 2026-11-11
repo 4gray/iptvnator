@@ -141,15 +141,11 @@ export class EpgGuideComponent implements OnDestroy {
     readonly channelColumnPx = EPG_GUIDE_CHANNEL_COLUMN_PX;
 
     readonly totalCount = computed(() => this.source.channels().length);
-    readonly rows = computed(() => {
-        const now =
-            this.source.programsExpireAt && this.view.onlyWithEpg()
-                ? this.view.nowMs()
-                : undefined;
-        return this.view.filterRows(this.source.channels(), (channelId) =>
-            this.programsService.isCovered(channelId, now)
-        );
-    });
+    readonly rows = computed(() =>
+        this.view.filterRows(this.source.channels(), (channelId) =>
+            this.programsService.isCovered(channelId)
+        )
+    );
     readonly activeRowIndex = computed(() => {
         const activeId = this.activeChannelId();
         return activeId === null
@@ -472,7 +468,7 @@ export class EpgGuideComponent implements OnDestroy {
         this.focusedRowId = rows[next]?.id ?? null;
         this.recordedFocus = next < 0 ? null : { row: next, block: null };
         this.focus.set(this.recordedFocus);
-        this.viewportController.focusRovingTargetOnRow(Math.max(0, next));
+        this.viewportController.restoreFocus(this.recordedFocus);
     }
 
     private revealRow(rowIndex: number): void {

@@ -257,6 +257,14 @@ export function withEpg() {
                     }
                 },
 
+                setGuideSchedule(epgItems: EpgItem[]): void {
+                    if (!supportsProviderEpg()) return;
+                    loadGeneration++;
+                    guideRead?.abort();
+                    guideRead = undefined;
+                    patchState(store, { epgItems, isLoadingEpg: false });
+                },
+
                 /**
                  * Clear EPG data
                  */

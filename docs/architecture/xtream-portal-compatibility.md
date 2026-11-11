@@ -798,14 +798,16 @@ limits request concurrency. Switching channels from the guide uses that
 same schedule for the player panel. The grid releases rows outside its rendered range
 and buffer. Rendered rows and the playing stream's dock revalidate after their
 schedules expire, even if the playing row is outside the current scope. The
-dock follows the playing copy's XMLTV identity. Failed
+dock follows the playing copy's XMLTV identity and keeps the player panel
+current when the guide closes. Failed
 rows retry when they return to the viewport. A coverage scan
 that obtains a schedule also updates the corresponding visible failed row.
 It checks the current scope's coverage only when the user turns on **Only with
 EPG** and keeps channels whose coverage could not be checked until a successful
 lookup determines whether they have programmes. It hides confirmed empty
-rows as results arrive, rechecks expired results across the current scope
-while the filter is on, and reports failed checks, including unavailable
+rows as results arrive and keeps them hidden during rechecks. It rechecks
+expired results across the current scope while the filter is on, and reports
+failed checks, including unavailable
 XMLTV reads. Programme search reads the available live
 catalogue on demand, including channels outside the viewport, and publishes
 matches and progress as it scans. A failed schedule

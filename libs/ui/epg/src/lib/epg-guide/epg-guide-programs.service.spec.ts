@@ -146,7 +146,7 @@ describe('EpgGuideProgramsService', () => {
         }
     });
 
-    it('makes an expired empty row eligible for a fresh schedule without toggling the filter', async () => {
+    it('keeps expired empty rows hidden until a failed recheck leaves them unverified', async () => {
         jest.useFakeTimers();
         try {
             jest.setSystemTime(1000);
@@ -162,14 +162,23 @@ describe('EpgGuideProgramsService', () => {
             expect(service.isCovered('a')).toBe(false);
 
             jest.setSystemTime(2000);
-            expect(service.isCovered('a')).toBe(true);
-            programsExpireAt.mockReturnValue(3000);
-            const programme = programFor('a');
-            loadPrograms.mockResolvedValue(new Map([['a', [programme]]]));
-            service.ensureLoaded([channels()[0]]);
+            let failRecheck!: () => void;
+            loadCoverage.mockImplementationOnce(
+                (_window, report) =>
+                    new Promise((resolve) => {
+                        failRecheck = () => {
+                            report?.('a', null);
+                            resolve(new Set(['a']));
+                        };
+                    })
+            );
+            service.refreshExpiredCoverage(2000);
+            expect(service.coverageStatus()).toBe('loading');
+            expect(service.isCovered('a')).toBe(false);
+            failRecheck();
             await flush();
             expect(service.isCovered('a')).toBe(true);
-            expect(service.programsFor('a')).toEqual([programme]);
+            expect(service.coverageStatus()).toBe('error');
         } finally {
             jest.useRealTimers();
         }

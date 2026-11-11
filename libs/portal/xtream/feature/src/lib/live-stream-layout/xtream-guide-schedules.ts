@@ -9,11 +9,11 @@ import { toSharedEpgProgram } from '../portal-channels-list/epg-preview-program'
 import type { XtreamLiveChannelItem } from './xtream-live-channel-navigation.service';
 import { XtreamGuideScheduleCache } from './xtream-guide-schedule-cache';
 
-type Schedule = { items: EpgItem[]; programs: EpgProgram[] };
+export type XtreamGuideSchedule = { items: EpgItem[]; programs: EpgProgram[] };
 type ScheduleRevision = {
     playlist?: (XtreamCredentials & { id?: string }) | null;
 };
-const EMPTY: Schedule = { items: [], programs: [] };
+const EMPTY: XtreamGuideSchedule = { items: [], programs: [] };
 
 export function scheduleKey(item: XtreamLiveChannelItem): string {
     return `${item.xtream_id}:${item.epg_channel_id ?? ''}`;
@@ -22,12 +22,16 @@ export function scheduleKey(item: XtreamLiveChannelItem): string {
 export function injectXtreamGuideSchedules(
     revision: Signal<ScheduleRevision>,
     session: Signal<AbortController | null>,
-    publish: (key: string, revision: unknown, programs: EpgProgram[]) => void
+    publish: (
+        key: string,
+        revision: unknown,
+        schedule: XtreamGuideSchedule
+    ) => void
 ) {
     const injector = inject(Injector);
     let api: XtreamApiService | undefined;
     let cachedRevision: ScheduleRevision | undefined;
-    const cache = new XtreamGuideScheduleCache<Schedule>(
+    const cache = new XtreamGuideScheduleCache<XtreamGuideSchedule>(
         (sessionId) => void api?.cancelSession(sessionId)
     );
 
@@ -68,7 +72,7 @@ export function injectXtreamGuideSchedules(
                 signal
             );
             checkCurrent();
-            publish(key, current, schedule.programs);
+            publish(key, current, schedule);
             return schedule;
         };
         return {

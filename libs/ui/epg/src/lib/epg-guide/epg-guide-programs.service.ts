@@ -146,13 +146,8 @@ export class EpgGuideProgramsService {
 
     /** Unknown (coverage not loaded yet, or a chunk failed) counts as covered
      * so rows never blink. */
-    isCovered(channelId: string, nowMs?: number): boolean {
-        const check = this.coverage()?.get(channelId);
-        return (
-            !check ||
-            check.hasPrograms ||
-            check.expiresAt <= (nowMs ?? Date.now())
-        );
+    isCovered(channelId: string): boolean {
+        return this.coverage()?.get(channelId)?.hasPrograms !== false;
     }
 
     refreshExpiredCoverage(nowMs: number): void {
@@ -312,19 +307,25 @@ export class EpgGuideProgramsService {
     private reportCoverage(
         scan: CoverageScan,
         id: string,
-        hasPrograms: boolean
+        hasPrograms: boolean | null
     ): void {
         const progress = scan.progress;
         if (!progress) return;
-        progress.confirmed.add(id);
-        this.failedCoverage.delete(id);
-        const check = this.changedCoverage(
-            progress.checks.get(id),
-            id,
-            hasPrograms
-        );
-        if (!check) return;
-        progress.checks.set(id, check);
+        if (hasPrograms === null) {
+            if (progress.confirmed.has(id)) return;
+            this.failedCoverage.add(id);
+            if (!progress.checks.delete(id)) return;
+        } else {
+            progress.confirmed.add(id);
+            this.failedCoverage.delete(id);
+            const check = this.changedCoverage(
+                progress.checks.get(id),
+                id,
+                hasPrograms
+            );
+            if (!check) return;
+            progress.checks.set(id, check);
+        }
         progress.timer ??= setTimeout(() => {
             progress.timer = undefined;
             this.coverage.set(new Map(progress.checks));
@@ -363,32 +364,32 @@ export class EpgGuideProgramsService {
                         { channels, ...range, signal: request.signal },
                         (id, programs) => {
                             if (request.signal.aborted) return;
-                            if (programs === null) {
-                                if (!scan.progress?.confirmed.has(id))
-                                    this.failedCoverage.add(id);
-                                return;
-                            }
-                            this.reportCoverage(scan, id, programs.length > 0);
+                            this.reportCoverage(
+                                scan,
+                                id,
+                                programs && programs.length > 0
+                            );
                             if (
+                                programs &&
                                 this.visibleRows.has(id) &&
                                 this.statusFor(id) === 'error'
-                            ) {
+                            )
                                 this.storePrograms([[id, programs]]);
-                            }
                         }
                     )
-                    .then(
-                        (covered) => covered,
-                        () => null
-                    )
+                    .catch(() => {
+                        if (!request.signal.aborted)
+                            for (const { id } of channels)
+                                this.reportCoverage(scan, id, null);
+                        return null;
+                    })
             )
         ).then((sets) => {
             if (request.signal.aborted) return;
             this.coverageRequest = undefined;
             clearTimeout(scan.progress?.timer);
             if (sets.some((set) => set === null)) {
-                if (scan.progress?.checks.size)
-                    this.coverage.set(scan.progress.checks);
+                if (scan.progress) this.coverage.set(scan.progress.checks);
                 debugEpgGuidePrograms(
                     'loadCoverage failed for a chunk; leaving coverage unknown',
                     { chunkCount: sets.length }

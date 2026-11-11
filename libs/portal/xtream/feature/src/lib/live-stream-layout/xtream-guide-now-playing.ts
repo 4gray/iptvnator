@@ -1,6 +1,6 @@
 import { computed, effect, signal, type Signal } from '@angular/core';
-import type { EpgProgram } from '@iptvnator/shared/interfaces';
 import type { XtreamLiveChannelItem } from './xtream-live-channel-navigation.service';
+import type { XtreamGuideSchedule } from './xtream-guide-schedules';
 
 const DOCK_RETRY_MS = 30_000;
 
@@ -18,12 +18,12 @@ export function createXtreamGuideNowPlaying(
     const schedule = signal<{
         key: string;
         revision: unknown;
-        programs: EpgProgram[];
+        value: XtreamGuideSchedule;
     } | null>(null);
-    const programs = computed(() => {
+    const currentSchedule = computed(() => {
         const current = schedule();
         return current?.key === playingKey() && current.revision === revision()
-            ? current.programs
+            ? current.value
             : null;
     });
 
@@ -52,13 +52,18 @@ export function createXtreamGuideNowPlaying(
     });
 
     return {
-        programs,
-        publish(key: string, sourceRevision: unknown, items: EpgProgram[]) {
+        programs: computed(() => currentSchedule()?.programs ?? null),
+        items: computed(() => currentSchedule()?.items ?? null),
+        publish(
+            key: string,
+            sourceRevision: unknown,
+            value: XtreamGuideSchedule
+        ) {
             if (key === playingKey())
                 schedule.set({
                     key,
                     revision: sourceRevision,
-                    programs: items,
+                    value,
                 });
         },
         clear: () => schedule.set(null),

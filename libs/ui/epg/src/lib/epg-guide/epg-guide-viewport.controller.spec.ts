@@ -128,6 +128,37 @@ function harness(rowCount = 100): Harness {
 }
 
 describe('EpgGuideViewportController', () => {
+    it('reveals the moved grid focus and leaves a toolbar control focused', () => {
+        const test = harness();
+        test.controller.watch(test.viewport, test.destroyRef);
+        test.renderedRange$.next({ start: 30, end: 40 });
+        jest.mocked(test.viewport.measureScrollOffset).mockReturnValue(1800);
+        const old = document.createElement('button');
+        const next = document.createElement('button');
+        next.setAttribute('data-epg-guide-grid', '');
+        next.tabIndex = 0;
+        const toolbar = document.createElement('button');
+        test.element.append(old);
+        document.body.append(test.element, toolbar);
+        try {
+            old.focus();
+            test.controller.restoreFocus({ row: 5, block: null });
+            expect(test.scrollToIndex).toHaveBeenCalledTimes(1);
+            test.element.replaceChildren(next);
+            test.renderedRange$.next({ start: 0, end: 10 });
+            expect(document.activeElement).toBe(next);
+
+            toolbar.focus();
+            test.controller.restoreFocus({ row: 50, block: null });
+            expect(test.scrollToIndex).toHaveBeenCalledTimes(1);
+            expect(document.activeElement).toBe(toolbar);
+        } finally {
+            test.destroy();
+            test.element.remove();
+            toolbar.remove();
+        }
+    });
+
     it('requests the first screenful before the viewport reports a range', () => {
         const { controller, ensureLoaded } = harness();
         controller.loadRenderedRange();

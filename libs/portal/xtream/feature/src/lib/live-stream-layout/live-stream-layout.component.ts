@@ -613,6 +613,18 @@ export class LiveStreamLayoutComponent
                 this.guideArchiveProgram() === null
             )
         );
+        effect(() => {
+            const items = this.guideSource.playingScheduleItems();
+            const playing = this.guideChannel();
+            const selected = this.selectedLiveItem();
+            if (
+                items &&
+                playing &&
+                selected &&
+                scheduleKey(playing) === scheduleKey(selected)
+            )
+                untracked(() => this.xtreamStore.setGuideSchedule(items));
+        });
 
         effect(() => {
             const playlistId = this.xtreamStore.currentPlaylist()?.id ?? null;
