@@ -9,6 +9,7 @@ import {
     launchElectronApp,
     openSettings,
     openSettingsSection,
+    workspaceRoot,
 } from './electron-test-fixtures';
 
 test.skip(
@@ -38,6 +39,7 @@ test('starts locally, reconnects through the hosted library, and stops on reques
             await fetch(origin + '/api/v1/instance')
         ).json();
         expect(identity.auth).toBe('token');
+        expect(identity.instanceId).toEqual(expect.any(String));
 
         // Keep the process restart under the fixture's ownership.
         await desktop.electronApp.evaluate(({ app }) => {
@@ -59,6 +61,11 @@ test('starts locally, reconnects through the hosted library, and stops on reques
         desktop = undefined;
 
         desktop = await launchElectronApp(directory);
+        expect(
+            await desktop.electronApp.evaluate(
+                () => process.env['IPTVNATOR_SOURCE_PROFILE']
+            )
+        ).toMatch(/^[a-f0-9]{64}$/);
         page = desktop.mainWindow;
         await openSettings(page);
         await openSettingsSection(page, 'server');
@@ -71,6 +78,34 @@ test('starts locally, reconnects through the hosted library, and stops on reques
         expect(
             (await (await fetch(origin + '/api/v1/instance')).json()).instanceId
         ).toBe(identity.instanceId);
+        const databaseInstanceId = await desktop.electronApp.evaluate(
+            (_electron, { dependency, file }) => {
+                const Database = process
+                    .getBuiltinModule('module')
+                    .createRequire(dependency)(dependency);
+                const db = new Database(file, {
+                    readonly: true,
+                    fileMustExist: true,
+                });
+                try {
+                    return db
+                        .prepare('SELECT value FROM app_state WHERE key = ?')
+                        .get('server:instance-id')?.value;
+                } finally {
+                    db.close();
+                }
+            },
+            {
+                dependency: join(workspaceRoot, 'node_modules/better-sqlite3'),
+                file: join(
+                    directory,
+                    'hosted-server',
+                    'databases',
+                    'iptvnator.db'
+                ),
+            }
+        );
+        expect(databaseInstanceId).toBe(identity.instanceId);
         await page.getByTestId('hosted-server-stop').click();
         await expect(page.getByTestId('hosted-server-status')).toHaveText(
             'Server stopped'
