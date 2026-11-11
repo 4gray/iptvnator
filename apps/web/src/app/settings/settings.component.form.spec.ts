@@ -94,6 +94,30 @@ describe('SettingsComponent form', () => {
         }
     );
 
+    it('updates the saved key in the open form without saving an unrelated draft', async () => {
+        await fixture.whenStable();
+        const form = component.settingsForm;
+        form.controls.showCaptions.setValue(!form.controls.showCaptions.value);
+        form.markAsDirty();
+        settingsStore._setSettings({
+            ...DEFAULT_SETTINGS,
+            tmdb: { enabled: false, apiKey: 'synthetic-received-key' },
+        });
+
+        component.form.applyTransferredTmdbKey();
+
+        expect(form.controls.tmdb.controls.apiKey.value).toBe(
+            'synthetic-received-key'
+        );
+        expect(component.form.changedPaths()).toEqual(['showCaptions']);
+        expect(settingsStore.updateSettings).not.toHaveBeenCalled();
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'SETTINGS.TMDB_TRANSFER.SAVED',
+            undefined,
+            expect.anything()
+        );
+    });
+
     it('stages the desktop portal pause setting until Save', async () => {
         const checkbox = (fixture.nativeElement as HTMLElement).querySelector(
             '[data-test-id="portal-connectivity-toggle"] button[role="switch"]'

@@ -58,6 +58,20 @@ describe('SettingsStore dashboard rail settings', () => {
         });
     });
 
+    it('reflects a committed TMDB transfer without writing settings again', async () => {
+        storedSettings = {
+            tmdb: { enabled: true, apiKey: 'synthetic-old-key' },
+        };
+        const store = injector.get(SettingsStore);
+        await store.loadSettings();
+        store.applySavedTmdbKey('synthetic-new-key');
+        expect(store.tmdb?.()).toEqual({
+            enabled: true,
+            apiKey: 'synthetic-new-key',
+        });
+        expect(storage.set).not.toHaveBeenCalled();
+    });
+
     it('defaults EPG on for old settings and preserves sources on opt-out', async () => {
         storedSettings = { epgUrl: ['https://example.org/guide.xml'] };
         const store = injector.get(SettingsStore);
