@@ -1095,7 +1095,8 @@ session retires; the replacement alone reports the child's eventual exit.
 Overlapping VLC replacements retire the actual owner at the first RC write;
 an older replacement stops sending commands when a newer one takes ownership.
 If another child takes the reuse slot, the session that owns the first child
-can still stop that child by session ID.
+continues reading playback state from its RC port and can stop it by session
+ID.
 If the old child exits before that write and no newer launch took ownership,
 the replacement starts a fresh child.
 VLC's fallback launch without RC applies only while the original session

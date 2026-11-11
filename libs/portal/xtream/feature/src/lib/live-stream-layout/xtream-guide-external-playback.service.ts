@@ -199,7 +199,6 @@ export class XtreamGuideExternalPlayback {
                     !(active?.id === id && active.restoredFromSessionId)
                 )
                     return;
-                this.panelSessionId.set(id);
                 this.syncPanel(playing);
             });
         });
@@ -347,7 +346,8 @@ export class XtreamGuideExternalPlayback {
 
     restoreConfirmedPanel(): boolean {
         const confirmed = this.confirmed();
-        if (!confirmed || this.panel?.current() !== this.panelPlayback)
+        const current = this.panel?.current();
+        if (!confirmed || (current && current !== this.panelPlayback))
             return false;
         this.syncPanel(confirmed);
         return true;
@@ -364,9 +364,10 @@ export class XtreamGuideExternalPlayback {
         };
     }
 
-    private syncPanel(launch: GuideLaunch): void {
+    private syncPanel(launch: ConfirmedLaunch): void {
         const panel = this.panel;
         if (!panel) return;
+        this.panelSessionId.set(launch.session.id);
         const current = panel.current();
         panel.capture(launch.item, launch.lockSource.queue ?? [launch.item]);
         if (current && current !== this.panelPlayback) return;

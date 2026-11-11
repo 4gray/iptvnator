@@ -16,6 +16,7 @@ import {
     RuntimeCapabilitiesService,
 } from '@iptvnator/services';
 import {
+    focusIfFocusLost,
     isTypingInInput,
     WorkspaceHeaderContextService,
 } from '@iptvnator/portal/shared/util';
@@ -124,18 +125,24 @@ export class XtreamLiveGuideService {
             !!focused.closest('.epg-guide-host, app-epg-guide-now-playing');
         this.isOpen.set(false);
         this.source.close();
-        if (restoreFocus && !this.destroyRef.destroyed)
+        if (restoreFocus && !this.destroyRef.destroyed) {
+            const previous = this.returnFocus;
+            const workspace = this.element.nativeElement.closest<HTMLElement>(
+                'main.workspace-content'
+            );
             afterNextRender(
                 () => {
-                    const target = this.returnFocus?.isConnected
-                        ? this.returnFocus
-                        : document.querySelector<HTMLElement>(
-                              `[data-test-id="${ACTION}"]`
-                          );
-                    target?.focus();
+                    focusIfFocusLost(previous);
+                    focusIfFocusLost(
+                        document.querySelector<HTMLElement>(
+                            `[data-test-id="${ACTION}"]`
+                        )
+                    );
+                    focusIfFocusLost(workspace);
                 },
                 { injector: this.injector }
             );
+        }
     }
 
     toggle(): void {

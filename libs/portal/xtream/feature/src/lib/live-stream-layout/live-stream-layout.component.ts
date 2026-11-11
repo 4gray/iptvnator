@@ -636,6 +636,11 @@ export class LiveStreamLayoutComponent
                 this.activeLiveItemId.set(null);
                 this.activeGuideItem.set(null);
                 this.activeCatchupProgram.set(null);
+                this.activeLiveProviderCategoryId = null;
+                untracked(() => {
+                    if (!this.usesEmbeddedPlayer())
+                        this.externalGuide.restoreConfirmedPanel();
+                });
             }
         });
         // A relock (idle timer, Lock now) must stop a channel playing from a

@@ -62,6 +62,74 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         fixture.debugElement.query(By.directive(StubWebPlayerViewComponent))
             .componentInstance as StubWebPlayerViewComponent;
 
+    function openExternalGuide(): ExternalPlayerSession {
+        portalPlayer.isEmbeddedPlayer.set(false);
+        component.playLive(sampleChannel, true);
+        const session: ExternalPlayerSession = {
+            id: 'synthetic-session',
+            player: 'vlc',
+            status: 'opened',
+            title: 'Synthetic Channel',
+            streamUrl: component.activeStreamUrl(),
+            canClose: true,
+            startedAt: '2026-04-04T10:00:00Z',
+            updatedAt: '2026-04-04T10:00:00Z',
+        };
+        publishExternalSession(session);
+        fixture.detectChanges();
+        component.guide.open();
+        fixture.detectChanges();
+        expect(component.guide.isOpen()).toBe(true);
+        return session;
+    }
+
+    it('restores the playing channel after previewing in another playlist', () => {
+        const session = openExternalGuide();
+        xtreamStore.currentPlaylist.set({ ...playlist, id: 'synthetic-other' });
+        fixture.detectChanges();
+        component.playLive({ ...sampleChannel, xtream_id: 202 }, false);
+        fixture.detectChanges();
+        xtreamStore.currentPlaylist.set(playlist);
+        fixture.detectChanges();
+
+        expect(component.guide.available()).toBe(true);
+        expect(component.activeStreamUrl()).toBe(session.streamUrl);
+        expect(xtreamStore.setSelectedItem).toHaveBeenLastCalledWith(
+            sampleChannel
+        );
+        expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns focus to the workspace when the guide shortcut becomes disabled', () => {
+        const main = document.createElement('main');
+        main.className = 'workspace-content';
+        main.tabIndex = -1;
+        const shortcut = document.createElement('button');
+        shortcut.dataset['testId'] = 'xtream-epg-guide';
+        document.body.append(main, shortcut);
+        main.append(fixture.nativeElement);
+        try {
+            shortcut.focus();
+            const session = openExternalGuide();
+            expect(document.activeElement).toBe(
+                fixture.nativeElement.querySelector('.epg-guide-host')
+            );
+            shortcut.disabled = true;
+            publishExternalSession({
+                ...session,
+                status: 'closed',
+                canClose: false,
+            });
+            fixture.detectChanges();
+
+            expect(component.guide.isOpen()).toBe(false);
+            expect(document.activeElement).toBe(main);
+        } finally {
+            shortcut.remove();
+            main.remove();
+        }
+    });
+
     it.each(['failure', 'idle', 'unverified VLC'] as const)(
         'allows retry of a native guide channel (%s)',
         async (mode) => {

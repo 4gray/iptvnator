@@ -319,7 +319,7 @@ export async function openVlcPlayer({
             hasRcPort: rcPort > 0,
         });
         let lastVlcSnapshot: ExternalPlaybackSnapshot | null = null;
-        let playbackRcPort = 0;
+        let getPlaybackRcPort = () => 0;
 
         await new Promise<void>((resolve, reject) => {
             let settled = false;
@@ -411,7 +411,10 @@ export async function openVlcPlayer({
                     detached: !trackProcess,
                     stdio: trackProcess ? ['ignore', 'pipe', 'pipe'] : 'ignore',
                 });
-                playbackRcPort = isRetry ? 0 : rcPort;
+                getPlaybackRcPort = () =>
+                    trackProcess && reusableVlcProcess.canPoll(proc, session.id)
+                        ? rcPort
+                        : 0;
 
                 proc.once('spawn', () => {
                     if (!closeRequested) {
@@ -666,13 +669,7 @@ export async function openVlcPlayer({
             spawnVlc(args);
         });
 
-        return (
-            markVlcOpened(session.id, () =>
-                reusableVlcProcess.currentSessionId() === session.id
-                    ? playbackRcPort
-                    : 0
-            ) ?? session
-        );
+        return markVlcOpened(session.id, () => getPlaybackRcPort()) ?? session;
     } catch (error) {
         console.error('Error opening VLC player:', error);
         const restoredSession =

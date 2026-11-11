@@ -76,6 +76,14 @@ export class VlcReusableProcess {
         return this.processSessionIds.get(process) === sessionId;
     }
 
+    canPoll(process: ChildProcess, sessionId: string): boolean {
+        return (
+            this.owns(process, sessionId) &&
+            !this.storedStops.has(process) &&
+            !externalPlayerProcessTeardownGate.isStopping(process)
+        );
+    }
+
     track(process: ChildProcess, rcPort: number, sessionId: string): void {
         this.process = process;
         this.rcPort = rcPort;
@@ -313,11 +321,7 @@ export class VlcReusableProcess {
             }
             return (
                 markVlcOpened(session.id, () =>
-                    !hasExited(reusedProcess) &&
-                    !this.storedStops.has(reusedProcess) &&
-                    this.owns(reusedProcess, session.id)
-                        ? reusedRcPort
-                        : 0
+                    this.canPoll(reusedProcess, session.id) ? reusedRcPort : 0
                 ) ?? session
             );
         } catch (error) {
