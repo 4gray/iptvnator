@@ -62,6 +62,16 @@ describe('ExternalPlaybackService', () => {
         expect(service.visibleSession()).toEqual(next);
     });
 
+    it('restores a dismissed dock only for its exact active session', () => {
+        const current = createSession({ status: 'error' });
+        listener?.(current);
+        service.dismissActiveSession();
+        service.restoreDismissedSession('synthetic-other');
+        expect(service.visibleSession()).toBeNull();
+        service.restoreDismissedSession(current.id);
+        expect(service.visibleSession()).toEqual(current);
+    });
+
     it('keeps the newest launch when an older launch republishes as launching', () => {
         const older = createSession({
             id: 'session-older',

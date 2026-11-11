@@ -212,6 +212,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     isChannelVisible = (epgKey: string) =>
         this.items().some((item) => channelEpgKey(item) === epgKey);
     readonly livePlayback = computed(() => this.playback().live);
+    readonly closeOnPlaybackConfirmation = true;
     readonly playingItem = computed(() => {
         const item = this.playback().item;
         return item
@@ -243,7 +244,8 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     private play?: (
         item: XtreamLiveChannelItem,
         scope: readonly XtreamLiveChannelItem[],
-        retry?: boolean
+        retry?: boolean,
+        onConfirmed?: () => void
     ) => void;
     private canRetryUnverified?: () => boolean;
 
@@ -282,24 +284,29 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     activate(
         id: string,
         epgKey?: string | null,
-        displayed?: readonly EpgGuideChannel[]
+        displayed?: readonly EpgGuideChannel[],
+        onConfirmed?: () => void
     ): void {
         if (!this.session()) return;
         const scoped = this.scopedRows().get(id);
-        if (!epgKey || (scoped && channelEpgKey(scoped) === epgKey)) {
-            if (scoped) this.play?.(scoped, this.visibleItems(displayed));
-            return;
-        }
-        const exact = this.items().find(
-            (item) =>
-                String(item.xtream_id) === id && channelEpgKey(item) === epgKey
-        );
-        if (exact) this.play?.(exact, [exact]);
+        const exact =
+            !epgKey || (scoped && channelEpgKey(scoped) === epgKey)
+                ? scoped
+                : this.items().find(
+                      (item) =>
+                          String(item.xtream_id) === id &&
+                          channelEpgKey(item) === epgKey
+                  );
+        if (!exact) return;
+        const queue = exact === scoped ? this.visibleItems(displayed) : [exact];
+        if (onConfirmed) this.play?.(exact, queue, false, onConfirmed);
+        else this.play?.(exact, queue);
     }
 
     retryActive(
         channel: EpgGuideChannel,
-        displayed?: readonly EpgGuideChannel[]
+        displayed?: readonly EpgGuideChannel[],
+        onConfirmed?: () => void
     ): boolean {
         if (
             !this.session() ||
@@ -311,7 +318,9 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
             return false;
         const item = this.scopedRows().get(channel.id);
         if (!item || channelEpgKey(item) !== channel.epgKey) return false;
-        this.play(item, this.visibleItems(displayed), true);
+        const queue = this.visibleItems(displayed);
+        if (onConfirmed) this.play(item, queue, true, onConfirmed);
+        else this.play(item, queue, true);
         return true;
     }
 
@@ -325,26 +334,8 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         }, []);
     }
 
-    async loadPrograms(
-        window: EpgGuideWindow
-    ): Promise<Map<string, EpgProgram[]>> {
-        const { read } = this.schedules.reader(window.signal);
-        const rows = this.scopedRows();
-        const results = await Promise.all(
-            window.channels.map(async ({ id }) => {
-                try {
-                    return [
-                        id,
-                        (await read(rows.get(id))).filter((program) =>
-                            programmeOverlapsGuideWindow(program, window)
-                        ),
-                    ] as const;
-                } catch {
-                    return null;
-                }
-            })
-        );
-        return new Map(results.filter((result) => result !== null));
+    loadPrograms(window: EpgGuideWindow): Promise<Map<string, EpgProgram[]>> {
+        return this.schedules.loadWindow(window, this.scopedRows());
     }
 
     programsExpireAt = (id: string): number =>

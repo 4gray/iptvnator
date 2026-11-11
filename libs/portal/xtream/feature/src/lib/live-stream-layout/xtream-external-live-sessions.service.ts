@@ -48,6 +48,7 @@ type Active = {
     source: XtreamLiveSource;
     launch?: Launch;
     closing?: boolean;
+    hidden?: boolean;
     retry?: ReturnType<typeof setTimeout>;
 };
 
@@ -188,6 +189,10 @@ export class XtreamExternalLiveSessions {
         if (!isXtreamLiveCategoryWithheld(this.lock, source)) {
             clearTimeout(entry.retry);
             entry.retry = undefined;
+            if (entry.hidden && !entry.closing) {
+                entry.hidden = false;
+                this.playback?.restoreDismissedSession?.(session.id);
+            }
             return;
         }
         if (!session.canClose || entry.closing || entry.retry || !this.playback)
@@ -199,8 +204,10 @@ export class XtreamExternalLiveSessions {
         )
             return;
         entry.closing = true;
-        if (this.playback.activeSession()?.id === session.id)
+        if (this.playback.activeSession()?.id === session.id) {
+            entry.hidden = true;
             this.playback.dismissActiveSession?.();
+        }
         const close = bridge?.closeExternalPlayerSession
             ? bridge
                   .closeExternalPlayerSession(session.id, true)
@@ -208,7 +215,14 @@ export class XtreamExternalLiveSessions {
                       if (isLiveExternalPlayerSession(result)) {
                           // An in-flight queue entry has not attached its own closer yet.
                           entry.closing = false;
-                          if (entry.session !== session) this.enforce(entry);
+                          if (
+                              entry.session !== session ||
+                              !isXtreamLiveCategoryWithheld(
+                                  this.lock,
+                                  entry.source
+                              )
+                          )
+                              this.enforce(entry);
                       } else
                           this.update(
                               result ?? {
@@ -226,6 +240,10 @@ export class XtreamExternalLiveSessions {
                 this.sessions.get(session.id) !== entry
             )
                 return;
+            if (!isXtreamLiveCategoryWithheld(this.lock, entry.source)) {
+                this.enforce(entry);
+                return;
+            }
             entry.retry = setTimeout(() => {
                 entry.retry = undefined;
                 this.enforce(entry);

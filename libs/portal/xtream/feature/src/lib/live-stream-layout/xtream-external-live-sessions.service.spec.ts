@@ -33,6 +33,9 @@ describe('XtreamExternalLiveSessions', () => {
     let previousElectron: Window['electron'];
     const locked = signal(false);
     const version = signal(0);
+    const activeSession = signal<ExternalPlayerSession | null>(null);
+    const dismissActiveSession = jest.fn();
+    const restoreDismissedSession = jest.fn();
     const closeSession = jest.fn(
         async (_session: ExternalPlayerSession) => undefined
     );
@@ -55,13 +58,21 @@ describe('XtreamExternalLiveSessions', () => {
             },
         });
         closeSession.mockClear();
+        dismissActiveSession.mockClear();
+        restoreDismissedSession.mockClear();
+        activeSession.set(null);
         locked.set(false);
         version.set(0);
         TestBed.configureTestingModule({
             providers: [
                 {
                     provide: PORTAL_EXTERNAL_PLAYBACK,
-                    useValue: { closeSession, activeSession: signal(null) },
+                    useValue: {
+                        closeSession,
+                        activeSession,
+                        dismissActiveSession,
+                        restoreDismissedSession,
+                    },
                 },
                 {
                     provide: ParentalLockService,
@@ -179,6 +190,36 @@ describe('XtreamExternalLiveSessions', () => {
             ]);
             await jest.advanceTimersByTimeAsync(2000);
             expect(nativeClose).toHaveBeenCalledTimes(2);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('restores Stop after unlocking an active session whose parental close failed', async () => {
+        jest.useFakeTimers();
+        try {
+            const nativeClose = jest
+                .fn()
+                .mockRejectedValue(new Error('Synthetic teardown failure'));
+            Object.defineProperty(
+                window.electron,
+                'closeExternalPlayerSession',
+                { value: nativeClose }
+            );
+            const opened = session('old', oldUrl, 'opened');
+            activeSession.set(opened);
+            guard.begin(original).finish(opened);
+            relock();
+            expect(dismissActiveSession).toHaveBeenCalledTimes(1);
+            await jest.advanceTimersByTimeAsync(0);
+            expect(restoreDismissedSession).not.toHaveBeenCalled();
+
+            locked.set(false);
+            version.update((value) => value + 1);
+            TestBed.flushEffects();
+            expect(restoreDismissedSession).toHaveBeenCalledWith(opened.id);
+            await jest.advanceTimersByTimeAsync(1_000);
+            expect(nativeClose).toHaveBeenCalledTimes(1);
         } finally {
             jest.useRealTimers();
         }

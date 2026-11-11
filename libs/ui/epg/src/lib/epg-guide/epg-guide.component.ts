@@ -45,6 +45,7 @@ import {
     EpgGuideRowStatus,
 } from './epg-guide-programs.service';
 import { EpgGuideRowComponent } from './epg-guide-row.component';
+import { createEpgGuideRowActivation } from './epg-guide-row-activation';
 import { EpgGuideSearchController } from './epg-guide-search.controller';
 import {
     EPG_GUIDE_SOURCE,
@@ -96,6 +97,14 @@ export class EpgGuideComponent implements OnDestroy {
      * host reacts through the store instead and leaves it unbound.
      */
     readonly channelActivated = output<string>();
+    private readonly rowActivation = createEpgGuideRowActivation(
+        this.source,
+        () => this.rows(),
+        (id) => this.channelActivated.emit(id),
+        () => {
+            if (!this.destroyRef.destroyed) this.close.emit();
+        }
+    );
 
     readonly viewport = viewChild<CdkVirtualScrollViewport>('viewport');
 
@@ -410,31 +419,12 @@ export class EpgGuideComponent implements OnDestroy {
         this.dialogs.watch(channel, item);
     }
 
-    /**
-     * A double-click arrives as click, click, dblclick, and the store restarts
-     * playback on every `activate`, so the row that is already playing is
-     * left alone; `commitRow` then only closes.
-     */
     activateRow(channel: EpgGuideChannel | undefined): void {
-        if (!channel) return;
-        // The active row is left alone only while its live stream plays; in
-        // catch-up the same click is the way back to live.
-        const alreadyLive =
-            channel.id === this.activeChannelId() &&
-            (this.source.livePlayback?.() ?? true) &&
-            this.source.channels().find((row) => row.id === channel.id)
-                ?.epgKey === channel.epgKey;
-        if (alreadyLive) return;
-        this.source.activate(channel.id, channel.epgKey, this.rows());
-        this.channelActivated.emit(channel.id);
+        this.rowActivation.activate(channel);
     }
 
     commitRow(channel: EpgGuideChannel | undefined, allowRetry = true): void {
-        if (!channel) return;
-        if (allowRetry && this.source.retryActive?.(channel, this.rows()))
-            this.channelActivated.emit(channel.id);
-        else this.activateRow(channel);
-        this.close.emit();
+        this.rowActivation.commit(channel, allowRetry);
     }
 
     /**

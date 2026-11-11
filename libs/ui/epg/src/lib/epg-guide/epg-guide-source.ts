@@ -105,16 +105,20 @@ export interface EpgGuideSource {
      * activated again, which is how the host returns to live.
      */
     readonly livePlayback?: Signal<boolean>;
+    /** Keep a committed row open until the host confirms playback. */
+    readonly closeOnPlaybackConfirmation?: boolean;
     /** Switch playback; the guide stays open. */
     activate(
         channelId: string,
         epgKey?: string | null,
-        displayed?: readonly EpgGuideChannel[]
+        displayed?: readonly EpgGuideChannel[],
+        onConfirmed?: () => void
     ): void;
     /** Explicitly replay a channel whose external playback cannot be verified. */
     retryActive?(
         channel: EpgGuideChannel,
-        displayed?: readonly EpgGuideChannel[]
+        displayed?: readonly EpgGuideChannel[],
+        onConfirmed?: () => void
     ): boolean;
     /** Optional programme search; the toolbar hides its field when absent. */
     searchPrograms?(

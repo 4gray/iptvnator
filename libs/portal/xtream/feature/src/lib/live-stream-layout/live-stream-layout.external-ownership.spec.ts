@@ -65,4 +65,66 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
         );
         expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(3);
     });
+
+    it('confirms a committed switch only after the requested session opens', async () => {
+        const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
+        const component = fixture.componentInstance;
+        const first = { ...sampleChannel, category_id: 1 };
+        const next = { ...first, xtream_id: 202 };
+        emptyList.set([first, next]);
+        portalPlayer.isEmbeddedPlayer.set(false);
+        fixture.detectChanges();
+        component.playLive(first, true);
+        const current = {
+            id: 'synthetic-current',
+            player: 'mpv',
+            status: 'opened',
+            title: 'Synthetic Channel',
+            streamUrl: component.activeStreamUrl(),
+            canClose: true,
+            startedAt: '2026-04-04T10:00:00Z',
+            updatedAt: '2026-04-04T10:00:00Z',
+        } as const;
+        publishExternalSession(current);
+        fixture.detectChanges();
+        component.guide.open();
+        fixture.detectChanges();
+        const source = fixture.debugElement.injector.get(
+            XtreamEpgGuideSourceService
+        );
+        source.setScope('all');
+
+        const failed = jest.fn();
+        xtreamStore.constructStreamUrl.mockReturnValueOnce(
+            'https://example.test/failed.ts'
+        );
+        xtreamStore.openPlayer.mockRejectedValueOnce(
+            new Error('Synthetic launch failed')
+        );
+        source.activate('202', null, undefined, failed);
+        await fixture.whenStable();
+        expect(failed).not.toHaveBeenCalled();
+        expect(component.guide.isOpen()).toBe(true);
+        expect(source.scopeId()).toBe('all');
+
+        const committed = jest.fn();
+        const nextUrl = 'https://example.test/confirmed.ts';
+        xtreamStore.constructStreamUrl.mockReturnValueOnce(nextUrl);
+        xtreamStore.openPlayer.mockImplementationOnce(
+            () => new Promise(() => undefined)
+        );
+        source.activate('202');
+        source.activate('202', null, undefined, committed);
+        expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(3);
+        publishExternalSession(current);
+        fixture.detectChanges();
+        expect(committed).not.toHaveBeenCalled();
+        publishExternalSession({
+            ...current,
+            id: 'synthetic-confirmed',
+            streamUrl: nextUrl,
+        });
+        fixture.detectChanges();
+        expect(committed).toHaveBeenCalledTimes(1);
+    });
 });

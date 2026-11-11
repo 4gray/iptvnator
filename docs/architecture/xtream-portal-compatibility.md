@@ -789,7 +789,8 @@ The guide keeps the player mounted in the dock and hides the live sidebars
 while preserving their browsing state. Short screens show a compact dock so
 schedule rows remain visible. If an external channel switch fails and the
 player restores the previous session or rejects a switch while the old session
-is still playing, the guide keeps its scope and search. The dock, player panel
+is still playing, the guide keeps its scope and search. Enter and double-click
+close the guide only after the requested stream opens. The dock, player panel
 and remote status follow the confirmed session. Consecutive remote tuning
 commands advance from the latest requested channel until it opens or fails.
 IINA keeps the selection-based remote queue because its launcher can exit
@@ -799,7 +800,8 @@ guide. Starting archive playback from a preview commits that preview's order
 when the archive session opens. If a relock withholds that
 channel or the pending replacement, the guide hides the withheld channel and
 closes its external session even if it finishes opening later, reports a
-closable error or has already left the dock. Cancelling a queued replacement
+closable error or has already left the dock. If teardown fails, unlocking the
+category restores Stop for that same active session. Cancelling a queued replacement
 leaves the allowed player running. If a replacement fails, the guide follows
 the newest allowed session in the playlist that has opened and is still live. The
 app retries an exact close if the external player cannot confirm its exit.
@@ -841,7 +843,9 @@ rows as results arrive and keeps them hidden during rechecks. While the filter
 is on, it rotates through expired results in batches of up to 12 per minute.
 Rendered rows and the playing channel still refresh on schedule expiry. Failed
 checks, including unavailable XMLTV reads, stay visible as unknown and retry
-within the same budget. Programme search reads the available live
+within the same budget. If both full-schedule actions are unsupported, the
+provider has no schedule; a transient failure remains retryable. Programme
+search reads the available live
 catalogue on demand, including channels outside the viewport and distinct
 schedules for streams shared by multiple categories. Search publishes
 matches and progress as it scans. A match keeps the category copy that supplied

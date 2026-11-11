@@ -14,7 +14,7 @@ jest.mock('../services/store.service', () => ({
     store: { get: jest.fn() },
 }));
 
-import { spawn } from 'child_process';
+import { spawn, type ChildProcess } from 'child_process';
 import { EventEmitter } from 'events';
 import { createConnection, createServer } from 'net';
 import {
@@ -23,6 +23,7 @@ import {
     VLC_REUSE_INSTANCE,
 } from '../services/store.service';
 import { externalPlayerSessions } from './external-player-runtime';
+import { externalPlayerProcessTeardownGate } from './external-player-process';
 import { openVlcPlayer, shutdownVlcSession } from './vlc-session.service';
 
 const spawnMock = spawn as unknown as jest.Mock;
@@ -243,6 +244,47 @@ describe('VLC exact playback ownership', () => {
             exit(second);
         }
     );
+
+    it('rejects the add command during unrelated teardown and keeps the VLC child closable', async () => {
+        const proc = child();
+        const blocker = child();
+        spawnMock.mockReturnValueOnce(proc);
+        const opening = open('first');
+        await tick();
+        ports[0]();
+        await tick();
+        proc.emit('spawn');
+        await opening;
+
+        const writes: string[] = [];
+        mockRc((_port, command, reply) => {
+            writes.push(command);
+            if (command === 'clear\n')
+                externalPlayerProcessTeardownGate.beginTeardown(
+                    blocker as unknown as ChildProcess
+                );
+            reply();
+            if (command === 'quit\n') exit(proc);
+        });
+        try {
+            const replacement = open('replacement');
+            const id = externalPlayerSessions.getActiveSessionId() as string;
+            await expect(replacement).rejects.toThrow(
+                'previous external player is still shutting down'
+            );
+            expect(writes).toEqual(['clear\n']);
+            expect(externalPlayerSessions.getSession(id)).toMatchObject({
+                status: 'error',
+                canClose: true,
+            });
+            await expect(
+                externalPlayerSessions.closeSession(id, true)
+            ).resolves.toMatchObject({ status: 'closed' });
+            expect(writes).toEqual(['clear\n', 'quit\n']);
+        } finally {
+            exit(blocker);
+        }
+    });
 
     it('allows exact close to retry an unconfirmed teardown after clear was sent', async () => {
         jest.useFakeTimers({ doNotFake: ['setImmediate'] });

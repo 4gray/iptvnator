@@ -99,6 +99,27 @@ export function injectXtreamGuideSchedules(
 
     return {
         reader,
+        async loadWindow(
+            window: EpgGuideWindow,
+            rows: ReadonlyMap<string, XtreamLiveChannelItem>
+        ): Promise<Map<string, EpgProgram[]>> {
+            const { read } = reader(window.signal);
+            const results = await Promise.all(
+                window.channels.map(async ({ id }) => {
+                    try {
+                        return [
+                            id,
+                            (await read(rows.get(id))).filter((program) =>
+                                programmeOverlapsGuideWindow(program, window)
+                            ),
+                        ] as const;
+                    } catch {
+                        return null;
+                    }
+                })
+            );
+            return new Map(results.filter((result) => result !== null));
+        },
         clear: () => cache.clear(),
         expiresAt: (item: XtreamLiveChannelItem | undefined) =>
             item ? cache.expiresAt(scheduleKey(item)) : 0,

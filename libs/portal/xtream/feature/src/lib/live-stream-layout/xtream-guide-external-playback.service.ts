@@ -37,6 +37,7 @@ interface GuideLaunch {
     playback: ResolvedPortalPlayback;
     ended?: () => boolean;
     remote?: boolean;
+    onConfirmed?: () => void;
 }
 
 type ConfirmedLaunch = GuideLaunch & { session: ExternalPlayerSession };
@@ -72,7 +73,6 @@ export class XtreamGuideExternalPlayback {
     private readonly sessions = inject(XtreamExternalLiveSessions);
     private readonly store = inject(XtreamStore);
     private readonly destroyRef = inject(DestroyRef);
-    private readonly requests = new Map<string, GuideLaunch>();
     private readonly pending = signal<GuideLaunch | undefined>(undefined);
     private panel?: GuidePanel;
     private panelPlayback?: ResolvedPortalPlayback;
@@ -110,13 +110,10 @@ export class XtreamGuideExternalPlayback {
             if (!hasOpened(session)) return null;
             const source = this.sessions.state(session.id)?.source;
             if (!source) return null;
-            const requested = this.requests.get(session.streamUrl);
             const launch =
                 prior?.session.id === session.id && prior.lockSource === source
                     ? prior
-                    : requested?.lockSource === source
-                      ? requested
-                      : this.reattach(source);
+                    : this.reattach(source);
             if (!launch) return null;
             return { ...launch, session };
         },
@@ -184,22 +181,24 @@ export class XtreamGuideExternalPlayback {
             const pending = this.pending();
             const ended = pending?.ended?.();
             untracked(() => {
-                if (pending && playing?.lockSource === pending.lockSource) {
-                    this.requests.clear();
-                    this.requests.set(playing.session.streamUrl, pending);
-                    this.pending.set(undefined);
-                } else if (ended) {
+                const confirmedRequest =
+                    pending && playing?.lockSource === pending.lockSource
+                        ? pending
+                        : undefined;
+                if (confirmedRequest || ended) {
                     this.pending.set(undefined);
                 }
                 if (!playing) return;
                 const id = playing.session.id;
                 if (
                     !ended &&
+                    !confirmedRequest &&
                     this.panelSessionId() === id &&
                     !(active?.id === id && active.restoredFromSessionId)
                 )
                     return;
                 this.syncPanel(playing);
+                confirmedRequest?.onConfirmed?.();
             });
         });
     }
@@ -209,7 +208,6 @@ export class XtreamGuideExternalPlayback {
     }
 
     reset(): void {
-        this.requests.clear();
         this.pending.set(undefined);
         this.panelPlayback = undefined;
         this.panelSessionId.set(undefined);
@@ -221,7 +219,8 @@ export class XtreamGuideExternalPlayback {
         archive: EpgProgram | null,
         categoryId: XtreamLiveSource['categoryId'],
         queue?: readonly XtreamLiveChannelItem[],
-        remote = false
+        remote = false,
+        onConfirmed?: () => void
     ): void {
         if (!playback?.streamUrl) return;
         const playlistId = this.store.currentPlaylist()?.id;
@@ -240,14 +239,12 @@ export class XtreamGuideExternalPlayback {
                       archive,
                       playback,
                       remote,
+                      onConfirmed,
                   }
                 : undefined;
         this.panelPlayback = playback;
         const lifecycle = launch && this.sessions.begin(launch.lockSource);
-        if (launch) {
-            launch.ended = lifecycle?.ended;
-            this.requests.set(playback.streamUrl, launch);
-        }
+        if (launch) launch.ended = lifecycle?.ended;
         this.pending.set(launch);
         const recover = () => {
             if (this.pending() !== launch || this.destroyRef.destroyed) return;
@@ -288,7 +285,8 @@ export class XtreamGuideExternalPlayback {
     replacePendingCopy(
         item: XtreamLiveChannelItem,
         category: () => XtreamLiveSource['categoryId'],
-        queue: readonly XtreamLiveChannelItem[]
+        queue: readonly XtreamLiveChannelItem[],
+        onConfirmed?: () => void
     ): boolean {
         const pending = this.pending();
         if (
@@ -300,6 +298,7 @@ export class XtreamGuideExternalPlayback {
             pending.item.xtream_id !== item.xtream_id
         )
             return false;
+        if (onConfirmed) pending.onConfirmed = onConfirmed;
         if (!sameXtreamChannelCopy(pending.item, item)) {
             pending.item = item;
             pending.lockSource.categoryId = category();
@@ -331,7 +330,6 @@ export class XtreamGuideExternalPlayback {
                 queue,
             },
         };
-        this.requests.set(playing.session.streamUrl, copy);
         this.playing.set(copy);
         this.sessions.update(playing.session, copy.lockSource);
         this.syncPanel(copy);
@@ -342,8 +340,9 @@ export class XtreamGuideExternalPlayback {
         item: XtreamLiveChannelItem,
         categoryId: number
     ): void {
-        const launch = this.requests.get(url);
-        if (launch?.item === item) launch.lockSource.categoryId = categoryId;
+        for (const launch of [this.pending(), this.playing()])
+            if (launch?.playback.streamUrl === url && launch.item === item)
+                launch.lockSource.categoryId = categoryId;
     }
 
     restoreConfirmedPanel(): boolean {

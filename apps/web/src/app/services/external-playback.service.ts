@@ -50,6 +50,14 @@ export class ExternalPlaybackService {
         this.dismissedSessionId.set(session.id);
     }
 
+    restoreDismissedSession(sessionId: string): void {
+        if (
+            this.activeSession()?.id === sessionId &&
+            this.dismissedSessionId() === sessionId
+        )
+            this.dismissedSessionId.set(null);
+    }
+
     async closeActiveSession(): Promise<void> {
         await this.closeSession(this.activeSession());
     }

@@ -345,7 +345,11 @@ export class XtreamApiService extends XtreamEpgNormalizer {
             XtreamCodeActions.GetSimpleDateTable
         ).catch((error: { status?: number } | null) => {
             options?.signal?.throwIfAborted();
-            if (primary && unsupported(error?.status)) return primary;
+            if (unsupported(error?.status)) {
+                if (primary || unsupported(primaryError?.status))
+                    return primary ?? [];
+                throw primaryError;
+            }
             throw error;
         });
         if (!legacy.length && !primary && !unsupported(primaryError?.status))

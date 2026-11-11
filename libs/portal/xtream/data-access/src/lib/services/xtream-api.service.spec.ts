@@ -283,6 +283,30 @@ describe('XtreamApiService', () => {
         });
     });
 
+    it.each([501, 503])(
+        'distinguishes two unsupported full-guide actions from an outage (%s)',
+        async (primaryStatus) => {
+            dataService.sendIpcEvent
+                .mockResolvedValueOnce({
+                    type: 'ERROR',
+                    status: primaryStatus,
+                    message: 'Synthetic primary response',
+                })
+                .mockResolvedValueOnce({
+                    type: 'ERROR',
+                    status: 501,
+                    message: 'Synthetic legacy response',
+                });
+            const result = service.getFullEpg(credentials, 101);
+            if (primaryStatus === 501)
+                await expect(result).resolves.toEqual([]);
+            else
+                await expect(result).rejects.toMatchObject({
+                    status: primaryStatus,
+                });
+        }
+    );
+
     it.each([404, 503])(
         'keeps an empty legacy response only when the primary failure is unsupported (%s)',
         async (status) => {

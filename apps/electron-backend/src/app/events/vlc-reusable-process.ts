@@ -281,7 +281,7 @@ export class VlcReusableProcess {
                         options.stopPositionPolling(reusedProcessSessionId);
                     }
                 },
-                () => {
+                (index) => {
                     if (
                         closeRequested ||
                         cancelled() ||
@@ -289,7 +289,8 @@ export class VlcReusableProcess {
                         lostChild()
                     )
                         return false;
-                    if (!state.contentMutated)
+                    // Both clear and add change playback.
+                    if (index < 2)
                         externalPlayerProcessTeardownGate.assertLaunchAllowed();
                     return true;
                 }
@@ -339,7 +340,8 @@ export class VlcReusableProcess {
             if (lostChild()) return state.contentMutated ? retire() : null;
             if (readExternalPlayerErrorCode(error) === 'previous-closing') {
                 const owner = this.processSessionIds.get(reusedProcess);
-                if (
+                if (state.contentMutated) state.teardownUnconfirmed = true;
+                else if (
                     owner &&
                     !externalPlayerProcessTeardownGate.isStopping(reusedProcess)
                 )

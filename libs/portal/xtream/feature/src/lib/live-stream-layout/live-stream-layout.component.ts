@@ -589,13 +589,14 @@ export class LiveStreamLayoutComponent
             )
         );
         this.guideSource.bind(
-            (item, channels, retry) => {
+            (item, channels, retry, onConfirmed) => {
                 if (
                     !this.usesEmbeddedPlayer() &&
                     this.externalGuide.replacePendingCopy(
                         item,
                         () => this.readLiveProviderCategoryId(item),
-                        channels
+                        channels,
+                        onConfirmed
                     )
                 )
                     return;
@@ -607,9 +608,10 @@ export class LiveStreamLayoutComponent
                 ) {
                     if (!sameXtreamChannelCopy(playing, item))
                         this.switchGuideChannelCopy(item);
+                    onConfirmed?.();
                     return;
                 }
-                this.playLive(item, true, channels);
+                this.playLive(item, true, channels, false, onConfirmed);
             },
             () => this.externalGuide.canRetryUnverifiedStream()
         );
@@ -841,7 +843,8 @@ export class LiveStreamLayoutComponent
         item: XtreamLiveChannelItem,
         startPlayback = !this.settingsStore.openStreamOnDoubleClick(),
         displayedChannels?: readonly XtreamLiveChannelItem[],
-        remote = false
+        remote = false,
+        onConfirmed?: () => void
     ): void {
         const requestId = ++this.playbackRequestId;
         const playlistId = this.xtreamStore.currentPlaylist()?.id;
@@ -863,7 +866,8 @@ export class LiveStreamLayoutComponent
                     true,
                     displayedChannels,
                     remote,
-                    resolved
+                    resolved,
+                    onConfirmed
                 );
             };
             if (category === 'unknown')
@@ -873,7 +877,14 @@ export class LiveStreamLayoutComponent
             else start(category);
             return;
         }
-        this.applyLivePlayback(item, startPlayback, displayedChannels, remote);
+        this.applyLivePlayback(
+            item,
+            startPlayback,
+            displayedChannels,
+            remote,
+            undefined,
+            onConfirmed
+        );
     }
 
     private applyLivePlayback(
@@ -881,7 +892,8 @@ export class LiveStreamLayoutComponent
         startPlayback: boolean,
         displayedChannels: readonly XtreamLiveChannelItem[] | undefined,
         remote: boolean,
-        category?: number | null | 'unknown'
+        category?: number | null | 'unknown',
+        onConfirmed?: () => void
     ): void {
         const streamUrl = this.guide.isOpen()
             ? this.xtreamStore.constructStreamUrl(item, (signal) =>
@@ -951,6 +963,7 @@ export class LiveStreamLayoutComponent
             );
         }
         if (this.usesEmbeddedPlayer() || !startPlayback) {
+            onConfirmed?.();
             return;
         }
         this.externalGuide.start(
@@ -959,7 +972,8 @@ export class LiveStreamLayoutComponent
             null,
             this.activeLiveProviderCategoryId,
             this.channelNavigation.queueFor(item, scope, queuePolicy),
-            remote
+            remote,
+            onConfirmed
         );
     }
 

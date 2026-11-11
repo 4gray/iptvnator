@@ -100,15 +100,16 @@ export async function sendVlcRcCommands(
     port: number,
     commands: string[],
     onCommandSent?: (command: string, index: number) => void,
-    shouldDispatch?: () => boolean
+    shouldDispatch?: (index: number) => boolean
 ): Promise<void> {
     for (const [index, command] of commands.entries()) {
-        if (shouldDispatch && !shouldDispatch()) return;
+        const canDispatch = () => shouldDispatch?.(index) ?? true;
+        if (!canDispatch()) return;
         const dispatched = await sendVlcRcCommand(
             port,
             command,
             () => onCommandSent?.(command, index),
-            shouldDispatch
+            canDispatch
         );
         if (!dispatched) return;
     }
