@@ -4,4 +4,4 @@ area: details
 issues: [2170]
 ---
 
-Seeking with the arrow keys on a movie or series page no longer draws a bright outline around the whole page after you click into it. Tabbing to the page still shows the keyboard focus ring.
+Clicking into a movie or series page hides the page outline while you seek with the arrow keys, even if you previously tabbed to the page. Tabbing to the page still shows the keyboard focus ring.

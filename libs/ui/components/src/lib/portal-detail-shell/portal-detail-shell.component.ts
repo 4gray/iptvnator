@@ -56,6 +56,7 @@ import {
         '[class.shell-host--watch]': 'isWatch()',
         '[class.shell-host--pointer-focus]': 'pointerFocus()',
         '(focus)': 'onFocus()',
+        '(pointerdown)': 'onPointerDown($event)',
         '(blur)': 'onBlur()',
         '(document:keydown.escape)': 'onEscape($event)',
     },
@@ -98,10 +99,8 @@ export class PortalDetailShellComponent {
     readonly isWatch = computed(() => this.playbackActive());
 
     /**
-     * Whether the shell's current focus came from a pointer. Chromium only
-     * withholds `:focus-visible` from a clicked element until the next
-     * keypress, so arrow-key seeking would ring the whole page (#2170). The
-     * verdict is frozen when focus arrives; Tab focus still draws the ring.
+     * Chromium can match `:focus-visible` after a seek keypress on a clicked
+     * shell. Keep that outline hidden until focus arrives again (#2170).
      */
     protected readonly pointerFocus = signal(false);
     /** The window, not the shell, lost focus: its return keeps the verdict. */
@@ -144,6 +143,17 @@ export class PortalDetailShellComponent {
         this.pointerFocus.set(
             !this.host.nativeElement.matches(':focus-visible')
         );
+    }
+
+    onPointerDown(event: PointerEvent): void {
+        const element = this.host.nativeElement;
+        // Clicking the already focused shell does not fire another focus event.
+        if (
+            event.button === 0 &&
+            element.ownerDocument.activeElement === element
+        ) {
+            this.pointerFocus.set(true);
+        }
     }
 
     onBlur(): void {
