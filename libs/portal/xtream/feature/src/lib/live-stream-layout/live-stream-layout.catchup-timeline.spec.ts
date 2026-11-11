@@ -129,6 +129,8 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         runtime.supportsProviderCatchUp = true;
         portalPlayer.isEmbeddedPlayer.set(true);
         externalSession.set(null);
+        emptyList.set([]);
+        xtreamStore.openPlayer.mockReset();
 
         await TestBed.configureTestingModule({
             imports: [
@@ -239,6 +241,49 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
     const webPlayer = () =>
         fixture.debugElement.query(By.directive(StubWebPlayerViewComponent))
             .componentInstance as StubWebPlayerViewComponent;
+
+    it('launches a pending external guide channel once per gesture and allows retry after failure', async () => {
+        const playing = { ...sampleChannel, category_id: 1 };
+        const next = { ...playing, xtream_id: 102 };
+        emptyList.set([playing, next]);
+        portalPlayer.isEmbeddedPlayer.set(false);
+        component.playLive(playing, true);
+        externalSession.set({
+            id: 'synthetic-session',
+            streamUrl: component.activeStreamUrl(),
+            title: 'Synthetic Live Channel',
+            player: 'mpv',
+            status: 'playing',
+            startedAt: '2026-04-04T10:00:00Z',
+            updatedAt: '2026-04-04T10:00:00Z',
+            canClose: true,
+        });
+        component.guide.open();
+        fixture.detectChanges();
+        expect(component.guide.isOpen()).toBe(true);
+        const source = fixture.debugElement.injector.get(
+            XtreamEpgGuideSourceService
+        );
+        let fail!: (error: Error) => void;
+        const launch = new Promise<void>((_resolve, reject) => (fail = reject));
+        xtreamStore.openPlayer.mockReturnValueOnce(launch);
+        xtreamStore.constructStreamUrl.mockReturnValueOnce(
+            'https://example.com/second.ts'
+        );
+        source.activate('102');
+        source.activate('102');
+        source.activate('102');
+        expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(2);
+        expect(source.activeChannelId()).toBe(String(sampleChannel.xtream_id));
+
+        fail(new Error('synthetic launch failure'));
+        await Promise.resolve();
+        xtreamStore.constructStreamUrl.mockReturnValueOnce(
+            'https://example.com/second.ts'
+        );
+        source.activate('102');
+        expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(3);
+    });
 
     it.each([
         'restores original',

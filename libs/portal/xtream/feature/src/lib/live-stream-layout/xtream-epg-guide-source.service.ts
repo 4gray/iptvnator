@@ -31,6 +31,7 @@ import type {
 } from '@iptvnator/ui/epg';
 import { toSharedEpgProgram } from '../portal-channels-list/epg-preview-program';
 import { injectXtreamGuideFavorites } from './xtream-guide-favorites';
+import { createXtreamGuideNowPlaying } from './xtream-guide-now-playing';
 import { XtreamGuideScheduleCache } from './xtream-guide-schedule-cache';
 import {
     XtreamLiveChannelItem,
@@ -233,18 +234,19 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     });
     readonly activeChannelId = computed(() => this.playback().id);
     readonly livePlayback = computed(() => this.playback().live);
-    private readonly schedule = signal<{
-        id: string;
-        revision: unknown;
-        programs: EpgProgram[];
-    } | null>(null);
-    readonly playingSchedule = computed(() => {
-        const schedule = this.schedule();
-        return schedule?.id === this.activeChannelId() &&
-            schedule.revision === this.revision()
-            ? schedule.programs
-            : null;
-    });
+    private readonly dock = createXtreamGuideNowPlaying(
+        this.activeChannelId,
+        this.revision,
+        () => {
+            const id = this.activeChannelId();
+            return id && this.session() && this.livePlayback()
+                ? this.catalog().get(id)
+                : undefined;
+        },
+        (item, signal) => this.scheduleReader(signal).read(item),
+        (item) => this.cache.expiresAt(scheduleKey(item))
+    );
+    readonly playingSchedule = this.dock.programs;
     private play?: (
         item: XtreamLiveChannelItem,
         scope: readonly XtreamLiveChannelItem[]
@@ -271,7 +273,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         this.session()?.abort();
         this.session.set(null);
         this.cache.clear();
-        this.schedule.set(null);
+        this.dock.clear();
         this.favorites.set(new Map());
         this.scopeId.set(ALL);
     }
@@ -414,10 +416,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
                 signal
             );
             checkCurrent();
-            const id = String(item.xtream_id);
-            if (id === this.activeChannelId()) {
-                this.schedule.set({ id, revision, programs });
-            }
+            this.dock.publish(String(item.xtream_id), revision, programs);
             return programs;
         };
         return { read, checkCurrent };

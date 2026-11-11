@@ -197,6 +197,41 @@ describe('XtreamEpgGuideSourceService', () => {
     });
     afterEach(() => service.close());
 
+    it('refreshes the dock schedule for a playing stream outside the guide scope', async () => {
+        jest.useFakeTimers();
+        try {
+            locked.mockReturnValue(false);
+            lockRevision.update((value) => value + 1);
+            service.setScope('8');
+            service.setPlayback(one.xtream_id, true);
+            const first = {
+                ...program(101),
+                title: 'Synthetic Initial Programme',
+            };
+            const next = {
+                ...program(101),
+                title: 'Synthetic Updated Programme',
+            };
+            load.mockResolvedValueOnce([first]).mockResolvedValueOnce([next]);
+            TestBed.flushEffects();
+            await jest.advanceTimersByTimeAsync(0);
+            expect(service.channels().map(({ id }) => id)).toEqual(['102']);
+            expect(service.playingSchedule()?.[0].title).toBe(first.title);
+            await jest.advanceTimersByTimeAsync(300_000);
+            expect(service.playingSchedule()?.[0].title).toBe(next.title);
+            expect(load.mock.calls.map(([, streamId]) => streamId)).toEqual([
+                101, 101,
+            ]);
+
+            service.close();
+            TestBed.flushEffects();
+            await jest.advanceTimersByTimeAsync(300_000);
+            expect(load).toHaveBeenCalledTimes(2);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
     it('uses provider stream identity, excludes hidden and locked categories and does no eager schedule work', () => {
         expect(service.channels().map((channel) => channel.id)).toEqual([
             '101',

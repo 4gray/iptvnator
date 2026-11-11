@@ -498,6 +498,7 @@ export class LiveStreamLayoutComponent
         string,
         GuideExternalChannel
     >();
+    private pendingExternalLaunch?: GuideExternalChannel;
     private readonly guideExternalSession = linkedSignal({
         source: () => ({
             playlistId: this.xtreamStore.currentPlaylist()?.id,
@@ -527,7 +528,10 @@ export class LiveStreamLayoutComponent
                     ? playing
                     : this.guideExternalRequests.get(session.streamUrl);
             if (!confirmed || confirmed.playlistId !== playlistId) return null;
-            if (session.streamUrl === url) this.guideExternalRequests.clear();
+            if (session.streamUrl === url) {
+                this.guideExternalRequests.clear();
+                this.pendingExternalLaunch = undefined;
+            }
             return { ...confirmed, session };
         },
     });
@@ -584,9 +588,15 @@ export class LiveStreamLayoutComponent
                     : !!this.guideExternalSession()
             )
         );
-        this.guideSource.bind((item, channels) =>
-            this.playLive(item, true, channels)
-        );
+        this.guideSource.bind((item, channels) => {
+            if (
+                !this.usesEmbeddedPlayer() &&
+                this.pendingExternalLaunch?.channelId === item.xtream_id &&
+                !this.pendingExternalLaunch.archive
+            )
+                return;
+            this.playLive(item, true, channels);
+        });
         effect(() =>
             this.guideSource.setPlayback(
                 this.guideChannelId(),
@@ -600,6 +610,7 @@ export class LiveStreamLayoutComponent
                 this.playbackRequestId += 1;
                 this.activePlaylistId = null;
                 this.guideExternalRequests.clear();
+                this.pendingExternalLaunch = undefined;
                 this.activePlayback.set(null);
                 this.activeLiveItemId.set(null);
                 this.activeCatchupProgram.set(null);
@@ -1147,17 +1158,28 @@ export class LiveStreamLayoutComponent
     ): void {
         const playback = this.activePlayback();
         if (!playback?.streamUrl) return;
-        if (playlistId)
-            this.guideExternalRequests.set(playback.streamUrl, {
-                playlistId,
-                channelId,
-                archive,
-            });
-        this.xtreamStore.openPlayer(
+        const launch = playlistId
+            ? { playlistId, channelId, archive }
+            : undefined;
+        this.pendingExternalLaunch = launch;
+        if (launch) this.guideExternalRequests.set(playback.streamUrl, launch);
+        const clear = () => {
+            if (this.pendingExternalLaunch === launch)
+                this.pendingExternalLaunch = undefined;
+        };
+        const result = this.xtreamStore.openPlayer(
             playback.streamUrl,
             playback.title,
             playback.thumbnail
         );
+        void Promise.resolve(result).then((session) => {
+            if (
+                !session ||
+                !isLiveExternalPlayerSession(session) ||
+                session.status === 'error'
+            )
+                clear();
+        }, clear);
     }
 
     private toLiveEpgPanelSummary(

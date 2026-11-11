@@ -162,13 +162,13 @@ export function withPlayer() {
                     thumbnail: string | null = null,
                     startTime?: number,
                     contentInfo?: unknown
-                ): void {
+                ) {
                     const playlist = getPlaylistFromStore();
                     const storeAny = store as ParentPlayerStoreLike;
                     const contentType =
                         storeAny.selectedContentType?.() || 'vod';
 
-                    void playerService.openPlayer(
+                    return playerService.openPlayer(
                         streamUrl,
                         title,
                         thumbnail,

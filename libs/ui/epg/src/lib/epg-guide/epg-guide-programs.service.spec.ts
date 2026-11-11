@@ -176,7 +176,7 @@ describe('EpgGuideProgramsService', () => {
     });
 
     it.each([true, false])(
-        'rechecks expired coverage outside the viewport (programmes appeared: %s)',
+        'rechecks expired coverage outside the viewport (now has programmes: %s)',
         async (hasProgrammes) => {
             jest.useFakeTimers();
             try {
@@ -187,14 +187,14 @@ describe('EpgGuideProgramsService', () => {
                         id === 'a' && Date.now() < 2000 ? 2000 : 3000,
                 });
                 loadCoverage.mockImplementationOnce(async (_window, report) => {
-                    report?.('a', []);
+                    report?.('a', hasProgrammes ? [] : [programFor('a')]);
                     report?.('b', []);
-                    return new Set();
+                    return new Set(hasProgrammes ? [] : ['a']);
                 });
                 service.setWindow(1000, 4000);
                 service.setCoverageRequested(true);
                 await flush();
-                expect(service.isCovered('a')).toBe(false);
+                expect(service.isCovered('a')).toBe(!hasProgrammes);
                 expect(service.isCovered('b')).toBe(false);
 
                 jest.setSystemTime(2000);

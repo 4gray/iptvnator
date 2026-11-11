@@ -795,8 +795,8 @@ once in All Channels.
 Xtream supplies full schedules per stream. The guide starts with the rendered
 rows, shares in-flight work and a bounded five-minute in-memory cache, and
 limits request concurrency. The grid releases rows outside its rendered range
-and buffer. Rendered rows revalidate after their schedules
-expire, updating the dock when the playing stream's schedule changes. Failed
+and buffer. Rendered rows and the playing stream's dock revalidate after their
+schedules expire, even if the playing row is outside the current scope. Failed
 rows retry when they return to the viewport. A coverage scan
 that obtains a schedule also updates the corresponding visible failed row.
 It checks the current scope's coverage only when the user turns on **Only with
