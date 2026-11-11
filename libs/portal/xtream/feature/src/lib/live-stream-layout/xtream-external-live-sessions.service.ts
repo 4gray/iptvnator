@@ -5,6 +5,7 @@ import {
     Injectable,
     signal,
     untracked,
+    type WritableSignal,
 } from '@angular/core';
 import {
     isLiveExternalPlayerSession,
@@ -39,6 +40,7 @@ export function isXtreamLiveCategoryWithheld(
 
 type Launch = {
     source: XtreamLiveSource;
+    ended: WritableSignal<boolean>;
     sessionId?: string;
     retired?: boolean;
 };
@@ -113,54 +115,71 @@ export class XtreamExternalLiveSessions {
         return latest;
     }
 
-    begin(
-        url: string,
-        source: XtreamLiveSource
-    ): (result?: ExternalPlayerSession | void) => void {
-        const launch: Launch = { source };
+    begin(url: string, source: XtreamLiveSource) {
+        const launch: Launch = { source, ended: signal(false) };
         const pending = this.pending.get(url) ?? [];
         pending.push(launch);
         this.pending.set(url, pending);
-        return (result) => {
-            pending.splice(pending.indexOf(launch), 1);
-            if (!pending.length) this.pending.delete(url);
-            if (!result || launch.retired) return;
-            const current = this.sessions.get(result.id);
-            const latest = current?.session;
-            this.update(
-                latest &&
-                    latest.status !== 'launching' &&
-                    isLiveExternalPlayerSession(result)
-                    ? latest
-                    : result,
-                current?.source ?? source
-            );
+        return {
+            ended: launch.ended.asReadonly(),
+            finish: (result?: ExternalPlayerSession | void) => {
+                pending.splice(pending.indexOf(launch), 1);
+                if (!pending.length) this.pending.delete(url);
+                if (!result || launch.retired) return;
+                const current = this.sessions.get(result.id);
+                const latest = current?.session;
+                this.record(
+                    latest &&
+                        latest.status !== 'launching' &&
+                        isLiveExternalPlayerSession(result)
+                        ? latest
+                        : result,
+                    current?.source ?? source,
+                    launch
+                );
+            },
         };
     }
 
     update(session: ExternalPlayerSession, source?: XtreamLiveSource): void {
+        this.record(session, source);
+    }
+
+    private record(
+        session: ExternalPlayerSession,
+        source?: XtreamLiveSource,
+        request?: Launch
+    ): void {
         const id = session.id;
         const current = this.sessions.get(id);
+        const associated = current?.launch ?? request;
         if (!isLiveExternalPlayerSession(session)) {
-            if (current?.launch) current.launch.retired = true;
+            if (associated) {
+                associated.retired = true;
+                associated.ended.set(true);
+            }
             clearTimeout(current?.retry);
             if (this.sessions.delete(id))
                 this.revision.update((value) => value + 1);
             return;
         }
         const launch =
-            current?.launch ??
+            associated ??
             this.pending
                 .get(session.streamUrl)
                 ?.find((entry) => !entry.sessionId);
         const owner = source ?? current?.source ?? launch?.source;
         if (!owner) return;
-        if (launch) launch.sessionId = session.id;
+        if (launch) {
+            launch.sessionId = session.id;
+            if (session.status === 'error') launch.ended.set(true);
+        }
         const entry = current ?? { session, source: owner, launch };
         const changed =
             !current || current.session !== session || current.source !== owner;
         entry.session = session;
         entry.source = owner;
+        entry.launch = launch;
         this.sessions.set(session.id, entry);
         if (changed) this.revision.update((value) => value + 1);
         this.enforce(entry);

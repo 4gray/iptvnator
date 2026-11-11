@@ -5,6 +5,7 @@ import {
     inject,
     Injectable,
     linkedSignal,
+    signal,
     untracked,
 } from '@angular/core';
 import {
@@ -32,6 +33,7 @@ interface GuideLaunch {
     archive: EpgProgram | null;
     playback: ResolvedPortalPlayback;
     captureNavigation?: () => void;
+    ended?: () => boolean;
 }
 
 type ConfirmedLaunch = GuideLaunch & { session: ExternalPlayerSession };
@@ -64,7 +66,7 @@ export class XtreamGuideExternalPlayback {
     private readonly store = inject(XtreamStore);
     private readonly destroyRef = inject(DestroyRef);
     private readonly requests = new Map<string, GuideLaunch>();
-    private pending?: GuideLaunch;
+    private readonly pending = signal<GuideLaunch | undefined>(undefined);
     private panel?: GuidePanel;
     private panelPlayback?: ResolvedPortalPlayback;
     private panelSessionId?: string;
@@ -99,11 +101,6 @@ export class XtreamGuideExternalPlayback {
                       ? requested
                       : this.reattach(source);
             if (!launch) return null;
-            if (launch === this.pending) {
-                this.requests.clear();
-                this.requests.set(session.streamUrl, launch);
-                this.pending = undefined;
-            }
             return { ...launch, session };
         },
     });
@@ -133,10 +130,20 @@ export class XtreamGuideExternalPlayback {
         effect(() => {
             const active = this.playback?.activeSession();
             const playing = this.confirmed();
+            const pending = this.pending();
+            const ended = pending?.ended?.();
             untracked(() => {
+                if (pending && playing?.lockSource === pending.lockSource) {
+                    this.requests.clear();
+                    this.requests.set(playing.session.streamUrl, pending);
+                    this.pending.set(undefined);
+                } else if (ended) {
+                    this.pending.set(undefined);
+                }
                 if (!playing) return;
                 const id = playing.session.id;
                 if (
+                    !ended &&
                     this.panelSessionId === id &&
                     !(active?.id === id && active.restoredFromSessionId)
                 )
@@ -153,7 +160,7 @@ export class XtreamGuideExternalPlayback {
 
     reset(): void {
         this.requests.clear();
-        this.pending = undefined;
+        this.pending.set(undefined);
         this.panelPlayback = undefined;
         this.panelSessionId = undefined;
     }
@@ -168,7 +175,7 @@ export class XtreamGuideExternalPlayback {
     ): void {
         if (!playback?.streamUrl) return;
         const playlistId = this.store.currentPlaylist()?.id;
-        const launch = playlistId
+        const launch: GuideLaunch | undefined = playlistId
             ? {
                   lockSource: {
                       playlistId,
@@ -185,14 +192,17 @@ export class XtreamGuideExternalPlayback {
               }
             : undefined;
         this.panelPlayback = playback;
-        this.pending = launch;
-        if (launch) this.requests.set(playback.streamUrl, launch);
-        const finish =
+        const lifecycle =
             launch &&
             this.sessions.begin(playback.streamUrl, launch.lockSource);
+        if (launch) {
+            launch.ended = lifecycle?.ended;
+            this.requests.set(playback.streamUrl, launch);
+        }
+        this.pending.set(launch);
         const recover = () => {
-            if (this.pending !== launch || this.destroyRef.destroyed) return;
-            this.pending = undefined;
+            if (this.pending() !== launch || this.destroyRef.destroyed) return;
+            this.pending.set(undefined);
             const confirmed = this.confirmed();
             if (confirmed) this.syncPanel(confirmed);
         };
@@ -204,7 +214,7 @@ export class XtreamGuideExternalPlayback {
             )
         ).then(
             (session) => {
-                finish?.(session);
+                lifecycle?.finish(session);
                 if (
                     !session ||
                     !isLiveExternalPlayerSession(session) ||
@@ -213,7 +223,7 @@ export class XtreamGuideExternalPlayback {
                     recover();
             },
             () => {
-                finish?.();
+                lifecycle?.finish();
                 recover();
             }
         );
@@ -225,9 +235,10 @@ export class XtreamGuideExternalPlayback {
         capture: () => void,
         queue: readonly XtreamLiveChannelItem[]
     ): boolean {
-        const pending = this.pending;
+        const pending = this.pending();
         if (
             !pending ||
+            pending.ended?.() ||
             pending.archive ||
             pending.item.xtream_id !== item.xtream_id
         )

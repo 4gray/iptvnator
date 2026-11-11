@@ -795,6 +795,8 @@ closable error or has already left the dock. Cancelling a queued replacement
 leaves the allowed player running. If a replacement fails, the confirmed
 channel stays in the guide until it actually closes or another opens. The
 app retries an exact close if the external player cannot confirm its exit.
+A replacement that opens and exits before the guide updates clears its
+pending switch, restores the surviving channel's panel, and can be retried.
 Returning to Live TV reattaches the guide to an external session still playing
 in the same playlist, including a session that survived a failed replacement
 or left the global dock when another playlist started playing. Each session

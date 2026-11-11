@@ -335,6 +335,60 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(3);
     });
 
+    it('allows retry after a replacement opens and closes before rendering', async () => {
+        const playing = { ...sampleChannel, category_id: 1 };
+        const next = { ...playing, xtream_id: 102 };
+        emptyList.set([playing, next]);
+        portalPlayer.isEmbeddedPlayer.set(false);
+        component.playLive(playing, true);
+        const original: ExternalPlayerSession = {
+            id: 'synthetic-original',
+            streamUrl: component.activeStreamUrl(),
+            title: 'Synthetic Channel',
+            player: 'vlc',
+            status: 'playing',
+            startedAt: '2026-04-04T10:00:00Z',
+            updatedAt: '2026-04-04T10:00:00Z',
+            canClose: true,
+        };
+        publishExternalSession(original);
+        component.guide.open();
+        fixture.detectChanges();
+        await Promise.resolve();
+        const source = fixture.debugElement.injector.get(
+            XtreamEpgGuideSourceService
+        );
+        let resolve!: (session: ExternalPlayerSession) => void;
+        xtreamStore.openPlayer.mockReturnValueOnce(
+            new Promise<ExternalPlayerSession>((done) => (resolve = done))
+        );
+        xtreamStore.constructStreamUrl.mockReturnValueOnce(
+            'https://example.test/second.ts'
+        );
+        source.activate('102');
+        const replacement = {
+            ...original,
+            id: 'synthetic-replacement',
+            streamUrl: component.activeStreamUrl(),
+            status: 'opened',
+        } as const;
+        publishExternalSession({ ...replacement, status: 'launching' });
+        publishExternalSession(replacement);
+        resolve(replacement);
+        await Promise.resolve();
+        publishExternalSession({
+            ...replacement,
+            status: 'closed',
+            canClose: false,
+        });
+        fixture.detectChanges();
+
+        expect(source.activeChannelId()).toBe('101');
+        expect(component.activeStreamUrl()).toBe(original.streamUrl);
+        source.activate('102');
+        expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(3);
+    });
+
     it('commits the remote channel order only after an external guide switch opens', () => {
         const playing = { ...sampleChannel, category_id: 1 };
         const neighbor = { ...playing, xtream_id: 103 };

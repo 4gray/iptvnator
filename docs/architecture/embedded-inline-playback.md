@@ -1091,6 +1091,8 @@ Once a reused process accepts a replacement content command, its previous
 session retires; the replacement alone reports the child's eventual exit.
 Overlapping VLC replacements retire the actual owner at the first RC write;
 an older replacement stops sending commands when a newer one takes ownership.
+If the old child exits before that write and no newer launch took ownership,
+the replacement starts a fresh child.
 VLC's fallback launch without RC applies only while the original session
 still owns that child.
 A queued launch that finds the teardown gate closed, because the launch before

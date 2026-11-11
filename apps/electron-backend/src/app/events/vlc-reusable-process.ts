@@ -115,7 +115,9 @@ export class VlcReusableProcess {
             options.previousProcessSessionId;
         const order = ++this.reuseOrder;
         const superseded = () =>
-            order < this.dispatchedReuse || this.process !== reusedProcess;
+            order < this.dispatchedReuse ||
+            (this.process !== null && this.process !== reusedProcess);
+        const lostChild = () => this.process !== reusedProcess;
         const retire = () => {
             const snapshot = externalPlayerSessions.getSession(session.id);
             return snapshot?.status === 'error'
@@ -219,10 +221,11 @@ export class VlcReusableProcess {
                         options.stopPositionPolling(reusedProcessSessionId);
                     }
                 },
-                () => !closeRequested && !superseded()
+                () => !closeRequested && !superseded() && !lostChild()
             );
             if (closeRequested) return await finishRequestedClose();
             if (superseded()) return retire();
+            if (lostChild()) return state.contentMutated ? retire() : null;
             traceExternalPlayer('loaded new url in existing vlc instance');
 
             let lastSnapshot: ExternalPlaybackSnapshot | null = null;
@@ -256,6 +259,7 @@ export class VlcReusableProcess {
             if (current?.status === 'closed') return current;
             if (closeRequested) return await finishRequestedClose();
             if (superseded()) return retire();
+            if (lostChild()) return state.contentMutated ? retire() : null;
             console.error(
                 'Failed to reuse existing VLC, spawning fresh:',
                 error

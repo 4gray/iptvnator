@@ -90,9 +90,9 @@ describe('XtreamExternalLiveSessions', () => {
     it.each(['event', 'result'] as const)(
         'closes a superseded launch that becomes closable after relock (%s)',
         (delivery) => {
-            const finishOld = guard.begin(oldUrl, original);
+            const { finish: finishOld } = guard.begin(oldUrl, original);
             receive(session('old', oldUrl, 'launching'));
-            const finishNew = guard.begin(newUrl, replacement);
+            const { finish: finishNew } = guard.begin(newUrl, replacement);
             const newer = session('new', newUrl, 'opened');
             receive(newer);
             finishNew(newer);
@@ -109,8 +109,10 @@ describe('XtreamExternalLiveSessions', () => {
 
     it('keeps superseded sessions only until their terminal event', () => {
         const old = session('old', oldUrl, 'opened');
-        guard.begin(oldUrl, original)(old);
-        guard.begin(newUrl, replacement)(session('new', newUrl, 'opened'));
+        guard.begin(oldUrl, original).finish(old);
+        guard
+            .begin(newUrl, replacement)
+            .finish(session('new', newUrl, 'opened'));
         relock();
         expect(closeSession).toHaveBeenCalledWith(old);
 
@@ -122,7 +124,7 @@ describe('XtreamExternalLiveSessions', () => {
     });
 
     it('does not restore the old category when a launch response arrives after a copy switch', () => {
-        const finish = guard.begin(oldUrl, original);
+        const { finish } = guard.begin(oldUrl, original);
         const opened = session('old', oldUrl, 'opened');
         receive(opened);
         guard.update(opened, replacement);
@@ -139,7 +141,7 @@ describe('XtreamExternalLiveSessions', () => {
         Object.defineProperty(window.electron, 'closeExternalPlayerSession', {
             value: nativeClose,
         });
-        guard.begin(oldUrl, original)(session('old', oldUrl, 'opened'));
+        guard.begin(oldUrl, original).finish(session('old', oldUrl, 'opened'));
         relock();
         expect(nativeClose).toHaveBeenCalledWith('old', true);
         expect(closeSession).not.toHaveBeenCalled();
@@ -160,7 +162,9 @@ describe('XtreamExternalLiveSessions', () => {
                 'closeExternalPlayerSession',
                 { value: nativeClose }
             );
-            guard.begin(oldUrl, original)(session('old', oldUrl, 'opened'));
+            guard
+                .begin(oldUrl, original)
+                .finish(session('old', oldUrl, 'opened'));
             relock();
             expect(nativeClose).toHaveBeenCalledTimes(1);
             await jest.advanceTimersByTimeAsync(1000);
