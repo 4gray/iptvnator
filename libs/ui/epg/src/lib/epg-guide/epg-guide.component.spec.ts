@@ -204,19 +204,24 @@ describe('EpgGuideComponent', () => {
         expect(close).toHaveBeenCalledTimes(2);
     });
 
-    it('keeps a committed channel visible until its host confirms playback', async () => {
-        await settle(fixture);
-        const close = jest.fn();
-        component.close.subscribe(close);
-        const source = fixture.debugElement.injector.get(EPG_GUIDE_SOURCE);
-        Object.assign(source, { closeOnPlaybackConfirmation: true });
-        const row = component.rows()[2];
-        component.commitRow(row);
-        expect(close).not.toHaveBeenCalled();
-        const confirm = (activate.mock.lastCall as unknown[])[3] as () => void;
-        confirm();
-        expect(close).toHaveBeenCalledTimes(1);
-    });
+    it.each([0, 2])(
+        'keeps a committed channel visible until its host confirms playback (%s)',
+        async (index) => {
+            await settle(fixture);
+            const close = jest.fn();
+            component.close.subscribe(close);
+            const source = fixture.debugElement.injector.get(EPG_GUIDE_SOURCE);
+            Object.assign(source, { closeOnPlaybackConfirmation: true });
+            const row = component.rows()[index];
+            component.commitRow(row);
+            expect(close).not.toHaveBeenCalled();
+            const confirm = (
+                activate.mock.lastCall as unknown[]
+            )[3] as () => void;
+            confirm();
+            expect(close).toHaveBeenCalledTimes(1);
+        }
+    );
 
     it('hides only uncovered rows when "Only with EPG" is on, after coverage arrived', async () => {
         await settle(fixture);

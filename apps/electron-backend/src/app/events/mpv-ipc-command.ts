@@ -86,11 +86,13 @@ export function markMpvOpened(
     confirmFreshMedia = false
 ) {
     if (
-        socketPath &&
         confirmFreshMedia &&
         externalPlayerSessions.getSession(sessionId)?.status === 'launching'
     )
-        externalPlayerSessions.updateSession(sessionId, { mediaLoaded: false });
+        externalPlayerSessions.updateSession(sessionId, {
+            mediaLoaded: false,
+            playbackUnverified: socketPath ? undefined : true,
+        });
     return markExternalPlayerOpened(
         sessionId,
         socketPath

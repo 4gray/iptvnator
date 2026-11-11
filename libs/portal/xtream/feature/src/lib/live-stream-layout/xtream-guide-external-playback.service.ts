@@ -37,6 +37,7 @@ interface GuideLaunch {
     archive: EpgProgram | null;
     playback: ResolvedPortalPlayback;
     ended?: () => boolean;
+    cancel?: () => void;
     remote?: boolean;
     onConfirmed?: () => void;
 }
@@ -158,6 +159,23 @@ export class XtreamGuideExternalPlayback {
         });
     });
 
+    readonly unverifiedStream = computed(() => {
+        const active = this.playback?.activeSession();
+        if (
+            !active?.playbackUnverified ||
+            active.playbackIdle ||
+            (active.status !== 'opened' && active.status !== 'playing')
+        )
+            return false;
+        const source = this.sessions.state(active.id)?.source;
+        this.lock.version();
+        return (
+            !!source &&
+            source.playlistId === this.store.currentPlaylist()?.id &&
+            !isXtreamLiveCategoryWithheld(this.lock, source)
+        );
+    });
+
     remoteTuningItem(): XtreamLiveChannelItem | undefined {
         const pending = this.pending();
         return pending?.remote &&
@@ -191,9 +209,7 @@ export class XtreamGuideExternalPlayback {
                     playing.session.mediaLoaded !== false
                         ? pending
                         : undefined;
-                if (confirmedRequest || ended) {
-                    this.pending.set(undefined);
-                }
+                if (confirmedRequest || ended) this.pending.set(undefined);
                 if (!playing) return;
                 const id = playing.session.id;
                 if (
@@ -250,7 +266,10 @@ export class XtreamGuideExternalPlayback {
                 : undefined;
         this.panelPlayback = playback;
         const lifecycle = launch && this.sessions.begin(launch.lockSource);
-        if (launch) launch.ended = lifecycle?.ended;
+        if (launch) {
+            launch.ended = lifecycle?.ended;
+            launch.cancel = lifecycle?.cancel;
+        }
         this.pending.set(launch);
         const recover = () => {
             if (this.pending() !== launch || this.destroyRef.destroyed) return;
@@ -313,6 +332,23 @@ export class XtreamGuideExternalPlayback {
             if (this.panel?.current() === pending.playback)
                 this.panel.select(item);
         }
+        return true;
+    }
+
+    cancelPendingSwitch(item: XtreamLiveChannelItem): boolean {
+        const pending = this.pending();
+        if (
+            !pending ||
+            pending.ended?.() ||
+            pending.lockSource.playlistId !==
+                this.store.currentPlaylist()?.id ||
+            (pending.item.xtream_id === item.xtream_id && !pending.archive)
+        )
+            return false;
+        pending.cancel?.();
+        this.pending.set(undefined);
+        const confirmed = this.confirmed();
+        if (confirmed) this.syncPanel(confirmed);
         return true;
     }
 

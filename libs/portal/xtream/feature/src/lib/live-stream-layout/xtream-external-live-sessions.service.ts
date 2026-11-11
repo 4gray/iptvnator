@@ -53,6 +53,7 @@ type Launch = {
     source: XtreamLiveSource;
     ended: WritableSignal<boolean>;
     retired?: boolean;
+    cancelled?: boolean;
 };
 type Active = {
     session: ExternalPlayerSession;
@@ -97,7 +98,8 @@ export class XtreamExternalLiveSessions {
         | { session: ExternalPlayerSession; source: XtreamLiveSource }
         | undefined {
         this.revision();
-        return this.sessions.get(id);
+        const entry = this.sessions.get(id);
+        return entry?.launch?.cancelled ? undefined : entry;
     }
 
     latestOpened(
@@ -107,10 +109,11 @@ export class XtreamExternalLiveSessions {
         this.revision();
         this.lock.version();
         let latest: ExternalPlayerSession | undefined;
-        for (const { session, source } of this.sessions.values()) {
+        for (const { session, source, launch } of this.sessions.values()) {
             if (
                 session.id === excludeId ||
                 source.playlistId !== playlistId ||
+                launch?.cancelled ||
                 !source.channel ||
                 !hasXtreamOpenedMedia(session) ||
                 isXtreamLiveCategoryWithheld(this.lock, source)
@@ -135,6 +138,15 @@ export class XtreamExternalLiveSessions {
         return {
             launchId,
             ended: launch.ended.asReadonly(),
+            cancel: () => {
+                if (launch.cancelled || launch.retired) return;
+                launch.cancelled = true;
+                launch.ended.set(true);
+                this.revision.update((value) => value + 1);
+                this.sessions.forEach((entry) => {
+                    if (entry.launch === launch) this.enforce(entry);
+                });
+            },
             finish: (result?: ExternalPlayerSession | void) => {
                 this.pending.delete(launchId);
                 if (!result || launch.retired) return;
@@ -199,10 +211,17 @@ export class XtreamExternalLiveSessions {
         this.enforce(entry);
     }
 
+    private needsClose(entry: Active): boolean {
+        return (
+            !!entry.launch?.cancelled ||
+            isXtreamLiveCategoryWithheld(this.lock, entry.source)
+        );
+    }
+
     private enforce(entry: Active): void {
-        const { session, source } = entry;
+        const { session } = entry;
         if (this.sessions.get(session.id) !== entry) return;
-        if (!isXtreamLiveCategoryWithheld(this.lock, source)) {
+        if (!this.needsClose(entry)) {
             clearTimeout(entry.retry);
             entry.retry = undefined;
             if (entry.hidden && !entry.closing) {
@@ -233,10 +252,7 @@ export class XtreamExternalLiveSessions {
                           entry.closing = false;
                           if (
                               entry.session !== session ||
-                              !isXtreamLiveCategoryWithheld(
-                                  this.lock,
-                                  entry.source
-                              )
+                              !this.needsClose(entry)
                           )
                               this.enforce(entry);
                       } else
@@ -256,7 +272,7 @@ export class XtreamExternalLiveSessions {
                 this.sessions.get(session.id) !== entry
             )
                 return;
-            if (!isXtreamLiveCategoryWithheld(this.lock, entry.source)) {
+            if (!this.needsClose(entry)) {
                 this.enforce(entry);
                 return;
             }

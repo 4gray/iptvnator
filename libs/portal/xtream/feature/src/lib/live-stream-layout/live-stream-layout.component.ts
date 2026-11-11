@@ -583,6 +583,7 @@ export class LiveStreamLayoutComponent
                 this.usesEmbeddedPlayer()
                     ? !!this.activeStreamUrl()
                     : !!this.externalGuide.confirmed() ||
+                      this.externalGuide.unverifiedStream() ||
                       (this.guide.isOpen() &&
                           (this.externalGuide.launching() ||
                               this.externalGuide.idleStream()))
@@ -590,6 +591,15 @@ export class LiveStreamLayoutComponent
         );
         this.guideSource.bind(
             (item, channels, retry, onConfirmed) => {
+                const playing = this.guideChannel();
+                const alreadyLive =
+                    playing &&
+                    playing.xtream_id === item.xtream_id &&
+                    !this.guideArchiveProgram();
+                const cancelled =
+                    onConfirmed &&
+                    alreadyLive &&
+                    this.externalGuide.cancelPendingSwitch(item);
                 if (
                     !this.usesEmbeddedPlayer() &&
                     !retry &&
@@ -601,12 +611,8 @@ export class LiveStreamLayoutComponent
                     )
                 )
                     return;
-                const playing = this.guideChannel();
-                if (
-                    !retry &&
-                    playing?.xtream_id === item.xtream_id &&
-                    !this.guideArchiveProgram()
-                ) {
+                if ((!retry || cancelled) && alreadyLive) {
+                    if (onConfirmed) this.playbackRequestId++;
                     if (!sameXtreamChannelCopy(playing, item))
                         this.switchGuideChannelCopy(item);
                     onConfirmed?.();

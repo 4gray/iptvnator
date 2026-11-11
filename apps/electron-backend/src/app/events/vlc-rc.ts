@@ -139,7 +139,11 @@ export function parseVlcRcPlaybackState(data: string): string | null {
     );
 }
 
-function getVlcCommandResponse(port: number, command: string): Promise<string> {
+function getVlcCommandResponse(
+    port: number,
+    command: string,
+    complete?: (data: string) => boolean
+): Promise<string> {
     return new Promise((resolve) => {
         const client = createConnection({ port, host: '127.0.0.1' });
         let data = '';
@@ -156,11 +160,12 @@ function getVlcCommandResponse(port: number, command: string): Promise<string> {
         client.on('connect', () => client.write(`${command}\n`));
         client.on('data', (chunk) => {
             data += chunk.toString();
-            const complete =
-                command === 'status'
+            const received =
+                complete?.(data) ??
+                (command === 'status'
                     ? parseVlcRcPlaybackState(data) !== null
-                    : data.includes('>');
-            if (complete) finish(data);
+                    : data.includes('>'));
+            if (received) finish(data);
         });
         client.on('error', () => finish(''));
     });
@@ -205,6 +210,15 @@ export function markVlcOpened(sessionId: string, getPort: () => number) {
                     )?.[1]
                     ?.trim();
                 if (!matchesVlcInput(input, mediaUrl)) return null;
+                const parseTime = (data: string) =>
+                    data.match(/^[> \t]*(-?\d+(?:\.\d+)?)[ \t]*\r?$/m)?.[1];
+                const clock = await getVlcCommandResponse(
+                    port,
+                    'get_time',
+                    (data) => parseTime(data) !== undefined
+                );
+                if (getPort() !== port) return undefined;
+                if (!(Number(parseTime(clock)) > 0)) return null;
                 externalPlayerSessions.updateSession(sessionId, {
                     mediaLoaded: true,
                     playbackIdle: false,

@@ -2,14 +2,22 @@ jest.mock('net', () => ({
     createConnection: jest.fn(),
 }));
 
-jest.mock('./external-player-runtime', () => ({
-    traceExternalPlayer: jest.fn(),
-}));
+jest.mock('./external-player-runtime', () => {
+    const { ExternalPlayerSessionRegistry } = jest.requireActual(
+        './external-player-session-registry'
+    );
+    return {
+        traceExternalPlayer: jest.fn(),
+        externalPlayerSessions: new ExternalPlayerSessionRegistry(jest.fn()),
+    };
+});
 
 import { EventEmitter } from 'events';
 import { createConnection } from 'net';
+import { externalPlayerSessions } from './external-player-runtime';
 import {
     MPV_IPC_COMMAND_TIMEOUT_MS,
+    markMpvOpened,
     MpvIpcCommandError,
     sendMpvCommand,
 } from './mpv-ipc-command';
@@ -67,6 +75,20 @@ describe('sendMpvCommand', () => {
 
     afterEach(() => {
         jest.useRealTimers();
+    });
+
+    it('opens a socketless guide launch without confirming media', () => {
+        const session = externalPlayerSessions.beginSession({
+            player: 'mpv',
+            title: 'Synthetic Channel',
+            streamUrl: 'https://example.test/synthetic.ts',
+        });
+        expect(markMpvOpened(session.id, null, undefined, true)).toMatchObject({
+            status: 'opened',
+            mediaLoaded: false,
+            playbackUnverified: true,
+        });
+        expect(createConnectionMock).not.toHaveBeenCalled();
     });
 
     it('sends a request_id and resolves with the matching reply', async () => {

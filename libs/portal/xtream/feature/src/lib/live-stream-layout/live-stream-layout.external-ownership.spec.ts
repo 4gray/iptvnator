@@ -155,6 +155,100 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
         }
     );
 
+    it('cancels an exact pending launch when committing the still-playing channel', () => {
+        const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
+        const component = fixture.componentInstance;
+        const playing = { ...sampleChannel, category_id: 1 };
+        const next = { ...playing, xtream_id: 202 };
+        emptyList.set([playing, next]);
+        portalPlayer.isEmbeddedPlayer.set(false);
+        const nativeClose = jest.fn(() => new Promise(() => undefined));
+        Object.defineProperty(window.electron, 'closeExternalPlayerSession', {
+            value: nativeClose,
+        });
+        fixture.detectChanges();
+        component.playLive(playing, true);
+        const current = {
+            id: 'synthetic-playing',
+            player: 'mpv',
+            status: 'opened',
+            mediaLoaded: true,
+            title: 'Synthetic Playing Channel',
+            streamUrl: component.activeStreamUrl(),
+            canClose: true,
+            startedAt: '2026-04-04T10:00:00Z',
+            updatedAt: '2026-04-04T10:00:00Z',
+        } as const;
+        publishExternalSession(current);
+        fixture.detectChanges();
+        component.guide.open();
+        fixture.detectChanges();
+        const source = fixture.debugElement.injector.get(
+            XtreamEpgGuideSourceService
+        );
+        const nextUrl = 'https://example.test/synthetic-next.ts';
+        xtreamStore.constructStreamUrl.mockReturnValueOnce(nextUrl);
+        xtreamStore.openPlayer.mockImplementationOnce(
+            () => new Promise(() => undefined)
+        );
+        source.activate('202');
+        const commit = jest.fn();
+        source.activate(String(playing.xtream_id), null, undefined, commit);
+        expect(commit).toHaveBeenCalledTimes(1);
+        expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(2);
+
+        publishExternalSession({
+            ...current,
+            id: 'synthetic-late-replacement',
+            streamUrl: nextUrl,
+            title: 'Synthetic Replacement',
+        });
+        fixture.detectChanges();
+        expect(nativeClose).toHaveBeenCalledWith(
+            'synthetic-late-replacement',
+            true
+        );
+        expect(component.guideNowPlayingChannel()).toBe(current.title);
+        expect(source.activeChannelId()).toBe(String(playing.xtream_id));
+    });
+
+    it('keeps a socketless MPV guide available without confirming a committed row', () => {
+        const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
+        const component = fixture.componentInstance;
+        const playing = { ...sampleChannel, category_id: 1 };
+        emptyList.set([playing]);
+        portalPlayer.isEmbeddedPlayer.set(false);
+        fixture.detectChanges();
+        component.playLive(playing, true);
+        const current = {
+            id: 'synthetic-socketless',
+            player: 'mpv',
+            status: 'opened',
+            mediaLoaded: false,
+            playbackUnverified: true,
+            title: 'Synthetic Channel',
+            streamUrl: component.activeStreamUrl(),
+            canClose: true,
+            startedAt: '2026-04-04T10:00:00Z',
+            updatedAt: '2026-04-04T10:00:00Z',
+        } as const;
+        publishExternalSession(current);
+        fixture.detectChanges();
+        expect(component.guide.available()).toBe(true);
+        component.guide.open();
+        fixture.detectChanges();
+        const source = fixture.debugElement.injector.get(
+            XtreamEpgGuideSourceService
+        );
+        expect(source.activeChannelId()).toBeNull();
+        const committed = jest.fn();
+        source.activate(String(playing.xtream_id), null, undefined, committed);
+        publishExternalSession({ ...current, id: 'synthetic-next-socketless' });
+        fixture.detectChanges();
+        expect(component.guide.isOpen()).toBe(true);
+        expect(committed).not.toHaveBeenCalled();
+    });
+
     it('returns to live when tuning within a one-channel archive queue', async () => {
         const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
         const component = fixture.componentInstance;

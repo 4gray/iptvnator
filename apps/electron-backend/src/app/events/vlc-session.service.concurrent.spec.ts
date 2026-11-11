@@ -269,9 +269,11 @@ describe('VLC exact playback ownership', () => {
         spawnMock.mockReturnValueOnce(proc);
         const url = 'https://example.test/synthetic%20channel.ts';
         let input = 'https://example.test/synthetic-old.ts';
+        let playbackTime = 0;
         mockRc((_port, command, reply) => {
             if (command === 'status\n')
                 reply(`( new input: ${input} )\n( state playing )\n`);
+            if (command === 'get_time\n') reply(`> \n${playbackTime}\r\n`);
         });
         const opening = openVlcPlayer({
             title: 'Synthetic Channel',
@@ -292,6 +294,13 @@ describe('VLC exact playback ownership', () => {
             playbackUnverified: true,
         });
         input = decodeURIComponent(url);
+        await jest.advanceTimersByTimeAsync(2_000);
+        await tick();
+        await tick();
+        expect(externalPlayerSessions.getSession(session.id)?.mediaLoaded).toBe(
+            false
+        );
+        playbackTime = 2;
         await jest.advanceTimersByTimeAsync(2_000);
         await tick();
         await tick();
