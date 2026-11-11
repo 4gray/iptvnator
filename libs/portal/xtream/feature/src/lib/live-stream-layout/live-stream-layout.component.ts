@@ -559,7 +559,7 @@ export class LiveStreamLayoutComponent
             currentItem: this.activeGuideItem,
             select: (item) => this.selectGuideLiveItem(item),
             capture: (item, queue) =>
-                this.channelNavigation.capture(item, queue),
+                this.channelNavigation.capture(item, queue, 'replace'),
             restore: ({ item, archive, playback, lockSource }) => {
                 this.activePlaylistId = lockSource.playlistId;
                 this.activePlayback.set(playback);
@@ -585,7 +585,6 @@ export class LiveStreamLayoutComponent
                     this.externalGuide.replacePendingCopy(
                         item,
                         () => this.readLiveProviderCategoryId(item),
-                        () => this.channelNavigation.capture(item, channels),
                         channels
                     )
                 )
@@ -887,13 +886,9 @@ export class LiveStreamLayoutComponent
             tracksExternalPlayback && !startPlayback
                 ? { item, queue: scope }
                 : undefined;
-        const captureNavigation = () =>
-            this.channelNavigation.capture(
-                item,
-                scope,
-                remote ? 'preserve' : 'on-channel-change'
-            );
-        if (!tracksExternalPlayback) captureNavigation();
+        const queuePolicy = remote ? 'preserve' : 'on-channel-change';
+        if (!tracksExternalPlayback)
+            this.channelNavigation.capture(item, scope, queuePolicy);
         this.activeCatchupProgram.set(null);
         // Keep both root/recently-added playback and same-category replays in
         // sync with the category rail. For already-selected channels this is a
@@ -949,10 +944,7 @@ export class LiveStreamLayoutComponent
             item,
             null,
             this.activeLiveProviderCategoryId,
-            tracksExternalPlayback ? captureNavigation : undefined,
-            tracksExternalPlayback && remote
-                ? this.channelNavigation.remoteChannels()
-                : scope,
+            this.channelNavigation.queueFor(item, scope, queuePolicy),
             remote
         );
     }
@@ -1254,16 +1246,17 @@ export class LiveStreamLayoutComponent
         const external =
             !this.usesEmbeddedPlayer() && this.externalGuide.hasSessionUpdates;
         const preview = this.archivePreview;
-        const confirmed = this.externalGuide.confirmed();
         const fromPreview =
             preview &&
             this.activePlaylistId === playlist.id &&
             sameXtreamChannelCopy(preview.item, item);
-        const queue = fromPreview
-            ? preview.queue
-            : confirmed && sameXtreamChannelCopy(confirmed.item, item)
-              ? this.channelNavigation.remoteChannels()
-              : this.channelNavigation.displayedChannels();
+        const queue = this.channelNavigation.queueFor(
+            item,
+            fromPreview
+                ? preview.queue
+                : this.channelNavigation.displayedChannels(),
+            fromPreview ? 'replace' : 'on-channel-change'
+        );
         const category = this.readLiveProviderCategoryId(item);
         const resolved =
             external && category === 'unknown'
@@ -1319,14 +1312,6 @@ export class LiveStreamLayoutComponent
             item,
             program,
             this.activeLiveProviderCategoryId,
-            external
-                ? () =>
-                      this.channelNavigation.capture(
-                          item,
-                          queue,
-                          fromPreview ? 'replace' : 'on-channel-change'
-                      )
-                : undefined,
             queue
         );
     }

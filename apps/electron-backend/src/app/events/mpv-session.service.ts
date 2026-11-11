@@ -393,7 +393,15 @@ async function launchMpvPlayer(
             startConfirmationTimer.unref();
         });
 
-        return markMpvOpened(session.id, socketPath) ?? session;
+        return (
+            markMpvOpened(
+                session.id,
+                socketPath,
+                () =>
+                    !reuseInstance ||
+                    reusableMpvProcess.currentSessionId() === session.id
+            ) ?? session
+        );
     } catch (error) {
         console.error('Error opening MPV player:', error);
         if (!reuseState.teardownUnconfirmed && !freshTeardownUnconfirmed) {

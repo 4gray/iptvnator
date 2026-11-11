@@ -42,16 +42,21 @@ export class MpvIpcCommandError extends Error {
 
 let nextRequestId = 1;
 
-export function markMpvOpened(sessionId: string, socketPath?: string | null) {
+export function markMpvOpened(
+    sessionId: string,
+    socketPath?: string | null,
+    hasOwner = () => true
+) {
     return markExternalPlayerOpened(
         sessionId,
         socketPath
             ? async (shouldDispatch) => {
+                  if (!hasOwner()) return undefined;
                   const reply = await sendMpvCommand(
                       socketPath,
                       'get_property',
                       ['idle-active'],
-                      { shouldDispatch }
+                      { shouldDispatch: () => shouldDispatch() && hasOwner() }
                   );
                   return reply && typeof reply.data === 'boolean'
                       ? reply.data

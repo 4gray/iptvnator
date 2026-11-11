@@ -287,7 +287,15 @@ export class MpvReusableProcess {
             } else {
                 options.stopPositionPolling(session.id);
             }
-            return markMpvOpened(session.id, reusedSocketPath) ?? session;
+            return (
+                markMpvOpened(
+                    session.id,
+                    reusedSocketPath,
+                    () =>
+                        this.process === reusedProcess &&
+                        this.processSessionIds.get(reusedProcess) === session.id
+                ) ?? session
+            );
         } catch (error) {
             const current = externalPlayerSessions.getSession(session.id);
             if (current?.status === 'closed') return current;

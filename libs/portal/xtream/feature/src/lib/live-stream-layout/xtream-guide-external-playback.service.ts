@@ -35,7 +35,6 @@ interface GuideLaunch {
     item: XtreamLiveChannelItem;
     archive: EpgProgram | null;
     playback: ResolvedPortalPlayback;
-    captureNavigation?: () => void;
     ended?: () => boolean;
     remote?: boolean;
 }
@@ -93,19 +92,21 @@ export class XtreamGuideExternalPlayback {
         ): ConfirmedLaunch | null => {
             if (!playlistId || !this.hasSessionUpdates) return null;
             const prior = previous?.value;
-            const owned =
-                hasOpened(active) &&
-                this.sessions.state(active.id)?.source.playlistId ===
-                    playlistId;
+            const activeSource = hasOpened(active)
+                ? this.sessions.state(active.id)?.source
+                : undefined;
+            const owned = activeSource?.playlistId === playlistId;
+            this.lock.version();
             const previousSession =
                 prior?.lockSource.playlistId === playlistId &&
                 prior.session.id !== active?.id
                     ? this.sessions.state(prior.session.id)?.session
                     : undefined;
-            const session = owned
-                ? active
-                : (this.sessions.latestOpened(playlistId, active?.id) ??
-                  previousSession);
+            const session =
+                owned && !isXtreamLiveCategoryWithheld(this.lock, activeSource)
+                    ? active
+                    : (this.sessions.latestOpened(playlistId, active?.id) ??
+                      (owned ? active : previousSession));
             if (!hasOpened(session)) return null;
             const source = this.sessions.state(session.id)?.source;
             if (!source) return null;
@@ -215,7 +216,6 @@ export class XtreamGuideExternalPlayback {
         item: XtreamLiveChannelItem,
         archive: EpgProgram | null,
         categoryId: XtreamLiveSource['categoryId'],
-        captureNavigation?: () => void,
         queue?: readonly XtreamLiveChannelItem[],
         remote = false
     ): void {
@@ -235,7 +235,6 @@ export class XtreamGuideExternalPlayback {
                       item,
                       archive,
                       playback,
-                      captureNavigation,
                       remote,
                   }
                 : undefined;
@@ -280,7 +279,6 @@ export class XtreamGuideExternalPlayback {
     replacePendingCopy(
         item: XtreamLiveChannelItem,
         category: () => XtreamLiveSource['categoryId'],
-        capture: () => void,
         queue: readonly XtreamLiveChannelItem[]
     ): boolean {
         const pending = this.pending();
@@ -296,7 +294,6 @@ export class XtreamGuideExternalPlayback {
             pending.lockSource.categoryId = category();
             pending.lockSource.channel = item;
             pending.lockSource.queue = queue;
-            pending.captureNavigation = capture;
             if (this.panel?.current() === pending.playback)
                 this.panel.select(item);
         }
@@ -322,7 +319,6 @@ export class XtreamGuideExternalPlayback {
                 channel: item,
                 queue,
             },
-            captureNavigation: () => this.panel?.capture(item, queue),
         };
         this.requests.set(playing.session.streamUrl, copy);
         this.playing.set(copy);
@@ -355,8 +351,6 @@ export class XtreamGuideExternalPlayback {
             item,
             archive: source.archive ?? null,
             playback: source.playback,
-            captureNavigation: () =>
-                this.panel?.capture(item, source.queue ?? [item]),
         };
     }
 
@@ -364,7 +358,7 @@ export class XtreamGuideExternalPlayback {
         const panel = this.panel;
         if (!panel) return;
         const current = panel.current();
-        launch.captureNavigation?.();
+        panel.capture(launch.item, launch.lockSource.queue ?? [launch.item]);
         if (current && current !== this.panelPlayback) return;
         if (current === launch.playback && panel.currentItem() === launch.item)
             return;

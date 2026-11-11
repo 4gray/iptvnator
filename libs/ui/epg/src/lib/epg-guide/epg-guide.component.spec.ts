@@ -160,8 +160,17 @@ describe('EpgGuideComponent', () => {
         component.activateRow(row);
         expect(retry).not.toHaveBeenCalled();
         component.commitRow(row);
-        expect(retry).toHaveBeenCalledWith(row);
+        expect(retry).toHaveBeenCalledWith(row, component.rows());
         expect(activate).not.toHaveBeenCalled();
+    });
+
+    it('passes the displayed row order when activating a filtered channel', async () => {
+        await settle(fixture);
+        component.setFilter('channel c');
+        const rows = component.rows();
+        component.activateRow(rows[0]);
+        expect(activate).toHaveBeenCalledWith('c', rows[0].epgKey, rows);
+        expect(rows.map((row) => row.id)).toEqual(['c']);
     });
 
     it('lists the scope channels in order and marks the active one', async () => {
@@ -176,7 +185,11 @@ describe('EpgGuideComponent', () => {
         component.close.subscribe(close);
         activate.mockImplementation((id: string) => activeChannelId.set(id));
         component.activateRow(component.rows()[2]);
-        expect(activate).toHaveBeenCalledWith('c', component.rows()[2].epgKey);
+        expect(activate).toHaveBeenCalledWith(
+            'c',
+            component.rows()[2].epgKey,
+            component.rows()
+        );
         expect(close).not.toHaveBeenCalled();
         // click, click, dblclick: the second click and the commit must not
         // restart the stream that is already playing.
@@ -247,14 +260,22 @@ describe('EpgGuideComponent', () => {
                 archiveUnavailableNote: true,
             })
         );
-        expect(activate).toHaveBeenCalledWith('c', row.epgKey);
+        expect(activate).toHaveBeenCalledWith(
+            'c',
+            row.epgKey,
+            component.rows()
+        );
     });
 
     it('re-activates the active row while catch-up plays, so the host can return to live', async () => {
         livePlayback.set(false);
         await settle(fixture);
         component.activateRow(component.rows()[0]);
-        expect(activate).toHaveBeenCalledWith('a', component.rows()[0].epgKey);
+        expect(activate).toHaveBeenCalledWith(
+            'a',
+            component.rows()[0].epgKey,
+            component.rows()
+        );
         livePlayback.set(true);
         activate.mockClear();
         component.activateRow(component.rows()[0]);

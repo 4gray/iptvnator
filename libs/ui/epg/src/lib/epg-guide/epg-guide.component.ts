@@ -425,13 +425,13 @@ export class EpgGuideComponent implements OnDestroy {
             this.source.channels().find((row) => row.id === channel.id)
                 ?.epgKey === channel.epgKey;
         if (alreadyLive) return;
-        this.source.activate(channel.id, channel.epgKey);
+        this.source.activate(channel.id, channel.epgKey, this.rows());
         this.channelActivated.emit(channel.id);
     }
 
     commitRow(channel: EpgGuideChannel | undefined): void {
         if (!channel) return;
-        if (this.source.retryActive?.(channel))
+        if (this.source.retryActive?.(channel, this.rows()))
             this.channelActivated.emit(channel.id);
         else this.activateRow(channel);
         this.close.emit();

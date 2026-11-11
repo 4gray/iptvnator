@@ -94,11 +94,16 @@ function installRcSocketMock(
             destroyed: false,
             write: jest.fn((data: string) => {
                 rcWrites.push(data);
-                const reply =
-                    data === 'status\n' && playbackState
-                        ? `( state ${playbackState} )\n> `
-                        : '> ';
-                setImmediate(() => socket.emit('data', Buffer.from(reply)));
+                setImmediate(() => {
+                    socket.emit('data', Buffer.from('> '));
+                    if (data === 'status\n' && playbackState)
+                        setImmediate(() =>
+                            socket.emit(
+                                'data',
+                                Buffer.from(`( state ${playbackState} )\n> `)
+                            )
+                        );
+                });
                 return true;
             }),
             destroy: jest.fn(() => {
@@ -159,21 +164,27 @@ describe('vlc-session.service process lifecycle', () => {
             });
         });
 
-        it('reports stopped VLC playback while preserving its closer', async () => {
+        it('reports stopped and resumed VLC playback after the RC greeting', async () => {
             jest.useFakeTimers({ doNotFake: ['setImmediate'] });
             const proc = createMockChildProcess();
             try {
                 await openTrackedVlcInstance(proc);
                 const id =
                     externalPlayerSessions.getActiveSessionId() as string;
-                installRcSocketMock('ack', 'stopped');
-                await jest.advanceTimersByTimeAsync(2_000);
-                await new Promise<void>((done) => setImmediate(done));
-                expect(externalPlayerSessions.getSession(id)).toMatchObject({
-                    status: 'opened',
-                    playbackIdle: true,
-                    canClose: true,
-                });
+                for (const state of ['stopped', 'playing'] as const) {
+                    installRcSocketMock('ack', state);
+                    await jest.advanceTimersByTimeAsync(2_000);
+                    await new Promise<void>((done) =>
+                        setImmediate(() => setImmediate(done))
+                    );
+                    expect(externalPlayerSessions.getSession(id)).toMatchObject(
+                        {
+                            status: 'opened',
+                            playbackIdle: state === 'stopped',
+                            canClose: true,
+                        }
+                    );
+                }
             } finally {
                 Object.defineProperty(proc, 'exitCode', { value: 0 });
                 proc.emit('exit', 0);

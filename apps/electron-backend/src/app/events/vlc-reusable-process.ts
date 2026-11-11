@@ -300,7 +300,14 @@ export class VlcReusableProcess {
                     }
                 );
             }
-            return markVlcOpened(session.id, () => reusedRcPort) ?? session;
+            return (
+                markVlcOpened(session.id, () =>
+                    this.process === reusedProcess &&
+                    this.processSessionIds.get(reusedProcess) === session.id
+                        ? reusedRcPort
+                        : 0
+                ) ?? session
+            );
         } catch (error) {
             const current = externalPlayerSessions.getSession(session.id);
             if (current?.status === 'closed') return current;

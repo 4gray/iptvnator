@@ -29,10 +29,12 @@ import { createXtreamGuideNowPlaying } from './xtream-guide-now-playing';
 import {
     injectXtreamGuideSchedules,
     scheduleKey,
+    programmeOverlapsGuideWindow,
 } from './xtream-guide-schedules';
 import {
     xtreamCategoryKey as categoryKey,
     sameXtreamChannelCopy,
+    xtreamRowsByStreamId,
     XtreamLiveChannelItem,
     XtreamLiveChannelNavigationService,
 } from './xtream-live-channel-navigation.service';
@@ -47,27 +49,6 @@ function name(item: XtreamLiveChannelItem): string {
 
 function channelEpgKey(item: XtreamLiveChannelItem): string {
     return `${categoryKey(item.category_id)}:${scheduleKey(item)}`;
-}
-
-function rowsByStreamId(
-    items: readonly XtreamLiveChannelItem[]
-): Map<string, XtreamLiveChannelItem> {
-    const rows = new Map<string, XtreamLiveChannelItem>();
-    for (const item of items) {
-        const id = String(item.xtream_id);
-        if (!rows.has(id)) rows.set(id, item);
-    }
-    return rows;
-}
-
-function overlaps(program: EpgProgram, window: EpgGuideWindow): boolean {
-    const start = program.startTimestamp
-        ? program.startTimestamp * 1000
-        : Date.parse(program.start);
-    const stop = program.stopTimestamp
-        ? program.stopTimestamp * 1000
-        : Date.parse(program.stop);
-    return stop > start && start < window.toMs && stop > window.fromMs;
 }
 
 @Injectable()
@@ -141,7 +122,9 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         this.items,
         () => this.runtime.supportsXtreamSqliteDataSource
     );
-    private readonly catalog = computed(() => rowsByStreamId(this.items()));
+    private readonly catalog = computed(() =>
+        xtreamRowsByStreamId(this.items())
+    );
 
     readonly revision = computed(() => ({
         playlist: this.playlist(),
@@ -188,7 +171,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         if (scope === FAVORITES) {
             const favorites = this.favorites();
             const sqlite = this.runtime.supportsXtreamSqliteDataSource;
-            return rowsByStreamId(
+            return xtreamRowsByStreamId(
                 items.filter(
                     (item) =>
                         favorites.get(item.xtream_id) ===
@@ -196,7 +179,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
                 )
             );
         }
-        return rowsByStreamId(
+        return xtreamRowsByStreamId(
             items.filter((item) => categoryKey(item.category_id) === scope)
         );
     });
@@ -295,11 +278,15 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
             this.scopeId.set(id);
     }
 
-    activate(id: string, epgKey?: string | null): void {
+    activate(
+        id: string,
+        epgKey?: string | null,
+        displayed?: readonly EpgGuideChannel[]
+    ): void {
         if (!this.session()) return;
         const scoped = this.scopedRows().get(id);
         if (!epgKey || (scoped && channelEpgKey(scoped) === epgKey)) {
-            if (scoped) this.play?.(scoped, this.scopedItems());
+            if (scoped) this.play?.(scoped, this.visibleItems(displayed));
             return;
         }
         const exact = this.items().find(
@@ -309,7 +296,10 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         if (exact) this.play?.(exact, [exact]);
     }
 
-    retryActive(channel: EpgGuideChannel): boolean {
+    retryActive(
+        channel: EpgGuideChannel,
+        displayed?: readonly EpgGuideChannel[]
+    ): boolean {
         if (
             !this.session() ||
             !this.livePlayback() ||
@@ -320,8 +310,18 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
             return false;
         const item = this.scopedRows().get(channel.id);
         if (!item || channelEpgKey(item) !== channel.epgKey) return false;
-        this.play(item, this.scopedItems(), true);
+        this.play(item, this.visibleItems(displayed), true);
         return true;
+    }
+
+    private visibleItems(displayed?: readonly EpgGuideChannel[]) {
+        if (!displayed) return this.scopedItems();
+        const scope = this.scopedRows();
+        return displayed.reduce<XtreamLiveChannelItem[]>((items, row) => {
+            const item = scope.get(row.id);
+            if (item && channelEpgKey(item) === row.epgKey) items.push(item);
+            return items;
+        }, []);
     }
 
     async loadPrograms(
@@ -335,7 +335,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
                     return [
                         id,
                         (await read(rows.get(id))).filter((program) =>
-                            overlaps(program, window)
+                            programmeOverlapsGuideWindow(program, window)
                         ),
                     ] as const;
                 } catch {
@@ -366,7 +366,9 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
                 checkCurrent();
                 return null;
             });
-            const matches = programs?.filter((item) => overlaps(item, window));
+            const matches = programs?.filter((item) =>
+                programmeOverlapsGuideWindow(item, window)
+            );
             if (!matches || matches.length) covered.add(id);
             reportPrograms?.(id, matches ?? null);
         }

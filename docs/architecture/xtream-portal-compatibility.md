@@ -807,6 +807,9 @@ Returning to Live TV in external-player mode reattaches the guide to a
 session still playing in the same playlist, including a failed replacement's survivor
 or left the global dock when another playlist started playing. Each session
 keeps its own category and queue, even when launches share a stream URL.
+The queue saved for a same-channel replay is the queue it preserves.
+Restoring a surviving session restores that session's order even if the
+channel is the same. Guide tuning captures the rows visible after filtering.
 The guide uses the current playlist's visible, unlocked
 live catalogue and can scope it to a category or resolved live favorites.
 A stream shared by multiple categories appears in each of those scopes and

@@ -655,7 +655,13 @@ export async function openVlcPlayer({
             spawnVlc(args);
         });
 
-        return markVlcOpened(session.id, () => playbackRcPort) ?? session;
+        return (
+            markVlcOpened(session.id, () =>
+                reusableVlcProcess.currentSessionId() === session.id
+                    ? playbackRcPort
+                    : 0
+            ) ?? session
+        );
     } catch (error) {
         console.error('Error opening VLC player:', error);
         const restoredSession =

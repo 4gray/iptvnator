@@ -258,7 +258,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         expect(xtreamStore.constructStreamUrl).toHaveBeenLastCalledWith(next);
     });
 
-    it.each(['live', 'archive', 'same-channel archive'] as const)(
+    it.each(['live', 'filtered', 'archive', 'same-channel archive'] as const)(
         'commits the remote order only after %s opens',
         async (mode) => {
             const playing = { ...sampleChannel, category_id: 1 };
@@ -334,7 +334,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
 
                 const sameChannelArchive = mode === 'same-channel archive';
                 const archiveChannel = sameChannelArchive ? playing : next;
-                if (mode !== 'live') {
+                if (mode === 'archive' || sameChannelArchive) {
                     component.playLive(
                         archiveChannel,
                         false,
@@ -356,17 +356,28 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                     xtreamStore.constructStreamUrl.mockReturnValueOnce(
                         replacement.streamUrl
                     );
-                    source.activate('102');
+                    const displayed =
+                        mode === 'filtered'
+                            ? source
+                                  .channels()
+                                  .filter((row) => row.id === '102')
+                            : undefined;
+                    source.activate('102', undefined, displayed);
                 }
-                publishExternalSession({
+                const reopened = {
                     ...replacement,
                     id: 'synthetic-retry',
                     streamUrl: component.activeStreamUrl(),
-                    status: 'opened',
-                });
+                    status: 'opened' as const,
+                };
+                publishExternalSession(reopened);
                 fixture.detectChanges();
                 expect(queue()).toEqual(
-                    sameChannelArchive ? [104, 101] : [102, 104]
+                    sameChannelArchive
+                        ? [104, 101]
+                        : mode === 'filtered'
+                          ? [102]
+                          : [102, 104]
                 );
                 expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
                     expect.objectContaining({
@@ -374,6 +385,15 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                         channelNumber: sameChannelArchive ? 2 : 1,
                     })
                 );
+                if (sameChannelArchive) {
+                    publishExternalSession({
+                        ...reopened,
+                        status: 'closed',
+                        canClose: false,
+                    });
+                    fixture.detectChanges();
+                    expect(queue()).toEqual([101, 103]);
+                }
             } finally {
                 xtreamStore.getCategoriesBySelectedType.set(categories);
             }
@@ -384,6 +404,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         'playing',
         'replacement',
         'replacement with closable error',
+        'opened replacement',
     ] as const)(
         'stops the %s external channel when parental controls relock it',
         (locked) => {
@@ -415,7 +436,14 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 status: 'launching',
                 canClose: false,
             } as const;
-            publishExternalSession(pending);
+            const openedReplacement = {
+                ...pending,
+                status: 'opened' as const,
+                canClose: true,
+            };
+            publishExternalSession(
+                locked === 'opened replacement' ? openedReplacement : pending
+            );
             fixture.detectChanges();
 
             parentalLock.isXtreamCategoryLocked.mockImplementation(
@@ -425,6 +453,12 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             parentalLock.active.set(true);
             parentalLock.version.update((version) => version + 1);
             fixture.detectChanges();
+            if (locked === 'opened replacement') {
+                expect(closeSession).toHaveBeenCalledWith(openedReplacement);
+                expect(component.guide.isOpen()).toBe(true);
+                expect(component.activeStreamUrl()).toBe(original.streamUrl);
+                return;
+            }
             if (locked !== 'playing') {
                 expect(component.activeStreamUrl()).toBe(original.streamUrl);
                 expect(
@@ -439,9 +473,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 publishExternalSession(opened);
                 fixture.detectChanges();
                 expect(closeSession).toHaveBeenCalledWith(opened);
-                expect(component.guide.available()).toBe(
-                    locked !== 'replacement'
-                );
+                expect(component.guide.available()).toBe(true);
                 expect(xtreamStore.loadEpg).toHaveBeenCalledTimes(1);
                 expect(xtreamStore.setSelectedItem).toHaveBeenLastCalledWith(
                     playing
@@ -694,6 +726,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         'switched copy',
         'changed to embedded',
         'launch-only bridge',
+        'same-channel replay',
     ] as const)(
         'reattaches external playback when Live TV reopens (%s)',
         async (scenario) => {
@@ -714,7 +747,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             emptyList.set(switched ? [playing, next, copy] : [playing, next]);
             portalPlayer.isEmbeddedPlayer.set(false);
             component.playLive(playing, true, [next, playing]);
-            const session: ExternalPlayerSession = {
+            let session: ExternalPlayerSession = {
                 id: 'synthetic-return',
                 streamUrl: component.activeStreamUrl(),
                 title: 'Synthetic Channel',
@@ -753,6 +786,12 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                     status: 'error',
                     canClose: false,
                 });
+                fixture.detectChanges();
+            }
+            if (scenario === 'same-channel replay') {
+                component.playLive(playing, true, [playing]);
+                session = { ...session, id: 'synthetic-replay' };
+                publishExternalSession(session);
                 fixture.detectChanges();
             }
             fixture.destroy();
@@ -798,7 +837,10 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             fixture.detectChanges();
             expect(component.guideNowPlayingChannel()).toBe(session.title);
             expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(
-                scenario === 'failed replacement' ? 2 : 1
+                scenario === 'failed replacement' ||
+                    scenario === 'same-channel replay'
+                    ? 2
+                    : 1
             );
             xtreamStore.currentPlaylist.set({
                 ...playlist,

@@ -5,6 +5,7 @@ import {
     type XtreamCredentials,
 } from '@iptvnator/portal/xtream/data-access';
 import type { EpgItem, EpgProgram } from '@iptvnator/shared/interfaces';
+import type { EpgGuideWindow } from '@iptvnator/ui/epg';
 import { toSharedEpgProgram } from '../portal-channels-list/epg-preview-program';
 import type { XtreamLiveChannelItem } from './xtream-live-channel-navigation.service';
 import { XtreamGuideScheduleCache } from './xtream-guide-schedule-cache';
@@ -17,6 +18,19 @@ const EMPTY: XtreamGuideSchedule = { items: [], programs: [] };
 
 export function scheduleKey(item: XtreamLiveChannelItem): string {
     return `${item.xtream_id}:${item.epg_channel_id ?? ''}`;
+}
+
+export function programmeOverlapsGuideWindow(
+    program: EpgProgram,
+    window: EpgGuideWindow
+): boolean {
+    const start = program.startTimestamp
+        ? program.startTimestamp * 1000
+        : Date.parse(program.start);
+    const stop = program.stopTimestamp
+        ? program.stopTimestamp * 1000
+        : Date.parse(program.stop);
+    return stop > start && start < window.toMs && stop > window.fromMs;
 }
 
 export function injectXtreamGuideSchedules(

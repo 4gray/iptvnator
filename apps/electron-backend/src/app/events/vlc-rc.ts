@@ -144,7 +144,11 @@ function getVlcCommandResponse(port: number, command: string): Promise<string> {
         client.on('connect', () => client.write(`${command}\n`));
         client.on('data', (chunk) => {
             data += chunk.toString();
-            if (data.includes('>')) finish(data);
+            const complete =
+                command === 'status'
+                    ? parseVlcRcPlaybackState(data) !== null
+                    : data.includes('>');
+            if (complete) finish(data);
         });
         client.on('error', () => finish(''));
     });

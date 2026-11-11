@@ -36,6 +36,8 @@ export interface XtreamLiveChannelItem {
     readonly xtream_id: number;
 }
 
+type QueuePolicy = 'on-channel-change' | 'preserve' | 'replace';
+
 export function xtreamCategoryKey(
     id: string | number | null | undefined
 ): string {
@@ -68,6 +70,17 @@ export function replaceXtreamQueuedCopy(
               entry.xtream_id === item.xtream_id ? item : entry
           )
         : [item];
+}
+
+export function xtreamRowsByStreamId(
+    items: readonly XtreamLiveChannelItem[]
+): Map<string, XtreamLiveChannelItem> {
+    const rows = new Map<string, XtreamLiveChannelItem>();
+    for (const item of items) {
+        const id = String(item.xtream_id);
+        if (!rows.has(id)) rows.set(id, item);
+    }
+    return rows;
 }
 
 /** Browse state is independent from the ordered list that started playback. */
@@ -207,19 +220,13 @@ export class XtreamLiveChannelNavigationService {
     capture(
         item: XtreamLiveChannelItem,
         items: readonly XtreamLiveChannelItem[] = this.displayedChannels(),
-        policy:
-            'on-channel-change' | 'preserve' | 'replace' = 'on-channel-change'
+        policy: QueuePolicy = 'on-channel-change'
     ): void {
         this.requestSequence++;
         this.pendingReveal.set(null);
         const owner = this.owner();
-        const active = this.activeItem();
         const key = channelCopyKey(item);
-        if (
-            policy === 'replace' ||
-            (policy === 'on-channel-change' &&
-                (!active || channelCopyKey(active) !== key))
-        ) {
+        if (this.shouldReplaceQueue(item, policy)) {
             this.queue.capture(
                 owner,
                 JSON.stringify([
@@ -236,6 +243,28 @@ export class XtreamLiveChannelNavigationService {
             );
         }
         this.playing.set({ owner, item });
+    }
+
+    queueFor(
+        item: XtreamLiveChannelItem,
+        items: readonly XtreamLiveChannelItem[],
+        policy: QueuePolicy = 'on-channel-change'
+    ): readonly XtreamLiveChannelItem[] {
+        return this.shouldReplaceQueue(item, policy)
+            ? items
+            : this.queue.items(this.owner());
+    }
+
+    private shouldReplaceQueue(
+        item: XtreamLiveChannelItem,
+        policy: QueuePolicy
+    ): boolean {
+        const active = this.activeItem();
+        return (
+            policy === 'replace' ||
+            (policy === 'on-channel-change' &&
+                (!active || !sameXtreamChannelCopy(active, item)))
+        );
     }
 
     async reveal(): Promise<void> {
