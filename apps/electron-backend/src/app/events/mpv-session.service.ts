@@ -42,8 +42,8 @@ import {
     MpvReusableProcess,
     MpvReuseAttemptState,
 } from './mpv-reusable-process';
+import { markMpvOpened } from './mpv-ipc-command';
 import { attachMpvOutputHandlers } from './mpv-output-errors';
-import { markMpvOpened } from './mpv-idle-monitor';
 import {
     startPositionPolling,
     stopPositionPolling,

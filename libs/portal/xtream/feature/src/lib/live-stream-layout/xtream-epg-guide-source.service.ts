@@ -31,6 +31,8 @@ import {
     scheduleKey,
 } from './xtream-guide-schedules';
 import {
+    xtreamCategoryKey as categoryKey,
+    sameXtreamChannelCopy,
     XtreamLiveChannelItem,
     XtreamLiveChannelNavigationService,
 } from './xtream-live-channel-navigation.service';
@@ -43,24 +45,8 @@ function name(item: XtreamLiveChannelItem): string {
     return item.title || item.name || '';
 }
 
-function categoryKey(id: string | number | null | undefined): string {
-    const raw = String(id ?? '').trim();
-    const numeric = Number(raw);
-    return raw && Number.isFinite(numeric) ? String(numeric) : raw;
-}
-
 function channelEpgKey(item: XtreamLiveChannelItem): string {
     return `${categoryKey(item.category_id)}:${scheduleKey(item)}`;
-}
-
-export function sameGuideChannel(
-    left: XtreamLiveChannelItem,
-    right: XtreamLiveChannelItem
-): boolean {
-    return (
-        left.xtream_id === right.xtream_id &&
-        categoryKey(left.category_id) === categoryKey(right.category_id)
-    );
 }
 
 function rowsByStreamId(
@@ -238,7 +224,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         if (!item) return null;
         const id = String(item.xtream_id);
         const row = this.scopedRows().get(id);
-        return row && sameGuideChannel(row, item) ? id : null;
+        return row && sameXtreamChannelCopy(row, item) ? id : null;
     });
     isChannelVisible = (epgKey: string) =>
         this.items().some((item) => channelEpgKey(item) === epgKey);
@@ -246,7 +232,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     readonly playingItem = computed(() => {
         const item = this.playback().item;
         return item
-            ? this.items().find((row) => sameGuideChannel(row, item))
+            ? this.items().find((row) => sameXtreamChannelCopy(row, item))
             : undefined;
     });
     private readonly schedules = injectXtreamGuideSchedules(
@@ -272,11 +258,17 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     readonly playbackSchedule = this.schedules.forPlayback;
     private play?: (
         item: XtreamLiveChannelItem,
-        scope: readonly XtreamLiveChannelItem[]
+        scope: readonly XtreamLiveChannelItem[],
+        retry?: boolean
     ) => void;
+    private canRetryUnverified?: () => boolean;
 
-    bind(play: NonNullable<XtreamEpgGuideSourceService['play']>): void {
+    bind(
+        play: NonNullable<XtreamEpgGuideSourceService['play']>,
+        canRetryUnverified?: () => boolean
+    ): void {
         this.play = play;
+        this.canRetryUnverified = canRetryUnverified;
     }
 
     setPlayback(item: XtreamLiveChannelItem | null, live: boolean): void {
@@ -315,6 +307,21 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
                 String(item.xtream_id) === id && channelEpgKey(item) === epgKey
         );
         if (exact) this.play?.(exact, [exact]);
+    }
+
+    retryActive(channel: EpgGuideChannel): boolean {
+        if (
+            !this.session() ||
+            !this.livePlayback() ||
+            channel.id !== this.activeChannelId() ||
+            !this.canRetryUnverified?.() ||
+            !this.play
+        )
+            return false;
+        const item = this.scopedRows().get(channel.id);
+        if (!item || channelEpgKey(item) !== channel.epgKey) return false;
+        this.play(item, this.scopedItems(), true);
+        return true;
     }
 
     async loadPrograms(

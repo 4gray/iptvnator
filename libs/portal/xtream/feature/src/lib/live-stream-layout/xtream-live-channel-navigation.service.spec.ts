@@ -142,7 +142,7 @@ describe('XtreamLiveChannelNavigationService', () => {
         service.sortMode.set('name-desc');
         query.next(convertToParamMap({ q: 'Other' }));
         expect(service.remoteChannels()).toEqual([second, first]);
-        service.capture(second, service.displayedChannels(), true);
+        service.capture(second, service.displayedChannels(), 'preserve');
         expect(service.remoteChannels()).toEqual([second, first]);
         service.capture(second);
         expect(service.remoteChannels()).toEqual([second, first]);

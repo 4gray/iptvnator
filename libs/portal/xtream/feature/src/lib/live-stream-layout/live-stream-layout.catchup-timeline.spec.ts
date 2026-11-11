@@ -1,53 +1,22 @@
-import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
-import { MockComponent, MockPipe } from 'ng-mocks';
-import { TranslateModule, TranslatePipe } from '@ngx-translate/core';
 import { By } from '@angular/platform-browser';
-import { Subject, of } from 'rxjs';
+import { LiveLayoutSidebarStateService } from '@iptvnator/portal/shared/util';
 import {
-    LiveLayoutSidebarStateService,
-    PORTAL_EXTERNAL_PLAYBACK,
-    PORTAL_PLAYER,
-} from '@iptvnator/portal/shared/util';
-import {
-    FavoritesService,
-    XtreamStore,
-    XtreamUrlService,
-} from '@iptvnator/portal/xtream/data-access';
-import {
-    EpgArchiveCopyService,
-    EpgArchiveDownloadService,
     EpgGuideComponent,
     EpgGuideNowPlayingComponent,
-    EpgListViewComponent,
-    EpgTimelineComponent,
 } from '@iptvnator/ui/epg';
-import { WebPlayerViewComponent } from '@iptvnator/ui/playback';
-import { GridListComponent } from '@iptvnator/portal/shared/ui';
-import {
-    DatabaseService,
-    ParentalLockService,
-    RuntimeCapabilitiesService,
-    SettingsStore,
-} from '@iptvnator/services';
-import {
-    EpgItem,
+import type {
     EpgProgram,
-    type ExternalPlayerSession,
+    ExternalPlayerSession,
 } from '@iptvnator/shared/interfaces';
-import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { LiveStreamLayoutComponent } from './live-stream-layout.component';
+import { setupLiveStreamLayoutNativeFixture } from './live-stream-layout-native.test-fixture';
 import { XtreamEpgGuideSourceService } from './xtream-epg-guide-source.service';
 import {
     epgItem,
     HOUR,
     playlist,
     sampleChannel,
-    StubEpgTimelineComponent,
-    StubGridListComponent,
-    StubPortalChannelsListComponent,
     StubWebPlayerViewComponent,
 } from './live-stream-layout-stubs.spec-data';
 
@@ -58,195 +27,23 @@ import {
 describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
     let fixture: ComponentFixture<LiveStreamLayoutComponent>;
     let component: LiveStreamLayoutComponent;
-    let previousElectron: Window['electron'];
-    const emptyList = signal<unknown[]>([]);
-    const epgItems = signal<EpgItem[]>([]);
-    const parentalLock = {
-        version: signal(0),
-        active: signal(false),
-        isXtreamCategoryLocked: jest.fn(
-            (_playlist: string, _type: string, _category: number) => false
-        ),
-    };
-    const databaseService = {
-        getAllXtreamCategories: jest.fn(async () => [] as unknown[]),
-    };
-    const runtime = {
-        supportsXtreamSqliteDataSource: false,
-        supportsDownloads: true,
-        supportsProviderCatchUp: true,
-        supportsProviderEpg: true,
-        supportsRemoteControl: true,
-    };
-    const portalPlayer = {
-        isEmbeddedPlayer: signal(true),
-        openExternalPlayback: jest.fn(),
-    };
-    const externalSession = signal<ExternalPlayerSession | null>(null);
-    const closeSession = jest.fn(
-        async (_session: ExternalPlayerSession) => undefined
-    );
-    const updateRemoteControlStatus = jest.fn();
-    const onExternalPlayerSessionUpdate = jest.fn(
-        (_update: (session: ExternalPlayerSession) => void) => jest.fn()
-    );
-    function publishExternalSession(session: ExternalPlayerSession | null) {
-        externalSession.set(session);
-        if (session) onExternalPlayerSessionUpdate.mock.lastCall?.[0](session);
-    }
-    const onChannelChange = jest.fn(
-        (_change: (event: { direction: 'up' | 'down' }) => void) => jest.fn()
-    );
-    const xtreamStore = {
-        getCategoriesBySelectedType: signal([
-            { category_id: 1, category_name: 'News' },
-        ]),
-        liveCategories: signal([{ id: 1, xtream_id: 1, name: 'News' }]),
-        getCategoryItemCounts: signal(new Map<number, number>([[1, 1]])),
-        getPaginatedContent: emptyList,
-        hasMoreContent: signal(false),
+    const {
+        emptyList,
         epgItems,
-        currentEpgItem: signal(null),
-        isLoadingEpg: signal(false),
-        selectedTypeContentLoading: signal(false),
-        selectedCategoryId: signal<number | null>(1),
-        selectedContentType: signal('live'),
-        selectedItem: signal<unknown>(sampleChannel),
-        currentPlaylist: signal(playlist),
-        liveStreams: emptyList,
-        isContentInitialized: signal(true),
-        selectItemsFromSelectedCategory: jest.fn(() => []),
-        constructStreamUrl: jest.fn(() => 'https://example.com/live.ts'),
-        openPlayer: jest.fn(),
-        setSelectedItem: jest.fn(),
-        loadEpg: jest.fn(),
-        setSelectedCategory: jest.fn(),
-        loadMoreContent: jest.fn(),
-    };
+        parentalLock,
+        databaseService,
+        runtime,
+        portalPlayer,
+        closeSession,
+        updateRemoteControlStatus,
+        onExternalPlayerSessionUpdate,
+        publishExternalSession,
+        restoreElectron,
+        onChannelChange,
+        xtreamStore,
+    } = setupLiveStreamLayoutNativeFixture();
 
-    beforeEach(async () => {
-        previousElectron = window.electron;
-        Object.defineProperty(window, 'electron', {
-            configurable: true,
-            value: {
-                updateRemoteControlStatus,
-                onChannelChange,
-                onExternalPlayerSessionUpdate,
-            },
-        });
-        updateRemoteControlStatus.mockClear();
-        onChannelChange.mockClear();
-        onExternalPlayerSessionUpdate.mockClear();
-        closeSession.mockClear();
-        parentalLock.active.set(false);
-        parentalLock.version.set(0);
-        parentalLock.isXtreamCategoryLocked.mockReset().mockReturnValue(false);
-        xtreamStore.currentPlaylist.set(playlist);
-        xtreamStore.selectedItem.set(sampleChannel);
-        epgItems.set([]);
-        runtime.supportsProviderCatchUp = true;
-        portalPlayer.isEmbeddedPlayer.set(true);
-        publishExternalSession(null);
-        emptyList.set([]);
-        xtreamStore.openPlayer.mockReset();
-        xtreamStore.setSelectedItem.mockClear();
-        xtreamStore.loadEpg.mockClear();
-
-        await TestBed.configureTestingModule({
-            imports: [
-                TranslateModule.forRoot(),
-                LiveStreamLayoutComponent,
-                NoopAnimationsModule,
-            ],
-            providers: [
-                {
-                    provide: EpgArchiveDownloadService,
-                    useValue: { start: jest.fn() },
-                },
-                {
-                    provide: EpgArchiveCopyService,
-                    useValue: { copy: jest.fn() },
-                },
-                {
-                    provide: ActivatedRoute,
-                    useValue: {
-                        snapshot: {
-                            data: {},
-                            queryParamMap: convertToParamMap({}),
-                        },
-                        queryParamMap: of(convertToParamMap({})),
-                    },
-                },
-                {
-                    provide: Router,
-                    useValue: {
-                        events: new Subject().asObservable(),
-                        navigate: jest.fn(),
-                    },
-                },
-                { provide: XtreamStore, useValue: xtreamStore },
-                {
-                    provide: FavoritesService,
-                    useValue: { getFavorites: jest.fn(() => of([])) },
-                },
-                {
-                    provide: XtreamUrlService,
-                    useValue: {
-                        constructAutoLiveTsUrl: jest.fn(() => undefined),
-                        resolveCatchupUrl: jest.fn(
-                            async () => 'https://example.com/timeshift.ts'
-                        ),
-                    },
-                },
-                { provide: RuntimeCapabilitiesService, useValue: runtime },
-                { provide: DatabaseService, useValue: databaseService },
-                {
-                    provide: SettingsStore,
-                    useValue: {
-                        openStreamOnDoubleClick: signal(false),
-                        resolvedEpgViewMode: signal('timeline'),
-                        resolvedEpgOffsetMinutes: signal(0),
-                    },
-                },
-                {
-                    provide: PORTAL_PLAYER,
-                    useValue: portalPlayer,
-                },
-                {
-                    provide: PORTAL_EXTERNAL_PLAYBACK,
-                    useValue: { activeSession: externalSession, closeSession },
-                },
-                { provide: ParentalLockService, useValue: parentalLock },
-            ],
-        })
-            .overrideComponent(LiveStreamLayoutComponent, {
-                remove: {
-                    imports: [
-                        EpgGuideComponent,
-                        EpgListViewComponent,
-                        EpgTimelineComponent,
-                        GridListComponent,
-                        PortalChannelsListComponent,
-                        TranslatePipe,
-                        WebPlayerViewComponent,
-                    ],
-                },
-                add: {
-                    imports: [
-                        StubEpgTimelineComponent,
-                        MockComponent(EpgGuideComponent),
-                        StubGridListComponent,
-                        StubPortalChannelsListComponent,
-                        MockPipe(
-                            TranslatePipe,
-                            (value: string | null | undefined) => value ?? ''
-                        ),
-                        StubWebPlayerViewComponent,
-                    ],
-                },
-            })
-            .compileComponents();
-
+    beforeEach(() => {
         fixture = TestBed.createComponent(LiveStreamLayoutComponent);
         component = fixture.componentInstance;
         TestBed.inject(LiveLayoutSidebarStateService).setState(
@@ -258,19 +55,16 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
 
     afterEach(() => {
         fixture.destroy();
-        Object.defineProperty(window, 'electron', {
-            configurable: true,
-            value: previousElectron,
-        });
+        restoreElectron();
     });
 
     const webPlayer = () =>
         fixture.debugElement.query(By.directive(StubWebPlayerViewComponent))
             .componentInstance as StubWebPlayerViewComponent;
 
-    it.each([false, true])(
-        'allows retry of a native guide channel (idle: %s)',
-        async (idle) => {
+    it.each(['failure', 'idle', 'unverified VLC'] as const)(
+        'allows retry of a native guide channel (%s)',
+        async (mode) => {
             const playing = { ...sampleChannel, category_id: 1 };
             const next = { ...playing, xtream_id: 102 };
             emptyList.set([playing, next]);
@@ -280,7 +74,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 id: 'synthetic-session',
                 streamUrl: component.activeStreamUrl(),
                 title: 'Synthetic Live Channel',
-                player: 'mpv',
+                player: mode === 'unverified VLC' ? 'vlc' : 'mpv',
                 status: 'playing',
                 startedAt: '2026-04-04T10:00:00Z',
                 updatedAt: '2026-04-04T10:00:00Z',
@@ -293,7 +87,14 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             const source = fixture.debugElement.injector.get(
                 XtreamEpgGuideSourceService
             );
-            if (idle) {
+            if (mode === 'unverified VLC') {
+                source.activate('101');
+                expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(1);
+                expect(source.retryActive(source.channels()[0])).toBe(true);
+                expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(2);
+                return;
+            }
+            if (mode === 'idle') {
                 publishExternalSession({ ...original, playbackIdle: true });
                 fixture.detectChanges();
                 expect(component.guide.isOpen()).toBe(true);
@@ -457,7 +258,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         expect(xtreamStore.constructStreamUrl).toHaveBeenLastCalledWith(next);
     });
 
-    it.each(['live', 'archive'] as const)(
+    it.each(['live', 'archive', 'same-channel archive'] as const)(
         'commits the remote order only after %s opens',
         async (mode) => {
             const playing = { ...sampleChannel, category_id: 1 };
@@ -531,8 +332,17 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 fixture.detectChanges();
                 expect(queue()).toEqual([101, 103]);
 
-                if (mode === 'archive') {
-                    component.playLive(next, false, [next, nextNeighbor]);
+                const sameChannelArchive = mode === 'same-channel archive';
+                const archiveChannel = sameChannelArchive ? playing : next;
+                if (mode !== 'live') {
+                    component.playLive(
+                        archiveChannel,
+                        false,
+                        sameChannelArchive
+                            ? [nextNeighbor, playing]
+                            : [next, nextNeighbor]
+                    );
+                    xtreamStore.selectedItem.set(archiveChannel);
                     epgItems.set([epgItem('Synthetic Archive', 0, 1)]);
                     xtreamStore.openPlayer.mockReturnValueOnce(
                         new Promise(() => undefined)
@@ -555,11 +365,13 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                     status: 'opened',
                 });
                 fixture.detectChanges();
-                expect(queue()).toEqual([102, 104]);
+                expect(queue()).toEqual(
+                    sameChannelArchive ? [104, 101] : [102, 104]
+                );
                 expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
                     expect.objectContaining({
-                        channelName: next.name,
-                        channelNumber: 1,
+                        channelName: archiveChannel.name,
+                        channelNumber: sameChannelArchive ? 2 : 1,
                     })
                 );
             } finally {
@@ -880,9 +692,11 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         'failed replacement',
         'unrelated session',
         'switched copy',
+        'changed to embedded',
+        'launch-only bridge',
     ] as const)(
         'reattaches external playback when Live TV reopens (%s)',
-        (scenario) => {
+        async (scenario) => {
             const playing = { ...sampleChannel, category_id: 1 };
             const next = { ...playing, xtream_id: 102 };
             const copy = {
@@ -942,6 +756,13 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
                 fixture.detectChanges();
             }
             fixture.destroy();
+            if (scenario === 'changed to embedded')
+                portalPlayer.isEmbeddedPlayer.set(true);
+            if (scenario === 'launch-only bridge' && window.electron)
+                Reflect.deleteProperty(
+                    window.electron,
+                    'onExternalPlayerSessionUpdate'
+                );
             if (scenario === 'unrelated session') {
                 publishExternalSession({
                     ...session,
@@ -952,6 +773,21 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             fixture = TestBed.createComponent(LiveStreamLayoutComponent);
             component = fixture.componentInstance;
             fixture.detectChanges();
+            if (
+                scenario === 'changed to embedded' ||
+                scenario === 'launch-only bridge'
+            ) {
+                expect(component.activeStreamUrl()).toBe('');
+                expect(component.guide.available()).toBe(false);
+                if (scenario === 'launch-only bridge') {
+                    xtreamStore.openPlayer.mockResolvedValueOnce(session);
+                    component.playLive(playing, true, [playing, next]);
+                    await Promise.resolve();
+                    expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(2);
+                    expect(component.guide.available()).toBe(false);
+                }
+                return;
+            }
             expect(component.guide.available()).toBe(true);
             expect(component.activeStreamUrl()).toBe(session.streamUrl);
             expect(component.channelNavigation.remoteChannels()).toEqual([

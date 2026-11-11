@@ -1,5 +1,6 @@
 import { createConnection } from 'net';
 import { traceExternalPlayer } from './external-player-runtime';
+import { markExternalPlayerOpened } from './external-player-idle-monitor';
 
 /**
  * Bounds connect, write and the wait for mpv's reply. It matches the IPC
@@ -40,6 +41,25 @@ export class MpvIpcCommandError extends Error {
 }
 
 let nextRequestId = 1;
+
+export function markMpvOpened(sessionId: string, socketPath?: string | null) {
+    return markExternalPlayerOpened(
+        sessionId,
+        socketPath
+            ? async (shouldDispatch) => {
+                  const reply = await sendMpvCommand(
+                      socketPath,
+                      'get_property',
+                      ['idle-active'],
+                      { shouldDispatch }
+                  );
+                  return reply && typeof reply.data === 'boolean'
+                      ? reply.data
+                      : null;
+              }
+            : undefined
+    );
+}
 
 function parseReplyLine(line: string): Partial<MpvIpcReply> | null {
     try {

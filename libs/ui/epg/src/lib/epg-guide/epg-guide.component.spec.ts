@@ -150,6 +150,20 @@ describe('EpgGuideComponent', () => {
         component = fixture.componentInstance;
     });
 
+    it('offers explicit replay without replaying an active channel on click', async () => {
+        await settle(fixture);
+        const row = component.rows()[0];
+        const source = fixture.debugElement.injector.get(EPG_GUIDE_SOURCE);
+        const retry = jest.fn(() => true);
+        source.retryActive = retry;
+
+        component.activateRow(row);
+        expect(retry).not.toHaveBeenCalled();
+        component.commitRow(row);
+        expect(retry).toHaveBeenCalledWith(row);
+        expect(activate).not.toHaveBeenCalled();
+    });
+
     it('lists the scope channels in order and marks the active one', async () => {
         await settle(fixture);
         expect(component.rows().map((row) => row.id)).toEqual(['a', 'b', 'c']);

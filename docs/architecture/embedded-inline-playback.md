@@ -1111,9 +1111,9 @@ exit is confirmed, or as a closable error when it is not. No `seek` follows
 travels as the per-file `start` option. The `loadfile` reply only acknowledges
 the command; a stream that later fails to open is reported through the reused
 child's output and exit, not through the reply.
-For streams without saved position metadata, the MPV socket reports when
-playback becomes idle. The exact session remains closable, while the guide
-can stop marking its channel as playing and accept another launch.
+For streams without saved position metadata, MPV's socket and VLC's RC
+connection report when playback becomes idle or stopped. The exact session
+remains closable while the guide can stop marking the channel as playing.
 If Stop is observed before a pending MPV content command or VLC enqueue command
 is dispatched, that command is skipped. A source handoff also fails closed
 while a live session has no closer (`canClose: false`); renderer Dismiss is not

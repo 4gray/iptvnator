@@ -780,9 +780,11 @@ and private-network checks.
 
 The Xtream Live TV header, command palette, timeline and list panel, and `G`
 open the shared multi-channel programme guide while a channel is playing.
-With MPV or VLC selected, the external session must have opened before the
-guide can open. If MPV stays open after the stream ends, an open guide keeps
-its schedule visible and lets the user retry the channel.
+With MPV or VLC selected, the preload must support session updates and the
+session must have opened before the guide can open. When the player reports
+the stream stopped, an open guide keeps its schedule visible and lets the
+user retry. If VLC's playback state cannot be read, Enter or double-click on
+the active row explicitly retries it.
 The guide keeps the player mounted in the dock and hides the live sidebars
 while preserving their browsing state. Short screens show a compact dock so
 schedule rows remain visible. If an external channel switch fails and the
@@ -801,8 +803,8 @@ the newest allowed session in the playlist that has opened and is still live. Th
 app retries an exact close if the external player cannot confirm its exit.
 A replacement that opens and exits before the guide updates clears its
 pending switch, restores the surviving channel's panel, and can be retried.
-Returning to Live TV reattaches the guide to an external session still playing
-in the same playlist, including a session that survived a failed replacement
+Returning to Live TV in external-player mode reattaches the guide to a
+session still playing in the same playlist, including a failed replacement's survivor
 or left the global dock when another playlist started playing. Each session
 keeps its own category and queue, even when launches share a stream URL.
 The guide uses the current playlist's visible, unlocked

@@ -36,8 +36,27 @@ export interface XtreamLiveChannelItem {
     readonly xtream_id: number;
 }
 
+export function xtreamCategoryKey(
+    id: string | number | null | undefined
+): string {
+    const raw = String(id ?? '').trim();
+    const numeric = Number(raw);
+    return raw && Number.isFinite(numeric) ? String(numeric) : raw;
+}
+
+export function sameXtreamChannelCopy(
+    left: XtreamLiveChannelItem,
+    right: XtreamLiveChannelItem
+): boolean {
+    return (
+        left.xtream_id === right.xtream_id &&
+        xtreamCategoryKey(left.category_id) ===
+            xtreamCategoryKey(right.category_id)
+    );
+}
+
 function channelCopyKey(item: XtreamLiveChannelItem): string {
-    return `${item.xtream_id}:${Number(item.category_id)}`;
+    return `${item.xtream_id}:${xtreamCategoryKey(item.category_id)}`;
 }
 
 export function replaceXtreamQueuedCopy(
@@ -188,14 +207,19 @@ export class XtreamLiveChannelNavigationService {
     capture(
         item: XtreamLiveChannelItem,
         items: readonly XtreamLiveChannelItem[] = this.displayedChannels(),
-        preserveQueue = false
+        policy:
+            'on-channel-change' | 'preserve' | 'replace' = 'on-channel-change'
     ): void {
         this.requestSequence++;
         this.pendingReveal.set(null);
         const owner = this.owner();
         const active = this.activeItem();
         const key = channelCopyKey(item);
-        if (!preserveQueue && (!active || channelCopyKey(active) !== key)) {
+        if (
+            policy === 'replace' ||
+            (policy === 'on-channel-change' &&
+                (!active || channelCopyKey(active) !== key))
+        ) {
             this.queue.capture(
                 owner,
                 JSON.stringify([

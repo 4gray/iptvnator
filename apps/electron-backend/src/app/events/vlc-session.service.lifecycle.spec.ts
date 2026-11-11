@@ -85,13 +85,20 @@ function mockStoreValues(values: Record<string, unknown>): void {
     );
 }
 
-function installRcSocketMock(behavior: 'ack' | 'error'): void {
+function installRcSocketMock(
+    behavior: 'ack' | 'error',
+    playbackState?: 'playing' | 'stopped'
+): void {
     (createConnection as unknown as jest.Mock).mockImplementation(() => {
         const socket = Object.assign(new EventEmitter(), {
             destroyed: false,
             write: jest.fn((data: string) => {
                 rcWrites.push(data);
-                setImmediate(() => socket.emit('data', Buffer.from('> ')));
+                const reply =
+                    data === 'status\n' && playbackState
+                        ? `( state ${playbackState} )\n> `
+                        : '> ';
+                setImmediate(() => socket.emit('data', Buffer.from(reply)));
                 return true;
             }),
             destroy: jest.fn(() => {
@@ -150,6 +157,28 @@ describe('vlc-session.service process lifecycle', () => {
                 [VLC_PLAYER_PATH]: '/usr/bin/vlc',
                 [VLC_REUSE_INSTANCE]: true,
             });
+        });
+
+        it('reports stopped VLC playback while preserving its closer', async () => {
+            jest.useFakeTimers({ doNotFake: ['setImmediate'] });
+            const proc = createMockChildProcess();
+            try {
+                await openTrackedVlcInstance(proc);
+                const id =
+                    externalPlayerSessions.getActiveSessionId() as string;
+                installRcSocketMock('ack', 'stopped');
+                await jest.advanceTimersByTimeAsync(2_000);
+                await new Promise<void>((done) => setImmediate(done));
+                expect(externalPlayerSessions.getSession(id)).toMatchObject({
+                    status: 'opened',
+                    playbackIdle: true,
+                    canClose: true,
+                });
+            } finally {
+                Object.defineProperty(proc, 'exitCode', { value: 0 });
+                proc.emit('exit', 0);
+                jest.useRealTimers();
+            }
         });
 
         it.each([false, true])(

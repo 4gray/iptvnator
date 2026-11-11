@@ -32,7 +32,11 @@ import {
     traceExternalPlayer,
 } from './external-player-runtime';
 import { externalPlayerProcessTeardownGate } from './external-player-process';
-import { getVlcPlaybackSnapshot, getVlcPlaybackState } from './vlc-rc';
+import {
+    getVlcPlaybackSnapshot,
+    getVlcPlaybackState,
+    markVlcOpened,
+} from './vlc-rc';
 export {
     buildVlcEnqueueCommands,
     parseVlcRcNumericResponse,
@@ -312,6 +316,7 @@ export async function openVlcPlayer({
             hasRcPort: rcPort > 0,
         });
         let lastVlcSnapshot: ExternalPlaybackSnapshot | null = null;
+        let playbackRcPort = 0;
 
         await new Promise<void>((resolve, reject) => {
             let settled = false;
@@ -403,6 +408,7 @@ export async function openVlcPlayer({
                     detached: !trackProcess,
                     stdio: trackProcess ? ['ignore', 'pipe', 'pipe'] : 'ignore',
                 });
+                playbackRcPort = isRetry ? 0 : rcPort;
 
                 proc.once('spawn', () => {
                     if (!closeRequested) {
@@ -649,7 +655,7 @@ export async function openVlcPlayer({
             spawnVlc(args);
         });
 
-        return externalPlayerSessions.markOpened(session.id) ?? session;
+        return markVlcOpened(session.id, () => playbackRcPort) ?? session;
     } catch (error) {
         console.error('Error opening VLC player:', error);
         const restoredSession =

@@ -114,14 +114,12 @@ import { injectXtreamRecentHistory } from '../xtream-recent-history';
 
 import {
     replaceXtreamQueuedCopy,
+    sameXtreamChannelCopy,
     XtreamLiveChannelNavigationService,
     type XtreamLiveChannelItem,
 } from './xtream-live-channel-navigation.service';
 
-import {
-    sameGuideChannel,
-    XtreamEpgGuideSourceService,
-} from './xtream-epg-guide-source.service';
+import { XtreamEpgGuideSourceService } from './xtream-epg-guide-source.service';
 import { XtreamLiveGuideService } from './xtream-live-guide.service';
 import { isXtreamLiveCategoryWithheld } from './xtream-external-live-sessions.service';
 import { XtreamGuideExternalPlayback } from './xtream-guide-external-playback.service';
@@ -498,7 +496,7 @@ export class LiveStreamLayoutComponent
     );
     private readonly externalGuide = inject(XtreamGuideExternalPlayback);
     private readonly remoteLiveItem = computed(() =>
-        this.usesEmbeddedPlayer() || !this.externalGuide.hasBridge
+        this.usesEmbeddedPlayer() || !this.externalGuide.hasSessionUpdates
             ? this.selectedLiveItem()
             : (this.externalGuide.confirmed()?.item ?? null)
     );
@@ -546,7 +544,7 @@ export class LiveStreamLayoutComponent
         if (
             !selected ||
             !playing ||
-            !sameGuideChannel(selected, playing) ||
+            !sameXtreamChannelCopy(selected, playing) ||
             scheduleKey(selected) !== scheduleKey(playing)
         )
             return null;
@@ -556,6 +554,7 @@ export class LiveStreamLayoutComponent
 
     constructor() {
         this.externalGuide.bind({
+            enabled: () => !this.usesEmbeddedPlayer(),
             current: this.activePlayback,
             currentItem: this.activeGuideItem,
             select: (item) => this.selectGuideLiveItem(item),
@@ -579,28 +578,32 @@ export class LiveStreamLayoutComponent
                               this.externalGuide.idleStream()))
             )
         );
-        this.guideSource.bind((item, channels) => {
-            if (
-                !this.usesEmbeddedPlayer() &&
-                this.externalGuide.replacePendingCopy(
-                    item,
-                    () => this.readLiveProviderCategoryId(item),
-                    () => this.channelNavigation.capture(item, channels),
-                    channels
+        this.guideSource.bind(
+            (item, channels, retry) => {
+                if (
+                    !this.usesEmbeddedPlayer() &&
+                    this.externalGuide.replacePendingCopy(
+                        item,
+                        () => this.readLiveProviderCategoryId(item),
+                        () => this.channelNavigation.capture(item, channels),
+                        channels
+                    )
                 )
-            )
-                return;
-            const playing = this.guideChannel();
-            if (
-                playing?.xtream_id === item.xtream_id &&
-                !this.guideArchiveProgram()
-            ) {
-                if (!sameGuideChannel(playing, item))
-                    this.switchGuideChannelCopy(item);
-                return;
-            }
-            this.playLive(item, true, channels);
-        });
+                    return;
+                const playing = this.guideChannel();
+                if (
+                    !retry &&
+                    playing?.xtream_id === item.xtream_id &&
+                    !this.guideArchiveProgram()
+                ) {
+                    if (!sameXtreamChannelCopy(playing, item))
+                        this.switchGuideChannelCopy(item);
+                    return;
+                }
+                this.playLive(item, true, channels);
+            },
+            () => this.externalGuide.canRetryUnverifiedStream()
+        );
         effect(() =>
             this.guideSource.setPlayback(
                 this.guideChannel(),
@@ -612,7 +615,7 @@ export class LiveStreamLayoutComponent
             if (!items) return;
             const playing = this.guideSource.playingItem();
             const selected = this.selectedLiveItem();
-            if (playing && selected && sameGuideChannel(playing, selected))
+            if (playing && selected && sameXtreamChannelCopy(playing, selected))
                 untracked(() => {
                     if (playing.epg_channel_id !== selected.epg_channel_id)
                         this.xtreamStore.setSelectedItem({
@@ -762,7 +765,8 @@ export class LiveStreamLayoutComponent
             const selectedItem = this.remoteLiveItem();
             const channels = this.getVisibleChannels();
             const activeProgram =
-                this.usesEmbeddedPlayer() || !this.externalGuide.hasBridge
+                this.usesEmbeddedPlayer() ||
+                !this.externalGuide.hasSessionUpdates
                     ? (this.activeCatchupProgram() ?? this.currentEpgItem())
                     : this.guideNowPlayingProgram();
 
@@ -833,7 +837,7 @@ export class LiveStreamLayoutComponent
             startPlayback &&
             playlistId &&
             !this.usesEmbeddedPlayer() &&
-            this.externalGuide.hasBridge
+            this.externalGuide.hasSessionUpdates
         ) {
             const category = this.readLiveProviderCategoryId(item);
             const start = (resolved: typeof category) => {
@@ -873,7 +877,7 @@ export class LiveStreamLayoutComponent
               )
             : this.xtreamStore.constructStreamUrl(item);
         const tracksExternalPlayback =
-            !this.usesEmbeddedPlayer() && this.externalGuide.hasBridge;
+            !this.usesEmbeddedPlayer() && this.externalGuide.hasSessionUpdates;
         const scope =
             displayedChannels ??
             (!tracksExternalPlayback || !remote
@@ -884,7 +888,11 @@ export class LiveStreamLayoutComponent
                 ? { item, queue: scope }
                 : undefined;
         const captureNavigation = () =>
-            this.channelNavigation.capture(item, scope, remote);
+            this.channelNavigation.capture(
+                item,
+                scope,
+                remote ? 'preserve' : 'on-channel-change'
+            );
         if (!tracksExternalPlayback) captureNavigation();
         this.activeCatchupProgram.set(null);
         // Keep both root/recently-added playback and same-category replays in
@@ -1244,17 +1252,18 @@ export class LiveStreamLayoutComponent
 
         const requestId = ++this.playbackRequestId;
         const external =
-            !this.usesEmbeddedPlayer() && this.externalGuide.hasBridge;
+            !this.usesEmbeddedPlayer() && this.externalGuide.hasSessionUpdates;
         const preview = this.archivePreview;
         const confirmed = this.externalGuide.confirmed();
-        const queue =
+        const fromPreview =
             preview &&
             this.activePlaylistId === playlist.id &&
-            sameGuideChannel(preview.item, item)
-                ? preview.queue
-                : confirmed && sameGuideChannel(confirmed.item, item)
-                  ? this.channelNavigation.remoteChannels()
-                  : this.channelNavigation.displayedChannels();
+            sameXtreamChannelCopy(preview.item, item);
+        const queue = fromPreview
+            ? preview.queue
+            : confirmed && sameXtreamChannelCopy(confirmed.item, item)
+              ? this.channelNavigation.remoteChannels()
+              : this.channelNavigation.displayedChannels();
         const category = this.readLiveProviderCategoryId(item);
         const resolved =
             external && category === 'unknown'
@@ -1311,7 +1320,12 @@ export class LiveStreamLayoutComponent
             program,
             this.activeLiveProviderCategoryId,
             external
-                ? () => this.channelNavigation.capture(item, queue)
+                ? () =>
+                      this.channelNavigation.capture(
+                          item,
+                          queue,
+                          fromPreview ? 'replace' : 'on-channel-change'
+                      )
                 : undefined,
             queue
         );

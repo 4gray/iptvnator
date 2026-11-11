@@ -103,6 +103,8 @@ export interface EpgGuideSource {
     readonly livePlayback?: Signal<boolean>;
     /** Switch playback; the guide stays open. */
     activate(channelId: string, epgKey?: string | null): void;
+    /** Explicitly replay a channel whose external playback cannot be verified. */
+    retryActive?(channel: EpgGuideChannel): boolean;
     /** Optional programme search; the toolbar hides its field when absent. */
     searchPrograms?(
         query: string,

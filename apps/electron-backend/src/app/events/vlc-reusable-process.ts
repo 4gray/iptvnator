@@ -16,6 +16,7 @@ import {
 } from './external-player-runtime';
 import {
     buildVlcEnqueueCommands,
+    markVlcOpened,
     sendVlcRcCommand,
     sendVlcRcCommands,
 } from './vlc-rc';
@@ -299,7 +300,7 @@ export class VlcReusableProcess {
                     }
                 );
             }
-            return externalPlayerSessions.markOpened(session.id) ?? session;
+            return markVlcOpened(session.id, () => reusedRcPort) ?? session;
         } catch (error) {
             const current = externalPlayerSessions.getSession(session.id);
             if (current?.status === 'closed') return current;

@@ -19,7 +19,6 @@ import type {
     ExternalPlayerSession,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
-import { sameGuideChannel } from './xtream-epg-guide-source.service';
 import {
     isXtreamLiveCategoryWithheld,
     XtreamExternalLiveSessions,
@@ -27,6 +26,7 @@ import {
 } from './xtream-external-live-sessions.service';
 import {
     replaceXtreamQueuedCopy,
+    sameXtreamChannelCopy,
     type XtreamLiveChannelItem,
 } from './xtream-live-channel-navigation.service';
 
@@ -43,6 +43,7 @@ interface GuideLaunch {
 type ConfirmedLaunch = GuideLaunch & { session: ExternalPlayerSession };
 
 interface GuidePanel {
+    enabled(): boolean;
     current(): ResolvedPortalPlayback | null;
     currentItem(): XtreamLiveChannelItem | null;
     select(item: XtreamLiveChannelItem): void;
@@ -78,7 +79,9 @@ export class XtreamGuideExternalPlayback {
     private panelPlayback?: ResolvedPortalPlayback;
     private panelSessionId?: string;
 
-    readonly hasBridge = !!this.playback;
+    readonly hasSessionUpdates =
+        !!this.playback &&
+        typeof window.electron?.onExternalPlayerSessionUpdate === 'function';
     private readonly playing = linkedSignal({
         source: () => ({
             playlistId: this.store.currentPlaylist()?.id,
@@ -88,7 +91,7 @@ export class XtreamGuideExternalPlayback {
             { playlistId, active },
             previous
         ): ConfirmedLaunch | null => {
-            if (!playlistId) return null;
+            if (!playlistId || !this.hasSessionUpdates) return null;
             const prior = previous?.value;
             const owned =
                 hasOpened(active) &&
@@ -162,8 +165,14 @@ export class XtreamGuideExternalPlayback {
             : undefined;
     }
 
+    canRetryUnverifiedStream(): boolean {
+        const session = this.confirmed()?.session;
+        return session?.player === 'vlc' && session.playbackIdle === undefined;
+    }
+
     constructor() {
         effect(() => {
+            if (!this.panel?.enabled()) return;
             const active = this.playback?.activeSession();
             const playing = this.confirmed();
             const pending = this.pending();
@@ -212,23 +221,24 @@ export class XtreamGuideExternalPlayback {
     ): void {
         if (!playback?.streamUrl) return;
         const playlistId = this.store.currentPlaylist()?.id;
-        const launch: GuideLaunch | undefined = playlistId
-            ? {
-                  lockSource: {
-                      playlistId,
-                      categoryId,
-                      channel: item,
+        const launch: GuideLaunch | undefined =
+            playlistId && this.hasSessionUpdates
+                ? {
+                      lockSource: {
+                          playlistId,
+                          categoryId,
+                          channel: item,
+                          archive,
+                          playback,
+                          queue,
+                      },
+                      item,
                       archive,
                       playback,
-                      queue,
-                  },
-                  item,
-                  archive,
-                  playback,
-                  captureNavigation,
-                  remote,
-              }
-            : undefined;
+                      captureNavigation,
+                      remote,
+                  }
+                : undefined;
         this.panelPlayback = playback;
         const lifecycle =
             launch &&
@@ -281,7 +291,7 @@ export class XtreamGuideExternalPlayback {
             pending.item.xtream_id !== item.xtream_id
         )
             return false;
-        if (!sameGuideChannel(pending.item, item)) {
+        if (!sameXtreamChannelCopy(pending.item, item)) {
             pending.item = item;
             pending.lockSource.categoryId = category();
             pending.lockSource.channel = item;

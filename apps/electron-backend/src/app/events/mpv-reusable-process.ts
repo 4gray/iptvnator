@@ -14,8 +14,7 @@ import {
     externalPlayerSessions,
     traceExternalPlayer,
 } from './external-player-runtime';
-import { sendMpvCommand } from './mpv-ipc-command';
-import { markMpvOpened } from './mpv-idle-monitor';
+import { markMpvOpened, sendMpvCommand } from './mpv-ipc-command';
 
 /**
  * The per-file start of a reuse load: the requested offset, else zero. A

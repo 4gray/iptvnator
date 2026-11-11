@@ -1,12 +1,16 @@
 import { externalPlayerSessions } from './external-player-runtime';
-import { sendMpvCommand } from './mpv-ipc-command';
 
 const IDLE_CHECK_INTERVAL_MS = 2_000;
 
-/** MPV can keep the process and its closer alive after a live stream ends. */
-export function markMpvOpened(sessionId: string, socketPath?: string | null) {
+/** The process can stay open after its stream stops. */
+export function markExternalPlayerOpened(
+    sessionId: string,
+    readIdle?: (
+        stillPlaying: () => boolean
+    ) => Promise<boolean | null | undefined>
+) {
     const opened = externalPlayerSessions.markOpened(sessionId);
-    if (!socketPath || opened?.status !== 'opened' || opened.contentInfo)
+    if (!readIdle || opened?.status !== 'opened' || opened.contentInfo)
         return opened;
 
     const stillPlaying = () => {
@@ -20,20 +24,17 @@ export function markMpvOpened(sessionId: string, socketPath?: string | null) {
     const check = async () => {
         if (!stillPlaying()) return;
         try {
-            const reply = await sendMpvCommand(
-                socketPath,
-                'get_property',
-                ['idle-active'],
-                {
-                    shouldDispatch: stillPlaying,
-                }
-            );
-            if (reply && reply.data === true && stillPlaying()) {
+            const idle = await readIdle(stillPlaying);
+            if (idle === undefined || !stillPlaying()) return;
+            if (
+                idle !== null &&
+                externalPlayerSessions.getSession(sessionId)?.playbackIdle !==
+                    idle
+            )
                 externalPlayerSessions.updateSession(sessionId, {
-                    playbackIdle: true,
+                    playbackIdle: idle,
                 });
-                return;
-            }
+            if (idle) return;
         } catch {
             // A missing IPC reply does not prove that playback ended.
         }

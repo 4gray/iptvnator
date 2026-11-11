@@ -1,6 +1,7 @@
 import { createConnection } from 'net';
 import { buildHttpHeaderFields } from './external-player-playback-request';
 import { ExternalPlaybackSnapshot } from './external-player-runtime';
+import { markExternalPlayerOpened } from './external-player-idle-monitor';
 
 export function buildVlcEnqueueCommands(options: {
     url: string;
@@ -153,6 +154,20 @@ export async function getVlcPlaybackState(
     port: number
 ): Promise<string | null> {
     return parseVlcRcPlaybackState(await getVlcCommandResponse(port, 'status'));
+}
+
+export function markVlcOpened(sessionId: string, getPort: () => number) {
+    if (!getPort()) return markExternalPlayerOpened(sessionId);
+    return markExternalPlayerOpened(sessionId, async () => {
+        const port = getPort();
+        if (!port) return undefined;
+        const state = await getVlcPlaybackState(port);
+        return state === 'stopped'
+            ? true
+            : state === 'playing' || state === 'paused'
+              ? false
+              : null;
+    });
 }
 
 export async function getVlcPlaybackSnapshot(
