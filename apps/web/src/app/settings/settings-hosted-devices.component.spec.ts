@@ -23,8 +23,15 @@ describe('hosted device settings', () => {
     let fixture: ComponentFixture<SettingsHostedDevicesComponent>;
     let root: HTMLElement;
 
+    function clickButton(selector: string): void {
+        const button = root.querySelector<HTMLButtonElement>(selector);
+        if (!button) throw new Error(`Missing button ${selector}`);
+        button.click();
+    }
+
     beforeEach(() => {
         jest.resetAllMocks();
+        copy.mockReturnValue(true);
         jest.useFakeTimers();
         jest.setSystemTime(new Date('2030-01-01T12:00:00.000Z'));
         snapshot = { pending: [], devices: [] };
@@ -68,17 +75,13 @@ describe('hosted device settings', () => {
     });
 
     it('shows a single-use QR, allows copying it, and requires approval and revocation actions', async () => {
-        root.querySelector<HTMLButtonElement>(
-            '[data-test-id="hosted-device-pair"]'
-        )!.click();
+        clickButton('[data-test-id="hosted-device-pair"]');
         await jest.advanceTimersByTimeAsync(0);
         fixture.detectChanges();
         expect(
             root.querySelector('[data-test-id="hosted-device-pair-qr"]')
         ).not.toBeNull();
-        root.querySelector<HTMLButtonElement>(
-            '[data-test-id="hosted-device-copy-link"]'
-        )!.click();
+        clickButton('[data-test-id="hosted-device-copy-link"]');
         expect(copy).toHaveBeenCalledWith(inviteUrl);
         snapshot = { pending: [claim], devices: [] };
         await jest.advanceTimersByTimeAsync(2000);
@@ -93,7 +96,7 @@ describe('hosted device settings', () => {
             expect.objectContaining({ action: 'approve' })
         );
 
-        root.querySelector<HTMLButtonElement>('.device-row button')!.click();
+        clickButton('.device-row button');
         await jest.advanceTimersByTimeAsync(0);
         fixture.detectChanges();
         expect(control).toHaveBeenCalledWith({
@@ -103,7 +106,7 @@ describe('hosted device settings', () => {
         expect(root.querySelector('.device-row')?.textContent).toContain(
             'HOSTED_SERVER.REVOKE_DEVICE'
         );
-        root.querySelector<HTMLButtonElement>('.device-row button')!.click();
+        clickButton('.device-row button');
         expect(control).not.toHaveBeenCalledWith(
             expect.objectContaining({ action: 'revoke' })
         );

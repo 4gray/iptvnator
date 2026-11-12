@@ -12,6 +12,7 @@ import {
     sourceConnectionReadFailed,
     invalidateSourceVerification,
     sourceVerificationEpoch,
+    forgetNativeHostedPairing,
 } from './source-connection';
 
 describe('source server selection and authorization', () => {
@@ -25,6 +26,62 @@ describe('source server selection and authorization', () => {
     afterEach(() => {
         window.electron = originalElectron;
         globalThis.fetch = originalFetch;
+        Reflect.deleteProperty(window, 'HostedPairing');
+    });
+
+    it('restores an Android pairing only for the verified same-origin API and lets the device forget it', async () => {
+        const instance = {
+            service: 'iptvnator',
+            apiVersion: 1,
+            storage: 'server',
+            instanceId: 'paired-test-server',
+            capabilities: ['sources-v1'],
+        };
+        const token = 'A'.repeat(43);
+        const bridge = {
+            onmessage: null as ((message: MessageEvent<string>) => void) | null,
+            postMessage: jest.fn((message: string) => {
+                const { action } = JSON.parse(message);
+                bridge.onmessage?.(
+                    new MessageEvent('message', {
+                        data: JSON.stringify(
+                            action === 'credential'
+                                ? { token }
+                                : { forgotten: true }
+                        ),
+                    })
+                );
+            }),
+        };
+        Reflect.set(window, 'HostedPairing', bridge);
+        globalThis.fetch = jest.fn(async () => ({
+            ok: true,
+            json: async () => instance,
+        })) as unknown as typeof fetch;
+        await prepareSourceConnection('https://other.example.test/api');
+        expect(bridge.postMessage).not.toHaveBeenCalled();
+        await prepareSourceConnection('/api');
+        expect(sourceConnection()).toEqual({
+            apiUrl: `${location.origin}/api`,
+            instanceId: instance.instanceId,
+        });
+        expect(sourceAuthorization('/api/xtream')).toEqual({});
+        verifySourceInstance(instance);
+        expect(sourceAuthorization('/api/xtream')).toEqual({
+            Authorization: `Bearer ${token}`,
+        });
+        expect(
+            sourceAuthorization('https://other.example.test/api/xtream')
+        ).toEqual({});
+        await forgetNativeHostedPairing();
+        expect(
+            bridge.postMessage.mock.calls.map(([request]) =>
+                JSON.parse(request)
+            )
+        ).toEqual([
+            { action: 'credential', instanceId: instance.instanceId },
+            { action: 'forget', instanceId: instance.instanceId },
+        ]);
     });
 
     it.each([

@@ -40,6 +40,7 @@ import {
     assertSourceInstance,
     saveBrowserSourceConnection,
     disconnectBrowserSourceConnection,
+    forgetNativeHostedPairing,
     readLocalSourcesForImport,
     requestSourceServer,
 } from '@iptvnator/services/source-sync';
@@ -223,6 +224,7 @@ export class SettingsServerSectionComponent {
             if (window.electron?.sourceSyncDisconnect)
                 await window.electron.sourceSyncDisconnect();
             else {
+                await forgetNativeHostedPairing();
                 if (!disconnectBrowserSourceConnection())
                     throw new Error('SOURCE_SYNC.REQUEST_FAILED');
                 location.reload();

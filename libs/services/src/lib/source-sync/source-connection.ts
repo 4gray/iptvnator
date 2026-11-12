@@ -3,12 +3,17 @@ import {
     type SourceServerConnection,
     type ServerInstanceInfo,
 } from '@iptvnator/shared/interfaces';
+import {
+    hostedPairingBridge,
+    requestHostedPairing,
+} from './hosted-pairing-bridge';
 
 export const CONNECTION_KEY = 'iptvnator:source-server';
 export const DISABLED_KEY = 'iptvnator:source-server-disabled';
 const INCOMPATIBLE = 'SOURCE_SYNC.INCOMPATIBLE';
 const OFFLINE = 'SOURCE_SYNC.OFFLINE';
 let selected: SourceServerConnection | null = null;
+let nativePairing: SourceServerConnection | null = null;
 let readFailed = false;
 let verificationEpoch = 0;
 
@@ -49,12 +54,24 @@ export async function prepareSourceConnection(
     runtimeBackendUrl?: string
 ): Promise<void> {
     selected = null;
+    nativePairing = null;
     invalidateSourceVerification();
     readFailed = false;
     try {
         if (window.electron?.sourceSyncConnection) {
             selected = window.electron.sourceSyncConnection();
             return;
+        }
+        const bridge = hostedPairingBridge();
+        if (bridge && runtimeBackendUrl) {
+            const paired = await restoreNativeHostedPairing(
+                bridge,
+                runtimeBackendUrl
+            );
+            if (paired) {
+                selected = nativePairing = paired;
+                return;
+            }
         }
         const saved = localStorage.getItem(CONNECTION_KEY);
         if (saved) {
@@ -129,6 +146,52 @@ export async function prepareSourceConnection(
     } catch {
         readFailed = true;
     }
+}
+
+async function restoreNativeHostedPairing(
+    bridge: NonNullable<ReturnType<typeof hostedPairingBridge>>,
+    runtimeBackendUrl: string
+): Promise<SourceServerConnection | null> {
+    try {
+        const api = new URL(runtimeBackendUrl, location.href);
+        if (api.href !== `${location.origin}/api`) return null;
+        const response = await fetch(`${api.href}/v1/instance`, {
+            signal: AbortSignal.timeout(5000),
+            redirect: 'error',
+        });
+        if (!response.ok) return null;
+        const info: unknown = await response.json();
+        assertSourceInstance(info);
+        const instanceId = info.instanceId!;
+        const reply = await requestHostedPairing(
+            bridge,
+            'credential',
+            instanceId
+        );
+        const token = reply?.token;
+        if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(token))
+            return null;
+        const connection = { apiUrl: api.href, instanceId };
+        sessionStorage.setItem(tokenKey(connection), token);
+        localStorage.setItem(CONNECTION_KEY, JSON.stringify(connection));
+        localStorage.removeItem(DISABLED_KEY);
+        return connection;
+    } catch {
+        return null;
+    }
+}
+
+export async function forgetNativeHostedPairing(): Promise<void> {
+    if (!nativePairing || nativePairing !== selected) return;
+    const bridge = hostedPairingBridge();
+    if (
+        !bridge ||
+        (await requestHostedPairing(bridge, 'forget', nativePairing.instanceId))
+            ?.forgotten !== true
+    ) {
+        throw new Error('SOURCE_SYNC.REQUEST_FAILED');
+    }
+    nativePairing = null;
 }
 
 export function invalidateSourceVerification(): void {

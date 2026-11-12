@@ -10,8 +10,10 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { MatButtonModule } from '@angular/material/button';
 import type {
+    HostedDeviceCommand,
     HostedDeviceInvite,
     HostedDeviceList,
+    HostedDeviceResults,
 } from '@iptvnator/shared/interfaces';
 import { DialogService } from '@iptvnator/ui/components';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
@@ -68,9 +70,7 @@ export class SettingsHostedDevicesComponent {
         await this.run(async () => {
             this.inviteExpired.set(false);
             this.invite.set(null);
-            const invite = await window.electron.hostedDeviceControl!({
-                action: 'invite',
-            });
+            const invite = await this.request({ action: 'invite' });
             this.invite.set(invite);
             this.expanded.set(true);
         });
@@ -78,10 +78,7 @@ export class SettingsHostedDevicesComponent {
 
     async approve(claimId: string): Promise<void> {
         await this.run(async () => {
-            await window.electron.hostedDeviceControl!({
-                action: 'approve',
-                claimId,
-            });
+            await this.request({ action: 'approve', claimId });
             this.message.set('HOSTED_SERVER.PAIR_APPROVED');
         });
     }
@@ -110,10 +107,7 @@ export class SettingsHostedDevicesComponent {
 
     private async revoke(deviceId: string): Promise<void> {
         await this.run(async () => {
-            await window.electron.hostedDeviceControl!({
-                action: 'revoke',
-                deviceId,
-            });
+            await this.request({ action: 'revoke', deviceId });
             this.message.set('HOSTED_SERVER.DEVICE_REVOKED');
         });
     }
@@ -136,9 +130,7 @@ export class SettingsHostedDevicesComponent {
         if (this.loading || this.destroyRef.destroyed) return;
         this.loading = true;
         try {
-            const snapshot = await window.electron.hostedDeviceControl!({
-                action: 'list',
-            });
+            const snapshot = await this.request({ action: 'list' });
             const invite = this.invite();
             const fragment = invite ? new URL(invite.url).hash : '';
             if (
@@ -155,5 +147,14 @@ export class SettingsHostedDevicesComponent {
         } finally {
             this.loading = false;
         }
+    }
+
+    private async request<Command extends HostedDeviceCommand>(
+        command: Command
+    ): Promise<HostedDeviceResults[Command['action']]> {
+        const electron = window.electron;
+        if (!electron?.hostedDeviceControl)
+            throw new Error('Device pairing unavailable');
+        return electron.hostedDeviceControl(command);
     }
 }

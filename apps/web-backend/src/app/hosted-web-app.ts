@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import express, { type Express, type Response } from 'express';
+import { mountHostedDevicePage } from './hosted-device-page';
 
 export function createHostedWebApp(api: Express, assets: string): Express {
     const index = readFileSync(join(assets, 'index.html'), 'utf8');
@@ -11,6 +12,7 @@ export function createHostedWebApp(api: Express, assets: string): Express {
             .send(index);
     const app = express();
     app.disable('x-powered-by');
+    mountHostedDevicePage(app);
     app.use('/api', api);
     app.use('/api', (_req, res) => res.sendStatus(404));
     app.get('/assets/app-config.js', (_req, res) => {

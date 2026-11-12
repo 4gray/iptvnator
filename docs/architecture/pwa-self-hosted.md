@@ -45,6 +45,21 @@ network. The code is stored in the server data directory with user-only file
 permissions where supported. A change to the selected network address requires
 selecting the new address and starting the server again.
 
+For Android enrollment, **Pair a device** shows a short-lived invitation QR
+while home network access is active. The browser handoff opens the native app,
+which confirms the server and shows a code. The host compares that code in
+**Paired devices** and approves the request. The invitation cannot authenticate
+library requests. The approved Android app stores a separate credential in
+Android Keystore-backed storage and supplies it to the hosted page for its
+current server session after instance discovery.
+
+Pending invitations and claims expire and are lost on worker restart. The
+hosted database stores only paired-device credential digests. The desktop can
+list and revoke devices through its loopback listener using the server access
+code. A paired device can use the library APIs but cannot administer pairing.
+Revoke access removes that credential without changing the shared access code
+or other paired devices. The ordinary web-player QR still contains the address.
+
 The utility process inherits the desktop environment, including operating-system
 variables such as Windows `SystemRoot`, `PATH` and temporary-directory settings.
 Hosted storage, data paths, access code, assets, LAN binding and port override

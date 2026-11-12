@@ -199,7 +199,9 @@ test('starts locally, reconnects through the hosted library, and stops on reques
     }
 });
 
-test('shares a running computer-only library on the home network with a QR code', async () => {
+test('shares a library, pairs an approved device, and revokes its access', async ({
+    browser,
+}) => {
     const directory = mkdtempSync(join(tmpdir(), 'iptvnator-hosted-lan-'));
     const origin = `http://127.0.0.1:${HOSTED_SERVER_PORT}`;
     let desktop: Awaited<ReturnType<typeof launchElectronApp>> | undefined;
@@ -252,6 +254,113 @@ test('shares a running computer-only library on the home network with a QR code'
         expect(
             (await (await fetch(origin + '/api/v1/instance')).json()).instanceId
         ).toBe(identity.instanceId);
+
+        await page.getByTestId('hosted-device-pair').click();
+        const pairQr = page.getByTestId('hosted-device-pair-qr');
+        await expect(pairQr.locator('svg')).toBeVisible();
+        const invite = new URL(
+            await pairQr.evaluate((element) => {
+                const debug = window as Window & {
+                    ng: { getComponent(node: Element): { qrdata: string } };
+                };
+                return debug.ng.getComponent(element).qrdata;
+            })
+        );
+        expect(invite.origin).toBe(lan.trim());
+        expect(invite.pathname).toBe('/pair-device');
+        expect(invite.search).toBe('');
+        const device = await browser.newPage();
+        try {
+            await device.goto(invite.href);
+            const deepLink = new URL(
+                (await device
+                    .getByRole('link', { name: 'Open IPTVnator' })
+                    .getAttribute('href'))!
+            );
+            expect(deepLink.protocol).toBe('iptvnator:');
+            expect(deepLink.searchParams.get('server')).toBe(invite.origin);
+            expect(deepLink.searchParams.get('invite')).toBe(
+                invite.hash.slice(1)
+            );
+            expect(new URL(device.url()).hash).toBe('');
+
+            const post = (path: string, body: object) =>
+                fetch(`${invite.origin}/api/v1/device-pairing/${path}`, {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+            const claimResponse = await post('claim', {
+                inviteId: invite.hash.slice(1),
+                name: 'Synthetic Android',
+            });
+            expect(claimResponse.status).toBe(201);
+            const { claimId, claimSecret, confirmationCode } =
+                await claimResponse.json();
+            const finish = () => post('complete', { claimId, claimSecret });
+            expect(await (await finish()).json()).toEqual({
+                status: 'pending',
+            });
+            await expect(
+                page.getByText(confirmationCode, { exact: true })
+            ).toBeVisible();
+            await page
+                .getByRole('button', { name: 'Codes match, approve' })
+                .click();
+            await expect(
+                page.getByText('Device approved.', { exact: true })
+            ).toBeVisible();
+            const enrolled = await (await finish()).json();
+            expect(enrolled.status).toBe('approved');
+            expect(enrolled.instanceId).toBe(identity.instanceId);
+            await device.addInitScript(
+                ({ token, instanceId }) => {
+                    const bridge = {
+                        onmessage: null as
+                            ((value: { data: string }) => void) | null,
+                        postMessage(message: string) {
+                            const request = JSON.parse(message);
+                            bridge.onmessage?.({
+                                data: JSON.stringify({
+                                    token:
+                                        request.instanceId === instanceId &&
+                                        request.action === 'credential'
+                                            ? token
+                                            : null,
+                                }),
+                            });
+                        },
+                    };
+                    Reflect.set(window, 'HostedPairing', bridge);
+                },
+                { token: enrolled.token, instanceId: enrolled.instanceId }
+            );
+            const authorized = device.waitForResponse(
+                (response) =>
+                    response.url() === `${invite.origin}/api/v1/sources` &&
+                    response.status() === 200
+            );
+            await device.goto(invite.origin);
+            await authorized;
+
+            await expect(
+                page.getByRole('button', { name: 'Revoke access' })
+            ).toBeVisible();
+            await page.getByRole('button', { name: 'Revoke access' }).click();
+            await page.getByTestId('confirm-dialog-confirm').click();
+            await expect(
+                page.getByText('Synthetic Android', { exact: true })
+            ).toHaveCount(0);
+            expect(
+                (
+                    await fetch(`${invite.origin}/api/v1/sources`, {
+                        headers: { Authorization: `Bearer ${enrolled.token}` },
+                    })
+                ).status
+            ).toBe(401);
+        } finally {
+            await device.close();
+        }
         await page.getByTestId('hosted-server-stop').click();
         await expect(page.getByTestId('hosted-server-status')).toHaveText(
             'Server stopped'
