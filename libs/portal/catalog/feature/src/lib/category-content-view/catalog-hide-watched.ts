@@ -31,7 +31,8 @@ export function createCatalogHideWatched<C, I, S>(
         ready,
         paused,
         resumeVersion,
-        error: computed(() => state() === 'error'),
+        error: computed(() => state() === 'error' || state() === 'retrying'),
+        retrying: computed(() => state() === 'retrying'),
         loading: computed(() => state() === 'idle' || state() === 'loading'),
         set(value: boolean): void {
             if (!supported()) return;

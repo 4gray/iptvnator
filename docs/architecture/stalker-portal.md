@@ -512,7 +512,10 @@ portal or route session is replaced. Existing progress classification (90%
 completion, including manual marks) hides only movies; started movies and all
 three supported series shapes remain visible. Initial progress read failures
 leave activation disabled with Retry. Refresh failures retain the last snapshot
-and show a retry notice; newer player updates beat in-flight snapshot reads.
+and show a retry notice. The notice stays visible with Retry disabled while
+the read is pending. Newer player updates beat in-flight snapshot reads.
+The progress loading notice appears while fetching the first snapshot.
+Subsequent reads update the watch marks when they finish.
 Accepted throttled inline-player writes feed the same catalog snapshot as
 external-player events, so returning from inline completion immediately hides
 that movie without re-reading the whole progress history.

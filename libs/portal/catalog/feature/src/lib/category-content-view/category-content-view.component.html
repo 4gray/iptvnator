@@ -327,13 +327,18 @@
                 }
             </div>
             @if (hideWatched.error()) {
-                <div class="catalog-progress-notice" role="alert">
+                <div
+                    class="catalog-progress-notice"
+                    role="alert"
+                    [attr.aria-busy]="hideWatched.retrying()"
+                >
                     <span>{{
                         'WORKSPACE.REFINE_HIDE_WATCHED_ERROR' | translate
                     }}</span>
                     <button
                         type="button"
                         mat-button
+                        [disabled]="hideWatched.retrying()"
                         (click)="hideWatched.retry()"
                     >
                         {{ 'RETRY' | translate }}
