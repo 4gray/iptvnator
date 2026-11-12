@@ -12,22 +12,40 @@ export function matchVlcGuidePlaylist(
     url: string,
     request: VlcGuidePlaylistRequest
 ): (input: string) => Promise<boolean> {
-    let entries: Promise<Set<string>> | undefined;
+    let entries: Set<string> | null | undefined;
+    let pending: Promise<void> | undefined;
     let failures = 0;
     let retryAt = 0;
-    return async (input) => {
-        if (!entries && performance.now() < retryAt) return false;
-        entries ??= loadPlaylistEntries(url, request).catch(() => {
-            // shortcut: three retries per tune; extend when longer provider outages need automatic recovery.
-            if (++failures <= 3) {
-                entries = undefined;
-                retryAt = performance.now() + 5_000;
-            }
-            return new Set<string>();
-        });
-        for (const target of await entries)
+    const matches = (input: string) => {
+        for (const target of entries ?? [])
             if (matchesVlcInput(input, target)) return true;
         return false;
+    };
+    return async (input) => {
+        if (matches(input)) return true;
+        // shortcut: three consecutive retries; extend for longer provider outages.
+        if (
+            !pending &&
+            entries !== null &&
+            failures <= 3 &&
+            performance.now() >= retryAt
+        )
+            pending = loadPlaylistEntries(url, request)
+                .then(
+                    (next) => {
+                        entries = next ?? entries ?? null;
+                        failures = 0;
+                    },
+                    () => {
+                        failures++;
+                    }
+                )
+                .finally(() => {
+                    retryAt = performance.now() + 5_000;
+                    pending = undefined;
+                });
+        await pending;
+        return matches(input);
     };
 }
 
@@ -38,7 +56,7 @@ async function loadPlaylistEntries(
     const input = new URL(url);
     const targets = new Set<string>();
     if (/\.(?:ts|m2ts|mp4|mkv|mp3|aac|webm|mpeg|mpg)$/i.test(input.pathname))
-        return targets;
+        return null;
     const {
         mergedHeaders,
         effectiveOrigin,
@@ -96,7 +114,7 @@ async function loadPlaylistEntries(
             ? finalUrl.href !== input.href || !isM3uPath(input)
             : !hasM3uHint(finalUrl, head.headers?.['content-type'])
     )
-        return targets;
+        return null;
     const { data, headers: responseHeaders } = await read(finalUrl, 'GET');
     const lines = data
         .trimStart()
@@ -108,7 +126,7 @@ async function loadPlaylistEntries(
             !/^#EXTM3U(?:\s|$)/i.test(lines[0] ?? '')) ||
         lines.some((line) => /^#EXT-X-/i.test(line))
     )
-        return targets;
+        return null;
     for (const line of lines) {
         if (!line || line.startsWith('#')) continue;
         try {

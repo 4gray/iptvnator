@@ -752,6 +752,9 @@ describe('VLC exact playback ownership', () => {
             expect(
                 externalPlayerSessions.getSession(session.id)?.mediaLoaded
             ).toBe(true);
+            expect(requestWithValidatedRedirects).toHaveBeenCalledTimes(
+                playlist ? 2 : 0
+            );
             input = 'https://example.test/synthetic-other.ts';
             await jest.advanceTimersByTimeAsync(2_000);
             for (let turn = 0; turn < 6; turn++) await tick();
@@ -770,7 +773,7 @@ describe('VLC exact playback ownership', () => {
                 externalPlayerSessions.getSession(session.id)?.mediaLoaded
             ).toBe(false);
             expect(requestWithValidatedRedirects).toHaveBeenCalledTimes(
-                playlist ? 2 : 0
+                playlist ? 4 : 0
             );
             if (playlist)
                 expect(requestWithValidatedRedirects).toHaveBeenLastCalledWith(

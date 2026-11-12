@@ -28,21 +28,29 @@ function xtreamGuideFavoriteRows(
     return rows;
 }
 
-/** Native collection reads may resolve a stream to its hidden category copy. */
+/** Collection reads may resolve a stream to a hidden or locked copy. */
 async function resolveVisibleXtreamFavoriteCopies(
     favorites: ReadonlyMap<number, number>,
     rows: readonly XtreamLiveChannelItem[],
+    sqlite: boolean,
     isFavorite: (ref: TypedXtreamCollectionRef) => Promise<boolean>,
     signal: AbortSignal
-): Promise<ReadonlyMap<number, number>> {
-    if (!favorites.size) return favorites;
-    const visibleIds = new Set(rows.map((row) => Number(row.id)));
-    let resolved: Map<number, number> | undefined;
+): Promise<ReadonlyMap<number, XtreamLiveChannelItem>> {
+    const resolved = new Map<number, XtreamLiveChannelItem>();
+    if (!favorites.size) return resolved;
     for (const row of rows) {
-        if (signal.aborted) return favorites;
-        const savedId = (resolved ?? favorites).get(row.xtream_id);
-        if (savedId === undefined || visibleIds.has(savedId)) continue;
-        const id = Number(row.id);
+        const copy = Number(sqlite ? row.id : (row.category_id ?? 0));
+        if (
+            favorites.get(row.xtream_id) === copy &&
+            !resolved.has(row.xtream_id)
+        )
+            resolved.set(row.xtream_id, row);
+    }
+    for (const row of rows) {
+        if (signal.aborted) break;
+        if (!favorites.has(row.xtream_id) || resolved.has(row.xtream_id))
+            continue;
+        const id = Number(row.id ?? (sqlite ? undefined : row.xtream_id));
         if (
             Number.isSafeInteger(id) &&
             (await isFavorite({
@@ -54,12 +62,10 @@ async function resolveVisibleXtreamFavoriteCopies(
                     releaseYear: row.release_year ?? undefined,
                 },
             }).catch(() => false))
-        ) {
-            resolved ??= new Map(favorites);
-            resolved.set(row.xtream_id, id);
-        }
+        )
+            resolved.set(row.xtream_id, row);
     }
-    return resolved ?? favorites;
+    return resolved;
 }
 
 async function loadXtreamGuideFavorites(
@@ -68,17 +74,16 @@ async function loadXtreamGuideFavorites(
     visible: readonly XtreamLiveChannelItem[],
     sqlite: boolean,
     signal: AbortSignal
-): Promise<ReadonlyMap<number, number>> {
+): Promise<ReadonlyMap<number, XtreamLiveChannelItem>> {
     const items = await firstValueFrom(service.getFavorites(playlistId, false));
     const favorites = xtreamGuideFavoriteRows(items, sqlite);
-    return sqlite
-        ? resolveVisibleXtreamFavoriteCopies(
-              favorites,
-              visible,
-              (id) => service.isFavorite(id, playlistId),
-              signal
-          )
-        : favorites;
+    return resolveVisibleXtreamFavoriteCopies(
+        favorites,
+        visible,
+        sqlite,
+        (id) => service.isFavorite(id, playlistId),
+        signal
+    );
 }
 
 export function injectXtreamGuideFavorites(
@@ -88,7 +93,9 @@ export function injectXtreamGuideFavorites(
     sqlite: () => boolean
 ) {
     const service = inject(FavoritesService);
-    const favorites = signal<ReadonlyMap<number, number>>(new Map());
+    const favorites = signal<ReadonlyMap<number, XtreamLiveChannelItem>>(
+        new Map()
+    );
     const revision = signal(0);
     effect((onCleanup) => {
         const owner = session();

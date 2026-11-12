@@ -538,6 +538,45 @@ describe('XtreamEpgGuideSourceService', () => {
         );
     });
 
+    it('uses the exact compatible PWA favorite when its saved category is locked', async () => {
+        runtime.supportsXtreamSqliteDataSource = false;
+        locked.mockImplementation(
+            (_playlist, _type, category) => category === 8
+        );
+        const conflicting = { ...one, id: one.xtream_id, tmdb_id: 10 };
+        const compatible = {
+            ...conflicting,
+            title: 'Synthetic Compatible Favorite',
+            epg_channel_id: 'synthetic.compatible',
+            tmdb_id: 20,
+        };
+        liveStreams.set([
+            conflicting,
+            compatible,
+            { ...compatible, category_id: 8 },
+        ]);
+        favorites = [
+            {
+                content_id: one.xtream_id,
+                xtream_id: one.xtream_id,
+                category_id: 8,
+                type: 'live',
+            },
+        ];
+        isFavorite.mockImplementation(
+            async (ref) => ref.identity?.tmdbId === 20
+        );
+        service.open();
+        service.setScope('favorites');
+        await settleFavorites();
+        expect(service.channels().map(({ name }) => name)).toEqual([
+            compatible.title,
+        ]);
+        expect(
+            isFavorite.mock.calls.map(([ref]) => ref.identity?.tmdbId)
+        ).toEqual([10, 20]);
+    });
+
     it('uses a compatible visible copy when the native favorite resolves to a hidden row', async () => {
         const compatible = {
             ...one,

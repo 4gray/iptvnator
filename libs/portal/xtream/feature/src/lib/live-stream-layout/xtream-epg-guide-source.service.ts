@@ -174,13 +174,8 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         const items = this.items();
         if (scope === FAVORITES) {
             const favorites = this.favorites();
-            const sqlite = this.runtime.supportsXtreamSqliteDataSource;
             return xtreamRowsByStreamId(
-                items.filter(
-                    (item) =>
-                        favorites.get(item.xtream_id) ===
-                        Number(sqlite ? item.id : (item.category_id ?? 0))
-                )
+                items.filter((item) => favorites.get(item.xtream_id) === item)
             );
         }
         return xtreamRowsByStreamId(

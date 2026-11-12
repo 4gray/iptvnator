@@ -841,8 +841,9 @@ extension and rejects HEAD as unsupported, it can be read directly.
 When VLC opens a direct child of a plain M3U, the verifier resolves relative
 entries against the final playlist URL. It rechecks the active input
 before confirming. A playlist with an M3U extension or media type can omit the
-header; HLS tags still exclude it. Failed reads get up to three retries spaced
-five seconds apart. Playlist verification uses VLC's Origin as the fallback
+header; HLS tags still exclude it. A mismatched child can refresh a previously
+identified playlist after five seconds. Failed reads get up to three consecutive
+retries. Playlist verification uses VLC's Origin as the fallback
 Referer and the standard Xtream player User-Agent if no overrides were provided.
 A host change or HTTPS downgrade keeps only the standard User-Agent for
 subsequent requests.
@@ -917,6 +918,8 @@ Restoring a surviving session restores that session's order even if the
 channel is the same. Guide tuning captures the rows visible after filtering.
 The guide uses the current playlist's visible, unlocked
 live catalogue and can scope it to a category or resolved live favorites.
+If a saved favorite resolves to a locked or hidden copy, the guide uses a
+visible copy only after verifying its favorite identity.
 A stream shared by multiple categories appears in each of those scopes and
 once in All Channels. Choosing another copy of a stream already playing
 switches its EPG mapping without restarting playback and keeps temporarily

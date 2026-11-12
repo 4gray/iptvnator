@@ -116,6 +116,36 @@ describe('VLC playlist verification', () => {
         ).toEqual(['HEAD', 'GET', 'HEAD', 'GET']);
     });
 
+    it('refreshes a plain playlist when the resumed child changes, without repeated reads in the cooldown', async () => {
+        jest.useFakeTimers();
+        try {
+            const url = 'https://example.test/synthetic.m3u';
+            const first = 'synthetic-first.ts';
+            const resumed = 'synthetic-resumed.ts';
+            const head = { config: { url } };
+            (requestWithValidatedRedirects as jest.Mock)
+                .mockResolvedValueOnce(head)
+                .mockResolvedValueOnce({ ...head, data: first })
+                .mockResolvedValueOnce(head)
+                .mockResolvedValueOnce({ ...head, data: resumed });
+            const matches = matchVlcGuidePlaylist(url, { mergedHeaders: {} });
+            await expect(matches(new URL(first, url).href)).resolves.toBe(true);
+            const target = new URL(resumed, url).href;
+            jest.advanceTimersByTime(4_999);
+            await expect(matches(target)).resolves.toBe(false);
+            expect(requestWithValidatedRedirects).toHaveBeenCalledTimes(2);
+            jest.advanceTimersByTime(1);
+            await expect(
+                Promise.all([matches(target), matches(target)])
+            ).resolves.toEqual([true, true]);
+            expect(requestWithValidatedRedirects).toHaveBeenCalledTimes(4);
+            await expect(matches(target)).resolves.toBe(true);
+            expect(requestWithValidatedRedirects).toHaveBeenCalledTimes(4);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
     it('never opens a media response to check a mismatched input', async () => {
         const direct = 'https://example.test/synthetic.ts';
         const opaque = 'https://example.test/synthetic-input';
