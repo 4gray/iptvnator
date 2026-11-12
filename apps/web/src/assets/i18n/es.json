@@ -2351,6 +2351,7 @@
         }
     },
     "HOSTED_SERVER": {
+        "ALLOW_DEVICE_APPROVAL": "Permitir que este dispositivo apruebe solicitudes de vinculación",
         "PHONE_PAIRING_TITLE": "Aprueba televisores desde tu teléfono",
         "PHONE_PAIRING_DESCRIPTION": "Establece una contraseña independiente para aprobar solicitudes de vinculación en tu teléfono después de escanear el código QR del televisor. El código de acceso para espectadores sigue sirviendo para abrir el reproductor web.",
         "PHONE_PASSWORD_LABEL": "Contraseña de aprobación desde el teléfono",

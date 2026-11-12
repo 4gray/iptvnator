@@ -2351,6 +2351,7 @@
         }
     },
     "HOSTED_SERVER": {
+        "ALLOW_DEVICE_APPROVAL": "Consenti a questo dispositivo di approvare le richieste di associazione",
         "PHONE_PAIRING_TITLE": "Approva le TV dal telefono",
         "PHONE_PAIRING_DESCRIPTION": "Imposta una password separata per approvare le richieste di associazione dal telefono dopo aver scansionato il codice QR sulla TV. Il codice di accesso per gli spettatori serve ancora per aprire il lettore web.",
         "PHONE_PASSWORD_LABEL": "Password di approvazione dal telefono",

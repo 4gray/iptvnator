@@ -2351,6 +2351,7 @@
         }
     },
     "HOSTED_SERVER": {
+        "ALLOW_DEVICE_APPROVAL": "Pozwól temu urządzeniu zatwierdzać prośby o parowanie",
         "PHONE_PAIRING_TITLE": "Zatwierdzaj telewizory z telefonu",
         "PHONE_PAIRING_DESCRIPTION": "Ustaw osobne hasło, aby zatwierdzać na telefonie prośby o parowanie po zeskanowaniu kodu QR na telewizorze. Kod dostępu widza nadal służy do otwierania odtwarzacza internetowego.",
         "PHONE_PASSWORD_LABEL": "Hasło do zatwierdzania z telefonu",

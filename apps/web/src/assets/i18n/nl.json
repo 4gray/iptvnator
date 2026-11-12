@@ -2351,6 +2351,7 @@
         }
     },
     "HOSTED_SERVER": {
+        "ALLOW_DEVICE_APPROVAL": "Dit apparaat mag koppelverzoeken goedkeuren",
         "PHONE_PAIRING_TITLE": "Keur tv's goed vanaf je telefoon",
         "PHONE_PAIRING_DESCRIPTION": "Stel een apart wachtwoord in om koppelverzoeken op je telefoon goed te keuren nadat je de QR-code op de tv hebt gescand. Met de kijkerstoegangscode open je nog steeds de webspeler.",
         "PHONE_PASSWORD_LABEL": "Wachtwoord voor goedkeuring via telefoon",

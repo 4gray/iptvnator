@@ -2351,6 +2351,7 @@
         }
     },
     "HOSTED_SERVER": {
+        "ALLOW_DEVICE_APPROVAL": "Bu cihazın eşleştirme isteklerini onaylamasına izin ver",
         "PHONE_PAIRING_TITLE": "TV'leri telefonunuzdan onaylayın",
         "PHONE_PAIRING_DESCRIPTION": "TV'deki QR kodunu taradıktan sonra eşleştirme isteklerini telefonunuzdan onaylamak için ayrı bir parola belirleyin. Web oynatıcıyı açmak için izleyici erişim kodu kullanılmaya devam eder.",
         "PHONE_PASSWORD_LABEL": "Telefonla onay parolası",

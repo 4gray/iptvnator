@@ -2351,6 +2351,7 @@
         }
     },
     "HOSTED_SERVER": {
+        "ALLOW_DEVICE_APPROVAL": "允許此裝置核准配對要求",
         "PHONE_PAIRING_TITLE": "在手機上核准電視配對",
         "PHONE_PAIRING_DESCRIPTION": "設定獨立密碼，以便掃描電視上的 QR 碼後在手機上核准配對要求。觀看存取碼仍用於開啟網頁播放器。",
         "PHONE_PASSWORD_LABEL": "手機核准密碼",

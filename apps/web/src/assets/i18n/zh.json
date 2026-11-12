@@ -2351,6 +2351,7 @@
         }
     },
     "HOSTED_SERVER": {
+        "ALLOW_DEVICE_APPROVAL": "允许此设备批准配对请求",
         "PHONE_PAIRING_TITLE": "在手机上批准电视配对",
         "PHONE_PAIRING_DESCRIPTION": "设置单独的密码，以便扫描电视上的二维码后在手机上批准配对请求。观看访问码仍用于打开网页播放器。",
         "PHONE_PASSWORD_LABEL": "手机批准密码",
