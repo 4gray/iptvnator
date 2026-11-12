@@ -153,6 +153,8 @@ calls `createRequire(...)('electron')`, `coverage:unit:ci` first runs
 fails unless it runs and reports the pinned version; CI also runs it as its own
 step when the Tier A suite is in scope. In a fresh worktree, run it before
 starting several of these specs at once by other means.
+`pnpm nx test packaging` also runs this helper before launching its parallel
+test files, including the Electron runtime and Nx executor checks.
 
 In CI, a pull request skips the Tier A suite (and the merged-coverage upload)
 when every changed file is outside Tier A test inputs:
