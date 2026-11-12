@@ -920,7 +920,8 @@ export class LiveStreamLayoutComponent
         ) {
             const category = this.readLiveProviderCategoryId(item);
             const keepPanel =
-                this.guide.isOpen() && !!this.externalGuide.confirmed();
+                (remote || this.guide.isOpen()) &&
+                !!this.externalGuide.confirmed();
             const start = (resolved: typeof category) => {
                 if (
                     !this.isCurrentPlaybackRequest(requestId, owner) ||

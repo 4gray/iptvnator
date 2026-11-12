@@ -230,6 +230,32 @@ describe('reused MPV IPC replies', () => {
                     playbackUnverified: true,
                     mediaObservationUnavailable: true,
                 });
+            if (outcome === 'legacy acknowledgement') {
+                const updates = jest.spyOn(
+                    externalPlayerSessions,
+                    'updateSession'
+                );
+                jest.mocked(proc.kill).mockImplementation(() => {
+                    Object.defineProperty(proc, 'exitCode', { value: 1 });
+                    proc.emit('exit', 1);
+                    return true;
+                });
+                try {
+                    await expect(
+                        externalPlayerSessions.closeSession(session.id, true)
+                    ).resolves.toMatchObject({
+                        status: 'closed',
+                        closedByRequest: true,
+                    });
+                    expect(updates).not.toHaveBeenCalledWith(
+                        session.id,
+                        expect.objectContaining({ status: 'error' })
+                    );
+                } finally {
+                    updates.mockRestore();
+                }
+                return;
+            }
             Object.defineProperty(proc, 'exitCode', { value: 0 });
             proc.emit('exit', 0);
         }

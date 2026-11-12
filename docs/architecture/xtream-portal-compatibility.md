@@ -829,12 +829,13 @@ The dock, player panel and remote status follow the confirmed session. The remot
 keeps channel and programme metadata tied to the same playback. An unverified
 channel can keep remote tuning available but does not supply programme metadata.
 Selecting the number of a channel already playing live does not reopen it.
+The player panel stays on confirmed playback while a remote tune is pending.
 The dock restores Stop for the surviving session when the launch that owns
 the dock ends. An idle failed replacement closes before that restore. If the
 first launch fails or exits before confirming
 playback, its channel and queue remain available for remote tuning without
 now-playing details. An explicit Stop clears the exact unconfirmed tune, even
-after a closable error.
+after a closable error or if MPV exits with a nonzero code while stopping.
 Consecutive remote tuning commands advance from the latest requested channel
 until it opens or fails. A VLC fallback from an older launch cannot retire a
 newer tune.

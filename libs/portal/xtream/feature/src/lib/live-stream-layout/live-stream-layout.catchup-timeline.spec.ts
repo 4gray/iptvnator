@@ -356,6 +356,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         emptyList.set([playing, next, third]);
         portalPlayer.isEmbeddedPlayer.set(false);
         component.playLive(playing, true, [playing, next, third]);
+        const currentUrl = component.activeStreamUrl();
         publishExternalSession({
             id: 'synthetic-remote',
             streamUrl: component.activeStreamUrl(),
@@ -376,16 +377,29 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             .mockReturnValueOnce(undefined)
             .mockRejectedValueOnce(new Error('Synthetic remote failure'));
         advance();
-        expect(xtreamStore.constructStreamUrl).toHaveBeenLastCalledWith(next);
+        expect(xtreamStore.constructStreamUrl).toHaveBeenLastCalledWith(
+            next,
+            undefined,
+            false
+        );
+        expect(component.activeStreamUrl()).toBe(currentUrl);
         advance();
-        expect(xtreamStore.constructStreamUrl).toHaveBeenLastCalledWith(third);
+        expect(xtreamStore.constructStreamUrl).toHaveBeenLastCalledWith(
+            third,
+            undefined,
+            false
+        );
         fixture.detectChanges();
         expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
             expect.objectContaining({ channelNumber: 1 })
         );
         await Promise.resolve();
         advance();
-        expect(xtreamStore.constructStreamUrl).toHaveBeenLastCalledWith(next);
+        expect(xtreamStore.constructStreamUrl).toHaveBeenLastCalledWith(
+            next,
+            undefined,
+            false
+        );
     });
 
     it.each(['live', 'filtered', 'archive', 'same-channel archive'] as const)(

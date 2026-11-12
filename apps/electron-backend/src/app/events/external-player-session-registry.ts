@@ -195,10 +195,12 @@ export class ExternalPlayerSessionRegistry {
             status: 'closed',
             canClose: false,
             closedByRequest:
-                requested || this.sessions.get(id)?.closeRequested
-                    ? true
-                    : undefined,
+                requested || this.isCloseRequested(id) ? true : undefined,
         });
+    }
+
+    isCloseRequested(id: string): boolean {
+        return this.sessions.get(id)?.closeRequested === true;
     }
 
     requestClose(id: string | null): void {

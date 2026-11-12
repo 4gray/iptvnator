@@ -315,16 +315,13 @@ async function launchMpvPlayer(
                 );
                 reusableMpvProcess.clear(proc);
                 stopPositionPolling(processSessionId);
-                fallingBack ||= !!media?.awaitingDispatch && !requestedClose;
-                if (fallingBack) return resolveLaunch();
-
-                if (code !== 0 && code !== null) {
+                const stopping =
+                    externalPlayerSessions.isCloseRequested(processSessionId);
+                fallingBack ||= !!media?.awaitingDispatch && !stopping;
+                if (fallingBack && !stopping) return resolveLaunch();
+                if (code && !stopping)
                     markMpvExitFailure(processSessionId, code);
-                    resolveLaunch();
-                    return;
-                }
-
-                externalPlayerSessions.markClosed(processSessionId);
+                else externalPlayerSessions.markClosed(processSessionId);
                 resolveLaunch();
             });
 
