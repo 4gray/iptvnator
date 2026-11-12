@@ -1015,52 +1015,81 @@ describe('external player shutdown on app quit', () => {
         shutdownMpvSession();
     });
 
-    it('rechecks the process-wide teardown gate before fallback MPV spawn', async () => {
-        shutdownMpvSession();
-        const staleProc = createMockChildProcess();
-        (spawn as unknown as jest.Mock).mockReturnValue(staleProc);
-        mockStoreValues({
-            [MPV_PLAYER_PATH]: '/usr/bin/mpv',
-            [MPV_REUSE_INSTANCE]: true,
-        });
-        await openMpvPlayer({
-            title: 'First stream',
-            url: 'https://example.com/one.m3u8',
-        });
-        (createConnection as unknown as jest.Mock).mockImplementation(() => {
-            const socket = Object.assign(new EventEmitter(), {
-                write: jest.fn(),
-                end: jest.fn(),
-                destroy: jest.fn(),
+    it.each(['unrelated teardown', 'exact close'])(
+        'handles %s before fallback MPV spawn',
+        async (action) => {
+            shutdownMpvSession();
+            const staleProc = createMockChildProcess();
+            (spawn as unknown as jest.Mock).mockReturnValue(staleProc);
+            mockStoreValues({
+                [MPV_PLAYER_PATH]: '/usr/bin/mpv',
+                [MPV_REUSE_INSTANCE]: true,
             });
-            setImmediate(() => socket.emit('error', new Error('stale socket')));
-            return socket;
-        });
-
-        const opening = openMpvPlayer({
-            title: 'Second stream',
-            url: 'https://example.com/two.m3u8',
-        });
-        await new Promise<void>((resolve) => setImmediate(resolve));
-        expect(staleProc.kill).toHaveBeenCalledTimes(1);
-
-        const blocker = createMockChildProcess();
-        const blockerTeardown =
-            externalPlayerProcessTeardownGate.terminate(blocker);
-        try {
-            Object.defineProperty(staleProc, 'exitCode', { value: 0 });
-            staleProc.emit('exit', 0);
-
-            await expect(opening).rejects.toThrow(
-                'previous external player is still shutting down'
+            await openMpvPlayer({
+                title: 'First stream',
+                url: 'https://example.com/one.m3u8',
+            });
+            (createConnection as unknown as jest.Mock).mockImplementation(
+                () => {
+                    const socket = Object.assign(new EventEmitter(), {
+                        write: jest.fn(),
+                        end: jest.fn(),
+                        destroy: jest.fn(),
+                    });
+                    setImmediate(() =>
+                        socket.emit('error', new Error('stale socket'))
+                    );
+                    return socket;
+                }
             );
-            expect(spawn).toHaveBeenCalledTimes(1);
-        } finally {
-            Object.defineProperty(blocker, 'exitCode', { value: 0 });
-            blocker.emit('exit', 0);
-            await blockerTeardown;
+
+            const opening = openMpvPlayer({
+                title: 'Second stream',
+                url: 'https://example.com/two.m3u8',
+            });
+            await new Promise<void>((resolve) => setImmediate(resolve));
+            expect(staleProc.kill).toHaveBeenCalledTimes(1);
+
+            if (action === 'exact close') {
+                const id =
+                    externalPlayerSessions.getActiveSessionId() as string;
+                const closed = jest.fn();
+                const close = externalPlayerSessions
+                    .closeSession(id, true)
+                    .then(closed);
+                try {
+                    await new Promise<void>((resolve) => setImmediate(resolve));
+                    expect(closed).not.toHaveBeenCalled();
+                } finally {
+                    Object.defineProperty(staleProc, 'exitCode', { value: 0 });
+                    staleProc.emit('exit', 0);
+                    await Promise.all([opening, close]);
+                }
+                expect(closed).toHaveBeenCalledWith(
+                    expect.objectContaining({ status: 'closed' })
+                );
+                expect(spawn).toHaveBeenCalledTimes(1);
+                return;
+            }
+
+            const blocker = createMockChildProcess();
+            const blockerTeardown =
+                externalPlayerProcessTeardownGate.terminate(blocker);
+            try {
+                Object.defineProperty(staleProc, 'exitCode', { value: 0 });
+                staleProc.emit('exit', 0);
+
+                await expect(opening).rejects.toThrow(
+                    'previous external player is still shutting down'
+                );
+                expect(spawn).toHaveBeenCalledTimes(1);
+            } finally {
+                Object.defineProperty(blocker, 'exitCode', { value: 0 });
+                blocker.emit('exit', 0);
+                await blockerTeardown;
+            }
         }
-    });
+    );
 
     it('keeps the fallback MPV session live after partial reuse failure', async () => {
         shutdownMpvSession();

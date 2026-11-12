@@ -180,6 +180,7 @@
                     [playback]="activePlayback()"
                     [timelineSegments]="catchupTimelineSegments()"
                     [recordingMetadata]="recordingMetadata()"
+                    (playbackStarted)="onInlinePlaybackStarted($event)"
                     (externalFallbackRequested)="
                         handleExternalFallbackRequest($event)
                     "

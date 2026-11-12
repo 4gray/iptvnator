@@ -259,7 +259,7 @@ export class VlcReusableProcess {
             if (
                 exact &&
                 !ownsFailedTeardown &&
-                !launchClose &&
+                !(launchClose ?? fallbackTeardown) &&
                 owner !== session.id &&
                 (!state.contentMutated || superseded())
             ) {
@@ -270,14 +270,14 @@ export class VlcReusableProcess {
                     );
                 return;
             }
-            if (!ownsReusedProcess()) return;
+            if (!fallbackTeardown && !ownsReusedProcess()) return;
             if (!retryableClose) {
                 const closeAttempt = fallbackTeardown ?? closeReusedProcess();
                 retryableClose = closeAttempt;
                 launchClose ??= closeAttempt;
                 void closeAttempt.catch((error) => {
                     if (retryableClose === closeAttempt) retryableClose = null;
-                    state.teardownUnconfirmed = true;
+                    ownsFailedTeardown = state.teardownUnconfirmed = true;
                     externalPlayerSessions.markError(
                         session.id,
                         error instanceof Error ? error.message : String(error),

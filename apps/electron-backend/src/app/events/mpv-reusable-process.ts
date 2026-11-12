@@ -178,6 +178,7 @@ export class MpvReusableProcess {
         let closeRequested = false;
         let retryableClose: Promise<void> | null = null;
         let launchClose: Promise<void> | null = null;
+        let fallbackTeardown: Promise<void> | undefined;
 
         // Launches run one at a time, so nothing else acts on this child while
         // this attempt is in flight: its Stop always reaches the child then,
@@ -225,7 +226,9 @@ export class MpvReusableProcess {
             if (
                 exact &&
                 !state.contentMutated &&
+                !ownsFailedTeardown &&
                 !launchClose &&
+                !fallbackTeardown &&
                 owner !== session.id
             ) {
                 if (owner)
@@ -237,7 +240,7 @@ export class MpvReusableProcess {
             }
             if (!ownsReusedProcess()) return;
             if (!retryableClose) {
-                const closeAttempt = closeReusedProcess();
+                const closeAttempt = fallbackTeardown ?? closeReusedProcess();
                 retryableClose = closeAttempt;
                 launchClose ??= closeAttempt;
                 void closeAttempt.catch((error) => {
@@ -370,15 +373,17 @@ export class MpvReusableProcess {
                 }
             }
             try {
-                await externalPlayerProcessTeardownGate.terminate(
-                    reusedProcess
-                );
+                fallbackTeardown =
+                    externalPlayerProcessTeardownGate.terminate(reusedProcess);
+                await fallbackTeardown;
             } catch (teardownError) {
                 if (state.contentMutated) {
                     this.processSessionIds.set(reusedProcess, session.id);
                 }
                 state.teardownUnconfirmed = true;
                 throw teardownError;
+            } finally {
+                fallbackTeardown = undefined;
             }
             this.clear(reusedProcess);
             options.stopPositionPolling(

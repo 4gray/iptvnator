@@ -792,7 +792,8 @@ while preserving their browsing state. Short screens show a compact dock so
 schedule rows remain visible. If an external channel switch fails and the
 player restores the previous session or rejects a switch while the old session
 is still playing, the guide keeps its scope and search. Enter and double-click
-close the guide only after the requested stream opens. A guide or remote switch
+close the guide only after the requested stream opens, including in the inline
+player. A guide or remote switch
 reuses the managed player when available. Otherwise it waits for the exact
 previous process to exit before opening the new channel, so a one-connection
 account does not have two simultaneous streams. A newer tune waits for an
@@ -871,6 +872,7 @@ still playing on the same playlist and provider connection, including a failed
 replacement's survivor or a session displaced from the global dock. A server or
 account change prevents reattachment to the previous connection. Each session
 keeps its own category and queue, even when launches share a stream URL.
+A retry closes a prior session by its ID; VLC never infers ownership from the URL.
 Pending live and archive requests recheck that connection after asynchronous lookups.
 Native lifecycle events carry the requesting launch's identifier so
 unrelated players at the same URL cannot claim that session.

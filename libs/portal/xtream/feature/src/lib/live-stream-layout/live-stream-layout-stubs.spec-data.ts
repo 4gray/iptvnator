@@ -10,6 +10,7 @@ import {
     EpgProgram,
     RecordingStartMetadata,
     RecordingStoppedEvent,
+    ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import {
     EpgProgramActivationEvent,
@@ -65,6 +66,7 @@ export class StubWebPlayerViewComponent {
     readonly timelineSegments = input<unknown>(null);
     readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
     readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
+    readonly playbackStarted = output<ResolvedPortalPlayback>();
     readonly recordingStopped = output<RecordingStoppedEvent>();
 }
 

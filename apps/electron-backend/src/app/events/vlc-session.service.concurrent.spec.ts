@@ -215,7 +215,7 @@ describe('VLC exact playback ownership', () => {
         }
     });
 
-    it('stops the exact timed-out detached VLC before retrying the same input', async () => {
+    it('leaves the timed-out detached VLC alone when another launch shares its URL', async () => {
         if (process.platform === 'win32') return;
         jest.useFakeTimers({ doNotFake: ['setImmediate'] });
         (store.get as jest.Mock).mockImplementation((key, fallback) =>
@@ -244,16 +244,25 @@ describe('VLC exact playback ownership', () => {
             ).toBe(true);
             const next = openVlcPlayer({
                 ...request,
-                launchId: 'synthetic-retry',
+                launchId: 'synthetic-independent',
             });
             await tick();
-            expect(first.kill).toHaveBeenCalledTimes(1);
-            expect(spawnMock).toHaveBeenCalledTimes(1);
-            exit(first, 1);
+            expect(first.kill).not.toHaveBeenCalled();
+            expect(spawnMock).toHaveBeenCalledTimes(2);
+            second.emit('spawn');
+            const independent = await next;
+            expect(independent).toMatchObject({
+                status: 'opened',
+                launchId: 'synthetic-independent',
+            });
+            const close = externalPlayerSessions.closeSession(
+                original.id,
+                true
+            );
             await tick();
-            expect(
-                externalPlayerSessions.getSession(original.id)
-            ).toMatchObject({
+            expect(first.kill).toHaveBeenCalledTimes(1);
+            exit(first, 1);
+            await expect(close).resolves.toMatchObject({
                 status: 'closed',
                 closedByRequest: true,
             });
@@ -261,16 +270,54 @@ describe('VLC exact playback ownership', () => {
                 original.id,
                 expect.objectContaining({ status: 'error' })
             );
-            expect(spawnMock).toHaveBeenCalledTimes(2);
-            second.emit('spawn');
-            expect(await next).toMatchObject({
-                status: 'opened',
-                launchId: 'synthetic-retry',
-            });
+            expect(second.kill).not.toHaveBeenCalled();
         } finally {
             updates.mockRestore();
             for (const proc of [first, second])
                 if (proc.exitCode === null) exit(proc);
+        }
+    });
+
+    it('joins fallback teardown when an exact close arrives before any content write', async () => {
+        jest.useFakeTimers({ doNotFake: ['setImmediate'] });
+        const first = child();
+        spawnMock.mockReturnValueOnce(first);
+        const initial = open('synthetic-first');
+        await tick();
+        ports[0]();
+        await tick();
+        first.emit('spawn');
+        await initial;
+        jest.mocked(createConnection).mockImplementationOnce(() => {
+            const socket = Object.assign(new EventEmitter(), {
+                destroy: jest.fn(),
+            });
+            setImmediate(() =>
+                socket.emit('error', new Error('Synthetic socket failure'))
+            );
+            return socket as never;
+        });
+        const replacement = open('synthetic-replacement');
+        const id = externalPlayerSessions.getActiveSessionId() as string;
+        try {
+            await tick();
+            await tick();
+            expect(first.kill).toHaveBeenCalledTimes(1);
+            const closed = jest.fn();
+            const close = externalPlayerSessions
+                .closeSession(id, true)
+                .then(closed);
+            await tick();
+            expect(closed).not.toHaveBeenCalled();
+            exit(first);
+            await close;
+            expect(closed).toHaveBeenCalledWith(
+                expect.objectContaining({ status: 'closed' })
+            );
+            externalPlayerProcessTeardownGate.assertLaunchAllowed();
+        } finally {
+            if (first.exitCode === null) exit(first);
+            await replacement;
         }
     });
 

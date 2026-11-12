@@ -1090,6 +1090,8 @@ invoking the queued Stop handler on another player. Cancelling the active
 queue entry republishes the surviving session so the dock can still stop it.
 An exact close before the first content command preserves the reused child's
 previous owner and republishes it when it can still be stopped.
+If fallback teardown has already started, the exact close waits for that same
+child to exit before settling, even if no content command was sent.
 Once a reused process accepts a replacement content command, its previous
 session retires; the replacement alone reports the child's eventual exit.
 Overlapping VLC replacements retire the actual owner at the first RC write;

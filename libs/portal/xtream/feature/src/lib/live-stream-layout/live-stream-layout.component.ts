@@ -466,6 +466,11 @@ export class LiveStreamLayoutComponent
     private unsubscribeRemoteChannelChange?: () => void;
     private unsubscribeRemoteCommand?: () => void;
     private playbackRequestId = 0;
+    private startedInlinePlayback?: ResolvedPortalPlayback;
+    private inlineConfirmation?: {
+        requestId: number;
+        callback: () => void;
+    };
     private activePlaylistId: string | null = null;
     private archivePreview?: {
         item: XtreamLiveChannelItem;
@@ -665,7 +670,9 @@ export class LiveStreamLayoutComponent
                     if (onConfirmed) this.playbackRequestId++;
                     if (!sameXtreamChannelCopy(playing, item))
                         this.switchGuideChannelCopy(item);
-                    onConfirmed?.();
+                    if (this.usesEmbeddedPlayer())
+                        this.confirmInlinePlayback(onConfirmed);
+                    else onConfirmed?.();
                     return;
                 }
                 this.playLive(item, true, channels, false, onConfirmed);
@@ -1041,10 +1048,11 @@ export class LiveStreamLayoutComponent
                 launchId
             );
         }
-        if (this.usesEmbeddedPlayer() || !startPlayback) {
-            onConfirmed?.();
+        if (this.usesEmbeddedPlayer()) {
+            this.confirmInlinePlayback(onConfirmed);
             return;
         }
+        if (!startPlayback) return;
         this.externalGuide.start(
             playback,
             item,
@@ -1061,6 +1069,26 @@ export class LiveStreamLayoutComponent
                         : undefined,
             }
         );
+    }
+
+    private confirmInlinePlayback(callback?: () => void): void {
+        this.inlineConfirmation = undefined;
+        if (!callback) return;
+        if (this.startedInlinePlayback === this.activePlayback()) callback();
+        else
+            this.inlineConfirmation = {
+                requestId: this.playbackRequestId,
+                callback,
+            };
+    }
+
+    onInlinePlaybackStarted(playback: ResolvedPortalPlayback): void {
+        if (playback !== this.activePlayback()) return;
+        this.startedInlinePlayback = playback;
+        const confirmation = this.inlineConfirmation;
+        this.inlineConfirmation = undefined;
+        if (confirmation?.requestId === this.playbackRequestId)
+            confirmation.callback();
     }
 
     async onProgramActivated(event: EpgProgramActivationEvent): Promise<void> {

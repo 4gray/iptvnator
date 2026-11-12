@@ -198,25 +198,6 @@ export async function openVlcPlayer({
         isFlatpak
     );
     const stopped = reuseInstance ? reusableVlcProcess.watchStop() : undefined;
-    const activeId = externalPlayerSessions.getActiveSessionId();
-    const active = activeId && externalPlayerSessions.getSession(activeId);
-    if (
-        launchId &&
-        !contentInfo &&
-        active &&
-        active.player === 'vlc' &&
-        active.streamUrl === url &&
-        active.canClose &&
-        (active.mediaObservationUnavailable ||
-            active.mediaReadinessTimedOut ||
-            active.playbackUnverified) &&
-        (!reuseInstance ||
-            !reusableVlcProcess.hasPrivateControl() ||
-            reusableVlcProcess.currentSessionId() !== active.id)
-    ) {
-        await externalPlayerSessions.closeSession(active.id, true);
-        externalPlayerProcessTeardownGate.assertLaunchAllowed();
-    }
     const displacedSessionId = externalPlayerSessions.getActiveSessionId();
     const session = externalPlayerSessions.beginSession({
         player: 'vlc',

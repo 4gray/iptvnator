@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import { XtreamUrlService } from '@iptvnator/portal/xtream/data-access';
 import { VideoPlayer } from '@iptvnator/shared/interfaces';
@@ -8,6 +9,7 @@ import {
     epgItem,
     playlist,
     sampleChannel,
+    StubWebPlayerViewComponent,
 } from './live-stream-layout-stubs.spec-data';
 import { XtreamEpgGuideSourceService } from './xtream-epg-guide-source.service';
 import { XtreamLiveChannelNavigationService } from './xtream-live-channel-navigation.service';
@@ -27,6 +29,34 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
     } = setupLiveStreamLayoutNativeFixture();
 
     afterEach(restoreElectron);
+
+    it('commits an inline guide tune only once its own stream starts', () => {
+        const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
+        const component = fixture.componentInstance;
+        component.playLive(sampleChannel);
+        const previous = component.activePlayback();
+        if (!previous) throw new Error('Missing first playback');
+        const commit = jest.fn();
+        component.playLive(
+            { ...sampleChannel, xtream_id: 102 },
+            true,
+            undefined,
+            false,
+            commit
+        );
+        fixture.detectChanges();
+        const player = fixture.debugElement.query(
+            By.directive(StubWebPlayerViewComponent)
+        ).componentInstance as StubWebPlayerViewComponent;
+        expect(commit).not.toHaveBeenCalled();
+        player.playbackStarted.emit(previous);
+        expect(commit).not.toHaveBeenCalled();
+        const current = component.activePlayback();
+        if (!current) throw new Error('Missing replacement playback');
+        player.playbackStarted.emit(current);
+        player.playbackStarted.emit(current);
+        expect(commit).toHaveBeenCalledTimes(1);
+    });
 
     function startDetachedGuide() {
         const fixture = TestBed.createComponent(LiveStreamLayoutComponent);

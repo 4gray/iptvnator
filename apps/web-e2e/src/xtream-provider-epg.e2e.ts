@@ -110,6 +110,15 @@ test('@xtream @epg PWA opens the multi-channel programme guide in both themes', 
     expect(switchReads).toEqual([]);
     countSwitchReads = false;
 
+    const failedPlayback = page.waitForEvent('requestfailed', (request) =>
+        new URL(request.url()).pathname.startsWith('/live/')
+    );
+    await channelRows.nth(1).dblclick();
+    await failedPlayback;
+    await expect(channelRows.nth(1)).toHaveAttribute('aria-pressed', 'true');
+    await expect(guide).toBeVisible();
+    await channelRows.nth(0).click();
+
     const search = guide.getByPlaceholder('Search programmes…');
     await search.fill('Global Headlines');
     const results = guide.getByRole('listbox');

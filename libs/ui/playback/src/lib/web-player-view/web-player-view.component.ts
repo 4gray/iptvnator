@@ -159,19 +159,18 @@ export class WebPlayerViewComponent implements OnDestroy {
     /** Channel/EPG snapshot for the embedded-MPV recording tracker. */
     readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
 
-    readonly timeUpdate = output<{
-        currentTime: number;
-        duration: number;
-    }>();
+    readonly timeUpdate = output<PlayerTimeUpdate>();
     readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
     readonly alternativeSourceRequested = output<string>();
     readonly sourceCheckRequested = output<string>();
     readonly playbackFailed = output<PlaybackDiagnosticCode>();
+    readonly playbackStarted = output<ResolvedPortalPlayback>();
     readonly playbackEnded = output<void>();
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
     /** Re-emitted embedded-MPV clean recording stop (stop enrichment). */
     readonly recordingStopped = output<RecordingStoppedEvent>();
+    private startedToken?: symbol;
 
     readonly embeddedMpvLiveSubtitlesOff = signal(false);
     readonly showCaptions = computed(
@@ -397,6 +396,12 @@ export class WebPlayerViewComponent implements OnDestroy {
     ): void {
         if (!this.ownsApplication(ownership)) return;
 
+        if (event.playing && this.startedToken !== ownership.token) {
+            this.startedToken = ownership.token;
+            this.playbackStarted.emit(
+                this.playback() ?? this.resolvedPlayback()
+            );
+        }
         if (!ownership.isLive && !this.activity.record(this.playback(), event))
             return;
         this.recoverySession.recordTimeUpdate(event, ownership.isLive);
