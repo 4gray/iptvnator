@@ -12,6 +12,8 @@
                 [retryEnabled]="!busy()"
                 [showControls]="swapped() && !busy()"
                 [fullscreenTarget]="fullscreenTarget()"
+                [recordingFolder]="primary().recordingFolder()"
+                (recordingStopped)="recordingStopped.emit($event)"
             />
         </section>
         <div

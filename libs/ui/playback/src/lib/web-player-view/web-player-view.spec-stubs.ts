@@ -126,6 +126,7 @@ export class StubEmbeddedMpvPlayerComponent {
 
 @Component({ selector: 'app-second-stream', template: '' })
 export class StubSecondStreamComponent {
+    readonly recordingStopped = output<RecordingStoppedEvent>();
     readonly editing = signal(false);
     readonly placement = new SecondStreamPosition();
     readonly active = signal(false);

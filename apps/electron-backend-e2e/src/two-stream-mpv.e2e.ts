@@ -22,35 +22,18 @@ import {
     type LaunchedElectronApp,
 } from './electron-test-fixtures';
 import {
+    alsoClosing,
     createLocalMediaServer,
     installEmbeddedMpvSessionCapture,
+    type LocalMediaServer,
 } from './embedded-mpv-frame-copy-packaged-fixtures';
 
 test('@playback @electron two frame-copy views keep sessions through swap, pause and close', async ({
     dataDir,
 }, testInfo) => {
     test.setTimeout(120000);
-    const media = await createLocalMediaServer({
-        body: readFileSync(
-            join(
-                workspaceRoot,
-                'apps/web-e2e/src/fixtures/playback/two-stream-vod.webm'
-            )
-        ),
-        resourcePath: '/synthetic-movie.webm',
-        contentType: 'video/webm',
-    });
-    const live = await createLocalMediaServer({
-        body: readFileSync(
-            join(
-                workspaceRoot,
-                'apps/web-e2e/src/fixtures/playback/two-stream-live.webm'
-            )
-        ),
-        resourcePath: '/synthetic-live.webm',
-        contentType: 'video/webm',
-    });
     let app: LaunchedElectronApp | undefined;
+    let mediaResources: LocalMediaServer | undefined;
     try {
         app = await launchElectronApp(dataDir, {
             env: {
@@ -77,6 +60,46 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
             !support.supported || support.engine !== 'frame-copy',
             `Requires real frame-copy runtime: ${JSON.stringify(support)}`
         );
+        // Both sessions use a long playlist of the existing synthetic AAC/video
+        // fixture so the full playback test exercises real audio tracks.
+        const segment = await createLocalMediaServer({
+            body: readFileSync(
+                join(
+                    workspaceRoot,
+                    'apps/xtream-mock-server/src/fixtures/live.mpegts'
+                )
+            ),
+            resourcePath: '/synthetic-segment.ts',
+            contentType: 'video/mp2t',
+        });
+        mediaResources = segment;
+        const playlistBody = Buffer.from(
+            [
+                '#EXTM3U',
+                '#EXT-X-VERSION:3',
+                '#EXT-X-TARGETDURATION:7',
+                '#EXT-X-PLAYLIST-TYPE:VOD',
+                ...Array.from({ length: 12 }, (_, index) => [
+                    ...(index ? ['#EXT-X-DISCONTINUITY'] : []),
+                    '#EXTINF:6.022,',
+                    `${segment.url}?segment=${index}`,
+                ]).flat(),
+                '#EXT-X-ENDLIST',
+                '',
+            ].join('\n')
+        );
+        const media = await createLocalMediaServer({
+            body: playlistBody,
+            resourcePath: '/synthetic-movie.m3u8',
+            contentType: 'application/vnd.apple.mpegurl',
+        });
+        mediaResources = alsoClosing(mediaResources, media);
+        const live = await createLocalMediaServer({
+            body: playlistBody,
+            resourcePath: '/synthetic-live.m3u8',
+            contentType: 'application/vnd.apple.mpegurl',
+        });
+        mediaResources = alsoClosing(mediaResources, live);
         await openSettings(page);
         await openSettingsSection(page, 'playback');
         await page.getByTestId('select-video-player').click();
@@ -219,7 +242,7 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
                 )
                 .toBeGreaterThan(0);
         }
-        // Distinct synthetic patterns must reach both real canvases.
+        // Synthetic frames must reach both real canvases.
         for (const canvas of await canvases.all()) {
             const stats = await sharp(await canvas.screenshot()).stats();
             expect(
@@ -669,6 +692,6 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
         ).toBeGreaterThan(20);
     } finally {
         if (app) await closeElectronApp(app);
-        await Promise.all([media.close(), live.close()]);
+        await mediaResources?.close();
     }
 });
