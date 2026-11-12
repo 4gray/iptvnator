@@ -276,6 +276,7 @@
             "command": "eslint \"apps/electron-backend/**/*.ts\" \"apps/electron-backend/src/app/services/embedded-mpv-frame-copy-runtime.ts\" \"apps/electron-backend/src/app/services/embedded-mpv-frame-copy-runtime/**/*.ts\""
         },
         "test": {
+            "dependsOn": ["shared-testing:ensure-electron-binary"],
             "inputs": [
                 "default",
                 "^production",

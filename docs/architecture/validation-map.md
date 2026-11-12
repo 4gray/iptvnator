@@ -153,10 +153,11 @@ calls `createRequire(...)('electron')`, `coverage:unit:ci` first runs
 fails unless it runs and reports the pinned version; CI also runs it as its own
 step when the Tier A suite is in scope. In a fresh worktree, run it before
 starting several of these specs at once by other means.
-`pnpm run test:unit:all` and `pnpm run test:unit:ci` run this helper before
-starting the full workspace test run. `pnpm nx test packaging` also runs it
-before launching its parallel test files, including the Electron runtime and
-Nx executor checks.
+The `database:test`, `electron-backend:test` and `packaging:test` targets
+share the non-cached `shared-testing:ensure-electron-binary` dependency.
+Nx runs it once before these tests in a task graph, including in the full
+workspace test run. Other test targets can run independently of this
+Electron setup.
 
 In CI, a pull request skips the Tier A suite (and the merged-coverage upload)
 when every changed file is outside Tier A test inputs:

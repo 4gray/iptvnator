@@ -18,6 +18,9 @@
         },
         "lint": {
             "command": "eslint \"libs/shared/database/**/*.ts\""
+        },
+        "test": {
+            "dependsOn": ["shared-testing:ensure-electron-binary"]
         }
     }
 }
