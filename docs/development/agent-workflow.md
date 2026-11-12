@@ -159,10 +159,9 @@ Markdown/link validation, not app unit/E2E tests. Tooling changes need their own
 
 ## Local review before a pull request
 
-Every push to a pull-request branch starts the whole CI matrix and both review
-bots, and runs from several open pull requests queue behind one another. Fix
-rounds therefore happen locally: push only a commit that both reviewers have
-already accepted.
+A push to a pull-request branch can restart the CI matrix, and runs from
+several open pull requests can queue behind one another. Fix rounds happen
+locally: push only a commit that both reviewers have already accepted.
 
 Greptile reviews committed work only. Commit first, then fetch the destination
 branch and resolve it to a commit SHA. For a PR into `master` on `origin`:
@@ -202,9 +201,10 @@ remotes. Run them from the branch's worktree and keep their output outside it.
 5. Push, open the pull request, and name the reviewed commit and any declined
    findings in the completion report.
 
-The GitHub bots still review the opened pull request. Treat their findings and
-CI failures the same way: collect the whole round, fix it locally, pass both
-local reviewers again and push once. Do not push one fix per finding.
+Check which commit each GitHub bot reviewed. After a push, request a fresh
+review if a bot still reports an older head. Comment `@codex review` for Codex
+or `@greptileai` for Greptile. Collect the whole round of bot findings and CI
+failures, fix it locally, pass both local reviewers again and push once.
 
 When reporting whether a PR is ready, distinguish the reviewed head from the
 base actually tested by CI. Query the live destination branch in the receiving
