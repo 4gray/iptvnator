@@ -161,12 +161,13 @@ export class XtreamGuideExternalPlayback {
         return this.isAllowed(source) ? { session: active, source } : undefined;
     });
 
-    remoteTuningItem(): XtreamLiveChannelItem | undefined {
+    remoteTuningSource(): XtreamLiveSource | undefined {
         const pending = this.pending();
-        return pending?.remote &&
+        return pending &&
+            (pending.remote || !this.confirmed()) &&
             !pending.ended?.() &&
             this.isAllowed(pending.lockSource)
-            ? pending.item
+            ? pending.lockSource
             : undefined;
     }
 

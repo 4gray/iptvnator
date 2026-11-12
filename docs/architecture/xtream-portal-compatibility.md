@@ -832,8 +832,9 @@ VLC guide launches use a private Unix socket for control where available, and
 otherwise open directly without an unauthenticated TCP control port. VLC RC
 checks the requested input before and after reading its playback clock. URL
 comparison preserves escaped delimiters such as `%2F`.
-After VLC confirms a direct stream, a later input mismatch invalidates playback
-without opening a new HTTP connection to that stream.
+VLC never opens a second stream to verify a mismatched direct input. Before
+confirmation it checks only known M3U URLs or inputs whose HEAD response identifies
+a playlist. An unidentifiable input stays unverified.
 If VLC opens a direct child of a plain M3U, the app reads only that playlist,
 follows up to three validated redirects within the same request limits, and
 resolves relative entries against the final URL. It rechecks the active input
@@ -856,10 +857,12 @@ and retunes the original channel if the player no longer has it open. An unverif
 VLC launch cannot replace confirmed playback.
 The dock, player panel and remote status follow the confirmed session. The remote
 keeps channel and programme metadata tied to the same playback. An unverified
-channel can keep remote tuning available, including while it opens, but does
-not supply programme metadata.
+channel can keep remote tuning available, including the first launch from the
+sidebar. It supplies its tuning queue but no unconfirmed programme metadata.
 Selecting the number of a channel already playing live cancels pending tunes,
 including archive lookups, without reopening it.
+The live layout's tune request service invalidates category and archive lookups,
+inline confirmation and deferred retunes when Stop or a newer selection wins.
 The player panel stays on confirmed playback while a remote tune is pending.
 The dock restores Stop for the surviving session when the launch that owns
 the dock ends. An idle failed replacement closes before that restore. If the

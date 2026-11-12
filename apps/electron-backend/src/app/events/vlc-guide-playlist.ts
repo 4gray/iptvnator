@@ -34,6 +34,10 @@ async function loadPlaylistEntries(
     url: string,
     request: VlcGuidePlaylistRequest
 ) {
+    const input = new URL(url);
+    const targets = new Set<string>();
+    if (/\.(?:ts|m2ts|mp4|mkv|mp3|aac|webm|mpeg|mpg)$/i.test(input.pathname))
+        return targets;
     const {
         mergedHeaders,
         effectiveOrigin,
@@ -42,53 +46,55 @@ async function loadPlaylistEntries(
     } = request;
     const referer = effectiveReferer || effectiveOrigin;
     const signal = AbortSignal.timeout(2_000);
-    const { data, config, headers } = await Promise.race([
-        requestWithValidatedRedirects<string>(
-            url,
-            {
-                headers: {
-                    ...mergedHeaders,
-                    ...(effectiveOrigin && { Origin: effectiveOrigin }),
-                    ...(referer && { Referer: referer }),
-                    ...(effectiveUserAgent && {
-                        'User-Agent': effectiveUserAgent,
-                    }),
+    // DNS validation can still be running when the HTTP deadline expires.
+    const deadline = once(signal, 'abort').then(() => {
+        throw signal.reason;
+    });
+    const read = (method: 'HEAD' | 'GET') =>
+        Promise.race([
+            requestWithValidatedRedirects<string>(
+                url,
+                {
+                    method,
+                    headers: {
+                        ...mergedHeaders,
+                        ...(effectiveOrigin && { Origin: effectiveOrigin }),
+                        ...(referer && { Referer: referer }),
+                        ...(effectiveUserAgent && {
+                            'User-Agent': effectiveUserAgent,
+                        }),
+                    },
+                    responseType: 'text',
+                    maxContentLength: 64 * 1024,
+                    timeout: 2_000,
+                    signal,
+                    proxy: false,
                 },
-                responseType: 'text',
-                maxContentLength: 64 * 1024,
-                timeout: 2_000,
-                signal,
-                proxy: false,
-            },
-            {
-                allowPrivateNetworks: true,
-                allowPrivateNetworkRedirects: false,
-                pinAllowedPrivateNetworkHosts: true,
-            },
-            3
-        ),
-        // Validation can still be resolving a hostname when the HTTP deadline expires.
-        once(signal, 'abort').then(() => {
-            throw signal.reason;
-        }),
-    ]);
-    const targets = new Set<string>();
+                {
+                    allowPrivateNetworks: true,
+                    allowPrivateNetworkRedirects: false,
+                    pinAllowedPrivateNetworkHosts: true,
+                },
+                3
+            ),
+            deadline,
+        ]);
+    if (!isM3uPath(input)) {
+        const head = await read('HEAD');
+        const redirected = new URL(head.config.url ?? url);
+        if (!hasM3uHint(redirected, head.headers?.['content-type']))
+            return targets;
+    }
+    const { data, config, headers } = await read('GET');
     const lines = data
         .trimStart()
         .split(/\r?\n/)
         .map((line) => line.trim());
     const finalUrl = new URL(config.url ?? url);
-    const contentType = String(headers?.['content-type'] ?? '')
-        .split(';')[0]
-        .trim();
-    const hasM3uHint =
-        /\.m3u8?$/i.test(finalUrl.pathname) ||
-        /^(?:application\/(?:vnd\.apple\.|x-)?|audio\/(?:x-)?)mpegurl$/i.test(
-            contentType
-        );
     // shortcut: only direct children of a plain M3U; extend once VLC exposes deeper ancestry.
     if (
-        (!hasM3uHint && !/^#EXTM3U(?:\s|$)/i.test(lines[0] ?? '')) ||
+        (!hasM3uHint(finalUrl, headers?.['content-type']) &&
+            !/^#EXTM3U(?:\s|$)/i.test(lines[0] ?? '')) ||
         lines.some((line) => /^#EXT-X-/i.test(line))
     )
         return targets;
@@ -103,6 +109,22 @@ async function loadPlaylistEntries(
         }
     }
     return targets;
+}
+
+function isM3uPath(url: URL): boolean {
+    return /\.m3u8?$/i.test(url.pathname);
+}
+
+function hasM3uHint(url: URL, header: unknown): boolean {
+    const type = String(header ?? '')
+        .split(';')[0]
+        .trim();
+    return (
+        isM3uPath(url) ||
+        /^(?:application\/(?:vnd\.apple\.|x-)?|audio\/(?:x-)?)mpegurl$/i.test(
+            type
+        )
+    );
 }
 
 export function matchesVlcInput(input: string, url: string): boolean {

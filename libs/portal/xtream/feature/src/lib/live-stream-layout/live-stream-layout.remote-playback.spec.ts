@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { EpgPreferencesService } from '@iptvnator/services';
 import {
     XtreamApiService,
     XtreamFullEpgService,
@@ -93,68 +94,142 @@ describe('Xtream remote playback metadata', () => {
         expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(1);
     });
 
-    it('keeps remote tuning available between the old session and its unconfirmed replacement', () => {
+    it.each([false, true])(
+        'keeps remote tuning available during a local or remote launch (%s)',
+        (firstIsPending) => {
+            const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
+            const component = fixture.componentInstance;
+            const first = { ...sampleChannel, category_id: 1 };
+            const second = { ...first, xtream_id: first.xtream_id + 1 };
+            const third = { ...first, xtream_id: first.xtream_id + 2 };
+            const queue = [first, second, third];
+            emptyList.set(queue);
+            portalPlayer.isEmbeddedPlayer.set(false);
+            fixture.detectChanges();
+            if (firstIsPending)
+                xtreamStore.openPlayer.mockImplementationOnce(
+                    () => new Promise(() => undefined)
+                );
+            component.playLive(first, true, queue);
+            const session = {
+                id: 'synthetic-first',
+                player: 'mpv',
+                status: firstIsPending ? 'launching' : 'opened',
+                canClose: true,
+                reuseAvailable: true,
+                mediaLoaded: !firstIsPending,
+                title: 'Synthetic First',
+                streamUrl: component.activeStreamUrl(),
+                startedAt: '2026-04-04T10:00:00Z',
+                updatedAt: '2026-04-04T10:00:00Z',
+            } as const;
+            publishExternalSession(session);
+            fixture.detectChanges();
+            if (firstIsPending)
+                expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
+                    expect.objectContaining({
+                        isLiveView: true,
+                        channelName: undefined,
+                        channelNumber: undefined,
+                        epgTitle: undefined,
+                    })
+                );
+            const secondUrl = 'https://example.test/synthetic-second.ts';
+            xtreamStore.constructStreamUrl.mockReturnValueOnce(secondUrl);
+            xtreamStore.openPlayer.mockImplementationOnce(
+                () => new Promise(() => undefined)
+            );
+            onChannelChange.mock.lastCall?.[0]({ direction: 'down' });
+            publishExternalSession({
+                ...session,
+                status: 'closed',
+                canClose: false,
+            });
+            publishExternalSession({
+                ...session,
+                id: 'synthetic-second',
+                streamUrl: secondUrl,
+                status: 'launching',
+                mediaLoaded: false,
+            });
+            fixture.detectChanges();
+            expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    isLiveView: true,
+                    channelName: undefined,
+                    channelNumber: undefined,
+                    epgTitle: undefined,
+                })
+            );
+            const thirdUrl = 'https://example.test/synthetic-third.ts';
+            const tuneCall =
+                xtreamStore.constructStreamUrl.mock.calls.length + 1;
+            xtreamStore.constructStreamUrl.mockReturnValueOnce(thirdUrl);
+            onChannelChange.mock.lastCall?.[0]({ direction: 'down' });
+            expect(xtreamStore.constructStreamUrl).toHaveBeenNthCalledWith(
+                tuneCall,
+                third
+            );
+            expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(3);
+            expect(xtreamStore.openPlayer.mock.lastCall?.[0]).toBe(thirdUrl);
+        }
+    );
+
+    it('keeps an external archive playing but removes its remote programme when EPG is disabled', async () => {
         const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
         const component = fixture.componentInstance;
-        const first = { ...sampleChannel, category_id: 1 };
-        const second = { ...first, xtream_id: first.xtream_id + 1 };
-        const third = { ...first, xtream_id: first.xtream_id + 2 };
-        const queue = [first, second, third];
-        emptyList.set(queue);
+        const channel = { ...sampleChannel, category_id: 1 };
+        emptyList.set([channel]);
+        xtreamStore.selectedItem.set(channel);
+        epgItems.set([epgItem('Synthetic Archive', 0, 1)]);
         portalPlayer.isEmbeddedPlayer.set(false);
         fixture.detectChanges();
-        component.playLive(first, true, queue);
-        const session = {
-            id: 'synthetic-first',
+        component.playLive(channel, true);
+        const live = {
+            id: 'synthetic-live',
             player: 'mpv',
             status: 'opened',
-            canClose: true,
-            reuseAvailable: true,
             mediaLoaded: true,
-            title: 'Synthetic First',
+            canClose: true,
+            title: 'Synthetic Channel',
             streamUrl: component.activeStreamUrl(),
             startedAt: '2026-04-04T10:00:00Z',
             updatedAt: '2026-04-04T10:00:00Z',
         } as const;
-        publishExternalSession(session);
+        publishExternalSession(live);
         fixture.detectChanges();
-        const secondUrl = 'https://example.test/synthetic-second.ts';
-        xtreamStore.constructStreamUrl.mockReturnValueOnce(secondUrl);
         xtreamStore.openPlayer.mockImplementationOnce(
             () => new Promise(() => undefined)
         );
-        onChannelChange.mock.lastCall?.[0]({ direction: 'down' });
-        publishExternalSession({
-            ...session,
-            status: 'closed',
-            canClose: false,
+        await component.onProgramActivated({
+            type: 'timeshift',
+            program: component.controlledEpgPrograms()[0],
         });
+        const archiveUrl = xtreamStore.openPlayer.mock.lastCall?.[0] as string;
         publishExternalSession({
-            ...session,
-            id: 'synthetic-second',
-            streamUrl: secondUrl,
-            status: 'launching',
-            mediaLoaded: false,
+            ...live,
+            id: 'synthetic-archive',
+            streamUrl: archiveUrl,
         });
         fixture.detectChanges();
         expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
             expect.objectContaining({
                 isLiveView: true,
-                channelName: undefined,
-                channelNumber: undefined,
-                epgTitle: undefined,
+                epgTitle: 'Synthetic Archive',
             })
         );
-        const thirdUrl = 'https://example.test/synthetic-third.ts';
-        const tuneCall = xtreamStore.constructStreamUrl.mock.calls.length + 1;
-        xtreamStore.constructStreamUrl.mockReturnValueOnce(thirdUrl);
-        onChannelChange.mock.lastCall?.[0]({ direction: 'down' });
-        expect(xtreamStore.constructStreamUrl).toHaveBeenNthCalledWith(
-            tuneCall,
-            third
+        await TestBed.inject(EpgPreferencesService).apply(false);
+        fixture.detectChanges();
+        expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                isLiveView: true,
+                epgTitle: undefined,
+                epgStart: undefined,
+                epgEnd: undefined,
+            })
         );
-        expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(3);
-        expect(xtreamStore.openPlayer.mock.lastCall?.[0]).toBe(thirdUrl);
+        expect(component.activeStreamUrl()).toBe(archiveUrl);
+        expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(2);
     });
 
     it('keeps the confirmed remote channel and programme together during an unverified MPV launch', () => {

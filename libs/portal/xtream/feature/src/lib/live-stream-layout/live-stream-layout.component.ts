@@ -124,11 +124,11 @@ import { XtreamLiveGuideService } from './xtream-live-guide.service';
 import {
     isXtreamLiveCategoryWithheld,
     sameXtreamLiveOwner,
-    type XtreamLiveOwner,
 } from './xtream-external-live-sessions.service';
 import { XtreamGuideExternalPlayback } from './xtream-guide-external-playback.service';
 import { scheduleKey } from './xtream-guide-schedules';
 import { retainXtreamPanelSchedule } from './xtream-guide-now-playing';
+import { XtreamTuneRequests } from './xtream-tune-requests.service';
 import { toSharedEpgProgram } from '../portal-channels-list/epg-preview-program';
 
 const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
@@ -142,6 +142,7 @@ const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
         XtreamEpgGuideSourceService,
         XtreamLiveGuideService,
         XtreamGuideExternalPlayback,
+        XtreamTuneRequests,
         { provide: EPG_GUIDE_SOURCE, useExisting: XtreamEpgGuideSourceService },
         LiveStreamAutoOpenStateService,
         XtreamLiveChannelNavigationService,
@@ -466,13 +467,9 @@ export class LiveStreamLayoutComponent
 
     private unsubscribeRemoteChannelChange?: () => void;
     private unsubscribeRemoteCommand?: () => void;
-    private playbackRequestId = 0;
+    private readonly tuneRequests = inject(XtreamTuneRequests);
     private readonly inlinePlayer =
         viewChild<WebPlayerViewComponent>('inlinePlayer');
-    private inlineConfirmation?: {
-        requestId: number;
-        callback: () => void;
-    };
     private activePlaylistId: string | null = null;
     private archivePreview?: {
         item: XtreamLiveChannelItem;
@@ -623,7 +620,7 @@ export class LiveStreamLayoutComponent
     constructor() {
         this.externalGuide.bind({
             enabled: () => !this.usesEmbeddedPlayer(),
-            cancelPendingRequest: () => this.playbackRequestId++,
+            cancelPendingRequest: () => this.tuneRequests.invalidate(),
             current: this.activePlayback,
             currentItem: this.activeGuideItem,
             select: (item) => this.selectGuideLiveItem(item),
@@ -642,7 +639,8 @@ export class LiveStreamLayoutComponent
                 this.socketlessRemoteSource() ??
                 this.unverifiedRemoteSource() ??
                 (!this.externalGuide.confirmed()
-                    ? this.externalGuide.stoppedTuningSource()
+                    ? (this.externalGuide.stoppedTuningSource() ??
+                      this.externalGuide.remoteTuningSource())
                     : undefined);
             if (!source?.channel) return;
             const { channel, queue } = source;
@@ -689,7 +687,7 @@ export class LiveStreamLayoutComponent
                 )
                     return;
                 if ((!retry || cancelled) && alreadyLive) {
-                    if (onConfirmed) this.playbackRequestId++;
+                    if (onConfirmed) this.tuneRequests.invalidate();
                     if (!sameXtreamChannelCopy(playing, item))
                         this.switchGuideChannelCopy(item);
                     if (this.usesEmbeddedPlayer()) {
@@ -702,9 +700,9 @@ export class LiveStreamLayoutComponent
                             player.retryFailedPlayback();
                         this.confirmInlinePlayback(onConfirmed);
                     } else if (cancelled)
-                        this.afterExternalCancellation(
+                        this.tuneRequests.afterCancellation(
                             cancelled,
-                            item,
+                            item.xtream_id,
                             () =>
                                 this.playLive(
                                     item,
@@ -748,7 +746,7 @@ export class LiveStreamLayoutComponent
         effect(() => {
             const playlistId = this.xtreamStore.currentPlaylist()?.id ?? null;
             if (this.activePlaylistId && this.activePlaylistId !== playlistId) {
-                this.playbackRequestId += 1;
+                this.tuneRequests.invalidate();
                 this.activePlaylistId = null;
                 this.archivePreview = undefined;
                 this.externalGuide.reset();
@@ -778,7 +776,7 @@ export class LiveStreamLayoutComponent
                     !this.isLiveCategoryWithheld(playlistId, categoryId)
                 )
                     return;
-                this.playbackRequestId += 1;
+                this.tuneRequests.invalidate();
                 if (
                     !this.usesEmbeddedPlayer() &&
                     this.externalGuide.restoreConfirmedPanel()
@@ -888,20 +886,21 @@ export class LiveStreamLayoutComponent
             const selectedContentType = this.xtreamStore.selectedContentType();
             const selectedItem = this.remoteLiveItem();
             const channels = this.getVisibleChannels();
-            const activeProgram = selectedItem
-                ? this.usesSelectionForRemote()
-                    ? (this.activeCatchupProgram() ?? this.currentEpgItem())
-                    : this.externalGuide.confirmed()
-                      ? this.guideNowPlayingProgram()
-                      : null
-                : null;
+            const activeProgram =
+                selectedItem && this.supportsProviderEpg
+                    ? this.usesSelectionForRemote()
+                        ? (this.activeCatchupProgram() ?? this.currentEpgItem())
+                        : this.externalGuide.confirmed()
+                          ? this.guideNowPlayingProgram()
+                          : null
+                    : null;
 
             if (
                 selectedContentType !== 'live' ||
                 !(
                     selectedItem ||
                     this.remoteAnchor() ||
-                    this.externalGuide.remoteTuningItem()
+                    this.externalGuide.remoteTuningSource()
                 )
             ) {
                 remoteControl.updateRemoteControlStatus({
@@ -965,8 +964,8 @@ export class LiveStreamLayoutComponent
         remote = false,
         onConfirmed?: () => void
     ): void {
-        const requestId = ++this.playbackRequestId;
-        const owner = this.externalGuide.owner();
+        const request = this.tuneRequests.begin();
+        const { owner } = request;
         if (
             startPlayback &&
             owner &&
@@ -979,7 +978,7 @@ export class LiveStreamLayoutComponent
                 !!this.externalGuide.confirmed();
             const start = (resolved: typeof category) => {
                 if (
-                    !this.isCurrentPlaybackRequest(requestId, owner) ||
+                    !this.tuneRequests.isCurrent(request) ||
                     this.isLiveCategoryWithheld(owner.playlistId, resolved)
                 )
                     return;
@@ -1120,28 +1119,18 @@ export class LiveStreamLayoutComponent
     }
 
     private confirmInlinePlayback(callback?: () => void): void {
-        this.inlineConfirmation = undefined;
-        if (!callback) return;
         const player = this.inlinePlayer();
-        if (
-            player &&
-            player.playback() === this.activePlayback() &&
-            player.hasStartedPlayback()
-        )
-            callback();
-        else
-            this.inlineConfirmation = {
-                requestId: this.playbackRequestId,
-                callback,
-            };
+        this.tuneRequests.confirmInlineWhenReady(
+            callback,
+            !!player &&
+                player.playback() === this.activePlayback() &&
+                player.hasStartedPlayback()
+        );
     }
 
     onInlinePlaybackStarted(playback: ResolvedPortalPlayback): void {
-        if (playback !== this.activePlayback()) return;
-        const confirmation = this.inlineConfirmation;
-        this.inlineConfirmation = undefined;
-        if (confirmation?.requestId === this.playbackRequestId)
-            confirmation.callback();
+        if (playback === this.activePlayback())
+            this.tuneRequests.confirmInline();
     }
 
     async onProgramActivated(event: EpgProgramActivationEvent): Promise<void> {
@@ -1237,7 +1226,7 @@ export class LiveStreamLayoutComponent
     }
 
     ngOnDestroy(): void {
-        this.playbackRequestId += 1;
+        this.tuneRequests.invalidate();
         this.unsubscribeRemoteChannelChange?.();
         this.unsubscribeRemoteCommand?.();
         // Leaving the live view would otherwise keep the last channel
@@ -1251,7 +1240,7 @@ export class LiveStreamLayoutComponent
         const selectionBased = this.usesSelectionForRemote();
         const tuning = selectionBased
             ? undefined
-            : this.externalGuide.remoteTuningItem();
+            : this.externalGuide.remoteTuningSource()?.channel;
         const anchor = this.remoteAnchor();
         const activeItem = tuning ?? this.remoteLiveItem() ?? anchor;
         if (!activeItem?.xtream_id) {
@@ -1310,11 +1299,13 @@ export class LiveStreamLayoutComponent
             !playing.session.playbackUnverified &&
             !this.externalGuide.isStopping()
         ) {
-            this.playbackRequestId++;
+            this.tuneRequests.invalidate();
             const cancelled = this.externalGuide.cancelPendingSwitch(channel);
             if (cancelled)
-                this.afterExternalCancellation(cancelled, channel, () =>
-                    this.playLive(channel, true, undefined, true)
+                this.tuneRequests.afterCancellation(
+                    cancelled,
+                    channel.xtream_id,
+                    () => this.playLive(channel, true, undefined, true)
                 );
             return;
         }
@@ -1431,37 +1422,6 @@ export class LiveStreamLayoutComponent
         }
     }
 
-    private isCurrentPlaybackRequest(
-        requestId: number,
-        owner: XtreamLiveOwner | undefined
-    ): boolean {
-        return (
-            requestId === this.playbackRequestId &&
-            sameXtreamLiveOwner(owner, this.externalGuide.owner())
-        );
-    }
-
-    private afterExternalCancellation(
-        cancelled: Promise<void>,
-        item: XtreamLiveChannelItem,
-        retune: () => void,
-        onConfirmed?: () => void
-    ): void {
-        const requestId = this.playbackRequestId;
-        const owner = this.externalGuide.owner();
-        void cancelled.then(() => {
-            if (!this.isCurrentPlaybackRequest(requestId, owner)) return;
-            const playing = this.externalGuide.confirmed();
-            if (
-                playing?.item.xtream_id === item.xtream_id &&
-                !playing.archive &&
-                !this.externalGuide.isStopping()
-            )
-                onConfirmed?.();
-            else retune();
-        });
-    }
-
     private selectLiveItemCategory(item: XtreamLiveChannelItem): void {
         const categoryId = Number(item.category_id);
         if (Number.isFinite(categoryId) && categoryId > 0) {
@@ -1474,7 +1434,6 @@ export class LiveStreamLayoutComponent
         item: XtreamLiveChannelItem
     ): Promise<void> {
         const playlist = this.xtreamStore.currentPlaylist();
-        const owner = this.externalGuide.owner();
         if (!playlist) {
             return;
         }
@@ -1492,7 +1451,7 @@ export class LiveStreamLayoutComponent
             return;
         }
 
-        const requestId = ++this.playbackRequestId;
+        const request = this.tuneRequests.begin();
         const preview = this.archivePreview;
         const fromPreview =
             preview &&
@@ -1511,7 +1470,7 @@ export class LiveStreamLayoutComponent
                 ? await this.lookupLiveProviderCategoryId(playlist.id, item)
                 : category;
         if (
-            !this.isCurrentPlaybackRequest(requestId, owner) ||
+            !this.tuneRequests.isCurrent(request) ||
             this.isLiveCategoryWithheld(playlist.id, resolved)
         )
             return;
@@ -1530,7 +1489,7 @@ export class LiveStreamLayoutComponent
             playlist.serverTimezone
         );
         if (
-            !this.isCurrentPlaybackRequest(requestId, owner) ||
+            !this.tuneRequests.isCurrent(request) ||
             this.isLiveCategoryWithheld(playlist.id, resolved)
         ) {
             return;
