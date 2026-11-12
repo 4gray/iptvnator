@@ -112,7 +112,10 @@ export class XtreamExternalLiveSessions {
     private readonly pending = new Map<string, Launch>();
     private readonly sessions = new Map<string, Active>();
     private readonly revision = signal(0);
-    readonly handoff = new XtreamNativeHandoff(sameXtreamLiveOwner);
+    readonly handoff = new XtreamNativeHandoff(
+        sameXtreamLiveOwner,
+        this.playback?.pendingStop?.bind(this.playback)
+    );
 
     constructor() {
         const unsubscribe = window.electron?.onExternalPlayerSessionUpdate?.(

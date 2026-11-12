@@ -805,6 +805,8 @@ previous channel while it is stopping restarts it after exit and waits for that
 playback to open, including when a click still lands on its active row.
 An explicit Stop in the playback dock cancels a tune waiting for that player's
 teardown. The handoff's own exact close does not cancel its replacement.
+Selecting the same channel during a dock Stop also waits for that process to
+exit and confirms only the restarted stream.
 If a replacement fails after the previous stream ends, the already open guide
 keeps its scope and search so the user can retry, including when both streams
 used the same process.

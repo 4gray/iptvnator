@@ -6,6 +6,7 @@ export interface PortalExternalPlayback {
     readonly activeSession: Signal<ExternalPlayerSession | null>;
     readonly visibleSession: Signal<ExternalPlayerSession | null>;
     readonly stopRequested?: Observable<string>;
+    pendingStop?(sessionId: string): Promise<void> | undefined;
     dismissActiveSession(): void;
     restoreDismissedSession?(sessionId: string): void;
     restoreDisplacedSession?(

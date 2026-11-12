@@ -7,6 +7,7 @@ import { XtreamEpgGuideSourceService } from './xtream-epg-guide-source.service';
 describe('Xtream guide Stop during a detached handoff', () => {
     const {
         emptyList,
+        pendingStop,
         portalPlayer,
         publishExternalSession,
         restoreElectron,
@@ -16,9 +17,9 @@ describe('Xtream guide Stop during a detached handoff', () => {
 
     afterEach(restoreElectron);
 
-    it.each([false, true])(
-        'cancels the waiting tune only for an explicit Stop (%s)',
-        async (userStopped) => {
+    it.each(['handoff', 'stop', 'retune'] as const)(
+        'orders a detached guide tune and a dock Stop (%s)',
+        async (action) => {
             const first = { ...sampleChannel, category_id: 1 };
             const second = { ...first, xtream_id: first.xtream_id + 1 };
             emptyList.set([first, second]);
@@ -55,13 +56,32 @@ describe('Xtream guide Stop during a detached handoff', () => {
             const source = fixture.debugElement.injector.get(
                 XtreamEpgGuideSourceService
             );
-            xtreamStore.constructStreamUrl.mockReturnValueOnce(
-                'https://example.test/synthetic-next.ts'
+            xtreamStore.openPlayer.mockReturnValueOnce(
+                new Promise(() => undefined)
             );
-            source.activate(String(second.xtream_id));
-            expect(close).toHaveBeenCalledWith(current.id, true);
+            const confirmed = jest.fn();
+            if (action === 'retune') {
+                pendingStop.mockImplementation((id) =>
+                    id === current.id ? stopping : undefined
+                );
+                stopRequested.next(current.id);
+                source.activate(
+                    String(first.xtream_id),
+                    null,
+                    undefined,
+                    confirmed
+                );
+                expect(close).not.toHaveBeenCalled();
+                expect(confirmed).not.toHaveBeenCalled();
+            } else {
+                xtreamStore.constructStreamUrl.mockReturnValueOnce(
+                    'https://example.test/synthetic-next.ts'
+                );
+                source.activate(String(second.xtream_id));
+                expect(close).toHaveBeenCalledWith(current.id, true);
+                if (action === 'stop') stopRequested.next(current.id);
+            }
             expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(1);
-            if (userStopped) stopRequested.next(current.id);
             publishExternalSession({
                 ...current,
                 status: 'closed',
@@ -71,8 +91,18 @@ describe('Xtream guide Stop during a detached handoff', () => {
             finish();
             await new Promise<void>((resolve) => setTimeout(resolve, 0));
             expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(
-                userStopped ? 1 : 2
+                action === 'stop' ? 1 : 2
             );
+            if (action === 'retune') {
+                expect(confirmed).not.toHaveBeenCalled();
+                publishExternalSession({
+                    ...current,
+                    id: 'synthetic-restarted',
+                    mediaLoaded: true,
+                });
+                fixture.detectChanges();
+                expect(confirmed).toHaveBeenCalledTimes(1);
+            }
         }
     );
 });

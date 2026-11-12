@@ -74,6 +74,9 @@ export function setupLiveStreamLayoutNativeFixture() {
     };
     const externalSession = signal<ExternalPlayerSession | null>(null);
     const stopRequested = new Subject<string>();
+    const pendingStop = jest.fn(
+        (_id: string): Promise<void> | undefined => undefined
+    );
     const closeSession = jest.fn(
         async (_session: ExternalPlayerSession) => undefined
     );
@@ -158,6 +161,7 @@ export function setupLiveStreamLayoutNativeFixture() {
         onExternalPlayerSessionUpdate.mockClear();
         launchIds.clear();
         closeSession.mockClear();
+        pendingStop.mockReset();
         parentalLock.active.set(false);
         parentalLock.version.set(0);
         parentalLock.isXtreamCategoryLocked.mockReset().mockReturnValue(false);
@@ -241,6 +245,7 @@ export function setupLiveStreamLayoutNativeFixture() {
                         activeSession: externalSession,
                         closeSession,
                         stopRequested,
+                        pendingStop,
                     },
                 },
                 { provide: ParentalLockService, useValue: parentalLock },
@@ -291,6 +296,7 @@ export function setupLiveStreamLayoutNativeFixture() {
         portalPlayer,
         closeSession,
         stopRequested,
+        pendingStop,
         updateRemoteControlStatus,
         onExternalPlayerSessionUpdate,
         publishExternalSession,

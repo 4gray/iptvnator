@@ -179,6 +179,7 @@ describe('ExternalPlaybackService', () => {
         listener?.(session);
         const stopped = jest.fn(() => {
             expect(closeExternalPlayerSession).not.toHaveBeenCalled();
+            expect(service.pendingStop(session.id)).toBeDefined();
         });
         service.stopRequested.subscribe(stopped);
 
@@ -191,7 +192,10 @@ describe('ExternalPlaybackService', () => {
             })
         );
 
-        await service.closeActiveSession();
+        const stopping = service.closeActiveSession();
+        expect(service.pendingStop(session.id)).toBeDefined();
+        await stopping;
+        expect(service.pendingStop(session.id)).toBeUndefined();
 
         expect(stopped).toHaveBeenCalledWith(session.id);
         expect(closeExternalPlayerSession).toHaveBeenCalledWith(session.id);

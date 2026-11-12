@@ -46,8 +46,13 @@ it('hides the header and palette contribution and closes the guide when EPG is d
     TestBed.flushEffects();
     expect(header.action()?.disabled?.()).toBe(true);
     playing.set(true);
+    guide.handleKey(new KeyboardEvent('keydown', { key: 'g', repeat: true }));
+    expect(guide.isOpen()).toBe(false);
     header.action()?.run();
     expect(guide.isOpen()).toBe(true);
+    guide.handleKey(new KeyboardEvent('keydown', { key: 'g', repeat: true }));
+    expect(guide.isOpen()).toBe(true);
+    expect(source.open).toHaveBeenCalledTimes(1);
     const originalAction = header.action();
     source.playlist.set({ id: 'synthetic-portal' });
     TestBed.flushEffects();

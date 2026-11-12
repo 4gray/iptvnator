@@ -81,7 +81,8 @@ export class XtreamNativeHandoff {
         private readonly sameOwner: (
             left: XtreamLiveOwner,
             right: XtreamLiveOwner
-        ) => boolean
+        ) => boolean,
+        private readonly pendingStop?: (id: string) => Promise<void> | undefined
     ) {}
 
     dispatch(source: XtreamLiveSource): void {
@@ -116,7 +117,10 @@ export class XtreamNativeHandoff {
     }
 
     isStopping(id: string | undefined): boolean {
-        return id !== undefined && this.stopping.has(id);
+        return (
+            id !== undefined &&
+            (this.stopping.has(id) || !!this.pendingStop?.(id))
+        );
     }
 
     beforeTune(
@@ -134,8 +138,14 @@ export class XtreamNativeHandoff {
                 const entry = id ? lookup(id) : undefined;
                 if (!entry || !this.sameOwner(entry.source, source)) continue;
                 const pending = this.stopping.get(entry.session.id);
+                const userStop = this.pendingStop?.(entry.session.id);
                 if (pending) stopped.push(pending);
-                else if (this.needsClose(entry, source, player))
+                if (userStop) stopped.push(userStop);
+                if (
+                    !pending &&
+                    !userStop &&
+                    this.needsClose(entry, source, player)
+                )
                     stopped.push(this.stop(entry.session.id));
             }
             return stopped.length <= 1

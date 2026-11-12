@@ -23,6 +23,7 @@ export class ExternalPlaybackService {
     readonly activeSession = signal<ExternalPlayerSession | null>(null);
     private readonly userStops = new Subject<string>();
     readonly stopRequested = this.userStops.asObservable();
+    private readonly stops = new Map<string, Promise<void>>();
     private readonly dismissedSessionId = signal<string | null>(null);
 
     readonly visibleSession = computed(() => {
@@ -76,6 +77,10 @@ export class ExternalPlaybackService {
         await this.closeSession(this.activeSession(), true);
     }
 
+    pendingStop(sessionId: string): Promise<void> | undefined {
+        return this.stops.get(sessionId);
+    }
+
     async closeSession(
         session: ExternalPlayerSession | null | undefined,
         userRequested = false
@@ -89,8 +94,18 @@ export class ExternalPlaybackService {
             return;
         }
 
+        if (userRequested) {
+            const pending = this.pendingStop(session.id);
+            if (pending) return pending;
+            const closing = Promise.resolve()
+                .then(() => this.closeSession(session))
+                .finally(() => this.stops.delete(session.id));
+            this.stops.set(session.id, closing);
+            this.userStops.next(session.id);
+            return closing;
+        }
+
         const previousDismissedSessionId = this.dismissedSessionId();
-        if (userRequested) this.userStops.next(session.id);
         this.dismissedSessionId.set(session.id);
 
         try {
