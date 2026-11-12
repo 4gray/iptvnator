@@ -63,8 +63,14 @@ function mockRc(
         port: number | string,
         command: string,
         reply: (data?: string) => void
-    ) => void
+    ) => void,
+    connect: (ready: () => void, index: number, fail: () => void) => void = (
+        ready
+    ) => {
+        setImmediate(ready);
+    }
 ) {
+    let connections = 0;
     (createConnection as unknown as jest.Mock).mockImplementation(
         (address: string | { port: number }) => {
             const port = typeof address === 'string' ? address : address.port;
@@ -79,7 +85,12 @@ function mockRc(
                 },
                 destroy: () => (socket.destroyed = true),
             });
-            setImmediate(() => socket.emit('connect'));
+            connect(
+                () => socket.emit('connect'),
+                ++connections,
+                () =>
+                    socket.emit('error', new Error('Synthetic socket failure'))
+            );
             return socket;
         }
     );
@@ -1038,6 +1049,72 @@ describe('VLC exact playback ownership', () => {
             } finally {
                 exit(first);
                 exit(second);
+            }
+        }
+    );
+
+    it.each(['connect', 'error'] as const)(
+        'ignores an older add while a new VLC switch confirms its clear (%s)',
+        async (outcome) => {
+            if (process.platform === 'win32') return;
+            const proc = child();
+            spawnMock.mockReturnValueOnce(proc);
+            const launch = (name: string) =>
+                openVlcPlayer({
+                    title: name,
+                    url: `https://example.test/${name}.ts`,
+                    launchId: name,
+                });
+            const initial = launch('synthetic-initial');
+            proc.emit('spawn');
+            await initial;
+            let holdAdd!: (connect: () => void) => void;
+            const addSocket = new Promise<() => void>(
+                (resolve) => (holdAdd = resolve)
+            );
+            let holdStatus!: (reply: (data: string) => void) => void;
+            const newStatus = new Promise<(data: string) => void>(
+                (resolve) => (holdStatus = resolve)
+            );
+            const writes: string[] = [];
+            let statuses = 0;
+            mockRc(
+                (_port, command, reply) => {
+                    writes.push(command.trim());
+                    const name = command.trim().split(' ', 1)[0];
+                    if (name === 'status') {
+                        if (++statuses === 2) holdStatus(reply);
+                        else reply(clearedStatus);
+                    } else reply(`${name}: returned 0 (no error)\r\n`);
+                },
+                (ready, index, fail) => {
+                    if (index === 3)
+                        holdAdd(outcome === 'connect' ? ready : fail);
+                    else setImmediate(ready);
+                }
+            );
+            try {
+                const older = launch('synthetic-older');
+                const connectOlderAdd = await addSocket;
+                const newer = launch('synthetic-newer');
+                const replyToNewerClear = await newStatus;
+                connectOlderAdd();
+                const old = await older;
+                expect(
+                    externalPlayerSessions.getSession(old.id)?.canClose
+                ).toBe(true);
+                expect(writes).toEqual(['clear', 'status', 'clear', 'status']);
+                expect(proc.kill).not.toHaveBeenCalled();
+                replyToNewerClear(clearedStatus);
+                expect((await newer).status).toBe('opened');
+                expect(writes.slice(4)).toEqual([
+                    expect.stringContaining(
+                        'add https://example.test/synthetic-newer.ts '
+                    ),
+                ]);
+                expect(spawnMock).toHaveBeenCalledTimes(1);
+            } finally {
+                exit(proc);
             }
         }
     );

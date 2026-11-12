@@ -246,8 +246,7 @@ describe('XtreamExternalLiveSessions', () => {
             .finish(cancelled);
         activeSession.set(cancelled);
         await guard.cancelPendingSwitches(original, {
-            channelId: 101,
-            sessionId: playing.id,
+            keep: { channelId: 101, sessionId: playing.id },
         });
         expect(close).toHaveBeenCalledWith(cancelled.id, true);
         expect(restoreDisplacedSession).toHaveBeenCalledWith(

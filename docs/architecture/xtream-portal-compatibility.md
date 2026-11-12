@@ -806,8 +806,9 @@ playback to open, including when a click still lands on its active row.
 An explicit Stop in the playback dock cancels an earlier tune from the same
 playlist, including during category or archive lookup or while waiting for the
 player to exit. A tune already dispatched is cancelled by launch ID; its exact
-session is closed when it becomes available. The handoff's own exact close does
-not cancel its replacement.
+session is closed when it becomes available. The dock's own Stop still owns
+teardown of the session it targeted. The handoff's exact close does not cancel
+its replacement.
 Selecting the same channel during a dock Stop also waits for that process to
 exit and confirms only the restarted stream.
 If a replacement fails after the previous stream ends, the already open guide

@@ -171,6 +171,7 @@ export class VlcReusableProcess {
         const cancelled = this.watchStop();
         let reusedProcessSessionId = this.processSessionIds.get(reusedProcess);
         const order = ++this.reuseOrder;
+        const supersededOrder = () => order < this.dispatchedReuse;
         const replaced = () =>
             this.process !== reusedProcess &&
             (session.launchId && !session.contentInfo
@@ -182,7 +183,7 @@ export class VlcReusableProcess {
         const superseded = () =>
             state.contentMutated
                 ? !this.owns(reusedProcess, session.id)
-                : order < this.dispatchedReuse || replaced();
+                : supersededOrder() || replaced();
         const lostChild = () =>
             hasExited(reusedProcess) ||
             (!state.contentMutated && this.process !== reusedProcess);
@@ -320,6 +321,7 @@ export class VlcReusableProcess {
                     if (
                         state.closeRequested ||
                         cancelled() ||
+                        supersededOrder() ||
                         superseded() ||
                         lostChild()
                     )
@@ -377,6 +379,7 @@ export class VlcReusableProcess {
             if (cancelled()) return await settleCancelled();
             if (superseded()) return retire();
             if (lostChild()) return state.contentMutated ? retire() : null;
+            if (supersededOrder()) return current ?? session;
             if (readExternalPlayerErrorCode(error) === 'previous-closing') {
                 const owner = this.processSessionIds.get(reusedProcess);
                 if (state.contentMutated) state.teardownUnconfirmed = true;
@@ -387,10 +390,7 @@ export class VlcReusableProcess {
                     restoreOwner(owner);
                 throw error;
             }
-            console.error(
-                'Failed to reuse existing VLC, spawning fresh:',
-                error
-            );
+            console.error('VLC reuse failed; spawning fresh:', error);
 
             if (state.contentMutated)
                 this.recoveringChildren.add(reusedProcess);

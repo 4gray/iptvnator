@@ -1103,7 +1103,8 @@ child to exit before settling, even if no content command was sent.
 Once a reused process accepts a replacement content command, its previous
 session retires; the replacement alone reports the child's eventual exit.
 Overlapping VLC replacements reserve their order at the first RC write, so an
-older replacement stops sending commands. With private control, the previous
+older replacement stops sending commands and cannot restart the child on an
+RC error, even if it still owns the child. With private control, the previous
 session still owns the child while the app waits briefly for VLC to confirm it
 stopped with no input. A refused or unverified clear falls back only after that
 child exits. If the replacement is cancelled after sending clear, the previous

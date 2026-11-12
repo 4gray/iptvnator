@@ -167,14 +167,22 @@ describe('Xtream guide Stop during a detached handoff', () => {
         }
     });
 
-    it.each(['stop', 'still-playing', 'cleared'] as const)(
+    it.each([
+        'stop',
+        'stop-mpv-replacement',
+        'stop-vlc-replacement',
+        'still-playing',
+        'cleared',
+    ] as const)(
         'waits for the exact dispatched switch when returning to the current player (%s)',
         async (scenario) => {
             const first = { ...sampleChannel, category_id: 1 };
             const second = { ...first, xtream_id: first.xtream_id + 1 };
             emptyList.set([first, second]);
             portalPlayer.isEmbeddedPlayer.set(false);
-            player.set(scenario === 'stop' ? VideoPlayer.MPV : VideoPlayer.VLC);
+            const mpv =
+                scenario === 'stop' || scenario === 'stop-mpv-replacement';
+            player.set(mpv ? VideoPlayer.MPV : VideoPlayer.VLC);
             const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
             const component = fixture.componentInstance;
             const close = jest.fn(() => new Promise(() => undefined));
@@ -187,7 +195,7 @@ describe('Xtream guide Stop during a detached handoff', () => {
             component.playLive(first, true);
             const current = {
                 id: 'synthetic-current',
-                player: scenario === 'stop' ? 'mpv' : 'vlc',
+                player: mpv ? 'mpv' : 'vlc',
                 status: 'opened',
                 mediaLoaded: true,
                 playbackIdle: false,
@@ -217,6 +225,17 @@ describe('Xtream guide Stop during a detached handoff', () => {
             source.activate(String(second.xtream_id));
             expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(2);
             const commit = jest.fn();
+            if (scenario.startsWith('stop-')) {
+                publishExternalSession({
+                    ...next,
+                    status: 'launching',
+                    mediaLoaded: false,
+                });
+                stopRequested.next(next.id);
+                expect(close).not.toHaveBeenCalled();
+                expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(2);
+                return;
+            }
             if (scenario === 'stop') {
                 stopRequested.next(current.id);
                 publishExternalSession({

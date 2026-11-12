@@ -195,7 +195,7 @@ export class XtreamGuideExternalPlayback {
                 if (!source || !sameXtreamLiveOwner(this.owner(), source))
                     return;
                 this.panel?.cancelPendingRequest();
-                this.sessions.cancelPendingSwitches(source);
+                this.sessions.cancelPendingSwitches(source, { dockStopId: id });
                 this.pending.set(undefined);
             });
         effect(() => {
@@ -357,13 +357,10 @@ export class XtreamGuideExternalPlayback {
     ): Promise<void> | undefined {
         const confirmed = this.confirmed();
         if (!confirmed) return;
-        const cancelled = this.sessions.cancelPendingSwitches(
-            confirmed.lockSource,
-            {
-                channelId: item.xtream_id,
-                sessionId: confirmed.session.id,
-            }
-        );
+        const { lockSource, session } = confirmed;
+        const cancelled = this.sessions.cancelPendingSwitches(lockSource, {
+            keep: { channelId: item.xtream_id, sessionId: session.id },
+        });
         if (!cancelled) return;
         if (this.pending()?.ended?.()) this.pending.set(undefined);
         this.syncPanel(confirmed);

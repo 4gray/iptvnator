@@ -213,12 +213,20 @@ export class XtreamExternalLiveSessions {
 
     cancelPendingSwitches(
         owner: XtreamLiveOwner,
-        keep?: { channelId: number; sessionId: string }
+        {
+            keep,
+            dockStopId,
+        }: {
+            keep?: { channelId: number; sessionId: string };
+            dockStopId?: string;
+        } = {}
     ): Promise<void> | undefined {
         const launches = new Set(this.pending.values());
         this.sessions.forEach(({ launch }) => {
             if (launch) launches.add(launch);
         });
+        const dockLaunch = dockStopId && this.sessions.get(dockStopId)?.launch;
+        if (dockLaunch) launches.delete(dockLaunch);
         const cancelled = new Set(
             [...launches].filter(
                 (launch) =>
