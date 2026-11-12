@@ -70,6 +70,11 @@ export class MpvReusableProcess {
     // overtake an in-flight reuse attempt is that stop, which cancels it.
     private stopGeneration = 0;
 
+    watchStop(): () => boolean {
+        const generation = this.stopGeneration;
+        return () => generation !== this.stopGeneration;
+    }
+
     currentSessionId(): string | null {
         return this.processSessionId;
     }
@@ -142,8 +147,7 @@ export class MpvReusableProcess {
 
         traceExternalPlayer('reuse existing mpv instance');
         const { session, state } = options;
-        const generation = this.stopGeneration;
-        const cancelled = () => generation !== this.stopGeneration;
+        const cancelled = this.watchStop();
         // The stored-player stop is already tearing the child down; settle
         // only once its exit is confirmed, else stay a closable error so Stop
         // can retry while the teardown gate blocks further launches.

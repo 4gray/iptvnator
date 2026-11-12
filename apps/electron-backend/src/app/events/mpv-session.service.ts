@@ -250,6 +250,7 @@ async function launchMpvPlayer(
             guideLaunch && socketPath && !forcePositional
                 ? prepareFreshMpvMedia(mpvLaunchContext.playerPath)
                 : undefined;
+        if (tracksProcess) media?.watchStop(reusableMpvProcess.watchStop());
         if (!media) args.push(url);
 
         let fallingBack = false;
@@ -397,7 +398,7 @@ async function launchMpvPlayer(
             freshTeardownUnconfirmed = true;
             throw error;
         }
-        if (stopRequested)
+        if (stopRequested || media?.stopped)
             return externalPlayerSessions.markClosed(session.id) ?? session;
         return launchMpvPlayer(
             request,

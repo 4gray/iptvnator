@@ -288,10 +288,11 @@ describe('VLC exact playback ownership', () => {
                     : decodeURIComponent(url);
             if (kind === 'M3U')
                 (requestWithValidatedRedirects as jest.Mock).mockResolvedValue({
-                    data: '#EXTM3U\n#EXTINF:-1,Synthetic Child\nsynthetic-child.ts\n',
+                    data: '#EXTM3U x-tvg-url="https://example.test/synthetic.xml"\n#EXTINF:-1,Synthetic Child\nsynthetic-child.ts\n',
                 });
             let input = 'https://example.test/synthetic-old.ts';
             let playbackTime = 0;
+            let switchDuringClock = false;
             mockRc((port, command, reply) => {
                 expect(typeof port).toBe('string');
                 if (command === 'status\n')
@@ -301,7 +302,11 @@ describe('VLC exact playback ownership', () => {
                             `( new input: ${input} )\r\n( play state: 3 )\r\n` +
                             'status: returned 0 (no error)\r\n( stop state: 5 )\r\n'
                     );
-                if (command === 'get_time\n') reply(`${playbackTime}\r\n`);
+                if (command === 'get_time\n') {
+                    if (switchDuringClock)
+                        input = 'https://example.test/synthetic-other.ts';
+                    reply(`${playbackTime}\r\n`);
+                }
             });
             const opening = openVlcPlayer({
                 title: 'Synthetic Channel',
@@ -379,7 +384,7 @@ describe('VLC exact playback ownership', () => {
                 poll++
             ) {
                 await jest.advanceTimersByTimeAsync(2_000);
-                // The indirect input also reads a second status after resolving its M3U.
+                // Confirmation reads status again after the clock and any M3U lookup.
                 for (let turn = 0; turn < 6; turn++) await tick();
             }
             expect(externalPlayerSessions.getSession(session.id)).toMatchObject(
@@ -400,6 +405,13 @@ describe('VLC exact playback ownership', () => {
                     playbackUnverified: true,
                 }
             );
+            input = currentInput;
+            switchDuringClock = true;
+            await jest.advanceTimersByTimeAsync(2_000);
+            for (let turn = 0; turn < 6; turn++) await tick();
+            expect(
+                externalPlayerSessions.getSession(session.id)?.mediaLoaded
+            ).toBe(false);
             expect(requestWithValidatedRedirects).toHaveBeenCalledTimes(1);
             expect(requestWithValidatedRedirects).toHaveBeenCalledWith(
                 url,

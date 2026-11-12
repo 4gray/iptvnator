@@ -797,13 +797,13 @@ by nested redirects, and clears confirmation when that input ends or another
 entry takes over. A late load or replay of the same entry can confirm again.
 If the launcher exits before `loadfile` is sent, or the socket never accepts it,
 MPV retries with the original URL argument after the idle process exits. Stop
-prevents that fallback and any pending IPC write.
+or disabling instance reuse cancels that fallback and any pending IPC write.
 The Unix socket lives in a private directory owned by the app user and is
 removed when the child exits. Older MPV versions that acknowledge without an
 entry ID keep the remote queue without confirming guide playback.
 VLC guide launches use a private Unix socket for control where available, and
 otherwise open directly without an unauthenticated TCP control port. VLC RC
-checks the requested input in the status reply and observes its playback clock.
+checks the requested input before and after reading its playback clock.
 If VLC opens a direct child of a plain M3U, the app reads only the original
 playlist in one bounded request and rechecks the active input before confirming.
 A readable zero stays pending; an unrelated URL invalidates confirmation.

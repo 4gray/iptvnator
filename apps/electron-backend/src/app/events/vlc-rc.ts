@@ -292,19 +292,18 @@ export function markVlcOpened(
                     if (elapsed === undefined) return null;
                     if (Number(elapsed) <= 0) return false;
                 }
-                let matches =
+                const knownInput =
                     matchesVlcInput(input, mediaUrl) || input === playlistInput;
-                if (!matches && listedChild && (await listedChild(input))) {
-                    if (!canRead()) return undefined;
+                let matches =
+                    knownInput || !!(listedChild && (await listedChild(input)));
+                if (!canRead()) return undefined;
+                if (matches && (!confirmed || !knownInput)) {
                     const latest = await getVlcCommandResponse(port, 'status');
                     const latestState = parseVlcRcPlaybackState(latest);
-                    if (
+                    matches =
                         readVlcInput(latest) === input &&
-                        (latestState === 'playing' || latestState === 'paused')
-                    ) {
-                        playlistInput = input;
-                        matches = true;
-                    }
+                        (latestState === 'playing' || latestState === 'paused');
+                    if (matches && !knownInput) playlistInput = input;
                 }
                 if (!canRead()) return undefined;
                 if (confirmed && !matches)

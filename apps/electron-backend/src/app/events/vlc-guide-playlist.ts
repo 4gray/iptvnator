@@ -54,7 +54,7 @@ async function loadPlaylistEntries(
         .map((line) => line.trim());
     // shortcut: only direct children of a plain M3U; extend once VLC exposes deeper ancestry.
     if (
-        lines[0] !== '#EXTM3U' ||
+        !/^#EXTM3U(?:\s|$)/i.test(lines[0] ?? '') ||
         lines.some((line) => line.startsWith('#EXT-X-'))
     )
         return targets;

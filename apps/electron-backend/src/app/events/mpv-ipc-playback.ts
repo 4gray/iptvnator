@@ -15,11 +15,18 @@ export function prepareFreshMpvMedia(playerPath: string) {
     if (/(?:^|[\\/])iina(?:-cli)?$/i.test(playerPath)) return undefined;
     const controller = new AbortController();
     let awaitingDispatch = true;
+    let stopped = () => false;
     return {
         signal: controller.signal,
         abort: () => controller.abort(),
+        watchStop: (watcher: () => boolean) => {
+            stopped = watcher;
+        },
+        get stopped() {
+            return stopped();
+        },
         get awaitingDispatch() {
-            return awaitingDispatch;
+            return awaitingDispatch && !stopped();
         },
         settleDispatch: () => {
             awaitingDispatch = false;
