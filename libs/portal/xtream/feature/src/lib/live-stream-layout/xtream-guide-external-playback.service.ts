@@ -97,6 +97,10 @@ export class XtreamGuideExternalPlayback {
         return this.isAllowed(playing?.lockSource) ? playing : null;
     });
 
+    isStopping(): boolean {
+        return this.sessions.handoff.isStopping(this.confirmed()?.session.id);
+    }
+
     readonly launching = computed(() => {
         const pending = this.pending();
         if (
@@ -259,19 +263,21 @@ export class XtreamGuideExternalPlayback {
         this.panelPlayback = this.panel?.current() ?? playback;
         const source = launch?.lockSource;
         const lifecycle = source && this.sessions.begin(source, launchId);
+        const isCurrent = () =>
+            this.pending() === launch && !this.destroyRef.destroyed;
+        const canOpen = () => isCurrent() && this.isAllowed(source);
         const prior = replaceWith && this.confirmed()?.session;
         const close =
             source &&
             this.sessions.closeBeforeTune(
                 source,
                 replaceWith,
-                prior ? prior.id : undefined
+                prior ? prior.id : undefined,
+                canOpen
             );
         if (launch)
             Object.assign(launch, { ended: lifecycle?.ended, retry: !!close });
         this.pending.set(launch);
-        const isCurrent = () =>
-            this.pending() === launch && !this.destroyRef.destroyed;
         const recover = (failed: boolean) => {
             if (!isCurrent()) return;
             this.pending.set(undefined);
@@ -279,8 +285,9 @@ export class XtreamGuideExternalPlayback {
             if (confirmed) this.syncPanel(confirmed);
             else if (failed) this.failedTuning.set(launch);
         };
-        const open = () =>
-            this.store.openPlayer(
+        const open = () => {
+            lifecycle?.dispatch();
+            return this.store.openPlayer(
                 playback.streamUrl,
                 playback.title,
                 playback.thumbnail,
@@ -288,7 +295,7 @@ export class XtreamGuideExternalPlayback {
                 undefined,
                 lifecycle?.launchId
             );
-        const canOpen = () => isCurrent() && this.isAllowed(source);
+        };
         const opening = close
             ? close.then(() => (canOpen() ? open() : undefined))
             : open();

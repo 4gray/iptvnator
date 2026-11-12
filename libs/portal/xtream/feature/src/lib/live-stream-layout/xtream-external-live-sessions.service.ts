@@ -19,10 +19,7 @@ import type {
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import type { XtreamLiveChannelItem } from './xtream-live-channel-navigation.service';
-import {
-    closeBeforeXtreamTune,
-    type OwnedSession,
-} from './xtream-native-handoff';
+import { XtreamNativeHandoff } from './xtream-native-handoff';
 
 export type XtreamLiveOwner = Pick<
     XtreamPlaylistData,
@@ -112,6 +109,7 @@ export class XtreamExternalLiveSessions {
     private readonly pending = new Map<string, Launch>();
     private readonly sessions = new Map<string, Active>();
     private readonly revision = signal(0);
+    readonly handoff = new XtreamNativeHandoff(sameXtreamLiveOwner);
 
     constructor() {
         const unsubscribe = window.electron?.onExternalPlayerSessionUpdate?.(
@@ -137,24 +135,16 @@ export class XtreamExternalLiveSessions {
 
     closeBeforeTune(
         source: XtreamLiveSource,
-        player?: string,
-        confirmedId?: string
+        player: string | undefined,
+        confirmedId: string | undefined,
+        isCurrent: () => boolean
     ) {
-        const ids = new Set([this.playback?.activeSession()?.id, confirmedId]);
-        const owned: OwnedSession[] = [];
-        for (const id of ids) {
-            const entry = id ? this.state(id) : undefined;
-            if (entry && sameXtreamLiveOwner(entry.source, source))
-                owned.push({
-                    session: entry.session,
-                    channelId: entry.source.channel?.xtream_id,
-                });
-        }
-        return closeBeforeXtreamTune(
-            owned,
-            source.channel?.xtream_id,
-            source.playback?.streamUrl,
-            player
+        return this.handoff.beforeTune(
+            source,
+            player,
+            [this.playback?.activeSession()?.id, confirmedId],
+            (id) => this.state(id),
+            isCurrent
         );
     }
 
@@ -196,8 +186,10 @@ export class XtreamExternalLiveSessions {
         return {
             launchId,
             ended: launch.ended.asReadonly(),
+            dispatch: () => this.handoff.dispatch(source),
             finish: (result?: ExternalPlayerSession | void) => {
                 this.pending.delete(launchId);
+                this.handoff.finish(source, result || undefined);
                 if (!result || launch.retired) return;
                 const current = this.sessions.get(result.id);
                 const latest = current?.session;
@@ -263,6 +255,7 @@ export class XtreamExternalLiveSessions {
             current?.launch ??
             request ??
             (session.launchId ? this.pending.get(session.launchId) : undefined);
+        if (launch) this.handoff.observe(launch.source, session);
         if (launch && session.closedByRequest) launch.ended.set('ended');
         else if (
             (session.status === 'error' || session.status === 'closed') &&

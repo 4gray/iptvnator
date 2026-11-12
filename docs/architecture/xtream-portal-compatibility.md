@@ -795,7 +795,10 @@ is still playing, the guide keeps its scope and search. Enter and double-click
 close the guide only after the requested stream opens. A guide or remote switch
 reuses the managed player when available. Otherwise it waits for the exact
 previous process to exit before opening the new channel, so a one-connection
-account does not have two simultaneous streams. A fresh or reused MPV
+account does not have two simultaneous streams. A newer tune waits for an
+already dispatched launch to become closable. Selecting the previous channel
+while it is stopping restarts it after exit and waits for that playback to open.
+A fresh or reused MPV
 process with IPC confirms its requested playlist entry, including siblings left
 by nested redirects, and clears confirmation when that input ends or another
 entry takes over. A late load or replay of the same entry can confirm again.

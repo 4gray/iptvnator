@@ -28,6 +28,136 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
 
     afterEach(restoreElectron);
 
+    function startDetachedGuide() {
+        const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
+        const component = fixture.componentInstance;
+        const first = { ...sampleChannel, category_id: 1 };
+        const second = { ...first, xtream_id: first.xtream_id + 1 };
+        const third = { ...first, xtream_id: first.xtream_id + 2 };
+        const secondUrl = 'https://example.test/synthetic-second.ts';
+        const thirdUrl = 'https://example.test/synthetic-third.ts';
+        emptyList.set([first, second, third]);
+        portalPlayer.isEmbeddedPlayer.set(false);
+        fixture.detectChanges();
+        component.playLive(first, true);
+        const current = {
+            id: 'synthetic-detached-first',
+            player: 'mpv',
+            status: 'playing',
+            title: 'Synthetic Channel',
+            streamUrl: component.activeStreamUrl(),
+            canClose: true,
+            reuseAvailable: false,
+            startedAt: '2026-04-04T10:00:00Z',
+            updatedAt: '2026-04-04T10:00:00Z',
+        } as const;
+        publishExternalSession(current);
+        fixture.detectChanges();
+        component.guide.open();
+        fixture.detectChanges();
+        const source = fixture.debugElement.injector.get(
+            XtreamEpgGuideSourceService
+        );
+        const waiting = new Map<string, () => void>();
+        const close = jest.fn(
+            (id: string, _exact?: boolean) =>
+                new Promise<void>((resolve) => {
+                    waiting.set(id, resolve);
+                })
+        );
+        Object.defineProperty(window.electron, 'closeExternalPlayerSession', {
+            value: close,
+            configurable: true,
+        });
+        const stop = async (session: { id: string; streamUrl: string }) => {
+            publishExternalSession({
+                ...current,
+                ...session,
+                status: 'closed',
+                canClose: false,
+                closedByRequest: true,
+            });
+            fixture.detectChanges();
+            waiting.get(session.id)?.();
+            await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        };
+        xtreamStore.constructStreamUrl.mockReturnValueOnce(secondUrl);
+        xtreamStore.openPlayer.mockImplementation(
+            () => new Promise(() => undefined)
+        );
+        source.activate(String(second.xtream_id));
+        return {
+            fixture,
+            source,
+            first,
+            third,
+            current,
+            secondUrl,
+            thirdUrl,
+            close,
+            stop,
+        };
+    }
+
+    it('waits for an already dispatched player to become exactly closable', async () => {
+        const {
+            fixture,
+            source,
+            third,
+            current,
+            secondUrl,
+            thirdUrl,
+            close,
+            stop,
+        } = startDetachedGuide();
+        await stop(current);
+        expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(2);
+        xtreamStore.constructStreamUrl.mockReturnValueOnce(thirdUrl);
+        source.activate(String(third.xtream_id));
+        expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(2);
+        const opening = {
+            ...current,
+            id: 'synthetic-detached-second',
+            streamUrl: secondUrl,
+            status: 'launching',
+            canClose: false,
+        } as const;
+        publishExternalSession(opening);
+        fixture.detectChanges();
+        expect(close).toHaveBeenCalledTimes(1);
+        expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(2);
+        publishExternalSession({ ...opening, canClose: true });
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        expect(close).toHaveBeenLastCalledWith(opening.id, true);
+        expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(2);
+        await stop(opening);
+        expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(3);
+        expect(xtreamStore.openPlayer.mock.lastCall?.[0]).toBe(thirdUrl);
+    });
+
+    it('does not confirm a return to the original row while its player is stopping', async () => {
+        const { fixture, source, first, current, close, stop } =
+            startDetachedGuide();
+        const confirm = jest.fn();
+        source.activate(String(first.xtream_id), null, undefined, confirm);
+        expect(confirm).not.toHaveBeenCalled();
+        expect(close).toHaveBeenCalledTimes(1);
+        expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(1);
+        await stop(current);
+        expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(2);
+        expect(xtreamStore.openPlayer.mock.lastCall?.[0]).toBe(
+            current.streamUrl
+        );
+        expect(confirm).not.toHaveBeenCalled();
+        publishExternalSession({
+            ...current,
+            id: 'synthetic-restarted',
+            mediaLoaded: true,
+        });
+        fixture.detectChanges();
+        expect(confirm).toHaveBeenCalledTimes(1);
+    });
+
     it.each([VideoPlayer.MPV, VideoPlayer.VLC] as const)(
         'closes the exact detached %s before tuning only the newest guide request',
         async (preferred) => {

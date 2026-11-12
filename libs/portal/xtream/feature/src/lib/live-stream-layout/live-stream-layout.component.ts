@@ -643,6 +643,7 @@ export class LiveStreamLayoutComponent
                 const alreadyLive =
                     playing &&
                     playing.xtream_id === item.xtream_id &&
+                    !this.externalGuide.isStopping() &&
                     !this.guideArchiveProgram();
                 const cancelled =
                     onConfirmed &&
