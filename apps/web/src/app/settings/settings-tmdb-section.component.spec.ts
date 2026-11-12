@@ -1,5 +1,7 @@
 import { AgeRatingPresentationService } from '@iptvnator/services/age-rating';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatDialog, type MatDialogRef } from '@angular/material/dialog';
+import { of } from 'rxjs';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
@@ -97,6 +99,31 @@ describe('SettingsTmdbSectionComponent', () => {
         fixture = TestBed.createComponent(SettingsTmdbSectionComponent);
         fixture.componentRef.setInput('form', createForm());
         fixture.detectChanges();
+    });
+
+    it('requires a clean form and refreshes the key state only after a completed transfer', () => {
+        const closed = (saved: boolean) =>
+            ({
+                afterClosed: () => of(saved),
+            }) as unknown as MatDialogRef<unknown>;
+        const open = jest
+            .spyOn(TestBed.inject(MatDialog), 'open')
+            .mockReturnValueOnce(closed(false))
+            .mockReturnValueOnce(closed(true));
+        const component = fixture.componentInstance;
+        const transferred = jest.fn();
+        component.transferSaved.subscribe(transferred);
+        component.keyTestState.set('success');
+        component.form().markAsDirty();
+        component.openTransfer();
+        expect(open).not.toHaveBeenCalled();
+        component.form().markAsPristine();
+        component.openTransfer();
+        expect(open).toHaveBeenCalledTimes(1);
+        expect(transferred).not.toHaveBeenCalled();
+        component.openTransfer();
+        expect(transferred).toHaveBeenCalledTimes(1);
+        expect(component.keyTestState()).toBe('idle');
     });
 
     it('offers the M3U movie-recognition toggle while TMDB is enabled', async () => {
