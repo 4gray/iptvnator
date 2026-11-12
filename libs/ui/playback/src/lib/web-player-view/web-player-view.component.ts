@@ -24,7 +24,13 @@ import {
     type PlaybackRecommendationTarget,
 } from '@iptvnator/playback/util';
 import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
-import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
+import {
+    getAndroidShellControls,
+    RuntimeCapabilitiesService,
+    SettingsStore,
+} from '@iptvnator/services';
+import { TranslatePipe } from '@ngx-translate/core';
+import { ANDROID_EXTERNAL_ACTION } from '../player-controls/android-external-action';
 import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import {
     VideoPlayer,
@@ -86,8 +92,19 @@ import { resolveWebPlayerSharedControls } from './web-player-shared-controls';
         HtmlVideoPlayerComponent,
         PlaybackDiagnosticPanelComponent,
         VjsPlayerComponent,
+        TranslatePipe,
     ],
     providers: [
+        {
+            provide: ANDROID_EXTERNAL_ACTION,
+            useFactory: () => {
+                const host = inject(WebPlayerViewComponent);
+                return {
+                    available: host.androidExternalAvailable,
+                    open: () => host.openAndroidExternal(),
+                };
+            },
+        },
         {
             provide: WEB_PLAYER_SHARED_CONTROLS,
             useFactory: resolveWebPlayerSharedControls,
@@ -117,6 +134,19 @@ export class WebPlayerViewComponent implements OnDestroy {
         () => this.renderedApplications().some((app) => app.embeddedMpv),
         () => this.embeddedMpvPlayer()?.support() ?? null
     );
+    private readonly androidShell = getAndroidShellControls();
+    readonly sharedControls = this.androidShell
+        ? inject(WEB_PLAYER_SHARED_CONTROLS)
+        : false;
+    readonly androidExternalAvailable = computed(
+        () =>
+            !!this.androidShell &&
+            !!this.resolvedPlayback().streamUrl?.trim() &&
+            this.playbackExternallyTransferable()
+    );
+    openAndroidExternal(): void {
+        if (this.androidExternalAvailable()) this.androidShell?.openExternal();
+    }
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK, {

@@ -112,6 +112,49 @@ describe('WebPlayerViewComponent', () => {
         fixture.destroy();
     });
 
+    it('exposes Android handoff only for a transferable active stream', () => {
+        const openExternal = jest.fn(() => true);
+        Object.defineProperty(window, '__tvShell', {
+            configurable: true,
+            value: {
+                handheld: true,
+                openDeviceSettings: jest.fn(),
+                openExternal,
+            },
+        });
+        fixture.destroy();
+        fixture = TestBed.createComponent(WebPlayerViewComponent);
+        fixture.componentRef.setInput('playbackSessionKey', 'test-session');
+        fixture.componentRef.setInput(
+            'streamUrl',
+            'https://example.com/live/channel.m3u8'
+        );
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+        expect(component.androidExternalAvailable()).toBe(true);
+        component.openAndroidExternal();
+        expect(openExternal).toHaveBeenCalledTimes(1);
+        fixture.componentRef.setInput('playback', {
+            streamUrl: 'https://example.com/protected.mpd',
+            title: 'Protected',
+            drm: { licenseType: 'clearkey', supported: true, clearKeys: {} },
+        });
+        fixture.detectChanges();
+        expect(component.androidExternalAvailable()).toBe(false);
+        fixture.componentRef.setInput('playback', null);
+        fixture.componentRef.setInput('streamUrl', '');
+        fixture.detectChanges();
+        expect(component.androidExternalAvailable()).toBe(false);
+        component.openAndroidExternal();
+        expect(openExternal).toHaveBeenCalledTimes(1);
+        delete (window as Window & { __tvShell?: unknown }).__tvShell;
+    });
+
+    it('does not expose Android handoff in ordinary browsers', () => {
+        fixture.detectChanges();
+        expect(component.androidExternalAvailable()).toBe(false);
+    });
+
     it('anchors overlay UI to the player view host', () => {
         fixture.detectChanges();
 

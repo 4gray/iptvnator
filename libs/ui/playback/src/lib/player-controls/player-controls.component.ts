@@ -14,6 +14,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { ANDROID_EXTERNAL_ACTION } from './android-external-action';
 import { ControlsChromeInteractions } from './controls-chrome-interactions';
 import { ControlsFeedback } from './controls-feedback';
 import { ControlsFullscreen } from './controls-fullscreen';
@@ -146,7 +147,11 @@ export class PlayerControlsComponent implements OnDestroy {
 
     readonly state = computed(() => this.controller().state());
     readonly capabilities = computed(() => this.controller().capabilities());
+    private readonly androidExternal = inject(ANDROID_EXTERNAL_ACTION, {
+        optional: true,
+    });
     readonly settings = new ControlsSettings({
+        extraActionAvailable: this.androidExternal?.available,
         state: this.state,
         capabilities: this.capabilities,
         showControls: this.showControls,

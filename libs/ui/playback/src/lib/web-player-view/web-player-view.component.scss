@@ -28,3 +28,22 @@ app-html-video-player {
     height: 100%;
     background: #000;
 }
+
+.web-player-external-action {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 3;
+    padding: 8px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    color: #fff;
+    background: rgba(12, 16, 23, 0.9);
+    font: inherit;
+    cursor: pointer;
+}
+
+.web-player-external-action:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+}

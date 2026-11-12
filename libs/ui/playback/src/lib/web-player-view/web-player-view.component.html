@@ -139,3 +139,14 @@
         (sourceCheckRequested)="sourceCheckRequested.emit($event)"
     />
 }
+
+@if (androidExternalAvailable() && !sharedControls) {
+    <button
+        type="button"
+        class="web-player-external-action"
+        data-test-id="android-open-external-legacy"
+        (click)="openAndroidExternal()"
+    >
+        {{ 'PORTALS.DETAIL.OPEN_IN_EXTERNAL_PLAYER' | translate }}
+    </button>
+}
