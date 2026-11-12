@@ -154,7 +154,7 @@ fails unless it runs and reports the pinned version; CI also runs it as its own
 step when the Tier A suite is in scope. In a fresh worktree, run it before
 starting several of these specs at once by other means.
 The `database:test`, `electron-backend:test` and `packaging:test` targets
-share the non-cached `shared-testing:ensure-electron-binary` dependency.
+share the non-cached `electron-test-tools:ensure-electron-binary` dependency.
 Nx runs it once before these tests in a task graph, including in the full
 workspace test run. Other test targets can run independently of this
 Electron setup.

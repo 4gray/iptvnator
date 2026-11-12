@@ -1227,8 +1227,10 @@ jobs:
                           ensure_snap snapd
                           ensure_snap core22
                           ensure_snap core18
+                          ensure_snap bare
                           ensure_snap mesa-core22
                           ensure_snap gnome-3-28-1804
+                          ensure_snap gtk-common-themes
                           sudo snap install --dangerous "${artifact}"
                           installed_x64=true
                       fi

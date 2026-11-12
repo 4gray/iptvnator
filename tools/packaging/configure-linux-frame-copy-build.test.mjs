@@ -867,8 +867,10 @@ test('Snap verifier preserves fail-closed status while exposing captured diagnos
         'snapd',
         'core22',
         'core18',
+        'bare',
         'mesa-core22',
         'gnome-3-28-1804',
+        'gtk-common-themes',
     ]) {
         const install = snapStep.indexOf(`ensure_snap ${dependency}`);
         assert.ok(
@@ -887,6 +889,10 @@ test('Snap verifier preserves fail-closed status while exposing captured diagnos
     assert.ok(
         snapStep.indexOf('ensure_snap core18') <
             snapStep.indexOf('ensure_snap gnome-3-28-1804')
+    );
+    assert.ok(
+        snapStep.indexOf('ensure_snap bare') <
+            snapStep.indexOf('ensure_snap gtk-common-themes')
     );
     assert.ok(
         snapStep.indexOf('sudo snap install --dangerous') <
