@@ -592,9 +592,11 @@ Current contract:
 - The shared navigation payload contains `canPrevious`, `canNext`, and
   `autoplayEnabled`. Player controls disable previous on the first episode and
   next on the last episode of the current season.
-- Autoplay is enabled by default for series playback. On `playbackEnded`, the
-  portal detail host starts the next episode only when `canNext` is true for the
-  current season.
+- Settings → Playback → Automatically play the next episode controls inline
+  series autoplay for Xtream and Stalker. The setting defaults to on for new
+  and existing profiles. On `playbackEnded`, the portal detail host advances
+  when autoplay is enabled and `canNext` is true for the current season.
+  The manual Previous and Next actions are available with either setting.
 - Autoplay and Next never cross season boundaries or lazy-load another season.
   Quick start remains the flow that may choose an episode from another loaded or
   newly loaded season before playback begins.

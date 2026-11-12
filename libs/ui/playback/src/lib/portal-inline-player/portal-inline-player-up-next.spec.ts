@@ -125,6 +125,11 @@ describe('PortalInlinePlayerComponent up next rail', () => {
         await setup(true);
         fixture.componentRef.setInput('playback', seriesPlayback);
         fixture.componentRef.setInput('upNextEpisodes', upNextItems);
+        fixture.componentRef.setInput('seriesNavigation', {
+            canPrevious: true,
+            canNext: true,
+            autoplayEnabled: true,
+        });
         fixture.detectChanges();
 
         expect(component.playerUpNext()).toEqual({
@@ -132,6 +137,7 @@ describe('PortalInlinePlayerComponent up next rail', () => {
             title: 'Episode 3',
             thumbnailUrl: null,
             progressPercent: null,
+            showCountdown: true,
         });
 
         // The last episode of the list has nothing after it.
@@ -175,9 +181,10 @@ describe('PortalInlinePlayerComponent up next rail', () => {
         fixture.componentRef.setInput('seriesNavigation', {
             canPrevious: true,
             canNext: false,
-            autoplayEnabled: false,
+            autoplayEnabled: true,
         });
         fixture.detectChanges();
+        expect(component.playerUpNext()?.showCountdown).toBe(false);
         component.onNextEpisodeRequested();
         expect(selected).toHaveBeenCalledWith(upNextItems[1]);
         expect(next).not.toHaveBeenCalled();

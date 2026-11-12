@@ -549,6 +549,8 @@
         "PLAYER_AMBIENT_MODE_DESCRIPTION": "ملي المساحة حول المشغل بغلاف معتم وطابت بلاصة الشرائط السوداء.",
         "PLAY_TRAILERS_IN_BACKGROUND": "خدّم الإعلانات فخلفية التفاصيل",
         "PLAY_TRAILERS_IN_BACKGROUND_DESCRIPTION": "بعد شي ثواني من فتح فيلم ولا مسلسل، الإعلان ديالو كيتخدّم بلا صوت مورا التفاصيل. مطفي مع الاتصالات المحدودة ومع تقليل الحركة.",
+        "SERIES_AUTOPLAY": "شغّل الحلقة الجاية أوتوماتيكياً",
+        "SERIES_AUTOPLAY_DESCRIPTION": "كمّل حلقات نفس الموسم أوتوماتيكياً فالمشغّل المدمج ديال مسلسلات Xtream وStalker.",
         "PLAYER_UP_NEXT_RAIL": "شريط الحلقات الجاية",
         "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "فالنوافذ العريضة، حط مشغل السلسلة على اليسار وبيّن الحلقات الجاية بحداه.",
         "PLAYER_UP_NEXT_CARD": "بطاقة «الجاي»",

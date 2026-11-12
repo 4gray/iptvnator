@@ -12,6 +12,7 @@ export const DEFAULT_ON_SETTINGS = [
     'webPlayerSharedControls',
     'portalConnectivityGuard',
     'embeddedMpvAutoReconnect',
+    'seriesAutoplay',
     'showCoverTitles',
 ] as const satisfies readonly (keyof Settings)[];
 

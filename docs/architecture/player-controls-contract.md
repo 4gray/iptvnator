@@ -517,10 +517,9 @@ bottom-right corner above the controls: the next episode's still (or its
 `S01E03` label as a tile), a 3px `--pc-progress` line when it was partly
 watched, "Up next · in 7 min" and the title. The host supplies the item
 through the optional `upNext` input (`PlayerUpNextItem { label, title,
-thumbnailUrl, progressPercent }`); `ControlsUpNext` decides when it shows —
-`seriesNavigation` capability, a finite duration, not live, not `ended`
-(with autoplay off nothing is scheduled, so no countdown), controls shown,
-settings panel closed, not dismissed — and when. The lead adapts to the
+thumbnailUrl, progressPercent, showCountdown? }`); `ControlsUpNext` decides when it shows —
+`seriesNavigation` capability, a finite duration, not live, not `ended`,
+controls shown, settings panel closed, not dismissed — and when. The lead adapts to the
 episode: `upNextThresholdSeconds` is 4% of the duration clamped to
 40 s … 3 min (about 50 s for a 22-minute episode, 2.4 min for an hour). When
 `timelineSegments` carry a closing-credits chapter in the last third
@@ -528,10 +527,11 @@ episode: `upNextThresholdSeconds` is 4% of the duration clamped to
 few localized names), the card appears when it starts instead, at most
 5 min before the end. Embedded MPV under the frame-copy engine supplies
 file chapters (see the chapter producer above); every other engine, and a
-file without a credits chapter, uses the adaptive lead. The countdown shows whole minutes, and seconds
-in the last minute. A
-still that fails to load falls back to the label tile. A
-click emits `nextEpisodeRequested` directly — not through the
+file without a credits chapter, uses the adaptive lead. The countdown shows
+whole minutes and switches to seconds in the last minute. It appears only when
+series autoplay is enabled and the next episode is in the current season.
+A still that fails to load falls back to the label tile. A click emits
+`nextEpisodeRequested` directly — not through the
 transport's `canNextEpisode` guard, which is season-local — so the card
 also works at a season's last episode. `PortalInlinePlayerComponent`
 routes such a request through the Up Next rail selection

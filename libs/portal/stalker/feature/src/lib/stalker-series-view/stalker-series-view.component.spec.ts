@@ -22,6 +22,7 @@ describe('StalkerSeriesViewComponent', () => {
         openResolvedPlayback,
         openExternalPlayback,
         isEmbeddedPlayer,
+        seriesAutoplay,
         fetchLinkToPlay,
         currentPlaylist,
         createFixture,
@@ -620,6 +621,21 @@ describe('StalkerSeriesViewComponent', () => {
         const firstEpisodeKey = inlinePlayer.playbackSessionKey();
         expect(firstEpisodeKey).not.toBe('');
 
+        seriesAutoplay.set(false);
+        fixture.detectChanges();
+        inlinePlayer.playbackEnded.emit();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(inlinePlayer.playbackSessionKey()).toBe(firstEpisodeKey);
+        expect(inlinePlayer.seriesNavigation()).toEqual({
+            canPrevious: false,
+            canNext: true,
+            autoplayEnabled: false,
+        });
+
+        seriesAutoplay.set(true);
+        fixture.detectChanges();
         inlinePlayer.playbackEnded.emit();
         await fixture.whenStable();
         fixture.detectChanges();

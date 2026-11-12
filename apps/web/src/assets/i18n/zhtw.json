@@ -549,6 +549,8 @@
         "PLAYER_AMBIENT_MODE_DESCRIPTION": "用模糊、昏暗的海報填充播放器周圍的空間，取代純黑色邊框。",
         "PLAY_TRAILERS_IN_BACKGROUND": "在詳細資訊背景播放預告片",
         "PLAY_TRAILERS_IN_BACKGROUND_DESCRIPTION": "開啟電影或影集幾秒後，預告片會在詳細資訊後方靜音播放。計量連線與減少動態效果時關閉。",
+        "SERIES_AUTOPLAY": "自動播放下一集",
+        "SERIES_AUTOPLAY_DESCRIPTION": "在內建播放器中繼續播放 Xtream 和 Stalker 影集同一季的下一集。",
         "PLAYER_UP_NEXT_RAIL": "即將播放集數側欄",
         "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "在較寬的視窗中，將影集播放器停靠在左側，並在旁邊顯示即將播放的集數。",
         "PLAYER_UP_NEXT_CARD": "「即將播放」卡片",
