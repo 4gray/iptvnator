@@ -358,6 +358,8 @@ async function launchMpvPlayer(
                 session.id,
                 () => (requestedClose = closeChild())
             );
+            if (!tracksProcess && media)
+                mpvLaunchQueue.watchDetachedDispatch(session.id, media);
 
             if (useMpvSocketBridge && contentInfo && socketPath) {
                 startPositionPolling(socketPath, contentInfo, session.id);

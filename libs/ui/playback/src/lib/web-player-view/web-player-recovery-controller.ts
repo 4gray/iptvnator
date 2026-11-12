@@ -13,6 +13,7 @@ import type {
 } from '@iptvnator/playback/util';
 import {
     VideoPlayer,
+    type EmbeddedMpvSession,
     type ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import type { ExternalPlaybackRecoveryCoordinator } from './external-playback-recovery-coordinator';
@@ -35,7 +36,8 @@ export interface WebPlayerRecoveryControllerDeps {
     readonly selectedPlayer: Signal<VideoPlayer>;
     readonly reloadToken: WritableSignal<number>;
     readonly playbackApplicationToken: Signal<WebPlayerApplicationToken>;
-    readonly embeddedSessionId: () => string | undefined;
+    readonly embeddedSession: () =>
+        Pick<EmbeddedMpvSession, 'id' | 'reconnect'> | null | undefined;
     readonly resolvedPlayback: Signal<ResolvedPortalPlayback>;
     readonly resolvedIsLive: Signal<boolean>;
     readonly playbackExternallyTransferable: Signal<boolean>;
@@ -102,8 +104,14 @@ export class WebPlayerRecoveryController {
 
     constructor(private readonly deps: WebPlayerRecoveryControllerDeps) {}
 
-    recordStart(token: WebPlayerApplicationToken): boolean {
-        const embeddedId = this.deps.embeddedSessionId();
+    recordTimeUpdate(
+        token: WebPlayerApplicationToken,
+        playing?: boolean
+    ): boolean {
+        const embedded = this.deps.embeddedSession();
+        if (embedded?.reconnect) this.recordEnd(token);
+        if (!playing || embedded?.reconnect) return false;
+        const embeddedId = embedded?.id;
         if (
             this.playbackState?.token === token &&
             this.playbackState.embeddedId === embeddedId &&
@@ -118,11 +126,17 @@ export class WebPlayerRecoveryController {
         this.playbackState = { token, ended: true };
     }
 
-    readonly hasStartedPlayback = (): boolean =>
-        this.playbackState?.token === this.deps.playbackApplicationToken() &&
-        this.playbackState.embeddedId === this.deps.embeddedSessionId() &&
-        !this.playbackState.ended &&
-        !this.visiblePlaybackDiagnostic();
+    readonly hasStartedPlayback = (): boolean => {
+        const embedded = this.deps.embeddedSession();
+        const token = this.deps.playbackApplicationToken();
+        if (embedded?.reconnect) this.recordEnd(token);
+        return (
+            this.playbackState?.token === token &&
+            this.playbackState.embeddedId === embedded?.id &&
+            !this.playbackState.ended &&
+            !this.visiblePlaybackDiagnostic()
+        );
+    };
 
     canRetry(): boolean {
         return (

@@ -39,7 +39,12 @@ export function publishMpvMediaOutcome(
     loaded: MpvMediaOutcome
 ): void {
     const current = externalPlayerSessions.getSession(sessionId);
-    if (!current || current.status === 'closed' || current.status === 'error')
+    if (
+        !current ||
+        current.status === 'closed' ||
+        current.status === 'error' ||
+        externalPlayerSessions.isCloseRequested(sessionId)
+    )
         return;
     externalPlayerSessions.updateSession(
         sessionId,

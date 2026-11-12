@@ -105,10 +105,10 @@ describe('reused MPV IPC replies', () => {
         expect(Number.isInteger(requests[0].request_id)).toBe(true);
     });
 
-    it.each([true, false])(
+    it.each(['loaded', 'failed', 'stopped'] as const)(
         'publishes reused guide media readiness separately from opening (%s)',
-        async (loaded) => {
-            await launchReusableInstance();
+        async (outcome) => {
+            const proc = await launchReusableInstance();
             const sockets = mockUnansweredSockets();
             const opening = openMpvPlayer({
                 title: 'Synthetic Channel',
@@ -135,6 +135,11 @@ describe('reused MPV IPC replies', () => {
                 status: 'opened',
                 mediaLoaded: false,
             });
+            const closing =
+                outcome === 'stopped'
+                    ? externalPlayerSessions.closeSession(session.id, true)
+                    : undefined;
+            const loaded = outcome !== 'failed';
             push(
                 { event: 'start-file', playlist_entry_id: 2 },
                 loaded
@@ -145,6 +150,22 @@ describe('reused MPV IPC replies', () => {
                           playlist_entry_id: 2,
                       }
             );
+            if (closing) {
+                try {
+                    expect(
+                        externalPlayerSessions.getSession(session.id)
+                            ?.mediaLoaded
+                    ).toBe(false);
+                } finally {
+                    const quit = sockets[1];
+                    await writtenRequestId(quit);
+                    Object.defineProperty(proc, 'exitCode', { value: 0 });
+                    proc.emit('exit', 0);
+                    quit.emit('close');
+                    await closing;
+                }
+                return;
+            }
             expect(externalPlayerSessions.getSession(session.id)).toMatchObject(
                 {
                     status: 'opened',
@@ -191,6 +212,8 @@ describe('reused MPV IPC replies', () => {
             const socket = sockets[0];
             const request = JSON.parse(socket.write.mock.calls[0][0]);
             expect(request.command).toEqual(['loadfile', url, 'replace']);
+            shutdownMpvSession();
+            expect(proc.kill).not.toHaveBeenCalled();
             const push = (...lines: object[]) =>
                 socket.emit(
                     'data',
@@ -955,41 +978,48 @@ describe('reused MPV IPC replies', () => {
         }
     );
 
-    it('waits for a fresh guide child to exit when reuse is disabled during socket startup', async () => {
-        jest.useFakeTimers({ doNotFake: ['setImmediate'] });
-        const proc = createMockChildProcess();
-        spawnMock.mockReturnValueOnce(proc);
-        jest.mocked(proc.kill).mockReturnValue(true);
-        (store.get as jest.Mock).mockImplementation((key, fallback) =>
-            key === MPV_PLAYER_PATH
-                ? '/usr/bin/mpv'
-                : key === MPV_REUSE_INSTANCE || fallback
-        );
-        createConnectionMock.mockReturnValueOnce(
-            createMpvSocketMock({ connect: false })
-        );
-        const opening = openMpvPlayer({
-            title: 'Synthetic Channel',
-            url: 'https://example.test/synthetic.ts',
-            launchId: 'synthetic-guide-launch',
-        });
-        const settled = jest.fn();
-        void opening.then(settled, settled);
-        try {
-            await jest.advanceTimersByTimeAsync(100);
-            setMpvReuseInstance(false);
-            await jest.advanceTimersByTimeAsync(MPV_IPC_COMMAND_TIMEOUT_MS);
-            expect(settled).not.toHaveBeenCalled();
-        } finally {
-            Object.defineProperty(proc, 'exitCode', { value: 0 });
-            proc.emit('exit', 0);
+    it.each([true, false])(
+        'stops a fresh guide child that has not received loadfile (reusable: %s)',
+        async (reuse) => {
+            jest.useFakeTimers({ doNotFake: ['setImmediate'] });
+            const proc = createMockChildProcess();
+            spawnMock.mockReturnValueOnce(proc);
+            jest.mocked(proc.kill).mockReturnValue(true);
+            (store.get as jest.Mock).mockImplementation((key, fallback) =>
+                key === MPV_PLAYER_PATH
+                    ? '/usr/bin/mpv'
+                    : key === MPV_REUSE_INSTANCE
+                      ? reuse
+                      : fallback
+            );
+            createConnectionMock.mockReturnValueOnce(
+                createMpvSocketMock({ connect: false })
+            );
+            const opening = openMpvPlayer({
+                title: 'Synthetic Channel',
+                url: 'https://example.test/synthetic.ts',
+                launchId: 'synthetic-guide-launch',
+            });
+            const settled = jest.fn();
+            void opening.then(settled, settled);
+            try {
+                await jest.advanceTimersByTimeAsync(100);
+                if (reuse) setMpvReuseInstance(false);
+                else shutdownMpvSession();
+                expect(proc.kill).toHaveBeenCalledTimes(1);
+                await jest.advanceTimersByTimeAsync(MPV_IPC_COMMAND_TIMEOUT_MS);
+                expect(settled).not.toHaveBeenCalled();
+            } finally {
+                Object.defineProperty(proc, 'exitCode', { value: 0 });
+                proc.emit('exit', 0);
+            }
+            await expect(opening).resolves.toMatchObject({
+                status: 'closed',
+                closedByRequest: true,
+            });
+            expect(spawnMock).toHaveBeenCalledTimes(1);
         }
-        await expect(opening).resolves.toMatchObject({
-            status: 'closed',
-            closedByRequest: true,
-        });
-        expect(spawnMock).toHaveBeenCalledTimes(1);
-    });
+    );
 
     it.each([
         ['reuse is disabled', () => setMpvReuseInstance(false)],

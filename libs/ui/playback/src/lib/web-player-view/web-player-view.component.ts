@@ -256,7 +256,7 @@ export class WebPlayerViewComponent implements OnDestroy {
         selectedPlayer: this.selectedPlayer,
         reloadToken: this.reloadToken,
         playbackApplicationToken: this.playbackApplicationToken,
-        embeddedSessionId: () => this.embeddedMpvPlayer()?.session()?.id,
+        embeddedSession: () => this.embeddedMpvPlayer()?.session(),
         resolvedPlayback: this.resolvedPlayback,
         resolvedIsLive: this.resolvedIsLive,
         playbackExternallyTransferable: this.playbackExternallyTransferable,
@@ -391,7 +391,7 @@ export class WebPlayerViewComponent implements OnDestroy {
     ): void {
         if (!this.ownsApplication(ownership)) return;
 
-        if (event.playing && this.recovery.recordStart(ownership.token))
+        if (this.recovery.recordTimeUpdate(ownership.token, event.playing))
             this.playbackStarted.emit(
                 this.playback() ?? this.resolvedPlayback()
             );

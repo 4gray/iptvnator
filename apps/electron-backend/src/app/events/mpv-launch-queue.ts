@@ -41,6 +41,7 @@ export class MpvLaunchQueue {
     private cancelledThrough = 0;
     private inFlightSessionId: string | null = null;
     private inFlightNumber = 0;
+    private cancelUndispatchedChild?: () => void;
     // The last launch that actually started. With reuse off its detached
     // child is not stored, so it is the only handle on that player once the
     // launch settled with an unconfirmed teardown.
@@ -51,6 +52,19 @@ export class MpvLaunchQueue {
     /** Cancels every launch queued so far, for app shutdown. */
     cancelAll(): void {
         this.cancelledThrough = this.latest;
+        this.cancelUndispatchedChild?.();
+    }
+
+    watchDetachedDispatch(
+        sessionId: string,
+        media: { readonly awaitingDispatch: boolean }
+    ): void {
+        this.cancelUndispatchedChild = () => {
+            if (media.awaitingDispatch)
+                void externalPlayerSessions
+                    .closeSession(sessionId, true)
+                    .catch(() => undefined);
+        };
     }
 
     enqueue(
@@ -129,6 +143,7 @@ export class MpvLaunchQueue {
             if (this.inFlightSessionId === session.id) {
                 this.inFlightSessionId = null;
                 this.inFlightNumber = 0;
+                this.cancelUndispatchedChild = undefined;
             }
             if (this.pending === settled) this.pending = null;
         });
