@@ -5,6 +5,8 @@ import {
     EpgPreferencesService,
     RuntimeCapabilitiesService,
 } from '@iptvnator/services';
+import { EpgProgrammeDialogService } from '@iptvnator/ui/epg';
+import { Subject } from 'rxjs';
 import { XtreamEpgGuideSourceService } from './xtream-epg-guide-source.service';
 import { XtreamLiveGuideService } from './xtream-live-guide.service';
 
@@ -20,6 +22,10 @@ it('hides the header and palette contribution and closes the guide when EPG is d
         providers: [
             XtreamLiveGuideService,
             { provide: XtreamEpgGuideSourceService, useValue: source },
+            {
+                provide: EpgProgrammeDialogService,
+                useValue: { ownedAfterClosed: () => undefined },
+            },
             { provide: EpgPreferencesService, useValue: { enabled } },
             {
                 provide: RuntimeCapabilitiesService,
@@ -53,3 +59,69 @@ it('hides the header and palette contribution and closes the guide when EPG is d
     expect(guide.isOpen()).toBe(false);
     expect(source.close).toHaveBeenCalledTimes(1);
 });
+
+it.each([true, false])(
+    'waits for the programme overlay before restoring focus only if it owns it (%s)',
+    async (owned) => {
+        const surface = document.createElement('main');
+        surface.className = 'workspace-content';
+        const trigger = document.createElement('button');
+        const overlay = document.createElement('button');
+        const dialogClosed = new Subject<void>();
+        const playing = signal(true);
+        surface.append(trigger);
+        document.body.append(surface, overlay);
+        TestBed.configureTestingModule({
+            providers: [
+                XtreamLiveGuideService,
+                {
+                    provide: XtreamEpgGuideSourceService,
+                    useValue: {
+                        playlist: signal({ id: 'synthetic-portal' }),
+                        open: jest.fn(),
+                        close: jest.fn(),
+                    },
+                },
+                {
+                    provide: EpgPreferencesService,
+                    useValue: { enabled: signal(true) },
+                },
+                {
+                    provide: RuntimeCapabilitiesService,
+                    useValue: { supportsProviderEpg: true },
+                },
+                { provide: ElementRef, useValue: new ElementRef(surface) },
+                {
+                    provide: EpgProgrammeDialogService,
+                    useValue: {
+                        ownedAfterClosed: (element: Element) =>
+                            owned && element === overlay
+                                ? dialogClosed
+                                : undefined,
+                    },
+                },
+            ],
+        });
+        try {
+            const guide = TestBed.inject(XtreamLiveGuideService);
+            guide.bind(playing);
+            trigger.focus();
+            guide.open();
+            overlay.focus();
+            playing.set(false);
+            TestBed.flushEffects();
+            expect(guide.isOpen()).toBe(false);
+            expect(document.activeElement).toBe(overlay);
+            overlay.remove();
+            dialogClosed.next();
+            await Promise.resolve();
+            expect(document.activeElement).toBe(
+                owned ? trigger : document.body
+            );
+        } finally {
+            dialogClosed.complete();
+            surface.remove();
+            overlay.remove();
+        }
+    }
+);

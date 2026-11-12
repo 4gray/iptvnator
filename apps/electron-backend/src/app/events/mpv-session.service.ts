@@ -29,7 +29,6 @@ import {
     buildPlayerStartError,
     externalPlayerSessions,
     maskUrlForLogs,
-    sendPlayerErrorNotification,
     traceExternalPlayer,
 } from './external-player-runtime';
 import { externalPlayerProcessTeardownGate } from './external-player-process';
@@ -51,7 +50,10 @@ import {
     createMpvIpcEndpoint,
     spawnPlayerWithEndpoint,
 } from './mpv-ipc-endpoint';
-import { attachMpvOutputHandlers } from './mpv-output-errors';
+import {
+    attachMpvOutputHandlers,
+    markMpvExitFailure,
+} from './mpv-output-errors';
 import {
     startPositionPolling,
     stopPositionPolling,
@@ -254,7 +256,7 @@ async function launchMpvPlayer(
         if (!media) args.push(url);
 
         let fallingBack = false;
-        let stopRequested = false;
+        let requestedClose: Promise<void> | undefined;
         const proc = await new Promise<ChildProcess>((resolve, reject) => {
             let settled = false;
             const resolveLaunch = () => {
@@ -313,23 +315,11 @@ async function launchMpvPlayer(
                 );
                 reusableMpvProcess.clear(proc);
                 stopPositionPolling(processSessionId);
-                fallingBack ||= !!media?.awaitingDispatch && !stopRequested;
+                fallingBack ||= !!media?.awaitingDispatch && !requestedClose;
                 if (fallingBack) return resolveLaunch();
 
                 if (code !== 0 && code !== null) {
-                    console.error(
-                        `[MPV ERROR] MPV exited with error code ${code}`
-                    );
-                    sendPlayerErrorNotification(
-                        'MPV',
-                        `MPV player closed unexpectedly (exit code: ${code})`,
-                        'closed-unexpectedly'
-                    );
-                    externalPlayerSessions.markError(
-                        processSessionId,
-                        `MPV player closed unexpectedly (exit code: ${code})`,
-                        { code: 'closed-unexpectedly' }
-                    );
+                    markMpvExitFailure(processSessionId, code);
                     resolveLaunch();
                     return;
                 }
@@ -342,8 +332,7 @@ async function launchMpvPlayer(
                 reusableMpvProcess.track(proc, socketPath, session.id);
             } else proc.unref();
 
-            externalPlayerSessions.attachCloser(session.id, async () => {
-                stopRequested = true;
+            const closeChild = async () => {
                 media?.abort();
                 if (
                     tracksProcess &&
@@ -367,7 +356,11 @@ async function launchMpvPlayer(
                     rejectLaunch(teardownError);
                     throw teardownError;
                 }
-            });
+            };
+            externalPlayerSessions.attachCloser(
+                session.id,
+                () => (requestedClose = closeChild())
+            );
 
             if (useMpvSocketBridge && contentInfo && socketPath) {
                 startPositionPolling(socketPath, contentInfo, session.id);
@@ -389,16 +382,17 @@ async function launchMpvPlayer(
             media
         );
         media?.settleDispatch();
-        if (opened && !fallingBack) return opened;
+        if (opened && !fallingBack && !requestedClose) return opened;
         fallingBack = true;
         try {
-            await externalPlayerProcessTeardownGate.terminate(proc);
+            await (requestedClose ??
+                externalPlayerProcessTeardownGate.terminate(proc));
         } catch (error) {
             fallingBack = false;
             freshTeardownUnconfirmed = true;
             throw error;
         }
-        if (stopRequested || media?.stopped)
+        if (requestedClose || media?.stopped)
             return externalPlayerSessions.markClosed(session.id) ?? session;
         return launchMpvPlayer(
             request,

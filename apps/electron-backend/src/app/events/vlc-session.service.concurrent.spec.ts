@@ -387,13 +387,14 @@ describe('VLC exact playback ownership', () => {
             let input = 'https://example.test/synthetic-old.ts';
             let playbackTime = 0;
             let switchDuringClock = false;
+            let playbackState = 'play state: 3';
             mockRc((port, command, reply) => {
                 expect(typeof port).toBe('string');
                 if (command === 'status\n')
                     reply(
                         '( new input: https://example.test/synthetic-stale.ts )\r\n' +
                             '( stop state: 0 )\r\n' +
-                            `( new input: ${input} )\r\n( play state: 3 )\r\n` +
+                            `( new input: ${input} )\r\n( ${playbackState} )\r\n` +
                             'status: returned 0 (no error)\r\n( stop state: 5 )\r\n'
                     );
                 if (command === 'get_time\n') {
@@ -488,6 +489,25 @@ describe('VLC exact playback ownership', () => {
                     mediaReadinessTimedOut: undefined,
                 }
             );
+            playbackState = 'stop state: 5';
+            await jest.advanceTimersByTimeAsync(2_000);
+            await tick();
+            expect(externalPlayerSessions.getSession(session.id)).toMatchObject(
+                { mediaLoaded: false, playbackIdle: true }
+            );
+            playbackState = 'play state: 3';
+            playbackTime = 0;
+            await jest.advanceTimersByTimeAsync(2_000);
+            for (let turn = 0; turn < 6; turn++) await tick();
+            expect(externalPlayerSessions.getSession(session.id)).toMatchObject(
+                { mediaLoaded: false, playbackIdle: false }
+            );
+            playbackTime = 2;
+            await jest.advanceTimersByTimeAsync(2_000);
+            for (let turn = 0; turn < 6; turn++) await tick();
+            expect(
+                externalPlayerSessions.getSession(session.id)?.mediaLoaded
+            ).toBe(true);
             input = 'https://example.test/synthetic-other.ts';
             await jest.advanceTimersByTimeAsync(2_000);
             await tick();

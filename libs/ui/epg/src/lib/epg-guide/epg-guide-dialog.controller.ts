@@ -31,7 +31,7 @@ export interface EpgGuideDialogHost {
  * owns rows, focus and playback and supplies them through the host.
  */
 export class EpgGuideDialogController {
-    private details?: { epgKey: string; owner: AbortController };
+    private details?: { epgKey: string | null; owner: AbortController };
     constructor(
         private readonly programmeDialog: EpgProgrammeDialogService,
         private readonly host: EpgGuideDialogHost
@@ -101,7 +101,10 @@ export class EpgGuideDialogController {
     }
 
     checkVisibility(): void {
-        if (this.details && !this.host.isChannelVisible?.(this.details.epgKey))
+        if (
+            this.details?.epgKey &&
+            this.host.isChannelVisible?.(this.details.epgKey) === false
+        )
             this.close();
     }
 
@@ -114,11 +117,13 @@ export class EpgGuideDialogController {
         epgKey: string | null | undefined,
         data: EpgItemDialogData
     ) {
-        if (!epgKey || !this.host.isChannelVisible)
-            return this.programmeDialog.open(data);
-        if (!this.host.isChannelVisible(epgKey)) return EMPTY;
+        if (epgKey && this.host.isChannelVisible?.(epgKey) === false)
+            return EMPTY;
         this.close();
-        const details = { epgKey, owner: new AbortController() };
+        const details = {
+            epgKey: epgKey ?? null,
+            owner: new AbortController(),
+        };
         this.details = details;
         return this.programmeDialog.open(data, details.owner.signal).pipe(
             finalize(() => {

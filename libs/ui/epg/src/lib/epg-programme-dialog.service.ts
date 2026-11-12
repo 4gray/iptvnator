@@ -17,6 +17,7 @@ export const EPG_PROGRAMME_DIALOG_CONFIG = {
     maxHeight: 'calc(100dvh - 32px)',
     panelClass: 'epg-programme-dialog-panel',
 } as const satisfies MatDialogConfig;
+const OWNED_PANEL = 'epg-owned-programme-dialog';
 
 /**
  * Opens the shared programme-details dialog and returns the chosen action.
@@ -26,6 +27,15 @@ export const EPG_PROGRAMME_DIALOG_CONFIG = {
 @Injectable({ providedIn: 'root' })
 export class EpgProgrammeDialogService {
     private readonly dialog = inject(MatDialog);
+
+    ownedAfterClosed(focused: Element | null): Observable<unknown> | undefined {
+        const owner = focused?.closest<HTMLElement>(
+            `.${OWNED_PANEL} mat-dialog-container`
+        );
+        return owner
+            ? this.dialog.getDialogById(owner.id)?.afterClosed()
+            : undefined;
+    }
 
     open(
         data: EpgItemDialogData,
@@ -38,6 +48,12 @@ export class EpgProgrammeDialogService {
             EpgItemDialogAction
         >(EpgItemDescriptionComponent, {
             ...EPG_PROGRAMME_DIALOG_CONFIG,
+            ...(signal && {
+                panelClass: [
+                    EPG_PROGRAMME_DIALOG_CONFIG.panelClass,
+                    OWNED_PANEL,
+                ],
+            }),
             data,
         });
         if (!signal) return ref.afterClosed();

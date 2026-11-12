@@ -87,7 +87,15 @@ describe('EpgProgrammeDialogService', () => {
             ...programme,
             title: 'Synthetic Independent Programme',
         });
+        fixture.detectChanges();
+        await fixture.whenStable();
         const [owned, independent] = material.openDialogs;
+        expect(
+            service.ownedAfterClosed(document.getElementById(owned.id))
+        ).toBeDefined();
+        expect(
+            service.ownedAfterClosed(document.getElementById(independent.id))
+        ).toBeUndefined();
         owner.abort();
         fixture.detectChanges();
         await fixture.whenStable();

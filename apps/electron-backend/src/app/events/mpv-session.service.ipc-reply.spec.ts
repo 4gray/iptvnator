@@ -244,6 +244,7 @@ describe('reused MPV IPC replies', () => {
         async (outcome) => {
             jest.useFakeTimers({ doNotFake: ['setImmediate'] });
             const idle = createMockChildProcess();
+            jest.mocked(idle.kill).mockReturnValue(true);
             const positional = createMockChildProcess();
             spawnMock.mockReturnValueOnce(idle);
             if (outcome === 'fallback')
@@ -275,6 +276,10 @@ describe('reused MPV IPC replies', () => {
             expect(socket.write).not.toHaveBeenCalled();
             expect(idle.kill).toHaveBeenCalled();
             expect(spawnMock).toHaveBeenCalledTimes(1);
+            const settled = jest.fn();
+            void opening.then(settled);
+            await nextTick();
+            expect(settled).not.toHaveBeenCalled();
 
             Object.defineProperty(idle, 'exitCode', { value: 0 });
             idle.emit('exit', 0);
@@ -295,6 +300,7 @@ describe('reused MPV IPC replies', () => {
                 positional.emit('exit', 0);
             } else {
                 expect(spawnMock).toHaveBeenCalledTimes(1);
+                expect(session.status).toBe('closed');
                 expect(externalPlayerSessions.getSession(id)?.status).toBe(
                     'closed'
                 );

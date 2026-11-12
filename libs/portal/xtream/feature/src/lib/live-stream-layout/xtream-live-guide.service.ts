@@ -11,6 +11,7 @@ import {
     signal,
     untracked,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
     EpgPreferencesService,
     RuntimeCapabilitiesService,
@@ -21,6 +22,7 @@ import {
     WorkspaceHeaderContextService,
 } from '@iptvnator/portal/shared/util';
 import {
+    EpgProgrammeDialogService,
     persistEpgGuideDockCollapsed,
     restoreEpgGuideDockCollapsed,
 } from '@iptvnator/ui/epg';
@@ -31,6 +33,7 @@ const ACTION = 'xtream-epg-guide';
 @Injectable()
 export class XtreamLiveGuideService {
     private readonly source = inject(XtreamEpgGuideSourceService);
+    private readonly programmes = inject(EpgProgrammeDialogService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly preferences = inject(EpgPreferencesService);
     private readonly header = inject(WorkspaceHeaderContextService);
@@ -120,9 +123,13 @@ export class XtreamLiveGuideService {
     close(): void {
         if (!this.isOpen()) return;
         const focused = document.activeElement;
+        const dialogClosed = this.programmes.ownedAfterClosed(focused);
         const restoreFocus =
-            focused instanceof Element &&
-            !!focused.closest('.epg-guide-host, app-epg-guide-now-playing');
+            !!dialogClosed ||
+            (focused instanceof Element &&
+                !!focused.closest(
+                    '.epg-guide-host, app-epg-guide-now-playing'
+                ));
         this.isOpen.set(false);
         this.source.close();
         if (restoreFocus && !this.destroyRef.destroyed) {
@@ -130,18 +137,21 @@ export class XtreamLiveGuideService {
             const workspace = this.element.nativeElement.closest<HTMLElement>(
                 'main.workspace-content'
             );
-            afterNextRender(
-                () => {
-                    focusIfFocusLost(previous);
-                    focusIfFocusLost(
-                        document.querySelector<HTMLElement>(
-                            `[data-test-id="${ACTION}"]`
-                        )
-                    );
-                    focusIfFocusLost(workspace);
-                },
-                { injector: this.injector }
-            );
+            const handoff = () => {
+                if (this.destroyRef.destroyed || this.isOpen()) return;
+                focusIfFocusLost(previous);
+                focusIfFocusLost(
+                    document.querySelector<HTMLElement>(
+                        `[data-test-id="${ACTION}"]`
+                    )
+                );
+                focusIfFocusLost(workspace);
+            };
+            if (dialogClosed)
+                dialogClosed
+                    .pipe(takeUntilDestroyed(this.destroyRef))
+                    .subscribe(() => queueMicrotask(handoff));
+            else afterNextRender(handoff, { injector: this.injector });
         }
     }
 

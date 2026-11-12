@@ -277,7 +277,8 @@ describe('EpgGuideComponent', () => {
                 channelName: 'Channel c',
                 primaryAction: null,
                 archiveUnavailableNote: true,
-            })
+            }),
+            expect.any(AbortSignal)
         );
         expect(activate).toHaveBeenCalledWith(
             'c',
@@ -410,7 +411,8 @@ describe('EpgGuideComponent', () => {
         expect(document.activeElement).toBe(card);
         component.onKeydown(keydown('i', card));
         expect(dialogOpen).toHaveBeenCalledWith(
-            expect.objectContaining({ channelName: 'Channel c' })
+            expect.objectContaining({ channelName: 'Channel c' }),
+            expect.any(AbortSignal)
         );
 
         // Move to a surviving channel when a filter hides the focused row.
@@ -439,7 +441,8 @@ describe('EpgGuideComponent', () => {
             program: nowProgram('c'),
         });
         expect(dialogOpen).toHaveBeenCalledWith(
-            expect.objectContaining({ channelName: 'Channel c' })
+            expect.objectContaining({ channelName: 'Channel c' }),
+            expect.any(AbortSignal)
         );
         expect(component.focus()).toEqual({ row: 2, block: null });
 
@@ -449,7 +452,8 @@ describe('EpgGuideComponent', () => {
             program: nowProgram('x'),
         });
         expect(dialogOpen).toHaveBeenCalledWith(
-            expect.not.objectContaining({ channelName: expect.anything() })
+            expect.not.objectContaining({ channelName: expect.anything() }),
+            expect.any(AbortSignal)
         );
     });
 

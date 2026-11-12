@@ -798,6 +798,8 @@ entry takes over. A late load or replay of the same entry can confirm again.
 If the launcher exits before `loadfile` is sent, or the socket never accepts it,
 MPV retries with the original URL argument after the idle process exits. Stop
 or disabling instance reuse cancels that fallback and any pending IPC write.
+An opening request cancelled by Stop waits for that exact child to exit before
+releasing the next queued request.
 The Unix socket lives in a private directory owned by the app user and is
 removed when the child exits. Older MPV versions that acknowledge without an
 entry ID keep the remote queue without confirming guide playback.
@@ -806,7 +808,8 @@ otherwise open directly without an unauthenticated TCP control port. VLC RC
 checks the requested input before and after reading its playback clock.
 If VLC opens a direct child of a plain M3U, the app reads only the original
 playlist in one bounded request and rechecks the active input before confirming.
-A readable zero stays pending; an unrelated URL invalidates confirmation.
+A readable zero stays pending; an unrelated URL invalidates confirmation. A
+stopped VLC input must pass the clock check again before the guide marks it live.
 Retrying the same input closes its exact unverified process first if the app
 cannot reuse it. Temporary RC failures keep the committed selection pending
 until a readiness timeout or terminal outcome.
@@ -831,6 +834,8 @@ when the archive session opens. If a relock withholds that
 channel or the pending replacement, the guide hides the withheld channel and
 closes its external session even if it finishes opening later, reports a
 closable error, has already left the dock or returns while teardown is pending.
+If the guide closes while its programme details have focus, it waits for that
+dialog to close before returning focus to the workspace.
 If teardown fails, unlocking the
 category restores Stop for that same active session. Cancelling a queued replacement
 leaves the allowed player running. If a replacement fails, the guide follows

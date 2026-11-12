@@ -105,7 +105,8 @@ describe('EpgGuideDialogController', () => {
                 channelLogo: 'logo.png',
                 primaryAction: 'live',
                 archiveUnavailableNote: false,
-            })
+            }),
+            expect.any(AbortSignal)
         );
         expect(test.activate).toHaveBeenCalledWith(CHANNELS[1]);
     });
@@ -121,7 +122,8 @@ describe('EpgGuideDialogController', () => {
             expect.objectContaining({
                 primaryAction: 'timeshift',
                 archiveUnavailableNote: false,
-            })
+            }),
+            expect.any(AbortSignal)
         );
         expect(test.watch).toHaveBeenCalledWith(
             CHANNELS[0],
@@ -137,7 +139,8 @@ describe('EpgGuideDialogController', () => {
             expect.objectContaining({
                 primaryAction: null,
                 archiveUnavailableNote: true,
-            })
+            }),
+            expect.any(AbortSignal)
         );
 
         test.open.mockClear();
@@ -169,7 +172,8 @@ describe('EpgGuideDialogController', () => {
 
         expect(test.focusRow).toHaveBeenCalledWith(1);
         expect(test.open).toHaveBeenCalledWith(
-            expect.objectContaining({ channelName: 'Channel b' })
+            expect.objectContaining({ channelName: 'Channel b' }),
+            expect.any(AbortSignal)
         );
 
         test.focusRow.mockClear();
@@ -181,7 +185,8 @@ describe('EpgGuideDialogController', () => {
 
         expect(test.focusRow).not.toHaveBeenCalled();
         expect(test.open).toHaveBeenCalledWith(
-            expect.not.objectContaining({ channelName: expect.anything() })
+            expect.not.objectContaining({ channelName: expect.anything() }),
+            expect.any(AbortSignal)
         );
     });
 
@@ -217,7 +222,8 @@ describe('EpgGuideDialogController', () => {
         });
         expect(test.focusRow).not.toHaveBeenCalled();
         expect(test.open).toHaveBeenCalledWith(
-            expect.objectContaining({ channelName: 'Synthetic Other Copy' })
+            expect.objectContaining({ channelName: 'Synthetic Other Copy' }),
+            expect.any(AbortSignal)
         );
     });
 

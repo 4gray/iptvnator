@@ -276,6 +276,15 @@ export function markVlcOpened(
             const response = await getVlcCommandResponse(port, 'status');
             const state = parseVlcRcPlaybackState(response);
             if (!canRead()) return undefined;
+            if (
+                mediaUrl &&
+                state === 'stopped' &&
+                externalPlayerSessions.getSession(sessionId)?.mediaLoaded
+            )
+                externalPlayerSessions.updateSession(sessionId, {
+                    mediaLoaded: false,
+                    playbackIdle: true,
+                });
             if (mediaUrl && (state === 'playing' || state === 'paused')) {
                 const input = readVlcInput(response);
                 if (!input) return null;
