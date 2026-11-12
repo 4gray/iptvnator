@@ -223,6 +223,19 @@ describe('Xtream import session lifecycle', () => {
         expect(databaseService.clearXtreamImportCache).toHaveBeenCalledTimes(3);
     });
 
+    it('records the size limit as the reason a catalog import was blocked', async () => {
+        dataSource.getContent.mockRejectedValueOnce(
+            Object.assign(new Error('Synthetic provider failure'), {
+                code: 'PROVIDER_RESPONSE_TOO_LARGE',
+            })
+        );
+
+        await store.initializeContent();
+
+        expect(store.contentInitBlockReason()).toBe('response-too-large');
+        expect(store.isImporting()).toBe(false);
+    });
+
     it('loads categories and content independently without opening an import session', async () => {
         dataSource.getCategories.mockImplementation(
             (_p, _c, _type, options) => {

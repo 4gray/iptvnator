@@ -549,6 +549,8 @@
         "PLAYER_AMBIENT_MODE_DESCRIPTION": "用模糊、暗淡的海报填充播放器周围的空白，而不是黑条纹。",
         "PLAY_TRAILERS_IN_BACKGROUND": "在详情背景中播放预告片",
         "PLAY_TRAILERS_IN_BACKGROUND_DESCRIPTION": "打开电影或剧集几秒后，预告片会在详情背后静音播放。按流量计费的连接和减弱动态效果时关闭。",
+        "SERIES_AUTOPLAY": "自动播放下一集",
+        "SERIES_AUTOPLAY_DESCRIPTION": "在内置播放器中继续播放 Xtream 和 Stalker 剧集同一季的下一集。",
         "PLAYER_UP_NEXT_RAIL": "「接下来播放」剧集栏",
         "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "在宽窗口下，将剧集播放器停靠在左侧，并在旁边显示后续剧集。",
         "PLAYER_UP_NEXT_CARD": "「接下来播放」卡片",
@@ -1498,6 +1500,10 @@
             "PORTAL_UNAVAILABLE": {
                 "TITLE": "门户不可用",
                 "DESCRIPTION": "无法连接到门户。请检查服务器 URL，或在源恢复后重试。"
+            },
+            "PROVIDER_RESPONSE_TOO_LARGE": {
+                "TITLE": "Xtream 目录超出服务器大小限制",
+                "DESCRIPTION": "调高服务器上的 IPTVNATOR_MAX_PROVIDER_RESPONSE_MB 值并重启服务器，然后重试同步。"
             },
             "EMPTY_CATEGORY": {
                 "TITLE": "空分类",

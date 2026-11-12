@@ -96,6 +96,7 @@ import {
     CrossPortalSimilarItem,
     CrossPortalSimilarService,
     PlaybackPositionRuntimeBridgeService,
+    SettingsStore,
     TmdbEnrichmentService,
     type TmdbMatchContext,
     injectTranslationTick,
@@ -172,6 +173,7 @@ interface StalkerSeriesPlaybackRequestContext {
 })
 export class StalkerSeriesViewComponent implements OnDestroy {
     readonly stalkerStore = inject(StalkerStore);
+    private readonly settingsStore = inject(SettingsStore);
     readonly heroPresenter = inject(StalkerSeriesHeroPresenter);
     readonly menu = inject(StalkerSeriesMenuService);
     private readonly episodeResolver = inject(StalkerEpisodeResolver);
@@ -799,7 +801,10 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         getSeriesEpisodeMetadata(this.inlineEpisodeState())
     );
     readonly inlineSeriesNavigation = computed(() =>
-        getSeriesPlaybackNavigation(this.inlineEpisodeState())
+        getSeriesPlaybackNavigation(
+            this.inlineEpisodeState(),
+            this.settingsStore.seriesAutoplay?.() !== false
+        )
     );
     /** "Up Next" rail entries for the inline player (series only). */
     readonly upNextEpisodes = computed<UpNextRailItem[]>(() =>

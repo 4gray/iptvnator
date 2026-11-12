@@ -549,6 +549,8 @@
         "PLAYER_AMBIENT_MODE_DESCRIPTION": "Fill the space around the player with a blurred, dimmed poster instead of plain black bars.",
         "PLAY_TRAILERS_IN_BACKGROUND": "Play trailers in details background",
         "PLAY_TRAILERS_IN_BACKGROUND_DESCRIPTION": "A few seconds after opening a movie or series, its trailer plays muted behind the details. Off on metered connections and with reduced motion.",
+        "SERIES_AUTOPLAY": "Automatically play the next episode",
+        "SERIES_AUTOPLAY_DESCRIPTION": "Continue with the next episode in the same season of Xtream and Stalker series in the built-in player.",
         "PLAYER_UP_NEXT_RAIL": "Up Next episode rail",
         "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "On wide windows, dock the series player to the left and show the upcoming episodes beside it.",
         "PLAYER_UP_NEXT_CARD": "\"Up next\" card",
@@ -1498,6 +1500,10 @@
             "PORTAL_UNAVAILABLE": {
                 "TITLE": "Portal unavailable",
                 "DESCRIPTION": "The portal could not be reached. Check the server URL or retry when the source is available again."
+            },
+            "PROVIDER_RESPONSE_TOO_LARGE": {
+                "TITLE": "Xtream catalog exceeds the server limit",
+                "DESCRIPTION": "Increase IPTVNATOR_MAX_PROVIDER_RESPONSE_MB on the server and restart it. Then retry the sync."
             },
             "EMPTY_CATEGORY": {
                 "TITLE": "No content in this category",

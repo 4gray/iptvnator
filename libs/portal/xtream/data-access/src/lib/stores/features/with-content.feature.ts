@@ -1101,11 +1101,17 @@ export function withContent() {
                                 state.contentInitBlockReason ?? 'cancelled',
                         }));
                     } else {
+                        const requestBlockReason =
+                            error instanceof Error &&
+                            'code' in error &&
+                            error.code === 'PROVIDER_RESPONSE_TOO_LARGE'
+                                ? 'response-too-large'
+                                : 'error';
                         patchState(store, {
                             contentInitBlockReason:
                                 resolveInitBlockReason(
                                     getPortalStore().portalStatus?.()
-                                ) ?? 'error',
+                                ) ?? requestBlockReason,
                         });
                         logger.error('Error initializing content', error);
                     }

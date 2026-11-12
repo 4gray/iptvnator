@@ -350,8 +350,14 @@ describe('Stalker catalog hide watched', () => {
         expect(filter.loadState()).toBe('error');
         expect(filter.hasSnapshot()).toBe(true);
         expect(filter.items()).toEqual([]);
-        read.mockResolvedValue([]);
+        const retry = deferred<PlaybackPositionData[]>();
+        read.mockClear().mockReturnValueOnce(retry.promise);
         filter.retryPositions();
+        expect(filter.loadState()).toBe('retrying');
+        filter.retryPositions();
+        expect(read).toHaveBeenCalledTimes(1);
+        expect(filter.items()).toEqual([]);
+        retry.resolve([]);
         await flush();
         expect(filter.items()).toEqual([{ id: 1 }]);
         expect(filter.loadState()).toBe('ready');
