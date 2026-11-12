@@ -302,6 +302,38 @@ describe('reused MPV IPC replies', () => {
         }
     );
 
+    it('retries with a positional URL when the launcher exits before the IPC command', async () => {
+        jest.useFakeTimers({ doNotFake: ['setImmediate'] });
+        const idle = createMockChildProcess();
+        const positional = createMockChildProcess();
+        spawnMock.mockReturnValueOnce(idle).mockReturnValueOnce(positional);
+        (store.get as jest.Mock).mockImplementation((key, fallback) =>
+            key === MPV_PLAYER_PATH ? '/synthetic/launcher' : fallback
+        );
+        const url = 'https://example.test/synthetic.ts';
+        const opening = openMpvPlayer({
+            title: 'Synthetic Channel',
+            url,
+            launchId: 'synthetic-guide-launch',
+        });
+        await nextTick();
+        expect(spawnMock.mock.lastCall?.[1]).not.toContain(url);
+        const id = externalPlayerSessions.getActiveSessionId();
+        Object.defineProperty(idle, 'exitCode', { value: 1 });
+        idle.emit('exit', 1);
+        await nextTick();
+        expect(spawnMock).toHaveBeenCalledTimes(2);
+        expect(spawnMock.mock.lastCall?.[1]).toContain(url);
+        await jest.advanceTimersByTimeAsync(100);
+        expect(await opening).toMatchObject({
+            id,
+            status: 'opened',
+            mediaObservationUnavailable: true,
+        });
+        Object.defineProperty(positional, 'exitCode', { value: 0 });
+        positional.emit('exit', 0);
+    });
+
     it('falls back to a fresh launch when mpv rejects the content command', async () => {
         const reusedProc = await launchReusableInstance();
         const freshProc = createMockChildProcess();

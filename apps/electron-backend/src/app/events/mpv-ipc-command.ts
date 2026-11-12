@@ -107,6 +107,7 @@ export function sendMpvCommand(
         const media = options.media;
         let expected: { first: number; last: number }[] | undefined;
         let startedEntry: number | undefined;
+        const endedEntries = new Set<number>();
         const earlyEvents: MpvIpcMessage[] = [];
         const disconnect = () => {
             if (timeoutHandle) clearTimeout(timeoutHandle);
@@ -114,13 +115,25 @@ export function sendMpvCommand(
             expected = undefined;
             if (!client.destroyed) client.destroy();
         };
+        const publishMedia = (loaded: MpvMediaOutcome) => {
+            if (timeoutHandle) clearTimeout(timeoutHandle);
+            timeoutHandle = null;
+            if (!media?.signal.aborted) media?.onOutcome(loaded);
+        };
         const finishMedia = (loaded: MpvMediaOutcome) => {
             disconnect();
-            if (!media?.signal.aborted) media?.onOutcome(loaded);
+            publishMedia(loaded);
         };
         const observe = (event: MpvIpcMessage) => {
             if (!expected) return;
-            if (event.event === 'start-file') startedEntry = readEntryId(event);
+            if (event.event === 'start-file') {
+                startedEntry = readEntryId(event);
+                if (
+                    startedEntry !== undefined &&
+                    endedEntries.delete(startedEntry)
+                )
+                    expected.push({ first: startedEntry, last: startedEntry });
+            }
             const entry =
                 event.event === 'file-loaded'
                     ? startedEntry
@@ -131,13 +144,11 @@ export function sendMpvCommand(
             );
             if (index < 0) {
                 if (event.event === 'start-file' && timeoutHandle === null)
-                    finishMedia(undefined);
+                    publishMedia(undefined);
                 return;
             }
             if (event.event === 'file-loaded') {
-                if (timeoutHandle) clearTimeout(timeoutHandle);
-                timeoutHandle = null;
-                if (!media?.signal.aborted) media?.onOutcome(true);
+                publishMedia(true);
             } else if (event.event === 'end-file') {
                 const [range] = expected.splice(index, 1);
                 if (range.first < entry)
@@ -158,7 +169,11 @@ export function sendMpvCommand(
                     )
                         expected.push({ first, last: first + count - 1 });
                     else finishMedia(undefined);
-                } else if (expected.length === 0) finishMedia(false);
+                } else {
+                    endedEntries.add(entry);
+                    if (timeoutHandle === null || expected.length === 0)
+                        publishMedia(false);
+                }
             }
         };
         const settle = (
@@ -184,7 +199,7 @@ export function sendMpvCommand(
                         once: true,
                     });
                     timeoutHandle = setTimeout(
-                        () => finishMedia(undefined),
+                        () => publishMedia(undefined),
                         MPV_MEDIA_OBSERVATION_TIMEOUT_MS
                     ).unref();
                 }

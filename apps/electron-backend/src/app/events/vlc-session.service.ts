@@ -237,19 +237,20 @@ export async function openVlcPlayer({
             requestedReuseInstance,
             isFlatpak
         );
-        const {
-            mergedHeaders,
-            effectiveOrigin,
-            effectiveReferer,
-            effectiveUserAgent,
-            headerFields,
-        } = resolveEffectiveExternalPlaybackRequest({
+        const effectiveRequest = resolveEffectiveExternalPlaybackRequest({
             url,
             userAgent,
             referer,
             origin,
             headers,
         });
+        const {
+            mergedHeaders,
+            effectiveOrigin,
+            effectiveReferer,
+            effectiveUserAgent,
+            headerFields,
+        } = effectiveRequest;
         traceExternalPlayer('open vlc player', {
             path: vlcLaunchContext.playerPath,
             launchMode: vlcLaunchContext.mode,
@@ -738,7 +739,13 @@ export async function openVlcPlayer({
             spawnVlc(args);
         });
 
-        return markVlcOpened(session.id, () => getPlaybackRcPort()) ?? session;
+        return (
+            markVlcOpened(
+                session.id,
+                () => getPlaybackRcPort(),
+                effectiveRequest
+            ) ?? session
+        );
     } catch (error) {
         console.error('Error opening VLC player:', error);
         const restoredSession =

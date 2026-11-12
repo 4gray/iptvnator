@@ -13,6 +13,9 @@ jest.mock('../services/store.service', () => ({
     VLC_REUSE_INSTANCE: 'VLC_REUSE_INSTANCE',
     store: { get: jest.fn() },
 }));
+jest.mock('../util/validated-axios', () => ({
+    requestWithValidatedRedirects: jest.fn(),
+}));
 
 import { spawn, type ChildProcess } from 'child_process';
 import { EventEmitter } from 'events';
@@ -26,6 +29,7 @@ import { externalPlayerSessions } from './external-player-runtime';
 import { externalPlayerProcessTeardownGate } from './external-player-process';
 import { getVlcPlaybackSnapshot } from './vlc-rc';
 import { openVlcPlayer, shutdownVlcSession } from './vlc-session.service';
+import { requestWithValidatedRedirects } from '../util/validated-axios';
 
 const spawnMock = spawn as unknown as jest.Mock;
 const serverMock = createServer as unknown as jest.Mock;
@@ -80,6 +84,9 @@ describe('VLC exact playback ownership', () => {
 
     beforeEach(() => {
         jest.resetAllMocks();
+        (requestWithValidatedRedirects as jest.Mock).mockRejectedValue(
+            new Error('Synthetic input is not a playlist')
+        );
         ports.length = 0;
         (store.get as jest.Mock).mockImplementation((key, fallback) =>
             key === VLC_PLAYER_PATH
@@ -258,117 +265,154 @@ describe('VLC exact playback ownership', () => {
         }
     );
 
-    it('confirms only the requested VLC input even when instance reuse is disabled', async () => {
-        jest.useFakeTimers({ doNotFake: ['setImmediate'] });
-        (store.get as jest.Mock).mockImplementation((key, fallback) =>
-            key === VLC_PLAYER_PATH
-                ? '/usr/bin/vlc'
-                : key === VLC_REUSE_INSTANCE
-                  ? false
-                  : fallback
-        );
-        const proc = child();
-        spawnMock.mockReturnValueOnce(proc);
-        const url = 'https://example.test/synthetic%20channel.ts';
-        let input = 'https://example.test/synthetic-old.ts';
-        let playbackTime = 0;
-        mockRc((port, command, reply) => {
-            expect(typeof port).toBe('string');
-            if (command === 'status\n')
-                reply(
-                    '( new input: https://example.test/synthetic-stale.ts )\r\n' +
-                        '( stop state: 0 )\r\n' +
-                        `( new input: ${input} )\r\n( play state: 3 )\r\n` +
-                        'status: returned 0 (no error)\r\n( stop state: 5 )\r\n'
-                );
-            if (command === 'get_time\n') reply(`${playbackTime}\r\n`);
-        });
-        const opening = openVlcPlayer({
-            title: 'Synthetic Channel',
-            url,
-            launchId: 'synthetic-guide-launch',
-        });
-        await tick();
-        proc.emit('spawn');
-        const session = await opening;
-        expect(session).toMatchObject({ status: 'opened', mediaLoaded: false });
-        const args = spawnMock.mock.lastCall?.[1] as string[];
-        expect(ports).toHaveLength(0);
-        expect(args.some((arg) => arg.startsWith('--rc-host=127.'))).toBe(
-            false
-        );
-        if (process.platform === 'win32') {
-            expect(session.mediaObservationUnavailable).toBe(true);
-            exit(proc);
-            return;
-        }
-        expect(args).toEqual(
-            expect.arrayContaining([
-                '--extraintf=oldrc',
-                '--rc-fake-tty',
-                '--rc-host=',
-            ])
-        );
-        expect(args.some((arg) => arg.startsWith('--rc-unix='))).toBe(true);
-        await jest.advanceTimersByTimeAsync(2_000);
-        await tick();
-        await tick();
-        expect(externalPlayerSessions.getSession(session.id)).toMatchObject({
-            mediaLoaded: false,
-            playbackUnverified: undefined,
-        });
-        playbackTime = 2;
-        await jest.advanceTimersByTimeAsync(2_000);
-        await tick();
-        await tick();
-        expect(externalPlayerSessions.getSession(session.id)).toMatchObject({
-            mediaLoaded: false,
-            playbackUnverified: true,
-        });
-        input = decodeURIComponent(url);
-        playbackTime = 0;
-        await jest.advanceTimersByTimeAsync(2_000);
-        await tick();
-        await tick();
-        expect(externalPlayerSessions.getSession(session.id)).toMatchObject({
-            mediaLoaded: false,
-            playbackIdle: false,
-            playbackUnverified: undefined,
-        });
-        await jest.advanceTimersByTimeAsync(24_000);
-        await tick();
-        await tick();
-        expect(
-            externalPlayerSessions.getSession(session.id)
-                ?.mediaReadinessTimedOut
-        ).toBe(true);
-        playbackTime = 2;
-        for (
-            let poll = 0;
-            poll < 3 &&
-            !externalPlayerSessions.getSession(session.id)?.mediaLoaded;
-            poll++
-        ) {
+    it.each(['direct', 'M3U'] as const)(
+        'confirms only the requested VLC input even when instance reuse is disabled (%s)',
+        async (kind) => {
+            jest.useFakeTimers({ doNotFake: ['setImmediate'] });
+            (store.get as jest.Mock).mockImplementation((key, fallback) =>
+                key === VLC_PLAYER_PATH
+                    ? '/usr/bin/vlc'
+                    : key === VLC_REUSE_INSTANCE
+                      ? false
+                      : fallback
+            );
+            const proc = child();
+            spawnMock.mockReturnValueOnce(proc);
+            const url =
+                kind === 'M3U'
+                    ? 'https://example.test/synthetic/playlist.m3u8'
+                    : 'https://example.test/synthetic%20channel.ts';
+            const currentInput =
+                kind === 'M3U'
+                    ? 'https://example.test/synthetic/synthetic-child.ts'
+                    : decodeURIComponent(url);
+            if (kind === 'M3U')
+                (requestWithValidatedRedirects as jest.Mock).mockResolvedValue({
+                    data: '#EXTM3U\n#EXTINF:-1,Synthetic Child\nsynthetic-child.ts\n',
+                });
+            let input = 'https://example.test/synthetic-old.ts';
+            let playbackTime = 0;
+            mockRc((port, command, reply) => {
+                expect(typeof port).toBe('string');
+                if (command === 'status\n')
+                    reply(
+                        '( new input: https://example.test/synthetic-stale.ts )\r\n' +
+                            '( stop state: 0 )\r\n' +
+                            `( new input: ${input} )\r\n( play state: 3 )\r\n` +
+                            'status: returned 0 (no error)\r\n( stop state: 5 )\r\n'
+                    );
+                if (command === 'get_time\n') reply(`${playbackTime}\r\n`);
+            });
+            const opening = openVlcPlayer({
+                title: 'Synthetic Channel',
+                url,
+                launchId: 'synthetic-guide-launch',
+            });
+            await tick();
+            proc.emit('spawn');
+            const session = await opening;
+            expect(session).toMatchObject({
+                status: 'opened',
+                mediaLoaded: false,
+            });
+            const args = spawnMock.mock.lastCall?.[1] as string[];
+            expect(ports).toHaveLength(0);
+            expect(args.some((arg) => arg.startsWith('--rc-host=127.'))).toBe(
+                false
+            );
+            if (process.platform === 'win32') {
+                expect(session.mediaObservationUnavailable).toBe(true);
+                exit(proc);
+                return;
+            }
+            expect(args).toEqual(
+                expect.arrayContaining([
+                    '--extraintf=oldrc',
+                    '--rc-fake-tty',
+                    '--rc-host=',
+                ])
+            );
+            expect(args.some((arg) => arg.startsWith('--rc-unix='))).toBe(true);
             await jest.advanceTimersByTimeAsync(2_000);
             await tick();
             await tick();
+            expect(externalPlayerSessions.getSession(session.id)).toMatchObject(
+                {
+                    mediaLoaded: false,
+                    playbackUnverified: undefined,
+                }
+            );
+            playbackTime = 2;
+            await jest.advanceTimersByTimeAsync(2_000);
+            await tick();
+            await tick();
+            expect(externalPlayerSessions.getSession(session.id)).toMatchObject(
+                {
+                    mediaLoaded: false,
+                    playbackUnverified: true,
+                }
+            );
+            input = currentInput;
+            playbackTime = 0;
+            await jest.advanceTimersByTimeAsync(2_000);
+            await tick();
+            await tick();
+            expect(externalPlayerSessions.getSession(session.id)).toMatchObject(
+                {
+                    mediaLoaded: false,
+                    playbackIdle: false,
+                    playbackUnverified: undefined,
+                }
+            );
+            await jest.advanceTimersByTimeAsync(24_000);
+            await tick();
+            await tick();
+            expect(
+                externalPlayerSessions.getSession(session.id)
+                    ?.mediaReadinessTimedOut
+            ).toBe(true);
+            playbackTime = 2;
+            for (
+                let poll = 0;
+                poll < 3 &&
+                !externalPlayerSessions.getSession(session.id)?.mediaLoaded;
+                poll++
+            ) {
+                await jest.advanceTimersByTimeAsync(2_000);
+                // The indirect input also reads a second status after resolving its M3U.
+                for (let turn = 0; turn < 6; turn++) await tick();
+            }
+            expect(externalPlayerSessions.getSession(session.id)).toMatchObject(
+                {
+                    mediaLoaded: true,
+                    playbackIdle: false,
+                    mediaReadinessTimedOut: undefined,
+                }
+            );
+            input = 'https://example.test/synthetic-other.ts';
+            await jest.advanceTimersByTimeAsync(2_000);
+            await tick();
+            await tick();
+            expect(externalPlayerSessions.getSession(session.id)).toMatchObject(
+                {
+                    mediaLoaded: false,
+                    playbackIdle: false,
+                    playbackUnverified: true,
+                }
+            );
+            expect(requestWithValidatedRedirects).toHaveBeenCalledTimes(1);
+            expect(requestWithValidatedRedirects).toHaveBeenCalledWith(
+                url,
+                expect.objectContaining({
+                    maxContentLength: 64 * 1024,
+                    timeout: 2_000,
+                }),
+                { allowPrivateNetworks: true },
+                0
+            );
+            exit(proc);
         }
-        expect(externalPlayerSessions.getSession(session.id)).toMatchObject({
-            mediaLoaded: true,
-            playbackIdle: false,
-            mediaReadinessTimedOut: undefined,
-        });
-        input = 'https://example.test/synthetic-other.ts';
-        await jest.advanceTimersByTimeAsync(2_000);
-        await tick();
-        await tick();
-        expect(externalPlayerSessions.getSession(session.id)).toMatchObject({
-            mediaLoaded: false,
-            playbackIdle: false,
-            playbackUnverified: true,
-        });
-        exit(proc);
-    });
+    );
 
     it.each([false, true])(
         'waits for the exact VLC child without private control before a replacement (new input: %s)',

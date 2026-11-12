@@ -43,7 +43,10 @@ import {
     MpvReusableProcess,
     MpvReuseAttemptState,
 } from './mpv-reusable-process';
-import { completeFreshMpvLaunch } from './mpv-ipc-playback';
+import {
+    completeFreshMpvLaunch,
+    prepareFreshMpvMedia,
+} from './mpv-ipc-playback';
 import {
     createMpvIpcEndpoint,
     spawnPlayerWithEndpoint,
@@ -244,11 +247,8 @@ async function launchMpvPlayer(
 
         const guideLaunch = !!session.launchId && !contentInfo;
         const media =
-            guideLaunch &&
-            socketPath &&
-            !forcePositional &&
-            !/(?:^|[\\/])iina(?:-cli)?$/i.test(mpvLaunchContext.playerPath)
-                ? new AbortController()
+            guideLaunch && socketPath && !forcePositional
+                ? prepareFreshMpvMedia(mpvLaunchContext.playerPath)
                 : undefined;
         if (!media) args.push(url);
 
@@ -256,19 +256,16 @@ async function launchMpvPlayer(
         let stopRequested = false;
         const proc = await new Promise<ChildProcess>((resolve, reject) => {
             let settled = false;
-            let startConfirmationTimer: NodeJS.Timeout | null = null;
             const resolveLaunch = () => {
                 if (settled) return;
                 settled = true;
-                if (startConfirmationTimer)
-                    clearTimeout(startConfirmationTimer);
+                clearTimeout(startConfirmationTimer);
                 resolve(proc);
             };
             const rejectLaunch = (error: Error) => {
                 if (settled) return;
                 settled = true;
-                if (startConfirmationTimer)
-                    clearTimeout(startConfirmationTimer);
+                clearTimeout(startConfirmationTimer);
                 reject(error);
             };
             const spawnSpec = buildExternalPlayerSpawnSpec(
@@ -315,6 +312,7 @@ async function launchMpvPlayer(
                 );
                 reusableMpvProcess.clear(proc);
                 stopPositionPolling(processSessionId);
+                fallingBack ||= !!media?.awaitingDispatch && !stopRequested;
                 if (fallingBack) return resolveLaunch();
 
                 if (code !== 0 && code !== null) {
@@ -374,7 +372,7 @@ async function launchMpvPlayer(
                 startPositionPolling(socketPath, contentInfo, session.id);
             }
 
-            startConfirmationTimer = setTimeout(() => {
+            const startConfirmationTimer = setTimeout(() => {
                 if (!proc.killed) resolveLaunch();
             }, 100);
             startConfirmationTimer.unref();
@@ -387,9 +385,10 @@ async function launchMpvPlayer(
                 !tracksProcess ||
                 reusableMpvProcess.currentSessionId() === session.id,
             guideLaunch,
-            media?.signal
+            media
         );
-        if (opened) return opened;
+        media?.settleDispatch();
+        if (opened && !fallingBack) return opened;
         fallingBack = true;
         try {
             await externalPlayerProcessTeardownGate.terminate(proc);

@@ -5,6 +5,11 @@ import {
     externalPlayerSessions,
 } from './external-player-runtime';
 import { markExternalPlayerOpened } from './external-player-idle-monitor';
+import {
+    matchVlcGuidePlaylist,
+    matchesVlcInput,
+    type VlcGuidePlaylistRequest,
+} from './vlc-guide-playlist';
 
 export type VlcRcAddress = number | string;
 
@@ -221,7 +226,19 @@ export async function getVlcPlaybackState(
     return parseVlcRcPlaybackState(await getVlcCommandResponse(port, 'status'));
 }
 
-export function markVlcOpened(sessionId: string, getPort: () => VlcRcAddress) {
+function readVlcInput(response: string): string | undefined {
+    return Array.from(
+        response.matchAll(/\(\s*new input:[ \t]*([^\r\n]+)\)[ \t]*\r?$/gim)
+    )
+        .at(-1)?.[1]
+        ?.trim();
+}
+
+export function markVlcOpened(
+    sessionId: string,
+    getPort: () => VlcRcAddress,
+    request: VlcGuidePlaylistRequest
+) {
     const session = externalPlayerSessions.getSession(sessionId);
     const mediaUrl =
         session?.launchId && !session.contentInfo
@@ -235,6 +252,8 @@ export function markVlcOpened(sessionId: string, getPort: () => VlcRcAddress) {
             mediaObservationUnavailable: port ? undefined : true,
         });
     if (!port) return markExternalPlayerOpened(sessionId);
+    const listedChild = mediaUrl && matchVlcGuidePlaylist(mediaUrl, request);
+    let playlistInput: string | undefined;
     if (mediaUrl)
         setTimeout(() => {
             const current = externalPlayerSessions.getSession(sessionId);
@@ -250,47 +269,58 @@ export function markVlcOpened(sessionId: string, getPort: () => VlcRcAddress) {
         }, 30_000).unref();
     return markExternalPlayerOpened(
         sessionId,
-        async () => {
+        async (isCurrent) => {
             const port = getPort();
             if (!port) return undefined;
+            const canRead = () => isCurrent() && getPort() === port;
             const response = await getVlcCommandResponse(port, 'status');
             const state = parseVlcRcPlaybackState(response);
-            if (getPort() !== port) return undefined;
+            if (!canRead()) return undefined;
             if (mediaUrl && (state === 'playing' || state === 'paused')) {
-                const input = Array.from(
-                    response.matchAll(
-                        /\(\s*new input:[ \t]*([^\r\n]+)\)[ \t]*\r?$/gim
-                    )
-                )
-                    .at(-1)?.[1]
-                    ?.trim();
+                const input = readVlcInput(response);
                 if (!input) return null;
-                const matches = matchesVlcInput(input, mediaUrl);
-                if (externalPlayerSessions.getSession(sessionId)?.mediaLoaded) {
-                    if (matches) return false;
+                const confirmed =
+                    externalPlayerSessions.getSession(sessionId)?.mediaLoaded;
+                if (!confirmed) {
+                    const clock = await getVlcCommandResponse(
+                        port,
+                        'get_time',
+                        (data) => parseVlcRcNumericLine(data) !== undefined
+                    );
+                    if (!canRead()) return undefined;
+                    const elapsed = parseVlcRcNumericLine(clock);
+                    if (elapsed === undefined) return null;
+                    if (Number(elapsed) <= 0) return false;
+                }
+                let matches =
+                    matchesVlcInput(input, mediaUrl) || input === playlistInput;
+                if (!matches && listedChild && (await listedChild(input))) {
+                    if (!canRead()) return undefined;
+                    const latest = await getVlcCommandResponse(port, 'status');
+                    const latestState = parseVlcRcPlaybackState(latest);
+                    if (
+                        readVlcInput(latest) === input &&
+                        (latestState === 'playing' || latestState === 'paused')
+                    ) {
+                        playlistInput = input;
+                        matches = true;
+                    }
+                }
+                if (!canRead()) return undefined;
+                if (confirmed && !matches)
                     externalPlayerSessions.updateSession(sessionId, {
                         mediaLoaded: false,
                         playbackIdle: false,
                         playbackUnverified: true,
                     });
-                    return null;
-                }
-                const clock = await getVlcCommandResponse(
-                    port,
-                    'get_time',
-                    (data) => parseVlcRcNumericLine(data) !== undefined
-                );
-                if (getPort() !== port) return undefined;
-                const elapsed = parseVlcRcNumericLine(clock);
-                if (elapsed === undefined) return null;
-                if (Number(elapsed) <= 0) return false;
                 if (!matches) return null;
-                externalPlayerSessions.updateSession(sessionId, {
-                    mediaLoaded: true,
-                    playbackIdle: false,
-                    playbackUnverified: undefined,
-                    mediaReadinessTimedOut: undefined,
-                });
+                if (!confirmed)
+                    externalPlayerSessions.updateSession(sessionId, {
+                        mediaLoaded: true,
+                        playbackIdle: false,
+                        playbackUnverified: undefined,
+                        mediaReadinessTimedOut: undefined,
+                    });
             }
             return state === 'stopped'
                 ? true
@@ -300,18 +330,6 @@ export function markVlcOpened(sessionId: string, getPort: () => VlcRcAddress) {
         },
         true
     );
-}
-
-function matchesVlcInput(
-    input: string | undefined,
-    streamUrl: string
-): boolean {
-    if (input === streamUrl) return true;
-    try {
-        return input === decodeURIComponent(streamUrl);
-    } catch {
-        return false;
-    }
 }
 
 export async function getVlcPlaybackSnapshot(

@@ -503,10 +503,9 @@ export class LiveStreamLayoutComponent
             ? playback.source
             : undefined;
     });
-    private readonly unverifiedVlcSource = computed(() => {
+    private readonly unverifiedRemoteSource = computed(() => {
         const playback = this.externalGuide.unverifiedPlayback();
-        return playback?.session.player === 'vlc' &&
-            !this.externalGuide.confirmed()
+        return playback && !this.externalGuide.confirmed()
             ? playback.source
             : undefined;
     });
@@ -529,7 +528,7 @@ export class LiveStreamLayoutComponent
     private readonly remoteAnchor = computed(() => {
         if (this.usesSelectionForRemote()) return null;
         const item = (
-            this.unverifiedVlcSource() ??
+            this.unverifiedRemoteSource() ??
             this.externalGuide.stoppedTuningSource()
         )?.channel;
         return item &&
@@ -610,7 +609,7 @@ export class LiveStreamLayoutComponent
         effect(() => {
             const source =
                 this.socketlessRemoteSource() ??
-                this.unverifiedVlcSource() ??
+                this.unverifiedRemoteSource() ??
                 (!this.externalGuide.confirmed()
                     ? this.externalGuide.stoppedTuningSource()
                     : undefined);

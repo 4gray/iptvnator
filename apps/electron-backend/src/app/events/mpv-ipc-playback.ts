@@ -11,6 +11,22 @@ import {
     sendMpvCommand,
 } from './mpv-ipc-command';
 
+export function prepareFreshMpvMedia(playerPath: string) {
+    if (/(?:^|[\\/])iina(?:-cli)?$/i.test(playerPath)) return undefined;
+    const controller = new AbortController();
+    let awaitingDispatch = true;
+    return {
+        signal: controller.signal,
+        abort: () => controller.abort(),
+        get awaitingDispatch() {
+            return awaitingDispatch;
+        },
+        settleDispatch: () => {
+            awaitingDispatch = false;
+        },
+    };
+}
+
 export function publishMpvMediaOutcome(
     sessionId: string,
     loaded: MpvMediaOutcome
@@ -83,8 +99,9 @@ export async function completeFreshMpvLaunch(
     socketPath: string | null,
     hasOwner: () => boolean,
     guideLaunch: boolean,
-    signal?: AbortSignal
+    media?: ReturnType<typeof prepareFreshMpvMedia>
 ): Promise<ExternalPlayerSession | null> {
+    const signal = media?.signal;
     if (socketPath && signal && !signal.aborted) {
         const current = externalPlayerSessions.getSession(session.id);
         if (current?.status === 'launching')
@@ -97,7 +114,8 @@ export async function completeFreshMpvLaunch(
                 socketPath,
                 session.streamUrl,
                 hasOwner,
-                signal
+                signal,
+                media?.settleDispatch
             ))
         )
             return null;
@@ -119,7 +137,8 @@ export async function loadFreshMpvGuideMedia(
     socketPath: string,
     url: string,
     hasOwner: () => boolean,
-    signal: AbortSignal
+    signal: AbortSignal,
+    onDispatched?: () => void
 ): Promise<boolean> {
     const deadline = Date.now() + MPV_IPC_COMMAND_TIMEOUT_MS;
     const shouldDispatch = () => {
@@ -138,6 +157,7 @@ export async function loadFreshMpvGuideMedia(
                 shouldDispatch: () =>
                     shouldDispatch() &&
                     allowExternalPlayerMediaDispatch(sessionId),
+                onDispatched,
                 media: {
                     signal,
                     onOutcome: (loaded) => {

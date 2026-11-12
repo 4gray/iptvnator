@@ -361,8 +361,13 @@ export class VlcReusableProcess {
                 );
             }
             return (
-                markVlcOpened(session.id, () =>
-                    this.canPoll(reusedProcess, session.id) ? reusedRcPort : 0
+                markVlcOpened(
+                    session.id,
+                    () =>
+                        this.canPoll(reusedProcess, session.id)
+                            ? reusedRcPort
+                            : 0,
+                    options
                 ) ?? session
             );
         } catch (error) {

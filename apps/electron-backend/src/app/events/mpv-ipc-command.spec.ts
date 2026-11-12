@@ -249,13 +249,14 @@ describe('sendMpvCommand', () => {
         'observes media for the acknowledged playlist entry (%s)',
         async (loaded) => {
             const socket = nextSocket();
+            const controller = new AbortController();
             const onOutcome = jest.fn();
             const pending = sendMpvCommand(
                 socketPath,
                 'loadfile',
                 [streamUrl],
                 {
-                    media: { signal: new AbortController().signal, onOutcome },
+                    media: { signal: controller.signal, onOutcome },
                 }
             );
             socket.emit('connect');
@@ -287,7 +288,6 @@ describe('sendMpvCommand', () => {
             );
             expect(onOutcome).toHaveBeenCalledTimes(1);
             expect(onOutcome).toHaveBeenCalledWith(loaded);
-            expect(socket.destroyed).toBe(!loaded);
             if (loaded) {
                 reply(socket, {
                     event: 'end-file',
@@ -296,6 +296,14 @@ describe('sendMpvCommand', () => {
                 });
                 expect(onOutcome).toHaveBeenLastCalledWith(false);
             }
+            expect(socket.destroyed).toBe(false);
+            reply(
+                socket,
+                { event: 'start-file', playlist_entry_id: 2 },
+                { event: 'file-loaded' }
+            );
+            expect(onOutcome).toHaveBeenLastCalledWith(true);
+            controller.abort();
             expect(socket.destroyed).toBe(true);
         }
     );
@@ -414,12 +422,13 @@ describe('sendMpvCommand', () => {
         }
     );
 
-    it('reports unavailable confirmation when an acknowledged media observer expires', async () => {
+    it('reports a readiness timeout and still confirms the same slow MPV entry', async () => {
         jest.useFakeTimers();
         const socket = nextSocket();
+        const controller = new AbortController();
         const onOutcome = jest.fn();
         const pending = sendMpvCommand(socketPath, 'loadfile', [streamUrl], {
-            media: { signal: new AbortController().signal, onOutcome },
+            media: { signal: controller.signal, onOutcome },
         });
         socket.emit('connect');
         reply(socket, {
@@ -431,6 +440,14 @@ describe('sendMpvCommand', () => {
         await jest.runOnlyPendingTimersAsync();
         expect(onOutcome).toHaveBeenCalledTimes(1);
         expect(onOutcome).toHaveBeenCalledWith(undefined);
+        expect(socket.destroyed).toBe(false);
+        reply(
+            socket,
+            { event: 'start-file', playlist_entry_id: 2 },
+            { event: 'file-loaded' }
+        );
+        expect(onOutcome).toHaveBeenLastCalledWith(true);
+        controller.abort();
         expect(socket.destroyed).toBe(true);
     });
 
