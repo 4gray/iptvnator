@@ -772,7 +772,7 @@ test('system package smoke environments install every direct helper runtime depe
     }
 });
 
-test('Snap dependencies retry failed installs and fail after three attempts', () => {
+test('Snap dependencies retry downloads and require assertions before local install', () => {
     const step = buildWorkflowConfig.jobs['build-linux'].steps.find(
         ({ name }) =>
             name === 'Verify Snap payloads and strict-confinement runtime'
@@ -780,31 +780,62 @@ test('Snap dependencies retry failed installs and fail after three attempts', ()
     const setup = step.run.split('\nfound=false\n')[0];
     const script = `
 ${setup}
-attempts=0
-snap() { [[ "$1 $2" == "list mesa-core22" && "$installed" == 1 ]]; }
+downloads=0
+snap() {
+    case "$1 $2" in
+        'list mesa-core22') [[ "$installed" == 1 ]] ;;
+        'download mesa-core22')
+            printf 'download\\n'
+            [[ "$3" == --target-directory=* && "$4" == --basename=mesa-core22 ]] &&
+                (( ++downloads >= download_succeeds_on ))
+            ;;
+        *) return 1 ;;
+    esac
+}
 sudo() {
-    printf '%s\\n' "$*"
-    (( ++attempts == succeeds_on ))
+    [[ "$#" == 3 && "$1" == snap ]] || return 1
+    printf '%s %s\\n' "$2" "$(basename "$3")"
+    case "$2" in
+        ack) [[ "$3" == /*/mesa-core22.assert && "$acknowledged" == 1 ]] ;;
+        install) [[ "$3" == /*/mesa-core22.snap ]] ;;
+        *) return 1 ;;
+    esac
 }
 sleep() { printf 'sleep %s\\n' "$1"; }
 installed="$1"
-succeeds_on="$2"
+download_succeeds_on="$2"
+acknowledged="$3"
 ensure_snap mesa-core22
 `;
-    const install = 'snap install mesa-core22\n';
-    for (const [installed, succeedsOn, status, stdout] of [
-        ['1', '0', 0, 'sleep 0\n'],
-        ['0', '2', 0, `sleep 0\n${install}sleep 15\n${install}`],
+    const download = 'download\n';
+    const ack = 'ack mesa-core22.assert\n';
+    for (const [installed, succeedsOn, acknowledged, status, stdout] of [
+        ['1', '1', '1', 0, ''],
         [
             '0',
+            '2',
+            '1',
+            0,
+            `sleep 0\n${download}sleep 15\n${download}${ack}install mesa-core22.snap\n`,
+        ],
+        [
+            '0',
+            '1',
             '0',
             1,
-            `sleep 0\n${install}sleep 15\n${install}sleep 30\n${install}`,
+            `sleep 0\n${download}${ack}sleep 15\n${download}${ack}sleep 30\n${download}${ack}`,
+        ],
+        [
+            '0',
+            '4',
+            '1',
+            1,
+            `sleep 0\n${download}sleep 15\n${download}sleep 30\n${download}`,
         ],
     ]) {
         const result = spawnSync(
             'bash',
-            ['-c', script, 'snap-test', installed, succeedsOn],
+            ['-c', script, 'snap-test', installed, succeedsOn, acknowledged],
             { encoding: 'utf8' }
         );
         assert.ifError(result.error);
@@ -832,13 +863,31 @@ test('Snap verifier preserves fail-closed status while exposing captured diagnos
         snapStep.indexOf("grep -Fq 'Verified snap x64 Linux'") <
             snapStep.indexOf('sudo snap install --dangerous')
     );
-    for (const dependency of ['mesa-core22', 'gnome-3-28-1804']) {
+    for (const dependency of [
+        'snapd',
+        'core22',
+        'core18',
+        'mesa-core22',
+        'gnome-3-28-1804',
+    ]) {
         const install = snapStep.indexOf(`ensure_snap ${dependency}`);
         assert.ok(
             install > snapStep.indexOf("grep -Fq 'Verified snap x64 Linux'")
         );
         assert.ok(install < snapStep.indexOf('sudo snap install --dangerous'));
     }
+    assert.ok(
+        snapStep.indexOf('ensure_snap snapd') <
+            snapStep.indexOf('ensure_snap mesa-core22')
+    );
+    assert.ok(
+        snapStep.indexOf('ensure_snap core22') <
+            snapStep.indexOf('ensure_snap mesa-core22')
+    );
+    assert.ok(
+        snapStep.indexOf('ensure_snap core18') <
+            snapStep.indexOf('ensure_snap gnome-3-28-1804')
+    );
     assert.ok(
         snapStep.indexOf('sudo snap install --dangerous') <
             snapStep.indexOf('installed_x64=true')

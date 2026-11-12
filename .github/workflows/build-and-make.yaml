@@ -1191,16 +1191,26 @@ jobs:
               run: |
                   set -euo pipefail
 
-                  ensure_snap() {
-                      local name="$1" delay
+                  ensure_snap() (
+                      local name="$1" delay directory
+                      if snap list "${name}" >/dev/null 2>&1; then
+                          return 0
+                      fi
+                      directory="$(mktemp -d)" || return 1
+                      trap 'rm -rf -- "${directory}"' EXIT
                       for delay in 0 15 30; do
                           sleep "${delay}"
-                          if snap list "${name}" >/dev/null 2>&1 || sudo snap install "${name}"; then
+                          # Download directly so snapd does not need a Store device session.
+                          if snap list "${name}" >/dev/null 2>&1 || {
+                              snap download "${name}" --target-directory="${directory}" --basename="${name}" &&
+                              sudo snap ack "${directory}/${name}.assert" &&
+                              sudo snap install "${directory}/${name}.snap"
+                          }; then
                               return 0
                           fi
                       done
                       return 1
-                  }
+                  )
 
                   found=false
                   installed_x64=false
@@ -1214,6 +1224,9 @@ jobs:
                                   2>&1 | tee /dev/stderr
                       )"
                       if printf '%s\n' "${verification}" | grep -Fq 'Verified snap x64 Linux'; then
+                          ensure_snap snapd
+                          ensure_snap core22
+                          ensure_snap core18
                           ensure_snap mesa-core22
                           ensure_snap gnome-3-28-1804
                           sudo snap install --dangerous "${artifact}"
