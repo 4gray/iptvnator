@@ -1,0 +1,154 @@
+<section
+    class="hosted-panel hosted-stack"
+    aria-labelledby="hosted-devices-title"
+>
+    <h3 id="hosted-devices-title">
+        {{ 'HOSTED_SERVER.PAIRED_DEVICES' | translate }}
+    </h3>
+    <div class="server-actions">
+        @if (lanAvailable()) {
+            <button
+                mat-flat-button
+                type="button"
+                class="settings-primary-button"
+                [disabled]="busy() || !!invite()"
+                (click)="pair()"
+                data-test-id="hosted-device-pair"
+            >
+                {{ 'HOSTED_SERVER.PAIR_DEVICE' | translate }}
+            </button>
+        }
+        <button
+            mat-button
+            type="button"
+            aria-controls="hosted-device-list"
+            [attr.aria-expanded]="expanded()"
+            (click)="toggleDevices()"
+        >
+            {{
+                (expanded()
+                    ? 'HOSTED_SERVER.HIDE_DEVICES'
+                    : 'HOSTED_SERVER.SHOW_DEVICES'
+                ) | translate
+            }}
+        </button>
+    </div>
+    @if (lanAvailable()) {
+        @if (invite(); as pairing) {
+            <div class="hosted-stack">
+                <p class="server-message">
+                    {{ 'HOSTED_SERVER.PAIR_SCAN' | translate }}
+                </p>
+                <qrcode
+                    class="hosted-qr"
+                    data-test-id="hosted-device-pair-qr"
+                    elementType="svg"
+                    [qrdata]="pairing.url"
+                    [width]="216"
+                    [margin]="4"
+                    [attr.aria-label]="
+                        'HOSTED_SERVER.PAIR_QR_LABEL' | translate
+                    "
+                    role="img"
+                />
+                <button
+                    mat-button
+                    type="button"
+                    (click)="copyPairingLink()"
+                    data-test-id="hosted-device-copy-link"
+                >
+                    {{ 'HOSTED_SERVER.COPY_PAIR_LINK' | translate }}
+                </button>
+            </div>
+        } @else if (inviteExpired()) {
+            <p class="server-message" role="status">
+                {{ 'HOSTED_SERVER.PAIR_EXPIRED' | translate }}
+            </p>
+        }
+    }
+    <div
+        id="hosted-device-list"
+        class="hosted-stack device-list"
+        [hidden]="!expanded()"
+    >
+        @if (expanded()) {
+            @if (listFailed()) {
+                <p class="server-message server-message--error" role="alert">
+                    {{ 'HOSTED_SERVER.DEVICE_LIST_FAILED' | translate }}
+                </p>
+            } @else if (list(); as snapshot) {
+                @if (snapshot.pending.length) {
+                    <p class="server-message">
+                        {{ 'HOSTED_SERVER.PAIR_COMPARE' | translate }}
+                    </p>
+                    <ul
+                        class="device-rows"
+                        [attr.aria-label]="
+                            'HOSTED_SERVER.PAIR_REQUESTS' | translate
+                        "
+                    >
+                        @for (claim of snapshot.pending; track claim.claimId) {
+                            <li class="device-row">
+                                <span class="device-name">{{
+                                    claim.name
+                                }}</span>
+                                <code class="hosted-value">{{
+                                    claim.confirmationCode
+                                }}</code>
+                                <button
+                                    mat-button
+                                    type="button"
+                                    [disabled]="busy()"
+                                    (click)="approve(claim.claimId)"
+                                >
+                                    {{
+                                        'HOSTED_SERVER.PAIR_APPROVE' | translate
+                                    }}
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                }
+                @if (snapshot.devices.length) {
+                    <ul
+                        class="device-rows"
+                        [attr.aria-label]="
+                            'HOSTED_SERVER.PAIRED_DEVICES' | translate
+                        "
+                    >
+                        @for (device of snapshot.devices; track device.id) {
+                            <li class="device-row">
+                                <span class="device-name">{{
+                                    device.name
+                                }}</span>
+                                <button
+                                    mat-button
+                                    type="button"
+                                    class="app-destructive-button"
+                                    [disabled]="busy()"
+                                    (click)="confirmRevoke(device)"
+                                >
+                                    {{
+                                        'HOSTED_SERVER.REVOKE_DEVICE'
+                                            | translate
+                                    }}
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                } @else if (!snapshot.pending.length) {
+                    <p class="server-message">
+                        {{ 'HOSTED_SERVER.PAIRED_DEVICES_EMPTY' | translate }}
+                    </p>
+                }
+            } @else {
+                <p class="server-message" role="status">
+                    {{ 'HOSTED_SERVER.DEVICES_LOADING' | translate }}
+                </p>
+            }
+        }
+    </div>
+    @if (message()) {
+        <p class="server-message" role="status">{{ message() | translate }}</p>
+    }
+</section>

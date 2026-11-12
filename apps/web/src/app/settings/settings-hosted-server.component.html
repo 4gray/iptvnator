@@ -68,18 +68,26 @@
                             </div>
                             <ng-container [ngTemplateOutlet]="accessCode" />
                         </div>
-                        <qrcode
-                            class="hosted-qr"
-                            data-test-id="hosted-server-lan-qr"
-                            elementType="svg"
-                            [qrdata]="address"
-                            [width]="144"
-                            [margin]="4"
-                            [attr.aria-label]="
-                                'HOSTED_SERVER.LAN_QR_LABEL' | translate
-                            "
-                            role="img"
-                        />
+                        <div class="hosted-address-qr">
+                            <qrcode
+                                class="hosted-qr"
+                                data-test-id="hosted-server-lan-qr"
+                                elementType="svg"
+                                [qrdata]="address"
+                                [width]="144"
+                                [margin]="4"
+                                [attr.aria-label]="
+                                    'HOSTED_SERVER.LAN_QR_LABEL' | translate
+                                "
+                                role="img"
+                            />
+                            <p class="server-message">
+                                {{
+                                    'HOSTED_SERVER.BROWSER_ADDRESS_QR'
+                                        | translate
+                                }}
+                            </p>
+                        </div>
                     </section>
                 } @else {
                     <section
@@ -156,6 +164,9 @@
                         }
                     </section>
                 }
+                @if (deviceControlAvailable) {
+                    <app-settings-hosted-devices [lanAvailable]="!!lanUrl()" />
+                }
                 <section
                     class="hosted-panel hosted-stack"
                     aria-labelledby="hosted-remote-title"
@@ -230,7 +241,7 @@
                                         {{
                                             (qrAddress() === address
                                                 ? 'HOSTED_SERVER.HIDE_QR'
-                                                : 'SETTINGS.SHOW_QR_CODE'
+                                                : 'HOSTED_SERVER.SHOW_BROWSER_ADDRESS_QR'
                                             ) | translate
                                         }}
                                     </button>

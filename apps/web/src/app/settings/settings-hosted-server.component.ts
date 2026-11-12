@@ -18,6 +18,7 @@ import { FormsModule } from '@angular/forms';
 import { QRCodeComponent } from 'angularx-qrcode';
 import { parseHostedHttpsOrigin } from '@iptvnator/shared/interfaces';
 import { SERVER_GUIDES } from './settings-server-about-dialog.component';
+import { SettingsHostedDevicesComponent } from './settings-hosted-devices.component';
 import { SettingsSyncStatusComponent } from './settings-sync-status.component';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
@@ -66,6 +67,7 @@ function shareableUrl(
     providers: [provideFormFieldDefaults()],
     imports: [
         NgTemplateOutlet,
+        SettingsHostedDevicesComponent,
         SettingsSyncStatusComponent,
         MatIconModule,
         MatButtonModule,
@@ -87,6 +89,7 @@ function shareableUrl(
 })
 export class SettingsHostedServerComponent {
     readonly guides = SERVER_GUIDES;
+    readonly deviceControlAvailable = !!window.electron?.hostedDeviceControl;
     readonly accessOptions = [
         { value: 'lan', label: 'HOME_NETWORK' },
         { value: 'https', label: 'CUSTOM_HTTPS' },

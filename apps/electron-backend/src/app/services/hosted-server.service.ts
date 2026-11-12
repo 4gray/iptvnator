@@ -31,6 +31,7 @@ import {
     setHostedServerSession,
 } from './hosted-server-session';
 import { configureHostedHttps } from './hosted-https-control';
+import { registerHostedDeviceEvents } from './hosted-device-control';
 import {
     registerHostedCloudflareEvents,
     stopHostedCloudflare,
@@ -269,6 +270,7 @@ export function registerHostedServerEvents(
         )
             throw new Error('Invalid hosted server request');
     };
+    registerHostedDeviceEvents(checkSender, status, enqueue);
     ipcMain.handle(HOSTED_SERVER_CONTROL, (event, command: unknown) => {
         checkSender(event);
         if (command === 'status') return status();

@@ -1,5 +1,34 @@
 export const HOSTED_SERVER_CONTROL = 'hosted-server:control';
 export const HOSTED_SERVER_ACCESS_CODE = 'hosted-server:access-code';
+export const HOSTED_DEVICE_CONTROL = 'hosted-server:devices';
+
+export type HostedDeviceCommand =
+    | { action: 'invite' }
+    | { action: 'list' }
+    | { action: 'approve'; claimId: string }
+    | { action: 'revoke'; deviceId: string };
+
+export interface HostedDeviceInvite {
+    url: string;
+    expiresAt: string;
+}
+
+export interface HostedDeviceList {
+    pending: {
+        claimId: string;
+        inviteId: string;
+        name: string;
+        confirmationCode: string;
+    }[];
+    devices: { id: string; name: string }[];
+}
+
+export interface HostedDeviceResults {
+    invite: HostedDeviceInvite;
+    list: HostedDeviceList;
+    approve: void;
+    revoke: void;
+}
 
 export const HOSTED_SERVER_PORT = 4334;
 export const HOSTED_SERVER_HTTPS_PORT = 4335;

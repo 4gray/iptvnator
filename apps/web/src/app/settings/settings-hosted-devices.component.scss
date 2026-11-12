@@ -1,0 +1,30 @@
+.device-list {
+    width: 100%;
+}
+
+.device-list[hidden] {
+    display: none;
+}
+
+.device-rows {
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+}
+
+.device-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 12px;
+    padding-block: 4px;
+    border-block-start: 1px solid var(--app-widget-border);
+}
+
+.device-name {
+    flex: 1 1 10ch;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: var(--app-heading-color);
+}

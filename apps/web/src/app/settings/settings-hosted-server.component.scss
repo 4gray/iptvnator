@@ -77,6 +77,12 @@
     line-height: 0;
 }
 
+.hosted-address-qr {
+    display: grid;
+    justify-items: center;
+    gap: 4px;
+}
+
 .hosted-warning {
     margin: 0;
     max-width: 64ch;

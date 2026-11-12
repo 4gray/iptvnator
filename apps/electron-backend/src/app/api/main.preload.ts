@@ -1,4 +1,4 @@
-import { HOSTED_SERVER_ACCESS_CODE, HOSTED_SERVER_CONTROL, HOSTED_CLOUDFLARE_CONTROL } from '@iptvnator/shared/interfaces';
+import { HOSTED_SERVER_ACCESS_CODE, HOSTED_SERVER_CONTROL, HOSTED_CLOUDFLARE_CONTROL, HOSTED_DEVICE_CONTROL } from '@iptvnator/shared/interfaces';
 import { createAppMenuListener } from './app-menu-listener';
 import type {
     ElectronBridgeFavoriteReorderUpdate,
@@ -322,6 +322,7 @@ const electronApi: ElectronBridgeApi = {
     hostedCloudflareControl: (command) => ipcRenderer.invoke(HOSTED_CLOUDFLARE_CONTROL, command),
     hostedServerControl: (command) => ipcRenderer.invoke(HOSTED_SERVER_CONTROL, command),
     hostedServerAccessCode: () => ipcRenderer.invoke(HOSTED_SERVER_ACCESS_CODE),
+    hostedDeviceControl: (command) => ipcRenderer.invoke(HOSTED_DEVICE_CONTROL, command),
     sourceSyncConfigure: (url, token, restart) =>
         ipcRenderer.invoke(SOURCE_SYNC_CONFIGURE, url, token, restart),
     sourceSyncDisconnect: () => ipcRenderer.invoke(SOURCE_SYNC_DISCONNECT),

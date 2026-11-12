@@ -6,6 +6,7 @@ import { app, ipcMain, utilityProcess, type BrowserWindow } from 'electron';
 import { getIptvnatorDataRoot } from '@iptvnator/shared/database/path-utils';
 import {
     HOSTED_CLOUDFLARE_CONTROL,
+    HOSTED_DEVICE_CONTROL,
     HOSTED_SERVER_ACCESS_CODE,
     HOSTED_SERVER_CONTROL,
     HOSTED_SERVER_PORT,
@@ -141,6 +142,101 @@ describe('desktop hosted server lifecycle', () => {
         await stopHostedServerForRestart();
         jest.restoreAllMocks();
         rmSync(directory, { recursive: true, force: true });
+    });
+
+    it('uses guarded loopback IPC for device pairing and management', async () => {
+        addAssets(
+            join(directory, 'hosted-backend/main.cjs'),
+            join(directory, 'hosted-pwa')
+        );
+        const fetchMock = jest.spyOn(globalThis, 'fetch');
+        const invite = () =>
+            invoke(HOSTED_DEVICE_CONTROL, { action: 'invite' });
+        await expect(invite()).rejects.toThrow('Hosted server is unavailable');
+        nextWorker(ready);
+        await control({ start: true });
+        await expect(invite()).rejects.toThrow(
+            'Home network sharing is unavailable'
+        );
+        expect(fetchMock).not.toHaveBeenCalled();
+        await control('stop');
+        nextWorker(ready);
+        await control({ start: true, lanAddress });
+        expect(() =>
+            invoke(
+                HOSTED_DEVICE_CONTROL,
+                { action: 'list' },
+                {
+                    ...event,
+                    senderFrame: {},
+                }
+            )
+        ).toThrow('Invalid hosted server request');
+
+        const inviteId = 'a'.repeat(43);
+        const claimId = 'b'.repeat(43);
+        const deviceId = '00000000-0000-4000-8000-000000000000';
+        const expiresAt = '2030-01-01T12:00:00.000Z';
+        const pending = {
+            claimId,
+            inviteId,
+            name: 'Synthetic phone',
+            confirmationCode: '012345',
+        };
+        const device = { id: deviceId, name: 'Synthetic tablet' };
+        fetchMock.mockResolvedValueOnce(Response.json({ inviteId, expiresAt }));
+        fetchMock.mockResolvedValueOnce(
+            Response.json({
+                pending: [{ ...pending, claimSecret: 'synthetic-secret' }],
+                devices: [{ ...device, token: 'synthetic-token' }],
+            })
+        );
+        fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
+        fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+        await expect(invite()).resolves.toEqual({
+            url: `${lanUrl}/pair-device#${inviteId}`,
+            expiresAt,
+        });
+        await expect(
+            invoke(HOSTED_DEVICE_CONTROL, { action: 'list' })
+        ).resolves.toEqual({ pending: [pending], devices: [device] });
+        await expect(
+            invoke(HOSTED_DEVICE_CONTROL, { action: 'approve', claimId })
+        ).resolves.toBeUndefined();
+        await expect(
+            invoke(HOSTED_DEVICE_CONTROL, { action: 'revoke', deviceId })
+        ).resolves.toBeUndefined();
+        await expect(
+            invoke(HOSTED_DEVICE_CONTROL, {
+                action: 'revoke',
+                deviceId: '../devices',
+            })
+        ).rejects.toThrow('Invalid hosted device ID');
+        expect(
+            fetchMock.mock.calls.map(([url, options]) => [
+                url,
+                options?.method,
+                options?.body,
+            ])
+        ).toEqual([
+            [`${localUrl}/api/v1/device-pairing/invite`, 'POST', undefined],
+            [`${localUrl}/api/v1/devices`, undefined, undefined],
+            [
+                `${localUrl}/api/v1/device-pairing/approve`,
+                'POST',
+                JSON.stringify({ claimId }),
+            ],
+            [`${localUrl}/api/v1/devices/${deviceId}`, 'DELETE', undefined],
+        ]);
+        for (const [, options] of fetchMock.mock.calls) {
+            expect(options).toMatchObject({
+                headers: {
+                    Authorization: `Bearer ${getHostedServerAccessCode()}`,
+                },
+                redirect: 'error',
+            });
+        }
     });
 
     it('inherits the parent environment and overrides hosted server settings', async () => {
