@@ -114,7 +114,7 @@ export interface NativeEmbeddedMpvAddon {
      * absolute fallback in `EmbeddedMpvNativeService.seekBy`.
      */
     seekBy?(sessionId: string, deltaSeconds: number): void;
-    setVolume(sessionId: string, volume: number): void;
+    setVolume(sessionId: string, volume: number): void | Promise<void>;
     setAudioTrack(sessionId: string, trackId: number): void;
     setSubtitleTrack?(sessionId: string, trackId: number): void;
     addSubtitle?(sessionId: string, filePath: string): void;
@@ -780,9 +780,12 @@ export class EmbeddedMpvNativeService {
         }
     }
 
-    setVolume(sessionId: string, volume: number): EmbeddedMpvSession | null {
+    async setVolume(
+        sessionId: string,
+        volume: number
+    ): Promise<EmbeddedMpvSession | null> {
         this.assertEmbeddedMpvEnabled();
-        this.getAddon().setVolume(sessionId, volume);
+        await this.getAddon().setVolume(sessionId, volume);
         return this.refreshSession(sessionId);
     }
 

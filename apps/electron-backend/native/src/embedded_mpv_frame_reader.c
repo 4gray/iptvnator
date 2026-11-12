@@ -14,6 +14,7 @@
  */
 #define NAPI_VERSION 8
 #include <node_api.h>
+#include <stdlib.h>
 
 #if defined(__APPLE__) || defined(__linux__) || defined(_WIN32)
 
@@ -45,24 +46,37 @@ using std::memory_order_relaxed;
 
 #endif
 
-static FrameShmHeader* g_header = NULL;
-static uint8_t* g_base = NULL;
-static size_t g_size = 0;
+typedef struct {
+    FrameShmHeader* header;
+    uint8_t* base;
+    size_t size;
+} FrameReader;
+
+static FrameReader* get_reader(napi_env env, napi_callback_info info) {
+    napi_value self;
+    napi_get_cb_info(env, info, NULL, NULL, &self, NULL);
+    FrameReader* reader = NULL;
+    if (napi_unwrap(env, self, (void**)&reader) != napi_ok || !reader) {
+        napi_throw_error(env, NULL, "invalid frame reader receiver");
+        return NULL;
+    }
+    return reader;
+}
 
 /* Same clock as the helper's produce_time_ns/heartbeat_ns writers. */
 static uint64_t now_ns(void) { return frame_shm_now_ns(); }
 
-static void unmap_current(void) {
-    if (g_base) {
+static void unmap_current(FrameReader* reader) {
+    if (reader->base) {
 #if defined(_WIN32)
-        UnmapViewOfFile(g_base);
+        UnmapViewOfFile(reader->base);
 #else
-        munmap(g_base, g_size);
+        munmap(reader->base, reader->size);
 #endif
     }
-    g_base = NULL;
-    g_header = NULL;
-    g_size = 0;
+    reader->base = NULL;
+    reader->header = NULL;
+    reader->size = 0;
 }
 
 static napi_value throw_error(napi_env env, const char* message) {
@@ -79,6 +93,8 @@ static void set_named_double(napi_env env, napi_value target, const char* key,
 
 /* open(name) -> { width, height, stride, frameBytes, generation } */
 static napi_value Open(napi_env env, napi_callback_info info) {
+    FrameReader* reader = get_reader(env, info);
+    if (!reader) return NULL;
     size_t argc = 1;
     napi_value argv[1];
     napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
@@ -134,10 +150,10 @@ static napi_value Open(napi_env env, napi_callback_info info) {
         return throw_error(env, "frame ring not initialized yet");
     }
 
-    unmap_current();
-    g_base = (uint8_t*)mapped;
-    g_size = segment_size;
-    g_header = header;
+    unmap_current(reader);
+    reader->base = (uint8_t*)mapped;
+    reader->size = segment_size;
+    reader->header = header;
 
     napi_value result;
     napi_create_object(env, &result);
@@ -151,10 +167,12 @@ static napi_value Open(napi_env env, napi_callback_info info) {
 
 /* latestSeq() -> number (0 = no frame yet / not attached) */
 static napi_value LatestSeq(napi_env env, napi_callback_info info) {
+    FrameReader* reader = get_reader(env, info);
+    if (!reader) return NULL;
     napi_value result;
     const uint64_t seq =
-        g_header
-            ? atomic_load_explicit(&g_header->latest_seq, memory_order_acquire)
+        reader->header
+            ? atomic_load_explicit(&reader->header->latest_seq, memory_order_acquire)
             : 0;
     napi_create_double(env, (double)seq, &result);
     return result;
@@ -162,10 +180,12 @@ static napi_value LatestSeq(napi_env env, napi_callback_info info) {
 
 /* copyLatest(arrayBuffer) -> { seq, ageMs, torn } | null */
 static napi_value CopyLatest(napi_env env, napi_callback_info info) {
+    FrameReader* reader = get_reader(env, info);
+    if (!reader) return NULL;
     size_t argc = 1;
     napi_value argv[1];
     napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
-    if (!g_header) return throw_error(env, "call open() first");
+    if (!reader->header) return throw_error(env, "call open() first");
     if (argc < 1) return throw_error(env, "copyLatest(buffer) needs a buffer");
 
     void* destination = NULL;
@@ -174,7 +194,7 @@ static napi_value CopyLatest(napi_env env, napi_callback_info info) {
                                   &destination_size) != napi_ok) {
         return throw_error(env, "argument must be an ArrayBuffer");
     }
-    if (destination_size < g_header->frame_bytes) {
+    if (destination_size < reader->header->frame_bytes) {
         return throw_error(env, "buffer smaller than one frame");
     }
 
@@ -182,18 +202,18 @@ static napi_value CopyLatest(napi_env env, napi_callback_info info) {
     napi_get_null(env, &null_value);
 
     const uint64_t seq =
-        atomic_load_explicit(&g_header->latest_seq, memory_order_acquire);
+        atomic_load_explicit(&reader->header->latest_seq, memory_order_acquire);
     if (seq == 0) return null_value;
 
-    FrameShmSlot* slot = &g_header->slots[seq % FRAME_SHM_RING_SLOTS];
+    FrameShmSlot* slot = &reader->header->slots[seq % FRAME_SHM_RING_SLOTS];
     if (atomic_load_explicit(&slot->seq, memory_order_acquire) != seq) {
         return null_value; /* writer is racing this slot; next tick wins */
     }
 
-    const uint8_t* source = g_base + g_header->data_offset +
+    const uint8_t* source = reader->base + reader->header->data_offset +
                             (seq % FRAME_SHM_RING_SLOTS) *
-                                g_header->frame_bytes;
-    memcpy(destination, source, (size_t)g_header->frame_bytes);
+                                reader->header->frame_bytes;
+    memcpy(destination, source, (size_t)reader->header->frame_bytes);
     const uint64_t copied_at = now_ns();
     const int torn =
         atomic_load_explicit(&slot->seq, memory_order_acquire) != seq;
@@ -211,11 +231,13 @@ static napi_value CopyLatest(napi_env env, napi_callback_info info) {
 
 /* producerAliveMs() -> ms since the helper's last heartbeat (-1 unknown) */
 static napi_value ProducerAliveMs(napi_env env, napi_callback_info info) {
+    FrameReader* reader = get_reader(env, info);
+    if (!reader) return NULL;
     napi_value result;
     double ms = -1;
-    if (g_header) {
+    if (reader->header) {
         const uint64_t heartbeat =
-            atomic_load_explicit(&g_header->heartbeat_ns, memory_order_relaxed);
+            atomic_load_explicit(&reader->header->heartbeat_ns, memory_order_relaxed);
         if (heartbeat) ms = (double)(now_ns() - heartbeat) / 1e6;
     }
     napi_create_double(env, ms, &result);
@@ -224,13 +246,29 @@ static napi_value ProducerAliveMs(napi_env env, napi_callback_info info) {
 
 /* close() -> undefined */
 static napi_value Close(napi_env env, napi_callback_info info) {
-    unmap_current();
+    FrameReader* reader = get_reader(env, info);
+    if (!reader) return NULL;
+    unmap_current(reader);
     napi_value undefined;
     napi_get_undefined(env, &undefined);
     return undefined;
 }
 
-static napi_value Init(napi_env env, napi_value exports) {
+static void finalize_reader(napi_env env, void* data, void* hint) {
+    (void)env;
+    (void)hint;
+    FrameReader* reader = (FrameReader*)data;
+    unmap_current(reader);
+    free(reader);
+}
+
+static napi_value initialize_reader(napi_env env, napi_value exports) {
+    FrameReader* reader = (FrameReader*)calloc(1, sizeof(FrameReader));
+    if (!reader) return throw_error(env, "frame reader allocation failed");
+    if (napi_wrap(env, exports, reader, finalize_reader, NULL, NULL) != napi_ok) {
+        free(reader);
+        return throw_error(env, "frame reader initialization failed");
+    }
     const struct {
         const char* name;
         napi_callback fn;
@@ -247,6 +285,22 @@ static napi_value Init(napi_env env, napi_value exports) {
                              exported[i].fn, NULL, &fn);
         napi_set_named_property(env, exports, exported[i].name, fn);
     }
+    return exports;
+}
+
+static napi_value CreateReader(napi_env env, napi_callback_info info) {
+    (void)info;
+    napi_value instance;
+    napi_create_object(env, &instance);
+    return initialize_reader(env, instance);
+}
+
+static napi_value Init(napi_env env, napi_value exports) {
+    initialize_reader(env, exports);
+    napi_value factory;
+    napi_create_function(env, "createReader", NAPI_AUTO_LENGTH,
+                         CreateReader, NULL, &factory);
+    napi_set_named_property(env, exports, "createReader", factory);
     return exports;
 }
 

@@ -85,9 +85,9 @@ describe('EmbeddedMpvSessionController position drift poll', () => {
 
     it('re-syncs when the host moves without resizing, and stays silent otherwise', async () => {
         const rect = { left: 10, top: 20, width: 640, height: 360 };
-        const host = {
+        const host = Object.assign(document.createElement('div'), {
             getBoundingClientRect: () => ({ ...rect }),
-        } as HTMLElement;
+        });
 
         const controller = TestBed.inject(EmbeddedMpvSessionController);
         const teardown = controller.startSession(host, createPlayback(), 0.5);
@@ -144,9 +144,9 @@ describe('EmbeddedMpvSessionController position drift poll', () => {
         electron.detachEmbeddedMpvFrameView = jest.fn();
 
         const rect = { left: 10, top: 20, width: 640, height: 360 };
-        const host = {
+        const host = Object.assign(document.createElement('div'), {
             getBoundingClientRect: () => ({ ...rect }),
-        } as HTMLElement;
+        });
 
         const controller = TestBed.inject(EmbeddedMpvSessionController);
         await waitFor(
@@ -173,14 +173,14 @@ describe('EmbeddedMpvSessionController position drift poll', () => {
 });
 
 function createHost(): HTMLElement {
-    return {
+    return Object.assign(document.createElement('div'), {
         getBoundingClientRect: () => ({
             left: 10,
             top: 20,
             width: 640,
             height: 360,
         }),
-    } as HTMLElement;
+    });
 }
 
 function createPlayback(): ResolvedPortalPlayback {

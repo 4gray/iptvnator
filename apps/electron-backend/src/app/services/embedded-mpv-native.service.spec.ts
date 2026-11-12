@@ -664,7 +664,7 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         });
     });
 
-    it('passes engine stream stats through to the renderer session', () => {
+    it('passes engine stream stats through to the renderer session', async () => {
         startSession('s1', snapshot('playing'));
         addon.getSessionSnapshot.mockReturnValue(
             snapshot('playing', {
@@ -677,7 +677,7 @@ describe('EmbeddedMpvNativeService power blocker', () => {
             })
         );
 
-        expect(service.setVolume('s1', 1)?.stats).toEqual({
+        expect((await service.setVolume('s1', 1))?.stats).toEqual({
             fps: 50,
             videoBitrateBps: 6_000_000,
             videoCodec: 'h264',
@@ -685,7 +685,7 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         });
     });
 
-    it('passes validated file chapters through to the renderer session', () => {
+    it('passes validated file chapters through to the renderer session', async () => {
         startSession('s1', snapshot('playing'));
         addon.getSessionSnapshot.mockReturnValue(
             snapshot('playing', {
@@ -697,13 +697,13 @@ describe('EmbeddedMpvNativeService power blocker', () => {
             })
         );
 
-        expect(service.setVolume('s1', 1)?.chapters).toEqual([
+        expect((await service.setVolume('s1', 1))?.chapters).toEqual([
             { timeSeconds: 0, title: 'Intro' },
             { timeSeconds: 1320, title: 'Credits' },
         ]);
     });
 
-    it('omits the stats key entirely when the engine reports none', () => {
+    it('omits the stats key entirely when the engine reports none', async () => {
         // An empty object would make the renderer render an empty popover
         // instead of hiding the info button.
         startSession('s1', snapshot('playing'));
@@ -711,7 +711,7 @@ describe('EmbeddedMpvNativeService power blocker', () => {
             snapshot('playing', { stats: {} })
         );
 
-        expect(service.setVolume('s1', 1)).not.toHaveProperty('stats');
+        expect(await service.setVolume('s1', 1)).not.toHaveProperty('stats');
     });
 
     it('seekBy forwards the delta to the addon as a relative seek and refreshes the snapshot', () => {

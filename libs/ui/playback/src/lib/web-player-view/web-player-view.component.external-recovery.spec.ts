@@ -32,6 +32,7 @@ import type { WebPlayerViewComponent as WebPlayerViewComponentInstance } from '.
 import {
     StubArtPlayerComponent,
     StubEmbeddedMpvPlayerComponent,
+    StubSecondStreamComponent,
     StubFullscreenChannelPanelComponent,
     StubHtmlVideoPlayerComponent,
     StubVjsPlayerComponent,
@@ -113,6 +114,7 @@ describe('WebPlayerViewComponent external recovery integration', () => {
                         PlaybackDiagnosticPanelComponent,
                         StubArtPlayerComponent,
                         StubEmbeddedMpvPlayerComponent,
+                        StubSecondStreamComponent,
                         StubFullscreenChannelPanelComponent,
                         StubHtmlVideoPlayerComponent,
                         StubVjsPlayerComponent,

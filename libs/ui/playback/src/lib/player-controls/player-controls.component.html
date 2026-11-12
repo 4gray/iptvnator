@@ -38,7 +38,7 @@
     </div>
 }
 
-@if (showControls() && capabilities().streamStats) {
+@if (showControls() && (canAddSecondStream() || capabilities().streamStats)) {
     <div
         class="player-controls__corner"
         [class.player-controls__corner--visible]="controlsAreVisible()"
@@ -53,57 +53,73 @@
         (focusin)="chrome.onFocusIn($event)"
         (focusout)="chrome.onFocusOut($event)"
     >
-        <div class="player-controls__popover-anchor">
+        @if (canAddSecondStream()) {
             <button
                 mat-icon-button
                 type="button"
                 class="player-controls__button"
-                data-test-id="player-controls-stream-info-button"
-                (click)="toggleMenu('stats')"
-                [attr.aria-expanded]="menus.statsOpen()"
-                [attr.aria-label]="
-                    'EMBEDDED_MPV.PLAYER.STREAM_INFO' | translate
-                "
-                [matTooltip]="'EMBEDDED_MPV.PLAYER.STREAM_INFO' | translate"
+                data-test-id="player-controls-second-stream-button"
+                (click)="secondStreamRequested.emit()"
+                [attr.aria-label]="'TWO_STREAMS.ADD' | translate"
+                [matTooltip]="'TWO_STREAMS.ADD' | translate"
                 matTooltipPosition="below"
             >
-                <mat-icon>info_outline</mat-icon>
+                <mat-icon>picture_in_picture_alt</mat-icon>
             </button>
-            @if (menus.statsOpen()) {
-                <div
-                    class="player-controls__panel player-controls__stats-popover"
-                    role="dialog"
-                    data-test-id="player-controls-stream-info-panel"
+        }
+        @if (capabilities().streamStats) {
+            <div class="player-controls__popover-anchor">
+                <button
+                    mat-icon-button
+                    type="button"
+                    class="player-controls__button"
+                    data-test-id="player-controls-stream-info-button"
+                    (click)="toggleMenu('stats')"
+                    [attr.aria-expanded]="menus.statsOpen()"
                     [attr.aria-label]="
                         'EMBEDDED_MPV.PLAYER.STREAM_INFO' | translate
                     "
+                    [matTooltip]="'EMBEDDED_MPV.PLAYER.STREAM_INFO' | translate"
+                    matTooltipPosition="below"
                 >
-                    <div class="player-controls__menu-title">
-                        {{ 'EMBEDDED_MPV.PLAYER.STREAM_INFO' | translate }}
-                    </div>
-                    @if (streamStats.hasRows()) {
-                        <dl class="player-controls__stats-list">
-                            @for (
-                                row of streamStats.rows();
-                                track row.labelKey
-                            ) {
-                                <div class="player-controls__stats-row">
-                                    <dt>{{ row.labelKey | translate }}</dt>
-                                    <dd>{{ row.value }}</dd>
-                                </div>
-                            }
-                        </dl>
-                    } @else {
-                        <div class="player-controls__stats-empty">
-                            {{
-                                'EMBEDDED_MPV.PLAYER.STATS_UNAVAILABLE'
-                                    | translate
-                            }}
+                    <mat-icon>info_outline</mat-icon>
+                </button>
+                @if (menus.statsOpen()) {
+                    <div
+                        class="player-controls__panel player-controls__stats-popover"
+                        role="dialog"
+                        data-test-id="player-controls-stream-info-panel"
+                        [attr.aria-label]="
+                            'EMBEDDED_MPV.PLAYER.STREAM_INFO' | translate
+                        "
+                    >
+                        <div class="player-controls__menu-title">
+                            {{ 'EMBEDDED_MPV.PLAYER.STREAM_INFO' | translate }}
                         </div>
-                    }
-                </div>
-            }
-        </div>
+                        @if (streamStats.hasRows()) {
+                            <dl class="player-controls__stats-list">
+                                @for (
+                                    row of streamStats.rows();
+                                    track row.labelKey
+                                ) {
+                                    <div class="player-controls__stats-row">
+                                        <dt>{{ row.labelKey | translate }}</dt>
+                                        <dd>{{ row.value }}</dd>
+                                    </div>
+                                }
+                            </dl>
+                        } @else {
+                            <div class="player-controls__stats-empty">
+                                {{
+                                    'EMBEDDED_MPV.PLAYER.STATS_UNAVAILABLE'
+                                        | translate
+                                }}
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
     </div>
 }
 

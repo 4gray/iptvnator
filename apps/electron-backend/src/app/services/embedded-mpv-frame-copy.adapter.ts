@@ -1,4 +1,5 @@
 import { ChildProcessWithoutNullStreams, spawn } from 'child_process';
+import { EmbeddedMpvCommandAck } from './embedded-mpv-command-ack';
 import { randomUUID } from 'crypto';
 import path from 'path';
 import {
@@ -52,12 +53,14 @@ export interface EmbeddedMpvFrameCopyAdapterOptions {
 
 interface FrameCopyRuntimeSession {
     id: string;
+    acknowledgements: EmbeddedMpvCommandAck;
     child: ChildProcessWithoutNullStreams;
     snapshot: NativeEmbeddedMpvSessionSnapshot;
     frameSource: EmbeddedMpvFrameSource | null;
     stdoutBuffer: string;
     disposed: boolean;
     killTimers: NodeJS.Timeout[];
+    audioFailureTeardown?: Promise<void>;
 }
 
 const HELPER_QUIT_GRACE_MS = 500;
@@ -117,6 +120,7 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
         );
         const session: FrameCopyRuntimeSession = {
             id: sessionId,
+            acknowledgements: new EmbeddedMpvCommandAck(),
             child,
             snapshot: createInitialSnapshot(),
             frameSource: null,
@@ -147,6 +151,7 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
             session.snapshot.errorOrigin = 'engine';
         });
         child.on('exit', (code, signal) => {
+            session.acknowledgements.close();
             console.log(
                 `[embedded-mpv-fc][${sessionId}] exit code=${code} signal=${signal} disposed=${session.disposed}`
             );
@@ -224,8 +229,25 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
         this.send(sessionId, `seek-by\tseconds=${deltaSeconds}`);
     }
 
-    setVolume(sessionId: string, volume: number): void {
-        this.send(sessionId, `volume\tvalue=${volume}`);
+    setVolume(sessionId: string, volume: number): Promise<void> {
+        const session = this.sessions.get(sessionId);
+        if (!session) return Promise.reject(new Error('MPV session closed'));
+        return session.acknowledgements
+            .send((requestId) =>
+                this.send(
+                    sessionId,
+                    `volume\tvalue=${volume}\trequestId=${requestId}`
+                )
+            )
+            .then(() => {
+                session.snapshot.volume = Math.min(1, Math.max(0, volume));
+            })
+            .catch(async (error: unknown) => {
+                // An unacknowledged unmute may have succeeded. Fail closed.
+                await (session.audioFailureTeardown ??=
+                    this.stopAudioHelper(session));
+                throw error;
+            });
     }
 
     setAudioTrack(sessionId: string, trackId: number): void {
@@ -308,7 +330,30 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
                 if (child.exitCode === null) child.kill('SIGKILL');
             }, HELPER_KILL_GRACE_MS)
         );
+        session.acknowledgements.close();
         this.sessions.delete(sessionId);
+    }
+
+    private stopAudioHelper(session: FrameCopyRuntimeSession): Promise<void> {
+        const child = session.child;
+        if (
+            child.exitCode !== null ||
+            child.signalCode !== null ||
+            child.pid === undefined
+        ) {
+            return Promise.resolve();
+        }
+        return new Promise((resolve) => {
+            const timer = setTimeout(
+                () => child.kill('SIGKILL'),
+                HELPER_QUIT_GRACE_MS
+            );
+            child.once('exit', () => {
+                clearTimeout(timer);
+                resolve();
+            });
+            child.kill('SIGTERM');
+        });
     }
 
     private send(sessionId: string, line: string): void {
@@ -340,7 +385,9 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
             newlineIndex = session.stdoutBuffer.indexOf('\n');
             if (!line) continue;
             try {
-                applyHelperEvent(session, JSON.parse(line), {
+                const event = JSON.parse(line);
+                if (session.acknowledgements.accept(event)) continue;
+                applyHelperEvent(session, event, {
                     resolveReaderPath: () => this.resolveReaderPath(),
                     // Call through `this.options` so a callback that relies on
                     // its own receiver keeps working, as it did inline.

@@ -1,3 +1,4 @@
+import { SecondStreamPosition } from '../second-stream/second-stream-position';
 import { Component, input, model, output, signal } from '@angular/core';
 import type { PlaybackDiagnostic } from '@iptvnator/playback/util';
 import type {
@@ -99,6 +100,13 @@ export class StubFullscreenChannelPanelComponent {
     template: '<div data-test-id="stub-embedded-mpv-player"></div>',
 })
 export class StubEmbeddedMpvPlayerComponent {
+    // Host presentation is exercised with real popovers in Electron E2E.
+    readonly appSecondStreamFloating = input(false);
+    readonly showControls = input(true);
+    readonly canAddSecondStream = input(false);
+    readonly secondStreamRequested = output<void>();
+    readonly retryEnabled = input(true);
+    readonly initialVolumeOverride = input<number | null>(null);
     readonly support = signal<EmbeddedMpvSupport | null>(null);
     readonly liveSubtitlesOff = model(false);
     readonly playback = input.required<unknown>();
@@ -114,4 +122,15 @@ export class StubEmbeddedMpvPlayerComponent {
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
     readonly recordingStopped = output<RecordingStoppedEvent>();
+}
+
+@Component({ selector: 'app-second-stream', template: '' })
+export class StubSecondStreamComponent {
+    readonly editing = signal(false);
+    readonly placement = new SecondStreamPosition();
+    readonly active = signal(false);
+    readonly primary = input<unknown>();
+    readonly fullscreenTarget = input<HTMLElement | null>(null);
+    readonly swapped = signal(false);
+    readonly busy = signal(false);
 }

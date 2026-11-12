@@ -23,6 +23,7 @@ import { of } from 'rxjs';
 import {
     StubArtPlayerComponent,
     StubEmbeddedMpvPlayerComponent,
+    StubSecondStreamComponent,
     StubFullscreenChannelPanelComponent,
     StubHtmlVideoPlayerComponent,
     StubVjsPlayerComponent,
@@ -93,6 +94,7 @@ describe('WebPlayerViewComponent playback history', () => {
                     imports: [
                         StubArtPlayerComponent,
                         StubEmbeddedMpvPlayerComponent,
+                        StubSecondStreamComponent,
                         StubFullscreenChannelPanelComponent,
                         StubHtmlVideoPlayerComponent,
                         StubVjsPlayerComponent,

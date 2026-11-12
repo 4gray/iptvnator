@@ -723,7 +723,8 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('EMBEDDED_MPV_DISPOSE_SESSION', sessionId),
     attachEmbeddedMpvFrameView: (sessionId: string): Promise<boolean> =>
         attachEmbeddedMpvFrameView(sessionId),
-    detachEmbeddedMpvFrameView: (): void => detachEmbeddedMpvFrameView(),
+    detachEmbeddedMpvFrameView: (sessionId?: string): void =>
+        detachEmbeddedMpvFrameView(sessionId),
     autoUpdatePlaylists: (
         playlists: Playlist[],
         options?: ElectronBridgeTrustOptions

@@ -86,14 +86,13 @@ interface PumpState {
     rafHandle: number;
 }
 
-let pump: PumpState | null = null;
+const pumps = new Map<string, PumpState>();
 let sourceListenerRegistered = false;
 /**
- * Monotonic attach epoch: bumped by every attach/detach. Async attach waits
- * re-check it after each await so a stale attach (for a session that was
- * replaced meanwhile) can never install itself over the active pump.
+ * Per-session ownership token. Async waits re-check it so a detached or
+ * replaced attach cannot install itself over that session's current pump.
  */
-let attachEpoch = 0;
+const attachEpochs = new Map<string, object>();
 
 export function copyStableLatestFrame(
     reader: Pick<FrameReaderAddon, 'latestSeq' | 'copyLatest'>,
@@ -113,11 +112,13 @@ function delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function waitForCanvas(): Promise<HTMLCanvasElement | null> {
+async function waitForCanvas(
+    sessionId: string
+): Promise<HTMLCanvasElement | null> {
     const deadline = Date.now() + ATTACH_TIMEOUT_MS;
     while (Date.now() < deadline) {
         const canvas = document.querySelector<HTMLCanvasElement>(
-            CANVAS_SELECTOR
+            `${CANVAS_SELECTOR}[data-session-id=${JSON.stringify(sessionId)}]`
         );
         if (canvas) return canvas;
         await delay(ATTACH_POLL_MS);
@@ -200,9 +201,9 @@ function applySource(
     }
 }
 
-function pumpTick(): void {
-    if (!pump) return;
-    pump.rafHandle = requestAnimationFrame(pumpTick);
+function pumpTick(pump: PumpState): void {
+    if (pumps.get(pump.sessionId) !== pump) return;
+    pump.rafHandle = requestAnimationFrame(() => pumpTick(pump));
 
     const { gl, reader, frame } = pump;
     const result = copyStableLatestFrame(
@@ -256,7 +257,8 @@ function ensureSourceListener(): void {
             _event,
             payload: { sessionId: string; source: EmbeddedMpvFrameSource }
         ) => {
-            if (!pump || payload.sessionId !== pump.sessionId) return;
+            const pump = pumps.get(payload.sessionId);
+            if (!pump) return;
             applySource(pump, payload.source);
         }
     );
@@ -265,18 +267,19 @@ function ensureSourceListener(): void {
 export async function attachEmbeddedMpvFrameView(
     sessionId: string
 ): Promise<boolean> {
-    detachEmbeddedMpvFrameView();
-    const epoch = ++attachEpoch;
+    detachEmbeddedMpvFrameView(sessionId);
+    const epoch = {};
+    attachEpochs.set(sessionId, epoch);
     ensureSourceListener();
 
-    const canvas = await waitForCanvas();
-    if (epoch !== attachEpoch) return false;
+    const canvas = await waitForCanvas(sessionId);
+    if (epoch !== attachEpochs.get(sessionId)) return false;
     if (!canvas) {
         console.error('[embedded-mpv-pump] frame canvas not found in DOM');
         return false;
     }
-    const source = await waitForFrameSource(sessionId);
-    if (epoch !== attachEpoch) return false;
+    let source = await waitForFrameSource(sessionId);
+    if (epoch !== attachEpochs.get(sessionId)) return false;
     if (!source) {
         console.error('[embedded-mpv-pump] no frame source for', sessionId);
         return false;
@@ -284,7 +287,11 @@ export async function attachEmbeddedMpvFrameView(
 
     let reader: FrameReaderAddon;
     try {
-        reader = nodeRequire(source.readerPath) as FrameReaderAddon;
+        reader = (
+            nodeRequire(source.readerPath) as {
+                createReader(): FrameReaderAddon;
+            }
+        ).createReader();
     } catch (error) {
         console.error('[embedded-mpv-pump] failed to load reader:', error);
         return false;
@@ -309,18 +316,36 @@ export async function attachEmbeddedMpvFrameView(
         sourcePending: false,
         rafHandle: 0,
     };
-    if (!applySource(state, source)) {
-        reader.close();
-        return false;
+    const deadline = Date.now() + ATTACH_TIMEOUT_MS;
+    while (!applySource(state, source)) {
+        // The helper may replace its startup ring before the reader maps it.
+        await delay(ATTACH_POLL_MS);
+        if (epoch !== attachEpochs.get(sessionId) || Date.now() >= deadline) {
+            reader.close();
+            state.gl.deleteTexture(state.texture);
+            return false;
+        }
+        const current = await waitForFrameSource(sessionId);
+        if (epoch !== attachEpochs.get(sessionId) || !current) {
+            reader.close();
+            state.gl.deleteTexture(state.texture);
+            return false;
+        }
+        source = current;
     }
 
-    pump = state;
-    pump.rafHandle = requestAnimationFrame(pumpTick);
+    pumps.set(sessionId, state);
+    state.rafHandle = requestAnimationFrame(() => pumpTick(state));
     return true;
 }
 
-export function detachEmbeddedMpvFrameView(): void {
-    attachEpoch++; // aborts any attach still waiting on canvas/frame source
+export function detachEmbeddedMpvFrameView(sessionId?: string): void {
+    if (sessionId === undefined) {
+        for (const id of attachEpochs.keys()) detachEmbeddedMpvFrameView(id);
+        return;
+    }
+    attachEpochs.delete(sessionId);
+    const pump = pumps.get(sessionId);
     if (!pump) return;
     cancelAnimationFrame(pump.rafHandle);
     pump.gl.clearColor(0, 0, 0, 1);
@@ -330,5 +355,6 @@ export function detachEmbeddedMpvFrameView(): void {
     } catch {
         // reader may already be gone with the helper; nothing to release
     }
-    pump = null;
+    pump.gl.deleteTexture(pump.texture);
+    pumps.delete(sessionId);
 }

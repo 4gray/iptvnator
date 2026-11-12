@@ -101,6 +101,33 @@ describe('PlayerControlsComponent stream info', () => {
         jest.useRealTimers();
     });
 
+    it('exposes the optional second-stream action independently of stats', () => {
+        const queryAdd = (): HTMLButtonElement | null =>
+            fixture.nativeElement.querySelector(
+                '[data-test-id="player-controls-second-stream-button"]'
+            );
+        expect(queryAdd()).toBeNull();
+        const requested = jest.fn();
+        fixture.componentInstance.secondStreamRequested.subscribe(requested);
+        fixture.componentRef.setInput('canAddSecondStream', true);
+        fixture.detectChanges();
+        const buttons = fixture.nativeElement.querySelectorAll(
+            '.player-controls__corner button'
+        );
+        expect(buttons[0]).toBe(queryAdd());
+        expect(buttons[1]).toBe(queryButton());
+        queryAdd()?.click();
+        expect(requested).toHaveBeenCalledTimes(1);
+        fake.capabilities.update((value) => ({ ...value, streamStats: false }));
+        fixture.detectChanges();
+        expect(queryButton()).toBeNull();
+        expect(queryAdd()).not.toBeNull();
+        expect(queryScrim()).not.toBeNull();
+        fixture.componentRef.setInput('showControls', false);
+        fixture.detectChanges();
+        expect(queryAdd()).toBeNull();
+    });
+
     it('renders the corner button only when the engine reports stats', () => {
         expect(queryButton()).not.toBeNull();
 

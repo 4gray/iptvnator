@@ -1478,7 +1478,7 @@ export interface ElectronBridgeApi {
      * preload builds do not ship the pump.
      */
     attachEmbeddedMpvFrameView?: (sessionId: string) => Promise<boolean>;
-    detachEmbeddedMpvFrameView?: () => void;
+    detachEmbeddedMpvFrameView?: (sessionId?: string) => void;
     downloadsStart: (
         data: ElectronBridgeDownloadStartPayload
     ) => Promise<ElectronBridgeDownloadStartResult>;

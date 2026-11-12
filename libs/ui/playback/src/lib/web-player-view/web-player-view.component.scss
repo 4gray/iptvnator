@@ -28,3 +28,53 @@ app-html-video-player {
     height: 100%;
     background: #000;
 }
+
+.embedded-mpv-pair {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+.embedded-mpv-pair--swapped > app-embedded-mpv-player {
+    position: absolute;
+    width: var(--pip-width);
+    height: var(--pip-height);
+    left: var(--pip-left);
+    top: var(--pip-top);
+    z-index: 3;
+    background: #000;
+}
+
+// Native top-layer surfaces escape player/container clipping without moving DOM.
+.embedded-mpv-floating[popover] {
+    position: fixed;
+    inset: auto;
+    left: var(--pip-left);
+    top: var(--pip-top);
+    width: var(--pip-width);
+    height: var(--pip-height);
+    margin: 0;
+    padding: 0;
+    border: 0;
+    overflow: visible;
+    color: inherit;
+}
+.embedded-mpv-floating[popover]::backdrop {
+    background: transparent;
+    pointer-events: none;
+}
+.second-stream__tile[popover] {
+    background: transparent;
+}
+
+.embedded-mpv-floating[popover]:not(:popover-open) {
+    display: none;
+}
+
+.embedded-mpv-floating[popover]:not(.second-stream__tile) {
+    --embedded-mpv-frame-radius: 8px;
+    --embedded-mpv-background: transparent;
+    border-radius: var(--embedded-mpv-frame-radius);
+    outline: 1px solid var(--app-line-strong);
+    outline-offset: -1px;
+    box-shadow: 0 8px 24px rgb(0 0 0 / 30%);
+}

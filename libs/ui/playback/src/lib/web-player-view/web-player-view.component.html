@@ -95,23 +95,48 @@
             }
         }
     } @else if (application.embeddedMpv) {
-        <app-embedded-mpv-player
-            #embeddedMpvPlayer
-            [(liveSubtitlesOff)]="embeddedMpvLiveSubtitlesOff"
-            [playback]="resolvedPlayback()"
-            [fullscreenTarget]="fullscreenSurface"
-            [mediaTitle]="resolvedMediaTitle()"
-            [upNext]="upNext()"
-            [timelineSegments]="timelineSegments()"
-            [recordingFolder]="recordingFolder()"
-            [recordingMetadata]="recordingMetadata()"
-            [seriesNavigation]="seriesNavigation()"
-            (timeUpdate)="handleTimeUpdate($event, application)"
-            (playbackEnded)="handleActivityEnded(application)"
-            (previousEpisodeRequested)="previousEpisodeRequested.emit()"
-            (nextEpisodeRequested)="nextEpisodeRequested.emit()"
-            (recordingStopped)="recordingStopped.emit($event)"
-        />
+        <div
+            class="embedded-mpv-pair"
+            [class.embedded-mpv-pair--swapped]="companion.swapped()"
+            [style.--pip-left.px]="companion.placement.geometry().left"
+            [style.--pip-top.px]="companion.placement.geometry().top"
+            [style.--pip-width.px]="companion.placement.geometry().width"
+            [style.--pip-height.px]="companion.placement.geometry().height"
+        >
+            <app-embedded-mpv-player
+                #embeddedMpvPlayer
+                [canAddSecondStream]="
+                    embeddedMpvPlayer.support()?.engine === 'frame-copy' &&
+                    !companion.active()
+                "
+                (secondStreamRequested)="companion.editing.set(true)"
+                [appSecondStreamFloating]="companion.swapped()"
+                [showControls]="!companion.busy() && !companion.swapped()"
+                [initialVolumeOverride]="companion.swapped() ? 0 : null"
+                [retryEnabled]="!companion.busy()"
+                [(liveSubtitlesOff)]="embeddedMpvLiveSubtitlesOff"
+                [playback]="resolvedPlayback()"
+                [fullscreenTarget]="fullscreenSurface"
+                [mediaTitle]="resolvedMediaTitle()"
+                [upNext]="upNext()"
+                [timelineSegments]="timelineSegments()"
+                [recordingFolder]="recordingFolder()"
+                [recordingMetadata]="recordingMetadata()"
+                [seriesNavigation]="seriesNavigation()"
+                (timeUpdate)="handleTimeUpdate($event, application)"
+                (playbackEnded)="
+                    companion.active() ? null : handleActivityEnded(application)
+                "
+                (previousEpisodeRequested)="previousEpisodeRequested.emit()"
+                (nextEpisodeRequested)="nextEpisodeRequested.emit()"
+                (recordingStopped)="recordingStopped.emit($event)"
+            />
+            <app-second-stream
+                #companion
+                [primary]="embeddedMpvPlayer"
+                [fullscreenTarget]="fullscreenSurface"
+            />
+        </div>
     }
 }
 

@@ -278,6 +278,9 @@ export class EmbeddedMpvSessionController {
                 // attach (no canvas, no WebGL2, reader missing) must surface
                 // as a session error — otherwise the helper keeps playing
                 // audio behind a black canvas with no recovery UI.
+                host.querySelector(
+                    'canvas[data-embedded-mpv-frame]'
+                )?.setAttribute('data-session-id', created.id);
                 const attached = await electron
                     .attachEmbeddedMpvFrameView?.(created.id)
                     .catch(() => false);
@@ -336,7 +339,7 @@ export class EmbeddedMpvSessionController {
 
             if (id) {
                 if (untracked(() => this.isFrameCopyEngine())) {
-                    window.electron?.detachEmbeddedMpvFrameView?.();
+                    window.electron?.detachEmbeddedMpvFrameView?.(id);
                 }
                 void window.electron?.disposeEmbeddedMpvSession(id);
             }

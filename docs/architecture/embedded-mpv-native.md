@@ -516,6 +516,73 @@ Trade-offs and constraints:
   `error` (renderer falls back); it can never take down the Electron main
   process, unlike in-process libmpv.
 
+## Two-view frame-copy prototype
+
+Electron frame-copy playback exposes an icon-only “Add second stream” action
+in the shared player controls, left of Stream info, with a localized tooltip.
+It follows the controls’ visibility and disappears while the companion is active.
+Its lazy in-player picker starts with global live favorites and offers saved
+playlists → groups → channels with search. It reads M3U, Xtream and Stalker
+catalogs independently of the active provider selection and uses the shared
+stream resolver, preserving playback metadata and parental locks. The companion
+starts muted; the provider must permit two connections. Closing the companion returns to the original
+mounted video. Route/content replacement still ends both views. Live pause
+uses MPV pause only and does not promise timeshift or an application buffer.
+
+The primary and companion retain their components and session IDs during
+main/small exchange. CSS changes their geometry; bounds sync resizes each
+helper's render target without loading the media again. Keyboard focus has no
+playback or audio side effect. Only the main view exposes shared controls;
+the small view has exchange, pause/resume, change channel and close-and-return
+controls. Change channel reopens the same picker. Selection replaces only the
+companion session and starts it muted. If the views are swapped, the original
+video and its sound return to the main view before the replacement starts.
+A pointer drag handle and arrow keys move the small view anywhere
+inside the application viewport, including over channel and EPG panes. The
+existing small canvas and controls use manual DOM popovers to escape ancestor
+clipping without reparenting or remounting playback. Controls are promoted after
+the canvas on exchange/fullscreen changes. Both floating surfaces hide while a
+modal or backdrop overlay is active, retaining their sessions and yielding input
+to that overlay. Viewport-relative coordinates clamp
+the whole tile on viewport resize. Small-view width starts at 320 CSS pixels;
+its two lower corners show resize cursors. The window resizes at 16:9 between
+240 and 640 pixels, further limited by the viewport. Arrow keys and Home/End on the handles adjust width.
+Size changes update both mounted canvas bounds without changing session IDs.
+Leaving fullscreen restores both prior window placement and preferred size.
+Rounded corners, a thin outline and a soft shadow separate the video from
+surrounding panes. Individual controls and labels use dark translucent backings rather than opaque full-width bars.
+Overlay controls appear on hover or keyboard focus (always visible on devices
+without hover). The channel picker traps focus and closes on selection, Escape
+or backdrop click, rather than disappearing on pointer leave. While a
+companion is open, primary end-of-file does not trigger episode autoplay.
+If sound transfer fails while closing, the companion still closes and the
+retained primary stays muted; its volume control remains available.
+
+Preload frame pumps, attach cancellation epochs, canvases and native readers
+are session-owned. The renderer binds `data-session-id` before attaching and
+passes that exact ID on detach. `createReader()` creates an independently
+mapped N-API reader with explicit close and a GC finalizer. Module-level
+reader methods remain available for existing runtime probes. A stale attach
+or a resize of one session cannot replace the other's reader or canvas.
+
+Frame-copy volume commands carry a per-helper request ID. The helper replies
+only after synchronous `mpv_set_property` completes; the adapter rejects a
+failed command, helper exit or a three-second acknowledgement timeout. The
+volume IPC awaits that acknowledgement. If command completion is ambiguous,
+the adapter terminates that exact helper (SIGTERM, then SIGKILL after 500 ms)
+and awaits its exit before rejecting IPC; the old controls cannot then unmute
+alongside a helper whose unmute may have succeeded. Main/small exchange disables
+player interaction, including Retry, while it mutes the outgoing session, awaits
+native completion, and then enables the incoming one. A failed mute never enables
+the incoming audio.
+The audible view retains its selected volume across Retry; a small view always
+restarts muted. No generic multi-player state is added to provider stores or
+other engines.
+
+This is an Electron-only prototype on the existing experimental engine gate.
+Local real-runtime acceptance covers macOS arm64; it is not proof of Windows
+or Linux readiness. See `two-stream-mpv.e2e.ts` for synthetic Electron coverage.
+
 ## Resume And Track Handling
 
 `ResolvedPortalPlayback.startTime` is treated as a media offset in seconds for VOD and episodes. The native addon passes it as the `start` option in one MPV `loadfile` options map together with title, user agent, referrer, and HTTP headers.
