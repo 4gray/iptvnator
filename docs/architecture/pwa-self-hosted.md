@@ -862,6 +862,9 @@ Overflow destroys the body stream and returns a size error with status 413 and
 envelope. This is not a host-connectivity failure. The limit is per response;
 it is not a total process-memory or concurrent-request budget.
 
+When this error blocks an Xtream import, the browser identifies the response
+limit as the cause and explains how to raise it on the server before retrying.
+
 ### Provider redirects and connection policy
 
 `ValidatedHttpClient` applies the registration URL policy again before every

@@ -248,6 +248,43 @@ test('@self-hosted keeps the original library with a legacy proxy lacking discov
     ).toBeNull();
 });
 
+test('@self-hosted Xtream explains how to recover when the catalog exceeds the server limit', async ({
+    page,
+}) => {
+    await page.route(
+        (url) =>
+            url.origin === WEB_BACKEND_URL &&
+            url.pathname === '/xtream' &&
+            url.searchParams.get('action') === 'get_vod_streams',
+        (route) =>
+            route.fulfill({
+                status: 200,
+                headers: { 'access-control-allow-origin': '*' },
+                json: {
+                    status: 413,
+                    code: 'PROVIDER_RESPONSE_TOO_LARGE',
+                    message:
+                        'Provider response exceeds the configured size limit',
+                },
+            })
+    );
+
+    await addXtreamPortal(page);
+
+    const errorView = page.locator('app-playlist-error-view');
+    await expect(
+        errorView.getByRole('heading', {
+            name: 'Xtream catalog exceeds the server limit',
+        })
+    ).toBeVisible();
+    const limitHelp = errorView.getByText(
+        /IPTVNATOR_MAX_PROVIDER_RESPONSE_MB.*restart/i
+    );
+    await expect(limitHelp).toBeVisible();
+    await page.setViewportSize({ width: 320, height: 844 });
+    await expect(limitHelp).toBeInViewport({ ratio: 1 });
+});
+
 test('@self-hosted Xtream portal loads through web-backend proxy', async ({
     page,
 }) => {

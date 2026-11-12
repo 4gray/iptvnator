@@ -1499,6 +1499,10 @@
                 "TITLE": "Portale non disponibile",
                 "DESCRIPTION": "Impossibile raggiungere il portale. Controlla l'URL del server o riprova quando la sorgente sarà di nuovo disponibile."
             },
+            "PROVIDER_RESPONSE_TOO_LARGE": {
+                "TITLE": "Il catalogo Xtream supera il limite del server",
+                "DESCRIPTION": "Aumenta il valore di IPTVNATOR_MAX_PROVIDER_RESPONSE_MB sul server e riavvialo. Quindi riprova a sincronizzare il catalogo."
+            },
             "EMPTY_CATEGORY": {
                 "TITLE": "Nessun contenuto in questa categoria",
                 "DESCRIPTION": "Seleziona un’altra categoria o cambia tipo di contenuto."

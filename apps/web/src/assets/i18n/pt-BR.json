@@ -1499,6 +1499,10 @@
                 "TITLE": "Portal indisponível",
                 "DESCRIPTION": "Não foi possível acessar o portal. Verifique a URL do servidor ou tente novamente quando a fonte estiver disponível."
             },
+            "PROVIDER_RESPONSE_TOO_LARGE": {
+                "TITLE": "O catálogo Xtream excede o limite do servidor",
+                "DESCRIPTION": "Aumente o valor de IPTVNATOR_MAX_PROVIDER_RESPONSE_MB no servidor e reinicie-o. Depois, tente sincronizar novamente."
+            },
             "EMPTY_CATEGORY": {
                 "TITLE": "Categoria vazia",
                 "DESCRIPTION": "Selecione outra categoria ou altere o tipo de conteúdo."

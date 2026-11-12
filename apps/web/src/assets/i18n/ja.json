@@ -1499,6 +1499,10 @@
                 "TITLE": "ポータルを利用できません",
                 "DESCRIPTION": "ポータルに接続できませんでした。サーバーURLを確認するか、ソースが復旧したら再試行してください。"
             },
+            "PROVIDER_RESPONSE_TOO_LARGE": {
+                "TITLE": "Xtream カタログがサーバーの上限を超えています",
+                "DESCRIPTION": "サーバーの IPTVNATOR_MAX_PROVIDER_RESPONSE_MB の値を増やしてサーバーを再起動し、同期をやり直してください。"
+            },
             "EMPTY_CATEGORY": {
                 "TITLE": "空のカテゴリー",
                 "DESCRIPTION": "このカテゴリーにはコンテンツがありません。別のカテゴリーを選択するかコンテンツタイプを変更してください"

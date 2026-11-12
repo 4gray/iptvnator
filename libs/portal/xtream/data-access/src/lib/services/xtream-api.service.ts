@@ -427,6 +427,7 @@ export class XtreamApiService extends XtreamEpgNormalizer {
                   payload: { epg_listings: [] },
               })
             : request())) as {
+            code?: string;
             message?: string;
             payload?: unknown;
             type?: string;
@@ -439,7 +440,10 @@ export class XtreamApiService extends XtreamEpgNormalizer {
             response?.type === 'ERROR' ||
             (!response?.payload && response?.message)
         ) {
-            throw new Error(response?.message ?? 'Request failed');
+            throw Object.assign(
+                new Error(response?.message ?? 'Request failed'),
+                { code: response?.code }
+            );
         }
 
         return response?.payload as TResponse;

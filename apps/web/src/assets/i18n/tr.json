@@ -1499,6 +1499,10 @@
                 "TITLE": "Portal kullanılamıyor",
                 "DESCRIPTION": "Portala ulaşılamadı. Sunucu URL'sini kontrol edin veya kaynak tekrar kullanılabilir olduğunda yeniden deneyin."
             },
+            "PROVIDER_RESPONSE_TOO_LARGE": {
+                "TITLE": "Xtream kataloğu sunucu sınırını aşıyor",
+                "DESCRIPTION": "Sunucudaki IPTVNATOR_MAX_PROVIDER_RESPONSE_MB değerini artırın ve sunucuyu yeniden başlatın. Ardından eşitlemeyi tekrar deneyin."
+            },
             "EMPTY_CATEGORY": {
                 "TITLE": "Bu kategoride içerik yok",
                 "DESCRIPTION": "Başka bir kategori seçin veya içerik türünü değiştirin."

@@ -75,6 +75,8 @@ export class XtreamContentGateComponent {
                 return 'ACCOUNT_INACTIVE';
             case 'unavailable':
                 return 'PORTAL_UNAVAILABLE';
+            case 'response-too-large':
+                return 'PROVIDER_RESPONSE_TOO_LARGE';
             case 'error':
             default:
                 return 'UNKNOWN_ERROR';

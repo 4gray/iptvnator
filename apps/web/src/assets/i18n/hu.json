@@ -1499,6 +1499,10 @@
                 "TITLE": "A portál nem érhető el",
                 "DESCRIPTION": "Nem sikerült kapcsolódni a portálhoz. Ellenőrizze a kiszolgáló URL-címét, vagy próbálja újra, amikor a forrás ismét elérhető."
             },
+            "PROVIDER_RESPONSE_TOO_LARGE": {
+                "TITLE": "Az Xtream-katalógus meghaladja a szerver méretkorlátját",
+                "DESCRIPTION": "Növeld az IPTVNATOR_MAX_PROVIDER_RESPONSE_MB értékét a szerveren, majd indítsd újra a szervert. Ezután próbáld meg újra a szinkronizálást."
+            },
             "EMPTY_CATEGORY": {
                 "TITLE": "Ebben a kategóriában nincs tartalom",
                 "DESCRIPTION": "Válasszon másik kategóriát, vagy váltson más tartalomtípusra."
