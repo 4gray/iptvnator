@@ -97,6 +97,7 @@ describe('device pairing', () => {
                 expect(list.pending).toEqual([
                     {
                         claimId: claim.claimId,
+                        inviteId: invite.inviteId,
                         name: 'Test device',
                         confirmationCode: claim.confirmationCode,
                     },
@@ -120,13 +121,11 @@ describe('device pairing', () => {
                 const deviceHeaders = {
                     authorization: `Bearer ${approved.token}`,
                 };
-                expect(
-                    (
-                        await fetch(`${base}/v1/playlists`, {
-                            headers: deviceHeaders,
-                        })
-                    ).status
-                ).toBe(200);
+                const playlists = await fetch(`${base}/v1/playlists`, {
+                    headers: deviceHeaders,
+                });
+                expect(playlists.status).toBe(200);
+                expect(playlists.headers.get('ratelimit')).toBeNull();
                 expect(
                     (
                         await fetch(`${base}/v1/devices`, {

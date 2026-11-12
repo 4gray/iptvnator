@@ -10,11 +10,13 @@ export function createDevicePairingRouter(
     instanceId: string
 ) {
     const router = express.Router();
-    router.use((_req, res, next) => {
+    const pairingPaths = ['/device-pairing', '/devices'];
+    router.use(pairingPaths, (_req, res, next) => {
         res.set('Cache-Control', 'no-store');
         next();
     });
     router.use(
+        pairingPaths,
         rateLimit({
             windowMs: 60_000,
             limit: 120,
@@ -24,7 +26,7 @@ export function createDevicePairingRouter(
                 ipKeyGenerator(req.socket.remoteAddress ?? 'unknown'),
         })
     );
-    router.use(express.json({ limit: '4kb' }));
+    router.use(pairingPaths, express.json({ limit: '4kb' }));
     const admin: RequestHandler = (req, res, next) => {
         const local =
             req.socket.remoteAddress === '127.0.0.1' &&

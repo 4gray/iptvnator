@@ -10,6 +10,7 @@ import type { Database } from 'better-sqlite3';
 const LIFETIME = 5 * 60_000;
 const MAX_PENDING = 100;
 type Claim = {
+    inviteId: string;
     secret: string;
     name: string;
     code: string;
@@ -64,6 +65,7 @@ export class DevicePairingStore {
             '0'
         );
         this.claims.set(claimId, {
+            inviteId,
             secret: digest(claimSecret),
             name,
             code: confirmationCode,
@@ -106,6 +108,7 @@ export class DevicePairingStore {
         return {
             pending: Array.from(this.claims, ([claimId, claim]) => ({
                 claimId,
+                inviteId: claim.inviteId,
                 name: claim.name,
                 confirmationCode: claim.code,
             })),
