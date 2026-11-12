@@ -1849,6 +1849,10 @@ the source with Enter, and deletes and undoes a source keyboard-only.
 
 ### Sources page and playlist switcher
 
+The empty Sources page centers its welcome content when the cards fit. On
+shorter screens the welcome content grows, and the Sources pane owns scrolling
+from the heading to the last source action.
+
 One `app-source-row` serves both lists: `size="regular"` on the Sources page
 (56px, 36px tile, hover actions Refresh, Edit and ⋯; a failing row keeps
 Retry in view; touch screens always show the actions) and `size="compact"`
