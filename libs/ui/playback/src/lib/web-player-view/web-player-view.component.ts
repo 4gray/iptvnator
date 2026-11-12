@@ -380,13 +380,7 @@ export class WebPlayerViewComponent implements OnDestroy {
 
     handlePlaybackStarted(binding: PlaybackBinding): void {
         this.recovery.syncSession();
-        if (
-            this.applicationHandoff.owns(
-                binding,
-                this.playbackApplicationToken()
-            ) &&
-            !this.liveAutoFormat.pending()
-        )
+        if (this.ownsBinding(binding) && !this.liveAutoFormat.pending())
             this.liveAutoFormat.started();
     }
 
@@ -420,15 +414,17 @@ export class WebPlayerViewComponent implements OnDestroy {
             ownership,
             currentToken: this.playbackApplicationToken(),
             currentSourceRevision: this.playbackSourceRevisionToken(),
-            bindingOwned: ownership.binding
-                ? this.applicationHandoff.owns(
-                      ownership.binding,
-                      ownership.token
-                  )
-                : false,
+            bindingOwned: this.ownsBinding(ownership.binding, ownership.token),
             embeddedMpvSelected:
                 this.selectedPlayer() === VideoPlayer.EmbeddedMpv,
         });
+    }
+
+    private ownsBinding(
+        binding: PlaybackBinding | null,
+        token = this.playbackApplicationToken()
+    ): boolean {
+        return !!binding && this.applicationHandoff.owns(binding, token);
     }
 
     requestRecommendedPlayer(target: PlaybackRecommendationTarget): void {
@@ -437,17 +433,24 @@ export class WebPlayerViewComponent implements OnDestroy {
 
     retryPlayback(binding?: PlaybackBinding): void {
         this.recovery.syncSession();
-        if (
-            binding &&
-            !this.applicationHandoff.owns(
-                binding,
-                this.playbackApplicationToken()
-            )
-        )
-            return;
+        if (binding && !this.ownsBinding(binding)) return;
         // A current engine can remain buffering after an earlier manual retry.
         // Its wait notice is a fresh user action, not a duplicate old callback.
         if (binding) this.recoverySession.settle(binding);
         this.recovery.retryPlayback();
+    }
+
+    retryFailedPlayback(): boolean {
+        const mpv = this.embeddedMpvPlayer();
+        if (this.visiblePlaybackDiagnostic()) this.retryPlayback();
+        else if (
+            mpv &&
+            !mpv.isReconnecting() &&
+            (mpv.isErrored() || mpv.isLiveEnded())
+        ) {
+            this.startedToken = undefined;
+            mpv.retry();
+        } else return false;
+        return true;
     }
 }

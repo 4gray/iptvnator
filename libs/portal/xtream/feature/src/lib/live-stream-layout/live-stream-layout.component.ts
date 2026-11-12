@@ -466,6 +466,8 @@ export class LiveStreamLayoutComponent
     private unsubscribeRemoteChannelChange?: () => void;
     private unsubscribeRemoteCommand?: () => void;
     private playbackRequestId = 0;
+    private readonly inlinePlayer =
+        viewChild<WebPlayerViewComponent>('inlinePlayer');
     private startedInlinePlayback?: ResolvedPortalPlayback;
     private inlineConfirmation?: {
         requestId: number;
@@ -670,9 +672,17 @@ export class LiveStreamLayoutComponent
                     if (onConfirmed) this.playbackRequestId++;
                     if (!sameXtreamChannelCopy(playing, item))
                         this.switchGuideChannelCopy(item);
-                    if (this.usesEmbeddedPlayer())
+                    if (this.usesEmbeddedPlayer()) {
+                        const player = this.inlinePlayer();
+                        if (
+                            onConfirmed &&
+                            player &&
+                            player.playback() === this.activePlayback() &&
+                            player.retryFailedPlayback()
+                        )
+                            this.startedInlinePlayback = undefined;
                         this.confirmInlinePlayback(onConfirmed);
-                    else onConfirmed?.();
+                    } else onConfirmed?.();
                     return;
                 }
                 this.playLive(item, true, channels, false, onConfirmed);

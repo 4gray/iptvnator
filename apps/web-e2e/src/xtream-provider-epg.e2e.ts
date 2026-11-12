@@ -110,12 +110,21 @@ test('@xtream @epg PWA opens the multi-channel programme guide in both themes', 
     expect(switchReads).toEqual([]);
     countSwitchReads = false;
 
+    const isRetryChannel = (url: string) =>
+        /^\/live\/.+\/10001\.(m3u8|ts)$/.test(new URL(url).pathname);
     const failedPlayback = page.waitForEvent('requestfailed', (request) =>
-        new URL(request.url()).pathname.startsWith('/live/')
+        isRetryChannel(request.url())
     );
     await channelRows.nth(1).dblclick();
     await failedPlayback;
     await expect(channelRows.nth(1)).toHaveAttribute('aria-pressed', 'true');
+    await expect(guide).toBeVisible();
+    await expect(page.locator('app-playback-diagnostic-panel')).toBeVisible();
+    const retried = page.waitForEvent('requestfailed', (request) =>
+        isRetryChannel(request.url())
+    );
+    await channelRows.nth(1).press('Enter');
+    await retried;
     await expect(guide).toBeVisible();
     await channelRows.nth(0).click();
 

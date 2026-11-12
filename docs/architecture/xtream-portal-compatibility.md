@@ -793,12 +793,14 @@ schedule rows remain visible. If an external channel switch fails and the
 player restores the previous session or rejects a switch while the old session
 is still playing, the guide keeps its scope and search. Enter and double-click
 close the guide only after the requested stream opens, including in the inline
-player. A guide or remote switch
-reuses the managed player when available. Otherwise it waits for the exact
-previous process to exit before opening the new channel, so a one-connection
-account does not have two simultaneous streams. A newer tune waits for an
-already dispatched launch to become closable. Selecting the previous channel
-while it is stopping restarts it after exit and waits for that playback to open.
+player. Committing the same row after an inline playback error retries the
+stream; committing while it is still opening waits for that attempt.
+A guide or remote switch reuses the managed player when available. Otherwise
+it waits for the exact previous process to exit before opening the new channel,
+so a one-connection account does not have two simultaneous streams. A newer
+tune waits for an already dispatched launch to become closable. Selecting the
+previous channel while it is stopping restarts it after exit and waits for that
+playback to open.
 If a replacement fails after the previous stream ends, the already open guide
 keeps its scope and search so the user can retry, including when both streams
 used the same process.
