@@ -441,8 +441,8 @@ export class XtreamApiService extends XtreamEpgNormalizer {
             (!response?.payload && response?.message)
         ) {
             throw Object.assign(
-                new Error(response?.message ?? 'Request failed'),
-                { code: response?.code }
+                new Error(response.message ?? 'Request failed'),
+                { code: response.code }
             );
         }
 
