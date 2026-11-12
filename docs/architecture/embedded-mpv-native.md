@@ -538,8 +538,9 @@ controls. Change channel reopens the same picker. Selection replaces only the
 companion session and starts it muted. If the views are swapped, the original
 video and its sound return to the main view before the replacement starts.
 The companion keeps its playlist and category identity for parental controls.
-A relock removes a withheld stream and returns sound to the primary view,
-including when the views were exchanging audio.
+A relock hides a withheld stream immediately and retires its session. The
+primary view resumes sound only after the companion acknowledges its mute,
+including when a relock interrupts an audio exchange.
 A pointer drag handle and arrow keys move the small view anywhere
 inside the application viewport, including over channel and EPG panes. The
 existing small canvas and controls use manual DOM popovers to escape ancestor
