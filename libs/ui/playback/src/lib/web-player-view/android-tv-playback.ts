@@ -11,6 +11,8 @@ import { getPlaybackMediaExtensionFromUrl } from '@iptvnator/playback/util';
 import type { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
 import { PLAYBACK_CONFIRMATION_SECONDS } from '../playback-history/playback-progress-confirmation';
 import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
+import { readStoredVolume } from '../player-controls/controls-format.utils';
+import { readVideoVolume } from '../player-controls/web-video-controls.media-helpers';
 
 type PlaybackLabels = { readonly open: string; readonly back: string };
 type PlaybackResult = {
@@ -124,10 +126,12 @@ export class AndroidTvPlayback {
         live: boolean,
         startTime: number,
         captions: boolean,
-        volume: number
+        surface: HTMLElement
     ): void {
         const bridge = this.window?.TvShell;
         if (!bridge || !this.canOpen(playback) || this.pending()) return;
+        const video = surface.querySelector('video');
+        const volume = video ? readVideoVolume(video) : readStoredVolume();
         const id = crypto.randomUUID();
         this.session.set({
             id,

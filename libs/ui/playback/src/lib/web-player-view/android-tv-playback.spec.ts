@@ -26,6 +26,10 @@ it('reports only an owned natural end after recording the final position', () =>
             )
     );
 
+    const surface = document.createElement('div');
+    const video = surface.appendChild(document.createElement('video'));
+    video.muted = true;
+
     function open() {
         playback.open(
             {
@@ -35,7 +39,7 @@ it('reports only an owned natural end after recording the final position', () =>
             false,
             0,
             false,
-            0
+            surface
         );
         fixture.detectChanges();
         const message = postMessage.mock.lastCall?.[0] as string;
