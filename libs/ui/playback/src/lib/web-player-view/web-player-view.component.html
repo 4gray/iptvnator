@@ -135,6 +135,7 @@
                 #companion
                 [primary]="embeddedMpvPlayer"
                 [fullscreenTarget]="fullscreenSurface"
+                (recordingStopped)="recordingStopped.emit($event)"
             />
         </div>
     }

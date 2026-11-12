@@ -7,6 +7,7 @@ import {
     input,
     inject,
     OnDestroy,
+    output,
     signal,
     viewChild,
     untracked,
@@ -15,6 +16,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
+import type { RecordingStoppedEvent } from '@iptvnator/shared/interfaces';
 import {
     SecondStreamCatalogService,
     type SecondStreamSelection,
@@ -42,6 +44,7 @@ import { handoffMpvAudio } from '../embedded-mpv-player/embedded-mpv-audio-hando
 export class SecondStreamComponent implements OnDestroy {
     readonly primary = input.required<EmbeddedMpvPlayerComponent>();
     readonly fullscreenTarget = input<HTMLElement | null>(null);
+    readonly recordingStopped = output<RecordingStoppedEvent>();
     readonly secondary = viewChild(EmbeddedMpvPlayerComponent);
     private readonly catalog = inject(SecondStreamCatalogService);
     readonly selection = signal<SecondStreamSelection | null>(null);

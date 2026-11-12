@@ -114,6 +114,19 @@ export class SecondStreamPickerComponent {
             this.sources.set(sources);
             this.data.set(data);
             this.initialized = true;
+            const group = this.group();
+            if (
+                group !== null &&
+                !data.groups.some((entry) => entry.id === group)
+            ) {
+                this.group.set(null);
+            } else if (
+                group !== null &&
+                !data.channels.some((row) => row.group === group)
+            ) {
+                this.loading.set(false);
+                await this.selectGroup(group);
+            }
         } catch {
             if (generation === this.generation) this.error.set('load');
         } finally {

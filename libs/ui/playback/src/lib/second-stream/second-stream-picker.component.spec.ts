@@ -101,6 +101,35 @@ describe('SecondStreamPickerComponent', () => {
         expect(component.error()).toBe('play');
         expect(component.resolving()).toBeNull();
     });
+    it('shows the remaining channels when a refreshed catalog withholds the selected group', async () => {
+        component.group.set('Unavailable');
+        load.mockResolvedValueOnce({
+            groups: [{ id: 'News', name: 'News' }],
+            channels: [row],
+        });
+
+        await component.reload();
+
+        expect(component.group()).toBeNull();
+        expect(component.visible()).toEqual([row]);
+    });
+
+    it('reloads a selected genre whose channels are fetched on demand', async () => {
+        component.source.set('synthetic-source');
+        component.group.set('News');
+        load.mockResolvedValueOnce({
+            groups: [{ id: 'News', name: 'News' }],
+            channels: [],
+        });
+
+        await component.reload();
+
+        expect(component.group()).toBe('News');
+        expect(component.visible()).toEqual([row]);
+        expect(component.loading()).toBe(false);
+        expect(component.groupLoading()).toBe(false);
+    });
+
     it('loads an omitted genre and ignores its response after changing source', async () => {
         let finish!: (value: unknown) => void;
         loadGroup.mockImplementationOnce(
