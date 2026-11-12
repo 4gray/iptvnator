@@ -1,3 +1,4 @@
+import type { PlaybackPositionUpdate } from '@iptvnator/shared/interfaces';
 import { ClipboardModule } from '@angular/cdk/clipboard';
 import {
     ChangeDetectionStrategy,
@@ -278,10 +279,7 @@ export class PortalInlinePlayerComponent {
     /** The now-playing bar's Close button: back to browse, no navigation.
      * Leaving the page is the detail shell's sticky Back, not this bar's. */
     readonly closed = output<void>();
-    readonly timeUpdate = output<{
-        currentTime: number;
-        duration: number;
-    }>();
+    readonly timeUpdate = output<PlaybackPositionUpdate>();
     readonly streamUrlCopied = output<void>();
     readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
     /** Alternatives offered on the playback-error screen. */
@@ -340,7 +338,7 @@ export class PortalInlinePlayerComponent {
         this.headerControls.notifyActivity();
     }
 
-    onTimeUpdate(event: { currentTime: number; duration: number }): void {
+    onTimeUpdate(event: PlaybackPositionUpdate): void {
         this.timeUpdate.emit(event);
     }
 

@@ -337,6 +337,7 @@
         "SEARCH_EMPTY_HINT": "一致する設定がありません。「プレーヤー」「テーマ」「EPG」など別の言葉を試してください。",
         "GENERAL": "一般",
         "GENERAL_SUBTITLE": "言語、起動時の動作、チャンネルの設定。",
+        "OPEN_ANDROID_APP_SETTINGS": "Android アプリの設定を開く",
         "PLAYBACK": "再生",
         "SAVE_EPG_SOURCES": "EPGソースを保存",
         "EPG_SOURCES": "EPGソース",

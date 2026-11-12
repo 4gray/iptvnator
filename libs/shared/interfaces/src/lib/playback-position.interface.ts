@@ -18,3 +18,11 @@ export interface PlaybackPositionData {
     activityIdentity?: import('./activity-sync/activity-sync.contract').ActivityContentIdentity;
     watched?: boolean;
 }
+
+/** A position the inline engine reports to the content owner. */
+export interface PlaybackPositionUpdate {
+    readonly currentTime: number;
+    readonly duration: number;
+    /** A verified final position from a playback handoff, saved immediately. */
+    readonly checkpoint?: true;
+}

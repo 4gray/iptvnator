@@ -919,6 +919,30 @@ for (const shell of [true, false]) {
         await backupContext.close();
     }
 }
+console.log('16b. the Android shell settings button works by touch');
+for (const shell of [true, false]) {
+    const tablet = await browser.newContext({
+        hasTouch: true, viewport: { width: 800, height: 1280 }, serviceWorkers: 'block',
+    });
+    if (shell) await tablet.addInitScript(() => {
+        window.shellSettingsOpens = 0;
+        window.TvShell = { postMessage(message) {
+            if (message === '["openSettings"]') window.shellSettingsOpens++;
+        } };
+    });
+    const settingsPage = await tablet.newPage();
+    await settingsPage.goto(URL_ + '/workspace/settings/general', { waitUntil: 'networkidle' });
+    await settingsPage.locator('app-settings-general-section').waitFor();
+    const openSettings = settingsPage.locator('[data-test-id="open-android-shell-settings"]');
+    check(await openSettings.count() === (shell ? 1 : 0), shell
+        ? 'Android shell has a native settings button' : 'the browser omits the Android-only button');
+    if (shell) {
+        await openSettings.tap();
+        check(await settingsPage.evaluate(() => window.shellSettingsOpens === 1),
+            'one tap opens the native settings menu');
+    }
+    await tablet.close();
+}
 console.log('17. fullscreen navigation excludes background controls and preserves nested overlays');
 await page.evaluate(() => {
     document.body.innerHTML = `<button id="synthetic-fullscreen-enter" style="position:fixed;left:10px;top:10px;z-index:10">Open synthetic player</button>

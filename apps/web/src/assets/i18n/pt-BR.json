@@ -337,6 +337,7 @@
         "SEARCH_EMPTY_HINT": "Nenhuma configuração corresponde. Tente outra palavra, como reprodutor, tema ou EPG.",
         "GENERAL": "Geral",
         "GENERAL_SUBTITLE": "Idioma, inicialização e preferências de canais.",
+        "OPEN_ANDROID_APP_SETTINGS": "Abrir as configurações do app Android",
         "PLAYBACK": "Reprodução",
         "SAVE_EPG_SOURCES": "Salvar fontes de EPG",
         "EPG_SOURCES": "Fontes de EPG",

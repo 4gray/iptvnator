@@ -5,7 +5,7 @@ import { createInlinePlaybackPositionWriter } from './inline-playback-position-w
 function playbackWithInfo(): ResolvedPortalPlayback {
     return {
         streamUrl: 'http://example.com/movie.mkv',
-        title: 'Dune',
+        title: 'Synthetic Feature',
         contentInfo: {
             playlistId: 'playlist-1',
             contentXtreamId: 42,
@@ -90,7 +90,7 @@ describe('createInlinePlaybackPositionWriter', () => {
     it('writes nothing without contentInfo — there is no key to store under', () => {
         const { writer, save } = setup({
             streamUrl: 'http://example.com/movie.mkv',
-            title: 'Dune',
+            title: 'Synthetic Feature',
         });
 
         writer.handleTimeUpdate({ currentTime: 5, duration: 100 });
@@ -125,6 +125,41 @@ describe('createInlinePlaybackPositionWriter', () => {
                 writer.handleTimeUpdate({ currentTime: 12, duration: 7744 })
             ).toBe(false);
             expect(save).not.toHaveBeenCalled();
+        });
+
+        it('saves a verified handoff position below the requested resume point', () => {
+            const { writer, save } = setup(resuming(2538));
+            expect(
+                writer.handleTimeUpdate({ currentTime: 12, duration: 7744 })
+            ).toBe(false);
+
+            expect(
+                writer.handleTimeUpdate({
+                    currentTime: 120,
+                    duration: 7744,
+                    checkpoint: true,
+                })
+            ).toBe(true);
+            expect(save).toHaveBeenLastCalledWith(
+                'playlist-1',
+                expect.objectContaining({ positionSeconds: 120 })
+            );
+        });
+
+        it('persists a final checkpoint inside the ordinary write throttle', () => {
+            jest.useFakeTimers();
+            const { writer, save } = setup();
+            writer.handleTimeUpdate({ currentTime: 10, duration: 100 });
+            writer.handleTimeUpdate({
+                currentTime: 5,
+                duration: 100,
+                checkpoint: true,
+            });
+            expect(save).toHaveBeenCalledTimes(2);
+            expect(save).toHaveBeenLastCalledWith(
+                'playlist-1',
+                expect.objectContaining({ positionSeconds: 5 })
+            );
         });
 
         it('releases once, so a later seek backwards is still saved', () => {

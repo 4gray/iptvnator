@@ -28,3 +28,18 @@ app-html-video-player {
     height: 100%;
     background: #000;
 }
+
+.web-player-android-actions {
+    position: absolute;
+    inset-block-start: 8px;
+    inset-inline-end: 8px;
+    z-index: 6;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+
+    button {
+        background: var(--mat-sys-surface);
+    }
+}

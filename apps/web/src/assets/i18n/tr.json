@@ -337,6 +337,7 @@
         "SEARCH_EMPTY_HINT": "Eşleşen ayar yok. Oynatıcı, tema veya EPG gibi başka bir kelime deneyin.",
         "GENERAL": "Genel",
         "GENERAL_SUBTITLE": "Dil, başlangıç ve kanal tercihleri.",
+        "OPEN_ANDROID_APP_SETTINGS": "Android uygulama ayarlarını aç",
         "PLAYBACK": "Oynatma",
         "SAVE_EPG_SOURCES": "EPG kaynaklarını kaydet",
         "EPG_SOURCES": "EPG kaynakları",

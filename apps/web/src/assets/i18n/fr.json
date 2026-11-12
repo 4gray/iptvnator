@@ -337,6 +337,7 @@
         "SEARCH_EMPTY_HINT": "Aucun paramètre ne correspond. Essayez un autre mot, par exemple lecteur, thème ou EPG.",
         "GENERAL": "Général",
         "GENERAL_SUBTITLE": "Langue, démarrage et préférences des chaînes.",
+        "OPEN_ANDROID_APP_SETTINGS": "Ouvrir les réglages de l’application Android",
         "PLAYBACK": "Lecture",
         "SAVE_EPG_SOURCES": "Enregistrer les sources EPG",
         "EPG_SOURCES": "Sources EPG",

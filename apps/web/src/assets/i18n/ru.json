@@ -337,6 +337,7 @@
         "SEARCH_EMPTY_HINT": "Ничего не найдено. Попробуйте другое слово, например «плеер», «тема» или «EPG».",
         "GENERAL": "Общие",
         "GENERAL_SUBTITLE": "Язык, запуск и настройки каналов.",
+        "OPEN_ANDROID_APP_SETTINGS": "Открыть настройки приложения Android",
         "PLAYBACK": "Воспроизведение",
         "SAVE_EPG_SOURCES": "Сохранить источники EPG",
         "EPG_SOURCES": "Источники EPG",

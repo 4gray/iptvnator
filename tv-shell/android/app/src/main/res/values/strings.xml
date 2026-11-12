@@ -41,4 +41,8 @@
     <string name="reset_done">Data erased</string>
     <string name="setting_diagnostics">Diagnostics</string>
     <string name="diagnostics">WebView (Chrome engine): %1$s %2$s\nDevice: %3$s — Android %4$s\nEmbedded server port: %5$s\nScreen: %6$s</string>
+    <string name="setting_native_playback">Enable built-in player (experimental)</string>
+    <string name="native_playback_try">Try built-in player</string>
+    <string name="native_playback_back">Return to web player</string>
+    <string name="native_playback_failed">The built-in player could not play this stream. Press Back to return.</string>
 </resources>

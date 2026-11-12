@@ -56,6 +56,10 @@
         </activity>
 
         <activity
+            android:name=".ui.NativePlayerActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".ui.SettingsActivity"
             android:exported="false"
             android:label="@string/settings_title" />

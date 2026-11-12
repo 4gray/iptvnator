@@ -27,6 +27,7 @@ import {
     ExternalPlayerName,
     ExternalPlayerSession,
     PlaybackPositionData,
+    PlaybackPositionUpdate,
     ResolvedPortalPlayback,
     XtreamSerieDetails,
     XtreamSerieEpisode,
@@ -311,13 +312,14 @@ export class SerialDetailsPlaybackService {
         this.lastSaveTime = 0;
     }
 
-    handleInlineTimeUpdate(event: {
-        currentTime: number;
-        duration: number;
-    }): void {
+    handleInlineTimeUpdate(event: PlaybackPositionUpdate): void {
         const playback = this.inlinePlayback();
         const now = Date.now();
-        if (!playback?.contentInfo || now - this.lastSaveTime <= 15000) return;
+        if (
+            !playback?.contentInfo ||
+            (!event.checkpoint && now - this.lastSaveTime <= 15000)
+        )
+            return;
         this.lastSaveTime = now;
         const position = inlineProgressPosition(playback.contentInfo, event);
         void this.savePosition(playback.contentInfo.playlistId, position);

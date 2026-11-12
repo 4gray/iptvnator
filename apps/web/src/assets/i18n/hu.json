@@ -337,6 +337,7 @@
         "SEARCH_EMPTY_HINT": "Nincs a keresésnek megfelelő beállítás. Próbálkozzon másik kifejezéssel, például: lejátszó, téma vagy EPG.",
         "GENERAL": "Általános",
         "GENERAL_SUBTITLE": "Nyelv, indítás és csatornabeállítások.",
+        "OPEN_ANDROID_APP_SETTINGS": "Az Android-alkalmazás beállításainak megnyitása",
         "PLAYBACK": "Lejátszás",
         "SAVE_EPG_SOURCES": "EPG-források mentése",
         "EPG_SOURCES": "EPG-források",

@@ -59,7 +59,21 @@ AndroidX WebKit 1.13.0 and its AndroidX dependencies are from the Android Open
 Source Project. JSpecify annotations are from the JSpecify authors. The license
 text ships alongside this notice in APACHE-2.0.txt.
 
-4. IPTVnator web app
+4. AndroidX Media3 and OkHttp (Apache License 2.0)
+------------------------------------------------
+
+AndroidX Media3 is from the Android Open Source Project. OkHttp and Okio
+are from Square. The license text ships alongside this notice in APACHE-2.0.txt.
+
+5. FFmpeg 6.1.6 (LGPL 2.1 or later)
+---------------------------------
+
+The built-in Android player uses dynamically linked FFmpeg libraries for AC-3
+audio. The license text ships alongside this notice in FFmpeg-LGPL-2.1.txt.
+Unmodified corresponding source: https://ffmpeg.org/releases/ffmpeg-6.1.6.tar.xz
+Build instructions: tv-shell/scripts/build-media3-ffmpeg.sh in the IPTVnator source.
+
+6. IPTVnator web app
 --------------------
 
 The bundled web app ships its own dependency licenses at /3rdpartylicenses.txt.
