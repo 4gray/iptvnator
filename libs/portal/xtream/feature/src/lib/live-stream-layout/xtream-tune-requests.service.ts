@@ -1,4 +1,5 @@
 import { inject, Injectable } from '@angular/core';
+import type { EpgProgram } from '@iptvnator/shared/interfaces';
 import {
     sameXtreamLiveOwner,
     type XtreamLiveOwner,
@@ -24,6 +25,11 @@ interface GuideTuneView {
         item: XtreamLiveChannelItem,
         channels: readonly XtreamLiveChannelItem[],
         onConfirmed?: () => void
+    ): void;
+    playArchive(
+        program: EpgProgram,
+        item: XtreamLiveChannelItem,
+        channels: readonly XtreamLiveChannelItem[]
     ): void;
 }
 
@@ -89,7 +95,8 @@ export class XtreamTuneRequests {
                 this.external.canRetryUnverifiedStream(),
             (watchLive) =>
                 watchLive ||
-                (!view.usesInlinePlayer() && this.external.isStopping())
+                (!view.usesInlinePlayer() && this.external.isStopping()),
+            view.playArchive
         );
     }
 

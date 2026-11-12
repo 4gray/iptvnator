@@ -23,14 +23,13 @@ import type {
     EpgGuideSearchHit,
     EpgGuideSearchUpdate,
     EpgGuideSource,
-    EpgGuideWindow,
 } from '@iptvnator/ui/epg';
 import { injectXtreamGuideFavorites } from './xtream-guide-favorites';
+import { createXtreamGuideCatchUp } from './xtream-live-archive-actions';
 import { createXtreamGuideNowPlaying } from './xtream-guide-now-playing';
 import {
     injectXtreamGuideSchedules,
     scheduleKey,
-    programmeOverlapsGuideWindow,
     isNewGuideSearchMatch,
 } from './xtream-guide-schedules';
 import {
@@ -226,6 +225,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     private readonly schedules = injectXtreamGuideSchedules(
         this.revision,
         this.session,
+        this.scopedRows,
         (key, revision, schedule) => this.dock.publish(key, revision, schedule)
     );
     private readonly dock = createXtreamGuideNowPlaying(
@@ -247,6 +247,9 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     readonly activePlayingScheduleItems = this.dock.activeItems;
     readonly recoveredPrograms = this.dock.recoveredPrograms;
     readonly playbackSchedule = this.schedules.forPlayback;
+    readonly loadPrograms = this.schedules.loadWindow;
+    readonly loadCoverage = this.schedules.loadCoverage;
+    readonly programsExpireAt = this.schedules.rowExpiresAt;
     private play?: (
         item: XtreamLiveChannelItem,
         scope: readonly XtreamLiveChannelItem[],
@@ -255,6 +258,30 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     ) => void;
     private canRetryUnverified?: () => boolean;
     canRetuneActive?: (watchLive?: boolean) => boolean;
+    private playArchive?: (
+        program: EpgProgram,
+        item: XtreamLiveChannelItem,
+        scope: readonly XtreamLiveChannelItem[]
+    ) => void;
+
+    readonly catchUp = this.runtime.supportsProviderCatchUp
+        ? createXtreamGuideCatchUp(
+              (channel) => this.scopedItem(channel),
+              (program, item, displayed) =>
+                  this.playArchive?.(
+                      program,
+                      item,
+                      this.visibleItems(displayed)
+                  )
+          )
+        : undefined;
+
+    private scopedItem(channel: EpgGuideChannel) {
+        const item = this.scopedRows().get(channel.id);
+        return this.session() && item && channelEpgKey(item) === channel.epgKey
+            ? item
+            : undefined;
+    }
 
     private displayChannelName(item: XtreamLiveChannelItem): string {
         return applyChannelNameStrip(
@@ -266,11 +293,13 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     bind(
         play: NonNullable<XtreamEpgGuideSourceService['play']>,
         canRetryUnverified?: () => boolean,
-        canRetuneActive?: (watchLive?: boolean) => boolean
+        canRetuneActive?: (watchLive?: boolean) => boolean,
+        playArchive?: XtreamEpgGuideSourceService['playArchive']
     ): void {
         this.play = play;
         this.canRetryUnverified = canRetryUnverified;
         this.canRetuneActive = canRetuneActive;
+        this.playArchive = playArchive;
     }
 
     setPlayback(item: XtreamLiveChannelItem | null, live: boolean): void {
@@ -331,8 +360,8 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
             !this.play
         )
             return false;
-        const item = this.scopedRows().get(channel.id);
-        if (!item || channelEpgKey(item) !== channel.epgKey) return false;
+        const item = this.scopedItem(channel);
+        if (!item) return false;
         const queue = this.visibleItems(displayed);
         if (onConfirmed) this.play(item, queue, true, onConfirmed);
         else this.play(item, queue, true);
@@ -347,37 +376,6 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
             if (item && channelEpgKey(item) === row.epgKey) items.push(item);
             return items;
         }, []);
-    }
-
-    loadPrograms(window: EpgGuideWindow): Promise<Map<string, EpgProgram[]>> {
-        return this.schedules.loadWindow(window, this.scopedRows());
-    }
-
-    programsExpireAt = (id: string): number =>
-        this.schedules.expiresAt(this.scopedRows().get(id));
-
-    async loadCoverage(
-        window: EpgGuideWindow,
-        reportPrograms?: (
-            channelId: string,
-            programs: EpgProgram[] | null
-        ) => void
-    ): Promise<Set<string>> {
-        const { read, checkCurrent } = this.schedules.reader(window.signal);
-        const rows = this.scopedRows();
-        const covered = new Set<string>();
-        for (const { id } of window.channels) {
-            const programs = await read(rows.get(id)).catch(() => {
-                checkCurrent();
-                return null;
-            });
-            const matches = programs?.filter((item) =>
-                programmeOverlapsGuideWindow(item, window)
-            );
-            if (!matches || matches.length) covered.add(id);
-            reportPrograms?.(id, matches ?? null);
-        }
-        return covered;
     }
 
     async searchPrograms(

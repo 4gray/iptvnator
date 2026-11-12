@@ -142,14 +142,14 @@ export class EpgGuideViewState {
     blocksFor(
         programs: readonly EpgProgram[],
         offsetMinutes: number,
-        catchUpAvailable: boolean
+        canWatch?: (program: EpgProgram) => boolean
     ): TimelineRenderBlock[] {
         return buildGuideRowBlocks(programs, {
             axis: this.axis(),
             hourWidthPx: this.zoom(),
             nowMs: this.nowMs(),
             offsetMinutes,
-            catchUpAvailable,
+            canWatch,
         });
     }
 

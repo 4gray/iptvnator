@@ -127,7 +127,8 @@ describe('EpgGuideDialogController', () => {
         );
         expect(test.watch).toHaveBeenCalledWith(
             CHANNELS[0],
-            item.block.program
+            item.block.program,
+            CHANNELS
         );
     });
 
@@ -157,7 +158,8 @@ describe('EpgGuideDialogController', () => {
 
         expect(test.watch).toHaveBeenCalledWith(
             CHANNELS[0],
-            item.block.program
+            item.block.program,
+            CHANNELS
         );
         expect(test.open).not.toHaveBeenCalled();
     });

@@ -19,7 +19,7 @@ import {
     guideTrackWidthPx,
 } from './epg-guide-layout.util';
 import { EpgGuideRowStatus } from './epg-guide-programs.service';
-import { EpgGuideChannel } from './epg-guide-source';
+import { EpgGuideCatchUp, EpgGuideChannel } from './epg-guide-source';
 
 /**
  * One channel row: the sticky channel cell and the lane with positioned
@@ -48,7 +48,7 @@ export class EpgGuideRowComponent {
     readonly hourWidthPx = input(EPG_GUIDE_ZOOM_DEFAULT);
     readonly nowMs = input(0);
     readonly offsetMinutes = input(0);
-    readonly catchUpAvailable = input(false);
+    readonly catchUp = input<EpgGuideCatchUp>();
     readonly active = input(false);
     readonly density = input<EpgGuideDensity>('comfortable');
     readonly rowFocused = input(false);
@@ -74,15 +74,18 @@ export class EpgGuideRowComponent {
      */
     readonly focusRequested = output<number | null>();
 
-    readonly blocks = computed(() =>
-        buildGuideRowBlocks(this.programs(), {
+    readonly blocks = computed(() => {
+        const catchUp = this.catchUp();
+        return buildGuideRowBlocks(this.programs(), {
             axis: this.axis(),
             hourWidthPx: this.hourWidthPx(),
             nowMs: this.nowMs(),
             offsetMinutes: this.offsetMinutes(),
-            catchUpAvailable: this.catchUpAvailable(),
-        })
-    );
+            canWatch:
+                catchUp &&
+                ((program) => catchUp.canWatch(this.channel(), program)),
+        });
+    });
     readonly nowBlock = computed(
         () => this.blocks().find((item) => item.block.when === 'now') ?? null
     );

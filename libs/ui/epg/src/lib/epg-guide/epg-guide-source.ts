@@ -38,7 +38,11 @@ export interface EpgGuideWindow {
 
 export interface EpgGuideCatchUp {
     canWatch(channel: EpgGuideChannel, program: EpgProgram): boolean;
-    watch(channel: EpgGuideChannel, program: EpgProgram): void;
+    watch(
+        channel: EpgGuideChannel,
+        program: EpgProgram,
+        displayed: readonly EpgGuideChannel[]
+    ): void;
 }
 
 /**

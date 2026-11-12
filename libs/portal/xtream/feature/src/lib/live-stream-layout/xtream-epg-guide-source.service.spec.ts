@@ -17,7 +17,7 @@ import {
     RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
-import { EpgItem } from '@iptvnator/shared/interfaces';
+import { EpgItem, EpgProgram } from '@iptvnator/shared/interfaces';
 import { XtreamEpgGuideSourceService } from './xtream-epg-guide-source.service';
 import {
     XtreamLiveChannelItem,
@@ -99,7 +99,10 @@ describe('XtreamEpgGuideSourceService', () => {
     const sourceRevision = signal(0);
     const stripCountryPrefix = signal(false);
     const liveStreams = signal<XtreamLiveChannelItem[]>([]);
-    const runtime = { supportsXtreamSqliteDataSource: true };
+    const runtime = {
+        supportsXtreamSqliteDataSource: true,
+        supportsProviderCatchUp: true,
+    };
     let favorites: Pick<
         FavoriteItem,
         'content_id' | 'xtream_id' | 'type' | 'catalog_status' | 'category_id'
@@ -208,6 +211,51 @@ describe('XtreamEpgGuideSourceService', () => {
         service.open();
     });
     afterEach(() => service.close());
+
+    it('replays only valid past programmes for the exact visible archive channel', () => {
+        const archived = { ...one, tv_archive: 1, tv_archive_duration: 1 };
+        liveStreams.set([archived, { ...two, category_id: one.category_id }]);
+        const [channel, noArchive] = service.channels();
+        const start = Math.floor(Date.now() / 1000) - 3600;
+        const programme: EpgProgram = {
+            channel: 'sample.a',
+            title: 'Synthetic Archive Programme',
+            start: new Date(start * 1000).toISOString(),
+            stop: new Date((start + 1800) * 1000).toISOString(),
+            startTimestamp: start,
+            stopTimestamp: start + 1800,
+            desc: null,
+            category: null,
+        };
+        const play = jest.fn();
+        service.bind(jest.fn(), undefined, undefined, play);
+        const catchUp = service.catchUp!;
+        expect(catchUp.canWatch(channel, programme)).toBe(true);
+        expect(catchUp.canWatch(noArchive, programme)).toBe(false);
+        expect(
+            catchUp.canWatch(channel, {
+                ...programme,
+                startTimestamp: start - 86400,
+            })
+        ).toBe(false);
+        expect(
+            catchUp.canWatch(channel, {
+                ...programme,
+                stopTimestamp: start + 7200,
+            })
+        ).toBe(false);
+        catchUp.watch({ ...channel, epgKey: 'stale-copy' }, programme, [
+            channel,
+        ]);
+        catchUp.watch(channel, programme, [noArchive, channel]);
+        service.close();
+        catchUp.watch(channel, programme, [channel]);
+        expect(play).toHaveBeenCalledTimes(1);
+        expect(play).toHaveBeenCalledWith(programme, archived, [
+            expect.objectContaining({ xtream_id: two.xtream_id }),
+            archived,
+        ]);
+    });
 
     it('strips channel prefixes from guide and search labels without changing their keys', async () => {
         liveStreams.set([{ ...one, title: 'DE: Synthetic Channel' }]);

@@ -109,7 +109,7 @@ describe('EpgGuideViewState', () => {
             category: null,
         };
 
-        const blocks = state.blocksFor([program], 0, false);
+        const blocks = state.blocksFor([program], 0);
 
         expect(blocks).toHaveLength(1);
         expect(blocks[0].block.when).toBe('now');

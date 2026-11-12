@@ -1,6 +1,8 @@
 import {
     activateXtreamArchiveAction,
     getProgramTimestampSeconds,
+    supportsXtreamArchive,
+    xtreamArchiveDays,
 } from './xtream-live-archive-actions';
 import { EpgArchiveDownloadService } from '@iptvnator/ui/epg';
 import { NgTemplateOutlet } from '@angular/common';
@@ -350,19 +352,13 @@ export class LiveStreamLayoutComponent
         )
     );
     readonly controlledArchiveDays = computed(() =>
-        Math.max(
-            0,
-            Number(this.selectedLiveItem()?.tv_archive_duration ?? 0) || 0
-        )
+        xtreamArchiveDays(this.selectedLiveItem())
     );
-    readonly archivePlaybackAvailable = computed(() => {
-        const selectedItem = this.selectedLiveItem();
-        return (
+    readonly archivePlaybackAvailable = computed(
+        () =>
             this.runtime.supportsProviderCatchUp &&
-            Number(selectedItem?.tv_archive ?? 0) === 1 &&
-            this.controlledArchiveDays() > 0
-        );
-    });
+            supportsXtreamArchive(this.selectedLiveItem())
+    );
     readonly hasPastPrograms = computed(() => {
         const now = this.currentTimeMs();
         return this.controlledEpgPrograms().some((program) => {
@@ -691,6 +687,9 @@ export class LiveStreamLayoutComponent
             },
             tune: (item, channels, onConfirmed) =>
                 this.playLive(item, true, channels, false, onConfirmed),
+            playArchive: (program, item, channels) => {
+                void this.playCatchup(program, item, channels);
+            },
         });
         effect(() =>
             this.guideSource.setPlayback(
@@ -1427,7 +1426,8 @@ export class LiveStreamLayoutComponent
 
     private async playCatchup(
         program: EpgProgram,
-        item: XtreamLiveChannelItem
+        item: XtreamLiveChannelItem,
+        displayedChannels?: readonly XtreamLiveChannelItem[]
     ): Promise<void> {
         const playlist = this.xtreamStore.currentPlaylist();
         if (!playlist) {
@@ -1455,10 +1455,11 @@ export class LiveStreamLayoutComponent
             sameXtreamChannelCopy(preview.item, item);
         const queue = this.channelNavigation.queueFor(
             item,
-            fromPreview
-                ? preview.queue
-                : this.channelNavigation.displayedChannels(),
-            fromPreview ? 'replace' : 'on-channel-change'
+            displayedChannels ??
+                (fromPreview
+                    ? preview.queue
+                    : this.channelNavigation.displayedChannels()),
+            displayedChannels || fromPreview ? 'replace' : 'on-channel-change'
         );
         const category = this.readLiveProviderCategoryId(item);
         const resolved =
@@ -1499,6 +1500,10 @@ export class LiveStreamLayoutComponent
         };
         const inline = this.usesEmbeddedPlayer();
         if (this.usesSelectionForRemote()) {
+            if (displayedChannels) {
+                this.selectGuideLiveItem(item, resolved);
+                this.channelNavigation.capture(item, queue, 'replace');
+            }
             this.activeLiveItemId.set(item.xtream_id);
             this.activeLiveProviderCategoryId =
                 this.resolveLiveProviderCategoryId(item, resolved);

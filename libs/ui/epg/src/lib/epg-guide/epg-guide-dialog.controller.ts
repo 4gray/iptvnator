@@ -56,13 +56,15 @@ export class EpgGuideDialogController {
             if (result === 'live') {
                 this.host.activate(channel);
             } else if (result === 'timeshift') {
-                this.host.catchUp()?.watch(channel, item.block.program);
+                this.watch(channel, item);
             }
         });
     }
 
     watch(channel: EpgGuideChannel, item: TimelineRenderBlock): void {
-        this.host.catchUp()?.watch(channel, item.block.program);
+        this.host
+            .catchUp()
+            ?.watch(channel, item.block.program, this.host.rows());
     }
 
     /**

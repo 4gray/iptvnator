@@ -65,7 +65,7 @@ export interface EpgGuideRowLayoutOptions {
     readonly hourWidthPx: number;
     readonly nowMs: number;
     readonly offsetMinutes: number;
-    readonly catchUpAvailable?: boolean;
+    readonly canWatch?: (program: EpgProgram) => boolean;
 }
 
 /**
@@ -102,7 +102,7 @@ export function buildGuideRowBlocks(
     programs: readonly EpgProgram[],
     options: EpgGuideRowLayoutOptions
 ): TimelineRenderBlock[] {
-    const { axis, hourWidthPx, nowMs, offsetMinutes } = options;
+    const { axis, hourWidthPx, nowMs, offsetMinutes, canWatch } = options;
     const blocks = buildTimelineBlocks(
         programs,
         axis,
@@ -116,9 +116,13 @@ export function buildGuideRowBlocks(
         gapPx: EPG_GUIDE_BLOCK_GAP_PX,
         allowGroup: false,
         nowMs,
-        archivePlaybackAvailable: options.catchUpAvailable ?? false,
+        archivePlaybackAvailable: canWatch !== undefined,
     });
-    return items.filter(
-        (item): item is TimelineRenderBlock => item.kind === 'block'
-    );
+    return items
+        .filter((item): item is TimelineRenderBlock => item.kind === 'block')
+        .map((item) =>
+            item.canCatchUp && !canWatch?.(item.block.program)
+                ? { ...item, canCatchUp: false }
+                : item
+        );
 }

@@ -144,7 +144,7 @@ export class EpgGuideComponent implements OnDestroy {
     readonly searchProgress = this.search.progress;
     readonly searchStatus = this.search.status;
     readonly searchPanelVisible = this.search.panelVisible;
-    readonly catchUpAvailable = this.source.catchUp !== undefined;
+    readonly catchUp = this.source.catchUp;
     readonly channelColumnPx = EPG_GUIDE_CHANNEL_COLUMN_PX;
 
     readonly totalCount = computed(() => this.source.channels().length);
@@ -220,7 +220,7 @@ export class EpgGuideComponent implements OnDestroy {
             offsetMinutes: () => this.offsetMinutes(),
             focusRow: (rowIndex) => this.revealRow(rowIndex),
             activate: (channel) => this.activateRow(channel, true),
-            catchUp: () => this.source.catchUp,
+            catchUp: () => this.catchUp,
             isChannelVisible: this.source.isChannelVisible?.bind(this.source),
         }
     );
@@ -427,11 +427,12 @@ export class EpgGuideComponent implements OnDestroy {
 
     private blocksFor(row: number): TimelineRenderBlock[] {
         const channel = this.rows()[row];
+        const catchUp = this.catchUp;
         return channel
             ? this.view.blocksFor(
                   this.programsService.programsFor(channel.id),
                   this.offsetMinutes(),
-                  this.catchUpAvailable
+                  catchUp && ((program) => catchUp.canWatch(channel, program))
               )
             : [];
     }

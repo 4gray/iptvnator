@@ -62,6 +62,7 @@ export function programmeOverlapsGuideWindow(
 export function injectXtreamGuideSchedules(
     revision: Signal<ScheduleRevision>,
     session: Signal<AbortController | null>,
+    scopedRows: Signal<ReadonlyMap<string, XtreamLiveChannelItem>>,
     publish: (
         key: string,
         revision: unknown,
@@ -123,13 +124,15 @@ export function injectXtreamGuideSchedules(
         };
     }
 
+    const expiresAt = (item: XtreamLiveChannelItem | undefined) =>
+        item ? cache.expiresAt(scheduleKey(item)) : 0;
     return {
         reader,
         async loadWindow(
-            window: EpgGuideWindow,
-            rows: ReadonlyMap<string, XtreamLiveChannelItem>
+            window: EpgGuideWindow
         ): Promise<Map<string, EpgProgram[]>> {
             const { read } = reader(window.signal);
+            const rows = scopedRows();
             const results = await Promise.all(
                 window.channels.map(async ({ id }) => {
                     try {
@@ -146,9 +149,32 @@ export function injectXtreamGuideSchedules(
             );
             return new Map(results.filter((result) => result !== null));
         },
+        async loadCoverage(
+            window: EpgGuideWindow,
+            reportPrograms?: (
+                channelId: string,
+                programs: EpgProgram[] | null
+            ) => void
+        ): Promise<Set<string>> {
+            const { read, checkCurrent } = reader(window.signal);
+            const rows = scopedRows();
+            const covered = new Set<string>();
+            for (const { id } of window.channels) {
+                const programs = await read(rows.get(id)).catch(() => {
+                    checkCurrent();
+                    return null;
+                });
+                const matches = programs?.filter((item) =>
+                    programmeOverlapsGuideWindow(item, window)
+                );
+                if (!matches || matches.length) covered.add(id);
+                reportPrograms?.(id, matches ?? null);
+            }
+            return covered;
+        },
         clear: () => cache.clear(),
-        expiresAt: (item: XtreamLiveChannelItem | undefined) =>
-            item ? cache.expiresAt(scheduleKey(item)) : 0,
+        expiresAt,
+        rowExpiresAt: (id: string) => expiresAt(scopedRows().get(id)),
         async forPlayback(
             item: XtreamLiveChannelItem,
             signal?: AbortSignal

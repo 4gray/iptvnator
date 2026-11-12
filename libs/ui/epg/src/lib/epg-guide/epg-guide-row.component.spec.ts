@@ -65,8 +65,10 @@ describe('EpgGuideRowComponent', () => {
         fixture.componentRef.setInput('nowMs', nowMs);
         fixture.componentRef.setInput('hourWidthPx', 240);
         fixture.componentRef.setInput(
-            'catchUpAvailable',
-            overrides.catchUpAvailable ?? false
+            'catchUp',
+            overrides.catchUpAvailable
+                ? { canWatch: () => true, watch: jest.fn() }
+                : undefined
         );
         fixture.componentRef.setInput(
             'rowFocused',
