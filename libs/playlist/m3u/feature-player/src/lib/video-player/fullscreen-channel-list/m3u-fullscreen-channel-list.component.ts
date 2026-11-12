@@ -1,6 +1,7 @@
 import {
     ChangeDetectionStrategy,
     Component,
+    computed,
     input,
     linkedSignal,
     output,
@@ -13,6 +14,7 @@ import {
     PlaylistRecentlyViewedItem,
 } from '@iptvnator/shared/interfaces';
 import { ChannelListContainerComponent } from '@iptvnator/ui/components';
+import { isM3uCollectionView } from '../m3u-collection-view.util';
 
 export type M3uFullscreenChannelView =
     'all' | 'groups' | 'favorites' | 'recent';
@@ -61,7 +63,21 @@ export function toM3uFullscreenChannelView(
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class M3uFullscreenChannelListComponent {
+    /**
+     * Every row that can play without replacing the fullscreen host.
+     *
+     * Favorites and Recently viewed resolve their stored rows against the
+     * list they are handed, so they need the whole set — a film someone
+     * favourited must not vanish from the panel that lists their
+     * favourites.
+     */
     readonly channels = input<Channel[]>([]);
+    /**
+     * The live-only split the All and Groups views list. Falls back to
+     * `channels` so a host that supplies neither split nor setting keeps
+     * today's behaviour.
+     */
+    readonly liveChannels = input<Channel[] | null>(null);
     readonly channelsLoading = input(false);
     /** The page's routed view; the panel opens on it and switches locally. */
     readonly initialView = input<string>('all');
@@ -72,6 +88,13 @@ export class M3uFullscreenChannelListComponent {
     readonly views = M3U_FULLSCREEN_CHANNEL_VIEWS;
     readonly view = linkedSignal<M3uFullscreenChannelView>(() =>
         toM3uFullscreenChannelView(this.initialView())
+    );
+
+    /** The live views get the split list; the collection views do not. */
+    readonly listChannels = computed<Channel[]>(() =>
+        isM3uCollectionView(this.view())
+            ? this.channels()
+            : (this.liveChannels() ?? this.channels())
     );
 
     selectView(view: M3uFullscreenChannelView): void {

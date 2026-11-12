@@ -8,8 +8,7 @@
     data-testid="episode-play-target"
     [attr.aria-label]="
         ('XTREAM.PLAY_EPISODE' | translate: { episode: item.episode_num }) +
-        ': ' +
-        item.title
+        (item.title ? ': ' + item.title : '')
     "
     [attr.aria-disabled]="launching() || null"
     (click)="play()"

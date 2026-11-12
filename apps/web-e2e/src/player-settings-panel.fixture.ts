@@ -10,9 +10,11 @@ import { expect } from './fixtures';
  */
 const FIXTURE_HOST = 'https://player-settings-fixture.local';
 export const CLIP_TITLE = 'Settings Clip';
+// The guide id states a broadcast, so the row stays in the channel list; a
+// file with none is filed under the playlist's Movies section instead.
 const PLAYLIST = [
     '#EXTM3U',
-    `#EXTINF:-1 group-title="Movies",${CLIP_TITLE}`,
+    `#EXTINF:-1 tvg-id="settings-clip" group-title="Movies",${CLIP_TITLE}`,
     `${FIXTURE_HOST}/clip.mp4`,
 ].join('\n');
 

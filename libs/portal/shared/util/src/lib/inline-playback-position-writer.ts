@@ -44,6 +44,25 @@ export interface InlinePlaybackPositionWriter {
     reset(): void;
 }
 
+/**
+ * Whether a tick still comes from before the engine reached `startTime`, so
+ * persisting it would overwrite the point being resumed from.
+ */
+export function isBeforeResumePoint(
+    startTime: number | undefined,
+    event: { currentTime: number; duration: number }
+): boolean {
+    const start = startTime ?? 0;
+    // A shorter cut can never reach a position carried into it, and latching
+    // on that would suppress every save this session.
+    const reachable = !(event.duration > 0) || start < event.duration;
+    return (
+        reachable &&
+        start > 0 &&
+        event.currentTime < start - RESUME_TOLERANCE_SECONDS
+    );
+}
+
 export function createInlinePlaybackPositionWriter(
     config: InlinePlaybackPositionWriterConfig
 ): InlinePlaybackPositionWriter {
@@ -71,16 +90,7 @@ export function createInlinePlaybackPositionWriter(
             // reached the resume point the guard is done, so a deliberate seek
             // backwards is still saved normally.
             if (!resumeSettled) {
-                const startTime = playback.startTime ?? 0;
-                // A shorter cut can never reach a position carried into it,
-                // and latching on that would suppress every save this session.
-                const reachable =
-                    !(event.duration > 0) || startTime < event.duration;
-                if (
-                    reachable &&
-                    startTime > 0 &&
-                    event.currentTime < startTime - RESUME_TOLERANCE_SECONDS
-                ) {
+                if (isBeforeResumePoint(playback.startTime, event)) {
                     return false;
                 }
                 resumeSettled = true;

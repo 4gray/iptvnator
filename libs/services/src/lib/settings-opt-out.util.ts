@@ -14,6 +14,7 @@ export const DEFAULT_ON_SETTINGS = [
     'embeddedMpvAutoReconnect',
     'seriesAutoplay',
     'showCoverTitles',
+    'm3uCatalogTabs',
 ] as const satisfies readonly (keyof Settings)[];
 
 export type DefaultOnSetting = (typeof DEFAULT_ON_SETTINGS)[number];

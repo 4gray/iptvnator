@@ -49,6 +49,14 @@ const VOD_CONTAINER_EXTENSIONS = new Set([
  * `/series/` identifies episode playback but remains excluded from movie
  * metadata recognition.
  */
+/**
+ * Exported as a predicate rather than the set itself, so the vocabulary
+ * stays owned here and callers cannot grow their own copy of it.
+ */
+export function isVodContainerExtension(extension: string): boolean {
+    return VOD_CONTAINER_EXTENSIONS.has(extension);
+}
+
 const MOVIE_PATH_SEGMENTS = new Set(['movie', 'movies', 'vod']);
 const SERIES_PATH_SEGMENT = 'series';
 
@@ -63,14 +71,14 @@ const SERIES_PATH_SEGMENT = 'series';
  * `(?:^|[^\p{L}])` guards instead of `\b`: JS word boundaries are
  * ASCII-only and never fire next to Cyrillic letters.
  */
-const EPISODE_WORD_ALTERNATIVES =
+export const EPISODE_WORD_ALTERNATIVES =
     'episode|episodio|folge|серия|эпизод|bölüm|odcinek|aflevering';
 const SEASON_OR_EPISODE_WORD = `(?:${SEASON_WORD_ALTERNATIVES}|${EPISODE_WORD_ALTERNATIVES})`;
 
-const SEASON_EPISODE_CODE =
+export const SEASON_EPISODE_CODE =
     /(?:^|[^a-z0-9])s\d{1,2}[\s._-]*e\d{1,3}(?![a-z0-9])/i;
 // Requires a 2–3 digit episode part, so short film titles like "4x4" survive
-const CROSS_EPISODE_CODE = /(?:^|[^0-9])\d{1,2}x\d{2,3}(?![0-9])/;
+export const CROSS_EPISODE_CODE = /(?:^|[^0-9])\d{1,2}x\d{2,3}(?![0-9])/;
 const WORD_FIRST_MARKER = new RegExp(
     `(?:^|[^\\p{L}])${SEASON_OR_EPISODE_WORD}[\\s._-]*\\d{1,3}(?!\\d)`,
     'iu'

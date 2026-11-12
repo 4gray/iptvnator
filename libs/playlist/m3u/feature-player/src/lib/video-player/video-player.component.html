@@ -34,7 +34,7 @@
     }
     @defer {
         <app-sidebar
-            [channels]="(channels$ | async)!"
+            [channels]="sidebarChannels()"
             [channelsLoading]="channelsLoading()"
             [activeView]="activeView()"
             [sidebarWidth]="sidebarWidth()"
@@ -279,6 +279,7 @@
 >
     <app-m3u-fullscreen-channel-list
         [channels]="fullscreenPanelChannels()"
+        [liveChannels]="fullscreenPanelLiveChannels()"
         [channelsLoading]="channelsLoading()"
         [initialView]="activeView()"
         [recentItems]="activePlaylistRecentItems()"
