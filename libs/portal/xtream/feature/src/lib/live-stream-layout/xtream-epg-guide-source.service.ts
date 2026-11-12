@@ -234,6 +234,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
             return item ? scheduleKey(item) : null;
         }),
         this.revision,
+        this.session,
         () =>
             this.session() && this.livePlayback()
                 ? this.playingItem()
@@ -243,6 +244,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     );
     readonly playingSchedule = this.dock.programs;
     readonly playingScheduleItems = this.dock.items;
+    readonly activePlayingScheduleItems = this.dock.activeItems;
     readonly recoveredPrograms = this.dock.recoveredPrograms;
     readonly playbackSchedule = this.schedules.forPlayback;
     private play?: (

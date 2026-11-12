@@ -137,6 +137,7 @@ export function setupLiveStreamLayoutNativeFixture() {
         openPlayer: jest.fn(),
         addRecentItem: jest.fn(),
         setSelectedItem: jest.fn(),
+        setGuideSchedule: (items: EpgItem[]) => epgItems.set(items),
         loadEpg: jest.fn(),
         setSelectedCategory: jest.fn(),
         loadMoreContent: jest.fn(),

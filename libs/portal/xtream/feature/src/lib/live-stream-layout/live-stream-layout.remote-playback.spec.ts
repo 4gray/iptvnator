@@ -24,7 +24,7 @@ describe('Xtream remote playback metadata', () => {
 
     afterEach(restoreElectron);
 
-    it('keeps the playing schedule on the remote after closing the guide over another preview', async () => {
+    it('keeps the latest playing schedule on the remote when previewing another channel', async () => {
         const now = Math.floor(Date.now() / 1000);
         const start = new Date((now - 60) * 1000).toISOString();
         const stop = new Date((now + 60) * 1000).toISOString();
@@ -36,7 +36,8 @@ describe('Xtream remote playback metadata', () => {
             start_timestamp: String(now - 60),
             stop_timestamp: String(now + 60),
         };
-        const load = jest.fn(async () => [airing]);
+        const guideAiring = { ...airing, title: 'Synthetic Guide Programme' };
+        const load = jest.fn(async () => [guideAiring]);
         TestBed.overrideProvider(XtreamFullEpgService, { useValue: { load } });
         TestBed.overrideProvider(XtreamApiService, {
             useValue: { cancelSession: jest.fn() },
@@ -75,11 +76,14 @@ describe('Xtream remote playback metadata', () => {
         xtreamStore.selectedItem.set(preview);
         epgItems.set([{ ...airing, title: 'Synthetic Preview Programme' }]);
         fixture.detectChanges();
-        const confirmed = expect.objectContaining({
-            channelName: playing.name,
-            epgTitle: airing.title,
-        });
-        expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(confirmed);
+        const expectRemoteProgramme = (title: string) =>
+            expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    channelName: playing.name,
+                    epgTitle: title,
+                })
+            );
+        expectRemoteProgramme(airing.title);
         component.guide.open();
         fixture.detectChanges();
         const source = fixture.debugElement.injector.get(
@@ -87,10 +91,25 @@ describe('Xtream remote playback metadata', () => {
         );
         await source.playbackSchedule(playing);
         fixture.detectChanges();
-        expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(confirmed);
+        expectRemoteProgramme(guideAiring.title);
         component.guide.close();
         fixture.detectChanges();
-        expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(confirmed);
+        expectRemoteProgramme(guideAiring.title);
+        const refreshed = { ...airing, title: 'Synthetic Refreshed Programme' };
+        xtreamStore.selectedItem.set(playing);
+        epgItems.set([refreshed]);
+        fixture.detectChanges();
+        expectRemoteProgramme(refreshed.title);
+        xtreamStore.selectedItem.set(preview);
+        epgItems.set([{ ...airing, title: 'Synthetic Preview Programme' }]);
+        fixture.detectChanges();
+        expectRemoteProgramme(refreshed.title);
+        xtreamStore.selectedItem.set(playing);
+        epgItems.set([refreshed]);
+        load.mockReturnValueOnce(new Promise(() => undefined));
+        component.guide.open();
+        fixture.detectChanges();
+        expect(epgItems()).toEqual([refreshed]);
         expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(1);
     });
 

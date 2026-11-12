@@ -387,6 +387,7 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
         'connection edit',
         'same-channel remote tune',
         'older live confirmation',
+        'pending live guide commit',
     ] as const)(
         'honors the latest archive request after %s',
         async (change) => {
@@ -395,7 +396,8 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
             const item = { ...sampleChannel, category_id: 1 };
             const next = { ...item, xtream_id: item.xtream_id + 1 };
             const olderLive = change === 'older live confirmation';
-            const channels = olderLive ? [item, next] : [item];
+            const commitLive = change === 'pending live guide commit';
+            const channels = olderLive || commitLive ? [item, next] : [item];
             portalPlayer.isEmbeddedPlayer.set(false);
             epgItems.set([epgItem('Synthetic Archive', 0, 1)]);
             emptyList.set(channels);
@@ -418,7 +420,7 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
                 fixture.detectChanges();
             }
             const nextUrl = 'https://example.test/synthetic-older-live.ts';
-            if (olderLive) {
+            if (olderLive || commitLive) {
                 xtreamStore.constructStreamUrl.mockReturnValueOnce(nextUrl);
                 xtreamStore.openPlayer.mockReturnValueOnce(
                     new Promise(() => undefined)
@@ -440,6 +442,12 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
                 program: component.controlledEpgPrograms()[0],
             });
             expect(resolveCatchupUrl).toHaveBeenCalled();
+            const commit = jest.fn();
+            const nextSession = {
+                ...current,
+                id: 'synthetic-next-live',
+                streamUrl: nextUrl,
+            };
             if (change === 'same-channel remote tune') {
                 onRemoteControlCommand.mock.lastCall?.[0]({
                     type: 'channel-select-number',
@@ -447,13 +455,22 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
                 });
                 expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(1);
             } else if (olderLive) {
-                publishExternalSession({
-                    ...current,
-                    id: 'synthetic-older-live',
-                    streamUrl: nextUrl,
-                });
+                publishExternalSession(nextSession);
                 fixture.detectChanges();
                 expect(component.activeStreamUrl()).toBe(nextUrl);
+            } else if (commitLive) {
+                component.guide.open();
+                fixture.detectChanges();
+                const source = fixture.debugElement.injector.get(
+                    XtreamEpgGuideSourceService
+                );
+                source.activate(
+                    String(next.xtream_id),
+                    null,
+                    undefined,
+                    commit
+                );
+                expect(commit).not.toHaveBeenCalled();
             } else
                 xtreamStore.currentPlaylist.set({
                     ...playlist,
@@ -467,8 +484,13 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
             resolve(archiveUrl);
             await opening;
             expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(
-                olderLive ? 3 : 1
+                olderLive ? 3 : commitLive ? 2 : 1
             );
+            if (commitLive) {
+                publishExternalSession(nextSession);
+                fixture.detectChanges();
+                expect(commit).toHaveBeenCalledTimes(1);
+            }
             if (olderLive) {
                 expect(xtreamStore.openPlayer.mock.lastCall?.[0]).toBe(
                     archiveUrl
@@ -482,7 +504,7 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
                 fixture.detectChanges();
             }
             expect(component.activeStreamUrl()).toBe(
-                olderLive ? archiveUrl : previous
+                olderLive ? archiveUrl : commitLive ? nextUrl : previous
             );
         }
     );

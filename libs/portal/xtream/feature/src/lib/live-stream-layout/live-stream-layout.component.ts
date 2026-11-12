@@ -69,7 +69,6 @@ import {
     EpgListViewComponent,
     EpgProgramActivationEvent,
     EpgTimelineComponent,
-    getProgramTimeMs,
     getTodayEpgDateKey,
     shiftEpgDateKey,
 } from '@iptvnator/ui/epg';
@@ -127,7 +126,7 @@ import {
 } from './xtream-external-live-sessions.service';
 import { XtreamGuideExternalPlayback } from './xtream-guide-external-playback.service';
 import { scheduleKey } from './xtream-guide-schedules';
-import { retainXtreamPanelSchedule } from './xtream-guide-now-playing';
+import { retainXtreamPlayingSchedule } from './xtream-guide-now-playing';
 import { XtreamTuneRequests } from './xtream-tune-requests.service';
 import { toSharedEpgProgram } from '../portal-channels-list/epg-preview-program';
 
@@ -562,22 +561,26 @@ export class LiveStreamLayoutComponent
                 ? this.activePlayback()?.title
                 : this.externalGuide.confirmed()?.session.title) ?? ''
     );
-    private readonly panelPlaybackSchedule = retainXtreamPanelSchedule(() => {
+    private readonly playingSchedule = retainXtreamPlayingSchedule(() => {
         const playing = this.guideChannel();
         const refreshed = this.guideSource.playingItem();
-        const copy =
-            playing && refreshed && sameXtreamChannelCopy(playing, refreshed)
-                ? refreshed
-                : playing;
+        const matches =
+            playing && refreshed && sameXtreamChannelCopy(playing, refreshed);
+        const copy = matches ? refreshed : playing;
         const selected = this.selectedLiveItem();
         return {
             owner: this.externalGuide.owner(),
             key: copy ? `${copy.category_id}:${scheduleKey(copy)}` : undefined,
-            items:
+            revision: this.guideSource.revision(),
+            guide: matches
+                ? (this.guideSource.playingScheduleItems() ?? undefined)
+                : undefined,
+            panel:
                 copy &&
                 selected &&
                 sameXtreamChannelCopy(copy, selected) &&
-                scheduleKey(copy) === scheduleKey(selected)
+                scheduleKey(copy) === scheduleKey(selected) &&
+                !this.isLoadingEpg()
                     ? this.epgItems()
                     : undefined,
         };
@@ -589,31 +592,7 @@ export class LiveStreamLayoutComponent
             this.currentTimeMs(),
             this.epgOffsetMinutes()
         );
-        const playing = this.guideChannel();
-        const currentCopy = this.guideSource.playingItem();
-        const matchesPlayingCopy =
-            playing &&
-            currentCopy &&
-            sameXtreamChannelCopy(playing, currentCopy);
-        const schedule = matchesPlayingCopy
-            ? this.guideSource.playingSchedule()
-            : null;
-        if (schedule)
-            return (
-                schedule.find(
-                    (program) =>
-                        getProgramTimeMs(
-                            program.start,
-                            program.startTimestamp
-                        ) <= now &&
-                        now <
-                            getProgramTimeMs(
-                                program.stop,
-                                program.stopTimestamp
-                            )
-                ) ?? null
-            );
-        const program = findCurrentEpgItem(this.panelPlaybackSchedule(), now);
+        const program = findCurrentEpgItem(this.playingSchedule(), now);
         return program ? toSharedEpgProgram(program) : null;
     });
 
@@ -684,8 +663,10 @@ export class LiveStreamLayoutComponent
                         channels,
                         onConfirmed
                     )
-                )
+                ) {
+                    if (onConfirmed) this.tuneRequests.invalidate();
                     return;
+                }
                 if ((!retry || cancelled) && alreadyLive) {
                     if (onConfirmed) this.tuneRequests.invalidate();
                     if (!sameXtreamChannelCopy(playing, item))
@@ -728,7 +709,7 @@ export class LiveStreamLayoutComponent
             )
         );
         effect(() => {
-            const items = this.guideSource.playingScheduleItems();
+            const items = this.guideSource.activePlayingScheduleItems();
             if (!items) return;
             const playing = this.guideSource.playingItem();
             const selected = this.selectedLiveItem();

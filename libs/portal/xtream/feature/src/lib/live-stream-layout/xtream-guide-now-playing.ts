@@ -19,22 +19,36 @@ import {
 
 const DOCK_RETRY_MS = 30_000;
 
-export function retainXtreamPanelSchedule(
+export function retainXtreamPlayingSchedule(
     read: () => {
         owner?: XtreamLiveOwner;
         key?: string;
-        items?: EpgItem[];
+        revision: unknown;
+        panel?: EpgItem[];
+        guide?: EpgItem[];
     }
 ) {
     return linkedSignal({
         source: read,
-        computation: ({ owner, key, items }, previous): EpgItem[] =>
-            items ??
-            (key &&
-            key === previous?.source.key &&
-            sameXtreamLiveOwner(owner, previous.source.owner)
-                ? previous.value
-                : []),
+        computation: (
+            { owner, key, revision, panel, guide },
+            previous
+        ): EpgItem[] => {
+            const retained =
+                key &&
+                key === previous?.source.key &&
+                revision === previous.source.revision &&
+                sameXtreamLiveOwner(owner, previous.source.owner)
+                    ? previous
+                    : undefined;
+            return (
+                // A guide snapshot can outlive the guide; only a new one wins.
+                (guide !== retained?.source.guide ? guide : undefined) ??
+                (panel !== retained?.source.panel ? panel : undefined) ??
+                retained?.value ??
+                []
+            );
+        },
     });
 }
 
@@ -42,6 +56,7 @@ export function retainXtreamPanelSchedule(
 export function createXtreamGuideNowPlaying(
     playingKey: Signal<string | null>,
     revision: Signal<unknown>,
+    session: Signal<AbortController | null>,
     target: () => XtreamLiveChannelItem | undefined,
     read: (
         item: XtreamLiveChannelItem,
@@ -52,6 +67,7 @@ export function createXtreamGuideNowPlaying(
     const schedule = signal<{
         key: string;
         revision: unknown;
+        session: AbortController | null;
         value: XtreamGuideSchedule;
     } | null>(null);
     const currentSchedule = computed(() => {
@@ -59,7 +75,7 @@ export function createXtreamGuideNowPlaying(
         return current &&
             current.key === playingKey() &&
             current.revision === revision()
-            ? current.value
+            ? current
             : null;
     });
 
@@ -88,10 +104,17 @@ export function createXtreamGuideNowPlaying(
     });
 
     return {
-        programs: computed(() => currentSchedule()?.programs ?? null),
-        items: computed(() => currentSchedule()?.items ?? null),
+        programs: computed(() => currentSchedule()?.value.programs ?? null),
+        items: computed(() => currentSchedule()?.value.items ?? null),
+        activeItems: computed(() => {
+            const current = currentSchedule();
+            const owner = session();
+            return owner && current?.session === owner
+                ? current.value.items
+                : null;
+        }),
         recoveredPrograms: (window: Pick<EpgGuideWindow, 'fromMs' | 'toMs'>) =>
-            currentSchedule()?.programs.filter((program) =>
+            currentSchedule()?.value.programs.filter((program) =>
                 programmeOverlapsGuideWindow(program, window)
             ) ?? null,
         publish(
@@ -103,6 +126,7 @@ export function createXtreamGuideNowPlaying(
                 schedule.set({
                     key,
                     revision: sourceRevision,
+                    session: session(),
                     value,
                 });
         },

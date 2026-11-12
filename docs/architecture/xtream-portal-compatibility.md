@@ -863,6 +863,8 @@ Selecting the number of a channel already playing live cancels pending tunes,
 including archive lookups, without reopening it.
 The live layout's tune request service invalidates category and archive lookups,
 inline confirmation and deferred retunes when Stop or a newer selection wins.
+Committing an already opening live channel also retires older archive lookups
+while reusing the pending player launch.
 The player panel stays on confirmed playback while a remote tune is pending.
 The dock restores Stop for the surviving session when the launch that owns
 the dock ends. An idle failed replacement closes before that restore. If the
@@ -926,8 +928,10 @@ and buffer. Rendered rows and the playing stream's dock revalidate after their
 schedules expire, even if the playing row is outside the current scope. The
 dock follows the playing copy's latest XMLTV identity after a catalog recheck
 and keeps the player panel and remote programme current when the guide closes.
-The last confirmed schedule stays tied to the playing channel, even while
-the panel previews a different channel. Closing the guide cancels its reads.
+After the guide closes, a refresh of the playing channel's panel replaces the
+guide snapshot. The latest confirmed schedule stays tied to the playing channel,
+even while the panel previews a different channel. Closing the guide cancels its
+reads.
 Failed rows retry when they return to the viewport. A coverage scan or a dock refresh that
 obtains a schedule also updates the corresponding visible failed row.
 It checks the current scope's coverage only when the user turns on **Only with
