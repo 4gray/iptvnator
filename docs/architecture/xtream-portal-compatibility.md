@@ -799,8 +799,9 @@ An inline retry must confirm again even when the stream URL is unchanged.
 An embedded MPV reconnect also waits for the resumed stream to play.
 A guide or remote switch reuses the managed player when available. Otherwise
 it waits for the exact previous process to exit before opening the new channel,
-so a one-connection account does not have two simultaneous streams. A newer
-tune waits for an already dispatched launch to become closable, and for an
+so a one-connection account does not have two simultaneous streams. An older
+VLC launch that has not spawned cannot take the newer guide's private reuse slot.
+A newer tune waits for an already dispatched launch to become closable, and for an
 already cancelled launch to exit. Selecting the previous channel while it is
 stopping restarts it after exit and waits for that
 playback to open, including when a click still lands on its active row.
@@ -808,8 +809,8 @@ An explicit Stop in the playback dock cancels an earlier tune from the same
 playlist, including during category or archive lookup or while waiting for the
 player to exit. A tune already dispatched is cancelled by launch ID; its exact
 session is closed when it becomes available. The dock's own Stop still owns
-teardown of the session it targeted. The handoff's exact close does not cancel
-its replacement.
+teardown of the session it targeted and clears any failed tune kept for the
+remote. The handoff's exact close does not cancel its replacement.
 Selecting the same channel during a dock Stop also waits for that process to
 exit and confirms only the restarted stream.
 If a replacement fails after the previous stream ends, the already open guide

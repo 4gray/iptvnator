@@ -9,6 +9,7 @@ describe('Xtream guide Stop during a detached handoff', () => {
     const {
         databaseService,
         emptyList,
+        onChannelChange,
         pendingStop,
         player,
         portalPlayer,
@@ -16,10 +17,63 @@ describe('Xtream guide Stop during a detached handoff', () => {
         restoreElectron,
         runtime,
         stopRequested,
+        updateRemoteControlStatus,
         xtreamStore,
     } = setupLiveStreamLayoutNativeFixture();
 
     afterEach(restoreElectron);
+
+    it('clears the older failed tune when the next opening is stopped', async () => {
+        const first = { ...sampleChannel, category_id: 1 };
+        const second = { ...first, xtream_id: first.xtream_id + 1 };
+        const queue = [first, second];
+        emptyList.set(queue);
+        portalPlayer.isEmbeddedPlayer.set(false);
+        const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
+        const component = fixture.componentInstance;
+        fixture.detectChanges();
+        xtreamStore.openPlayer.mockRejectedValueOnce(
+            new Error('Synthetic launch failure')
+        );
+        component.playLive(first, true, queue);
+        await Promise.resolve();
+        fixture.detectChanges();
+        expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
+            expect.objectContaining({ isLiveView: true })
+        );
+
+        const streamUrl = 'https://example.test/synthetic-next.ts';
+        xtreamStore.constructStreamUrl.mockReturnValueOnce(streamUrl);
+        xtreamStore.openPlayer.mockReturnValueOnce(
+            new Promise(() => undefined)
+        );
+        component.playLive(second, true, queue);
+        const pending = {
+            id: 'synthetic-next',
+            player: 'mpv',
+            status: 'launching',
+            streamUrl,
+            title: 'Synthetic Next',
+            canClose: true,
+            mediaLoaded: false,
+            startedAt: '2026-04-04T10:00:00Z',
+            updatedAt: '2026-04-04T10:00:00Z',
+        } as const;
+        publishExternalSession(pending);
+        stopRequested.next(pending.id);
+        publishExternalSession({
+            ...pending,
+            status: 'closed',
+            canClose: false,
+            closedByRequest: true,
+        });
+        fixture.detectChanges();
+        expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
+            expect.objectContaining({ isLiveView: false })
+        );
+        onChannelChange.mock.lastCall?.[0]({ direction: 'down' });
+        expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(2);
+    });
 
     it.each(['handoff', 'stop', 'retune'] as const)(
         'orders a detached guide tune and a dock Stop (%s)',

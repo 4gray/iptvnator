@@ -197,6 +197,7 @@ export class XtreamGuideExternalPlayback {
                     return;
                 this.panel?.cancelPendingRequest();
                 this.sessions.cancelPendingSwitches(source, { dockStopId: id });
+                this.failedTuning.set(undefined);
                 this.pending.set(undefined);
             });
         effect(() => {
@@ -291,6 +292,7 @@ export class XtreamGuideExternalPlayback {
             );
         if (launch)
             Object.assign(launch, { ended: lifecycle?.ended, retry: !!close });
+        this.failedTuning.set(undefined);
         this.pending.set(launch);
         const recover = (failed: boolean) => {
             if (!isCurrent()) return;

@@ -213,11 +213,6 @@ export async function openVlcPlayer({
         closeRequested: false,
         requestedClose: null,
     };
-    const hasNewerOwner = () =>
-        externalPlayerSessions.isNewerLaunch(
-            reusableVlcProcess.currentSessionId(),
-            session
-        );
     let freshTeardownUnconfirmed = false;
     let closeRetained: (() => Promise<void>) | undefined;
 
@@ -258,6 +253,12 @@ export async function openVlcPlayer({
         });
 
         const guideLaunch = !!session.launchId && !contentInfo;
+        const superseded = () =>
+            (guideLaunch || reusableVlcProcess.hasPrivateControl()) &&
+            externalPlayerSessions.isNewerLaunch(
+                reusableVlcProcess.currentSessionId(),
+                session
+            );
         while (reuseInstance) {
             if (stopped?.())
                 return (
@@ -265,7 +266,7 @@ export async function openVlcPlayer({
                     session
                 );
             if (reuseState.closeRequested) break;
-            if (guideLaunch && hasNewerOwner())
+            if (superseded())
                 return externalPlayerSessions.markClosed(session.id) ?? session;
             if (!guideLaunch || reusableVlcProcess.hasPrivateControl()) {
                 const previousProcessSessionId =
@@ -411,7 +412,7 @@ export async function openVlcPlayer({
                     externalPlayerSessions.getSession(session.id)?.status ===
                         'closed' ||
                     stopped?.() ||
-                    (reuseInstance && guideLaunch && hasNewerOwner())
+                    (reuseInstance && superseded())
                 ) {
                     privateEndpoint?.dispose();
                     closeRequested = true;

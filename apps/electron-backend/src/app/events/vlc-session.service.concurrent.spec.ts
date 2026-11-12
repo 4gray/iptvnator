@@ -128,6 +128,38 @@ describe('VLC exact playback ownership', () => {
         jest.useRealTimers();
     });
 
+    it('retires an older VLC launch waiting for a TCP port after the guide takes the reuse slot', async () => {
+        if (process.platform === 'win32') return;
+        const guideChild = child();
+        const olderChild = child();
+        spawnMock
+            .mockReturnValueOnce(guideChild)
+            .mockReturnValueOnce(olderChild);
+        const older = open('synthetic-older');
+        await tick();
+        const opening = openVlcPlayer({
+            title: 'Synthetic Live',
+            url: 'https://example.test/synthetic-live.ts',
+            launchId: 'synthetic-guide',
+        });
+        guideChild.emit('spawn');
+        const guide = await opening;
+        try {
+            ports[0]();
+            await tick();
+            olderChild.emit('spawn');
+            await expect(older).resolves.toMatchObject({ status: 'closed' });
+            expect(spawnMock).toHaveBeenCalledTimes(1);
+            expect(externalPlayerSessions.getActiveSessionId()).toBe(guide.id);
+            expect(
+                externalPlayerSessions.getSession(guide.id)?.reuseAvailable
+            ).toBe(true);
+        } finally {
+            exit(guideChild);
+            exit(olderChild);
+        }
+    });
+
     it('does not fetch the old stream when a confirmed direct VLC input changes', async () => {
         jest.useFakeTimers({ doNotFake: ['setImmediate'] });
         const original = 'https://example.test/synthetic-direct.ts';
