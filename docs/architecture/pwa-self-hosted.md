@@ -78,45 +78,6 @@ connector status reflects process state. Operators verify connectivity and viewe
 authorization in Cloudflare and their browser. See the
 [HTTPS setup guide](../../docker/README.md#optional-https-and-cloudflare-tunnel).
 
-Automatic Cloudflare setup needs a registered OAuth client and an accepted
-redirect URI. A private client can test sign-in with members of its owning
-account without publisher-domain verification. Distribution to other Cloudflare
-users needs a public client and a verified publisher domain. Client registration
-requires a Super Administrator, Administrator, or OAuth Client Write role;
-API registration requires a token with `OAuth Clients Write`. A credential's
-denied client-list request does not establish that the account cannot register
-a client. See [Cloudflare's client registration contract](https://developers.cloudflare.com/fundamentals/oauth/create-an-oauth-client/).
-
-The smallest sign-in proof uses a private registration with
-`grant_types: ["authorization_code"]`, `response_types: ["code"]`,
-`token_endpoint_auth_method: "none"`, `scopes: ["account-settings.read"]`, and
-the exact redirect URI accepted during registration. Use fresh state and an
-`S256` PKCE verifier/challenge, reject mismatched or replayed callbacks, exchange
-the code in Electron main, and prove account discovery with the resulting token.
-Keep credentials out of renderer state and logs. This proof needs no tunnel or
-DNS writes; it does not prove that a loopback or custom-scheme redirect will be
-accepted, or that provisioning permissions work. Cloudflare publishes the
-[authorization and token endpoints](https://developers.cloudflare.com/fundamentals/oauth/integrate-with-cloudflare/).
-Its shared discovery document also advertises flows unavailable to self-managed
-third-party clients; use the registration contract's Authorization Code flow.
-
-The [Cloudflare OAuth catalog](https://developers.cloudflare.com/api/resources/iam/subresources/oauth_scopes/methods/list/)
-lists `account-settings.read`,
-`zone.read`, `argotunnel.read`, `argotunnel.write`, `dns.write`, `access.read`,
-and `access.write` for the planned account, zone, tunnel, DNS, and Access
-operations. Confirm that the registered client's consented token authorizes
-each operation in a disposable zone before enabling automatic setup.
-
-Use a fresh hostname in an active zone and an existing Zero Trust organization
-with a working identity provider. Create an owner-only reusable Access policy
-and attach it to a self-hosted Access application. Create a tunnel and verify
-its full ingress configuration uses Protect with Access, the application's
-audience, and `127.0.0.1:4335`. Publish DNS after those checks. Validate the
-sign-in challenge and denial of an uninvited identity in a clean browser before
-sharing. Record created resource IDs so teardown can remove the new DNS record
-first and clean up the tunnel, application, and policy without affecting other
-resources.
-
 The desktop package includes `web-backend:build` and `web:build-hosted`. The
 latter emits a separate PWA bundle, so the Electron renderer and Docker
 deployment keep their own build outputs. The outer Nx graph builds shared

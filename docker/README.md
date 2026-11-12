@@ -161,10 +161,11 @@ and import the desktop's original local sources into the shared library.
 ## Optional HTTPS and Cloudflare Tunnel
 
 In desktop **Settings → Server**, choose how devices will reach the library
-before starting the server. Expand **Remote access (optional)**, choose
-**Custom HTTPS** for a proxy or tunnel you run separately, and enter its public
-address, such as `https://library.example.com`. You can also enable HTTPS after
-starting a local server. IPTVnator opens a separate origin at
+before starting the server. Choose **Custom HTTPS** for a proxy or tunnel you
+run separately, and enter its public address, such as
+`https://library.example.com`. To use home network HTTP and HTTPS together,
+start with **Home network**, then set up HTTPS from the running screen.
+IPTVnator opens a separate origin at
 `http://127.0.0.1:4335` for the proxy on the same computer. The public address
 must be an exact HTTPS origin without a path or credentials. Preserve the public
 `Host` and `Origin` headers. Do not proxy port 4334 or expose either port on the
@@ -216,15 +217,6 @@ hostname and disable caching for authenticated traffic. The gateway owns viewer
 authentication; IPTVnator continues enforcing its access code on protected APIs.
 Use normal certificate validation. HTTPS browser playback may block HTTP-only
 media; use a supported external player instead of disabling browser security.
-
-Automatic Cloudflare setup and IPTVnator-managed remote access are unavailable
-in this build. Distributing automatic setup needs
-a registered public OAuth client, verified publisher domain and registered
-redirect. Cloudflare requires PKCE with `S256` and token authentication `none`
-for desktop clients. The authenticated scope catalog must confirm the required
-account/zone discovery, Tunnel, DNS and Access scopes before provisioning is
-implemented; API-token permissions must not be assumed to be OAuth scope IDs.
-See [Cloudflare OAuth client prerequisites](https://developers.cloudflare.com/fundamentals/oauth/create-an-oauth-client/).
 
 ## Server Storage
 
