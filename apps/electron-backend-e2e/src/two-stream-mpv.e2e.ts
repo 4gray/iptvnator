@@ -435,7 +435,11 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
             .toBe(Math.round(beforeFullscreen.width));
         for (const theme of ['dark', 'light']) {
             await applyTheme(page, theme as 'dark' | 'light');
-            await tile.hover();
+            await tile.focus();
+            await expect(page.locator('.second-stream__bottom')).toHaveCSS(
+                'opacity',
+                '1'
+            );
             await expectTextContrast(
                 page.locator('.second-stream__bottom > span')
             );

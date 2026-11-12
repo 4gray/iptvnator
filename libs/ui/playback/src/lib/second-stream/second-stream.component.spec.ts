@@ -1,5 +1,9 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import {
+    SecondStreamCatalogService,
+    type SecondStreamSelection,
+} from '@iptvnator/portal/shared/data-access';
 import { TranslateModule } from '@ngx-translate/core';
 import { EmbeddedMpvPlayerComponent } from '../embedded-mpv-player/embedded-mpv-player.component';
 import { createLoadingSession } from '../embedded-mpv-player/embedded-mpv-session-factory';
@@ -11,10 +15,22 @@ describe('SecondStreamComponent', () => {
         streamUrl: 'https://media.example.test/movie.webm',
         isLive: false,
     };
+    const selection: SecondStreamSelection = {
+        playback,
+        item: {
+            uid: 'synthetic-channel',
+            name: 'Synthetic channel',
+            sourceType: 'm3u',
+            contentType: 'live',
+            playlistId: 'synthetic-playlist',
+            playlistName: 'Synthetic playlist',
+        },
+    };
     let component: SecondStreamComponent;
     let first: EmbeddedMpvPlayerComponent;
     let second: EmbeddedMpvPlayerComponent;
     let volume: jest.Mock;
+    const allowed = signal(true);
     const originalElectron = Object.getOwnPropertyDescriptor(
         window,
         'electron'
@@ -22,11 +38,18 @@ describe('SecondStreamComponent', () => {
 
     beforeEach(() => {
         volume = jest.fn().mockResolvedValue(null);
+        allowed.set(true);
         Object.defineProperty(window, 'electron', {
             configurable: true,
             value: { setEmbeddedMpvVolume: volume },
         });
         TestBed.configureTestingModule({
+            providers: [
+                {
+                    provide: SecondStreamCatalogService,
+                    useValue: { isAllowed: allowed },
+                },
+            ],
             imports: [
                 TranslateModule.forRoot(),
                 SecondStreamComponent,
@@ -74,12 +97,12 @@ describe('SecondStreamComponent', () => {
     it('replaces the companion through the picker and retains the primary', async () => {
         const replacement = { ...playback, title: 'Synthetic replacement' };
         component.editing.set(true);
-        await component.selectPlayback(playback);
-        await component.selectPlayback(replacement);
+        await component.selectPlayback(selection);
+        await component.selectPlayback({ ...selection, playback: replacement });
         expect(component.playback()).toBe(playback);
 
         component.editing.set(true);
-        await component.selectPlayback(replacement);
+        await component.selectPlayback({ ...selection, playback: replacement });
         expect(component.playback()).toBe(replacement);
         expect(component.editing()).toBe(false);
         expect(first.controller.sessionId()).toBe('first');
@@ -87,33 +110,76 @@ describe('SecondStreamComponent', () => {
     });
 
     it('returns sound and the main view to the primary before replacing a swapped companion', async () => {
-        component.playback.set(playback);
+        component.selection.set(selection);
         component.swapped.set(true);
         component.editing.set(true);
         const replacement = { ...playback, title: 'Synthetic replacement' };
 
-        await component.selectPlayback(replacement);
+        await component.selectPlayback({ ...selection, playback: replacement });
 
         expect(component.swapped()).toBe(false);
         expect(component.playback()).toBe(replacement);
         expect(first.controller.sessionId()).toBe('first');
-        expect(volume.mock.calls).toEqual([['second', 0], ['first', 0.5]]);
+        expect(volume.mock.calls).toEqual([
+            ['second', 0],
+            ['first', 0.5],
+        ]);
     });
 
     it('keeps the current selection if the swapped audio handoff fails', async () => {
-        component.playback.set(playback);
+        component.selection.set(selection);
         component.swapped.set(true);
         component.editing.set(true);
         volume.mockRejectedValue(new Error('helper closed'));
 
-        await component.selectPlayback({ ...playback, title: 'Synthetic replacement' });
+        await component.selectPlayback({
+            ...selection,
+            playback: { ...playback, title: 'Synthetic replacement' },
+        });
 
         expect(component.swapped()).toBe(true);
         expect(component.playback()).toBe(playback);
         expect(component.error()).toBe(true);
     });
 
+    it('stops the companion at relock and does not resume it on unlock', async () => {
+        component.editing.set(true);
+        await component.selectPlayback(selection);
+        expect(component.active()).toBe(true);
+        allowed.set(false);
+        TestBed.tick();
+        expect(component.active()).toBe(false);
+        allowed.set(true);
+        TestBed.tick();
+        expect(component.active()).toBe(false);
+        expect(first.controller.sessionId()).toBe('first');
+    });
+
+    it('does not unmute a companion that is locked during a swap', async () => {
+        component.editing.set(true);
+        await component.selectPlayback(selection);
+        let confirm!: () => void;
+        volume.mockImplementationOnce(
+            () =>
+                new Promise((resolve) => {
+                    confirm = () => resolve(null);
+                })
+        );
+        const pending = component.swap();
+        allowed.set(false);
+        TestBed.tick();
+        expect(component.active()).toBe(false);
+        confirm();
+        expect(await pending).toBe(false);
+        expect(component.swapped()).toBe(false);
+        expect(volume.mock.calls).toEqual([
+            ['first', 0],
+            ['first', 0.5],
+        ]);
+    });
+
     it('serializes repeated swaps and does not change layout before audio acknowledgement', async () => {
+        component.selection.set(selection);
         let confirm!: () => void;
         volume.mockImplementationOnce(
             () =>
@@ -152,7 +218,7 @@ describe('SecondStreamComponent', () => {
     });
 
     it('can close a failed companion without restarting the retained primary', async () => {
-        component.playback.set({ ...playback, isLive: true });
+        component.selection.set(selection);
         component.swapped.set(true);
         volume.mockRejectedValue(new Error('helper closed'));
         await component.close();

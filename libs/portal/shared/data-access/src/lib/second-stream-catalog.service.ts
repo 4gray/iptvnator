@@ -11,6 +11,7 @@ import {
     isCatalogUnavailable,
     Playlist,
     PlaylistMeta,
+    ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import { sourceSortName } from '@iptvnator/playlist/shared/util';
 import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
@@ -33,6 +34,10 @@ export interface SecondStreamSource {
 export interface SecondStreamChannel {
     item: UnifiedCollectionItem;
     group: string;
+}
+export interface SecondStreamSelection {
+    item: UnifiedCollectionItem;
+    playback: ResolvedPortalPlayback;
 }
 export interface SecondStreamCatalog {
     groups: SecondStreamSource[];
@@ -82,7 +87,7 @@ export class SecondStreamCatalogService {
                     (i) =>
                         i.contentType === 'live' &&
                         i.radio !== 'true' &&
-                        this.permitted(i)
+                        this.isAllowed(i)
                 )
                 .map((item) => ({ item, group: item.playlistId }));
             return {
@@ -162,8 +167,10 @@ export class SecondStreamCatalogService {
 
     async resolve(row: SecondStreamChannel) {
         const item = row.item;
-        if (!this.permitted(item)) throw new Error('Channel unavailable');
-        return this.resolver.resolvePlayback(item);
+        if (!this.isAllowed(item)) throw new Error('Channel unavailable');
+        const playback = await this.resolver.resolvePlayback(item);
+        if (!this.isAllowed(item)) throw new Error('Channel unavailable');
+        return playback;
     }
 
     private async normalizeFavorites(
@@ -205,7 +212,8 @@ export class SecondStreamCatalogService {
         );
     }
 
-    private permitted(item: UnifiedCollectionItem): boolean {
+    isAllowed(item: UnifiedCollectionItem): boolean {
+        this.version();
         if (this.locks.withholdsEverything() || isCatalogUnavailable(item))
             return false;
         if (item.sourceType === 'm3u')
@@ -222,10 +230,16 @@ export class SecondStreamCatalogService {
                 raw?.tv_genre_id ?? item.categoryId
             );
         }
+        const categoryId = Number(item.categoryId);
+        if (!Number.isFinite(categoryId) && this.locks.active()) {
+            return (
+                this.locks.lockedXtreamIds(item.playlistId, 'live').length === 0
+            );
+        }
         return !this.locks.isXtreamCategoryLocked(
             item.playlistId,
             'live',
-            Number(item.categoryId)
+            categoryId
         );
     }
 

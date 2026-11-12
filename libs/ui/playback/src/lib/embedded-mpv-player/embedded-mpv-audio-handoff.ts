@@ -6,10 +6,10 @@ export async function handoffMpvAudio(
     outgoing: string,
     incoming: string,
     volume: number,
-    signal: AbortSignal
+    canContinue: () => boolean
 ): Promise<void> {
-    if (signal.aborted) throw new Error('Audio handoff cancelled');
+    if (!canContinue()) throw new Error('Audio handoff cancelled');
     await bridge.setEmbeddedMpvVolume(outgoing, 0);
-    if (signal.aborted) throw new Error('Audio handoff cancelled');
+    if (!canContinue()) throw new Error('Audio handoff cancelled');
     await bridge.setEmbeddedMpvVolume(incoming, volume);
 }
