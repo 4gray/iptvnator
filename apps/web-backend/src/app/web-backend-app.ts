@@ -340,20 +340,21 @@ export function createWebBackendApp(
                     reportProviderRequestConnected(hostGuard, guardToken);
                 },
             });
-            upstream.signal.throwIfAborted();
             reportProviderRequestSuccess(hostGuard, guardToken);
             guardToken = null;
+            upstream.signal.throwIfAborted();
 
             res.json({
                 action: getQueryString(req, 'action'),
                 payload: response.data,
             });
         } catch (error) {
-            if (upstream.signal.aborted) return;
             reportProviderRequestFailure(hostGuard, guardToken, error, {
+                countFailures: !upstream.signal.aborted,
                 requestUrl,
                 connected,
             });
+            if (upstream.signal.aborted) return;
             logProviderRequestFailure({ error, route: '/xtream', url });
             if (getQueryString(req, 'connectionTest') === 'true') {
                 const wrapped =

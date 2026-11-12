@@ -871,8 +871,9 @@ An opened archive without media observation can still return to the live
 stream for its channel, using the archive's saved queue.
 Selecting the number of a channel already playing live cancels pending tunes,
 including archive lookups, without reopening it.
-The live layout's tune request service invalidates category and archive lookups,
-inline confirmation and deferred retunes when Stop or a newer selection wins.
+The tune request service coordinates guide activation and playback confirmation.
+It invalidates category and archive lookups, inline confirmation and deferred
+retunes when Stop or a newer selection wins.
 A native launch waiting for the previous player to exit checks this again before
 dispatch. Choosing the same waiting launch can adopt it as the latest request.
 Selecting a live channel in the guide, including **Watch Live** from programme

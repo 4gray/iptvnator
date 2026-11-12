@@ -652,61 +652,25 @@ export class LiveStreamLayoutComponent
                                   !!this.externalGuide.stoppedTuningSource())))
             )
         );
-        this.guideSource.bind(
-            (item, channels, retry, onConfirmed) => {
-                const playing = this.guideChannel();
-                const alreadyLive =
-                    playing &&
-                    playing.xtream_id === item.xtream_id &&
-                    !this.externalGuide.isStopping() &&
-                    !this.guideArchiveProgram();
-                const cancelled =
-                    alreadyLive && this.externalGuide.cancelPendingSwitch(item);
-                if (
-                    !this.usesEmbeddedPlayer() &&
-                    !retry &&
-                    this.externalGuide.replacePendingCopy(
-                        item,
-                        () => this.readLiveProviderCategoryId(item),
-                        channels,
-                        onConfirmed
-                    )
-                )
-                    return;
-                if ((!retry || cancelled) && alreadyLive) {
-                    this.tuneRequests.invalidate();
-                    if (!sameXtreamChannelCopy(playing, item))
-                        this.switchGuideChannelCopy(item);
-                    if (onConfirmed && !this.usesEmbeddedPlayer()) {
-                        this.archivePreview = undefined;
-                        this.externalGuide.restoreConfirmedPanel(true);
-                    }
-                    if (this.usesEmbeddedPlayer()) {
-                        this.retryInlinePlayback();
-                        this.confirmInlinePlayback(onConfirmed);
-                    } else if (cancelled)
-                        this.tuneRequests.afterCancellation(
-                            cancelled,
-                            item.xtream_id,
-                            () =>
-                                this.playLive(
-                                    item,
-                                    true,
-                                    channels,
-                                    false,
-                                    onConfirmed
-                                ),
-                            onConfirmed,
-                            retry
-                        );
-                    else onConfirmed?.();
-                    return;
-                }
-                this.playLive(item, true, channels, false, onConfirmed);
+        this.tuneRequests.bindGuide(this.guideSource, {
+            usesInlinePlayer: this.usesEmbeddedPlayer,
+            playingLiveChannel: () =>
+                this.guideArchiveProgram() ? null : this.guideChannel(),
+            category: (item) => this.readLiveProviderCategoryId(item),
+            selectInlineCopy: (item) => {
+                this.selectGuideLiveItem(item);
+                this.channelNavigation.replacePlayingCopy(item);
             },
-            () => this.externalGuide.canRetryUnverifiedStream(),
-            (watchLive) => watchLive || this.externalGuide.isStopping()
-        );
+            clearPreview: () => {
+                this.archivePreview = undefined;
+            },
+            confirmInline: (onConfirmed) => {
+                this.retryInlinePlayback();
+                this.confirmInlinePlayback(onConfirmed);
+            },
+            tune: (item, channels, onConfirmed) =>
+                this.playLive(item, true, channels, false, onConfirmed),
+        });
         effect(() =>
             this.guideSource.setPlayback(
                 this.guideChannel(),
@@ -1540,18 +1504,6 @@ export class LiveStreamLayoutComponent
         this.xtreamStore.setSelectedItem({ ...item });
         void this.xtreamStore.loadEpg((signal) =>
             this.readGuideSchedule(item, signal)
-        );
-    }
-
-    private switchGuideChannelCopy(item: XtreamLiveChannelItem): void {
-        if (this.usesEmbeddedPlayer()) {
-            this.selectGuideLiveItem(item);
-            this.channelNavigation.replacePlayingCopy(item);
-            return;
-        }
-        this.externalGuide.replaceConfirmedCopy(
-            item,
-            this.readLiveProviderCategoryId(item)
         );
     }
 
