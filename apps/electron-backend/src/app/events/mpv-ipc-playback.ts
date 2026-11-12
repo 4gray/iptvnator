@@ -1,4 +1,6 @@
+import type { ChildProcess } from 'node:child_process';
 import type { ExternalPlayerSession } from '@iptvnator/shared/interfaces';
+import { externalPlayerProcessTeardownGate } from './external-player-process';
 import { externalPlayerSessions } from './external-player-runtime';
 import {
     allowExternalPlayerMediaDispatch,
@@ -10,6 +12,24 @@ import {
     type MpvMediaOutcome,
     sendMpvCommand,
 } from './mpv-ipc-command';
+
+export function freshMpvChildTermination() {
+    let pending: Promise<void> | undefined;
+    return (child: ChildProcess) =>
+        (pending ??= externalPlayerProcessTeardownGate
+            .terminate(child)
+            .finally(() => {
+                pending = undefined;
+            }));
+}
+
+export function settleVetoedFreshMpvLaunch(sessionId: string) {
+    const session = externalPlayerSessions.getSession(sessionId);
+    if (session?.errorCode === 'previous-closing')
+        return externalPlayerSessions.updateSession(sessionId, {
+            canClose: false,
+        });
+}
 
 export function prepareFreshMpvMedia(playerPath: string) {
     if (/(?:^|[\\/])iina(?:-cli)?$/i.test(playerPath)) return undefined;
@@ -172,20 +192,25 @@ export async function loadFreshMpvGuideMedia(
     };
     while (shouldDispatch()) {
         try {
-            await sendMpvCommand(socketPath, 'loadfile', [url, 'replace'], {
-                shouldDispatch: () =>
-                    shouldDispatch() &&
-                    allowExternalPlayerMediaDispatch(sessionId),
-                onDispatched,
-                media: {
-                    signal,
-                    onOutcome: (loaded) => {
-                        if (shouldDispatch())
-                            publishMpvMediaOutcome(sessionId, loaded);
+            const reply = await sendMpvCommand(
+                socketPath,
+                'loadfile',
+                [url, 'replace'],
+                {
+                    shouldDispatch: () =>
+                        shouldDispatch() &&
+                        allowExternalPlayerMediaDispatch(sessionId),
+                    onDispatched,
+                    media: {
+                        signal,
+                        onOutcome: (loaded) => {
+                            if (shouldDispatch())
+                                publishMpvMediaOutcome(sessionId, loaded);
+                        },
                     },
-                },
-            });
-            return true;
+                }
+            );
+            return reply !== false;
         } catch (error) {
             if (
                 error instanceof MpvIpcCommandError &&

@@ -181,7 +181,7 @@ describe('sendMpvCommand', () => {
         }
     );
 
-    it('keeps the idle MPV child closable if teardown starts before the fresh write', async () => {
+    it('reports that the fresh MPV write was vetoed by teardown', async () => {
         const session = externalPlayerSessions.beginSession({
             player: 'mpv',
             title: 'Synthetic Channel',
@@ -202,7 +202,7 @@ describe('sendMpvCommand', () => {
                 new AbortController().signal
             );
             socket.emit('connect');
-            await expect(opening).resolves.toBe(true);
+            await expect(opening).resolves.toBe(false);
             expect(socket.write).not.toHaveBeenCalled();
             expect(externalPlayerSessions.getSession(session.id)).toMatchObject(
                 {

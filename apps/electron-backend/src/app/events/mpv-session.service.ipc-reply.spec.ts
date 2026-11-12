@@ -325,7 +325,7 @@ describe('reused MPV IPC replies', () => {
                     : externalPlayerSessions.closeSession(id, true);
             if (outcome === 'Stop before connect') socket.emit('connect');
             expect(socket.write).not.toHaveBeenCalled();
-            expect(idle.kill).toHaveBeenCalled();
+            expect(idle.kill).toHaveBeenCalledTimes(1);
             expect(spawnMock).toHaveBeenCalledTimes(1);
             const settled = jest.fn();
             void opening.then(settled);
@@ -979,6 +979,44 @@ describe('reused MPV IPC replies', () => {
             expect(spawnMock).toHaveBeenCalledTimes(1);
         }
     );
+
+    it('terminates the fresh idle child if the media write was vetoed', async () => {
+        jest.useFakeTimers({ doNotFake: ['setImmediate'] });
+        const child = createMockChildProcess();
+        const blocker = createMockChildProcess();
+        spawnMock.mockReturnValueOnce(child);
+        jest.mocked(child.kill).mockReturnValue(true);
+        (store.get as jest.Mock).mockImplementation((key, fallback) =>
+            key === MPV_PLAYER_PATH ? '/usr/bin/mpv' : fallback
+        );
+        const socket = createMpvSocketMock({ connect: false });
+        createConnectionMock.mockReturnValueOnce(socket);
+        const opening = openMpvPlayer({
+            title: 'Synthetic Channel',
+            url: 'https://example.test/synthetic.ts',
+            launchId: 'synthetic-vetoed-launch',
+        });
+        await jest.advanceTimersByTimeAsync(100);
+        externalPlayerProcessTeardownGate.beginTeardown(blocker);
+        try {
+            socket.emit('connect');
+            await nextTick();
+            expect(socket.write).not.toHaveBeenCalled();
+            expect(child.kill).toHaveBeenCalledTimes(1);
+            expect(spawnMock).toHaveBeenCalledTimes(1);
+        } finally {
+            Object.defineProperty(blocker, 'exitCode', { value: 0 });
+            blocker.emit('exit', 0);
+            Object.defineProperty(child, 'exitCode', { value: 0 });
+            child.emit('exit', 0);
+        }
+        await expect(opening).resolves.toMatchObject({
+            status: 'error',
+            errorCode: 'previous-closing',
+            canClose: false,
+        });
+        expect(spawnMock).toHaveBeenCalledTimes(1);
+    });
 
     it.each([true, false])(
         'stops a fresh guide child that has not received loadfile (reusable: %s)',

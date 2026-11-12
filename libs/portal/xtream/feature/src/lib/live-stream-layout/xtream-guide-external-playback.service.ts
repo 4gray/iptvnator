@@ -399,9 +399,10 @@ export class XtreamGuideExternalPlayback {
                 launch.lockSource.categoryId = categoryId;
     }
 
-    restoreConfirmedPanel(): boolean {
+    restoreConfirmedPanel(commit = false): boolean {
         const confirmed = this.confirmed();
         const current = this.panel?.current() ?? this.panelPlayback;
+        if (commit && confirmed) this.panelPlayback = current;
         if (!confirmed || current !== this.panelPlayback) return false;
         this.syncPanel(confirmed);
         return true;

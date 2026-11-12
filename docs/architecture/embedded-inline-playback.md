@@ -1024,6 +1024,8 @@ preparation, including VLC position flush and a reused player's MPV IPC or VLC
 RC quit command, and rejects both player launches until that exact child
 reports exit; `ChildProcess.killed` is never treated as proof. Reuse connections
 check the gate again before dispatching content commands.
+If the gate vetoes the first MPV `loadfile`, the launch stops the exact idle
+child before reporting the rejection and does not retry with a positional URL.
 If an unrelated child is stopping, a rejected reuse restores its still-playing
 owner in the dock.
 If bounded teardown fails while a fresh launch IPC is pending, the IPC rejects and

@@ -675,6 +675,10 @@ export class LiveStreamLayoutComponent
                     this.tuneRequests.invalidate();
                     if (!sameXtreamChannelCopy(playing, item))
                         this.switchGuideChannelCopy(item);
+                    if (onConfirmed && !this.usesEmbeddedPlayer()) {
+                        this.archivePreview = undefined;
+                        this.externalGuide.restoreConfirmedPanel(true);
+                    }
                     if (this.usesEmbeddedPlayer()) {
                         this.retryInlinePlayback();
                         this.confirmInlinePlayback(onConfirmed);

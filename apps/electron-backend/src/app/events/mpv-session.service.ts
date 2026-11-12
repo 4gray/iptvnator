@@ -44,7 +44,9 @@ import {
 } from './mpv-reusable-process';
 import {
     completeFreshMpvLaunch,
+    freshMpvChildTermination,
     prepareFreshMpvMedia,
+    settleVetoedFreshMpvLaunch,
 } from './mpv-ipc-playback';
 import {
     createMpvIpcEndpoint,
@@ -186,7 +188,7 @@ async function launchMpvPlayer(
             requestedReuseInstance,
             isFlatpak
         );
-        const useMpvSocketBridge = shouldUseMpvSocketBridge(isFlatpak);
+        const useSocketBridge = shouldUseMpvSocketBridge(isFlatpak);
         const {
             effectiveOrigin,
             effectiveReferer,
@@ -235,9 +237,7 @@ async function launchMpvPlayer(
             if (queue.stopped()) return settleStop();
         }
 
-        const endpoint = useMpvSocketBridge
-            ? createMpvIpcEndpoint()
-            : undefined;
+        const endpoint = useSocketBridge ? createMpvIpcEndpoint() : undefined;
         const socketPath = endpoint?.path ?? null;
         const tracksProcess = reuseInstance && !!socketPath;
         const args = buildFreshMpvArgs(socketPath, {
@@ -258,6 +258,7 @@ async function launchMpvPlayer(
 
         let fallingBack = false;
         let requestedClose: Promise<void> | undefined;
+        const terminate = freshMpvChildTermination();
         const proc = await new Promise<ChildProcess>((resolve, reject) => {
             let settled = false;
             const resolveLaunch = () => {
@@ -339,7 +340,7 @@ async function launchMpvPlayer(
                     return;
                 }
                 try {
-                    await externalPlayerProcessTeardownGate.terminate(proc);
+                    await terminate(proc);
                 } catch (error) {
                     const teardownError =
                         error instanceof Error
@@ -362,7 +363,7 @@ async function launchMpvPlayer(
             if (!tracksProcess && media)
                 mpvLaunchQueue.watchDetachedDispatch(session.id, media);
 
-            if (useMpvSocketBridge && contentInfo && socketPath) {
+            if (useSocketBridge && contentInfo && socketPath) {
                 startPositionPolling(socketPath, contentInfo, session.id);
             }
 
@@ -387,8 +388,7 @@ async function launchMpvPlayer(
             return opened;
         fallingBack = true;
         try {
-            await (requestedClose ??
-                externalPlayerProcessTeardownGate.terminate(proc));
+            await (requestedClose ?? terminate(proc));
         } catch (error) {
             fallingBack = false;
             freshTeardownUnconfirmed = true;
@@ -396,6 +396,8 @@ async function launchMpvPlayer(
         }
         if (queue.stopped() || requestedClose || media?.stopped)
             return settleStop();
+        const vetoed = settleVetoedFreshMpvLaunch(session.id);
+        if (vetoed) return vetoed;
         return launchMpvPlayer(
             request,
             session,

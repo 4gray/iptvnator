@@ -893,10 +893,12 @@ IINA keeps the selection-based remote queue because its launcher can exit
 while playback continues. MPV without an observation bridge keeps the queue
 captured when the channel was selected, without confirming guide playback.
 Browsing another channel does not replace the remote order or detach the
-guide. Starting archive playback from a preview commits that preview's order
-when the archive session opens. An earlier live tune confirming does not cancel
-a newer archive lookup. Inline and external archive requests both check their
-own channel and category after resolving the URL.
+guide. Confirming the already playing channel in the guide replaces a sidebar
+preview with that channel's programme without restarting it or changing its
+saved remote order. Starting archive playback from a preview commits that
+preview's order when the archive session opens. An earlier live tune confirming
+does not cancel a newer archive lookup. Inline and external archive requests
+both check their own channel and category after resolving the URL.
 If a relock withholds that
 channel or the pending replacement, the guide hides the withheld channel and
 closes its external session even if it finishes opening later, reports a
