@@ -3,16 +3,26 @@ import {
     DEFAULT_PARENTAL_LOCK_RELOCK_MINUTES,
     DEFAULT_TMDB_SETTINGS,
     Language,
+    normalizeAppLanguage,
+    normalizeAppUpdateChannel,
+    normalizeDashboardRailsSettings,
+    normalizeEpgOffsetMinutes,
+    normalizeParentalLockRelockMinutes,
+    normalizeTheme,
+    normalizeStartupWindowMode,
     Settings,
     StartupBehavior,
     StreamFormat,
     Theme,
     VideoPlayer,
-    watchEmbeddedMpvSupport,
 } from '@iptvnator/shared/interfaces';
+import {
+    coerceProvidedDefaultOnSettings,
+    resolveDefaultOnSettings,
+} from './settings-opt-out.util';
 
 /** Defaults and boot-time helpers of `SettingsStore`, split out for size. */
-export const DEFAULT_SETTINGS: Settings = {
+export const DEFAULT_SETTINGS = {
     player: VideoPlayer.VideoJs,
     webPlayerSharedControls: true,
     playerAmbientMode: false,
@@ -61,7 +71,7 @@ export const DEFAULT_SETTINGS: Settings = {
     ageRatingCountry: 'auto',
     parentalLockEnabled: false,
     parentalLockRelockMinutes: DEFAULT_PARENTAL_LOCK_RELOCK_MINUTES,
-};
+} satisfies Settings;
 
 /**
  * Which half of the settings persistence round-trip failed, if any.
@@ -78,92 +88,120 @@ export type SettingsStorageFailure = 'load' | 'save';
 
 export interface SettingsStorageState {
     storageFailure: SettingsStorageFailure | null;
+    savedTmdbApiKey: string | undefined;
 }
 
-let embeddedMpvPrepareScheduled = false;
+export const TMDB_KEY_CHANGE = 'iptvnator:tmdb-key-change';
 
-export function scheduleEmbeddedMpvPrepare(): void {
-    if (
-        embeddedMpvPrepareScheduled ||
-        typeof window === 'undefined' ||
-        !window.electron?.prepareEmbeddedMpv
-    ) {
-        return;
-    }
-
-    embeddedMpvPrepareScheduled = true;
-    const prepare = () => {
-        void window.electron
-            .prepareEmbeddedMpv?.()
-            .then((support) => {
-                if (!support?.supported) {
-                    embeddedMpvPrepareScheduled = false;
-                }
-            })
-            .catch((error) => {
-                embeddedMpvPrepareScheduled = false;
-                console.warn('Failed to prepare embedded MPV.', error);
-            });
-    };
-    const idleWindow = window as typeof window & {
-        requestIdleCallback?: (
-            callback: IdleRequestCallback,
-            options?: IdleRequestOptions
-        ) => number;
-    };
-
-    if (idleWindow.requestIdleCallback) {
-        idleWindow.requestIdleCallback(prepare, { timeout: 5000 });
-    } else {
-        window.setTimeout(prepare, 2000);
+export function notifyTmdbKeyChange(): void {
+    try {
+        // A storage event invalidates other tabs without carrying the key.
+        localStorage.setItem(TMDB_KEY_CHANGE, Math.random().toString(36));
+    } catch {
+        // Settings can persist in IndexedDB when localStorage is disabled.
     }
 }
 
-/**
- * Checks a saved Embedded MPV selection against this machine: schedules the
- * idle prepare when it is supported, and calls `fallBack` when it is not or
- * when the check itself fails. An inconclusive answer is no verdict: the
- * selection stays and the answer is followed until it is final. Nothing is
- * done once `isSaved` turns false, because the user picked another player
- * meanwhile. Resolves when the first answer has been handled.
- */
-export function verifySavedEmbeddedMpvPlayer(
-    isSaved: () => boolean,
-    fallBack: () => Promise<void>
-): Promise<void> {
-    const electron =
-        typeof window === 'undefined' ? undefined : window.electron;
-    if (!electron?.getEmbeddedMpvSupport) {
-        return fallBack();
-    }
+export function normalizeSettingsPatch(
+    settings: Partial<Settings>
+): Partial<Settings> {
+    return {
+        ...settings,
+        ...('theme' in settings
+            ? { theme: normalizeTheme(settings.theme) }
+            : {}),
+        ...(settings.language !== undefined
+            ? { language: normalizeAppLanguage(settings.language) }
+            : {}),
+        ...coerceProvidedDefaultOnSettings(settings),
+        ...(settings.dashboardRails !== undefined
+            ? {
+                  dashboardRails: normalizeDashboardRailsSettings(
+                      settings.dashboardRails
+                  ),
+              }
+            : {}),
+        ...(settings.epgOffsetMinutes !== undefined
+            ? {
+                  epgOffsetMinutes: normalizeEpgOffsetMinutes(
+                      settings.epgOffsetMinutes
+                  ),
+              }
+            : {}),
+        ...(settings.parentalLockEnabled !== undefined
+            ? {
+                  parentalLockEnabled: settings.parentalLockEnabled === true,
+              }
+            : {}),
+        ...(settings.parentalLockRelockMinutes !== undefined
+            ? {
+                  parentalLockRelockMinutes: normalizeParentalLockRelockMinutes(
+                      settings.parentalLockRelockMinutes
+                  ),
+              }
+            : {}),
+    };
+}
 
-    return new Promise<void>((handled, failed) => {
-        const stop = watchEmbeddedMpvSupport(
-            () => electron.getEmbeddedMpvSupport(),
-            (support) => {
-                if (!isSaved()) {
-                    stop();
-                    handled();
-                } else if (support.supported) {
-                    scheduleEmbeddedMpvPrepare();
-                    handled();
-                } else if (support.inconclusive) {
-                    handled();
-                } else {
-                    fallBack().then(handled, failed);
-                }
-            },
-            (error) => {
-                console.warn(
-                    'Failed to verify embedded MPV support; reverting to the default inline player.',
-                    error
-                );
-                if (isSaved()) {
-                    fallBack().then(handled, failed);
-                } else {
-                    handled();
-                }
-            }
-        );
-    });
+const settingsKeys = Object.keys(DEFAULT_SETTINGS) as Array<
+    keyof typeof DEFAULT_SETTINGS
+>;
+type SettingsSnapshot = {
+    [Key in (typeof settingsKeys)[number]]-?: Settings[Key];
+};
+
+const nullishDefaults = [
+    'playerAmbientMode',
+    'detailTrailerBackdrop',
+    'playerUpNextRail',
+    'playerUpNextCard',
+    'fullscreenChannelPanel',
+    'vodAutoFailover',
+    'm3uVodDetails',
+    'showExternalPlaybackBar',
+    'stripCountryPrefix',
+    'downloadFolder',
+    'recordingFolder',
+    'embeddedMpvFrameCopy',
+    'embeddedMpvExtraOptions',
+    'coverSize',
+    'epgViewMode',
+    'preferUploadedEpgOverXtream',
+    'trustedPrivateNetworkEpgUrls',
+    'trustedInsecureTlsHosts',
+    'tmdb',
+    'ageRatingCountry',
+] as const;
+
+type DefaultedSettings = {
+    [Key in (typeof nullishDefaults)[number]]: NonNullable<Settings[Key]>;
+};
+
+export function snapshotSettings(current: Settings) {
+    // Copy only supported persisted settings, excluding store state and legacy fields.
+    const snapshot: Partial<
+        Record<keyof SettingsSnapshot, Settings[keyof Settings]>
+    > = {};
+    for (const key of settingsKeys) snapshot[key] = current[key];
+    for (const key of nullishDefaults) snapshot[key] ??= DEFAULT_SETTINGS[key];
+    return Object.assign(
+        snapshot as SettingsSnapshot & DefaultedSettings,
+        resolveDefaultOnSettings(current),
+        {
+            startupWindowMode: normalizeStartupWindowMode(
+                current.startupWindowMode
+            ),
+            updateChannel: normalizeAppUpdateChannel(current.updateChannel),
+            epgOffsetMinutes: normalizeEpgOffsetMinutes(
+                current.epgOffsetMinutes
+            ),
+            dashboardRails: normalizeDashboardRailsSettings(
+                current.dashboardRails
+            ),
+            parentalLockEnabled: current.parentalLockEnabled === true,
+            parentalLockRelockMinutes: normalizeParentalLockRelockMinutes(
+                current.parentalLockRelockMinutes
+            ),
+        }
+    );
 }

@@ -195,6 +195,7 @@ export class MockSettingsStore {
     getSettings = () => this._settings();
     language = () => this._settings().language;
     ageRatingCountry = () => this._settings().ageRatingCountry;
+    readonly savedTmdbApiKey = signal<string | undefined>(undefined);
 
     getTrustOptions = () => ({
         trustedPrivateNetworkEpgUrls:

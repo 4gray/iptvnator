@@ -55,7 +55,7 @@
                             }}</mat-label>
                             <input
                                 matInput
-                                type="text"
+                                type="password"
                                 autocomplete="off"
                                 formControlName="apiKey"
                                 data-test-id="tmdb-api-key"
@@ -132,6 +132,24 @@
                     </div>
                 }
             }
+            <div class="setting-item" data-setting-id="tmdb-key-transfer">
+                <div class="setting-item__meta">
+                    <h4>{{ 'SETTINGS.TMDB_TRANSFER.ACTION' | translate }}</h4>
+                    <p>
+                        {{ 'SETTINGS.TMDB_TRANSFER.DESCRIPTION' | translate }}
+                    </p>
+                </div>
+                <div class="setting-item__control">
+                    <button
+                        mat-flat-button
+                        type="button"
+                        [disabled]="form().dirty"
+                        (click)="openTransfer()"
+                    >
+                        {{ 'SETTINGS.TMDB_TRANSFER.ACTION' | translate }}
+                    </button>
+                </div>
+            </div>
         </div>
     </section>
 
