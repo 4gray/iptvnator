@@ -38,7 +38,9 @@ export interface PortalCatalogItemProgress {
 /** Optional exclusion filter for server-paged catalogs; source totals stay raw. */
 export interface PortalCatalogHideWatched {
     readonly enabled: Signal<boolean>;
-    readonly loadState: Signal<'idle' | 'loading' | 'ready' | 'error'>;
+    readonly loadState: Signal<
+        'idle' | 'loading' | 'ready' | 'error' | 'retrying'
+    >;
     readonly hasSnapshot: Signal<boolean>;
     readonly paused: Signal<boolean>;
     readonly resumeVersion: Signal<number>;
