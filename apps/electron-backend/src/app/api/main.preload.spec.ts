@@ -144,6 +144,39 @@ describe('main preload DB IPC contract', () => {
         expect(mockIpcRenderer.send).not.toHaveBeenCalled();
     });
 
+    it('uses the saved connection IPC contract for reading, reconnecting and forgetting', async () => {
+        const api = getExposedApi();
+        const saved = {
+            apiUrl: 'https://nas.test/api',
+            instanceId: 'saved-instance',
+            hasToken: true,
+        };
+        mockIpcRenderer.sendSync.mockReturnValueOnce(saved);
+        expect(api.sourceSyncSavedConnection?.()).toEqual(saved);
+        expect(mockIpcRenderer.sendSync).toHaveBeenLastCalledWith(
+            'SOURCE_SYNC:SAVED_CONNECTION'
+        );
+
+        await api.sourceSyncConfigure?.(
+            saved.apiUrl,
+            '',
+            true,
+            saved.instanceId
+        );
+        expect(mockIpcRenderer.invoke).toHaveBeenLastCalledWith(
+            'SOURCE_SYNC:CONFIGURE',
+            saved.apiUrl,
+            '',
+            true,
+            saved.instanceId
+        );
+
+        await api.sourceSyncForget?.();
+        expect(mockIpcRenderer.invoke).toHaveBeenLastCalledWith(
+            'SOURCE_SYNC:FORGET'
+        );
+    });
+
     it('covers every worker-backed DB operation exposed by the preload bridge', () => {
         const workerChannels = dbPreloadCases
             .map((contractCase) => contractCase.channel)

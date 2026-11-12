@@ -1,14 +1,12 @@
 name: Build and Make Electron App
 
-# Docs-only changes never affect the packaged app, so they skip the build
-# matrix. apps/website/** is intentionally NOT ignored: the Linux build job
-# builds the website to verify AppStream screenshot assets. Tag pushes are
-# unaffected — GitHub does not evaluate paths filters for tags, so v* release
-# builds always run.
+# The workflow keeps running on website PRs to verify the AppStream screenshots
+# in the built site. The packaging jobs skip PRs with no changes outside the
+# website. Tag pushes always run the full build; path filters do not apply to tags.
 #
 # Known accepted edge case: if a PR built a test-pr-<n> draft and later
-# reverts its code changes so the remaining diff is docs-only, new pushes
-# skip this workflow and the draft keeps assets from the older commit. The
+# reverts its code changes so only docs or website changes remain, new pushes
+# skip packaging and any existing draft keeps assets from the older commit. The
 # draft's title/body name the exact commit they were built from, and
 # cleanup-pr-draft.yml deletes the draft when the PR closes, so the stale
 # window is visible and bounded; refreshing drafts on skipped runs is not
@@ -58,6 +56,7 @@ jobs:
     # different versions. Empty output means "not a nightly build".
     nightly-version:
         name: Resolve nightly version
+        if: github.event_name != 'pull_request'
         runs-on: ubuntu-latest
         timeout-minutes: 5
         outputs:
@@ -85,8 +84,82 @@ jobs:
                   echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
                   echo "Nightly version: ${VERSION}"
 
+    appstream-website:
+        name: Check website PR scope and AppStream assets
+        if: github.event_name == 'pull_request'
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        concurrency:
+            group: ${{ github.workflow }}-appstream-scope-${{ github.event.pull_request.number }}
+            cancel-in-progress: true
+        outputs:
+            website-only: ${{ steps.scope.outputs.website-only }}
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v7
+              with:
+                  # The first parent of the PR merge checkout is its base.
+                  fetch-depth: 2
+                  persist-credentials: false
+
+            - name: Check whether the PR only changes the website
+              id: scope
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  # Unavailable diffs and moves across the boundary need packaging.
+                  if git diff --quiet --no-renames --ignore-submodules=none HEAD^1 HEAD -- . ':(top,exclude)apps/website/'; then
+                      echo 'website-only=true' >> "${GITHUB_OUTPUT}"
+                      echo 'No changes outside apps/website. Checking AppStream website assets.' >> "${GITHUB_STEP_SUMMARY}"
+                  else
+                      echo 'website-only=false' >> "${GITHUB_OUTPUT}"
+                  fi
+
+            - name: Install pnpm
+              if: steps.scope.outputs.website-only == 'true'
+              uses: pnpm/action-setup@v6.1.0
+
+            - name: Setup Node.js
+              if: steps.scope.outputs.website-only == 'true'
+              uses: actions/setup-node@v7
+              with:
+                  node-version-file: '.nvmrc'
+                  cache: 'pnpm'
+
+            - name: Install website dependencies
+              if: steps.scope.outputs.website-only == 'true'
+              run: pnpm install --frozen-lockfile --ignore-scripts
+
+            - name: Build website
+              if: steps.scope.outputs.website-only == 'true'
+              env: &offline-website
+                  WEBSITE_SKIP_RELEASE_FETCH: '1'
+              run: &build-appstream-website pnpm nx build website --skip-nx-cache
+
+            - name: Verify built screenshots
+              if: steps.scope.outputs.website-only == 'true'
+              shell: bash
+              run: &verify-appstream-website |
+                  set -euo pipefail
+
+                  for screenshot in player playlists epg settings; do
+                      asset="dist/apps/website/appstream/${screenshot}.png"
+                      if [[ ! -f "${asset}" || ! -s "${asset}" ]]; then
+                          echo "::error::Missing or empty AppStream website asset: ${asset}"
+                          exit 1
+                      fi
+                  done
+
     linux-embedded-mpv-runtime:
         name: Build pinned Linux Embedded MPV runtime
+        needs: appstream-website
+        # Non-PR builds can start immediately after the PR-only job is skipped.
+        if: >-
+            ${{ !cancelled() &&
+                (github.event_name != 'pull_request' ||
+                (needs.appstream-website.result == 'success' &&
+                 needs.appstream-website.outputs.website-only != 'true')) }}
         runs-on: ubuntu-22.04
         timeout-minutes: 120
         # Concurrency lives on the build jobs, not the workflow: cancelling a
@@ -383,7 +456,13 @@ jobs:
 
     build-cross-platform:
         name: Build on ${{ matrix.os }} ${{ matrix.arch }}
-        needs: nightly-version
+        needs: [nightly-version, appstream-website]
+        if: >-
+            ${{ !cancelled() &&
+                ((github.event_name == 'pull_request' &&
+                  needs.appstream-website.result == 'success' &&
+                  needs.appstream-website.outputs.website-only != 'true') ||
+                 (github.event_name != 'pull_request' && needs.nightly-version.result == 'success')) }}
         runs-on: ${{ matrix.runner }}
         timeout-minutes: 120
         concurrency:
@@ -507,7 +586,7 @@ jobs:
               # builds the same version. The script also sets the electron-
               # builder publish channel to "nightly", which names the updater
               # metadata nightly-mac.yml / nightly.yml / nightly-linux.yml.
-              if: needs.nightly-version.outputs.version != ''
+              if: needs.nightly-version.result == 'success' && needs.nightly-version.outputs.version != ''
               # Windows runners default to PowerShell, where "${NIGHTLY_VERSION}"
               # expands to nothing and the script rejects the empty version.
               shell: bash
@@ -733,22 +812,15 @@ jobs:
               if: matrix.os == 'linux'
               run: appstreamcli validate --pedantic --no-net apps/electron-backend/linux/com.fourgray.iptvnator.metainfo.xml
 
-            - name: Build website
+            - name: Build website for AppStream
               if: matrix.os == 'linux'
-              run: pnpm nx build website --skip-nx-cache
+              env: *offline-website
+              run: *build-appstream-website
 
             - name: Verify AppStream website assets
               if: matrix.os == 'linux'
               shell: bash
-              run: |
-                  set -euo pipefail
-
-                  for screenshot in player playlists epg settings; do
-                      if ! find dist/apps/website -path "*/appstream/${screenshot}.png" -print -quit | grep -q .; then
-                          echo "::error::Missing AppStream website asset for ${screenshot}.png"
-                          exit 1
-                      fi
-                  done
+              run: *verify-appstream-website
 
             - name: Override macOS arch in electron-builder.json
               if: matrix.os == 'macos'
@@ -1119,6 +1191,17 @@ jobs:
               run: |
                   set -euo pipefail
 
+                  ensure_snap() {
+                      local name="$1" delay
+                      for delay in 0 15 30; do
+                          sleep "${delay}"
+                          if snap list "${name}" >/dev/null 2>&1 || sudo snap install "${name}"; then
+                              return 0
+                          fi
+                      done
+                      return 1
+                  }
+
                   found=false
                   installed_x64=false
                   for artifact in dist/executables/*.snap; do
@@ -1131,8 +1214,8 @@ jobs:
                                   2>&1 | tee /dev/stderr
                       )"
                       if printf '%s\n' "${verification}" | grep -Fq 'Verified snap x64 Linux'; then
-                          snap list mesa-core22 >/dev/null 2>&1 || sudo snap install mesa-core22
-                          snap list gnome-3-28-1804 >/dev/null 2>&1 || sudo snap install gnome-3-28-1804
+                          ensure_snap mesa-core22
+                          ensure_snap gnome-3-28-1804
                           sudo snap install --dangerous "${artifact}"
                           installed_x64=true
                       fi
@@ -1417,6 +1500,10 @@ jobs:
         needs:
             - linux-embedded-mpv-runtime
             - nightly-version
+        # Explicit status checks keep a skipped planning job from propagating.
+        if: >-
+            ${{ !cancelled() && needs.linux-embedded-mpv-runtime.result == 'success' &&
+                (github.event_name == 'pull_request' || needs.nightly-version.result == 'success') }}
         runs-on: ${{ matrix.runner }}
         timeout-minutes: 120
         concurrency:
@@ -1456,7 +1543,12 @@ jobs:
             - nightly-version
             - build-cross-platform
             - build-linux
-        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+        if: >-
+            ${{ !cancelled() && needs.build-cross-platform.result == 'success' &&
+                needs.build-linux.result == 'success' &&
+                ((github.event_name == 'pull_request' &&
+                  github.event.pull_request.head.repo.full_name == github.repository) ||
+                 (github.event_name != 'pull_request' && needs.nightly-version.result == 'success')) }}
         runs-on: ubuntu-latest
         concurrency:
             group: ${{ github.workflow }}-release-${{ github.event.pull_request.number || github.ref }}
@@ -1674,18 +1766,24 @@ jobs:
                       echo "body=" >> "${GITHUB_OUTPUT}"
                   fi
 
-            # A PR can be closed while this workflow is still running; the
-            # cleanup workflow deletes the PR draft on close. Re-check the live
-            # PR state right before touching the draft so a late-finishing run
-            # cannot recreate a draft for a closed PR.
+            # Check the live head immediately before updating the draft. A
+            # late build can outlive a PR close or a push that skips packaging.
             - name: Check PR is still open
               if: github.event_name == 'pull_request'
               id: pr-state
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  PR_NUMBER: ${{ github.event.pull_request.number }}
+                  HEAD_SHA: ${{ github.event.pull_request.head.sha }}
               run: |
                   set -euo pipefail
-                  echo "state=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.pull_request.number }}" --jq '.state')" >> "${GITHUB_OUTPUT}"
+                  live="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '[.state, .head.sha] | join(" ")')"
+                  if [[ "${live}" == "open ${HEAD_SHA}" ]]; then
+                      echo "current=true" >> "${GITHUB_OUTPUT}"
+                  else
+                      echo "PR closed or advanced after this build; keeping the existing draft."
+                      echo "current=false" >> "${GITHUB_OUTPUT}"
+                  fi
 
             # The rolling draft keeps assets across runs and the release action
             # only replaces same-name files. If the app version changes between
@@ -1694,7 +1792,7 @@ jobs:
             # full current set right after. Only drafts are pruned; published
             # releases are never touched.
             - name: Prune stale draft assets
-              if: env.NIGHTLY != 'true' && (github.event_name != 'pull_request' || steps.pr-state.outputs.state == 'open')
+              if: env.NIGHTLY != 'true' && (github.event_name != 'pull_request' || steps.pr-state.outputs.current == 'true')
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   RELEASE_TAG: ${{ steps.release-meta.outputs.tag }}
@@ -1717,7 +1815,7 @@ jobs:
 
             - name: Create Draft Release
               id: draft-release
-              if: env.NIGHTLY != 'true' && (github.event_name != 'pull_request' || steps.pr-state.outputs.state == 'open')
+              if: env.NIGHTLY != 'true' && (github.event_name != 'pull_request' || steps.pr-state.outputs.current == 'true')
               uses: softprops/action-gh-release@v3
               with:
                   draft: true

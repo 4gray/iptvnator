@@ -9,6 +9,8 @@ import {
     openSources,
     refreshSource,
     resetMockServers,
+    restartElectronApp,
+    sourceRowByTitle,
     test,
     waitForXtreamCatalog,
     xtreamMockServer,
@@ -169,6 +171,55 @@ test.describe('Electron Xtream catalog wait', () => {
             }
         } finally {
             await proxy.close();
+        }
+    });
+
+    test('@xtream @electron waits for a saved catalog that loads behind the delayed overlay', async ({
+        dataDir,
+        request,
+    }) => {
+        await resetMockServers(request, ['xtream']);
+        let app = await launchElectronApp(dataDir);
+        try {
+            const title = 'Slow saved catalog';
+            await addXtreamPortal(app.mainWindow, { name: title });
+            await waitForXtreamCatalog(app.mainWindow);
+            app = await restartElectronApp(app, dataDir);
+            await app.electronApp.evaluate(({ ipcMain }) => {
+                type Handler = (...args: unknown[]) => Promise<unknown>;
+                const handlers = (
+                    ipcMain as typeof ipcMain & {
+                        _invokeHandlers: Map<string, Handler>;
+                    }
+                )._invokeHandlers;
+                const readContent = handlers.get('DB_GET_CONTENT');
+                if (!readContent) {
+                    throw new Error('Missing Xtream content IPC handler');
+                }
+                ipcMain.removeHandler('DB_GET_CONTENT');
+                ipcMain.handle(
+                    'DB_GET_CONTENT',
+                    async (event, playlistId, type) => {
+                        if (type === 'movie' || type === 'series') {
+                            await new Promise((resolve) =>
+                                setTimeout(resolve, 1_800)
+                            );
+                        }
+                        return readContent(event, playlistId, type);
+                    }
+                );
+            });
+
+            const page = app.mainWindow;
+            await openSources(page);
+            await sourceRowByTitle(page, title).first().click();
+            await waitForXtreamCatalog(page, { cached: true });
+
+            // A visible card can still be covered by the overlay.
+            const overlay = page.locator('.workspace-loading-overlay');
+            expect(await overlay.count()).toBe(0);
+        } finally {
+            await closeElectronApp(app);
         }
     });
 });

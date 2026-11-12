@@ -176,6 +176,10 @@ Recently Viewed has a separate opt-in with explicit local-history import; EPG re
 Settings → Server can preview and import the device's original local sources.
 Matching connections are deduplicated; the original library is retained.
 Disconnecting returns to that library without removing sources from NAS.
+Use **Reconnect** in Settings → Server to reuse the saved address and any
+available token, or **Forget server** to clear them. The desktop app keeps the
+token across restarts when protected storage is available. In the browser,
+the token is kept in the current tab.
 Connection changes restart/reload the client. A previously synchronized client
 keeps its cached sources while offline; shared source edits require the server.
 
