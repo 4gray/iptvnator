@@ -825,10 +825,13 @@ If the player cannot verify readiness, the guide stays available for a retry and
 committed selection keeps it open. Committing the still-playing channel cancels
 every outstanding switch away from it, including timed-out launches that can
 still start playing. An unverified VLC launch cannot replace confirmed playback.
-The dock, player panel and remote status follow the confirmed session. The dock
-restores Stop for the surviving session when a launch that still owns the dock
-ends. An idle failed replacement closes
-before that restore. If the first launch fails or exits before confirming
+The dock, player panel and remote status follow the confirmed session. The remote
+keeps channel and programme metadata tied to the same playback. An unverified
+channel can keep remote tuning available but does not supply programme metadata.
+Selecting the number of a channel already playing live does not reopen it.
+The dock restores Stop for the surviving session when the launch that owns
+the dock ends. An idle failed replacement closes before that restore. If the
+first launch fails or exits before confirming
 playback, its channel and queue remain available for remote tuning without
 now-playing details. An explicit Stop clears the exact unconfirmed tune, even
 after a closable error.

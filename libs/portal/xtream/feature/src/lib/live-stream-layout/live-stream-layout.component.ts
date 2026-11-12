@@ -502,7 +502,8 @@ export class LiveStreamLayoutComponent
     private readonly socketlessRemoteSource = computed(() => {
         const playback = this.externalGuide.unverifiedPlayback();
         return playback?.session.player === 'mpv' &&
-            playback.session.mediaObservationUnavailable
+            playback.session.mediaObservationUnavailable &&
+            !this.externalGuide.confirmed()
             ? playback.source
             : undefined;
     });
@@ -524,8 +525,8 @@ export class LiveStreamLayoutComponent
     private readonly remoteLiveItem = computed(() =>
         this.usesSelectionForRemote()
             ? this.selectedLiveItem()
-            : (this.socketlessRemoteSource()?.channel ??
-              this.externalGuide.confirmed()?.item ??
+            : (this.externalGuide.confirmed()?.item ??
+              this.socketlessRemoteSource()?.channel ??
               null)
     );
     private readonly remoteAnchor = computed(() => {
@@ -839,7 +840,9 @@ export class LiveStreamLayoutComponent
             const activeProgram = selectedItem
                 ? this.usesSelectionForRemote()
                     ? (this.activeCatchupProgram() ?? this.currentEpgItem())
-                    : this.guideNowPlayingProgram()
+                    : this.externalGuide.confirmed()
+                      ? this.guideNowPlayingProgram()
+                      : null
                 : null;
 
             if (
@@ -1216,6 +1219,18 @@ export class LiveStreamLayoutComponent
             return;
         }
 
+        const playing = this.usesSelectionForRemote()
+            ? null
+            : this.externalGuide.confirmed();
+        if (
+            playing?.item.xtream_id === channel.xtream_id &&
+            !playing.archive &&
+            !playing.session.playbackUnverified &&
+            !this.externalGuide.isStopping()
+        ) {
+            this.externalGuide.cancelPendingSwitch(channel);
+            return;
+        }
         this.playLive(channel, true, undefined, true);
     }
 

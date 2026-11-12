@@ -911,6 +911,101 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
         );
     });
 
+    it('keeps the confirmed remote channel and programme together during an unverified MPV launch', () => {
+        const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
+        const component = fixture.componentInstance;
+        const playing = {
+            ...sampleChannel,
+            category_id: 1,
+            name: 'Synthetic First',
+        };
+        const next = {
+            ...playing,
+            xtream_id: playing.xtream_id + 1,
+            name: 'Synthetic Next',
+        };
+        const now = Math.floor(Date.now() / 1000);
+        const start = new Date((now - 60) * 1000).toISOString();
+        const stop = new Date((now + 60) * 1000).toISOString();
+        epgItems.set([
+            {
+                ...epgItem('Synthetic Programme', 0, 1),
+                start,
+                stop,
+                end: stop,
+                start_timestamp: String(now - 60),
+                stop_timestamp: String(now + 60),
+            },
+        ]);
+        emptyList.set([playing, next]);
+        xtreamStore.selectedItem.set(playing);
+        portalPlayer.isEmbeddedPlayer.set(false);
+        fixture.detectChanges();
+        component.playLive(playing, true, [playing, next]);
+        const current = {
+            id: 'synthetic-confirmed-detached',
+            player: 'mpv',
+            status: 'playing',
+            mediaLoaded: true,
+            title: playing.name,
+            streamUrl: component.activeStreamUrl(),
+            canClose: true,
+            reuseAvailable: false,
+            startedAt: '2026-04-04T10:00:00Z',
+            updatedAt: '2026-04-04T10:00:00Z',
+        } as const;
+        publishExternalSession(current);
+        fixture.detectChanges();
+        const confirmedStatus = expect.objectContaining({
+            channelName: playing.name,
+            channelNumber: 1,
+            epgTitle: 'Synthetic Programme',
+        });
+        expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
+            confirmedStatus
+        );
+
+        onRemoteControlCommand.mock.lastCall?.[0]({
+            type: 'channel-select-number',
+            number: 1,
+        });
+        expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(1);
+        expect(xtreamStore.addRecentItem).not.toHaveBeenCalled();
+
+        const nextUrl = 'https://example.test/synthetic-other.ts';
+        xtreamStore.constructStreamUrl.mockReturnValueOnce(nextUrl);
+        component.playLive(next, true, [playing, next]);
+        const unverified = {
+            ...current,
+            id: 'synthetic-unverified-detached',
+            streamUrl: nextUrl,
+            title: next.name,
+            mediaLoaded: false,
+            mediaObservationUnavailable: true,
+            playbackUnverified: true,
+        };
+        publishExternalSession(unverified);
+        fixture.detectChanges();
+        expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
+            confirmedStatus
+        );
+
+        publishExternalSession({
+            ...current,
+            status: 'closed',
+            canClose: false,
+        });
+        publishExternalSession(unverified);
+        fixture.detectChanges();
+        expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                channelName: next.name,
+                channelNumber: 2,
+                epgTitle: undefined,
+            })
+        );
+    });
+
     it('returns to live when tuning within a one-channel archive queue', async () => {
         const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
         const component = fixture.componentInstance;
