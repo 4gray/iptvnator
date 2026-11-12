@@ -763,13 +763,16 @@ export interface ElectronBridgeApi {
     ) => Promise<unknown>;
     sourceSyncConnection?: () =>
         import('./source-sync.interface').SourceServerConnection | null;
+    sourceSyncSavedConnection?: () =>
+        import('./source-sync.interface').SavedSourceServerConnection | null;
     sourceSyncRequest?: (
         request: import('./source-sync.interface').SourceServerRequest
     ) => Promise<import('./source-sync.interface').SourceServerResponse>;
     sourceSyncConfigure?: (
         url: string,
         token: string,
-        restart: boolean
+        restart: boolean,
+        savedInstanceId?: string
     ) => Promise<
         import('./source-sync.interface').SourceServerConnection & {
             tokenPersisted: boolean;
@@ -778,6 +781,7 @@ export interface ElectronBridgeApi {
     hostedServerControl?: (command: HostedServerCommand) => Promise<HostedServerStatus>;
     hostedServerAccessCode?: () => Promise<string>;
     sourceSyncDisconnect?: () => Promise<void>;
+    sourceSyncForget?: () => Promise<void>;
     sourceSyncLocalSources?: () => Promise<Playlist[]>;
     onSourceSyncResume?: (callback: () => void) => () => void;
     onPortalDebugEvent?: (

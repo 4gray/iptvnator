@@ -39,13 +39,6 @@
 }
 
 button,
-a,
-input {
+a {
     app-region: no-drag;
-}
-
-input {
-    color: var(--app-on-surface);
-    background: var(--app-content-bg);
-    max-width: 100%;
 }

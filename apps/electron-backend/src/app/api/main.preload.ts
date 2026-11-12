@@ -25,6 +25,8 @@ import {
     SOURCE_SYNC_CONNECTION,
     SOURCE_SYNC_CONFIGURE,
     SOURCE_SYNC_DISCONNECT,
+    SOURCE_SYNC_FORGET,
+    SOURCE_SYNC_SAVED_CONNECTION,
     SOURCE_SYNC_REQUEST,
     SOURCE_SYNC_LOCAL_SOURCES,
     SOURCE_SYNC_RESUME,
@@ -311,6 +313,8 @@ const electronApi: ElectronBridgeApi = {
         if (result?.error) throw new Error('SOURCE_SYNC.INCOMPATIBLE');
         return result;
     },
+    sourceSyncSavedConnection: () =>
+        ipcRenderer.sendSync(SOURCE_SYNC_SAVED_CONNECTION),
     historyLocalRequest: (request) =>
         ipcRenderer.invoke('DB_HISTORY_LOCAL', request),
     favoritesLocalRequest: (request) =>
@@ -321,9 +325,16 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke(SOURCE_SYNC_REQUEST, request),
     hostedServerControl: (command) => ipcRenderer.invoke(HOSTED_SERVER_CONTROL, command),
     hostedServerAccessCode: () => ipcRenderer.invoke(HOSTED_SERVER_ACCESS_CODE),
-    sourceSyncConfigure: (url, token, restart) =>
-        ipcRenderer.invoke(SOURCE_SYNC_CONFIGURE, url, token, restart),
+    sourceSyncConfigure: (url, token, restart, savedInstanceId) =>
+        ipcRenderer.invoke(
+            SOURCE_SYNC_CONFIGURE,
+            url,
+            token,
+            restart,
+            savedInstanceId
+        ),
     sourceSyncDisconnect: () => ipcRenderer.invoke(SOURCE_SYNC_DISCONNECT),
+    sourceSyncForget: () => ipcRenderer.invoke(SOURCE_SYNC_FORGET),
     sourceSyncLocalSources: () => ipcRenderer.invoke(SOURCE_SYNC_LOCAL_SOURCES),
     onSourceSyncResume: (callback) => {
         const handler = () => callback();

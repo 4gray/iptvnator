@@ -37,6 +37,10 @@ export interface SourceServerConnection {
     instanceId: string;
 }
 
+export interface SavedSourceServerConnection extends SourceServerConnection {
+    hasToken: boolean;
+}
+
 export function isTmdbTransferCapability(value: unknown): value is string {
     return typeof value === 'string' && /^[A-Za-z0-9_-]{32}$/.test(value);
 }
