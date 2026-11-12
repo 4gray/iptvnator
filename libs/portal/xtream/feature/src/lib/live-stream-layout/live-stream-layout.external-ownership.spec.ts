@@ -59,52 +59,6 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
         expect(commit).toHaveBeenCalledTimes(1);
     });
 
-    it('restores the playing channel and keeps its queue when committing over a preview', () => {
-        const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
-        const component = fixture.componentInstance;
-        const playing = { ...sampleChannel, category_id: 1 };
-        const preview = { ...playing, xtream_id: 102 };
-        const queued = { ...playing, xtream_id: 103 };
-        emptyList.set([playing, preview, queued]);
-        portalPlayer.isEmbeddedPlayer.set(false);
-        fixture.detectChanges();
-        component.playLive(playing, true, [playing, queued]);
-        const playback = component.activePlayback();
-        if (!playback) throw new Error('Missing synthetic playback');
-        publishExternalSession({
-            id: 'synthetic-playing',
-            player: 'mpv',
-            status: 'playing',
-            title: 'Synthetic Channel',
-            streamUrl: playback.streamUrl,
-            canClose: true,
-            startedAt: '2026-04-04T10:00:00Z',
-            updatedAt: '2026-04-04T10:00:00Z',
-        });
-        fixture.detectChanges();
-        xtreamStore.constructStreamUrl.mockReturnValueOnce(
-            'https://example.test/synthetic-preview.ts'
-        );
-        component.playLive(preview, false, [preview]);
-        xtreamStore.selectedItem.set(preview);
-        expect(component.activePlayback()).not.toBe(playback);
-        component.guide.open();
-        fixture.detectChanges();
-        const source = fixture.debugElement.injector.get(
-            XtreamEpgGuideSourceService
-        );
-        const navigation = fixture.debugElement.injector.get(
-            XtreamLiveChannelNavigationService
-        );
-        const commit = jest.fn();
-        source.activate(String(playing.xtream_id), null, undefined, commit);
-        expect(commit).toHaveBeenCalledTimes(1);
-        expect(xtreamStore.setSelectedItem).toHaveBeenLastCalledWith(playing);
-        expect(component.activePlayback()).toBe(playback);
-        expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(1);
-        expect(navigation.remoteChannels()).toEqual([playing, queued]);
-    });
-
     function startDetachedGuide() {
         const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
         const component = fixture.componentInstance;
@@ -803,89 +757,127 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
         }
     );
 
-    it('waits for every cancelled launch when committing the still-playing channel', async () => {
-        const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
-        const component = fixture.componentInstance;
-        const playing = { ...sampleChannel, category_id: 1 };
-        const next = { ...playing, xtream_id: 202 };
-        const last = { ...playing, xtream_id: 203 };
-        emptyList.set([playing, next, last]);
-        portalPlayer.isEmbeddedPlayer.set(false);
-        const nativeClose = jest.fn(() => new Promise(() => undefined));
-        Object.defineProperty(window.electron, 'closeExternalPlayerSession', {
-            value: nativeClose,
-        });
-        fixture.detectChanges();
-        component.playLive(playing, true);
-        const current = {
-            id: 'synthetic-playing',
-            player: 'mpv',
-            status: 'opened',
-            mediaLoaded: true,
-            title: 'Synthetic Playing Channel',
-            streamUrl: component.activeStreamUrl(),
-            canClose: true,
-            startedAt: '2026-04-04T10:00:00Z',
-            updatedAt: '2026-04-04T10:00:00Z',
-        } as const;
-        publishExternalSession(current);
-        fixture.detectChanges();
-        component.guide.open();
-        fixture.detectChanges();
-        const source = fixture.debugElement.injector.get(
-            XtreamEpgGuideSourceService
-        );
-        const pending = [next, last].map((item) => ({
-            id: `synthetic-late-${item.xtream_id}`,
-            url: `https://example.test/synthetic-${item.xtream_id}.ts`,
-            row: String(item.xtream_id),
-        }));
-        for (const { row, url } of pending) {
-            xtreamStore.constructStreamUrl.mockReturnValueOnce(url);
-            xtreamStore.openPlayer.mockImplementationOnce(
-                () => new Promise(() => undefined)
+    it.each([false, true])(
+        'waits for every cancelled launch and retries unreadable VLC (%s)',
+        async (unreadable) => {
+            const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
+            const component = fixture.componentInstance;
+            const playing = { ...sampleChannel, category_id: 1 };
+            const next = { ...playing, xtream_id: 202 };
+            const last = { ...playing, xtream_id: 203 };
+            emptyList.set([playing, next, last]);
+            portalPlayer.isEmbeddedPlayer.set(false);
+            if (unreadable) player.set(VideoPlayer.VLC);
+            const nativeClose = jest.fn((id: string) =>
+                id === 'synthetic-playing'
+                    ? Promise.resolve(null)
+                    : new Promise<null>(() => undefined)
             );
-            source.activate(row);
-        }
-        publishExternalSession({
-            ...current,
-            id: pending[0].id,
-            streamUrl: pending[0].url,
-            mediaLoaded: false,
-            playbackUnverified: true,
-        });
-        fixture.detectChanges();
-        const commit = jest.fn();
-        source.activate(String(playing.xtream_id), null, undefined, commit);
-        expect(commit).not.toHaveBeenCalled();
-        expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(3);
-        for (const { id, url } of pending) {
+            Object.defineProperty(
+                window.electron,
+                'closeExternalPlayerSession',
+                {
+                    value: nativeClose,
+                }
+            );
+            fixture.detectChanges();
+            component.playLive(playing, true);
+            const current = {
+                id: 'synthetic-playing',
+                player: unreadable ? 'vlc' : 'mpv',
+                status: 'opened',
+                mediaLoaded: true,
+                playbackUnverified: unreadable || undefined,
+                title: 'Synthetic Playing Channel',
+                streamUrl: component.activeStreamUrl(),
+                canClose: true,
+                startedAt: '2026-04-04T10:00:00Z',
+                updatedAt: '2026-04-04T10:00:00Z',
+            } as const;
+            publishExternalSession(current);
+            fixture.detectChanges();
+            component.guide.open();
+            fixture.detectChanges();
+            const source = fixture.debugElement.injector.get(
+                XtreamEpgGuideSourceService
+            );
+            const pending = [next, last].map((item) => ({
+                id: `synthetic-late-${item.xtream_id}`,
+                url: `https://example.test/synthetic-${item.xtream_id}.ts`,
+                row: String(item.xtream_id),
+            }));
+            for (const { row, url } of pending) {
+                xtreamStore.constructStreamUrl.mockReturnValueOnce(url);
+                xtreamStore.openPlayer.mockImplementationOnce(
+                    () => new Promise(() => undefined)
+                );
+                source.activate(row);
+            }
             publishExternalSession({
                 ...current,
-                id,
-                streamUrl: url,
-                title: 'Synthetic Replacement',
+                id: pending[0].id,
+                streamUrl: pending[0].url,
+                mediaLoaded: false,
+                playbackUnverified: true,
             });
             fixture.detectChanges();
-            expect(nativeClose).toHaveBeenCalledWith(id, true);
-        }
-        expect(nativeClose).toHaveBeenCalledTimes(2);
-        for (const { id, url } of pending) {
+            const commit = jest.fn();
+            const playingId = String(playing.xtream_id);
+            if (unreadable) {
+                const row = source
+                    .channels()
+                    .find(({ id }) => id === playingId);
+                if (!row) throw new Error('Missing playing row');
+                expect(source.retryActive(row, undefined, commit)).toBe(true);
+                xtreamStore.openPlayer.mockImplementationOnce(
+                    () => new Promise(() => undefined)
+                );
+            } else source.activate(playingId, null, undefined, commit);
             expect(commit).not.toHaveBeenCalled();
-            publishExternalSession({
-                ...current,
-                id,
-                streamUrl: url,
-                status: 'closed',
-                canClose: false,
-            });
-            await Promise.resolve();
+            expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(3);
+            for (const { id, url } of pending) {
+                publishExternalSession({
+                    ...current,
+                    id,
+                    streamUrl: url,
+                    title: 'Synthetic Replacement',
+                });
+                fixture.detectChanges();
+                expect(nativeClose).toHaveBeenCalledWith(id, true);
+            }
+            expect(nativeClose).toHaveBeenCalledTimes(2);
+            for (const { id, url } of pending) {
+                expect(commit).not.toHaveBeenCalled();
+                publishExternalSession({
+                    ...current,
+                    id,
+                    streamUrl: url,
+                    status: 'closed',
+                    canClose: false,
+                });
+                await Promise.resolve();
+            }
+            await new Promise<void>((resolve) => setTimeout(resolve, 0));
+            if (unreadable) {
+                expect(commit).not.toHaveBeenCalled();
+                expect(nativeClose).toHaveBeenLastCalledWith(current.id, true);
+                expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(4);
+                expect(xtreamStore.openPlayer.mock.lastCall?.[0]).toBe(
+                    current.streamUrl
+                );
+                publishExternalSession({
+                    ...current,
+                    id: 'synthetic-retried',
+                    playbackUnverified: undefined,
+                    playbackIdle: false,
+                });
+                fixture.detectChanges();
+            }
+            expect(commit).toHaveBeenCalledTimes(1);
+            expect(component.guideNowPlayingChannel()).toBe(current.title);
+            expect(source.activeChannelId()).toBe(playingId);
         }
-        await new Promise<void>((resolve) => setTimeout(resolve, 0));
-        expect(commit).toHaveBeenCalledTimes(1);
-        expect(component.guideNowPlayingChannel()).toBe(current.title);
-        expect(source.activeChannelId()).toBe(String(playing.xtream_id));
-    });
+    );
 
     it('keeps the confirmed panel selected when the guide closes during a switch', () => {
         const fixture = TestBed.createComponent(LiveStreamLayoutComponent);

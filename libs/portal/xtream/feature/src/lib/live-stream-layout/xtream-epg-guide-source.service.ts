@@ -92,7 +92,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         });
     });
 
-    private readonly items = computed(() => {
+    private readonly availableItems = computed(() => {
         const playlist = this.playlist();
         if (!playlist || this.store.selectedContentType() !== 'live') return [];
         const streams =
@@ -104,21 +104,24 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         );
         const sqlite = this.runtime.supportsXtreamSqliteDataSource;
         this.parentalLock.version();
-        return sortPortalChannelItems(
-            streams.filter((item) => {
-                const key = categoryKey(item.category_id);
-                return sqlite
-                    ? categories.has(key)
-                    : !this.parentalLock.isXtreamCategoryLocked(
-                          playlist.id,
-                          'live',
-                          key ? Number(key) : NaN
-                      );
-            }),
+        return streams.filter((item) => {
+            const key = categoryKey(item.category_id);
+            return sqlite
+                ? categories.has(key)
+                : !this.parentalLock.isXtreamCategoryLocked(
+                      playlist.id,
+                      'live',
+                      key ? Number(key) : NaN
+                  );
+        });
+    });
+    private readonly items = computed(() =>
+        sortPortalChannelItems(
+            this.availableItems(),
             this.navigation.sortMode(),
             channelName
-        );
-    });
+        )
+    );
 
     private readonly favorites = injectXtreamGuideFavorites(
         this.session,
@@ -134,7 +137,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         playlist: this.playlist(),
         sources: this.sources.revision(),
         preferUploaded: this.settings.preferUploadedEpgOverXtream?.(),
-        catalog: this.catalog(),
+        catalog: this.availableItems(),
     }));
 
     readonly scopes = computed<EpgGuideScope[]>(() => {
@@ -215,7 +218,9 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     readonly playingItem = computed(() => {
         const item = this.playback().item;
         return item
-            ? this.items().find((row) => sameXtreamChannelCopy(row, item))
+            ? this.availableItems().find((row) =>
+                  sameXtreamChannelCopy(row, item)
+              )
             : undefined;
     });
     private readonly schedules = injectXtreamGuideSchedules(

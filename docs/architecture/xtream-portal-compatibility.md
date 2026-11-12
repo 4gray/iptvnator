@@ -780,12 +780,13 @@ and private-network checks.
 
 The Xtream Live TV header, command palette, timeline and list panel, and `G`
 open the shared multi-channel programme guide while a channel is playing.
-With MPV or VLC selected, the preload must support session updates and the
-session must have opened before the guide can open. When the player reports
-the stream stopped, an open guide keeps its schedule visible and lets the
-user retry. If VLC's playback state cannot be read, Enter or a double-click
-that starts on the active row explicitly retries it, even after an earlier
-successful VLC status read.
+With MPV or VLC selected, the preload must support session updates and closing
+an exact session, and the session must have opened before the guide can open.
+When the player reports the stream stopped, an open guide keeps its schedule
+visible and lets the user retry. If VLC's playback state cannot be read, Enter
+or a double-click that starts on the active row explicitly retries it, even
+after an earlier successful VLC status read. Cancelling a different pending
+tune still retries the playing VLC stream if its status remains unreadable.
 A double-click on a new row commits the tune requested by its first click.
 The guide keeps the player mounted in the dock and hides the live sidebars
 while preserving their browsing state. Short screens show a compact dock so
@@ -947,8 +948,8 @@ dock follows the playing copy's latest XMLTV identity after a catalog recheck
 and keeps the player panel and remote programme current when the guide closes.
 After the guide closes, a refresh of the playing channel's panel replaces the
 guide snapshot. The latest confirmed schedule stays tied to the playing channel,
-even while the panel previews a different channel. Closing the guide cancels its
-reads.
+even while the panel previews a different channel or the channel list is
+reordered. Closing the guide cancels its reads.
 Initial failures retry when rows return to the viewport. If a visible row's
 refresh fails, it keeps its last schedule and can retry after 30 seconds.
 A coverage scan or dock refresh that obtains a fresh schedule also updates

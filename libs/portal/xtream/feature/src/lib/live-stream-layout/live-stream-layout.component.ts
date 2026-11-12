@@ -643,11 +643,13 @@ export class LiveStreamLayoutComponent
             computed(() =>
                 this.usesEmbeddedPlayer()
                     ? !!this.activeStreamUrl()
-                    : !!this.externalGuide.confirmed() ||
-                      !!this.externalGuide.unverifiedPlayback() ||
-                      (this.guide.isOpen() &&
-                          (this.externalGuide.launching() ||
-                              !!this.externalGuide.stoppedTuningSource()))
+                    : typeof window.electron?.closeExternalPlayerSession ===
+                          'function' &&
+                      (!!this.externalGuide.confirmed() ||
+                          !!this.externalGuide.unverifiedPlayback() ||
+                          (this.guide.isOpen() &&
+                              (this.externalGuide.launching() ||
+                                  !!this.externalGuide.stoppedTuningSource())))
             )
         );
         this.guideSource.bind(
@@ -694,7 +696,8 @@ export class LiveStreamLayoutComponent
                                     false,
                                     onConfirmed
                                 ),
-                            onConfirmed
+                            onConfirmed,
+                            retry
                         );
                     else onConfirmed?.();
                     return;

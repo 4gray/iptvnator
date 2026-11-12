@@ -131,12 +131,91 @@ describe('Xtream remote playback metadata', () => {
         epgItems.set([{ ...airing, title: 'Synthetic Preview Programme' }]);
         fixture.detectChanges();
         expectRemoteProgramme(refreshed.title);
+        component.setLiveChannelSortMode('name-asc');
+        fixture.detectChanges();
+        expectRemoteProgramme(refreshed.title);
         xtreamStore.selectedItem.set(playing);
         epgItems.set([refreshed]);
         load.mockReturnValueOnce(new Promise(() => undefined));
         component.guide.open();
         fixture.detectChanges();
         expect(epgItems()).toEqual([refreshed]);
+        expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(1);
+    });
+
+    it('restores the playing channel and keeps its queue when committing over a preview', () => {
+        const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
+        const component = fixture.componentInstance;
+        const playing = { ...sampleChannel, category_id: 1 };
+        const preview = { ...playing, xtream_id: 102 };
+        const queued = { ...playing, xtream_id: 103 };
+        emptyList.set([playing, preview, queued]);
+        portalPlayer.isEmbeddedPlayer.set(false);
+        fixture.detectChanges();
+        component.playLive(playing, true, [playing, queued]);
+        const playback = component.activePlayback();
+        if (!playback) throw new Error('Missing synthetic playback');
+        publishExternalSession({
+            id: 'synthetic-playing',
+            player: 'mpv',
+            status: 'playing',
+            title: 'Synthetic Channel',
+            streamUrl: playback.streamUrl,
+            canClose: true,
+            startedAt: '2026-04-04T10:00:00Z',
+            updatedAt: '2026-04-04T10:00:00Z',
+        });
+        fixture.detectChanges();
+        xtreamStore.constructStreamUrl.mockReturnValueOnce(
+            'https://example.test/synthetic-preview.ts'
+        );
+        component.playLive(preview, false, [preview]);
+        xtreamStore.selectedItem.set(preview);
+        expect(component.activePlayback()).not.toBe(playback);
+        component.guide.open();
+        fixture.detectChanges();
+        const source = fixture.debugElement.injector.get(
+            XtreamEpgGuideSourceService
+        );
+        const navigation = fixture.debugElement.injector.get(
+            XtreamLiveChannelNavigationService
+        );
+        const commit = jest.fn();
+        source.activate(String(playing.xtream_id), null, undefined, commit);
+        expect(commit).toHaveBeenCalledTimes(1);
+        expect(xtreamStore.setSelectedItem).toHaveBeenLastCalledWith(playing);
+        expect(component.activePlayback()).toBe(playback);
+        expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(1);
+        expect(navigation.remoteChannels()).toEqual([playing, queued]);
+    });
+
+    it('does not offer external guide tuning on a preload without exact close', () => {
+        Object.defineProperty(window.electron, 'closeExternalPlayerSession', {
+            value: undefined,
+        });
+        const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
+        const component = fixture.componentInstance;
+        const playing = { ...sampleChannel, category_id: 1 };
+        emptyList.set([playing]);
+        portalPlayer.isEmbeddedPlayer.set(false);
+        fixture.detectChanges();
+        component.playLive(playing, true);
+        publishExternalSession({
+            id: 'synthetic-detached',
+            player: 'mpv',
+            status: 'playing',
+            mediaLoaded: true,
+            reuseAvailable: false,
+            canClose: true,
+            title: 'Synthetic Channel',
+            streamUrl: component.activeStreamUrl(),
+            startedAt: '2026-04-04T10:00:00Z',
+            updatedAt: '2026-04-04T10:00:00Z',
+        });
+        fixture.detectChanges();
+        expect(component.guide.available()).toBe(false);
+        component.guide.open();
+        expect(component.guide.isOpen()).toBe(false);
         expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(1);
     });
 

@@ -85,6 +85,7 @@ export function setupLiveStreamLayoutNativeFixture() {
         (_update: (session: ExternalPlayerSession) => void) => jest.fn()
     );
     const launchIds = new Map<string, string>();
+    const publishedSessions = new Map<string, ExternalPlayerSession>();
     function publishExternalSession(session: ExternalPlayerSession | null) {
         externalSession.set(session);
         if (!session) return;
@@ -99,11 +100,13 @@ export function setupLiveStreamLayoutNativeFixture() {
             )?.[5];
         const launchId = typeof candidate === 'string' ? candidate : undefined;
         if (launchId) launchIds.set(session.id, launchId);
-        onExternalPlayerSessionUpdate.mock.lastCall?.[0]({
+        const snapshot = {
             reuseAvailable: true,
             ...session,
             launchId,
-        });
+        };
+        publishedSessions.set(session.id, snapshot);
+        onExternalPlayerSessionUpdate.mock.lastCall?.[0](snapshot);
     }
     const onChannelChange = jest.fn(
         (_change: (event: { direction: 'up' | 'down' }) => void) => jest.fn()
@@ -152,6 +155,11 @@ export function setupLiveStreamLayoutNativeFixture() {
                 onChannelChange,
                 onRemoteControlCommand,
                 onExternalPlayerSessionUpdate,
+                closeExternalPlayerSession: async (id: string) => {
+                    const session = publishedSessions.get(id);
+                    if (session) await closeSession(session);
+                    return null;
+                },
             },
         });
         updateRemoteControlStatus.mockClear();
@@ -160,6 +168,7 @@ export function setupLiveStreamLayoutNativeFixture() {
         player.set(VideoPlayer.MPV);
         mpvPlayerPath.set('');
         onExternalPlayerSessionUpdate.mockClear();
+        publishedSessions.clear();
         launchIds.clear();
         closeSession.mockClear();
         pendingStop.mockReset();

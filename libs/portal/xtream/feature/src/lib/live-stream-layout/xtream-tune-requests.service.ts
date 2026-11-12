@@ -54,7 +54,8 @@ export class XtreamTuneRequests {
         cancelled: Promise<void>,
         channelId: number,
         retune: () => void,
-        onConfirmed?: () => void
+        onConfirmed?: () => void,
+        retryUnverified = false
     ): void {
         const request = this.current();
         void cancelled.then(() => {
@@ -63,7 +64,8 @@ export class XtreamTuneRequests {
             if (
                 playing?.item.xtream_id === channelId &&
                 !playing.archive &&
-                !this.external.isStopping()
+                !this.external.isStopping() &&
+                !(retryUnverified && this.external.canRetryUnverifiedStream())
             )
                 onConfirmed?.();
             else retune();
