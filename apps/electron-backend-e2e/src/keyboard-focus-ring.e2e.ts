@@ -1,7 +1,9 @@
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import {
+    addStalkerPortal,
     addXtreamPortal,
     channelItemByTitle,
+    clickCategoryById,
     clickCategoryByNameExact,
     clickFirstGridListCard,
     closeElectronApp,
@@ -14,9 +16,18 @@ import {
     resetMockServers,
     saveSettings,
     test,
+    waitForStalkerCatalog,
     waitForXtreamWorkspaceReady,
 } from './electron-test-fixtures';
-import { fetchXtreamLiveFixture, getXtreamTitle } from './portal-mock-fixtures';
+import {
+    routePlayableStreams,
+    startAndConfirmPlayback,
+} from './playable-stream-fixture';
+import {
+    fetchStalkerCategoryFixture,
+    fetchXtreamLiveFixture,
+    getXtreamTitle,
+} from './portal-mock-fixtures';
 import { applyTheme } from './theme-contrast';
 
 // Fictional metadata and local artwork keep the attached focus report synthetic.
@@ -478,6 +489,73 @@ async function openCommandPalette(page: Page): Promise<Locator> {
 }
 
 test.describe('Keyboard focus ring', () => {
+    test('@electron @stalker seeking keeps the detail shell ring off after a click', async ({
+        dataDir,
+        request,
+    }) => {
+        await resetMockServers(request, ['stalker']);
+        const series = await fetchStalkerCategoryFixture(request, 'series');
+        const app = await launchElectronApp(dataDir);
+        const page = app.mainWindow;
+        try {
+            await routePlayableStreams(page);
+            await openSettings(page);
+            await openSettingsSection(page, 'playback');
+            await page.getByTestId('select-video-player').click();
+            await page
+                .getByRole('option', {
+                    name: 'HTML5 video player',
+                    exact: true,
+                })
+                .click();
+            await saveSettings(page);
+            await page.keyboard.press('Escape');
+            await addStalkerPortal(page);
+            await waitForStalkerCatalog(page);
+            await openWorkspaceSection(page, 'Series');
+            await clickCategoryById(page, series.categoryId);
+            await clickFirstGridListCard(page);
+
+            const shell = page.locator('app-portal-detail-shell');
+            const episode = shell
+                .locator('.episode-card, .episode-list-item')
+                .first();
+            await startAndConfirmPlayback(page, () => episode.click(), 0.25);
+            const video = shell.locator('app-html-video-player video');
+            await expect(video).toBeVisible();
+            await video.evaluate((element: HTMLVideoElement) =>
+                element.pause()
+            );
+            const time = () =>
+                video.evaluate(
+                    (element: HTMLVideoElement) => element.currentTime
+                );
+            const clickShell = () => shell.click({ position: { x: 8, y: 28 } });
+
+            await clickShell();
+            await expect(shell).toBeFocused();
+            const beforeSeek = await time();
+            await page.keyboard.press('ArrowRight');
+            await expect.poll(time).toBeGreaterThan(beforeSeek + 4);
+            await expect(shell).toHaveCSS('outline-style', 'none');
+
+            await page.keyboard.press('Tab');
+            await expect(shell).not.toBeFocused();
+            await page.keyboard.press('Shift+Tab');
+            await expect(shell).toBeFocused();
+            await expect(shell).toHaveCSS('outline-style', 'solid');
+
+            await clickShell();
+            await expect(shell).toBeFocused();
+            await expect(shell).toHaveCSS('outline-style', 'none');
+            await page.keyboard.press('ArrowLeft');
+            await expect.poll(time).toBeLessThan(beforeSeek + 1);
+            await expect(shell).toHaveCSS('outline-style', 'none');
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
     test('@electron @theme every Tab stop shows one visible ring in both themes, a click none', async ({
         dataDir,
         request,

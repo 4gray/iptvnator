@@ -10,6 +10,7 @@ import {
     inject,
     input,
     output,
+    signal,
     ChangeDetectionStrategy,
 } from '@angular/core';
 import { registerWorkspaceBack } from '@iptvnator/portal/shared/data-access';
@@ -53,6 +54,10 @@ import {
         // on body, while preserving already-handled events and overlay guards.
         '(keydown.escape)': 'onEscape($event)',
         '[class.shell-host--watch]': 'isWatch()',
+        '[class.shell-host--pointer-focus]': 'pointerFocus()',
+        '(focus)': 'onFocus()',
+        '(pointerdown)': 'onPointerDown($event)',
+        '(blur)': 'onBlur()',
         '(document:keydown.escape)': 'onEscape($event)',
     },
 })
@@ -93,6 +98,14 @@ export class PortalDetailShellComponent {
 
     readonly isWatch = computed(() => this.playbackActive());
 
+    /**
+     * Chromium can match `:focus-visible` after a seek keypress on a clicked
+     * shell. Keep that outline hidden until focus arrives again (#2170).
+     */
+    protected readonly pointerFocus = signal(false);
+    /** The window, not the shell, lost focus: its return keeps the verdict. */
+    private windowBlurred = false;
+
     constructor() {
         registerWorkspaceBack({
             available: this.backAvailable,
@@ -120,6 +133,32 @@ export class PortalDetailShellComponent {
             }
             wasWatch = watch;
         });
+    }
+
+    onFocus(): void {
+        if (this.windowBlurred) {
+            this.windowBlurred = false;
+            return;
+        }
+        this.pointerFocus.set(
+            !this.host.nativeElement.matches(':focus-visible')
+        );
+    }
+
+    onPointerDown(event: PointerEvent): void {
+        const element = this.host.nativeElement;
+        // Clicking the already focused shell does not fire another focus event.
+        if (
+            event.button === 0 &&
+            element.ownerDocument.activeElement === element
+        ) {
+            this.pointerFocus.set(true);
+        }
+    }
+
+    onBlur(): void {
+        const element = this.host.nativeElement;
+        this.windowBlurred = element.ownerDocument.activeElement === element;
     }
 
     onScrollKey(event: KeyboardEvent): void {

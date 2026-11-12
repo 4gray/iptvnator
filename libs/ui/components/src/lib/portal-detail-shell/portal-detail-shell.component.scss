@@ -40,6 +40,12 @@
     &:focus-visible {
         @include focus-ring.focus-ring-declarations($offset: -2px);
     }
+
+    // Clicked into, not tabbed to: no ring when a later key (arrow-key
+    // seeking) promotes the focus to :focus-visible.
+    &.shell-host--pointer-focus:focus-visible {
+        outline: none;
+    }
 }
 
 :host-context(.dark-theme) {
