@@ -21,6 +21,9 @@ import type { XtreamLiveChannelItem } from './xtream-live-channel-navigation.ser
 import {
     cancelXtreamLaunch,
     createXtreamLaunchCompletion,
+    isNewerXtreamSession,
+    needsCancelledXtreamTeardown,
+    waitForXtreamLaunches,
     XtreamNativeHandoff,
     type GuideLaunchOutcome,
     type XtreamOwnedLaunch as Launch,
@@ -139,13 +142,21 @@ export class XtreamExternalLiveSessions {
         confirmedId: string | undefined,
         isCurrent: () => boolean
     ) {
-        return this.handoff.beforeTune(
-            source,
-            player,
-            [this.playback?.activeSession()?.id, confirmedId],
-            (id) => this.state(id),
-            isCurrent
+        const wait = this.handoff.waitForCancelled(
+            this.ownedLaunches(),
+            source
         );
+        const handoff = () =>
+            this.handoff.beforeTune(
+                source,
+                player,
+                [this.playback?.activeSession()?.id, confirmedId],
+                (id) => this.state(id),
+                isCurrent
+            );
+        return wait
+            ? wait.then(() => (isCurrent() ? handoff() : undefined))
+            : handoff();
     }
 
     latestOpened(
@@ -165,14 +176,7 @@ export class XtreamExternalLiveSessions {
                 isXtreamLiveCategoryWithheld(this.lock, source)
             )
                 continue;
-            const newer =
-                !latest ||
-                (session.launchOrder !== undefined &&
-                latest.launchOrder !== undefined
-                    ? session.launchOrder >= latest.launchOrder
-                    : Date.parse(session.startedAt) >=
-                      Date.parse(latest.startedAt));
-            if (newer) latest = session;
+            if (isNewerXtreamSession(session, latest)) latest = session;
         }
         return latest;
     }
@@ -221,10 +225,7 @@ export class XtreamExternalLiveSessions {
             dockStopId?: string;
         } = {}
     ): Promise<void> | undefined {
-        const launches = new Set(this.pending.values());
-        this.sessions.forEach(({ launch }) => {
-            if (launch) launches.add(launch);
-        });
+        const launches = this.ownedLaunches();
         const dockLaunch = dockStopId && this.sessions.get(dockStopId)?.launch;
         if (dockLaunch) launches.delete(dockLaunch);
         const cancelled = new Set(
@@ -239,9 +240,14 @@ export class XtreamExternalLiveSessions {
         for (const entry of [...this.sessions.values()].reverse())
             if (entry.launch && cancelled.has(entry.launch))
                 this.enforce(entry);
-        return Promise.all(
-            [...cancelled].map((launch) => launch.completion.wait())
-        ).then(() => undefined);
+        return waitForXtreamLaunches(cancelled) ?? Promise.resolve();
+    }
+
+    private ownedLaunches(): Set<Launch> {
+        const launches = new Set(this.pending.values());
+        for (const { launch } of this.sessions.values())
+            if (launch) launches.add(launch);
+        return launches;
     }
 
     update(session: ExternalPlayerSession, source?: XtreamLiveSource): void {
@@ -337,10 +343,7 @@ export class XtreamExternalLiveSessions {
 
     private needsClose(entry: Active): boolean {
         return (
-            !!entry.launch?.cancelled ||
-            (!!entry.launch?.restoreSessionId &&
-                !entry.launch.opened &&
-                entry.session.playbackIdle === true) ||
+            needsCancelledXtreamTeardown(entry.session, entry.launch) ||
             isXtreamLiveCategoryWithheld(this.lock, entry.source)
         );
     }

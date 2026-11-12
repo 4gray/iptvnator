@@ -800,8 +800,9 @@ An embedded MPV reconnect also waits for the resumed stream to play.
 A guide or remote switch reuses the managed player when available. Otherwise
 it waits for the exact previous process to exit before opening the new channel,
 so a one-connection account does not have two simultaneous streams. A newer
-tune waits for an already dispatched launch to become closable. Selecting the
-previous channel while it is stopping restarts it after exit and waits for that
+tune waits for an already dispatched launch to become closable, and for an
+already cancelled launch to exit. Selecting the previous channel while it is
+stopping restarts it after exit and waits for that
 playback to open, including when a click still lands on its active row.
 An explicit Stop in the playback dock cancels an earlier tune from the same
 playlist, including during category or archive lookup or while waiting for the
@@ -920,8 +921,8 @@ same schedule for the player panel. The grid releases rows outside its rendered 
 and buffer. Rendered rows and the playing stream's dock revalidate after their
 schedules expire, even if the playing row is outside the current scope. The
 dock follows the playing copy's latest XMLTV identity after a catalog recheck
-and keeps the player panel current when the guide closes. Failed rows retry
-when they return to the viewport. A coverage scan or a dock refresh that
+and keeps the player panel and remote programme current when the guide closes.
+Failed rows retry when they return to the viewport. A coverage scan or a dock refresh that
 obtains a schedule also updates the corresponding visible failed row.
 It checks the current scope's coverage only when the user turns on **Only with
 EPG** and keeps channels whose coverage could not be checked until a successful

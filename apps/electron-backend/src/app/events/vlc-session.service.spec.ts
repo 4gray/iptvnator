@@ -439,6 +439,77 @@ describe('vlc-session.service helpers and launch args', () => {
         });
     });
 
+    it.each([true, false])(
+        'only publishes VLC fallback readiness after a successful spawn (%s)',
+        async (spawned) => {
+            mockStoreValues({
+                [VLC_PLAYER_PATH]: '/usr/bin/vlc',
+                [VLC_REUSE_INSTANCE]: true,
+            });
+            const first = Object.assign(createMockChildProcess(), {
+                exitCode: null,
+                signalCode: null,
+            });
+            const fallback = Object.assign(createMockChildProcess(), {
+                exitCode: null,
+                signalCode: null,
+            });
+            spawnMock.mockReturnValueOnce(first).mockReturnValueOnce(fallback);
+            const opening = openVlcPlayer({
+                title: 'Synthetic Channel',
+                url: 'https://example.test/synthetic.ts',
+                launchId: 'synthetic-fallback',
+            });
+            await waitForSpawnCallCount(1);
+            first.emit('spawn');
+            const session = await opening;
+            try {
+                expect(session).toMatchObject({
+                    status: 'opened',
+                    mediaLoaded: false,
+                    reuseAvailable: true,
+                });
+                Object.defineProperty(first, 'exitCode', { value: 1 });
+                first.emit('exit', 1);
+                expect(spawnMock).toHaveBeenCalledTimes(2);
+                expect(
+                    externalPlayerSessions.getSession(session.id)
+                        ?.mediaObservationUnavailable
+                ).toBeUndefined();
+                if (spawned) {
+                    fallback.emit('spawn');
+                    expect(
+                        externalPlayerSessions.getSession(session.id)
+                    ).toMatchObject({
+                        status: 'opened',
+                        mediaLoaded: false,
+                        mediaObservationUnavailable: true,
+                        reuseAvailable: false,
+                    });
+                } else {
+                    fallback.emit(
+                        'error',
+                        new Error('Synthetic fallback failed')
+                    );
+                    expect(
+                        externalPlayerSessions.getSession(session.id)
+                    ).toMatchObject({ status: 'error' });
+                    expect(
+                        externalPlayerSessions.getSession(session.id)
+                            ?.mediaObservationUnavailable
+                    ).toBeUndefined();
+                }
+            } finally {
+                if (first.exitCode === null) {
+                    Object.defineProperty(first, 'exitCode', { value: 0 });
+                    first.emit('exit', 0);
+                }
+                Object.defineProperty(fallback, 'exitCode', { value: 0 });
+                fallback.emit('exit', 0);
+            }
+        }
+    );
+
     describe('spawn error handling', () => {
         it('rejects with an actionable error when VLC fails to start', async () => {
             const proc = createMockChildProcess();

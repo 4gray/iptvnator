@@ -255,6 +255,45 @@ describe('XtreamExternalLiveSessions', () => {
         );
     });
 
+    it('keeps the next VLC tune waiting for a hidden cancelled launch to exit', async () => {
+        const close = jest.fn(() => new Promise(() => undefined));
+        Object.defineProperty(window.electron, 'closeExternalPlayerSession', {
+            value: close,
+        });
+        const launch = guard.begin({
+            ...replacement,
+            channel: { xtream_id: 102 },
+        });
+        launch.dispatch();
+        const prior = {
+            ...session('synthetic-cancelled-vlc', newUrl, 'opened'),
+            player: 'vlc',
+            mediaLoaded: false,
+            reuseAvailable: false,
+            launchId: launch.launchId,
+        } as const;
+        receive(prior);
+        activeSession.set(prior);
+        void guard.cancelPendingSwitches(original);
+        expect(close).toHaveBeenCalledWith(prior.id, true);
+        expect(guard.state(prior.id)).toBeUndefined();
+        const waiting = guard.closeBeforeTune(
+            { ...original, channel: { xtream_id: 103 } },
+            'vlc',
+            undefined,
+            () => true
+        );
+        expect(waiting).toBeDefined();
+        const opened = jest.fn();
+        void waiting?.then(opened);
+        await Promise.resolve();
+        expect(opened).not.toHaveBeenCalled();
+        receive({ ...prior, status: 'closed', canClose: false });
+        await waiting;
+        expect(opened).toHaveBeenCalledTimes(1);
+        expect(close).toHaveBeenCalledTimes(1);
+    });
+
     it.each([
         'closed',
         'error',

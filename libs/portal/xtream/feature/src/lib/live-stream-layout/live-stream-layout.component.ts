@@ -589,11 +589,17 @@ export class LiveStreamLayoutComponent
             );
         const selected = this.selectedLiveItem();
         const playing = this.guideChannel();
+        const currentCopy = this.guideSource.playingItem();
         if (
             !selected ||
             !playing ||
             !sameXtreamChannelCopy(selected, playing) ||
-            scheduleKey(selected) !== scheduleKey(playing)
+            scheduleKey(selected) !==
+                scheduleKey(
+                    currentCopy && sameXtreamChannelCopy(playing, currentCopy)
+                        ? currentCopy
+                        : playing
+                )
         )
             return null;
         const program = findCurrentEpgItem(this.epgItems(), now);

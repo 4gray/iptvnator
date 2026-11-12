@@ -478,9 +478,25 @@ export async function openVlcPlayer({
                         : 0;
 
                 proc.once('spawn', () => {
-                    if (!closeRequested) {
-                        resolveSpawn();
-                    }
+                    if (closeRequested) return;
+                    if (
+                        isRetry &&
+                        (session.launchId ||
+                            externalPlayerSessions.getSession(session.id)
+                                ?.playbackIdle !== undefined)
+                    )
+                        externalPlayerSessions.updateSession(session.id, {
+                            playbackIdle: undefined,
+                            reuseAvailable: false,
+                            ...(session.launchId && !contentInfo
+                                ? {
+                                      mediaLoaded: false,
+                                      playbackUnverified: true,
+                                      mediaObservationUnavailable: true,
+                                  }
+                                : {}),
+                        });
+                    resolveSpawn();
                 });
 
                 if (trackProcess) {
@@ -573,23 +589,6 @@ export async function openVlcPlayer({
                     }
                     return requestedClose;
                 });
-                if (
-                    isRetry &&
-                    (session.launchId ||
-                        externalPlayerSessions.getSession(session.id)
-                            ?.playbackIdle !== undefined)
-                )
-                    externalPlayerSessions.updateSession(session.id, {
-                        playbackIdle: undefined,
-                        ...(session.launchId && !contentInfo
-                            ? {
-                                  mediaLoaded: false,
-                                  playbackUnverified: true,
-                                  mediaObservationUnavailable: true,
-                              }
-                            : {}),
-                    });
-
                 if (!isRetry && !!rcPort && contentInfo) {
                     startVlcPositionPolling(
                         rcPort,

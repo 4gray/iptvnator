@@ -44,6 +44,19 @@ export type XtreamOwnedLaunch = {
     restoreSessionId?: string;
 };
 
+export function waitForXtreamLaunches(
+    launches: Iterable<XtreamOwnedLaunch>,
+    include: (launch: XtreamOwnedLaunch) => boolean = () => true
+): Promise<void> | undefined {
+    const waiting = [...launches]
+        .filter(include)
+        .map((launch) => launch.completion.wait())
+        .filter(Boolean);
+    return waiting.length
+        ? Promise.all(waiting).then(() => undefined)
+        : undefined;
+}
+
 export function cancelXtreamLaunch(
     launch: XtreamOwnedLaunch,
     keep?: { channelId: number; sessionId: string }
@@ -60,6 +73,30 @@ export function cancelXtreamLaunch(
     launch.restoreSessionId = keep?.sessionId;
     launch.ended.set('ended');
     return true;
+}
+
+export function needsCancelledXtreamTeardown(
+    session: ExternalPlayerSession,
+    launch?: XtreamOwnedLaunch
+): boolean {
+    return (
+        !!launch?.cancelled ||
+        (!!launch?.restoreSessionId &&
+            !launch.opened &&
+            session.playbackIdle === true)
+    );
+}
+
+export function isNewerXtreamSession(
+    session: ExternalPlayerSession,
+    latest?: ExternalPlayerSession
+): boolean {
+    return (
+        !latest ||
+        (session.launchOrder !== undefined && latest.launchOrder !== undefined
+            ? session.launchOrder >= latest.launchOrder
+            : Date.parse(session.startedAt) >= Date.parse(latest.startedAt))
+    );
 }
 
 export interface GuideLaunch {
@@ -132,6 +169,19 @@ export class XtreamNativeHandoff {
         ) => boolean,
         private readonly pendingStop?: (id: string) => Promise<void> | undefined
     ) {}
+
+    waitForCancelled(
+        launches: Iterable<XtreamOwnedLaunch>,
+        source: XtreamLiveSource
+    ) {
+        return waitForXtreamLaunches(
+            launches,
+            (launch) =>
+                !!launch.cancelled &&
+                !launch.retired &&
+                this.sameOwner(launch.source, source)
+        );
+    }
 
     dispatch(source: XtreamLiveSource): void {
         let resolve!: ReadySession['resolve'];

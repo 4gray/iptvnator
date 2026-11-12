@@ -1381,8 +1381,9 @@ reaches history.
   the launch ID, where the caller has one, or the `streamUrl` of an `opened`
   or `playing` session once it verifies the
   requested media. Players without readiness support confirm on opening. A
-  launch that ends before confirmation is not recorded. (Subscribing in the
-  gate, which the first deferred write creates, keeps it off the initial bundle.) That
+  launch that ends before confirmation is not recorded. VLC reports an
+  unobservable fallback only after its replacement process spawns. (Subscribing
+  in the gate, which the first deferred write creates, keeps it off the initial bundle.) That
   confirmation carries no session key, so an "Open in MPV/VLC" recovery
   launch is also confirmed by the `WebPlayerViewComponent` that requested
   it, under its own session key, once the launch has opened. M3U keeps
