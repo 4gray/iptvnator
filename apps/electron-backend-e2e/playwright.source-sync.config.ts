@@ -26,6 +26,7 @@ export default defineConfig({
     ...base,
     testMatch: [
         '**/source-sync.e2e.ts',
+        '**/tmdb-key-transfer.e2e.ts',
         '**/activity-sync.e2e.ts',
         '**/favorites-sync.e2e.ts',
         '**/history-sync.e2e.ts',

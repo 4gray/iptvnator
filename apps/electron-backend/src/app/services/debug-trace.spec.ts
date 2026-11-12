@@ -1,4 +1,8 @@
-import { trace, traceSqlStatement } from './debug-trace';
+import type {
+    TmdbTransferRequest,
+    TmdbTransferSession,
+} from '@iptvnator/shared/interfaces';
+import { safeStringifyForTrace, trace, traceSqlStatement } from './debug-trace';
 
 describe('debug trace redaction', () => {
     afterEach(() => {
@@ -26,6 +30,28 @@ describe('debug trace redaction', () => {
         }
         expect(output).toContain('diagnostic-request-id');
         expect(output).toContain('get_profile');
+    });
+
+    it('redacts both TMDB transfer tokens and the API key from diagnostic payloads', () => {
+        const session: TmdbTransferSession = {
+            senderToken: 'synthetic-sender-token',
+            receiverToken: 'synthetic-receiver-token',
+            expiresInMs: 300_000,
+        };
+        const request: TmdbTransferRequest = {
+            action: 'send',
+            transferToken: session.senderToken,
+            apiKey: 'synthetic-tmdb-api-key',
+        };
+        const output = safeStringifyForTrace({ session, request });
+        for (const value of [
+            session.senderToken,
+            session.receiverToken,
+            request.apiKey,
+        ]) {
+            expect(output).not.toContain(value);
+        }
+        expect(output).toContain('"action":"send"');
     });
 
     it('redacts serialized credentials before truncating trace strings', () => {
