@@ -1,3 +1,4 @@
+import type { HostedIngressState } from './hosted-ingress';
 import { mountTvSetup } from './tv-setup/pairing-router';
 import cors from 'cors';
 import express, { Express, Request, Response } from 'express';
@@ -81,6 +82,7 @@ export interface WebBackendAppOptions {
     /** Optional bearer token for every non-public route. */
     readonly accessToken?: string | null;
     readonly devicePairingEnabled?: boolean;
+    readonly hostedIngress?: HostedIngressState;
     /** Largest accepted playlist document in bytes. */
     readonly maxDocumentBytes?: number;
     readonly maxProviderResponseBytes?: number;
@@ -158,6 +160,7 @@ export function createWebBackendApp(
         storage: options.storage ?? null,
         accessToken: options.accessToken ?? null,
         devicePairingEnabled: options.devicePairingEnabled,
+        hostedIngress: options.hostedIngress,
         maxDocumentBytes:
             options.maxDocumentBytes ?? DEFAULT_MAX_DOCUMENT_BYTES,
     });

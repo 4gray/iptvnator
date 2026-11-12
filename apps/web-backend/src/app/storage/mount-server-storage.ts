@@ -1,4 +1,5 @@
 import type { Express, RequestHandler } from 'express';
+import type { HostedIngressState } from '../hosted-ingress';
 import { DevicePairingStore } from './device-pairing-store';
 import { createDevicePairingRouter } from './device-pairing-router';
 import { createAccessGuard } from './access-guard';
@@ -20,6 +21,7 @@ export interface ServerStorageMountOptions {
     readonly accessToken: string | null;
     readonly maxDocumentBytes: number;
     readonly devicePairingEnabled?: boolean;
+    readonly hostedIngress?: HostedIngressState;
 }
 
 /**
@@ -43,7 +45,8 @@ export function mountServerStorage(
             createDevicePairingRouter(
                 pairing,
                 options.accessToken,
-                options.storage.database.instanceId
+                options.storage.database.instanceId,
+                options.hostedIngress
             )
         );
     }

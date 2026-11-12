@@ -57,10 +57,12 @@ async function start(): Promise<void> {
     }
 
     const port = Number(process.env['PORT'] ?? 3000);
+    const hostedIngress = { origin: '' };
     const app = createWebBackendApp({
         storage,
         accessToken: config.accessToken,
         devicePairingEnabled: !!hostedAssets,
+        hostedIngress,
         maxDocumentBytes: config.maxDocumentBytes,
         // Each hosted listener enforces an exact Host/Origin pair before CORS.
         ...(hostedAssets ? { clientOrigins: ['*'] } : {}),
@@ -97,10 +99,13 @@ async function start(): Promise<void> {
                     const requestId = data.requestId;
                     transition = transition.then(async () => {
                         try {
+                            hostedIngress.origin = '';
+                            hostedIngress.origin =
+                                await remote.configure(origin);
                             parentPort!.postMessage({
                                 https: true,
                                 requestId,
-                                origin: await remote.configure(origin),
+                                origin: hostedIngress.origin,
                             });
                         } catch {
                             parentPort!.postMessage({

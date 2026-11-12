@@ -2,6 +2,7 @@ import { createServer, type Server } from 'node:http';
 import { BlockList } from 'node:net';
 import { networkInterfaces } from 'node:os';
 import type { Express } from 'express';
+import { markHostedIngress } from './hosted-ingress';
 
 export function listenHosted(
     app: Express,
@@ -56,7 +57,10 @@ export function listenHosted(
             response.writeHead(403).end();
             return;
         }
-        if (proxied) response.setHeader('Cache-Control', 'no-store');
+        if (proxied) {
+            markHostedIngress(request, httpsOrigin.origin);
+            response.setHeader('Cache-Control', 'no-store');
+        }
         app(request, response);
     });
     return new Promise((resolve, reject) => {
