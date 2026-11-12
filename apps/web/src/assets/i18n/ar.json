@@ -121,6 +121,7 @@
                 "UPDATE_FAILED": "فشل تحديث القائمة الأخيرة",
                 "AUTO_UPDATE": "التحديث التلقائي",
                 "AUTO_UPDATE_DESCRIPTION": "إذا تم تفعيل التحديث التلقائي، ستُحدَّث القائمة تلقائيًا عند كل تشغيل للتطبيق.",
+                "XTREAM_REFRESH_LIVE_ON_STARTUP": "تحديث القنوات المباشرة عند بدء التشغيل",
                 "CUSTOM_USER_AGENT": "قد تتطلب بعض خدمات IPTV وكيل مستخدم محدد لتشغيل قوائم التشغيل.",
                 "EXPORT_PLAYLIST": "تصدير القائمة كملف M3U",
                 "SERVER_URL": "رابط الخادم",
@@ -177,6 +178,7 @@
             "AUTO_REFRESH_UPDATE_PARTIAL": "التحديث التلقائي غير مكتمل: تم تحديث {{updated}} من {{total}} من قوائم التشغيل، وفشل {{failed}}.",
             "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "التحديث التلقائي غير مكتمل: تم تحديث {{updated}} من {{total}} من قوائم التشغيل، وفشل {{failed}}، وتم تخطي {{skipped}} (بدون رابط أو مسار ملف).",
             "AUTO_REFRESH_UPDATE_FAILED": "فشل التحديث التلقائي لقوائم التشغيل. لم يتم تحديث أي من قوائم التشغيل الـ {{total}}.",
+            "XTREAM_STARTUP_REFRESH_FAILED": "تعذّر تحديث مصدر Xtream واحد أو أكثر عند بدء التشغيل.",
             "AUTO_REFRESH_UPDATE_SKIPPED": "التحديث التلقائي لقوائم التشغيل: تم تحديث {{updated}} من {{total}}، وتم تخطي {{skipped}} (بدون رابط أو مسار ملف).",
             "AUTO_REFRESH_ENABLED": "تم تفعيل التحديث التلقائي"
         },

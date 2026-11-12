@@ -76,6 +76,7 @@ type XtreamDatabasePlaylistUpdate = {
     userAgent?: string;
     serverUrl?: string;
     lastUpdated?: string;
+    autoRefresh?: boolean;
     xtreamContentTypes?: import('@iptvnator/shared/interfaces').XtreamContentType[];
 };
 
@@ -413,6 +414,7 @@ export class DatabaseService {
         userAgent?: string;
         serverUrl?: string;
         updateDate?: number;
+        autoRefresh?: boolean;
         xtreamContentTypes?: import('@iptvnator/shared/interfaces').XtreamContentType[];
     }): Promise<boolean> {
         try {
@@ -431,6 +433,8 @@ export class DatabaseService {
                 if (playlist[key]) updates[key] = playlist[key];
             if (playlist.userAgent !== undefined)
                 updates.userAgent = playlist.userAgent;
+            if (playlist.autoRefresh !== undefined)
+                updates.autoRefresh = playlist.autoRefresh;
             if (playlist.xtreamContentTypes !== undefined)
                 updates.xtreamContentTypes = playlist.xtreamContentTypes;
             if (playlist.updateDate !== undefined)

@@ -11,6 +11,18 @@ function normalizeOptionalConnectionValue(
     return normalized ? normalized : null;
 }
 
+export function getXtreamRouteCategoryId(
+    url: string,
+    section: string | null
+): number | null {
+    if (section !== 'live' && section !== 'vod' && section !== 'series')
+        return null;
+    const segment = (url.split('?')[0] ?? '').split('/').filter(Boolean)[4];
+    if (!segment) return null;
+    const categoryId = Number(segment);
+    return Number.isNaN(categoryId) ? null : categoryId;
+}
+
 export function toXtreamPlaylistData(
     playlist: PlaylistMeta | null
 ): XtreamPlaylistData | null {

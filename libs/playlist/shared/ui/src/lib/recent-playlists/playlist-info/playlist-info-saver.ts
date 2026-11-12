@@ -304,6 +304,7 @@ export class PlaylistInfoSaver {
                         password: playlist.password,
                         userAgent: playlist.userAgent ?? '',
                         serverUrl: playlist.serverUrl,
+                        autoRefresh: playlist.autoRefresh,
                         xtreamContentTypes: playlist.xtreamContentTypes,
                     });
                 if (!saved)

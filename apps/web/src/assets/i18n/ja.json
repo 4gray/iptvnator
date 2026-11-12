@@ -121,6 +121,7 @@
                 "UPDATE_FAILED": "最後のプレイリスト更新に失敗しました",
                 "AUTO_UPDATE": "自動更新",
                 "AUTO_UPDATE_DESCRIPTION": "自動更新機能が有効な場合、アプリ起動時にプレイリストが自動的に更新されます。",
+                "XTREAM_REFRESH_LIVE_ON_STARTUP": "起動時にライブチャンネルを更新",
                 "CUSTOM_USER_AGENT": "一部のIPTVプロバイダーでは、プレイリストを再生するために特定のユーザーエージェントが必要です。",
                 "EXPORT_PLAYLIST": "プレイリストをm3uとしてエクスポート",
                 "SERVER_URL": "サーバーURL",
@@ -177,6 +178,7 @@
             "AUTO_REFRESH_UPDATE_PARTIAL": "プレイリストの自動更新が完了しませんでした：{{total}} 件中 {{updated}} 件を更新し、{{failed}} 件が失敗しました。",
             "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "プレイリストの自動更新が完了しませんでした：{{total}} 件中 {{updated}} 件を更新し、{{failed}} 件が失敗、{{skipped}} 件をスキップしました（URL もファイルパスもありません）。",
             "AUTO_REFRESH_UPDATE_FAILED": "プレイリストの自動更新に失敗しました。{{total}} 件のプレイリストをいずれも更新できませんでした。",
+            "XTREAM_STARTUP_REFRESH_FAILED": "起動時に一部の Xtream ソースを更新できませんでした。",
             "AUTO_REFRESH_UPDATE_SKIPPED": "プレイリストの自動更新：{{total}} 件中 {{updated}} 件を更新し、{{skipped}} 件をスキップしました（URL もファイルパスもありません）。",
             "AUTO_REFRESH_ENABLED": "自動更新が有効です"
         },

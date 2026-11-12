@@ -121,6 +121,7 @@
                 "UPDATE_FAILED": "Échec de la dernière mise à jour de liste de lecture",
                 "AUTO_UPDATE": "Mise à jour automatique",
                 "AUTO_UPDATE_DESCRIPTION": "Si la fonction de mise à jour automatique est activée, la liste de lecture sera mise à jour automatiquement à chaque fois que l'app est lancée.",
+                "XTREAM_REFRESH_LIVE_ON_STARTUP": "Actualiser les chaînes en direct au démarrage",
                 "CUSTOM_USER_AGENT": "Certains fournisseurs d'IPTV requièrent un agent utilisateur spécifique afin de lire leur liste de lecture.",
                 "EXPORT_PLAYLIST": "Exporter la liste de lecture en m3u",
                 "SERVER_URL": "URL du serveur",
@@ -177,6 +178,7 @@
             "AUTO_REFRESH_UPDATE_PARTIAL": "Actualisation automatique incomplète : {{updated}} listes de lecture sur {{total}} mises à jour, {{failed}} en échec.",
             "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "Actualisation automatique incomplète : {{updated}} listes de lecture sur {{total}} mises à jour, {{failed}} en échec, {{skipped}} ignorées (aucune URL ni chemin de fichier).",
             "AUTO_REFRESH_UPDATE_FAILED": "Échec de l'actualisation automatique. Aucune des {{total}} listes de lecture n'a pu être mise à jour.",
+            "XTREAM_STARTUP_REFRESH_FAILED": "Impossible d’actualiser une ou plusieurs sources Xtream au démarrage.",
             "AUTO_REFRESH_UPDATE_SKIPPED": "Actualisation automatique des listes de lecture : {{updated}} sur {{total}} mises à jour, {{skipped}} ignorées (aucune URL ni chemin de fichier).",
             "AUTO_REFRESH_ENABLED": "Actualisation automatique activée"
         },

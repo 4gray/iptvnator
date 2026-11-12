@@ -121,6 +121,7 @@
                 "UPDATE_FAILED": "Update fehlgeschlagen",
                 "AUTO_UPDATE": "Auto-update",
                 "AUTO_UPDATE_DESCRIPTION": "Wenn die Auto-Refresh-Funktion aktiviert ist, wird die Wiedergabeliste bei jedem Start der Anwendung automatisch aktualisiert.",
+                "XTREAM_REFRESH_LIVE_ON_STARTUP": "Live-TV beim Start aktualisieren",
                 "CUSTOM_USER_AGENT": "Einige IPTV-Anbieter benötigen einen bestimmten 'User-Agent', um ihre Playlist abspielen zu können.",
                 "EXPORT_PLAYLIST": "Als m3u exportieren",
                 "SERVER_URL": "Server-URL",
@@ -177,6 +178,7 @@
             "AUTO_REFRESH_UPDATE_PARTIAL": "Auto-Refresh unvollständig: {{updated}} von {{total}} Playlists aktualisiert, {{failed}} fehlgeschlagen.",
             "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "Auto-Refresh unvollständig: {{updated}} von {{total}} Playlists aktualisiert, {{failed}} fehlgeschlagen, {{skipped}} übersprungen (keine URL und kein Dateipfad).",
             "AUTO_REFRESH_UPDATE_FAILED": "Auto-Refresh der Playlists fehlgeschlagen. Keine der {{total}} Playlists konnte aktualisiert werden.",
+            "XTREAM_STARTUP_REFRESH_FAILED": "Mindestens eine Xtream-Quelle konnte beim Start nicht aktualisiert werden.",
             "AUTO_REFRESH_UPDATE_SKIPPED": "Auto-Refresh der Playlists: {{updated}} von {{total}} aktualisiert, {{skipped}} übersprungen (keine URL und kein Dateipfad).",
             "AUTO_REFRESH_ENABLED": "Auto-Refresh aktiviert"
         },

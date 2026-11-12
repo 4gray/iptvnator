@@ -121,6 +121,7 @@
                 "UPDATE_FAILED": "Son oynatma listesi güncellemesi başarısız oldu",
                 "AUTO_UPDATE": "Otomatik Güncelleme",
                 "AUTO_UPDATE_DESCRIPTION": "Otomatik yenileme işlevi etkinleştirilirse, uygulama her başlatıldığında oynatma listesi otomatik olarak güncellenecektir.",
+                "XTREAM_REFRESH_LIVE_ON_STARTUP": "Başlangıçta canlı kanalları yenile",
                 "CUSTOM_USER_AGENT": "Bazı IPTV sağlayıcıları, oynatma listelerini oynatmak için belirli bir kullanıcı aracısına ihtiyaç duyar.",
                 "EXPORT_PLAYLIST": "Oynatma listesini m3u olarak dışa aktar",
                 "SERVER_URL": "Sunucu URL'si",
@@ -177,6 +178,7 @@
             "AUTO_REFRESH_UPDATE_PARTIAL": "Otomatik yenileme tamamlanmadı: {{total}} oynatma listesinden {{updated}} tanesi güncellendi, {{failed}} tanesi başarısız oldu.",
             "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "Otomatik yenileme tamamlanmadı: {{total}} oynatma listesinden {{updated}} tanesi güncellendi, {{failed}} tanesi başarısız oldu, {{skipped}} tanesi atlandı (URL veya dosya yolu yok).",
             "AUTO_REFRESH_UPDATE_FAILED": "Oynatma listelerinin otomatik yenilenmesi başarısız oldu. {{total}} oynatma listesinin hiçbiri güncellenemedi.",
+            "XTREAM_STARTUP_REFRESH_FAILED": "Başlangıçta bir veya daha fazla Xtream kaynağı yenilenemedi.",
             "AUTO_REFRESH_UPDATE_SKIPPED": "Oynatma listesi otomatik yenileme: {{total}} listeden {{updated}} tanesi güncellendi, {{skipped}} tanesi atlandı (URL veya dosya yolu yok).",
             "AUTO_REFRESH_ENABLED": "Otomatik yenileme etkin"
         },

@@ -121,6 +121,7 @@
                 "UPDATE_FAILED": "上次播放列表更新失败",
                 "AUTO_UPDATE": "自动更新",
                 "AUTO_UPDATE_DESCRIPTION": "如果启用了自动刷新功能，则每次启动应用程序时都会自动更新播放列表。",
+                "XTREAM_REFRESH_LIVE_ON_STARTUP": "启动时刷新直播频道",
                 "CUSTOM_USER_AGENT": "一些 IPTV 提供商需要特定的用户代理才能播放他们的播放列表。",
                 "EXPORT_PLAYLIST": "导出为 m3u 播放列表",
                 "SERVER_URL": "服务器地址",
@@ -177,6 +178,7 @@
             "AUTO_REFRESH_UPDATE_PARTIAL": "播放列表自动刷新未完成：{{total}} 个播放列表中已更新 {{updated}} 个，{{failed}} 个失败。",
             "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "播放列表自动刷新未完成：{{total}} 个播放列表中已更新 {{updated}} 个，{{failed}} 个失败，跳过 {{skipped}} 个（没有 URL 或文件路径）。",
             "AUTO_REFRESH_UPDATE_FAILED": "播放列表自动刷新失败。{{total}} 个播放列表均未更新。",
+            "XTREAM_STARTUP_REFRESH_FAILED": "启动时无法刷新一个或多个 Xtream 源。",
             "AUTO_REFRESH_UPDATE_SKIPPED": "播放列表自动刷新：{{total}} 个中已更新 {{updated}} 个，跳过 {{skipped}} 个（没有 URL 或文件路径）。",
             "AUTO_REFRESH_ENABLED": "已启用自动刷新"
         },

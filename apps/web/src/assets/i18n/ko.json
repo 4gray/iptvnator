@@ -121,6 +121,7 @@
                 "UPDATE_FAILED": "마지막 재생 목록 업데이트가 실패했습니다",
                 "AUTO_UPDATE": "자동 업데이트",
                 "AUTO_UPDATE_DESCRIPTION": "자동 새로 고침 기능이 활성화되면 앱이 시작될 때마다 재생 목록이 자동으로 업데이트됩니다.",
+                "XTREAM_REFRESH_LIVE_ON_STARTUP": "시작할 때 실시간 채널 새로고침",
                 "CUSTOM_USER_AGENT": "일부 IPTV 공급자는 재생 목록을 재생하기 위해 특정 사용자 에이전트가 필요합니다.",
                 "EXPORT_PLAYLIST": "재생목록을 m3u로 내보내기",
                 "SERVER_URL": "서버 URL",
@@ -177,6 +178,7 @@
             "AUTO_REFRESH_UPDATE_PARTIAL": "재생목록 자동 새로 고침이 완료되지 않았습니다. {{total}}개 중 {{updated}}개를 업데이트했고 {{failed}}개가 실패했습니다.",
             "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "재생목록 자동 새로 고침이 완료되지 않았습니다. {{total}}개 중 {{updated}}개를 업데이트했고 {{failed}}개가 실패했으며 {{skipped}}개를 건너뛰었습니다(URL 또는 파일 경로 없음).",
             "AUTO_REFRESH_UPDATE_FAILED": "재생목록 자동 새로 고침에 실패했습니다. {{total}}개의 재생목록을 모두 업데이트하지 못했습니다.",
+            "XTREAM_STARTUP_REFRESH_FAILED": "시작할 때 하나 이상의 Xtream 소스를 새로고침하지 못했습니다.",
             "AUTO_REFRESH_UPDATE_SKIPPED": "재생목록 자동 새로 고침: {{total}}개 중 {{updated}}개를 업데이트하고 {{skipped}}개를 건너뛰었습니다(URL 또는 파일 경로 없음).",
             "AUTO_REFRESH_ENABLED": "자동 새로 고침 활성화됨"
         },
