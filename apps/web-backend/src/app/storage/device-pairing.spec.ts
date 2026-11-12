@@ -271,7 +271,7 @@ describe('device pairing', () => {
                     await call(local, 'start', { name: 'Living room TV' })
                 ).body;
                 expect(claim.approvalUrl).toBe(
-                    `${origin}/approve-device#${claim.claimId}`
+                    `${origin}/approve-device/${claim.claimId}`
                 );
                 expect(
                     (

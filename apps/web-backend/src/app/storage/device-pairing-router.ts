@@ -85,7 +85,7 @@ export function createDevicePairingRouter(
         }
         const approvalUrl =
             ingress?.origin && store.passwordConfigured()
-                ? `${ingress.origin}/approve-device#${claim.claimId}`
+                ? `${ingress.origin}/approve-device/${claim.claimId}`
                 : null;
         res.status(201).json({ ...claim, approvalUrl });
     });
