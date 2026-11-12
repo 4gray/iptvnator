@@ -2352,9 +2352,7 @@
     },
     "HOSTED_SERVER": {
         "ACCESS_METHOD": "Access method",
-        "COMPUTER_ONLY": "Computer only",
-        "COMPUTER_ONLY_DESCRIPTION": "Access the server on this computer only.",
-        "COMPUTER_ONLY_RUNNING": "Local HTTP is available only on this computer.",
+        "LAN_SHARING_OFF": "Home network sharing is off.",
         "HOME_NETWORK": "Home network",
         "HOME_NETWORK_DESCRIPTION": "Access the server on this computer and other devices on the same network.",
         "LAN_SHARE_ACTION": "Share on home network",

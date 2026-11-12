@@ -32,7 +32,7 @@ import type {
 import { timer } from 'rxjs';
 
 type CloudflareStart = Extract<HostedCloudflareCommand, { start: true }>;
-type AccessMethod = 'computer' | 'lan' | 'https' | 'cloudflare';
+type AccessMethod = 'lan' | 'https' | 'cloudflare';
 
 const unavailableConnector: HostedCloudflareStatus = {
     state: 'unavailable',
@@ -88,7 +88,6 @@ function shareableUrl(
 export class SettingsHostedServerComponent {
     readonly guides = SERVER_GUIDES;
     readonly accessOptions = [
-        { value: 'computer', label: 'COMPUTER_ONLY' },
         { value: 'lan', label: 'HOME_NETWORK' },
         { value: 'https', label: 'CUSTOM_HTTPS' },
         { value: 'cloudflare', label: 'MANUAL_CLOUDFLARE' },
@@ -123,7 +122,7 @@ export class SettingsHostedServerComponent {
         const choice = this.accessChoice();
         if (choice && (choice !== 'cloudflare' || this.cloudflareAvailable()))
             return choice;
-        return this.status().lanAddress ? 'lan' : 'computer';
+        return 'lan';
     });
     readonly remoteSelected = computed(
         () =>

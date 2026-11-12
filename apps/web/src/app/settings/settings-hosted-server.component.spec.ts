@@ -65,7 +65,7 @@ describe('hosted server settings', () => {
         jest.useRealTimers();
     });
 
-    it('starts without exposing the server to the LAN unless the user opts in', async () => {
+    it('defaults to Home network and binds its address when Start is clicked', async () => {
         await jest.advanceTimersByTimeAsync(0);
         fixture.detectChanges();
         const root = fixture.nativeElement as HTMLElement;
@@ -73,21 +73,25 @@ describe('hosted server settings', () => {
             root.querySelector<HTMLInputElement>(
                 '[data-test-id="hosted-access-method"] input[value="computer"]'
             )?.checked
-        ).toBe(true);
+        ).toBeUndefined();
         expect(
             root.querySelector<HTMLInputElement>(
                 '[data-test-id="hosted-access-method"] input[value="lan"]'
             )?.checked
-        ).toBe(false);
+        ).toBe(true);
         expect(component.address()).toBe(address);
-        control.mockResolvedValueOnce({ state: 'running', localUrl });
+        control.mockResolvedValueOnce({ state: 'running', localUrl, lanUrl });
         component.start();
         component.start();
-        expect(control.mock.calls).toEqual([['status'], [{ start: true }]]);
+        expect(control.mock.calls).toEqual([
+            ['status'],
+            [{ start: true, lanAddress: address }],
+        ]);
         await jest.advanceTimersByTimeAsync(0);
         expect(component.status()).toMatchObject({
             state: 'running',
             localUrl,
+            lanUrl,
         });
     });
 
@@ -296,7 +300,10 @@ describe('hosted server settings', () => {
             Array.from(
                 root.querySelectorAll<HTMLInputElement>('input[type="radio"]')
             ).map((input) => input.value)
-        ).toEqual(['computer', 'lan', 'https']);
+        ).toEqual(['lan', 'https']);
+        expect(
+            root.querySelector<HTMLInputElement>('input[value="lan"]')?.checked
+        ).toBe(true);
         expect(root.querySelector('details')).toBeNull();
         expect(start?.disabled).toBe(false);
         expect(

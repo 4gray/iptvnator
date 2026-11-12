@@ -52,11 +52,11 @@ test('starts locally, reconnects through the hosted library, and stops on reques
         await openSettingsSection(page, 'server');
         const setup = page.getByTestId('hosted-access-method');
         await expect(
-            setup.getByRole('radio', { name: 'Computer only' })
+            setup.getByRole('radio', { name: 'Home network' })
         ).toBeChecked();
         await expect(
-            setup.getByRole('radio', { name: 'Home network' })
-        ).toBeVisible();
+            setup.getByRole('radio', { name: 'Computer only' })
+        ).toHaveCount(0);
         await setup
             .getByRole('radio', {
                 name: 'Custom HTTPS',
@@ -219,13 +219,21 @@ test('shares a running computer-only library on the home network with a QR code'
         );
 
         await page.getByTestId('hosted-server-start').click();
-        await expect(page.getByTestId('hosted-server-status')).toHaveText(
-            'Server running'
-        );
+        const qr = page.getByTestId('hosted-server-lan-qr');
+        await expect(qr.locator('svg')).toBeVisible();
         const identity = await (
             await fetch(origin + '/api/v1/instance')
         ).json();
-        const qr = page.getByTestId('hosted-server-lan-qr');
+        await page.getByTestId('hosted-server-stop').click();
+        await expect(page.getByTestId('hosted-server-status')).toHaveText(
+            'Server stopped'
+        );
+        await page.evaluate(() =>
+            window.electron.hostedServerControl!({ start: true })
+        );
+        await expect(page.getByTestId('hosted-server-status')).toHaveText(
+            'Server running'
+        );
         await expect(qr).toHaveCount(0);
         await page.getByTestId('hosted-server-share-lan').click();
         const restart = page.getByTestId('hosted-server-restart-lan');
@@ -262,7 +270,9 @@ test('can disable automatic hosting when the server port is occupied', async () 
         desktop = await launchElectronApp(directory);
         await openSettings(desktop.mainWindow);
         await openSettingsSection(desktop.mainWindow, 'server');
-        await desktop.mainWindow.getByTestId('hosted-server-start').click();
+        await desktop.mainWindow.evaluate(() =>
+            window.electron.hostedServerControl!({ start: true })
+        );
         await expect(
             desktop.mainWindow.getByTestId('hosted-server-status')
         ).toHaveText('Server running');

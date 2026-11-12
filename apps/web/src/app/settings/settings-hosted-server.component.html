@@ -87,13 +87,13 @@
                         aria-labelledby="hosted-lan-title"
                     >
                         <h3 id="hosted-lan-title">
-                            {{ 'HOSTED_SERVER.COMPUTER_ONLY' | translate }}
+                            {{ 'HOSTED_SERVER.HOME_NETWORK' | translate }}
                         </h3>
                         <p class="server-message">
                             {{
                                 (status().lanAddress
                                     ? 'HOSTED_SERVER.ADDRESS_UNAVAILABLE'
-                                    : 'HOSTED_SERVER.COMPUTER_ONLY_RUNNING'
+                                    : 'HOSTED_SERVER.LAN_SHARING_OFF'
                                 ) | translate
                             }}
                         </p>

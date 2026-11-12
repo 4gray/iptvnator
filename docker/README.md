@@ -147,7 +147,7 @@ If the server fails to start automatically, choose **Disable automatic start**
 to stop trying again when the app opens.
 
 To use a tablet or another computer, choose **Home network** before starting.
-If the server is already running in **Computer only** mode, choose **Share on
+If home network sharing is off on a running server, choose **Share on
 home network** and confirm the restart. Stop active HTTPS sharing before
 changing the home network binding. The running screen shows the home network
 address and its QR code. Open the address on the other device and enter the

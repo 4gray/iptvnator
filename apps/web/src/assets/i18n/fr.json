@@ -2352,9 +2352,7 @@
     },
     "HOSTED_SERVER": {
         "ACCESS_METHOD": "Mode d’accès",
-        "COMPUTER_ONLY": "Cet ordinateur uniquement",
-        "COMPUTER_ONLY_DESCRIPTION": "Accédez au serveur uniquement depuis cet ordinateur.",
-        "COMPUTER_ONLY_RUNNING": "L’accès HTTP local est limité à cet ordinateur.",
+        "LAN_SHARING_OFF": "Le partage sur le réseau domestique est désactivé.",
         "HOME_NETWORK": "Réseau domestique",
         "HOME_NETWORK_DESCRIPTION": "Accédez au serveur depuis cet ordinateur et les autres appareils du même réseau.",
         "LAN_SHARE_ACTION": "Partager sur le réseau domestique",
