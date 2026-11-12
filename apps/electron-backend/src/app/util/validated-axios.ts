@@ -7,7 +7,7 @@ import { Readable } from 'node:stream';
 import type { LookupAddress } from 'node:dns';
 import { Agent as HttpAgent, type ClientRequest } from 'node:http';
 import { Agent as HttpsAgent } from 'node:https';
-import { isIP, LookupFunction } from 'node:net';
+import { isIP, LookupFunction, SocketAddress } from 'node:net';
 import { observeAgentSocketConnections } from '@iptvnator/shared/host-health';
 import { getProxyForUrl } from 'proxy-from-env';
 import {
@@ -107,6 +107,12 @@ function createPinnedLookup(addresses: readonly string[]): LookupFunction {
         const selected = eligibleRecords[0];
         callback(null, selected.address, selected.family);
     };
+}
+
+function canonicalAddress(address: string): string {
+    return isIP(address) === 6
+        ? new SocketAddress({ address, family: 'ipv6' }).address
+        : address;
 }
 
 function pinRequestToValidatedAddresses(
@@ -293,8 +299,11 @@ export async function requestWithValidatedRedirects<T = unknown>(
             ) {
                 const remote = (response.request as ClientRequest | undefined)
                     ?.socket?.remoteAddress;
+                const peer = remote && canonicalAddress(remote);
                 const address = remote
-                    ? addresses?.find((candidate) => candidate === remote)
+                    ? addresses?.find(
+                          (candidate) => canonicalAddress(candidate) === peer
+                      )
                     : addresses?.length === 1
                       ? addresses[0]
                       : undefined;

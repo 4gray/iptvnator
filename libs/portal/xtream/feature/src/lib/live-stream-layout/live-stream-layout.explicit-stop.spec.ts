@@ -1,14 +1,16 @@
 import { TestBed } from '@angular/core/testing';
+import { XtreamUrlService } from '@iptvnator/portal/xtream/data-access';
 import { VideoPlayer } from '@iptvnator/shared/interfaces';
 import { LiveStreamLayoutComponent } from './live-stream-layout.component';
 import { setupLiveStreamLayoutNativeFixture } from './live-stream-layout-native.test-fixture';
-import { sampleChannel } from './live-stream-layout-stubs.spec-data';
+import { epgItem, sampleChannel } from './live-stream-layout-stubs.spec-data';
 import { XtreamEpgGuideSourceService } from './xtream-epg-guide-source.service';
 
 describe('Xtream guide Stop during a detached handoff', () => {
     const {
         databaseService,
         emptyList,
+        epgItems,
         onChannelChange,
         pendingStop,
         player,
@@ -22,6 +24,83 @@ describe('Xtream guide Stop during a detached handoff', () => {
     } = setupLiveStreamLayoutNativeFixture();
 
     afterEach(restoreElectron);
+
+    it('does not dispatch a deferred tune after a newer archive lookup starts', async () => {
+        let archiveReady!: (url: string) => void;
+        const lookup = jest.fn(
+            () =>
+                new Promise<string>((resolve) => {
+                    archiveReady = resolve;
+                })
+        );
+        TestBed.overrideProvider(XtreamUrlService, {
+            useValue: {
+                constructAutoLiveTsUrl: () => undefined,
+                resolveCatchupUrl: lookup,
+            },
+        });
+        const first = { ...sampleChannel, category_id: 1 };
+        const second = { ...first, xtream_id: first.xtream_id + 1 };
+        emptyList.set([first, second]);
+        epgItems.set([epgItem('Synthetic Archive', 0, 1)]);
+        xtreamStore.selectedItem.set(first);
+        portalPlayer.isEmbeddedPlayer.set(false);
+        const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
+        const component = fixture.componentInstance;
+        fixture.detectChanges();
+        component.playLive(first, true, [first]);
+        const current = {
+            id: 'synthetic-current',
+            player: 'mpv',
+            status: 'opened',
+            streamUrl: component.activeStreamUrl(),
+            title: 'Synthetic Live',
+            canClose: true,
+            reuseAvailable: false,
+            mediaLoaded: true,
+            startedAt: '2026-04-04T10:00:00Z',
+            updatedAt: '2026-04-04T10:00:00Z',
+        } as const;
+        publishExternalSession(current);
+        fixture.detectChanges();
+        component.guide.open();
+        fixture.detectChanges();
+        let closed!: () => void;
+        const close = jest.fn(
+            () =>
+                new Promise<void>((resolve) => {
+                    closed = resolve;
+                })
+        );
+        Object.defineProperty(window.electron, 'closeExternalPlayerSession', {
+            value: close,
+            configurable: true,
+        });
+        fixture.debugElement.injector
+            .get(XtreamEpgGuideSourceService)
+            .activate(String(second.xtream_id));
+        expect(close).toHaveBeenCalledWith(current.id, true);
+        component.guide.close();
+        const archive = component.onProgramActivated({
+            type: 'timeshift',
+            program: component.controlledEpgPrograms()[0],
+        });
+        expect(lookup).toHaveBeenCalledTimes(1);
+        publishExternalSession({
+            ...current,
+            status: 'closed',
+            canClose: false,
+            closedByRequest: true,
+        });
+        closed();
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(1);
+        const archiveUrl = 'https://example.test/synthetic-archive.ts';
+        archiveReady(archiveUrl);
+        await archive;
+        expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(2);
+        expect(xtreamStore.openPlayer.mock.lastCall?.[0]).toBe(archiveUrl);
+    });
 
     it('clears the older failed tune when the next opening is stopped', async () => {
         const first = { ...sampleChannel, category_id: 1 };

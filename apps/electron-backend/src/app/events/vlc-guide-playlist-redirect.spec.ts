@@ -36,34 +36,40 @@ describe('VLC playlist verification redirects', () => {
         jest.mocked(validateRemoteUrl).mockClear();
     });
 
-    it('pins the playlist GET to the exact address that answered HEAD', async () => {
-        const connected = '192.0.2.20';
-        jest.mocked(validateRemoteUrl).mockResolvedValueOnce({
-            url: new URL(playlist),
-            addresses: ['192.0.2.10', connected],
-        });
-        request
-            .mockImplementationOnce(async (config) => ({
-                ...(await response(200, m3u)(config)),
-                request: { socket: { remoteAddress: connected } },
-            }))
-            .mockImplementationOnce(async (config) => {
-                const lookup: LookupFunction = config.httpsAgent.options.lookup;
-                const address = await new Promise((resolve, reject) =>
-                    lookup('portal.example.test', {}, (error, value) =>
-                        error ? reject(error) : resolve(value)
-                    )
-                );
-                expect(address).toBe(connected);
-                return response(200, m3u, child)(config);
+    it.each([
+        ['192.0.2.20', '192.0.2.20'],
+        ['::ffff:c000:214', '::ffff:192.0.2.20'],
+    ])(
+        'pins the playlist GET to the validated address %s for HEAD peer %s',
+        async (address, peer) => {
+            jest.mocked(validateRemoteUrl).mockResolvedValueOnce({
+                url: new URL(playlist),
+                addresses: ['192.0.2.10', address],
             });
-        await expect(
-            matchVlcGuidePlaylist(playlist, { mergedHeaders: {} })(
-                new URL(child, playlist).href
-            )
-        ).resolves.toBe(true);
-        expect(validateRemoteUrl).toHaveBeenCalledTimes(1);
-    });
+            request
+                .mockImplementationOnce(async (config) => ({
+                    ...(await response(200, m3u)(config)),
+                    request: { socket: { remoteAddress: peer } },
+                }))
+                .mockImplementationOnce(async (config) => {
+                    const lookup: LookupFunction =
+                        config.httpsAgent.options.lookup;
+                    const pinned = await new Promise((resolve, reject) =>
+                        lookup('portal.example.test', {}, (error, value) =>
+                            error ? reject(error) : resolve(value)
+                        )
+                    );
+                    expect(pinned).toBe(address);
+                    return response(200, m3u, child)(config);
+                });
+            await expect(
+                matchVlcGuidePlaylist(playlist, { mergedHeaders: {} })(
+                    new URL(child, playlist).href
+                )
+            ).resolves.toBe(true);
+            expect(validateRemoteUrl).toHaveBeenCalledTimes(1);
+        }
+    );
 
     it.each([
         'https://edge.example.test/synthetic.m3u',

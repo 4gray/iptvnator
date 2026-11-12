@@ -105,12 +105,22 @@ export interface GuideLaunch {
     archive: EpgProgram | null;
     playback: ResolvedPortalPlayback;
     ended?: () => GuideLaunchOutcome;
+    canDispatch?: () => boolean;
     retry?: boolean;
     remote?: boolean;
     onConfirmed?: () => void;
 }
 
 export type ConfirmedLaunch = GuideLaunch & { session: ExternalPlayerSession };
+
+export function guideLaunchFromSource(
+    source: XtreamLiveSource
+): GuideLaunch | undefined {
+    const { channel: item, playback, archive } = source;
+    return item && playback
+        ? { lockSource: source, item, archive: archive ?? null, playback }
+        : undefined;
+}
 
 export function withConfirmedChannelCopy(
     playing: ConfirmedLaunch,
@@ -135,6 +145,7 @@ export function withConfirmedChannelCopy(
 export interface GuidePanel {
     enabled(): boolean;
     cancelPendingRequest(): void;
+    dispatchGuard(): () => boolean;
     current(): ResolvedPortalPlayback | null;
     currentItem(): XtreamLiveChannelItem | null;
     select(item: XtreamLiveChannelItem): void;

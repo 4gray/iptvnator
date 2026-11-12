@@ -13,6 +13,7 @@ import {
     StubWebPlayerViewComponent,
 } from './live-stream-layout-stubs.spec-data';
 import { XtreamEpgGuideSourceService } from './xtream-epg-guide-source.service';
+import { XtreamLiveChannelNavigationService } from './xtream-live-channel-navigation.service';
 
 describe('Xtream remote playback metadata', () => {
     const {
@@ -220,18 +221,35 @@ describe('Xtream remote playback metadata', () => {
         }
     );
 
-    it('returns from an unverified archive to its live channel without publishing its programme', async () => {
+    it('returns from an unverified archive using its saved queue without publishing its programme', async () => {
         const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
         const component = fixture.componentInstance;
-        const channel = { ...sampleChannel, category_id: 1 };
+        const original = { ...sampleChannel, category_id: 1 };
+        const channel = { ...original, xtream_id: original.xtream_id + 1 };
         const preview = { ...channel, xtream_id: channel.xtream_id + 1 };
         const queue = [channel, preview];
-        emptyList.set(queue);
-        xtreamStore.selectedItem.set(channel);
-        epgItems.set([epgItem('Synthetic Archive', 0, 1)]);
+        emptyList.set([original, ...queue]);
+        xtreamStore.selectedItem.set(original);
         portalPlayer.isEmbeddedPlayer.set(false);
         fixture.detectChanges();
-        component.playLive(channel, true, queue);
+        component.playLive(original, true, [original]);
+        const prior = {
+            id: 'synthetic-survivor',
+            player: 'mpv',
+            status: 'opened',
+            streamUrl: component.activeStreamUrl(),
+            title: 'Synthetic Survivor',
+            canClose: true,
+            reuseAvailable: false,
+            mediaLoaded: true,
+            startedAt: '2026-04-04T10:00:00Z',
+            updatedAt: '2026-04-04T10:00:00Z',
+        } as const;
+        publishExternalSession(prior);
+        fixture.detectChanges();
+        component.playLive(channel, false, queue);
+        xtreamStore.selectedItem.set(channel);
+        epgItems.set([epgItem('Synthetic Archive', 0, 1)]);
         xtreamStore.openPlayer.mockReturnValueOnce(
             new Promise(() => undefined)
         );
@@ -240,10 +258,9 @@ describe('Xtream remote playback metadata', () => {
             program: component.controlledEpgPrograms()[0],
         });
         const streamUrl = xtreamStore.openPlayer.mock.lastCall?.[0] as string;
-        publishExternalSession({
+        const archive = {
+            ...prior,
             id: 'synthetic-archive',
-            player: 'vlc',
-            status: 'opened',
             streamUrl,
             title: 'Synthetic Archive',
             canClose: true,
@@ -252,7 +269,8 @@ describe('Xtream remote playback metadata', () => {
             mediaObservationUnavailable: true,
             startedAt: '2026-04-04T10:00:00Z',
             updatedAt: '2026-04-04T10:00:00Z',
-        });
+        } as const;
+        publishExternalSession(archive);
         xtreamStore.selectedItem.set(preview);
         fixture.detectChanges();
         expect(component.showReturnToLive()).toBe(true);
@@ -260,9 +278,35 @@ describe('Xtream remote playback metadata', () => {
         expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
             expect.objectContaining({ isLiveView: true, epgTitle: undefined })
         );
-        const tune = jest.spyOn(component, 'playLive');
+        Object.defineProperty(window.electron, 'closeExternalPlayerSession', {
+            value: async (id: string) => {
+                const closing = id === prior.id ? prior : archive;
+                const closed = {
+                    ...closing,
+                    status: 'closed' as const,
+                    canClose: false,
+                    closedByRequest: true as const,
+                };
+                publishExternalSession(closed);
+                return closed;
+            },
+            configurable: true,
+        });
+        const liveUrl = 'https://example.test/synthetic-return.ts';
+        xtreamStore.constructStreamUrl.mockReturnValueOnce(liveUrl);
         component.returnToLivePlayback();
-        expect(tune).toHaveBeenCalledWith(channel, true, [channel], true);
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        expect(xtreamStore.openPlayer.mock.lastCall?.[0]).toBe(liveUrl);
+        publishExternalSession({
+            ...prior,
+            id: 'synthetic-return',
+            streamUrl: liveUrl,
+        });
+        fixture.detectChanges();
+        const navigation = fixture.debugElement.injector.get(
+            XtreamLiveChannelNavigationService
+        );
+        expect(navigation.remoteChannels()).toEqual(queue);
     });
 
     it('keeps an external archive playing but removes its remote programme when EPG is disabled', async () => {

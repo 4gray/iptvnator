@@ -31,6 +31,11 @@ export class XtreamTuneRequests {
         );
     }
 
+    dispatchGuard(): () => boolean {
+        const request = this.current();
+        return () => this.isCurrent(request);
+    }
+
     confirmInlineWhenReady(
         callback: (() => void) | undefined,
         playing: boolean

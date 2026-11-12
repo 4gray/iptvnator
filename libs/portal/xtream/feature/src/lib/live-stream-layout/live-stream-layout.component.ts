@@ -607,6 +607,7 @@ export class LiveStreamLayoutComponent
         this.externalGuide.bind({
             enabled: () => !this.usesEmbeddedPlayer(),
             cancelPendingRequest: () => this.tuneRequests.invalidate(),
+            dispatchGuard: () => this.tuneRequests.dispatchGuard(),
             current: this.activePlayback,
             currentItem: this.activeGuideItem,
             select: (item) => this.selectGuideLiveItem(item),
@@ -668,10 +669,8 @@ export class LiveStreamLayoutComponent
                         channels,
                         onConfirmed
                     )
-                ) {
-                    this.tuneRequests.invalidate();
+                )
                     return;
-                }
                 if ((!retry || cancelled) && alreadyLive) {
                     this.tuneRequests.invalidate();
                     if (!sameXtreamChannelCopy(playing, item))
@@ -1018,7 +1017,11 @@ export class LiveStreamLayoutComponent
             tracksExternalPlayback && !startPlayback
                 ? { item, queue: scope }
                 : undefined;
-        const queuePolicy = remote ? 'preserve' : 'on-channel-change';
+        const queuePolicy = remote
+            ? displayedChannels
+                ? 'replace'
+                : 'preserve'
+            : 'on-channel-change';
         if (captureOnSelection)
             this.channelNavigation.capture(item, scope, queuePolicy);
         const categoryId = this.resolveLiveProviderCategoryId(item, category);

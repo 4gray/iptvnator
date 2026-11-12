@@ -30,6 +30,7 @@ import {
 } from './xtream-live-channel-navigation.service';
 
 import {
+    guideLaunchFromSource,
     withConfirmedChannelCopy,
     type ConfirmedLaunch,
     type GuideLaunch,
@@ -88,7 +89,7 @@ export class XtreamGuideExternalPlayback {
             if (!source) return null;
             if (prior?.session.id === session.id && prior.lockSource === source)
                 return { ...prior, session };
-            const launch = this.reattach(source);
+            const launch = guideLaunchFromSource(source);
             return launch ? { ...launch, session } : null;
         },
     });
@@ -214,7 +215,8 @@ export class XtreamGuideExternalPlayback {
                         ? pending
                         : undefined;
                 if (confirmedRequest || ended) this.pending.set(undefined);
-                if ((ended === 'failed' || ended === 'retryable') && !playing)
+                const failed = ended === 'failed' || ended === 'retryable';
+                if (failed && !playing && pending?.canDispatch?.() !== false)
                     this.failedTuning.set(pending);
                 if (!playing) return;
                 this.failedTuning.set(undefined);
@@ -227,7 +229,8 @@ export class XtreamGuideExternalPlayback {
                 )
                     return;
                 this.syncPanel(playing);
-                confirmedRequest?.onConfirmed?.();
+                if (confirmedRequest?.canDispatch?.() !== false)
+                    confirmedRequest?.onConfirmed?.();
             });
         });
     }
@@ -257,30 +260,31 @@ export class XtreamGuideExternalPlayback {
         if (!playback?.streamUrl) return;
         const { remote, onConfirmed, launchId, replaceWith } = options;
         const owner = this.owner();
-        const launch: GuideLaunch | undefined =
+        const source =
             owner && this.hasSessionUpdates
                 ? {
-                      lockSource: {
-                          ...owner,
-                          categoryId,
-                          channel: item,
-                          archive,
-                          playback,
-                          queue,
-                      },
-                      item,
+                      ...owner,
+                      categoryId,
+                      channel: item,
                       archive,
                       playback,
-                      remote,
-                      onConfirmed,
+                      queue,
                   }
                 : undefined;
+        const launch = source && guideLaunchFromSource(source);
+        if (launch)
+            Object.assign(launch, {
+                remote,
+                onConfirmed,
+                canDispatch: this.panel?.dispatchGuard(),
+            });
         this.panelPlayback = this.panel?.current() ?? playback;
-        const source = launch?.lockSource;
         const lifecycle = source && this.sessions.begin(source, launchId);
         const isCurrent = () =>
             this.pending() === launch && !this.destroyRef.destroyed;
-        const canOpen = () => isCurrent() && this.isAllowed(source);
+        const canDispatch = () => launch?.canDispatch?.() !== false;
+        const canOpen = () =>
+            isCurrent() && this.isAllowed(source) && canDispatch();
         const prior = replaceWith && this.confirmed()?.session;
         const close =
             source &&
@@ -299,7 +303,7 @@ export class XtreamGuideExternalPlayback {
             this.pending.set(undefined);
             const confirmed = this.confirmed();
             if (confirmed) this.syncPanel(confirmed);
-            else if (failed) this.failedTuning.set(launch);
+            else if (failed && canDispatch()) this.failedTuning.set(launch);
         };
         const open = () => {
             lifecycle?.dispatch();
@@ -344,6 +348,8 @@ export class XtreamGuideExternalPlayback {
         )
             return false;
         if (onConfirmed) pending.onConfirmed = onConfirmed;
+        this.panel?.cancelPendingRequest();
+        pending.canDispatch = this.panel?.dispatchGuard();
         if (!sameXtreamChannelCopy(pending.item, item)) {
             pending.item = item;
             pending.lockSource.categoryId = category();
@@ -399,13 +405,6 @@ export class XtreamGuideExternalPlayback {
         if (!confirmed || current !== this.panelPlayback) return false;
         this.syncPanel(confirmed);
         return true;
-    }
-
-    private reattach(source: XtreamLiveSource): GuideLaunch | undefined {
-        const { channel: item, playback, archive } = source;
-        return item && playback
-            ? { lockSource: source, item, archive: archive ?? null, playback }
-            : undefined;
     }
 
     private syncPanel(launch: ConfirmedLaunch): void {

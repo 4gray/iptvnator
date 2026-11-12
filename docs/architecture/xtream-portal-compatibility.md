@@ -872,6 +872,8 @@ Selecting the number of a channel already playing live cancels pending tunes,
 including archive lookups, without reopening it.
 The live layout's tune request service invalidates category and archive lookups,
 inline confirmation and deferred retunes when Stop or a newer selection wins.
+A native launch waiting for the previous player to exit checks this again before
+dispatch. Choosing the same waiting launch can adopt it as the latest request.
 Selecting a live channel in the guide, including **Watch Live** from programme
 details, also retires older archive lookups while reusing any matching player
 launch. When the queue has only one inline channel, the remote's channel
