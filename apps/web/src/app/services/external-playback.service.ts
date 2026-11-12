@@ -3,6 +3,7 @@ import {
     ExternalPlayerSession,
     PlayerContentInfo,
 } from '@iptvnator/shared/interfaces';
+import { Subject } from 'rxjs';
 
 /** Launch order when both carry it, else the start time. */
 function startedBefore(
@@ -20,6 +21,8 @@ function startedBefore(
 })
 export class ExternalPlaybackService {
     readonly activeSession = signal<ExternalPlayerSession | null>(null);
+    private readonly userStops = new Subject<string>();
+    readonly stopRequested = this.userStops.asObservable();
     private readonly dismissedSessionId = signal<string | null>(null);
 
     readonly visibleSession = computed(() => {
@@ -70,11 +73,12 @@ export class ExternalPlaybackService {
     }
 
     async closeActiveSession(): Promise<void> {
-        await this.closeSession(this.activeSession());
+        await this.closeSession(this.activeSession(), true);
     }
 
     async closeSession(
-        session: ExternalPlayerSession | null | undefined
+        session: ExternalPlayerSession | null | undefined,
+        userRequested = false
     ): Promise<void> {
         if (!session) {
             return;
@@ -86,6 +90,7 @@ export class ExternalPlaybackService {
         }
 
         const previousDismissedSessionId = this.dismissedSessionId();
+        if (userRequested) this.userStops.next(session.id);
         this.dismissedSessionId.set(session.id);
 
         try {

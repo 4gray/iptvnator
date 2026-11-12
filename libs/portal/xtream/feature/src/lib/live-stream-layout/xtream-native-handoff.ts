@@ -8,7 +8,10 @@ import type {
     XtreamLiveOwner,
     XtreamLiveSource,
 } from './xtream-external-live-sessions.service';
-import type { XtreamLiveChannelItem } from './xtream-live-channel-navigation.service';
+import {
+    replaceXtreamQueuedCopy,
+    type XtreamLiveChannelItem,
+} from './xtream-live-channel-navigation.service';
 
 export type GuideLaunchOutcome = false | 'ended' | 'failed' | 'retryable';
 
@@ -24,6 +27,26 @@ export interface GuideLaunch {
 }
 
 export type ConfirmedLaunch = GuideLaunch & { session: ExternalPlayerSession };
+
+export function withConfirmedChannelCopy(
+    playing: ConfirmedLaunch,
+    item: XtreamLiveChannelItem,
+    categoryId: XtreamLiveSource['categoryId']
+): ConfirmedLaunch {
+    return {
+        ...playing,
+        item,
+        lockSource: {
+            ...playing.lockSource,
+            categoryId,
+            channel: item,
+            queue: replaceXtreamQueuedCopy(
+                playing.lockSource.queue ?? [],
+                item
+            ),
+        },
+    };
+}
 
 export interface GuidePanel {
     enabled(): boolean;

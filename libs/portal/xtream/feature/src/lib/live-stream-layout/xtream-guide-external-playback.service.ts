@@ -8,6 +8,7 @@ import {
     signal,
     untracked,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { ParentalLockService } from '@iptvnator/services';
@@ -24,15 +25,15 @@ import {
     type XtreamLiveSource,
 } from './xtream-external-live-sessions.service';
 import {
-    replaceXtreamQueuedCopy,
     sameXtreamChannelCopy,
     type XtreamLiveChannelItem,
 } from './xtream-live-channel-navigation.service';
 
-import type {
-    ConfirmedLaunch,
-    GuideLaunch,
-    GuidePanel,
+import {
+    withConfirmedChannelCopy,
+    type ConfirmedLaunch,
+    type GuideLaunch,
+    type GuidePanel,
 } from './xtream-native-handoff';
 
 /** The live panel follows confirmed playback, independently of browse previews. */
@@ -187,6 +188,19 @@ export class XtreamGuideExternalPlayback {
     }
 
     constructor() {
+        this.playback?.stopRequested
+            ?.pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe((id) => {
+                const pending = this.pending();
+                if (
+                    pending?.retry &&
+                    sameXtreamLiveOwner(
+                        pending.lockSource,
+                        this.sessions.state(id)?.source
+                    )
+                )
+                    this.pending.set(undefined);
+            });
         effect(() => {
             if (!this.panel?.enabled()) return;
             const active = this.playback?.activeSession();
@@ -363,20 +377,7 @@ export class XtreamGuideExternalPlayback {
     ): void {
         const playing = this.confirmed();
         if (!playing) return;
-        const queue = replaceXtreamQueuedCopy(
-            playing.lockSource.queue ?? [],
-            item
-        );
-        const copy = {
-            ...playing,
-            item,
-            lockSource: {
-                ...playing.lockSource,
-                categoryId,
-                channel: item,
-                queue,
-            },
-        };
+        const copy = withConfirmedChannelCopy(playing, item, categoryId);
         this.playing.set(copy);
         this.sessions.update(playing.session, copy.lockSource);
         this.syncPanel(copy);

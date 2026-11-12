@@ -27,7 +27,7 @@ import {
 } from '../services/store.service';
 import { externalPlayerSessions } from './external-player-runtime';
 import { externalPlayerProcessTeardownGate } from './external-player-process';
-import { matchVlcGuidePlaylist } from './vlc-guide-playlist';
+import { matchesVlcInput, matchVlcGuidePlaylist } from './vlc-guide-playlist';
 import { getVlcPlaybackSnapshot } from './vlc-rc';
 import {
     openVlcPlayer,
@@ -116,6 +116,24 @@ describe('VLC exact playback ownership', () => {
         shutdownVlcSession();
         jest.useRealTimers();
     });
+
+    it.each([
+        ['/synthetic/child.ts', '/synthetic%2Fchild.ts', false],
+        ['/synthetic.ts?x=one&y=two', '/synthetic.ts?x=one%26y=two', false],
+        ['/synthetic%2fchild.ts', '/synthetic%2Fchild.ts', true],
+        ['/synthetic café.ts', '/synthetic%20caf%C3%A9.ts', true],
+        ['/synthetic~child.ts', '/synthetic%7Echild.ts', true],
+    ] as const)(
+        'matches only equivalent VLC inputs (%s, %s)',
+        (input, requested, same) => {
+            expect(
+                matchesVlcInput(
+                    `https://example.test${input}`,
+                    `https://example.test${requested}`
+                )
+            ).toBe(same);
+        }
+    );
 
     it('gives up confirming a playlist when validation has not returned by the deadline', async () => {
         const deadline = new AbortController();

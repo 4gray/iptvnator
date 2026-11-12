@@ -1083,6 +1083,9 @@ Stop, so a retried Stop never reaches a player started later, and a late Stop
 for an older queued launch cancels only that launch. The cancelled launch
 settles only once its own Stop has: if the exit cannot be confirmed it stays a
 closable error, so Stop can be retried. App shutdown cancels the whole queue.
+The playback dock signals explicit Stop before native teardown so Xtream can
+cancel renderer-side tunes waiting for that player. Automatic handoff closes
+do not send this signal.
 Parental relock uses an exact session close. When the session is queued, this
 cancels only that launch and lets an allowed in-flight launch finish. After
 the queued launch starts, an exact close waits for its own closer instead of

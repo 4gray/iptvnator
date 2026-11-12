@@ -801,6 +801,8 @@ so a one-connection account does not have two simultaneous streams. A newer
 tune waits for an already dispatched launch to become closable. Selecting the
 previous channel while it is stopping restarts it after exit and waits for that
 playback to open, including when a click still lands on its active row.
+An explicit Stop in the playback dock cancels a tune waiting for that player's
+teardown. The handoff's own exact close does not cancel its replacement.
 If a replacement fails after the previous stream ends, the already open guide
 keeps its scope and search so the user can retry, including when both streams
 used the same process.
@@ -819,7 +821,8 @@ player is still running. Older MPV versions that acknowledge without an
 entry ID keep the remote queue without confirming guide playback.
 VLC guide launches use a private Unix socket for control where available, and
 otherwise open directly without an unauthenticated TCP control port. VLC RC
-checks the requested input before and after reading its playback clock.
+checks the requested input before and after reading its playback clock. URL
+comparison preserves escaped delimiters such as `%2F`.
 If VLC opens a direct child of a plain M3U, the app reads only that playlist,
 follows up to three validated redirects within the same request limits, and
 resolves relative entries against the final URL. It rechecks the active input

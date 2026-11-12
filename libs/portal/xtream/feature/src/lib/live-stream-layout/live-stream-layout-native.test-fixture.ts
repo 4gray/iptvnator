@@ -73,6 +73,7 @@ export function setupLiveStreamLayoutNativeFixture() {
         openExternalPlayback: jest.fn(),
     };
     const externalSession = signal<ExternalPlayerSession | null>(null);
+    const stopRequested = new Subject<string>();
     const closeSession = jest.fn(
         async (_session: ExternalPlayerSession) => undefined
     );
@@ -236,7 +237,11 @@ export function setupLiveStreamLayoutNativeFixture() {
                 },
                 {
                     provide: PORTAL_EXTERNAL_PLAYBACK,
-                    useValue: { activeSession: externalSession, closeSession },
+                    useValue: {
+                        activeSession: externalSession,
+                        closeSession,
+                        stopRequested,
+                    },
                 },
                 { provide: ParentalLockService, useValue: parentalLock },
             ],
@@ -285,6 +290,7 @@ export function setupLiveStreamLayoutNativeFixture() {
         runtime,
         portalPlayer,
         closeSession,
+        stopRequested,
         updateRemoteControlStatus,
         onExternalPlayerSessionUpdate,
         publishExternalSession,

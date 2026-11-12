@@ -107,7 +107,16 @@ async function loadPlaylistEntries(
 export function matchesVlcInput(input: string, url: string): boolean {
     if (input === url) return true;
     try {
-        return input === decodeURIComponent(url);
+        const normalize = (value: string) =>
+            new URL(value).href.replace(/%[0-9a-f]{2}/gi, (escape) => {
+                const character = String.fromCharCode(
+                    parseInt(escape.slice(1), 16)
+                );
+                return /^[\w.~-]$/.test(character)
+                    ? character
+                    : escape.toUpperCase();
+            });
+        return normalize(input) === normalize(url);
     } catch {
         return false;
     }
