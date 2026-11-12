@@ -80,6 +80,7 @@ export interface WebBackendAppOptions {
     readonly runtimeBackendUrl?: string;
     /** Optional bearer token for every non-public route. */
     readonly accessToken?: string | null;
+    readonly devicePairingEnabled?: boolean;
     /** Largest accepted playlist document in bytes. */
     readonly maxDocumentBytes?: number;
     readonly maxProviderResponseBytes?: number;
@@ -156,6 +157,7 @@ export function createWebBackendApp(
         corsMiddleware,
         storage: options.storage ?? null,
         accessToken: options.accessToken ?? null,
+        devicePairingEnabled: options.devicePairingEnabled,
         maxDocumentBytes:
             options.maxDocumentBytes ?? DEFAULT_MAX_DOCUMENT_BYTES,
     });

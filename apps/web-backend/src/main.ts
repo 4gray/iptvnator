@@ -60,6 +60,7 @@ async function start(): Promise<void> {
     const app = createWebBackendApp({
         storage,
         accessToken: config.accessToken,
+        devicePairingEnabled: !!hostedAssets,
         maxDocumentBytes: config.maxDocumentBytes,
         // Each hosted listener enforces an exact Host/Origin pair before CORS.
         ...(hostedAssets ? { clientOrigins: ['*'] } : {}),

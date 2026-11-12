@@ -1,4 +1,6 @@
 import type { Express, RequestHandler } from 'express';
+import { DevicePairingStore } from './device-pairing-store';
+import { createDevicePairingRouter } from './device-pairing-router';
 import { createAccessGuard } from './access-guard';
 import { createInstanceRouter } from './instance-router';
 import { createPlaylistsRouter } from './playlists-router';
@@ -17,6 +19,7 @@ export interface ServerStorageMountOptions {
     readonly storage: ServerStorage | null;
     readonly accessToken: string | null;
     readonly maxDocumentBytes: number;
+    readonly devicePairingEnabled?: boolean;
 }
 
 /**
@@ -30,9 +33,28 @@ export function mountServerStorage(
     options: ServerStorageMountOptions
 ): void {
     app.use('/v1', options.corsMiddleware);
+    const pairing =
+        options.devicePairingEnabled && options.storage && options.accessToken
+            ? new DevicePairingStore(options.storage.database.sqlite)
+            : null;
+    if (pairing && options.accessToken && options.storage) {
+        app.use(
+            '/v1',
+            createDevicePairingRouter(
+                pairing,
+                options.accessToken,
+                options.storage.database.instanceId
+            )
+        );
+    }
     if (options.accessToken) {
         app.use(options.corsMiddleware);
-        app.use(createAccessGuard(options.accessToken));
+        app.use(
+            createAccessGuard(
+                options.accessToken,
+                pairing ? (token) => pairing.accepts(token) : undefined
+            )
+        );
     }
 
     app.use(

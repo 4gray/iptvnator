@@ -10,7 +10,10 @@ const PUBLIC_PATHS = new Set(['/', '/health', '/config.js', '/v1/instance']);
  * provider proxy routes. Tokens are compared as SHA-256 digests so the
  * comparison is constant-time regardless of length.
  */
-export function createAccessGuard(token: string): RequestHandler {
+export function createAccessGuard(
+    token: string,
+    acceptsDevice?: (token: string) => boolean
+): RequestHandler {
     const expected = digest(token);
 
     return (req, res, next) => {
@@ -20,7 +23,10 @@ export function createAccessGuard(token: string): RequestHandler {
         }
 
         const token = readBearerToken(req.get('authorization'));
-        if (token && timingSafeEqual(digest(token), expected)) {
+        if (
+            token &&
+            (timingSafeEqual(digest(token), expected) || acceptsDevice?.(token))
+        ) {
             next();
             return;
         }
@@ -52,4 +58,12 @@ function readBearerToken(header: string | undefined): string | null {
 
 function digest(value: string): Buffer {
     return createHash('sha256').update(value).digest();
+}
+
+export function matchesAccessToken(
+    header: string | undefined,
+    expected: string
+): boolean {
+    const token = readBearerToken(header);
+    return !!token && timingSafeEqual(digest(token), digest(expected));
 }
