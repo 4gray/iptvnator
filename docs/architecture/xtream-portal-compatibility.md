@@ -798,6 +798,8 @@ previous process to exit before opening the new channel, so a one-connection
 account does not have two simultaneous streams. A newer tune waits for an
 already dispatched launch to become closable. Selecting the previous channel
 while it is stopping restarts it after exit and waits for that playback to open.
+If a replacement fails after the previous process exits, the already open guide
+keeps its scope and search so the user can retry.
 A fresh or reused MPV
 process with IPC confirms its requested playlist entry, including siblings left
 by nested redirects, and clears confirmation when that input ends or another
@@ -828,14 +830,15 @@ still start playing. An unverified VLC launch cannot replace confirmed playback.
 The dock, player panel and remote status follow the confirmed session. The remote
 keeps channel and programme metadata tied to the same playback. An unverified
 channel can keep remote tuning available but does not supply programme metadata.
-Selecting the number of a channel already playing live does not reopen it.
+Selecting the number of a channel already playing live cancels pending tunes,
+including archive lookups, without reopening it.
 The player panel stays on confirmed playback while a remote tune is pending.
 The dock restores Stop for the surviving session when the launch that owns
 the dock ends. An idle failed replacement closes before that restore. If the
 first launch fails or exits before confirming
 playback, its channel and queue remain available for remote tuning without
 now-playing details. An explicit Stop clears the exact unconfirmed tune, even
-after a closable error or if MPV exits with a nonzero code while stopping.
+after a closable error or if MPV or VLC exits with a nonzero code while stopping.
 Consecutive remote tuning commands advance from the latest requested channel
 until it opens or fails. A VLC fallback from an older launch cannot retire a
 newer tune.

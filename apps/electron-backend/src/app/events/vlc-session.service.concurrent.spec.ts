@@ -225,6 +225,7 @@ describe('VLC exact playback ownership', () => {
             title: 'Synthetic Channel',
             url: 'https://example.test/a.ts',
         };
+        const updates = jest.spyOn(externalPlayerSessions, 'updateSession');
         try {
             const initial = openVlcPlayer({
                 ...request,
@@ -244,8 +245,18 @@ describe('VLC exact playback ownership', () => {
             await tick();
             expect(first.kill).toHaveBeenCalledTimes(1);
             expect(spawnMock).toHaveBeenCalledTimes(1);
-            exit(first);
+            exit(first, 1);
             await tick();
+            expect(
+                externalPlayerSessions.getSession(original.id)
+            ).toMatchObject({
+                status: 'closed',
+                closedByRequest: true,
+            });
+            expect(updates).not.toHaveBeenCalledWith(
+                original.id,
+                expect.objectContaining({ status: 'error' })
+            );
             expect(spawnMock).toHaveBeenCalledTimes(2);
             second.emit('spawn');
             expect(await next).toMatchObject({
@@ -253,6 +264,7 @@ describe('VLC exact playback ownership', () => {
                 launchId: 'synthetic-retry',
             });
         } finally {
+            updates.mockRestore();
             for (const proc of [first, second])
                 if (proc.exitCode === null) exit(proc);
         }

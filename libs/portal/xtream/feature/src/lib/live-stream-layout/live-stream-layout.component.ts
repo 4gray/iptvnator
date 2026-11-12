@@ -635,7 +635,7 @@ export class LiveStreamLayoutComponent
                       !!this.externalGuide.unverifiedPlayback() ||
                       (this.guide.isOpen() &&
                           (this.externalGuide.launching() ||
-                              !!this.externalGuide.idlePlayback()))
+                              !!this.externalGuide.stoppedTuningSource(true)))
             )
         );
         this.guideSource.bind(
@@ -1229,6 +1229,7 @@ export class LiveStreamLayoutComponent
             !playing.session.playbackUnverified &&
             !this.externalGuide.isStopping()
         ) {
+            this.playbackRequestId++;
             this.externalGuide.cancelPendingSwitch(channel);
             return;
         }

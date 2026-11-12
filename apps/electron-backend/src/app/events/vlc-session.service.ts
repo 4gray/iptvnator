@@ -693,6 +693,10 @@ export async function openVlcPlayer({
                     reusableVlcProcess.clear(proc);
                     stopVlcPositionPolling(processSessionId);
                     if (reusableVlcProcess.isRecovering(proc)) return;
+                    const stopping =
+                        externalPlayerSessions.isCloseRequested(
+                            processSessionId
+                        );
 
                     if (
                         !closeRequested &&
@@ -712,6 +716,7 @@ export async function openVlcPlayer({
                         code === 1 &&
                         processSessionId === session.id &&
                         !closeRequested &&
+                        !stopping &&
                         !isRetry &&
                         !!rcPort
                     ) {
@@ -731,7 +736,7 @@ export async function openVlcPlayer({
                         return;
                     }
 
-                    if (code !== 0 && code !== null) {
+                    if (code && !stopping) {
                         console.error(
                             `[VLC ERROR] VLC exited with error code ${code}`
                         );

@@ -105,7 +105,7 @@ export class XtreamGuideExternalPlayback {
         const pending = this.pending();
         if (
             pending?.retry &&
-            !pending.ended?.() &&
+            pending.ended?.() !== 'ended' &&
             this.isAllowed(pending.lockSource)
         )
             return true;
@@ -138,11 +138,12 @@ export class XtreamGuideExternalPlayback {
         return undefined;
     });
 
-    stoppedTuningSource(): XtreamLiveSource | undefined {
+    stoppedTuningSource(handoffOnly = false): XtreamLiveSource | undefined {
         const idle = this.idlePlayback();
         const failed = this.failedTuning();
         if (idle || failed?.ended?.() === 'ended') return idle;
-        const source = failed?.lockSource;
+        const source =
+            handoffOnly && !failed?.retry ? undefined : failed?.lockSource;
         return this.isAllowed(source) ? source : undefined;
     }
 

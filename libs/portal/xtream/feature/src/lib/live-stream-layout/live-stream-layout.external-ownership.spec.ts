@@ -158,6 +158,24 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
         expect(confirm).toHaveBeenCalledTimes(1);
     });
 
+    it('keeps the open guide and its scope after the detached replacement fails', async () => {
+        const { fixture, source, current, secondUrl, stop } =
+            startDetachedGuide();
+        source.setScope('1');
+        await stop(current);
+        expect(fixture.componentInstance.guide.isOpen()).toBe(true);
+        publishExternalSession({
+            ...current,
+            id: 'synthetic-detached-failed',
+            streamUrl: secondUrl,
+            status: 'error',
+            canClose: false,
+        });
+        fixture.detectChanges();
+        expect(fixture.componentInstance.guide.isOpen()).toBe(true);
+        expect(source.scopeId()).toBe('1');
+    });
+
     it.each([VideoPlayer.MPV, VideoPlayer.VLC] as const)(
         'closes the exact detached %s before tuning only the newest guide request',
         async (preferred) => {
@@ -334,37 +352,63 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
         }
     );
 
-    it('does not launch an archive resolved after editing the connection', async () => {
-        const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
-        const component = fixture.componentInstance;
-        portalPlayer.isEmbeddedPlayer.set(false);
-        epgItems.set([epgItem('Synthetic Archive', 0, 1)]);
-        fixture.detectChanges();
-        component.playLive(sampleChannel, true);
-        const previous = component.activeStreamUrl();
-        const resolveCatchupUrl = jest.mocked(
-            TestBed.inject(XtreamUrlService).resolveCatchupUrl
-        );
-        let resolve!: (url: string) => void;
-        resolveCatchupUrl.mockReturnValueOnce(
-            new Promise((done) => {
-                resolve = done;
-            })
-        );
-        const opening = component.onProgramActivated({
-            type: 'timeshift',
-            program: component.controlledEpgPrograms()[0],
-        });
-        expect(resolveCatchupUrl).toHaveBeenCalled();
-        xtreamStore.currentPlaylist.set({
-            ...playlist,
-            serverUrl: 'https://another.example.test',
-        });
-        resolve('https://example.test/synthetic-archive.ts');
-        await opening;
-        expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(1);
-        expect(component.activeStreamUrl()).toBe(previous);
-    });
+    it.each(['connection edit', 'same-channel remote tune'] as const)(
+        'does not launch an archive resolved after a %s',
+        async (change) => {
+            const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
+            const component = fixture.componentInstance;
+            const item = { ...sampleChannel, category_id: 1 };
+            portalPlayer.isEmbeddedPlayer.set(false);
+            epgItems.set([epgItem('Synthetic Archive', 0, 1)]);
+            emptyList.set([item]);
+            xtreamStore.selectedItem.set(item);
+            fixture.detectChanges();
+            component.playLive(item, true, [item]);
+            const previous = component.activeStreamUrl();
+            if (change === 'same-channel remote tune') {
+                publishExternalSession({
+                    id: 'synthetic-current-before-archive',
+                    player: 'mpv',
+                    status: 'playing',
+                    title: 'Synthetic Channel',
+                    streamUrl: previous,
+                    canClose: true,
+                    startedAt: '2026-04-04T10:00:00Z',
+                    updatedAt: '2026-04-04T10:00:00Z',
+                });
+                fixture.detectChanges();
+            }
+            const resolveCatchupUrl = jest.mocked(
+                TestBed.inject(XtreamUrlService).resolveCatchupUrl
+            );
+            let resolve!: (url: string) => void;
+            resolveCatchupUrl.mockReturnValueOnce(
+                new Promise((done) => {
+                    resolve = done;
+                })
+            );
+            const opening = component.onProgramActivated({
+                type: 'timeshift',
+                program: component.controlledEpgPrograms()[0],
+            });
+            expect(resolveCatchupUrl).toHaveBeenCalled();
+            if (change === 'same-channel remote tune') {
+                onRemoteControlCommand.mock.lastCall?.[0]({
+                    type: 'channel-select-number',
+                    number: 1,
+                });
+                expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(1);
+            } else
+                xtreamStore.currentPlaylist.set({
+                    ...playlist,
+                    serverUrl: 'https://another.example.test',
+                });
+            resolve('https://example.test/synthetic-archive.ts');
+            await opening;
+            expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(1);
+            expect(component.activeStreamUrl()).toBe(previous);
+        }
+    );
 
     it.each([
         { serverUrl: 'https://another.example.test' },
