@@ -50,13 +50,14 @@ test('starts locally, reconnects through the hosted library, and stops on reques
         let page = desktop.mainWindow;
         await openSettings(page);
         await openSettingsSection(page, 'server');
+        const setup = page.getByTestId('hosted-access-method');
         await expect(
-            page.getByRole('radio', { name: 'Computer only' })
+            setup.getByRole('radio', { name: 'Computer only' })
         ).toBeChecked();
-        await page
-            .getByText('Remote access (optional)', { exact: true })
-            .click();
-        await page
+        await expect(
+            setup.getByRole('radio', { name: 'Home network' })
+        ).toBeVisible();
+        await setup
             .getByRole('radio', {
                 name: 'Custom HTTPS',
             })
