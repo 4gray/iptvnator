@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { EpgPreferencesService } from '@iptvnator/services';
 import {
     XtreamApiService,
@@ -6,7 +7,11 @@ import {
 } from '@iptvnator/portal/xtream/data-access';
 import { LiveStreamLayoutComponent } from './live-stream-layout.component';
 import { setupLiveStreamLayoutNativeFixture } from './live-stream-layout-native.test-fixture';
-import { epgItem, sampleChannel } from './live-stream-layout-stubs.spec-data';
+import {
+    epgItem,
+    sampleChannel,
+    StubWebPlayerViewComponent,
+} from './live-stream-layout-stubs.spec-data';
 import { XtreamEpgGuideSourceService } from './xtream-epg-guide-source.service';
 
 describe('Xtream remote playback metadata', () => {
@@ -23,6 +28,27 @@ describe('Xtream remote playback metadata', () => {
     } = setupLiveStreamLayoutNativeFixture();
 
     afterEach(restoreElectron);
+
+    it('retries the only inline channel on a remote step after playback fails', () => {
+        const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
+        const component = fixture.componentInstance;
+        const channel = { ...sampleChannel, category_id: 1 };
+        emptyList.set([channel]);
+        xtreamStore.selectedItem.set(channel);
+        component.playLive(channel, true, [channel]);
+        fixture.detectChanges();
+        const player = fixture.debugElement.query(
+            By.directive(StubWebPlayerViewComponent)
+        ).componentInstance as StubWebPlayerViewComponent;
+        onChannelChange.mock.lastCall?.[0]({ direction: 'down' });
+        expect(player.retryFailedPlayback).toHaveBeenCalledTimes(1);
+        expect(xtreamStore.constructStreamUrl).toHaveBeenCalledTimes(1);
+        player.retryFailedPlayback.mockReturnValueOnce(true);
+        onChannelChange.mock.lastCall?.[0]({ direction: 'up' });
+        expect(player.retryFailedPlayback).toHaveBeenCalledTimes(2);
+        expect(component.activeStreamUrl()).toBe(player.streamUrl());
+        expect(xtreamStore.constructStreamUrl).toHaveBeenCalledTimes(1);
+    });
 
     it('keeps the latest playing schedule on the remote when previewing another channel', async () => {
         const now = Math.floor(Date.now() / 1000);

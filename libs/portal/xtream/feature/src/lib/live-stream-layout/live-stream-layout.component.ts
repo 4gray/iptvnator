@@ -651,9 +651,7 @@ export class LiveStreamLayoutComponent
                     !this.externalGuide.isStopping() &&
                     !this.guideArchiveProgram();
                 const cancelled =
-                    onConfirmed &&
-                    alreadyLive &&
-                    this.externalGuide.cancelPendingSwitch(item);
+                    alreadyLive && this.externalGuide.cancelPendingSwitch(item);
                 if (
                     !this.usesEmbeddedPlayer() &&
                     !retry &&
@@ -664,21 +662,15 @@ export class LiveStreamLayoutComponent
                         onConfirmed
                     )
                 ) {
-                    if (onConfirmed) this.tuneRequests.invalidate();
+                    this.tuneRequests.invalidate();
                     return;
                 }
                 if ((!retry || cancelled) && alreadyLive) {
-                    if (onConfirmed) this.tuneRequests.invalidate();
+                    this.tuneRequests.invalidate();
                     if (!sameXtreamChannelCopy(playing, item))
                         this.switchGuideChannelCopy(item);
                     if (this.usesEmbeddedPlayer()) {
-                        const player = this.inlinePlayer();
-                        if (
-                            onConfirmed &&
-                            player &&
-                            player.playback() === this.activePlayback()
-                        )
-                            player.retryFailedPlayback();
+                        this.retryInlinePlayback();
                         this.confirmInlinePlayback(onConfirmed);
                     } else if (cancelled)
                         this.tuneRequests.afterCancellation(
@@ -700,7 +692,7 @@ export class LiveStreamLayoutComponent
                 this.playLive(item, true, channels, false, onConfirmed);
             },
             () => this.externalGuide.canRetryUnverifiedStream(),
-            () => this.externalGuide.isStopping()
+            (watchLive) => watchLive || this.externalGuide.isStopping()
         );
         effect(() =>
             this.guideSource.setPlayback(
@@ -1109,6 +1101,15 @@ export class LiveStreamLayoutComponent
         );
     }
 
+    private retryInlinePlayback(): boolean {
+        const player = this.inlinePlayer();
+        return (
+            !!player &&
+            player.playback() === this.activePlayback() &&
+            player.retryFailedPlayback()
+        );
+    }
+
     onInlinePlaybackStarted(playback: ResolvedPortalPlayback): void {
         if (playback === this.activePlayback())
             this.tuneRequests.confirmInline();
@@ -1242,12 +1243,21 @@ export class LiveStreamLayoutComponent
             : selectionBased
               ? this.activeCatchupProgram()
               : this.guideArchiveProgram();
-        if (
-            !nextItem ||
-            (nextItem.xtream_id === activeItem.xtream_id &&
-                (tuning || !(archive || anchor)))
-        ) {
-            return;
+        if (!nextItem) return;
+        if (nextItem.xtream_id === activeItem.xtream_id) {
+            if (tuning) return;
+            if (!archive && !anchor) {
+                if (!this.usesEmbeddedPlayer()) return;
+                const playback = this.activePlayback();
+                if (
+                    playback?.isLive &&
+                    this.activeLiveItemId() === nextItem.xtream_id
+                ) {
+                    if (this.retryInlinePlayback())
+                        this.tuneRequests.invalidate();
+                    return;
+                }
+            }
         }
 
         this.playLive(nextItem, true, undefined, true);

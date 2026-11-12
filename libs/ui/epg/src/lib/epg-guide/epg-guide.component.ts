@@ -219,7 +219,7 @@ export class EpgGuideComponent implements OnDestroy {
             rows: () => this.rows(),
             offsetMinutes: () => this.offsetMinutes(),
             focusRow: (rowIndex) => this.revealRow(rowIndex),
-            activate: (channel) => this.activateRow(channel),
+            activate: (channel) => this.activateRow(channel, true),
             catchUp: () => this.source.catchUp,
             isChannelVisible: this.source.isChannelVisible?.bind(this.source),
         }
@@ -390,8 +390,8 @@ export class EpgGuideComponent implements OnDestroy {
         this.dialogs.watch(channel, item);
     }
 
-    activateRow(channel: EpgGuideChannel | undefined): void {
-        this.rowActivation.activate(channel);
+    activateRow(channel: EpgGuideChannel | undefined, watchLive = false): void {
+        this.rowActivation.activate(channel, watchLive);
     }
 
     commitRow(channel: EpgGuideChannel | undefined, allowRetry = true): void {

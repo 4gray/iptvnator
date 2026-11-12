@@ -388,6 +388,8 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
         'same-channel remote tune',
         'older live confirmation',
         'pending live guide commit',
+        'watch pending live',
+        'watch confirmed live',
     ] as const)(
         'honors the latest archive request after %s',
         async (change) => {
@@ -397,7 +399,10 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
             const next = { ...item, xtream_id: item.xtream_id + 1 };
             const olderLive = change === 'older live confirmation';
             const commitLive = change === 'pending live guide commit';
-            const channels = olderLive || commitLive ? [item, next] : [item];
+            const watchPending = change === 'watch pending live';
+            const watchConfirmed = change === 'watch confirmed live';
+            const pending = olderLive || commitLive || watchPending;
+            const channels = pending ? [item, next] : [item];
             portalPlayer.isEmbeddedPlayer.set(false);
             epgItems.set([epgItem('Synthetic Archive', 0, 1)]);
             emptyList.set(channels);
@@ -420,7 +425,7 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
                 fixture.detectChanges();
             }
             const nextUrl = 'https://example.test/synthetic-older-live.ts';
-            if (olderLive || commitLive) {
+            if (pending) {
                 xtreamStore.constructStreamUrl.mockReturnValueOnce(nextUrl);
                 xtreamStore.openPlayer.mockReturnValueOnce(
                     new Promise(() => undefined)
@@ -458,17 +463,17 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
                 publishExternalSession(nextSession);
                 fixture.detectChanges();
                 expect(component.activeStreamUrl()).toBe(nextUrl);
-            } else if (commitLive) {
+            } else if (commitLive || watchPending || watchConfirmed) {
                 component.guide.open();
                 fixture.detectChanges();
                 const source = fixture.debugElement.injector.get(
                     XtreamEpgGuideSourceService
                 );
                 source.activate(
-                    String(next.xtream_id),
+                    String((watchConfirmed ? item : next).xtream_id),
                     null,
                     undefined,
-                    commit
+                    commitLive ? commit : undefined
                 );
                 expect(commit).not.toHaveBeenCalled();
             } else
@@ -484,12 +489,12 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
             resolve(archiveUrl);
             await opening;
             expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(
-                olderLive ? 3 : commitLive ? 2 : 1
+                olderLive ? 3 : pending ? 2 : 1
             );
-            if (commitLive) {
+            if (commitLive || watchPending) {
                 publishExternalSession(nextSession);
                 fixture.detectChanges();
-                expect(commit).toHaveBeenCalledTimes(1);
+                expect(commit).toHaveBeenCalledTimes(commitLive ? 1 : 0);
             }
             if (olderLive) {
                 expect(xtreamStore.openPlayer.mock.lastCall?.[0]).toBe(
@@ -504,7 +509,7 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
                 fixture.detectChanges();
             }
             expect(component.activeStreamUrl()).toBe(
-                olderLive ? archiveUrl : commitLive ? nextUrl : previous
+                olderLive ? archiveUrl : pending ? nextUrl : previous
             );
         }
     );

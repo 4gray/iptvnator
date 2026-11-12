@@ -313,43 +313,53 @@ describe('EpgGuideComponent', () => {
         expect(component.rowHeightPx()).toBe(44);
     });
 
-    it('opens the programme dialog for a non-live card and activates on "live"', async () => {
-        await settle(fixture);
-        dialogOpen.mockReturnValueOnce(of('live'));
-        const row = component.rows()[2];
-        const item = {
-            kind: 'block' as const,
-            key: 'k',
-            block: {
-                program: nowProgram('a'),
+    it.each([0, 2])(
+        'forwards Watch Live from programme details for row %s',
+        async (index) => {
+            await settle(fixture);
+            dialogOpen.mockReturnValueOnce(of('live'));
+            const row = component.rows()[index];
+            if (index === 0) {
+                const source =
+                    fixture.debugElement.injector.get(EPG_GUIDE_SOURCE);
+                source.canRetuneActive = (watchLive) => watchLive === true;
+                component.activateRow(row);
+                expect(activate).not.toHaveBeenCalled();
+            }
+            const item = {
+                kind: 'block' as const,
                 key: 'k',
-                startMs: 0,
-                stopMs: 1,
-                when: 'past' as const,
-                offsetMin: 0,
-                durationMin: 1,
-            },
-            leftPx: 0,
-            widthPx: 10,
-            tier: 'wide' as const,
-            nowFillPercent: 0,
-            canCatchUp: false,
-        };
-        component.openDetails(row, item);
-        expect(dialogOpen).toHaveBeenCalledWith(
-            expect.objectContaining({
-                channelName: 'Channel c',
-                primaryAction: null,
-                archiveUnavailableNote: true,
-            }),
-            expect.any(AbortSignal)
-        );
-        expect(activate).toHaveBeenCalledWith(
-            'c',
-            row.epgKey,
-            component.rows()
-        );
-    });
+                block: {
+                    program: nowProgram('a'),
+                    key: 'k',
+                    startMs: 0,
+                    stopMs: 1,
+                    when: 'past' as const,
+                    offsetMin: 0,
+                    durationMin: 1,
+                },
+                leftPx: 0,
+                widthPx: 10,
+                tier: 'wide' as const,
+                nowFillPercent: 0,
+                canCatchUp: false,
+            };
+            component.openDetails(row, item);
+            expect(dialogOpen).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    channelName: row.name,
+                    primaryAction: null,
+                    archiveUnavailableNote: true,
+                }),
+                expect.any(AbortSignal)
+            );
+            expect(activate).toHaveBeenCalledWith(
+                row.id,
+                row.epgKey,
+                component.rows()
+            );
+        }
+    );
 
     it('re-activates the active row while catch-up plays, so the host can return to live', async () => {
         livePlayback.set(false);

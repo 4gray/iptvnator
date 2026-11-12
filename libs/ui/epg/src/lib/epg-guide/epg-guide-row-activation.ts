@@ -57,9 +57,16 @@ export function createEpgGuideRowActivation(
     };
 
     return {
-        activate(channel: EpgGuideChannel | undefined): void {
+        activate(
+            channel: EpgGuideChannel | undefined,
+            watchLive = false
+        ): void {
             pointerTune = undefined;
-            activate(channel);
+            activate(
+                channel,
+                undefined,
+                !watchLive || !source.canRetuneActive?.(true)
+            );
         },
         commit,
         pointer(channel: EpgGuideChannel, allowRetry?: boolean): void {
