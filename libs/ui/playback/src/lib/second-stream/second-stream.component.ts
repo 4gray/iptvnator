@@ -5,6 +5,7 @@ import {
     computed,
     effect,
     input,
+    inject,
     OnDestroy,
     signal,
     viewChild,
@@ -14,7 +15,10 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
-import type { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
+import {
+    SecondStreamCatalogService,
+    type SecondStreamSelection,
+} from '@iptvnator/portal/shared/data-access';
 import { EmbeddedMpvPlayerComponent } from '../embedded-mpv-player/embedded-mpv-player.component';
 import { SecondStreamPickerComponent } from './second-stream-picker.component';
 import { SecondStreamPosition } from './second-stream-position';
@@ -39,7 +43,14 @@ export class SecondStreamComponent implements OnDestroy {
     readonly primary = input.required<EmbeddedMpvPlayerComponent>();
     readonly fullscreenTarget = input<HTMLElement | null>(null);
     readonly secondary = viewChild(EmbeddedMpvPlayerComponent);
-    readonly playback = signal<ResolvedPortalPlayback | null>(null);
+    private readonly catalog = inject(SecondStreamCatalogService);
+    readonly selection = signal<SecondStreamSelection | null>(null);
+    readonly playback = computed(() => {
+        const selection = this.selection();
+        return selection && this.catalog.isAllowed(selection.item)
+            ? selection.playback
+            : null;
+    });
     readonly active = computed(() => this.playback() !== null);
     readonly swapped = signal(false);
     readonly busy = signal(false);
@@ -89,6 +100,21 @@ export class SecondStreamComponent implements OnDestroy {
             });
         });
         effect(() => {
+            if (!this.selection() || this.playback()) return;
+            untracked(() => {
+                const wasSwapped = this.swapped();
+                this.selection.set(null);
+                this.swapped.set(false);
+                // A running swap restores primary audio in its own cleanup.
+                if (wasSwapped && !this.busy()) {
+                    this.busy.set(true);
+                    void this.restorePrimaryAudio().finally(() =>
+                        this.busy.set(false)
+                    );
+                }
+            });
+        });
+        effect(() => {
             if (this.busy()) return;
             const session = (
                 this.swapped() ? this.secondary() : this.primary()
@@ -103,20 +129,26 @@ export class SecondStreamComponent implements OnDestroy {
         });
     }
 
-    async selectPlayback(playback: ResolvedPortalPlayback): Promise<void> {
+    async selectPlayback(selection: SecondStreamSelection): Promise<void> {
         if (!this.editing() || this.busy() || !this.available()) return;
+        if (!this.catalog.isAllowed(selection.item)) return;
         this.editing.set(false);
         if (this.swapped() && !(await this.swap())) {
             this.error.set(true);
             return;
         }
-        if (this.abort.signal.aborted) return;
-        this.playback.set(playback);
+        if (
+            this.abort.signal.aborted ||
+            !this.catalog.isAllowed(selection.item)
+        )
+            return;
+        this.selection.set(selection);
         this.error.set(false);
     }
 
     async swap(): Promise<boolean> {
-        if (this.busy() || !this.ready()) return false;
+        const canContinue = () => !this.abort.signal.aborted && this.active();
+        if (this.busy() || !this.ready() || !canContinue()) return false;
         const outgoing = this.swapped() ? this.secondary() : this.primary();
         const incoming = this.swapped() ? this.primary() : this.secondary();
         const from = outgoing?.controller.sessionId();
@@ -134,16 +166,27 @@ export class SecondStreamComponent implements OnDestroy {
                 from,
                 to,
                 this.audibleVolume(),
-                this.abort.signal
+                canContinue
             );
-            if (this.abort.signal.aborted) return false;
+            if (!canContinue()) return false;
             this.swapped.update((value) => !value);
             return true;
         } catch {
-            if (!this.abort.signal.aborted) this.error.set(true);
+            if (canContinue()) this.error.set(true);
             return false;
         } finally {
+            if (!this.abort.signal.aborted && !this.active())
+                await this.restorePrimaryAudio();
             this.busy.set(false);
+        }
+    }
+
+    private async restorePrimaryAudio(): Promise<void> {
+        const id = this.primary().controller.sessionId();
+        if (id) {
+            await window.electron
+                .setEmbeddedMpvVolume(id, this.audibleVolume())
+                .catch(() => undefined);
         }
     }
 
@@ -151,7 +194,7 @@ export class SecondStreamComponent implements OnDestroy {
         if (this.busy()) return;
         if (this.swapped()) await this.swap();
         this.swapped.set(false);
-        this.playback.set(null);
+        this.selection.set(null);
     }
 
     pauseSmall(): void {

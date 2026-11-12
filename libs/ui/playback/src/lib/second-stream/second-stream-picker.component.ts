@@ -20,9 +20,9 @@ import {
     SecondStreamCatalogService,
     SecondStreamCatalog,
     SecondStreamChannel,
+    SecondStreamSelection,
     SecondStreamSource,
 } from '@iptvnator/portal/shared/data-access';
-import { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
 import { EmbeddedMpvOverlayVisibilityService } from '../embedded-mpv-player/embedded-mpv-overlay-visibility.service';
 
 @Component({
@@ -42,7 +42,7 @@ import { EmbeddedMpvOverlayVisibilityService } from '../embedded-mpv-player/embe
 export class SecondStreamPickerComponent {
     private readonly catalog = inject(SecondStreamCatalogService);
     readonly returningToOriginal = input(false);
-    readonly selected = output<ResolvedPortalPlayback>();
+    readonly selected = output<SecondStreamSelection>();
     readonly dismissed = output<void>();
     readonly sources = signal<SecondStreamSource[]>([]);
     readonly source = signal('');
@@ -157,7 +157,8 @@ export class SecondStreamPickerComponent {
         this.error.set(null);
         try {
             const playback = await this.catalog.resolve(row);
-            if (generation === this.generation) this.selected.emit(playback);
+            if (generation === this.generation)
+                this.selected.emit({ item: row.item, playback });
         } catch {
             if (generation === this.generation) this.error.set('play');
         } finally {

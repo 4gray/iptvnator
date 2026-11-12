@@ -70,13 +70,11 @@ describe('SecondStreamCatalogService', () => {
             getAllCategories: jest
                 .fn()
                 .mockResolvedValue([{ id: 50, xtream_id: 900 }]),
-            getPlaylist: jest
-                .fn()
-                .mockResolvedValue({
-                    serverUrl: 'https://portal.example.test',
-                    username: 'example',
-                    password: 'example',
-                }),
+            getPlaylist: jest.fn().mockResolvedValue({
+                serverUrl: 'https://portal.example.test',
+                username: 'example',
+                password: 'example',
+            }),
             getCategories: jest.fn().mockResolvedValue([
                 { id: 50, xtream_id: 900, name: 'News', hidden: false },
                 { id: 60, xtream_id: 901, name: 'Hidden', hidden: true },
@@ -122,27 +120,23 @@ describe('SecondStreamCatalogService', () => {
                     provide: StalkerItvCacheService,
                     useValue: {
                         ensureLoaded: jest.fn().mockResolvedValue(undefined),
-                        getChannels: jest
-                            .fn()
-                            .mockReturnValue([
-                                {
-                                    id: 'channel-1',
-                                    name: 'Synthetic News',
-                                    tv_genre_id: 'genre-2',
-                                    cmd: 'ffmpeg https://media.example.test/live',
-                                    use_http_tmp_link: '1',
-                                },
-                            ]),
+                        getChannels: jest.fn().mockReturnValue([
+                            {
+                                id: 'channel-1',
+                                name: 'Synthetic News',
+                                tv_genre_id: 'genre-2',
+                                cmd: 'ffmpeg https://media.example.test/live',
+                                use_http_tmp_link: '1',
+                            },
+                        ]),
                     },
                 },
                 {
                     provide: DataService,
                     useValue: {
-                        sendIpcEvent: jest
-                            .fn()
-                            .mockResolvedValue({
-                                js: [{ id: 'genre-2', title: 'News' }],
-                            }),
+                        sendIpcEvent: jest.fn().mockResolvedValue({
+                            js: [{ id: 'genre-2', title: 'News' }],
+                        }),
                     },
                 },
                 {
@@ -210,6 +204,21 @@ describe('SecondStreamCatalogService', () => {
             (await service.load(playlist._id, new AbortController().signal))
                 .channels
         ).toEqual([]);
+    });
+    it('rejects a stream if its group locks while resolving playback', async () => {
+        const data = await service.load(
+            playlist._id,
+            new AbortController().signal
+        );
+        resolve.mockImplementationOnce(async () => {
+            locks.isM3uGroupLocked.mockReturnValue(true);
+            locks.version.update((version) => version + 1);
+            return { streamUrl: channel.url };
+        });
+
+        await expect(service.resolve(data.channels[0])).rejects.toThrow(
+            'Channel unavailable'
+        );
     });
     it('keeps only available television favorites', async () => {
         const base = {

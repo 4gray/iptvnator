@@ -5,7 +5,10 @@ describe('two-stream audio handoff', () => {
         let muted!: () => void;
         const bridge = {
             setEmbeddedMpvVolume: jest
-                .fn<ReturnType<Window['electron']['setEmbeddedMpvVolume']>, Parameters<Window['electron']['setEmbeddedMpvVolume']>>()
+                .fn<
+                    ReturnType<Window['electron']['setEmbeddedMpvVolume']>,
+                    Parameters<Window['electron']['setEmbeddedMpvVolume']>
+                >()
                 .mockImplementationOnce(
                     () =>
                         new Promise((resolve) => {
@@ -19,7 +22,7 @@ describe('two-stream audio handoff', () => {
             'movie',
             'match',
             0.6,
-            new AbortController().signal
+            () => true
         );
         expect(bridge.setEmbeddedMpvVolume.mock.calls).toEqual([['movie', 0]]);
         muted();
@@ -33,11 +36,20 @@ describe('two-stream audio handoff', () => {
         const abort = new AbortController();
         const bridge = {
             setEmbeddedMpvVolume: jest
-                .fn<ReturnType<Window['electron']['setEmbeddedMpvVolume']>, Parameters<Window['electron']['setEmbeddedMpvVolume']>>()
+                .fn<
+                    ReturnType<Window['electron']['setEmbeddedMpvVolume']>,
+                    Parameters<Window['electron']['setEmbeddedMpvVolume']>
+                >()
                 .mockRejectedValueOnce(new Error('closed')),
         };
         await expect(
-            handoffMpvAudio(bridge, 'movie', 'match', 1, abort.signal)
+            handoffMpvAudio(
+                bridge,
+                'movie',
+                'match',
+                1,
+                () => !abort.signal.aborted
+            )
         ).rejects.toThrow('closed');
         expect(bridge.setEmbeddedMpvVolume).toHaveBeenCalledTimes(1);
         bridge.setEmbeddedMpvVolume.mockImplementationOnce(async () => {
@@ -45,7 +57,13 @@ describe('two-stream audio handoff', () => {
             return null;
         });
         await expect(
-            handoffMpvAudio(bridge, 'movie', 'match', 1, abort.signal)
+            handoffMpvAudio(
+                bridge,
+                'movie',
+                'match',
+                1,
+                () => !abort.signal.aborted
+            )
         ).rejects.toThrow('cancelled');
         expect(bridge.setEmbeddedMpvVolume).toHaveBeenCalledTimes(2);
     });
