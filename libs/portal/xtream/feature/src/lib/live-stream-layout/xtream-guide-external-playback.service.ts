@@ -251,7 +251,8 @@ export class XtreamGuideExternalPlayback {
         categoryId: XtreamLiveSource['categoryId'],
         queue?: readonly XtreamLiveChannelItem[],
         remote = false,
-        onConfirmed?: () => void
+        onConfirmed?: () => void,
+        launchId?: string
     ): void {
         if (!playback?.streamUrl) return;
         const owner = this.owner();
@@ -274,9 +275,9 @@ export class XtreamGuideExternalPlayback {
                   }
                 : undefined;
         this.panelPlayback = this.panel?.current() ?? playback;
-        const lifecycle = launch && this.sessions.begin(launch.lockSource);
-        const close =
-            launch && this.sessions.closeUnverifiedRetry(launch.lockSource);
+        const source = launch?.lockSource;
+        const lifecycle = source && this.sessions.begin(source, launchId);
+        const close = source && this.sessions.closeUnverifiedRetry(source);
         if (launch)
             Object.assign(launch, { ended: lifecycle?.ended, retry: !!close });
         this.pending.set(launch);
@@ -298,7 +299,7 @@ export class XtreamGuideExternalPlayback {
                 undefined,
                 lifecycle?.launchId
             );
-        const canOpen = () => isCurrent() && this.isAllowed(launch?.lockSource);
+        const canOpen = () => isCurrent() && this.isAllowed(source);
         const opening = close
             ? close.then(() => (canOpen() ? open() : undefined))
             : open();
@@ -396,9 +397,8 @@ export class XtreamGuideExternalPlayback {
 
     restoreConfirmedPanel(): boolean {
         const confirmed = this.confirmed();
-        const current = this.panel?.current();
-        if (!confirmed || (current && current !== this.panelPlayback))
-            return false;
+        const current = this.panel?.current() ?? this.panelPlayback;
+        if (!confirmed || current !== this.panelPlayback) return false;
         this.syncPanel(confirmed);
         return true;
     }

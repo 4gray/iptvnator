@@ -8,6 +8,12 @@ interface PlayerIpcEndpoint {
     dispose(): void;
 }
 
+const privateEndpointDisposers = new Set<() => void>();
+
+export function disposePrivatePlayerIpcEndpoints(): void {
+    for (const dispose of privateEndpointDisposers) dispose();
+}
+
 export function createMpvIpcEndpoint(): PlayerIpcEndpoint | undefined {
     if (process.platform === 'win32')
         return {
@@ -25,16 +31,16 @@ export function createPrivatePlayerIpcEndpoint(
     try {
         // Keep the URL-bearing connection off paths other local users can bind.
         const directory = mkdtempSync(`/tmp/iptvnator-${player}-`);
-        return {
-            path: `${directory}/ipc`,
-            dispose: () => {
-                try {
-                    rmSync(directory, { recursive: true, force: true });
-                } catch {
-                    /* A leftover private directory is safer than interrupting playback. */
-                }
-            },
+        const dispose = () => {
+            try {
+                rmSync(directory, { recursive: true, force: true });
+                privateEndpointDisposers.delete(dispose);
+            } catch {
+                /* A leftover private directory is safer than interrupting playback. */
+            }
         };
+        privateEndpointDisposers.add(dispose);
+        return { path: `${directory}/ipc`, dispose };
     } catch {
         return undefined;
     }

@@ -427,6 +427,10 @@ export class EpgGuideComponent implements OnDestroy {
         this.rowActivation.commit(channel, allowRetry);
     }
 
+    pointerRow(channel: EpgGuideChannel, allowRetry?: boolean): void {
+        this.rowActivation.pointer(channel, allowRetry);
+    }
+
     /**
      * Whether a key aimed at `target` belongs to the guide. The listener is on
      * the document, so anything focused elsewhere — the docked player, the

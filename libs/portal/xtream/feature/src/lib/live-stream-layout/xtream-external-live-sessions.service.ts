@@ -187,8 +187,7 @@ export class XtreamExternalLiveSessions {
         return latest;
     }
 
-    begin(source: XtreamLiveSource) {
-        const launchId = crypto.randomUUID();
+    begin(source: XtreamLiveSource, launchId: string = crypto.randomUUID()) {
         const launch: Launch = {
             source,
             ended: signal<false | 'ended' | 'failed'>(false),

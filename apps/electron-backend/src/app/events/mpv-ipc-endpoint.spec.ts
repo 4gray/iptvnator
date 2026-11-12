@@ -6,6 +6,8 @@ import { existsSync, statSync } from 'node:fs';
 import { dirname } from 'node:path';
 import {
     createMpvIpcEndpoint,
+    createPrivatePlayerIpcEndpoint,
+    disposePrivatePlayerIpcEndpoints,
     spawnPlayerWithEndpoint,
 } from './mpv-ipc-endpoint';
 
@@ -49,6 +51,40 @@ describe('MPV IPC endpoint', () => {
                 expect(existsSync(dirname(endpoint.path))).toBe(false);
         } finally {
             endpoint.dispose();
+        }
+    });
+
+    it('cleans up detached Unix sockets on app quit without stopping players', () => {
+        if (process.platform === 'win32') return;
+        const endpoints = [
+            createPrivatePlayerIpcEndpoint('mpv'),
+            createPrivatePlayerIpcEndpoint('vlc'),
+        ];
+        const kill = jest.fn();
+        try {
+            for (const endpoint of endpoints) {
+                if (!endpoint)
+                    throw new Error('Synthetic IPC endpoint unavailable');
+                const child = Object.assign(new EventEmitter(), { kill });
+                jest.mocked(spawn).mockReturnValueOnce(
+                    child as unknown as ChildProcess
+                );
+                spawnPlayerWithEndpoint(
+                    '/synthetic/player',
+                    [],
+                    false,
+                    endpoint
+                );
+                expect(existsSync(dirname(endpoint.path))).toBe(true);
+            }
+            disposePrivatePlayerIpcEndpoints();
+            for (const endpoint of endpoints) {
+                if (endpoint)
+                    expect(existsSync(dirname(endpoint.path))).toBe(false);
+            }
+            expect(kill).not.toHaveBeenCalled();
+        } finally {
+            endpoints.forEach((endpoint) => endpoint?.dispose());
         }
     });
 });

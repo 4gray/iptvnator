@@ -191,6 +191,36 @@ describe('PlaybackHistoryGate', () => {
             expect(commit).not.toHaveBeenCalled();
         });
 
+        it('does not confirm a second launch of the same URL', () => {
+            const first = jest.fn();
+            const second = jest.fn();
+            const legacy = jest.fn();
+            const launchA = {
+                id: 'synthetic-a',
+                launchId: 'synthetic-launch-a',
+            };
+            const launchB = {
+                id: 'synthetic-b',
+                launchId: 'synthetic-launch-b',
+            };
+            gate.defer(
+                { streamUrls: [streamUrl], launchId: launchA.launchId },
+                first
+            );
+            gate.defer(
+                { streamUrls: [streamUrl], launchId: launchB.launchId },
+                second
+            );
+            gate.defer({ streamUrls: [streamUrl] }, legacy);
+            emit({ ...launchA, status: 'launching' });
+            emit({ ...launchB, status: 'launching' });
+            emit({ ...launchA, status: 'opened', mediaLoaded: true });
+            emit({ ...launchB, status: 'error' });
+            expect(first).toHaveBeenCalledTimes(1);
+            expect(legacy).toHaveBeenCalledTimes(1);
+            expect(second).not.toHaveBeenCalled();
+        });
+
         it.each(['confirmed', 'failed', 'unsupported'] as const)(
             'records external history only after readiness is %s',
             (outcome) => {

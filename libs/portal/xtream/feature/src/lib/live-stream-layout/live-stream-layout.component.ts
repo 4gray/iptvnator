@@ -1009,6 +1009,13 @@ export class LiveStreamLayoutComponent
             this.activePlaylistId = playlist?.id ?? null;
             this.activePlayback.set(playback);
         }
+        const launchId =
+            tracksExternalPlayback &&
+            this.externalGuide.owner() &&
+            streamUrl &&
+            startPlayback
+                ? crypto.randomUUID()
+                : undefined;
         if (startPlayback && streamUrl) {
             this.recordRecentItem(
                 streamUrl,
@@ -1025,7 +1032,8 @@ export class LiveStreamLayoutComponent
                 },
                 this.usesEmbeddedPlayer()
                     ? this.playbackSessionKey()
-                    : undefined
+                    : undefined,
+                launchId
             );
         }
         if (this.usesEmbeddedPlayer() || !startPlayback) {
@@ -1039,7 +1047,8 @@ export class LiveStreamLayoutComponent
             categoryId,
             this.channelNavigation.queueFor(item, scope, queuePolicy),
             remote,
-            onConfirmed
+            onConfirmed,
+            launchId
         );
     }
 

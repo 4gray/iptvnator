@@ -786,6 +786,7 @@ the stream stopped, an open guide keeps its schedule visible and lets the
 user retry. If VLC's playback state cannot be read, Enter or a double-click
 that starts on the active row explicitly retries it, even after an earlier
 successful VLC status read.
+A double-click on a new row commits the tune requested by its first click.
 The guide keeps the player mounted in the dock and hides the live sidebars
 while preserving their browsing state. Short screens show a compact dock so
 schedule rows remain visible. If an external channel switch fails and the
@@ -800,8 +801,9 @@ MPV retries with the original URL argument after the idle process exits. Stop
 or disabling instance reuse cancels that fallback and any pending IPC write.
 An opening request cancelled by Stop or by disabling reuse waits for that exact
 child to exit before releasing the next queued request.
-The Unix socket lives in a private directory owned by the app user and is
-removed when the child exits. Older MPV versions that acknowledge without an
+The Unix socket lives in a private directory owned by the app user. The app
+removes it when the child exits or on orderly shutdown, even if a detached
+player is still running. Older MPV versions that acknowledge without an
 entry ID keep the remote queue without confirming guide playback.
 VLC guide launches use a private Unix socket for control where available, and
 otherwise open directly without an unauthenticated TCP control port. VLC RC

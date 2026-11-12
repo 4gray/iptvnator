@@ -1360,7 +1360,8 @@ reaches history.
   `AudioPlayerComponent` confirms the same way (with the host's session key
   when given).
 - The gate subscribes to Electron external-player session updates and confirms
-  the `streamUrl` of an `opened` or `playing` session once it verifies the
+  the launch ID, where the caller has one, or the `streamUrl` of an `opened`
+  or `playing` session once it verifies the
   requested media. Players without readiness support confirm on opening. A
   launch that ends before confirmation is not recorded. (Subscribing in the
   gate, which the first deferred write creates, keeps it off the initial bundle.) That

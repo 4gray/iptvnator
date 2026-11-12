@@ -109,9 +109,8 @@ export class EpgGuideRowComponent {
     }
 
     onChannelClick(event: MouseEvent): void {
-        if (event.detail < 2) this.gestureStartedOnActive = this.active();
         this.focusRequested.emit(null);
-        this.channelActivated.emit();
+        this.activateGesture(event);
     }
 
     onBlockClick(
@@ -121,8 +120,7 @@ export class EpgGuideRowComponent {
     ): void {
         this.focusRequested.emit(index);
         if (item.block.when === 'now') {
-            if (event.detail < 2) this.gestureStartedOnActive = this.active();
-            this.channelActivated.emit();
+            this.activateGesture(event);
         } else {
             this.detailsRequested.emit(item);
         }
@@ -137,6 +135,12 @@ export class EpgGuideRowComponent {
     commitGesture(): void {
         this.channelCommitted.emit(this.gestureStartedOnActive);
         this.gestureStartedOnActive = false;
+    }
+
+    private activateGesture(event: MouseEvent): void {
+        if (event.detail > 1) return;
+        this.gestureStartedOnActive = this.active();
+        this.channelActivated.emit();
     }
 
     onWatchClick(event: Event, item: TimelineRenderBlock): void {

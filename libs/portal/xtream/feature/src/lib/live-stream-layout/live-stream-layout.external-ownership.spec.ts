@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import { XtreamUrlService } from '@iptvnator/portal/xtream/data-access';
 import { LiveStreamLayoutComponent } from './live-stream-layout.component';
 import { setupLiveStreamLayoutNativeFixture } from './live-stream-layout-native.test-fixture';
@@ -24,6 +25,30 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
     } = setupLiveStreamLayoutNativeFixture();
 
     afterEach(restoreElectron);
+
+    it('defers live history under the exact native launch sent to the player', () => {
+        const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
+        const component = fixture.componentInstance;
+        const first = { ...sampleChannel, category_id: 1 };
+        const second = { ...first, xtream_id: first.xtream_id + 1 };
+        portalPlayer.isEmbeddedPlayer.set(false);
+        fixture.detectChanges();
+        component.playLive(first, true);
+        component.playLive(second, true);
+        const [original, replacement] = xtreamStore.openPlayer.mock.calls;
+        expect(original[0]).toBe(replacement[0]);
+        expect(original[5]).toEqual(expect.any(String));
+        expect(replacement[5]).not.toBe(original[5]);
+
+        const gate = TestBed.inject(PlaybackHistoryGate);
+        gate.confirm({ streamUrls: [original[0]] });
+        expect(xtreamStore.addRecentItem).not.toHaveBeenCalled();
+        gate.confirm({ launchId: original[5], streamUrls: [original[0]] });
+        expect(xtreamStore.addRecentItem).toHaveBeenCalledTimes(1);
+        expect(xtreamStore.addRecentItem).toHaveBeenCalledWith(
+            expect.objectContaining({ xtreamId: first.xtream_id })
+        );
+    });
 
     it.each([true, false])(
         'switches EPG copies without restarting playback (embedded: %s)',

@@ -184,17 +184,15 @@ describe('EpgGuideComponent', () => {
         const close = jest.fn();
         component.close.subscribe(close);
         activate.mockImplementation((id: string) => activeChannelId.set(id));
-        component.activateRow(component.rows()[2]);
+        component.pointerRow(component.rows()[2]);
         expect(activate).toHaveBeenCalledWith(
             'c',
             component.rows()[2].epgKey,
             component.rows()
         );
         expect(close).not.toHaveBeenCalled();
-        // click, click, dblclick: the second click and the commit must not
-        // restart the stream that is already playing.
-        component.activateRow(component.rows()[2]);
-        component.commitRow(component.rows()[2]);
+        // The row reports the first click and then the double-click commit.
+        component.pointerRow(component.rows()[2], false);
         expect(activate).toHaveBeenCalledTimes(1);
         expect(close).toHaveBeenCalledTimes(1);
         // Enter plays the active row ('c' by now): it is already playing, so
@@ -219,6 +217,31 @@ describe('EpgGuideComponent', () => {
                 activate.mock.lastCall as unknown[]
             )[3] as () => void;
             confirm();
+            expect(close).toHaveBeenCalledTimes(1);
+        }
+    );
+
+    it.each([false, true])(
+        'uses the same tune for double-click, including when it confirms early (%s)',
+        async (early) => {
+            await settle(fixture);
+            const close = jest.fn();
+            component.close.subscribe(close);
+            const source = fixture.debugElement.injector.get(EPG_GUIDE_SOURCE);
+            Object.assign(source, { closeOnPlaybackConfirmation: true });
+            const row = component.rows()[2];
+            component.pointerRow(row);
+            const confirm = (
+                activate.mock.lastCall as unknown[]
+            )[3] as () => void;
+            if (early) confirm();
+            expect(close).not.toHaveBeenCalled();
+            component.pointerRow(row, false);
+            expect(activate).toHaveBeenCalledTimes(1);
+            if (!early) {
+                expect(close).not.toHaveBeenCalled();
+                confirm();
+            }
             expect(close).toHaveBeenCalledTimes(1);
         }
     );

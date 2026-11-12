@@ -130,6 +130,7 @@ export function setupLiveStreamLayoutNativeFixture() {
         selectItemsFromSelectedCategory: jest.fn(() => []),
         constructStreamUrl: jest.fn(() => 'https://example.com/live.ts'),
         openPlayer: jest.fn(),
+        addRecentItem: jest.fn(),
         setSelectedItem: jest.fn(),
         loadEpg: jest.fn(),
         setSelectedCategory: jest.fn(),
@@ -166,6 +167,7 @@ export function setupLiveStreamLayoutNativeFixture() {
         publishExternalSession(null);
         emptyList.set([]);
         xtreamStore.openPlayer.mockReset();
+        xtreamStore.addRecentItem.mockClear();
         xtreamStore.setSelectedItem.mockClear();
         xtreamStore.loadEpg.mockClear();
 
