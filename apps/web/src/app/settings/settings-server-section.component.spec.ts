@@ -461,7 +461,7 @@ describe('source server settings', () => {
                 ...activeConnection,
                 hasToken: true,
             }),
-        } as typeof window.electron;
+        } as unknown as typeof window.electron;
         const disconnected = createDisconnectedSettings();
         const component = disconnected.componentInstance;
 
@@ -512,7 +512,7 @@ describe('source server settings', () => {
                 hasToken: true,
             }),
             sourceSyncForget: forget,
-        } as typeof window.electron;
+        } as unknown as typeof window.electron;
         const { componentInstance: component } = createDisconnectedSettings();
         component.urlControl.setValue('https://other.test/api');
         component.token = 'new-token';
