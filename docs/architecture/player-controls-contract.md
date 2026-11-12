@@ -636,6 +636,14 @@ the panel the moment the last group disappears.
 - **Colors** follow the color-as-state rule of the dock: cyan means "on",
   violet means "changed", and neutral rows/items read as the default.
 
+### Second-stream action
+
+The frame-copy host opts into `canAddSecondStream` and handles
+`secondStreamRequested` to open its channel picker. The icon-only action sits
+left of Stream info in the shared upper-right chrome, with the same tooltip,
+focus, contrast and auto-hide behavior. It is absent when a second stream is
+already active; other engines leave the input disabled.
+
 ### Stream info popover
 
 An `info` button in the **top-right corner** of the overlay opens a popover with

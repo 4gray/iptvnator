@@ -223,7 +223,7 @@
     text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
 }
 
-// Top-right corner chrome (stream-info button). It fades with the dock
+// Top-right corner chrome (second-stream and stream-info buttons). It fades with the dock
 // but is its own layer: the title scrim above it is click-through, so the
 // button opts back into pointer events on its own.
 .player-controls__corner {

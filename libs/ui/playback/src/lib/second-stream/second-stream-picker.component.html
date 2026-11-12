@@ -1,0 +1,154 @@
+<section
+    class="picker"
+    role="dialog"
+    aria-modal="true"
+    [attr.aria-label]="'TWO_STREAMS.PICK_CHANNEL' | translate"
+    cdkTrapFocus
+    [cdkTrapFocusAutoCapture]="true"
+    (keydown.escape)="dismissed.emit(); $event.stopPropagation()"
+>
+    <header>
+        <div>
+            <h2>{{ 'TWO_STREAMS.PICK_CHANNEL' | translate }}</h2>
+            <p>
+                {{
+                    (returningToOriginal()
+                        ? 'TWO_STREAMS.REPLACE_SWAPPED_HINT'
+                        : 'TWO_STREAMS.PICK_HINT'
+                    ) | translate
+                }}
+            </p>
+        </div>
+        <button
+            mat-icon-button
+            type="button"
+            (click)="dismissed.emit()"
+            [attr.aria-label]="'TWO_STREAMS.CANCEL' | translate"
+        >
+            <mat-icon>close</mat-icon>
+        </button>
+    </header>
+    <div class="picker__filters">
+        <label
+            >{{ 'TWO_STREAMS.SOURCE' | translate }}
+            <select
+                [ngModel]="source()"
+                (ngModelChange)="changeSource($event)"
+                [attr.aria-label]="'TWO_STREAMS.SOURCE' | translate"
+            >
+                <option value="">
+                    {{ 'TWO_STREAMS.FAVORITES' | translate }}
+                </option>
+                @for (entry of sources(); track entry.id) {
+                    <option [value]="entry.id">{{ entry.name }}</option>
+                }
+            </select>
+        </label>
+        <label class="picker__search"
+            ><mat-icon>search</mat-icon
+            ><input
+                cdkFocusInitial
+                type="search"
+                [ngModel]="search()"
+                (ngModelChange)="search.set($event)"
+                [placeholder]="'TWO_STREAMS.SEARCH' | translate"
+                [attr.aria-label]="'TWO_STREAMS.SEARCH' | translate"
+        /></label>
+    </div>
+    @if (loading()) {
+        <p class="picker__state" role="status">
+            {{ 'TWO_STREAMS.LOADING' | translate }}
+        </p>
+    } @else if (error() === 'load') {
+        <div class="picker__state" role="alert">
+            <p>{{ 'TWO_STREAMS.LOAD_ERROR' | translate }}</p>
+            <button mat-button (click)="reload()">
+                {{ 'TWO_STREAMS.RETRY' | translate }}
+            </button>
+        </div>
+    } @else if (!data().channels.length && !data().groups.length) {
+        <p class="picker__state">
+            {{
+                (source()
+                    ? 'TWO_STREAMS.EMPTY_SOURCE'
+                    : 'TWO_STREAMS.EMPTY_FAVORITES'
+                ) | translate
+            }}
+        </p>
+    } @else {
+        <div class="picker__body">
+            <nav
+                class="picker__groups"
+                [attr.aria-label]="'TWO_STREAMS.GROUPS' | translate"
+            >
+                <button
+                    type="button"
+                    [attr.aria-pressed]="group() === null"
+                    (click)="selectGroup(null)"
+                >
+                    <mat-icon>list</mat-icon
+                    ><span>{{ 'TWO_STREAMS.ALL_CHANNELS' | translate }}</span>
+                </button>
+                @for (entry of data().groups; track entry.id) {
+                    <button
+                        type="button"
+                        [attr.aria-pressed]="group() === entry.id"
+                        (click)="selectGroup(entry.id)"
+                    >
+                        <span>{{
+                            entry.name || ('TWO_STREAMS.UNGROUPED' | translate)
+                        }}</span>
+                    </button>
+                }
+            </nav>
+            <div
+                class="picker__channels"
+                [attr.aria-busy]="resolving() !== null"
+            >
+                @if (groupLoading()) {
+                    <p class="picker__state" role="status">
+                        {{ 'TWO_STREAMS.LOADING' | translate }}
+                    </p>
+                } @else if (error() === 'group') {
+                    <div class="picker__state" role="alert">
+                        <p>{{ 'TWO_STREAMS.LOAD_ERROR' | translate }}</p>
+                        <button mat-button (click)="selectGroup(group())">
+                            {{ 'TWO_STREAMS.RETRY' | translate }}
+                        </button>
+                    </div>
+                } @else {
+                    @for (row of visible(); track row.item.uid) {
+                        <app-channel-list-item
+                            [name]="row.item.name"
+                            [logo]="row.item.logo"
+                            [showEpg]="false"
+                            [showProgramInfoButton]="false"
+                            [disabled]="resolving() !== null"
+                            [selected]="resolving() === row.item.uid"
+                            (clicked)="choose(row)"
+                            (keyboardActivated)="choose(row)"
+                        />
+                    } @empty {
+                        <p class="picker__state">
+                            {{ 'TWO_STREAMS.NO_MATCHES' | translate }}
+                        </p>
+                    }
+                    @if (filtered().length > limit()) {
+                        <button mat-button (click)="limit.set(limit() + 100)">
+                            {{ 'TWO_STREAMS.MORE' | translate }}
+                        </button>
+                    }
+                }
+            </div>
+        </div>
+    }
+    <footer aria-live="polite">
+        @if (error() === 'play') {
+            <span role="alert">{{ 'TWO_STREAMS.PLAY_ERROR' | translate }}</span>
+        } @else if (resolving()) {
+            {{ 'TWO_STREAMS.OPENING' | translate }}
+        } @else {
+            {{ 'TWO_STREAMS.CONNECTION_HINT' | translate }}
+        }
+    </footer>
+</section>
