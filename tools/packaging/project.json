@@ -23,7 +23,7 @@
                 "{workspaceRoot}/apps/electron-backend/project.json",
                 "{workspaceRoot}/apps/electron-backend/native/src/embedded_mpv_win32.cc",
                 "{workspaceRoot}/apps/electron-backend/src/app/options/maker.options.json",
-                "^production",
+                "{workspaceRoot}/tools/testing/electron/**/*",
                 "{workspaceRoot}/tools/packaging/generate-electron-builder-metadata.mjs",
                 "{workspaceRoot}/tools/packaging/asar-dependency-closure.mjs",
                 "{workspaceRoot}/tools/packaging/asar-dependency-closure.test.mjs",
