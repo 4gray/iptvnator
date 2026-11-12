@@ -41,6 +41,31 @@ export interface SavedSourceServerConnection extends SourceServerConnection {
     hasToken: boolean;
 }
 
+export function isTmdbTransferCapability(value: unknown): value is string {
+    return typeof value === 'string' && /^[A-Za-z0-9_-]{32}$/.test(value);
+}
+
+export function isTmdbTransferKey(value: unknown): value is string {
+    return (
+        typeof value === 'string' &&
+        value.length > 0 &&
+        value.length <= 2048 &&
+        !/[^!-~]/.test(value)
+    );
+}
+
+// The shared trace redactor recognizes credential fields ending in Token.
+export type TmdbTransferRequest =
+    | { action: 'start' }
+    | { action: 'check' | 'status' | 'claim' | 'cancel'; transferToken: string }
+    | { action: 'send'; transferToken: string; apiKey: string };
+
+export interface TmdbTransferSession {
+    senderToken: string;
+    receiverToken: string;
+    expiresInMs: number;
+}
+
 /** Narrow IPC surface; paths and arbitrary headers are never caller-supplied. */
 export interface SourceServerRequest {
     operation:
@@ -60,7 +85,12 @@ export interface SourceServerRequest {
         | 'favorites-context'
         | 'favorites-list'
         | 'favorites-read'
-        | 'favorites-apply';
+        | 'favorites-apply'
+        | 'tmdb-transfer';
+    tmdbTransfer?: {
+        connection: SourceServerConnection;
+        request: TmdbTransferRequest;
+    };
     favorite?: {
         address: import('./favorites-sync/favorites-sync.contract').FavoriteAddress;
         operation?: import('./favorites-sync/favorites-sync.contract').FavoriteOperation;

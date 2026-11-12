@@ -19,6 +19,8 @@ export function sourceRequestRoute(request: SourceServerRequest): {
 } {
     const id = encodeURIComponent(request.id ?? '');
     switch (request.operation) {
+        case 'tmdb-transfer':
+            return { path: '/v1/tmdb-transfer', method: 'POST' };
         case 'instance':
             return { path: '/v1/instance', method: 'GET' };
         case 'list':
@@ -74,6 +76,11 @@ export async function requestSourceServer(
             },
         };
     const connection = sourceConnection();
+    if (
+        request.operation === 'tmdb-transfer' &&
+        request.tmdbTransfer?.connection !== connection
+    )
+        return { status: 409, body: { code: 'instance_changed' } };
     if (window.electron?.sourceSyncRequest) {
         try {
             const response = await window.electron.sourceSyncRequest(request);
@@ -123,6 +130,13 @@ export async function requestSourceServer(
     const url = `${connection.apiUrl}${route.path}`;
     if (request.operation !== 'instance') assertSourceRequestAllowed(url);
     let discoveryRefusal: number | undefined;
+    const payload =
+        request.operation === 'tmdb-transfer'
+            ? request.tmdbTransfer?.request
+            : (request.history ??
+              request.favorite ??
+              request.activity ??
+              request.source);
     try {
         const response = await fetch(url, {
             method: route.method,
@@ -149,19 +163,7 @@ export async function requestSourceServer(
                       }
                     : {}),
             },
-            ...((request.history ??
-            request.favorite ??
-            request.activity ??
-            request.source)
-                ? {
-                      body: JSON.stringify(
-                          request.history ??
-                              request.favorite ??
-                              request.activity ??
-                              request.source
-                      ),
-                  }
-                : {}),
+            ...(payload ? { body: JSON.stringify(payload) } : {}),
         });
         // These routes are server-owned; JSON 5xx responses are outages too.
         if (response.status >= 500) throw new Error('SOURCE_SYNC.OFFLINE');
@@ -171,7 +173,9 @@ export async function requestSourceServer(
             rejectSourceInstance(409, connection);
         const body =
             response.status === 304 ||
-            (request.operation === 'instance' && response.status === 404)
+            (response.status === 404 &&
+                (request.operation === 'instance' ||
+                    request.operation === 'tmdb-transfer'))
                 ? undefined
                 : await response.json().catch((error) => {
                       if (request.operation === 'instance') {

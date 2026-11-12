@@ -3,13 +3,11 @@ import {
     epgSourceUrlsChanged,
     normalizeEpgSourceUrls,
 } from './epg-source-settings.service';
-import {
-    coerceProvidedDefaultOnSettings,
-    resolveDefaultOnSettings,
-} from './settings-opt-out.util';
-import { computed, inject } from '@angular/core';
+import { resolveDefaultOnSettings } from './settings-opt-out.util';
+import { computed, DestroyRef, inject } from '@angular/core';
 import { EpgPreferencesService } from './epg-preferences.service';
 import {
+    getState,
     patchState,
     signalStore,
     withComputed,
@@ -20,32 +18,26 @@ import {
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { firstValueFrom } from 'rxjs';
 import {
-    DEFAULT_DASHBOARD_RAILS_SETTINGS,
     DEFAULT_TMDB_SETTINGS,
     ElectronBridgeTrustOptions,
     EpgViewMode,
-    Language,
     Settings,
-    StartupBehavior,
     STORE_KEY,
-    StreamFormat,
-    Theme,
     VideoPlayer,
-    normalizeAppUpdateChannel,
     normalizeAppLanguage,
     normalizeTheme,
     normalizeEpgOffsetMinutes,
     normalizeDashboardRailsSettings,
     normalizeParentalLockRelockMinutes,
-    normalizeStartupWindowMode,
-    DEFAULT_PARENTAL_LOCK_RELOCK_MINUTES,
 } from '@iptvnator/shared/interfaces';
 
 import {
     DEFAULT_SETTINGS,
-    scheduleEmbeddedMpvPrepare,
+    normalizeSettingsPatch,
+    notifyTmdbKeyChange,
     SettingsStorageState,
-    verifySavedEmbeddedMpvPlayer,
+    snapshotSettings,
+    TMDB_KEY_CHANGE,
 } from './settings-store.defaults';
 
 export type { SettingsStorageFailure } from './settings-store.defaults';
@@ -53,7 +45,10 @@ export type { SettingsStorageFailure } from './settings-store.defaults';
 export const SettingsStore = signalStore(
     { providedIn: 'root' },
     withState<Settings>(DEFAULT_SETTINGS),
-    withState<SettingsStorageState>({ storageFailure: null }),
+    withState<SettingsStorageState>({
+        storageFailure: null,
+        savedTmdbApiKey: undefined,
+    }),
     withComputed((store) => ({
         /**
          * Live EPG panel layout with the `'timeline'` default applied — the
@@ -71,6 +66,7 @@ export const SettingsStore = signalStore(
         const epgSources = inject(EpgSourceSettingsService);
         const epgPreferences = inject(EpgPreferencesService);
         let settingsLoadPromise: Promise<void> | undefined;
+        let tmdbKeyRevision = 0;
         let epgSaveRevision = 0;
         let committedEpgUrls: Settings['epgUrl'];
 
@@ -155,53 +151,32 @@ export const SettingsStore = signalStore(
                 const previousEpgUrls = store.epgUrl();
                 const previousEpgEnabled = store.epgEnabled?.();
                 patchState(store, {
-                    ...settings,
-                    ...('theme' in settings
-                        ? { theme: normalizeTheme(settings.theme) }
-                        : {}),
-                    ...(settings.language !== undefined
-                        ? { language: normalizeAppLanguage(settings.language) }
-                        : {}),
-                    ...coerceProvidedDefaultOnSettings(settings),
-                    ...(settings.dashboardRails !== undefined
-                        ? {
-                              dashboardRails: normalizeDashboardRailsSettings(
-                                  settings.dashboardRails
-                              ),
-                          }
-                        : {}),
-                    ...(settings.epgOffsetMinutes !== undefined
-                        ? {
-                              epgOffsetMinutes: normalizeEpgOffsetMinutes(
-                                  settings.epgOffsetMinutes
-                              ),
-                          }
-                        : {}),
-                    ...(settings.parentalLockEnabled !== undefined
-                        ? {
-                              parentalLockEnabled:
-                                  settings.parentalLockEnabled === true,
-                          }
-                        : {}),
-                    ...(settings.parentalLockRelockMinutes !== undefined
-                        ? {
-                              parentalLockRelockMinutes:
-                                  normalizeParentalLockRelockMinutes(
-                                      settings.parentalLockRelockMinutes
-                                  ),
-                          }
-                        : {}),
+                    ...normalizeSettingsPatch(settings),
+                    ...(settings.tmdb && {
+                        tmdb: { ...store.tmdb?.(), ...settings.tmdb },
+                    }),
                 });
                 // Save the complete settings object, not just the partial update
                 const completeSettings = this.getSettings();
                 try {
-                    await firstValueFrom(
-                        storage.set(STORE_KEY.Settings, completeSettings)
-                    );
-                    patchState(store, { storageFailure: null });
-                    if (completeSettings.player === VideoPlayer.EmbeddedMpv) {
-                        scheduleEmbeddedMpvPrepare();
+                    const preserveTmdbKey = settings.tmdb?.apiKey === undefined;
+                    let apiKey = completeSettings.tmdb?.apiKey ?? '';
+                    if (storage.backingEngine === 'indexedDB') {
+                        const { writeSettings } =
+                            await import('./settings-storage');
+                        apiKey = await writeSettings(
+                            storage,
+                            completeSettings,
+                            preserveTmdbKey
+                        );
+                    } else {
+                        await firstValueFrom(
+                            storage.set(STORE_KEY.Settings, completeSettings)
+                        );
                     }
+                    this.applySavedTmdbKey(apiKey);
+                    if (!preserveTmdbKey) notifyTmdbKeyChange();
+                    patchState(store, { storageFailure: null });
                 } catch (error) {
                     console.error('Failed to save settings:', error);
                     // The in-memory patch above already applied, so without
@@ -212,6 +187,11 @@ export const SettingsStore = signalStore(
                         epgEnabled: previousEpgEnabled,
                     });
                     throw error;
+                }
+                if (completeSettings.player === VideoPlayer.EmbeddedMpv) {
+                    const { scheduleEmbeddedMpvPrepare } =
+                        await import('./settings-store.embedded-mpv');
+                    scheduleEmbeddedMpvPrepare();
                 }
                 // Failed writes cannot retire an earlier committed preference.
                 const epgSave = ++epgSaveRevision;
@@ -231,103 +211,48 @@ export const SettingsStore = signalStore(
                     await epgPreferences.apply(true);
             },
 
+            applySavedTmdbKey(apiKey: string): void {
+                tmdbKeyRevision++;
+                patchState(store, {
+                    savedTmdbApiKey: apiKey,
+                    tmdb: {
+                        ...(store.tmdb?.() ?? DEFAULT_TMDB_SETTINGS),
+                        apiKey,
+                    },
+                });
+            },
+
+            async refreshSavedTmdbKey(): Promise<void> {
+                const revision = ++tmdbKeyRevision;
+                const saved = (await firstValueFrom(
+                    storage.get(STORE_KEY.Settings)
+                )) as Partial<Settings> | undefined;
+                const key = saved?.tmdb?.apiKey;
+                if (revision === tmdbKeyRevision)
+                    this.applySavedTmdbKey(typeof key === 'string' ? key : '');
+            },
+
+            async saveTransferredTmdbKey(
+                apiKey: string,
+                expectedKey: string,
+                isCurrent: () => boolean
+            ): Promise<boolean> {
+                const { writeTransferredTmdbKey } =
+                    await import('./settings-storage');
+                const saved = await writeTransferredTmdbKey(
+                    storage,
+                    apiKey,
+                    expectedKey,
+                    isCurrent
+                );
+                if (saved) this.applySavedTmdbKey(apiKey);
+                else if (isCurrent())
+                    await this.refreshSavedTmdbKey().catch(() => undefined);
+                return saved;
+            },
+
             getSettings() {
-                return {
-                    player: store.player(),
-                    webPlayerSharedControls:
-                        store.webPlayerSharedControls?.() !== false,
-                    playerAmbientMode:
-                        store.playerAmbientMode?.() ??
-                        DEFAULT_SETTINGS.playerAmbientMode,
-                    detailTrailerBackdrop:
-                        store.detailTrailerBackdrop?.() ??
-                        DEFAULT_SETTINGS.detailTrailerBackdrop,
-                    playerUpNextRail:
-                        store.playerUpNextRail?.() ??
-                        DEFAULT_SETTINGS.playerUpNextRail,
-                    playerUpNextCard:
-                        store.playerUpNextCard?.() ??
-                        DEFAULT_SETTINGS.playerUpNextCard,
-                    fullscreenChannelPanel:
-                        store.fullscreenChannelPanel?.() ??
-                        DEFAULT_SETTINGS.fullscreenChannelPanel,
-                    vodAutoFailover:
-                        store.vodAutoFailover?.() ??
-                        DEFAULT_SETTINGS.vodAutoFailover,
-                    m3uVodDetails:
-                        store.m3uVodDetails?.() ??
-                        DEFAULT_SETTINGS.m3uVodDetails,
-                    streamFormat: store.streamFormat(),
-                    openStreamOnDoubleClick: store.openStreamOnDoubleClick(),
-                    language: store.language(),
-                    showCaptions: store.showCaptions(),
-                    showDashboard: store.showDashboard(),
-                    startupBehavior: store.startupBehavior(),
-                    startupWindowMode: normalizeStartupWindowMode(
-                        store.startupWindowMode?.()
-                    ),
-                    updateChannel: normalizeAppUpdateChannel(
-                        store.updateChannel?.()
-                    ),
-                    showExternalPlaybackBar:
-                        store.showExternalPlaybackBar?.() ??
-                        DEFAULT_SETTINGS.showExternalPlaybackBar,
-                    stripCountryPrefix:
-                        store.stripCountryPrefix?.() ??
-                        DEFAULT_SETTINGS.stripCountryPrefix,
-                    theme: store.theme(),
-                    mpvPlayerPath: store.mpvPlayerPath(),
-                    mpvPlayerArguments: store.mpvPlayerArguments(),
-                    mpvReuseInstance: store.mpvReuseInstance(),
-                    vlcPlayerPath: store.vlcPlayerPath(),
-                    vlcPlayerArguments: store.vlcPlayerArguments(),
-                    vlcReuseInstance: store.vlcReuseInstance(),
-                    remoteControl: store.remoteControl(),
-                    remoteControlPort: store.remoteControlPort(),
-                    epgEnabled: store.epgEnabled?.() !== false,
-                    epgUrl: store.epgUrl(),
-                    downloadFolder:
-                        store.downloadFolder?.() ??
-                        DEFAULT_SETTINGS.downloadFolder,
-                    recordingFolder:
-                        store.recordingFolder?.() ??
-                        DEFAULT_SETTINGS.recordingFolder,
-                    embeddedMpvFrameCopy:
-                        store.embeddedMpvFrameCopy?.() ?? false,
-                    embeddedMpvExtraOptions:
-                        store.embeddedMpvExtraOptions?.() ?? '',
-                    portalConnectivityGuard:
-                        store.portalConnectivityGuard?.() !== false,
-                    embeddedMpvAutoReconnect:
-                        store.embeddedMpvAutoReconnect?.() !== false,
-                    coverSize:
-                        store.coverSize?.() ?? DEFAULT_SETTINGS.coverSize,
-                    showCoverTitles: store.showCoverTitles?.() !== false,
-                    epgViewMode:
-                        store.epgViewMode?.() ?? DEFAULT_SETTINGS.epgViewMode,
-                    epgOffsetMinutes: normalizeEpgOffsetMinutes(
-                        store.epgOffsetMinutes?.()
-                    ),
-                    dashboardRails: normalizeDashboardRailsSettings(
-                        store.dashboardRails?.()
-                    ),
-                    preferUploadedEpgOverXtream:
-                        store.preferUploadedEpgOverXtream?.() ??
-                        DEFAULT_SETTINGS.preferUploadedEpgOverXtream,
-                    trustedPrivateNetworkEpgUrls:
-                        store.trustedPrivateNetworkEpgUrls?.() ??
-                        DEFAULT_SETTINGS.trustedPrivateNetworkEpgUrls,
-                    trustedInsecureTlsHosts:
-                        store.trustedInsecureTlsHosts?.() ??
-                        DEFAULT_SETTINGS.trustedInsecureTlsHosts,
-                    tmdb: store.tmdb?.() ?? DEFAULT_SETTINGS.tmdb,
-                    ageRatingCountry: store.ageRatingCountry?.() ?? 'auto',
-                    parentalLockEnabled: store.parentalLockEnabled?.() === true,
-                    parentalLockRelockMinutes:
-                        normalizeParentalLockRelockMinutes(
-                            store.parentalLockRelockMinutes?.()
-                        ),
-                };
+                return snapshotSettings(getState(store));
             },
 
             getDownloadFolder() {
@@ -370,6 +295,9 @@ export const SettingsStore = signalStore(
                 const isSaved = () =>
                     store.player() === VideoPlayer.EmbeddedMpv;
                 if (isSaved()) {
+                    const { verifySavedEmbeddedMpvPlayer } =
+                        await import('./settings-store.embedded-mpv');
+                    if (!isSaved()) return;
                     await verifySavedEmbeddedMpvPlayer(isSaved, () =>
                         this.updateSettings({
                             player: DEFAULT_SETTINGS.player,
@@ -382,6 +310,14 @@ export const SettingsStore = signalStore(
     withHooks({
         onInit(store) {
             store.loadSettings();
+            const refresh = (event: StorageEvent) => {
+                if (event.key === TMDB_KEY_CHANGE && event.newValue !== null)
+                    void store.refreshSavedTmdbKey().catch(() => undefined);
+            };
+            globalThis.addEventListener?.('storage', refresh);
+            inject(DestroyRef).onDestroy(() =>
+                globalThis.removeEventListener?.('storage', refresh)
+            );
         },
     })
 );

@@ -33,6 +33,8 @@ import { SourceServerTransport } from './source-server-transport';
 function route(request: SourceServerRequest): { path: string; method: string } {
     const id = encodeURIComponent(request.id ?? '');
     switch (request.operation) {
+        case 'tmdb-transfer':
+            return { path: '/v1/tmdb-transfer', method: 'POST' };
         case 'instance':
             return { path: '/v1/instance', method: 'GET' };
         case 'list':
@@ -86,6 +88,13 @@ export async function sourceServerRequest(
 ): Promise<SourceServerResponse> {
     const target = route(request);
     if (request.source) validateSource(request.source);
+    const body =
+        request.operation === 'tmdb-transfer'
+            ? request.tmdbTransfer?.request
+            : (request.history ??
+              request.favorite ??
+              request.activity ??
+              request.source);
     try {
         const response = await requestWithValidatedRedirects(
             `${apiUrl}${target.path}`,
@@ -104,12 +113,7 @@ export async function sourceServerRequest(
                     ...(token && request.operation !== 'instance'
                         ? { Authorization: `Bearer ${token}` }
                         : {}),
-                    ...((request.history ??
-                    request.favorite ??
-                    request.activity ??
-                    request.source)
-                        ? { 'Content-Type': 'application/json' }
-                        : {}),
+                    ...(body ? { 'Content-Type': 'application/json' } : {}),
                     ...(request.operation === 'create'
                         ? { 'If-None-Match': '*' }
                         : {}),
@@ -121,11 +125,7 @@ export async function sourceServerRequest(
                           }
                         : {}),
                 },
-                data:
-                    request.history ??
-                    request.favorite ??
-                    request.activity ??
-                    request.source,
+                data: body,
             },
             {
                 allowPrivateNetworks: true,
@@ -180,6 +180,14 @@ export function registerSourceSyncEvents(
         async (_event, request: SourceServerRequest) => {
             const config = readSourceServerConfig();
             if (!config) throw new Error('SOURCE_SYNC.OFFLINE');
+            if (request.operation === 'tmdb-transfer') {
+                const expected = request.tmdbTransfer?.connection;
+                if (
+                    expected?.apiUrl !== config.apiUrl ||
+                    expected.instanceId !== config.instanceId
+                )
+                    return { status: 409, body: { code: 'instance_changed' } };
+            }
             return transport.execute(config, request, () =>
                 sourceServerToken(config)
             );
