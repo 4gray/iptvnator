@@ -114,7 +114,6 @@ import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 import { injectXtreamRecentHistory } from '../xtream-recent-history';
 
 import {
-    replaceXtreamQueuedCopy,
     sameXtreamChannelCopy,
     XtreamLiveChannelNavigationService,
     type XtreamLiveChannelItem,
@@ -122,7 +121,11 @@ import {
 
 import { XtreamEpgGuideSourceService } from './xtream-epg-guide-source.service';
 import { XtreamLiveGuideService } from './xtream-live-guide.service';
-import { isXtreamLiveCategoryWithheld } from './xtream-external-live-sessions.service';
+import {
+    isXtreamLiveCategoryWithheld,
+    sameXtreamLiveOwner,
+    type XtreamLiveOwner,
+} from './xtream-external-live-sessions.service';
 import { XtreamGuideExternalPlayback } from './xtream-guide-external-playback.service';
 import { scheduleKey } from './xtream-guide-schedules';
 import { toSharedEpgProgram } from '../portal-channels-list/epg-preview-program';
@@ -904,10 +907,10 @@ export class LiveStreamLayoutComponent
         onConfirmed?: () => void
     ): void {
         const requestId = ++this.playbackRequestId;
-        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        const owner = this.externalGuide.owner();
         if (
             startPlayback &&
-            playlistId &&
+            owner &&
             !this.usesEmbeddedPlayer() &&
             this.externalGuide.hasSessionUpdates
         ) {
@@ -916,8 +919,8 @@ export class LiveStreamLayoutComponent
                 this.guide.isOpen() && !!this.externalGuide.confirmed();
             const start = (resolved: typeof category) => {
                 if (
-                    !this.isCurrentPlaybackRequest(requestId, playlistId) ||
-                    this.isLiveCategoryWithheld(playlistId, resolved)
+                    !this.isCurrentPlaybackRequest(requestId, owner) ||
+                    this.isLiveCategoryWithheld(owner.playlistId, resolved)
                 )
                     return;
                 this.applyLivePlayback(
@@ -931,9 +934,10 @@ export class LiveStreamLayoutComponent
                 );
             };
             if (category === 'unknown')
-                void this.lookupLiveProviderCategoryId(playlistId, item).then(
-                    start
-                );
+                void this.lookupLiveProviderCategoryId(
+                    owner.playlistId,
+                    item
+                ).then(start);
             else start(category);
             return;
         }
@@ -1263,14 +1267,17 @@ export class LiveStreamLayoutComponent
         // Not in the visible list — a hidden category (search can play its
         // channels). Resolve through the unfiltered rows; until that lands
         // the id is unknown and a relock stops the channel.
-        const playlistId = this.xtreamStore.currentPlaylist()?.id;
-        if (playlistId) {
-            void this.lookupLiveProviderCategoryId(playlistId, item).then(
+        const owner = this.externalGuide.owner();
+        if (owner) {
+            void this.lookupLiveProviderCategoryId(owner.playlistId, item).then(
                 (resolved) => {
                     if (
                         resolved === 'unknown' ||
                         generation !== this.liveCategoryLookupGeneration ||
-                        this.xtreamStore.currentPlaylist()?.id !== playlistId ||
+                        !sameXtreamLiveOwner(
+                            owner,
+                            this.externalGuide.owner()
+                        ) ||
                         this.activeLiveItemId() !== item.xtream_id
                     ) {
                         return;
@@ -1308,11 +1315,11 @@ export class LiveStreamLayoutComponent
 
     private isCurrentPlaybackRequest(
         requestId: number,
-        playlistId: string
+        owner: XtreamLiveOwner | undefined
     ): boolean {
         return (
             requestId === this.playbackRequestId &&
-            this.xtreamStore.currentPlaylist()?.id === playlistId
+            sameXtreamLiveOwner(owner, this.externalGuide.owner())
         );
     }
 
@@ -1328,6 +1335,7 @@ export class LiveStreamLayoutComponent
         item: XtreamLiveChannelItem
     ): Promise<void> {
         const playlist = this.xtreamStore.currentPlaylist();
+        const owner = this.externalGuide.owner();
         if (!playlist) {
             return;
         }
@@ -1366,7 +1374,7 @@ export class LiveStreamLayoutComponent
                 ? await this.lookupLiveProviderCategoryId(playlist.id, item)
                 : category;
         if (
-            !this.isCurrentPlaybackRequest(requestId, playlist.id) ||
+            !this.isCurrentPlaybackRequest(requestId, owner) ||
             (external && this.isLiveCategoryWithheld(playlist.id, resolved))
         )
             return;
@@ -1390,7 +1398,7 @@ export class LiveStreamLayoutComponent
             playlist.serverTimezone
         );
         if (
-            !this.isCurrentPlaybackRequest(requestId, playlist.id) ||
+            !this.isCurrentPlaybackRequest(requestId, owner) ||
             this.activeLiveItemId() !== item.xtream_id ||
             (external && this.isLiveCategoryWithheld(playlist.id, resolved))
         ) {
@@ -1437,13 +1445,7 @@ export class LiveStreamLayoutComponent
     private switchGuideChannelCopy(item: XtreamLiveChannelItem): void {
         if (this.usesEmbeddedPlayer()) {
             this.selectGuideLiveItem(item);
-            this.channelNavigation.capture(
-                item,
-                replaceXtreamQueuedCopy(
-                    this.channelNavigation.remoteChannels(),
-                    item
-                )
-            );
+            this.channelNavigation.replacePlayingCopy(item);
             return;
         }
         this.externalGuide.replaceConfirmedCopy(

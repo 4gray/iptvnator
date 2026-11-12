@@ -20,7 +20,7 @@ import type {
 } from '@iptvnator/shared/interfaces';
 import type { XtreamLiveChannelItem } from './xtream-live-channel-navigation.service';
 
-type XtreamLiveOwner = Pick<
+export type XtreamLiveOwner = Pick<
     XtreamPlaylistData,
     'serverUrl' | 'username' | 'password'
 > & {

@@ -245,14 +245,15 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         }
     );
 
-    it.each([false, true])(
-        'resolves hidden categories before external playback (locked: %s)',
-        async (locked) => {
+    it.each(['allowed', 'locked', 'connection edited'] as const)(
+        'resolves hidden categories before external playback (%s)',
+        async (outcome) => {
             runtime.supportsXtreamSqliteDataSource = true;
             portalPlayer.isEmbeddedPlayer.set(false);
             parentalLock.active.set(true);
             parentalLock.isXtreamCategoryLocked.mockImplementation(
-                (_playlist, _type, category) => locked && category === 7
+                (_playlist, _type, category) =>
+                    outcome === 'locked' && category === 7
             );
             let resolve!: (rows: unknown[]) => void;
             databaseService.getAllXtreamCategories.mockReturnValueOnce(
@@ -261,10 +262,15 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             try {
                 component.playLive({ ...sampleChannel, category_id: 99 }, true);
                 expect(xtreamStore.openPlayer).not.toHaveBeenCalled();
+                if (outcome === 'connection edited')
+                    xtreamStore.currentPlaylist.set({
+                        ...playlist,
+                        username: 'synthetic-new-user',
+                    });
                 resolve([{ id: 99, xtream_id: 7 }]);
                 await fixture.whenStable();
                 expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(
-                    locked ? 0 : 1
+                    outcome === 'allowed' ? 1 : 0
                 );
             } finally {
                 runtime.supportsXtreamSqliteDataSource = false;
@@ -609,65 +615,6 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             );
             expect(xtreamStore.loadEpg).not.toHaveBeenCalled();
             expect(closeSession).toHaveBeenCalledTimes(1);
-        }
-    );
-
-    it.each([true, false])(
-        'switches EPG copies without restarting playback (embedded: %s)',
-        (embedded) => {
-            const playing = {
-                ...sampleChannel,
-                category_id: 1,
-                epg_channel_id: 'synthetic.first',
-            };
-            const copy = {
-                ...playing,
-                category_id: 2,
-                epg_channel_id: 'synthetic.copy',
-            };
-            const categories = xtreamStore.getCategoriesBySelectedType();
-            xtreamStore.getCategoriesBySelectedType.set([
-                ...categories,
-                { category_id: 2, category_name: 'Synthetic Copy Group' },
-            ]);
-            try {
-                emptyList.set([playing, copy]);
-                portalPlayer.isEmbeddedPlayer.set(embedded);
-                component.playLive(playing, true);
-                const playback = component.activePlayback()!;
-                if (!embedded)
-                    publishExternalSession({
-                        id: 'synthetic-copy-switch-session',
-                        streamUrl: playback.streamUrl,
-                        title: 'Synthetic Channel',
-                        player: 'mpv',
-                        status: 'playing',
-                        startedAt: '2026-04-04T10:00:00Z',
-                        updatedAt: '2026-04-04T10:00:00Z',
-                        canClose: true,
-                    });
-                component.guide.open();
-                fixture.detectChanges();
-                const source = fixture.debugElement.injector.get(
-                    XtreamEpgGuideSourceService
-                );
-                expect(source.activeChannelId()).toBe('101');
-                source.setScope('2');
-                expect(source.activeChannelId()).toBeNull();
-                source.activate('101');
-                fixture.detectChanges();
-                expect(source.activeChannelId()).toBe('101');
-                expect(source.playingItem()).toBe(copy);
-                expect(component.activePlayback()).toBe(playback);
-                expect(xtreamStore.setSelectedItem).toHaveBeenLastCalledWith(
-                    copy
-                );
-                expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(
-                    embedded ? 0 : 1
-                );
-            } finally {
-                xtreamStore.getCategoriesBySelectedType.set(categories);
-            }
         }
     );
 

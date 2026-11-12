@@ -843,6 +843,7 @@ still playing on the same playlist and provider connection, including a failed
 replacement's survivor or a session displaced from the global dock. A server or
 account change prevents reattachment to the previous connection. Each session
 keeps its own category and queue, even when launches share a stream URL.
+Pending live and archive requests recheck that connection after asynchronous lookups.
 Native lifecycle events carry the requesting launch's identifier so
 unrelated players at the same URL cannot claim that session.
 The queue saved for a same-channel replay is the queue it preserves.
@@ -852,8 +853,9 @@ The guide uses the current playlist's visible, unlocked
 live catalogue and can scope it to a category or resolved live favorites.
 A stream shared by multiple categories appears in each of those scopes and
 once in All Channels. Choosing another copy of a stream already playing
-switches its EPG mapping without restarting playback. If the same stream is
-still opening, the last choice supplies its mapping when it opens. Programme
+switches its EPG mapping without restarting playback and keeps temporarily
+hidden channels in the saved queue. If the stream is still opening, the last
+choice supplies its mapping when it opens. Programme
 details play the copy they describe while it remains available. Remote tuning
 also retains the category copy saved in the queue. Changing the copy of the
 playing channel replaces that entry in the saved queue and preserves its order.

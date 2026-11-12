@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { XtreamUrlService } from '@iptvnator/portal/xtream/data-access';
 import { LiveStreamLayoutComponent } from './live-stream-layout.component';
 import { setupLiveStreamLayoutNativeFixture } from './live-stream-layout-native.test-fixture';
 import {
@@ -7,6 +8,7 @@ import {
     sampleChannel,
 } from './live-stream-layout-stubs.spec-data';
 import { XtreamEpgGuideSourceService } from './xtream-epg-guide-source.service';
+import { XtreamLiveChannelNavigationService } from './xtream-live-channel-navigation.service';
 
 describe('LiveStreamLayoutComponent external playlist ownership', () => {
     const {
@@ -22,6 +24,114 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
     } = setupLiveStreamLayoutNativeFixture();
 
     afterEach(restoreElectron);
+
+    it.each([true, false])(
+        'switches EPG copies without restarting playback (embedded: %s)',
+        (embedded) => {
+            const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
+            const component = fixture.componentInstance;
+            fixture.detectChanges();
+            const playing = {
+                ...sampleChannel,
+                category_id: 1,
+                epg_channel_id: 'synthetic.first',
+            };
+            const copy = {
+                ...playing,
+                category_id: 2,
+                epg_channel_id: 'synthetic.copy',
+            };
+            const hidden = { ...playing, xtream_id: 102, category_id: 3 };
+            const categories = xtreamStore.getCategoriesBySelectedType();
+            const visible = [
+                ...categories,
+                { category_id: 2, category_name: 'Synthetic Copy Group' },
+            ];
+            const all = [
+                ...visible,
+                { category_id: 3, category_name: 'Synthetic Queue Group' },
+            ];
+            xtreamStore.getCategoriesBySelectedType.set(all);
+            try {
+                emptyList.set([playing, copy, hidden]);
+                portalPlayer.isEmbeddedPlayer.set(embedded);
+                component.playLive(playing, true, [playing, hidden]);
+                const playback = component.activePlayback()!;
+                if (!embedded)
+                    publishExternalSession({
+                        id: 'synthetic-copy-switch-session',
+                        streamUrl: playback.streamUrl,
+                        title: 'Synthetic Channel',
+                        player: 'mpv',
+                        status: 'playing',
+                        startedAt: '2026-04-04T10:00:00Z',
+                        updatedAt: '2026-04-04T10:00:00Z',
+                        canClose: true,
+                    });
+                component.guide.open();
+                fixture.detectChanges();
+                const source = fixture.debugElement.injector.get(
+                    XtreamEpgGuideSourceService
+                );
+                const navigation = fixture.debugElement.injector.get(
+                    XtreamLiveChannelNavigationService
+                );
+                xtreamStore.getCategoriesBySelectedType.set(visible);
+                fixture.detectChanges();
+                expect(navigation.remoteChannels()).toEqual([playing]);
+                expect(source.activeChannelId()).toBe('101');
+                source.setScope('2');
+                expect(source.activeChannelId()).toBeNull();
+                source.activate('101');
+                fixture.detectChanges();
+                expect(source.activeChannelId()).toBe('101');
+                expect(source.playingItem()).toBe(copy);
+                expect(component.activePlayback()).toBe(playback);
+                expect(xtreamStore.setSelectedItem).toHaveBeenLastCalledWith(
+                    copy
+                );
+                expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(
+                    embedded ? 0 : 1
+                );
+                xtreamStore.getCategoriesBySelectedType.set(all);
+                expect(navigation.remoteChannels()).toEqual([copy, hidden]);
+            } finally {
+                xtreamStore.getCategoriesBySelectedType.set(categories);
+            }
+        }
+    );
+
+    it('does not launch an archive resolved after editing the connection', async () => {
+        const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
+        const component = fixture.componentInstance;
+        portalPlayer.isEmbeddedPlayer.set(false);
+        epgItems.set([epgItem('Synthetic Archive', 0, 1)]);
+        fixture.detectChanges();
+        component.playLive(sampleChannel, true);
+        const previous = component.activeStreamUrl();
+        const resolveCatchupUrl = jest.mocked(
+            TestBed.inject(XtreamUrlService).resolveCatchupUrl
+        );
+        let resolve!: (url: string) => void;
+        resolveCatchupUrl.mockReturnValueOnce(
+            new Promise((done) => {
+                resolve = done;
+            })
+        );
+        const opening = component.onProgramActivated({
+            type: 'timeshift',
+            program: component.controlledEpgPrograms()[0],
+        });
+        expect(resolveCatchupUrl).toHaveBeenCalled();
+        xtreamStore.currentPlaylist.set({
+            ...playlist,
+            serverUrl: 'https://another.example.test',
+        });
+        resolve('https://example.test/synthetic-archive.ts');
+        await opening;
+        expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(1);
+        expect(component.activeStreamUrl()).toBe(previous);
+    });
 
     it.each([
         { serverUrl: 'https://another.example.test' },

@@ -253,6 +253,11 @@ export class XtreamLiveChannelNavigationService {
         this.playing.set({ owner, item });
     }
 
+    replacePlayingCopy(item: XtreamLiveChannelItem): void {
+        const saved = this.queue.items(this.owner());
+        this.capture(item, replaceXtreamQueuedCopy(saved, item), 'replace');
+    }
+
     queueFor(
         item: XtreamLiveChannelItem,
         items: readonly XtreamLiveChannelItem[],

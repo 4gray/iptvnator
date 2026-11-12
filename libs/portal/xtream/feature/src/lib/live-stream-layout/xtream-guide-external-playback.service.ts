@@ -67,7 +67,7 @@ export class XtreamGuideExternalPlayback {
     private readonly sessions = inject(XtreamExternalLiveSessions);
     private readonly store = inject(XtreamStore);
     private readonly destroyRef = inject(DestroyRef);
-    private readonly owner = computed(() =>
+    readonly owner = computed(() =>
         captureXtreamLiveOwner(this.store.currentPlaylist())
     );
     private readonly pending = signal<GuideLaunch | undefined>(undefined);
