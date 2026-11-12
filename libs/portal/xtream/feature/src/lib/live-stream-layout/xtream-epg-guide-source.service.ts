@@ -284,7 +284,6 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         this.session()?.abort();
         this.session.set(null);
         this.schedules.clear();
-        this.dock.clear();
         this.favorites.set(new Map());
         this.scopeId.set(ALL);
     }

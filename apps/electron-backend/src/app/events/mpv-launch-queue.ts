@@ -40,6 +40,7 @@ export class MpvLaunchQueue {
     private pending: Promise<unknown> | null = null;
     private latest = 0;
     private latestRunnable = 0;
+    private readonly queuedSessions = new Map<number, string>();
     private cancelledThrough = 0;
     private inFlightSessionId: string | null = null;
     private inFlightNumber = 0;
@@ -81,6 +82,7 @@ export class MpvLaunchQueue {
         // Fixed at the first Stop, so a retry never reaches a newer player.
         let stopTargets: string[] | null = null;
         if (previous) {
+            this.queuedSessions.set(number, session.id);
             externalPlayerSessions.attachCloser(
                 session.id,
                 () => {
@@ -90,7 +92,7 @@ export class MpvLaunchQueue {
                     );
                     // A late Stop for an older queued launch only cancels it.
                     stopTargets ??=
-                        number === this.latest
+                        number === this.latestRunnable
                             ? this.stopTargets(session.id)
                             : [];
                     stop = Promise.all(
@@ -102,9 +104,16 @@ export class MpvLaunchQueue {
                 },
                 () => {
                     if (started) return false;
+                    this.queuedSessions.delete(number);
                     if (this.latestRunnable === number)
-                        this.latestRunnable = this.inFlightNumber;
+                        this.latestRunnable =
+                            [...this.queuedSessions.keys()]
+                                .reverse()
+                                .find(
+                                    (queued) => queued > this.cancelledThrough
+                                ) ?? this.inFlightNumber;
                     for (const candidate of [
+                        this.queuedSessions.get(this.latestRunnable),
                         this.inFlightSessionId,
                         this.storedOwnerSessionId(),
                         this.lastStartedSessionId,
@@ -137,7 +146,10 @@ export class MpvLaunchQueue {
             },
             lastStartedSessionId: () => this.lastStartedSessionId,
         };
-        const run = () => launch(queue);
+        const run = () => {
+            this.queuedSessions.delete(number);
+            return launch(queue);
+        };
         // The queue is released before the caller sees the result, so a
         // launch made right after this one settles starts synchronously.
         let settled: Promise<unknown> | null = null;

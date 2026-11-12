@@ -922,6 +922,8 @@ and buffer. Rendered rows and the playing stream's dock revalidate after their
 schedules expire, even if the playing row is outside the current scope. The
 dock follows the playing copy's latest XMLTV identity after a catalog recheck
 and keeps the player panel and remote programme current when the guide closes.
+The last confirmed schedule stays tied to the playing channel, even while
+the panel previews a different channel. Closing the guide cancels its reads.
 Failed rows retry when they return to the viewport. A coverage scan or a dock refresh that
 obtains a schedule also updates the corresponding visible failed row.
 It checks the current scope's coverage only when the user turns on **Only with

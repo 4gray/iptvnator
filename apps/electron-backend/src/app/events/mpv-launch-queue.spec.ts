@@ -158,39 +158,76 @@ describe('MPV launch queue', () => {
         expect(spawnMock).toHaveBeenCalledTimes(1);
     });
 
-    it('cancels only the exact queued launch when its channel is relocked', async () => {
-        const { proc } = await launchReusableSession();
-        const sockets = mockUnansweredSockets();
-        const first = openMpvPlayer({
-            title: 'Synthetic Allowed Channel',
-            url: 'https://example.test/allowed.m3u8',
-        });
-        const allowedId = externalPlayerSessions.getActiveSessionId();
-        const requestId = await writtenRequestId(sockets[0]);
-        const second = openMpvPlayer({
-            title: 'Synthetic Restricted Channel',
-            url: 'https://example.test/restricted.m3u8',
-        });
-        const queuedId = externalPlayerSessions.getActiveSessionId() as string;
-        await expect(
-            externalPlayerSessions.closeSession(queuedId, true)
-        ).resolves.toMatchObject({ id: queuedId, status: 'closed' });
-        expect(externalPlayerSessions.getActiveSessionId()).toBe(allowedId);
-        sockets[0].emit(
-            'data',
-            Buffer.from(
-                JSON.stringify({ request_id: requestId, error: 'success' }) +
-                    '\n'
-            )
-        );
-        await expect(first).resolves.toMatchObject({ status: 'opened' });
-        await expect(second).resolves.toMatchObject({
-            id: queuedId,
-            status: 'closed',
-        });
-        expect(commandsOf(sockets)).toEqual(['loadfile']);
-        expect(proc.kill).not.toHaveBeenCalled();
-    });
+    it.each([false, true])(
+        'cancels only the exact relocked launch and preserves an eligible predecessor (%s)',
+        async (hasQueuedPredecessor) => {
+            const { proc } = await launchReusableSession();
+            const sockets = mockUnansweredSockets();
+            const first = openMpvPlayer({
+                title: 'Synthetic Allowed Channel',
+                url: 'https://example.test/allowed.m3u8',
+            });
+            const allowedId = externalPlayerSessions.getActiveSessionId();
+            const requestId = await writtenRequestId(sockets[0]);
+            const predecessor = hasQueuedPredecessor
+                ? openMpvPlayer({
+                      title: 'Synthetic Queued Channel',
+                      url: 'https://example.test/queued.m3u8',
+                  })
+                : undefined;
+            const survivingId = predecessor
+                ? externalPlayerSessions.getActiveSessionId()
+                : allowedId;
+            const second = openMpvPlayer({
+                title: 'Synthetic Restricted Channel',
+                url: 'https://example.test/restricted.m3u8',
+            });
+            const queuedId =
+                externalPlayerSessions.getActiveSessionId() as string;
+            await expect(
+                externalPlayerSessions.closeSession(queuedId, true)
+            ).resolves.toMatchObject({ id: queuedId, status: 'closed' });
+            expect(externalPlayerSessions.getActiveSessionId()).toBe(
+                survivingId
+            );
+            sockets[0].emit(
+                'data',
+                Buffer.from(
+                    JSON.stringify({
+                        request_id: requestId,
+                        error: 'success',
+                    }) + '\n'
+                )
+            );
+            await expect(first).resolves.toMatchObject({ status: 'opened' });
+            if (predecessor) {
+                await nextTick();
+                expect(sockets).toHaveLength(2);
+                const request = await writtenRequestId(sockets[1]);
+                sockets[1].emit(
+                    'data',
+                    Buffer.from(
+                        JSON.stringify({
+                            request_id: request,
+                            error: 'success',
+                        }) + '\n'
+                    )
+                );
+                await expect(predecessor).resolves.toMatchObject({
+                    id: survivingId,
+                    status: 'opened',
+                });
+            }
+            await expect(second).resolves.toMatchObject({
+                id: queuedId,
+                status: 'closed',
+            });
+            expect(commandsOf(sockets)).toEqual(
+                predecessor ? ['loadfile', 'loadfile'] : ['loadfile']
+            );
+            expect(proc.kill).not.toHaveBeenCalled();
+        }
+    );
 
     it('lets Stop on the newest queued launch cancel every launch queued before it', async () => {
         const { proc } = await launchReusableSession();

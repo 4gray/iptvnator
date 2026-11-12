@@ -1,7 +1,12 @@
 import { TestBed } from '@angular/core/testing';
+import {
+    XtreamApiService,
+    XtreamFullEpgService,
+} from '@iptvnator/portal/xtream/data-access';
 import { LiveStreamLayoutComponent } from './live-stream-layout.component';
 import { setupLiveStreamLayoutNativeFixture } from './live-stream-layout-native.test-fixture';
 import { epgItem, sampleChannel } from './live-stream-layout-stubs.spec-data';
+import { XtreamEpgGuideSourceService } from './xtream-epg-guide-source.service';
 
 describe('Xtream remote playback metadata', () => {
     const {
@@ -16,6 +21,73 @@ describe('Xtream remote playback metadata', () => {
     } = setupLiveStreamLayoutNativeFixture();
 
     afterEach(restoreElectron);
+
+    it('keeps the playing schedule on the remote after closing the guide over another preview', async () => {
+        const now = Math.floor(Date.now() / 1000);
+        const start = new Date((now - 60) * 1000).toISOString();
+        const stop = new Date((now + 60) * 1000).toISOString();
+        const airing = {
+            ...epgItem('Synthetic Playing Programme', 0, 1),
+            start,
+            stop,
+            end: stop,
+            start_timestamp: String(now - 60),
+            stop_timestamp: String(now + 60),
+        };
+        const load = jest.fn(async () => [airing]);
+        TestBed.overrideProvider(XtreamFullEpgService, { useValue: { load } });
+        TestBed.overrideProvider(XtreamApiService, {
+            useValue: { cancelSession: jest.fn() },
+        });
+        const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
+        const component = fixture.componentInstance;
+        const playing = {
+            ...sampleChannel,
+            category_id: 1,
+            name: 'Synthetic Playing',
+        };
+        const preview = {
+            ...playing,
+            xtream_id: playing.xtream_id + 1,
+            name: 'Synthetic Preview',
+        };
+        emptyList.set([playing, preview]);
+        portalPlayer.isEmbeddedPlayer.set(false);
+        fixture.detectChanges();
+        component.playLive(playing, true);
+        publishExternalSession({
+            id: 'synthetic-confirmed',
+            player: 'mpv',
+            status: 'playing',
+            mediaLoaded: true,
+            canClose: true,
+            title: playing.name,
+            streamUrl: component.activeStreamUrl(),
+            startedAt: '2026-04-04T10:00:00Z',
+            updatedAt: '2026-04-04T10:00:00Z',
+        });
+        fixture.detectChanges();
+        component.playLive(preview, false);
+        xtreamStore.selectedItem.set(preview);
+        epgItems.set([{ ...airing, title: 'Synthetic Preview Programme' }]);
+        fixture.detectChanges();
+        component.guide.open();
+        fixture.detectChanges();
+        const source = fixture.debugElement.injector.get(
+            XtreamEpgGuideSourceService
+        );
+        await source.playbackSchedule(playing);
+        fixture.detectChanges();
+        const confirmed = expect.objectContaining({
+            channelName: playing.name,
+            epgTitle: airing.title,
+        });
+        expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(confirmed);
+        component.guide.close();
+        fixture.detectChanges();
+        expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(confirmed);
+        expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(1);
+    });
 
     it('keeps the confirmed remote channel and programme together during an unverified MPV launch', () => {
         const fixture = TestBed.createComponent(LiveStreamLayoutComponent);

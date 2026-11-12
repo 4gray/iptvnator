@@ -76,6 +76,5 @@ export function createXtreamGuideNowPlaying(
                     value,
                 });
         },
-        clear: () => schedule.set(null),
     };
 }

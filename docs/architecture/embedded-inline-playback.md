@@ -1092,7 +1092,8 @@ The playback dock signals explicit Stop before native teardown so Xtream can
 cancel renderer-side tunes waiting for that player. Automatic handoff closes
 do not send this signal.
 Parental relock uses an exact session close. When the session is queued, this
-cancels only that launch and lets an allowed in-flight launch finish. After
+cancels only that launch. The allowed in-flight launch can finish, and the
+newest remaining queued tune can run. After
 the queued launch starts, an exact close waits for its own closer instead of
 invoking the queued Stop handler on another player. Cancelling the active
 queue entry republishes the surviving session so the dock can still stop it.

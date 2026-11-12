@@ -473,6 +473,7 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
                 expect(xtreamStore.openPlayer.mock.lastCall?.[0]).toBe(
                     archiveUrl
                 );
+                expect(component.activeStreamUrl()).toBe(nextUrl);
                 publishExternalSession({
                     ...current,
                     id: 'synthetic-newer-archive',

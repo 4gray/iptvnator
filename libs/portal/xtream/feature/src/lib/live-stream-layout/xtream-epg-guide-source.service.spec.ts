@@ -312,6 +312,11 @@ describe('XtreamEpgGuideSourceService', () => {
         TestBed.flushEffects();
         await service.playbackSchedule(updated);
         expect(service.playingScheduleItems()).toBe(refreshed);
+        service.close();
+        expect(service.playingScheduleItems()).toBe(refreshed);
+        service.setPlayback(two, true);
+        expect(service.playingScheduleItems()).toBeNull();
+        expect(load).toHaveBeenCalledTimes(2);
     });
 
     it('does not replace the playing copy schedule when another category uses a different EPG key', async () => {

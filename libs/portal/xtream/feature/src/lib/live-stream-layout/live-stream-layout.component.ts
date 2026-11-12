@@ -571,7 +571,15 @@ export class LiveStreamLayoutComponent
             this.currentTimeMs(),
             this.epgOffsetMinutes()
         );
-        const schedule = this.guideSource.playingSchedule();
+        const playing = this.guideChannel();
+        const currentCopy = this.guideSource.playingItem();
+        const matchesPlayingCopy =
+            playing &&
+            currentCopy &&
+            sameXtreamChannelCopy(playing, currentCopy);
+        const schedule = matchesPlayingCopy
+            ? this.guideSource.playingSchedule()
+            : null;
         if (schedule)
             return (
                 schedule.find(
@@ -588,18 +596,12 @@ export class LiveStreamLayoutComponent
                 ) ?? null
             );
         const selected = this.selectedLiveItem();
-        const playing = this.guideChannel();
-        const currentCopy = this.guideSource.playingItem();
         if (
             !selected ||
             !playing ||
             !sameXtreamChannelCopy(selected, playing) ||
             scheduleKey(selected) !==
-                scheduleKey(
-                    currentCopy && sameXtreamChannelCopy(playing, currentCopy)
-                        ? currentCopy
-                        : playing
-                )
+                scheduleKey(matchesPlayingCopy ? currentCopy : playing)
         )
             return null;
         const program = findCurrentEpgItem(this.epgItems(), now);
@@ -1520,36 +1522,29 @@ export class LiveStreamLayoutComponent
             return;
         }
 
-        this.activeLiveItemId.set(item.xtream_id);
-        this.activeLiveProviderCategoryId = this.resolveLiveProviderCategoryId(
-            item,
-            resolved
-        );
-        this.activePlaylistId = playlist.id;
-        this.activeGuideItem.set(item);
-        this.activeCatchupProgram.set(program);
-        this.activePlayback.set({
+        const playback: ResolvedPortalPlayback = {
             streamUrl: catchupUrl,
             title: this.getCatchupPlaybackTitle(item, program),
             thumbnail: item.poster_url ?? item.stream_icon ?? null,
             isLive: false,
-        });
-        if (this.usesEmbeddedPlayer()) {
-            return;
+        };
+        const inline = this.usesEmbeddedPlayer();
+        if (this.usesSelectionForRemote()) {
+            this.activeLiveItemId.set(item.xtream_id);
+            this.activeLiveProviderCategoryId =
+                this.resolveLiveProviderCategoryId(item, resolved);
+            this.activePlaylistId = playlist.id;
+            this.activeGuideItem.set(item);
+            this.activeCatchupProgram.set(program);
+            this.activePlayback.set(playback);
         }
+        if (inline) return;
 
-        this.externalGuide.start(
-            this.activePlayback(),
-            item,
-            program,
-            this.activeLiveProviderCategoryId,
-            queue,
-            {
-                replaceWith: this.guide.isOpen()
-                    ? this.settingsStore.player?.()
-                    : undefined,
-            }
-        );
+        this.externalGuide.start(playback, item, program, resolved, queue, {
+            replaceWith: this.guide.isOpen()
+                ? this.settingsStore.player?.()
+                : undefined,
+        });
     }
 
     private selectGuideLiveItem(
