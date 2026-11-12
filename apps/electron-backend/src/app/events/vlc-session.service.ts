@@ -273,7 +273,6 @@ export async function openVlcPlayer({
                 reuseState.contentMutated = false;
                 const reused = await reusableVlcProcess.tryReuse({
                     session,
-                    previousProcessSessionId,
                     url,
                     title,
                     effectiveUserAgent,

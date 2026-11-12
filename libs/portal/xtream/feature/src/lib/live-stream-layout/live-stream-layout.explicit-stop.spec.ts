@@ -6,11 +6,13 @@ import { XtreamEpgGuideSourceService } from './xtream-epg-guide-source.service';
 
 describe('Xtream guide Stop during a detached handoff', () => {
     const {
+        databaseService,
         emptyList,
         pendingStop,
         portalPlayer,
         publishExternalSession,
         restoreElectron,
+        runtime,
         stopRequested,
         xtreamStore,
     } = setupLiveStreamLayoutNativeFixture();
@@ -105,4 +107,61 @@ describe('Xtream guide Stop during a detached handoff', () => {
             }
         }
     );
+
+    it('cancels a tune still resolving its category, then permits a new tune', async () => {
+        runtime.supportsXtreamSqliteDataSource = true;
+        try {
+            const first = { ...sampleChannel, category_id: 1 };
+            const second = {
+                ...first,
+                xtream_id: first.xtream_id + 1,
+                category_id: 2,
+            };
+            emptyList.set([first, second]);
+            portalPlayer.isEmbeddedPlayer.set(false);
+            const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
+            const component = fixture.componentInstance;
+            fixture.detectChanges();
+            component.playLive(first, true);
+            const current = {
+                id: 'synthetic-category-lookup',
+                player: 'mpv',
+                status: 'playing',
+                title: 'Synthetic Channel',
+                streamUrl: component.activeStreamUrl(),
+                canClose: true,
+                startedAt: '2026-04-04T10:00:00Z',
+                updatedAt: '2026-04-04T10:00:00Z',
+            } as const;
+            publishExternalSession(current);
+            fixture.detectChanges();
+            let finish!: (rows: unknown[]) => void;
+            databaseService.getAllXtreamCategories.mockReturnValueOnce(
+                new Promise((resolve) => (finish = resolve))
+            );
+            component.playLive(second, true);
+            expect(
+                databaseService.getAllXtreamCategories
+            ).toHaveBeenCalledTimes(1);
+            stopRequested.next(current.id);
+            publishExternalSession({
+                ...current,
+                status: 'closed',
+                canClose: false,
+            });
+            const categories = [{ id: 2, xtream_id: 22 }];
+            finish(categories);
+            await new Promise<void>((resolve) => setTimeout(resolve, 0));
+            expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(1);
+
+            databaseService.getAllXtreamCategories.mockResolvedValueOnce(
+                categories
+            );
+            component.playLive(second, true);
+            await new Promise<void>((resolve) => setTimeout(resolve, 0));
+            expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(2);
+        } finally {
+            runtime.supportsXtreamSqliteDataSource = false;
+        }
+    });
 });

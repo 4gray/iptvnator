@@ -1,4 +1,5 @@
 import { createConnection } from 'net';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { buildHttpHeaderFields } from './external-player-playback-request';
 import {
     ExternalPlaybackSnapshot,
@@ -148,18 +149,42 @@ export async function sendVlcRcCommands(
         );
         if (!dispatched) return;
         if (index === 0 && typeof port === 'string') {
+            const cleared = await waitForVlcClear(port, canDispatch);
             if (!canDispatch()) return;
-            // oldrc can report success for a clear it ignored while paused.
-            const status = await getVlcCommandResponse(port, 'status');
-            if (!canDispatch()) return;
-            if (
-                parseVlcRcPlaybackState(status) !== 'stopped' ||
-                readVlcInput(status)
-            )
+            if (!cleared)
                 throw new Error('VLC did not clear its previous input');
             onCleared();
         }
     }
+}
+
+async function waitForVlcClear(
+    port: string,
+    canDispatch: () => boolean
+): Promise<boolean> {
+    const deadline = Date.now() + 350;
+    while (canDispatch() && Date.now() < deadline) {
+        // oldrc acknowledges clear before teardown finishes, or ignores it on pause.
+        const status = await getVlcCommandResponse(
+            port,
+            'status',
+            undefined,
+            deadline - Date.now()
+        );
+        const state = parseVlcRcPlaybackState(status);
+        if (!state) return false;
+        if (state === 'stopped' && !readVlcInput(status)) return true;
+        await sleep(Math.min(50, Math.max(0, deadline - Date.now())));
+    }
+    return false;
+}
+
+export function markVlcInputUnverified(sessionId: string): void {
+    externalPlayerSessions.updateSession(sessionId, {
+        mediaLoaded: false,
+        playbackIdle: undefined,
+        playbackUnverified: true,
+    });
 }
 
 export function parseVlcRcNumericResponse(data: string): string {
@@ -203,7 +228,8 @@ export function parseVlcRcPlaybackState(data: string): string | null {
 function getVlcCommandResponse(
     port: VlcRcAddress,
     command: string,
-    complete?: (data: string) => boolean
+    complete?: (data: string) => boolean,
+    timeoutMs = 2_000
 ): Promise<string> {
     return new Promise((resolve) => {
         const client = connectVlc(port);
@@ -217,7 +243,7 @@ function getVlcCommandResponse(
             if (!client.destroyed) client.destroy();
             resolve(result);
         };
-        const timeoutHandle = setTimeout(() => finish(''), 2_000);
+        const timeoutHandle = setTimeout(() => finish(''), timeoutMs);
 
         client.on('connect', () => client.write(`${command}\n`));
         client.on('data', (chunk) => {

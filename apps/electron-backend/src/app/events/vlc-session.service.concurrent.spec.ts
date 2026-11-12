@@ -931,9 +931,9 @@ describe('VLC exact playback ownership', () => {
         }
     });
 
-    it.each([true, false])(
-        'transfers a private VLC child only after confirming its old input is gone (cleared: %s)',
-        async (cleared) => {
+    it.each(['cleared', 'delayed', 'paused', 'cancelled'] as const)(
+        'keeps private VLC ownership consistent with a %s clear',
+        async (outcome) => {
             if (process.platform === 'win32') return;
             const first = child();
             const second = child();
@@ -945,15 +945,20 @@ describe('VLC exact playback ownership', () => {
             });
             first.emit('spawn');
             const prior = await opening;
+            externalPlayerSessions.updateSession(prior.id, {
+                mediaLoaded: true,
+            });
             const writes: string[] = [];
             let respondToStatus: ((data: string) => void) | undefined;
             mockRc((_port, command, reply) => {
                 const name = command.trim().split(' ', 1)[0];
                 writes.push(name);
-                if (name === 'status') respondToStatus = reply;
-                else
+                if (name === 'status') {
+                    if (respondToStatus) reply(clearedStatus);
+                    else respondToStatus = reply;
+                } else
                     reply(
-                        (!cleared && name === 'clear'
+                        (outcome === 'paused' && name === 'clear'
                             ? "Type 'pause' to continue.\r\n"
                             : '') + `${name}: returned 0 (no error)\r\n`
                     );
@@ -971,17 +976,44 @@ describe('VLC exact playback ownership', () => {
                 ).toMatchObject({
                     status: 'opened',
                     canClose: true,
+                    mediaLoaded: true,
                 });
+                if (outcome === 'cancelled') {
+                    const id =
+                        externalPlayerSessions.getActiveSessionId() as string;
+                    await externalPlayerSessions.closeSession(id, true);
+                    expect(externalPlayerSessions.getActiveSessionId()).toBe(
+                        prior.id
+                    );
+                    expect(
+                        externalPlayerSessions.getSession(prior.id)
+                    ).toMatchObject({
+                        canClose: true,
+                        mediaLoaded: false,
+                        playbackUnverified: true,
+                    });
+                    respondToStatus?.(clearedStatus);
+                    expect((await replacing).status).toBe('closed');
+                    expect(writes).toEqual(['clear', 'status']);
+                    expect(first.kill).not.toHaveBeenCalled();
+                    return;
+                }
                 respondToStatus?.(
-                    cleared
-                        ? clearedStatus
-                        : "Type 'pause' to continue.\r\nstatus: returned 0 (no error)\r\n"
+                    outcome === 'paused'
+                        ? "Type 'pause' to continue.\r\nstatus: returned 0 (no error)\r\n"
+                        : outcome === 'delayed'
+                          ? '( new input: https://example.test/synthetic-first.ts )\r\n( play state: 3 )\r\nstatus: returned 0 (no error)\r\n'
+                          : clearedStatus
                 );
                 await tick();
                 await tick();
-                if (cleared) {
+                if (outcome !== 'paused') {
                     expect((await replacing).status).toBe('opened');
-                    expect(writes).toEqual(['clear', 'status', 'add']);
+                    expect(writes).toEqual(
+                        outcome === 'delayed'
+                            ? ['clear', 'status', 'status', 'add']
+                            : ['clear', 'status', 'add']
+                    );
                     expect(first.kill).not.toHaveBeenCalled();
                 } else {
                     expect(writes).toEqual(['clear', 'status']);

@@ -1102,9 +1102,11 @@ Once a reused process accepts a replacement content command, its previous
 session retires; the replacement alone reports the child's eventual exit.
 Overlapping VLC replacements reserve their order at the first RC write, so an
 older replacement stops sending commands. With private control, the previous
-session still owns the child until VLC confirms it stopped with no input; a
-refused or unverified clear falls back only after that child exits. Legacy TCP
-control retires the previous owner at the first write.
+session still owns the child while the app waits briefly for VLC to confirm it
+stopped with no input. A refused or unverified clear falls back only after that
+child exits. If the replacement is cancelled after sending clear, the previous
+session stays closable and must verify its input again before reporting playback.
+Legacy TCP control retires the previous owner at the first write.
 If another child takes the reuse slot, the session that owns the first child
 continues reading playback state from its RC port and can stop it by session
 ID.

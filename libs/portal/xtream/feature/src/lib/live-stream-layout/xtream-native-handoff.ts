@@ -50,6 +50,7 @@ export function withConfirmedChannelCopy(
 
 export interface GuidePanel {
     enabled(): boolean;
+    cancelPendingRequest(): void;
     current(): ResolvedPortalPlayback | null;
     currentItem(): XtreamLiveChannelItem | null;
     select(item: XtreamLiveChannelItem): void;

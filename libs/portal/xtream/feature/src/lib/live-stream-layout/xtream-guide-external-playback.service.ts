@@ -191,15 +191,15 @@ export class XtreamGuideExternalPlayback {
         this.playback?.stopRequested
             ?.pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe((id) => {
-                const pending = this.pending();
                 if (
-                    pending?.retry &&
-                    sameXtreamLiveOwner(
-                        pending.lockSource,
+                    !sameXtreamLiveOwner(
+                        this.owner(),
                         this.sessions.state(id)?.source
                     )
                 )
-                    this.pending.set(undefined);
+                    return;
+                this.panel?.cancelPendingRequest();
+                if (this.pending()?.retry) this.pending.set(undefined);
             });
         effect(() => {
             if (!this.panel?.enabled()) return;

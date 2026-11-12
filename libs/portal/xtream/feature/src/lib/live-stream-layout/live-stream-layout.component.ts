@@ -603,6 +603,7 @@ export class LiveStreamLayoutComponent
     constructor() {
         this.externalGuide.bind({
             enabled: () => !this.usesEmbeddedPlayer(),
+            cancelPendingRequest: () => this.playbackRequestId++,
             current: this.activePlayback,
             currentItem: this.activeGuideItem,
             select: (item) => this.selectGuideLiveItem(item),
