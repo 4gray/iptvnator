@@ -1676,10 +1676,11 @@ Playwright config starts the Xtream mock), writes the measurements to the job
 summary and uploads `dist/performance/journeys/` as the `performance-journeys`
 artifact. The `Performance journeys scope` job skips it only for pull
 requests that change nothing but Markdown, `docs/**`, `.plans/**`,
-`.codex/**`, `.claude/**`, `.changes/**` or `apps/website/**` (the E2E
-workflow's ignore list plus release notes); any other file, including root
-build inputs such as `.nvmrc`, `nx.json` or `tsconfig.base.json`, runs it.
-Pushes to `master` and manual dispatches always run it. The job was introduced
+`.agents/**`, `.codex/**`, `.claude/**`, `.changes/**` or `apps/website/**`.
+It compares the merge tree with its first parent and treats moves as a
+deletion and an addition. An unavailable diff or any other changed path,
+including root build inputs such as `.nvmrc`, `nx.json` or `tsconfig.base.json`,
+runs the journeys. Pushes to `master` and manual dispatches always run them. The job was introduced
 as warn-only (`continue-on-error: true`) in #1717. PR #1926 (plan item B3)
 removes that setting, so a regression fails the workflow. On `master`, the
 blocking policy takes effect when #1926 is merged, not on its commit or
