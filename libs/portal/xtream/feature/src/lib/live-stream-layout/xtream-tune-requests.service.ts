@@ -41,9 +41,11 @@ export class XtreamTuneRequests {
                 const playing = view.playingLiveChannel();
                 const alreadyLive =
                     playing?.xtream_id === item.xtream_id &&
-                    !this.external.isStopping();
+                    (inline || !this.external.isStopping());
                 const cancelled =
-                    alreadyLive && this.external.cancelPendingSwitch(item);
+                    !inline &&
+                    alreadyLive &&
+                    this.external.cancelPendingSwitch(item);
                 if (
                     !inline &&
                     !retry &&
@@ -82,8 +84,12 @@ export class XtreamTuneRequests {
                     );
                 else onConfirmed?.();
             },
-            () => this.external.canRetryUnverifiedStream(),
-            (watchLive) => watchLive || this.external.isStopping()
+            () =>
+                !view.usesInlinePlayer() &&
+                this.external.canRetryUnverifiedStream(),
+            (watchLive) =>
+                watchLive ||
+                (!view.usesInlinePlayer() && this.external.isStopping())
         );
     }
 

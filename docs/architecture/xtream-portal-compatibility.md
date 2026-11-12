@@ -899,8 +899,9 @@ captured when the channel was selected, without confirming guide playback.
 Browsing another channel does not replace the remote order or detach the
 guide. Confirming the already playing channel in the guide replaces a sidebar
 preview with that channel's programme without restarting it or changing its
-saved remote order. Starting archive playback from a preview commits that
-preview's order when the archive session opens. An earlier live tune confirming
+saved remote order. A detached session's Stop or retry state does not affect
+inline tuning or its remote queue. Starting archive playback from a preview
+commits that preview's order when the archive session opens. An earlier live tune confirming
 does not cancel a newer archive lookup. Inline and external archive requests
 both check their own channel and category after resolving the URL.
 If a relock withholds that

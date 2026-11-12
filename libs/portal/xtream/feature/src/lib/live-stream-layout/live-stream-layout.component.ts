@@ -623,6 +623,7 @@ export class LiveStreamLayoutComponent
             },
         });
         effect(() => {
+            if (this.usesEmbeddedPlayer()) return;
             const source =
                 this.socketlessRemoteSource() ??
                 this.unverifiedRemoteSource() ??
@@ -1219,7 +1220,9 @@ export class LiveStreamLayoutComponent
             (item) => item.xtream_id
         );
 
-        const socketless = this.socketlessRemoteSource();
+        const socketless = this.usesEmbeddedPlayer()
+            ? undefined
+            : this.socketlessRemoteSource();
         const archive = socketless
             ? socketless.archive
             : selectionBased

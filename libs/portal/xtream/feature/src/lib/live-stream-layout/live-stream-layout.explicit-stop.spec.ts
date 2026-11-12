@@ -5,6 +5,7 @@ import { LiveStreamLayoutComponent } from './live-stream-layout.component';
 import { setupLiveStreamLayoutNativeFixture } from './live-stream-layout-native.test-fixture';
 import { epgItem, sampleChannel } from './live-stream-layout-stubs.spec-data';
 import { XtreamEpgGuideSourceService } from './xtream-epg-guide-source.service';
+import { XtreamLiveChannelNavigationService } from './xtream-live-channel-navigation.service';
 
 describe('Xtream guide Stop during a detached handoff', () => {
     const {
@@ -36,6 +37,7 @@ describe('Xtream guide Stop during a detached handoff', () => {
         xtreamStore.selectedItem.set(archiveChannel);
         epgItems.set([epgItem('Synthetic Archive', 0, 1)]);
         portalPlayer.isEmbeddedPlayer.set(false);
+        player.set(VideoPlayer.VLC);
         const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
         const component = fixture.componentInstance;
         fixture.detectChanges();
@@ -50,7 +52,7 @@ describe('Xtream guide Stop during a detached handoff', () => {
         if (!streamUrl) throw new Error('Missing synthetic archive');
         const archive = {
             id: 'synthetic-detached-archive',
-            player: 'mpv',
+            player: 'vlc',
             status: 'opened',
             streamUrl,
             title: 'Synthetic Archive',
@@ -64,6 +66,7 @@ describe('Xtream guide Stop during a detached handoff', () => {
         expect(component.showReturnToLive()).toBe(true);
 
         portalPlayer.isEmbeddedPlayer.set(true);
+        player.set(VideoPlayer.VideoJs);
         xtreamStore.selectedItem.set(live);
         component.playLive(live, true);
         fixture.detectChanges();
@@ -76,6 +79,32 @@ describe('Xtream guide Stop during a detached handoff', () => {
         const source = fixture.debugElement.injector.get(
             XtreamEpgGuideSourceService
         );
+        const liveId = String(live.xtream_id);
+        const activeRow = source.channels().find(({ id }) => id === liveId);
+        const playing = component.activePlayback();
+        if (!activeRow || !playing)
+            throw new Error('Missing synthetic live row');
+        pendingStop.mockImplementation((id) =>
+            id === archive.id ? Promise.resolve() : undefined
+        );
+        expect(source.retryActive(activeRow)).toBe(false);
+        const sameRow = jest.fn();
+        source.activate(liveId, null, undefined, sameRow);
+        expect(component.activePlayback()).toBe(playing);
+        component.onInlinePlaybackStarted(playing);
+        expect(sameRow).toHaveBeenCalledTimes(1);
+
+        publishExternalSession({
+            ...archive,
+            mediaLoaded: false,
+            playbackUnverified: true,
+        });
+        fixture.detectChanges();
+        const navigation = fixture.debugElement.injector.get(
+            XtreamLiveChannelNavigationService
+        );
+        expect(navigation.activeItem()).toEqual(live);
+
         const committed = jest.fn();
         source.activate(String(next.xtream_id), null, undefined, committed);
         const inline = component.activePlayback();
