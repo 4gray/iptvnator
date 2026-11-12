@@ -1,3 +1,4 @@
+import type { WritableSignal } from '@angular/core';
 import { isLiveExternalPlayerSession } from '@iptvnator/portal/shared/util';
 import type {
     EpgProgram,
@@ -14,6 +15,52 @@ import {
 } from './xtream-live-channel-navigation.service';
 
 export type GuideLaunchOutcome = false | 'ended' | 'failed' | 'retryable';
+
+export function createXtreamLaunchCompletion() {
+    let dispatched = false;
+    let observed = false;
+    let settle!: () => void;
+    const closed = new Promise<void>((resolve) => (settle = resolve));
+    return {
+        dispatch: () => (dispatched = true),
+        observe: (session: ExternalPlayerSession) => {
+            observed = true;
+            if (!isLiveExternalPlayerSession(session)) settle();
+        },
+        finish: (session?: ExternalPlayerSession | void) => {
+            if (!session && !observed) settle();
+        },
+        wait: () => (dispatched ? closed : undefined),
+    };
+}
+
+export type XtreamOwnedLaunch = {
+    source: XtreamLiveSource;
+    ended: WritableSignal<GuideLaunchOutcome>;
+    completion: ReturnType<typeof createXtreamLaunchCompletion>;
+    retired?: boolean;
+    cancelled?: boolean;
+    opened?: boolean;
+    restoreSessionId?: string;
+};
+
+export function cancelXtreamLaunch(
+    launch: XtreamOwnedLaunch,
+    keep?: { channelId: number; sessionId: string }
+): boolean {
+    const { source } = launch;
+    if (
+        launch.retired ||
+        launch.opened ||
+        !source.channel ||
+        (source.channel.xtream_id === keep?.channelId && !source.archive)
+    )
+        return false;
+    launch.cancelled = true;
+    launch.restoreSessionId = keep?.sessionId;
+    launch.ended.set('ended');
+    return true;
+}
 
 export interface GuideLaunch {
     lockSource: XtreamLiveSource;

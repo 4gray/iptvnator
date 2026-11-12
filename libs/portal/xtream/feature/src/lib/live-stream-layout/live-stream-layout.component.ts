@@ -648,6 +648,8 @@ export class LiveStreamLayoutComponent
         this.guideSource.bind(
             (item, channels, retry, onConfirmed) => {
                 const playing = this.guideChannel();
+                const isVlc =
+                    this.externalGuide.confirmed()?.session.player === 'vlc';
                 const alreadyLive =
                     playing &&
                     playing.xtream_id === item.xtream_id &&
@@ -681,7 +683,21 @@ export class LiveStreamLayoutComponent
                         )
                             player.retryFailedPlayback();
                         this.confirmInlinePlayback(onConfirmed);
-                    } else onConfirmed?.();
+                    } else if (isVlc && cancelled)
+                        this.afterVlcCancellation(
+                            cancelled,
+                            item,
+                            () =>
+                                this.playLive(
+                                    item,
+                                    true,
+                                    channels,
+                                    false,
+                                    onConfirmed
+                                ),
+                            onConfirmed
+                        );
+                    else onConfirmed?.();
                     return;
                 }
                 this.playLive(item, true, channels, false, onConfirmed);
@@ -1273,7 +1289,11 @@ export class LiveStreamLayoutComponent
             !this.externalGuide.isStopping()
         ) {
             this.playbackRequestId++;
-            this.externalGuide.cancelPendingSwitch(channel);
+            const cancelled = this.externalGuide.cancelPendingSwitch(channel);
+            if (playing.session.player === 'vlc' && cancelled)
+                this.afterVlcCancellation(cancelled, channel, () =>
+                    this.playLive(channel, true, undefined, true)
+                );
             return;
         }
         this.playLive(channel, true, undefined, true);
@@ -1397,6 +1417,27 @@ export class LiveStreamLayoutComponent
             requestId === this.playbackRequestId &&
             sameXtreamLiveOwner(owner, this.externalGuide.owner())
         );
+    }
+
+    private afterVlcCancellation(
+        cancelled: Promise<void>,
+        item: XtreamLiveChannelItem,
+        retune: () => void,
+        onConfirmed?: () => void
+    ): void {
+        const requestId = this.playbackRequestId;
+        const owner = this.externalGuide.owner();
+        void cancelled.then(() => {
+            if (!this.isCurrentPlaybackRequest(requestId, owner)) return;
+            const playing = this.externalGuide.confirmed();
+            if (
+                playing?.item.xtream_id === item.xtream_id &&
+                !playing.archive &&
+                !this.externalGuide.isStopping()
+            )
+                onConfirmed?.();
+            else retune();
+        });
     }
 
     private selectLiveItemCategory(item: XtreamLiveChannelItem): void {

@@ -5,7 +5,6 @@ import {
     Injectable,
     signal,
     untracked,
-    type WritableSignal,
 } from '@angular/core';
 import {
     isLiveExternalPlayerSession,
@@ -20,8 +19,11 @@ import type {
 } from '@iptvnator/shared/interfaces';
 import type { XtreamLiveChannelItem } from './xtream-live-channel-navigation.service';
 import {
+    cancelXtreamLaunch,
+    createXtreamLaunchCompletion,
     XtreamNativeHandoff,
     type GuideLaunchOutcome,
+    type XtreamOwnedLaunch as Launch,
 } from './xtream-native-handoff';
 
 export type XtreamLiveOwner = Pick<
@@ -84,14 +86,6 @@ export function hasXtreamOpenedMedia(
     );
 }
 
-type Launch = {
-    source: XtreamLiveSource;
-    ended: WritableSignal<GuideLaunchOutcome>;
-    retired?: boolean;
-    cancelled?: boolean;
-    opened?: boolean;
-    restoreSessionId?: string;
-};
 type Active = {
     session: ExternalPlayerSession;
     source: XtreamLiveSource;
@@ -187,14 +181,19 @@ export class XtreamExternalLiveSessions {
         const launch: Launch = {
             source,
             ended: signal<GuideLaunchOutcome>(false),
+            completion: createXtreamLaunchCompletion(),
         };
         this.pending.set(launchId, launch);
         return {
             launchId,
             ended: launch.ended.asReadonly(),
-            dispatch: () => this.handoff.dispatch(source),
+            dispatch: () => {
+                launch.completion.dispatch();
+                this.handoff.dispatch(source);
+            },
             finish: (result?: ExternalPlayerSession | void) => {
                 this.pending.delete(launchId);
+                launch.completion.finish(result);
                 this.handoff.finish(source, result || undefined);
                 if (!result || launch.retired) return;
                 const current = this.sessions.get(result.id);
@@ -214,36 +213,27 @@ export class XtreamExternalLiveSessions {
 
     cancelPendingSwitches(
         owner: XtreamLiveOwner,
-        channelId: number,
-        restoreSessionId: string
-    ): boolean {
+        keep?: { channelId: number; sessionId: string }
+    ): Promise<void> | undefined {
         const launches = new Set(this.pending.values());
         this.sessions.forEach(({ launch }) => {
             if (launch) launches.add(launch);
         });
-        const cancelled = new Set<Launch>();
-        for (const launch of launches) {
-            const { source } = launch;
-            if (
-                launch.retired ||
-                launch.cancelled ||
-                launch.opened ||
-                !sameXtreamLiveOwner(source, owner) ||
-                !source.channel ||
-                (source.channel.xtream_id === channelId && !source.archive)
+        const cancelled = new Set(
+            [...launches].filter(
+                (launch) =>
+                    sameXtreamLiveOwner(launch.source, owner) &&
+                    cancelXtreamLaunch(launch, keep)
             )
-                continue;
-            launch.cancelled = true;
-            launch.restoreSessionId = restoreSessionId;
-            launch.ended.set('ended');
-            cancelled.add(launch);
-        }
-        if (!cancelled.size) return false;
+        );
+        if (!cancelled.size) return;
         this.revision.update((value) => value + 1);
         for (const entry of [...this.sessions.values()].reverse())
             if (entry.launch && cancelled.has(entry.launch))
                 this.enforce(entry);
-        return true;
+        return Promise.all(
+            [...cancelled].map((launch) => launch.completion.wait())
+        ).then(() => undefined);
     }
 
     update(session: ExternalPlayerSession, source?: XtreamLiveSource): void {
@@ -261,6 +251,7 @@ export class XtreamExternalLiveSessions {
             current?.launch ??
             request ??
             (session.launchId ? this.pending.get(session.launchId) : undefined);
+        launch?.completion.observe(session);
         if (launch) this.handoff.observe(launch.source, session);
         if (launch && session.closedByRequest) launch.ended.set('ended');
         else if (

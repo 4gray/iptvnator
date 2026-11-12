@@ -191,15 +191,12 @@ export class XtreamGuideExternalPlayback {
         this.playback?.stopRequested
             ?.pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe((id) => {
-                if (
-                    !sameXtreamLiveOwner(
-                        this.owner(),
-                        this.sessions.state(id)?.source
-                    )
-                )
+                const source = this.sessions.state(id)?.source;
+                if (!source || !sameXtreamLiveOwner(this.owner(), source))
                     return;
                 this.panel?.cancelPendingRequest();
-                if (this.pending()?.retry) this.pending.set(undefined);
+                this.sessions.cancelPendingSwitches(source);
+                this.pending.set(undefined);
             });
         effect(() => {
             if (!this.panel?.enabled()) return;
@@ -355,20 +352,22 @@ export class XtreamGuideExternalPlayback {
         return true;
     }
 
-    cancelPendingSwitch(item: XtreamLiveChannelItem): boolean {
+    cancelPendingSwitch(
+        item: XtreamLiveChannelItem
+    ): Promise<void> | undefined {
         const confirmed = this.confirmed();
-        if (
-            !confirmed ||
-            !this.sessions.cancelPendingSwitches(
-                confirmed.lockSource,
-                item.xtream_id,
-                confirmed.session.id
-            )
-        )
-            return false;
+        if (!confirmed) return;
+        const cancelled = this.sessions.cancelPendingSwitches(
+            confirmed.lockSource,
+            {
+                channelId: item.xtream_id,
+                sessionId: confirmed.session.id,
+            }
+        );
+        if (!cancelled) return;
         if (this.pending()?.ended?.()) this.pending.set(undefined);
         this.syncPanel(confirmed);
-        return true;
+        return cancelled;
     }
 
     replaceConfirmedCopy(
