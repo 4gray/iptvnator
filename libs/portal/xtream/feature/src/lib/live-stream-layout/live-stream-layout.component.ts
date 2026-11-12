@@ -635,7 +635,7 @@ export class LiveStreamLayoutComponent
                       !!this.externalGuide.unverifiedPlayback() ||
                       (this.guide.isOpen() &&
                           (this.externalGuide.launching() ||
-                              !!this.externalGuide.stoppedTuningSource(true)))
+                              !!this.externalGuide.stoppedTuningSource()))
             )
         );
         this.guideSource.bind(

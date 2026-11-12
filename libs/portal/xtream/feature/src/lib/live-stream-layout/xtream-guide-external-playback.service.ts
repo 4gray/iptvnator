@@ -138,12 +138,13 @@ export class XtreamGuideExternalPlayback {
         return undefined;
     });
 
-    stoppedTuningSource(handoffOnly = false): XtreamLiveSource | undefined {
+    stoppedTuningSource(): XtreamLiveSource | undefined {
         const idle = this.idlePlayback();
-        const failed = this.failedTuning();
+        const pending = this.pending();
+        const failed =
+            pending?.ended?.() === 'failed' ? pending : this.failedTuning();
         if (idle || failed?.ended?.() === 'ended') return idle;
-        const source =
-            handoffOnly && !failed?.retry ? undefined : failed?.lockSource;
+        const source = failed?.lockSource;
         return this.isAllowed(source) ? source : undefined;
     }
 

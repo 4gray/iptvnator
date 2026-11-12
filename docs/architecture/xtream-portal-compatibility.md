@@ -798,8 +798,9 @@ previous process to exit before opening the new channel, so a one-connection
 account does not have two simultaneous streams. A newer tune waits for an
 already dispatched launch to become closable. Selecting the previous channel
 while it is stopping restarts it after exit and waits for that playback to open.
-If a replacement fails after the previous process exits, the already open guide
-keeps its scope and search so the user can retry.
+If a replacement fails after the previous stream ends, the already open guide
+keeps its scope and search so the user can retry, including when both streams
+used the same process.
 A fresh or reused MPV
 process with IPC confirms its requested playlist entry, including siblings left
 by nested redirects, and clears confirmation when that input ends or another

@@ -751,15 +751,16 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             fail(new Error('Synthetic launch failure'));
             await Promise.resolve();
             fixture.detectChanges();
-            expect(component.guide.isOpen()).toBe(!reused);
-            if (!reused) {
+            expect(component.guide.isOpen()).toBe(true);
+            if (reused) expect(component.guideNowPlayingChannel()).toBe('');
+            else {
                 expect(component.guideNowPlayingChannel()).toBe(original.title);
                 expect(component.activeStreamUrl()).toBe(original.streamUrl);
             }
 
             retireOriginal();
             fixture.detectChanges();
-            expect(component.guide.isOpen()).toBe(false);
+            expect(component.guide.isOpen()).toBe(reused);
         }
     );
 

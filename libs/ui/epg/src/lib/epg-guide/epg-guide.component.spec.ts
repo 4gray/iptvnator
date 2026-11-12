@@ -560,27 +560,47 @@ describe('EpgGuideComponent', () => {
         expect(document.activeElement).toBe(viewportEl);
     });
 
-    it('restores the channel tab stop when its focused programme disappears', async () => {
-        await settle(fixture);
-        const card = fixture.nativeElement.querySelector(
-            '.epg-guide-row__block'
-        ) as HTMLElement;
-        component.focusCell(0, 0);
-        await settle(fixture);
-        card.focus();
-        expect(document.activeElement).toBe(card);
+    it.each([true, false])(
+        'restores the grid focus when a programme reloads (still present: %s)',
+        async (present) => {
+            await settle(fixture);
+            const card = fixture.nativeElement.querySelector(
+                '.epg-guide-row__block'
+            ) as HTMLElement;
+            component.focusCell(0, 0);
+            await settle(fixture);
+            card.focus();
+            expect(document.activeElement).toBe(card);
 
-        schedule = [];
-        revision.update((value) => value + 1);
-        await settle(fixture);
+            const source = fixture.debugElement.injector.get(EPG_GUIDE_SOURCE);
+            const load = source.loadPrograms;
+            let release!: () => void;
+            const reload = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            jest.spyOn(source, 'loadPrograms').mockImplementation(
+                async (window) => {
+                    await reload;
+                    return load(window);
+                }
+            );
+            if (!present) schedule = [];
+            revision.update((value) => value + 1);
+            fixture.detectChanges();
+            expect(component.focus()).toEqual({ row: 0, block: 0 });
+            expect(component.focusedBlockFor(0)).toBeNull();
+            release();
+            await new Promise<void>((resolve) => setTimeout(resolve, 0));
+            await settle(fixture);
 
-        const cell = fixture.nativeElement.querySelector(
-            '.epg-guide-row__channel'
-        ) as HTMLElement;
-        expect(card.isConnected).toBe(false);
-        expect(cell.getAttribute('tabindex')).toBe('0');
-        expect(document.activeElement).toBe(cell);
-    });
+            const target = fixture.nativeElement.querySelector(
+                present ? '.epg-guide-row__block' : '.epg-guide-row__channel'
+            ) as HTMLElement;
+            expect(card.isConnected).toBe(false);
+            expect(target.getAttribute('tabindex')).toBe('0');
+            expect(document.activeElement).toBe(target);
+        }
+    );
 
     it('jumps to now on N without scrolling back to a focus left off-screen', async () => {
         await settle(fixture);

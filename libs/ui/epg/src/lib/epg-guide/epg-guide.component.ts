@@ -31,14 +31,11 @@ import { EpgDateNavigationDirection } from '../epg-date';
 import { EpgProgrammeDialogService } from '../epg-programme-dialog.service';
 import { TimelineRenderBlock } from '../epg-timeline/epg-timeline-render.util';
 import { EpgGuideDialogController } from './epg-guide-dialog.controller';
-import {
-    EpgGuideKeyboardController,
-    type EpgGuideFocus,
-} from './epg-guide-keyboard.controller';
+import { EpgGuideFocusController } from './epg-guide-focus.controller';
+import { EpgGuideKeyboardController } from './epg-guide-keyboard.controller';
 import {
     EPG_GUIDE_CHANNEL_COLUMN_PX,
     EpgGuideDensity,
-    findGuideProgramme,
 } from './epg-guide-layout.util';
 import {
     EpgGuideProgramsService,
@@ -179,15 +176,6 @@ export class EpgGuideComponent implements OnDestroy {
     });
     readonly focus = this.keyboard.focus;
     /**
-     * The channel the roving focus sits on. `rows()` is rebuilt by the filters,
-     * by a scope switch and by coverage arriving late, so the focused index
-     * alone goes stale — Enter would then play a different channel. Recorded
-     * whenever the focus moves and reconciled whenever the rows change.
-     */
-    private focusedRowId: string | null = null;
-    private recordedFocus: EpgGuideFocus | null = null;
-    private focusedProgramme?: TimelineRenderBlock['block'];
-    /**
      * The row that carries the grid's single `tabindex="0"`: the focused one,
      * else the playing one, else the first — so Tab always reaches the grid,
      * and lands where the keyboard left off. A focus left behind by a filter
@@ -210,6 +198,16 @@ export class EpgGuideComponent implements OnDestroy {
         ensureLoaded: (channels) => this.programsService.ensureLoaded(channels),
         setScrollLeft: (left) => this.view.scrollLeft.set(left),
         afterRender: (callback) => this.afterNextGuideRender(callback),
+    });
+
+    private readonly focusController = new EpgGuideFocusController({
+        focus: this.focus,
+        rows: this.rows,
+        blocksFor: (row) => this.blocksFor(row),
+        trackProgrammes: (id) => this.programsFor(id),
+        statusFor: (id) => this.statusFor(id),
+        restoreFocus: (focus) => this.viewportController.restoreFocus(focus),
+        focusRow: (row) => this.viewportController.focusRovingTargetOnRow(row),
     });
 
     private readonly dialogs = new EpgGuideDialogController(
@@ -239,42 +237,12 @@ export class EpgGuideComponent implements OnDestroy {
                     this.programsService.refreshExpiredCoverage(now);
             });
         });
-        effect(() => {
-            const focused = this.focus();
-            const moved = focused !== this.recordedFocus;
-            if (moved) {
-                this.recordedFocus = focused;
-                this.focusedRowId = focused
-                    ? (untracked(this.rows)[focused.row]?.id ?? null)
-                    : null;
-            }
-            const channelId = this.focusedRowId;
-            const block = focused?.block;
-            if (!focused || block == null || channelId === null) {
-                this.focusedProgramme = undefined;
-                return;
-            }
-            const { row } = focused;
-            this.programsFor(channelId);
-            untracked(() => {
-                if (this.rows()[row]?.id !== channelId) return;
-                const blocks = this.blocksFor(row);
-                if (moved) {
-                    this.focusedProgramme = blocks[block]?.block;
-                    if (this.focusedProgramme) return;
-                }
-                const index = findGuideProgramme(blocks, this.focusedProgramme);
-                if (index !== block) {
-                    this.focus.set({ row, block: index < 0 ? null : index });
-                    this.viewportController.focusRovingTargetOnRow(row);
-                }
-            });
-        });
+        effect(() => this.focusController.observeProgrammes());
         effect(() => {
             this.source.revision?.();
             const rows = this.rows();
             untracked(() => {
-                this.reconcileFocus(rows);
+                this.focusController.reconcileRows(rows);
                 this.viewportController.loadRenderedRange();
             });
         });
@@ -347,8 +315,7 @@ export class EpgGuideComponent implements OnDestroy {
     }
 
     focusedBlockFor(row: number): number | null {
-        const focused = this.focus();
-        return focused?.row === row ? focused.block : null;
+        return this.focusController.blockFor(row);
     }
 
     /** Pointer focus: the roving tabindex follows the mouse, without scrolling. */
@@ -447,32 +414,6 @@ export class EpgGuideComponent implements OnDestroy {
             target === document.documentElement ||
             this.hostElement.nativeElement.contains(target)
         );
-    }
-
-    /**
-     * Keep the roving focus on the channel it was put on rather than on a row
-     * number the list has moved under it. If the channel is removed, move to
-     * a neighbouring row or the empty viewport. A moved row keeps the same
-     * programme if it is still present.
-     */
-    private reconcileFocus(rows: readonly EpgGuideChannel[]): void {
-        const focused = this.focus();
-        const channelId = this.focusedRowId;
-        if (!focused || channelId === null) {
-            return;
-        }
-        const row = rows.findIndex((channel) => channel.id === channelId);
-        if (row === focused.row) return;
-        const next = row < 0 ? Math.min(focused.row, rows.length - 1) : row;
-        const block =
-            row >= 0 && focused.block !== null
-                ? findGuideProgramme(this.blocksFor(row), this.focusedProgramme)
-                : -1;
-        this.focusedRowId = rows[next]?.id ?? null;
-        this.recordedFocus =
-            next < 0 ? null : { row: next, block: block < 0 ? null : block };
-        this.focus.set(this.recordedFocus);
-        this.viewportController.restoreFocus(this.recordedFocus);
     }
 
     private revealRow(rowIndex: number): void {
