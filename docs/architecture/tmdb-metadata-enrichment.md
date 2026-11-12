@@ -38,6 +38,30 @@ Related:
   endorsed or certified by TMDB.") is shown in the settings TMDB section and
   in Settings > About, as required by TMDB's terms.
 
+## One-time key transfer
+
+Connect both the PWA and Electron to the same IPTVnator library server. In
+**Settings → Metadata (TMDB) → Transfer key from another device**, choose
+**Receive key** on the receiver, then **Send a saved key** on the sender. Enter
+the receiver's temporary code and explicitly send the key. The receiver saves
+it locally only after **Save key** or **Replace key**. TMDB enablement and other
+settings do not travel with the key. Start a new transfer after rotating it.
+
+The transfer uses the selected server's authenticated transport and checks the
+instance identity. Use HTTPS or a trusted local network; the relay sees the key
+in memory. The five-minute session has separate send and receive capabilities.
+The shared code can submit one key and cannot read it. The receiver claims the
+key once; claim, cancellation, expiration or server restart discards the server
+copy. The receiving device needs writable IndexedDB. It compares the previous
+key and saves the replacement in one transaction. A failed local write can be
+retried in the same open dialog before expiry.
+Ordinary settings saves preserve the key already in IndexedDB unless the user
+edits that field. Other tabs reread the key after a save notification. The
+notification contains no key, and a tab keeps any unsaved key edit.
+If the claim response is lost, start a new transfer. The sender reads the local
+saved key directly, so a draft or embedded build key is never sent. Neither the
+session nor the key is saved in the server library or shared user state.
+
 ## Module Layout
 
 Framework-free code lives in `libs/shared/tmdb/` (`@iptvnator/shared/tmdb`,
