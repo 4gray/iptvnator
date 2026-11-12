@@ -4,7 +4,6 @@
     "sourceRoot": "libs/shared/database/src",
     "projectType": "library",
     "tags": ["scope:shared", "domain:shared-runtime", "type:data-access"],
-    "implicitDependencies": ["electron-test-tools"],
     "targets": {
         "build": {
             "executor": "@nx/esbuild:esbuild",

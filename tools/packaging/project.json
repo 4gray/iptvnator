@@ -3,7 +3,6 @@
     "name": "packaging",
     "projectType": "library",
     "sourceRoot": "tools/packaging",
-    "implicitDependencies": ["electron-test-tools"],
     "targets": {
         "test": {
             "executor": "nx:run-commands",

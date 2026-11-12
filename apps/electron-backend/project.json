@@ -4,7 +4,6 @@
     "sourceRoot": "apps/electron-backend/src",
     "projectType": "application",
     "tags": ["scope:electron", "domain:electron-main", "type:app"],
-    "implicitDependencies": ["electron-test-tools"],
     "targets": {
         "build-worker": {
             "executor": "nx:run-commands",

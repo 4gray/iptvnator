@@ -4,9 +4,6 @@
     "sourceRoot": "tools/testing/electron",
     "projectType": "library",
     "tags": ["scope:tools", "domain:testing", "type:tool"],
-    "namedInputs": {
-        "production": []
-    },
     "targets": {
         "ensure-electron-binary": {
             "executor": "nx:run-commands",
