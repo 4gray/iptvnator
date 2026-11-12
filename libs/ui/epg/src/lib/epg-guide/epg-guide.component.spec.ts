@@ -560,9 +560,14 @@ describe('EpgGuideComponent', () => {
         expect(document.activeElement).toBe(viewportEl);
     });
 
-    it.each([true, false])(
-        'restores the grid focus when a programme reloads (still present: %s)',
-        async (present) => {
+    it.each([
+        [true, false],
+        [false, false],
+        [true, true],
+        [false, true],
+    ] as const)(
+        'restores focus after a programme reload (present: %s, row moved: %s)',
+        async (present, moved) => {
             await settle(fixture);
             const card = fixture.nativeElement.querySelector(
                 '.epg-guide-row__block'
@@ -585,17 +590,24 @@ describe('EpgGuideComponent', () => {
                 }
             );
             if (!present) schedule = [];
+            if (moved)
+                channels.set([channels()[1], channels()[0], channels()[2]]);
+            const row = moved ? 1 : 0;
             revision.update((value) => value + 1);
             fixture.detectChanges();
-            expect(component.focus()).toEqual({ row: 0, block: 0 });
-            expect(component.focusedBlockFor(0)).toBeNull();
+            expect(component.focus()).toEqual({ row, block: 0 });
+            expect(component.focusedBlockFor(row)).toBeNull();
             release();
             await new Promise<void>((resolve) => setTimeout(resolve, 0));
             await settle(fixture);
 
-            const target = fixture.nativeElement.querySelector(
-                present ? '.epg-guide-row__block' : '.epg-guide-row__channel'
-            ) as HTMLElement;
+            const target = fixture.nativeElement
+                .querySelectorAll('app-epg-guide-row')
+                [row].querySelector(
+                    present
+                        ? '.epg-guide-row__block'
+                        : '.epg-guide-row__channel'
+                ) as HTMLElement;
             expect(card.isConnected).toBe(false);
             expect(target.getAttribute('tabindex')).toBe('0');
             expect(document.activeElement).toBe(target);

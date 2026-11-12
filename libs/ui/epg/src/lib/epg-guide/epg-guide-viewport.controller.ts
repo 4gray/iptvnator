@@ -176,11 +176,11 @@ export class EpgGuideViewportController {
         }
     }
 
-    restoreFocus(focused: EpgGuideFocus | null): void {
+    restoreFocus(focused: EpgGuideFocus | null, deferDomFocus = false): void {
         const element = this.host.viewport()?.elementRef.nativeElement;
         if (!this.canFocusGrid(element)) return;
         if (element?.clientHeight) this.revealFocus(focused);
-        this.focusRovingTargetOnRow(focused?.row ?? 0);
+        if (!deferDomFocus) this.focusRovingTargetOnRow(focused?.row ?? 0);
     }
 
     private canFocusGrid(viewport?: HTMLElement): boolean {

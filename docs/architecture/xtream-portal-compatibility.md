@@ -821,6 +821,8 @@ If VLC opens a direct child of a plain M3U, the app reads only the original
 playlist in one bounded request and rechecks the active input before confirming.
 A readable zero stays pending; an unrelated URL invalidates confirmation. A
 stopped VLC input must pass the clock check again before the guide marks it live.
+VLC's initial stopped state leaves a new tune pending until confirmation,
+timeout, or the launch ends.
 Retrying the same unverified input closes the exact MPV or VLC session first,
 including a VLC session restored after a failed switch. Temporary RC failures
 keep the committed selection pending until a readiness timeout or terminal outcome.

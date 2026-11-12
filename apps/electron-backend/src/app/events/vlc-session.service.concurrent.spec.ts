@@ -451,7 +451,7 @@ describe('VLC exact playback ownership', () => {
             let input = 'https://example.test/synthetic-old.ts';
             let playbackTime = 0;
             let switchDuringClock = false;
-            let playbackState = 'play state: 3';
+            let playbackState = 'stop state: 5';
             mockRc((port, command, reply) => {
                 expect(typeof port).toBe('string');
                 if (command === 'status\n')
@@ -503,13 +503,14 @@ describe('VLC exact playback ownership', () => {
             expect(externalPlayerSessions.getSession(session.id)).toMatchObject(
                 {
                     mediaLoaded: false,
+                    playbackIdle: false,
                     playbackUnverified: undefined,
                 }
             );
+            playbackState = 'play state: 3';
             playbackTime = 2;
             await jest.advanceTimersByTimeAsync(2_000);
-            await tick();
-            await tick();
+            for (let turn = 0; turn < 6; turn++) await tick();
             expect(externalPlayerSessions.getSession(session.id)).toMatchObject(
                 {
                     mediaLoaded: false,
@@ -519,8 +520,7 @@ describe('VLC exact playback ownership', () => {
             input = currentInput;
             playbackTime = 0;
             await jest.advanceTimersByTimeAsync(2_000);
-            await tick();
-            await tick();
+            for (let turn = 0; turn < 6; turn++) await tick();
             expect(externalPlayerSessions.getSession(session.id)).toMatchObject(
                 {
                     mediaLoaded: false,
@@ -574,8 +574,7 @@ describe('VLC exact playback ownership', () => {
             ).toBe(true);
             input = 'https://example.test/synthetic-other.ts';
             await jest.advanceTimersByTimeAsync(2_000);
-            await tick();
-            await tick();
+            for (let turn = 0; turn < 6; turn++) await tick();
             expect(externalPlayerSessions.getSession(session.id)).toMatchObject(
                 {
                     mediaLoaded: false,

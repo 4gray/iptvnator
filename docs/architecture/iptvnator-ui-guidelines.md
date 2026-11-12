@@ -586,6 +586,8 @@ at the same index, the previous row at the end, or the empty scroll owner.
 When filtering shifts a programme guide row, focus follows its programme
 if it is still present, or the channel cell otherwise. During a schedule
 refresh, keep the focused programme identity until the row has loaded again.
+If its row moves during that refresh, reveal the row and defer DOM focus
+until the programme is present or the refreshed schedule shows it is gone.
 A destroyed pane falls back to its captured workspace main landmark. This
 recovery never takes focus from another active control.
 Xtream aligns a newly selected channel only when it is outside the viewport;

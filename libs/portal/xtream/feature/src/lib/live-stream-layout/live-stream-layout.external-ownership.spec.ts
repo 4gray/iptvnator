@@ -496,6 +496,7 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
 
     it.each([
         'loaded',
+        'VLC initially waiting',
         'timed out',
         'unverified VLC',
         'VLC timed out',
@@ -563,11 +564,16 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
                 id: 'synthetic-confirmed',
                 streamUrl: nextUrl,
             };
-            publishExternalSession({ ...replacement, mediaLoaded: false });
+            publishExternalSession({
+                ...replacement,
+                mediaLoaded: false,
+                playbackIdle:
+                    outcome === 'VLC initially waiting' ? false : undefined,
+            });
             fixture.detectChanges();
             expect(committed).not.toHaveBeenCalled();
             expect(source.activeChannelId()).toBe(String(first.xtream_id));
-            if (outcome !== 'loaded') {
+            if (outcome !== 'loaded' && outcome !== 'VLC initially waiting') {
                 publishExternalSession({
                     ...replacement,
                     mediaLoaded: false,

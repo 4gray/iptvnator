@@ -256,6 +256,7 @@ export function markVlcOpened(
     if (!port) return markExternalPlayerOpened(sessionId);
     const listedChild = mediaUrl && matchVlcGuidePlaylist(mediaUrl, request);
     let playlistInput: string | undefined;
+    let playedRequestedMedia = false;
     if (mediaUrl)
         setTimeout(() => {
             const current = externalPlayerSessions.getSession(sessionId);
@@ -324,16 +325,18 @@ export function markVlcOpened(
                         playbackUnverified: true,
                     });
                 if (!matches) return null;
-                if (!confirmed)
+                if (!confirmed) {
+                    playedRequestedMedia = true;
                     externalPlayerSessions.updateSession(sessionId, {
                         mediaLoaded: true,
                         playbackIdle: false,
                         playbackUnverified: undefined,
                         mediaReadinessTimedOut: undefined,
                     });
+                }
             }
             return state === 'stopped'
-                ? true
+                ? !mediaUrl || playedRequestedMedia
                 : state === 'playing' || state === 'paused'
                   ? false
                   : null;

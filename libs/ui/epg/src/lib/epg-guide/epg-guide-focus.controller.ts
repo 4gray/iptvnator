@@ -11,7 +11,7 @@ interface FocusHost {
     blocksFor(row: number): TimelineRenderBlock[];
     trackProgrammes(channelId: string): void;
     statusFor(channelId: string): EpgGuideRowStatus;
-    restoreFocus(focus: EpgGuideFocus | null): void;
+    restoreFocus(focus: EpgGuideFocus | null, deferDomFocus: boolean): void;
     focusRow(row: number): void;
 }
 
@@ -95,7 +95,7 @@ export class EpgGuideFocusController {
         this.recorded =
             next < 0 ? null : { row: next, block: block < 0 ? null : block };
         this.host.focus.set(this.recorded);
-        this.host.restoreFocus(this.recorded);
+        this.host.restoreFocus(this.recorded, this.restoring());
     }
 
     private isPending(channelId: string): boolean {

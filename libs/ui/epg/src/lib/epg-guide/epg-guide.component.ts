@@ -206,7 +206,8 @@ export class EpgGuideComponent implements OnDestroy {
         blocksFor: (row) => this.blocksFor(row),
         trackProgrammes: (id) => this.programsFor(id),
         statusFor: (id) => this.statusFor(id),
-        restoreFocus: (focus) => this.viewportController.restoreFocus(focus),
+        restoreFocus: (focus, deferDomFocus) =>
+            this.viewportController.restoreFocus(focus, deferDomFocus),
         focusRow: (row) => this.viewportController.focusRovingTargetOnRow(row),
     });
 
