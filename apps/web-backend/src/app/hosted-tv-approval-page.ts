@@ -48,6 +48,7 @@ const approve = document.getElementById('approve');
 const signInButton = signIn.querySelector('button');
 const expired = 'This request has expired or was already approved. Check your TV or start pairing again.';
 const unavailable = 'Could not reach IPTVnator. Check the server and try again.';
+const useApp = 'Open IPTVnator on a paired phone with approval permission and select Scan TV QR.';
 
 const post = (action, data) => fetch('/api/v1/device-pairing/' + action, {
     method: 'POST',
@@ -74,6 +75,12 @@ async function readRequest() {
     }
     if (response.status === 404) {
         status.textContent = expired;
+        return;
+    }
+    if (response.status === 409) {
+        signIn.hidden = true;
+        request.hidden = true;
+        status.textContent = 'Set a phone approval password in Server settings to approve in the browser. ' + useApp;
         return;
     }
     if (!response.ok) throw new Error('Pairing request unavailable');
@@ -123,7 +130,7 @@ approve.addEventListener('click', async () => {
     try {
         const response = await post('browser-approve', { claimId });
         if (response.status === 401) {
-            requireSignIn();
+            await readRequest();
         } else if (response.status === 404) {
             request.hidden = true;
             status.textContent = expired;
@@ -140,10 +147,10 @@ approve.addEventListener('click', async () => {
     }
 });
 
-if (location.protocol !== 'https:') {
-    status.textContent = 'Phone approval requires HTTPS. Scan the QR code shown on your TV.';
-} else if (!claimId) {
+if (!claimId) {
     status.textContent = 'Scan the QR code shown on your TV to open its pairing request.';
+} else if (location.protocol !== 'https:') {
+    status.textContent = 'Browser approval requires HTTPS. ' + useApp + ' You can also approve on the PC.';
 } else {
     readRequest().catch(() => { status.textContent = unavailable; });
 }

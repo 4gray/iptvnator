@@ -204,7 +204,7 @@ test('starts locally, reconnects through the hosted library, and stops on reques
     }
 });
 
-test('shares a library, pairs an approved device, and revokes its access', async ({
+test('lets a paired phone approve a TV and revokes access per device', async ({
     browser,
 }) => {
     const directory = mkdtempSync(join(tmpdir(), 'iptvnator-hosted-lan-'));
@@ -291,10 +291,13 @@ test('shares a library, pairs an approved device, and revokes its access', async
             );
             expect(new URL(device.url()).hash).toBe('');
 
-            const post = (path: string, body: object) =>
+            const post = (path: string, body: object, token?: string) =>
                 fetch(`${invite.origin}/api/v1/device-pairing/${path}`, {
                     method: 'POST',
-                    headers: { 'content-type': 'application/json' },
+                    headers: {
+                        'content-type': 'application/json',
+                        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                    },
                     body: JSON.stringify(body),
                 });
             const claimResponse = await post('claim', {
@@ -350,10 +353,63 @@ test('shares a library, pairs an approved device, and revokes its access', async
             await device.goto(invite.origin);
             await authorized;
 
+            const tv = await (
+                await post('start', { name: 'Synthetic TV' })
+            ).json();
+            expect(tv.approvalUrl).toBe(
+                `${invite.origin}/approve-device/${tv.claimId}`
+            );
+            expect(tv.approvalUrl).not.toContain(tv.claimSecret);
+            await device.goto(tv.approvalUrl);
+            await expect(device.getByRole('status')).toContainText(
+                'Scan TV QR'
+            );
             await expect(
-                page.getByRole('button', { name: 'Revoke access' })
-            ).toBeVisible();
-            await page.getByRole('button', { name: 'Revoke access' }).click();
+                device.getByLabel('Phone approval password')
+            ).toBeHidden();
+
+            const requestTv = () =>
+                post('device-request', { claimId: tv.claimId }, enrolled.token);
+            expect((await requestTv()).status).toBe(403);
+            const phone = page
+                .locator('.device-row')
+                .filter({ hasText: 'Synthetic Android' });
+            const canApprove = phone
+                .getByTestId('hosted-device-approval')
+                .getByRole('switch');
+            await expect(canApprove).toHaveAttribute('aria-checked', 'false');
+            await canApprove.click();
+            await expect(canApprove).toHaveAttribute('aria-checked', 'true');
+            const details = await requestTv();
+            expect(details.status).toBe(200);
+            expect(await details.json()).toEqual({
+                name: 'Synthetic TV',
+                confirmationCode: tv.confirmationCode,
+            });
+            expect(
+                (
+                    await post(
+                        'device-approve',
+                        { claimId: tv.claimId },
+                        enrolled.token
+                    )
+                ).status
+            ).toBe(204);
+            const tvDevice = await (
+                await post('complete', {
+                    claimId: tv.claimId,
+                    claimSecret: tv.claimSecret,
+                })
+            ).json();
+            expect(tvDevice).toMatchObject({
+                status: 'approved',
+                instanceId: identity.instanceId,
+            });
+
+            await canApprove.click();
+            await expect(canApprove).toHaveAttribute('aria-checked', 'false');
+            expect((await requestTv()).status).toBe(403);
+            await phone.getByRole('button', { name: 'Revoke access' }).click();
             await page.getByTestId('confirm-dialog-confirm').click();
             await expect(
                 page.getByText('Synthetic Android', { exact: true })
@@ -365,6 +421,13 @@ test('shares a library, pairs an approved device, and revokes its access', async
                     })
                 ).status
             ).toBe(401);
+            expect(
+                (
+                    await fetch(`${invite.origin}/api/v1/sources`, {
+                        headers: { Authorization: `Bearer ${tvDevice.token}` },
+                    })
+                ).status
+            ).toBe(200);
         } finally {
             await device.close();
         }
@@ -437,9 +500,12 @@ test('approves a LAN TV from a phone over HTTPS', async ({ browser }) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body),
             });
-        expect(
-            await (await tvPost('start', { name: 'LAN-only TV' })).json()
-        ).toMatchObject({ approvalUrl: null });
+        const lanOnly = await (
+            await tvPost('start', { name: 'LAN-only TV' })
+        ).json();
+        expect(lanOnly.approvalUrl).toBe(
+            `${lan}/approve-device/${lanOnly.claimId}`
+        );
 
         proxy.listen(0, '127.0.0.1');
         await once(proxy, 'listening');
@@ -450,6 +516,21 @@ test('approves a LAN TV from a phone over HTTPS', async ({ browser }) => {
         await page.getByTestId('hosted-https-setup').click();
         await page.getByTestId('hosted-https-origin').fill(httpsOrigin);
         await page.getByTestId('hosted-https-start').click();
+        await expect(page.getByTestId('hosted-https-stop')).toBeVisible();
+        const approval = await phone.newPage();
+        const password = approval.getByLabel('Phone approval password');
+        const appOnly = await (
+            await tvPost('start', { name: 'App-only TV' })
+        ).json();
+        expect(appOnly.approvalUrl).toBe(
+            `${httpsOrigin}/approve-device/${appOnly.claimId}`
+        );
+        await approval.goto(appOnly.approvalUrl);
+        await expect(approval.getByRole('status')).toContainText(
+            'Set a phone approval password'
+        );
+        await expect(password).toBeHidden();
+
         const ownerPassword = 'synthetic test owner password';
         await page
             .getByTestId('hosted-browser-pairing-password')
@@ -470,8 +551,6 @@ test('approves a LAN TV from a phone over HTTPS', async ({ browser }) => {
         const complete = () => tvPost('complete', { claimId, claimSecret });
         expect(await (await complete()).json()).toEqual({ status: 'pending' });
 
-        const approval = await phone.newPage();
-        const password = approval.getByLabel('Phone approval password');
         await approval.goto(`${lan}/approve-device/${claimId}`);
         await expect(approval.getByRole('status')).toContainText(
             'requires HTTPS'

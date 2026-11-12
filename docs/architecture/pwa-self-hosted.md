@@ -61,12 +61,18 @@ Revoke access removes that credential without changing the shared access code
 or other paired devices. The ordinary web-player QR still contains the address.
 
 For a TV without a camera, **Pair with server** in the native Android library
-settings starts a request and displays a six-digit confirmation code. Approve
-it under **Paired devices** on the PC, or enable HTTPS and set a **Phone
-approval password** in that panel to let a phone approve it. The TV then shows
-a QR code for the HTTPS approval page. Scan it, sign in, compare the code and
-approve. The TV receives an individual credential and opens the hosted library
-without having to enter the shared code.
+settings starts a request and displays a QR code and a six-digit confirmation
+code. Pair the phone first, then enable **Allow this device to approve pairing**
+for it under **Paired devices** on the PC. On that phone, choose **Scan TV QR**
+in the native IPTVnator settings, compare the code and approve. The phone uses
+its paired credential against its saved server. The TV receives its own
+credential and opens the hosted library without entering the shared code.
+
+The QR is a regular URL. A generic QR reader opens the server's approval page.
+The page accepts browser approval over HTTPS after the owner sets a **Phone
+approval password** in **Paired devices**. On LAN HTTP, the page directs you
+to the IPTVnator scanner or approval on the PC. The PC can approve directly
+and can turn off a phone's approval permission without disconnecting it.
 
 For a TV at home and a phone using Cloudflare Access, start **Home network**
 first and enable Cloudflare from **Remote access** while it is running. Use the
@@ -75,6 +81,9 @@ optional **HTTPS approval address** field. The phone passes the Cloudflare
 Access policy in its browser before signing in to IPTVnator's approval page.
 This flow keeps the TV's library connection on the LAN.
 
+Device approval permission defaults to off and only the PC owner can change it.
+It permits reading and approving a pending TV request and is checked for each
+request. The phone sends its credential only to the stored paired origin.
 The browser password is separate from the library access code. The backend
 keeps a salted verifier and grants a five-minute approval session through a
 Secure, HttpOnly cookie. The session is scoped to TV approval and the HTTPS
