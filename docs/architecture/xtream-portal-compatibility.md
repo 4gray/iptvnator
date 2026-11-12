@@ -823,7 +823,9 @@ checks the requested input before and after reading its playback clock.
 If VLC opens a direct child of a plain M3U, the app reads only that playlist,
 follows up to three validated redirects within the same request limits, and
 resolves relative entries against the final URL. It rechecks the active input
-before confirming.
+before confirming. A playlist with an M3U extension or media type can omit the
+header; HLS tags still exclude it. Failed reads get up to three retries spaced
+five seconds apart.
 A readable zero stays pending; an unrelated URL invalidates confirmation. A
 stopped VLC input must pass the clock check again before the guide marks it live.
 VLC's initial stopped state leaves a new tune pending until confirmation,

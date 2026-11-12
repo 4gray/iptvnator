@@ -12,8 +12,18 @@ export function matchVlcGuidePlaylist(
     request: VlcGuidePlaylistRequest
 ): (input: string) => Promise<boolean> {
     let entries: Promise<Set<string>> | undefined;
+    let failures = 0;
+    let retryAt = 0;
     return async (input) => {
-        entries ??= loadPlaylistEntries(url, request).catch(() => new Set());
+        if (!entries && performance.now() < retryAt) return false;
+        entries ??= loadPlaylistEntries(url, request).catch(() => {
+            // shortcut: three retries per tune; extend when longer provider outages need automatic recovery.
+            if (++failures <= 3) {
+                entries = undefined;
+                retryAt = performance.now() + 5_000;
+            }
+            return new Set<string>();
+        });
         for (const target of await entries)
             if (matchesVlcInput(input, target)) return true;
         return false;
@@ -31,7 +41,7 @@ async function loadPlaylistEntries(
         effectiveUserAgent,
     } = request;
     const signal = AbortSignal.timeout(2_000);
-    const { data, config } = await Promise.race([
+    const { data, config, headers } = await Promise.race([
         requestWithValidatedRedirects<string>(
             url,
             {
@@ -66,16 +76,25 @@ async function loadPlaylistEntries(
         .trimStart()
         .split(/\r?\n/)
         .map((line) => line.trim());
+    const finalUrl = new URL(config.url ?? url);
+    const contentType = String(headers?.['content-type'] ?? '')
+        .split(';')[0]
+        .trim();
+    const hasM3uHint =
+        /\.m3u8?$/i.test(finalUrl.pathname) ||
+        /^(?:application\/(?:vnd\.apple\.|x-)?|audio\/(?:x-)?)mpegurl$/i.test(
+            contentType
+        );
     // shortcut: only direct children of a plain M3U; extend once VLC exposes deeper ancestry.
     if (
-        !/^#EXTM3U(?:\s|$)/i.test(lines[0] ?? '') ||
-        lines.some((line) => line.startsWith('#EXT-X-'))
+        (!hasM3uHint && !/^#EXTM3U(?:\s|$)/i.test(lines[0] ?? '')) ||
+        lines.some((line) => /^#EXT-X-/i.test(line))
     )
         return targets;
     for (const line of lines) {
         if (!line || line.startsWith('#')) continue;
         try {
-            const target = new URL(line, config.url ?? url);
+            const target = new URL(line, finalUrl);
             if (target.protocol === 'http:' || target.protocol === 'https:')
                 targets.add(target.href);
         } catch {

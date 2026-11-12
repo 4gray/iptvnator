@@ -583,13 +583,15 @@ describe('EpgGuideComponent', () => {
     });
 
     it.each([
-        [true, false],
-        [false, false],
-        [true, true],
-        [false, true],
+        [true, false, false],
+        [false, false, false],
+        [true, true, false],
+        [false, true, false],
+        [true, false, true],
+        [false, true, true],
     ] as const)(
-        'restores focus after a programme reload (present: %s, row moved: %s)',
-        async (present, moved) => {
+        'restores focus after a programme reload (present: %s, row moved: %s, first load fails: %s)',
+        async (present, moved, failed) => {
             await settle(fixture);
             const card = fixture.nativeElement.querySelector(
                 '.epg-guide-row__block'
@@ -601,6 +603,7 @@ describe('EpgGuideComponent', () => {
 
             const source = fixture.debugElement.injector.get(EPG_GUIDE_SOURCE);
             const load = source.loadPrograms;
+            let fail = failed;
             let release!: () => void;
             const reload = new Promise<void>((resolve) => {
                 release = resolve;
@@ -608,6 +611,7 @@ describe('EpgGuideComponent', () => {
             jest.spyOn(source, 'loadPrograms').mockImplementation(
                 async (window) => {
                     await reload;
+                    if (fail) throw new Error('Synthetic schedule failure');
                     return load(window);
                 }
             );
@@ -622,6 +626,17 @@ describe('EpgGuideComponent', () => {
             release();
             await new Promise<void>((resolve) => setTimeout(resolve, 0));
             await settle(fixture);
+            if (failed) {
+                expect(component.statusFor(channels()[row].id)).toBe('error');
+                expect(component.focus()).toEqual({ row, block: 0 });
+                expect(component.focusedBlockFor(row)).toBeNull();
+                fail = false;
+                revision.update((value) => value + 1);
+                fixture.detectChanges();
+                await new Promise<void>((resolve) => setTimeout(resolve, 0));
+                await settle(fixture);
+                expect(component.statusFor(channels()[row].id)).toBe('loaded');
+            }
 
             const target = fixture.nativeElement
                 .querySelectorAll('app-epg-guide-row')

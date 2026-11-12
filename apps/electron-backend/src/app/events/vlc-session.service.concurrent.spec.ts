@@ -138,6 +138,49 @@ describe('VLC exact playback ownership', () => {
         }
     });
 
+    it('retries a failed playlist fetch after a pause and caches the successful read', async () => {
+        jest.useFakeTimers();
+        const url = 'https://example.test/synthetic.m3u';
+        const childUrl = 'https://example.test/synthetic-child.ts';
+        (requestWithValidatedRedirects as jest.Mock)
+            .mockRejectedValueOnce(new Error('Synthetic temporary failure'))
+            .mockResolvedValueOnce({
+                config: { url },
+                data: 'synthetic-child.ts\n',
+            });
+        const matches = matchVlcGuidePlaylist(url, { mergedHeaders: {} });
+        await expect(matches(childUrl)).resolves.toBe(false);
+        jest.advanceTimersByTime(4_999);
+        await expect(matches(childUrl)).resolves.toBe(false);
+        expect(requestWithValidatedRedirects).toHaveBeenCalledTimes(1);
+        jest.advanceTimersByTime(1);
+        await expect(matches(childUrl)).resolves.toBe(true);
+        await expect(matches(childUrl)).resolves.toBe(true);
+        expect(requestWithValidatedRedirects).toHaveBeenCalledTimes(2);
+    });
+
+    it('accepts a headerless playlist identified by its media type but excludes HLS', async () => {
+        const url = 'https://example.test/synthetic-input';
+        const childUrl = 'https://example.test/synthetic-child.ts';
+        const response = {
+            config: { url },
+            headers: { 'content-type': 'audio/x-mpegurl; charset=utf-8' },
+        };
+        (requestWithValidatedRedirects as jest.Mock)
+            .mockResolvedValueOnce({
+                ...response,
+                data: 'synthetic-child.ts\n',
+            })
+            .mockResolvedValueOnce({
+                ...response,
+                data: '#EXTM3U\n#EXT-X-TARGETDURATION:1\nsynthetic-child.ts\n',
+            });
+        const load = () =>
+            matchVlcGuidePlaylist(url, { mergedHeaders: {} })(childUrl);
+        await expect(load()).resolves.toBe(true);
+        await expect(load()).resolves.toBe(false);
+    });
+
     it('starts the newer VLC tune after closing the older launch’s fallback', async () => {
         if (process.platform === 'win32') return;
         jest.useFakeTimers({ doNotFake: ['setImmediate'] });
@@ -554,11 +597,12 @@ describe('VLC exact playback ownership', () => {
             const currentInput = playlist
                 ? new URL('synthetic-child.ts', finalUrl).href
                 : decodeURIComponent(url);
-            if (playlist)
-                (requestWithValidatedRedirects as jest.Mock).mockResolvedValue({
-                    config: { url: finalUrl },
-                    data: '#EXTM3U x-tvg-url="https://example.test/synthetic.xml"\n#EXTINF:-1,Synthetic Child\nsynthetic-child.ts\n',
-                });
+            (requestWithValidatedRedirects as jest.Mock).mockResolvedValue({
+                config: { url: finalUrl },
+                data: playlist
+                    ? '#EXTM3U x-tvg-url="https://example.test/synthetic.xml"\n#EXTINF:-1,Synthetic Child\nsynthetic-child.ts\n'
+                    : 'Synthetic media response',
+            });
             let input = 'https://example.test/synthetic-old.ts';
             let playbackTime = 0;
             let switchDuringClock = false;

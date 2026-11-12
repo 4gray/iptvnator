@@ -46,7 +46,7 @@ export class EpgGuideFocusController {
         }
         const { row, block } = focused;
         this.host.trackProgrammes(id);
-        const loading = this.isPending(id);
+        const awaitingSchedule = this.awaitingSchedule(id);
         untracked(() => {
             if (this.host.rows()[row]?.id !== id) return;
             const blocks = this.host.blocksFor(row);
@@ -55,7 +55,7 @@ export class EpgGuideFocusController {
                 if (this.programme) return;
             }
             const index = findGuideProgramme(blocks, this.programme);
-            if (index < 0 && loading && this.programme) {
+            if (index < 0 && awaitingSchedule && this.programme) {
                 this.restoring.set(true);
                 return;
             }
@@ -84,7 +84,7 @@ export class EpgGuideFocusController {
             block < 0 &&
             focused.block !== null &&
             this.programme &&
-            this.isPending(id)
+            this.awaitingSchedule(id)
         ) {
             block = focused.block;
             this.restoring.set(true);
@@ -98,8 +98,8 @@ export class EpgGuideFocusController {
         this.host.restoreFocus(this.recorded, this.restoring());
     }
 
-    private isPending(channelId: string): boolean {
+    private awaitingSchedule(channelId: string): boolean {
         const status = this.host.statusFor(channelId);
-        return status === 'idle' || status === 'loading';
+        return status === 'idle' || status === 'loading' || status === 'error';
     }
 }
