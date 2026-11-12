@@ -1499,6 +1499,10 @@
                 "TITLE": "门户不可用",
                 "DESCRIPTION": "无法连接到门户。请检查服务器 URL，或在源恢复后重试。"
             },
+            "PROVIDER_RESPONSE_TOO_LARGE": {
+                "TITLE": "Xtream 目录超出服务器大小限制",
+                "DESCRIPTION": "调高服务器上的 IPTVNATOR_MAX_PROVIDER_RESPONSE_MB 值并重启服务器，然后重试同步。"
+            },
             "EMPTY_CATEGORY": {
                 "TITLE": "空分类",
                 "DESCRIPTION": "该分类没有内容，请选择其他分类或更改内容类型"

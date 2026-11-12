@@ -1499,6 +1499,10 @@
                 "TITLE": "入口網站無法使用",
                 "DESCRIPTION": "無法連線至入口網站。請檢查伺服器網址，或在來源恢復可用後重試。"
             },
+            "PROVIDER_RESPONSE_TOO_LARGE": {
+                "TITLE": "Xtream 目錄超過伺服器大小上限",
+                "DESCRIPTION": "提高伺服器上的 IPTVNATOR_MAX_PROVIDER_RESPONSE_MB 值並重新啟動伺服器，然後再試一次同步。"
+            },
             "EMPTY_CATEGORY": {
                 "TITLE": "空類別",
                 "DESCRIPTION": "此類別沒有內容，請選擇其他類別或更改內容類型"

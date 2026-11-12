@@ -1499,6 +1499,10 @@
                 "TITLE": "Portaal niet beschikbaar",
                 "DESCRIPTION": "Het portaal kon niet worden bereikt. Controleer de server-URL of probeer het opnieuw wanneer de bron weer beschikbaar is."
             },
+            "PROVIDER_RESPONSE_TOO_LARGE": {
+                "TITLE": "De Xtream-catalogus overschrijdt de serverlimiet",
+                "DESCRIPTION": "Verhoog de waarde van IPTVNATOR_MAX_PROVIDER_RESPONSE_MB op de server en start de server opnieuw. Probeer daarna opnieuw te synchroniseren."
+            },
             "EMPTY_CATEGORY": {
                 "TITLE": "Geen inhoud in deze categorie",
                 "DESCRIPTION": "Selecteer een andere categorie of wijzig het inhoudstype."

@@ -1499,6 +1499,10 @@
                 "TITLE": "포털을 사용할 수 없습니다",
                 "DESCRIPTION": "포털에 연결할 수 없습니다. 서버 URL을 확인하거나 소스를 다시 사용할 수 있을 때 다시 시도하세요."
             },
+            "PROVIDER_RESPONSE_TOO_LARGE": {
+                "TITLE": "Xtream 카탈로그가 서버의 크기 제한을 초과했습니다",
+                "DESCRIPTION": "서버의 IPTVNATOR_MAX_PROVIDER_RESPONSE_MB 값을 높이고 서버를 다시 시작하세요. 그런 다음 동기화를 다시 시도하세요."
+            },
             "EMPTY_CATEGORY": {
                 "TITLE": "빈 카테고리",
                 "DESCRIPTION": "이 카테고리에는 콘텐츠가 없습니다. 다른 카테고리를 선택하거나 콘텐츠 유형을 변경하세요."
