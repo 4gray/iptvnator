@@ -3,6 +3,7 @@ jest.mock('../util/validated-axios', () => ({
 }));
 
 import { requestWithValidatedRedirects } from '../util/validated-axios';
+import { XTREAM_CLIENT_USER_AGENT } from '@iptvnator/shared/interfaces';
 import { matchesVlcInput, matchVlcGuidePlaylist } from './vlc-guide-playlist';
 
 describe('VLC playlist verification', () => {
@@ -53,6 +54,7 @@ describe('VLC playlist verification', () => {
         const childUrl = 'https://example.test/synthetic-child.ts';
         (requestWithValidatedRedirects as jest.Mock)
             .mockRejectedValueOnce(new Error('Synthetic temporary failure'))
+            .mockResolvedValueOnce({ config: { url } })
             .mockResolvedValueOnce({
                 config: { url },
                 data: 'synthetic-child.ts\n',
@@ -69,15 +71,20 @@ describe('VLC playlist verification', () => {
         jest.advanceTimersByTime(1);
         await expect(matches(childUrl)).resolves.toBe(true);
         await expect(matches(childUrl)).resolves.toBe(true);
-        expect(requestWithValidatedRedirects).toHaveBeenCalledTimes(2);
+        expect(requestWithValidatedRedirects).toHaveBeenCalledTimes(3);
         expect(requestWithValidatedRedirects).toHaveBeenLastCalledWith(
             url,
             expect.objectContaining({
-                headers: { Origin: origin, Referer: origin },
+                headers: {
+                    Origin: origin,
+                    Referer: origin,
+                    'User-Agent': XTREAM_CLIENT_USER_AGENT,
+                },
             }),
             expect.anything(),
-            3
+            0
         );
+        jest.useRealTimers();
     });
 
     it('accepts a headerless playlist identified by its media type but excludes HLS', async () => {

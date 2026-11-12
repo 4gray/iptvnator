@@ -36,6 +36,7 @@ export type EpgGuideRowStatus =
 
 const EMPTY: readonly EpgProgram[] = [];
 const COVERAGE_BATCH_MS = 200;
+const ROW_RETRY_MS = 30_000;
 
 const debugEpgGuidePrograms = createDevLogger('EpgGuideProgramsService');
 
@@ -263,15 +264,18 @@ export class EpgGuideProgramsService {
         > = entries
     ): void {
         const next = new Map(this.programs());
+        const statuses = new Map(this.statuses());
         for (const [id, programs] of entries) {
-            next.set(id, programs ?? EMPTY);
-            const expiresAt = programs && this.source.programsExpireAt?.(id);
+            if (programs) next.set(id, programs);
+            const retry = !programs && this.rowExpiry.has(id);
+            const expiresAt = retry
+                ? Date.now() + ROW_RETRY_MS
+                : programs && this.source.programsExpireAt?.(id);
             if (expiresAt !== undefined) this.rowExpiry.set(id, expiresAt);
+            statuses.set(id, programs || retry ? 'loaded' : 'error');
         }
         this.programs.set(next);
-        this.patchStatuses(
-            entries.map(([id, programs]) => [id, programs ? 'loaded' : 'error'])
-        );
+        this.statuses.set(statuses);
         if (!this.source.deferredCoverage) return;
         const checks = this.coverage();
         const scan = this.coverageRequest;

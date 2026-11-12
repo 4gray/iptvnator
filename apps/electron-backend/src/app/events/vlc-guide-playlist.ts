@@ -1,4 +1,5 @@
 import { once } from 'node:events';
+import { XTREAM_CLIENT_USER_AGENT } from '@iptvnator/shared/interfaces';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
 import type { EffectiveExternalPlaybackRequest } from './external-player-playback-request';
 
@@ -45,25 +46,33 @@ async function loadPlaylistEntries(
         effectiveUserAgent,
     } = request;
     const referer = effectiveReferer || effectiveOrigin;
+    const safeHeaders = { 'User-Agent': XTREAM_CLIENT_USER_AGENT };
+    let headers: Record<string, string> = {
+        ...mergedHeaders,
+        ...(effectiveOrigin && { Origin: effectiveOrigin }),
+        ...(referer && { Referer: referer }),
+        'User-Agent': effectiveUserAgent?.trim() || XTREAM_CLIENT_USER_AGENT,
+    };
     const signal = AbortSignal.timeout(2_000);
     // DNS validation can still be running when the HTTP deadline expires.
     const deadline = once(signal, 'abort').then(() => {
         throw signal.reason;
     });
-    const read = (method: 'HEAD' | 'GET') =>
+    const read = (target: URL, method: 'HEAD' | 'GET') =>
         Promise.race([
             requestWithValidatedRedirects<string>(
-                url,
+                target.href,
                 {
                     method,
-                    headers: {
-                        ...mergedHeaders,
-                        ...(effectiveOrigin && { Origin: effectiveOrigin }),
-                        ...(referer && { Referer: referer }),
-                        ...(effectiveUserAgent && {
-                            'User-Agent': effectiveUserAgent,
-                        }),
-                    },
+                    headers,
+                    headersForUnsafeRedirect: () => (headers = safeHeaders),
+                    validateStatus:
+                        method === 'HEAD'
+                            ? (status) =>
+                                  (status >= 200 && status < 300) ||
+                                  status === 405 ||
+                                  status === 501
+                            : undefined,
                     responseType: 'text',
                     maxContentLength: 64 * 1024,
                     timeout: 2_000,
@@ -71,29 +80,31 @@ async function loadPlaylistEntries(
                     proxy: false,
                 },
                 {
-                    allowPrivateNetworks: true,
+                    allowPrivateNetworks: target.origin === input.origin,
                     allowPrivateNetworkRedirects: false,
                     pinAllowedPrivateNetworkHosts: true,
                 },
-                3
+                method === 'HEAD' ? 3 : 0
             ),
             deadline,
         ]);
-    if (!isM3uPath(input)) {
-        const head = await read('HEAD');
-        const redirected = new URL(head.config.url ?? url);
-        if (!hasM3uHint(redirected, head.headers?.['content-type']))
-            return targets;
-    }
-    const { data, config, headers } = await read('GET');
+    const head = await read(input, 'HEAD');
+    const finalUrl = new URL(head.config.url ?? url);
+    const headUnsupported = head.status === 405 || head.status === 501;
+    if (
+        headUnsupported
+            ? finalUrl.href !== input.href || !isM3uPath(input)
+            : !hasM3uHint(finalUrl, head.headers?.['content-type'])
+    )
+        return targets;
+    const { data, headers: responseHeaders } = await read(finalUrl, 'GET');
     const lines = data
         .trimStart()
         .split(/\r?\n/)
         .map((line) => line.trim());
-    const finalUrl = new URL(config.url ?? url);
     // shortcut: only direct children of a plain M3U; extend once VLC exposes deeper ancestry.
     if (
-        (!hasM3uHint(finalUrl, headers?.['content-type']) &&
+        (!hasM3uHint(finalUrl, responseHeaders?.['content-type']) &&
             !/^#EXTM3U(?:\s|$)/i.test(lines[0] ?? '')) ||
         lines.some((line) => /^#EXT-X-/i.test(line))
     )
@@ -118,12 +129,14 @@ function isM3uPath(url: URL): boolean {
 function hasM3uHint(url: URL, header: unknown): boolean {
     const type = String(header ?? '')
         .split(';')[0]
-        .trim();
+        .trim()
+        .toLowerCase();
     return (
-        isM3uPath(url) ||
-        /^(?:application\/(?:vnd\.apple\.|x-)?|audio\/(?:x-)?)mpegurl$/i.test(
+        /^(?:application\/(?:vnd\.apple\.|x-)?|audio\/(?:x-)?)mpegurl$/.test(
             type
-        )
+        ) ||
+        (isM3uPath(url) &&
+            ['', 'text/plain', 'application/octet-stream'].includes(type))
     );
 }
 

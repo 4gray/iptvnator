@@ -738,12 +738,13 @@ describe('VLC exact playback ownership', () => {
                 externalPlayerSessions.getSession(session.id)?.mediaLoaded
             ).toBe(false);
             expect(requestWithValidatedRedirects).toHaveBeenCalledTimes(
-                playlist ? 1 : 0
+                playlist ? 2 : 0
             );
             if (playlist)
-                expect(requestWithValidatedRedirects).toHaveBeenCalledWith(
-                    url,
+                expect(requestWithValidatedRedirects).toHaveBeenLastCalledWith(
+                    finalUrl,
                     expect.objectContaining({
+                        method: 'GET',
                         maxContentLength: 64 * 1024,
                         timeout: 2_000,
                     }),
@@ -752,7 +753,7 @@ describe('VLC exact playback ownership', () => {
                         allowPrivateNetworkRedirects: false,
                         pinAllowedPrivateNetworkHosts: true,
                     },
-                    3
+                    0
                 );
             exit(proc);
         }

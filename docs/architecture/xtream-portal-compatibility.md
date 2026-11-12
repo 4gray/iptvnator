@@ -832,16 +832,19 @@ VLC guide launches use a private Unix socket for control where available, and
 otherwise open directly without an unauthenticated TCP control port. VLC RC
 checks the requested input before and after reading its playback clock. URL
 comparison preserves escaped delimiters such as `%2F`.
-VLC never opens a second stream to verify a mismatched direct input. Before
-confirmation it checks only known M3U URLs or inputs whose HEAD response identifies
-a playlist. An unidentifiable input stays unverified.
-If VLC opens a direct child of a plain M3U, the app reads only that playlist,
-follows up to three validated redirects within the same request limits, and
-resolves relative entries against the final URL. It rechecks the active input
+VLC skips known direct media when verifying a mismatched input. A HEAD request
+can follow up to three validated redirects within the same request limits. The
+verifier reads only the identified playlist, without following a GET redirect.
+An unidentifiable input stays unverified. If the original URL has an M3U
+extension and rejects HEAD as unsupported, it can be read directly.
+When VLC opens a direct child of a plain M3U, the verifier resolves relative
+entries against the final playlist URL. It rechecks the active input
 before confirming. A playlist with an M3U extension or media type can omit the
 header; HLS tags still exclude it. Failed reads get up to three retries spaced
 five seconds apart. Playlist verification uses VLC's Origin as the fallback
-Referer when none was provided.
+Referer and the standard Xtream player User-Agent if no overrides were provided.
+A host change or HTTPS downgrade keeps only the standard User-Agent for
+subsequent requests.
 A readable zero stays pending; an unrelated URL invalidates confirmation. A
 stopped VLC input must pass the clock check again before the guide marks it live.
 VLC's initial stopped state leaves a new tune pending until confirmation,
@@ -934,8 +937,10 @@ After the guide closes, a refresh of the playing channel's panel replaces the
 guide snapshot. The latest confirmed schedule stays tied to the playing channel,
 even while the panel previews a different channel. Closing the guide cancels its
 reads.
-Failed rows retry when they return to the viewport. A coverage scan or a dock refresh that
-obtains a schedule also updates the corresponding visible failed row.
+Initial failures retry when rows return to the viewport. If a visible row's
+refresh fails, it keeps its last schedule and can retry after 30 seconds.
+A coverage scan or dock refresh that obtains a schedule also updates the
+corresponding visible failed row.
 It checks the current scope's coverage only when the user turns on **Only with
 EPG** and keeps channels whose coverage could not be checked until a successful
 lookup determines whether they have programmes. It hides confirmed empty

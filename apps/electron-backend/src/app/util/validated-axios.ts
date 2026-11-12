@@ -34,6 +34,8 @@ export type ValidatedAxiosRequestConfig = Omit<
 > & {
     agentFactory?: ValidatedRequestAgentFactory;
     onResponse?: () => void;
+    /** Replace all request headers on a host change or HTTPS downgrade. */
+    headersForUnsafeRedirect?: () => RawAxiosRequestHeaders;
     /**
      * Called once a hop's TCP connection is established (or a pooled, already
      * connected socket was handed to it). Lets the host connectivity guard
@@ -228,7 +230,12 @@ function getRedirectValidationPolicy(
  */
 export async function requestWithValidatedRedirects<T = unknown>(
     rawUrl: string,
-    { onResponse, onConnect, ...config }: ValidatedAxiosRequestConfig = {},
+    {
+        onResponse,
+        onConnect,
+        headersForUnsafeRedirect,
+        ...config
+    }: ValidatedAxiosRequestConfig = {},
     policy: RemoteUrlPolicy = {},
     maxRedirects = 5
 ): Promise<AxiosResponse<T>> {
@@ -329,9 +336,9 @@ export async function requestWithValidatedRedirects<T = unknown>(
             requestConfig = {
                 ...requestConfig,
                 auth: undefined,
-                headers: copyHeadersWithoutSensitiveValues(
-                    requestConfig.headers
-                ),
+                headers:
+                    headersForUnsafeRedirect?.() ??
+                    copyHeadersWithoutSensitiveValues(requestConfig.headers),
                 params: undefined,
             };
         }

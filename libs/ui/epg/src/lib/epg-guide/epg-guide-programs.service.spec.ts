@@ -493,26 +493,41 @@ describe('EpgGuideProgramsService', () => {
         expect(service.programsFor('a')).toEqual([]);
     });
 
-    it('refreshes rendered rows after their provider cache entry expires', async () => {
+    it('keeps rendered programmes on a failed refresh and retries after a delay', async () => {
         jest.useFakeTimers({ now: 1000 });
         try {
             const programsExpireAt = jest.fn().mockReturnValue(2000);
             Object.assign(source, { programsExpireAt });
             const row = channels()[0];
+            const original = programFor('a');
+            const refreshed = {
+                ...original,
+                title: 'Synthetic Refreshed Programme',
+            };
             loadPrograms
-                .mockResolvedValueOnce(new Map([['a', []]]))
-                .mockResolvedValueOnce(new Map([['a', [programFor('a')]]]));
+                .mockResolvedValueOnce(new Map([['a', [original]]]))
+                .mockResolvedValueOnce(new Map())
+                .mockResolvedValueOnce(new Map([['a', [refreshed]]]));
             service.setWindow(1000, 2000);
             service.ensureLoaded([row]);
             await flush();
             service.ensureLoaded([row]);
             expect(loadPrograms).toHaveBeenCalledTimes(1);
             jest.setSystemTime(2000);
-            programsExpireAt.mockReturnValue(3000);
             service.ensureLoaded([row]);
             await flush();
             expect(loadPrograms).toHaveBeenCalledTimes(2);
-            expect(service.programsFor('a')).toEqual([programFor('a')]);
+            expect(service.programsFor('a')).toEqual([original]);
+            expect(service.statusFor('a')).toBe('loaded');
+            jest.setSystemTime(31_999);
+            service.ensureLoaded([row]);
+            expect(loadPrograms).toHaveBeenCalledTimes(2);
+            jest.setSystemTime(32_000);
+            programsExpireAt.mockReturnValue(60_000);
+            service.ensureLoaded([row]);
+            await flush();
+            expect(loadPrograms).toHaveBeenCalledTimes(3);
+            expect(service.programsFor('a')).toEqual([refreshed]);
         } finally {
             jest.useRealTimers();
         }
