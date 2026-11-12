@@ -16,6 +16,7 @@ import androidx.media3.common.MediaItem;
 import androidx.media3.common.MimeTypes;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
+import androidx.media3.common.TrackSelectionParameters;
 import androidx.media3.common.util.Log;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.datasource.okhttp.OkHttpDataSource;
@@ -24,6 +25,7 @@ import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.analytics.PlaybackStats;
 import androidx.media3.exoplayer.analytics.PlaybackStatsListener;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
+import androidx.media3.exoplayer.source.UnrecognizedInputFormatException;
 import androidx.media3.ui.PlayerView;
 
 import org.tvshell.iptvnator.R;
@@ -37,6 +39,7 @@ public final class NativePlayerActivity extends Activity {
     private PlaybackStatsListener stats;
     private HttpUrl stream;
     private boolean live;
+    private boolean hls;
     private boolean autoplay = true;
     private boolean failed;
     private boolean ended;
@@ -56,12 +59,14 @@ public final class NativePlayerActivity extends Activity {
         setContentView(R.layout.activity_native_player);
         view = findViewById(R.id.native_player);
         live = getIntent().getBooleanExtra("live", false);
+        hls = getIntent().getBooleanExtra("hls", false);
         position = live ? 0 : getIntent().getLongExtra("position", 0);
         if (savedState != null) {
             position = savedState.getLong("position");
             duration = savedState.getLong("duration");
             played = savedState.getLong("played");
             failed = savedState.getBoolean("failed");
+            hls = savedState.getBoolean("hls", hls);
             autoplay = false;
         }
         view.setShowRewindButton(!live);
@@ -88,10 +93,13 @@ public final class NativePlayerActivity extends Activity {
             .setAudioAttributes(AudioAttributes.DEFAULT, true)
             .setHandleAudioBecomingNoisy(true)
             .build();
-        if (!getIntent().getBooleanExtra("captions", false)) {
-            player.setTrackSelectionParameters(player.getTrackSelectionParameters()
-                .buildUpon().setIgnoredTextSelectionFlags(C.SELECTION_FLAG_DEFAULT).build());
+        TrackSelectionParameters.Builder selection = player.getTrackSelectionParameters().buildUpon();
+        if (getIntent().getBooleanExtra("captions", false)) {
+            selection.setSelectTextByDefault(true);
+        } else {
+            selection.setIgnoredTextSelectionFlags(C.SELECTION_FLAG_DEFAULT);
         }
+        player.setTrackSelectionParameters(selection.build());
         stats = new PlaybackStatsListener(false, null);
         player.addAnalyticsListener(stats);
         player.addListener(new Player.Listener() {
@@ -111,18 +119,27 @@ public final class NativePlayerActivity extends Activity {
 
             @Override
             public void onPlayerError(PlaybackException error) {
+                if (!hls && !isFinishing() && error.getCause() instanceof UnrecognizedInputFormatException) {
+                    // A manifest may be served behind an extensionless URL or a redirect.
+                    hls = true;
+                    prepareStream();
+                    return;
+                }
                 failed = true;
                 showError();
             }
         });
         view.setPlayer(player);
-        MediaItem.Builder media = new MediaItem.Builder().setUri(stream.toString());
-        if (getIntent().getBooleanExtra("hls", false)) media.setMimeType(MimeTypes.APPLICATION_M3U8);
-        player.setMediaItem(media.build());
-        if (!live && position > 0) player.seekTo(position);
-        player.prepare();
+        prepareStream();
         player.setPlayWhenReady(autoplay);
         autoplay = false;
+    }
+
+    private void prepareStream() {
+        MediaItem.Builder media = new MediaItem.Builder().setUri(stream.toString());
+        if (hls) media.setMimeType(MimeTypes.APPLICATION_M3U8);
+        player.setMediaItem(media.build(), !live && position > 0 ? position : C.TIME_UNSET);
+        player.prepare();
     }
 
     @Override
@@ -174,6 +191,7 @@ public final class NativePlayerActivity extends Activity {
         outState.putLong("duration", duration);
         outState.putLong("played", playedMs());
         outState.putBoolean("failed", failed);
+        outState.putBoolean("hls", hls);
         super.onSaveInstanceState(outState);
     }
 

@@ -3,7 +3,7 @@
  */
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -16,6 +16,7 @@ assert.ok(serial?.startsWith('emulator-') && process.env.ANDROID_HOME,
 const app = 'org.tvshell.iptvnator';
 const adb = (...args) => execFileSync(join(process.env.ANDROID_HOME, 'platform-tools/adb'),
     ['-s', serial, ...args], { encoding: 'utf8', timeout: 20000 });
+const dumpLayout = () => adb('exec-out', 'uiautomator', 'dump', '--compressed', '/dev/tty');
 const topActivity = () => adb('shell', 'dumpsys', 'activity', 'activities')
     .split('\n').find((line) => line.includes('topResumedActivity')) || '';
 
@@ -37,8 +38,11 @@ try {
     execFileSync('ffmpeg', ['-nostdin', '-loglevel', 'error', '-i', mp4, '-c', 'copy',
         '-hls_time', '2', '-hls_list_size', '0', join(fixtures, 'synthetic.m3u8')]);
     const mkv = join(fixtures, 'synthetic-ac3.mkv');
-    execFileSync('ffmpeg', ['-nostdin', '-loglevel', 'error', '-i', mp4,
-        '-c:v', 'copy', '-c:a', 'ac3', '-ac', '6', mkv]);
+    const subtitles = join(fixtures, 'synthetic.srt');
+    writeFileSync(subtitles, '1\n00:00:00,000 --> 00:00:20,000\nSynthetic subtitle\n');
+    execFileSync('ffmpeg', ['-nostdin', '-loglevel', 'error', '-i', mp4, '-i', subtitles,
+        '-c:v', 'copy', '-c:a', 'ac3', '-ac', '6', '-metadata:s:s:0', 'language=eng',
+        '-disposition:s:0', '0', mkv]);
     const clip = readFileSync(mp4);
     const ac3Clip = readFileSync(mkv);
     const seen = { origin: [], target: [], segments: 0 };
@@ -80,7 +84,9 @@ try {
             // No CORS on segments: only the native engine can fetch these for playback.
             res.writeHead(200, { 'Content-Type': 'video/mp2t' });
             res.end(segment);
-        } else if (req.url === '/synthetic.m3u8') {
+        } else if (req.url === '/synthetic-live') {
+            res.writeHead(302, { Location: '/synthetic-manifest' }).end();
+        } else if (req.url === '/synthetic-manifest') {
             const manifest = readFileSync(join(fixtures, 'synthetic.m3u8'));
             // No CORS on the manifest either, so WebView cannot reach the segments.
             res.writeHead(200, { 'Content-Type': 'application/vnd.apple.mpegurl' });
@@ -100,10 +106,7 @@ try {
         await page.evaluate(() => window.TvShell.postMessage('["openSettings"]'));
         settingsOpen = true;
         await expect.poll(topActivity).toContain('.ui.SettingsActivity');
-        const layout = '/sdcard/iptvnator-native-playback-test.xml';
-        adb('shell', 'uiautomator', 'dump', '--compressed', layout);
-        const checkbox = adb('shell', 'cat', layout).match(/<node [^>]*resource-id="org\.tvshell\.iptvnator:id\/native_playback"[^>]*>/)?.[0];
-        adb('shell', 'rm', layout);
+        const checkbox = dumpLayout().match(/<node [^>]*resource-id="org\.tvshell\.iptvnator:id\/native_playback"[^>]*>/)?.[0];
         assert.ok(checkbox, 'The native playback setting must be visible.');
         if (checkbox.includes('checked="true"') !== enabled) {
             const bounds = checkbox.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/).slice(1).map(Number);
@@ -121,7 +124,7 @@ try {
         '#EXTVLCOPT:http-user-agent=Synthetic-Playback',
         origin + '/synthetic.mp4',
         '#EXTINF:-1 group-title="Live",Synthetic Live',
-        origin + '/synthetic.m3u8',
+        origin + '/synthetic-live',
         '#EXTINF:-1 group-title="Movies",Synthetic AC-3',
         origin + '/synthetic-ac3.mkv',
     ].join('\n');
@@ -201,17 +204,39 @@ try {
         'Native HLS must play without browser CORS headers.');
     assert.equal(await page.evaluate(() => window.__nativeResult.ended), false, 'Back is a playback checkpoint.');
     await page.evaluate(() => { delete window.__nativeResult; });
+    await page.goto(new URL('/workspace/settings/playback', page.url()).href);
+    const captions = page.getByRole('switch', { name: 'Show subtitles' });
+    await expect(captions).toBeVisible();
+    if (!(await captions.isChecked())) {
+        await captions.click();
+        const save = page.getByRole('button', { name: 'Save changes' });
+        await save.click();
+        await expect(save).toBeHidden();
+    }
+    await page.goto(channelRoute);
+    await page.evaluate(() => {
+        window.addEventListener('iptvnator:android-playback-result', (event) => {
+            window.__nativeResult = event.detail.result;
+        });
+    });
     await entry('Synthetic AC-3').click();
     await expect(action).toBeVisible();
     await action.click();
     await waitNative();
     await expect(video).toHaveCount(0);
     await waitAudio();
+    const subtitleButton = /<node [^>]*resource-id="org\.tvshell\.iptvnator:id\/exo_subtitle"[^>]*>/;
+    await expect.poll(() => {
+        const xml = dumpLayout();
+        const button = xml.match(subtitleButton)?.[0];
+        if (!button) adb('shell', 'input', 'keyevent', 'KEYCODE_DPAD_CENTER');
+        return button?.match(/content-desc="([^"]*)"/)?.[1] ?? '';
+    }, { timeout: 8000 }).toBe('Disable subtitles');
     await page.waitForFunction(() => window.__nativeResult?.ended === true, undefined, { timeout: 30000 });
     await expect.poll(topActivity).toContain('.ui.MainActivity');
     await setExperiment(false);
     await expect(action).toHaveCount(0);
-    console.log('PASS Android Media3 opt-in, VOD resume after Home, redirect header scope, HLS Back, AC-3 audio output and natural VOD completion');
+    console.log('PASS Android Media3 opt-in, VOD resume after Home, redirect header scope, extensionless HLS Back, AC-3 audio, captions and natural VOD completion');
 } finally {
     if (settingsOpen || topActivity().includes('.ui.NativePlayerActivity')) adb('shell', 'input', 'keyevent', '4');
     await device?.close();

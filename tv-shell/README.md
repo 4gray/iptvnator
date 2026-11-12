@@ -120,7 +120,8 @@ The pilot plays HLS and direct HTTP(S) video such as MP4, MPEG-TS and MKV. Audio
 and video codec support varies by device. The built-in player uses FFmpeg to
 decode AC-3 when the device cannot handle it. DASH and DRM streams continue using
 the existing web path. The native fullscreen screen supports play/pause, VOD
-seeking, audio tracks and subtitles. It returns the VOD position after actual
+seeking, audio tracks and subtitles. The Show subtitles setting picks the
+initial subtitle track and the native controls can change it. It returns the VOD position after actual
 playback. Open the web player to use the channel and episode lists. You can
 still explicitly open a stream in an installed external player.
 
