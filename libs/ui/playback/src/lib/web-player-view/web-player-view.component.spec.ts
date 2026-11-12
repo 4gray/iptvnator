@@ -112,6 +112,68 @@ describe('WebPlayerViewComponent', () => {
         fixture.destroy();
     });
 
+    it('hands playback to Android and restores the web engine on request', () => {
+        const postMessage = jest.fn();
+        const tvWindow = Object.assign(window, {
+            TvShell: { postMessage },
+            iptvnatorAndroidPlaybackLabels: {
+                open: 'Open Android player',
+                back: 'Return to web player',
+            },
+        });
+        fixture.destroy();
+        try {
+            fixture = TestBed.createComponent(WebPlayerViewComponent);
+            component = fixture.componentInstance;
+            fixture.componentRef.setInput(
+                'playbackSessionKey',
+                'synthetic-session'
+            );
+            fixture.componentRef.setInput(
+                'streamUrl',
+                'https://media.example.test/synthetic-episode.mkv'
+            );
+            const position = jest.fn();
+            component.timeUpdate.subscribe(position);
+            fixture.detectChanges();
+
+            fixture.nativeElement
+                .querySelector('[data-tv-native-playback]')
+                .click();
+            fixture.detectChanges();
+            const [, id] = JSON.parse(postMessage.mock.lastCall?.[0] as string);
+            expect(component.androidPlayback.suspended()).toBe(true);
+
+            window.dispatchEvent(
+                new CustomEvent('iptvnator:android-playback-result', {
+                    detail: {
+                        id,
+                        result: {
+                            positionMs: 12000,
+                            durationMs: 20000,
+                            playedMs: 3000,
+                        },
+                    },
+                })
+            );
+            expect(position).toHaveBeenCalledWith({
+                currentTime: 12,
+                duration: 20,
+                playing: false,
+                checkpoint: true,
+            });
+            fixture.detectChanges();
+            const buttons = fixture.nativeElement.querySelectorAll(
+                '.web-player-android-actions button'
+            );
+            buttons[1].click();
+            expect(component.androidPlayback.suspended()).toBe(false);
+        } finally {
+            Reflect.deleteProperty(tvWindow, 'TvShell');
+            Reflect.deleteProperty(tvWindow, 'iptvnatorAndroidPlaybackLabels');
+        }
+    });
+
     it('anchors overlay UI to the player view host', () => {
         fixture.detectChanges();
 

@@ -5,7 +5,7 @@ import { AndroidTvPlayback } from './android-tv-playback';
 @Component({ template: '' })
 class RenderHost {}
 
-it('reports only an owned natural end after recording the final position', () => {
+function setup() {
     const postMessage = jest.fn();
     const shell = { postMessage };
     const tvWindow = Object.assign(window, {
@@ -64,6 +64,26 @@ it('reports only an owned natural end after recording the final position', () =>
         );
     }
 
+    const clear = () => {
+        Reflect.deleteProperty(tvWindow, 'TvShell');
+        Reflect.deleteProperty(tvWindow, 'iptvnatorAndroidPlaybackLabels');
+    };
+    return {
+        clear,
+        events,
+        fixture,
+        open,
+        playback,
+        postMessage,
+        reply,
+        surface,
+        token,
+        tvWindow,
+    };
+}
+
+it('reports only an owned natural end after recording the final position', () => {
+    const { clear, events, open, reply, token } = setup();
     try {
         reply(open(), false, 100);
         expect(events).toEqual(['position']);
@@ -78,7 +98,68 @@ it('reports only an owned natural end after recording the final position', () =>
         reply(id, true);
         expect(events).toEqual(['position', 'watched', 'position', 'ended']);
     } finally {
-        Reflect.deleteProperty(tvWindow, 'TvShell');
+        clear();
+    }
+});
+
+it('restores the web engine if Android rejects playback or is disabled', () => {
+    const { clear, open, playback, tvWindow } = setup();
+    try {
+        const id = open();
+        expect(playback.suspended()).toBe(true);
+        window.dispatchEvent(
+            new CustomEvent('iptvnator:android-playback-result', {
+                detail: { id, result: null },
+            })
+        );
+        expect(playback.suspended()).toBe(false);
+
+        open();
         Reflect.deleteProperty(tvWindow, 'iptvnatorAndroidPlaybackLabels');
+        window.dispatchEvent(
+            new Event('iptvnator:android-playback-availability')
+        );
+        expect(playback.labels()).toBeNull();
+        expect(playback.suspended()).toBe(false);
+    } finally {
+        clear();
+    }
+});
+
+it('carries provider headers and recovers if the native bridge throws', () => {
+    const { clear, fixture, playback, postMessage, surface } = setup();
+    try {
+        postMessage.mockImplementation(() => {
+            throw new Error('Synthetic bridge failure');
+        });
+        playback.open(
+            {
+                streamUrl: 'https://media.example.test/synthetic-live.m3u8',
+                title: 'Synthetic live stream',
+                headers: { 'User-Agent': 'Synthetic-Player' },
+                userAgent: 'Unused synthetic user agent',
+                referer: 'https://example.test/player',
+                origin: 'https://example.test',
+            },
+            true,
+            0,
+            false,
+            surface
+        );
+        fixture.detectChanges();
+        const [, , request] = JSON.parse(
+            postMessage.mock.lastCall?.[0] as string
+        );
+        expect(request).toMatchObject({
+            hls: true,
+            headers: {
+                'User-Agent': 'Synthetic-Player',
+                referer: 'https://example.test/player',
+                origin: 'https://example.test',
+            },
+        });
+        expect(playback.suspended()).toBe(false);
+    } finally {
+        clear();
     }
 });
