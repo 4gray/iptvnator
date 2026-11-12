@@ -1,6 +1,6 @@
 import { request } from 'node:http';
 import express from 'express';
-import { markHostedIngress } from '../hosted-ingress';
+import { markHostedIngress, markHostedLan } from '../hosted-ingress';
 import type { AddressInfo } from 'node:net';
 import { listenHosted } from '../hosted-listener';
 import { closeGracefully } from '../graceful-shutdown';
@@ -165,6 +165,49 @@ describe('device pairing', () => {
             });
         }));
 
+    it('uses the trusted LAN listener when ingress starts with an empty origin', () =>
+        withTempStorage(async (storage) => {
+            const ingress = { origin: '' };
+            const api = createWebBackendApp({
+                storage,
+                accessToken: 'admin-secret',
+                devicePairingEnabled: true,
+                hostedIngress: ingress,
+            });
+            const app = express();
+            app.use((req, _res, next) => {
+                if (req.get('x-test-lan') === 'yes')
+                    markHostedLan(req, 'http://192.168.1.2:4334');
+                next();
+            });
+            app.use(api);
+            await withServer(app, async (base) => {
+                const start = async (headers: Record<string, string> = {}) =>
+                    (
+                        await fetch(`${base}/v1/device-pairing/start`, {
+                            method: 'POST',
+                            headers: {
+                                'content-type': 'application/json',
+                                ...headers,
+                            },
+                            body: JSON.stringify({ name: 'TV' }),
+                        })
+                    ).json() as Promise<{
+                        claimId: string;
+                        approvalUrl: string | null;
+                    }>;
+                expect((await start()).approvalUrl).toBeNull();
+                const lan = await start({ 'x-test-lan': 'yes' });
+                expect(lan.approvalUrl).toBe(
+                    `http://192.168.1.2:4334/approve-device/${lan.claimId}`
+                );
+                ingress.origin = 'https://library.example.test';
+                const remote = await start({ 'x-test-lan': 'yes' });
+                expect(remote.approvalUrl).toBe(
+                    `https://library.example.test/approve-device/${remote.claimId}`
+                );
+            });
+        }));
     it('expires invitations and claims', () =>
         withTempStorage((storage) => {
             let now = 0;

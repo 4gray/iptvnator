@@ -84,7 +84,7 @@ export function createDevicePairingRouter(
             res.sendStatus(429);
             return;
         }
-        const origin = ingress?.origin ?? hostedLanOrigin(req);
+        const origin = ingress?.origin || hostedLanOrigin(req);
         const approvalUrl = origin
             ? `${origin}/approve-device/${claim.claimId}`
             : null;
