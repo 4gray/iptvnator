@@ -164,6 +164,28 @@ describe('EpgGuideComponent', () => {
         expect(activate).not.toHaveBeenCalled();
     });
 
+    it('retunes the active channel on click while its previous stream is stopping', async () => {
+        await settle(fixture);
+        const row = component.rows()[0];
+        const source = fixture.debugElement.injector.get(EPG_GUIDE_SOURCE);
+        const stopping = signal(false);
+        Object.assign(source, {
+            closeOnPlaybackConfirmation: true,
+            canRetuneActive: stopping,
+        });
+
+        component.pointerRow(row);
+        expect(activate).not.toHaveBeenCalled();
+        stopping.set(true);
+        component.pointerRow(row);
+        expect(activate).toHaveBeenCalledWith(
+            row.id,
+            row.epgKey,
+            component.rows(),
+            expect.any(Function)
+        );
+    });
+
     it('passes the displayed row order when activating a filtered channel', async () => {
         await settle(fixture);
         component.setFilter('channel c');

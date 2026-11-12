@@ -249,6 +249,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         onConfirmed?: () => void
     ) => void;
     private canRetryUnverified?: () => boolean;
+    canRetuneActive?: () => boolean;
 
     private displayChannelName(item: XtreamLiveChannelItem): string {
         return applyChannelNameStrip(
@@ -259,10 +260,12 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
 
     bind(
         play: NonNullable<XtreamEpgGuideSourceService['play']>,
-        canRetryUnverified?: () => boolean
+        canRetryUnverified?: () => boolean,
+        canRetuneActive?: () => boolean
     ): void {
         this.play = play;
         this.canRetryUnverified = canRetryUnverified;
+        this.canRetuneActive = canRetuneActive;
     }
 
     setPlayback(item: XtreamLiveChannelItem | null, live: boolean): void {

@@ -27,6 +27,7 @@ import {
 } from '../services/store.service';
 import { externalPlayerSessions } from './external-player-runtime';
 import { externalPlayerProcessTeardownGate } from './external-player-process';
+import { matchVlcGuidePlaylist } from './vlc-guide-playlist';
 import { getVlcPlaybackSnapshot } from './vlc-rc';
 import {
     openVlcPlayer,
@@ -114,6 +115,27 @@ describe('VLC exact playback ownership', () => {
     afterEach(() => {
         shutdownVlcSession();
         jest.useRealTimers();
+    });
+
+    it('gives up confirming a playlist when validation has not returned by the deadline', async () => {
+        const deadline = new AbortController();
+        const timeout = jest
+            .spyOn(AbortSignal, 'timeout')
+            .mockReturnValueOnce(deadline.signal);
+        jest.mocked(requestWithValidatedRedirects).mockReturnValueOnce(
+            new Promise(() => undefined)
+        );
+        try {
+            const matches = matchVlcGuidePlaylist(
+                'https://example.test/synthetic.m3u',
+                { mergedHeaders: {} }
+            );
+            const checking = matches('https://example.test/synthetic-child.ts');
+            deadline.abort();
+            await expect(checking).resolves.toBe(false);
+        } finally {
+            timeout.mockRestore();
+        }
     });
 
     it('starts the newer VLC tune after closing the older launch’s fallback', async () => {
@@ -508,7 +530,7 @@ describe('VLC exact playback ownership', () => {
         }
     );
 
-    it.each(['direct', 'M3U'] as const)(
+    it.each(['direct', 'M3U', 'redirected M3U'] as const)(
         'confirms only the requested VLC input even when instance reuse is disabled (%s)',
         async (kind) => {
             jest.useFakeTimers({ doNotFake: ['setImmediate'] });
@@ -521,16 +543,20 @@ describe('VLC exact playback ownership', () => {
             );
             const proc = child();
             spawnMock.mockReturnValueOnce(proc);
-            const url =
-                kind === 'M3U'
-                    ? 'https://example.test/synthetic/playlist.m3u8'
-                    : 'https://example.test/synthetic%20channel.ts';
-            const currentInput =
-                kind === 'M3U'
-                    ? 'https://example.test/synthetic/synthetic-child.ts'
-                    : decodeURIComponent(url);
-            if (kind === 'M3U')
+            const playlist = kind !== 'direct';
+            const url = playlist
+                ? 'https://example.test/synthetic/playlist.m3u8'
+                : 'https://example.test/synthetic%20channel.ts';
+            const finalUrl =
+                kind === 'redirected M3U'
+                    ? 'https://example.test/edge/playlist.m3u'
+                    : url;
+            const currentInput = playlist
+                ? new URL('synthetic-child.ts', finalUrl).href
+                : decodeURIComponent(url);
+            if (playlist)
                 (requestWithValidatedRedirects as jest.Mock).mockResolvedValue({
+                    config: { url: finalUrl },
                     data: '#EXTM3U x-tvg-url="https://example.test/synthetic.xml"\n#EXTINF:-1,Synthetic Child\nsynthetic-child.ts\n',
                 });
             let input = 'https://example.test/synthetic-old.ts';
@@ -681,8 +707,12 @@ describe('VLC exact playback ownership', () => {
                     maxContentLength: 64 * 1024,
                     timeout: 2_000,
                 }),
-                { allowPrivateNetworks: true },
-                0
+                {
+                    allowPrivateNetworks: true,
+                    allowPrivateNetworkRedirects: false,
+                    pinAllowedPrivateNetworkHosts: true,
+                },
+                3
             );
             exit(proc);
         }

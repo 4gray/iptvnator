@@ -687,7 +687,8 @@ export class LiveStreamLayoutComponent
                 }
                 this.playLive(item, true, channels, false, onConfirmed);
             },
-            () => this.externalGuide.canRetryUnverifiedStream()
+            () => this.externalGuide.canRetryUnverifiedStream(),
+            () => this.externalGuide.isStopping()
         );
         effect(() =>
             this.guideSource.setPlayback(

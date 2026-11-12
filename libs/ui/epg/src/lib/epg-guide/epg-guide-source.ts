@@ -105,6 +105,8 @@ export interface EpgGuideSource {
      * activated again, which is how the host returns to live.
      */
     readonly livePlayback?: Signal<boolean>;
+    /** A click on the active row can retune while its stream is stopping. */
+    canRetuneActive?(): boolean;
     /** Keep a committed row open until the host confirms playback. */
     readonly closeOnPlaybackConfirmation?: boolean;
     /** Switch playback; the guide stays open. */

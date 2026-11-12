@@ -1,3 +1,4 @@
+import { once } from 'node:events';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
 import type { EffectiveExternalPlaybackRequest } from './external-player-playback-request';
 
@@ -29,24 +30,37 @@ async function loadPlaylistEntries(
         effectiveReferer,
         effectiveUserAgent,
     } = request;
-    const { data } = await requestWithValidatedRedirects<string>(
-        url,
-        {
-            headers: {
-                ...mergedHeaders,
-                ...(effectiveOrigin && { Origin: effectiveOrigin }),
-                ...(effectiveReferer && { Referer: effectiveReferer }),
-                ...(effectiveUserAgent && { 'User-Agent': effectiveUserAgent }),
+    const signal = AbortSignal.timeout(2_000);
+    const { data, config } = await Promise.race([
+        requestWithValidatedRedirects<string>(
+            url,
+            {
+                headers: {
+                    ...mergedHeaders,
+                    ...(effectiveOrigin && { Origin: effectiveOrigin }),
+                    ...(effectiveReferer && { Referer: effectiveReferer }),
+                    ...(effectiveUserAgent && {
+                        'User-Agent': effectiveUserAgent,
+                    }),
+                },
+                responseType: 'text',
+                maxContentLength: 64 * 1024,
+                timeout: 2_000,
+                signal,
+                proxy: false,
             },
-            responseType: 'text',
-            maxContentLength: 64 * 1024,
-            timeout: 2_000,
-            signal: AbortSignal.timeout(2_000),
-            proxy: false,
-        },
-        { allowPrivateNetworks: true },
-        0
-    );
+            {
+                allowPrivateNetworks: true,
+                allowPrivateNetworkRedirects: false,
+                pinAllowedPrivateNetworkHosts: true,
+            },
+            3
+        ),
+        // Validation can still be resolving a hostname when the HTTP deadline expires.
+        once(signal, 'abort').then(() => {
+            throw signal.reason;
+        }),
+    ]);
     const targets = new Set<string>();
     const lines = data
         .trimStart()
@@ -61,7 +75,7 @@ async function loadPlaylistEntries(
     for (const line of lines) {
         if (!line || line.startsWith('#')) continue;
         try {
-            const target = new URL(line, url);
+            const target = new URL(line, config.url ?? url);
             if (target.protocol === 'http:' || target.protocol === 'https:')
                 targets.add(target.href);
         } catch {

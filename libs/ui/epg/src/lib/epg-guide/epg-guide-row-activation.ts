@@ -21,11 +21,11 @@ export function createEpgGuideRowActivation(
         skipActive = !confirmed
     ): boolean => {
         if (!channel) return false;
-        // The active row is skipped only while live: in catch-up the same click returns to live.
         if (
             skipActive &&
             channel.id === source.activeChannelId() &&
             (source.livePlayback?.() ?? true) &&
+            !source.canRetuneActive?.() &&
             source.channels().find((row) => row.id === channel.id)?.epgKey ===
                 channel.epgKey
         )
