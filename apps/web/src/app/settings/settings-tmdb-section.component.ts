@@ -1,8 +1,13 @@
+import { MatDialog } from '@angular/material/dialog';
+import { dialogSize } from '@iptvnator/ui/components/dialog-size';
+import { SettingsTmdbTransferDialogComponent } from './settings-tmdb-transfer-dialog.component';
 import { AgeRatingPresentationService } from '@iptvnator/services/age-rating';
 import {
     Component,
     inject,
     input,
+    output,
+    ViewContainerRef,
     signal,
     ViewEncapsulation,
     ChangeDetectionStrategy,
@@ -86,10 +91,13 @@ type TmdbKeyTestState = 'idle' | 'testing' | 'success' | 'error';
     ],
 })
 export class SettingsTmdbSectionComponent {
+    private readonly dialog = inject(MatDialog);
+    private readonly viewContainerRef = inject(ViewContainerRef);
     private readonly tmdbApi = inject(TmdbApiService);
     private readonly tmdbCache = inject(TmdbCacheService);
 
     readonly form = input.required<FormGroup>();
+    readonly transferSaved = output<void>();
     readonly ageRatings = inject(AgeRatingPresentationService);
 
     get ageRatingCountryControl(): FormControl | null {
@@ -127,6 +135,21 @@ export class SettingsTmdbSectionComponent {
     get m3uVodDetailsControl(): FormControl | null {
         const control = this.form().get('m3uVodDetails');
         return control instanceof FormControl ? control : null;
+    }
+
+    openTransfer(): void {
+        if (this.form().dirty) return;
+        this.dialog
+            .open(SettingsTmdbTransferDialogComponent, {
+                ...dialogSize('md'),
+                viewContainerRef: this.viewContainerRef,
+            })
+            .afterClosed()
+            .subscribe((saved) => {
+                if (!saved) return;
+                this.keyTestState.set('idle');
+                this.transferSaved.emit();
+            });
     }
 
     async testApiKey(): Promise<void> {

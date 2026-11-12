@@ -330,6 +330,10 @@ context panel use, out of that barrel for the same reason, and
 22 KB, used only by the lazy settings page) out of the `@iptvnator/services`
 barrel.
 
+`@iptvnator/services/clipboard-copy` keeps the clipboard fallback out of that
+barrel. Downloads and Xtream details import it from their lazy routes so
+startup does not fetch code that runs only on a copy action.
+
 `@iptvnator/services/xtream-catalog-refresh` keeps the edit-time catalog scanner
 with the lazy source editor. Do not re-export it from the eager services barrel;
 ordinary startup does not need the editor's network and recovery orchestration.

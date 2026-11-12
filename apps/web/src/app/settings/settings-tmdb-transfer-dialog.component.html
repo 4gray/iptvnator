@@ -1,0 +1,130 @@
+<app-dialog-shell
+    [heading]="'SETTINGS.TMDB_TRANSFER.ACTION' | translate"
+    [showClose]="!busy()"
+>
+    @if (server) {
+        <p>
+            {{ 'SETTINGS.TMDB_TRANSFER.SERVER' | translate: { server } }}
+        </p>
+    }
+    @switch (stage()) {
+        @case ('choose') {
+            @if (server) {
+                <p>{{ 'SETTINGS.TMDB_TRANSFER.CHOOSE' | translate }}</p>
+                <button
+                    mat-flat-button
+                    class="app-dialog__secondary"
+                    type="button"
+                    [disabled]="busy()"
+                    (click)="stage.set('send')"
+                >
+                    {{ 'SETTINGS.TMDB_TRANSFER.SEND_MODE' | translate }}
+                </button>
+            } @else {
+                <p>{{ 'SETTINGS.TMDB_TRANSFER.NEED_SERVER' | translate }}</p>
+            }
+        }
+        @case ('send') {
+            <p>{{ 'SETTINGS.TMDB_TRANSFER.SEND_HINT' | translate }}</p>
+            <mat-form-field appearance="outline">
+                <mat-label>{{
+                    'SETTINGS.TMDB_TRANSFER.CODE' | translate
+                }}</mat-label>
+                <input
+                    matInput
+                    [formControl]="codeInput"
+                    autocomplete="off"
+                    autocapitalize="off"
+                    spellcheck="false"
+                    maxlength="40"
+                />
+            </mat-form-field>
+        }
+        @case ('waiting') {
+            <p role="status">
+                {{ 'SETTINGS.TMDB_TRANSFER.WAITING' | translate }}
+            </p>
+            <mat-form-field appearance="outline">
+                <mat-label>{{
+                    'SETTINGS.TMDB_TRANSFER.CODE' | translate
+                }}</mat-label>
+                <input matInput [value]="sendCode()" readonly />
+            </mat-form-field>
+            <button
+                mat-flat-button
+                class="app-dialog__secondary"
+                type="button"
+                [cdkCopyToClipboard]="sendCode()"
+                (cdkCopyToClipboardCopied)="copied.set($event)"
+            >
+                {{ 'SETTINGS.TMDB_TRANSFER.COPY' | translate }}
+            </button>
+            @if (copied()) {
+                <span role="status">
+                    {{ 'SETTINGS.TMDB_TRANSFER.COPIED' | translate }}</span
+                >
+            }
+        }
+        @case ('ready') {
+            <p role="status">
+                {{
+                    (replacing()
+                        ? 'SETTINGS.TMDB_TRANSFER.REPLACE_HINT'
+                        : 'SETTINGS.TMDB_TRANSFER.READY'
+                    ) | translate
+                }}
+            </p>
+        }
+        @case ('sent') {
+            <p role="status">{{ 'SETTINGS.TMDB_TRANSFER.SENT' | translate }}</p>
+        }
+    }
+    @if (error()) {
+        <p role="alert">
+            {{ 'SETTINGS.TMDB_TRANSFER.ERROR.' + error() | translate }}
+        </p>
+    }
+    <div appDialogFooter>
+        <button mat-button type="button" mat-dialog-close [disabled]="busy()">
+            {{
+                (stage() === 'sent' || stage() === 'closed'
+                    ? 'CLOSE'
+                    : 'CANCEL'
+                ) | translate
+            }}
+        </button>
+        @if (stage() === 'choose' && server) {
+            <button
+                mat-flat-button
+                type="button"
+                [disabled]="busy()"
+                (click)="start()"
+            >
+                {{ 'SETTINGS.TMDB_TRANSFER.RECEIVE' | translate }}
+            </button>
+        } @else if (stage() === 'send') {
+            <button
+                mat-flat-button
+                type="button"
+                [disabled]="busy()"
+                (click)="send()"
+            >
+                {{ 'SETTINGS.TMDB_TRANSFER.SEND' | translate }}
+            </button>
+        } @else if (stage() === 'ready') {
+            <button
+                mat-flat-button
+                type="button"
+                [disabled]="busy()"
+                (click)="save()"
+            >
+                {{
+                    (replacing()
+                        ? 'SETTINGS.TMDB_TRANSFER.REPLACE'
+                        : 'SETTINGS.TMDB_TRANSFER.SAVE'
+                    ) | translate
+                }}
+            </button>
+        }
+    </div>
+</app-dialog-shell>

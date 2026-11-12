@@ -159,6 +159,55 @@ describe('native source transport and connection IPC', () => {
         );
     });
 
+    it('withholds the transfer payload after a server change and forwards it only to the selected instance', async () => {
+        const send = handler(SOURCE_SYNC_REQUEST);
+        const request = {
+            action: 'send',
+            transferToken: 's'.repeat(32),
+            apiKey: 'synthetic-tmdb-key',
+        };
+        await expect(
+            send(
+                {},
+                {
+                    operation: 'tmdb-transfer',
+                    tmdbTransfer: {
+                        connection: { ...connection, instanceId: 'other-nas' },
+                        request,
+                    },
+                }
+            )
+        ).resolves.toEqual({ status: 409, body: { code: 'instance_changed' } });
+        expect(requestWithValidatedRedirects).not.toHaveBeenCalled();
+
+        await send(
+            {},
+            {
+                operation: 'tmdb-transfer',
+                tmdbTransfer: {
+                    connection: {
+                        apiUrl: connection.apiUrl,
+                        instanceId: connection.instanceId,
+                    },
+                    request,
+                },
+            }
+        );
+        expect(requestWithValidatedRedirects).toHaveBeenLastCalledWith(
+            `${connection.apiUrl}/v1/tmdb-transfer`,
+            expect.objectContaining({
+                method: 'POST',
+                data: request,
+                headers: expect.objectContaining({
+                    Authorization: 'Bearer synthetic-nas-token',
+                    'X-IPTVnator-Instance-Id': connection.instanceId,
+                }),
+            }),
+            expect.anything(),
+            0
+        );
+    });
+
     it('blocks an open import after detecting a replacement instance, then recovers through an anonymous probe', async () => {
         const send = handler(SOURCE_SYNC_REQUEST);
         const source = {
