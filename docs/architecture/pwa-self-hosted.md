@@ -318,7 +318,8 @@ the native profile restart; disconnecting returns to the retained local profile.
 Disconnecting saves the last confirmed server address for an explicit
 **Reconnect**. Startup stays in the local library until the user reconnects.
 **Forget server** removes the saved address and credential without enabling
-automatic discovery. Reconnect verifies the server instance before reusing a
+automatic discovery. The browser can still clear the address if it denies
+access to tab storage. Reconnect verifies the server instance before reusing a
 token. A replacement server requires a new token or a fresh connection.
 Connection and activity status share a compact summary with timestamps formatted
 in the selected UI language.

@@ -4,12 +4,15 @@ import {
     assertSourceRequestAllowed,
 } from './source-authorization';
 import {
+    connectBrowserSourceServer,
     disconnectBrowserSourceConnection,
     forgetSavedBrowserSourceConnection,
     readSavedBrowserSourceConnection,
     saveBrowserSourceConnection,
 } from './source-browser-settings';
 import {
+    CONNECTION_KEY,
+    DISABLED_KEY,
     prepareSourceConnection,
     sourceConnection,
     sourceProfileName,
@@ -76,6 +79,30 @@ describe('source server selection and authorization', () => {
             expect(localStorage.getItem('iptvnator:source-server')).toBe(raw);
         }
     );
+
+    it('forgets a disconnected address when tab storage is denied', () => {
+        const connection = {
+            apiUrl: 'https://nas.test/api',
+            instanceId: 'nas',
+        };
+        saveBrowserSourceConnection(connection, '');
+        expect(disconnectBrowserSourceConnection()).toBe(true);
+        const tabStorage = jest
+            .spyOn(window, 'sessionStorage', 'get')
+            .mockImplementation(() => {
+                throw new DOMException('Storage denied', 'SecurityError');
+            });
+        try {
+            expect(readSavedBrowserSourceConnection()).toEqual({
+                ...connection,
+                hasToken: false,
+            });
+            forgetSavedBrowserSourceConnection();
+            expect(readSavedBrowserSourceConnection()).toBeNull();
+        } finally {
+            tabStorage.mockRestore();
+        }
+    });
     it('keeps standalone bootstrap available when browser storage is denied', async () => {
         const denied = jest
             .spyOn(Storage.prototype, 'getItem')
@@ -378,5 +405,184 @@ describe('source server selection and authorization', () => {
         expect(
             JSON.parse(localStorage.getItem('iptvnator:source-server')!)
         ).toEqual(sourceConnection());
+    });
+});
+
+describe('browser server settings', () => {
+    const connection = {
+        apiUrl: 'https://nas.test/api',
+        instanceId: 'nas',
+    };
+    const instance = {
+        service: 'iptvnator',
+        apiVersion: 1,
+        storage: 'server',
+        capabilities: ['sources-v1'],
+        instanceId: connection.instanceId,
+    };
+    const token = 'synthetic-token';
+    const originalFetch = globalThis.fetch;
+    let fetchServer: jest.Mock;
+
+    beforeEach(() => {
+        localStorage.clear();
+        sessionStorage.clear();
+        fetchServer = jest.fn().mockResolvedValue({
+            ok: true,
+            json: async () => instance,
+        });
+        globalThis.fetch = fetchServer;
+    });
+    afterEach(() => {
+        globalThis.fetch = originalFetch;
+    });
+
+    it('reuses the tab token only after the disconnected server proves its identity', async () => {
+        saveBrowserSourceConnection(connection, token);
+        disconnectBrowserSourceConnection();
+
+        await connectBrowserSourceServer(
+            connection.apiUrl,
+            '',
+            undefined,
+            connection
+        );
+
+        expect(fetchServer).toHaveBeenNthCalledWith(
+            1,
+            `${connection.apiUrl}/v1/instance`,
+            expect.not.objectContaining({ headers: expect.anything() })
+        );
+        expect(fetchServer).toHaveBeenNthCalledWith(
+            2,
+            `${connection.apiUrl}/v1/sources`,
+            expect.objectContaining({
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'X-IPTVnator-Instance-Id': connection.instanceId,
+                },
+            })
+        );
+        expect(localStorage.getItem(CONNECTION_KEY)).toBe(
+            JSON.stringify(connection)
+        );
+        expect(readSavedBrowserSourceConnection()).toBeNull();
+    });
+
+    it('clears the previous tab token when the user connects to a different server', async () => {
+        saveBrowserSourceConnection(connection, token);
+        disconnectBrowserSourceConnection();
+        const next = { apiUrl: 'https://other.test/api', instanceId: 'other' };
+        fetchServer.mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({ ...instance, instanceId: next.instanceId }),
+        });
+
+        await connectBrowserSourceServer(
+            next.apiUrl,
+            'other-token',
+            undefined,
+            null
+        );
+
+        expect(sessionStorage.getItem(tokenKey(connection))).toBeNull();
+        expect(sessionStorage.getItem(tokenKey(next))).toBe('other-token');
+    });
+
+    it.each([401, 503])(
+        'reports a protected connection check returning HTTP %s',
+        async (status) => {
+            fetchServer
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => instance,
+                })
+                .mockResolvedValueOnce({ ok: false, status });
+
+            await expect(
+                connectBrowserSourceServer(
+                    connection.apiUrl,
+                    token,
+                    connection.instanceId,
+                    null
+                )
+            ).rejects.toThrow(
+                status === 401
+                    ? 'SOURCE_SYNC.LOCKED'
+                    : 'SOURCE_SYNC.CONNECTION_FAILED'
+            );
+            expect(localStorage.getItem(CONNECTION_KEY)).toBeNull();
+        }
+    );
+
+    it.each([
+        ['current', 'SOURCE_SYNC.INSTANCE_CHANGED'],
+        ['saved', 'SOURCE_SYNC.SAVED_INSTANCE_CHANGED'],
+    ])(
+        'withholds credentials from a replacement for the %s server',
+        async (mode, key) => {
+            fetchServer.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({ ...instance, instanceId: 'replacement' }),
+            });
+
+            await expect(
+                connectBrowserSourceServer(
+                    connection.apiUrl,
+                    token,
+                    mode === 'current' ? connection.instanceId : undefined,
+                    mode === 'saved' ? connection : null
+                )
+            ).rejects.toThrow(key);
+            expect(fetchServer).toHaveBeenCalledTimes(1);
+        }
+    );
+
+    it.each(['/v1/instance', '/v1/sources'])(
+        'does not restore a connection forgotten during %s',
+        async (route) => {
+            saveBrowserSourceConnection(connection, token);
+            disconnectBrowserSourceConnection();
+            fetchServer.mockImplementation(async (url: string) => {
+                if (url.endsWith(route)) forgetSavedBrowserSourceConnection();
+                return { ok: true, json: async () => instance };
+            });
+
+            await expect(
+                connectBrowserSourceServer(
+                    connection.apiUrl,
+                    '',
+                    undefined,
+                    connection
+                )
+            ).rejects.toThrow('SOURCE_SYNC.SAVED_INSTANCE_CHANGED');
+            expect(localStorage.getItem(CONNECTION_KEY)).toBeNull();
+            expect(sessionStorage.getItem(tokenKey(connection))).toBeNull();
+        }
+    );
+
+    it('can clear an unreadable active selection without enabling automatic discovery', () => {
+        localStorage.setItem(CONNECTION_KEY, '{invalid');
+        expect(disconnectBrowserSourceConnection(false)).toBe(false);
+        expect(disconnectBrowserSourceConnection()).toBe(true);
+        expect(localStorage.getItem(CONNECTION_KEY)).toBeNull();
+        expect(localStorage.getItem(DISABLED_KEY)).toBe('1');
+    });
+
+    it('allows an explicit connection to replace an unreadable saved selection', async () => {
+        localStorage.setItem(DISABLED_KEY, '{invalid');
+        expect(readSavedBrowserSourceConnection()).toBeNull();
+
+        await connectBrowserSourceServer(
+            connection.apiUrl,
+            token,
+            undefined,
+            null
+        );
+
+        expect(localStorage.getItem(CONNECTION_KEY)).toBe(
+            JSON.stringify(connection)
+        );
+        expect(localStorage.getItem(DISABLED_KEY)).toBeNull();
     });
 });

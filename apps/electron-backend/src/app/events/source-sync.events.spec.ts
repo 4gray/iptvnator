@@ -3,10 +3,12 @@ import {
     SOURCE_SYNC_CONFIGURE,
     SOURCE_SYNC_CONNECTION,
     SOURCE_SYNC_DISCONNECT,
+    SOURCE_SYNC_FORGET,
     SOURCE_SYNC_REQUEST,
     SOURCE_SYNC_SAVED_CONNECTION,
 } from '@iptvnator/shared/interfaces/ipc-commands';
 import {
+    clearSourceServerConfig,
     readSourceServerConfig,
     readSavedSourceServerConfig,
     saveSourceServerConfig,
@@ -488,5 +490,65 @@ describe('native source transport and connection IPC', () => {
         expect(requestWithValidatedRedirects).toHaveBeenCalledTimes(1);
         expect(sourceServerToken).not.toHaveBeenCalled();
         expect(saveSourceServerConfig).not.toHaveBeenCalled();
+    });
+
+    it('reconnects with the saved native token once the instance is verified', async () => {
+        (readSourceServerConfig as jest.Mock).mockReturnValue(null);
+        (readSavedSourceServerConfig as jest.Mock).mockReturnValue(connection);
+
+        await handler(SOURCE_SYNC_CONFIGURE)(
+            {},
+            connection.apiUrl,
+            '',
+            true,
+            connection.instanceId
+        );
+
+        expect(sourceServerToken).toHaveBeenCalledWith(connection);
+        expect(saveSourceServerConfig).toHaveBeenCalledWith(
+            { apiUrl: connection.apiUrl, instanceId: connection.instanceId },
+            'synthetic-nas-token'
+        );
+        expect(prepareRestart).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+        null,
+        { ...connection, apiUrl: 'https://other.test/api' },
+        { ...connection, instanceId: 'replacement' },
+        { ...connection, encryptedToken: 'updated-protected-token' },
+    ])(
+        'preserves a saved selection changed during native reconnect (%j)',
+        async (latest) => {
+            (readSourceServerConfig as jest.Mock).mockReturnValue(null);
+            (readSavedSourceServerConfig as jest.Mock)
+                .mockReturnValueOnce(connection)
+                .mockReturnValueOnce(latest);
+
+            await expect(
+                handler(SOURCE_SYNC_CONFIGURE)(
+                    {},
+                    connection.apiUrl,
+                    '',
+                    true,
+                    connection.instanceId
+                )
+            ).rejects.toThrow('SOURCE_SYNC.SAVED_INSTANCE_CHANGED');
+
+            expect(saveSourceServerConfig).not.toHaveBeenCalled();
+            expect(prepareRestart).not.toHaveBeenCalled();
+        }
+    );
+
+    it('forgets a disconnected selection and leaves an active selection alone', async () => {
+        await handler(SOURCE_SYNC_FORGET)();
+        expect(clearSourceServerConfig).not.toHaveBeenCalled();
+
+        (readSourceServerConfig as jest.Mock).mockReturnValue(null);
+        (readSavedSourceServerConfig as jest.Mock).mockReturnValue(connection);
+        await handler(SOURCE_SYNC_FORGET)();
+
+        expect(clearSourceServerConfig).toHaveBeenCalledTimes(1);
+        expect(prepareRestart).not.toHaveBeenCalled();
     });
 });

@@ -2,7 +2,11 @@ import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TranslateModule } from '@ngx-translate/core';
 import type { Playlist } from '@iptvnator/shared/interfaces';
-import { SourceSyncService } from '@iptvnator/services/source-sync';
+import {
+    SourceSyncService,
+    disconnectBrowserSourceConnection,
+    saveBrowserSourceConnection,
+} from '@iptvnator/services/source-sync';
 import { SettingsServerSectionComponent } from './settings-server-section.component';
 
 const readLocalSourcesForImport = jest.fn();
@@ -14,8 +18,12 @@ describe('source server settings', () => {
     >;
     const originalElectron = window.electron;
     const originalFetch = globalThis.fetch;
+    const activeConnection = {
+        apiUrl: 'https://nas.test/api',
+        instanceId: 'nas',
+    };
     const sync = {
-        connection: { apiUrl: 'https://nas.test/api', instanceId: 'nas' },
+        connection: activeConnection as typeof activeConnection | null,
         state: signal('connected'),
         stateKey: signal('SOURCE_SYNC.STATE_connected'),
         errorKey: signal<string | null>(null),
@@ -34,6 +42,7 @@ describe('source server settings', () => {
 
     beforeEach(async () => {
         jest.clearAllMocks();
+        sync.connection = activeConnection;
         sync.state.set('connected');
         sync.errorKey.set(null);
         sync.refresh.mockResolvedValue(undefined);
@@ -58,6 +67,16 @@ describe('source server settings', () => {
         globalThis.fetch = originalFetch;
         TestBed.resetTestingModule();
     });
+
+    function createDisconnectedSettings() {
+        sync.connection = null;
+        sync.state.set('local');
+        const disconnected = TestBed.createComponent(
+            SettingsServerSectionComponent
+        );
+        disconnected.detectChanges();
+        return disconnected;
+    }
 
     it('shows connection status and editable API address in both runtimes', () => {
         expect(
@@ -384,9 +403,9 @@ describe('source server settings', () => {
             window.electron = {
                 sourceSyncConfigure: configure,
             } as unknown as typeof window.electron;
-            const original = sync.connection.apiUrl;
+            const original = activeConnection.apiUrl;
             try {
-                sync.connection.apiUrl = apiUrl;
+                activeConnection.apiUrl = apiUrl;
                 fixture.componentInstance.urlControl.setValue(apiUrl);
                 fixture.componentInstance.token = 'renewed-token';
                 await fixture.componentInstance.connect();
@@ -397,7 +416,7 @@ describe('source server settings', () => {
                     undefined
                 );
             } finally {
-                sync.connection.apiUrl = original;
+                activeConnection.apiUrl = original;
             }
         }
     );
@@ -432,5 +451,82 @@ describe('source server settings', () => {
         await fixture.componentInstance.disconnect();
         expect(disconnect).toHaveBeenCalledTimes(1);
         expect(requestSourceServer).not.toHaveBeenCalled();
+    });
+
+    it('shows a saved native connection without a token field value and reconnects to its instance', async () => {
+        const configure = jest.fn().mockResolvedValue(undefined);
+        window.electron = {
+            sourceSyncConfigure: configure,
+            sourceSyncSavedConnection: () => ({
+                ...activeConnection,
+                hasToken: true,
+            }),
+        } as typeof window.electron;
+        const disconnected = createDisconnectedSettings();
+        const component = disconnected.componentInstance;
+
+        expect(component.token).toBe('');
+        expect(component.urlControl.value).toBe(activeConnection.apiUrl);
+        expect(disconnected.nativeElement.textContent).toContain(
+            'SOURCE_SYNC.RECONNECT'
+        );
+        await component.connect();
+
+        expect(configure).toHaveBeenCalledWith(
+            activeConnection.apiUrl,
+            '',
+            true,
+            activeConnection.instanceId
+        );
+    });
+
+    it('clears the forgotten browser selection and restores focus to the address', async () => {
+        window.electron = {} as typeof window.electron;
+        saveBrowserSourceConnection(activeConnection, 'synthetic-token');
+        disconnectBrowserSourceConnection();
+        const disconnected = createDisconnectedSettings();
+        const component = disconnected.componentInstance;
+        const root = disconnected.nativeElement as HTMLElement;
+        const input = root.querySelector<HTMLInputElement>(
+            '[data-test-id="source-server-url"]'
+        );
+        if (!input) throw new Error('Expected a server address input');
+
+        await component.forgetServer(input);
+        disconnected.detectChanges();
+
+        expect(component.urlControl.value).toBe('');
+        expect(component.savedConnection()).toBeNull();
+        expect(document.activeElement).toBe(input);
+    });
+
+    it('keeps edited settings while forgetting the previous native server', async () => {
+        const forget = jest
+            .fn()
+            .mockRejectedValueOnce(new Error('Storage unavailable'))
+            .mockResolvedValueOnce(undefined);
+        window.electron = {
+            sourceSyncConfigure: jest.fn(),
+            sourceSyncSavedConnection: () => ({
+                ...activeConnection,
+                hasToken: true,
+            }),
+            sourceSyncForget: forget,
+        } as typeof window.electron;
+        const { componentInstance: component } = createDisconnectedSettings();
+        component.urlControl.setValue('https://other.test/api');
+        component.token = 'new-token';
+        const input = document.createElement('input');
+
+        await component.forgetServer(input);
+        expect(component.savedConnection()?.apiUrl).toBe(
+            activeConnection.apiUrl
+        );
+        expect(component.message()).toBe('SOURCE_SYNC.REQUEST_FAILED');
+
+        await component.forgetServer(input);
+        expect(component.savedConnection()).toBeNull();
+        expect(component.urlControl.value).toBe('https://other.test/api');
+        expect(component.token).toBe('new-token');
     });
 });

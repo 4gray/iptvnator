@@ -77,4 +77,17 @@ describe(SourceSyncStatusViewComponent.name, () => {
         expect(root.textContent).toContain('SOURCE_SYNC.RETRY_CONNECTION');
         expect(root.textContent).not.toContain('SOURCE_SYNC.OPEN_SETTINGS');
     });
+
+    it('reports a failed retry and lets the user retry again', async () => {
+        const { fixture, root, sync } = await setup(false);
+        sync.refresh.mockRejectedValueOnce(new Error('Network unavailable'));
+        root.querySelector('button')?.click();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(sync.refresh).toHaveBeenCalledTimes(1);
+        expect(root.textContent).toContain('SOURCE_SYNC.REQUEST_FAILED');
+        expect(root.querySelector('input')).toBeNull();
+        expect(root.querySelector('button')?.disabled).toBe(false);
+    });
 });

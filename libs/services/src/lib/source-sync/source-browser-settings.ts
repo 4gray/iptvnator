@@ -14,7 +14,12 @@ import {
 function readDisconnectedSelection(): SourceServerConnection | null {
     if (localStorage.getItem(CONNECTION_KEY)) return null;
     const raw = localStorage.getItem(DISABLED_KEY);
-    return raw && raw !== '1' ? parseSourceConnection(raw) : null;
+    if (!raw || raw === '1') return null;
+    try {
+        return parseSourceConnection(raw);
+    } catch {
+        return null;
+    }
 }
 
 export function readSavedBrowserSourceConnection(): SavedSourceServerConnection | null {
@@ -36,8 +41,16 @@ export function readSavedBrowserSourceConnection(): SavedSourceServerConnection 
 export function forgetSavedBrowserSourceConnection(): void {
     const saved = readDisconnectedSelection();
     if (!saved) return;
-    sessionStorage.removeItem(tokenKey(saved));
+    removeBrowserSourceToken(saved);
     localStorage.setItem(DISABLED_KEY, '1');
+}
+
+function removeBrowserSourceToken(connection: SourceServerConnection): void {
+    try {
+        sessionStorage.removeItem(tokenKey(connection));
+    } catch {
+        /* Address changes can still succeed when tab storage is denied. */
+    }
 }
 
 function savedBrowserSourceToken(connection: SourceServerConnection): string {
@@ -64,12 +77,12 @@ export function saveBrowserSourceConnection(
         )
             return;
     }
-    const previous = readSavedBrowserSourceConnection();
+    const previous = readDisconnectedSelection();
     sessionStorage.setItem(tokenKey(connection), token);
     localStorage.setItem(CONNECTION_KEY, JSON.stringify(connection));
     localStorage.removeItem(DISABLED_KEY);
     if (previous && tokenKey(previous) !== tokenKey(connection))
-        sessionStorage.removeItem(tokenKey(previous));
+        removeBrowserSourceToken(previous);
 }
 
 export function disconnectBrowserSourceConnection(
@@ -102,13 +115,7 @@ export function disconnectBrowserSourceConnection(
         }
         localStorage.removeItem(CONNECTION_KEY);
         const discarded = current ?? expected;
-        if (!disableDiscovery && discarded) {
-            try {
-                sessionStorage.removeItem(tokenKey(discarded));
-            } catch {
-                /* Storage denied. */
-            }
-        }
+        if (!disableDiscovery && discarded) removeBrowserSourceToken(discarded);
         return true;
     } catch {
         markSourceConnectionReadFailed();

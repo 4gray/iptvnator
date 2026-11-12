@@ -13,6 +13,7 @@ import {
     activateSourceServerProfile,
     clearSourceServerConfig,
     disconnectSourceServerConfig,
+    readSavedSourceServerConfig,
     readSourceServerConfig,
     saveSourceServerConfig,
     sourceServerToken,
@@ -118,16 +119,28 @@ describe('source-server connection persistence', () => {
     );
     it('removes the active profile before Electron relaunches after disconnect', () => {
         saveSourceServerConfig(connection, 'synthetic-token');
+        expect(readSavedSourceServerConfig()).toBeNull();
         activateSourceServerProfile();
         expect(process.env.IPTVNATOR_SOURCE_PROFILE).toBeDefined();
         disconnectSourceServerConfig();
         activateSourceServerProfile();
         expect(readSourceServerConfig()).toBeNull();
         expect(process.env.IPTVNATOR_SOURCE_PROFILE).toBeUndefined();
-        const stored = JSON.parse(
-            readFileSync(join(directory, 'source-server.json'), 'utf8')
-        );
+        const stored = readSavedSourceServerConfig();
         expect(stored).toMatchObject({ ...connection, disconnected: true });
-        expect(sourceServerToken(stored)).toBe('synthetic-token');
+        expect(stored && sourceServerToken(stored)).toBe('synthetic-token');
+    });
+
+    it('clears a corrupt selection on disconnect and leaves the recovery profile', () => {
+        writeFileSync(join(directory, 'source-server.json'), '{truncated');
+        activateSourceServerProfile();
+        expect(process.env.IPTVNATOR_SOURCE_PROFILE).toBeDefined();
+        expect(readSavedSourceServerConfig()).toBeNull();
+
+        disconnectSourceServerConfig();
+
+        expect(readSourceServerConfig()).toBeNull();
+        expect(process.env.IPTVNATOR_SOURCE_PROFILE).toBeUndefined();
+        expect(readdirSync(directory)).toEqual([]);
     });
 });
