@@ -78,6 +78,24 @@ connector status reflects process state. Operators verify connectivity and viewe
 authorization in Cloudflare and their browser. See the
 [HTTPS setup guide](../../docker/README.md#optional-https-and-cloudflare-tunnel).
 
+Automatic Cloudflare setup needs a registered public client and an accepted
+redirect URI. The [Cloudflare OAuth catalog](https://developers.cloudflare.com/api/resources/iam/subresources/oauth_scopes/methods/list/)
+lists `account-settings.read`,
+`zone.read`, `argotunnel.read`, `argotunnel.write`, `dns.write`, `access.read`,
+and `access.write` for the planned account, zone, tunnel, DNS, and Access
+operations. Confirm that the registered client's consented token authorizes
+each operation in a disposable zone before enabling automatic setup.
+
+Use a fresh hostname in an active zone and an existing Zero Trust organization
+with a working identity provider. Create an owner-only reusable Access policy
+and attach it to a self-hosted Access application. Create a tunnel and verify
+its full ingress configuration uses Protect with Access, the application's
+audience, and `127.0.0.1:4335`. Publish DNS after those checks. Validate the
+sign-in challenge and denial of an uninvited identity in a clean browser before
+sharing. Record created resource IDs so teardown can remove the new DNS record
+first and clean up the tunnel, application, and policy without affecting other
+resources.
+
 The desktop package includes `web-backend:build` and `web:build-hosted`. The
 latter emits a separate PWA bundle, so the Electron renderer and Docker
 deployment keep their own build outputs. The outer Nx graph builds shared
