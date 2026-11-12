@@ -337,6 +337,7 @@
         "SEARCH_EMPTY_HINT": "لا توجد إعدادات مطابقة. جرّب كلمة أخرى، مثل المشغل أو السمة أو EPG.",
         "GENERAL": "عام",
         "GENERAL_SUBTITLE": "اللغة وبدء التشغيل وتفضيلات القنوات.",
+        "OPEN_ANDROID_APP_SETTINGS": "فتح إعدادات تطبيق أندرويد",
         "PLAYBACK": "التشغيل",
         "SAVE_EPG_SOURCES": "حفظ مصادر دليل البرامج",
         "EPG_SOURCES": "مصادر EPG",

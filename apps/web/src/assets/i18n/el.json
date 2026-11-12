@@ -337,6 +337,7 @@
         "SEARCH_EMPTY_HINT": "Δεν βρέθηκαν ρυθμίσεις. Δοκιμάστε άλλη λέξη, π.χ. αναπαραγωγή, θέμα ή EPG.",
         "GENERAL": "Γενικά",
         "GENERAL_SUBTITLE": "Γλώσσα, εκκίνηση και προτιμήσεις καναλιών.",
+        "OPEN_ANDROID_APP_SETTINGS": "Άνοιγμα ρυθμίσεων εφαρμογής Android",
         "PLAYBACK": "Αναπαραγωγή",
         "SAVE_EPG_SOURCES": "Αποθήκευση πηγών EPG",
         "EPG_SOURCES": "Πηγές EPG",

@@ -94,9 +94,9 @@ from the configured `--www` directory, with symbolic links confined to that dire
   a **"This stream cannot be played here"** prompt offering to open them in
   another player (VLC, Kodi, MX Player...). The app's "Copy stream URL" button
   does the same on a TV.
-- **IPTVnator settings** (long-press Menu, or hold Back on remotes without a Menu
-  key): interface size (960 / 1280 / 1600 px), preferred external player, data
-  reset, diagnostics (WebView version, screen).
+- **IPTVnator settings** (Settings → General → Open Android app settings, or
+  hold Menu or Back on the remote): interface size (960 / 1280 / 1600 px),
+  preferred external player, data reset, and diagnostics (WebView version, screen).
 - Data (playlists, favourites, positions) is stored by the PWA in the WebView
   (IndexedDB / localStorage) and survives restarts and updates. The embedded
   backend has no server storage: it answers the PWA's `/api/v1/instance` probe
@@ -107,15 +107,16 @@ features in IPTVnator).
 
 ## Trying the built-in player
 
-Open IPTVnator's Android shell settings (hold Menu or Back on the remote) and
-enable **Enable built-in player (experimental)**. Open a channel or start a
+Go to **Settings → General → Open Android app settings** and turn on
+**Enable built-in player (experimental)**. Open a channel or start a
 video, then select **Try built-in player** in the video area. It is also
 available when the web engine reports an error. Back returns to the same page.
 Home ends native playback and keeps the position when you return to the app.
 Choose **Return to web player** to compare the two engines on that stream.
 
 The pilot plays HLS and direct HTTP(S) video such as MP4, MPEG-TS and MKV. Audio
-and video codec support varies by device. DASH and DRM streams continue using
+and video codec support varies by device. The built-in player uses FFmpeg to
+decode AC-3 when the device cannot handle it. DASH and DRM streams continue using
 the existing web path. The native fullscreen screen supports play/pause, VOD
 seeking, audio tracks and subtitles. It returns the VOD position after actual
 playback. Open the web player to use the channel and episode lists. You can
@@ -196,10 +197,17 @@ pnpm install --frozen-lockfile --ignore-scripts
 pnpm nx build web --configuration=pwa
 # 2. copy it into the shell
 tv-shell/scripts/bundle-pwa.sh dist/apps/web
-# 3. the APK (JDK 17 + Android SDK; Android Studio provides both)
+# 3. the APK (JDK 17 + Android SDK 36 + NDK r28c; macOS or x86-64 Linux)
+sdkmanager "platforms;android-36" "ndk;28.2.13676358"
 cd tv-shell/android && ./gradlew :backend:check :app:assembleRelease
 # → app/build/outputs/apk/release/app-release.apk (signed with the debug key)
 ```
+
+The Android build compiles the [Media3 FFmpeg audio extension](https://github.com/androidx/media/tree/1.11.1/libraries/decoder_ffmpeg)
+for ARM and x86 devices. It dynamically links unmodified [FFmpeg 6.1.6 source](https://ffmpeg.org/releases/ffmpeg-6.1.6.tar.xz)
+under LGPL 2.1 or later. The exact sources and configure flags are pinned in
+[`scripts/build-media3-ffmpeg.sh`](scripts/build-media3-ffmpeg.sh). The APK workflow
+includes the matching FFmpeg source archive with its artifacts.
 
 ## Installing on a Fire TV stick
 

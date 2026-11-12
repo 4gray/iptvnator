@@ -171,8 +171,10 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Install Android 36 SDK
-        run: sdkmanager "platforms;android-36"
+      - name: Install Android 36 SDK and NDK
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+        with:
+          packages: platforms;android-36 ndk;28.2.13676358
 
       - name: Backend tests (parser fixtures, routes)
         shell: bash
@@ -207,7 +209,9 @@ jobs:
           test -f "$APK"
           VERSION=$(grep -oP "versionName '\K[^']+" app/build.gradle)
           OUT="iptvnator-tv-shell-${VERSION}-${HEAD_SHA::7}.apk"
-          mkdir -p ../../dist && cp "$APK" "../../dist/$OUT"
+          mkdir -p ../../dist
+          cp "$APK" "../../dist/$OUT"
+          cp app/build/generated/media3Ffmpeg/source/ffmpeg-*.tar.xz ../../dist/
           echo "APK $OUT: versionCode $TVSHELL_VERSION_CODE, signed with the $SIGNER key"
           echo "name=$OUT" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
@@ -216,7 +220,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.apk.outputs.name }}
-          path: dist/${{ steps.apk.outputs.name }}
+          path: |
+            dist/${{ steps.apk.outputs.name }}
+            dist/ffmpeg-*.tar.xz
           if-no-files-found: error
 
   release:
@@ -249,7 +255,7 @@ jobs:
           # Latest rule to the normal release.
           FLAGS=(--prerelease --latest=false)
           if [ "$PRERELEASE" != "true" ]; then FLAGS=(); fi
-          gh release create "$TAG" "dist/${APK_NAME}" \
+          gh release create "$TAG" "dist/${APK_NAME}" dist/ffmpeg-*.tar.xz \
             --target "$GITHUB_SHA" \
             "${FLAGS[@]}" \
             --title "IPTVnator Android TV ${APK_VERSION} (build ${GITHUB_RUN_NUMBER})" \

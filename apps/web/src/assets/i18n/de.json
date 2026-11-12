@@ -337,6 +337,7 @@
         "SEARCH_EMPTY_HINT": "Keine passenden Einstellungen. Ein anderes Wort versuchen, etwa Player, Design oder EPG.",
         "GENERAL": "Allgemein",
         "GENERAL_SUBTITLE": "Sprache, Startverhalten und Kanaleinstellungen.",
+        "OPEN_ANDROID_APP_SETTINGS": "Android-App-Einstellungen öffnen",
         "PLAYBACK": "Wiedergabe",
         "SAVE_EPG_SOURCES": "EPG-Quellen speichern",
         "EPG_SOURCES": "EPG-Quellen",

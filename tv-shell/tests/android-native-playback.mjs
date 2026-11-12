@@ -36,7 +36,11 @@ try {
         '-c:a', 'aac', '-movflags', 'faststart', mp4]);
     execFileSync('ffmpeg', ['-nostdin', '-loglevel', 'error', '-i', mp4, '-c', 'copy',
         '-hls_time', '2', '-hls_list_size', '0', join(fixtures, 'synthetic.m3u8')]);
+    const mkv = join(fixtures, 'synthetic-ac3.mkv');
+    execFileSync('ffmpeg', ['-nostdin', '-loglevel', 'error', '-i', mp4,
+        '-c:v', 'copy', '-c:a', 'ac3', '-ac', '6', mkv]);
     const clip = readFileSync(mp4);
+    const ac3Clip = readFileSync(mkv);
     const seen = { origin: [], target: [], segments: 0 };
     const respond = (req, res, data, mime) => {
         const range = /^bytes=(\d+)-(\d*)$/.exec(req.headers.range ?? '');
@@ -68,6 +72,8 @@ try {
         if (req.url === '/synthetic.mp4') {
             res.writeHead(302, { Location: target + '/redirected.mp4', 'Access-Control-Allow-Origin': '*' });
             res.end();
+        } else if (req.url === '/synthetic-ac3.mkv') {
+            respond(req, res, ac3Clip, 'video/x-matroska');
         } else if (/^\/synthetic\d+\.ts$/.test(req.url)) {
             seen.segments++;
             const segment = readFileSync(join(fixtures, req.url.slice(1)));
@@ -116,6 +122,8 @@ try {
         origin + '/synthetic.mp4',
         '#EXTINF:-1 group-title="Live",Synthetic Live',
         origin + '/synthetic.m3u8',
+        '#EXTINF:-1 group-title="Movies",Synthetic AC-3',
+        origin + '/synthetic-ac3.mkv',
     ].join('\n');
     await page.goto(new URL('/', page.url()).href);
     await page.getByRole('button', { name: 'Add playlist' }).click();
@@ -142,6 +150,11 @@ try {
     });
     const channelRoute = page.url();
     const waitNative = () => expect.poll(topActivity).toContain('.ui.NativePlayerActivity');
+    const pid = adb('shell', 'pidof', app).trim();
+    const waitAudio = () => expect.poll(() => adb('shell', 'dumpsys', 'audio').split('\n').some(
+        (line) => line.includes('AudioPlaybackConfiguration') &&
+            line.includes('type:android.media.AudioTrack') && line.includes(`/${pid} state:started`),
+    ), { timeout: 10000 }).toBe(true);
     async function back() {
         adb('shell', 'input', 'keyevent', '4');
         await expect.poll(topActivity).toContain('.ui.MainActivity');
@@ -152,10 +165,13 @@ try {
     await waitNative();
     await expect(video).toHaveCount(0);
     await expect.poll(() => seen.target.length).toBeGreaterThan(redirectedBefore);
+    await waitAudio();
     await delay(4200);
     adb('shell', 'input', 'keyevent', '3');
-    await expect.poll(topActivity).not.toContain(app);
-    await delay(800);
+    await expect.poll(() => {
+        const top = topActivity();
+        return Boolean(top) && !top.includes(app);
+    }).toBe(true);
     adb('shell', 'am', 'start', '-a', 'android.intent.action.MAIN',
         '-c', 'android.intent.category.LAUNCHER', '-n', `${app}/.ui.MainActivity`);
     await expect.poll(topActivity).toContain('.ui.MainActivity');
@@ -163,7 +179,7 @@ try {
     await page.waitForFunction(() => window.__nativeResult !== undefined);
     const result = await page.evaluate(() => window.__nativeResult);
     assert.ok(result?.playedMs >= 2000 && result.durationMs > 15000 && result.positionMs >= 2000,
-        'Home and launcher return must preserve the native VOD position.');
+        `Home and launcher return must preserve the native VOD position. Got ${JSON.stringify(result)}`);
     assert.ok(seen.origin.some((headers) => headers['user-agent'] === 'Synthetic-Playback'),
         'The resolved provider user agent must reach the stream origin.');
     assert.ok(seen.target.slice(redirectedBefore).every((headers) => headers['user-agent'] !== 'Synthetic-Playback'),
@@ -182,9 +198,16 @@ try {
     await page.waitForFunction(() => window.__nativeResult !== undefined);
     assert.ok((await page.evaluate(() => window.__nativeResult))?.playedMs >= 2000,
         'Native HLS must play without browser CORS headers.');
+    await entry('Synthetic AC-3').click();
+    await expect(action).toBeVisible();
+    await action.click();
+    await waitNative();
+    await expect(video).toHaveCount(0);
+    await waitAudio();
+    await back();
     await setExperiment(false);
     await expect(action).toHaveCount(0);
-    console.log('PASS Android Media3 opt-in, VOD resume after Home, redirect header scope and HLS Back');
+    console.log('PASS Android Media3 opt-in, VOD resume after Home, redirect header scope, HLS Back and AC-3 audio output');
 } finally {
     if (settingsOpen || topActivity().includes('.ui.NativePlayerActivity')) adb('shell', 'input', 'keyevent', '4');
     await device?.close();

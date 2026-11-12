@@ -337,6 +337,7 @@
         "SEARCH_EMPTY_HINT": "没有匹配的设置。试试其他词，例如“播放器”“主题”或“EPG”。",
         "GENERAL": "通用",
         "GENERAL_SUBTITLE": "语言、启动和频道偏好设置。",
+        "OPEN_ANDROID_APP_SETTINGS": "打开 Android 应用设置",
         "PLAYBACK": "播放",
         "SAVE_EPG_SOURCES": "保存节目指南来源",
         "EPG_SOURCES": "EPG 源",

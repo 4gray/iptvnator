@@ -337,6 +337,7 @@
         "SEARCH_EMPTY_HINT": "No settings match. Try another word, such as player, theme or EPG.",
         "GENERAL": "General",
         "GENERAL_SUBTITLE": "Language, startup and channel preferences.",
+        "OPEN_ANDROID_APP_SETTINGS": "Open Android app settings",
         "PLAYBACK": "Playback",
         "SAVE_EPG_SOURCES": "Save EPG sources",
         "EPG_SOURCES": "EPG sources",

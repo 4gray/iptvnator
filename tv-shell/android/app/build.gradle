@@ -2,9 +2,13 @@ plugins {
     id 'com.android.application'
 }
 
+def ffmpegBuildScript = rootProject.file('../scripts/build-media3-ffmpeg.sh')
+def ffmpegOutput = layout.buildDirectory.dir('generated/media3Ffmpeg')
+
 android {
     namespace 'org.tvshell.iptvnator'
     compileSdk 36
+    ndkVersion '28.2.13676358'
 
     defaultConfig {
         applicationId 'org.tvshell.iptvnator'
@@ -56,6 +60,12 @@ android {
         targetCompatibility JavaVersion.VERSION_11
     }
 
+    sourceSets.main {
+        java.srcDir ffmpegOutput.map { it.dir('java') }
+        jniLibs.srcDir ffmpegOutput.map { it.dir('jniLibs') }
+        assets.srcDir ffmpegOutput.map { it.dir('assets') }
+    }
+
     packaging {
         resources {
             excludes += ['META-INF/LICENSE*', 'META-INF/NOTICE*']
@@ -70,10 +80,23 @@ android {
     }
 }
 
+tasks.register('buildMedia3Ffmpeg', Exec) {
+    inputs.file ffmpegBuildScript
+    inputs.property 'ndkVersion', android.ndkVersion
+    inputs.property 'minSdk', android.defaultConfig.minSdk
+    outputs.dir ffmpegOutput
+    doFirst {
+        commandLine 'bash', ffmpegBuildScript, android.ndkDirectory, android.defaultConfig.minSdk,
+            ffmpegOutput.get().asFile
+    }
+}
+tasks.named('preBuild').configure { dependsOn 'buildMedia3Ffmpeg' }
+
 dependencies {
     implementation project(':backend')
     implementation 'androidx.webkit:webkit:1.13.0'
-    def media3Version = '1.11.1'
+    compileOnly 'org.checkerframework:checker-qual:3.13.0' // Media3 FFmpeg annotations
+    def media3Version = '1.11.1' // Keep the FFmpeg extension source revision in sync.
     implementation "androidx.media3:media3-exoplayer:$media3Version"
     implementation "androidx.media3:media3-exoplayer-hls:$media3Version"
     implementation "androidx.media3:media3-datasource-okhttp:$media3Version"

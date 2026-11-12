@@ -19,6 +19,7 @@ import androidx.media3.common.Player;
 import androidx.media3.common.util.Log;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.datasource.okhttp.OkHttpDataSource;
+import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.analytics.PlaybackStats;
 import androidx.media3.exoplayer.analytics.PlaybackStatsListener;
@@ -79,7 +80,9 @@ public final class NativePlayerActivity extends Activity {
         Log.setLogLevel(Log.LOG_LEVEL_OFF);
         OkHttpDataSource.Factory dataSource = new OkHttpDataSource.Factory(
             NativePlaybackRequest.client(stream, getIntent().getBundleExtra("headers")));
-        player = new ExoPlayer.Builder(this)
+        DefaultRenderersFactory renderers = new DefaultRenderersFactory(this)
+            .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON);
+        player = new ExoPlayer.Builder(this, renderers)
             .setMediaSourceFactory(new DefaultMediaSourceFactory(dataSource))
             .setAudioAttributes(AudioAttributes.DEFAULT, true)
             .setHandleAudioBecomingNoisy(true)
@@ -129,6 +132,13 @@ public final class NativePlayerActivity extends Activity {
     }
 
     @Override
+    protected void onUserLeaveHint() {
+        super.onUserLeaveHint();
+        // Home can be followed by a launcher relaunch before onStop delivers the result.
+        if (!isFinishing()) finish();
+    }
+
+    @Override
     protected void onPause() {
         if (player != null) player.pause();
         super.onPause();
@@ -144,7 +154,7 @@ public final class NativePlayerActivity extends Activity {
             player = null;
         }
         super.onStop();
-        // The singleTask launcher can clear this activity after Home without calling finish().
+        // Other ways of leaving the player may stop it without a user leave hint.
         if (!isFinishing() && !isChangingConfigurations()) finish();
     }
 

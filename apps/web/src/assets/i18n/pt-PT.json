@@ -337,6 +337,7 @@
         "SEARCH_EMPTY_HINT": "Nenhuma definição corresponde à pesquisa. Tenta outra palavra, como leitor, tema ou EPG.",
         "GENERAL": "Geral",
         "GENERAL_SUBTITLE": "Idioma, arranque e preferências dos canais.",
+        "OPEN_ANDROID_APP_SETTINGS": "Abrir as definições da aplicação Android",
         "PLAYBACK": "Reprodução",
         "SAVE_EPG_SOURCES": "Guardar fontes de EPG",
         "EPG_SOURCES": "Fontes de EPG",
