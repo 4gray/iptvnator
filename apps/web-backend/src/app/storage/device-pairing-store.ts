@@ -34,6 +34,13 @@ export class DevicePairingStore {
         db.exec(
             'CREATE TABLE IF NOT EXISTS server_paired_devices (id TEXT PRIMARY KEY, name TEXT NOT NULL, token_digest TEXT NOT NULL UNIQUE)'
         );
+        const columns = db.pragma('table_info(server_paired_devices)') as {
+            name: string;
+        }[];
+        if (!columns.some((column) => column.name === 'can_approve'))
+            db.exec(
+                'ALTER TABLE server_paired_devices ADD COLUMN can_approve INTEGER NOT NULL DEFAULT 0'
+            );
         db.exec(
             'CREATE TABLE IF NOT EXISTS server_pairing_settings (id INTEGER PRIMARY KEY CHECK(id = 1), password_hash TEXT NOT NULL)'
         );
@@ -197,10 +204,34 @@ export class DevicePairingStore {
             })),
             devices: this.db
                 .prepare(
-                    'SELECT id, name FROM server_paired_devices ORDER BY rowid'
+                    'SELECT id, name, can_approve AS canApprove FROM server_paired_devices ORDER BY rowid'
                 )
-                .all(),
+                .all()
+                .map((row) => {
+                    const device = row as {
+                        id: string;
+                        name: string;
+                        canApprove: number;
+                    };
+                    return { ...device, canApprove: device.canApprove === 1 };
+                }),
         };
+    }
+    setApproval(id: string, canApprove: boolean): boolean {
+        return (
+            this.db
+                .prepare(
+                    'UPDATE server_paired_devices SET can_approve = ? WHERE id = ?'
+                )
+                .run(canApprove ? 1 : 0, id).changes > 0
+        );
+    }
+    canApprove(token: string): boolean {
+        return !!this.db
+            .prepare(
+                'SELECT 1 FROM server_paired_devices WHERE token_digest = ? AND can_approve = 1'
+            )
+            .get(digest(token));
     }
     revoke(id: string): boolean {
         return (

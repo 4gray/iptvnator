@@ -2,7 +2,7 @@ import { createServer, type Server } from 'node:http';
 import { BlockList } from 'node:net';
 import { networkInterfaces } from 'node:os';
 import type { Express } from 'express';
-import { markHostedIngress } from './hosted-ingress';
+import { markHostedIngress, markHostedLan } from './hosted-ingress';
 
 export function listenHosted(
     app: Express,
@@ -57,6 +57,7 @@ export function listenHosted(
             response.writeHead(403).end();
             return;
         }
+        if (lan && local) markHostedLan(request, `http://${authority}`);
         if (proxied) {
             markHostedIngress(request, httpsOrigin.origin);
             response.setHeader('Cache-Control', 'no-store');

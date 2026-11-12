@@ -5,9 +5,10 @@ import {
 import express, { type RequestHandler } from 'express';
 import { ipKeyGenerator, rateLimit } from 'express-rate-limit';
 import { DevicePairingStore } from './device-pairing-store';
-import { matchesAccessToken } from './access-guard';
+import { matchesAccessToken, readBearerToken } from './access-guard';
 import {
     hostedIngressOrigin,
+    hostedLanOrigin,
     type HostedIngressState,
 } from '../hosted-ingress';
 
@@ -83,10 +84,10 @@ export function createDevicePairingRouter(
             res.sendStatus(429);
             return;
         }
-        const approvalUrl =
-            ingress?.origin && store.passwordConfigured()
-                ? `${ingress.origin}/approve-device/${claim.claimId}`
-                : null;
+        const origin = ingress?.origin ?? hostedLanOrigin(req);
+        const approvalUrl = origin
+            ? `${origin}/approve-device/${claim.claimId}`
+            : null;
         res.status(201).json({ ...claim, approvalUrl });
     });
     const browserIngress: RequestHandler = (req, res, next) => {
@@ -155,6 +156,13 @@ export function createDevicePairingRouter(
     router.post(
         '/device-pairing/browser-request',
         browserIngress,
+        (req, res, next) => {
+            if (!store.passwordConfigured()) {
+                res.sendStatus(409);
+                return;
+            }
+            next();
+        },
         browserSession,
         (req, res) => {
             const id = req.body?.claimId;
@@ -173,6 +181,46 @@ export function createDevicePairingRouter(
         '/device-pairing/browser-approve',
         browserIngress,
         browserSession,
+        (req, res) => {
+            const id = req.body?.claimId;
+            if (
+                typeof id !== 'string' ||
+                id.length > 128 ||
+                !store.browserApprove(id)
+            ) {
+                res.sendStatus(404);
+                return;
+            }
+            res.sendStatus(204);
+        }
+    );
+    const deviceApprover: RequestHandler = (req, res, next) => {
+        const token = readBearerToken(req.get('authorization'));
+        if (!token || !store.canApprove(token)) {
+            res.sendStatus(403);
+            return;
+        }
+        next();
+    };
+    router.post(
+        '/device-pairing/device-request',
+        deviceApprover,
+        (req, res) => {
+            const id = req.body?.claimId;
+            const claim =
+                typeof id === 'string' && id.length <= 128
+                    ? store.browserRequest(id)
+                    : null;
+            if (!claim) {
+                res.sendStatus(404);
+                return;
+            }
+            res.json(claim);
+        }
+    );
+    router.post(
+        '/device-pairing/device-approve',
+        deviceApprover,
         (req, res) => {
             const id = req.body?.claimId;
             if (
@@ -243,6 +291,17 @@ export function createDevicePairingRouter(
             return;
         }
         if (!store.approve(req.body.claimId)) {
+            res.sendStatus(404);
+            return;
+        }
+        res.sendStatus(204);
+    });
+    router.put('/devices/:id/approval', admin, (req, res) => {
+        if (typeof req.body?.canApprove !== 'boolean') {
+            res.sendStatus(400);
+            return;
+        }
+        if (!store.setApproval(String(req.params.id), req.body.canApprove)) {
             res.sendStatus(404);
             return;
         }

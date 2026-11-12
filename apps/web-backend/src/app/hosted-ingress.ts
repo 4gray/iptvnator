@@ -16,3 +16,11 @@ export function hostedIngressOrigin(
 export interface HostedIngressState {
     origin: string;
 }
+
+const lan = new WeakMap<IncomingMessage, string>();
+export function markHostedLan(request: IncomingMessage, origin: string): void {
+    lan.set(request, origin);
+}
+export function hostedLanOrigin(request: IncomingMessage): string | undefined {
+    return lan.get(request);
+}

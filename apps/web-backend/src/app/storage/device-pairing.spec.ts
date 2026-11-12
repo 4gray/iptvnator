@@ -178,6 +178,8 @@ describe('device pairing', () => {
             const another = store.invite()!;
             const claim = store.claim(another.inviteId, 'Test device')!;
             now += 300_001;
+            expect(store.browserRequest(claim.claimId)).toBeNull();
+            expect(store.browserApprove(claim.claimId)).toBe(false);
             expect(store.approve(claim.claimId)).toBe(false);
             expect(store.complete(claim.claimId, claim.claimSecret)).toBeNull();
         }));
@@ -245,7 +247,29 @@ describe('device pairing', () => {
                 const before = await call(local, 'start', {
                     name: 'Living room TV',
                 });
-                expect(before.body.approvalUrl).toBeNull();
+                expect(before.body.approvalUrl).toBe(
+                    `${origin}/approve-device/${before.body.claimId}`
+                );
+                expect(
+                    (
+                        await call(
+                            remote,
+                            'browser-request',
+                            { claimId: before.body.claimId },
+                            browser
+                        )
+                    ).status
+                ).toBe(409);
+                expect(
+                    (
+                        await call(
+                            remote,
+                            'browser-request',
+                            { claimId: before.body.claimId },
+                            { ...browser, origin: 'https://attacker.test' }
+                        )
+                    ).status
+                ).toBe(403);
                 expect(
                     (
                         await call(

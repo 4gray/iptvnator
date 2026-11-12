@@ -46,7 +46,7 @@ export function createAccessGuard(
  * `Bearer <token>`, scheme case-insensitive. Plain string scanning instead
  * of a regular expression keeps the cost linear in the header length.
  */
-function readBearerToken(header: string | undefined): string | null {
+export function readBearerToken(header: string | undefined): string | null {
     const value = header?.trim() ?? '';
     const separator = value.indexOf(' ');
     if (separator < 0 || value.slice(0, separator).toLowerCase() !== 'bearer') {
