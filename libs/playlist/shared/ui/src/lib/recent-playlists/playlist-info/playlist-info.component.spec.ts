@@ -22,6 +22,8 @@ import {
 
 const EXPORT_FILE_TYPE = 'HOME.PLAYLISTS.INFO_DIALOG.EXPORT_FILE_TYPE';
 
+import { PlaylistRefreshActionService } from '../../playlist-refresh-action.service';
+
 describe('PlaylistInfoComponent', () => {
     let component: PlaylistInfoComponent;
     let fixture: ComponentFixture<PlaylistInfoComponent>;
@@ -241,6 +243,27 @@ describe('PlaylistInfoComponent', () => {
             { duration: 3000 }
         );
         expect(dialogRef.close).toHaveBeenCalledTimes(1);
+    });
+
+    it('saves a trimmed new M3U URL and refreshes from it (#1677)', async () => {
+        const refreshAction = { refresh: jest.fn() };
+        TestBed.overrideProvider(PlaylistRefreshActionService, {
+            useValue: refreshAction,
+        });
+        createComponent();
+        const url = 'https://new-host.example.com/playlist.m3u';
+
+        await component.saveChanges({
+            ...metaBase,
+            _id: 'playlist-1',
+            title: 'My Playlist',
+            url: ` ${url} `,
+        } as PlaylistMeta);
+
+        // The saved (trimmed) source is what the refresh fetches.
+        expect(refreshAction.refresh).toHaveBeenCalledWith(
+            expect.objectContaining({ _id: 'playlist-1', url })
+        );
     });
 
     it('normalizes edited Xtream playlist credentials before saving metadata', async () => {

@@ -30,7 +30,9 @@ import {
     PlaylistMetaUpdate,
 } from '@iptvnator/shared/interfaces';
 import { firstValueFrom } from 'rxjs';
+import { PlaylistRefreshActionService } from '../../playlist-refresh-action.service';
 import { PlaylistEpgSourceEditor } from './playlist-epg-source-editor';
+import { hasM3uSourceChanged } from './playlist-source-change';
 import {
     hasStalkerConnectionChanged,
     normalizePlaylistConnectionMeta,
@@ -214,6 +216,18 @@ export class PlaylistInfoSaver {
                         : {}),
                 })
             );
+
+            // A new M3U source is fetched straight away, the same way a
+            // manual refresh does, so favorites and settings are kept.
+            const savedPlaylist = {
+                ...this.host.playlist,
+                ...normalizedPlaylist,
+            };
+            if (hasM3uSourceChanged(this.host.playlist, savedPlaylist)) {
+                this.injector
+                    .get(PlaylistRefreshActionService)
+                    .refresh(savedPlaylist);
+            }
 
             // Save already authorized this connection change, and a full
             // portal's completed get_profile may have pinned the submitted

@@ -28,6 +28,19 @@ const xtreamServerUrl: ValidatorFn = ({ value }) => {
     }
 };
 
+// The same rule as adding a playlist from a URL: an absolute http(s) URL with a host.
+const m3uSourceUrl: ValidatorFn = ({ value }) => {
+    if (typeof value !== 'string' || !value.trim()) return { required: true };
+    try {
+        const url = new URL(value.trim());
+        return /^https?:$/.test(url.protocol) && url.hostname
+            ? null
+            : { url: true };
+    } catch {
+        return { url: true };
+    }
+};
+
 export function createPlaylistEpgSourceControl(
     value = ''
 ): FormControl<string> {
@@ -43,6 +56,12 @@ export function createPlaylistDetailsForm(
     datePipe: DatePipe
 ) {
     const isXtream = Boolean(playlist.serverUrl && !playlist.portalUrl);
+    // An M3U playlist's source can be edited, so a provider's new URL or a
+    // moved file does not mean adding the playlist again (issue #1677).
+    const isM3u = !playlist.serverUrl && !playlist.portalUrl;
+    const editableUrl = isM3u && Boolean(playlist.url);
+    const editableFilePath =
+        isM3u && !playlist.url && Boolean(playlist.filePath);
     return formBuilder.group({
         _id: playlist._id,
         title: new FormControl(playlist.title, Validators.required),
@@ -59,14 +78,14 @@ export function createPlaylistDetailsForm(
             value: datePipe.transform(playlist.importDate),
             disabled: true,
         }),
-        url: new FormControl({
-            value: playlist.url,
-            disabled: true,
-        }),
-        filePath: new FormControl({
-            value: playlist.filePath,
-            disabled: true,
-        }),
+        url: new FormControl(
+            { value: playlist.url, disabled: !editableUrl },
+            editableUrl ? [m3uSourceUrl] : []
+        ),
+        filePath: new FormControl(
+            { value: playlist.filePath, disabled: !editableFilePath },
+            editableFilePath ? [nonblankCredential] : []
+        ),
         autoRefresh: new FormControl(playlist.autoRefresh),
         serverUrl: new FormControl(
             playlist.serverUrl,
