@@ -159,6 +159,58 @@ describe('VLC exact playback ownership', () => {
         }
     });
 
+    it('reuses a replacement when two pending VLC tunes lose the same child', async () => {
+        if (process.platform === 'win32') return;
+        const first = child();
+        const replacement = child();
+        const duplicate = child();
+        spawnMock
+            .mockReturnValueOnce(first)
+            .mockReturnValueOnce(replacement)
+            .mockReturnValueOnce(duplicate);
+        let originalAddress: string | undefined;
+        const writes: string[] = [];
+        mockRc((address, command, reply) => {
+            if (!originalAddress || address === originalAddress) return;
+            writes.push(command);
+            reply(`${command.trim().split(' ')[0]}: returned 0 (no error)\r\n`);
+        });
+        const launch = (name: string) =>
+            openVlcPlayer({
+                title: name,
+                url: `https://example.test/${name}.ts`,
+                launchId: name,
+            });
+        try {
+            const initial = launch('synthetic-original');
+            originalAddress = (spawnMock.mock.lastCall?.[1] as string[])
+                .find((arg) => arg.startsWith('--rc-unix='))
+                ?.slice('--rc-unix='.length);
+            first.emit('spawn');
+            await initial;
+            const older = launch('synthetic-older');
+            const newer = launch('synthetic-newer');
+            exit(first);
+            await tick();
+            replacement.emit('spawn');
+            duplicate.emit('spawn');
+            await expect(newer).resolves.toMatchObject({
+                status: 'opened',
+                launchId: 'synthetic-newer',
+            });
+            await older;
+            expect(writes).toContainEqual(
+                expect.stringContaining(
+                    'add https://example.test/synthetic-newer.ts '
+                )
+            );
+            expect(spawnMock).toHaveBeenCalledTimes(2);
+        } finally {
+            for (const proc of [first, replacement, duplicate])
+                if (proc.exitCode === null) exit(proc);
+        }
+    });
+
     it('stops the exact timed-out detached VLC before retrying the same input', async () => {
         if (process.platform === 'win32') return;
         jest.useFakeTimers({ doNotFake: ['setImmediate'] });

@@ -127,6 +127,7 @@ export async function completeFreshMpvLaunch(
         )
             return null;
     }
+    if (media?.stopped) return null;
     if (signal?.aborted)
         return externalPlayerSessions.getSession(session.id) ?? session;
     markMpvOpened(

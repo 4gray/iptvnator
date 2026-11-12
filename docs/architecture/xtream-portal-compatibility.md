@@ -798,8 +798,8 @@ entry takes over. A late load or replay of the same entry can confirm again.
 If the launcher exits before `loadfile` is sent, or the socket never accepts it,
 MPV retries with the original URL argument after the idle process exits. Stop
 or disabling instance reuse cancels that fallback and any pending IPC write.
-An opening request cancelled by Stop waits for that exact child to exit before
-releasing the next queued request.
+An opening request cancelled by Stop or by disabling reuse waits for that exact
+child to exit before releasing the next queued request.
 The Unix socket lives in a private directory owned by the app user and is
 removed when the child exits. Older MPV versions that acknowledge without an
 entry ID keep the remote queue without confirming guide playback.
@@ -822,7 +822,8 @@ restores Stop for the surviving session when a launch that still owns the dock
 ends. An idle failed replacement closes
 before that restore. If the first launch fails or exits before confirming
 playback, its channel and queue remain available for remote tuning without
-now-playing details. An explicit Stop clears an unconfirmed tune.
+now-playing details. An explicit Stop clears the exact unconfirmed tune, even
+after a closable error.
 Consecutive remote tuning commands advance from the latest requested channel
 until it opens or fails. A VLC fallback from an older launch cannot retire a
 newer tune.

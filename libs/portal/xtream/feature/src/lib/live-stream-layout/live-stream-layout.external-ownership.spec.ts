@@ -446,6 +446,7 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
         'native error',
         'unexpected clean exit',
         'explicit stop',
+        'closable error then Stop',
         'rejected invocation',
     ] as const)(
         'keeps remote tuning after %s unless Stop was requested',
@@ -457,17 +458,19 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
             emptyList.set([playing, next]);
             portalPlayer.isEmbeddedPlayer.set(false);
             fixture.detectChanges();
-            if (outcome === 'rejected invocation')
-                xtreamStore.openPlayer.mockRejectedValueOnce(
-                    new Error('Synthetic player failed')
-                );
-            else if (
+            const errorThenStop = outcome === 'closable error then Stop';
+            const terminal =
+                errorThenStop ||
                 [
                     'native error',
                     'unexpected clean exit',
                     'explicit stop',
-                ].includes(outcome)
-            )
+                ].includes(outcome);
+            if (outcome === 'rejected invocation')
+                xtreamStore.openPlayer.mockRejectedValueOnce(
+                    new Error('Synthetic player failed')
+                );
+            else if (terminal)
                 xtreamStore.openPlayer.mockReturnValueOnce(
                     new Promise(() => undefined)
                 );
@@ -483,22 +486,31 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
                 startedAt: '2026-04-04T10:00:00Z',
                 updatedAt: '2026-04-04T10:00:00Z',
             } as const;
-            if (
-                [
-                    'native error',
-                    'unexpected clean exit',
-                    'explicit stop',
-                ].includes(outcome)
-            )
+            if (terminal) {
                 publishExternalSession({
                     ...session,
                     launchId: xtreamStore.openPlayer.mock.lastCall?.[5],
-                    status: outcome === 'native error' ? 'error' : 'closed',
+                    status:
+                        outcome === 'native error' || errorThenStop
+                            ? 'error'
+                            : 'closed',
                     closedByRequest:
                         outcome === 'explicit stop' ? true : undefined,
-                    canClose: false,
+                    canClose: errorThenStop,
                 });
-            else if (outcome === 'rejected invocation')
+                if (errorThenStop) {
+                    fixture.detectChanges();
+                    expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
+                        expect.objectContaining({ isLiveView: true })
+                    );
+                    publishExternalSession({
+                        ...session,
+                        status: 'closed',
+                        canClose: false,
+                        closedByRequest: true,
+                    });
+                }
+            } else if (outcome === 'rejected invocation')
                 await fixture.whenStable();
             else {
                 publishExternalSession(session);
@@ -507,10 +519,12 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
             }
             fixture.detectChanges();
 
-            if (outcome === 'explicit stop') {
+            if (outcome === 'explicit stop' || errorThenStop) {
                 expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
                     expect.objectContaining({ isLiveView: false })
                 );
+                onChannelChange.mock.lastCall?.[0]({ direction: 'up' });
+                expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(1);
                 return;
             }
             expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(

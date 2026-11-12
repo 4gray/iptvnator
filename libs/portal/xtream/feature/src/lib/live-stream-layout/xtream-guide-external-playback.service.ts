@@ -105,10 +105,9 @@ export class XtreamGuideExternalPlayback {
             if (!hasXtreamOpenedMedia(session)) return null;
             const source = this.sessions.state(session.id)?.source;
             if (!source) return null;
-            const launch =
-                prior?.session.id === session.id && prior.lockSource === source
-                    ? prior
-                    : this.reattach(source);
+            if (prior?.session.id === session.id && prior.lockSource === source)
+                return { ...prior, session };
+            const launch = this.reattach(source);
             return launch ? { ...launch, session } : null;
         },
     });
@@ -156,7 +155,10 @@ export class XtreamGuideExternalPlayback {
     });
 
     stoppedTuningSource(): XtreamLiveSource | undefined {
-        const source = this.idlePlayback() ?? this.failedTuning()?.lockSource;
+        const idle = this.idlePlayback();
+        const failed = this.failedTuning();
+        if (idle || failed?.ended?.() === 'ended') return idle;
+        const source = failed?.lockSource;
         return this.isAllowed(source) ? source : undefined;
     }
 
@@ -296,12 +298,10 @@ export class XtreamGuideExternalPlayback {
                 undefined,
                 lifecycle?.launchId
             );
-        const opening =
-            close?.then(() =>
-                isCurrent() && this.isAllowed(launch?.lockSource)
-                    ? open()
-                    : undefined
-            ) ?? open();
+        const canOpen = () => isCurrent() && this.isAllowed(launch?.lockSource);
+        const opening = close
+            ? close.then(() => (canOpen() ? open() : undefined))
+            : open();
         void Promise.resolve(opening).then(
             (session) => {
                 lifecycle?.finish(session);

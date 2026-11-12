@@ -264,9 +264,9 @@ export class XtreamExternalLiveSessions {
             current?.launch ??
             request ??
             (session.launchId ? this.pending.get(session.launchId) : undefined);
-        if (
+        if (launch && session.closedByRequest) launch.ended.set('ended');
+        else if (
             (session.status === 'error' || session.status === 'closed') &&
-            !session.closedByRequest &&
             launch &&
             !launch.opened &&
             !launch.cancelled

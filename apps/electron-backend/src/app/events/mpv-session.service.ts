@@ -382,7 +382,8 @@ async function launchMpvPlayer(
             media
         );
         media?.settleDispatch();
-        if (opened && !fallingBack && !requestedClose) return opened;
+        if (opened && !fallingBack && !requestedClose && !media?.stopped)
+            return opened;
         fallingBack = true;
         try {
             await (requestedClose ??

@@ -217,7 +217,6 @@ export async function openVlcPlayer({
         externalPlayerProcessTeardownGate.assertLaunchAllowed();
     }
     const displacedSessionId = externalPlayerSessions.getActiveSessionId();
-    const previousProcessSessionId = reusableVlcProcess.currentSessionId();
     const session = externalPlayerSessions.beginSession({
         player: 'vlc',
         launchId,
@@ -277,37 +276,47 @@ export async function openVlcPlayer({
         });
 
         const guideLaunch = !!session.launchId && !contentInfo;
-        if (
-            reuseInstance &&
-            (!guideLaunch || reusableVlcProcess.hasPrivateControl())
-        ) {
-            const reused = await reusableVlcProcess.tryReuse({
-                session,
-                previousProcessSessionId,
-                url,
-                title,
-                effectiveUserAgent,
-                effectiveReferer,
-                effectiveOrigin,
-                mergedHeaders,
-                contentInfo,
-                startTime,
-                state: reuseState,
-                startPositionPolling: startVlcPositionPolling,
-                stopPositionPolling: stopVlcPositionPolling,
-            });
-            if (reused) return reused;
-        }
-        if (reuseInstance) {
+        while (reuseInstance) {
+            if (reuseState.closeRequested) break;
             if (guideLaunch && hasNewerOwner())
                 return externalPlayerSessions.markClosed(session.id) ?? session;
+            if (!guideLaunch || reusableVlcProcess.hasPrivateControl()) {
+                const previousProcessSessionId =
+                    reusableVlcProcess.currentSessionId();
+                reuseState.contentMutated = false;
+                const reused = await reusableVlcProcess.tryReuse({
+                    session,
+                    previousProcessSessionId,
+                    url,
+                    title,
+                    effectiveUserAgent,
+                    effectiveReferer,
+                    effectiveOrigin,
+                    mergedHeaders,
+                    contentInfo,
+                    startTime,
+                    state: reuseState,
+                    startPositionPolling: startVlcPositionPolling,
+                    stopPositionPolling: stopVlcPositionPolling,
+                });
+                if (reused) return reused;
+                if (
+                    guideLaunch &&
+                    previousProcessSessionId !==
+                        reusableVlcProcess.currentSessionId()
+                )
+                    continue;
+            }
             closeRetained = reusableVlcProcess.replacementCloser(guideLaunch);
+            if (!closeRetained) break;
             try {
-                if (closeRetained) await closeRetained();
+                await closeRetained();
+                closeRetained = undefined;
             } catch (error) {
                 reuseState.teardownUnconfirmed = true;
                 throw error;
             }
+            if (!guideLaunch) break;
         }
 
         const privateEndpoint =
