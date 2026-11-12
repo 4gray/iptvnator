@@ -161,7 +161,7 @@ try {
     }
     const redirectedBefore = seen.target.length;
     await action.focus();
-    adb('shell', 'input', 'keyevent', '66');
+    adb('shell', 'input', 'keyevent', 'KEYCODE_DPAD_CENTER');
     await waitNative();
     await expect(video).toHaveCount(0);
     await expect.poll(() => seen.target.length).toBeGreaterThan(redirectedBefore);
