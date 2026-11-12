@@ -60,6 +60,28 @@ code. A paired device can use the library APIs but cannot administer pairing.
 Revoke access removes that credential without changing the shared access code
 or other paired devices. The ordinary web-player QR still contains the address.
 
+For a TV without a camera, **Pair with server** in the native Android library
+settings starts a request and displays a six-digit confirmation code. Approve
+it under **Paired devices** on the PC, or enable HTTPS and set a **Phone
+approval password** in that panel to let a phone approve it. The TV then shows
+a QR code for the HTTPS approval page. Scan it, sign in, compare the code and
+approve. The TV receives an individual credential and opens the hosted library
+without having to enter the shared code.
+
+For a TV at home and a phone using Cloudflare Access, start **Home network**
+first and enable Cloudflare from **Remote access** while it is running. Use the
+LAN address for the TV's library and enter the matching public hostname in its
+optional **HTTPS approval address** field. The phone passes the Cloudflare
+Access policy in its browser before signing in to IPTVnator's approval page.
+This flow keeps the TV's library connection on the LAN.
+
+The browser password is separate from the library access code. The backend
+keeps a salted verifier and grants a five-minute approval session through a
+Secure, HttpOnly cookie. The session is scoped to TV approval and the HTTPS
+listener. Changing or clearing the password invalidates existing approval
+sessions. A QR contains a claim identifier. The TV keeps the separate claim
+secret needed to retrieve the issued device credential.
+
 The utility process inherits the desktop environment, including operating-system
 variables such as Windows `SystemRoot`, `PATH` and temporary-directory settings.
 Hosted storage, data paths, access code, assets, LAN binding and port override

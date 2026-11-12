@@ -1,9 +1,14 @@
-import { get } from 'node:http';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { once } from 'node:events';
+import { get, request } from 'node:http';
+import { createServer as createTlsServer } from 'node:https';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { HOSTED_SERVER_PORT } from '@iptvnator/shared/interfaces';
+import {
+    HOSTED_SERVER_HTTPS_PORT,
+    HOSTED_SERVER_PORT,
+} from '@iptvnator/shared/interfaces';
 import { expect, test } from '@playwright/test';
 import {
     closeElectronApp,
@@ -261,8 +266,10 @@ test('shares a library, pairs an approved device, and revokes its access', async
         const invite = new URL(
             await pairQr.evaluate((element) => {
                 const debug = window as Window & {
-                    ng: { getComponent(node: Element): { qrdata: string } };
+                    ng?: { getComponent(node: Element): { qrdata: string } };
                 };
+                if (!debug.ng)
+                    throw new Error('Angular debug tools unavailable');
                 return debug.ng.getComponent(element).qrdata;
             })
         );
@@ -366,6 +373,171 @@ test('shares a library, pairs an approved device, and revokes its access', async
             'Server stopped'
         );
     } finally {
+        if (desktop) await closeElectronApp(desktop);
+        rmSync(directory, { recursive: true, force: true });
+    }
+});
+
+test('approves a LAN TV from a phone over HTTPS', async ({ browser }) => {
+    const directory = mkdtempSync(join(tmpdir(), 'iptvnator-tv-pairing-'));
+    const certificate = join(workspaceRoot, 'apps/web-backend/src/app/testing');
+    const proxy = createTlsServer(
+        {
+            cert: readFileSync(join(certificate, 'provider-test.pem')),
+            key: readFileSync(join(certificate, 'provider-test.key')),
+        },
+        (incoming, outgoing) => {
+            const upstream = request(
+                {
+                    hostname: '127.0.0.1',
+                    port: HOSTED_SERVER_HTTPS_PORT,
+                    method: incoming.method,
+                    path: incoming.url,
+                    headers: incoming.headers,
+                },
+                (response) => {
+                    outgoing.writeHead(
+                        response.statusCode ?? 502,
+                        response.headers
+                    );
+                    response.pipe(outgoing);
+                }
+            );
+            upstream.on('error', () => outgoing.writeHead(502).end());
+            incoming.pipe(upstream);
+        }
+    );
+    let desktop: Awaited<ReturnType<typeof launchElectronApp>> | undefined;
+    const phone = await browser.newContext({
+        ignoreHTTPSErrors: true,
+        viewport: { width: 390, height: 844 },
+    });
+    try {
+        desktop = await launchElectronApp(directory);
+        const page = desktop.mainWindow;
+        await openSettings(page);
+        await openSettingsSection(page, 'server');
+        const startServer = page.getByTestId('hosted-server-start');
+        await expect(startServer).toBeVisible();
+        test.skip(
+            !(await page.evaluate(
+                async () =>
+                    (await window.electron.hostedServerControl?.('status'))
+                        ?.availableAddresses?.length
+            )),
+            'No private IPv4 interface for the LAN listener'
+        );
+        await startServer.click();
+        const address = page.getByTestId('hosted-server-address');
+        await expect(address).toBeVisible();
+        const lan = (await address.innerText()).trim();
+        const tvPost = (action: string, body: object) =>
+            fetch(`${lan}/api/v1/device-pairing/${action}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+        expect(
+            await (await tvPost('start', { name: 'LAN-only TV' })).json()
+        ).toMatchObject({ approvalUrl: null });
+
+        proxy.listen(0, '127.0.0.1');
+        await once(proxy, 'listening');
+        const endpoint = proxy.address();
+        if (!endpoint || typeof endpoint === 'string')
+            throw new Error('Expected the HTTPS fixture port');
+        const httpsOrigin = `https://127.0.0.1:${endpoint.port}`;
+        await page.getByTestId('hosted-https-setup').click();
+        await page.getByTestId('hosted-https-origin').fill(httpsOrigin);
+        await page.getByTestId('hosted-https-start').click();
+        const ownerPassword = 'synthetic test owner password';
+        await page
+            .getByTestId('hosted-browser-pairing-password')
+            .fill(ownerPassword);
+        await page.getByTestId('hosted-browser-pairing-save').click();
+        await expect(
+            page.getByTestId('hosted-browser-pairing-clear')
+        ).toBeVisible();
+
+        const start = await tvPost('start', {
+            name: 'Synthetic living room TV',
+        });
+        expect(start.status).toBe(201);
+        const { approvalUrl, claimId, claimSecret, confirmationCode } =
+            await start.json();
+        expect(approvalUrl).toBe(`${httpsOrigin}/approve-device/${claimId}`);
+        expect(approvalUrl).not.toContain(claimSecret);
+        const complete = () => tvPost('complete', { claimId, claimSecret });
+        expect(await (await complete()).json()).toEqual({ status: 'pending' });
+
+        const approval = await phone.newPage();
+        const password = approval.getByLabel('Phone approval password');
+        await approval.goto(`${lan}/approve-device/${claimId}`);
+        await expect(approval.getByRole('status')).toContainText(
+            'requires HTTPS'
+        );
+        await expect(password).toBeHidden();
+        await approval.goto(approvalUrl);
+        await expect(password).toBeVisible();
+        await expect(
+            approval.getByText('Synthetic living room TV')
+        ).toBeHidden();
+        expect(new URL(approval.url()).pathname).toBe('/approve-device');
+        await password.fill('synthetic incorrect password');
+        await approval.getByRole('button', { name: 'Sign in' }).click();
+        await expect(approval.getByRole('status')).toContainText(
+            'Check the phone approval password'
+        );
+        expect(await (await complete()).json()).toEqual({ status: 'pending' });
+        await password.fill(ownerPassword);
+        const details = approval.waitForResponse(
+            (response) =>
+                response.url().endsWith('/device-pairing/browser-request') &&
+                response.status() === 200
+        );
+        await approval.getByRole('button', { name: 'Sign in' }).click();
+        await details;
+        await expect(
+            approval.getByText('Synthetic living room TV')
+        ).toBeVisible();
+        await expect(approval.locator('#confirmation-code')).toHaveText(
+            confirmationCode
+        );
+        await approval.goto(approvalUrl);
+        await expect(approval.locator('#confirmation-code')).toHaveText(
+            confirmationCode
+        );
+        await expect(password).toBeHidden();
+        await approval
+            .getByRole('button', { name: 'Codes match, approve TV' })
+            .click();
+        await expect(approval.getByRole('status')).toContainText('TV approved');
+        const enrolled = await (await complete()).json();
+        expect(enrolled.status).toBe('approved');
+        const identity = await (await fetch(`${lan}/api/v1/instance`)).json();
+        expect(enrolled.instanceId).toBe(identity.instanceId);
+        const headers = { Authorization: `Bearer ${enrolled.token}` };
+        expect((await fetch(`${lan}/api/v1/sources`, { headers })).status).toBe(
+            200
+        );
+
+        await page.getByRole('button', { name: 'Show devices' }).click();
+        const device = page.getByRole('listitem').filter({
+            hasText: 'Synthetic living room TV',
+        });
+        await device.getByRole('button', { name: 'Revoke access' }).click();
+        await page.getByTestId('confirm-dialog-confirm').click();
+        await expect(
+            page.getByText('Device access revoked.', { exact: true })
+        ).toBeVisible();
+        await expect(device).toHaveCount(0);
+        expect((await fetch(`${lan}/api/v1/sources`, { headers })).status).toBe(
+            401
+        );
+    } finally {
+        await phone.close();
+        if (proxy.listening)
+            await new Promise<void>((resolve) => proxy.close(() => resolve()));
         if (desktop) await closeElectronApp(desktop);
         rmSync(directory, { recursive: true, force: true });
     }
