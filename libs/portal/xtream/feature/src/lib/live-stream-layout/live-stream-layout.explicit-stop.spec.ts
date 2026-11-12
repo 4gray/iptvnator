@@ -173,6 +173,7 @@ describe('Xtream guide Stop during a detached handoff', () => {
         'stop-vlc-replacement',
         'still-playing',
         'cleared',
+        'mpv-replaced',
     ] as const)(
         'waits for the exact dispatched switch when returning to the current player (%s)',
         async (scenario) => {
@@ -181,7 +182,11 @@ describe('Xtream guide Stop during a detached handoff', () => {
             emptyList.set([first, second]);
             portalPlayer.isEmbeddedPlayer.set(false);
             const mpv =
-                scenario === 'stop' || scenario === 'stop-mpv-replacement';
+                scenario === 'stop' ||
+                scenario === 'stop-mpv-replacement' ||
+                scenario === 'mpv-replaced';
+            const retunes =
+                scenario === 'cleared' || scenario === 'mpv-replaced';
             player.set(mpv ? VideoPlayer.MPV : VideoPlayer.VLC);
             const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
             const component = fixture.componentInstance;
@@ -260,15 +265,19 @@ describe('Xtream guide Stop during a detached handoff', () => {
             }
             expect(close).toHaveBeenCalledWith(next.id, true);
             expect(commit).not.toHaveBeenCalled();
-            if (scenario === 'cleared') {
+            if (retunes) {
                 xtreamStore.openPlayer.mockImplementationOnce(
                     () => new Promise(() => undefined)
                 );
-                publishExternalSession({
-                    ...current,
-                    mediaLoaded: false,
-                    playbackUnverified: true,
-                });
+                publishExternalSession(
+                    scenario === 'cleared'
+                        ? {
+                              ...current,
+                              mediaLoaded: false,
+                              playbackUnverified: true,
+                          }
+                        : { ...current, status: 'closed', canClose: false }
+                );
             }
             publishExternalSession({
                 ...next,
@@ -281,9 +290,9 @@ describe('Xtream guide Stop during a detached handoff', () => {
                 scenario === 'still-playing' ? 1 : 0
             );
             expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(
-                scenario === 'cleared' ? 3 : 2
+                retunes ? 3 : 2
             );
-            if (scenario === 'cleared') {
+            if (retunes) {
                 publishExternalSession({ ...current, id: 'synthetic-retuned' });
                 fixture.detectChanges();
                 expect(commit).toHaveBeenCalledTimes(1);

@@ -366,15 +366,33 @@ describe('EpgGuideComponent', () => {
         expect(activate).not.toHaveBeenCalled();
     });
 
-    it('drops the programme search when the scope changes', async () => {
-        await settle(fixture);
-        component.onSearchQueryChange('news');
-        expect(component.searchQuery()).toBe('news');
-        component.setScope('all');
-        expect(component.searchQuery()).toBe('');
-        expect(component.searchResults()).toEqual([]);
-        expect(setScope).toHaveBeenCalledWith('all');
-    });
+    it.each([false, true])(
+        'preserves programme results only for a catalogue search on scope change (%s)',
+        async (searchAcrossScopes) => {
+            const source = fixture.debugElement.injector.get(EPG_GUIDE_SOURCE);
+            Object.assign(source, { searchAcrossScopes });
+            const hit = {
+                channelId: 'a',
+                channelEpgKey: 'synthetic-exact-copy',
+                program: nowProgram('a'),
+            };
+            searchHits.set([hit]);
+            await settle(fixture);
+            component.onSearchQueryChange('news');
+            await new Promise((resolve) => setTimeout(resolve, 400));
+            await settle(fixture);
+            expect(component.searchQuery()).toBe('news');
+            expect(component.searchResults()).toEqual([hit]);
+            component.setScope('favorites');
+            expect(component.searchQuery()).toBe(
+                searchAcrossScopes ? 'news' : ''
+            );
+            expect(component.searchResults()).toEqual(
+                searchAcrossScopes ? [hit] : []
+            );
+            expect(setScope).toHaveBeenCalledWith('favorites');
+        }
+    );
 
     it('keeps the query and restarts search when the guide source is refreshed', async () => {
         await settle(fixture);

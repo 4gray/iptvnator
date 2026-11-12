@@ -128,6 +128,7 @@ import {
 } from './xtream-external-live-sessions.service';
 import { XtreamGuideExternalPlayback } from './xtream-guide-external-playback.service';
 import { scheduleKey } from './xtream-guide-schedules';
+import { retainXtreamPanelSchedule } from './xtream-guide-now-playing';
 import { toSharedEpgProgram } from '../portal-channels-list/epg-preview-program';
 
 const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
@@ -564,6 +565,26 @@ export class LiveStreamLayoutComponent
                 ? this.activePlayback()?.title
                 : this.externalGuide.confirmed()?.session.title) ?? ''
     );
+    private readonly panelPlaybackSchedule = retainXtreamPanelSchedule(() => {
+        const playing = this.guideChannel();
+        const refreshed = this.guideSource.playingItem();
+        const copy =
+            playing && refreshed && sameXtreamChannelCopy(playing, refreshed)
+                ? refreshed
+                : playing;
+        const selected = this.selectedLiveItem();
+        return {
+            owner: this.externalGuide.owner(),
+            key: copy ? `${copy.category_id}:${scheduleKey(copy)}` : undefined,
+            items:
+                copy &&
+                selected &&
+                sameXtreamChannelCopy(copy, selected) &&
+                scheduleKey(copy) === scheduleKey(selected)
+                    ? this.epgItems()
+                    : undefined,
+        };
+    });
     readonly guideNowPlayingProgram = computed(() => {
         const archive = this.guideArchiveProgram();
         if (archive) return archive;
@@ -595,16 +616,7 @@ export class LiveStreamLayoutComponent
                             )
                 ) ?? null
             );
-        const selected = this.selectedLiveItem();
-        if (
-            !selected ||
-            !playing ||
-            !sameXtreamChannelCopy(selected, playing) ||
-            scheduleKey(selected) !==
-                scheduleKey(matchesPlayingCopy ? currentCopy : playing)
-        )
-            return null;
-        const program = findCurrentEpgItem(this.epgItems(), now);
+        const program = findCurrentEpgItem(this.panelPlaybackSchedule(), now);
         return program ? toSharedEpgProgram(program) : null;
     });
 
@@ -656,8 +668,6 @@ export class LiveStreamLayoutComponent
         this.guideSource.bind(
             (item, channels, retry, onConfirmed) => {
                 const playing = this.guideChannel();
-                const isVlc =
-                    this.externalGuide.confirmed()?.session.player === 'vlc';
                 const alreadyLive =
                     playing &&
                     playing.xtream_id === item.xtream_id &&
@@ -691,8 +701,8 @@ export class LiveStreamLayoutComponent
                         )
                             player.retryFailedPlayback();
                         this.confirmInlinePlayback(onConfirmed);
-                    } else if (isVlc && cancelled)
-                        this.afterVlcCancellation(
+                    } else if (cancelled)
+                        this.afterExternalCancellation(
                             cancelled,
                             item,
                             () =>
@@ -888,7 +898,11 @@ export class LiveStreamLayoutComponent
 
             if (
                 selectedContentType !== 'live' ||
-                !(selectedItem || this.remoteAnchor())
+                !(
+                    selectedItem ||
+                    this.remoteAnchor() ||
+                    this.externalGuide.remoteTuningItem()
+                )
             ) {
                 remoteControl.updateRemoteControlStatus({
                     portal: 'xtream',
@@ -1298,8 +1312,8 @@ export class LiveStreamLayoutComponent
         ) {
             this.playbackRequestId++;
             const cancelled = this.externalGuide.cancelPendingSwitch(channel);
-            if (playing.session.player === 'vlc' && cancelled)
-                this.afterVlcCancellation(cancelled, channel, () =>
+            if (cancelled)
+                this.afterExternalCancellation(cancelled, channel, () =>
                     this.playLive(channel, true, undefined, true)
                 );
             return;
@@ -1427,7 +1441,7 @@ export class LiveStreamLayoutComponent
         );
     }
 
-    private afterVlcCancellation(
+    private afterExternalCancellation(
         cancelled: Promise<void>,
         item: XtreamLiveChannelItem,
         retune: () => void,

@@ -12,6 +12,7 @@ describe('Xtream remote playback metadata', () => {
     const {
         emptyList,
         epgItems,
+        onChannelChange,
         onRemoteControlCommand,
         portalPlayer,
         publishExternalSession,
@@ -52,6 +53,8 @@ describe('Xtream remote playback metadata', () => {
             name: 'Synthetic Preview',
         };
         emptyList.set([playing, preview]);
+        epgItems.set([airing]);
+        xtreamStore.selectedItem.set(playing);
         portalPlayer.isEmbeddedPlayer.set(false);
         fixture.detectChanges();
         component.playLive(playing, true);
@@ -71,6 +74,11 @@ describe('Xtream remote playback metadata', () => {
         xtreamStore.selectedItem.set(preview);
         epgItems.set([{ ...airing, title: 'Synthetic Preview Programme' }]);
         fixture.detectChanges();
+        const confirmed = expect.objectContaining({
+            channelName: playing.name,
+            epgTitle: airing.title,
+        });
+        expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(confirmed);
         component.guide.open();
         fixture.detectChanges();
         const source = fixture.debugElement.injector.get(
@@ -78,15 +86,75 @@ describe('Xtream remote playback metadata', () => {
         );
         await source.playbackSchedule(playing);
         fixture.detectChanges();
-        const confirmed = expect.objectContaining({
-            channelName: playing.name,
-            epgTitle: airing.title,
-        });
         expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(confirmed);
         component.guide.close();
         fixture.detectChanges();
         expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(confirmed);
         expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps remote tuning available between the old session and its unconfirmed replacement', () => {
+        const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
+        const component = fixture.componentInstance;
+        const first = { ...sampleChannel, category_id: 1 };
+        const second = { ...first, xtream_id: first.xtream_id + 1 };
+        const third = { ...first, xtream_id: first.xtream_id + 2 };
+        const queue = [first, second, third];
+        emptyList.set(queue);
+        portalPlayer.isEmbeddedPlayer.set(false);
+        fixture.detectChanges();
+        component.playLive(first, true, queue);
+        const session = {
+            id: 'synthetic-first',
+            player: 'mpv',
+            status: 'opened',
+            canClose: true,
+            reuseAvailable: true,
+            mediaLoaded: true,
+            title: 'Synthetic First',
+            streamUrl: component.activeStreamUrl(),
+            startedAt: '2026-04-04T10:00:00Z',
+            updatedAt: '2026-04-04T10:00:00Z',
+        } as const;
+        publishExternalSession(session);
+        fixture.detectChanges();
+        const secondUrl = 'https://example.test/synthetic-second.ts';
+        xtreamStore.constructStreamUrl.mockReturnValueOnce(secondUrl);
+        xtreamStore.openPlayer.mockImplementationOnce(
+            () => new Promise(() => undefined)
+        );
+        onChannelChange.mock.lastCall?.[0]({ direction: 'down' });
+        publishExternalSession({
+            ...session,
+            status: 'closed',
+            canClose: false,
+        });
+        publishExternalSession({
+            ...session,
+            id: 'synthetic-second',
+            streamUrl: secondUrl,
+            status: 'launching',
+            mediaLoaded: false,
+        });
+        fixture.detectChanges();
+        expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                isLiveView: true,
+                channelName: undefined,
+                channelNumber: undefined,
+                epgTitle: undefined,
+            })
+        );
+        const thirdUrl = 'https://example.test/synthetic-third.ts';
+        const tuneCall = xtreamStore.constructStreamUrl.mock.calls.length + 1;
+        xtreamStore.constructStreamUrl.mockReturnValueOnce(thirdUrl);
+        onChannelChange.mock.lastCall?.[0]({ direction: 'down' });
+        expect(xtreamStore.constructStreamUrl).toHaveBeenNthCalledWith(
+            tuneCall,
+            third
+        );
+        expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(3);
+        expect(xtreamStore.openPlayer.mock.lastCall?.[0]).toBe(thirdUrl);
     });
 
     it('keeps the confirmed remote channel and programme together during an unverified MPV launch', () => {

@@ -66,6 +66,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     private readonly session = signal<AbortController | null>(null);
 
     readonly deferredCoverage = true;
+    readonly searchAcrossScopes = true;
     readonly numberByDisplayedOrder = true;
     readonly programBatchSize = 1;
     readonly playlist = this.store.currentPlaylist;

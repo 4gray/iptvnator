@@ -1,5 +1,16 @@
-import { computed, effect, signal, type Signal } from '@angular/core';
+import {
+    computed,
+    effect,
+    linkedSignal,
+    signal,
+    type Signal,
+} from '@angular/core';
+import type { EpgItem } from '@iptvnator/shared/interfaces';
 import type { EpgGuideWindow } from '@iptvnator/ui/epg';
+import {
+    sameXtreamLiveOwner,
+    type XtreamLiveOwner,
+} from './xtream-external-live-sessions.service';
 import type { XtreamLiveChannelItem } from './xtream-live-channel-navigation.service';
 import {
     programmeOverlapsGuideWindow,
@@ -7,6 +18,25 @@ import {
 } from './xtream-guide-schedules';
 
 const DOCK_RETRY_MS = 30_000;
+
+export function retainXtreamPanelSchedule(
+    read: () => {
+        owner?: XtreamLiveOwner;
+        key?: string;
+        items?: EpgItem[];
+    }
+) {
+    return linkedSignal({
+        source: read,
+        computation: ({ owner, key, items }, previous): EpgItem[] =>
+            items ??
+            (key &&
+            key === previous?.source.key &&
+            sameXtreamLiveOwner(owner, previous.source.owner)
+                ? previous.value
+                : []),
+    });
+}
 
 /** Keeps the dock current even when its channel is outside the rendered scope. */
 export function createXtreamGuideNowPlaying(

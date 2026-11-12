@@ -851,12 +851,13 @@ keep the committed selection pending until a readiness timeout or terminal outco
 If the player cannot verify readiness, the guide stays available for a retry and a
 committed selection keeps it open. Committing the still-playing channel cancels
 every outstanding switch away from it, including timed-out launches that can
-still start playing. With VLC, it waits for those switches to settle and
-retunes the original channel if VLC already cleared its input. An unverified
+still start playing. With MPV or VLC, it waits for those switches to settle
+and retunes the original channel if the player no longer has it open. An unverified
 VLC launch cannot replace confirmed playback.
 The dock, player panel and remote status follow the confirmed session. The remote
 keeps channel and programme metadata tied to the same playback. An unverified
-channel can keep remote tuning available but does not supply programme metadata.
+channel can keep remote tuning available, including while it opens, but does
+not supply programme metadata.
 Selecting the number of a channel already playing live cancels pending tunes,
 including archive lookups, without reopening it.
 The player panel stays on confirmed playback while a remote tune is pending.

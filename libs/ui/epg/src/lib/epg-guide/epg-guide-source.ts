@@ -124,6 +124,8 @@ export interface EpgGuideSource {
         displayed?: readonly EpgGuideChannel[],
         onConfirmed?: () => void
     ): boolean;
+    /** Results identify catalogue entries independently of the selected scope. */
+    readonly searchAcrossScopes?: boolean;
     /** Optional programme search; the toolbar hides its field when absent. */
     searchPrograms?(
         query: string,

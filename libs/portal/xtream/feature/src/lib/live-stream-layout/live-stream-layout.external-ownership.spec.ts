@@ -730,7 +730,7 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
         }
     );
 
-    it('cancels every pending launch when committing the still-playing channel', () => {
+    it('waits for every cancelled launch when committing the still-playing channel', async () => {
         const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
         const component = fixture.componentInstance;
         const playing = { ...sampleChannel, category_id: 1 };
@@ -784,7 +784,7 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
         fixture.detectChanges();
         const commit = jest.fn();
         source.activate(String(playing.xtream_id), null, undefined, commit);
-        expect(commit).toHaveBeenCalledTimes(1);
+        expect(commit).not.toHaveBeenCalled();
         expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(3);
         for (const { id, url } of pending) {
             publishExternalSession({
@@ -797,6 +797,19 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
             expect(nativeClose).toHaveBeenCalledWith(id, true);
         }
         expect(nativeClose).toHaveBeenCalledTimes(2);
+        for (const { id, url } of pending) {
+            expect(commit).not.toHaveBeenCalled();
+            publishExternalSession({
+                ...current,
+                id,
+                streamUrl: url,
+                status: 'closed',
+                canClose: false,
+            });
+            await Promise.resolve();
+        }
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        expect(commit).toHaveBeenCalledTimes(1);
         expect(component.guideNowPlayingChannel()).toBe(current.title);
         expect(source.activeChannelId()).toBe(String(playing.xtream_id));
     });
