@@ -7,6 +7,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { SourceSyncService } from '@iptvnator/services/source-sync';
 import { SettingsServerSectionComponent } from './settings-server-section.component';
+import type { AndroidLibraryControls } from '@iptvnator/services';
 
 const readLocalSourcesForImport = jest.fn();
 const requestSourceServer = jest.fn();
@@ -80,7 +81,10 @@ describe('source server settings', () => {
     });
 
     function useAndroidShell(
-        shell: { handheld: boolean; openSettingsSection?: jest.Mock },
+        shell: {
+            handheld: boolean;
+            openSettingsSection?: jest.Mock;
+        } & Partial<AndroidLibraryControls>,
         connection: SourceServerConnection | null
     ): void {
         fixture.destroy();
@@ -150,6 +154,45 @@ describe('source server settings', () => {
             instanceId: 'nas',
         };
         const openSettingsSection = jest.fn();
+
+        it.each(['', 'https://library.example'])(
+            'places native library actions inline for origin %s',
+            (origin) => {
+                const scanLibraryQr = jest.fn();
+                const disconnectLibrary = jest.fn();
+                useAndroidShell(
+                    {
+                        handheld: true,
+                        openSettingsSection,
+                        libraryConnection: () => ({
+                            origin,
+                            savedOrigin: origin,
+                            canScanQr: true,
+                        }),
+                        scanLibraryQr,
+                        disconnectLibrary,
+                        pairLibrary: jest.fn(),
+                        connectLibrary: jest.fn(),
+                    },
+                    origin
+                        ? { apiUrl: origin + '/api', instanceId: 'host' }
+                        : null
+                );
+                expect(findControl('android-library-connection')).toBeNull();
+                const scan = findControl('android-library-scan');
+                expect(scan).not.toBeNull();
+                scan?.click();
+                expect(scanLibraryQr).toHaveBeenCalledTimes(1);
+                const disconnect = findControl('android-library-disconnect');
+                if (origin) {
+                    expect(disconnect).not.toBeNull();
+                    disconnect?.click();
+                    expect(disconnectLibrary).toHaveBeenCalledTimes(1);
+                } else {
+                    expect(disconnect).toBeNull();
+                }
+            }
+        );
 
         it('opens native Server settings and omits the browser connection form for a local library', () => {
             sync.state.set('local');

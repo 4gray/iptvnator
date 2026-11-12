@@ -1,5 +1,6 @@
 import { SettingsHostedServerComponent } from './settings-hosted-server.component';
 import {
+    getAndroidLibraryControls,
     getAndroidSettingsControls,
     RuntimeCapabilitiesService,
 } from '@iptvnator/services';
@@ -76,6 +77,10 @@ export class SettingsServerSectionComponent {
     readonly supportsHosting = inject(RuntimeCapabilitiesService)
         .supportsHostedServer;
     protected readonly androidSettings = getAndroidSettingsControls();
+    protected readonly androidLibrary = getAndroidLibraryControls();
+    protected readonly library = this.androidLibrary?.libraryConnection();
+    protected libraryAddress = this.library?.savedOrigin ?? '';
+    protected approvalAddress = this.library?.approvalOrigin ?? '';
     protected readonly directSourceConnection = signal(false);
     protected readonly showSourceConnectionForm = computed(() => {
         const connection = this.sync.connection;

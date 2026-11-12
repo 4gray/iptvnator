@@ -19,7 +19,7 @@ test('@settings @ui explains both server options and restores keyboard focus', a
         page.getByRole('heading', { name: 'Connection on this device' })
     ).toBeVisible();
     await expect(
-        page.getByRole('heading', { name: 'Server on this computer' })
+        page.getByRole('heading', { name: 'Host a server' })
     ).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Start server' })).toHaveCount(
         0

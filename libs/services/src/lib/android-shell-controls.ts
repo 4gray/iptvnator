@@ -7,6 +7,35 @@ export interface AndroidShellControls {
     openExternal(): boolean;
 }
 
+export interface AndroidLibraryControls {
+    libraryConnection(): {
+        origin: string;
+        savedOrigin: string;
+        approvalOrigin?: string;
+        canScanQr: boolean;
+    };
+    scanLibraryQr(): void;
+    disconnectLibrary(): void;
+    pairLibrary(address: string, approvalAddress: string): void;
+    connectLibrary(address: string): void;
+}
+
+export function getAndroidLibraryControls():
+    AndroidLibraryControls | undefined {
+    const shell = getAndroidShellControls() as
+        (AndroidShellControls & Partial<AndroidLibraryControls>) | undefined;
+    if (
+        shell &&
+        typeof shell.libraryConnection === 'function' &&
+        typeof shell.scanLibraryQr === 'function' &&
+        typeof shell.disconnectLibrary === 'function' &&
+        typeof shell.pairLibrary === 'function' &&
+        typeof shell.connectLibrary === 'function'
+    )
+        return shell as AndroidLibraryControls;
+    return undefined;
+}
+
 type AndroidSettingsControls = AndroidShellControls &
     Required<Pick<AndroidShellControls, 'openSettingsSection'>>;
 

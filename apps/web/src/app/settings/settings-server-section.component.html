@@ -15,7 +15,14 @@
 }
 <section class="settings-group server-group" id="server">
     <header class="settings-group__header server-header">
-        <h2>{{ 'HOSTED_SERVER.CLIENT_TITLE' | translate }}</h2>
+        <h2>
+            {{
+                (library
+                    ? 'SETTINGS.ANDROID_LIBRARY_TITLE'
+                    : 'HOSTED_SERVER.CLIENT_TITLE'
+                ) | translate
+            }}
+        </h2>
         <p>
             {{
                 (supportsHosting || androidSettings
@@ -42,19 +49,109 @@
         @let showSourceForm = showSourceConnectionForm();
         @let showSourceCredentials =
             showSourceForm || sync.state() === 'locked';
+        @if (androidLibrary && library) {
+            <div class="server-actions">
+                @if (library.origin) {
+                    <code class="hosted-value">{{ library.origin }}</code>
+                    <button
+                        type="button"
+                        mat-flat-button
+                        (click)="androidLibrary.disconnectLibrary()"
+                        data-test-id="android-library-disconnect"
+                    >
+                        {{ 'SOURCE_SYNC.DISCONNECT' | translate }}
+                    </button>
+                } @else {
+                    <p class="server-message">
+                        {{ 'SETTINGS.ANDROID_LOCAL_LIBRARY' | translate }}
+                    </p>
+                }
+                @if (library.canScanQr) {
+                    <button
+                        type="button"
+                        mat-icon-button
+                        [attr.aria-label]="
+                            'SETTINGS.ANDROID_SCAN_QR' | translate
+                        "
+                        (click)="androidLibrary.scanLibraryQr()"
+                        data-test-id="android-library-scan"
+                    >
+                        <mat-icon aria-hidden="true">qr_code_2</mat-icon>
+                    </button>
+                }
+            </div>
+            <details>
+                <summary>
+                    {{ 'SETTINGS.ANDROID_CONNECTION_OPTIONS' | translate }}
+                </summary>
+                <div class="server-fields android-connection-fields">
+                    <mat-form-field appearance="outline">
+                        <mat-label>{{
+                            'SETTINGS.ANDROID_LIBRARY_ADDRESS' | translate
+                        }}</mat-label>
+                        <input
+                            matInput
+                            type="url"
+                            autocomplete="url"
+                            [(ngModel)]="libraryAddress"
+                            [ngModelOptions]="{ standalone: true }"
+                        />
+                    </mat-form-field>
+                    <mat-form-field appearance="outline">
+                        <mat-label>{{
+                            'SETTINGS.ANDROID_APPROVAL_ADDRESS' | translate
+                        }}</mat-label>
+                        <input
+                            matInput
+                            type="url"
+                            autocomplete="url"
+                            [(ngModel)]="approvalAddress"
+                            [ngModelOptions]="{ standalone: true }"
+                        />
+                    </mat-form-field>
+                    <div class="server-actions">
+                        <button
+                            type="button"
+                            mat-flat-button
+                            [disabled]="!libraryAddress.trim()"
+                            (click)="
+                                androidLibrary.pairLibrary(
+                                    libraryAddress,
+                                    approvalAddress
+                                )
+                            "
+                        >
+                            {{ 'SETTINGS.ANDROID_PAIR_DEVICE' | translate }}
+                        </button>
+                        <button
+                            type="button"
+                            mat-button
+                            [disabled]="!libraryAddress.trim()"
+                            (click)="
+                                androidLibrary.connectLibrary(libraryAddress)
+                            "
+                        >
+                            {{ 'SETTINGS.ANDROID_CONNECT_CODE' | translate }}
+                        </button>
+                    </div>
+                </div>
+            </details>
+        }
         @if (androidSettings; as controls) {
             <div class="server-actions">
-                <button
-                    type="button"
-                    mat-flat-button
-                    class="settings-primary-button"
-                    aria-haspopup="dialog"
-                    [disabled]="busy()"
-                    (click)="controls.openSettingsSection('server')"
-                    data-test-id="android-library-connection"
-                >
-                    {{ 'SETTINGS.ANDROID_LIBRARY_CONNECTION' | translate }}
-                </button>
+                @if (!library) {
+                    <button
+                        type="button"
+                        mat-flat-button
+                        class="settings-primary-button"
+                        aria-haspopup="dialog"
+                        [disabled]="busy()"
+                        (click)="controls.openSettingsSection('server')"
+                        data-test-id="android-library-connection"
+                    >
+                        {{ 'SETTINGS.ANDROID_LIBRARY_CONNECTION' | translate }}
+                    </button>
+                }
                 @if (!sync.connection && !sync.connectionReadFailed) {
                     <button
                         type="button"
