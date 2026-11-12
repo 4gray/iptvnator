@@ -51,11 +51,14 @@ test('starts locally, reconnects through the hosted library, and stops on reques
         await openSettings(page);
         await openSettingsSection(page, 'server');
         await expect(
-            page.getByTestId('hosted-server-share-lan').locator('input')
-        ).not.toBeChecked();
+            page.getByRole('radio', { name: 'Computer only' })
+        ).toBeChecked();
+        await page
+            .getByText('Remote access (optional)', { exact: true })
+            .click();
         await page
             .getByRole('radio', {
-                name: 'Existing HTTPS proxy or Cloudflare Tunnel',
+                name: 'Custom HTTPS',
             })
             .check();
         await expect(page.getByTestId('hosted-server-start')).toBeDisabled();
@@ -189,6 +192,61 @@ test('starts locally, reconnects through the hosted library, and stops on reques
             'Server stopped'
         );
         await expect(fetch(origin + '/api/health')).rejects.toThrow();
+    } finally {
+        if (desktop) await closeElectronApp(desktop);
+        rmSync(directory, { recursive: true, force: true });
+    }
+});
+
+test('shares a running computer-only library on the home network with a QR code', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'iptvnator-hosted-lan-'));
+    const origin = `http://127.0.0.1:${HOSTED_SERVER_PORT}`;
+    let desktop: Awaited<ReturnType<typeof launchElectronApp>> | undefined;
+    try {
+        desktop = await launchElectronApp(directory);
+        const page = desktop.mainWindow;
+        await openSettings(page);
+        await openSettingsSection(page, 'server');
+        await expect(page.getByTestId('hosted-server-start')).toBeVisible();
+        const available = await page.evaluate(async () => {
+            const status = await window.electron.hostedServerControl!('status');
+            return status.availableAddresses ?? [];
+        });
+        test.skip(
+            !available.length,
+            'No private IPv4 interface for the LAN listener'
+        );
+
+        await page.getByTestId('hosted-server-start').click();
+        await expect(page.getByTestId('hosted-server-status')).toHaveText(
+            'Server running'
+        );
+        const identity = await (
+            await fetch(origin + '/api/v1/instance')
+        ).json();
+        const qr = page.getByTestId('hosted-server-lan-qr');
+        await expect(qr).toHaveCount(0);
+        await page.getByTestId('hosted-server-share-lan').click();
+        const restart = page.getByTestId('hosted-server-restart-lan');
+        await expect(restart).toBeVisible();
+        await expect(qr).toHaveCount(0);
+        await restart.click();
+
+        await expect(qr.locator('svg')).toBeVisible();
+        const lan = await page.getByTestId('hosted-server-address').innerText();
+        expect(available).toContain(new URL(lan.trim()).hostname);
+        expect(new URL(lan.trim()).search).toBe('');
+        expect(
+            (await (await fetch(lan.trim() + '/api/v1/instance')).json())
+                .instanceId
+        ).toBe(identity.instanceId);
+        expect(
+            (await (await fetch(origin + '/api/v1/instance')).json()).instanceId
+        ).toBe(identity.instanceId);
+        await page.getByTestId('hosted-server-stop').click();
+        await expect(page.getByTestId('hosted-server-status')).toHaveText(
+            'Server stopped'
+        );
     } finally {
         if (desktop) await closeElectronApp(desktop);
         rmSync(directory, { recursive: true, force: true });

@@ -146,10 +146,13 @@ can leave IPTVnator running. Use **Quit IPTVnator** to exit the app.
 If the server fails to start automatically, choose **Disable automatic start**
 to stop trying again when the app opens.
 
-To use a tablet or another computer, enable **Allow devices on my home
-network** before starting. Open the address shown in Settings on the other
-device and enter the access code. Use this option only on a trusted network.
-HTTP carries the code and library data without encryption.
+To use a tablet or another computer, choose **Home network** before starting.
+If the server is already running in **Computer only** mode, choose **Share on
+home network** and confirm the restart. Stop active HTTPS sharing before
+changing the home network binding. The running screen shows the home network
+address and its QR code. Open the address on the other device and enter the
+access code. Use this option on a trusted network because HTTP carries the code
+and library data without encryption.
 
 Under **Connection on this device**, you can connect the desktop to its own
 server or to another server. Connecting to your own server lets you preview
@@ -158,9 +161,10 @@ and import the desktop's original local sources into the shared library.
 ## Optional HTTPS and Cloudflare Tunnel
 
 In desktop **Settings → Server**, choose how devices will reach the library
-before starting the server. For an existing HTTPS proxy or Cloudflare Tunnel,
-enter its public address, such as `https://library.example.com`. You can also
-enable HTTPS after starting a local server. IPTVnator opens a separate origin at
+before starting the server. Expand **Remote access (optional)**, choose
+**Custom HTTPS** for a proxy or tunnel you run separately, and enter its public
+address, such as `https://library.example.com`. You can also enable HTTPS after
+starting a local server. IPTVnator opens a separate origin at
 `http://127.0.0.1:4335` for the proxy on the same computer. The public address
 must be an exact HTTPS origin without a path or credentials. Preserve the public
 `Host` and `Origin` headers. Do not proxy port 4334 or expose either port on the
@@ -186,12 +190,12 @@ For an existing Cloudflare Tunnel:
    and team name. This makes the connector validate Access tokens before it
    forwards requests. See Cloudflare's
    [origin parameters](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/configure-tunnels/origin-parameters/).
-4. Select **Cloudflare Tunnel (bundled connector)** when the desktop build
+4. Select **Cloudflare Manual** when the desktop build
    offers it. Enter the public address, paste the tunnel token into the token
    field, and confirm the Access settings. IPTVnator stores the token in
    OS-backed credential storage and runs the bundled connector. For a connector
-   you run separately on this computer, select **Existing HTTPS proxy or
-   Cloudflare Tunnel**. For an existing protected token file, use
+   you run separately on this computer, select **Custom HTTPS**. For an
+   existing protected token file, use
    `cloudflared tunnel run --token-file <path>`
    ([run parameters](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/configure-tunnels/run-parameters/)).
 5. Enable the matching HTTPS address in IPTVnator. From a signed-out browser,
@@ -213,7 +217,8 @@ authentication; IPTVnator continues enforcing its access code on protected APIs.
 Use normal certificate validation. HTTPS browser playback may block HTTP-only
 media; use a supported external player instead of disabling browser security.
 
-Automatic Cloudflare sign-in is not available in this build. Distribution needs
+Automatic Cloudflare setup and IPTVnator-managed remote access are unavailable
+in this build. Distributing automatic setup needs
 a registered public OAuth client, verified publisher domain and registered
 redirect. Cloudflare requires PKCE with `S256` and token authentication `none`
 for desktop clients. The authenticated scope catalog must confirm the required
