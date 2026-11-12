@@ -337,6 +337,8 @@
         "SEARCH_EMPTY_HINT": "Geen instellingen gevonden. Probeer een ander woord, zoals speler, thema of EPG.",
         "GENERAL": "Algemeen",
         "GENERAL_SUBTITLE": "Taal, opstarten en kanaalvoorkeuren.",
+        "DEVICE_SETTINGS": "Apparaatinstellingen",
+        "DEVICE_SETTINGS_DESCRIPTION": "Beheer de serverkoppeling en de voorkeuren voor de externe speler op dit apparaat.",
         "PLAYBACK": "Afspelen",
         "SAVE_EPG_SOURCES": "EPG-bronnen opslaan",
         "EPG_SOURCES": "EPG-bronnen",

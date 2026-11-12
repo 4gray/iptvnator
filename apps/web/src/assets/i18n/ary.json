@@ -337,6 +337,8 @@
         "SEARCH_EMPTY_HINT": "ما كاين حتى إعداد مطابق. جرب كلمة أخرى، بحال المشغل ولا المظهر ولا EPG.",
         "GENERAL": "عام",
         "GENERAL_SUBTITLE": "اللغة، بداية التشغيل وإعدادات القنوات.",
+        "DEVICE_SETTINGS": "إعدادات الجهاز",
+        "DEVICE_SETTINGS_DESCRIPTION": "تحكّم فربط السيرفر وتفضيلات المشغّل الخارجي فهاد الجهاز.",
         "PLAYBACK": "التشغيل",
         "SAVE_EPG_SOURCES": "حفظ مصادر دليل البرامج",
         "EPG_SOURCES": "مصادر EPG",

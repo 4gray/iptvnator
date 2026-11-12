@@ -337,6 +337,8 @@
         "SEARCH_EMPTY_HINT": "Nessuna impostazione corrisponde. Prova un'altra parola, ad esempio riproduttore, tema o EPG.",
         "GENERAL": "Generale",
         "GENERAL_SUBTITLE": "Lingua, avvio e preferenze dei canali.",
+        "DEVICE_SETTINGS": "Impostazioni del dispositivo",
+        "DEVICE_SETTINGS_DESCRIPTION": "Gestisci l’abbinamento al server e le preferenze del lettore esterno su questo dispositivo.",
         "PLAYBACK": "Riproduzione",
         "SAVE_EPG_SOURCES": "Salva fonti EPG",
         "EPG_SOURCES": "Sorgenti EPG",

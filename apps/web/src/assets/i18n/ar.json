@@ -337,6 +337,8 @@
         "SEARCH_EMPTY_HINT": "لا توجد إعدادات مطابقة. جرّب كلمة أخرى، مثل المشغل أو السمة أو EPG.",
         "GENERAL": "عام",
         "GENERAL_SUBTITLE": "اللغة وبدء التشغيل وتفضيلات القنوات.",
+        "DEVICE_SETTINGS": "إعدادات الجهاز",
+        "DEVICE_SETTINGS_DESCRIPTION": "أدِر اقتران الخادم وتفضيلات المشغّل الخارجي على هذا الجهاز.",
         "PLAYBACK": "التشغيل",
         "SAVE_EPG_SOURCES": "حفظ مصادر دليل البرامج",
         "EPG_SOURCES": "مصادر EPG",

@@ -337,6 +337,8 @@
         "SEARCH_EMPTY_HINT": "沒有符合的設定。試試其他詞，例如「播放器」「主題」或「EPG」。",
         "GENERAL": "一般",
         "GENERAL_SUBTITLE": "語言、啟動和頻道偏好設定。",
+        "DEVICE_SETTINGS": "裝置設定",
+        "DEVICE_SETTINGS_DESCRIPTION": "管理此裝置的伺服器配對和外部播放器偏好設定。",
         "PLAYBACK": "播放",
         "SAVE_EPG_SOURCES": "儲存節目指南來源",
         "EPG_SOURCES": "EPG 來源",

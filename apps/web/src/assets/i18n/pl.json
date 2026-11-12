@@ -337,6 +337,8 @@
         "SEARCH_EMPTY_HINT": "Brak pasujących ustawień. Spróbuj innego słowa, np. odtwarzacz, motyw lub EPG.",
         "GENERAL": "Ogólne",
         "GENERAL_SUBTITLE": "Język, uruchamianie i ustawienia kanałów.",
+        "DEVICE_SETTINGS": "Ustawienia urządzenia",
+        "DEVICE_SETTINGS_DESCRIPTION": "Zarządzaj parowaniem z serwerem i ustawieniami odtwarzacza zewnętrznego na tym urządzeniu.",
         "PLAYBACK": "Odtwarzanie",
         "SAVE_EPG_SOURCES": "Zapisz źródła EPG",
         "EPG_SOURCES": "Źródła EPG",

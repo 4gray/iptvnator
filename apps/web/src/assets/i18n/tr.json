@@ -337,6 +337,8 @@
         "SEARCH_EMPTY_HINT": "Eşleşen ayar yok. Oynatıcı, tema veya EPG gibi başka bir kelime deneyin.",
         "GENERAL": "Genel",
         "GENERAL_SUBTITLE": "Dil, başlangıç ve kanal tercihleri.",
+        "DEVICE_SETTINGS": "Cihaz ayarları",
+        "DEVICE_SETTINGS_DESCRIPTION": "Bu cihazdaki sunucu eşleştirmesini ve harici oynatıcı tercihlerini yönetin.",
         "PLAYBACK": "Oynatma",
         "SAVE_EPG_SOURCES": "EPG kaynaklarını kaydet",
         "EPG_SOURCES": "EPG kaynakları",

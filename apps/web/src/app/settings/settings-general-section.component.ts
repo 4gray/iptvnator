@@ -1,10 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { Component, input, ChangeDetectionStrategy } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { TranslateModule } from '@ngx-translate/core';
+import { getAndroidShellControls } from '@iptvnator/services';
 import { Language } from '@iptvnator/shared/interfaces';
 import {
     StartupBehaviorOption,
@@ -18,6 +20,7 @@ import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-de
     providers: [provideFormFieldDefaults()],
     imports: [
         CommonModule,
+        MatButtonModule,
         MatFormFieldModule,
         MatSelectModule,
         MatSlideToggleModule,
@@ -30,6 +33,7 @@ import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-de
 })
 export class SettingsGeneralSectionComponent {
     readonly form = input.required<FormGroup>();
+    protected readonly androidShellControls = getAndroidShellControls();
 
     constructor() {
         // Parent patches (Discard, backup import) change the form outside

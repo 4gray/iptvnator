@@ -337,6 +337,8 @@
         "SEARCH_EMPTY_HINT": "Aucun paramètre ne correspond. Essayez un autre mot, par exemple lecteur, thème ou EPG.",
         "GENERAL": "Général",
         "GENERAL_SUBTITLE": "Langue, démarrage et préférences des chaînes.",
+        "DEVICE_SETTINGS": "Paramètres de l’appareil",
+        "DEVICE_SETTINGS_DESCRIPTION": "Gérez l’association au serveur et les préférences du lecteur externe sur cet appareil.",
         "PLAYBACK": "Lecture",
         "SAVE_EPG_SOURCES": "Enregistrer les sources EPG",
         "EPG_SOURCES": "Sources EPG",

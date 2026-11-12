@@ -337,6 +337,8 @@
         "SEARCH_EMPTY_HINT": "Nenhuma configuração corresponde. Tente outra palavra, como reprodutor, tema ou EPG.",
         "GENERAL": "Geral",
         "GENERAL_SUBTITLE": "Idioma, inicialização e preferências de canais.",
+        "DEVICE_SETTINGS": "Configurações do dispositivo",
+        "DEVICE_SETTINGS_DESCRIPTION": "Gerencie o pareamento com o servidor e as preferências do player externo neste dispositivo.",
         "PLAYBACK": "Reprodução",
         "SAVE_EPG_SOURCES": "Salvar fontes de EPG",
         "EPG_SOURCES": "Fontes de EPG",
