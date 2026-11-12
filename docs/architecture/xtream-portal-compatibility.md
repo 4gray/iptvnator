@@ -974,9 +974,11 @@ details close when their channel is withheld. A failed
 schedule does not discard matches from other channels. Large scopes can take longer to
 search or filter. Closing the guide cancels its in-flight provider requests.
 Replacing a search or viewport request cancels work once no other guide
-consumer needs it, including XMLTV reads waiting on a mapping. Visibility
-changes refresh the guide's favorites and return a removed category scope to
-All Channels. Background favorites
+consumer needs it. An XMLTV read already sent to Electron keeps its concurrency
+slot until the native request settles. During a parental-lock reload, the guide
+keeps the requested category without showing withheld rows. It returns to All
+Channels if the filtered category list confirms that the category is unavailable.
+Visibility changes refresh the guide's favorites. Background favorites
 synchronization also refreshes membership while the guide is open.
 Rechecking the same playlist keeps the guide open and preserves its scope and
 search query. Guide and player use the same full EPG resolver, including

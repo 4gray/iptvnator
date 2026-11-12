@@ -55,7 +55,6 @@ export class XtreamGuideScheduleCache<T = EpgProgram[]> {
         this.controller = new AbortController();
         this.cached.clear();
         this.pending.clear();
-        this.slots.clear();
     }
 
     expiresAt(id: string): number {
@@ -100,9 +99,8 @@ export class XtreamGuideScheduleCache<T = EpgProgram[]> {
     private start(id: string, fetch: FetchSchedule<T>): PendingSchedule<T> {
         const controller = new AbortController();
         const sessionId = globalThis.crypto.randomUUID?.();
-        const work = waitFor(fetch({ signal: controller.signal, sessionId }), [
-            controller.signal,
-        ]);
+        // A cancelled consumer cannot settle native IPC that already started.
+        const work = fetch({ signal: controller.signal, sessionId });
         const entry: PendingSchedule<T> = {
             work,
             consumers: 0,

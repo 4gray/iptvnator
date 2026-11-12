@@ -93,6 +93,8 @@ function program(id: number, start = 100, stop = 200): EpgItem {
 describe('XtreamEpgGuideSourceService', () => {
     const currentPlaylist = signal(playlist);
     const selectedType = signal('live');
+    const visibleCategories = signal(categories);
+    const areCategoriesWithheld = signal(false);
     const lockRevision = signal(0);
     const sourceRevision = signal(0);
     const stripCountryPrefix = signal(false);
@@ -120,6 +122,8 @@ describe('XtreamEpgGuideSourceService', () => {
         getFavorites.mockClear();
         currentPlaylist.set(playlist);
         selectedType.set('live');
+        visibleCategories.set(categories);
+        areCategoriesWithheld.set(false);
         sourceRevision.set(0);
         stripCountryPrefix.set(false);
         lockRevision.set(0);
@@ -152,7 +156,8 @@ describe('XtreamEpgGuideSourceService', () => {
                         currentPlaylist,
                         selectedContentType: selectedType,
                         selectedCategoryId: signal<number | null>(null),
-                        getCategoriesBySelectedType: signal(categories),
+                        getCategoriesBySelectedType: visibleCategories,
+                        areCategoriesWithheld,
                         liveStreams,
                     },
                 },
@@ -693,6 +698,29 @@ describe('XtreamEpgGuideSourceService', () => {
         await settleFavorites();
         expect(service.channels().map(({ id }) => id)).toEqual(['101']);
     });
+
+    it.each([true, false])(
+        'retains the requested scope until a filtered catalog settles (allowed: %s)',
+        (allowed) => {
+            service.setScope('7');
+            areCategoriesWithheld.set(true);
+            visibleCategories.set([]);
+            liveStreams.set([]);
+            expect(service.scopeId()).toBe('7');
+            expect(service.scopes().some(({ id }) => id === '7')).toBe(false);
+            expect(service.channels()).toEqual([]);
+
+            locked.mockReturnValue(false);
+            lockRevision.update((value) => value + 1);
+            visibleCategories.set(allowed ? categories : categories.slice(1));
+            liveStreams.set(allowed ? [one, two] : [two]);
+            areCategoriesWithheld.set(false);
+            expect(service.scopeId()).toBe(allowed ? '7' : 'all');
+            expect(service.channels().map(({ id }) => id)).toEqual([
+                String((allowed ? one : two).xtream_id),
+            ]);
+        }
+    );
 
     it('falls back to All Channels when the browsed category becomes locked', () => {
         locked.mockReturnValue(false);

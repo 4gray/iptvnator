@@ -1,7 +1,18 @@
 import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { XtreamGuideScheduleCache } from './xtream-guide-schedule-cache';
 
+function deferredSchedules() {
+    const finish: Array<(programs: EpgProgram[]) => void> = [];
+    const pending = jest.fn<
+        Promise<EpgProgram[]>,
+        [{ signal: AbortSignal; sessionId?: string }]
+    >(() => new Promise((resolve) => finish.push(resolve)));
+    return { pending, finish };
+}
+
 describe('XtreamGuideScheduleCache', () => {
+    afterEach(() => jest.useRealTimers());
+
     it('reuses an empty schedule briefly and requests it again after expiry', async () => {
         const cache = new XtreamGuideScheduleCache(jest.fn());
         const clock = jest.spyOn(Date, 'now').mockReturnValue(0);
@@ -49,13 +60,11 @@ describe('XtreamGuideScheduleCache', () => {
         await Promise.all([second, third]);
     });
 
-    it('aborts stalled transport and queued work without delaying a new session', async () => {
+    it('cancels all consumers on clear but keeps slots for their unsettled transports', async () => {
+        jest.useFakeTimers();
         const cancelTransport = jest.fn();
         const cache = new XtreamGuideScheduleCache(cancelTransport);
-        const pending = jest.fn<
-            Promise<EpgProgram[]>,
-            [{ signal: AbortSignal; sessionId?: string }]
-        >(() => new Promise<EpgProgram[]>(() => undefined));
+        const { pending, finish } = deferredSchedules();
         const current = () => undefined;
         const first = cache.load('1', current, pending);
         const second = cache.load('2', current, pending);
@@ -67,9 +76,6 @@ describe('XtreamGuideScheduleCache', () => {
         cache.clear();
         expect(oldRequest.signal.aborted).toBe(true);
         expect(cancelTransport).toHaveBeenCalledWith(oldRequest.sessionId);
-        await expect(cache.load('1', current, async () => [])).resolves.toEqual(
-            []
-        );
         expect(await oldResults).toEqual(
             Array.from({ length: 3 }, () =>
                 expect.objectContaining({
@@ -79,15 +85,22 @@ describe('XtreamGuideScheduleCache', () => {
             )
         );
         expect(pending).toHaveBeenCalledTimes(2);
+        const fresh = jest.fn(async () => []);
+        const newSession = cache.load('1', current, fresh);
+        await jest.advanceTimersByTimeAsync(250);
+        expect(fresh).not.toHaveBeenCalled();
+        finish[0]([]);
+        await jest.advanceTimersByTimeAsync(250);
+        await expect(newSession).resolves.toEqual([]);
+        expect(fresh).toHaveBeenCalledTimes(1);
+        finish[1]([]);
     });
 
-    it('releases a slot only after all consumers of that request cancel', async () => {
+    it('aborts transport after the last consumer leaves and frees the slot on settlement', async () => {
+        jest.useFakeTimers();
         const cancelTransport = jest.fn();
         const cache = new XtreamGuideScheduleCache(cancelTransport);
-        const pending = jest.fn<
-            Promise<EpgProgram[]>,
-            [{ signal: AbortSignal; sessionId?: string }]
-        >(() => new Promise<EpgProgram[]>(() => undefined));
+        const { pending, finish } = deferredSchedules();
         const viewport = new AbortController();
         const search = new AbortController();
         const current = () => undefined;
@@ -114,8 +127,13 @@ describe('XtreamGuideScheduleCache', () => {
         await searchResult;
         expect(shared.signal.aborted).toBe(true);
         expect(cancelTransport).toHaveBeenCalledWith(shared.sessionId);
+        await jest.advanceTimersByTimeAsync(250);
+        expect(fresh).not.toHaveBeenCalled();
+        finish[0]([]);
+        await jest.advanceTimersByTimeAsync(250);
         await expect(queued).resolves.toEqual([]);
         cache.clear();
         await otherResult;
+        finish[1]([]);
     });
 });

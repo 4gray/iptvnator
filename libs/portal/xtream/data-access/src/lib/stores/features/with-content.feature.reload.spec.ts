@@ -91,6 +91,7 @@ describe('withContent parental-lock reloads', () => {
         expect(store.liveStreams()).toEqual([{ xtream_id: 1 }]);
 
         store.withholdCatalog();
+        expect(store.areCategoriesWithheld()).toBe(true);
         expect(store.liveCategories()).toEqual([]);
         expect(store.vodStreams()).toEqual([]);
         expect(store.serialStreams()).toEqual([]);
@@ -98,11 +99,18 @@ describe('withContent parental-lock reloads', () => {
 
         await store.reloadCategories(() => false);
         await store.reloadCachedContent(() => false);
+        expect(store.areCategoriesWithheld()).toBe(true);
         expect(store.liveCategories()).toEqual([]);
         expect(store.liveStreams()).toEqual([]);
 
         await store.reloadCachedContent();
         expect(store.liveStreams()).toEqual([{ xtream_id: 1 }]);
+        expect(store.areCategoriesWithheld()).toBe(true);
+
+        dataSource.getCategories.mockResolvedValue([]);
+        await store.reloadCategories();
+        expect(store.liveCategories()).toEqual([]);
+        expect(store.areCategoriesWithheld()).toBe(false);
     });
 
     it('withholds rows published by a hydration a relock overtook and reloads them afterwards', async () => {

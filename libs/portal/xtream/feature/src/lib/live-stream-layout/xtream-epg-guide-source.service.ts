@@ -129,10 +129,6 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
         this.items,
         () => this.runtime.supportsXtreamSqliteDataSource
     );
-    private readonly catalog = computed(() =>
-        xtreamRowsByStreamId(this.items())
-    );
-
     readonly revision = computed(() => ({
         playlist: this.playlist(),
         sources: this.sources.revision(),
@@ -162,19 +158,23 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     });
 
     readonly scopeId = linkedSignal({
-        source: () => ({ id: this.playlist()?.id, scopes: this.scopes() }),
-        computation: ({ id, scopes }, previous): string =>
+        source: () => ({
+            id: this.playlist()?.id,
+            scopes: this.scopes(),
+            withheld: this.store.areCategoriesWithheld?.(),
+        }),
+        computation: ({ id, scopes, withheld }, previous): string =>
             previous &&
             previous.source.id === id &&
-            scopes.some((scope) => scope.id === previous.value)
+            (withheld || scopes.some((scope) => scope.id === previous.value))
                 ? previous.value
                 : ALL,
     });
 
     private readonly scopedRows = computed(() => {
         const scope = this.scopeId();
-        if (scope === ALL) return this.catalog();
         const items = this.items();
+        if (scope === ALL) return xtreamRowsByStreamId(items);
         if (scope === FAVORITES) {
             const favorites = this.favorites();
             return xtreamRowsByStreamId(
