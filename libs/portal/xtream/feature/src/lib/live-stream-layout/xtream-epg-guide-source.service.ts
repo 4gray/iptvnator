@@ -31,6 +31,7 @@ import {
     injectXtreamGuideSchedules,
     scheduleKey,
     programmeOverlapsGuideWindow,
+    isNewGuideSearchMatch,
 } from './xtream-guide-schedules';
 import {
     xtreamCategoryKey as categoryKey,
@@ -400,15 +401,12 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
                 failed = true;
                 return [];
             });
+            const channelId = String(channel.xtream_id);
             for (const program of programs) {
-                if (
-                    !foldSearchText(
-                        `${program.title} ${program.desc ?? ''}`
-                    ).includes(term)
-                )
+                if (!isNewGuideSearchMatch(channelId, program, term, hits))
                     continue;
                 hits.push({
-                    channelId: String(channel.xtream_id),
+                    channelId,
                     channelEpgKey: channelEpgKey(channel),
                     channelName: this.displayChannelName(channel),
                     program,

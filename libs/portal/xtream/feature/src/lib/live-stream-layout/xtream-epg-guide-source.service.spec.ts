@@ -746,6 +746,41 @@ describe('XtreamEpgGuideSourceService', () => {
         expect(hit.channelEpgKey).toBe(service.channels()[0].epgKey);
     });
 
+    it('counts an equivalent airing once before limiting programme matches', async () => {
+        locked.mockReturnValue(false);
+        lockRevision.update((value) => value + 1);
+        const copy = {
+            ...one,
+            id: 21,
+            category_id: 8,
+            epg_channel_id: 'synthetic.copy',
+        };
+        const common = Array.from({ length: 12 }, (_, index) =>
+            program(101, 100 + index * 100, 200 + index * 100)
+        );
+        liveStreams.set([one, copy, two]);
+        service.setScope('7');
+        const firstCopy = service.channels()[0].epgKey;
+        load.mockImplementation(async (_playlist, id, epgKey) =>
+            id === 102
+                ? [program(102)]
+                : epgKey === copy.epg_channel_id
+                  ? [...common, program(101, 1500, 1600)]
+                  : common
+        );
+        const matches = await service.searchPrograms('programme');
+        expect(matches).toHaveLength(14);
+        expect(
+            matches.slice(0, 12).map((match) => match.channelEpgKey)
+        ).toEqual(Array(12).fill(firstCopy));
+        expect(matches[12]).toMatchObject({
+            channelId: '101',
+            program: { startTimestamp: 1500 },
+        });
+        expect(matches[12].channelEpgKey).not.toBe(firstCopy);
+        expect(matches[13].channelId).toBe('102');
+    });
+
     it('filters confirmed empty schedules and continues after a failed lookup', async () => {
         locked.mockReturnValue(false);
         lockRevision.update((value) => value + 1);

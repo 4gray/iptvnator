@@ -152,11 +152,11 @@ async function launchMpvPlayer(
         headers,
     } = request;
     const current = externalPlayerSessions.getSession(session.id);
+    const settleStop = () =>
+        settleCancelledQueuedLaunch(session, queue.pendingStop());
     // Stopped while it waited in the queue, directly or by a later Stop.
     if (current?.status === 'closed') return current;
-    if (queue.queued && queue.cancelled()) {
-        return settleCancelledQueuedLaunch(session, queue.pendingStop());
-    }
+    if (queue.queued && queue.cancelled()) return settleStop();
     if (queue.queued) {
         // The last started launch owns the child the gate waits for; the
         // session displaced at enqueue time is the fallback.
@@ -232,6 +232,7 @@ async function launchMpvPlayer(
                 stopPositionPolling,
             });
             if (reused) return reused;
+            if (queue.stopped()) return settleStop();
         }
 
         const endpoint = useMpvSocketBridge
@@ -393,10 +394,8 @@ async function launchMpvPlayer(
             freshTeardownUnconfirmed = true;
             throw error;
         }
-        if (requestedClose || media?.stopped)
-            return (
-                externalPlayerSessions.markClosed(session.id, true) ?? session
-            );
+        if (queue.stopped() || requestedClose || media?.stopped)
+            return settleStop();
         return launchMpvPlayer(
             request,
             session,
@@ -406,9 +405,8 @@ async function launchMpvPlayer(
         );
     } catch (error) {
         console.error('Error opening MPV player:', error);
-        if (!reuseState.teardownUnconfirmed && !freshTeardownUnconfirmed) {
+        if (!reuseState.teardownUnconfirmed && !freshTeardownUnconfirmed)
             stopPositionPolling(session.id);
-        }
         const restoredSession =
             reuseState.teardownUnconfirmed &&
             !reuseState.contentMutated &&

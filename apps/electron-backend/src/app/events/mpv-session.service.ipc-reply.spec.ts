@@ -288,6 +288,7 @@ describe('reused MPV IPC replies', () => {
         'fallback',
         'Stop before connect',
         'Stop during fallback',
+        'Shutdown during fallback',
     ] as const)(
         'starts no unrequested media when fresh IPC is unavailable (%s)',
         async (outcome) => {
@@ -317,8 +318,9 @@ describe('reused MPV IPC replies', () => {
             const id = externalPlayerSessions.getActiveSessionId()!;
             if (outcome !== 'Stop before connect')
                 await jest.advanceTimersByTimeAsync(MPV_IPC_COMMAND_TIMEOUT_MS);
+            if (outcome === 'Shutdown during fallback') shutdownMpvSession();
             const stop =
-                outcome === 'fallback'
+                outcome === 'fallback' || outcome === 'Shutdown during fallback'
                     ? undefined
                     : externalPlayerSessions.closeSession(id, true);
             if (outcome === 'Stop before connect') socket.emit('connect');

@@ -4,8 +4,12 @@ import {
     XtreamFullEpgService,
     type XtreamCredentials,
 } from '@iptvnator/portal/xtream/data-access';
-import type { EpgItem, EpgProgram } from '@iptvnator/shared/interfaces';
-import type { EpgGuideWindow } from '@iptvnator/ui/epg';
+import {
+    foldSearchText,
+    type EpgItem,
+    type EpgProgram,
+} from '@iptvnator/shared/interfaces';
+import type { EpgGuideSearchHit, EpgGuideWindow } from '@iptvnator/ui/epg';
 import { toSharedEpgProgram } from '../portal-channels-list/epg-preview-program';
 import type { XtreamLiveChannelItem } from './xtream-live-channel-navigation.service';
 import { XtreamGuideScheduleCache } from './xtream-guide-schedule-cache';
@@ -18,6 +22,28 @@ const EMPTY: XtreamGuideSchedule = { items: [], programs: [] };
 
 export function scheduleKey(item: XtreamLiveChannelItem): string {
     return `${item.xtream_id}:${item.epg_channel_id ?? ''}`;
+}
+
+export function isNewGuideSearchMatch(
+    channelId: string,
+    program: EpgProgram,
+    term: string,
+    hits: readonly EpgGuideSearchHit[]
+): boolean {
+    return (
+        foldSearchText(`${program.title} ${program.desc ?? ''}`).includes(
+            term
+        ) &&
+        !hits.some(
+            ({ channelId: id, program: previous }) =>
+                id === channelId &&
+                previous.title === program.title &&
+                (previous.startTimestamp ?? previous.start) ===
+                    (program.startTimestamp ?? program.start) &&
+                (previous.stopTimestamp ?? previous.stop) ===
+                    (program.stopTimestamp ?? program.stop)
+        )
+    );
 }
 
 export function programmeOverlapsGuideWindow(

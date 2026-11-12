@@ -14,6 +14,8 @@ export interface QueuedMpvLaunch {
      * newer launch is queued behind it.
      */
     cancelled: () => boolean;
+    /** Stop or shutdown cancelled the launch, even if it already started. */
+    stopped: () => boolean;
     /** This launch's own queued Stop, if one was requested. */
     pendingStop: () => Promise<void> | null;
     /** Called once the launch really starts acting on a player. */
@@ -121,11 +123,11 @@ export class MpvLaunchQueue {
                 }
             );
         }
+        const stopped = () => number <= this.cancelledThrough;
         const queue: QueuedMpvLaunch = {
             queued: previous !== null,
-            cancelled: () =>
-                number <= this.cancelledThrough ||
-                number !== this.latestRunnable,
+            cancelled: () => stopped() || number !== this.latestRunnable,
+            stopped,
             pendingStop: () => stop,
             markInFlight: () => {
                 started = true;

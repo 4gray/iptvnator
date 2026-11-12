@@ -1084,8 +1084,10 @@ for an older queued launch cancels only that launch. The cancelled launch
 settles only once its own Stop has: if the exit cannot be confirmed it stays a
 closable error, so Stop can be retried. App shutdown cancels the whole queue.
 An MPV child launched separately from the app is stopped on shutdown if its
-first media command has not been sent. A detached child already playing remains
-open. After a session receives Stop, late MPV media events cannot confirm it.
+first media command has not been sent. A pending fallback also cancels on
+shutdown, even if it was already waiting for the old child to exit. A detached
+child already playing remains open. After a session receives Stop, late MPV
+media events cannot confirm it.
 The playback dock signals explicit Stop before native teardown so Xtream can
 cancel renderer-side tunes waiting for that player. Automatic handoff closes
 do not send this signal.

@@ -930,7 +930,8 @@ provider has no schedule; a transient failure remains retryable. Programme
 search reads the available live
 catalogue on demand, including channels outside the viewport and distinct
 schedules for streams shared by multiple categories. Search publishes
-matches and progress as it scans. A match keeps the category copy that supplied
+matches and progress as it scans, counting equivalent airings of the same
+stream only once. A match keeps the first category copy that supplied
 its schedule, even if the guide scope changes before the match opens. Guide
 details close when their channel is withheld. A failed
 schedule does not discard matches from other channels. Large scopes can take longer to
