@@ -440,9 +440,10 @@ test('keeps non-Linux builds independent from the Linux runtime prerequisite', (
 
     assert.ok(crossPlatformJob);
     assert.ok(linuxJob);
-    // The nightly-version job is a cheap, platform-neutral prerequisite; the
-    // Linux runtime build must stay out of the non-Linux dependency list.
-    assert.deepEqual(crossPlatformJob.needs, 'nightly-version');
+    assert.deepEqual(crossPlatformJob.needs, [
+        'nightly-version',
+        'appstream-website',
+    ]);
     assert.deepEqual(
         crossPlatformJob.strategy.matrix.include.map(({ os, arch }) => ({
             os,
