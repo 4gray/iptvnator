@@ -771,6 +771,47 @@ test('system package smoke environments install every direct helper runtime depe
     }
 });
 
+test('Snap dependencies retry failed installs and fail after three attempts', () => {
+    const step = buildWorkflowConfig.jobs['build-linux'].steps.find(
+        ({ name }) =>
+            name === 'Verify Snap payloads and strict-confinement runtime'
+    );
+    const setup = step.run.split('\nfound=false\n')[0];
+    const script = `
+${setup}
+attempts=0
+snap() { [[ "$1 $2" == "list mesa-core22" && "$installed" == 1 ]]; }
+sudo() {
+    printf '%s\\n' "$*"
+    (( ++attempts == succeeds_on ))
+}
+sleep() { printf 'sleep %s\\n' "$1"; }
+installed="$1"
+succeeds_on="$2"
+ensure_snap mesa-core22
+`;
+    const install = 'snap install mesa-core22\n';
+    for (const [installed, succeedsOn, status, stdout] of [
+        ['1', '0', 0, 'sleep 0\n'],
+        ['0', '2', 0, `sleep 0\n${install}sleep 15\n${install}`],
+        [
+            '0',
+            '0',
+            1,
+            `sleep 0\n${install}sleep 15\n${install}sleep 30\n${install}`,
+        ],
+    ]) {
+        const result = spawnSync(
+            'bash',
+            ['-c', script, 'snap-test', installed, succeedsOn],
+            { encoding: 'utf8' }
+        );
+        assert.ifError(result.error);
+        assert.equal(result.status, status, result.stderr);
+        assert.equal(result.stdout, stdout);
+    }
+});
+
 test('Snap verifier preserves fail-closed status while exposing captured diagnostics', () => {
     const snapStep = workflowStep(
         'Verify Snap payloads and strict-confinement runtime'
@@ -790,22 +831,13 @@ test('Snap verifier preserves fail-closed status while exposing captured diagnos
         snapStep.indexOf("grep -Fq 'Verified snap x64 Linux'") <
             snapStep.indexOf('sudo snap install --dangerous')
     );
-    assert.match(
-        snapStep,
-        /snap list mesa-core22 >\/dev\/null 2>&1 \|\| sudo snap install mesa-core22/
-    );
-    assert.match(
-        snapStep,
-        /snap list gnome-3-28-1804 >\/dev\/null 2>&1 \|\| sudo snap install gnome-3-28-1804/
-    );
-    assert.ok(
-        snapStep.indexOf('sudo snap install mesa-core22') <
-            snapStep.indexOf('sudo snap install --dangerous')
-    );
-    assert.ok(
-        snapStep.indexOf('sudo snap install gnome-3-28-1804') <
-            snapStep.indexOf('sudo snap install --dangerous')
-    );
+    for (const dependency of ['mesa-core22', 'gnome-3-28-1804']) {
+        const install = snapStep.indexOf(`ensure_snap ${dependency}`);
+        assert.ok(
+            install > snapStep.indexOf("grep -Fq 'Verified snap x64 Linux'")
+        );
+        assert.ok(install < snapStep.indexOf('sudo snap install --dangerous'));
+    }
     assert.ok(
         snapStep.indexOf('sudo snap install --dangerous') <
             snapStep.indexOf('installed_x64=true')

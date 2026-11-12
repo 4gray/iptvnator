@@ -1119,6 +1119,17 @@ jobs:
               run: |
                   set -euo pipefail
 
+                  ensure_snap() {
+                      local name="$1" delay
+                      for delay in 0 15 30; do
+                          sleep "${delay}"
+                          if snap list "${name}" >/dev/null 2>&1 || sudo snap install "${name}"; then
+                              return 0
+                          fi
+                      done
+                      return 1
+                  }
+
                   found=false
                   installed_x64=false
                   for artifact in dist/executables/*.snap; do
@@ -1131,8 +1142,8 @@ jobs:
                                   2>&1 | tee /dev/stderr
                       )"
                       if printf '%s\n' "${verification}" | grep -Fq 'Verified snap x64 Linux'; then
-                          snap list mesa-core22 >/dev/null 2>&1 || sudo snap install mesa-core22
-                          snap list gnome-3-28-1804 >/dev/null 2>&1 || sudo snap install gnome-3-28-1804
+                          ensure_snap mesa-core22
+                          ensure_snap gnome-3-28-1804
                           sudo snap install --dangerous "${artifact}"
                           installed_x64=true
                       fi
