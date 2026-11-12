@@ -953,7 +953,9 @@ and keeps the player panel and remote programme current when the guide closes.
 After the guide closes, a refresh of the playing channel's panel replaces the
 guide snapshot. The latest confirmed schedule stays tied to the playing channel,
 even while the panel previews a different channel or the channel list is
-reordered. Closing the guide cancels its reads.
+reordered. Changing the Xtream server or account clears the panel's old playback
+association even if the playlist and stream IDs are unchanged. Closing the
+guide cancels its reads.
 Initial failures retry when rows return to the viewport. If a visible row's
 refresh fails, it keeps its last schedule and can retry after 30 seconds.
 A coverage scan or dock refresh that obtains a fresh schedule also updates

@@ -509,7 +509,13 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
                 fixture.detectChanges();
             }
             expect(component.activeStreamUrl()).toBe(
-                olderLive ? archiveUrl : pending ? nextUrl : previous
+                change === 'connection edit'
+                    ? ''
+                    : olderLive
+                      ? archiveUrl
+                      : pending
+                        ? nextUrl
+                        : previous
             );
         }
     );

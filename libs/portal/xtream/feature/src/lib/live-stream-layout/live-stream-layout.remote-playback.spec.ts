@@ -9,6 +9,7 @@ import { LiveStreamLayoutComponent } from './live-stream-layout.component';
 import { setupLiveStreamLayoutNativeFixture } from './live-stream-layout-native.test-fixture';
 import {
     epgItem,
+    playlist,
     sampleChannel,
     StubWebPlayerViewComponent,
 } from './live-stream-layout-stubs.spec-data';
@@ -29,6 +30,66 @@ describe('Xtream remote playback metadata', () => {
     } = setupLiveStreamLayoutNativeFixture();
 
     afterEach(restoreElectron);
+
+    it.each(['serverUrl', 'username', 'password'] as const)(
+        'replaces inline playback when the same playlist changes %s',
+        (field) => {
+            const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
+            const component = fixture.componentInstance;
+            const channel = { ...sampleChannel, category_id: 1 };
+            emptyList.set([channel]);
+            xtreamStore.selectedItem.set(channel);
+            fixture.detectChanges();
+            component.playLive(channel, true);
+            const previous = component.activePlayback();
+            if (!previous) throw new Error('Missing original playback');
+            component.guide.open();
+            fixture.detectChanges();
+            const source = fixture.debugElement.injector.get(
+                XtreamEpgGuideSourceService
+            );
+
+            xtreamStore.currentPlaylist.set({ ...playlist });
+            fixture.detectChanges();
+            expect(component.activePlayback()).toBe(previous);
+            expect(component.guide.isOpen()).toBe(true);
+
+            const next = {
+                ...channel,
+                epg_channel_id: 'synthetic-replacement',
+            };
+            const nextUrl =
+                'https://updated.example.test/synthetic-replacement.ts';
+            xtreamStore.currentPlaylist.set({
+                ...playlist,
+                [field]:
+                    field === 'serverUrl'
+                        ? 'https://updated.example.test'
+                        : 'synthetic-replacement',
+            });
+            emptyList.set([next]);
+            xtreamStore.selectedItem.set(next);
+            expect(component.activePlayback()).toBeNull();
+            expect(component.guideNowPlayingChannel()).toBe('');
+            expect(component.guideNowPlayingProgram()).toBeNull();
+
+            xtreamStore.constructStreamUrl.mockReturnValueOnce(nextUrl);
+            const confirmed = jest.fn();
+            source.activate(String(next.xtream_id), null, undefined, confirmed);
+            const playback = component.activePlayback();
+            if (!playback) throw new Error('Missing replacement playback');
+            expect(playback.streamUrl).toBe(nextUrl);
+            component.onInlinePlaybackStarted(previous);
+            expect(confirmed).not.toHaveBeenCalled();
+            component.onInlinePlaybackStarted(playback);
+            expect(confirmed).toHaveBeenCalledTimes(1);
+
+            xtreamStore.currentPlaylist.set({ ...playlist });
+            fixture.detectChanges();
+            expect(component.activePlayback()).toBeNull();
+            expect(component.guide.isOpen()).toBe(false);
+        }
+    );
 
     it('retries the only inline channel on a remote step after playback fails', () => {
         const fixture = TestBed.createComponent(LiveStreamLayoutComponent);

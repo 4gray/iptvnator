@@ -183,6 +183,7 @@ export function setupLiveStreamLayoutNativeFixture() {
         publishExternalSession(null);
         emptyList.set([]);
         xtreamStore.openPlayer.mockReset();
+        xtreamStore.constructStreamUrl.mockClear();
         xtreamStore.addRecentItem.mockClear();
         xtreamStore.setSelectedItem.mockClear();
         xtreamStore.loadEpg.mockClear();

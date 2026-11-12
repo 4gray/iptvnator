@@ -123,6 +123,7 @@ import { XtreamLiveGuideService } from './xtream-live-guide.service';
 import {
     isXtreamLiveCategoryWithheld,
     sameXtreamLiveOwner,
+    type XtreamLiveOwner,
 } from './xtream-external-live-sessions.service';
 import { XtreamGuideExternalPlayback } from './xtream-guide-external-playback.service';
 import { scheduleKey } from './xtream-guide-schedules';
@@ -337,7 +338,10 @@ export class LiveStreamLayoutComponent
         void this.recordingsService.updatePrograms(event.targetPath, programs);
     }
     private readonly currentTimeMs = signal(Date.now());
-    readonly activeCatchupProgram = signal<EpgProgram | null>(null);
+    private readonly panelCatchupProgram = signal<EpgProgram | null>(null);
+    readonly activeCatchupProgram = computed(() =>
+        this.activePlayback() ? this.panelCatchupProgram() : null
+    );
     /** The archive window's programmes as seek-bar segments; null live. */
     readonly catchupTimelineSegments = computed(() =>
         buildCatchupTimelineSegments(
@@ -470,7 +474,9 @@ export class LiveStreamLayoutComponent
     private readonly tuneRequests = inject(XtreamTuneRequests);
     private readonly inlinePlayer =
         viewChild<WebPlayerViewComponent>('inlinePlayer');
-    private activePlaylistId: string | null = null;
+    private readonly activeOwner = signal<XtreamLiveOwner | undefined>(
+        undefined
+    );
     private archivePreview?: {
         item: XtreamLiveChannelItem;
         queue: readonly XtreamLiveChannelItem[];
@@ -479,7 +485,16 @@ export class LiveStreamLayoutComponent
     readonly usesEmbeddedPlayer = computed(() =>
         this.portalPlayer.isEmbeddedPlayer()
     );
-    readonly activePlayback = signal<ResolvedPortalPlayback | null>(null);
+    private readonly panelPlayback = signal<ResolvedPortalPlayback | null>(
+        null
+    );
+    readonly activePlayback = computed(() => {
+        const owner = this.activeOwner();
+        const current = this.externalGuide.owner();
+        return owner === current || sameXtreamLiveOwner(owner, current)
+            ? this.panelPlayback()
+            : null;
+    });
     private readonly activeLiveItemId = signal<number | null>(null);
     private readonly activeGuideItem = signal<XtreamLiveChannelItem | null>(
         null
@@ -493,8 +508,10 @@ export class LiveStreamLayoutComponent
     /** Bumped per resolution so a slow hidden-category lookup cannot land on a later playback. */
     private liveCategoryLookupGeneration = 0;
     readonly playbackSessionKey = computed(() => {
-        const sourceId = this.xtreamStore.currentPlaylist()?.id;
-        const contentId = this.activeLiveItemId();
+        const sourceId = this.activeOwner()?.playlistId;
+        const contentId = this.activePlayback()
+            ? this.activeLiveItemId()
+            : null;
         return sourceId && contentId
             ? createPlaybackSessionKey({ kind: 'live', sourceId, contentId })
             : '';
@@ -555,7 +572,9 @@ export class LiveStreamLayoutComponent
     });
     private readonly guideChannel = computed(() =>
         this.usesEmbeddedPlayer()
-            ? this.activeGuideItem()
+            ? this.activePlayback()
+                ? this.activeGuideItem()
+                : null
             : (this.externalGuide.confirmed()?.item ?? null)
     );
     private readonly guideArchiveProgram = computed(() =>
@@ -615,10 +634,10 @@ export class LiveStreamLayoutComponent
             capture: (item, queue) =>
                 this.channelNavigation.capture(item, queue, 'replace'),
             restore: ({ item, archive, playback, lockSource }) => {
-                this.activePlaylistId = lockSource.playlistId;
-                this.activePlayback.set(playback);
+                this.activeOwner.set(lockSource);
+                this.panelPlayback.set(playback);
                 this.activeLiveItemId.set(item.xtream_id);
-                this.activeCatchupProgram.set(archive);
+                this.panelCatchupProgram.set(archive);
                 this.selectGuideLiveItem(item, lockSource.categoryId);
             },
         });
@@ -696,16 +715,17 @@ export class LiveStreamLayoutComponent
         });
 
         effect(() => {
-            const playlistId = this.xtreamStore.currentPlaylist()?.id ?? null;
-            if (this.activePlaylistId && this.activePlaylistId !== playlistId) {
+            const owner = this.activeOwner();
+            const current = this.externalGuide.owner();
+            if (owner && !sameXtreamLiveOwner(owner, current)) {
                 this.tuneRequests.invalidate();
-                this.activePlaylistId = null;
+                this.activeOwner.set(undefined);
                 this.archivePreview = undefined;
                 this.externalGuide.reset();
-                this.activePlayback.set(null);
+                this.panelPlayback.set(null);
                 this.activeLiveItemId.set(null);
                 this.activeGuideItem.set(null);
-                this.activeCatchupProgram.set(null);
+                this.panelCatchupProgram.set(null);
                 this.activeLiveProviderCategoryId = null;
                 untracked(() => {
                     if (!this.usesEmbeddedPlayer())
@@ -734,10 +754,10 @@ export class LiveStreamLayoutComponent
                     this.externalGuide.restoreConfirmedPanel()
                 )
                     return;
-                this.activePlayback.set(null);
+                this.panelPlayback.set(null);
                 this.activeLiveItemId.set(null);
                 this.activeGuideItem.set(null);
-                this.activeCatchupProgram.set(null);
+                this.panelCatchupProgram.set(null);
                 this.activeLiveProviderCategoryId = null;
             });
         });
@@ -1015,14 +1035,14 @@ export class LiveStreamLayoutComponent
             isLive: true,
         };
         if (!keepPanel) {
-            this.activeCatchupProgram.set(null);
+            this.panelCatchupProgram.set(null);
             if (!remote && !this.guide.isOpen())
                 this.selectLiveItemCategory(item);
             this.activeLiveItemId.set(item.xtream_id);
             this.activeGuideItem.set(item);
             this.activeLiveProviderCategoryId = categoryId;
-            this.activePlaylistId = playlist?.id ?? null;
-            this.activePlayback.set(playback);
+            this.activeOwner.set(this.externalGuide.owner());
+            this.panelPlayback.set(playback);
         }
         const launchId =
             tracksExternalPlayback &&
@@ -1431,7 +1451,7 @@ export class LiveStreamLayoutComponent
         const preview = this.archivePreview;
         const fromPreview =
             preview &&
-            this.activePlaylistId === playlist.id &&
+            sameXtreamLiveOwner(this.activeOwner(), request.owner) &&
             sameXtreamChannelCopy(preview.item, item);
         const queue = this.channelNavigation.queueFor(
             item,
@@ -1482,10 +1502,10 @@ export class LiveStreamLayoutComponent
             this.activeLiveItemId.set(item.xtream_id);
             this.activeLiveProviderCategoryId =
                 this.resolveLiveProviderCategoryId(item, resolved);
-            this.activePlaylistId = playlist.id;
+            this.activeOwner.set(request.owner);
             this.activeGuideItem.set(item);
-            this.activeCatchupProgram.set(program);
-            this.activePlayback.set(playback);
+            this.panelCatchupProgram.set(program);
+            this.panelPlayback.set(playback);
         }
         if (inline) return;
 
