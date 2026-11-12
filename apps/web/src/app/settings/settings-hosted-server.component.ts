@@ -39,6 +39,27 @@ const unavailableConnector: HostedCloudflareStatus = {
     secureStorage: false,
 };
 
+function shareableUrl(
+    value: string | undefined,
+    protocol: 'http:' | 'https:'
+): string {
+    if (!value) return '';
+    try {
+        const url = new URL(value);
+        const host = url.hostname.replace(/\.$/, '');
+        const validHost =
+            protocol === 'http:'
+                ? /^\d{1,3}(\.\d{1,3}){3}$/.test(host) &&
+                  /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host)
+                : !/^(127\.|0\.|\[::1\]$|\[::\]$|\[::ffff:)/.test(host) &&
+                  host !== 'localhost' &&
+                  !host.endsWith('.localhost');
+        return url.protocol === protocol && validHost ? value : '';
+    } catch {
+        return '';
+    }
+}
+
 @Component({
     selector: 'app-settings-hosted-server',
     providers: [provideFormFieldDefaults()],
@@ -58,7 +79,10 @@ const unavailableConnector: HostedCloudflareStatus = {
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './settings-hosted-server.component.html',
-    styleUrl: './settings-server-section.component.scss',
+    styleUrls: [
+        './settings-server-section.component.scss',
+        './settings-hosted-server.component.scss',
+    ],
 })
 export class SettingsHostedServerComponent {
     readonly guides = SERVER_GUIDES;
@@ -77,6 +101,7 @@ export class SettingsHostedServerComponent {
     readonly status = signal<HostedServerStatus>({ state: 'unavailable' });
     readonly busy = signal(false);
     readonly lanChoice = signal<boolean | null>(null);
+    readonly lanSetup = signal(false);
     readonly addressChoice = signal('');
     readonly shareLan = computed(
         () => this.lanChoice() ?? !!this.status().lanAddress
@@ -94,9 +119,17 @@ export class SettingsHostedServerComponent {
     readonly httpsAddress = signal('');
     readonly httpsInvalid = signal(false);
     readonly qrAddress = signal('');
+    readonly lanUrl = computed(() =>
+        shareableUrl(this.status().lanUrl, 'http:')
+    );
+    readonly httpsQrAddress = computed(() =>
+        shareableUrl(this.status().httpsOrigin, 'https:')
+    );
     readonly cloudflare = signal(unavailableConnector);
     readonly cloudflareAvailable = computed(
-        () => this.cloudflare().state !== 'unavailable'
+        () =>
+            this.cloudflare().state !== 'unavailable' &&
+            !this.connectorStatusUnknown()
     );
     readonly cloudflareToken = signal('');
     readonly cloudflareProtected = signal(false);
@@ -174,9 +207,12 @@ export class SettingsHostedServerComponent {
         if (this.busy()) return;
         const httpsCommand =
             typeof command === 'object' && 'httpsOrigin' in command;
+        const restartCommand =
+            typeof command === 'object' && 'restart' in command;
         this.transition++;
         this.busy.set(true);
         this.code.set('');
+        this.qrAddress.set('');
         this.feedback.set('');
         this.cloudflareError.set('');
         this.cloudflareVerified.set(false);
@@ -201,9 +237,16 @@ export class SettingsHostedServerComponent {
             if (cloudflareStart && status.httpsOrigin && !status.httpsError)
                 await this.startCloudflare(cloudflareStart);
             if (!this.status().httpsOrigin) this.managedIngress.set(false);
-            if (command === 'stop') this.cloudflareProtected.set(false);
+            if (command === 'stop' || restartCommand) {
+                this.lanSetup.set(false);
+                this.cloudflareProtected.set(false);
+            }
+            if (restartCommand && this.lanUrl()) this.lanChoice.set(null);
         } catch {
-            if (httpsCommand || this.status().state === 'running') {
+            if (restartCommand) {
+                await this.readStatus();
+                this.feedback.set('HOSTED_SERVER.LAN_RESTART_FAILED');
+            } else if (httpsCommand || this.status().state === 'running') {
                 this.status.update((current) => ({
                     ...current,
                     httpsError: true,
@@ -214,6 +257,20 @@ export class SettingsHostedServerComponent {
         } finally {
             this.busy.set(false);
         }
+    }
+
+    restartForLan(): void {
+        const address = this.address();
+        const status = this.status();
+        if (
+            !this.lanSetup() ||
+            status.state !== 'running' ||
+            status.httpsOrigin ||
+            this.lanUrl() ||
+            !address
+        )
+            return;
+        void this.control({ restart: true, lanAddress: address });
     }
 
     start(): void {
@@ -326,8 +383,10 @@ export class SettingsHostedServerComponent {
             this.code.set('');
             return;
         }
+        const transition = this.transition;
         try {
-            this.code.set(await window.electron.hostedServerAccessCode!());
+            const code = await window.electron.hostedServerAccessCode!();
+            if (transition === this.transition) this.code.set(code);
         } catch {
             this.feedback.set('HOSTED_SERVER.CODE_FAILED');
         }

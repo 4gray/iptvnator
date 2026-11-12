@@ -1,0 +1,124 @@
+.hosted-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+}
+
+.hosted-panel {
+    min-width: 0;
+    padding-block: 12px 0;
+    border-block-start: 1px solid var(--app-widget-border);
+
+    h3,
+    summary {
+        margin: 0;
+        color: var(--app-heading-color);
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 1.5;
+    }
+}
+
+.hosted-stack,
+.hosted-remote-choices {
+    display: grid;
+    justify-items: start;
+    align-content: start;
+    gap: 8px;
+    min-width: 0;
+}
+
+.hosted-stack mat-form-field {
+    width: min(100%, 420px);
+}
+
+.hosted-local-choices {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+    gap: 8px;
+}
+
+.hosted-option {
+    padding: 4px 12px 10px;
+    border: 1px solid var(--app-widget-border);
+    border-radius: 8px;
+
+    .server-message {
+        margin-inline-start: 10px;
+    }
+}
+
+.hosted-option--selected {
+    border-color: var(--app-selection-border);
+    background: var(--app-selection-surface);
+}
+
+.hosted-lan {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px 24px;
+
+    .hosted-stack {
+        flex: 1 1 min(100%, 250px);
+    }
+}
+
+.hosted-qr {
+    display: block;
+    line-height: 0;
+}
+
+.hosted-warning {
+    margin: 0;
+    max-width: 64ch;
+}
+
+.hosted-value {
+    color: var(--app-heading-color);
+    font-family: var(--app-font-mono);
+    font-size: 13px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    user-select: text;
+}
+
+.hosted-code,
+.hosted-proxy {
+    padding: 8px 12px;
+    border: 1px solid var(--app-widget-border);
+    border-radius: 8px;
+    background: var(--app-widget-bg);
+}
+
+.hosted-details {
+    summary {
+        cursor: pointer;
+        width: fit-content;
+        app-region: no-drag;
+    }
+
+    &[open] summary {
+        margin-block-end: 8px;
+    }
+}
+
+.hosted-availability {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 16px;
+    color: var(--app-muted-color);
+}
+
+.hosted-footer {
+    justify-content: flex-end;
+    padding-block-start: 4px;
+}
+
+.hosted-guide {
+    white-space: normal;
+}

@@ -67,6 +67,18 @@ describe('hosted server settings', () => {
 
     it('starts without exposing the server to the LAN unless the user opts in', async () => {
         await jest.advanceTimersByTimeAsync(0);
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        expect(
+            root.querySelector<HTMLInputElement>(
+                '[data-test-id="hosted-local-access"] input[value="computer"]'
+            )?.checked
+        ).toBe(true);
+        expect(
+            root.querySelector<HTMLInputElement>(
+                '[data-test-id="hosted-local-access"] input[value="lan"]'
+            )?.checked
+        ).toBe(false);
         expect(component.address()).toBe(address);
         expect(component.shareLan()).toBe(false);
         control.mockResolvedValueOnce({ state: 'running', localUrl });
@@ -78,6 +90,84 @@ describe('hosted server settings', () => {
             state: 'running',
             localUrl,
         });
+    });
+
+    it('offers an explicit restart before sharing a running computer-only server and shows the LAN QR', async () => {
+        control.mockResolvedValueOnce({
+            state: 'running',
+            localUrl,
+            availableAddresses: [address],
+        });
+        await jest.advanceTimersByTimeAsync(0);
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        expect(root.querySelector('qrcode')).toBeNull();
+        root.querySelector<HTMLButtonElement>(
+            '[data-test-id="hosted-server-share-lan"]'
+        )?.click();
+        fixture.detectChanges();
+        expect(control.mock.calls).toEqual([['status']]);
+        expect(root.textContent).toContain('HOSTED_SERVER.LAN_RESTART_NOTICE');
+        control.mockResolvedValueOnce({
+            state: 'running',
+            localUrl,
+            lanUrl,
+            lanAddress: address,
+            availableAddresses: [address],
+        });
+        root.querySelector<HTMLButtonElement>(
+            '[data-test-id="hosted-server-restart-lan"]'
+        )?.click();
+        await jest.advanceTimersByTimeAsync(0);
+        fixture.detectChanges();
+        expect(control.mock.calls).toEqual([
+            ['status'],
+            [{ restart: true, lanAddress: address }],
+        ]);
+        expect(
+            root.querySelector('[data-test-id="hosted-server-address"]')
+                ?.textContent
+        ).toContain(lanUrl);
+        expect(
+            root.querySelector('[data-test-id="hosted-server-lan-qr"]')
+        ).not.toBeNull();
+    });
+
+    it('reports a rejected restart and keeps the live server status', async () => {
+        const running = {
+            state: 'running',
+            localUrl,
+            availableAddresses: [address],
+        } satisfies HostedServerStatus;
+        control
+            .mockResolvedValueOnce(running)
+            .mockRejectedValueOnce(new Error('synthetic interface change'))
+            .mockResolvedValueOnce(running);
+        await jest.advanceTimersByTimeAsync(0);
+        component.lanSetup.set(true);
+        component.restartForLan();
+        await jest.advanceTimersByTimeAsync(0);
+        expect(component.status()).toEqual(running);
+        expect(component.feedback()).toBe('HOSTED_SERVER.LAN_RESTART_FAILED');
+    });
+
+    it('keeps active HTTPS independent and never renders a loopback QR', async () => {
+        await jest.advanceTimersByTimeAsync(0);
+        component.status.set({
+            state: 'running',
+            localUrl,
+            lanUrl: localUrl,
+            httpsOrigin: 'https://localhost',
+            availableAddresses: [address],
+        });
+        component.lanSetup.set(true);
+        component.qrAddress.set('https://localhost');
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        expect(root.querySelector('qrcode')).toBeNull();
+        expect(root.textContent).toContain('HOSTED_SERVER.LAN_RESTART_HTTPS');
+        component.restartForLan();
+        expect(control.mock.calls).toEqual([['status']]);
     });
 
     it('uses the chosen address for LAN hosting and waits for an interface to be available', async () => {
@@ -325,7 +415,9 @@ describe('hosted server settings', () => {
         expect(
             root.querySelector('[data-test-id="hosted-https-address"]')
         ).toBeNull();
-        expect(root.querySelector('qrcode')).toBeNull();
+        expect(
+            root.querySelector('[data-test-id="hosted-server-https-qr"]')
+        ).toBeNull();
         component.qrAddress.set('');
         root.querySelector<HTMLInputElement>(
             '[data-test-id="hosted-cloudflare-verified"] input'

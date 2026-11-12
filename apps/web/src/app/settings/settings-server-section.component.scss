@@ -112,36 +112,8 @@ a {
     border-block-end: 1px solid var(--app-widget-border);
 }
 
-.hosted-controls {
-    align-items: start;
-}
-
-.server-connect,
-.hosted-power {
+.server-connect {
     margin-inline-start: auto;
-}
-
-.hosted-sharing {
-    flex: 1 1 min(100%, 300px);
-    display: grid;
-    justify-items: start;
-    gap: 8px;
-    min-width: 0;
-}
-
-.hosted-warning {
-    margin: 0;
-    max-width: 64ch;
-}
-
-.hosted-value {
-    align-self: center;
-    color: var(--app-heading-color);
-    font-family: var(--app-font-mono);
-    font-size: 13px;
-    line-height: 1.5;
-    overflow-wrap: anywhere;
-    user-select: text;
 }
 
 @container (max-width: 580px) {
