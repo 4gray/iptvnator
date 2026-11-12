@@ -71,16 +71,15 @@ describe('hosted server settings', () => {
         const root = fixture.nativeElement as HTMLElement;
         expect(
             root.querySelector<HTMLInputElement>(
-                '[data-test-id="hosted-local-access"] input[value="computer"]'
+                '[data-test-id="hosted-access-method"] input[value="computer"]'
             )?.checked
         ).toBe(true);
         expect(
             root.querySelector<HTMLInputElement>(
-                '[data-test-id="hosted-local-access"] input[value="lan"]'
+                '[data-test-id="hosted-access-method"] input[value="lan"]'
             )?.checked
         ).toBe(false);
         expect(component.address()).toBe(address);
-        expect(component.shareLan()).toBe(false);
         control.mockResolvedValueOnce({ state: 'running', localUrl });
         component.start();
         component.start();
@@ -176,7 +175,7 @@ describe('hosted server settings', () => {
             availableAddresses: [],
         });
         await jest.advanceTimersByTimeAsync(0);
-        component.lanChoice.set(true);
+        component.accessChoice.set('lan');
         component.start();
         expect(control.mock.calls).toEqual([['status']]);
         await jest.advanceTimersByTimeAsync(3000);
@@ -240,8 +239,17 @@ describe('hosted server settings', () => {
     it('enables HTTPS alongside LAN and rejects credentials and paths before IPC', async () => {
         await jest.advanceTimersByTimeAsync(0);
         component.status.set({ state: 'running', localUrl, lanUrl });
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        root.querySelector<HTMLButtonElement>(
+            '[data-test-id="hosted-https-setup"]'
+        )?.click();
+        fixture.detectChanges();
         component.httpsAddress.set('https://user:secret@library.example.test');
-        component.enableHttps();
+        fixture.detectChanges();
+        root.querySelector<HTMLButtonElement>(
+            '[data-test-id="hosted-https-start"]'
+        )?.click();
         expect(component.httpsInvalid()).toBe(true);
         expect(control).toHaveBeenCalledTimes(1);
         component.httpsAddress.set('https://library.example.test/');
@@ -264,11 +272,16 @@ describe('hosted server settings', () => {
             lanUrl,
             httpsOrigin: '',
         });
-        await component.control({ httpsOrigin: '' });
+        fixture.detectChanges();
+        root.querySelector<HTMLButtonElement>(
+            '[data-test-id="hosted-https-stop"]'
+        )?.click();
+        await jest.advanceTimersByTimeAsync(0);
+        expect(control).toHaveBeenLastCalledWith({ httpsOrigin: '' });
         expect(component.status().lanUrl).toBe(lanUrl);
     });
 
-    it('shows the access options and requires an HTTPS address before starting', async () => {
+    it('offers one access picker and shows setup for the selected method', async () => {
         await jest.advanceTimersByTimeAsync(0);
         fixture.detectChanges();
         const root = fixture.nativeElement as HTMLElement;
@@ -278,13 +291,30 @@ describe('hosted server settings', () => {
         const method = root.querySelector<HTMLInputElement>(
             '[data-test-id="hosted-access-method"] input[value="https"]'
         );
+        expect(root.querySelectorAll('[role="radiogroup"]')).toHaveLength(1);
+        expect(
+            Array.from(
+                root.querySelectorAll<HTMLInputElement>('input[type="radio"]')
+            ).map((input) => input.value)
+        ).toEqual(['computer', 'lan', 'https']);
+        expect(root.querySelector('details')).toBeNull();
         expect(start?.disabled).toBe(false);
         expect(
             root.querySelector('[data-test-id="hosted-https-origin"]')
         ).toBeNull();
-        expect(method).not.toBeNull();
+        root.querySelector<HTMLInputElement>('input[value="lan"]')?.click();
+        fixture.detectChanges();
+        expect(root.textContent).toContain('HOSTED_SERVER.LAN_WARNING');
+        expect(method?.getAttribute('aria-describedby')).toBe(
+            'hosted-description-https'
+        );
         method?.click();
         fixture.detectChanges();
+        expect(root.textContent).not.toContain('HOSTED_SERVER.LAN_WARNING');
+        expect(
+            root.querySelectorAll('input[type="radio"]:checked')
+        ).toHaveLength(1);
+        expect(method?.checked).toBe(true);
         expect(start?.disabled).toBe(true);
         expect(
             root.querySelector('[data-test-id="hosted-https-origin"]')
@@ -299,26 +329,30 @@ describe('hosted server settings', () => {
         );
     });
 
-    it('starts LAN and HTTPS in order and leaves LAN running if HTTPS fails', async () => {
+    it('starts Custom HTTPS on loopback even with a saved LAN address and keeps the local server after HTTPS fails', async () => {
+        control.mockResolvedValueOnce({
+            state: 'stopped',
+            lanAddress: address,
+            availableAddresses: [address],
+        });
         await jest.advanceTimersByTimeAsync(0);
-        component.accessMethod.set('https');
-        component.lanChoice.set(true);
+        expect(component.accessMethod()).toBe('lan');
+        component.accessChoice.set('https');
         component.httpsAddress.set('https://library.example.test/');
         control
-            .mockResolvedValueOnce({ state: 'running', localUrl, lanUrl })
+            .mockResolvedValueOnce({ state: 'running', localUrl })
             .mockRejectedValueOnce(new Error('synthetic HTTPS error'));
         component.start();
         component.start();
         await jest.advanceTimersByTimeAsync(0);
         expect(control.mock.calls).toEqual([
             ['status'],
-            [{ start: true, lanAddress: address }],
+            [{ start: true }],
             [{ httpsOrigin: 'https://library.example.test' }],
         ]);
         expect(component.status()).toEqual({
             state: 'running',
             localUrl,
-            lanUrl,
             httpsError: true,
         });
         expect(component.busy()).toBe(false);
@@ -326,7 +360,7 @@ describe('hosted server settings', () => {
 
     it('waits for the local server before opening an HTTPS origin', async () => {
         await jest.advanceTimersByTimeAsync(0);
-        component.accessMethod.set('https');
+        component.accessChoice.set('https');
         component.httpsAddress.set('https://library.example.test');
         control.mockResolvedValueOnce({ state: 'error', error: 'port' });
         component.start();
@@ -355,9 +389,8 @@ describe('hosted server settings', () => {
             .mockResolvedValueOnce(connectorStopped)
             .mockResolvedValueOnce(connectorRunning);
         await jest.advanceTimersByTimeAsync(0);
-        component.accessMethod.set('cloudflare');
+        component.accessChoice.set('cloudflare');
         component.httpsAddress.set(httpsOrigin);
-        component.lanChoice.set(true);
         fixture.detectChanges();
         const root = fixture.nativeElement as HTMLElement;
         const start = root.querySelector<HTMLButtonElement>(
@@ -388,11 +421,10 @@ describe('hosted server settings', () => {
         fixture.detectChanges();
 
         control
-            .mockResolvedValueOnce({ state: 'running', localUrl, lanUrl })
+            .mockResolvedValueOnce({ state: 'running', localUrl })
             .mockResolvedValueOnce({
                 state: 'running',
                 localUrl,
-                lanUrl,
                 httpsOrigin,
             });
         start?.click();
@@ -401,7 +433,7 @@ describe('hosted server settings', () => {
         fixture.detectChanges();
         expect(control.mock.calls).toEqual([
             ['status'],
-            [{ start: true, lanAddress: address }],
+            [{ start: true }],
             [{ httpsOrigin }],
         ]);
         expect(connector.mock.calls).toEqual([
@@ -411,7 +443,7 @@ describe('hosted server settings', () => {
         expect(component.cloudflareToken()).toBe('');
         expect(
             root.querySelector('[data-test-id="hosted-server-address"]')
-        ).not.toBeNull();
+        ).toBeNull();
         expect(
             root.querySelector('[data-test-id="hosted-https-address"]')
         ).toBeNull();
@@ -434,7 +466,6 @@ describe('hosted server settings', () => {
         control.mockResolvedValueOnce({
             state: 'running',
             localUrl,
-            lanUrl,
             httpsOrigin,
         });
         await jest.advanceTimersByTimeAsync(3000);
@@ -445,7 +476,7 @@ describe('hosted server settings', () => {
         ).toBeNull();
     });
 
-    it('closes managed HTTPS after a connector start failure and preserves LAN access', async () => {
+    it('closes Cloudflare HTTPS after a connector start failure and preserves LAN access', async () => {
         window.electron.hostedCloudflareControl = connector;
         connector
             .mockResolvedValueOnce({
@@ -455,7 +486,7 @@ describe('hosted server settings', () => {
             .mockRejectedValueOnce(new Error('private bridge error'));
         await jest.advanceTimersByTimeAsync(0);
         component.status.set({ state: 'running', localUrl, lanUrl });
-        component.accessMethod.set('cloudflare');
+        component.accessChoice.set('cloudflare');
         component.httpsAddress.set(httpsOrigin);
         component.cloudflareProtected.set(true);
         control

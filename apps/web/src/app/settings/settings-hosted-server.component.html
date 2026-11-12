@@ -164,7 +164,7 @@
                         {{ 'HOSTED_SERVER.REMOTE_ACCESS' | translate }}
                     </h3>
                     @if (status().httpsOrigin; as origin) {
-                        @if (isManagedHttps()) {
+                        @if (isCloudflareHttps()) {
                             <p class="server-message" role="status">
                                 {{
                                     'HOSTED_SERVER.CLOUDFLARE_STATE_' +
@@ -273,7 +273,7 @@
                                 />
                             }
                         }
-                    } @else if (accessMethod() !== 'local') {
+                    } @else if (remoteSelected()) {
                         <ng-container [ngTemplateOutlet]="httpsSetup" />
                         <div class="server-actions">
                             <button
@@ -294,7 +294,7 @@
                                 mat-button
                                 type="button"
                                 [disabled]="busy()"
-                                (click)="accessMethod.set('local')"
+                                (click)="accessChoice.set(null)"
                             >
                                 {{ 'CANCEL' | translate }}
                             </button>
@@ -305,7 +305,7 @@
                                 mat-stroked-button
                                 type="button"
                                 [disabled]="busy()"
-                                (click)="accessMethod.set('https')"
+                                (click)="accessChoice.set('https')"
                                 data-test-id="hosted-https-setup"
                             >
                                 {{
@@ -318,7 +318,7 @@
                                     mat-stroked-button
                                     type="button"
                                     [disabled]="busy()"
-                                    (click)="accessMethod.set('cloudflare')"
+                                    (click)="accessChoice.set('cloudflare')"
                                 >
                                     {{
                                         'HOSTED_SERVER.MANUAL_CLOUDFLARE_SETUP'
@@ -327,7 +327,6 @@
                                 </button>
                             }
                         </div>
-                        <ng-container [ngTemplateOutlet]="remoteAvailability" />
                     }
                     @if (status().httpsError) {
                         <p
@@ -343,99 +342,62 @@
             ) {
                 <section
                     class="hosted-panel hosted-stack"
-                    aria-labelledby="hosted-local-access-title"
+                    aria-labelledby="hosted-access-method-title"
                 >
-                    <h3 id="hosted-local-access-title">
-                        {{ 'HOSTED_SERVER.LOCAL_ACCESS' | translate }}
+                    <h3 id="hosted-access-method-title">
+                        {{ 'HOSTED_SERVER.ACCESS_METHOD' | translate }}
                     </h3>
                     <mat-radio-group
-                        class="hosted-local-choices"
-                        aria-labelledby="hosted-local-access-title"
-                        [value]="shareLan() ? 'lan' : 'computer'"
-                        (change)="lanChoice.set($event.value === 'lan')"
-                        data-test-id="hosted-local-access"
+                        class="hosted-access-choices"
+                        aria-labelledby="hosted-access-method-title"
+                        [value]="accessMethod()"
+                        (change)="accessChoice.set($event.value)"
+                        data-test-id="hosted-access-method"
                     >
-                        <div
-                            class="hosted-option"
-                            [class.hosted-option--selected]="!shareLan()"
-                        >
-                            <mat-radio-button
-                                value="computer"
-                                aria-describedby="hosted-computer-description"
-                            >
-                                {{ 'HOSTED_SERVER.COMPUTER_ONLY' | translate }}
-                            </mat-radio-button>
-                            <p
-                                class="server-message"
-                                id="hosted-computer-description"
-                            >
-                                {{
-                                    'HOSTED_SERVER.COMPUTER_ONLY_DESCRIPTION'
-                                        | translate
-                                }}
-                            </p>
-                        </div>
-                        <div
-                            class="hosted-option"
-                            [class.hosted-option--selected]="shareLan()"
-                        >
-                            <mat-radio-button
-                                value="lan"
-                                aria-describedby="hosted-home-description"
-                            >
-                                {{ 'HOSTED_SERVER.HOME_NETWORK' | translate }}
-                            </mat-radio-button>
-                            <p
-                                class="server-message"
-                                id="hosted-home-description"
-                            >
-                                {{
-                                    'HOSTED_SERVER.HOME_NETWORK_DESCRIPTION'
-                                        | translate
-                                }}
-                            </p>
-                        </div>
+                        @for (option of accessOptions; track option.value) {
+                            @if (
+                                option.value !== 'cloudflare' ||
+                                cloudflareAvailable()
+                            ) {
+                                <div
+                                    class="hosted-option"
+                                    [class.hosted-option--selected]="
+                                        accessMethod() === option.value
+                                    "
+                                >
+                                    <mat-radio-button
+                                        [value]="option.value"
+                                        [aria-describedby]="
+                                            'hosted-description-' + option.value
+                                        "
+                                    >
+                                        {{
+                                            'HOSTED_SERVER.' + option.label
+                                                | translate
+                                        }}
+                                    </mat-radio-button>
+                                    <p
+                                        class="server-message"
+                                        [id]="
+                                            'hosted-description-' + option.value
+                                        "
+                                    >
+                                        {{
+                                            'HOSTED_SERVER.' +
+                                                option.label +
+                                                '_DESCRIPTION' | translate
+                                        }}
+                                    </p>
+                                </div>
+                            }
+                        }
                     </mat-radio-group>
-                    @if (shareLan()) {
+                    @if (accessMethod() === 'lan') {
                         <ng-container [ngTemplateOutlet]="networkSetup" />
+                    } @else if (remoteSelected()) {
+                        <ng-container [ngTemplateOutlet]="httpsSetup" />
                     }
                 </section>
-                <details
-                    class="hosted-panel hosted-details"
-                    [open]="accessMethod() !== 'local'"
-                >
-                    <summary>
-                        {{ 'HOSTED_SERVER.OPTIONAL_REMOTE_ACCESS' | translate }}
-                    </summary>
-                    <div class="hosted-stack">
-                        <mat-radio-group
-                            class="hosted-remote-choices"
-                            [attr.aria-label]="
-                                'HOSTED_SERVER.REMOTE_ACCESS' | translate
-                            "
-                            [value]="accessMethod()"
-                            (change)="accessMethod.set($event.value)"
-                            data-test-id="hosted-access-method"
-                        >
-                            <mat-radio-button value="local">{{
-                                'HOSTED_SERVER.REMOTE_OFF' | translate
-                            }}</mat-radio-button>
-                            <mat-radio-button value="https">{{
-                                'HOSTED_SERVER.CUSTOM_HTTPS' | translate
-                            }}</mat-radio-button>
-                            @if (cloudflareAvailable()) {
-                                <mat-radio-button value="cloudflare">{{
-                                    'HOSTED_SERVER.MANUAL_CLOUDFLARE'
-                                        | translate
-                                }}</mat-radio-button>
-                            }
-                        </mat-radio-group>
-                        @if (accessMethod() !== 'local') {
-                            <ng-container [ngTemplateOutlet]="httpsSetup" />
-                        }
-                    </div>
-                </details>
-                <ng-container [ngTemplateOutlet]="remoteAvailability" />
                 <div class="server-actions hosted-footer">
                     @if (status().state === 'error' && status().autoStart) {
                         <button
@@ -451,9 +413,8 @@
                         type="button"
                         [disabled]="
                             busy() ||
-                            (shareLan() && !address()) ||
-                            (accessMethod() !== 'local' &&
-                                !httpsSetupComplete())
+                            (accessMethod() === 'lan' && !address()) ||
+                            (remoteSelected() && !httpsSetupComplete())
                         "
                         (click)="start()"
                         class="settings-primary-button"
@@ -478,25 +439,6 @@
                 }
             </p>
         </div>
-        <ng-template #remoteAvailability>
-            <div
-                class="hosted-availability server-message"
-                data-test-id="hosted-remote-availability"
-            >
-                @if (!cloudflareAvailable()) {
-                    <span>{{
-                        'HOSTED_SERVER.MANUAL_CLOUDFLARE_UNAVAILABLE'
-                            | translate
-                    }}</span>
-                }
-                <span>{{
-                    'HOSTED_SERVER.AUTOMATIC_CLOUDFLARE_UNAVAILABLE' | translate
-                }}</span>
-                <span>{{
-                    'HOSTED_SERVER.MANAGED_REMOTE_UNAVAILABLE' | translate
-                }}</span>
-            </div>
-        </ng-template>
         <ng-template #networkSetup>
             <p class="settings-callout settings-callout--warn hosted-warning">
                 <mat-icon aria-hidden="true">warning</mat-icon>

@@ -11,8 +11,7 @@
     padding-block: 12px 0;
     border-block-start: 1px solid var(--app-widget-border);
 
-    h3,
-    summary {
+    h3 {
         margin: 0;
         color: var(--app-heading-color);
         font-size: 14px;
@@ -21,8 +20,7 @@
     }
 }
 
-.hosted-stack,
-.hosted-remote-choices {
+.hosted-stack {
     display: grid;
     justify-items: start;
     align-content: start;
@@ -34,11 +32,17 @@
     width: min(100%, 420px);
 }
 
-.hosted-local-choices {
+.hosted-access-choices {
     width: 100%;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
+}
+
+@container (max-width: 580px) {
+    .hosted-access-choices {
+        grid-template-columns: 1fr;
+    }
 }
 
 .hosted-option {
@@ -93,25 +97,6 @@
     border: 1px solid var(--app-widget-border);
     border-radius: 8px;
     background: var(--app-widget-bg);
-}
-
-.hosted-details {
-    summary {
-        cursor: pointer;
-        width: fit-content;
-        app-region: no-drag;
-    }
-
-    &[open] summary {
-        margin-block-end: 8px;
-    }
-}
-
-.hosted-availability {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 2px 16px;
-    color: var(--app-muted-color);
 }
 
 .hosted-footer {

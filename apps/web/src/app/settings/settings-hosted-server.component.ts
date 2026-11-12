@@ -32,6 +32,7 @@ import type {
 import { timer } from 'rxjs';
 
 type CloudflareStart = Extract<HostedCloudflareCommand, { start: true }>;
+type AccessMethod = 'computer' | 'lan' | 'https' | 'cloudflare';
 
 const unavailableConnector: HostedCloudflareStatus = {
     state: 'unavailable',
@@ -86,6 +87,12 @@ function shareableUrl(
 })
 export class SettingsHostedServerComponent {
     readonly guides = SERVER_GUIDES;
+    readonly accessOptions = [
+        { value: 'computer', label: 'COMPUTER_ONLY' },
+        { value: 'lan', label: 'HOME_NETWORK' },
+        { value: 'https', label: 'CUSTOM_HTTPS' },
+        { value: 'cloudflare', label: 'MANUAL_CLOUDFLARE' },
+    ] as const;
     readonly stateKeys = {
         unavailable: '',
         stopped: 'HOSTED_SERVER.STATE_stopped',
@@ -100,12 +107,8 @@ export class SettingsHostedServerComponent {
     };
     readonly status = signal<HostedServerStatus>({ state: 'unavailable' });
     readonly busy = signal(false);
-    readonly lanChoice = signal<boolean | null>(null);
     readonly lanSetup = signal(false);
     readonly addressChoice = signal('');
-    readonly shareLan = computed(
-        () => this.lanChoice() ?? !!this.status().lanAddress
-    );
     readonly addresses = computed(() => this.status().availableAddresses ?? []);
     readonly address = computed(() => {
         const selected = this.addressChoice() || this.status().lanAddress;
@@ -115,7 +118,18 @@ export class SettingsHostedServerComponent {
     });
     readonly code = signal('');
     readonly feedback = signal('');
-    readonly accessMethod = signal<'local' | 'https' | 'cloudflare'>('local');
+    readonly accessChoice = signal<AccessMethod | null>(null);
+    readonly accessMethod = computed(() => {
+        const choice = this.accessChoice();
+        if (choice && (choice !== 'cloudflare' || this.cloudflareAvailable()))
+            return choice;
+        return this.status().lanAddress ? 'lan' : 'computer';
+    });
+    readonly remoteSelected = computed(
+        () =>
+            this.accessMethod() === 'https' ||
+            this.accessMethod() === 'cloudflare'
+    );
     readonly httpsAddress = signal('');
     readonly httpsInvalid = signal(false);
     readonly qrAddress = signal('');
@@ -148,18 +162,18 @@ export class SettingsHostedServerComponent {
             !!this.httpsAddress().trim() &&
             (this.accessMethod() !== 'cloudflare' || this.canStartCloudflare())
     );
-    private readonly managedIngress = signal(false);
+    private readonly cloudflareIngress = signal(false);
     private readonly connectorStatusUnknown = signal(false);
-    readonly isManagedHttps = computed(
+    readonly isCloudflareHttps = computed(
         () =>
-            this.managedIngress() ||
+            this.cloudflareIngress() ||
             (this.cloudflareAvailable() &&
                 this.cloudflare().state !== 'stopped')
     );
     readonly canShareHttps = computed(
         () =>
             !this.connectorStatusUnknown() &&
-            (!this.isManagedHttps() ||
+            (!this.isCloudflareHttps() ||
                 (!this.busy() &&
                     this.cloudflare().state === 'running' &&
                     this.cloudflareVerified()))
@@ -192,7 +206,7 @@ export class SettingsHostedServerComponent {
                 this.cloudflareVerified.set(false);
             this.status.set(status);
             if (status.state !== 'running') this.code.set('');
-            if (!status.httpsOrigin) this.managedIngress.set(false);
+            if (!status.httpsOrigin) this.cloudflareIngress.set(false);
         } catch {
             if (transition === this.transition)
                 this.status.set({ state: 'error', error: 'startup' });
@@ -236,12 +250,12 @@ export class SettingsHostedServerComponent {
             }
             if (cloudflareStart && status.httpsOrigin && !status.httpsError)
                 await this.startCloudflare(cloudflareStart);
-            if (!this.status().httpsOrigin) this.managedIngress.set(false);
+            if (!this.status().httpsOrigin) this.cloudflareIngress.set(false);
             if (command === 'stop' || restartCommand) {
                 this.lanSetup.set(false);
                 this.cloudflareProtected.set(false);
             }
-            if (restartCommand && this.lanUrl()) this.lanChoice.set(null);
+            if (restartCommand && this.lanUrl()) this.accessChoice.set(null);
         } catch {
             if (restartCommand) {
                 await this.readStatus();
@@ -275,14 +289,14 @@ export class SettingsHostedServerComponent {
 
     start(): void {
         if (this.busy()) return;
-        const address = this.shareLan() ? this.address() : '';
+        const address = this.accessMethod() === 'lan' ? this.address() : '';
         if (address === undefined) return;
-        const useHttps = this.accessMethod() !== 'local';
+        const useHttps = this.remoteSelected();
         const useCloudflare = this.accessMethod() === 'cloudflare';
         if (useCloudflare && !this.canStartCloudflare()) return;
         const httpsOrigin = useHttps ? this.readHttpsOrigin() : undefined;
         if (useHttps && !httpsOrigin) return;
-        if (useCloudflare) this.managedIngress.set(true);
+        if (useCloudflare) this.cloudflareIngress.set(true);
         void this.control(
             address ? { start: true, lanAddress: address } : { start: true },
             httpsOrigin,
@@ -296,7 +310,7 @@ export class SettingsHostedServerComponent {
         if (useCloudflare && !this.canStartCloudflare()) return;
         const httpsOrigin = this.readHttpsOrigin();
         if (!httpsOrigin) return;
-        if (useCloudflare) this.managedIngress.set(true);
+        if (useCloudflare) this.cloudflareIngress.set(true);
         void this.control(
             { httpsOrigin },
             undefined,
@@ -307,7 +321,7 @@ export class SettingsHostedServerComponent {
     async stopHttps(): Promise<void> {
         await this.control({ httpsOrigin: '' });
         if (!this.status().httpsOrigin) {
-            this.accessMethod.set('local');
+            this.accessChoice.set(null);
             this.cloudflareProtected.set(false);
         }
     }
