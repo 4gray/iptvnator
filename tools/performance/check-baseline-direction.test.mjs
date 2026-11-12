@@ -458,93 +458,126 @@ test('CLI exits 0 for a lowered baseline, 1 for a raised one, 0 for a raised one
     assert.match(noBase.stdout, /nothing to weaken/);
 });
 
-test('the PR direction check uses the tested merge parent after master advances', async () => {
-    const workflow = parse(
-        await readFile(
-            new URL('../../.github/workflows/ci.yml', import.meta.url),
-            'utf8'
-        )
-    );
-    const steps = workflow.jobs['initial-bytes-ratchet'].steps;
-    assert.equal(
-        steps.find(({ uses }) => uses?.startsWith('actions/checkout@')).with[
-            'fetch-depth'
-        ],
-        2
-    );
-    const direction = steps.find(
-        ({ name }) =>
-            name === 'Refuse baseline increases against the previous revision'
-    );
-    const root = await mkdtemp(path.join(workDir, 'pr-base-'));
-    const upstream = path.join(root, 'upstream');
-    const checkout = path.join(root, 'checkout');
-    const baseline = 'tools/performance/journey-baselines.json';
-
-    const git = (cwd, ...args) => {
-        const result = spawnSync('git', args, { cwd, encoding: 'utf8' });
-        assert.ifError(result.error);
-        assert.equal(result.status, 0, result.stderr);
-        return result.stdout.trim();
-    };
-    const setBaseline = async (value) => {
-        await writeFile(
-            path.join(upstream, baseline),
-            JSON.stringify(file(value))
+test(
+    'the PR direction check uses the tested merge parent after master advances',
+    { skip: process.platform === 'win32' && 'workflow uses Bash' },
+    async () => {
+        const workflow = parse(
+            await readFile(
+                new URL('../../.github/workflows/ci.yml', import.meta.url),
+                'utf8'
+            )
         );
-        git(upstream, 'add', baseline);
-    };
+        const steps = workflow.jobs['initial-bytes-ratchet'].steps;
+        assert.equal(
+            steps.find(({ uses }) => uses?.startsWith('actions/checkout@'))
+                .with['fetch-depth'],
+            2
+        );
+        const direction = steps.find(
+            ({ name }) =>
+                name ===
+                'Refuse baseline increases against the previous revision'
+        );
+        const root = await mkdtemp(path.join(workDir, 'pr-base-'));
+        const upstream = path.join(root, 'upstream');
+        const checkout = path.join(root, 'checkout');
+        const baseline = 'tools/performance/journey-baselines.json';
 
-    git(root, 'init', '-q', '-b', 'master', 'upstream');
-    git(upstream, 'config', 'user.name', 'Review Fixture');
-    git(upstream, 'config', 'user.email', 'fixture@example.test');
-    await mkdir(path.join(upstream, 'tools/performance'), { recursive: true });
-    await setBaseline(100);
-    git(upstream, 'commit', '-qm', 'original master');
-    git(upstream, 'switch', '-qc', 'topic');
-    git(upstream, 'commit', '--allow-empty', '-qm', 'topic');
-    git(upstream, 'switch', '-q', 'master');
-    git(upstream, 'merge', '-q', '--no-ff', 'topic', '-m', 'tested merge');
-    git(upstream, 'update-ref', 'refs/pull/1/merge', 'HEAD');
-    await setBaseline(90);
-    git(upstream, 'commit', '-qm', 'master advances');
-    git(root, 'init', '-q', 'checkout');
-    git(checkout, 'remote', 'add', 'origin', pathToFileURL(upstream).href);
-    git(checkout, 'fetch', '-q', '--depth=2', 'origin', 'refs/pull/1/merge');
-    git(checkout, 'switch', '-q', '--detach', 'FETCH_HEAD');
-    const bin = path.join(root, 'bin');
-    await mkdir(bin);
-    await writeFile(path.join(bin, 'gh'), '#!/bin/sh\nexit 0\n', {
-        mode: 0o700,
-    });
-    const env = {
-        ...process.env,
-        PATH: `${bin}${path.delimiter}${process.env.PATH}`,
-        EVENT_NAME: 'pull_request',
-        BASE_REF: 'master',
-        PR_NUMBER: '1',
-        REPOSITORY: 'example/fixture',
-        INCREASE_LABEL: 'perf-baseline-increase',
-    };
-    assert.equal(typeof direction.run, 'string');
-    const script = direction.run.replace(
-        'node tools/performance/check-baseline-direction.mjs',
-        'node "$DIRECTION_SCRIPT"'
-    );
-    env.DIRECTION_SCRIPT = await realpath(scriptPath);
-    const check = () =>
-        spawnSync('bash', ['-c', script], {
-            cwd: checkout,
-            env,
-            encoding: 'utf8',
+        const gitEnv = {
+            ...Object.fromEntries(
+                Object.entries(process.env).filter(
+                    ([key]) => !/^GIT_/i.test(key)
+                )
+            ),
+            GIT_CONFIG_GLOBAL: '/dev/null',
+            GIT_CONFIG_NOSYSTEM: '1',
+        };
+        const git = (cwd, ...args) => {
+            const result = spawnSync('git', args, {
+                cwd,
+                env: gitEnv,
+                encoding: 'utf8',
+            });
+            assert.ifError(result.error);
+            assert.equal(result.status, 0, result.stderr);
+            return result.stdout.trim();
+        };
+        const setBaseline = async (value) => {
+            await writeFile(
+                path.join(upstream, baseline),
+                JSON.stringify(file(value))
+            );
+            git(upstream, 'add', baseline);
+        };
+
+        git(root, 'init', '-q', '-b', 'master', 'upstream');
+        git(upstream, 'config', 'user.name', 'Review Fixture');
+        git(upstream, 'config', 'user.email', 'fixture@example.test');
+        await mkdir(path.join(upstream, 'tools/performance'), {
+            recursive: true,
         });
-    const unchanged = check();
-    assert.ifError(unchanged.error);
-    assert.equal(unchanged.status, 0, unchanged.stderr);
-    assert.match(unchanged.stdout, /1 unchanged/);
+        await setBaseline(100);
+        git(upstream, 'commit', '-qm', 'original master');
+        git(upstream, 'switch', '-qc', 'topic');
+        git(upstream, 'commit', '--allow-empty', '-qm', 'topic');
+        git(upstream, 'switch', '-q', 'master');
+        git(upstream, 'merge', '-q', '--no-ff', 'topic', '-m', 'tested merge');
+        git(upstream, 'update-ref', 'refs/pull/1/merge', 'HEAD');
+        await setBaseline(90);
+        git(upstream, 'commit', '-qm', 'master advances');
+        git(root, 'init', '-q', 'checkout');
+        git(checkout, 'remote', 'add', 'origin', pathToFileURL(upstream).href);
+        git(
+            checkout,
+            'fetch',
+            '-q',
+            '--depth=2',
+            'origin',
+            'refs/pull/1/merge'
+        );
+        git(checkout, 'switch', '-q', '--detach', 'FETCH_HEAD');
+        const bin = path.join(root, 'bin');
+        await mkdir(bin);
+        await writeFile(path.join(bin, 'gh'), '#!/bin/sh\nexit 0\n', {
+            mode: 0o700,
+        });
+        const env = {
+            ...gitEnv,
+            PATH: `${bin}${path.delimiter}${process.env.PATH}`,
+            EVENT_NAME: 'pull_request',
+            BASE_REF: 'master',
+            PR_NUMBER: '1',
+            REPOSITORY: 'example/fixture',
+            INCREASE_LABEL: 'perf-baseline-increase',
+        };
+        assert.equal(typeof direction.run, 'string');
+        const script = direction.run.replace(
+            'node tools/performance/check-baseline-direction.mjs',
+            'node "$DIRECTION_SCRIPT"'
+        );
+        env.DIRECTION_SCRIPT = await realpath(scriptPath);
+        const check = () =>
+            spawnSync('bash', ['-c', script], {
+                cwd: checkout,
+                env,
+                encoding: 'utf8',
+            });
+        const unchanged = check();
+        assert.ifError(unchanged.error);
+        assert.equal(unchanged.status, 0, unchanged.stderr);
+        assert.match(unchanged.stdout, /1 unchanged/);
 
-    git(checkout, 'fetch', '-q', '--depth=1', 'origin', 'refs/pull/1/merge');
-    const missingParent = check();
-    assert.notEqual(missingParent.status, 0);
-    assert.doesNotMatch(missingParent.stdout, /Baseline direction OK/);
-});
+        git(
+            checkout,
+            'fetch',
+            '-q',
+            '--depth=1',
+            'origin',
+            'refs/pull/1/merge'
+        );
+        const missingParent = check();
+        assert.notEqual(missingParent.status, 0);
+        assert.doesNotMatch(missingParent.stdout, /Baseline direction OK/);
+    }
+);
