@@ -444,9 +444,11 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
         'vlc',
         'first MPV failure',
         'native error',
+        'unexpected clean exit',
+        'explicit stop',
         'rejected invocation',
     ] as const)(
-        'retains remote tuning after %s stops or fails',
+        'keeps remote tuning after %s unless Stop was requested',
         async (outcome) => {
             const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
             const component = fixture.componentInstance;
@@ -459,7 +461,13 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
                 xtreamStore.openPlayer.mockRejectedValueOnce(
                     new Error('Synthetic player failed')
                 );
-            else if (outcome === 'native error')
+            else if (
+                [
+                    'native error',
+                    'unexpected clean exit',
+                    'explicit stop',
+                ].includes(outcome)
+            )
                 xtreamStore.openPlayer.mockReturnValueOnce(
                     new Promise(() => undefined)
                 );
@@ -475,11 +483,19 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
                 startedAt: '2026-04-04T10:00:00Z',
                 updatedAt: '2026-04-04T10:00:00Z',
             } as const;
-            if (outcome === 'native error')
+            if (
+                [
+                    'native error',
+                    'unexpected clean exit',
+                    'explicit stop',
+                ].includes(outcome)
+            )
                 publishExternalSession({
                     ...session,
                     launchId: xtreamStore.openPlayer.mock.lastCall?.[5],
-                    status: 'error',
+                    status: outcome === 'native error' ? 'error' : 'closed',
+                    closedByRequest:
+                        outcome === 'explicit stop' ? true : undefined,
                     canClose: false,
                 });
             else if (outcome === 'rejected invocation')
@@ -491,6 +507,12 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
             }
             fixture.detectChanges();
 
+            if (outcome === 'explicit stop') {
+                expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
+                    expect.objectContaining({ isLiveView: false })
+                );
+                return;
+            }
             expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
                 expect.objectContaining({
                     isLiveView: true,
@@ -513,42 +535,90 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
         }
     );
 
-    it('keeps a socketless MPV guide available without confirming a committed row', () => {
-        const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
-        const component = fixture.componentInstance;
-        const playing = { ...sampleChannel, category_id: 1 };
-        emptyList.set([playing]);
-        portalPlayer.isEmbeddedPlayer.set(false);
-        fixture.detectChanges();
-        component.playLive(playing, true);
-        const current = {
-            id: 'synthetic-socketless',
-            player: 'mpv',
-            status: 'opened',
-            mediaLoaded: false,
-            playbackUnverified: true,
-            title: 'Synthetic Channel',
-            streamUrl: component.activeStreamUrl(),
-            canClose: true,
-            startedAt: '2026-04-04T10:00:00Z',
-            updatedAt: '2026-04-04T10:00:00Z',
-        } as const;
-        publishExternalSession(current);
-        fixture.detectChanges();
-        expect(component.guide.available()).toBe(true);
-        component.guide.open();
-        fixture.detectChanges();
-        const source = fixture.debugElement.injector.get(
-            XtreamEpgGuideSourceService
-        );
-        expect(source.activeChannelId()).toBeNull();
-        const committed = jest.fn();
-        source.activate(String(playing.xtream_id), null, undefined, committed);
-        publishExternalSession({ ...current, id: 'synthetic-next-socketless' });
-        fixture.detectChanges();
-        expect(component.guide.isOpen()).toBe(true);
-        expect(committed).not.toHaveBeenCalled();
-    });
+    it.each(['mpv', 'vlc'] as const)(
+        'waits for exact %s close before retrying the same unverified stream',
+        async (player) => {
+            const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
+            const component = fixture.componentInstance;
+            const playing = { ...sampleChannel, category_id: 1 };
+            emptyList.set([playing]);
+            portalPlayer.isEmbeddedPlayer.set(false);
+            fixture.detectChanges();
+            component.playLive(playing, true);
+            const current = {
+                id: 'synthetic-unverified',
+                player,
+                status: 'opened',
+                mediaLoaded: false,
+                playbackUnverified: true,
+                mediaObservationUnavailable: player === 'mpv',
+                title: 'Synthetic Channel',
+                streamUrl: component.activeStreamUrl(),
+                canClose: true,
+                startedAt: '2026-04-04T10:00:00Z',
+                updatedAt: '2026-04-04T10:00:00Z',
+            } as const;
+            publishExternalSession(current);
+            fixture.detectChanges();
+            if (player === 'vlc') {
+                publishExternalSession({
+                    ...current,
+                    restoredFromSessionId: 'synthetic-displaced',
+                });
+                fixture.detectChanges();
+            }
+            let finish!: () => void;
+            const close = jest.fn(
+                () =>
+                    new Promise<void>((resolve) => {
+                        finish = resolve;
+                    })
+            );
+            Object.defineProperty(
+                window.electron,
+                'closeExternalPlayerSession',
+                {
+                    value: close,
+                    configurable: true,
+                }
+            );
+            component.guide.open();
+            fixture.detectChanges();
+            const source = fixture.debugElement.injector.get(
+                XtreamEpgGuideSourceService
+            );
+            expect(source.activeChannelId()).toBeNull();
+            const committed = jest.fn();
+            source.activate(
+                String(playing.xtream_id),
+                null,
+                undefined,
+                committed
+            );
+            expect(close).toHaveBeenCalledWith(current.id, true);
+            expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(1);
+            publishExternalSession({
+                ...current,
+                status: 'closed',
+                canClose: false,
+                closedByRequest: true,
+            });
+            fixture.detectChanges();
+            expect(component.guide.isOpen()).toBe(true);
+            xtreamStore.openPlayer.mockReturnValueOnce(
+                new Promise(() => undefined)
+            );
+            finish();
+            await Promise.resolve();
+            await Promise.resolve();
+            await fixture.whenStable();
+            expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(2);
+            publishExternalSession({ ...current, id: 'synthetic-retry' });
+            fixture.detectChanges();
+            expect(component.guide.isOpen()).toBe(true);
+            expect(committed).not.toHaveBeenCalled();
+        }
+    );
 
     it('keeps the socketless MPV remote queue for arrows and numeric tuning', () => {
         const fixture = TestBed.createComponent(LiveStreamLayoutComponent);

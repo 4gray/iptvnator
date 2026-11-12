@@ -393,7 +393,9 @@ async function launchMpvPlayer(
             throw error;
         }
         if (requestedClose || media?.stopped)
-            return externalPlayerSessions.markClosed(session.id) ?? session;
+            return (
+                externalPlayerSessions.markClosed(session.id, true) ?? session
+            );
         return launchMpvPlayer(
             request,
             session,

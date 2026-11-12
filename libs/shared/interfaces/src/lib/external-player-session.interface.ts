@@ -103,6 +103,8 @@ export interface ExternalPlayerSession {
     error?: string;
     errorCode?: ExternalPlayerErrorCode;
     canClose: boolean;
+    /** The app explicitly closed or cancelled this session. */
+    closedByRequest?: true;
     /** Whether the running player has stopped this stream, when observable. */
     playbackIdle?: boolean;
     /** The current media could not be verified; playbackIdle remains the last known state. */

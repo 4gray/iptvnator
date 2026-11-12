@@ -126,6 +126,7 @@ export class MpvReusableProcess {
         const process = this.process;
         if (!process || process.killed) return;
         const sessionId = this.storedOwnerSessionId();
+        externalPlayerSessions.requestClose(sessionId);
         traceExternalPlayer(reason);
         if (guardFutureLaunches) {
             externalPlayerProcessTeardownGate.terminateInBackground(process);
@@ -167,7 +168,9 @@ export class MpvReusableProcess {
                     ) ?? session
                 );
             }
-            return externalPlayerSessions.markClosed(session.id) ?? session;
+            return (
+                externalPlayerSessions.markClosed(session.id, true) ?? session
+            );
         };
         const reusedProcessSessionId =
             this.processSessionIds.get(reusedProcess) ??

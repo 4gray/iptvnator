@@ -56,13 +56,15 @@ describe('ExternalPlayerSessionRegistry', () => {
     });
 
     it('keeps close capability and closes the session explicitly', async () => {
-        const close = jest.fn();
         const session = registry.beginSession({
             player: 'vlc',
             title: 'Example',
             streamUrl: 'https://example.com/video.m3u8',
         });
 
+        const close = jest.fn(() => {
+            registry.markClosed(session.id);
+        });
         registry.attachCloser(session.id, close);
 
         expect(registry.getSession(session.id)?.canClose).toBe(true);
@@ -71,6 +73,7 @@ describe('ExternalPlayerSessionRegistry', () => {
 
         expect(close).toHaveBeenCalled();
         expect(closed?.status).toBe('closed');
+        expect(closed?.closedByRequest).toBe(true);
         expect(closed?.canClose).toBe(false);
         expect(registry.getActiveSessionId()).toBeNull();
     });
@@ -88,6 +91,7 @@ describe('ExternalPlayerSessionRegistry', () => {
         const closed = await registry.closeSession(session.id);
 
         expect(close).not.toHaveBeenCalled();
+        expect(closed?.closedByRequest).toBeUndefined();
         expect(closed).toMatchObject({
             id: session.id,
             status: 'closed',

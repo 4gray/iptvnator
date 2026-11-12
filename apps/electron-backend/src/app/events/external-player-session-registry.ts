@@ -20,6 +20,7 @@ interface UpdateExternalPlayerSessionOptions {
     error?: string;
     errorCode?: ExternalPlayerErrorCode;
     canClose?: boolean;
+    closedByRequest?: true;
     playbackIdle?: boolean;
     playbackUnverified?: boolean;
     mediaLoaded?: boolean;
@@ -31,6 +32,7 @@ interface ExternalPlayerSessionRuntime {
     snapshot: ExternalPlayerSession;
     close?: (exact?: boolean) => Promise<void> | void;
     cancelQueued?: () => boolean;
+    closeRequested?: boolean;
 }
 
 interface MarkExternalPlayerSessionErrorOptions {
@@ -180,7 +182,7 @@ export class ExternalPlayerSessionRegistry {
         return this.updateSession(id, { status: 'playing' });
     }
 
-    markClosed(id: string): ExternalPlayerSession | null {
+    markClosed(id: string, requested = false): ExternalPlayerSession | null {
         const current = this.getSession(id);
         if (!current || current.status === 'closed') {
             return current;
@@ -188,7 +190,19 @@ export class ExternalPlayerSessionRegistry {
         if (this.activeSessionId === id) {
             this.activeSessionId = null;
         }
-        return this.updateSession(id, { status: 'closed', canClose: false });
+        return this.updateSession(id, {
+            status: 'closed',
+            canClose: false,
+            closedByRequest:
+                requested || this.sessions.get(id)?.closeRequested
+                    ? true
+                    : undefined,
+        });
+    }
+
+    requestClose(id: string | null): void {
+        const runtime = id ? this.sessions.get(id) : undefined;
+        if (runtime) runtime.closeRequested = true;
     }
 
     markError(
@@ -230,9 +244,10 @@ export class ExternalPlayerSessionRegistry {
 
         if (exact && runtime.cancelQueued)
             return runtime.cancelQueued()
-                ? this.markClosed(id)
+                ? this.markClosed(id, true)
                 : runtime.snapshot;
         if (exact && !runtime.close) return runtime.snapshot;
+        this.requestClose(id);
 
         // A failed closer cannot prove that the underlying process stopped.
         // Preserve the live session and propagate the failure so callers do

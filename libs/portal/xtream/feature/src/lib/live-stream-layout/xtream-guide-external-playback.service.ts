@@ -8,10 +8,7 @@ import {
     signal,
     untracked,
 } from '@angular/core';
-import {
-    isLiveExternalPlayerSession,
-    PORTAL_EXTERNAL_PLAYBACK,
-} from '@iptvnator/portal/shared/util';
+import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { ParentalLockService } from '@iptvnator/services';
 import type {
@@ -39,6 +36,7 @@ interface GuideLaunch {
     archive: EpgProgram | null;
     playback: ResolvedPortalPlayback;
     ended?: () => false | 'ended' | 'failed';
+    retry?: boolean;
     remote?: boolean;
     onConfirmed?: () => void;
 }
@@ -111,8 +109,7 @@ export class XtreamGuideExternalPlayback {
                 prior?.session.id === session.id && prior.lockSource === source
                     ? prior
                     : this.reattach(source);
-            if (!launch) return null;
-            return { ...launch, session };
+            return launch ? { ...launch, session } : null;
         },
     });
 
@@ -122,6 +119,13 @@ export class XtreamGuideExternalPlayback {
     });
 
     readonly launching = computed(() => {
+        const pending = this.pending();
+        if (
+            pending?.retry &&
+            !pending.ended?.() &&
+            this.isAllowed(pending.lockSource)
+        )
+            return true;
         const active = this.playback?.activeSession();
         if (!active || this.playing()) return false;
         if (
@@ -152,10 +156,8 @@ export class XtreamGuideExternalPlayback {
     });
 
     stoppedTuningSource(): XtreamLiveSource | undefined {
-        const idle = this.idlePlayback();
-        if (idle) return idle;
-        const failed = this.failedTuning()?.lockSource;
-        return this.isAllowed(failed) ? failed : undefined;
+        const source = this.idlePlayback() ?? this.failedTuning()?.lockSource;
+        return this.isAllowed(source) ? source : undefined;
     }
 
     readonly unverifiedPlayback = computed(() => {
@@ -271,37 +273,40 @@ export class XtreamGuideExternalPlayback {
                 : undefined;
         this.panelPlayback = this.panel?.current() ?? playback;
         const lifecycle = launch && this.sessions.begin(launch.lockSource);
-        if (launch) launch.ended = lifecycle?.ended;
+        const close =
+            launch && this.sessions.closeUnverifiedRetry(launch.lockSource);
+        if (launch)
+            Object.assign(launch, { ended: lifecycle?.ended, retry: !!close });
         this.pending.set(launch);
+        const isCurrent = () =>
+            this.pending() === launch && !this.destroyRef.destroyed;
         const recover = (failed: boolean) => {
-            if (this.pending() !== launch || this.destroyRef.destroyed) return;
+            if (!isCurrent()) return;
             this.pending.set(undefined);
             const confirmed = this.confirmed();
             if (confirmed) this.syncPanel(confirmed);
             else if (failed) this.failedTuning.set(launch);
         };
-        const args = [
-            playback.streamUrl,
-            playback.title,
-            playback.thumbnail,
-        ] as const;
-        const opening = lifecycle
-            ? this.store.openPlayer(
-                  ...args,
-                  undefined,
-                  undefined,
-                  lifecycle.launchId
-              )
-            : this.store.openPlayer(...args);
+        const open = () =>
+            this.store.openPlayer(
+                playback.streamUrl,
+                playback.title,
+                playback.thumbnail,
+                undefined,
+                undefined,
+                lifecycle?.launchId
+            );
+        const opening =
+            close?.then(() =>
+                isCurrent() && this.isAllowed(launch?.lockSource)
+                    ? open()
+                    : undefined
+            ) ?? open();
         void Promise.resolve(opening).then(
             (session) => {
                 lifecycle?.finish(session);
-                if (
-                    !session ||
-                    !isLiveExternalPlayerSession(session) ||
-                    session.status === 'error'
-                )
-                    recover(!session || session.status === 'error');
+                if (!session || ['error', 'closed'].includes(session.status))
+                    recover(!session || lifecycle?.ended() === 'failed');
             },
             () => {
                 lifecycle?.finish();
@@ -383,11 +388,8 @@ export class XtreamGuideExternalPlayback {
         item: XtreamLiveChannelItem,
         categoryId: number
     ): void {
-        for (const launch of [
-            this.pending(),
-            this.playing(),
-            this.failedTuning(),
-        ])
+        const launches = [this.pending(), this.playing(), this.failedTuning()];
+        for (const launch of launches)
             if (launch?.playback.streamUrl === url && launch.item === item)
                 launch.lockSource.categoryId = categoryId;
     }

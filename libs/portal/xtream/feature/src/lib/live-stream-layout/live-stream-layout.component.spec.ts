@@ -787,11 +787,11 @@ describe('LiveStreamLayoutComponent', () => {
             1775300400,
             undefined
         );
-        expect(xtreamStore.openPlayer).toHaveBeenCalledWith(
+        expect(xtreamStore.openPlayer.mock.lastCall?.slice(0, 3)).toEqual([
             'https://example.com/timeshift.ts',
             'Channel 101 - Archived Show',
-            'channel-101.png'
-        );
+            'channel-101.png',
+        ]);
         expect(component.activePlayback()).toEqual(
             expect.objectContaining({
                 streamUrl: 'https://example.com/timeshift.ts',
@@ -1099,11 +1099,11 @@ describe('LiveStreamLayoutComponent', () => {
             }
         ).handleRemoteChannelChange('down');
 
-        expect(xtreamStore.openPlayer).toHaveBeenCalledWith(
+        expect(xtreamStore.openPlayer.mock.lastCall?.slice(0, 3)).toEqual([
             'https://example.com/live.ts',
             'Channel 102',
-            'channel-101.png'
-        );
+            'channel-101.png',
+        ]);
     });
 
     it('shows an archive-unavailable notice when past programs exist but archive playback is unavailable', () => {

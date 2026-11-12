@@ -810,9 +810,9 @@ If VLC opens a direct child of a plain M3U, the app reads only the original
 playlist in one bounded request and rechecks the active input before confirming.
 A readable zero stays pending; an unrelated URL invalidates confirmation. A
 stopped VLC input must pass the clock check again before the guide marks it live.
-Retrying the same input closes its exact unverified process first if the app
-cannot reuse it. Temporary RC failures keep the committed selection pending
-until a readiness timeout or terminal outcome.
+Retrying the same unverified input closes the exact MPV or VLC session first,
+including a VLC session restored after a failed switch. Temporary RC failures
+keep the committed selection pending until a readiness timeout or terminal outcome.
 If the player cannot verify readiness, the guide stays available for a retry and a
 committed selection keeps it open. Committing the still-playing channel cancels
 every outstanding switch away from it, including timed-out launches that can
@@ -820,8 +820,9 @@ still start playing. An unverified VLC launch cannot replace confirmed playback.
 The dock, player panel and remote status follow the confirmed session. The dock
 restores Stop for the surviving session when a launch that still owns the dock
 ends. An idle failed replacement closes
-before that restore. When the first launch fails, including before opening, its
-channel and queue remain available for remote tuning without now-playing details.
+before that restore. If the first launch fails or exits before confirming
+playback, its channel and queue remain available for remote tuning without
+now-playing details. An explicit Stop clears an unconfirmed tune.
 Consecutive remote tuning commands advance from the latest requested channel
 until it opens or fails. A VLC fallback from an older launch cannot retire a
 newer tune.

@@ -197,18 +197,31 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             const source = fixture.debugElement.injector.get(
                 XtreamEpgGuideSourceService
             );
-            if (mode === 'unverified VLC') {
-                expect(source.activeChannelId()).toBeNull();
-                source.activate('101');
-                expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(2);
-                return;
-            }
-            if (mode === 'idle') {
-                publishExternalSession({ ...original, playbackIdle: true });
+            if (mode !== 'failure') {
+                if (mode === 'idle')
+                    publishExternalSession({ ...original, playbackIdle: true });
                 fixture.detectChanges();
                 expect(component.guide.isOpen()).toBe(true);
                 expect(source.activeChannelId()).toBeNull();
+                Object.defineProperty(
+                    window.electron,
+                    'closeExternalPlayerSession',
+                    {
+                        value: async () => {
+                            const closed: ExternalPlayerSession = {
+                                ...original,
+                                status: 'closed',
+                                canClose: false,
+                                closedByRequest: true,
+                            };
+                            publishExternalSession(closed);
+                            return closed;
+                        },
+                        configurable: true,
+                    }
+                );
                 source.activate('101');
+                await fixture.whenStable();
                 expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(2);
                 return;
             }

@@ -135,6 +135,29 @@ export class XtreamExternalLiveSessions {
         return entry?.launch?.cancelled ? undefined : entry;
     }
 
+    closeUnverifiedRetry(source: XtreamLiveSource): Promise<void> | undefined {
+        const active = this.playback?.activeSession();
+        const prior = active?.canClose && this.state(active.id);
+        if (
+            !prior ||
+            (prior.session.player !== 'mpv' &&
+                prior.session.player !== 'vlc') ||
+            !sameXtreamLiveOwner(prior.source, source) ||
+            prior.source.channel?.xtream_id !== source.channel?.xtream_id ||
+            prior.session.streamUrl !== source.playback?.streamUrl ||
+            (hasXtreamOpenedMedia(prior.session) &&
+                !prior.session.playbackUnverified)
+        )
+            return undefined;
+        const close = window.electron?.closeExternalPlayerSession;
+        if (!close)
+            return Promise.reject(new Error('Exact player close unavailable'));
+        return close(prior.session.id, true).then((result) => {
+            if (isLiveExternalPlayerSession(result))
+                throw new Error('Previous player is still open');
+        });
+    }
+
     latestOpened(
         owner: XtreamLiveOwner,
         excludeId?: string
@@ -242,7 +265,8 @@ export class XtreamExternalLiveSessions {
             request ??
             (session.launchId ? this.pending.get(session.launchId) : undefined);
         if (
-            session.status === 'error' &&
+            (session.status === 'error' || session.status === 'closed') &&
+            !session.closedByRequest &&
             launch &&
             !launch.opened &&
             !launch.cancelled
@@ -369,6 +393,7 @@ export class XtreamExternalLiveSessions {
                                   ...session,
                                   status: 'closed',
                                   canClose: false,
+                                  closedByRequest: true,
                               }
                           );
                       }

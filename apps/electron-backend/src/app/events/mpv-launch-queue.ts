@@ -181,7 +181,7 @@ export async function settleCancelledQueuedLaunch(
             );
         }
     }
-    return externalPlayerSessions.markClosed(session.id) ?? session;
+    return externalPlayerSessions.markClosed(session.id, true) ?? session;
 }
 
 /**

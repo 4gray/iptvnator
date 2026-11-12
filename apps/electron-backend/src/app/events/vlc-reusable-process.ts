@@ -143,6 +143,7 @@ export class VlcReusableProcess {
         this.stopGeneration += 1;
         const process = this.process;
         if (!process || process.killed) return;
+        externalPlayerSessions.requestClose(this.processSessionId);
         traceExternalPlayer(reason);
         if (guardFutureLaunches) {
             const stopping =

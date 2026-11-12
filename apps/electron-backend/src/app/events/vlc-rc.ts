@@ -149,7 +149,7 @@ export function parseVlcRcNumericResponse(data: string): string {
 }
 
 function parseVlcRcNumericLine(data: string): string | undefined {
-    return data.match(/^[> \t]*(-?\d+(?:\.\d+)?)[ \t]*\r?$/m)?.[1];
+    return data.match(/^[> \t]*(-?\d+(?:\.\d+)?)[ \t]*\r?\n/m)?.[1];
 }
 
 function legacyCommandResult(

@@ -646,6 +646,19 @@ describe('VLC exact playback ownership', () => {
         });
     });
 
+    it('waits for the whole numeric Unix RC reply', async () => {
+        mockRc((_address, command, reply) => {
+            if (command === 'get_length\n') reply('300\r\n');
+            else {
+                reply('1');
+                setImmediate(() => reply('20\r\n'));
+            }
+        });
+        await expect(
+            getVlcPlaybackSnapshot('/tmp/synthetic-vlc-control')
+        ).resolves.toEqual({ positionSeconds: 120, durationSeconds: 300 });
+    });
+
     it('rejects the add command during unrelated teardown and keeps the VLC child closable', async () => {
         const proc = child();
         const blocker = child();
