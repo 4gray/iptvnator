@@ -38,6 +38,7 @@ export function createDevicePairingRouter(
     router.use(pairingPaths, express.json({ limit: '4kb' }));
     const admin: RequestHandler = (req, res, next) => {
         const local =
+            !hostedIngressOrigin(req) &&
             req.socket.remoteAddress === '127.0.0.1' &&
             req.socket.localAddress === '127.0.0.1' &&
             req.get('host') === `127.0.0.1:${req.socket.localPort}`;

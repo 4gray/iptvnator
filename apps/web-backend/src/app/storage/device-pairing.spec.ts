@@ -1,4 +1,6 @@
 import { request } from 'node:http';
+import express from 'express';
+import { markHostedIngress } from '../hosted-ingress';
 import type { AddressInfo } from 'node:net';
 import { listenHosted } from '../hosted-listener';
 import { closeGracefully } from '../graceful-shutdown';
@@ -407,5 +409,52 @@ describe('device pairing', () => {
                 await closeGracefully(local, 0);
                 await closeGracefully(remote, 0);
             }
+        }));
+    it('denies local administrator access to marked ingress even with a loopback host and shared token', () =>
+        withTempStorage(async (storage) => {
+            const api = createWebBackendApp({
+                storage,
+                accessToken: 'admin-secret',
+                devicePairingEnabled: true,
+            });
+            const app = express();
+            app.use((req, _res, next) => {
+                markHostedIngress(req, `https://${req.headers.host}`);
+                next();
+            });
+            app.use(api);
+            await withServer(app, async (base) => {
+                const headers = {
+                    authorization: 'Bearer admin-secret',
+                    'content-type': 'application/json',
+                };
+                expect(
+                    (
+                        await fetch(
+                            `${base}/v1/device-pairing/browser-settings`,
+                            { headers }
+                        )
+                    ).status
+                ).toBe(403);
+                expect(
+                    (
+                        await fetch(
+                            `${base}/v1/device-pairing/browser-settings`,
+                            {
+                                method: 'POST',
+                                headers,
+                                body: JSON.stringify({
+                                    password: 'synthetic-password',
+                                }),
+                            }
+                        )
+                    ).status
+                ).toBe(403);
+                expect(
+                    new DevicePairingStore(
+                        storage.database.sqlite
+                    ).passwordConfigured()
+                ).toBe(false);
+            });
         }));
 });
