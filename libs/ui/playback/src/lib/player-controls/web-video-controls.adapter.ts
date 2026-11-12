@@ -247,6 +247,7 @@ export class WebVideoControlsAdapter implements PlayerController {
         setAspectRatio: () => undefined,
         toggleRecording: () => undefined,
         togglePictureInPicture: () => this.pictureInPicture.toggle(),
+        jumpToLiveEdge: () => undefined,
     };
 
     /** Binds to a `<video>` element and starts maintaining the state signal. */

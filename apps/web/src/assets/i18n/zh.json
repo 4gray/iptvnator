@@ -832,6 +832,7 @@
             "NEXT_EPISODE": "下一集",
             "BACK_10_SECONDS": "快退 10 秒",
             "FORWARD_10_SECONDS": "快进 10 秒",
+            "JUMP_TO_LIVE": "跳到直播",
             "LIVE_STREAM": "直播",
             "LIVE_BADGE": "直播",
             "PLAYBACK_POSITION": "播放位置",

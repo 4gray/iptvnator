@@ -832,6 +832,7 @@
             "NEXT_EPISODE": "الحلقة الجاية",
             "BACK_10_SECONDS": "رجع 10 ثواني",
             "FORWARD_10_SECONDS": "قدّم 10 ثواني",
+            "JUMP_TO_LIVE": "سير للبث المباشر",
             "LIVE_STREAM": "بث مباشر",
             "LIVE_BADGE": "مباشر",
             "PLAYBACK_POSITION": "موضع التشغيل",

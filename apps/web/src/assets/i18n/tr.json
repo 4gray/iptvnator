@@ -832,6 +832,7 @@
             "NEXT_EPISODE": "Sonraki bölüm",
             "BACK_10_SECONDS": "10 saniye geri",
             "FORWARD_10_SECONDS": "10 saniye ileri",
+            "JUMP_TO_LIVE": "Canlı yayına geç",
             "LIVE_STREAM": "Canlı yayın",
             "LIVE_BADGE": "CANLI",
             "PLAYBACK_POSITION": "Oynatma konumu",

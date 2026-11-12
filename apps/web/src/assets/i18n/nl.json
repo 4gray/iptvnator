@@ -832,6 +832,7 @@
             "NEXT_EPISODE": "Volgende aflevering",
             "BACK_10_SECONDS": "10 seconden terug",
             "FORWARD_10_SECONDS": "10 seconden vooruit",
+            "JUMP_TO_LIVE": "Naar live springen",
             "LIVE_STREAM": "Live stream",
             "LIVE_BADGE": "LIVE",
             "PLAYBACK_POSITION": "Afspeelpositie",

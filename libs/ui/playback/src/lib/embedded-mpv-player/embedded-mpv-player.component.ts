@@ -685,6 +685,17 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         }
     }
 
+    /** Legacy dock only; the shared controls call the adapter themselves. */
+    jumpToLiveEdge(): void {
+        this.legacyInteractions.revealControls();
+        // Flashes even when already near live: "you are live" either way.
+        this.sharedControls.jumpToLiveEdge();
+        this.feedback.flash(
+            'fast_forward',
+            this.translate.instant('EMBEDDED_MPV.PLAYER.LIVE_BADGE')
+        );
+    }
+
     requestPreviousEpisode(): void {
         this.legacyInteractions.revealControls();
         if (!this.canPreviousEpisode()) {

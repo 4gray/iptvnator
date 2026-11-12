@@ -34,6 +34,7 @@ function createFakeController() {
         setAspectRatio: jest.fn(),
         toggleRecording: jest.fn(),
         togglePictureInPicture: jest.fn(),
+        jumpToLiveEdge: jest.fn(),
     };
     const controller: PlayerController = {
         capabilities,

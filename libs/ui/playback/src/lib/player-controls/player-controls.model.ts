@@ -27,6 +27,12 @@ export interface PlayerControlsCapabilities {
     seriesNavigation: boolean;
     /** Engine can report live stream data (resolution, frame rate, bitrate). */
     streamStats: boolean;
+    /**
+     * Live stream whose buffered data can be skipped to catch up with the
+     * broadcast (the "jump to live" button). Engine-specific: Embedded MPV
+     * enables it for live MPEG-TS only.
+     */
+    liveEdge: boolean;
 }
 
 // Canonical shape lives in @iptvnator/shared/interfaces so the Electron main
@@ -150,6 +156,8 @@ export interface PlayerControlsCommands {
     setAspectRatio(value: string): void;
     toggleRecording(): void;
     togglePictureInPicture(): void;
+    /** Skips buffered live data so playback runs close to the broadcast. */
+    jumpToLiveEdge(): void;
 }
 
 /**

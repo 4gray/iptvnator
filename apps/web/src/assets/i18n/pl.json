@@ -832,6 +832,7 @@
             "NEXT_EPISODE": "Następny odcinek",
             "BACK_10_SECONDS": "Cofnij o 10 sekund",
             "FORWARD_10_SECONDS": "Do przodu o 10 sekund",
+            "JUMP_TO_LIVE": "Przejdź na żywo",
             "LIVE_STREAM": "Transmisja na żywo",
             "LIVE_BADGE": "NA ŻYWO",
             "PLAYBACK_POSITION": "Pozycja odtwarzania",
