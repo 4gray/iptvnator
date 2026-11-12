@@ -70,12 +70,15 @@ export class AndroidTvPlayback {
             if (
                 Number.isSafeInteger(data.positionMs) &&
                 Number.isSafeInteger(data.durationMs) &&
-                Number.isSafeInteger(data.playedMs) &&
                 data.positionMs >= 0 &&
-                data.durationMs >= data.positionMs &&
-                data.playedMs >= PLAYBACK_CONFIRMATION_SECONDS * 1000
+                data.durationMs >= data.positionMs
             ) {
-                this.onWatched();
+                if (
+                    Number.isSafeInteger(data.playedMs) &&
+                    data.playedMs >= PLAYBACK_CONFIRMATION_SECONDS * 1000
+                ) {
+                    this.onWatched();
+                }
                 if (data.durationMs > 0) {
                     this.onPosition({
                         currentTime: data.positionMs / 1000,

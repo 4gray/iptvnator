@@ -42,7 +42,7 @@ it('reports only an owned natural end after recording the final position', () =>
         return id as string;
     }
 
-    function reply(id: string, ended: boolean) {
+    function reply(id: string, ended: boolean, playedMs = 9000) {
         window.dispatchEvent(
             new CustomEvent('iptvnator:android-playback-result', {
                 detail: {
@@ -50,7 +50,7 @@ it('reports only an owned natural end after recording the final position', () =>
                     result: {
                         positionMs: 9000,
                         durationMs: 9000,
-                        playedMs: 9000,
+                        playedMs,
                         ended,
                     },
                 },
@@ -59,19 +59,18 @@ it('reports only an owned natural end after recording the final position', () =>
     }
 
     try {
-        reply(open(), false);
-        expect(events).toEqual(['watched', 'position']);
+        reply(open(), false, 100);
+        expect(events).toEqual(['position']);
 
         const oldId = open();
         token.set(Symbol());
         reply(oldId, true);
-        expect(events).toEqual(['watched', 'position']);
+        expect(events).toEqual(['position']);
 
         const id = open();
         reply(id, true);
         reply(id, true);
         expect(events).toEqual([
-            'watched',
             'position',
             'watched',
             'position',
