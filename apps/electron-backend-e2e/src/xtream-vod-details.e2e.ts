@@ -58,6 +58,7 @@ test.describe('Xtream VOD Details', () => {
         const app = await launchElectronApp(dataDir);
 
         try {
+            await app.mainWindow.clock.install();
             await addXtreamPortal(app.mainWindow, {
                 ...emptyMetadataCredentials,
                 name: 'Xtream Empty Metadata',
@@ -146,7 +147,9 @@ test.describe('Xtream VOD Details', () => {
                 .hover({ position: { x: 8, y: 8 } });
             await copy.click();
             await expect(copy).toBeFocused();
-            await expect(header).toHaveCSS('opacity', '0');
+            await page.clock.fastForward(3500);
+            await expect(header).toHaveCSS('pointer-events', 'auto');
+            await expect(header).toHaveCSS('opacity', '1');
 
             await page.keyboard.press('Tab');
             await expect(close).toBeFocused();

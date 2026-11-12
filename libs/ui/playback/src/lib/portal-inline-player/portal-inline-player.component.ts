@@ -3,7 +3,6 @@ import {
     ChangeDetectionStrategy,
     Component,
     computed,
-    DestroyRef,
     effect,
     ElementRef,
     inject,
@@ -55,7 +54,6 @@ import {
 } from './portal-inline-player-stage.util';
 import { UpNextRailComponent } from './up-next-rail.component';
 import type { UpNextRailItem } from './up-next-rail.util';
-import { IdleControlsVisibility } from './idle-controls-visibility';
 
 @Component({
     selector: 'app-portal-inline-player',
@@ -139,12 +137,6 @@ export class PortalInlinePlayerComponent {
      */
     readonly playerOverride = input<VideoPlayer | null>(null);
     private readonly settingsStore = inject(SettingsStore);
-    /**
-     * Title row (name, copy-URL, close) visibility: shown on pointer
-     * activity over the viewport, hidden again once idle, matching standard
-     * video-player control behaviour instead of staying on screen forever.
-     */
-    protected readonly headerControls = new IdleControlsVisibility();
     // Strip only live-channel titles — VOD/series titles ("Mission:
     // Impossible - Fallout") must never lose their leading segment.
     readonly title = computed(() =>
@@ -326,15 +318,10 @@ export class PortalInlinePlayerComponent {
                 observeStageSize(element, (size) => this.stageSize.set(size))
             );
         });
-        inject(DestroyRef).onDestroy(() => this.headerControls.dispose());
     }
 
     onClose(): void {
         this.closed.emit();
-    }
-
-    onViewportActivity(): void {
-        this.headerControls.notifyActivity();
     }
 
     onTimeUpdate(event: { currentTime: number; duration: number }): void {
