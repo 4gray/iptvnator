@@ -155,6 +155,45 @@ describe('SecondStreamComponent', () => {
         expect(first.controller.sessionId()).toBe('first');
     });
 
+    it('waits for the companion mute before restoring sound on relock', async () => {
+        component.selection.set(selection);
+        component.swapped.set(true);
+        TestBed.tick();
+        let confirm!: () => void;
+        volume.mockImplementationOnce(
+            () =>
+                new Promise((resolve) => {
+                    confirm = () => resolve(null);
+                })
+        );
+
+        allowed.set(false);
+        TestBed.tick();
+        expect(component.active()).toBe(false);
+        expect(volume.mock.calls).toEqual([['second', 0]]);
+
+        confirm();
+        await Promise.resolve();
+        expect(volume.mock.calls).toEqual([
+            ['second', 0],
+            ['first', 0.5],
+        ]);
+    });
+
+    it('keeps primary audio muted if the relocked companion cannot acknowledge a mute', async () => {
+        component.selection.set(selection);
+        component.swapped.set(true);
+        volume.mockRejectedValueOnce(new Error('helper unavailable'));
+
+        allowed.set(false);
+        TestBed.tick();
+        await Promise.resolve();
+
+        expect(component.selection()).toBeNull();
+        expect(component.swapped()).toBe(false);
+        expect(volume.mock.calls).toEqual([['second', 0]]);
+    });
+
     it('does not unmute a companion that is locked during a swap', async () => {
         component.editing.set(true);
         await component.selectPlayback(selection);
@@ -171,9 +210,12 @@ describe('SecondStreamComponent', () => {
         expect(component.active()).toBe(false);
         confirm();
         expect(await pending).toBe(false);
+        TestBed.tick();
+        await Promise.resolve();
         expect(component.swapped()).toBe(false);
         expect(volume.mock.calls).toEqual([
             ['first', 0],
+            ['second', 0],
             ['first', 0.5],
         ]);
     });

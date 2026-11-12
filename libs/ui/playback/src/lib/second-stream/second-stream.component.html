@@ -1,21 +1,24 @@
 @if (available()) {
-    @if (playback(); as stream) {
+    @if (selection(); as current) {
         <section
             class="second-stream__video"
             [appSecondStreamFloating]="!swapped()"
+            [style.visibility]="active() ? null : 'hidden'"
             [class.second-stream__video--main]="swapped()"
             [attr.aria-label]="'TWO_STREAMS.SECOND' | translate"
         >
             <app-embedded-mpv-player
-                [playback]="stream"
+                [playback]="current.playback"
                 [initialVolumeOverride]="swapped() ? audibleVolume() : 0"
                 [retryEnabled]="!busy()"
-                [showControls]="swapped() && !busy()"
+                [showControls]="active() && swapped() && !busy()"
                 [fullscreenTarget]="fullscreenTarget()"
                 [recordingFolder]="primary().recordingFolder()"
                 (recordingStopped)="recordingStopped.emit($event)"
             />
         </section>
+    }
+    @if (active()) {
         <div
             class="second-stream__tile"
             [appSecondStreamFloating]="true"
