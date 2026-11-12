@@ -266,6 +266,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
 
     readonly catchUp = this.runtime.supportsProviderCatchUp
         ? createXtreamGuideCatchUp(
+              this.settings.resolvedEpgOffsetMinutes,
               (channel) => this.scopedItem(channel),
               (program, item, displayed) =>
                   this.playArchive?.(

@@ -98,6 +98,7 @@ describe('XtreamEpgGuideSourceService', () => {
     const lockRevision = signal(0);
     const sourceRevision = signal(0);
     const stripCountryPrefix = signal(false);
+    const epgOffsetMinutes = signal(0);
     const liveStreams = signal<XtreamLiveChannelItem[]>([]);
     const runtime = {
         supportsXtreamSqliteDataSource: true,
@@ -123,6 +124,7 @@ describe('XtreamEpgGuideSourceService', () => {
 
     beforeEach(() => {
         getFavorites.mockClear();
+        epgOffsetMinutes.set(0);
         currentPlaylist.set(playlist);
         selectedType.set('live');
         visibleCategories.set(categories);
@@ -183,6 +185,7 @@ describe('XtreamEpgGuideSourceService', () => {
                     provide: SettingsStore,
                     useValue: {
                         preferUploadedEpgOverXtream: signal(false),
+                        resolvedEpgOffsetMinutes: epgOffsetMinutes,
                         stripCountryPrefix,
                     },
                 },
@@ -256,6 +259,55 @@ describe('XtreamEpgGuideSourceService', () => {
             archived,
         ]);
     });
+
+    it.each([
+        { offset: -60, startMinutes: -30, stopMinutes: 30, canWatch: true },
+        { offset: 60, startMinutes: -75, stopMinutes: -30, canWatch: false },
+        {
+            offset: -60,
+            startMinutes: -1410,
+            stopMinutes: -1380,
+            canWatch: false,
+        },
+        { offset: 60, startMinutes: -1470, stopMinutes: -1410, canWatch: true },
+    ])(
+        'applies the EPG offset to archive eligibility ($offset min, start $startMinutes min)',
+        async ({ offset, startMinutes, stopMinutes, canWatch }) => {
+            liveStreams.set([
+                { ...one, tv_archive: 1, tv_archive_duration: 1 },
+            ]);
+            const [channel] = service.channels();
+            const now = Math.floor(Date.now() / 1000);
+            const start = now + startMinutes * 60;
+            const stop = now + stopMinutes * 60;
+            load.mockResolvedValue([program(101, start, stop)]);
+            const result = await service.loadPrograms({
+                channels: [channel],
+                fromMs: start * 1000,
+                toMs: stop * 1000,
+            });
+            const [programme] = result.get(channel.id)!;
+            const play = jest.fn();
+            service.bind(jest.fn(), undefined, undefined, play);
+            epgOffsetMinutes.set(offset);
+            expect(service.catchUp?.canWatch(channel, programme)).toBe(
+                canWatch
+            );
+            service.catchUp?.watch(channel, programme, [channel]);
+            if (canWatch) {
+                expect(play).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        startTimestamp: start,
+                        stopTimestamp: stop,
+                    }),
+                    expect.objectContaining({ xtream_id: one.xtream_id }),
+                    expect.any(Array)
+                );
+            } else {
+                expect(play).not.toHaveBeenCalled();
+            }
+        }
+    );
 
     it('strips channel prefixes from guide and search labels without changing their keys', async () => {
         liveStreams.set([{ ...one, title: 'DE: Synthetic Channel' }]);

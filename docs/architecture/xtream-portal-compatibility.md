@@ -783,6 +783,8 @@ open the shared multi-channel programme guide while a channel is playing.
 On desktop, past programmes in the grid can play from their own channel's
 archive within the provider's retention window. The grid uses the same archive
 playback path as the Live TV EPG panel and keeps its displayed channel order.
+The EPG time correction applies to the programme end and retention checks.
+Replay URLs keep the provider's original timestamps.
 With MPV or VLC selected, the preload must support session updates and closing
 an exact session, and the session must have opened before the guide can open.
 When the player reports the stream stopped, an open guide keeps its schedule

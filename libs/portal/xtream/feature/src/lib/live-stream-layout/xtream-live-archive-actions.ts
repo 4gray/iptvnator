@@ -4,6 +4,7 @@ import {
 } from '@iptvnator/portal/xtream/data-access';
 import {
     EpgProgram,
+    epgProviderClockMs,
     XTREAM_CLIENT_USER_AGENT,
 } from '@iptvnator/shared/interfaces';
 import {
@@ -27,6 +28,7 @@ export function supportsXtreamArchive(
 }
 
 export function createXtreamGuideCatchUp(
+    offsetMinutes: () => number,
     resolve: (channel: EpgGuideChannel) => XtreamLiveChannelItem | undefined,
     play: (
         program: EpgProgram,
@@ -45,7 +47,7 @@ export function createXtreamGuideCatchUp(
             program.stop,
             program.stopTimestamp
         );
-        const now = Date.now();
+        const now = epgProviderClockMs(Date.now(), offsetMinutes());
         return start &&
             stop &&
             stop > start &&
