@@ -15,6 +15,7 @@ describe('default-on settings coercion', () => {
             webPlayerSharedControls: false,
             portalConnectivityGuard: true,
             embeddedMpvAutoReconnect: true,
+            seriesAutoplay: true,
             showCoverTitles: true,
         });
     });
@@ -23,10 +24,11 @@ describe('default-on settings coercion', () => {
         expect(
             coerceProvidedDefaultOnSettings({
                 showCoverTitles: false,
+                seriesAutoplay: false,
                 embeddedMpvAutoReconnect: undefined,
                 language: undefined,
             })
-        ).toEqual({ showCoverTitles: false });
+        ).toEqual({ showCoverTitles: false, seriesAutoplay: false });
         expect(coerceProvidedDefaultOnSettings({})).toEqual({});
     });
 });
