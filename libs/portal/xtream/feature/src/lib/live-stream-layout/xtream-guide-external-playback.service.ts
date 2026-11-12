@@ -13,7 +13,6 @@ import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { ParentalLockService } from '@iptvnator/services';
 import type {
     EpgProgram,
-    ExternalPlayerSession,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import {
@@ -30,30 +29,11 @@ import {
     type XtreamLiveChannelItem,
 } from './xtream-live-channel-navigation.service';
 
-interface GuideLaunch {
-    lockSource: XtreamLiveSource;
-    item: XtreamLiveChannelItem;
-    archive: EpgProgram | null;
-    playback: ResolvedPortalPlayback;
-    ended?: () => false | 'ended' | 'failed';
-    retry?: boolean;
-    remote?: boolean;
-    onConfirmed?: () => void;
-}
-
-type ConfirmedLaunch = GuideLaunch & { session: ExternalPlayerSession };
-
-interface GuidePanel {
-    enabled(): boolean;
-    current(): ResolvedPortalPlayback | null;
-    currentItem(): XtreamLiveChannelItem | null;
-    select(item: XtreamLiveChannelItem): void;
-    restore(launch: GuideLaunch): void;
-    capture(
-        item: XtreamLiveChannelItem,
-        queue: readonly XtreamLiveChannelItem[]
-    ): void;
-}
+import type {
+    ConfirmedLaunch,
+    GuideLaunch,
+    GuidePanel,
+} from './xtream-native-handoff';
 
 /** The live panel follows confirmed playback, independently of browse previews. */
 @Injectable()
@@ -250,11 +230,13 @@ export class XtreamGuideExternalPlayback {
         archive: EpgProgram | null,
         categoryId: XtreamLiveSource['categoryId'],
         queue?: readonly XtreamLiveChannelItem[],
-        remote = false,
-        onConfirmed?: () => void,
-        launchId?: string
+        options: Pick<GuideLaunch, 'remote' | 'onConfirmed'> & {
+            launchId?: string;
+            replaceWith?: string;
+        } = {}
     ): void {
         if (!playback?.streamUrl) return;
+        const { remote, onConfirmed, launchId, replaceWith } = options;
         const owner = this.owner();
         const launch: GuideLaunch | undefined =
             owner && this.hasSessionUpdates
@@ -277,7 +259,14 @@ export class XtreamGuideExternalPlayback {
         this.panelPlayback = this.panel?.current() ?? playback;
         const source = launch?.lockSource;
         const lifecycle = source && this.sessions.begin(source, launchId);
-        const close = source && this.sessions.closeUnverifiedRetry(source);
+        const prior = replaceWith && this.confirmed()?.session;
+        const close =
+            source &&
+            this.sessions.closeBeforeTune(
+                source,
+                replaceWith,
+                prior ? prior.id : undefined
+            );
         if (launch)
             Object.assign(launch, { ended: lifecycle?.ended, retry: !!close });
         this.pending.set(launch);

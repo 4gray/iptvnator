@@ -103,6 +103,8 @@ export interface ExternalPlayerSession {
     error?: string;
     errorCode?: ExternalPlayerErrorCode;
     canClose: boolean;
+    /** The native player retained this session for an in-place media switch. */
+    reuseAvailable?: boolean;
     /** The app explicitly closed or cancelled this session. */
     closedByRequest?: true;
     /** Whether the running player has stopped this stream, when observable. */

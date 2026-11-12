@@ -334,8 +334,6 @@ export class VlcReusableProcess {
             if (cancelled()) return await settleCancelled();
             if (superseded()) return retire();
             if (lostChild()) return state.contentMutated ? retire() : null;
-            traceExternalPlayer('loaded new url in existing vlc instance');
-
             let lastSnapshot: ExternalPlaybackSnapshot | null = null;
             if (options.contentInfo) {
                 options.startPositionPolling(
@@ -368,7 +366,8 @@ export class VlcReusableProcess {
                         this.canPoll(reusedProcess, session.id)
                             ? reusedRcPort
                             : 0,
-                    options
+                    options,
+                    true
                 ) ?? session
             );
         } catch (error) {

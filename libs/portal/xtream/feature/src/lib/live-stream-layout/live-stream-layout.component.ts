@@ -1046,9 +1046,15 @@ export class LiveStreamLayoutComponent
             null,
             categoryId,
             this.channelNavigation.queueFor(item, scope, queuePolicy),
-            remote,
-            onConfirmed,
-            launchId
+            {
+                remote,
+                onConfirmed,
+                launchId,
+                replaceWith:
+                    remote || this.guide.isOpen()
+                        ? this.settingsStore.player?.()
+                        : undefined,
+            }
         );
     }
 
@@ -1432,7 +1438,12 @@ export class LiveStreamLayoutComponent
             item,
             program,
             this.activeLiveProviderCategoryId,
-            queue
+            queue,
+            {
+                replaceWith: this.guide.isOpen()
+                    ? this.settingsStore.player?.()
+                    : undefined,
+            }
         );
     }
 

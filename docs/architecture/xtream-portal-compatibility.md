@@ -792,7 +792,10 @@ while preserving their browsing state. Short screens show a compact dock so
 schedule rows remain visible. If an external channel switch fails and the
 player restores the previous session or rejects a switch while the old session
 is still playing, the guide keeps its scope and search. Enter and double-click
-close the guide only after the requested stream opens. A fresh or reused MPV
+close the guide only after the requested stream opens. A guide or remote switch
+reuses the managed player when available. Otherwise it waits for the exact
+previous process to exit before opening the new channel, so a one-connection
+account does not have two simultaneous streams. A fresh or reused MPV
 process with IPC confirms its requested playlist entry, including siblings left
 by nested redirects, and clears confirmation when that input ends or another
 entry takes over. A late load or replay of the same entry can confirm again.

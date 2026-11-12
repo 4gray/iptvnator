@@ -81,11 +81,17 @@ describe('sendMpvCommand', () => {
     it('opens a socketless guide launch without confirming media', () => {
         const session = externalPlayerSessions.beginSession({
             player: 'mpv',
+            launchId: 'synthetic-guide-launch',
             title: 'Synthetic Channel',
             streamUrl: 'https://example.test/synthetic.ts',
         });
-        expect(markMpvOpened(session.id, null, undefined, true)).toMatchObject({
+        expect(
+            markMpvOpened(session.id, null, undefined, {
+                confirmFreshMedia: true,
+            })
+        ).toMatchObject({
             status: 'opened',
+            reuseAvailable: false,
             mediaLoaded: false,
             playbackUnverified: true,
             mediaObservationUnavailable: true,

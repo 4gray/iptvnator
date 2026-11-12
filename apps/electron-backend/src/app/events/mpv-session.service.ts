@@ -379,7 +379,8 @@ async function launchMpvPlayer(
                 !tracksProcess ||
                 reusableMpvProcess.currentSessionId() === session.id,
             guideLaunch,
-            media
+            media,
+            tracksProcess
         );
         media?.settleDispatch();
         if (opened && !fallingBack && !requestedClose && !media?.stopped)

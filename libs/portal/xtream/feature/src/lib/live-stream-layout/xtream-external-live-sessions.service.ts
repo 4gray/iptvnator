@@ -19,6 +19,10 @@ import type {
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import type { XtreamLiveChannelItem } from './xtream-live-channel-navigation.service';
+import {
+    closeBeforeXtreamTune,
+    type OwnedSession,
+} from './xtream-native-handoff';
 
 export type XtreamLiveOwner = Pick<
     XtreamPlaylistData,
@@ -125,37 +129,33 @@ export class XtreamExternalLiveSessions {
         });
     }
 
-    state(
-        id: string
-    ):
-        | { session: ExternalPlayerSession; source: XtreamLiveSource }
-        | undefined {
+    state(id: string): Pick<Active, 'session' | 'source'> | undefined {
         this.revision();
         const entry = this.sessions.get(id);
         return entry?.launch?.cancelled ? undefined : entry;
     }
 
-    closeUnverifiedRetry(source: XtreamLiveSource): Promise<void> | undefined {
-        const active = this.playback?.activeSession();
-        const prior = active?.canClose && this.state(active.id);
-        if (
-            !prior ||
-            (prior.session.player !== 'mpv' &&
-                prior.session.player !== 'vlc') ||
-            !sameXtreamLiveOwner(prior.source, source) ||
-            prior.source.channel?.xtream_id !== source.channel?.xtream_id ||
-            prior.session.streamUrl !== source.playback?.streamUrl ||
-            (hasXtreamOpenedMedia(prior.session) &&
-                !prior.session.playbackUnverified)
-        )
-            return undefined;
-        const close = window.electron?.closeExternalPlayerSession;
-        if (!close)
-            return Promise.reject(new Error('Exact player close unavailable'));
-        return close(prior.session.id, true).then((result) => {
-            if (isLiveExternalPlayerSession(result))
-                throw new Error('Previous player is still open');
-        });
+    closeBeforeTune(
+        source: XtreamLiveSource,
+        player?: string,
+        confirmedId?: string
+    ) {
+        const ids = new Set([this.playback?.activeSession()?.id, confirmedId]);
+        const owned: OwnedSession[] = [];
+        for (const id of ids) {
+            const entry = id ? this.state(id) : undefined;
+            if (entry && sameXtreamLiveOwner(entry.source, source))
+                owned.push({
+                    session: entry.session,
+                    channelId: entry.source.channel?.xtream_id,
+                });
+        }
+        return closeBeforeXtreamTune(
+            owned,
+            source.channel?.xtream_id,
+            source.playback?.streamUrl,
+            player
+        );
     }
 
     latestOpened(

@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import { XtreamUrlService } from '@iptvnator/portal/xtream/data-access';
+import { VideoPlayer } from '@iptvnator/shared/interfaces';
 import { LiveStreamLayoutComponent } from './live-stream-layout.component';
 import { setupLiveStreamLayoutNativeFixture } from './live-stream-layout-native.test-fixture';
 import {
@@ -17,6 +18,7 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
         epgItems,
         onChannelChange,
         onRemoteControlCommand,
+        player,
         portalPlayer,
         publishExternalSession,
         restoreElectron,
@@ -25,6 +27,82 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
     } = setupLiveStreamLayoutNativeFixture();
 
     afterEach(restoreElectron);
+
+    it.each([VideoPlayer.MPV, VideoPlayer.VLC] as const)(
+        'closes the exact detached %s before tuning only the newest guide request',
+        async (preferred) => {
+            const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
+            const component = fixture.componentInstance;
+            const playing = { ...sampleChannel, category_id: 1 };
+            const next = { ...playing, xtream_id: playing.xtream_id + 1 };
+            const last = { ...playing, xtream_id: playing.xtream_id + 2 };
+            player.set(preferred);
+            emptyList.set([playing, next, last]);
+            portalPlayer.isEmbeddedPlayer.set(false);
+            fixture.detectChanges();
+            component.playLive(playing, true);
+            const current = {
+                id: 'synthetic-detached',
+                player: preferred,
+                status: 'playing',
+                title: 'Synthetic Channel',
+                streamUrl: component.activeStreamUrl(),
+                canClose: true,
+                reuseAvailable: false,
+                startedAt: '2026-04-04T10:00:00Z',
+                updatedAt: '2026-04-04T10:00:00Z',
+            } as const;
+            publishExternalSession(current);
+            fixture.detectChanges();
+            component.guide.open();
+            fixture.detectChanges();
+            const source = fixture.debugElement.injector.get(
+                XtreamEpgGuideSourceService
+            );
+            let finish!: () => void;
+            const wait = new Promise<void>((resolve) => {
+                finish = resolve;
+            });
+            const close = jest.fn((_id: string, _exact?: boolean) => wait);
+            Object.defineProperty(
+                window.electron,
+                'closeExternalPlayerSession',
+                {
+                    value: close,
+                    configurable: true,
+                }
+            );
+            const newestUrl = 'https://example.test/synthetic-newest.ts';
+            xtreamStore.constructStreamUrl
+                .mockReturnValueOnce('https://example.test/synthetic-next.ts')
+                .mockReturnValueOnce(newestUrl);
+            source.activate(String(next.xtream_id));
+            source.activate(String(last.xtream_id));
+            expect(close).toHaveBeenCalledWith(current.id, true);
+            expect(
+                close.mock.calls.every((args) => args[0] === current.id)
+            ).toBe(true);
+            expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(1);
+            publishExternalSession({
+                ...current,
+                status: 'closed',
+                canClose: false,
+                closedByRequest: true,
+            });
+            fixture.detectChanges();
+            expect(component.guide.isOpen()).toBe(true);
+            xtreamStore.openPlayer.mockReturnValueOnce(
+                new Promise(() => undefined)
+            );
+            finish();
+            await wait;
+            await Promise.resolve();
+            await Promise.resolve();
+            await fixture.whenStable();
+            expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(2);
+            expect(xtreamStore.openPlayer.mock.lastCall?.[0]).toBe(newestUrl);
+        }
+    );
 
     it('defers live history under the exact native launch sent to the player', () => {
         const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
@@ -254,13 +332,17 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
             const component = fixture.componentInstance;
             const first = { ...sampleChannel, category_id: 1 };
             const next = { ...first, xtream_id: 202 };
+            const preferred = outcome.includes('VLC')
+                ? VideoPlayer.VLC
+                : VideoPlayer.MPV;
+            player.set(preferred);
             emptyList.set([first, next]);
             portalPlayer.isEmbeddedPlayer.set(false);
             fixture.detectChanges();
             component.playLive(first, true);
             const current = {
                 id: 'synthetic-current',
-                player: 'mpv',
+                player: preferred,
                 status: 'opened',
                 title: 'Synthetic Channel',
                 streamUrl: component.activeStreamUrl(),
@@ -304,9 +386,6 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
             expect(committed).not.toHaveBeenCalled();
             const replacement = {
                 ...current,
-                player: outcome.includes('VLC')
-                    ? ('vlc' as const)
-                    : current.player,
                 id: 'synthetic-confirmed',
                 streamUrl: nextUrl,
             };

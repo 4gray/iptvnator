@@ -765,7 +765,8 @@ export async function openVlcPlayer({
             markVlcOpened(
                 session.id,
                 () => getPlaybackRcPort(),
-                effectiveRequest
+                effectiveRequest,
+                reuseInstance
             ) ?? session
         );
     } catch (error) {

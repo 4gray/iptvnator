@@ -9,6 +9,7 @@ import type {
     EpgProgram,
     ExternalPlayerSession,
 } from '@iptvnator/shared/interfaces';
+import { VideoPlayer } from '@iptvnator/shared/interfaces';
 import { LiveStreamLayoutComponent } from './live-stream-layout.component';
 import { setupLiveStreamLayoutNativeFixture } from './live-stream-layout-native.test-fixture';
 import { XtreamEpgGuideSourceService } from './xtream-epg-guide-source.service';
@@ -34,6 +35,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
         databaseService,
         runtime,
         portalPlayer,
+        player,
         closeSession,
         updateRemoteControlStatus,
         onExternalPlayerSessionUpdate,
@@ -66,6 +68,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
             .componentInstance as StubWebPlayerViewComponent;
 
     function openExternalGuide(): ExternalPlayerSession {
+        player.set(VideoPlayer.VLC);
         portalPlayer.isEmbeddedPlayer.set(false);
         component.playLive(sampleChannel, true);
         const session: ExternalPlayerSession = {
@@ -292,6 +295,7 @@ describe('LiveStreamLayoutComponent catch-up timeline segments', () => {
     );
 
     it('allows retry after a replacement opens and closes before rendering', async () => {
+        player.set(VideoPlayer.VLC);
         const playing = { ...sampleChannel, category_id: 1 };
         const next = { ...playing, xtream_id: 102 };
         emptyList.set([playing, next]);

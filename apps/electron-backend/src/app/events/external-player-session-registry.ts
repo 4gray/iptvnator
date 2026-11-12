@@ -20,6 +20,7 @@ interface UpdateExternalPlayerSessionOptions {
     error?: string;
     errorCode?: ExternalPlayerErrorCode;
     canClose?: boolean;
+    reuseAvailable?: boolean;
     closedByRequest?: true;
     playbackIdle?: boolean;
     playbackUnverified?: boolean;

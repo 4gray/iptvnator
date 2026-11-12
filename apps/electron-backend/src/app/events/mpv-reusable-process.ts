@@ -326,7 +326,9 @@ export class MpvReusableProcess {
                     reusedSocketPath,
                     () =>
                         this.process === reusedProcess &&
-                        this.processSessionIds.get(reusedProcess) === session.id
+                        this.processSessionIds.get(reusedProcess) ===
+                            session.id,
+                    { reuseAvailable: true }
                 ) ?? session
             );
         } catch (error) {

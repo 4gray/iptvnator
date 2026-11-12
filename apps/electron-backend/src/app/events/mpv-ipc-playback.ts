@@ -65,20 +65,22 @@ export function markMpvOpened(
     sessionId: string,
     socketPath?: string | null,
     hasOwner = () => true,
-    confirmFreshMedia = false
+    { confirmFreshMedia = false, reuseAvailable = false } = {}
 ) {
     const current = externalPlayerSessions.getSession(sessionId);
-    if (
-        confirmFreshMedia &&
-        current?.status === 'launching' &&
-        current.mediaLoaded !== true
-    )
+    if (current?.launchId && current.status === 'launching')
         externalPlayerSessions.updateSession(sessionId, {
-            mediaLoaded: false,
-            playbackUnverified: socketPath ? current.playbackUnverified : true,
-            mediaObservationUnavailable: socketPath
-                ? current.mediaObservationUnavailable
-                : true,
+            reuseAvailable,
+            ...(confirmFreshMedia &&
+                current.mediaLoaded !== true && {
+                    mediaLoaded: false,
+                    playbackUnverified: socketPath
+                        ? current.playbackUnverified
+                        : true,
+                    mediaObservationUnavailable: socketPath
+                        ? current.mediaObservationUnavailable
+                        : true,
+                }),
         });
     return markExternalPlayerOpened(
         sessionId,
@@ -106,7 +108,8 @@ export async function completeFreshMpvLaunch(
     socketPath: string | null,
     hasOwner: () => boolean,
     guideLaunch: boolean,
-    media?: ReturnType<typeof prepareFreshMpvMedia>
+    media: ReturnType<typeof prepareFreshMpvMedia> | undefined,
+    tracksProcess: boolean
 ): Promise<ExternalPlayerSession | null> {
     const signal = media?.signal;
     if (socketPath && signal && !signal.aborted) {
@@ -134,7 +137,10 @@ export async function completeFreshMpvLaunch(
         session.id,
         guideLaunch && !signal ? null : socketPath,
         hasOwner,
-        guideLaunch
+        {
+            confirmFreshMedia: guideLaunch,
+            reuseAvailable: tracksProcess && !!media,
+        }
     );
     return externalPlayerSessions.getSession(session.id) ?? session;
 }

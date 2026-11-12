@@ -96,6 +96,7 @@ export function setupLiveStreamLayoutNativeFixture() {
         const launchId = typeof candidate === 'string' ? candidate : undefined;
         if (launchId) launchIds.set(session.id, launchId);
         onExternalPlayerSessionUpdate.mock.lastCall?.[0]({
+            reuseAvailable: true,
             ...session,
             launchId,
         });
@@ -290,6 +291,7 @@ export function setupLiveStreamLayoutNativeFixture() {
         restoreElectron,
         onChannelChange,
         onRemoteControlCommand,
+        player,
         mpvPlayerPath,
         xtreamStore,
     };

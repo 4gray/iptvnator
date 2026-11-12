@@ -237,7 +237,8 @@ function readVlcInput(response: string): string | undefined {
 export function markVlcOpened(
     sessionId: string,
     getPort: () => VlcRcAddress,
-    request: VlcGuidePlaylistRequest
+    request: VlcGuidePlaylistRequest,
+    reuseInstance: boolean
 ) {
     const session = externalPlayerSessions.getSession(sessionId);
     const mediaUrl =
@@ -247,6 +248,7 @@ export function markVlcOpened(
     const port = getPort();
     if (mediaUrl && session?.status === 'launching')
         externalPlayerSessions.updateSession(sessionId, {
+            reuseAvailable: reuseInstance && typeof port === 'string',
             mediaLoaded: false,
             playbackUnverified: port ? undefined : true,
             mediaObservationUnavailable: port ? undefined : true,
