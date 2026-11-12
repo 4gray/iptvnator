@@ -33,7 +33,8 @@ import { provideFormFieldDefaults } from '@iptvnator/ui/components/form-field-de
 })
 export class SettingsGeneralSectionComponent {
     readonly form = input.required<FormGroup>();
-    protected readonly androidShellControls = getAndroidShellControls();
+    protected readonly legacyAndroidShellControls =
+        this.getLegacyAndroidShellControls();
 
     constructor() {
         // Parent patches (Discard, backup import) change the form outside
@@ -48,4 +49,11 @@ export class SettingsGeneralSectionComponent {
     /** Desktop only: the window-mode select needs the main-process mirror and F11 */
     readonly supportsStartupWindowMode = input(false);
     readonly supportsPortalConnectivityGuard = input(false);
+
+    private getLegacyAndroidShellControls() {
+        const controls = getAndroidShellControls();
+        return typeof controls?.openSettingsSection === 'function'
+            ? undefined
+            : controls;
+    }
 }

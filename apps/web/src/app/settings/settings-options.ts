@@ -159,17 +159,20 @@ export interface SettingsSectionVisibility {
     supportsEpg: boolean;
     supportsRemoteControl: boolean;
     supportsServerStorage: boolean;
+    supportsAndroidSettings?: boolean;
 }
 
 export function buildSettingsSectionNavItems({
     supportsEpg,
     supportsRemoteControl,
     supportsServerStorage,
+    supportsAndroidSettings = false,
 }: SettingsSectionVisibility): SettingsSection[] {
     const capabilities = {
         'epg-display': supportsEpg,
         'remote-control': supportsRemoteControl,
         'server-storage': supportsServerStorage,
+        'android-settings': supportsAndroidSettings,
     };
     return SETTINGS_SECTION_DEFINITIONS.map((section) => ({
         id: section.id,

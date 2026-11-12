@@ -18,7 +18,7 @@
         <h2>{{ 'HOSTED_SERVER.CLIENT_TITLE' | translate }}</h2>
         <p>
             {{
-                (supportsHosting
+                (supportsHosting || androidSettings
                     ? 'HOSTED_SERVER.CLIENT_DESCRIPTION'
                     : 'SOURCE_SYNC.DESCRIPTION'
                 ) | translate
@@ -39,6 +39,40 @@
         >
     </header>
     <div class="settings-card server-fields" data-setting-id="source-server">
+        @let showSourceForm = showSourceConnectionForm();
+        @let showSourceCredentials =
+            showSourceForm || sync.state() === 'locked';
+        @if (androidSettings; as controls) {
+            <div class="server-actions">
+                <button
+                    type="button"
+                    mat-flat-button
+                    class="settings-primary-button"
+                    aria-haspopup="dialog"
+                    [disabled]="busy()"
+                    (click)="controls.openSettingsSection('server')"
+                    data-test-id="android-library-connection"
+                >
+                    {{ 'SETTINGS.ANDROID_LIBRARY_CONNECTION' | translate }}
+                </button>
+                @if (!sync.connection && !sync.connectionReadFailed) {
+                    <button
+                        type="button"
+                        mat-button
+                        [disabled]="busy()"
+                        [attr.aria-expanded]="directSourceConnection()"
+                        (click)="
+                            directSourceConnection.set(
+                                !directSourceConnection()
+                            )
+                        "
+                        data-test-id="android-source-sync-options"
+                    >
+                        {{ 'SETTINGS.ANDROID_SOURCE_SYNC_OPTIONS' | translate }}
+                    </button>
+                }
+            </div>
+        }
         @if (sync.connection) {
             <app-settings-sync-status
                 [state]="checking() ? 'connecting' : sync.state()"
@@ -70,41 +104,49 @@
                 </div>
             }
         }
-        <mat-form-field appearance="outline">
-            <mat-label>{{ 'SOURCE_SYNC.URL' | translate }}</mat-label>
-            <input
-                matInput
-                name="sourceServerUrl"
-                type="url"
-                [formControl]="urlControl"
-                [readOnly]="busy()"
-                placeholder="http://192.168.1.20:4333"
-                autocomplete="url"
-                data-test-id="source-server-url"
-            />
-            <mat-hint>{{
-                'SOURCE_SYNC.URL_HINT'
-                    | translate: { example: 'http://192.168.1.20:4333' }
-            }}</mat-hint>
-            <mat-error>{{ 'SOURCE_SYNC.URL_INVALID' | translate }}</mat-error>
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-            <mat-label>{{ 'SOURCE_SYNC.TOKEN' | translate }}</mat-label>
-            <input
-                matInput
-                name="sourceServerToken"
-                type="password"
-                [(ngModel)]="token"
-                [ngModelOptions]="{ standalone: true }"
-                autocomplete="off"
-                [readOnly]="busy()"
-                data-test-id="source-server-token"
-            />
-            <mat-hint>{{ 'SOURCE_SYNC.TOKEN_HINT' | translate }}</mat-hint>
-        </mat-form-field>
-        <p class="server-message">
-            {{ 'SOURCE_SYNC.RESTART_HINT' | translate }}
-        </p>
+        @if (showSourceForm) {
+            <mat-form-field appearance="outline">
+                <mat-label>{{ 'SOURCE_SYNC.URL' | translate }}</mat-label>
+                <input
+                    matInput
+                    name="sourceServerUrl"
+                    type="url"
+                    [formControl]="urlControl"
+                    [readOnly]="busy()"
+                    placeholder="http://192.168.1.20:4333"
+                    autocomplete="url"
+                    data-test-id="source-server-url"
+                />
+                <mat-hint>{{
+                    'SOURCE_SYNC.URL_HINT'
+                        | translate: { example: 'http://192.168.1.20:4333' }
+                }}</mat-hint>
+                <mat-error>{{
+                    'SOURCE_SYNC.URL_INVALID' | translate
+                }}</mat-error>
+            </mat-form-field>
+        }
+        @if (showSourceCredentials) {
+            <mat-form-field appearance="outline">
+                <mat-label>{{ 'SOURCE_SYNC.TOKEN' | translate }}</mat-label>
+                <input
+                    matInput
+                    name="sourceServerToken"
+                    type="password"
+                    [(ngModel)]="token"
+                    [ngModelOptions]="{ standalone: true }"
+                    autocomplete="off"
+                    [readOnly]="busy()"
+                    data-test-id="source-server-token"
+                />
+                <mat-hint>{{ 'SOURCE_SYNC.TOKEN_HINT' | translate }}</mat-hint>
+            </mat-form-field>
+        }
+        @if (showSourceForm) {
+            <p class="server-message">
+                {{ 'SOURCE_SYNC.RESTART_HINT' | translate }}
+            </p>
+        }
         <div class="server-actions">
             @if (sync.connection) {
                 <button
@@ -129,43 +171,48 @@
                     {{ 'SOURCE_SYNC.IMPORT' | translate }}
                 </button>
             }
-            @if (sync.connection || sync.connectionReadFailed) {
+            @if (
+                showSourceForm && (sync.connection || sync.connectionReadFailed)
+            ) {
                 <button
                     type="button"
                     mat-flat-button
                     class="app-destructive-button"
                     [disabled]="busy()"
                     (click)="disconnect()"
+                    data-test-id="source-server-disconnect"
                 >
                     {{ 'SOURCE_SYNC.DISCONNECT' | translate }}
                 </button>
             }
-            <button
-                type="button"
-                mat-flat-button
-                [disabled]="
-                    busy() ||
-                    !urlControl.value.trim() ||
-                    (isCurrentServer() &&
-                        !token &&
-                        sync.state() === 'connected')
-                "
-                [attr.aria-busy]="connecting()"
-                (click)="connect()"
-                class="settings-primary-button server-connect"
-                data-test-id="source-server-connect"
-            >
-                {{
-                    (connecting()
-                        ? 'SOURCE_SYNC.STATE_connecting'
-                        : isCurrentServer() &&
+            @if (showSourceCredentials) {
+                <button
+                    type="button"
+                    mat-flat-button
+                    [disabled]="
+                        busy() ||
+                        !urlControl.value.trim() ||
+                        (isCurrentServer() &&
                             !token &&
-                            sync.state() === 'connected'
-                          ? 'SOURCE_SYNC.STATE_connected'
-                          : 'SOURCE_SYNC.CONNECT'
-                    ) | translate
-                }}
-            </button>
+                            sync.state() === 'connected')
+                    "
+                    [attr.aria-busy]="connecting()"
+                    (click)="connect()"
+                    class="settings-primary-button server-connect"
+                    data-test-id="source-server-connect"
+                >
+                    {{
+                        (connecting()
+                            ? 'SOURCE_SYNC.STATE_connecting'
+                            : isCurrentServer() &&
+                                !token &&
+                                sync.state() === 'connected'
+                              ? 'SOURCE_SYNC.STATE_connected'
+                              : 'SOURCE_SYNC.CONNECT'
+                        ) | translate
+                    }}
+                </button>
+            }
         </div>
         @if (preview(); as sources) {
             <section

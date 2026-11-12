@@ -1,7 +1,10 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TranslateModule } from '@ngx-translate/core';
-import type { Playlist } from '@iptvnator/shared/interfaces';
+import {
+    type Playlist,
+    type SourceServerConnection,
+} from '@iptvnator/shared/interfaces';
 import { SourceSyncService } from '@iptvnator/services/source-sync';
 import { SettingsServerSectionComponent } from './settings-server-section.component';
 
@@ -14,12 +17,22 @@ describe('source server settings', () => {
     >;
     const originalElectron = window.electron;
     const originalFetch = globalThis.fetch;
+    const originalAndroidShell = Object.getOwnPropertyDescriptor(
+        window,
+        '__tvShell'
+    );
+    const defaultConnection = {
+        apiUrl: 'https://nas.test/api',
+        instanceId: 'nas',
+    };
     const sync = {
-        connection: { apiUrl: 'https://nas.test/api', instanceId: 'nas' },
+        connection: null as SourceServerConnection | null,
+        connectionReadFailed: false,
         state: signal('connected'),
         stateKey: signal('SOURCE_SYNC.STATE_connected'),
         errorKey: signal<string | null>(null),
         lastSync: signal<number | null>(null),
+        errorKey: signal<string | null>(null),
         refresh: jest.fn(),
     };
     const local = {
@@ -34,6 +47,8 @@ describe('source server settings', () => {
 
     beforeEach(async () => {
         jest.clearAllMocks();
+        sync.connection = { ...defaultConnection };
+        sync.connectionReadFailed = false;
         sync.state.set('connected');
         sync.errorKey.set(null);
         sync.refresh.mockResolvedValue(undefined);
@@ -56,8 +71,37 @@ describe('source server settings', () => {
     afterEach(() => {
         window.electron = originalElectron;
         globalThis.fetch = originalFetch;
+        if (originalAndroidShell) {
+            Object.defineProperty(window, '__tvShell', originalAndroidShell);
+        } else {
+            Reflect.deleteProperty(window, '__tvShell');
+        }
         TestBed.resetTestingModule();
     });
+
+    function useAndroidShell(
+        shell: { handheld: boolean; openSettingsSection?: jest.Mock },
+        connection: SourceServerConnection | null
+    ): void {
+        fixture.destroy();
+        sync.connection = connection;
+        Object.defineProperty(window, '__tvShell', {
+            configurable: true,
+            value: {
+                openDeviceSettings: jest.fn(),
+                openExternal: jest.fn(),
+                ...shell,
+            },
+        });
+        fixture = TestBed.createComponent(SettingsServerSectionComponent);
+        fixture.detectChanges();
+    }
+
+    function findControl(testId: string): HTMLElement | null {
+        return fixture.nativeElement.querySelector(
+            `[data-test-id="${testId}"]`
+        );
+    }
 
     it('shows connection status and editable API address in both runtimes', () => {
         expect(
@@ -98,6 +142,114 @@ describe('source server settings', () => {
         await fixture.whenStable();
         fixture.detectChanges();
         expect(status?.textContent).toContain('SOURCE_SYNC.INSTANCE_CHANGED');
+    });
+
+    describe('Android library connection', () => {
+        const sameOriginConnection = {
+            apiUrl: `${location.origin}/api`,
+            instanceId: 'nas',
+        };
+        const openSettingsSection = jest.fn();
+
+        it('opens native Server settings and omits the browser connection form for a local library', () => {
+            sync.state.set('local');
+            useAndroidShell({ handheld: true, openSettingsSection }, null);
+
+            const action = findControl('android-library-connection');
+            expect(action?.textContent).toContain(
+                'SETTINGS.ANDROID_LIBRARY_CONNECTION'
+            );
+            action?.click();
+            expect(openSettingsSection).toHaveBeenCalledWith('server');
+            expect(findControl('source-server-url')).toBeNull();
+            expect(findControl('source-server-token')).toBeNull();
+            expect(findControl('source-server-connect')).toBeNull();
+            expect(findControl('source-server-disconnect')).toBeNull();
+        });
+
+        it('keeps shared-library actions and shows the access token if the hosted library locks', () => {
+            useAndroidShell(
+                { handheld: true, openSettingsSection },
+                sameOriginConnection
+            );
+
+            expect(findControl('source-server-refresh')).not.toBeNull();
+            expect(findControl('source-server-import')).not.toBeNull();
+            expect(findControl('source-server-token')).toBeNull();
+            expect(findControl('source-server-connect')).toBeNull();
+            expect(findControl('source-server-disconnect')).toBeNull();
+
+            sync.state.set('locked');
+            fixture.detectChanges();
+            expect(findControl('source-server-url')).toBeNull();
+            expect(findControl('source-server-token')).not.toBeNull();
+            expect(findControl('source-server-connect')).not.toBeNull();
+            expect(findControl('source-server-disconnect')).toBeNull();
+        });
+
+        it('opens the direct source sync form on demand from a local library', () => {
+            sync.state.set('local');
+            useAndroidShell({ handheld: true, openSettingsSection }, null);
+
+            const options = findControl('android-source-sync-options');
+            expect(options?.getAttribute('aria-expanded')).toBe('false');
+            options?.click();
+            fixture.detectChanges();
+            expect(options?.getAttribute('aria-expanded')).toBe('true');
+            expect(findControl('source-server-url')).not.toBeNull();
+            expect(findControl('source-server-token')).not.toBeNull();
+            expect(findControl('source-server-connect')).not.toBeNull();
+            options?.click();
+            fixture.detectChanges();
+            expect(findControl('source-server-url')).toBeNull();
+        });
+
+        it('retains editable address and disconnect for a different source server', () => {
+            useAndroidShell(
+                { handheld: true, openSettingsSection },
+                defaultConnection
+            );
+
+            expect(findControl('android-library-connection')).not.toBeNull();
+            expect(findControl('source-server-url')).not.toBeNull();
+            expect(findControl('source-server-connect')).not.toBeNull();
+            expect(findControl('source-server-disconnect')).not.toBeNull();
+        });
+
+        it('keeps source reconnect and disconnect available after a server identity change', () => {
+            useAndroidShell(
+                { handheld: true, openSettingsSection },
+                sameOriginConnection
+            );
+            sync.errorKey.set('SOURCE_SYNC.INSTANCE_CHANGED');
+            fixture.detectChanges();
+
+            expect(findControl('source-server-url')).not.toBeNull();
+            expect(findControl('source-server-connect')).not.toBeNull();
+            expect(findControl('source-server-disconnect')).not.toBeNull();
+        });
+
+        it('keeps source recovery controls for an unreadable connection', () => {
+            sync.connectionReadFailed = true;
+            useAndroidShell({ handheld: true, openSettingsSection }, null);
+
+            expect(findControl('source-server-url')).not.toBeNull();
+            expect(findControl('source-server-disconnect')).not.toBeNull();
+        });
+
+        it.each([
+            ['older phone shells', { handheld: true }],
+            ['TV shells', { handheld: false, openSettingsSection }],
+        ] as const)(
+            'keeps the source connection form on %s',
+            (_runtime, shell) => {
+                useAndroidShell(shell, sameOriginConnection);
+
+                expect(findControl('android-library-connection')).toBeNull();
+                expect(findControl('source-server-url')).not.toBeNull();
+                expect(findControl('source-server-connect')).not.toBeNull();
+            }
+        );
     });
 
     it('previews the preserved local sources before sending anything', async () => {
@@ -382,9 +534,10 @@ describe('source server settings', () => {
             window.electron = {
                 sourceSyncConfigure: configure,
             } as unknown as typeof window.electron;
-            const original = sync.connection.apiUrl;
+            const connection = sync.connection!;
+            const original = connection.apiUrl;
             try {
-                sync.connection.apiUrl = apiUrl;
+                connection.apiUrl = apiUrl;
                 fixture.componentInstance.urlControl.setValue(apiUrl);
                 fixture.componentInstance.token = 'renewed-token';
                 await fixture.componentInstance.connect();
@@ -394,7 +547,7 @@ describe('source server settings', () => {
                     false
                 );
             } finally {
-                sync.connection.apiUrl = original;
+                connection.apiUrl = original;
             }
         }
     );

@@ -148,6 +148,15 @@
                     @case ('server') {
                         <app-settings-server-section />
                     }
+                    @case ('android-device') {
+                        @if (androidSettingsControls; as controls) {
+                            <app-settings-android-device-section
+                                (openAdvanced)="
+                                    controls.openSettingsSection('device')
+                                "
+                            />
+                        }
+                    }
                     @case ('backup') {
                         <!-- Backup & data: the former Reset page is this
                              page's last card, since it is one action. -->

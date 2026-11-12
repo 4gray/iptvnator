@@ -26,6 +26,7 @@ import { SettingsContextService } from '@iptvnator/workspace/shell/util/settings
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
     EpgSourceReconciliationError,
+    getAndroidSettingsControls,
     RuntimeCapabilitiesService,
     ServerStorageStatusService,
     injectTranslationTick,
@@ -40,6 +41,7 @@ import {
 import { firstValueFrom, map } from 'rxjs';
 import { BUILD_COMMIT } from '../../environments/build-commit';
 import { SettingsAboutSectionComponent } from './settings-about-section.component';
+import { SettingsAndroidDeviceSectionComponent } from './settings-android-device-section.component';
 import { SettingsAppUpdateFacade } from './settings-app-update.facade';
 import { SettingsBackupSectionComponent } from './settings-backup-section.component';
 import {
@@ -111,6 +113,7 @@ import { SettingsSnackbarService } from './settings-snackbar.service';
         ReactiveFormsModule,
         TranslateModule,
         SettingsAboutSectionComponent,
+        SettingsAndroidDeviceSectionComponent,
         SettingsBackupSectionComponent,
         SettingsDashboardSectionComponent,
         SettingsEpgSectionComponent,
@@ -179,6 +182,7 @@ export class SettingsComponent
 
     /** Flag that indicates whether the app runs in electron environment */
     readonly isDesktop = this.runtime.isElectron;
+    protected readonly androidSettingsControls = getAndroidSettingsControls();
     readonly isPwa = this.runtime.isPwa;
     readonly supportsDesktopFileSave = this.runtime.supportsDesktopFileSave;
     readonly supportsEpg = this.form.supportsEpg;
@@ -256,6 +260,7 @@ export class SettingsComponent
         supportsEpg: this.form.supportsEpgDisplay,
         supportsRemoteControl: this.supportsRemoteControl,
         supportsServerStorage: this.supportsServerStorage,
+        supportsAndroidSettings: !!this.androidSettingsControls,
     });
 
     get sectionNav(): SettingsSection[] {

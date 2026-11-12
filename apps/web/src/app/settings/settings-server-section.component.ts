@@ -1,5 +1,8 @@
 import { SettingsHostedServerComponent } from './settings-hosted-server.component';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    getAndroidSettingsControls,
+    RuntimeCapabilitiesService,
+} from '@iptvnator/services';
 import { SettingsHistorySectionComponent } from './settings-history-section.component';
 import { SettingsFavoritesSectionComponent } from './settings-favorites-section.component';
 import {
@@ -72,6 +75,19 @@ export class SettingsServerSectionComponent {
     readonly sync = inject(SourceSyncService);
     readonly supportsHosting = inject(RuntimeCapabilitiesService)
         .supportsHostedServer;
+    protected readonly androidSettings = getAndroidSettingsControls();
+    protected readonly directSourceConnection = signal(false);
+    protected readonly showSourceConnectionForm = computed(() => {
+        const connection = this.sync.connection;
+        return (
+            !this.androidSettings ||
+            this.directSourceConnection() ||
+            this.sync.connectionReadFailed ||
+            this.sync.errorKey() === 'SOURCE_SYNC.INSTANCE_CHANGED' ||
+            (!!connection &&
+                new URL(connection.apiUrl).origin !== location.origin)
+        );
+    });
 
     readonly hostedServer = viewChild(SettingsHostedServerComponent);
     readonly localServerUrl = computed(

@@ -71,6 +71,15 @@ describe('Android Device settings', () => {
         ['browser and desktop', undefined],
         ['Android TV', { handheld: false, openDeviceSettings, openExternal }],
         [
+            'handheld with dedicated settings pages',
+            {
+                handheld: true,
+                openDeviceSettings,
+                openExternal,
+                openSettingsSection: jest.fn(),
+            },
+        ],
+        [
             'handheld missing the native action',
             { handheld: true, openExternal },
         ],
