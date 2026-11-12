@@ -165,7 +165,10 @@
                     </section>
                 }
                 @if (deviceControlAvailable) {
-                    <app-settings-hosted-devices [lanAvailable]="!!lanUrl()" />
+                    <app-settings-hosted-devices
+                        [lanAvailable]="!!lanUrl()"
+                        [httpsOrigin]="status().httpsOrigin"
+                    />
                 }
                 <section
                     class="hosted-panel hosted-stack"

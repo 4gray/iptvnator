@@ -2351,6 +2351,17 @@
         }
     },
     "HOSTED_SERVER": {
+        "PHONE_PAIRING_TITLE": "スマートフォンでテレビを承認",
+        "PHONE_PAIRING_DESCRIPTION": "テレビに表示された QR コードを読み取ったあと、スマートフォンでテレビのペアリングを承認するための専用パスワードを設定します。Web プレーヤーを開くには、引き続き視聴用アクセスコードを使います。",
+        "PHONE_PASSWORD_LABEL": "スマートフォン承認用パスワード",
+        "PHONE_PASSWORD_LENGTH": "{{min}}～{{max}} 文字",
+        "PHONE_PASSWORD_SAVE": "パスワードを保存",
+        "PHONE_PASSWORD_CLEAR": "パスワードを削除",
+        "PHONE_PASSWORD_CLEAR_CONFIRM": "新しいテレビのペアリングをスマートフォンで承認できなくなります。すでにペアリング済みの機器は引き続きアクセスできます。",
+        "PHONE_PASSWORD_SAVED": "スマートフォン承認用パスワードを保存しました。",
+        "PHONE_PASSWORD_CLEARED": "スマートフォン承認用パスワードを削除しました。",
+        "PHONE_PASSWORD_LOAD_FAILED": "スマートフォン承認の設定を読み込めませんでした。",
+        "PHONE_PASSWORD_UPDATE_FAILED": "スマートフォン承認用パスワードを更新できませんでした。もう一度お試しください。",
         "TITLE": "このコンピューターのサーバー",
         "DESCRIPTION": "IPTVnator の起動中は、ウィンドウを最小化しても動作します。アプリを終了するとサーバーは停止します。",
         "SETUP_GUIDE": "このコンピューターでサーバーを起動する方法",

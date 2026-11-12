@@ -1,12 +1,16 @@
 export const HOSTED_SERVER_CONTROL = 'hosted-server:control';
 export const HOSTED_SERVER_ACCESS_CODE = 'hosted-server:access-code';
 export const HOSTED_DEVICE_CONTROL = 'hosted-server:devices';
+export const HOSTED_PAIRING_PASSWORD_MIN_LENGTH = 12;
+export const HOSTED_PAIRING_PASSWORD_MAX_LENGTH = 128;
 
 export type HostedDeviceCommand =
     | { action: 'invite' }
     | { action: 'list' }
     | { action: 'approve'; claimId: string }
-    | { action: 'revoke'; deviceId: string };
+    | { action: 'revoke'; deviceId: string }
+    | { action: 'browser-settings' }
+    | { action: 'set-browser-password'; password: string | null };
 
 export interface HostedDeviceInvite {
     url: string;
@@ -28,6 +32,8 @@ export interface HostedDeviceResults {
     list: HostedDeviceList;
     approve: void;
     revoke: void;
+    'browser-settings': { passwordConfigured: boolean };
+    'set-browser-password': void;
 }
 
 export const HOSTED_SERVER_PORT = 4334;

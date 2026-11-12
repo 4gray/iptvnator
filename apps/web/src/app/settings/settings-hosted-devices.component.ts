@@ -4,11 +4,19 @@ import {
     DestroyRef,
     inject,
     input,
+    linkedSignal,
+    resource,
     signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { MatButtonModule } from '@angular/material/button';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import {
+    HOSTED_PAIRING_PASSWORD_MAX_LENGTH,
+    HOSTED_PAIRING_PASSWORD_MIN_LENGTH,
+} from '@iptvnator/shared/interfaces';
 import type {
     HostedDeviceCommand,
     HostedDeviceInvite,
@@ -22,7 +30,13 @@ import { timer } from 'rxjs';
 
 @Component({
     selector: 'app-settings-hosted-devices',
-    imports: [MatButtonModule, QRCodeComponent, TranslateModule],
+    imports: [
+        MatButtonModule,
+        MatFormFieldModule,
+        MatInputModule,
+        QRCodeComponent,
+        TranslateModule,
+    ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './settings-hosted-devices.component.html',
     styleUrls: [
@@ -33,6 +47,7 @@ import { timer } from 'rxjs';
 })
 export class SettingsHostedDevicesComponent {
     readonly lanAvailable = input.required<boolean>();
+    readonly httpsOrigin = input<string>();
     readonly expanded = signal(false);
     readonly invite = signal<HostedDeviceInvite | null>(null);
     readonly inviteExpired = signal(false);
@@ -40,6 +55,17 @@ export class SettingsHostedDevicesComponent {
     readonly listFailed = signal(false);
     readonly busy = signal(false);
     readonly message = signal('');
+    readonly passwordMinLength = HOSTED_PAIRING_PASSWORD_MIN_LENGTH;
+    readonly passwordMaxLength = HOSTED_PAIRING_PASSWORD_MAX_LENGTH;
+    readonly passwordSettings = resource({
+        params: () => this.httpsOrigin(),
+        loader: () => this.request({ action: 'browser-settings' }),
+    });
+    readonly passwordBusy = signal(false);
+    readonly passwordNotice = linkedSignal({
+        source: this.httpsOrigin,
+        computation: (): { key: string; error?: boolean } | null => null,
+    });
 
     private readonly destroyRef = inject(DestroyRef);
     private readonly clipboard = inject(Clipboard);
@@ -103,6 +129,62 @@ export class SettingsHostedDevicesComponent {
             tone: 'destructive',
             onConfirm: () => void this.revoke(device.id),
         });
+    }
+
+    savePassword(event: Event, input: HTMLInputElement): void {
+        event.preventDefault();
+        const password = input.value;
+        input.value = '';
+        if (
+            password.length >= this.passwordMinLength &&
+            password.length <= this.passwordMaxLength
+        ) {
+            void this.updatePassword(password);
+        }
+    }
+
+    confirmClearPassword(): void {
+        void this.dialog.openConfirmDialog({
+            title: this.translate.instant('HOSTED_SERVER.PHONE_PASSWORD_CLEAR'),
+            message: this.translate.instant(
+                'HOSTED_SERVER.PHONE_PASSWORD_CLEAR_CONFIRM'
+            ),
+            confirmLabel: this.translate.instant(
+                'HOSTED_SERVER.PHONE_PASSWORD_CLEAR'
+            ),
+            tone: 'destructive',
+            onConfirm: () => void this.updatePassword(null),
+        });
+    }
+
+    private async updatePassword(password: string | null): Promise<void> {
+        const origin = this.httpsOrigin();
+        if (!origin || this.passwordBusy() || this.destroyRef.destroyed) return;
+        this.passwordBusy.set(true);
+        this.passwordNotice.set(null);
+        try {
+            await this.request({ action: 'set-browser-password', password });
+            if (this.destroyRef.destroyed || this.httpsOrigin() !== origin)
+                return;
+            this.passwordSettings.set({
+                passwordConfigured: password !== null,
+            });
+            this.passwordNotice.set({
+                key:
+                    password === null
+                        ? 'HOSTED_SERVER.PHONE_PASSWORD_CLEARED'
+                        : 'HOSTED_SERVER.PHONE_PASSWORD_SAVED',
+            });
+        } catch {
+            if (this.httpsOrigin() === origin) {
+                this.passwordNotice.set({
+                    key: 'HOSTED_SERVER.PHONE_PASSWORD_UPDATE_FAILED',
+                    error: true,
+                });
+            }
+        } finally {
+            this.passwordBusy.set(false);
+        }
     }
 
     private async revoke(deviceId: string): Promise<void> {

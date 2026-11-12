@@ -2351,6 +2351,17 @@
         }
     },
     "HOSTED_SERVER": {
+        "PHONE_PAIRING_TITLE": "Approuver des téléviseurs depuis votre téléphone",
+        "PHONE_PAIRING_DESCRIPTION": "Définissez un mot de passe distinct pour approuver les demandes d’association sur votre téléphone après avoir scanné le code QR du téléviseur. Le code d’accès spectateur sert toujours à ouvrir le lecteur web.",
+        "PHONE_PASSWORD_LABEL": "Mot de passe d’approbation sur téléphone",
+        "PHONE_PASSWORD_LENGTH": "De {{min}} à {{max}} caractères",
+        "PHONE_PASSWORD_SAVE": "Enregistrer le mot de passe",
+        "PHONE_PASSWORD_CLEAR": "Supprimer le mot de passe",
+        "PHONE_PASSWORD_CLEAR_CONFIRM": "Cette action désactive l’approbation sur téléphone pour les nouvelles associations de téléviseurs. Les appareils déjà associés conservent leur accès.",
+        "PHONE_PASSWORD_SAVED": "Mot de passe d’approbation sur téléphone enregistré.",
+        "PHONE_PASSWORD_CLEARED": "Mot de passe d’approbation sur téléphone supprimé.",
+        "PHONE_PASSWORD_LOAD_FAILED": "Impossible de charger les paramètres d’approbation sur téléphone.",
+        "PHONE_PASSWORD_UPDATE_FAILED": "Impossible de mettre à jour le mot de passe d’approbation sur téléphone. Réessayez.",
         "ACCESS_METHOD": "Mode d’accès",
         "LAN_SHARING_OFF": "Le partage sur le réseau domestique est désactivé.",
         "HOME_NETWORK": "Réseau domestique",

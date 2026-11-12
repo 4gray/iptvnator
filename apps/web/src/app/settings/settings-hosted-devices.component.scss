@@ -28,3 +28,15 @@
     overflow-wrap: anywhere;
     color: var(--app-heading-color);
 }
+
+.phone-pairing {
+    width: 100%;
+
+    h4 {
+        margin: 0;
+        color: var(--app-heading-color);
+        font-size: 13px;
+        font-weight: 600;
+        line-height: 1.5;
+    }
+}

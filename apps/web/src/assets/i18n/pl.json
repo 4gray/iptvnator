@@ -2351,6 +2351,17 @@
         }
     },
     "HOSTED_SERVER": {
+        "PHONE_PAIRING_TITLE": "Zatwierdzaj telewizory z telefonu",
+        "PHONE_PAIRING_DESCRIPTION": "Ustaw osobne hasło, aby zatwierdzać na telefonie prośby o parowanie po zeskanowaniu kodu QR na telewizorze. Kod dostępu widza nadal służy do otwierania odtwarzacza internetowego.",
+        "PHONE_PASSWORD_LABEL": "Hasło do zatwierdzania z telefonu",
+        "PHONE_PASSWORD_LENGTH": "Od {{min}} do {{max}} znaków",
+        "PHONE_PASSWORD_SAVE": "Zapisz hasło",
+        "PHONE_PASSWORD_CLEAR": "Usuń hasło",
+        "PHONE_PASSWORD_CLEAR_CONFIRM": "Wyłączy to zatwierdzanie z telefonu nowych połączeń z telewizorami. Sparowane wcześniej urządzenia zachowają dostęp.",
+        "PHONE_PASSWORD_SAVED": "Zapisano hasło do zatwierdzania z telefonu.",
+        "PHONE_PASSWORD_CLEARED": "Usunięto hasło do zatwierdzania z telefonu.",
+        "PHONE_PASSWORD_LOAD_FAILED": "Nie udało się wczytać ustawień zatwierdzania z telefonu.",
+        "PHONE_PASSWORD_UPDATE_FAILED": "Nie udało się zmienić hasła do zatwierdzania z telefonu. Spróbuj ponownie.",
         "TITLE": "Serwer na tym komputerze",
         "DESCRIPTION": "Działa, gdy IPTVnator jest otwarty, także po zminimalizowaniu. Zamknięcie aplikacji zatrzymuje serwer.",
         "SETUP_GUIDE": "Jak uruchomić serwer na tym komputerze",

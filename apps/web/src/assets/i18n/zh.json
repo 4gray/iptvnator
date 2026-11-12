@@ -2351,6 +2351,17 @@
         }
     },
     "HOSTED_SERVER": {
+        "PHONE_PAIRING_TITLE": "在手机上批准电视配对",
+        "PHONE_PAIRING_DESCRIPTION": "设置单独的密码，以便扫描电视上的二维码后在手机上批准配对请求。观看访问码仍用于打开网页播放器。",
+        "PHONE_PASSWORD_LABEL": "手机批准密码",
+        "PHONE_PASSWORD_LENGTH": "{{min}} 至 {{max}} 个字符",
+        "PHONE_PASSWORD_SAVE": "保存密码",
+        "PHONE_PASSWORD_CLEAR": "清除密码",
+        "PHONE_PASSWORD_CLEAR_CONFIRM": "这将关闭新电视配对的手机批准功能。已配对的设备仍可访问。",
+        "PHONE_PASSWORD_SAVED": "手机批准密码已保存。",
+        "PHONE_PASSWORD_CLEARED": "手机批准密码已清除。",
+        "PHONE_PASSWORD_LOAD_FAILED": "无法加载手机批准设置。",
+        "PHONE_PASSWORD_UPDATE_FAILED": "无法更新手机批准密码。请重试。",
         "TITLE": "此电脑上的服务器",
         "DESCRIPTION": "只要 IPTVnator 保持打开，即使最小化也会继续运行。退出应用会停止服务器。",
         "SETUP_GUIDE": "如何在此电脑上运行服务器",

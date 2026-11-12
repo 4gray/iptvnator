@@ -239,6 +239,67 @@ describe('desktop hosted server lifecycle', () => {
         }
     });
 
+    it('keeps phone approval password management on guarded loopback IPC', async () => {
+        addAssets(
+            join(directory, 'hosted-backend/main.cjs'),
+            join(directory, 'hosted-pwa')
+        );
+        const worker = nextWorker(ready);
+        await control({ start: true });
+        const fetchMock = jest.spyOn(globalThis, 'fetch');
+        const read = () =>
+            invoke(HOSTED_DEVICE_CONTROL, { action: 'browser-settings' });
+        const set = (password: unknown) =>
+            invoke(HOSTED_DEVICE_CONTROL, {
+                action: 'set-browser-password',
+                password,
+            });
+        await expect(set('synthetic-passphrase')).rejects.toThrow(
+            'Hosted HTTPS access is unavailable'
+        );
+        worker.postMessage.mockImplementation(
+            (command?: { requestId: string; httpsOrigin: string }) => {
+                if (typeof command === 'object' && command)
+                    queueMicrotask(() =>
+                        worker.emit('message', {
+                            https: true,
+                            requestId: command.requestId,
+                            origin: command.httpsOrigin,
+                        })
+                    );
+                else queueMicrotask(() => worker.emit('exit', 0));
+            }
+        );
+        await control({ httpsOrigin: 'https://library.example.test' });
+        for (const invalid of ['a'.repeat(11), 'a'.repeat(129), undefined]) {
+            await expect(set(invalid)).rejects.toThrow(
+                'Invalid hosted pairing password'
+            );
+        }
+        expect(fetchMock).not.toHaveBeenCalled();
+        fetchMock.mockResolvedValueOnce(
+            Response.json({ passwordConfigured: true, secret: 'synthetic' })
+        );
+        await expect(read()).resolves.toEqual({ passwordConfigured: true });
+        for (const password of ['synthetic-passphrase', null]) {
+            fetchMock.mockResolvedValueOnce(
+                new Response(null, { status: 204 })
+            );
+            await expect(set(password)).resolves.toBeUndefined();
+            expect(fetchMock).toHaveBeenLastCalledWith(
+                `${localUrl}/api/v1/device-pairing/browser-settings`,
+                expect.objectContaining({
+                    method: 'POST',
+                    body: JSON.stringify({ password }),
+                    headers: expect.objectContaining({
+                        Authorization: `Bearer ${getHostedServerAccessCode()}`,
+                    }),
+                    redirect: 'error',
+                })
+            );
+        }
+    });
+
     it('inherits the parent environment and overrides hosted server settings', async () => {
         jest.replaceProperty(process, 'env', {
             SystemRoot: 'C:\\SyntheticWindows',

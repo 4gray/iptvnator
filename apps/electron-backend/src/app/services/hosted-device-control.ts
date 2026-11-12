@@ -1,6 +1,8 @@
 import { ipcMain, type IpcMainInvokeEvent } from 'electron';
 import {
     HOSTED_DEVICE_CONTROL,
+    HOSTED_PAIRING_PASSWORD_MAX_LENGTH,
+    HOSTED_PAIRING_PASSWORD_MIN_LENGTH,
     type HostedDeviceList,
     type HostedServerStatus,
 } from '@iptvnator/shared/interfaces';
@@ -107,6 +109,36 @@ export function registerHostedDeviceEvents(
                         throw new Error('Invalid hosted device ID');
                     await request(`/devices/${command.deviceId}`, code, {
                         method: 'DELETE',
+                    });
+                    return;
+                }
+                case 'browser-settings': {
+                    const response = await request(
+                        '/device-pairing/browser-settings',
+                        code
+                    );
+                    const { passwordConfigured } = await response.json();
+                    if (typeof passwordConfigured !== 'boolean')
+                        throw new Error('Invalid hosted pairing settings');
+                    return { passwordConfigured };
+                }
+                case 'set-browser-password': {
+                    if (!current.httpsOrigin)
+                        throw new Error('Hosted HTTPS access is unavailable');
+                    const password =
+                        'password' in command ? command.password : undefined;
+                    if (
+                        password !== null &&
+                        (typeof password !== 'string' ||
+                            password.length <
+                                HOSTED_PAIRING_PASSWORD_MIN_LENGTH ||
+                            password.length >
+                                HOSTED_PAIRING_PASSWORD_MAX_LENGTH)
+                    )
+                        throw new Error('Invalid hosted pairing password');
+                    await request('/device-pairing/browser-settings', code, {
+                        method: 'POST',
+                        body: JSON.stringify({ password }),
                     });
                     return;
                 }

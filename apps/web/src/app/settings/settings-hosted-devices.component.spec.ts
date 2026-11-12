@@ -20,6 +20,7 @@ describe('hosted device settings', () => {
     };
     const device = { id: 'synthetic-id', name: claim.name };
     let snapshot: HostedDeviceList;
+    let passwordConfigured: boolean;
     let fixture: ComponentFixture<SettingsHostedDevicesComponent>;
     let root: HTMLElement;
 
@@ -35,8 +36,12 @@ describe('hosted device settings', () => {
         jest.useFakeTimers();
         jest.setSystemTime(new Date('2030-01-01T12:00:00.000Z'));
         snapshot = { pending: [], devices: [] };
-        control.mockImplementation(async ({ action }) => {
+        passwordConfigured = false;
+        control.mockImplementation(async ({ action, password }) => {
             if (action === 'list') return snapshot;
+            if (action === 'browser-settings') return { passwordConfigured };
+            if (action === 'set-browser-password')
+                passwordConfigured = password !== null;
             if (action === 'invite')
                 return {
                     url: inviteUrl,
@@ -131,5 +136,70 @@ describe('hosted device settings', () => {
         expect(
             root.querySelector('button[aria-controls="hosted-device-list"]')
         ).not.toBeNull();
+    });
+
+    it('configures, replaces and clears a masked phone approval password only while HTTPS is active', async () => {
+        const passwordSelector =
+            '[data-test-id="hosted-browser-pairing-password"]';
+        const clearSelector = '[data-test-id="hosted-browser-pairing-clear"]';
+        expect(root.querySelector(passwordSelector)).toBeNull();
+        expect(control).not.toHaveBeenCalledWith({
+            action: 'browser-settings',
+        });
+        fixture.componentRef.setInput('lanAvailable', false);
+        fixture.componentRef.setInput(
+            'httpsOrigin',
+            'https://library.example.test'
+        );
+        fixture.detectChanges();
+        await jest.advanceTimersByTimeAsync(0);
+        fixture.detectChanges();
+        expect(control).toHaveBeenCalledWith({ action: 'browser-settings' });
+        expect(root.querySelector(clearSelector)).toBeNull();
+
+        const input = root.querySelector<HTMLInputElement>(passwordSelector);
+        expect(input?.type).toBe('password');
+        expect(input?.minLength).toBe(12);
+        expect(input?.maxLength).toBe(128);
+        if (!input?.form) throw new Error('Missing password form');
+        for (const password of [
+            'synthetic-passphrase',
+            'updated-synthetic-password',
+        ]) {
+            input.value = password;
+            input.form.dispatchEvent(new Event('submit', { cancelable: true }));
+            expect(input.value).toBe('');
+            await jest.advanceTimersByTimeAsync(0);
+            fixture.detectChanges();
+            expect(control).toHaveBeenCalledWith({
+                action: 'set-browser-password',
+                password,
+            });
+            expect(root.textContent).toContain(
+                'HOSTED_SERVER.PHONE_PASSWORD_SAVED'
+            );
+            expect(root.textContent).not.toContain(password);
+        }
+
+        clickButton(clearSelector);
+        expect(control).not.toHaveBeenCalledWith({
+            action: 'set-browser-password',
+            password: null,
+        });
+        confirm.mock.calls[0][0].onConfirm();
+        await jest.advanceTimersByTimeAsync(0);
+        fixture.detectChanges();
+        expect(control).toHaveBeenCalledWith({
+            action: 'set-browser-password',
+            password: null,
+        });
+        expect(root.textContent).toContain(
+            'HOSTED_SERVER.PHONE_PASSWORD_CLEARED'
+        );
+        expect(root.querySelector(clearSelector)).toBeNull();
+
+        fixture.componentRef.setInput('httpsOrigin', undefined);
+        fixture.detectChanges();
+        expect(root.querySelector(passwordSelector)).toBeNull();
     });
 });

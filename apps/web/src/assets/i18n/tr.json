@@ -2351,6 +2351,17 @@
         }
     },
     "HOSTED_SERVER": {
+        "PHONE_PAIRING_TITLE": "TV'leri telefonunuzdan onaylayın",
+        "PHONE_PAIRING_DESCRIPTION": "TV'deki QR kodunu taradıktan sonra eşleştirme isteklerini telefonunuzdan onaylamak için ayrı bir parola belirleyin. Web oynatıcıyı açmak için izleyici erişim kodu kullanılmaya devam eder.",
+        "PHONE_PASSWORD_LABEL": "Telefonla onay parolası",
+        "PHONE_PASSWORD_LENGTH": "{{min}}–{{max}} karakter",
+        "PHONE_PASSWORD_SAVE": "Parolayı kaydet",
+        "PHONE_PASSWORD_CLEAR": "Parolayı kaldır",
+        "PHONE_PASSWORD_CLEAR_CONFIRM": "Bu işlem, yeni TV eşleştirmelerinin telefonla onaylanmasını kapatır. Daha önce eşleştirilen cihazlar erişimlerini korur.",
+        "PHONE_PASSWORD_SAVED": "Telefonla onay parolası kaydedildi.",
+        "PHONE_PASSWORD_CLEARED": "Telefonla onay parolası kaldırıldı.",
+        "PHONE_PASSWORD_LOAD_FAILED": "Telefonla onay ayarları yüklenemedi.",
+        "PHONE_PASSWORD_UPDATE_FAILED": "Telefonla onay parolası güncellenemedi. Tekrar deneyin.",
         "TITLE": "Bu bilgisayardaki sunucu",
         "DESCRIPTION": "IPTVnator açık olduğu sürece, pencere küçültülmüş olsa bile çalışır. Uygulamadan çıkınca sunucu durur.",
         "SETUP_GUIDE": "Bu bilgisayarda sunucu nasıl başlatılır?",

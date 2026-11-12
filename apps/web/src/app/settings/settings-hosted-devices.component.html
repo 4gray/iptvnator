@@ -151,4 +151,99 @@
     @if (message()) {
         <p class="server-message" role="status">{{ message() | translate }}</p>
     }
+    @if (httpsOrigin()) {
+        <section
+            class="hosted-stack phone-pairing"
+            aria-labelledby="hosted-phone-pairing-title"
+        >
+            <h4 id="hosted-phone-pairing-title">
+                {{ 'HOSTED_SERVER.PHONE_PAIRING_TITLE' | translate }}
+            </h4>
+            <p class="server-message">
+                {{ 'HOSTED_SERVER.PHONE_PAIRING_DESCRIPTION' | translate }}
+            </p>
+            @if (passwordSettings.hasValue()) {
+                <form
+                    class="hosted-stack phone-pairing"
+                    (submit)="savePassword($event, passwordInput)"
+                >
+                    <mat-form-field appearance="outline">
+                        <mat-label>{{
+                            'HOSTED_SERVER.PHONE_PASSWORD_LABEL' | translate
+                        }}</mat-label>
+                        <input
+                            #passwordInput
+                            matInput
+                            type="password"
+                            autocomplete="new-password"
+                            required
+                            [minLength]="passwordMinLength"
+                            [maxLength]="passwordMaxLength"
+                            [disabled]="passwordBusy()"
+                            data-test-id="hosted-browser-pairing-password"
+                        />
+                        <mat-hint>{{
+                            'HOSTED_SERVER.PHONE_PASSWORD_LENGTH'
+                                | translate
+                                    : {
+                                          min: passwordMinLength,
+                                          max: passwordMaxLength,
+                                      }
+                        }}</mat-hint>
+                    </mat-form-field>
+                    <div class="server-actions">
+                        <button
+                            mat-stroked-button
+                            type="submit"
+                            [disabled]="passwordBusy()"
+                            data-test-id="hosted-browser-pairing-save"
+                        >
+                            {{
+                                'HOSTED_SERVER.PHONE_PASSWORD_SAVE' | translate
+                            }}
+                        </button>
+                        @if (passwordSettings.value().passwordConfigured) {
+                            <button
+                                mat-button
+                                type="button"
+                                class="app-destructive-button"
+                                [disabled]="passwordBusy()"
+                                (click)="confirmClearPassword()"
+                                data-test-id="hosted-browser-pairing-clear"
+                            >
+                                {{
+                                    'HOSTED_SERVER.PHONE_PASSWORD_CLEAR'
+                                        | translate
+                                }}
+                            </button>
+                        }
+                    </div>
+                </form>
+            } @else if (passwordSettings.error()) {
+                <p class="server-message server-message--error" role="alert">
+                    {{ 'HOSTED_SERVER.PHONE_PASSWORD_LOAD_FAILED' | translate }}
+                </p>
+                <button
+                    mat-button
+                    type="button"
+                    (click)="passwordSettings.reload()"
+                >
+                    {{ 'RETRY' | translate }}
+                </button>
+            } @else {
+                <p class="server-message" role="status">
+                    {{ 'LOADING' | translate }}
+                </p>
+            }
+            @if (passwordNotice(); as notice) {
+                <p
+                    class="server-message"
+                    [class.server-message--error]="notice.error"
+                    [attr.role]="notice.error ? 'alert' : 'status'"
+                >
+                    {{ notice.key | translate }}
+                </p>
+            }
+        </section>
+    }
 </section>

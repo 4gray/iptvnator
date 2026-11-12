@@ -2351,6 +2351,17 @@
         }
     },
     "HOSTED_SERVER": {
+        "PHONE_PAIRING_TITLE": "在手機上核准電視配對",
+        "PHONE_PAIRING_DESCRIPTION": "設定獨立密碼，以便掃描電視上的 QR 碼後在手機上核准配對要求。觀看存取碼仍用於開啟網頁播放器。",
+        "PHONE_PASSWORD_LABEL": "手機核准密碼",
+        "PHONE_PASSWORD_LENGTH": "{{min}} 至 {{max}} 個字元",
+        "PHONE_PASSWORD_SAVE": "儲存密碼",
+        "PHONE_PASSWORD_CLEAR": "清除密碼",
+        "PHONE_PASSWORD_CLEAR_CONFIRM": "這會關閉新電視配對的手機核准功能。已配對的裝置仍可存取。",
+        "PHONE_PASSWORD_SAVED": "已儲存手機核准密碼。",
+        "PHONE_PASSWORD_CLEARED": "已清除手機核准密碼。",
+        "PHONE_PASSWORD_LOAD_FAILED": "無法載入手機核准設定。",
+        "PHONE_PASSWORD_UPDATE_FAILED": "無法更新手機核准密碼。請再試一次。",
         "TITLE": "這部電腦上的伺服器",
         "DESCRIPTION": "只要 IPTVnator 保持開啟，即使將視窗最小化也會繼續運作。結束應用程式會停止伺服器。",
         "SETUP_GUIDE": "如何在這部電腦上執行伺服器",

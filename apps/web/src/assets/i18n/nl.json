@@ -2351,6 +2351,17 @@
         }
     },
     "HOSTED_SERVER": {
+        "PHONE_PAIRING_TITLE": "Keur tv's goed vanaf je telefoon",
+        "PHONE_PAIRING_DESCRIPTION": "Stel een apart wachtwoord in om koppelverzoeken op je telefoon goed te keuren nadat je de QR-code op de tv hebt gescand. Met de kijkerstoegangscode open je nog steeds de webspeler.",
+        "PHONE_PASSWORD_LABEL": "Wachtwoord voor goedkeuring via telefoon",
+        "PHONE_PASSWORD_LENGTH": "{{min}}–{{max}} tekens",
+        "PHONE_PASSWORD_SAVE": "Wachtwoord opslaan",
+        "PHONE_PASSWORD_CLEAR": "Wachtwoord verwijderen",
+        "PHONE_PASSWORD_CLEAR_CONFIRM": "Hiermee schakel je goedkeuring via de telefoon uit voor nieuwe tv-koppelingen. Reeds gekoppelde apparaten behouden hun toegang.",
+        "PHONE_PASSWORD_SAVED": "Wachtwoord voor goedkeuring via telefoon opgeslagen.",
+        "PHONE_PASSWORD_CLEARED": "Wachtwoord voor goedkeuring via telefoon verwijderd.",
+        "PHONE_PASSWORD_LOAD_FAILED": "De instellingen voor goedkeuring via telefoon konden niet worden geladen.",
+        "PHONE_PASSWORD_UPDATE_FAILED": "Het wachtwoord voor goedkeuring via telefoon kon niet worden bijgewerkt. Probeer het opnieuw.",
         "TITLE": "Server op deze computer",
         "DESCRIPTION": "Draait zolang IPTVnator open is, ook als de app geminimaliseerd is. Afsluiten stopt de server.",
         "SETUP_GUIDE": "Een server op deze computer starten",

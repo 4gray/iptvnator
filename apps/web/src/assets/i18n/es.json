@@ -2351,6 +2351,17 @@
         }
     },
     "HOSTED_SERVER": {
+        "PHONE_PAIRING_TITLE": "Aprueba televisores desde tu teléfono",
+        "PHONE_PAIRING_DESCRIPTION": "Establece una contraseña independiente para aprobar solicitudes de vinculación en tu teléfono después de escanear el código QR del televisor. El código de acceso para espectadores sigue sirviendo para abrir el reproductor web.",
+        "PHONE_PASSWORD_LABEL": "Contraseña de aprobación desde el teléfono",
+        "PHONE_PASSWORD_LENGTH": "De {{min}} a {{max}} caracteres",
+        "PHONE_PASSWORD_SAVE": "Guardar contraseña",
+        "PHONE_PASSWORD_CLEAR": "Eliminar contraseña",
+        "PHONE_PASSWORD_CLEAR_CONFIRM": "Esto desactiva la aprobación desde el teléfono para nuevas vinculaciones de televisores. Los dispositivos ya vinculados conservan su acceso.",
+        "PHONE_PASSWORD_SAVED": "Se guardó la contraseña de aprobación desde el teléfono.",
+        "PHONE_PASSWORD_CLEARED": "Se eliminó la contraseña de aprobación desde el teléfono.",
+        "PHONE_PASSWORD_LOAD_FAILED": "No se pudo cargar la configuración de aprobación desde el teléfono.",
+        "PHONE_PASSWORD_UPDATE_FAILED": "No se pudo actualizar la contraseña de aprobación desde el teléfono. Inténtalo de nuevo.",
         "TITLE": "Servidor en este equipo",
         "DESCRIPTION": "Funciona mientras IPTVnator está abierto, incluso minimizado. Al salir de la aplicación se detiene.",
         "SETUP_GUIDE": "Cómo iniciar un servidor en este equipo",
