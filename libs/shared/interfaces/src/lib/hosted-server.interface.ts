@@ -25,6 +25,7 @@ export type HostedServerCommand =
     | 'status'
     | 'stop'
     | { start: true; lanAddress?: string }
+    | { restart: true; lanAddress: string }
     | { httpsOrigin: string };
 
 export interface HostedServerStatus {

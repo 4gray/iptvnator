@@ -288,6 +288,105 @@ describe('desktop hosted server lifecycle', () => {
         expect(getHostedServerAccessCode()).toBe('');
     });
 
+    it('restarts a local-only worker on the selected LAN address and preserves its access code', async () => {
+        addAssets(
+            join(directory, 'hosted-backend/main.cjs'),
+            join(directory, 'hosted-pwa')
+        );
+        const firstWorker = nextWorker(ready);
+        await control({ start: true });
+        const code = invoke(HOSTED_SERVER_ACCESS_CODE);
+        nextWorker(ready);
+
+        const status = await control({ restart: true, lanAddress });
+
+        expect(status).toMatchObject({
+            state: 'running',
+            localUrl,
+            lanUrl,
+            lanAddress,
+            autoStart: true,
+        });
+        expect(firstWorker.postMessage).toHaveBeenCalledWith('stop');
+        expect(utilityProcess.fork).toHaveBeenCalledTimes(2);
+        expect(utilityProcess.fork).toHaveBeenLastCalledWith(
+            expect.any(String),
+            [],
+            expect.objectContaining({
+                env: expect.objectContaining({
+                    IPTVNATOR_HOSTED_LAN: lanAddress,
+                    IPTVNATOR_ACCESS_TOKEN: code,
+                }),
+            })
+        );
+        expect(settings.get(HOSTED_SERVER_LAN_ADDRESS)).toBe(lanAddress);
+        expect(invoke(HOSTED_SERVER_ACCESS_CODE)).toBe(code);
+    });
+
+    it('restores the previous LAN binding when the requested address fails to start', async () => {
+        addAssets(
+            join(directory, 'hosted-backend/main.cjs'),
+            join(directory, 'hosted-pwa')
+        );
+        const replacementAddress = '192.168.40.6';
+        const previousWorker = nextWorker(ready);
+        await control({ start: true, lanAddress });
+        jest.mocked(networkInterfaces).mockReturnValue({
+            fixture: [lanAddress, replacementAddress].map((address) => ({
+                address,
+                family: 'IPv4',
+                internal: false,
+                cidr: `${address}/24`,
+                netmask: '255.255.255.0',
+                mac: '00:00:00:00:00:00',
+            })),
+        });
+        nextWorker({ error: 'port' });
+        nextWorker(ready);
+
+        await expect(
+            control({ restart: true, lanAddress: replacementAddress })
+        ).rejects.toThrow(
+            'LAN access could not be enabled; previous server settings restored'
+        );
+
+        expect(previousWorker.postMessage).toHaveBeenCalledWith('stop');
+        expect(utilityProcess.fork).toHaveBeenCalledTimes(3);
+        expect(settings.get(HOSTED_SERVER_LAN_ADDRESS)).toBe(lanAddress);
+        expect(control('status')).toMatchObject({
+            state: 'running',
+            lanAddress,
+            lanUrl,
+        });
+    });
+
+    it('rejects LAN rebinding while HTTPS sharing is active', async () => {
+        addAssets(
+            join(directory, 'hosted-backend/main.cjs'),
+            join(directory, 'hosted-pwa')
+        );
+        const worker = nextWorker(ready);
+        await control({ start: true });
+        worker.postMessage.mockImplementation((command: unknown) => {
+            if (typeof command === 'object' && command)
+                queueMicrotask(() =>
+                    worker.emit('message', {
+                        https: true,
+                        requestId: command.requestId,
+                        origin: command.httpsOrigin,
+                    })
+                );
+            else queueMicrotask(() => worker.emit('exit', 0));
+        });
+        await control({ httpsOrigin: 'https://library.example.test' });
+
+        await expect(
+            control({ restart: true, lanAddress })
+        ).rejects.toThrow('Stop HTTPS access before changing the LAN address');
+        expect(utilityProcess.fork).toHaveBeenCalledTimes(1);
+        expect(worker.postMessage).not.toHaveBeenCalledWith('stop');
+    });
+
     it('enables and stops HTTPS independently while preserving the running LAN worker and access code', async () => {
         addAssets(
             join(directory, 'hosted-backend/main.cjs'),

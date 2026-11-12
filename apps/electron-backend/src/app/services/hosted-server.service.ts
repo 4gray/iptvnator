@@ -167,7 +167,20 @@ async function start(lanAddress: string): Promise<void> {
             ...(lanHost ? { lanUrl: `http://${lanHost}:${PORT}` } : {}),
         };
     } catch {
-        child?.kill();
+        const failedProcess = child;
+        if (failedProcess) {
+            await new Promise<void>((resolve) => {
+                const timeout = setTimeout(() => {
+                    if (child === failedProcess) child = undefined;
+                    resolve();
+                }, 6000);
+                failedProcess.once('exit', () => {
+                    clearTimeout(timeout);
+                    resolve();
+                });
+                failedProcess.kill();
+            });
+        }
         state = { state: 'error', error: failure };
     }
 }
@@ -205,6 +218,35 @@ export function restoreHostedServer(): Promise<HostedServerStatus> {
 
 export function stopHostedServerForRestart(): Promise<HostedServerStatus> {
     return run(shutdownWorker);
+}
+
+async function restartOnLan(lanAddress: string): Promise<void> {
+    if (!child || state.state !== 'running')
+        throw new Error('Server is unavailable');
+    if (state.httpsOrigin)
+        throw new Error('Stop HTTPS access before changing the LAN address');
+    if (!privateAddresses().includes(lanAddress))
+        throw new Error('Invalid hosted server address');
+    const previousLanAddress = store.get(HOSTED_SERVER_LAN_ADDRESS, '');
+    await shutdownWorker();
+    await start(lanAddress);
+    if (
+        state.state === 'running' &&
+        state.lanUrl === `http://${lanAddress}:${PORT}`
+    )
+        return;
+
+    // A network change can make an address disappear after validation, in
+    // which case start may have produced a local-only worker instead.
+    if (child) await shutdownWorker();
+    await start(previousLanAddress);
+    if (state.state === 'running')
+        throw new Error(
+            'LAN access could not be enabled; previous server settings restored'
+        );
+    throw new Error(
+        'LAN access could not be enabled and previous server settings could not be restored'
+    );
 }
 
 export function stopHostedServerOnQuit(): void {
@@ -262,6 +304,20 @@ export function registerHostedServerEvents(
                     state = { state: 'error', error: 'startup' };
                 }
             });
+        }
+        if (
+            command &&
+            typeof command === 'object' &&
+            'restart' in command &&
+            command.restart === true
+        ) {
+            const address = 'lanAddress' in command ? command.lanAddress : '';
+            if (
+                typeof address !== 'string' ||
+                !privateAddresses().includes(address)
+            )
+                throw new Error('Invalid hosted server address');
+            return run(() => restartOnLan(address));
         }
         if (
             command &&
