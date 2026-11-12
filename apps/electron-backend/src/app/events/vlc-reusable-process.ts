@@ -70,6 +70,11 @@ export class VlcReusableProcess {
         return typeof this.rcPort === 'string';
     }
 
+    watchStop(): () => boolean {
+        const generation = this.stopGeneration;
+        return () => generation !== this.stopGeneration;
+    }
+
     replacementCloser(
         privateControl: boolean
     ): (() => Promise<void>) | undefined {
@@ -145,15 +150,12 @@ export class VlcReusableProcess {
         if (!process || process.killed) return;
         externalPlayerSessions.requestClose(this.processSessionId);
         traceExternalPlayer(reason);
-        if (guardFutureLaunches) {
-            const stopping =
-                externalPlayerProcessTeardownGate.terminate(process);
-            this.storedStops.set(process, stopping);
-            void stopping.catch(() => undefined);
-        } else {
-            process.kill();
-            this.storedStops.set(process, null);
-        }
+        const stopping = guardFutureLaunches
+            ? externalPlayerProcessTeardownGate.terminate(process)
+            : null;
+        this.storedStops.set(process, stopping);
+        if (stopping) void stopping.catch(() => undefined);
+        else process.kill();
         this.clear(process);
         stopPositionPolling();
     }
@@ -166,8 +168,7 @@ export class VlcReusableProcess {
             return null;
 
         const { session, state } = options;
-        const stopGeneration = this.stopGeneration;
-        const cancelled = () => this.stopGeneration !== stopGeneration;
+        const cancelled = this.watchStop();
         let reusedProcessSessionId =
             this.processSessionIds.get(reusedProcess) ??
             options.previousProcessSessionId;

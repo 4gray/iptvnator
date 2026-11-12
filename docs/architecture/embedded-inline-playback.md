@@ -1272,7 +1272,9 @@ Current contract:
   endpoint, the app switches media through RC. Xtream Live TV requires a private
   Unix endpoint for RC; when unavailable, the app waits for the previous process
   to exit before starting another. After a failed reuse attempt, a pending tune
-  checks whether another tune has already installed a reusable child.
+  checks whether another tune has already installed a reusable child. Turning
+  reuse off while a replacement is waiting for the previous child to exit
+  cancels the replacement.
   It also stops the retained process when changing
   control modes, even if VLC already marked its media session closed. Raw output
   from Xtream Live TV launches is discarded because it can contain stream URLs.

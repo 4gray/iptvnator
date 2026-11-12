@@ -11,7 +11,7 @@ jest.mock('../app', () => ({
 jest.mock('../services/store.service', () => ({
     VLC_PLAYER_PATH: 'VLC_PLAYER_PATH',
     VLC_REUSE_INSTANCE: 'VLC_REUSE_INSTANCE',
-    store: { get: jest.fn() },
+    store: { get: jest.fn(), set: jest.fn() },
 }));
 jest.mock('../util/validated-axios', () => ({
     requestWithValidatedRedirects: jest.fn(),
@@ -28,7 +28,11 @@ import {
 import { externalPlayerSessions } from './external-player-runtime';
 import { externalPlayerProcessTeardownGate } from './external-player-process';
 import { getVlcPlaybackSnapshot } from './vlc-rc';
-import { openVlcPlayer, shutdownVlcSession } from './vlc-session.service';
+import {
+    openVlcPlayer,
+    setVlcReuseInstance,
+    shutdownVlcSession,
+} from './vlc-session.service';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
 
 const spawnMock = spawn as unknown as jest.Mock;
@@ -320,6 +324,40 @@ describe('VLC exact playback ownership', () => {
             externalPlayerSessions.getSession(secondSession.id)?.status
         ).toBe('opened');
         exit(second);
+    });
+
+    it('cancels a VLC replacement if reuse is disabled during teardown', async () => {
+        const first = child();
+        const second = child();
+        spawnMock.mockReturnValueOnce(first).mockReturnValueOnce(second);
+        const opening = open('synthetic-first');
+        await tick();
+        ports[0]();
+        await tick();
+        first.emit('spawn');
+        const prior = await opening;
+        externalPlayerSessions.markClosed(prior.id);
+        try {
+            const replacement = openVlcPlayer({
+                title: 'Synthetic Channel',
+                url: 'https://example.test/synthetic-next.ts',
+                launchId: 'synthetic-guide-launch',
+            });
+            expect(first.kill).toHaveBeenCalledTimes(1);
+            first.killed = true;
+            setVlcReuseInstance(false);
+            exit(first, 1);
+            await tick();
+            if (spawnMock.mock.calls.length > 1) second.emit('spawn');
+            await expect(replacement).resolves.toMatchObject({
+                status: 'closed',
+                closedByRequest: true,
+            });
+            expect(spawnMock).toHaveBeenCalledTimes(1);
+        } finally {
+            if (first.exitCode === null) exit(first);
+            if (second.exitCode === null) exit(second);
+        }
     });
 
     it('clears the old RC state on fallback and ignores late status replies', async () => {

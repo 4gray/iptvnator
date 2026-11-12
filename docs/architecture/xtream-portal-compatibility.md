@@ -840,7 +840,8 @@ The dock restores Stop for the surviving session when the launch that owns
 the dock ends. An idle failed replacement closes before that restore. If the
 first launch fails or exits before confirming
 playback, its channel and queue remain available for remote tuning without
-now-playing details. An explicit Stop clears the exact unconfirmed tune, even
+now-playing details, including when it exits after the readiness timeout.
+An explicit Stop clears the exact unconfirmed tune, even
 after a closable error or if MPV or VLC exits with a nonzero code while stopping.
 Consecutive remote tuning commands advance from the latest requested channel
 until it opens or fails. A VLC fallback from an older launch cannot retire a
@@ -850,7 +851,9 @@ while playback continues. MPV without an observation bridge keeps the queue
 captured when the channel was selected, without confirming guide playback.
 Browsing another channel does not replace the remote order or detach the
 guide. Starting archive playback from a preview commits that preview's order
-when the archive session opens. If a relock withholds that
+when the archive session opens. An earlier live tune confirming does not cancel
+a newer archive lookup; the archive checks its own channel and category.
+If a relock withholds that
 channel or the pending replacement, the guide hides the withheld channel and
 closes its external session even if it finishes opening later, reports a
 closable error, has already left the dock or returns while teardown is pending.

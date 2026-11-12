@@ -201,7 +201,7 @@ export class XtreamGuideExternalPlayback {
                         ? pending
                         : undefined;
                 if (confirmedRequest || ended) this.pending.set(undefined);
-                if (ended === 'failed' && !playing)
+                if ((ended === 'failed' || ended === 'retryable') && !playing)
                     this.failedTuning.set(pending);
                 if (!playing) return;
                 this.failedTuning.set(undefined);

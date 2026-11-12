@@ -1411,11 +1411,6 @@ export class LiveStreamLayoutComponent
             (external && this.isLiveCategoryWithheld(playlist.id, resolved))
         )
             return;
-        this.activeLiveItemId.set(item.xtream_id);
-        this.activeLiveProviderCategoryId = this.resolveLiveProviderCategoryId(
-            item,
-            external ? resolved : undefined
-        );
         const catchupUrl = await this.xtreamUrlService.resolveCatchupUrl(
             playlist.id,
             {
@@ -1432,12 +1427,16 @@ export class LiveStreamLayoutComponent
         );
         if (
             !this.isCurrentPlaybackRequest(requestId, owner) ||
-            this.activeLiveItemId() !== item.xtream_id ||
             (external && this.isLiveCategoryWithheld(playlist.id, resolved))
         ) {
             return;
         }
 
+        this.activeLiveItemId.set(item.xtream_id);
+        this.activeLiveProviderCategoryId = this.resolveLiveProviderCategoryId(
+            item,
+            external ? resolved : undefined
+        );
         this.activePlaylistId = playlist.id;
         this.activeGuideItem.set(item);
         this.activeCatchupProgram.set(program);

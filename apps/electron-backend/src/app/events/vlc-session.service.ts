@@ -197,6 +197,7 @@ export async function openVlcPlayer({
         requestedReuseInstance,
         isFlatpak
     );
+    const stopped = reuseInstance ? reusableVlcProcess.watchStop() : undefined;
     const activeId = externalPlayerSessions.getActiveSessionId();
     const active = activeId && externalPlayerSessions.getSession(activeId);
     if (
@@ -277,6 +278,11 @@ export async function openVlcPlayer({
 
         const guideLaunch = !!session.launchId && !contentInfo;
         while (reuseInstance) {
+            if (stopped?.())
+                return (
+                    externalPlayerSessions.markClosed(session.id, true) ??
+                    session
+                );
             if (reuseState.closeRequested) break;
             if (guideLaunch && hasNewerOwner())
                 return externalPlayerSessions.markClosed(session.id) ?? session;
@@ -424,11 +430,12 @@ export async function openVlcPlayer({
                 if (
                     externalPlayerSessions.getSession(session.id)?.status ===
                         'closed' ||
+                    stopped?.() ||
                     (reuseInstance && guideLaunch && hasNewerOwner())
                 ) {
                     privateEndpoint?.dispose();
                     closeRequested = true;
-                    externalPlayerSessions.markClosed(session.id);
+                    externalPlayerSessions.markClosed(session.id, stopped?.());
                     resolveSpawn();
                     return;
                 }

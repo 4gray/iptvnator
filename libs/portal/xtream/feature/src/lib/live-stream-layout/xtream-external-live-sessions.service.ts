@@ -19,7 +19,10 @@ import type {
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import type { XtreamLiveChannelItem } from './xtream-live-channel-navigation.service';
-import { XtreamNativeHandoff } from './xtream-native-handoff';
+import {
+    XtreamNativeHandoff,
+    type GuideLaunchOutcome,
+} from './xtream-native-handoff';
 
 export type XtreamLiveOwner = Pick<
     XtreamPlaylistData,
@@ -83,7 +86,7 @@ export function hasXtreamOpenedMedia(
 
 type Launch = {
     source: XtreamLiveSource;
-    ended: WritableSignal<false | 'ended' | 'failed'>;
+    ended: WritableSignal<GuideLaunchOutcome>;
     retired?: boolean;
     cancelled?: boolean;
     opened?: boolean;
@@ -180,7 +183,7 @@ export class XtreamExternalLiveSessions {
     begin(source: XtreamLiveSource, launchId: string = crypto.randomUUID()) {
         const launch: Launch = {
             source,
-            ended: signal<false | 'ended' | 'failed'>(false),
+            ended: signal<GuideLaunchOutcome>(false),
         };
         this.pending.set(launchId, launch);
         return {
@@ -299,7 +302,9 @@ export class XtreamExternalLiveSessions {
                     session.mediaReadinessTimedOut ||
                     (session.player === 'mpv' && session.playbackUnverified)))
         )
-            launch?.ended.update((ended) => ended || 'ended');
+            launch?.ended.update(
+                (ended) => ended || (launch.opened ? 'ended' : 'retryable')
+            );
         const entry = current ?? { session, source: owner, launch };
         const changed =
             !current || current.session !== session || current.source !== owner;

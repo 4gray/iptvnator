@@ -10,12 +10,14 @@ import type {
 } from './xtream-external-live-sessions.service';
 import type { XtreamLiveChannelItem } from './xtream-live-channel-navigation.service';
 
+export type GuideLaunchOutcome = false | 'ended' | 'failed' | 'retryable';
+
 export interface GuideLaunch {
     lockSource: XtreamLiveSource;
     item: XtreamLiveChannelItem;
     archive: EpgProgram | null;
     playback: ResolvedPortalPlayback;
-    ended?: () => false | 'ended' | 'failed';
+    ended?: () => GuideLaunchOutcome;
     retry?: boolean;
     remote?: boolean;
     onConfirmed?: () => void;

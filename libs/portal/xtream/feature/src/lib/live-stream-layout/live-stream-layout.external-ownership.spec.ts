@@ -352,31 +352,48 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
         }
     );
 
-    it.each(['connection edit', 'same-channel remote tune'] as const)(
-        'does not launch an archive resolved after a %s',
+    it.each([
+        'connection edit',
+        'same-channel remote tune',
+        'older live confirmation',
+    ] as const)(
+        'honors the latest archive request after %s',
         async (change) => {
             const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
             const component = fixture.componentInstance;
             const item = { ...sampleChannel, category_id: 1 };
+            const next = { ...item, xtream_id: item.xtream_id + 1 };
+            const olderLive = change === 'older live confirmation';
+            const channels = olderLive ? [item, next] : [item];
             portalPlayer.isEmbeddedPlayer.set(false);
             epgItems.set([epgItem('Synthetic Archive', 0, 1)]);
-            emptyList.set([item]);
+            emptyList.set(channels);
             xtreamStore.selectedItem.set(item);
             fixture.detectChanges();
-            component.playLive(item, true, [item]);
+            component.playLive(item, true, channels);
             const previous = component.activeStreamUrl();
-            if (change === 'same-channel remote tune') {
-                publishExternalSession({
-                    id: 'synthetic-current-before-archive',
-                    player: 'mpv',
-                    status: 'playing',
-                    title: 'Synthetic Channel',
-                    streamUrl: previous,
-                    canClose: true,
-                    startedAt: '2026-04-04T10:00:00Z',
-                    updatedAt: '2026-04-04T10:00:00Z',
-                });
+            const current = {
+                id: 'synthetic-current-before-archive',
+                player: 'mpv',
+                status: 'playing',
+                title: 'Synthetic Channel',
+                streamUrl: previous,
+                canClose: true,
+                startedAt: '2026-04-04T10:00:00Z',
+                updatedAt: '2026-04-04T10:00:00Z',
+            } as const;
+            if (change !== 'connection edit') {
+                publishExternalSession(current);
                 fixture.detectChanges();
+            }
+            const nextUrl = 'https://example.test/synthetic-older-live.ts';
+            if (olderLive) {
+                xtreamStore.constructStreamUrl.mockReturnValueOnce(nextUrl);
+                xtreamStore.openPlayer.mockReturnValueOnce(
+                    new Promise(() => undefined)
+                );
+                onChannelChange.mock.lastCall?.[0]({ direction: 'up' });
+                expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(2);
             }
             const resolveCatchupUrl = jest.mocked(
                 TestBed.inject(XtreamUrlService).resolveCatchupUrl
@@ -398,15 +415,43 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
                     number: 1,
                 });
                 expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(1);
+            } else if (olderLive) {
+                publishExternalSession({
+                    ...current,
+                    id: 'synthetic-older-live',
+                    streamUrl: nextUrl,
+                });
+                fixture.detectChanges();
+                expect(component.activeStreamUrl()).toBe(nextUrl);
             } else
                 xtreamStore.currentPlaylist.set({
                     ...playlist,
                     serverUrl: 'https://another.example.test',
                 });
-            resolve('https://example.test/synthetic-archive.ts');
+            const archiveUrl = 'https://example.test/synthetic-archive.ts';
+            if (olderLive)
+                xtreamStore.openPlayer.mockReturnValueOnce(
+                    new Promise(() => undefined)
+                );
+            resolve(archiveUrl);
             await opening;
-            expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(1);
-            expect(component.activeStreamUrl()).toBe(previous);
+            expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(
+                olderLive ? 3 : 1
+            );
+            if (olderLive) {
+                expect(xtreamStore.openPlayer.mock.lastCall?.[0]).toBe(
+                    archiveUrl
+                );
+                publishExternalSession({
+                    ...current,
+                    id: 'synthetic-newer-archive',
+                    streamUrl: archiveUrl,
+                });
+                fixture.detectChanges();
+            }
+            expect(component.activeStreamUrl()).toBe(
+                olderLive ? archiveUrl : previous
+            );
         }
     );
 
@@ -729,6 +774,8 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
         'first MPV failure',
         'native error',
         'unexpected clean exit',
+        'VLC timeout then exit',
+        'VLC timeout then Stop',
         'explicit stop',
         'closable error then Stop',
         'rejected invocation',
@@ -743,8 +790,13 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
             portalPlayer.isEmbeddedPlayer.set(false);
             fixture.detectChanges();
             const errorThenStop = outcome === 'closable error then Stop';
+            const timedOut = outcome.startsWith('VLC timeout');
+            const requestedStop =
+                outcome === 'explicit stop' ||
+                outcome === 'VLC timeout then Stop';
             const terminal =
                 errorThenStop ||
+                timedOut ||
                 [
                     'native error',
                     'unexpected clean exit',
@@ -761,9 +813,9 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
             component.playLive(playing, true, [playing, next]);
             const session = {
                 id: 'synthetic-idle',
-                player: outcome === 'vlc' ? 'vlc' : 'mpv',
+                player: outcome === 'vlc' || timedOut ? 'vlc' : 'mpv',
                 status: 'opened',
-                mediaLoaded: outcome !== 'first MPV failure',
+                mediaLoaded: outcome !== 'first MPV failure' && !timedOut,
                 title: 'Synthetic Channel',
                 streamUrl: component.activeStreamUrl(),
                 canClose: true,
@@ -771,6 +823,17 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
                 updatedAt: '2026-04-04T10:00:00Z',
             } as const;
             if (terminal) {
+                if (timedOut) {
+                    publishExternalSession({
+                        ...session,
+                        mediaReadinessTimedOut: true,
+                        playbackUnverified: true,
+                    });
+                    fixture.detectChanges();
+                    expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
+                        expect.objectContaining({ isLiveView: true })
+                    );
+                }
                 publishExternalSession({
                     ...session,
                     launchId: xtreamStore.openPlayer.mock.lastCall?.[5],
@@ -778,8 +841,7 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
                         outcome === 'native error' || errorThenStop
                             ? 'error'
                             : 'closed',
-                    closedByRequest:
-                        outcome === 'explicit stop' ? true : undefined,
+                    closedByRequest: requestedStop ? true : undefined,
                     canClose: errorThenStop,
                 });
                 if (errorThenStop) {
@@ -803,7 +865,7 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
             }
             fixture.detectChanges();
 
-            if (outcome === 'explicit stop' || errorThenStop) {
+            if (requestedStop || errorThenStop) {
                 expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
                     expect.objectContaining({ isLiveView: false })
                 );
