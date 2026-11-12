@@ -2380,6 +2380,7 @@
         "DEVICES_LOADING": "Loading devices…",
         "DEVICE_LIST_FAILED": "Could not load devices. The list will refresh automatically.",
         "DEVICE_ACTION_FAILED": "Could not complete the device action. Try again.",
+        "ALLOW_DEVICE_APPROVAL": "Allow this device to approve pairing",
         "REVOKE_DEVICE": "Revoke access",
         "REVOKE_CONFIRM": "Revoke server access for {{name}}? The device will have to pair again.",
         "DEVICE_REVOKED": "Device access revoked.",

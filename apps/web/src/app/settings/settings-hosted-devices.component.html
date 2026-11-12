@@ -118,9 +118,30 @@
                     >
                         @for (device of snapshot.devices; track device.id) {
                             <li class="device-row">
-                                <span class="device-name">{{
-                                    device.name
-                                }}</span>
+                                <span
+                                    class="device-name"
+                                    [id]="'hosted-device-name-' + device.id"
+                                    >{{ device.name }}</span
+                                >
+                                <mat-slide-toggle
+                                    data-test-id="hosted-device-approval"
+                                    [checked]="device.canApprove"
+                                    [disabled]="busy()"
+                                    [aria-describedby]="
+                                        'hosted-device-name-' + device.id
+                                    "
+                                    (toggleChange)="
+                                        setDeviceApproval(
+                                            device.id,
+                                            !device.canApprove
+                                        )
+                                    "
+                                >
+                                    {{
+                                        'HOSTED_SERVER.ALLOW_DEVICE_APPROVAL'
+                                            | translate
+                                    }}
+                                </mat-slide-toggle>
                                 <button
                                     mat-button
                                     type="button"

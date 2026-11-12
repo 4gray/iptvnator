@@ -9,6 +9,7 @@ export type HostedDeviceCommand =
     | { action: 'list' }
     | { action: 'approve'; claimId: string }
     | { action: 'revoke'; deviceId: string }
+    | { action: 'set-device-approval'; deviceId: string; canApprove: boolean }
     | { action: 'browser-settings' }
     | { action: 'set-browser-password'; password: string | null };
 
@@ -24,7 +25,7 @@ export interface HostedDeviceList {
         name: string;
         confirmationCode: string;
     }[];
-    devices: { id: string; name: string }[];
+    devices: { id: string; name: string; canApprove: boolean }[];
 }
 
 export interface HostedDeviceResults {
@@ -32,6 +33,7 @@ export interface HostedDeviceResults {
     list: HostedDeviceList;
     approve: void;
     revoke: void;
+    'set-device-approval': void;
     'browser-settings': { passwordConfigured: boolean };
     'set-browser-password': void;
 }

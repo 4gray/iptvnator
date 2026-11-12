@@ -18,7 +18,7 @@ describe('hosted device settings', () => {
         name: 'Synthetic phone',
         confirmationCode: '012345',
     };
-    const device = { id: 'synthetic-id', name: claim.name };
+    const device = { id: 'synthetic-id', name: claim.name, canApprove: false };
     let snapshot: HostedDeviceList;
     let passwordConfigured: boolean;
     let fixture: ComponentFixture<SettingsHostedDevicesComponent>;
@@ -37,20 +37,34 @@ describe('hosted device settings', () => {
         jest.setSystemTime(new Date('2030-01-01T12:00:00.000Z'));
         snapshot = { pending: [], devices: [] };
         passwordConfigured = false;
-        control.mockImplementation(async ({ action, password }) => {
-            if (action === 'list') return snapshot;
-            if (action === 'browser-settings') return { passwordConfigured };
-            if (action === 'set-browser-password')
-                passwordConfigured = password !== null;
-            if (action === 'invite')
-                return {
-                    url: inviteUrl,
-                    expiresAt: '2030-01-01T12:05:00.000Z',
-                };
-            if (action === 'approve')
-                snapshot = { pending: [], devices: [device] };
-            if (action === 'revoke') snapshot = { pending: [], devices: [] };
-        });
+        control.mockImplementation(
+            async ({ action, password, deviceId, canApprove }) => {
+                if (action === 'list') return snapshot;
+                if (action === 'browser-settings')
+                    return { passwordConfigured };
+                if (action === 'set-browser-password')
+                    passwordConfigured = password !== null;
+                if (action === 'invite')
+                    return {
+                        url: inviteUrl,
+                        expiresAt: '2030-01-01T12:05:00.000Z',
+                    };
+                if (action === 'approve')
+                    snapshot = { pending: [], devices: [device] };
+                if (action === 'revoke')
+                    snapshot = { pending: [], devices: [] };
+                if (action === 'set-device-approval') {
+                    snapshot = {
+                        ...snapshot,
+                        devices: snapshot.devices.map((paired) =>
+                            paired.id === deviceId
+                                ? { ...paired, canApprove }
+                                : paired
+                        ),
+                    };
+                }
+            }
+        );
         window.electron = {
             hostedDeviceControl: control,
         } as unknown as typeof window.electron;
@@ -111,7 +125,7 @@ describe('hosted device settings', () => {
         expect(root.querySelector('.device-row')?.textContent).toContain(
             'HOSTED_SERVER.REVOKE_DEVICE'
         );
-        clickButton('.device-row button');
+        clickButton('.device-row .app-destructive-button');
         expect(control).not.toHaveBeenCalledWith(
             expect.objectContaining({ action: 'revoke' })
         );
@@ -125,6 +139,49 @@ describe('hosted device settings', () => {
         expect(root.textContent).toContain(
             'HOSTED_SERVER.PAIRED_DEVICES_EMPTY'
         );
+    });
+
+    it('shows pairing approval only after the server confirms the device setting', async () => {
+        snapshot = { pending: [], devices: [device] };
+        clickButton('button[aria-controls="hosted-device-list"]');
+        await jest.advanceTimersByTimeAsync(0);
+        fixture.detectChanges();
+        const selector =
+            '[data-test-id="hosted-device-approval"] [role="switch"]';
+        const checked = () =>
+            root.querySelector(selector)?.getAttribute('aria-checked');
+        expect(checked()).toBe('false');
+
+        clickButton(selector);
+        fixture.detectChanges();
+        expect(checked()).toBe('false');
+        await jest.advanceTimersByTimeAsync(0);
+        fixture.detectChanges();
+        expect(control).toHaveBeenCalledWith({
+            action: 'set-device-approval',
+            deviceId: device.id,
+            canApprove: true,
+        });
+        expect(checked()).toBe('true');
+
+        control.mockRejectedValueOnce(new Error('Synthetic write failure'));
+        clickButton(selector);
+        await jest.advanceTimersByTimeAsync(0);
+        fixture.detectChanges();
+        expect(checked()).toBe('true');
+        expect(root.textContent).toContain(
+            'HOSTED_SERVER.DEVICE_ACTION_FAILED'
+        );
+
+        clickButton(selector);
+        await jest.advanceTimersByTimeAsync(0);
+        fixture.detectChanges();
+        expect(control).toHaveBeenCalledWith({
+            action: 'set-device-approval',
+            deviceId: device.id,
+            canApprove: false,
+        });
+        expect(checked()).toBe('false');
     });
 
     it('keeps device management available when LAN sharing is unavailable', () => {

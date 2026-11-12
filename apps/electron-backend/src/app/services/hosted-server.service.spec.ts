@@ -183,7 +183,11 @@ describe('desktop hosted server lifecycle', () => {
             name: 'Synthetic phone',
             confirmationCode: '012345',
         };
-        const device = { id: deviceId, name: 'Synthetic tablet' };
+        const device = {
+            id: deviceId,
+            name: 'Synthetic tablet',
+            canApprove: true,
+        };
         fetchMock.mockResolvedValueOnce(Response.json({ inviteId, expiresAt }));
         fetchMock.mockResolvedValueOnce(
             Response.json({
@@ -191,6 +195,7 @@ describe('desktop hosted server lifecycle', () => {
                 devices: [{ ...device, token: 'synthetic-token' }],
             })
         );
+        fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
         fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
         fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
 
@@ -205,6 +210,13 @@ describe('desktop hosted server lifecycle', () => {
             invoke(HOSTED_DEVICE_CONTROL, { action: 'approve', claimId })
         ).resolves.toBeUndefined();
         await expect(
+            invoke(HOSTED_DEVICE_CONTROL, {
+                action: 'set-device-approval',
+                deviceId,
+                canApprove: false,
+            })
+        ).resolves.toBeUndefined();
+        await expect(
             invoke(HOSTED_DEVICE_CONTROL, { action: 'revoke', deviceId })
         ).resolves.toBeUndefined();
         await expect(
@@ -213,6 +225,13 @@ describe('desktop hosted server lifecycle', () => {
                 deviceId: '../devices',
             })
         ).rejects.toThrow('Invalid hosted device ID');
+        await expect(
+            invoke(HOSTED_DEVICE_CONTROL, {
+                action: 'set-device-approval',
+                deviceId,
+                canApprove: 'false',
+            })
+        ).rejects.toThrow('Invalid hosted device approval setting');
         expect(
             fetchMock.mock.calls.map(([url, options]) => [
                 url,
@@ -226,6 +245,11 @@ describe('desktop hosted server lifecycle', () => {
                 `${localUrl}/api/v1/device-pairing/approve`,
                 'POST',
                 JSON.stringify({ claimId }),
+            ],
+            [
+                `${localUrl}/api/v1/devices/${deviceId}/approval`,
+                'PUT',
+                JSON.stringify({ canApprove: false }),
             ],
             [`${localUrl}/api/v1/devices/${deviceId}`, 'DELETE', undefined],
         ]);

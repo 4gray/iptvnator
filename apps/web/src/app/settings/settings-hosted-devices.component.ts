@@ -14,6 +14,10 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import {
+    MAT_SLIDE_TOGGLE_DEFAULT_OPTIONS,
+    MatSlideToggleModule,
+} from '@angular/material/slide-toggle';
+import {
     HOSTED_PAIRING_PASSWORD_MAX_LENGTH,
     HOSTED_PAIRING_PASSWORD_MIN_LENGTH,
 } from '@iptvnator/shared/interfaces';
@@ -34,8 +38,15 @@ import { timer } from 'rxjs';
         MatButtonModule,
         MatFormFieldModule,
         MatInputModule,
+        MatSlideToggleModule,
         QRCodeComponent,
         TranslateModule,
+    ],
+    providers: [
+        {
+            provide: MAT_SLIDE_TOGGLE_DEFAULT_OPTIONS,
+            useValue: { disableToggleValue: true },
+        },
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './settings-hosted-devices.component.html',
@@ -106,6 +117,19 @@ export class SettingsHostedDevicesComponent {
         await this.run(async () => {
             await this.request({ action: 'approve', claimId });
             this.message.set('HOSTED_SERVER.PAIR_APPROVED');
+        });
+    }
+
+    async setDeviceApproval(
+        deviceId: string,
+        canApprove: boolean
+    ): Promise<void> {
+        await this.run(async () => {
+            await this.request({
+                action: 'set-device-approval',
+                deviceId,
+                canApprove,
+            });
         });
     }
 

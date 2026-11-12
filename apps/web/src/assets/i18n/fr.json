@@ -2391,6 +2391,7 @@
         "DEVICES_LOADING": "Chargement des appareils…",
         "DEVICE_LIST_FAILED": "Impossible de charger les appareils. La liste s’actualisera automatiquement.",
         "DEVICE_ACTION_FAILED": "Impossible de terminer l’opération. Réessayez.",
+        "ALLOW_DEVICE_APPROVAL": "Autoriser cet appareil à approuver les associations",
         "REVOKE_DEVICE": "Révoquer l’accès",
         "REVOKE_CONFIRM": "Révoquer l’accès au serveur pour {{name}} ? L’appareil devra être associé de nouveau.",
         "DEVICE_REVOKED": "Accès de l’appareil révoqué.",

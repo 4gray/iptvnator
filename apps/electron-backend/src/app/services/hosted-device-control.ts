@@ -84,7 +84,11 @@ export function registerHostedDeviceEvents(
                                 confirmationCode,
                             })
                         ),
-                        devices: devices.map(({ id, name }) => ({ id, name })),
+                        devices: devices.map(({ id, name, canApprove }) => ({
+                            id,
+                            name,
+                            canApprove: canApprove === true,
+                        })),
                     };
                 }
                 case 'approve': {
@@ -100,15 +104,31 @@ export function registerHostedDeviceEvents(
                     });
                     return;
                 }
-                case 'revoke': {
+                case 'revoke':
+                case 'set-device-approval': {
                     if (
                         !('deviceId' in command) ||
                         typeof command.deviceId !== 'string' ||
                         !deviceId.test(command.deviceId)
                     )
                         throw new Error('Invalid hosted device ID');
-                    await request(`/devices/${command.deviceId}`, code, {
-                        method: 'DELETE',
+                    const path = `/devices/${command.deviceId}`;
+                    if (command.action === 'revoke') {
+                        await request(path, code, { method: 'DELETE' });
+                        return;
+                    }
+                    if (
+                        !('canApprove' in command) ||
+                        typeof command.canApprove !== 'boolean'
+                    )
+                        throw new Error(
+                            'Invalid hosted device approval setting'
+                        );
+                    await request(`${path}/approval`, code, {
+                        method: 'PUT',
+                        body: JSON.stringify({
+                            canApprove: command.canApprove,
+                        }),
                     });
                     return;
                 }
