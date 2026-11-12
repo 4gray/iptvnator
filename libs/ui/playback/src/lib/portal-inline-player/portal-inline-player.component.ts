@@ -247,11 +247,14 @@ export class PortalInlinePlayerComponent {
         if (!next || this.settingsStore.playerUpNextCard?.() === false) {
             return null;
         }
+        const navigation = this.seriesNavigation();
         return {
             label: next.label,
             title: next.title,
             thumbnailUrl: next.thumbnailUrl,
             progressPercent: next.progressPercent,
+            showCountdown:
+                navigation?.autoplayEnabled === true && navigation.canNext,
         };
     });
 

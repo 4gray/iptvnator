@@ -114,6 +114,10 @@ describe('XtreamContentGateComponent', () => {
         ['expired', 'PORTALS.ERROR_VIEW.ACCOUNT_EXPIRED.TITLE'],
         ['inactive', 'PORTALS.ERROR_VIEW.ACCOUNT_INACTIVE.TITLE'],
         ['unavailable', 'PORTALS.ERROR_VIEW.PORTAL_UNAVAILABLE.TITLE'],
+        [
+            'response-too-large',
+            'PORTALS.ERROR_VIEW.PROVIDER_RESPONSE_TOO_LARGE.TITLE',
+        ],
         ['error', 'PORTALS.ERROR_VIEW.UNKNOWN_ERROR.TITLE'],
     ] as const)(
         'renders the blocked error state for %s imports',

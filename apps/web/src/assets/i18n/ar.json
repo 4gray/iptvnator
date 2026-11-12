@@ -549,6 +549,8 @@
         "PLAYER_AMBIENT_MODE_DESCRIPTION": "تعبئة المساحة حول المشغل بنسخة مشوشة ومعتمة من الملصق بدلاً من الخطوط السوداء.",
         "PLAY_TRAILERS_IN_BACKGROUND": "تشغيل الإعلانات في خلفية التفاصيل",
         "PLAY_TRAILERS_IN_BACKGROUND_DESCRIPTION": "بعد ثوانٍ من فتح فيلم أو مسلسل، يُشغَّل إعلانه بدون صوت خلف التفاصيل. متوقف على الاتصالات المحدودة ومع تقليل الحركة.",
+        "SERIES_AUTOPLAY": "تشغيل الحلقة التالية تلقائيًا",
+        "SERIES_AUTOPLAY_DESCRIPTION": "متابعة حلقات الموسم الحالي تلقائيًا في المشغّل المدمج لمسلسلات Xtream وStalker.",
         "PLAYER_UP_NEXT_RAIL": "شريط الحلقات التالية",
         "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "في النوافذ العريضة، تثبيت مشغل المسلسل على اليسار وعرض الحلقات القادمة بجانبه.",
         "PLAYER_UP_NEXT_CARD": "بطاقة «التالي»",
@@ -1498,6 +1500,10 @@
             "PORTAL_UNAVAILABLE": {
                 "TITLE": "البوابة غير متاحة",
                 "DESCRIPTION": "تعذر الوصول إلى البوابة. تحقق من رابط الخادم أو أعد المحاولة عندما يصبح المصدر متاحًا مرة أخرى."
+            },
+            "PROVIDER_RESPONSE_TOO_LARGE": {
+                "TITLE": "يتجاوز كتالوج Xtream حد الخادم",
+                "DESCRIPTION": "ارفع قيمة IPTVNATOR_MAX_PROVIDER_RESPONSE_MB على الخادم وأعد تشغيله. ثم أعد محاولة المزامنة."
             },
             "EMPTY_CATEGORY": {
                 "TITLE": "فئة فارغة",

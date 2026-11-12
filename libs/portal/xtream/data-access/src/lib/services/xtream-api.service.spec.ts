@@ -95,6 +95,16 @@ describe('XtreamApiService', () => {
         }
     );
 
+    it('keeps the server error code when a catalog failure has no message', async () => {
+        const code = 'PROVIDER_RESPONSE_TOO_LARGE';
+        dataService.sendIpcEvent.mockResolvedValue({ type: 'ERROR', code });
+
+        await expect(service.getVodStreams(credentials)).rejects.toMatchObject({
+            code,
+            message: 'Request failed',
+        });
+    });
+
     it('skips every EPG endpoint while disabled but keeps catalog requests working', async () => {
         await TestBed.inject(EpgPreferencesService).apply(false);
         expect(await service.getShortEpg(credentials, 101)).toEqual([]);

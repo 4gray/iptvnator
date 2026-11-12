@@ -406,6 +406,7 @@ export class XtreamApiService {
                   payload: { epg_listings: [] },
               })
             : request())) as {
+            code?: string;
             message?: string;
             payload?: unknown;
             status?: number;
@@ -423,6 +424,7 @@ export class XtreamApiService {
             throw Object.assign(
                 new Error(response?.message ?? 'Request failed'),
                 {
+                    code: response?.code,
                     status: response?.status,
                 }
             );

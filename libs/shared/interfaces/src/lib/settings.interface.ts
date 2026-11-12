@@ -149,6 +149,8 @@ export interface Settings {
      * few seconds after the page opens. Off by default.
      */
     detailTrailerBackdrop?: boolean;
+    /** Automatically play the next Xtream or Stalker episode inline. Default on. */
+    seriesAutoplay?: boolean;
     /**
      * Dock the inline series player to the left and show an "Up Next"
      * episode rail in the leftover stage column on wide windows. On by
