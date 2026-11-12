@@ -211,9 +211,11 @@ base actually tested by CI. Query the live destination branch in the receiving
 repository with `gh api repos/OWNER/REPO/git/ref/heads/BRANCH --jq .object.sha`.
 The PR's stored base SHA can lag the branch. For a check that used
 [GitHub's PR merge checkout](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#how-the-merge-branch-affects-your-workflow),
-the checkout log's commit identifies the tested merge. Its first parent is
-the tested base. If newer base changes overlap the PR, verify the affected
-behavior in the combined tree before relying on the earlier CI results.
+the checkout log's commit identifies the tested merge. Compare its first
+parent with the intended base and its second parent with the reviewed head.
+For a head-only checkout, compare the checkout SHA with the reviewed head.
+If newer base changes overlap the PR, verify the affected behavior in the
+combined tree before relying on the earlier CI results.
 
 A reviewer whose CLI is missing, signed out, outside a Greptile organization or
 left without reviewable files (Greptile ignores Markdown-only changes) does not
