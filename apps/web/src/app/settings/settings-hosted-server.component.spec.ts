@@ -285,6 +285,18 @@ describe('hosted server settings', () => {
         fixture.detectChanges();
         expect(start?.disabled).toBe(false);
 
+        const originInput = root.querySelector<HTMLInputElement>(
+            '[data-test-id="hosted-https-origin"]'
+        )!;
+        originInput.value = 'https://different-library.example.test';
+        originInput.dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+        expect(component.cloudflareProtected()).toBe(false);
+        expect(start?.disabled).toBe(true);
+        component.httpsAddress.set(httpsOrigin);
+        component.cloudflareProtected.set(true);
+        fixture.detectChanges();
+
         control
             .mockResolvedValueOnce({ state: 'running', localUrl, lanUrl })
             .mockResolvedValueOnce({

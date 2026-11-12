@@ -255,6 +255,12 @@ export class SettingsHostedServerComponent {
         }
     }
 
+    editHttpsAddress(value: string): void {
+        if (value !== this.httpsAddress()) this.cloudflareProtected.set(false);
+        this.httpsAddress.set(value);
+        this.httpsInvalid.set(false);
+    }
+
     async forgetCloudflare(): Promise<void> {
         if (this.busy()) return;
         this.transition++;

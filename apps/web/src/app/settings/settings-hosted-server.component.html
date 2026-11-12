@@ -379,9 +379,7 @@
                     matInput
                     type="url"
                     [ngModel]="httpsAddress()"
-                    (ngModelChange)="
-                        httpsAddress.set($event); httpsInvalid.set(false)
-                    "
+                    (ngModelChange)="editHttpsAddress($event)"
                     [disabled]="busy()"
                     [attr.aria-invalid]="httpsInvalid()"
                     [attr.aria-describedby]="
