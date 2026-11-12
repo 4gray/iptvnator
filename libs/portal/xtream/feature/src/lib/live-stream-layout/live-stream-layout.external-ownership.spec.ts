@@ -23,6 +23,38 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
 
     afterEach(restoreElectron);
 
+    it.each([
+        { serverUrl: 'https://another.example.test' },
+        { username: 'synthetic-other-user' },
+        { password: 'synthetic-other-secret' },
+    ])(
+        'does not reattach a live session after editing its connection (%j)',
+        (edit) => {
+            const first = TestBed.createComponent(LiveStreamLayoutComponent);
+            portalPlayer.isEmbeddedPlayer.set(false);
+            first.detectChanges();
+            first.componentInstance.playLive(sampleChannel, true);
+            publishExternalSession({
+                id: 'synthetic-original',
+                player: 'mpv',
+                status: 'opened',
+                title: 'Synthetic Channel',
+                streamUrl: first.componentInstance.activeStreamUrl(),
+                canClose: true,
+                startedAt: '2026-04-04T10:00:00Z',
+                updatedAt: '2026-04-04T10:00:00Z',
+            });
+            first.detectChanges();
+            expect(first.componentInstance.guide.available()).toBe(true);
+            first.destroy();
+            xtreamStore.currentPlaylist.set({ ...playlist, ...edit });
+            const second = TestBed.createComponent(LiveStreamLayoutComponent);
+            second.detectChanges();
+            expect(second.componentInstance.guide.available()).toBe(false);
+            expect(second.componentInstance.guideNowPlayingChannel()).toBe('');
+        }
+    );
+
     it('opens the selected channel when another playlist has the same stream ID pending', () => {
         const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
         const component = fixture.componentInstance;

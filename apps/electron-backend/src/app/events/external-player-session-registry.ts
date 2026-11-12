@@ -93,6 +93,11 @@ export class ExternalPlayerSessionRegistry {
         return this.sessions.get(id)?.snapshot ?? null;
     }
 
+    isNewerLaunch(id: string | null, session: ExternalPlayerSession): boolean {
+        const order = id ? this.getSession(id)?.launchOrder : undefined;
+        return (order ?? 0) > (session.launchOrder ?? 0);
+    }
+
     /**
      * Re-publish the exact still-live session that a failed replacement had
      * temporarily displaced. Its existing closer remains attached.

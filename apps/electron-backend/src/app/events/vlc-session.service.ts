@@ -191,6 +191,12 @@ export async function openVlcPlayer({
     launchId,
 }: OpenVlcPlayerRequest) {
     externalPlayerProcessTeardownGate.assertLaunchAllowed();
+    const isFlatpak = isRunningInFlatpak();
+    const requestedReuseInstance = store.get(VLC_REUSE_INSTANCE, false);
+    const reuseInstance = shouldReuseVlcInstance(
+        requestedReuseInstance,
+        isFlatpak
+    );
     const activeId = externalPlayerSessions.getActiveSessionId();
     const active = activeId && externalPlayerSessions.getSession(activeId);
     if (
@@ -199,8 +205,13 @@ export async function openVlcPlayer({
         active &&
         active.player === 'vlc' &&
         active.streamUrl === url &&
-        active.mediaObservationUnavailable &&
-        active.canClose
+        active.canClose &&
+        (active.mediaObservationUnavailable ||
+            active.mediaReadinessTimedOut ||
+            active.playbackUnverified) &&
+        (!reuseInstance ||
+            !reusableVlcProcess.hasPrivateControl() ||
+            reusableVlcProcess.currentSessionId() !== active.id)
     ) {
         await externalPlayerSessions.closeSession(active.id, true);
         externalPlayerProcessTeardownGate.assertLaunchAllowed();
@@ -221,22 +232,21 @@ export async function openVlcPlayer({
         closeRequested: false,
         requestedClose: null,
     };
+    const hasNewerOwner = () =>
+        externalPlayerSessions.isNewerLaunch(
+            reusableVlcProcess.currentSessionId(),
+            session
+        );
     let freshTeardownUnconfirmed = false;
     let closeRetained: (() => Promise<void>) | undefined;
 
     try {
-        const isFlatpak = isRunningInFlatpak();
         const vlcLaunchContext = resolveExternalPlayerLaunchContext(
             'vlc',
             getVlcPath({ isFlatpak }),
             { isFlatpak }
         );
         const customVlcArguments = store.get(VLC_PLAYER_ARGUMENTS, '');
-        const requestedReuseInstance = store.get(VLC_REUSE_INSTANCE, false);
-        const reuseInstance = shouldReuseVlcInstance(
-            requestedReuseInstance,
-            isFlatpak
-        );
         const effectiveRequest = resolveEffectiveExternalPlaybackRequest({
             url,
             userAgent,
@@ -267,16 +277,6 @@ export async function openVlcPlayer({
         });
 
         const guideLaunch = !!session.launchId && !contentInfo;
-        if (reuseInstance)
-            closeRetained = reusableVlcProcess.replacementCloser(guideLaunch);
-        if (closeRetained) {
-            try {
-                await closeRetained();
-            } catch (error) {
-                reuseState.teardownUnconfirmed = true;
-                throw error;
-            }
-        }
         if (
             reuseInstance &&
             (!guideLaunch || reusableVlcProcess.hasPrivateControl())
@@ -297,6 +297,17 @@ export async function openVlcPlayer({
                 stopPositionPolling: stopVlcPositionPolling,
             });
             if (reused) return reused;
+        }
+        if (reuseInstance) {
+            if (guideLaunch && hasNewerOwner())
+                return externalPlayerSessions.markClosed(session.id) ?? session;
+            closeRetained = reusableVlcProcess.replacementCloser(guideLaunch);
+            try {
+                if (closeRetained) await closeRetained();
+            } catch (error) {
+                reuseState.teardownUnconfirmed = true;
+                throw error;
+            }
         }
 
         const privateEndpoint =
@@ -403,10 +414,12 @@ export async function openVlcPlayer({
                 }
                 if (
                     externalPlayerSessions.getSession(session.id)?.status ===
-                    'closed'
+                        'closed' ||
+                    (reuseInstance && guideLaunch && hasNewerOwner())
                 ) {
                     privateEndpoint?.dispose();
                     closeRequested = true;
+                    externalPlayerSessions.markClosed(session.id);
                     resolveSpawn();
                     return;
                 }

@@ -74,12 +74,9 @@ export class VlcReusableProcess {
         privateControl: boolean
     ): (() => Promise<void>) | undefined {
         const { process, processSessionId, rcPort } = this;
-        if (
-            !process ||
-            !processSessionId ||
-            (rcPort && (!privateControl || typeof rcPort === 'string'))
-        )
-            return undefined;
+        const compatible =
+            rcPort && (!privateControl || this.hasPrivateControl());
+        if (!process || !processSessionId || compatible) return undefined;
         return async () => {
             if (externalPlayerSessions.getSession(processSessionId)?.canClose)
                 await externalPlayerSessions.closeSession(
@@ -163,14 +160,10 @@ export class VlcReusableProcess {
     async tryReuse(
         options: VlcReuseOptions
     ): Promise<ExternalPlayerSession | null> {
-        const reusedProcess = this.process;
-        const reusedRcPort = this.rcPort;
+        const { process: reusedProcess, rcPort: reusedRcPort } = this;
         if (!reusedProcess || reusedProcess.killed || !reusedRcPort)
             return null;
 
-        traceExternalPlayer('reuse existing vlc instance', {
-            rcPort: reusedRcPort,
-        });
         const { session, state } = options;
         const stopGeneration = this.stopGeneration;
         const cancelled = () => this.stopGeneration !== stopGeneration;
@@ -178,11 +171,18 @@ export class VlcReusableProcess {
             this.processSessionIds.get(reusedProcess) ??
             options.previousProcessSessionId;
         const order = ++this.reuseOrder;
+        const replaced = () =>
+            this.process !== reusedProcess &&
+            (session.launchId && !session.contentInfo
+                ? externalPlayerSessions.isNewerLaunch(
+                      this.processSessionId,
+                      session
+                  )
+                : this.process !== null);
         const superseded = () =>
             state.contentMutated
                 ? !this.owns(reusedProcess, session.id)
-                : order < this.dispatchedReuse ||
-                  (this.process !== null && this.process !== reusedProcess);
+                : order < this.dispatchedReuse || replaced();
         const lostChild = () =>
             hasExited(reusedProcess) ||
             (!state.contentMutated && this.process !== reusedProcess);

@@ -807,10 +807,9 @@ checks the requested input before and after reading its playback clock.
 If VLC opens a direct child of a plain M3U, the app reads only the original
 playlist in one bounded request and rechecks the active input before confirming.
 A readable zero stays pending; an unrelated URL invalidates confirmation.
-Retrying a direct launch of the same input closes its exact unverified process
-first. Temporary RC
-failures keep the committed selection pending until a readiness timeout or
-terminal outcome.
+Retrying the same input closes its exact unverified process first if the app
+cannot reuse it. Temporary RC failures keep the committed selection pending
+until a readiness timeout or terminal outcome.
 If the player cannot verify readiness, the guide stays available for a retry and a
 committed selection keeps it open. Committing the still-playing channel cancels
 every outstanding switch away from it, including timed-out launches that can
@@ -820,8 +819,9 @@ restores Stop for the surviving session when a launch that still owns the dock
 ends. An idle failed replacement closes
 before that restore. When the first launch fails, including before opening, its
 channel and queue remain available for remote tuning without now-playing details.
-Consecutive remote tuning
-commands advance from the latest requested channel until it opens or fails.
+Consecutive remote tuning commands advance from the latest requested channel
+until it opens or fails. A VLC fallback from an older launch cannot retire a
+newer tune.
 IINA keeps the selection-based remote queue because its launcher can exit
 while playback continues. MPV without an observation bridge keeps the queue
 captured when the channel was selected, without confirming guide playback.
@@ -838,9 +838,10 @@ the newest allowed session in the playlist that has opened and is still live. Th
 app retries an exact close if the external player cannot confirm its exit.
 A replacement that opens and exits before the guide updates clears its
 pending switch, restores the surviving channel's panel, and can be retried.
-Returning to Live TV in external-player mode reattaches the guide to a
-session still playing in the same playlist, including a failed replacement's survivor
-or left the global dock when another playlist started playing. Each session
+Returning to Live TV in external-player mode reattaches the guide to a session
+still playing on the same playlist and provider connection, including a failed
+replacement's survivor or a session displaced from the global dock. A server or
+account change prevents reattachment to the previous connection. Each session
 keeps its own category and queue, even when launches share a stream URL.
 Native lifecycle events carry the requesting launch's identifier so
 unrelated players at the same URL cannot claim that session.

@@ -7,7 +7,13 @@ import { XtreamExternalLiveSessions } from './xtream-external-live-sessions.serv
 
 const oldUrl = 'https://example.test/old.ts';
 const newUrl = 'https://example.test/new.ts';
-const original = { playlistId: 'synthetic-playlist', categoryId: 1 };
+const original = {
+    playlistId: 'synthetic-playlist',
+    categoryId: 1,
+    serverUrl: 'https://example.test',
+    username: 'synthetic-user',
+    password: 'synthetic-secret',
+};
 const replacement = { ...original, categoryId: 2 };
 
 function session(
@@ -239,9 +245,9 @@ describe('XtreamExternalLiveSessions', () => {
             .begin({ ...replacement, channel: { xtream_id: 102 } })
             .finish(cancelled);
         activeSession.set(cancelled);
-        expect(
-            guard.cancelPendingSwitches(original.playlistId, 101, playing.id)
-        ).toBe(true);
+        expect(guard.cancelPendingSwitches(original, 101, playing.id)).toBe(
+            true
+        );
         await Promise.resolve();
         expect(close).toHaveBeenCalledWith(cancelled.id, true);
         expect(restoreDisplacedSession).toHaveBeenCalledWith(

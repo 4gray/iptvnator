@@ -112,6 +112,100 @@ describe('VLC exact playback ownership', () => {
         jest.useRealTimers();
     });
 
+    it('starts the newer VLC tune after closing the older launch’s fallback', async () => {
+        if (process.platform === 'win32') return;
+        jest.useFakeTimers({ doNotFake: ['setImmediate'] });
+        const first = child();
+        const fallback = child();
+        const second = child();
+        spawnMock
+            .mockReturnValueOnce(first)
+            .mockReturnValueOnce(fallback)
+            .mockReturnValueOnce(second);
+        mockRc(() => undefined);
+        try {
+            const initial = openVlcPlayer({
+                title: 'Synthetic A',
+                url: 'https://example.test/a.ts',
+                launchId: 'synthetic-a',
+            });
+            first.emit('spawn');
+            const original = await initial;
+            const next = openVlcPlayer({
+                title: 'Synthetic B',
+                url: 'https://example.test/b.ts',
+                launchId: 'synthetic-b',
+            });
+            exit(first, 1);
+            fallback.emit('spawn');
+            await jest.advanceTimersByTimeAsync(2_100);
+            await tick();
+            expect(fallback.kill).toHaveBeenCalledTimes(1);
+            expect(spawnMock).toHaveBeenCalledTimes(2);
+            exit(fallback);
+            await tick();
+            expect(spawnMock).toHaveBeenCalledTimes(3);
+            second.emit('spawn');
+            expect(await next).toMatchObject({
+                status: 'opened',
+                launchId: 'synthetic-b',
+            });
+            expect(externalPlayerSessions.getSession(original.id)?.status).toBe(
+                'closed'
+            );
+        } finally {
+            for (const proc of [first, fallback, second])
+                if (proc.exitCode === null) exit(proc);
+        }
+    });
+
+    it('stops the exact timed-out detached VLC before retrying the same input', async () => {
+        if (process.platform === 'win32') return;
+        jest.useFakeTimers({ doNotFake: ['setImmediate'] });
+        (store.get as jest.Mock).mockImplementation((key, fallback) =>
+            key === VLC_PLAYER_PATH ? '/usr/bin/vlc' : fallback
+        );
+        const first = child();
+        const second = child();
+        spawnMock.mockReturnValueOnce(first).mockReturnValueOnce(second);
+        mockRc(() => undefined);
+        const request = {
+            title: 'Synthetic Channel',
+            url: 'https://example.test/a.ts',
+        };
+        try {
+            const initial = openVlcPlayer({
+                ...request,
+                launchId: 'synthetic-a',
+            });
+            first.emit('spawn');
+            const original = await initial;
+            await jest.advanceTimersByTimeAsync(30_000);
+            expect(
+                externalPlayerSessions.getSession(original.id)
+                    ?.mediaReadinessTimedOut
+            ).toBe(true);
+            const next = openVlcPlayer({
+                ...request,
+                launchId: 'synthetic-retry',
+            });
+            await tick();
+            expect(first.kill).toHaveBeenCalledTimes(1);
+            expect(spawnMock).toHaveBeenCalledTimes(1);
+            exit(first);
+            await tick();
+            expect(spawnMock).toHaveBeenCalledTimes(2);
+            second.emit('spawn');
+            expect(await next).toMatchObject({
+                status: 'opened',
+                launchId: 'synthetic-retry',
+            });
+        } finally {
+            for (const proc of [first, second])
+                if (proc.exitCode === null) exit(proc);
+        }
+    });
+
     it('keeps the reused child closable after another fresh launch takes the reuse slot', async () => {
         const first = child();
         const second = child();

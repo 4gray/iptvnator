@@ -12,6 +12,7 @@ import {
     PORTAL_EXTERNAL_PLAYBACK,
 } from '@iptvnator/portal/shared/util';
 import { ParentalLockService } from '@iptvnator/services';
+import type { XtreamPlaylistData } from '@iptvnator/portal/xtream/data-access';
 import type {
     EpgProgram,
     ExternalPlayerSession,
@@ -19,8 +20,36 @@ import type {
 } from '@iptvnator/shared/interfaces';
 import type { XtreamLiveChannelItem } from './xtream-live-channel-navigation.service';
 
-export interface XtreamLiveSource {
+type XtreamLiveOwner = Pick<
+    XtreamPlaylistData,
+    'serverUrl' | 'username' | 'password'
+> & {
     playlistId: string;
+};
+
+export function captureXtreamLiveOwner(
+    playlist?: XtreamPlaylistData | null
+): XtreamLiveOwner | undefined {
+    if (!playlist?.id) return undefined;
+    const { id: playlistId, serverUrl, username, password } = playlist;
+    return { playlistId, serverUrl, username, password };
+}
+
+export function sameXtreamLiveOwner(
+    left: XtreamLiveOwner | undefined,
+    right: XtreamLiveOwner | undefined
+): boolean {
+    return (
+        !!left &&
+        !!right &&
+        left.playlistId === right.playlistId &&
+        left.serverUrl === right.serverUrl &&
+        left.username === right.username &&
+        left.password === right.password
+    );
+}
+
+export interface XtreamLiveSource extends XtreamLiveOwner {
     categoryId: number | null | 'unknown';
     channel?: XtreamLiveChannelItem;
     archive?: EpgProgram | null;
@@ -30,7 +59,10 @@ export interface XtreamLiveSource {
 
 export function isXtreamLiveCategoryWithheld(
     lock: ParentalLockService,
-    { playlistId, categoryId }: XtreamLiveSource
+    {
+        playlistId,
+        categoryId,
+    }: Pick<XtreamLiveSource, 'playlistId' | 'categoryId'>
 ): boolean {
     return categoryId === 'unknown'
         ? lock.active()
@@ -104,7 +136,7 @@ export class XtreamExternalLiveSessions {
     }
 
     latestOpened(
-        playlistId: string,
+        owner: XtreamLiveOwner,
         excludeId?: string
     ): ExternalPlayerSession | undefined {
         this.revision();
@@ -113,7 +145,7 @@ export class XtreamExternalLiveSessions {
         for (const { session, source, launch } of this.sessions.values()) {
             if (
                 session.id === excludeId ||
-                source.playlistId !== playlistId ||
+                !sameXtreamLiveOwner(source, owner) ||
                 launch?.cancelled ||
                 !source.channel ||
                 !hasXtreamOpenedMedia(session) ||
@@ -161,7 +193,7 @@ export class XtreamExternalLiveSessions {
     }
 
     cancelPendingSwitches(
-        playlistId: string,
+        owner: XtreamLiveOwner,
         channelId: number,
         restoreSessionId: string
     ): boolean {
@@ -176,7 +208,7 @@ export class XtreamExternalLiveSessions {
                 launch.retired ||
                 launch.cancelled ||
                 launch.opened ||
-                source.playlistId !== playlistId ||
+                !sameXtreamLiveOwner(source, owner) ||
                 !source.channel ||
                 (source.channel.xtream_id === channelId && !source.archive)
             )
@@ -242,10 +274,7 @@ export class XtreamExternalLiveSessions {
             session.playbackIdle &&
             this.playback?.activeSession()?.id === id
         )
-            launch.restoreSessionId ??= this.latestOpened(
-                owner.playlistId,
-                id
-            )?.id;
+            launch.restoreSessionId ??= this.latestOpened(owner, id)?.id;
         if (
             session.status === 'error' ||
             session.playbackIdle ||
@@ -273,10 +302,11 @@ export class XtreamExternalLiveSessions {
             : undefined;
         const survivor =
             explicit &&
+            sameXtreamLiveOwner(explicit.source, launch.source) &&
             !isXtreamLiveCategoryWithheld(this.lock, explicit.source)
                 ? explicit.session
                 : !launch.cancelled
-                  ? this.latestOpened(launch.source.playlistId, displacedId)
+                  ? this.latestOpened(launch.source, displacedId)
                   : undefined;
         if (hasXtreamOpenedMedia(survivor))
             this.playback.restoreDisplacedSession?.(survivor, displacedId);

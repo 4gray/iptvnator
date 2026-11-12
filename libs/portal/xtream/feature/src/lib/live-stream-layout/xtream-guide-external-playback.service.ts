@@ -20,8 +20,10 @@ import type {
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import {
+    captureXtreamLiveOwner,
     hasXtreamOpenedMedia,
     isXtreamLiveCategoryWithheld,
+    sameXtreamLiveOwner,
     XtreamExternalLiveSessions,
     type XtreamLiveSource,
 } from './xtream-external-live-sessions.service';
@@ -65,6 +67,9 @@ export class XtreamGuideExternalPlayback {
     private readonly sessions = inject(XtreamExternalLiveSessions);
     private readonly store = inject(XtreamStore);
     private readonly destroyRef = inject(DestroyRef);
+    private readonly owner = computed(() =>
+        captureXtreamLiveOwner(this.store.currentPlaylist())
+    );
     private readonly pending = signal<GuideLaunch | undefined>(undefined);
     private readonly failedTuning = signal<GuideLaunch | undefined>(undefined);
     private panel?: GuidePanel;
@@ -76,29 +81,28 @@ export class XtreamGuideExternalPlayback {
         typeof window.electron?.onExternalPlayerSessionUpdate === 'function';
     private readonly playing = linkedSignal({
         source: () => ({
-            playlistId: this.store.currentPlaylist()?.id,
+            owner: this.owner(),
             active: this.playback?.activeSession(),
         }),
-        computation: (
-            { playlistId, active },
-            previous
-        ): ConfirmedLaunch | null => {
-            if (!playlistId || !this.hasSessionUpdates) return null;
+        computation: ({ owner, active }, previous): ConfirmedLaunch | null => {
+            if (!owner || !this.hasSessionUpdates) return null;
             const prior = previous?.value;
             const activeSource = hasXtreamOpenedMedia(active)
                 ? this.sessions.state(active.id)?.source
                 : undefined;
-            const owned = activeSource?.playlistId === playlistId;
+            const owned =
+                !!activeSource && sameXtreamLiveOwner(activeSource, owner);
             this.lock.version();
             const previousSession =
-                prior?.lockSource.playlistId === playlistId &&
+                prior &&
+                sameXtreamLiveOwner(prior.lockSource, owner) &&
                 prior.session.id !== active?.id
                     ? this.sessions.state(prior.session.id)?.session
                     : undefined;
             const session =
                 owned && !isXtreamLiveCategoryWithheld(this.lock, activeSource)
                     ? active
-                    : (this.sessions.latestOpened(playlistId, active?.id) ??
+                    : (this.sessions.latestOpened(owner, active?.id) ??
                       (owned ? active : previousSession));
             if (!hasXtreamOpenedMedia(session)) return null;
             const source = this.sessions.state(session.id)?.source;
@@ -113,12 +117,8 @@ export class XtreamGuideExternalPlayback {
     });
 
     readonly confirmed = computed(() => {
-        this.lock.version();
         const playing = this.playing();
-        return playing &&
-            !isXtreamLiveCategoryWithheld(this.lock, playing.lockSource)
-            ? playing
-            : null;
+        return this.isAllowed(playing?.lockSource) ? playing : null;
     });
 
     readonly launching = computed(() => {
@@ -183,7 +183,7 @@ export class XtreamGuideExternalPlayback {
         this.lock.version();
         return (
             !!source &&
-            source.playlistId === this.store.currentPlaylist()?.id &&
+            sameXtreamLiveOwner(source, this.owner()) &&
             !isXtreamLiveCategoryWithheld(this.lock, source)
         );
     }
@@ -250,12 +250,12 @@ export class XtreamGuideExternalPlayback {
         onConfirmed?: () => void
     ): void {
         if (!playback?.streamUrl) return;
-        const playlistId = this.store.currentPlaylist()?.id;
+        const owner = this.owner();
         const launch: GuideLaunch | undefined =
-            playlistId && this.hasSessionUpdates
+            owner && this.hasSessionUpdates
                 ? {
                       lockSource: {
-                          playlistId,
+                          ...owner,
                           categoryId,
                           channel: item,
                           archive,
@@ -319,8 +319,7 @@ export class XtreamGuideExternalPlayback {
         const pending = this.pending();
         if (
             !pending ||
-            pending.lockSource.playlistId !==
-                this.store.currentPlaylist()?.id ||
+            !sameXtreamLiveOwner(pending.lockSource, this.owner()) ||
             pending.ended?.() ||
             pending.archive ||
             pending.item.xtream_id !== item.xtream_id
@@ -343,7 +342,7 @@ export class XtreamGuideExternalPlayback {
         if (
             !confirmed ||
             !this.sessions.cancelPendingSwitches(
-                confirmed.lockSource.playlistId,
+                confirmed.lockSource,
                 item.xtream_id,
                 confirmed.session.id
             )
