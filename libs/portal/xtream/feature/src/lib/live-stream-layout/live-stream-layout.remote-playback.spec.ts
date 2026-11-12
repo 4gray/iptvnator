@@ -220,6 +220,51 @@ describe('Xtream remote playback metadata', () => {
         }
     );
 
+    it('returns from an unverified archive to its live channel without publishing its programme', async () => {
+        const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
+        const component = fixture.componentInstance;
+        const channel = { ...sampleChannel, category_id: 1 };
+        const preview = { ...channel, xtream_id: channel.xtream_id + 1 };
+        const queue = [channel, preview];
+        emptyList.set(queue);
+        xtreamStore.selectedItem.set(channel);
+        epgItems.set([epgItem('Synthetic Archive', 0, 1)]);
+        portalPlayer.isEmbeddedPlayer.set(false);
+        fixture.detectChanges();
+        component.playLive(channel, true, queue);
+        xtreamStore.openPlayer.mockReturnValueOnce(
+            new Promise(() => undefined)
+        );
+        await component.onProgramActivated({
+            type: 'timeshift',
+            program: component.controlledEpgPrograms()[0],
+        });
+        const streamUrl = xtreamStore.openPlayer.mock.lastCall?.[0] as string;
+        publishExternalSession({
+            id: 'synthetic-archive',
+            player: 'vlc',
+            status: 'opened',
+            streamUrl,
+            title: 'Synthetic Archive',
+            canClose: true,
+            mediaLoaded: false,
+            playbackUnverified: true,
+            mediaObservationUnavailable: true,
+            startedAt: '2026-04-04T10:00:00Z',
+            updatedAt: '2026-04-04T10:00:00Z',
+        });
+        xtreamStore.selectedItem.set(preview);
+        fixture.detectChanges();
+        expect(component.showReturnToLive()).toBe(true);
+        expect(component.guideNowPlayingProgram()).toBeNull();
+        expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
+            expect.objectContaining({ isLiveView: true, epgTitle: undefined })
+        );
+        const tune = jest.spyOn(component, 'playLive');
+        component.returnToLivePlayback();
+        expect(tune).toHaveBeenCalledWith(channel, true, [channel], true);
+    });
+
     it('keeps an external archive playing but removes its remote programme when EPG is disabled', async () => {
         const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
         const component = fixture.componentInstance;

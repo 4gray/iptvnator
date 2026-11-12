@@ -64,8 +64,7 @@ async function loadPlaylistEntries(
         effectiveUserAgent,
     } = request;
     const referer = effectiveReferer || effectiveOrigin;
-    const safeHeaders = { 'User-Agent': XTREAM_CLIENT_USER_AGENT };
-    let headers: Record<string, string> = {
+    const headers = {
         ...mergedHeaders,
         ...(effectiveOrigin && { Origin: effectiveOrigin }),
         ...(referer && { Referer: referer }),
@@ -76,46 +75,44 @@ async function loadPlaylistEntries(
     const deadline = once(signal, 'abort').then(() => {
         throw signal.reason;
     });
-    const read = (target: URL, method: 'HEAD' | 'GET') =>
-        Promise.race([
-            requestWithValidatedRedirects<string>(
-                target.href,
-                {
-                    method,
-                    headers,
-                    headersForUnsafeRedirect: () => (headers = safeHeaders),
-                    validateStatus:
-                        method === 'HEAD'
-                            ? (status) =>
-                                  (status >= 200 && status < 300) ||
-                                  status === 405 ||
-                                  status === 501
-                            : undefined,
-                    responseType: 'text',
-                    maxContentLength: 64 * 1024,
-                    timeout: 2_000,
-                    signal,
-                    proxy: false,
+    const {
+        data,
+        config,
+        headers: responseHeaders,
+    } = await Promise.race([
+        requestWithValidatedRedirects<string>(
+            input.href,
+            {
+                method: 'HEAD',
+                headers,
+                headersForUnsafeRedirect: {
+                    'User-Agent': XTREAM_CLIENT_USER_AGENT,
                 },
-                {
-                    allowPrivateNetworks: target.origin === input.origin,
-                    allowPrivateNetworkRedirects: false,
-                    pinAllowedPrivateNetworkHosts: true,
-                },
-                method === 'HEAD' ? 3 : 0
-            ),
-            deadline,
-        ]);
-    const head = await read(input, 'HEAD');
-    const finalUrl = new URL(head.config.url ?? url);
-    const headUnsupported = head.status === 405 || head.status === 501;
-    if (
-        headUnsupported
-            ? finalUrl.href !== input.href || !isM3uPath(input)
-            : !hasM3uHint(finalUrl, head.headers?.['content-type'])
-    )
-        return null;
-    const { data, headers: responseHeaders } = await read(finalUrl, 'GET');
+                validateStatus: (status) =>
+                    (status >= 200 && status < 300) ||
+                    status === 405 ||
+                    status === 501,
+                getAfterHead: (head, target) =>
+                    head.status === 405 || head.status === 501
+                        ? target.href === input.href && isM3uPath(input)
+                        : hasM3uHint(target, head.headers?.['content-type']),
+                responseType: 'text',
+                maxContentLength: 64 * 1024,
+                timeout: 2_000,
+                signal,
+                proxy: false,
+            },
+            {
+                allowPrivateNetworks: true,
+                allowPrivateNetworkRedirects: false,
+                pinAllowedPrivateNetworkHosts: true,
+            },
+            3
+        ),
+        deadline,
+    ]);
+    if (config.method?.toUpperCase() !== 'GET') return null;
+    const finalUrl = new URL(config.url ?? url);
     const lines = data
         .trimStart()
         .split(/\r?\n/)

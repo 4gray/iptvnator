@@ -835,7 +835,8 @@ checks the requested input before and after reading its playback clock. URL
 comparison preserves escaped delimiters such as `%2F`.
 VLC skips known direct media when verifying a mismatched input. A HEAD request
 can follow up to three validated redirects within the same request limits. The
-verifier reads only the identified playlist, without following a GET redirect.
+verifier reads only the identified playlist from the address that answered
+HEAD, without resolving DNS again or following a GET redirect.
 An unidentifiable input stays unverified. If the original URL has an M3U
 extension and rejects HEAD as unsupported, it can be read directly.
 When VLC opens a direct child of a plain M3U, the verifier resolves relative
@@ -844,7 +845,8 @@ before confirming. A playlist with an M3U extension or media type can omit the
 header; HLS tags still exclude it. A mismatched child can refresh a previously
 identified playlist after five seconds. Failed reads get up to three consecutive
 retries. Playlist verification uses VLC's Origin as the fallback
-Referer and the standard Xtream player User-Agent if no overrides were provided.
+Referer. Guide playback and verification use the same User-Agent, with the
+standard Xtream player value when no override was provided.
 A host change or HTTPS downgrade keeps only the standard User-Agent for
 subsequent requests.
 A readable zero stays pending; an unrelated URL invalidates confirmation. A
@@ -864,6 +866,8 @@ The dock, player panel and remote status follow the confirmed session. The remot
 keeps channel and programme metadata tied to the same playback. An unverified
 channel can keep remote tuning available, including the first launch from the
 sidebar. It supplies its tuning queue but no unconfirmed programme metadata.
+An opened archive without media observation can still return to the live
+stream for its channel, using the archive's saved queue.
 Selecting the number of a channel already playing live cancels pending tunes,
 including archive lookups, without reopening it.
 The live layout's tune request service invalidates category and archive lookups,

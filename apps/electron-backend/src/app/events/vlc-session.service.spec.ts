@@ -239,8 +239,8 @@ describe('vlc-session.service helpers and launch args', () => {
                     '--fullscreen',
                     // Custom arguments are preserved; only the managed flag goes.
                     '--rc-quiet',
-                    ':http-user-agent=Agent --rc-quiet',
                     url,
+                    ':http-user-agent=Agent --rc-quiet',
                     ':meta-title=Movie --rc-quiet',
                 ]);
                 retryProc.emit('spawn');
@@ -374,11 +374,11 @@ describe('vlc-session.service helpers and launch args', () => {
             expect(spawnMock).toHaveBeenCalledWith(
                 '/usr/bin/vlc',
                 [
+                    '--start-time=90',
+                    streamUrl,
                     ':http-user-agent=UA/1.0',
                     ':http-referrer=https://ref.example/page',
                     ':http-header=X-Test: yes',
-                    '--start-time=90',
-                    streamUrl,
                     ':meta-title=My Stream',
                 ],
                 { shell: false, detached: true, stdio: 'ignore' }
@@ -401,9 +401,9 @@ describe('vlc-session.service helpers and launch args', () => {
             await openPromise;
 
             expect(spawnMock.mock.calls[0][1]).toEqual([
+                streamUrl,
                 ':http-referrer=https://origin.example',
                 ':http-header=Origin: https://origin.example',
-                streamUrl,
                 ':meta-title=Origin Stream',
             ]);
         });

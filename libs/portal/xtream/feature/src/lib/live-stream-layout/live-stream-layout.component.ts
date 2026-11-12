@@ -422,7 +422,8 @@ export class LiveStreamLayoutComponent
             : 'EPG.CURRENT_PROGRAM'
     );
     readonly showReturnToLive = computed(
-        () => this.activeCatchupProgram() !== null
+        () =>
+            this.activeCatchupProgram() !== null || !!this.archiveReturnSource()
     );
     readonly liveChannelSortLabelKey = computed(() =>
         getPortalChannelSortModeLabelKey(this.liveChannelSortMode())
@@ -502,6 +503,12 @@ export class LiveStreamLayoutComponent
         () => this.activePlayback()?.streamUrl ?? ''
     );
     private readonly externalGuide = inject(XtreamGuideExternalPlayback);
+    private readonly archiveReturnSource = computed(() => {
+        const opened = this.externalGuide.unverifiedPlayback()?.source;
+        if (opened?.archive) return opened;
+        const confirmed = this.externalGuide.confirmed();
+        return confirmed?.archive ? confirmed.lockSource : undefined;
+    });
     private readonly socketlessRemoteSource = computed(() => {
         const playback = this.externalGuide.unverifiedPlayback();
         return playback?.session.player === 'mpv' &&
@@ -1199,12 +1206,12 @@ export class LiveStreamLayoutComponent
     }
 
     returnToLivePlayback(): void {
-        const selectedItem = this.selectedLiveItem();
-        if (!selectedItem?.xtream_id) {
-            return;
-        }
-
-        this.playLive(selectedItem, true);
+        const source = this.archiveReturnSource();
+        const item =
+            source?.channel ??
+            (this.activeCatchupProgram() && this.activeGuideItem()) ??
+            this.selectedLiveItem();
+        if (item?.xtream_id) this.playLive(item, true, source?.queue, !!source);
     }
 
     ngOnDestroy(): void {

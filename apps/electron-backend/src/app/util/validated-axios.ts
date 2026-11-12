@@ -5,7 +5,7 @@ import axios, {
 } from 'axios';
 import { Readable } from 'node:stream';
 import type { LookupAddress } from 'node:dns';
-import { Agent as HttpAgent } from 'node:http';
+import { Agent as HttpAgent, type ClientRequest } from 'node:http';
 import { Agent as HttpsAgent } from 'node:https';
 import { isIP, LookupFunction } from 'node:net';
 import { observeAgentSocketConnections } from '@iptvnator/shared/host-health';
@@ -35,7 +35,9 @@ export type ValidatedAxiosRequestConfig = Omit<
     agentFactory?: ValidatedRequestAgentFactory;
     onResponse?: () => void;
     /** Replace all request headers on a host change or HTTPS downgrade. */
-    headersForUnsafeRedirect?: () => RawAxiosRequestHeaders;
+    headersForUnsafeRedirect?: RawAxiosRequestHeaders;
+    /** Read the same verified address, without following a GET redirect. */
+    getAfterHead?: (response: AxiosResponse<unknown>, url: URL) => boolean;
     /**
      * Called once a hop's TCP connection is established (or a pooled, already
      * connected socket was handed to it). Lets the host connectivity guard
@@ -234,6 +236,7 @@ export async function requestWithValidatedRedirects<T = unknown>(
         onResponse,
         onConnect,
         headersForUnsafeRedirect,
+        getAfterHead,
         ...config
     }: ValidatedAxiosRequestConfig = {},
     policy: RemoteUrlPolicy = {},
@@ -284,6 +287,37 @@ export async function requestWithValidatedRedirects<T = unknown>(
 
         onResponse?.();
         if (!REDIRECT_STATUSES.has(response.status)) {
+            if (
+                requestConfig.method?.toUpperCase() === 'HEAD' &&
+                getAfterHead?.(response, validatedUrl)
+            ) {
+                const remote = (response.request as ClientRequest | undefined)
+                    ?.socket?.remoteAddress;
+                const address = remote
+                    ? addresses?.find((candidate) => candidate === remote)
+                    : addresses?.length === 1
+                      ? addresses[0]
+                      : undefined;
+                if (!address)
+                    throw new UnsafeUrlError(
+                        'Could not verify the HEAD address',
+                        502
+                    );
+                const result = await axios<T>({
+                    ...pinRequestToValidatedAddresses(
+                        requestConfig,
+                        validatedUrl,
+                        [address]
+                    ),
+                    method: 'GET',
+                    data: undefined,
+                    maxRedirects: 0,
+                    url: validatedUrl.href,
+                    validateStatus: (status) => status >= 200 && status < 300,
+                });
+                onResponse?.();
+                return result;
+            }
             return response;
         }
 
@@ -337,7 +371,7 @@ export async function requestWithValidatedRedirects<T = unknown>(
                 ...requestConfig,
                 auth: undefined,
                 headers:
-                    headersForUnsafeRedirect?.() ??
+                    headersForUnsafeRedirect ??
                     copyHeadersWithoutSensitiveValues(requestConfig.headers),
                 params: undefined,
             };

@@ -1,4 +1,5 @@
 import axios, { type AxiosRequestConfig } from 'axios';
+import type { LookupFunction } from 'node:net';
 import { XTREAM_CLIENT_USER_AGENT } from '@iptvnator/shared/interfaces';
 import { matchVlcGuidePlaylist } from './vlc-guide-playlist';
 import { validateRemoteUrl } from './url-safety';
@@ -9,7 +10,10 @@ jest.mock('axios', () => ({
 }));
 jest.mock('./url-safety', () => ({
     ...jest.requireActual('./url-safety'),
-    validateRemoteUrl: jest.fn(async (url: string) => ({ url: new URL(url) })),
+    validateRemoteUrl: jest.fn(async (url: string) => ({
+        url: new URL(url),
+        addresses: ['192.0.2.10'],
+    })),
 }));
 
 const request = axios as unknown as jest.Mock<unknown, [AxiosRequestConfig]>;
@@ -30,6 +34,35 @@ describe('VLC playlist verification redirects', () => {
     beforeEach(() => {
         request.mockReset();
         jest.mocked(validateRemoteUrl).mockClear();
+    });
+
+    it('pins the playlist GET to the exact address that answered HEAD', async () => {
+        const connected = '192.0.2.20';
+        jest.mocked(validateRemoteUrl).mockResolvedValueOnce({
+            url: new URL(playlist),
+            addresses: ['192.0.2.10', connected],
+        });
+        request
+            .mockImplementationOnce(async (config) => ({
+                ...(await response(200, m3u)(config)),
+                request: { socket: { remoteAddress: connected } },
+            }))
+            .mockImplementationOnce(async (config) => {
+                const lookup: LookupFunction = config.httpsAgent.options.lookup;
+                const address = await new Promise((resolve, reject) =>
+                    lookup('portal.example.test', {}, (error, value) =>
+                        error ? reject(error) : resolve(value)
+                    )
+                );
+                expect(address).toBe(connected);
+                return response(200, m3u, child)(config);
+            });
+        await expect(
+            matchVlcGuidePlaylist(playlist, { mergedHeaders: {} })(
+                new URL(child, playlist).href
+            )
+        ).resolves.toBe(true);
+        expect(validateRemoteUrl).toHaveBeenCalledTimes(1);
     });
 
     it.each([
@@ -99,9 +132,10 @@ describe('VLC playlist verification redirects', () => {
         async (status) => {
             request
                 .mockImplementationOnce(response(status, m3u))
-                .mockImplementationOnce(
-                    response(302, { location: '/synthetic-live.ts' })
-                );
+                .mockImplementationOnce(async (config) => {
+                    expect(config.validateStatus?.(302)).toBe(false);
+                    throw new Error('Synthetic GET redirect');
+                });
             await expect(
                 matchVlcGuidePlaylist(playlist, { mergedHeaders: {} })(
                     new URL(child, playlist).href

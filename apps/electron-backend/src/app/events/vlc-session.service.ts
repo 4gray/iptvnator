@@ -2,6 +2,7 @@ import { AddressInfo, createServer } from 'net';
 import {
     PlayerContentInfo,
     readExternalPlayerErrorCode,
+    XTREAM_CLIENT_USER_AGENT,
 } from '@iptvnator/shared/interfaces';
 import {
     VLC_PLAYER_ARGUMENTS,
@@ -223,6 +224,7 @@ export async function openVlcPlayer({
             { isFlatpak }
         );
         const customVlcArguments = store.get(VLC_PLAYER_ARGUMENTS, '');
+        const guideLaunch = !!session.launchId && !contentInfo;
         const effectiveRequest = resolveEffectiveExternalPlaybackRequest({
             url,
             userAgent,
@@ -230,6 +232,10 @@ export async function openVlcPlayer({
             origin,
             headers,
         });
+        if (guideLaunch)
+            effectiveRequest.effectiveUserAgent =
+                effectiveRequest.effectiveUserAgent?.trim() ||
+                XTREAM_CLIENT_USER_AGENT;
         const {
             mergedHeaders,
             effectiveOrigin,
@@ -252,7 +258,6 @@ export async function openVlcPlayer({
                 parseExternalPlayerArguments(customVlcArguments).length,
         });
 
-        const guideLaunch = !!session.launchId && !contentInfo;
         const superseded = () =>
             (guideLaunch || reusableVlcProcess.hasPrivateControl()) &&
             externalPlayerSessions.isNewerLaunch(
@@ -338,6 +343,11 @@ export async function openVlcPlayer({
             }
         }
 
+        if (startTime) {
+            args.push(`--start-time=${startTime}`);
+        }
+        args.push(url);
+
         if (effectiveUserAgent) {
             args.push(`:http-user-agent=${effectiveUserAgent}`);
         }
@@ -357,11 +367,6 @@ export async function openVlcPlayer({
             args.push(`:http-header=${field}`);
         });
 
-        if (startTime) {
-            args.push(`--start-time=${startTime}`);
-        }
-
-        args.push(url);
         if (title) {
             args.push(`:meta-title=${title}`);
         }

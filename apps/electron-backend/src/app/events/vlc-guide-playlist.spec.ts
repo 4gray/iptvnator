@@ -54,9 +54,8 @@ describe('VLC playlist verification', () => {
         const childUrl = 'https://example.test/synthetic-child.ts';
         (requestWithValidatedRedirects as jest.Mock)
             .mockRejectedValueOnce(new Error('Synthetic temporary failure'))
-            .mockResolvedValueOnce({ config: { url } })
             .mockResolvedValueOnce({
-                config: { url },
+                config: { url, method: 'GET' },
                 data: 'synthetic-child.ts\n',
             });
         const origin = 'https://example.test';
@@ -71,7 +70,7 @@ describe('VLC playlist verification', () => {
         jest.advanceTimersByTime(1);
         await expect(matches(childUrl)).resolves.toBe(true);
         await expect(matches(childUrl)).resolves.toBe(true);
-        expect(requestWithValidatedRedirects).toHaveBeenCalledTimes(3);
+        expect(requestWithValidatedRedirects).toHaveBeenCalledTimes(2);
         expect(requestWithValidatedRedirects).toHaveBeenLastCalledWith(
             url,
             expect.objectContaining({
@@ -82,7 +81,7 @@ describe('VLC playlist verification', () => {
                 },
             }),
             expect.anything(),
-            0
+            3
         );
         jest.useRealTimers();
     });
@@ -91,16 +90,14 @@ describe('VLC playlist verification', () => {
         const url = 'https://example.test/synthetic-input';
         const childUrl = 'https://example.test/synthetic-child.ts';
         const response = {
-            config: { url },
+            config: { url, method: 'GET' },
             headers: { 'content-type': 'audio/x-mpegurl; charset=utf-8' },
         };
         (requestWithValidatedRedirects as jest.Mock)
-            .mockResolvedValueOnce(response)
             .mockResolvedValueOnce({
                 ...response,
                 data: 'synthetic-child.ts\n',
             })
-            .mockResolvedValueOnce(response)
             .mockResolvedValueOnce({
                 ...response,
                 data: '#EXTM3U\n#EXT-X-TARGETDURATION:1\nsynthetic-child.ts\n',
@@ -113,7 +110,7 @@ describe('VLC playlist verification', () => {
             jest
                 .mocked(requestWithValidatedRedirects)
                 .mock.calls.map(([, config]) => config?.method)
-        ).toEqual(['HEAD', 'GET', 'HEAD', 'GET']);
+        ).toEqual(['HEAD', 'HEAD']);
     });
 
     it('refreshes a plain playlist when the resumed child changes, without repeated reads in the cooldown', async () => {
@@ -122,25 +119,23 @@ describe('VLC playlist verification', () => {
             const url = 'https://example.test/synthetic.m3u';
             const first = 'synthetic-first.ts';
             const resumed = 'synthetic-resumed.ts';
-            const head = { config: { url } };
+            const result = { config: { url, method: 'GET' } };
             (requestWithValidatedRedirects as jest.Mock)
-                .mockResolvedValueOnce(head)
-                .mockResolvedValueOnce({ ...head, data: first })
-                .mockResolvedValueOnce(head)
-                .mockResolvedValueOnce({ ...head, data: resumed });
+                .mockResolvedValueOnce({ ...result, data: first })
+                .mockResolvedValueOnce({ ...result, data: resumed });
             const matches = matchVlcGuidePlaylist(url, { mergedHeaders: {} });
             await expect(matches(new URL(first, url).href)).resolves.toBe(true);
             const target = new URL(resumed, url).href;
             jest.advanceTimersByTime(4_999);
             await expect(matches(target)).resolves.toBe(false);
-            expect(requestWithValidatedRedirects).toHaveBeenCalledTimes(2);
+            expect(requestWithValidatedRedirects).toHaveBeenCalledTimes(1);
             jest.advanceTimersByTime(1);
             await expect(
                 Promise.all([matches(target), matches(target)])
             ).resolves.toEqual([true, true]);
-            expect(requestWithValidatedRedirects).toHaveBeenCalledTimes(4);
+            expect(requestWithValidatedRedirects).toHaveBeenCalledTimes(2);
             await expect(matches(target)).resolves.toBe(true);
-            expect(requestWithValidatedRedirects).toHaveBeenCalledTimes(4);
+            expect(requestWithValidatedRedirects).toHaveBeenCalledTimes(2);
         } finally {
             jest.useRealTimers();
         }

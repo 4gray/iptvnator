@@ -20,6 +20,7 @@ jest.mock('../util/validated-axios', () => ({
 import { spawn, type ChildProcess } from 'child_process';
 import { EventEmitter } from 'events';
 import { createConnection, createServer } from 'net';
+import { XTREAM_CLIENT_USER_AGENT } from '@iptvnator/shared/interfaces';
 import {
     store,
     VLC_PLAYER_PATH,
@@ -623,7 +624,7 @@ describe('VLC exact playback ownership', () => {
                 ? new URL('synthetic-child.ts', finalUrl).href
                 : decodeURIComponent(url);
             (requestWithValidatedRedirects as jest.Mock).mockResolvedValue({
-                config: { url: finalUrl },
+                config: { url: finalUrl, method: 'GET' },
                 data: playlist
                     ? '#EXTM3U x-tvg-url="https://example.test/synthetic.xml"\n#EXTINF:-1,Synthetic Child\nsynthetic-child.ts\n'
                     : 'Synthetic media response',
@@ -660,6 +661,9 @@ describe('VLC exact playback ownership', () => {
                 mediaLoaded: false,
             });
             const args = spawnMock.mock.lastCall?.[1] as string[];
+            expect(args[args.indexOf(url) + 1]).toBe(
+                `:http-user-agent=${XTREAM_CLIENT_USER_AGENT}`
+            );
             expect(ports).toHaveLength(0);
             expect(args.some((arg) => arg.startsWith('--rc-host=127.'))).toBe(
                 false
@@ -753,7 +757,7 @@ describe('VLC exact playback ownership', () => {
                 externalPlayerSessions.getSession(session.id)?.mediaLoaded
             ).toBe(true);
             expect(requestWithValidatedRedirects).toHaveBeenCalledTimes(
-                playlist ? 2 : 0
+                playlist ? 1 : 0
             );
             input = 'https://example.test/synthetic-other.ts';
             await jest.advanceTimersByTimeAsync(2_000);
@@ -773,13 +777,16 @@ describe('VLC exact playback ownership', () => {
                 externalPlayerSessions.getSession(session.id)?.mediaLoaded
             ).toBe(false);
             expect(requestWithValidatedRedirects).toHaveBeenCalledTimes(
-                playlist ? 4 : 0
+                playlist ? 2 : 0
             );
             if (playlist)
                 expect(requestWithValidatedRedirects).toHaveBeenLastCalledWith(
-                    finalUrl,
+                    url,
                     expect.objectContaining({
-                        method: 'GET',
+                        method: 'HEAD',
+                        headers: expect.objectContaining({
+                            'User-Agent': XTREAM_CLIENT_USER_AGENT,
+                        }),
                         maxContentLength: 64 * 1024,
                         timeout: 2_000,
                     }),
@@ -788,7 +795,7 @@ describe('VLC exact playback ownership', () => {
                         allowPrivateNetworkRedirects: false,
                         pinAllowedPrivateNetworkHosts: true,
                     },
-                    0
+                    3
                 );
             exit(proc);
         }
