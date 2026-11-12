@@ -25,6 +25,75 @@ describe('Xtream guide Stop during a detached handoff', () => {
 
     afterEach(restoreElectron);
 
+    it('keeps inline playback and guide confirmation independent of an old external archive', async () => {
+        const archiveChannel = { ...sampleChannel, category_id: 1 };
+        const live = {
+            ...archiveChannel,
+            xtream_id: archiveChannel.xtream_id + 1,
+        };
+        const next = { ...live, xtream_id: live.xtream_id + 1 };
+        emptyList.set([archiveChannel, live, next]);
+        xtreamStore.selectedItem.set(archiveChannel);
+        epgItems.set([epgItem('Synthetic Archive', 0, 1)]);
+        portalPlayer.isEmbeddedPlayer.set(false);
+        const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
+        const component = fixture.componentInstance;
+        fixture.detectChanges();
+        xtreamStore.openPlayer.mockReturnValueOnce(
+            new Promise(() => undefined)
+        );
+        await component.onProgramActivated({
+            type: 'timeshift',
+            program: component.controlledEpgPrograms()[0],
+        });
+        const streamUrl = xtreamStore.openPlayer.mock.lastCall?.[0];
+        if (!streamUrl) throw new Error('Missing synthetic archive');
+        const archive = {
+            id: 'synthetic-detached-archive',
+            player: 'mpv',
+            status: 'opened',
+            streamUrl,
+            title: 'Synthetic Archive',
+            canClose: true,
+            mediaLoaded: true,
+            startedAt: '2026-04-04T10:00:00Z',
+            updatedAt: '2026-04-04T10:00:00Z',
+        } as const;
+        publishExternalSession(archive);
+        fixture.detectChanges();
+        expect(component.showReturnToLive()).toBe(true);
+
+        portalPlayer.isEmbeddedPlayer.set(true);
+        xtreamStore.selectedItem.set(live);
+        component.playLive(live, true);
+        fixture.detectChanges();
+        expect(component.showReturnToLive()).toBe(false);
+        component.returnToLivePlayback();
+        expect(xtreamStore.constructStreamUrl).toHaveBeenLastCalledWith(live);
+
+        component.guide.open();
+        fixture.detectChanges();
+        const source = fixture.debugElement.injector.get(
+            XtreamEpgGuideSourceService
+        );
+        const committed = jest.fn();
+        source.activate(String(next.xtream_id), null, undefined, committed);
+        const inline = component.activePlayback();
+        if (!inline) throw new Error('Missing synthetic inline playback');
+        stopRequested.next(archive.id);
+        publishExternalSession({
+            ...archive,
+            status: 'closed',
+            canClose: false,
+            closedByRequest: true,
+        });
+        fixture.detectChanges();
+        expect(committed).not.toHaveBeenCalled();
+        component.onInlinePlaybackStarted(inline);
+        expect(committed).toHaveBeenCalledTimes(1);
+        expect(xtreamStore.openPlayer).toHaveBeenCalledTimes(1);
+    });
+
     it('does not dispatch a deferred tune after a newer archive lookup starts', async () => {
         let archiveReady!: (url: string) => void;
         const lookup = jest.fn(

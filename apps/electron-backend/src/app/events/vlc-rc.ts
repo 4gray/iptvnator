@@ -59,11 +59,7 @@ export function buildVlcEnqueueCommands(options: {
         inputOptions.push(`:meta-title=${options.title}`);
     }
 
-    const inputLine =
-        inputOptions.length > 0
-            ? `${options.url} ${inputOptions.join(' ')}`
-            : options.url;
-    const commands = ['clear', `add ${inputLine}`];
+    const commands = ['clear', `add ${options.url} ${inputOptions.join(' ')}`];
     if (startTime > 0) {
         commands.push(`seek ${startTime}`);
     }
@@ -136,6 +132,13 @@ export async function sendVlcRcCommands(
     for (const [index, command] of commands.entries()) {
         const canDispatch = () => shouldDispatch(index);
         if (!canDispatch()) return;
+        // Leave room for the newline in oldrc's 1024-byte input buffer.
+        if (
+            index === 0 &&
+            typeof port === 'string' &&
+            commands.some((input) => Buffer.byteLength(input) >= 1024)
+        )
+            throw new Error('VLC RC command exceeds the private socket limit');
         const dispatched = await sendVlcRcCommand(
             port,
             command,

@@ -196,7 +196,7 @@ export class XtreamGuideExternalPlayback {
                 const source = this.sessions.state(id)?.source;
                 if (!source || !sameXtreamLiveOwner(this.owner(), source))
                     return;
-                this.panel?.cancelPendingRequest();
+                if (this.panel?.enabled()) this.panel.cancelPendingRequest();
                 this.sessions.cancelPendingSwitches(source, { dockStopId: id });
                 this.failedTuning.set(undefined);
                 this.pending.set(undefined);

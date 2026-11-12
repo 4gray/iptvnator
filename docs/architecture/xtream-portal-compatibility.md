@@ -806,9 +806,9 @@ A newer tune waits for an already dispatched launch to become closable, and for 
 already cancelled launch to exit. Selecting the previous channel while it is
 stopping restarts it after exit and waits for that
 playback to open, including when a click still lands on its active row.
-An explicit Stop in the playback dock cancels an earlier tune from the same
-playlist, including during category or archive lookup or while waiting for the
-player to exit. A tune already dispatched is cancelled by launch ID; its exact
+An explicit Stop in the playback dock cancels an earlier external tune from
+the same playlist, including during category or archive lookup or while waiting
+for the player to exit. A tune already dispatched is cancelled by launch ID; its exact
 session is closed when it becomes available. The dock's own Stop still owns
 teardown of the session it targeted and clears any failed tune kept for the
 remote. The handoff's exact close does not cancel its replacement.
@@ -868,7 +868,9 @@ keeps channel and programme metadata tied to the same playback. An unverified
 channel can keep remote tuning available, including the first launch from the
 sidebar. It supplies its tuning queue but no unconfirmed programme metadata.
 An opened archive without media observation can still return to the live
-stream for its channel, using the archive's saved queue.
+stream for its channel, using the archive's saved queue. After switching to
+the inline player, Return to Live follows inline playback even if the external
+archive is still open.
 Selecting the number of a channel already playing live cancels pending tunes,
 including archive lookups, without reopening it.
 The tune request service coordinates guide activation and playback confirmation.

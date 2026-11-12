@@ -1091,8 +1091,8 @@ shutdown, even if it was already waiting for the old child to exit. A detached
 child already playing remains open. After a session receives Stop, late MPV
 media events cannot confirm it.
 The playback dock signals explicit Stop before native teardown so Xtream can
-cancel renderer-side tunes waiting for that player. Automatic handoff closes
-do not send this signal.
+cancel renderer-side tunes waiting for that player. A detached player's Stop
+does not cancel an inline tune. Automatic handoff closes do not send this signal.
 Parental relock uses an exact session close. When the session is queued, this
 cancels only that launch. The allowed in-flight launch can finish, and the
 newest remaining queued tune can run. After
@@ -1227,6 +1227,9 @@ The arguments apply only when IPTVnator spawns a new external player process. If
 MPV or VLC instance reuse is active and an existing process is reused, subsequent
 streams are loaded through MPV IPC or VLC RC commands and new process arguments
 are not re-applied until a fresh process starts.
+If a private VLC RC command would exceed the `oldrc` input buffer, IPTVnator
+skips the queue commands and waits for the old process to exit before launching
+the full input in a new process.
 
 VLC enables its TCP RC interface when content metadata requires progress
 tracking or instance reuse is enabled. On Windows, these managed RC launches

@@ -893,6 +893,51 @@ describe('VLC exact playback ownership', () => {
         }
     });
 
+    it('replaces the exact child without sending clear for an oversized private RC input', async () => {
+        if (process.platform === 'win32') return;
+        const first = child();
+        const second = child();
+        spawnMock.mockReturnValueOnce(first).mockReturnValueOnce(second);
+        const input = {
+            title: 'Synthetic Channel',
+            url: 'https://example.test/synthetic.ts',
+            launchId: 'synthetic-first',
+        };
+        const opening = openVlcPlayer(input);
+        first.emit('spawn');
+        const prior = await opening;
+        const userAgent = `Synthetic ${'界'.repeat(350)}`;
+        const writes: string[] = [];
+        mockRc((_port, command) => writes.push(command));
+        const replacement = openVlcPlayer({
+            ...input,
+            launchId: 'synthetic-replacement',
+            userAgent,
+        });
+        try {
+            await tick();
+            expect(writes).toEqual([]);
+            expect(first.kill).toHaveBeenCalledTimes(1);
+            expect(spawnMock).toHaveBeenCalledTimes(1);
+            exit(first);
+            await tick();
+            expect(spawnMock).toHaveBeenCalledTimes(2);
+            expect(spawnMock.mock.lastCall?.[1]).toContain(
+                `:http-user-agent=${userAgent}`
+            );
+            second.emit('spawn');
+            await expect(replacement).resolves.toMatchObject({
+                status: 'opened',
+            });
+            expect(externalPlayerSessions.getSession(prior.id)?.status).toBe(
+                'closed'
+            );
+        } finally {
+            if (first.exitCode === null) exit(first);
+            if (second.exitCode === null) exit(second);
+        }
+    });
+
     it.each(['cleared', 'delayed', 'paused', 'cancelled'] as const)(
         'keeps private VLC ownership consistent with a %s clear',
         async (outcome) => {

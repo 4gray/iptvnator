@@ -504,6 +504,7 @@ export class LiveStreamLayoutComponent
     );
     private readonly externalGuide = inject(XtreamGuideExternalPlayback);
     private readonly archiveReturnSource = computed(() => {
+        if (this.usesEmbeddedPlayer()) return undefined;
         const opened = this.externalGuide.unverifiedPlayback()?.source;
         if (opened?.archive) return opened;
         const confirmed = this.externalGuide.confirmed();
