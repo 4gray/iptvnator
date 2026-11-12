@@ -468,7 +468,6 @@ export class LiveStreamLayoutComponent
     private playbackRequestId = 0;
     private readonly inlinePlayer =
         viewChild<WebPlayerViewComponent>('inlinePlayer');
-    private startedInlinePlayback?: ResolvedPortalPlayback;
     private inlineConfirmation?: {
         requestId: number;
         callback: () => void;
@@ -677,10 +676,9 @@ export class LiveStreamLayoutComponent
                         if (
                             onConfirmed &&
                             player &&
-                            player.playback() === this.activePlayback() &&
-                            player.retryFailedPlayback()
+                            player.playback() === this.activePlayback()
                         )
-                            this.startedInlinePlayback = undefined;
+                            player.retryFailedPlayback();
                         this.confirmInlinePlayback(onConfirmed);
                     } else onConfirmed?.();
                     return;
@@ -1085,7 +1083,13 @@ export class LiveStreamLayoutComponent
     private confirmInlinePlayback(callback?: () => void): void {
         this.inlineConfirmation = undefined;
         if (!callback) return;
-        if (this.startedInlinePlayback === this.activePlayback()) callback();
+        const player = this.inlinePlayer();
+        if (
+            player &&
+            player.playback() === this.activePlayback() &&
+            player.hasStartedPlayback()
+        )
+            callback();
         else
             this.inlineConfirmation = {
                 requestId: this.playbackRequestId,
@@ -1095,16 +1099,10 @@ export class LiveStreamLayoutComponent
 
     onInlinePlaybackStarted(playback: ResolvedPortalPlayback): void {
         if (playback !== this.activePlayback()) return;
-        this.startedInlinePlayback = playback;
         const confirmation = this.inlineConfirmation;
         this.inlineConfirmation = undefined;
         if (confirmation?.requestId === this.playbackRequestId)
             confirmation.callback();
-    }
-
-    onInlinePlaybackEnded(): void {
-        if (this.inlinePlayer()?.playback() === this.startedInlinePlayback)
-            this.startedInlinePlayback = undefined;
     }
 
     async onProgramActivated(event: EpgProgramActivationEvent): Promise<void> {

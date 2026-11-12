@@ -189,6 +189,32 @@ describe('WebPlayerViewComponent live format integration', () => {
         expect(component.reloadToken()).toBe(before + 1);
     });
 
+    it('requires fresh playback confirmation after retrying the same source', async () => {
+        const playback = {
+            streamUrl: 'https://example.test/synthetic-live.m3u8',
+            title: 'Synthetic Live',
+            isLive: true,
+        };
+        fixture.componentRef.setInput('playback', playback);
+        await render();
+        const current = () =>
+            fixture.debugElement.query(By.directive(StubVjsPlayerComponent))
+                .componentInstance as StubVjsPlayerComponent;
+        const report = { currentTime: 1, duration: 0, playing: true };
+        const previous = current();
+        previous.timeUpdate.emit(report);
+        expect(component.hasStartedPlayback()).toBe(true);
+        previous.playbackIssue.emit(networkIssue('videojs'));
+        component.retryPlayback();
+        expect(component.playback()).toBe(playback);
+        expect(component.hasStartedPlayback()).toBe(false);
+        await render();
+        previous.timeUpdate.emit(report);
+        expect(component.hasStartedPlayback()).toBe(false);
+        current().timeUpdate.emit(report);
+        expect(component.hasStartedPlayback()).toBe(true);
+    });
+
     it.each([
         { input: 'streamUrl', value: 'https://example.com/new.m3u8' },
         { input: 'playbackSessionKey', value: 'content-b' },

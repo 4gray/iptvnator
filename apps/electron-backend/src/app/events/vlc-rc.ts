@@ -256,6 +256,7 @@ export function markVlcOpened(
     if (!port) return markExternalPlayerOpened(sessionId);
     const listedChild = mediaUrl && matchVlcGuidePlaylist(mediaUrl, request);
     let playlistInput: string | undefined;
+    let confirmedDirectInput = false;
     let playedRequestedMedia = false;
     if (mediaUrl)
         setTimeout(() => {
@@ -304,10 +305,15 @@ export function markVlcOpened(
                     if (elapsed === undefined) return null;
                     if (Number(elapsed) <= 0) return false;
                 }
-                const knownInput =
-                    matchesVlcInput(input, mediaUrl) || input === playlistInput;
+                const directInput = matchesVlcInput(input, mediaUrl);
+                const knownInput = directInput || input === playlistInput;
                 let matches =
-                    knownInput || !!(listedChild && (await listedChild(input)));
+                    knownInput ||
+                    !!(
+                        !confirmedDirectInput &&
+                        listedChild &&
+                        (await listedChild(input))
+                    );
                 if (!canRead()) return undefined;
                 if (matches && (!confirmed || !knownInput)) {
                     const latest = await getVlcCommandResponse(port, 'status');
@@ -325,6 +331,7 @@ export function markVlcOpened(
                         playbackUnverified: true,
                     });
                 if (!matches) return null;
+                if (directInput) confirmedDirectInput = true;
                 if (!confirmed) {
                     playedRequestedMedia = true;
                     externalPlayerSessions.updateSession(sessionId, {

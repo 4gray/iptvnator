@@ -35,6 +35,7 @@ export interface WebPlayerRecoveryControllerDeps {
     readonly selectedPlayer: Signal<VideoPlayer>;
     readonly reloadToken: WritableSignal<number>;
     readonly playbackApplicationToken: Signal<WebPlayerApplicationToken>;
+    readonly embeddedSessionId: () => string | undefined;
     readonly resolvedPlayback: Signal<ResolvedPortalPlayback>;
     readonly resolvedIsLive: Signal<boolean>;
     readonly playbackExternallyTransferable: Signal<boolean>;
@@ -71,6 +72,7 @@ export class WebPlayerRecoveryController {
     private playbackState?: {
         token: WebPlayerApplicationToken;
         ended: boolean;
+        embeddedId?: string;
     };
     readonly visiblePlaybackDiagnostic = computed(() =>
         this.deps.selectedPlayer() === VideoPlayer.EmbeddedMpv ||
@@ -101,15 +103,26 @@ export class WebPlayerRecoveryController {
     constructor(private readonly deps: WebPlayerRecoveryControllerDeps) {}
 
     recordStart(token: WebPlayerApplicationToken): boolean {
-        if (this.playbackState?.token === token && !this.playbackState.ended)
+        const embeddedId = this.deps.embeddedSessionId();
+        if (
+            this.playbackState?.token === token &&
+            this.playbackState.embeddedId === embeddedId &&
+            !this.playbackState.ended
+        )
             return false;
-        this.playbackState = { token, ended: false };
+        this.playbackState = { token, ended: false, embeddedId };
         return true;
     }
 
     recordEnd(token: WebPlayerApplicationToken): void {
         this.playbackState = { token, ended: true };
     }
+
+    readonly hasStartedPlayback = (): boolean =>
+        this.playbackState?.token === this.deps.playbackApplicationToken() &&
+        this.playbackState.embeddedId === this.deps.embeddedSessionId() &&
+        !this.playbackState.ended &&
+        !this.visiblePlaybackDiagnostic();
 
     canRetry(): boolean {
         return (

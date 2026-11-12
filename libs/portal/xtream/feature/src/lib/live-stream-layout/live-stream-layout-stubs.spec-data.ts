@@ -67,7 +67,8 @@ export class StubWebPlayerViewComponent {
     readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
     readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
     readonly playbackStarted = output<ResolvedPortalPlayback>();
-    readonly playbackEnded = output<void>();
+    readonly hasStartedPlayback = signal(false);
+    readonly retryFailedPlayback = jest.fn(() => false);
     readonly recordingStopped = output<RecordingStoppedEvent>();
 }
 

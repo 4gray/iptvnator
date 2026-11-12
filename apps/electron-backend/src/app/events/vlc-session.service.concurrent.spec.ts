@@ -28,7 +28,7 @@ import {
 import { externalPlayerSessions } from './external-player-runtime';
 import { externalPlayerProcessTeardownGate } from './external-player-process';
 import { matchesVlcInput, matchVlcGuidePlaylist } from './vlc-guide-playlist';
-import { getVlcPlaybackSnapshot } from './vlc-rc';
+import { getVlcPlaybackSnapshot, markVlcOpened } from './vlc-rc';
 import {
     openVlcPlayer,
     setVlcReuseInstance,
@@ -166,7 +166,11 @@ describe('VLC exact playback ownership', () => {
                 config: { url },
                 data: 'synthetic-child.ts\n',
             });
-        const matches = matchVlcGuidePlaylist(url, { mergedHeaders: {} });
+        const origin = 'https://example.test';
+        const matches = matchVlcGuidePlaylist(url, {
+            mergedHeaders: {},
+            effectiveOrigin: origin,
+        });
         await expect(matches(childUrl)).resolves.toBe(false);
         jest.advanceTimersByTime(4_999);
         await expect(matches(childUrl)).resolves.toBe(false);
@@ -175,6 +179,55 @@ describe('VLC exact playback ownership', () => {
         await expect(matches(childUrl)).resolves.toBe(true);
         await expect(matches(childUrl)).resolves.toBe(true);
         expect(requestWithValidatedRedirects).toHaveBeenCalledTimes(2);
+        expect(requestWithValidatedRedirects).toHaveBeenLastCalledWith(
+            url,
+            expect.objectContaining({
+                headers: { Origin: origin, Referer: origin },
+            }),
+            expect.anything(),
+            3
+        );
+    });
+
+    it('does not fetch the old stream when a confirmed direct VLC input changes', async () => {
+        jest.useFakeTimers({ doNotFake: ['setImmediate'] });
+        const original = 'https://example.test/synthetic-direct.ts';
+        let input = original;
+        const session = externalPlayerSessions.beginSession({
+            player: 'vlc',
+            title: 'Synthetic Live',
+            streamUrl: original,
+            launchId: 'synthetic-direct',
+        });
+        mockRc((_, command, reply) => {
+            if (command === 'status\n')
+                reply(
+                    `( new input: ${input} )\r\n( play state: 3 )\r\nstatus: returned 0 (no error)\r\n`
+                );
+            if (command === 'get_time\n') reply('2\r\n');
+        });
+        try {
+            markVlcOpened(
+                session.id,
+                () => 'synthetic-socket',
+                { mergedHeaders: {} },
+                false
+            );
+            await jest.advanceTimersByTimeAsync(2_000);
+            for (let turn = 0; turn < 6; turn++) await tick();
+            expect(
+                externalPlayerSessions.getSession(session.id)?.mediaLoaded
+            ).toBe(true);
+            input = 'https://example.test/synthetic-other.ts';
+            await jest.advanceTimersByTimeAsync(2_000);
+            for (let turn = 0; turn < 6; turn++) await tick();
+            expect(externalPlayerSessions.getSession(session.id)).toMatchObject(
+                { mediaLoaded: false, playbackUnverified: true }
+            );
+            expect(requestWithValidatedRedirects).not.toHaveBeenCalled();
+        } finally {
+            externalPlayerSessions.markClosed(session.id);
+        }
     });
 
     it('accepts a headerless playlist identified by its media type but excludes HLS', async () => {

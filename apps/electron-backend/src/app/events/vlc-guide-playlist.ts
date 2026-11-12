@@ -40,6 +40,7 @@ async function loadPlaylistEntries(
         effectiveReferer,
         effectiveUserAgent,
     } = request;
+    const referer = effectiveReferer || effectiveOrigin;
     const signal = AbortSignal.timeout(2_000);
     const { data, config, headers } = await Promise.race([
         requestWithValidatedRedirects<string>(
@@ -48,7 +49,7 @@ async function loadPlaylistEntries(
                 headers: {
                     ...mergedHeaders,
                     ...(effectiveOrigin && { Origin: effectiveOrigin }),
-                    ...(effectiveReferer && { Referer: effectiveReferer }),
+                    ...(referer && { Referer: referer }),
                     ...(effectiveUserAgent && {
                         'User-Agent': effectiveUserAgent,
                     }),
