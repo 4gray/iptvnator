@@ -550,6 +550,8 @@
         "PLAYER_AMBIENT_MODE_DESCRIPTION": "Preenche o espaço em redor do leitor com uma imagem de capa desfocada e escurecida em vez de barras pretas.",
         "PLAY_TRAILERS_IN_BACKGROUND": "Reproduzir trailers ao fundo dos detalhes",
         "PLAY_TRAILERS_IN_BACKGROUND_DESCRIPTION": "Alguns segundos após abrires um filme ou uma série, o trailer é reproduzido sem som atrás dos detalhes. Desativado em ligações com tráfego limitado e quando está ativada a preferência de movimento reduzido.",
+        "SERIES_AUTOPLAY": "Reproduzir automaticamente o episódio seguinte",
+        "SERIES_AUTOPLAY_DESCRIPTION": "Continuar com o episódio seguinte da mesma temporada das séries Xtream e Stalker no leitor integrado.",
         "PLAYER_UP_NEXT_RAIL": "Painel de próximos episódios",
         "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "Em janelas largas, coloca o leitor de séries à esquerda e mostra os próximos episódios ao lado.",
         "PLAYER_UP_NEXT_CARD": "Cartão \"A seguir\"",
@@ -1499,6 +1501,10 @@
             "PORTAL_UNAVAILABLE": {
                 "TITLE": "Portal indisponível",
                 "DESCRIPTION": "Não foi possível contactar o portal. Verifica o URL do servidor ou tenta novamente quando a fonte estiver disponível."
+            },
+            "PROVIDER_RESPONSE_TOO_LARGE": {
+                "TITLE": "O catálogo Xtream ultrapassa o limite do servidor",
+                "DESCRIPTION": "Aumente o valor de IPTVNATOR_MAX_PROVIDER_RESPONSE_MB no servidor e reinicie-o. Em seguida, volte a tentar a sincronização."
             },
             "EMPTY_CATEGORY": {
                 "TITLE": "Categoria vazia",

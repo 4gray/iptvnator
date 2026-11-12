@@ -30,7 +30,9 @@ export function createStalkerCatalogPositions(
     const destroyRef = inject(DestroyRef);
     const owner = signal<string | null>(null);
     const rows = signal(new Map<string, PlaybackPositionData>());
-    const state = signal<'idle' | 'loading' | 'ready' | 'error'>('idle');
+    const state = signal<'idle' | 'loading' | 'ready' | 'error' | 'retrying'>(
+        'idle'
+    );
     const snapshot = signal(false);
     let generation = 0;
     let disposed = false;
@@ -61,7 +63,10 @@ export function createStalkerCatalogPositions(
         const request = ++generation;
         const overlay = new Map<string, PlaybackPositionData>();
         pendingReads.add(overlay);
-        state.set('loading');
+        const previous = state();
+        // Keep the visible notice in place during a retry.
+        if (previous === 'error') state.set('retrying');
+        else if (!snapshot() && previous !== 'retrying') state.set('loading');
         try {
             const positions = await persistence.getAllPlaybackPositions(id);
             if (disposed || request !== generation || id !== current()) return;

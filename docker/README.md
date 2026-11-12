@@ -105,7 +105,14 @@ safe local defaults shown below.
 | `IPTVNATOR_DATA_DIR`                     | `/data` in the image    | Data root; the database is `<root>/databases/iptvnator.db`. Mount a volume here.                                                             |
 | `IPTVNATOR_ACCESS_TOKEN`                 | unset                   | Optional shared access token. Enter it in the client connection UI; all non-public API and provider proxy routes require it. |
 | `IPTVNATOR_MAX_DOCUMENT_MB`              | `64`                    | Largest playlist document the backend accepts. Keep the nginx `client_max_body_size` in step.                                                |
+| `IPTVNATOR_MAX_PROVIDER_RESPONSE_MB`     | `64`                    | Maximum decoded size in MiB of each response the backend reads from a provider. |
 | `IPTVNATOR_BACKEND_START_TIMEOUT`        | `300`                   | Seconds the entrypoint waits for the backend's `/health` before giving up. Database migrations run before the backend listens.              |
+
+If an Xtream catalog exceeds the server's response limit, increase
+`IPTVNATOR_MAX_PROVIDER_RESPONSE_MB` in the container environment. With the
+bundled Compose file, set it under the service's `environment` and run
+`docker compose -f docker/docker-compose.yml up -d` from the repository root.
+Then retry the sync.
 
 The web backend proxy accepts only `http` and `https` provider URLs. The PWA
 first registers provider URLs through `/provider-targets`, then uses the

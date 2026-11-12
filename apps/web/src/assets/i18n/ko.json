@@ -550,6 +550,8 @@
         "PLAYER_AMBIENT_MODE_DESCRIPTION": "플레이어 주변을 검은 막대 대신 흐려지고 어두워진 포스터로 채웁니다.",
         "PLAY_TRAILERS_IN_BACKGROUND": "상세 화면 배경에서 예고편 재생",
         "PLAY_TRAILERS_IN_BACKGROUND_DESCRIPTION": "영화나 시리즈를 연 지 몇 초 후 예고편이 상세 정보 뒤에서 음소거로 재생됩니다. 데이터 절약 연결과 동작 줄이기 설정에서는 꺼집니다.",
+        "SERIES_AUTOPLAY": "다음 에피소드 자동 재생",
+        "SERIES_AUTOPLAY_DESCRIPTION": "내장 플레이어에서 Xtream 및 Stalker 시리즈의 같은 시즌에 있는 다음 에피소드를 재생합니다.",
         "PLAYER_UP_NEXT_RAIL": "다음 에피소드 레일",
         "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "넓은 창에서 시리즈 플레이어를 왼쪽에 고정하고 그 옆에 다음 에피소드를 표시합니다.",
         "PLAYER_UP_NEXT_CARD": "다음 에피소드 카드",
@@ -1499,6 +1501,10 @@
             "PORTAL_UNAVAILABLE": {
                 "TITLE": "포털을 사용할 수 없습니다",
                 "DESCRIPTION": "포털에 연결할 수 없습니다. 서버 URL을 확인하거나 소스를 다시 사용할 수 있을 때 다시 시도하세요."
+            },
+            "PROVIDER_RESPONSE_TOO_LARGE": {
+                "TITLE": "Xtream 카탈로그가 서버의 크기 제한을 초과했습니다",
+                "DESCRIPTION": "서버의 IPTVNATOR_MAX_PROVIDER_RESPONSE_MB 값을 높이고 서버를 다시 시작하세요. 그런 다음 동기화를 다시 시도하세요."
             },
             "EMPTY_CATEGORY": {
                 "TITLE": "빈 카테고리",

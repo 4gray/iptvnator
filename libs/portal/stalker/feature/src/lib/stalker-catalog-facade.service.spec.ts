@@ -241,6 +241,20 @@ describe('StalkerCatalogFacadeService', () => {
             'watched'
         );
     });
+
+    it('keeps progress ready during a background refresh of an existing snapshot', async () => {
+        const service = TestBed.inject(StalkerCatalogFacadeService);
+        TestBed.tick();
+        await Promise.resolve();
+        expect(service.hideWatched.hasSnapshot()).toBe(true);
+
+        const refresh = jest.spyOn(service, 'refreshPositions');
+        announceActivityChange();
+        expect(refresh).toHaveBeenCalledWith(playlist._id);
+        expect(service.hideWatched.loadState()).toBe('ready');
+        await refresh.mock.results[0].value;
+    });
+
     it('ignores a pending positions response after its playlist is cleared', async () => {
         const service = TestBed.inject(StalkerCatalogFacadeService);
         TestBed.tick();

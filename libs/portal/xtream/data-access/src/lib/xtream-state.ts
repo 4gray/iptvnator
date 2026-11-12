@@ -33,6 +33,7 @@ export type XtreamContentInitBlockReason =
     | 'expired'
     | 'inactive'
     | 'unavailable'
+    | 'response-too-large'
     | 'error';
 
 export interface XtreamPortalStatus {

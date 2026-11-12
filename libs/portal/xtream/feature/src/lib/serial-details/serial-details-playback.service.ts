@@ -19,7 +19,10 @@ import {
     inlineProgressPosition,
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
+import {
+    PlaybackPositionRuntimeBridgeService,
+    SettingsStore,
+} from '@iptvnator/services';
 import {
     ExternalPlayerName,
     ExternalPlayerSession,
@@ -79,6 +82,7 @@ let pageInstances = 0;
 export class SerialDetailsPlaybackService {
     private readonly route = inject(ActivatedRoute);
     private readonly xtreamStore = inject(XtreamStore);
+    private readonly settingsStore = inject(SettingsStore);
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
     private readonly playbackPositionBridge = inject(
         PlaybackPositionRuntimeBridgeService
@@ -143,7 +147,10 @@ export class SerialDetailsPlaybackService {
         getSeriesEpisodeMetadata(this.inlineEpisodeState())
     );
     readonly inlineSeriesNavigation = computed(() =>
-        getSeriesPlaybackNavigation(this.inlineEpisodeState())
+        getSeriesPlaybackNavigation(
+            this.inlineEpisodeState(),
+            this.settingsStore.seriesAutoplay?.() !== false
+        )
     );
 
     constructor() {
