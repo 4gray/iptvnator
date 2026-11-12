@@ -520,7 +520,8 @@ test(
         await setBaseline(100);
         git(upstream, 'commit', '-qm', 'original master');
         git(upstream, 'switch', '-qc', 'topic');
-        git(upstream, 'commit', '--allow-empty', '-qm', 'topic');
+        await setBaseline(110);
+        git(upstream, 'commit', '-qm', 'raise baseline');
         git(upstream, 'switch', '-q', 'master');
         git(upstream, 'merge', '-q', '--no-ff', 'topic', '-m', 'tested merge');
         git(upstream, 'update-ref', 'refs/pull/1/merge', 'HEAD');
@@ -563,6 +564,15 @@ test(
                 env,
                 encoding: 'utf8',
             });
+        const weakened = check();
+        assert.ifError(weakened.error);
+        assert.equal(weakened.status, 1, weakened.stderr);
+        assert.match(weakened.stderr, /baseline raised from 100 to 110 bytes/);
+
+        await writeFile(
+            path.join(checkout, baseline),
+            JSON.stringify(file(100))
+        );
         const unchanged = check();
         assert.ifError(unchanged.error);
         assert.equal(unchanged.status, 0, unchanged.stderr);
