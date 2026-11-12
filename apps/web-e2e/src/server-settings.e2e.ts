@@ -21,9 +21,9 @@ test('@settings @ui explains both server options and restores keyboard focus', a
     await expect(
         page.getByRole('heading', { name: 'Server on this computer' })
     ).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Start server' })).toHaveCount(
-        0
-    );
+    await expect(
+        page.getByRole('button', { name: 'Start server' })
+    ).toHaveCount(0);
 
     const help = page.getByRole('button', { name: 'About server sync' });
     await help.press('Enter');
@@ -101,14 +101,17 @@ test('@settings @pwa announces waiting and keeps inputs for retry after failure'
     await expect(address).not.toHaveAttribute('readonly', '');
 });
 
-test('@settings @pwa connects after a rejected token is corrected', async ({
+test('@settings @pwa reconnects after reload and can forget the server', async ({
     page,
 }) => {
+    let instanceId = 'setup-fixture';
+    const authorizedRequests: string[] = [];
     await page.route(`${server}/api/v1/**`, async (route) => {
         const request = route.request();
         const headers = {
             'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Authorization',
+            'Access-Control-Allow-Headers':
+                'Authorization, X-IPTVnator-Instance-Id',
         };
         if (request.method() === 'OPTIONS') {
             await route.fulfill({ status: 204, headers });
@@ -118,7 +121,7 @@ test('@settings @pwa connects after a rejected token is corrected', async ({
                     service: 'iptvnator',
                     apiVersion: 1,
                     storage: 'server',
-                    instanceId: 'setup-fixture',
+                    instanceId,
                     auth: 'token',
                     capabilities: ['sources-v1'],
                 },
@@ -127,6 +130,7 @@ test('@settings @pwa connects after a rejected token is corrected', async ({
         } else {
             const authorized =
                 request.headers()['authorization'] === `Bearer ${token}`;
+            if (authorized) authorizedRequests.push(instanceId);
             await route.fulfill({
                 status: authorized ? 200 : 401,
                 json: { entries: [] },
@@ -166,11 +170,76 @@ test('@settings @pwa connects after a rejected token is corrected', async ({
     expect(
         await page.evaluate(() => Reflect.get(window, '__connectionSession'))
     ).toBe('kept');
+
+    const disconnect = page.getByRole('button', {
+        name: 'Disconnect',
+        exact: true,
+    });
+    const reconnect = page.getByRole('button', {
+        name: 'Reconnect',
+        exact: true,
+    });
+    await disconnect.click();
+    await expect(reconnect).toBeVisible();
+    await page.reload();
+    await expect(page.getByTestId('source-server-state')).toHaveCount(0);
+    await expect(
+        page.getByText('Local library', { exact: true })
+    ).toBeVisible();
+    await expect(page.getByTestId('source-server-url')).toHaveValue(
+        `${server}/api`
+    );
+    await expect(secret).toHaveValue('');
+    await expect(page.getByText('Saved access token')).toBeVisible();
+    instanceId = 'replacement-fixture';
+    await reconnect.click();
+    await expect(page.getByTestId('source-server-message')).toContainText(
+        'The server has changed.'
+    );
+    expect(authorizedRequests).not.toContain(instanceId);
+    instanceId = 'setup-fixture';
+    await reconnect.click();
+    await expect(page.getByTestId('source-server-state')).toHaveText(
+        'Connected'
+    );
+
+    await disconnect.click();
+    await expect(reconnect).toBeVisible();
+    await page
+        .getByRole('button', { name: 'Forget server', exact: true })
+        .click();
+    await expect(page.getByTestId('source-server-url')).toBeFocused();
+    await page.reload();
+    await expect(reconnect).toHaveCount(0);
+    await expect(page.getByTestId('source-server-url')).toHaveValue('');
+    await page.getByTestId('source-server-url').fill(server);
+    await page.getByTestId('source-server-connect').click();
+    await expect(page.getByTestId('source-server-message')).toContainText(
+        'valid access token'
+    );
 });
 
 test('@settings @ui server help fits both themes and a narrow translated view', async ({
     page,
 }, testInfo) => {
+    await page.evaluate(
+        ({ apiUrl, token }) => {
+            const instanceId = 'saved-settings-fixture';
+            localStorage.setItem(
+                'iptvnator:source-server-disabled',
+                JSON.stringify({ apiUrl, instanceId })
+            );
+            sessionStorage.setItem(
+                `iptvnator:server-token:${JSON.stringify([apiUrl, instanceId])}`,
+                token
+            );
+        },
+        { apiUrl: `${server}/api`, token }
+    );
+    await page.reload();
+    await expect(
+        page.getByRole('button', { name: 'Reconnect', exact: true })
+    ).toBeVisible();
     for (const dark of [true, false]) {
         await applyUiTheme(page, dark);
         await page.screenshot({
@@ -197,8 +266,7 @@ test('@settings @ui connected activity controls keep clear status, spacing and r
     await page.route(`${server}/api/v1/**`, async (route) => {
         const headers = {
             'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers':
-                'Authorization, X-IPTVnator-Instance-Id',
+            'Access-Control-Allow-Headers': 'Authorization',
             ETag: '"polish"',
         };
         await route.fulfill({
@@ -294,8 +362,7 @@ test('@settings @ui keeps an interrupted disable understandable and retryable', 
     await page.route(`${server}/api/v1/**`, async (route) => {
         const headers = {
             'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers':
-                'Authorization, X-IPTVnator-Instance-Id',
+            'Access-Control-Allow-Headers': 'Authorization',
             ETag: '"disable-fixture"',
         };
         await route.fulfill({
@@ -352,13 +419,11 @@ test('@settings @ui keeps an interrupted disable understandable and retryable', 
     await expect(page.getByTestId('activity-sync-refresh')).toBeEnabled();
     for (const dark of [true, false]) {
         await applyUiTheme(page, dark);
-        await page
-            .getByTestId('activity-sync-settings')
-            .screenshot({
-                path: testInfo.outputPath(
-                    `disable-paused-${dark ? 'dark' : 'light'}.png`
-                ),
-            });
+        await page.getByTestId('activity-sync-settings').screenshot({
+            path: testInfo.outputPath(
+                `disable-paused-${dark ? 'dark' : 'light'}.png`
+            ),
+        });
     }
     for (const language of ['de', 'ar'] as const) {
         await selectUiLanguage(page, language);

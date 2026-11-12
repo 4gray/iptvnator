@@ -13,15 +13,20 @@ import {
     SOURCE_SYNC_CONNECTION,
     SOURCE_SYNC_CONFIGURE,
     SOURCE_SYNC_DISCONNECT,
+    SOURCE_SYNC_FORGET,
+    SOURCE_SYNC_SAVED_CONNECTION,
     SOURCE_SYNC_REQUEST,
     SOURCE_SYNC_RESUME,
 } from '@iptvnator/shared/interfaces/ipc-commands';
 import {
     readSourceServerConfig,
+    readSavedSourceServerConfig,
     saveSourceServerConfig,
     clearSourceServerConfig,
+    disconnectSourceServerConfig,
     sourceServerToken,
 } from '../services/source-server-config';
+import { getHostedServerAccessCode } from '../services/hosted-server-session';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
 import { SourceServerTransport } from './source-server-transport';
 
@@ -158,6 +163,18 @@ export function registerSourceSyncEvents(
             event.returnValue = { error: 'SOURCE_SYNC.INCOMPATIBLE' };
         }
     });
+    ipcMain.on(SOURCE_SYNC_SAVED_CONNECTION, (event) => {
+        const saved = readSavedSourceServerConfig();
+        event.returnValue = saved
+            ? {
+                  apiUrl: saved.apiUrl,
+                  instanceId: saved.instanceId,
+                  hasToken: Boolean(
+                      saved.encryptedToken || getHostedServerAccessCode(saved)
+                  ),
+              }
+            : null;
+    });
     ipcMain.handle(
         SOURCE_SYNC_REQUEST,
         async (_event, request: SourceServerRequest) => {
@@ -178,16 +195,25 @@ export function registerSourceSyncEvents(
     );
     ipcMain.handle(
         SOURCE_SYNC_CONFIGURE,
-        async (_event, url: string, token: string, restart: boolean) => {
+        async (
+            _event,
+            url: string,
+            token: string,
+            restart: boolean,
+            savedInstanceId?: string
+        ) => {
             let configured: ReturnType<typeof readSourceServerConfig> = null;
             try {
                 configured = readSourceServerConfig();
             } catch {
                 if (!restart) throw new Error('SOURCE_SYNC.INCOMPATIBLE');
             }
+            const saved =
+                !configured && restart ? readSavedSourceServerConfig() : null;
+            const input = url.replace(/\/$/, '');
             const apiUrl =
-                configured?.apiUrl === url.replace(/\/$/, '')
-                    ? configured.apiUrl
+                configured?.apiUrl === input || saved?.apiUrl === input
+                    ? input
                     : normalizeSourceServerUrl(url);
             if (typeof token !== 'string' || token.length > 8192)
                 throw new Error('Invalid access token');
@@ -217,6 +243,16 @@ export function registerSourceSyncEvents(
             ) {
                 throw new Error('SOURCE_SYNC.INSTANCE_CHANGED');
             }
+            if (savedInstanceId !== undefined) {
+                if (
+                    !saved ||
+                    saved.apiUrl !== apiUrl ||
+                    saved.instanceId !== savedInstanceId ||
+                    instance.instanceId !== savedInstanceId
+                )
+                    throw new Error('SOURCE_SYNC.SAVED_INSTANCE_CHANGED');
+                token = sourceServerToken(saved);
+            }
             const check = await sourceServerRequest(
                 apiUrl,
                 token,
@@ -229,6 +265,15 @@ export function registerSourceSyncEvents(
                         ? 'SOURCE_SYNC.LOCKED'
                         : 'SOURCE_SYNC.REQUEST_FAILED'
                 );
+            if (saved && savedInstanceId !== undefined) {
+                const latest = readSavedSourceServerConfig();
+                if (
+                    latest?.apiUrl !== saved.apiUrl ||
+                    latest.instanceId !== saved.instanceId ||
+                    latest.encryptedToken !== saved.encryptedToken
+                )
+                    throw new Error('SOURCE_SYNC.SAVED_INSTANCE_CHANGED');
+            }
             const persisted = saveSourceServerConfig(
                 { apiUrl, instanceId: instance.instanceId },
                 token
@@ -252,9 +297,12 @@ export function registerSourceSyncEvents(
         }
     );
     ipcMain.handle(SOURCE_SYNC_DISCONNECT, async () => {
-        clearSourceServerConfig();
+        disconnectSourceServerConfig();
         await prepareRestart();
         app.relaunch();
         app.exit();
+    });
+    ipcMain.handle(SOURCE_SYNC_FORGET, () => {
+        if (readSavedSourceServerConfig()) clearSourceServerConfig();
     });
 }
