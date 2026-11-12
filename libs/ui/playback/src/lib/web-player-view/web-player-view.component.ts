@@ -1,4 +1,6 @@
 import { AndroidTvPlayback } from './android-tv-playback';
+import { readStoredVolume } from '../player-controls/controls-format.utils';
+import { readVideoVolume } from '../player-controls/web-video-controls.media-helpers';
 import { WebPlayerActivity } from './web-player-activity';
 import { PLAYBACK_ACTIVITY_EVENTS } from '@iptvnator/services/activity-events';
 import {
@@ -421,6 +423,17 @@ export class WebPlayerViewComponent implements OnDestroy {
     private emitPlaybackEnded(isLive: boolean): void {
         if (!isLive) this.activity.finish();
         this.playbackEnded.emit();
+    }
+
+    openAndroidPlayback(): void {
+        const video = this.fullscreenSurface.querySelector('video');
+        this.androidPlayback.open(
+            this.resolvedPlayback(),
+            this.resolvedIsLive(),
+            this.effectiveStartTime(),
+            this.showCaptions(),
+            video ? readVideoVolume(video) : readStoredVolume()
+        );
     }
 
     returnToWebPlayback(): void {

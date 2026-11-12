@@ -123,7 +123,8 @@ export class AndroidTvPlayback {
         playback: ResolvedPortalPlayback,
         live: boolean,
         startTime: number,
-        captions: boolean
+        captions: boolean,
+        volume: number
     ): void {
         const bridge = this.window?.TvShell;
         if (!bridge || !this.canOpen(playback) || this.pending()) return;
@@ -163,6 +164,7 @@ export class AndroidTvPlayback {
                             startTime,
                             headers,
                             captions,
+                            volume,
                         },
                     ]);
                     if (message.length > 64 * 1024) {

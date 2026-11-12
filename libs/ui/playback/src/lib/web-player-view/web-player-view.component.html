@@ -148,14 +148,7 @@
                 type="button"
                 data-tv-native-playback
                 [attr.aria-disabled]="androidPlayback.pending() || null"
-                (click)="
-                    androidPlayback.open(
-                        resolvedPlayback(),
-                        resolvedIsLive(),
-                        effectiveStartTime(),
-                        showCaptions()
-                    )
-                "
+                (click)="openAndroidPlayback()"
             >
                 {{ labels.open }}
             </button>

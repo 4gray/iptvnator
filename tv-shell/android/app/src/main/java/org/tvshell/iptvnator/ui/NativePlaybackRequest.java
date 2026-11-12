@@ -45,6 +45,7 @@ final class NativePlaybackRequest {
             .putExtra("live", Boolean.TRUE.equals(request.get("live")))
             .putExtra("captions", Boolean.TRUE.equals(request.get("captions")))
             .putExtra("position", positionMs(request.get("startTime")))
+            .putExtra("volume", volume(request.get("volume")))
             .putExtra("headers", headers);
     }
 
@@ -67,6 +68,12 @@ final class NativePlaybackRequest {
             }
             return chain.proceed(scoped.build());
         }).build();
+    }
+
+    private static float volume(Object raw) {
+        if (!(raw instanceof Number)) return 1f;
+        double value = ((Number) raw).doubleValue();
+        return Double.isFinite(value) ? (float) Math.max(0, Math.min(1, value)) : 1f;
     }
 
     private static long positionMs(Object seconds) {

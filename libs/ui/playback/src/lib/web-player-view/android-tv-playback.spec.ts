@@ -34,11 +34,13 @@ it('reports only an owned natural end after recording the final position', () =>
             },
             false,
             0,
-            false
+            false,
+            0
         );
         fixture.detectChanges();
         const message = postMessage.mock.lastCall?.[0] as string;
-        const [, id] = JSON.parse(message);
+        const [, id, request] = JSON.parse(message);
+        expect(request.volume).toBe(0);
         return id as string;
     }
 
@@ -70,12 +72,7 @@ it('reports only an owned natural end after recording the final position', () =>
         const id = open();
         reply(id, true);
         reply(id, true);
-        expect(events).toEqual([
-            'position',
-            'watched',
-            'position',
-            'ended',
-        ]);
+        expect(events).toEqual(['position', 'watched', 'position', 'ended']);
     } finally {
         Reflect.deleteProperty(tvWindow, 'TvShell');
         Reflect.deleteProperty(tvWindow, 'iptvnatorAndroidPlaybackLabels');

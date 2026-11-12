@@ -154,21 +154,23 @@ try {
     const channelRoute = page.url();
     const waitNative = () => expect.poll(topActivity).toContain('.ui.NativePlayerActivity');
     const pid = adb('shell', 'pidof', app).trim();
-    const waitAudio = () => expect.poll(() => adb('shell', 'dumpsys', 'audio').split('\n').some(
+    const audioTrack = () => adb('shell', 'dumpsys', 'audio').split('\n').find(
         (line) => line.includes('AudioPlaybackConfiguration') &&
             line.includes('type:android.media.AudioTrack') && line.includes(`/${pid} state:started`),
-    ), { timeout: 10000 }).toBe(true);
+    ) ?? '';
+    const waitAudio = () => expect.poll(audioTrack, { timeout: 10000 }).toContain('AudioTrack');
     async function back() {
         adb('shell', 'input', 'keyevent', '4');
         await expect.poll(topActivity).toContain('.ui.MainActivity');
     }
     const redirectedBefore = seen.target.length;
+    await video.evaluate((element) => { element.muted = true; });
     await action.focus();
     adb('shell', 'input', 'keyevent', 'KEYCODE_DPAD_CENTER');
     await waitNative();
     await expect(video).toHaveCount(0);
     await expect.poll(() => seen.target.length).toBeGreaterThan(redirectedBefore);
-    await waitAudio();
+    await expect.poll(audioTrack, { timeout: 10000 }).toMatch(/mutedState:[^ ]*clientVolume/);
     await delay(4200);
     adb('shell', 'input', 'keyevent', '3');
     await expect.poll(() => {
@@ -236,7 +238,7 @@ try {
     await expect.poll(topActivity).toContain('.ui.MainActivity');
     await setExperiment(false);
     await expect(action).toHaveCount(0);
-    console.log('PASS Android Media3 opt-in, VOD resume after Home, redirect header scope, extensionless HLS Back, AC-3 audio, captions and natural VOD completion');
+    console.log('PASS Android Media3 opt-in, mute handoff, VOD resume after Home, redirect header scope, extensionless HLS Back, AC-3 audio, captions and natural VOD completion');
 } finally {
     if (settingsOpen || topActivity().includes('.ui.NativePlayerActivity')) adb('shell', 'input', 'keyevent', '4');
     await device?.close();

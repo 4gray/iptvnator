@@ -93,6 +93,7 @@ public final class NativePlayerActivity extends Activity {
             .setAudioAttributes(AudioAttributes.DEFAULT, true)
             .setHandleAudioBecomingNoisy(true)
             .build();
+        player.setVolume(getIntent().getFloatExtra("volume", 1f));
         TrackSelectionParameters.Builder selection = player.getTrackSelectionParameters().buildUpon();
         if (getIntent().getBooleanExtra("captions", false)) {
             selection.setSelectTextByDefault(true);
