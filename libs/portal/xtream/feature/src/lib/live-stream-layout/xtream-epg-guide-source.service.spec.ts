@@ -103,6 +103,7 @@ describe('XtreamEpgGuideSourceService', () => {
         'content_id' | 'xtream_id' | 'type' | 'catalog_status' | 'category_id'
     >[];
     const load = jest.fn<Promise<EpgItem[]>, unknown[]>();
+    const getFavorites = jest.fn(() => of(favorites));
     const isFavorite = jest.fn<
         Promise<boolean>,
         [TypedXtreamCollectionRef, string]
@@ -116,6 +117,7 @@ describe('XtreamEpgGuideSourceService', () => {
     }
 
     beforeEach(() => {
+        getFavorites.mockClear();
         currentPlaylist.set(playlist);
         selectedType.set('live');
         sourceRevision.set(0);
@@ -191,7 +193,7 @@ describe('XtreamEpgGuideSourceService', () => {
                 {
                     provide: FavoritesService,
                     useValue: {
-                        getFavorites: () => of(favorites),
+                        getFavorites,
                         isFavorite,
                     },
                 },
@@ -266,6 +268,11 @@ describe('XtreamEpgGuideSourceService', () => {
             expect(load.mock.calls.map(([, streamId]) => streamId)).toEqual([
                 101, 101,
             ]);
+            jest.setSystemTime(Date.now() + 300_000);
+            expect(
+                service.recoveredPrograms({ fromMs: 100_000, toMs: 200_000 })
+            ).toBeNull();
+            expect(service.playingSchedule()?.[0].title).toBe(next.title);
 
             service.close();
             TestBed.flushEffects();
@@ -628,10 +635,12 @@ describe('XtreamEpgGuideSourceService', () => {
     });
 
     it('refreshes favorite membership after the sync runtime announces a change', async () => {
+        runtime.supportsXtreamSqliteDataSource = false;
         favorites = [];
         service.setScope('favorites');
         await settleFavorites();
         expect(service.channels()).toEqual([]);
+        expect(getFavorites).toHaveBeenCalledWith(playlist.id, false);
 
         favorites = [
             {

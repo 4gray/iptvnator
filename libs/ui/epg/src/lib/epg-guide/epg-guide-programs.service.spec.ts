@@ -140,6 +140,53 @@ describe('EpgGuideProgramsService', () => {
         expect(loadCoverage).not.toHaveBeenCalled();
     });
 
+    it.each(['dock', 'coverage'])(
+        'applies a successful %s read to a visible stale row without waiting for its retry',
+        async (recovery) => {
+            jest.useFakeTimers({ now: 1_000 });
+            try {
+                const expiry = jest.fn(() => 2_000);
+                Object.assign(source, {
+                    deferredCoverage: true,
+                    programsExpireAt: expiry,
+                });
+                activeChannelId.set('a');
+                const initial = programFor('a');
+                const refreshed = {
+                    ...initial,
+                    title: 'Synthetic Recovered Programme',
+                };
+                loadPrograms
+                    .mockResolvedValueOnce(new Map([['a', [initial]]]))
+                    .mockResolvedValueOnce(new Map());
+                service.setWindow(1_000, 2_000);
+                service.ensureLoaded([channels()[0]]);
+                await flush();
+                jest.setSystemTime(2_000);
+                service.ensureLoaded([channels()[0]]);
+                await flush();
+                expect(service.programsFor('a')).toEqual([initial]);
+                expect(service.statusFor('a')).toBe('loaded');
+                expiry.mockReturnValue(60_000);
+                if (recovery === 'dock') {
+                    recoveredPrograms.set([refreshed]);
+                    TestBed.flushEffects();
+                } else {
+                    loadCoverage.mockImplementation(async (_window, report) => {
+                        report?.('a', [refreshed]);
+                        return new Set(['a']);
+                    });
+                    service.setCoverageRequested(true);
+                    await flush();
+                }
+                expect(service.programsFor('a')).toEqual([refreshed]);
+                expect(loadPrograms).toHaveBeenCalledTimes(2);
+            } finally {
+                jest.useRealTimers();
+            }
+        }
+    );
+
     it('uses an empty recovered dock schedule to clear failed coverage', async () => {
         Object.assign(source, { deferredCoverage: true });
         channels.set([channel('a')]);

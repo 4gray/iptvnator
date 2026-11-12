@@ -113,10 +113,17 @@ export function createXtreamGuideNowPlaying(
                 ? current.value.items
                 : null;
         }),
-        recoveredPrograms: (window: Pick<EpgGuideWindow, 'fromMs' | 'toMs'>) =>
-            currentSchedule()?.value.programs.filter((program) =>
-                programmeOverlapsGuideWindow(program, window)
-            ) ?? null,
+        recoveredPrograms: (
+            window: Pick<EpgGuideWindow, 'fromMs' | 'toMs'>
+        ) => {
+            const current = currentSchedule();
+            const item = target();
+            return current && item && expiresAt(item) > Date.now()
+                ? current.value.programs.filter((program) =>
+                      programmeOverlapsGuideWindow(program, window)
+                  )
+                : null;
+        },
         publish(
             key: string,
             sourceRevision: unknown,

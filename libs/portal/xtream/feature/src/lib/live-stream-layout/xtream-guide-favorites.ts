@@ -69,7 +69,7 @@ async function loadXtreamGuideFavorites(
     sqlite: boolean,
     signal: AbortSignal
 ): Promise<ReadonlyMap<number, number>> {
-    const items = await firstValueFrom(service.getFavorites(playlistId));
+    const items = await firstValueFrom(service.getFavorites(playlistId, false));
     const favorites = xtreamGuideFavoriteRows(items, sqlite);
     return sqlite
         ? resolveVisibleXtreamFavoriteCopies(

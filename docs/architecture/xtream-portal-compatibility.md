@@ -939,8 +939,8 @@ even while the panel previews a different channel. Closing the guide cancels its
 reads.
 Initial failures retry when rows return to the viewport. If a visible row's
 refresh fails, it keeps its last schedule and can retry after 30 seconds.
-A coverage scan or dock refresh that obtains a schedule also updates the
-corresponding visible failed row.
+A coverage scan or dock refresh that obtains a fresh schedule also updates
+the corresponding visible row after an initial failure or a failed refresh.
 It checks the current scope's coverage only when the user turns on **Only with
 EPG** and keeps channels whose coverage could not be checked until a successful
 lookup determines whether they have programmes. It hides confirmed empty
@@ -1418,8 +1418,8 @@ replaces its existing global-order slots and preserves other sources' positions.
 Capture source incarnation, profile and consent before reading either archive or
 catalog. Recheck ownership before publishing a projection and before committing
 a membership action, including lookups after a native projection has completed.
-Action/status paths call `getFavorites(playlistId, false)` to read the PWA archive
-without hydrating older unresolved entries. Ordinary collection reads retain
+Action/status paths and guide membership call `getFavorites(playlistId, false)`
+to read the PWA archive without hydrating older unresolved entries. Ordinary collection reads retain
 hydration by default; reference/snapshot conversion stays in the shared provider
 reference adapters used by preview and backup.
 PWA cache-only identity lookup also applies TMDB/year hints, preferring fully

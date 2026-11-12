@@ -43,8 +43,11 @@ export class FavoritesService {
         return await this.dataSource.isFavorite(contentId, playlistId);
     }
 
-    getFavorites(playlistId: string): Observable<FavoriteItem[]> {
-        return from(this.dataSource.getFavorites(playlistId)).pipe(
+    getFavorites(
+        playlistId: string,
+        hydrate = true
+    ): Observable<FavoriteItem[]> {
+        return from(this.dataSource.getFavorites(playlistId, hydrate)).pipe(
             map((items) =>
                 items.map((item) => ({
                     content_id: item.id,

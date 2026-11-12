@@ -33,6 +33,7 @@ export const EPG_GUIDE_COVERAGE_CHUNK = 1000;
 
 export type EpgGuideRowStatus =
     'idle' | 'loading' | 'loaded' | 'none' | 'error';
+type RowScheduleStatus = EpgGuideRowStatus | 'stale';
 
 const EMPTY: readonly EpgProgram[] = [];
 const COVERAGE_BATCH_MS = 200;
@@ -59,7 +60,7 @@ export class EpgGuideProgramsService {
     private readonly programs = signal<
         ReadonlyMap<string, readonly EpgProgram[]>
     >(new Map());
-    private readonly statuses = signal<ReadonlyMap<string, EpgGuideRowStatus>>(
+    private readonly statuses = signal<ReadonlyMap<string, RowScheduleStatus>>(
         new Map()
     );
     private readonly coverage = signal<ReadonlyMap<
@@ -112,15 +113,8 @@ export class EpgGuideProgramsService {
         });
         if (this.source.recoveredPrograms) {
             effect(() => {
-                const statuses = this.statuses();
                 const id = this.source.activeChannelId();
-                if (
-                    !this.range ||
-                    !id ||
-                    !this.visibleRows.has(id) ||
-                    statuses.get(id) !== 'error'
-                )
-                    return;
+                if (!this.canRecover(id) || !id || !this.range) return;
                 const recovered = this.source.recoveredPrograms?.(this.range);
                 if (recovered)
                     untracked(() => this.storePrograms([[id, recovered]]));
@@ -154,7 +148,17 @@ export class EpgGuideProgramsService {
     }
 
     statusFor(channelId: string): EpgGuideRowStatus {
-        return this.statuses().get(channelId) ?? 'idle';
+        const status = this.statuses().get(channelId);
+        return status === 'stale' ? 'loaded' : (status ?? 'idle');
+    }
+
+    private canRecover(id: string | null): boolean {
+        const status = this.statuses().get(id ?? '');
+        return (
+            !!id &&
+            (status === 'error' || status === 'stale') &&
+            this.visibleRows.has(id)
+        );
     }
 
     /** Unknown (coverage not loaded yet, or a chunk failed) counts as covered
@@ -272,7 +276,7 @@ export class EpgGuideProgramsService {
                 ? Date.now() + ROW_RETRY_MS
                 : programs && this.source.programsExpireAt?.(id);
             if (expiresAt !== undefined) this.rowExpiry.set(id, expiresAt);
-            statuses.set(id, programs || retry ? 'loaded' : 'error');
+            statuses.set(id, programs ? 'loaded' : retry ? 'stale' : 'error');
         }
         this.programs.set(next);
         this.statuses.set(statuses);
@@ -364,11 +368,7 @@ export class EpgGuideProgramsService {
                                 id,
                                 programs && programs.length > 0
                             );
-                            if (
-                                programs &&
-                                this.visibleRows.has(id) &&
-                                this.statusFor(id) === 'error'
-                            )
+                            if (programs && this.canRecover(id))
                                 this.storePrograms([[id, programs]]);
                         }
                     )
