@@ -165,8 +165,8 @@ importers:
         specifier: ^0.5.0
         version: 0.5.0
       hls.js:
-        specifier: 1.7.3
-        version: 1.7.3
+        specifier: 1.7.4
+        version: 1.7.4
       iptv-playlist-parser:
         specifier: github:4gray/iptv-playlist-parser#v0.15.2-iptvnator.2
         version: https://codeload.github.com/4gray/iptv-playlist-parser/tar.gz/d547b6be8a44431c85fbcbcdefb41f28c0dadf6d
@@ -6718,8 +6718,8 @@ packages:
     resolution: {integrity: sha512-F/1DnUGPopORZi0ni+CvrCgHQ5FyEAHRLSApuYWMmrbSwoN2Mn/7k+Gl38gJnR7yyDZk6WLXwiGod1JOWNDKGw==}
     hasBin: true
 
-  hls.js@1.7.3:
-    resolution: {integrity: sha512-MsPlx6yVW4Qv4C7mEVou4/gk/5cN2dVxOTnrNjPSmyH2f0Ln+/UkG10Ax1PE6OvrmTVPKgQYozTtBaPOuCzq7A==}
+  hls.js@1.7.4:
+    resolution: {integrity: sha512-3GlxGdPvT2YHvQYOt+yOzT/DEior/qJVNIylHA77kgeoBTdQQqi70GwefNEUmHQeNGyjC8U62+bruqW/Tpm+tg==}
 
   hosted-git-info@10.1.1:
     resolution: {integrity: sha512-DeOnSPAvOndYKfw075gt8yZzQ7S2hNztw34zBTfhIzLhmBTswIBg5/y+pqu/VD5cYWm5goAFTusDmUEmKZ0PEQ==}
@@ -16984,7 +16984,7 @@ snapshots:
 
   he@1.2.0: {}
 
-  hls.js@1.7.3: {}
+  hls.js@1.7.4: {}
 
   hosted-git-info@10.1.1:
     dependencies:
