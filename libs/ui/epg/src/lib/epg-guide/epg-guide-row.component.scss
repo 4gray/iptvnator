@@ -11,7 +11,12 @@
         background: $surface-3;
     }
     &.is-active {
-        background: var(--app-selection-surface);
+        background:
+            linear-gradient(
+                var(--app-selection-surface),
+                var(--app-selection-surface)
+            ),
+            var(--app-content-bg);
     }
     &.is-focused {
         box-shadow: inset 0 0 0 2px var(--app-focus-ring);
@@ -120,6 +125,7 @@
 
 .epg-guide-row__lane {
     position: relative;
+    z-index: 0;
     flex: 0 0 auto;
     height: 100%;
 }
