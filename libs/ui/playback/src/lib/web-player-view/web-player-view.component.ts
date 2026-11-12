@@ -170,7 +170,6 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly nextEpisodeRequested = output<void>();
     /** Re-emitted embedded-MPV clean recording stop (stop enrichment). */
     readonly recordingStopped = output<RecordingStoppedEvent>();
-    private startedToken?: symbol;
 
     readonly embeddedMpvLiveSubtitlesOff = signal(false);
     readonly showCaptions = computed(
@@ -390,8 +389,7 @@ export class WebPlayerViewComponent implements OnDestroy {
     ): void {
         if (!this.ownsApplication(ownership)) return;
 
-        if (event.playing && this.startedToken !== ownership.token) {
-            this.startedToken = ownership.token;
+        if (event.playing && this.recovery.recordStart(ownership.token)) {
             this.playbackStarted.emit(
                 this.playback() ?? this.resolvedPlayback()
             );
@@ -406,6 +404,7 @@ export class WebPlayerViewComponent implements OnDestroy {
     handleActivityEnded(ownership: PlaybackApplicationOwnership): void {
         if (!this.ownsApplication(ownership)) return;
         if (!ownership.isLive) this.activity.finish();
+        this.recovery.recordEnd(ownership.token);
         this.playbackEnded.emit();
     }
 
@@ -442,13 +441,13 @@ export class WebPlayerViewComponent implements OnDestroy {
 
     retryFailedPlayback(): boolean {
         const mpv = this.embeddedMpvPlayer();
-        if (this.visiblePlaybackDiagnostic()) this.retryPlayback();
+        if (!mpv && this.recovery.canRetry()) this.retryPlayback();
         else if (
             mpv &&
             !mpv.isReconnecting() &&
             (mpv.isErrored() || mpv.isLiveEnded())
         ) {
-            this.startedToken = undefined;
+            this.recovery.recordEnd(this.playbackApplicationToken());
             mpv.retry();
         } else return false;
         return true;

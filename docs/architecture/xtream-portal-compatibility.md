@@ -793,8 +793,8 @@ schedule rows remain visible. If an external channel switch fails and the
 player restores the previous session or rejects a switch while the old session
 is still playing, the guide keeps its scope and search. Enter and double-click
 close the guide only after the requested stream opens, including in the inline
-player. Committing the same row after an inline playback error retries the
-stream; committing while it is still opening waits for that attempt.
+player. Committing the same row after an inline playback error or stream end
+retries the stream; committing while it is still opening waits for that attempt.
 A guide or remote switch reuses the managed player when available. Otherwise
 it waits for the exact previous process to exit before opening the new channel,
 so a one-connection account does not have two simultaneous streams. A newer
@@ -855,7 +855,8 @@ captured when the channel was selected, without confirming guide playback.
 Browsing another channel does not replace the remote order or detach the
 guide. Starting archive playback from a preview commits that preview's order
 when the archive session opens. An earlier live tune confirming does not cancel
-a newer archive lookup; the archive checks its own channel and category.
+a newer archive lookup. Inline and external archive requests both check their
+own channel and category after resolving the URL.
 If a relock withholds that
 channel or the pending replacement, the guide hides the withheld channel and
 closes its external session even if it finishes opening later, reports a

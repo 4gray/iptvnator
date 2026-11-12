@@ -68,6 +68,10 @@ export class WebPlayerRecoveryController {
     });
     private readonly diagnosticOwnerToken =
         signal<WebPlayerApplicationToken | null>(null);
+    private playbackState?: {
+        token: WebPlayerApplicationToken;
+        ended: boolean;
+    };
     readonly visiblePlaybackDiagnostic = computed(() =>
         this.deps.selectedPlayer() === VideoPlayer.EmbeddedMpv ||
         this.diagnosticOwnerToken() !== this.diagnosticIntentToken()
@@ -95,6 +99,26 @@ export class WebPlayerRecoveryController {
     });
 
     constructor(private readonly deps: WebPlayerRecoveryControllerDeps) {}
+
+    recordStart(token: WebPlayerApplicationToken): boolean {
+        if (this.playbackState?.token === token && !this.playbackState.ended)
+            return false;
+        this.playbackState = { token, ended: false };
+        return true;
+    }
+
+    recordEnd(token: WebPlayerApplicationToken): void {
+        this.playbackState = { token, ended: true };
+    }
+
+    canRetry(): boolean {
+        return (
+            (this.playbackState?.ended &&
+                this.playbackState.token ===
+                    this.deps.playbackApplicationToken()) ||
+            !!this.visiblePlaybackDiagnostic()
+        );
+    }
 
     handlePlaybackIssue(
         issue: PlaybackDiagnostic | null,

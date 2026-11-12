@@ -67,6 +67,7 @@ export class StubWebPlayerViewComponent {
     readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
     readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
     readonly playbackStarted = output<ResolvedPortalPlayback>();
+    readonly playbackEnded = output<void>();
     readonly recordingStopped = output<RecordingStoppedEvent>();
 }
 

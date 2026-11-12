@@ -182,6 +182,7 @@
                     [timelineSegments]="catchupTimelineSegments()"
                     [recordingMetadata]="recordingMetadata()"
                     (playbackStarted)="onInlinePlaybackStarted($event)"
+                    (playbackEnded)="onInlinePlaybackEnded()"
                     (externalFallbackRequested)="
                         handleExternalFallbackRequest($event)
                     "

@@ -1101,6 +1101,11 @@ export class LiveStreamLayoutComponent
             confirmation.callback();
     }
 
+    onInlinePlaybackEnded(): void {
+        if (this.inlinePlayer()?.playback() === this.startedInlinePlayback)
+            this.startedInlinePlayback = undefined;
+    }
+
     async onProgramActivated(event: EpgProgramActivationEvent): Promise<void> {
         const selectedItem = this.selectedLiveItem();
         if (!selectedItem?.xtream_id) {
@@ -1425,8 +1430,6 @@ export class LiveStreamLayoutComponent
         }
 
         const requestId = ++this.playbackRequestId;
-        const external =
-            !this.usesEmbeddedPlayer() && this.externalGuide.hasSessionUpdates;
         const preview = this.archivePreview;
         const fromPreview =
             preview &&
@@ -1441,12 +1444,12 @@ export class LiveStreamLayoutComponent
         );
         const category = this.readLiveProviderCategoryId(item);
         const resolved =
-            external && category === 'unknown'
+            category === 'unknown'
                 ? await this.lookupLiveProviderCategoryId(playlist.id, item)
                 : category;
         if (
             !this.isCurrentPlaybackRequest(requestId, owner) ||
-            (external && this.isLiveCategoryWithheld(playlist.id, resolved))
+            this.isLiveCategoryWithheld(playlist.id, resolved)
         )
             return;
         const catchupUrl = await this.xtreamUrlService.resolveCatchupUrl(
@@ -1465,7 +1468,7 @@ export class LiveStreamLayoutComponent
         );
         if (
             !this.isCurrentPlaybackRequest(requestId, owner) ||
-            (external && this.isLiveCategoryWithheld(playlist.id, resolved))
+            this.isLiveCategoryWithheld(playlist.id, resolved)
         ) {
             return;
         }
@@ -1473,7 +1476,7 @@ export class LiveStreamLayoutComponent
         this.activeLiveItemId.set(item.xtream_id);
         this.activeLiveProviderCategoryId = this.resolveLiveProviderCategoryId(
             item,
-            external ? resolved : undefined
+            resolved
         );
         this.activePlaylistId = playlist.id;
         this.activeGuideItem.set(item);

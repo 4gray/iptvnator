@@ -172,6 +172,23 @@ describe('WebPlayerViewComponent live format integration', () => {
         expect(component.vjsOptions()!.reloadToken).toBe(before + 2);
     });
 
+    it('retries an ended stream once, without treating the replacement as ended', async () => {
+        await render();
+        const player = fixture.debugElement.query(
+            By.directive(StubVjsPlayerComponent)
+        ).componentInstance as StubVjsPlayerComponent;
+        const before = component.reloadToken();
+        expect(component.retryFailedPlayback()).toBe(false);
+        player.playbackEnded.emit();
+        expect(component.visiblePlaybackDiagnostic()).toBeNull();
+        expect(component.retryFailedPlayback()).toBe(true);
+        expect(component.reloadToken()).toBe(before + 1);
+        await render();
+        player.playbackEnded.emit();
+        expect(component.retryFailedPlayback()).toBe(false);
+        expect(component.reloadToken()).toBe(before + 1);
+    });
+
     it.each([
         { input: 'streamUrl', value: 'https://example.com/new.m3u8' },
         { input: 'playbackSessionKey', value: 'content-b' },

@@ -21,6 +21,7 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
         onChannelChange,
         onRemoteControlCommand,
         player,
+        parentalLock,
         portalPlayer,
         publishExternalSession,
         restoreElectron,
@@ -484,6 +485,61 @@ describe('LiveStreamLayoutComponent external playlist ownership', () => {
             );
         }
     );
+
+    it('blocks an inline archive relocked during URL lookup even after selecting an unlocked copy', async () => {
+        const fixture = TestBed.createComponent(LiveStreamLayoutComponent);
+        const component = fixture.componentInstance;
+        const item = { ...sampleChannel, category_id: 1 };
+        const copy = { ...item, category_id: 2 };
+        const categories = xtreamStore.getCategoriesBySelectedType();
+        xtreamStore.getCategoriesBySelectedType.set([
+            ...categories,
+            { category_id: 2, category_name: 'Synthetic Copy Group' },
+        ]);
+        try {
+            emptyList.set([item, copy]);
+            xtreamStore.selectedItem.set(item);
+            epgItems.set([epgItem('Synthetic Archive', 0, 1)]);
+            fixture.detectChanges();
+            component.playLive(item);
+            const live = component.activePlayback();
+            const resolveCatchupUrl = jest.mocked(
+                TestBed.inject(XtreamUrlService).resolveCatchupUrl
+            );
+            let finish!: (url: string) => void;
+            resolveCatchupUrl.mockReturnValueOnce(
+                new Promise((resolve) => {
+                    finish = resolve;
+                })
+            );
+            const opening = component.onProgramActivated({
+                type: 'timeshift',
+                program: component.controlledEpgPrograms()[0],
+            });
+            expect(resolveCatchupUrl).toHaveBeenCalled();
+            component.guide.open();
+            fixture.detectChanges();
+            const source = fixture.debugElement.injector.get(
+                XtreamEpgGuideSourceService
+            );
+            source.setScope('2');
+            source.activate(String(copy.xtream_id));
+            fixture.detectChanges();
+            expect(source.playingItem()).toBe(copy);
+            parentalLock.isXtreamCategoryLocked.mockImplementation(
+                (_, __, category) => category === 1
+            );
+            parentalLock.active.set(true);
+            parentalLock.version.update((version) => version + 1);
+            fixture.detectChanges();
+            expect(component.activePlayback()).toBe(live);
+            finish('https://example.test/synthetic-archive.ts');
+            await opening;
+            expect(component.activePlayback()).toBe(live);
+        } finally {
+            xtreamStore.getCategoriesBySelectedType.set(categories);
+        }
+    });
 
     it.each([
         { serverUrl: 'https://another.example.test' },
