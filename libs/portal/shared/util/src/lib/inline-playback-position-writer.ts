@@ -1,6 +1,7 @@
 import type { Signal } from '@angular/core';
 import type {
     PlaybackPositionData,
+    PlaybackPositionUpdate,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 
@@ -39,7 +40,7 @@ export interface InlinePlaybackPositionWriter {
      * the same answer to carry a timecode across, and one latch has to serve
      * both or the two disagree about where playback is.
      */
-    handleTimeUpdate(event: { currentTime: number; duration: number }): boolean;
+    handleTimeUpdate(event: PlaybackPositionUpdate): boolean;
     /** Clears the throttle and the resume latch for a new playback. */
     reset(): void;
 }
@@ -70,7 +71,7 @@ export function createInlinePlaybackPositionWriter(
             // This is a one-shot latch, not a filter: once playback has
             // reached the resume point the guard is done, so a deliberate seek
             // backwards is still saved normally.
-            if (!resumeSettled) {
+            if (!resumeSettled && !event.checkpoint) {
                 const startTime = playback.startTime ?? 0;
                 // A shorter cut can never reach a position carried into it,
                 // and latching on that would suppress every save this session.
@@ -83,11 +84,11 @@ export function createInlinePlaybackPositionWriter(
                 ) {
                     return false;
                 }
-                resumeSettled = true;
             }
+            resumeSettled = true;
 
             const now = Date.now();
-            if (now - lastSaveTime <= throttleMs) {
+            if (!event.checkpoint && now - lastSaveTime <= throttleMs) {
                 return true;
             }
             lastSaveTime = now;

@@ -47,6 +47,7 @@ import {
     ExternalPlayerName,
     ExternalPlayerSession,
     PlaybackPositionData,
+    PlaybackPositionUpdate,
     PlayerContentInfo,
     ResolvedPortalPlayback,
     TmdbEnrichedCastMember,
@@ -1122,15 +1123,12 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         this.lastSaveTime = 0;
     }
 
-    handleInlineTimeUpdate(event: {
-        currentTime: number;
-        duration: number;
-    }): void {
+    handleInlineTimeUpdate(event: PlaybackPositionUpdate): void {
         const playback = this.inlinePlayback();
         if (!playback?.contentInfo) return;
 
         const now = Date.now();
-        if (now - this.lastSaveTime <= 15000) return;
+        if (!event.checkpoint && now - this.lastSaveTime <= 15000) return;
 
         this.lastSaveTime = now;
         const position: PlaybackPositionData = {

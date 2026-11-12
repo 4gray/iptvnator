@@ -79,6 +79,11 @@
             android:text="@string/setting_advanced" />
 
         <CheckBox
+            android:id="@+id/native_playback"
+            style="@style/SettingsRadio"
+            android:text="@string/setting_native_playback" />
+
+        <CheckBox
             android:id="@+id/web_debug"
             style="@style/SettingsRadio"
             android:text="@string/setting_web_debug" />

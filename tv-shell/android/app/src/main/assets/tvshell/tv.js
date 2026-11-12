@@ -56,6 +56,8 @@
 
     // --------------------------------------------------------------- bridge
     function native(method) {
+        // The current player already offers in-app recovery. External playback stays available on demand.
+        if (method === 'onPlaybackError' && document.querySelector('[data-tv-native-playback]')) return true;
         var args = Array.prototype.slice.call(arguments, 1);
         if (isAndroid) {
             try {

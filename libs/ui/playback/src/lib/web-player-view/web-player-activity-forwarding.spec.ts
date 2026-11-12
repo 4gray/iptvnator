@@ -35,7 +35,7 @@ function harness(enabled = true) {
     activity.begin(playback);
     const emit = jest.fn();
     const view = {
-        ownsApplication: () => true,
+        ownership: { owns: () => true },
         activity,
         playback: () => playback,
         recoverySession: { recordTimeUpdate: jest.fn() },

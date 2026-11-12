@@ -139,3 +139,35 @@
         (sourceCheckRequested)="sourceCheckRequested.emit($event)"
     />
 }
+
+@if (androidPlayback.labels(); as labels) {
+    @if (androidPlayback.canOpen(resolvedPlayback())) {
+        <div class="web-player-android-actions dark-theme">
+            <button
+                mat-stroked-button
+                type="button"
+                data-tv-native-playback
+                [attr.aria-disabled]="androidPlayback.pending() || null"
+                (click)="
+                    androidPlayback.open(
+                        resolvedPlayback(),
+                        resolvedIsLive(),
+                        effectiveStartTime(),
+                        showCaptions()
+                    )
+                "
+            >
+                {{ labels.open }}
+            </button>
+            @if (androidPlayback.suspended() && !androidPlayback.pending()) {
+                <button
+                    mat-stroked-button
+                    type="button"
+                    (click)="returnToWebPlayback()"
+                >
+                    {{ labels.back }}
+                </button>
+            }
+        </div>
+    }
+}

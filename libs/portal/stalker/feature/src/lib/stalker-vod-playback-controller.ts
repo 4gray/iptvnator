@@ -10,6 +10,7 @@ import {
 import type { PlaybackFallbackRequest } from '@iptvnator/ui/playback';
 import {
     PlaybackPositionData,
+    PlaybackPositionUpdate,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import type { PendingExternalLaunch } from './stalker-vod-detail-actions';
@@ -150,17 +151,14 @@ export class StalkerVodPlaybackController {
         this.positionLoaded.set(true);
     }
 
-    handleInlineTimeUpdate(event: {
-        currentTime: number;
-        duration: number;
-    }): void {
+    handleInlineTimeUpdate(event: PlaybackPositionUpdate): void {
         const playback = this.config.inlinePlayback();
         if (!playback?.contentInfo) {
             return;
         }
 
         const now = Date.now();
-        if (now - this.lastInlineSaveTime <= 15000) {
+        if (!event.checkpoint && now - this.lastInlineSaveTime <= 15000) {
             return;
         }
 

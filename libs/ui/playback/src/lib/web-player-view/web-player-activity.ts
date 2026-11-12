@@ -37,13 +37,13 @@ export class WebPlayerActivity {
     ): boolean {
         const info = playback?.contentInfo;
         if (!info?.activitySessionId || !this.activity?.active()) return true;
-        if (!this.resumeSettled) {
+        if (!this.resumeSettled && !event.checkpoint) {
             const start = playback?.startTime ?? 0;
             const reachable = !(event.duration > 0) || start < event.duration;
             if (reachable && start > 0 && event.currentTime < start - 5)
                 return false;
-            this.resumeSettled = true;
         }
+        this.resumeSettled = true;
         this.last = {
             ...info,
             positionSeconds: event.currentTime,

@@ -41,4 +41,8 @@
     <string name="reset_done">Données effacées</string>
     <string name="setting_diagnostics">Diagnostic</string>
     <string name="diagnostics">WebView (moteur Chrome) : %1$s %2$s\nAppareil : %3$s — Android %4$s\nPort du serveur embarqué : %5$s\nÉcran : %6$s</string>
+    <string name="setting_native_playback">Activer le lecteur intégré (expérimental)</string>
+    <string name="native_playback_try">Essayer le lecteur intégré</string>
+    <string name="native_playback_back">Revenir au lecteur web</string>
+    <string name="native_playback_failed">Le lecteur intégré ne peut pas lire ce flux. Appuyez sur Retour.</string>
 </resources>

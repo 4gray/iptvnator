@@ -38,6 +38,7 @@ import androidx.webkit.WebMessageCompat;
 import androidx.webkit.WebViewCompat;
 import androidx.webkit.WebViewFeature;
 
+import org.json.JSONObject;
 import org.tvshell.iptvnator.Prefs;
 import org.tvshell.iptvnator.R;
 import org.tvshell.iptvnator.ShellApp;
@@ -53,6 +54,7 @@ import java.util.Collections;
  */
 public class MainActivity extends Activity {
 
+    private static final int NATIVE_PLAYBACK_REQUEST = 7103;
     private static final long LONG_PRESS_MS = 650;
     /**
      * How long the web app may take to report readiness before the error panel explains the
@@ -71,6 +73,7 @@ public class MainActivity extends Activity {
 
     private WebView webView;
     private String bridgeOrigin;
+    private String nativePlaybackId;
     private final WebFileChooser fileChooser = new WebFileChooser(this);
     private FrameLayout root;
     private View splash;
@@ -306,13 +309,7 @@ public class MainActivity extends Activity {
 
             @Override
             public void onHideCustomView() {
-                if (customView == null) return;
-                root.removeView(customView);
-                customView = null;
-                webView.setVisibility(View.VISIBLE);
-                webView.requestFocus(View.FOCUS_DOWN);
-                if (customViewCallback != null) customViewCallback.onCustomViewHidden();
-                customViewCallback = null;
+                hideCustomView();
             }
         });
 
@@ -598,6 +595,7 @@ public class MainActivity extends Activity {
     // --------------------------------------------------------- callbacks
     void onWebAppReady() {
         pageReady = true;
+        updateNativePlaybackAvailability();
         loadRetried = false;
         setKeepScreenOn(false); // from here the page says when something plays
         handler.removeCallbacks(readyWatchdog);
@@ -605,6 +603,47 @@ public class MainActivity extends Activity {
         splash.setVisibility(View.GONE);
         errorPanel.setVisibility(View.GONE);
         if (webView != null) webView.requestFocus(View.FOCUS_DOWN);
+    }
+
+    private void hideCustomView() {
+        if (customView == null) return;
+        root.removeView(customView);
+        customView = null;
+        webView.setVisibility(View.VISIBLE);
+        webView.requestFocus(View.FOCUS_DOWN);
+        if (customViewCallback != null) customViewCallback.onCustomViewHidden();
+        customViewCallback = null;
+    }
+
+    private void updateNativePlaybackAvailability() {
+        if (!pageReady) return;
+        String labels = prefs.nativePlayback()
+            ? "{open:" + JSONObject.quote(getString(R.string.native_playback_try))
+                + ",back:" + JSONObject.quote(getString(R.string.native_playback_back)) + "}"
+            : "null";
+        js("window.iptvnatorAndroidPlaybackLabels=" + labels
+            + ";window.dispatchEvent(new Event('iptvnator:android-playback-availability'))");
+    }
+
+    void playNative(String id, Object payload) {
+        Intent intent = prefs.nativePlayback() && resumed && pageReady && nativePlaybackId == null
+            ? NativePlaybackRequest.toIntent(this, payload) : null;
+        if (intent == null) {
+            replyToNativePlayback(id, null);
+            return;
+        }
+        nativePlaybackId = id;
+        if (externalDialog != null) externalDialog.dismiss();
+        hideCustomView();
+        startActivityForResult(intent, NATIVE_PLAYBACK_REQUEST);
+    }
+
+    private void replyToNativePlayback(String id, Intent result) {
+        String data = result == null ? "null" : "{positionMs:" + result.getLongExtra("position", 0)
+            + ",durationMs:" + result.getLongExtra("duration", 0)
+            + ",playedMs:" + result.getLongExtra("played", 0) + "}";
+        js("window.dispatchEvent(new CustomEvent('iptvnator:android-playback-result',{detail:{id:"
+            + JSONObject.quote(id) + ",result:" + data + "}}))");
     }
 
     void openExternal(String url, String title) {
@@ -687,6 +726,7 @@ public class MainActivity extends Activity {
             return;
         }
         webView.onResume();
+        updateNativePlaybackAvailability();
         js("window.__tvShell && typeof window.__tvShell.setForeground === 'function' && window.__tvShell.setForeground(true)");
         if (errorPanel.getVisibility() != View.VISIBLE) webView.requestFocus(View.FOCUS_DOWN);
         // Give a foreground startup a fresh ready budget.
@@ -737,6 +777,12 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == NATIVE_PLAYBACK_REQUEST) {
+            String id = nativePlaybackId;
+            nativePlaybackId = null;
+            if (id != null) replyToNativePlayback(id, resultCode == RESULT_OK ? data : null);
+            return;
+        }
         if (!fileChooser.onActivityResult(requestCode, resultCode, data)) {
             super.onActivityResult(requestCode, resultCode, data);
         }

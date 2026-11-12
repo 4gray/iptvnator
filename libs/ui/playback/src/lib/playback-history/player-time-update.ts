@@ -1,7 +1,7 @@
+import type { PlaybackPositionUpdate } from '@iptvnator/shared/interfaces';
+
 /** Position report an engine emits on every media time update. */
-export interface PlayerTimeUpdate {
-    readonly currentTime: number;
-    readonly duration: number;
+export interface PlayerTimeUpdate extends PlaybackPositionUpdate {
     /**
      * Whether the media was actually playing — not paused and not seeking.
      * Seeks of paused media also move the position; only playing reports

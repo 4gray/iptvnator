@@ -4,7 +4,7 @@ plugins {
 
 android {
     namespace 'org.tvshell.iptvnator'
-    compileSdk 35
+    compileSdk 36
 
     defaultConfig {
         applicationId 'org.tvshell.iptvnator'
@@ -73,6 +73,11 @@ android {
 dependencies {
     implementation project(':backend')
     implementation 'androidx.webkit:webkit:1.13.0'
+    def media3Version = '1.11.1'
+    implementation "androidx.media3:media3-exoplayer:$media3Version"
+    implementation "androidx.media3:media3-exoplayer-hls:$media3Version"
+    implementation "androidx.media3:media3-datasource-okhttp:$media3Version"
+    implementation "androidx.media3:media3-ui:$media3Version"
     // Last published NanoHTTPD. Known advisories do not apply: CVE-2020-13697 is in
     // RouterNanoHTTPD (nanolets, not used); CVE-2022-21230 concerns temp files in a shared
     // java.io.tmpdir, which on Android is the app-private cache dir. Request bodies are

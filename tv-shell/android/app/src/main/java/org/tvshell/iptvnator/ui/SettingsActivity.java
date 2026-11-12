@@ -50,6 +50,10 @@ public class SettingsActivity extends Activity {
             }
         });
 
+        CheckBox nativePlayback = findViewById(R.id.native_playback);
+        nativePlayback.setChecked(prefs.nativePlayback());
+        nativePlayback.setOnCheckedChangeListener((button, checked) -> prefs.setNativePlayback(checked));
+
         // External player on playback error
         CheckBox prompt = findViewById(R.id.prompt_external);
         prompt.setChecked(prefs.promptExternalOnError());

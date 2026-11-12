@@ -171,6 +171,9 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
+      - name: Install Android 36 SDK
+        run: sdkmanager "platforms;android-36"
+
       - name: Backend tests (parser fixtures, routes)
         shell: bash
         working-directory: ${{ env.SHELL_DIR }}/android

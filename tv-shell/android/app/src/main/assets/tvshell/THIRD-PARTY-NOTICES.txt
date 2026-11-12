@@ -59,7 +59,13 @@ AndroidX WebKit 1.13.0 and its AndroidX dependencies are from the Android Open
 Source Project. JSpecify annotations are from the JSpecify authors. The license
 text ships alongside this notice in APACHE-2.0.txt.
 
-4. IPTVnator web app
+4. AndroidX Media3 and OkHttp (Apache License 2.0)
+------------------------------------------------
+
+AndroidX Media3 is from the Android Open Source Project. OkHttp and Okio
+are from Square. The license text ships alongside this notice in APACHE-2.0.txt.
+
+5. IPTVnator web app
 --------------------
 
 The bundled web app ships its own dependency licenses at /3rdpartylicenses.txt.

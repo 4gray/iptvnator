@@ -105,6 +105,29 @@ from the configured `--www` directory, with symbolic links confined to that dire
 Inherited PWA limits: no EPG/XMLTV, no downloads, no embedded MPV (desktop-only
 features in IPTVnator).
 
+## Trying the built-in player
+
+Open IPTVnator's Android shell settings (hold Menu or Back on the remote) and
+enable **Enable built-in player (experimental)**. Open a channel or start a
+video, then select **Try built-in player** in the video area. It is also
+available when the web engine reports an error. Back returns to the same page.
+Home ends native playback and keeps the position when you return to the app.
+Choose **Return to web player** to compare the two engines on that stream.
+
+The pilot plays HLS and direct HTTP(S) video such as MP4, MPEG-TS and MKV. Audio
+and video codec support varies by device. DASH and DRM streams continue using
+the existing web path. The native fullscreen screen supports play/pause, VOD
+seeking, audio tracks and subtitles. It returns the VOD position after actual
+playback. Open the web player to use the channel and episode lists. You can
+still explicitly open a stream in an installed external player.
+
+For device testing, compare one ordinary HLS stream, a TS or MKV stream the
+web player struggles with, and a VOD title with a resume position. Check first
+picture and sound, play/pause on the remote, track selection, Back, Home and
+VOD resume. Share the device model, Android or Fire OS version, APK revision,
+container, codecs if known and the result. Leave out stream URLs, credentials
+and actual playlist titles.
+
 ## Security model
 
 - The embedded server listens on `127.0.0.1` only (`TvShellServer`): nothing is
@@ -121,6 +144,10 @@ features in IPTVnator).
 - The published APK is a **non-debuggable** release build, `allowBackup` is
   off (the WebView storage holds portal credentials) and remote debugging
   (`chrome://inspect`) is **opt-in** in the IPTVnator settings.
+- The native player gets its request from the same trusted main frame. It
+  attaches allowlisted provider headers only to requests on the original
+  stream origin, including redirects, segments and HLS key requests. Native
+  Media3 exception logging is disabled because errors can contain stream URLs.
 - Native diagnostics and forwarded WebView errors share a redactor. It removes
   full URLs, including signed paths containing apostrophes, plus credential
   fields and authorization values before logging or
@@ -297,6 +324,8 @@ ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-protocol-discovery.mjs emu
 
 # native background playback: keep the mock provider running for the synthetic clip
 ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-background-media.mjs emulator-5554
+# native playback and web handoff in the packaged debug APK (requires ffmpeg)
+ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-native-playback.mjs emulator-5554
 # the real Java backend on the JDK, without Android (same classes as the APK)
 cd tv-shell/android && ./gradlew :backend:check
 # regenerate the parser fixtures after an iptv-playlist-parser upgrade
