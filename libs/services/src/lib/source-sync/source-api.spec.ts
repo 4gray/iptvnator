@@ -94,6 +94,57 @@ describe('source transport identity revocation', () => {
             );
         }
     );
+    it.each([
+        [401, 401],
+        [403, 403],
+        [200, 409],
+    ])(
+        'preserves the refusal from a non-JSON discovery response with status %i',
+        async (status, refusal) => {
+            globalThis.fetch = jest.fn().mockResolvedValue({
+                status,
+                headers: new Headers(),
+                json: async () => {
+                    throw new SyntaxError('Invalid discovery JSON');
+                },
+            });
+
+            await expect(
+                requestSourceServer({ operation: 'instance' })
+            ).resolves.toMatchObject({ status: refusal });
+            expect(sourceAuthorization(`${connection.apiUrl}/xtream`)).toEqual(
+                {}
+            );
+            await expect(
+                requestSourceServer({ operation: 'list' })
+            ).resolves.toMatchObject({ status: refusal });
+            expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+        }
+    );
+
+    it('reports a failed anonymous retry as offline after authorization was rejected', async () => {
+        globalThis.fetch = jest
+            .fn()
+            .mockResolvedValueOnce({
+                status: 401,
+                headers: new Headers(),
+                json: async () => ({}),
+            })
+            .mockRejectedValueOnce(new TypeError('synthetic network failure'));
+
+        expect((await requestSourceServer({ operation: 'list' })).status).toBe(
+            401
+        );
+        await expect(
+            requestSourceServer({ operation: 'instance' })
+        ).rejects.toThrow('SOURCE_SYNC.OFFLINE');
+        expect(sourceAuthorization(`${connection.apiUrl}/xtream`)).toEqual({});
+        expect((await requestSourceServer({ operation: 'list' })).status).toBe(
+            401
+        );
+        expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    });
+
     it('keeps a logical source conflict from being treated as a server outage', async () => {
         globalThis.fetch = jest.fn().mockResolvedValue({
             status: 412,

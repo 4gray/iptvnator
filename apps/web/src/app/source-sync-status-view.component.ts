@@ -6,23 +6,16 @@ import {
     inject,
     signal,
 } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
-import { SourceSyncService, tokenKey } from '@iptvnator/services/source-sync';
+import { SourceSyncService } from '@iptvnator/services/source-sync';
 
 /** Available even when a first inventory read prevents workspace startup. */
 @Component({
     selector: 'app-source-sync-status-view',
-    imports: [
-        FormsModule,
-        MatButtonModule,
-        MatIcon,
-        TranslateModule,
-        RouterLink,
-    ],
+    imports: [MatButtonModule, MatIcon, TranslateModule, RouterLink],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         @if (sync.connectionReadFailed) {
@@ -60,41 +53,40 @@ import { SourceSyncService, tokenKey } from '@iptvnator/services/source-sync';
                         ) | translate
                     }}
                 </span>
-                @if (sync.state() === 'locked') {
-                    <label
-                        >{{ 'SOURCE_SYNC.TOKEN' | translate }}
-                        <input
-                            type="password"
-                            autocomplete="off"
-                            [(ngModel)]="token"
-                        />
-                    </label>
-                }
                 <div class="server-status__actions">
-                    @if (!canDismiss()) {
+                    @if (sync.state() === 'locked') {
                         <a
                             mat-flat-button
-                            class="server-status__secondary"
+                            class="server-status__primary"
                             routerLink="/workspace/settings/server"
-                            >{{ 'SOURCE_SYNC.TITLE' | translate }}</a
+                            >{{ 'SOURCE_SYNC.OPEN_SETTINGS' | translate }}</a
                         >
+                    } @else {
+                        @if (!canDismiss()) {
+                            <a
+                                mat-flat-button
+                                class="server-status__secondary"
+                                routerLink="/workspace/settings/server"
+                                >{{ 'SOURCE_SYNC.TITLE' | translate }}</a
+                            >
+                        }
+                        <button
+                            mat-flat-button
+                            type="button"
+                            [class.server-status__primary]="!canDismiss()"
+                            [class.server-status__secondary]="canDismiss()"
+                            [disabled]="busy() || sync.state() === 'connecting'"
+                            [attr.aria-busy]="busy()"
+                            (click)="retry()"
+                        >
+                            {{
+                                (sync.state() === 'conflict'
+                                    ? 'SOURCE_SYNC.REFRESH'
+                                    : 'SOURCE_SYNC.RETRY_CONNECTION'
+                                ) | translate
+                            }}
+                        </button>
                     }
-                    <button
-                        mat-flat-button
-                        type="button"
-                        [class.server-status__primary]="!canDismiss()"
-                        [class.server-status__secondary]="canDismiss()"
-                        [disabled]="busy() || sync.state() === 'connecting'"
-                        [attr.aria-busy]="busy()"
-                        (click)="retry()"
-                    >
-                        {{
-                            (canDismiss()
-                                ? 'SOURCE_SYNC.CHECK_CONNECTION'
-                                : 'SOURCE_SYNC.REFRESH'
-                            ) | translate
-                        }}
-                    </button>
                     @if (canDismiss()) {
                         <button
                             mat-icon-button
@@ -128,7 +120,6 @@ export class SourceSyncStatusViewComponent {
             this.sync.hasCachedLibrary &&
             this.sync.errorKey() === 'SOURCE_SYNC.OFFLINE'
     );
-    token = '';
 
     dismiss(): void {
         this.dismissed.set(true);
@@ -140,24 +131,11 @@ export class SourceSyncStatusViewComponent {
     async retry(): Promise<void> {
         this.busy.set(true);
         try {
-            if (this.token && this.sync.connection) {
-                if (window.electron?.sourceSyncConfigure)
-                    await window.electron.sourceSyncConfigure(
-                        this.sync.connection.apiUrl,
-                        this.token,
-                        false
-                    );
-                else
-                    sessionStorage.setItem(
-                        tokenKey(this.sync.connection),
-                        this.token
-                    );
-            }
             await this.sync.refresh();
         } catch {
-            this.sync.state.set('locked');
+            this.sync.errorKey.set('SOURCE_SYNC.REQUEST_FAILED');
+            this.sync.state.set('offline');
         } finally {
-            this.token = '';
             this.busy.set(false);
         }
     }
