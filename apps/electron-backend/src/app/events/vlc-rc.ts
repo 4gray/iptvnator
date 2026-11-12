@@ -128,19 +128,37 @@ export function sendVlcRcCommand(
 export async function sendVlcRcCommands(
     port: VlcRcAddress,
     commands: string[],
-    onCommandSent?: (command: string, index: number) => void,
-    shouldDispatch?: (index: number) => boolean
+    onClearSent: () => void,
+    onCleared: () => void,
+    shouldDispatch: (index: number) => boolean
 ): Promise<void> {
     for (const [index, command] of commands.entries()) {
-        const canDispatch = () => shouldDispatch?.(index) ?? true;
+        const canDispatch = () => shouldDispatch(index);
         if (!canDispatch()) return;
         const dispatched = await sendVlcRcCommand(
             port,
             command,
-            () => onCommandSent?.(command, index),
+            index === 0
+                ? () => {
+                      onClearSent();
+                      if (typeof port === 'number') onCleared();
+                  }
+                : undefined,
             canDispatch
         );
         if (!dispatched) return;
+        if (index === 0 && typeof port === 'string') {
+            if (!canDispatch()) return;
+            // oldrc can report success for a clear it ignored while paused.
+            const status = await getVlcCommandResponse(port, 'status');
+            if (!canDispatch()) return;
+            if (
+                parseVlcRcPlaybackState(status) !== 'stopped' ||
+                readVlcInput(status)
+            )
+                throw new Error('VLC did not clear its previous input');
+            onCleared();
+        }
     }
 }
 
@@ -213,7 +231,11 @@ function getVlcCommandResponse(
                     : data.includes('>'));
             if (received)
                 finish(
-                    unixStatus ? data.split(/^status: returned /m, 1)[0] : data
+                    !unixStatus
+                        ? data
+                        : legacyCommandResult(data, command) === 0
+                          ? data.split(/^status: returned /m, 1)[0]
+                          : ''
                 );
         });
         client.on('error', () => finish(''));

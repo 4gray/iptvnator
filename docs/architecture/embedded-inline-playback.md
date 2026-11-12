@@ -1100,8 +1100,11 @@ If fallback teardown has already started, the exact close waits for that same
 child to exit before settling, even if no content command was sent.
 Once a reused process accepts a replacement content command, its previous
 session retires; the replacement alone reports the child's eventual exit.
-Overlapping VLC replacements retire the actual owner at the first RC write;
-an older replacement stops sending commands when a newer one takes ownership.
+Overlapping VLC replacements reserve their order at the first RC write, so an
+older replacement stops sending commands. With private control, the previous
+session still owns the child until VLC confirms it stopped with no input; a
+refused or unverified clear falls back only after that child exits. Legacy TCP
+control retires the previous owner at the first write.
 If another child takes the reuse slot, the session that owns the first child
 continues reading playback state from its RC port and can stop it by session
 ID.

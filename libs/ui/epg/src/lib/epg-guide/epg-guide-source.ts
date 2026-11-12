@@ -71,6 +71,8 @@ export interface EpgGuideSearchUpdate {
 export interface EpgGuideSource {
     /** Scope-resolved channels in playlist order (radio/movies excluded by host). */
     readonly channels: Signal<EpgGuideChannel[]>;
+    /** Use the position in the displayed playback queue as the channel number. */
+    readonly numberByDisplayedOrder?: boolean;
     readonly scopes: Signal<EpgGuideScope[]>;
     readonly scopeId: Signal<string>;
     setScope(id: string): void;

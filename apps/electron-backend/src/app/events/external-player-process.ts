@@ -22,7 +22,11 @@ export class ExternalPlayerProcessTeardownGate {
     private readonly pending = new Map<ChildProcess, () => void>();
 
     isStopping(child: ChildProcess): boolean {
-        return this.pending.has(child) || hasExited(child);
+        return this.isTeardownPending(child) || hasExited(child);
+    }
+
+    isTeardownPending(child: ChildProcess): boolean {
+        return this.pending.has(child);
     }
 
     assertLaunchAllowed(): void {

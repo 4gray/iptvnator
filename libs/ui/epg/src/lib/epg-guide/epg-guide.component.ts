@@ -149,8 +149,10 @@ export class EpgGuideComponent implements OnDestroy {
 
     readonly totalCount = computed(() => this.source.channels().length);
     readonly rows = computed(() =>
-        this.view.filterRows(this.source.channels(), (channelId) =>
-            this.programsService.isCovered(channelId)
+        this.view.filterRows(
+            this.source.channels(),
+            (channelId) => this.programsService.isCovered(channelId),
+            this.source.numberByDisplayedOrder
         )
     );
     readonly activeRowIndex = computed(() => {
@@ -303,9 +305,10 @@ export class EpgGuideComponent implements OnDestroy {
         this.viewportController.focusRovingTargetOnRow(this.tabbableRow());
     }
 
-    trackRow(_index: number, channel: EpgGuideChannel): string {
-        return `${channel.number}:${channel.id}`;
-    }
+    readonly trackRow = (_index: number, channel: EpgGuideChannel): string =>
+        this.source.numberByDisplayedOrder
+            ? channel.id
+            : `${channel.number}:${channel.id}`;
 
     programsFor(channelId: string): readonly EpgProgram[] {
         return this.programsService.programsFor(channelId);

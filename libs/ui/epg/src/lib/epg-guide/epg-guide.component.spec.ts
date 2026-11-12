@@ -280,8 +280,27 @@ describe('EpgGuideComponent', () => {
         await settle(fixture);
         component.setFilter('channel c');
         expect(component.rows().map((row) => row.id)).toEqual(['c']);
+        expect(component.rows()[0].number).toBe(3);
         component.setFilter('');
         expect(component.rows()).toHaveLength(3);
+    });
+
+    it('numbers portal rows by their position in the queue after both filters', async () => {
+        const source = fixture.debugElement.injector.get(EPG_GUIDE_SOURCE);
+        Object.assign(source, { numberByDisplayedOrder: true });
+        covered = new Set(['c']);
+        schedule = [nowProgram('c')];
+        await settle(fixture);
+        component.setFilter('channel c');
+        expect(component.rows().map(({ id, number }) => [id, number])).toEqual([
+            ['c', 1],
+        ]);
+        component.setFilter('');
+        component.setOnlyWithEpg(true);
+        await settle(fixture);
+        expect(component.rows().map(({ id, number }) => [id, number])).toEqual([
+            ['c', 1],
+        ]);
     });
 
     it('persists density and zoom and restores them', async () => {

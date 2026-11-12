@@ -155,6 +155,8 @@ Xtream and Stalker live views keep a component-owned playback queue through
 captures the actual displayed order, including search/sort and a fullscreen
 panel's own filter. Remote up/down, numeric selection and the published channel
 number use that queue while category or search browsing remains independent.
+The Xtream programme guide numbers its visible rows in the same order after
+applying its channel and EPG filters.
 In Xtream, up or down returns from an archive to the same channel's live
 stream if it is the only channel in the queue.
 When the external player stays open after its stream stops, Xtream keeps the

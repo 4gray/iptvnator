@@ -38,6 +38,7 @@ import { requestWithValidatedRedirects } from '../util/validated-axios';
 
 const spawnMock = spawn as unknown as jest.Mock;
 const serverMock = createServer as unknown as jest.Mock;
+const clearedStatus = '( stop state: 5 )\r\nstatus: returned 0 (no error)\r\n';
 const tick = () => new Promise<void>((resolve) => setImmediate(resolve));
 const open = (name: string) =>
     openVlcPlayer({ title: name, url: `https://example.test/${name}.ts` });
@@ -313,7 +314,12 @@ describe('VLC exact playback ownership', () => {
         mockRc((address, command, reply) => {
             if (!originalAddress || address === originalAddress) return;
             writes.push(command);
-            reply(`${command.trim().split(' ')[0]}: returned 0 (no error)\r\n`);
+            const name = command.trim().split(' ', 1)[0];
+            reply(
+                name === 'status'
+                    ? clearedStatus
+                    : `${name}: returned 0 (no error)\r\n`
+            );
         });
         const launch = (name: string) =>
             openVlcPlayer({
@@ -924,6 +930,85 @@ describe('VLC exact playback ownership', () => {
             exit(second);
         }
     });
+
+    it.each([true, false])(
+        'transfers a private VLC child only after confirming its old input is gone (cleared: %s)',
+        async (cleared) => {
+            if (process.platform === 'win32') return;
+            const first = child();
+            const second = child();
+            spawnMock.mockReturnValueOnce(first).mockReturnValueOnce(second);
+            const opening = openVlcPlayer({
+                title: 'Synthetic First',
+                url: 'https://example.test/synthetic-first.ts',
+                launchId: 'synthetic-guide-first',
+            });
+            first.emit('spawn');
+            const prior = await opening;
+            const writes: string[] = [];
+            let respondToStatus: ((data: string) => void) | undefined;
+            mockRc((_port, command, reply) => {
+                const name = command.trim().split(' ', 1)[0];
+                writes.push(name);
+                if (name === 'status') respondToStatus = reply;
+                else
+                    reply(
+                        (!cleared && name === 'clear'
+                            ? "Type 'pause' to continue.\r\n"
+                            : '') + `${name}: returned 0 (no error)\r\n`
+                    );
+            });
+            try {
+                const replacing = openVlcPlayer({
+                    title: 'Synthetic Second',
+                    url: 'https://example.test/synthetic-second.ts',
+                    launchId: 'synthetic-guide-second',
+                });
+                for (let turn = 0; turn < 4; turn++) await tick();
+                expect(writes).toEqual(['clear', 'status']);
+                expect(
+                    externalPlayerSessions.getSession(prior.id)
+                ).toMatchObject({
+                    status: 'opened',
+                    canClose: true,
+                });
+                respondToStatus?.(
+                    cleared
+                        ? clearedStatus
+                        : "Type 'pause' to continue.\r\nstatus: returned 0 (no error)\r\n"
+                );
+                await tick();
+                await tick();
+                if (cleared) {
+                    expect((await replacing).status).toBe('opened');
+                    expect(writes).toEqual(['clear', 'status', 'add']);
+                    expect(first.kill).not.toHaveBeenCalled();
+                } else {
+                    expect(writes).toEqual(['clear', 'status']);
+                    expect(first.kill).toHaveBeenCalledTimes(1);
+                    first.emit('error', new Error('Synthetic teardown error'));
+                    expect(spawnMock).toHaveBeenCalledTimes(1);
+                    expect(
+                        externalPlayerSessions.getSession(prior.id)?.canClose
+                    ).toBe(true);
+                    exit(first, 1);
+                    await tick();
+                    expect(spawnMock).toHaveBeenCalledTimes(2);
+                    expect(spawnMock.mock.lastCall?.[1]).toContain(
+                        'https://example.test/synthetic-second.ts'
+                    );
+                    second.emit('spawn');
+                }
+                expect((await replacing).status).toBe('opened');
+                expect(
+                    externalPlayerSessions.getSession(prior.id)?.status
+                ).toBe('closed');
+            } finally {
+                exit(first);
+                exit(second);
+            }
+        }
+    );
 
     it('discards a stopped Unix RC snapshot without treating a real zero position as stopped', async () => {
         let duration = 0;

@@ -301,10 +301,9 @@ export class VlcReusableProcess {
                     headers: options.mergedHeaders,
                     startTime: options.startTime,
                 }),
-                (_command, index) => {
-                    if (index !== 0) return;
+                () => (this.dispatchedReuse = order),
+                () => {
                     state.contentMutated = true;
-                    this.dispatchedReuse = order;
                     reusedProcessSessionId =
                         this.processSessionIds.get(reusedProcess) ??
                         reusedProcessSessionId;

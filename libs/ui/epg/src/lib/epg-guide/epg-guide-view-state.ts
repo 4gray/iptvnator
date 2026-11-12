@@ -104,15 +104,21 @@ export class EpgGuideViewState {
      */
     filterRows(
         channels: readonly EpgGuideChannel[],
-        isCovered: (channelId: string) => boolean
+        isCovered: (channelId: string) => boolean,
+        numberByDisplayedOrder = false
     ): EpgGuideChannel[] {
         const needle = foldSearchText(this.filter().trim());
         const onlyWithEpg = this.onlyWithEpg();
-        return channels.filter(
+        const visible = channels.filter(
             (channel) =>
                 (!needle || foldSearchText(channel.name).includes(needle)) &&
                 (!onlyWithEpg || isCovered(channel.id))
         );
+        return numberByDisplayedOrder
+            ? visible.map((row, index) =>
+                  row.number === index + 1 ? row : { ...row, number: index + 1 }
+              )
+            : visible;
     }
 
     setZoom(value: number): void {

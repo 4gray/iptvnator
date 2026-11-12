@@ -65,6 +65,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
     private readonly session = signal<AbortController | null>(null);
 
     readonly deferredCoverage = true;
+    readonly numberByDisplayedOrder = true;
     readonly programBatchSize = 1;
     readonly playlist = this.store.currentPlaylist;
     private readonly categories = computed(() => {
@@ -419,9 +420,7 @@ export class XtreamEpgGuideSourceService implements EpgGuideSource {
             if (hits.length === SEARCH_LIMIT) break;
         }
         if (failed && !hits.length)
-            throw new Error(
-                'Programme search could not check the full catalogue'
-            );
+            throw new Error('Programme search could not check the catalogue');
         return hits;
     }
 }

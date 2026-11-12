@@ -625,6 +625,13 @@ export async function openVlcPlayer({
 
                 proc.on('error', (err) => {
                     console.error('Failed to start VLC player:', err);
+                    if (
+                        !closeRequested &&
+                        externalPlayerProcessTeardownGate.isTeardownPending(
+                            proc
+                        )
+                    )
+                        return;
                     const processSessionId = reusableVlcProcess.sessionIdFor(
                         proc,
                         session.id
@@ -682,6 +689,9 @@ export async function openVlcPlayer({
                     stopVlcPositionPolling(processSessionId);
                     if (reusableVlcProcess.isRecovering(proc)) return;
                     const stopping =
+                        externalPlayerProcessTeardownGate.isTeardownPending(
+                            proc
+                        ) ||
                         externalPlayerSessions.isCloseRequested(
                             processSessionId
                         );
