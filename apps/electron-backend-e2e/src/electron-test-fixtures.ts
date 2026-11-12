@@ -1849,6 +1849,14 @@ export async function waitForXtreamImportToFinish(
         await waitForXtreamImportCompleted(page, playlistId);
     }
 
+    if (options?.cached) {
+        await expect(page.locator('.xtream-route-content')).toHaveAttribute(
+            'data-xtream-catalog-ready',
+            'true',
+            { timeout: 30000 }
+        );
+    }
+
     await expect(overlay).toHaveCount(0, { timeout: 30000 });
 }
 

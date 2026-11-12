@@ -45,7 +45,10 @@ import { XtreamCachedOfflineNoticeComponent } from './xtream-cached-offline-noti
             </div>
         } @else {
             <app-xtream-cached-offline-notice />
-            <div class="xtream-route-content">
+            <div
+                class="xtream-route-content"
+                [attr.data-xtream-catalog-ready]="catalogReady()"
+            >
                 <router-outlet />
             </div>
         }
@@ -60,6 +63,11 @@ export class XtreamContentGateComponent {
     private readonly xtreamStore = inject(XtreamStore);
 
     readonly contentInitBlockReason = this.xtreamStore.contentInitBlockReason;
+    protected readonly catalogReady = computed(
+        () =>
+            this.xtreamStore.isContentInitialized() &&
+            !this.xtreamStore.activeImportSessionId()
+    );
     readonly effectiveBlockReason = computed(() =>
         this.xtreamStore.isContentBlocked()
             ? (this.contentInitBlockReason() ?? 'error')
