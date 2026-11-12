@@ -5,14 +5,6 @@
     "projectType": "library",
     "tags": ["scope:shared", "domain:shared-runtime", "type:util"],
     "targets": {
-        "ensure-electron-binary": {
-            "executor": "nx:run-commands",
-            "cache": false,
-            "options": {
-                "command": "node tools/testing/ensure-electron-binary.mjs",
-                "cwd": "{workspaceRoot}"
-            }
-        },
         "lint": {
             "inputs": [
                 "default",

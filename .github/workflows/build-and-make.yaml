@@ -942,10 +942,10 @@ jobs:
               run: |
                   set -euo pipefail
                   case "${RUNNER_OS}:${LINUX_PROFILE}" in
-                      macOS:*) node tools/testing/cache-electron-release.mjs darwin "${TARGET_ARCH}" ;;
-                      Windows:*) node tools/testing/cache-electron-release.mjs win32 "${TARGET_ARCH}" ;;
-                      Linux:flatpak) node tools/testing/cache-electron-release.mjs linux x64 ;;
-                      Linux:*) node tools/testing/cache-electron-release.mjs linux x64 arm64 armv7l ;;
+                      macOS:*) node tools/testing/electron/cache-electron-release.mjs darwin "${TARGET_ARCH}" ;;
+                      Windows:*) node tools/testing/electron/cache-electron-release.mjs win32 "${TARGET_ARCH}" ;;
+                      Linux:flatpak) node tools/testing/electron/cache-electron-release.mjs linux x64 ;;
+                      Linux:*) node tools/testing/electron/cache-electron-release.mjs linux x64 arm64 armv7l ;;
                   esac
 
                   node --input-type=commonjs <<'NODE'

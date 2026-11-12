@@ -4,6 +4,7 @@
     "sourceRoot": "libs/shared/database/src",
     "projectType": "library",
     "tags": ["scope:shared", "domain:shared-runtime", "type:data-access"],
+    "implicitDependencies": ["electron-test-tools"],
     "targets": {
         "build": {
             "executor": "@nx/esbuild:esbuild",
@@ -20,7 +21,7 @@
             "command": "eslint \"libs/shared/database/**/*.ts\""
         },
         "test": {
-            "dependsOn": ["shared-testing:ensure-electron-binary"]
+            "dependsOn": ["electron-test-tools:ensure-electron-binary"]
         }
     }
 }
