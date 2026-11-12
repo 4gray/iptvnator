@@ -39,6 +39,7 @@ public final class NativePlayerActivity extends Activity {
     private boolean live;
     private boolean autoplay = true;
     private boolean failed;
+    private boolean ended;
     private long position;
     private long duration;
     private long played;
@@ -98,6 +99,14 @@ public final class NativePlayerActivity extends Activity {
             public void onIsPlayingChanged(boolean isPlaying) {
                 if (isPlaying) getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
                 else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            }
+
+            @Override
+            public void onPlaybackStateChanged(int state) {
+                if (state == Player.STATE_ENDED && !live && !isFinishing()) {
+                    ended = true;
+                    finish();
+                }
             }
 
             @Override
@@ -182,7 +191,7 @@ public final class NativePlayerActivity extends Activity {
     public void finish() {
         snapshot();
         setResult(RESULT_OK, new Intent().putExtra("position", position)
-            .putExtra("duration", duration).putExtra("played", playedMs()));
+            .putExtra("duration", duration).putExtra("played", playedMs()).putExtra("ended", ended));
         super.finish();
     }
 

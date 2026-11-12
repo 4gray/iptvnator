@@ -112,7 +112,9 @@ Go to **Settings → General → Open Android app settings** and turn on
 video, then select **Try built-in player** in the video area. It is also
 available when the web engine reports an error. Back returns to the same page.
 Home ends native playback and keeps the position when you return to the app.
-Choose **Return to web player** to compare the two engines on that stream.
+When a series episode finishes, IPTVnator applies the series autoplay setting
+and starts the next eligible episode in the web player. Choose **Return to web
+player** to compare the two engines on the same stream.
 
 The pilot plays HLS and direct HTTP(S) video such as MP4, MPEG-TS and MKV. Audio
 and video codec support varies by device. The built-in player uses FFmpeg to

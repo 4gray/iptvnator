@@ -245,7 +245,8 @@ export class WebPlayerViewComponent implements OnDestroy {
                 this.resolvedIsLive()
             );
             this.timeUpdate.emit(update);
-        }
+        },
+        () => this.emitPlaybackEnded(this.resolvedIsLive())
     );
     readonly playbackSourceRevisionToken = this.applicationState.sourceRevision;
     readonly playbackApplicationToken = this.applicationState.token;
@@ -414,7 +415,11 @@ export class WebPlayerViewComponent implements OnDestroy {
 
     handleActivityEnded(ownership: PlaybackApplicationOwnership): void {
         if (!this.ownership.owns(ownership)) return;
-        if (!ownership.isLive) this.activity.finish();
+        this.emitPlaybackEnded(ownership.isLive);
+    }
+
+    private emitPlaybackEnded(isLive: boolean): void {
+        if (!isLive) this.activity.finish();
         this.playbackEnded.emit();
     }
 

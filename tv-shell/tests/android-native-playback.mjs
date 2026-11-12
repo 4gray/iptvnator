@@ -180,6 +180,7 @@ try {
     const result = await page.evaluate(() => window.__nativeResult);
     assert.ok(result?.playedMs >= 2000 && result.durationMs > 15000 && result.positionMs >= 2000,
         `Home and launcher return must preserve the native VOD position. Got ${JSON.stringify(result)}`);
+    assert.equal(result.ended, false, 'Leaving via Home is a playback checkpoint.');
     assert.ok(seen.origin.some((headers) => headers['user-agent'] === 'Synthetic-Playback'),
         'The resolved provider user agent must reach the stream origin.');
     assert.ok(seen.target.slice(redirectedBefore).every((headers) => headers['user-agent'] !== 'Synthetic-Playback'),
@@ -198,16 +199,19 @@ try {
     await page.waitForFunction(() => window.__nativeResult !== undefined);
     assert.ok((await page.evaluate(() => window.__nativeResult))?.playedMs >= 2000,
         'Native HLS must play without browser CORS headers.');
+    assert.equal(await page.evaluate(() => window.__nativeResult.ended), false, 'Back is a playback checkpoint.');
+    await page.evaluate(() => { delete window.__nativeResult; });
     await entry('Synthetic AC-3').click();
     await expect(action).toBeVisible();
     await action.click();
     await waitNative();
     await expect(video).toHaveCount(0);
     await waitAudio();
-    await back();
+    await page.waitForFunction(() => window.__nativeResult?.ended === true, undefined, { timeout: 30000 });
+    await expect.poll(topActivity).toContain('.ui.MainActivity');
     await setExperiment(false);
     await expect(action).toHaveCount(0);
-    console.log('PASS Android Media3 opt-in, VOD resume after Home, redirect header scope, HLS Back and AC-3 audio output');
+    console.log('PASS Android Media3 opt-in, VOD resume after Home, redirect header scope, HLS Back, AC-3 audio output and natural VOD completion');
 } finally {
     if (settingsOpen || topActivity().includes('.ui.NativePlayerActivity')) adb('shell', 'input', 'keyevent', '4');
     await device?.close();

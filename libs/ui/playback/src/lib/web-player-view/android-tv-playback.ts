@@ -17,6 +17,7 @@ type PlaybackResult = {
     readonly positionMs: number;
     readonly durationMs: number;
     readonly playedMs: number;
+    readonly ended?: boolean;
 };
 
 type AndroidWindow = Window & {
@@ -45,7 +46,8 @@ export class AndroidTvPlayback {
         private readonly currentOwner: () => string,
         private readonly currentToken: () => symbol,
         private readonly onWatched: () => void,
-        private readonly onPosition: (position: PlayerTimeUpdate) => void
+        private readonly onPosition: (position: PlayerTimeUpdate) => void,
+        private readonly onEnded: () => void
     ) {
         const window = this.window;
         if (!window?.TvShell?.postMessage) return;
@@ -58,6 +60,7 @@ export class AndroidTvPlayback {
             if (!(event instanceof CustomEvent)) return;
             const session = this.ownedSession();
             if (!session?.pending || event.detail?.id !== session.id) return;
+            const { id } = session;
             const data = event.detail.result as PlaybackResult | null;
             if (!data) {
                 this.session.set(null);
@@ -81,6 +84,9 @@ export class AndroidTvPlayback {
                         checkpoint: true,
                     });
                 }
+            }
+            if (data.ended === true && this.ownedSession()?.id === id) {
+                this.onEnded();
             }
         };
         window.addEventListener(
