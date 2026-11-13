@@ -3,29 +3,28 @@ import type { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 export async function reloadStartupLiveCategory(
     store: InstanceType<typeof XtreamStore>,
     playlistId: string,
-    previousCategoryId: number | null,
+    routeCategoryId: number | null,
+    isLiveSection: boolean,
     isCurrent: () => boolean
 ): Promise<number | null> {
-    const previousCategory = store
-        .liveCategories()
-        .find((category) => category.id === previousCategoryId);
+    const previousCategories = store.liveCategories();
+    const selectedId = isLiveSection ? store.selectedCategoryId() : null;
     await store.reloadLiveCatalog(playlistId);
-    if (
-        !isCurrent() ||
-        !previousCategory ||
-        !('xtream_id' in previousCategory) ||
-        store.selectedCategoryId() !== previousCategoryId
-    ) {
-        return store.selectedCategoryId();
-    }
-    const category = store
-        .liveCategories()
-        .find(
-            (row) =>
-                'xtream_id' in row &&
-                row.xtream_id === previousCategory.xtream_id
+    if (!isCurrent()) return routeCategoryId;
+
+    const refreshedCategories = store.liveCategories();
+    const remap = (id: number): number | null => {
+        const previous = previousCategories.find((row) => row.id === id);
+        if (!previous || !('xtream_id' in previous)) return null;
+        return (
+            refreshedCategories.find(
+                (row) =>
+                    'xtream_id' in row && row.xtream_id === previous.xtream_id
+            )?.id ?? null
         );
-    const id = category?.id ?? null;
-    store.setSelectedCategory(id);
-    return id;
+    };
+    if (selectedId !== null && store.selectedCategoryId() === selectedId) {
+        store.setSelectedCategory(remap(selectedId));
+    }
+    return routeCategoryId === null ? null : remap(routeCategoryId);
 }

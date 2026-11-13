@@ -17,7 +17,7 @@ export function getXtreamRouteCategoryId(
 ): number | null {
     if (section !== 'live' && section !== 'vod' && section !== 'series')
         return null;
-    const segment = (url.split('?')[0] ?? '').split('/').filter(Boolean)[4];
+    const segment = (url.split(/[?#]/)[0] ?? '').split('/').filter(Boolean)[4];
     if (!segment) return null;
     const categoryId = Number(segment);
     return Number.isNaN(categoryId) ? null : categoryId;

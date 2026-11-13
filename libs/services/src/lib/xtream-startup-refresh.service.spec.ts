@@ -79,6 +79,25 @@ describe('Xtream startup refresh', () => {
         expect(refresh.refreshLiveOnStartup).not.toHaveBeenCalled();
     });
 
+    it.each([undefined, 0, -1, 1.5, '42broken', '4e2', '0x2a', true])(
+        'keeps the saved lineup when a provider returns an invalid stream ID (%s)',
+        async (streamId) => {
+            fetcher.content.mockResolvedValue([
+                ...content,
+                { category_id: '4', stream_id: streamId },
+            ]);
+            await expect(service.refreshLive(source)).rejects.toThrow(
+                'usable live catalog'
+            );
+            expect(refresh.refreshLiveOnStartup).not.toHaveBeenCalled();
+        }
+    );
+
+    it('accepts a decimal stream ID sent as a string', async () => {
+        fetcher.content.mockResolvedValue([{ ...content[0], stream_id: '42' }]);
+        await expect(service.refreshLive(source)).resolves.toBe(true);
+    });
+
     it('keeps the saved lineup when the provider cannot be reached', async () => {
         fetcher.content.mockRejectedValue(new Error('Provider offline'));
         await expect(service.refreshLive(source)).rejects.toThrow(

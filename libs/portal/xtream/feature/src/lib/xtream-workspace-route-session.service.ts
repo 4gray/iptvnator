@@ -1,3 +1,4 @@
+import { Location } from '@angular/common';
 import {
     DestroyRef,
     ENVIRONMENT_INITIALIZER,
@@ -87,7 +88,9 @@ function getXtreamRouteTarget(url: string): {
     playlistId: string | null;
     section: PortalRailSection | null;
 } {
-    const match = url.match(/^\/workspace\/xtreams\/([^/?]+)(?:\/([^/?]+))?/);
+    const match = getRoutePath(url).match(
+        /^\/workspace\/xtreams\/([^/]+)(?:\/([^/]+))?/
+    );
 
     return {
         playlistId: match?.[1] ?? null,
@@ -96,7 +99,7 @@ function getXtreamRouteTarget(url: string): {
 }
 
 function getRoutePath(url: string): string {
-    return url.split('?')[0] ?? url;
+    return url.split(/[?#]/)[0] ?? url;
 }
 
 @Injectable()
@@ -104,6 +107,7 @@ export class XtreamWorkspaceRouteSession {
     private readonly destroyRef = inject(DestroyRef);
     private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly router = inject(Router);
+    private readonly location = inject(Location);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly activity = inject(SourceActivityService);
     private readonly injector = inject(Injector);
@@ -113,10 +117,6 @@ export class XtreamWorkspaceRouteSession {
     private syncInFlight = false;
     private syncPending = false;
     private lastSyncedRoutePath: string | null = null;
-    private refreshedLiveRouteCategory: {
-        path: string;
-        id: number | null;
-    } | null = null;
 
     constructor() {
         effect(() => {
@@ -253,25 +253,40 @@ export class XtreamWorkspaceRouteSession {
                 ) {
                     const isCurrent = () =>
                         !this.destroyRef.destroyed && this.router.url === url;
-                    const previousId =
+                    const routeCategoryId =
                         routeSection === 'live'
-                            ? this.xtreamStore.selectedCategoryId()
+                            ? getXtreamRouteCategoryId(url, 'live')
                             : null;
-                    const id = await reloadStartupLiveCategory(
+                    const newRouteCategoryId = await reloadStartupLiveCategory(
                         this.xtreamStore,
                         playlistId,
-                        previousId,
+                        routeCategoryId,
+                        routeSection === 'live',
                         isCurrent
                     );
                     if (!isCurrent()) return;
                     if (
-                        previousId !== null &&
-                        getXtreamRouteCategoryId(url, 'live') === previousId
-                    )
-                        this.refreshedLiveRouteCategory = {
-                            path: getRoutePath(url),
-                            id,
-                        };
+                        routeCategoryId !== newRouteCategoryId &&
+                        !this.router.currentNavigation()
+                    ) {
+                        const path = getRoutePath(url);
+                        const liveRoot = path.slice(0, path.lastIndexOf('/'));
+                        const newPath =
+                            newRouteCategoryId === null
+                                ? liveRoot
+                                : `${liveRoot}/${newRouteCategoryId}`;
+                        // Keep the history entry that Back will return to.
+                        await this.router.navigateByUrl(
+                            newPath + url.slice(path.length),
+                            {
+                                replaceUrl: true,
+                                state: this.location.getState() as Record<
+                                    string,
+                                    unknown
+                                >,
+                            }
+                        );
+                    }
                     void this.xtreamStore.refreshSearchResults();
                 }
                 this.xtreamStore.setCurrentPlaylist({
@@ -374,8 +389,6 @@ export class XtreamWorkspaceRouteSession {
         }
 
         const routePath = getRoutePath(this.router.url);
-        if (this.refreshedLiveRouteCategory?.path !== routePath)
-            this.refreshedLiveRouteCategory = null;
         const isQueryOnlyNavigation = this.lastSyncedRoutePath === routePath;
         this.lastSyncedRoutePath = routePath;
 
@@ -395,11 +408,7 @@ export class XtreamWorkspaceRouteSession {
             return section;
         }
 
-        this.xtreamStore.setSelectedCategory(
-            this.refreshedLiveRouteCategory
-                ? this.refreshedLiveRouteCategory.id
-                : routeCategoryId
-        );
+        this.xtreamStore.setSelectedCategory(routeCategoryId);
 
         return section;
     }

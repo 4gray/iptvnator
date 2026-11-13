@@ -6,8 +6,10 @@ import {
     launchElectronApp,
     openSourceEditor,
     openSources,
+    openWorkspaceSection,
     restartElectronApp,
     saveSourceDialog,
+    sourceRowByTitle,
     test,
     updateSourceDialog,
     waitForSourceRowIdle,
@@ -30,7 +32,7 @@ async function liveTitles(page: Page, playlistId: string) {
 test('refreshes opted-in Xtream live channels on restart and keeps the saved catalog on provider failure', async ({
     dataDir,
 }) => {
-    test.setTimeout(120000);
+    test.setTimeout(150000);
     const provider = await recordCatalogRequests();
     let app = await launchElectronApp(dataDir);
     const channel = {
@@ -108,9 +110,54 @@ test('refreshes opted-in Xtream live channels on restart and keeps the saved cat
         await saveSourceDialog(app.mainWindow, dialog);
 
         const updatedChannel = { ...channel, name: 'Updated Live Channel' };
-        provider.respond('get_live_streams', [updatedChannel, favoriteChannel]);
+        const renamedFavorite = {
+            ...favoriteChannel,
+            name: 'Updated Favorite Live Channel',
+        };
+        provider.respond('get_live_streams', [updatedChannel, renamedFavorite]);
         provider.actions.length = 0;
+        const releaseLiveResponse = provider.hold('get_live_streams');
         app = await restartElectronApp(app, dataDir);
+        await expect
+            .poll(() => catalogActions(provider.actions))
+            .toEqual(liveRequests);
+        await openSources(app.mainWindow);
+        await sourceRowByTitle(app.mainWindow, title).click();
+        await openWorkspaceSection(app.mainWindow, 'Live TV');
+        await app.mainWindow.waitForURL(/\/live$/);
+        const oldCategoryId = await app.mainWindow.evaluate(async (id) => {
+            const categories = await window.electron.dbGetAllCategories(
+                id,
+                'live'
+            );
+            return categories.find((category) => category.name === 'Sports')
+                ?.id;
+        }, playlistId);
+        expect(oldCategoryId).toBeDefined();
+        // The live sidebar normally selects a category in place. Enter a
+        // category deep link to exercise the URL and browser-history path.
+        const oldUrl = `${app.mainWindow.url()}/${oldCategoryId}?q=Favorite`;
+        await app.mainWindow.evaluate(async (url) => {
+            const debug = Reflect.get(window, 'ng');
+            const root = document.querySelector('app-root');
+            const app = debug.getComponent(root) as {
+                router: { navigateByUrl(path: string): Promise<boolean> };
+            };
+            const route = new URL(url);
+            const path = route.pathname.slice(
+                route.pathname.indexOf('/workspace/')
+            );
+            if (!(await app.router.navigateByUrl(path + route.search))) {
+                throw new Error('Could not open the test category route.');
+            }
+        }, oldUrl);
+        const channelItem = (name: string) =>
+            app.mainWindow
+                .getByTestId('channel-item')
+                .filter({ hasText: name });
+        await expect(channelItem(favoriteChannel.name)).toBeVisible();
+        await expect(app.mainWindow).toHaveURL(oldUrl);
+        releaseLiveResponse();
         await expect
             .poll(() =>
                 app.mainWindow.evaluate(async (id) => {
@@ -132,9 +179,40 @@ test('refreshes opted-in Xtream live channels on restart and keeps the saved cat
             .toEqual({
                 hidden: true,
                 favorite: true,
-                titles: [favoriteChannel.name, updatedChannel.name],
+                titles: [renamedFavorite.name, updatedChannel.name],
             });
+        await expect(channelItem(renamedFavorite.name)).toBeVisible();
+        const newCategoryId = await app.mainWindow.evaluate(async (id) => {
+            const categories = await window.electron.dbGetAllCategories(
+                id,
+                'live'
+            );
+            return categories.find((category) => category.name === 'Sports')
+                ?.id;
+        }, playlistId);
+        expect(newCategoryId).toBeDefined();
+        const updatedUrl = oldUrl.replace(
+            /\/live\/\d+\?/,
+            `/live/${newCategoryId}?`
+        );
+        expect(updatedUrl).not.toBe(oldUrl);
+        await expect(app.mainWindow).toHaveURL(updatedUrl);
+        await openSources(app.mainWindow);
+        await app.mainWindow.goBack();
+        await expect(app.mainWindow).toHaveURL(updatedUrl);
+        await expect(channelItem(renamedFavorite.name)).toBeVisible();
         expect(catalogActions(provider.actions)).toEqual(liveRequests);
+
+        provider.respond('get_live_streams', [{ category_id: '1002' }]);
+        app = await restartElectronApp(app, dataDir);
+        await expect(
+            app.mainWindow.getByText(
+                'Couldn’t refresh one or more Xtream sources on startup.'
+            )
+        ).toBeVisible();
+        expect(await liveTitles(app.mainWindow, playlistId)).toEqual(
+            expect.arrayContaining([updatedChannel.name, renamedFavorite.name])
+        );
 
         const allowLiveRequest = provider.fail('get_live_streams');
         app = await restartElectronApp(app, dataDir);

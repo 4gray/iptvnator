@@ -5,6 +5,14 @@ import { SourceActivityService } from './source-activity.service';
 import { XtreamCatalogFetchService } from './xtream-catalog-fetch.service';
 import { XtreamSelectedCatalogRefreshService } from './xtream-selected-catalog-refresh.service';
 
+function hasUsableStreamId(value: unknown): boolean {
+    const id =
+        typeof value === 'string' && /^\d+$/.test(value.trim())
+            ? Number(value)
+            : value;
+    return typeof id === 'number' && Number.isSafeInteger(id) && id > 0;
+}
+
 @Injectable({ providedIn: 'root' })
 export class XtreamStartupRefreshService {
     private readonly fetcher = inject(XtreamCatalogFetchService);
@@ -40,7 +48,7 @@ export class XtreamStartupRefreshService {
             categories.some(
                 (category) => typeof category?.category_name !== 'string'
             ) ||
-            content.some((stream) => !stream || typeof stream !== 'object') ||
+            content.some((stream) => !hasUsableStreamId(stream?.stream_id)) ||
             !content.some((stream) =>
                 categoryIds.has(Number.parseInt(String(stream.category_id), 10))
             )
