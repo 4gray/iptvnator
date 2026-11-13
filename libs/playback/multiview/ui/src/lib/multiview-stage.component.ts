@@ -12,7 +12,9 @@ import {
     untracked,
 } from '@angular/core';
 import {
+    MULTIVIEW_CONNECTION_BUDGET,
     MultiviewAnchorRegistry,
+    type MultiviewConnectionBudget,
     MultiviewSessionStore,
 } from '@iptvnator/playback/multiview/data-access';
 import { injectTranslationTick } from '@iptvnator/services';
@@ -124,6 +126,11 @@ export class MultiviewStageComponent {
         }
         return null;
     });
+    /** The failed tile's playlist budget, asked for once per failure. */
+    readonly failedBudget = signal<MultiviewConnectionBudget | null>(null);
+    private readonly budgets = inject(MULTIVIEW_CONNECTION_BUDGET, {
+        optional: true,
+    });
     readonly pipCorner = computed(
         () => this.store.pipGeometry()?.corner ?? 'bottom-right'
     );
@@ -148,10 +155,32 @@ export class MultiviewStageComponent {
             );
         });
         inject(DestroyRef).onDestroy(() => this.tracker.disconnect());
+        this.loadBudgetOfFailedTile();
     }
 
     tileById(id: string) {
         return this.store.tile(id);
+    }
+
+    /** Spec 12: a full playlist is named on the card instead of a guess. */
+    private loadBudgetOfFailedTile(): void {
+        let requested: string | null = null;
+        effect(() => {
+            const tile = this.failedPip()?.tile;
+            const key = tile ? `${tile.id}|${tile.playbackSessionKey}` : null;
+            if (key === requested) return;
+            requested = key;
+            untracked(() => {
+                this.failedBudget.set(null);
+                if (!tile || !this.budgets) return;
+                this.budgets
+                    .budgetFor(tile.playlistId)
+                    .then((budget) => {
+                        if (requested === key) this.failedBudget.set(budget);
+                    })
+                    .catch(() => undefined);
+            });
+        });
     }
 
     onDiagnostic(id: string, diagnostic: PlaybackDiagnostic | null): void {

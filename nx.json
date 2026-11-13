@@ -169,6 +169,7 @@
                 "libs/ui/shared-portals/**/*",
                 "libs/workspace/dashboard/data-access/**/*",
                 "libs/workspace/dashboard/feature/**/*",
+                "libs/workspace/multiview/feature/**/*",
                 "libs/workspace/shell/feature/**/*",
                 "libs/workspace/shell/util/**/*"
             ]

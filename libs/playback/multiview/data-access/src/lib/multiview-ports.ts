@@ -18,3 +18,28 @@ export interface MultiviewSourcePicker {
 
 export const MULTIVIEW_SOURCE_PICKER =
     new InjectionToken<MultiviewSourcePicker>('MULTIVIEW_SOURCE_PICKER');
+
+/** What a playlist's provider allows at once, as it reports it (spec 12). */
+export interface MultiviewConnectionBudget {
+    readonly playlistName: string;
+    readonly maxConnections: number;
+    readonly activeConnections: number;
+}
+
+/**
+ * Reads a playlist's connection budget. Only providers that report one
+ * (Xtream `user_info`) answer; others resolve null ("limit ?").
+ */
+export interface MultiviewConnectionBudgetSource {
+    budgetFor(playlistId: string): Promise<MultiviewConnectionBudget | null>;
+}
+
+export const MULTIVIEW_CONNECTION_BUDGET =
+    new InjectionToken<MultiviewConnectionBudgetSource>(
+        'MULTIVIEW_CONNECTION_BUDGET'
+    );
+
+/** Free connections; never negative. */
+export function freeConnections(budget: MultiviewConnectionBudget): number {
+    return Math.max(0, budget.maxConnections - budget.activeConnections);
+}

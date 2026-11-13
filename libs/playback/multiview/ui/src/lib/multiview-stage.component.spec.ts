@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { TranslateModule } from '@ngx-translate/core';
 import {
+    MULTIVIEW_CONNECTION_BUDGET,
     MultiviewAnchorRegistry,
     MultiviewSessionStore,
     type MultiviewTileSource,
@@ -82,14 +83,20 @@ describe('MultiviewStageComponent', () => {
     let frame: HTMLElement;
     let clip: HTMLElement;
     let anchor: HTMLElement;
+    const budgetFor = jest.fn();
 
     beforeEach(() => {
+        budgetFor.mockReset().mockResolvedValue(null);
         TestBed.configureTestingModule({
             imports: [TranslateModule.forRoot()],
             providers: [
                 {
                     provide: SettingsStore,
                     useValue: { player: signal(VideoPlayer.VideoJs) },
+                },
+                {
+                    provide: MULTIVIEW_CONNECTION_BUDGET,
+                    useValue: { budgetFor },
                 },
             ],
         }).overrideComponent(MultiviewTileComponent, {
@@ -305,6 +312,25 @@ describe('MultiviewStageComponent', () => {
 
             expect(card()?.textContent).toContain(
                 'PLAYER.MULTIVIEW.ERROR_GENERIC_CAUSE'
+            );
+        });
+
+        it('names a full playlist from its provider budget', async () => {
+            budgetFor.mockResolvedValue({
+                playlistName: 'Synthetic provider',
+                maxConnections: 1,
+                activeConnections: 1,
+            });
+            start();
+            players()[1].diagnosticChanged.emit(network);
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            expect(budgetFor).toHaveBeenCalledTimes(1);
+            expect(budgetFor).toHaveBeenCalledWith('playlist-1');
+            expect(card()?.textContent).toContain(
+                'PLAYER.MULTIVIEW.ERROR_LIMIT_TITLE'
             );
         });
 

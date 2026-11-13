@@ -905,38 +905,87 @@ found and fixed: the card was 438 px wide (content-box padding).
 
 ### Task 13: Connection budget and picker data
 
-**Files:** `libs/workspace/multiview/feature` —
-`connection-budget.service.ts`, `multiview-picker-sections.ts`,
-`multiview-picker-search.ts`, `multiview-tile-resolver.ts` (+ specs).
+**Files:** new project `libs/workspace/multiview/feature` —
+`connection-budget.ts`, `connection-budget.service.ts`,
+`multiview-picker-row.ts`, `multiview-picker-sections.ts`,
+`multiview-picker-epg.ts`, `multiview-picker-data.service.ts`,
+`multiview-picker-search.ts`, `multiview-picker-search.service.ts`,
+`multiview-tile-resolver.ts` (+ specs); `multiview-catalog.service.ts`
+(`portal-shared-data-access`) and `stalker-itv-genre-loader.ts`
+(`portal-stalker-data-access`) ported with their specs; the budget port in
+`multiview-ports.ts`; `multiview-workspace-ports.ts` in the shell.
 
-- [ ] Port `SecondStreamCatalogService` and `stalker-itv-genre-loader` from
+- [x] Port `SecondStreamCatalogService` and `stalker-itv-genre-loader` from
       `agent/two-stream-mpv` with their specs (renamed to
       `MultiviewCatalogService`; behaviour unchanged) as the source for the
       "Playlists" section and for resolving a picked row.
-- [ ] Budget: Xtream `user_info` fetched on picker open and before add →
-      `N free` / `0 free` (full) with `used` and `max` for the footer meter;
-      M3U and Stalker → `limit ?`.
-- [ ] Live now is composed as two groups, "From favourites" then "More on
-      air" (order per D9), each row carrying programme title, start–end,
-      progress and playlist name; section entries expose their item count
-      for the navigation.
-- [ ] Sections reuse existing sources only (spec 9.5 table): Favorites
-      (`UnifiedFavoritesDataService`), Recent (`UnifiedRecentDataService`),
-      Continue (`PlaybackPositionService` + `dashboard-playback.utils.ts`),
-      Live now (favourites + recent + current playlist, EPG through
-      `StreamResolverService.loadEpgForItems`, visible rows only, at most 20
-      requests per open — Q1), current playlist only under "Playlists" (Q2).
-- [ ] Search: Electron SQLite global search; PWA client-side filter. Runtime
-      choice through the capability contract, not `window.electron`. Scope is
-      "everywhere" by default and the selected playlist when one is selected.
-- [ ] Resolver: item → `ResolvedPortalPlayback` through
-      `StreamResolverService` / `XtreamUrlService` / Stalker `create_link`.
-- [ ] Parental lock and hidden categories applied exactly as in the source
-      lists (R11); items already on screen marked "In tile N"; radio excluded.
+- [x] Budget: Xtream `user_info` fetched on every request → `N free` /
+      `full` badge and used/free meter segments; M3U, Stalker and panels
+      without a positive `max_connections` → `limit ?`.
+- [x] Live now is composed as two groups, "From favourites" then "More on
+      air" (order per D9), each row carrying its programme once loaded;
+      section entries expose their item count for the navigation.
+- [x] Sections reuse existing sources only (spec 9.5 table).
+- [x] Search: client filter over loaded rows in every runtime, plus the
+      current Xtream playlist's films and series through
+      `XTREAM_DATA_SOURCE.searchContent` (SQLite in Electron, cached catalog
+      in the PWA — chosen by the data source provider, not `window.electron`).
+- [x] Resolver: live through the catalog (`StreamResolverService`, which
+      covers Xtream URLs and Stalker `create_link`); Xtream films through
+      `VodSourceResolverService`.
+- [x] Parental lock (R11), "In tile N", radio excluded.
 
-**Tests:** section composition, default section rule (VOD main → Live now,
-live main → Continue, then last used), budget arithmetic, EPG request cap,
-R11 filtering.
+**As built:**
+- Ported files keep the prototype's behaviour; only names changed and one
+  non-null assertion became optional chaining. `MultiviewCatalogService` is
+  at 365 counted lines (over the 300 target, under the 400 limit).
+- **Budget to the error card:** `MULTIVIEW_CONNECTION_BUDGET` port in
+  data-access. The shell provides it through
+  `provideMultiviewWorkspacePorts()`, which loads the feature with a dynamic
+  `import()` on first use (no initial-bundle or J1 change). The stage asks
+  for the failed PiP tile's playlist once per failure; a spent budget turns
+  the card into "Connection limit reached — {playlist} allows {max} streams".
+  Task 14 adds the picker port to the same provider.
+- **Rows:** `pickerSessionKey` uses `createPlaybackSessionKey` with the
+  provider id the live views use (Xtream stream id, Stalker id, M3U channel
+  id), so a picked channel and the same channel in its view are one tile.
+  "In tile N" also matches by playlist and provider id of the same kind, or
+  by stream URL, because some views key their playback differently.
+- **Sections:** Live now = favourite live rows, then recent live rows, then
+  the current playlist (D9), each channel once. Continue = recently viewed
+  Xtream films with a resume point (position > 0, not watched, under 95 %),
+  at most 20 checked per open. Favorites and Recent list every type; series
+  rows have no tile kind and open their episodes (Task 14). Playlists = the
+  current playlist's live channels with its groups for the category menu
+  (Q2). A failing source is just empty.
+- **R11:** live rows go through the catalog's `isAllowed` (parental lock,
+  unavailable catalog rows), like the channel lists; films and series as
+  the Favorites and Recent pages show them, which do not filter by category
+  lock, but nothing is listed while the lock store withholds everything.
+  The catalog applies hidden groups; the data source search excludes hidden
+  categories and locked content itself.
+- **EPG (Q1):** `MultiviewEpgAllowance` requests at most 20 visible live
+  rows per open, each once; `StreamResolverService.loadEpgForItems` loads
+  them.
+- **Default section:** next to a film Live now, next to a channel Continue,
+  then the last used section.
+- **Known phase 1 limits:** Continue lists Xtream films only; Stalker and
+  M3U films and all series episodes cannot be resolved into a tile yet
+  (`MultiviewUnresolvableError`). Search does not query EPG programme text in
+  SQLite; "On air now" matches the programme lines the picker loaded.
+
+**Tests:** `workspace-multiview-feature` 58 (row identity and "In tile N",
+section composition and D9 order, R11 and radio filtering, default section,
+budget parsing, badge and meter, budget service, EPG cap, continue filter,
+data loading with failing sources, search grouping and the data source
+search, resolver for live, film with R9 saving and refusals); shell port
+spec (lazy load); stage +1 (limit wording from the port); ported catalog and
+genre loader specs (`portal-shared-data-access` 358, `portal-stalker-data-access`
+748). Lint, `typecheck:web`, `typecheck:spec`, `coverage:tools:test`,
+`agents:validate`.
+**Live check (temporary probe, Xtream mock `limit:limit`, Electron):** the
+second stream is refused and the card reads "Connection limit reached …
+allows 1 streams at a time".
 
 ### Task 14: Picker dialog and entry points
 

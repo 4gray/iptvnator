@@ -31,6 +31,7 @@ import { WorkspaceShellCommandPaletteService } from './services/workspace-shell-
 import { WorkspaceShellHeaderService } from './services/workspace-shell-header.service';
 import { warmPlayerChunk } from './warm-player-chunk';
 import { hostMultiviewStage } from './multiview-stage-host';
+import { provideMultiviewWorkspacePorts } from './multiview-workspace-ports';
 import { WorkspaceShellRouteStateService } from './services/workspace-shell-route-state.service';
 import { WorkspaceShellSearchSyncService } from './services/workspace-shell-search-sync.service';
 import { WorkspaceShellSearchService } from './services/workspace-shell-search.service';
@@ -78,6 +79,8 @@ import { LIVE_CATEGORIES_POPOVER } from '@iptvnator/portal/shared/util';
             provide: LIVE_CATEGORIES_POPOVER,
             useClass: WorkspaceLiveCategoriesPopoverService,
         },
+        // Picker data and provider budgets for multiview; a lazy chunk.
+        ...provideMultiviewWorkspacePorts(),
     ],
 })
 export class WorkspaceShellComponent {

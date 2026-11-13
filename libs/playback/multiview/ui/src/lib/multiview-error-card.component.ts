@@ -7,6 +7,7 @@ import {
 } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import {
+    type MultiviewConnectionBudget,
     type MultiviewPipCorner,
     MultiviewEntryService,
     MultiviewSessionStore,
@@ -14,10 +15,7 @@ import {
 } from '@iptvnator/playback/multiview/data-access';
 import type { PlaybackDiagnostic } from '@iptvnator/playback/util';
 import { TranslatePipe } from '@ngx-translate/core';
-import {
-    type MultiviewConnectionBudget,
-    multiviewErrorCopy,
-} from './multiview-error-copy';
+import { multiviewErrorCopy } from './multiview-error-copy';
 import type { StageSize, TileBox } from './pip-geometry';
 
 /** The card is wider than a small tile, so it fits its sentence (spec 9.6). */

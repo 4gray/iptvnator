@@ -1,0 +1,21 @@
+{
+    "name": "workspace-multiview-feature",
+    "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/workspace/multiview/feature/src",
+    "prefix": "lib",
+    "projectType": "library",
+    "tags": ["scope:workspace", "domain:workspace", "type:feature"],
+    "targets": {
+        "lint": {
+            "inputs": [
+                "default",
+                "^default",
+                "{workspaceRoot}/.eslintrc.json",
+                "{workspaceRoot}/.eslintignore",
+                "{workspaceRoot}/eslint.config.mjs",
+                "{workspaceRoot}/tools/eslint-rules/**/*",
+                "{workspaceRoot}/tools/eslint/**/*"
+            ]
+        }
+    }
+}

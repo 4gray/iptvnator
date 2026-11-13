@@ -1,14 +1,11 @@
 import {
+    freeConnections,
+    type MultiviewConnectionBudget,
+} from '@iptvnator/playback/multiview/data-access';
+import {
     type PlaybackDiagnostic,
     PlaybackDiagnosticCode,
 } from '@iptvnator/playback/util';
-
-/** What the source's playlist allows, when the provider reports it. */
-export interface MultiviewConnectionBudget {
-    readonly playlistName: string;
-    readonly maxConnections: number;
-    readonly activeConnections: number;
-}
 
 export interface MultiviewErrorCopy {
     readonly titleKey: string;
@@ -37,7 +34,7 @@ export function multiviewErrorCopy(
     diagnostic: PlaybackDiagnostic | null,
     budget: MultiviewConnectionBudget | null = null
 ): MultiviewErrorCopy {
-    if (budget && budget.activeConnections >= budget.maxConnections) {
+    if (budget && freeConnections(budget) === 0) {
         return {
             titleKey: 'PLAYER.MULTIVIEW.ERROR_LIMIT_TITLE',
             causeKey: 'PLAYER.MULTIVIEW.ERROR_LIMIT_CAUSE',

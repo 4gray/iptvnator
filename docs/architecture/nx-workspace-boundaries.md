@@ -278,6 +278,19 @@ through a dynamic `import()`; nothing may import it statically, and its
 specs must not lazy-import `@iptvnator/ui/playback`, which the shell
 imports statically.
 
+`libs/workspace/multiview/feature` is the `workspace-multiview-feature` Nx
+project, imported through `@iptvnator/workspace/multiview/feature` (tags
+`scope:workspace`, `domain:workspace`, `type:feature`). It implements the
+multiview ports the workspace owns: the source picker's data (sections,
+search, resolving a picked row into a tile source) and the Xtream connection
+budget. It reads favourites, recent items, positions and the current
+playlist through the existing portal data-access projects, including
+`MultiviewCatalogService` (`portal-shared-data-access`) and
+`loadStalkerItvGenre` (`portal-stalker-data-access`). The shell provides the
+ports from `multiview-workspace-ports.ts` and loads this project only
+through a dynamic `import()` on first use; nothing may import it
+statically.
+
 `libs/shared/epg` is the pure `shared-epg` utility project, imported through
 `@iptvnator/shared/epg` (scope:shared, domain:shared-contracts, type:util).
 It owns epoch-millisecond time-axis projection, ticks and clipping used by Angular

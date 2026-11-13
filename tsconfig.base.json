@@ -259,6 +259,9 @@
             "@iptvnator/shared/database/connection-observer": [
                 "libs/shared/database/src/lib/connection-observer.ts"
             ],
+            "@iptvnator/workspace/multiview/feature": [
+                "libs/workspace/multiview/feature/src/index.ts"
+            ],
             "@iptvnator/workspace/dashboard/feature": [
                 "libs/workspace/dashboard/feature/src/index.ts"
             ],

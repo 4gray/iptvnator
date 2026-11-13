@@ -30,6 +30,7 @@
                 <app-multiview-error-card
                     [tile]="failed.tile"
                     [diagnostic]="failed.diagnostic"
+                    [budget]="failedBudget()"
                     [box]="failed.box"
                     [corner]="pipCorner()"
                     [stage]="tileArea()"
