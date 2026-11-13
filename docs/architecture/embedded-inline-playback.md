@@ -1405,6 +1405,34 @@ reaches history.
   host's `embeddedPlayback` also reads the playlist meta, so it is compared
   by value — a new object would remount the engine and restart the stream.
 
+## Multiview Tile Mode
+
+`WebPlayerViewComponent` doubles as a multiview tile through optional inputs
+whose defaults reproduce the single player exactly
+(`web-player-tile-mode.ts`, `web-player-tile-media.ts`):
+
+- `controlsMode` (`full` | `minimal` | `none`, default `full`). Anything but
+  `full` passes `interactionEnabled = false` to the web engine (shared dock
+  and shortcuts off, owned fullscreen exited), disables the fullscreen
+  channel panel, hides legacy vendor chrome through the host class
+  `web-player-view--chromeless`, and does not render the diagnostic panel.
+  Failures still emit `playbackFailed`; `diagnosticChanged` hands the visible
+  diagnostic to the tile's own error overlay.
+- `muted` and `paused` (default `null`, unmanaged). Once either is set, the
+  view tracks every `<video>` inside its host — across engine remounts and
+  Video.js tech replacement — and keeps a muted tile muted and a held tile
+  paused even when an engine unmutes or starts itself. Releasing a hold calls
+  `play()`. When the viewer unmutes or plays a managed tile (a pointer or key
+  interaction inside the tile within the last second), the view re-asserts
+  the session state and emits `audioRequested`, so the session moves the
+  audio instead of two tiles playing sound (spec decision D3).
+- `headerOwner` gives the tile its own scoped request-header override; see
+  `docs/architecture/electron-security.md`, "Override owners".
+
+Embedded MPV, MPV and VLC are not multiview engines and ignore these inputs.
+The session rules live in `@iptvnator/playback/multiview/data-access`; the
+behaviour contract is `docs/superpowers/specs/2026-11-12-multiview-design.md`.
+
 ## Playback Position Saving
 
 The old dialog path saved playback positions from inside the removed Xtream

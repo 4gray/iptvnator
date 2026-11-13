@@ -12,6 +12,21 @@
     background: #000;
 }
 
+// A multiview tile with reduced chrome (`controlsMode` minimal or none).
+// The shared controls already hide through `interactionEnabled`; this covers
+// the vendor chrome of the legacy (non-shared) controls setting.
+.web-player-view.web-player-view--chromeless {
+    .vjs-control-bar,
+    .vjs-big-play-button,
+    .art-bottom {
+        display: none;
+    }
+
+    video::-webkit-media-controls {
+        display: none;
+    }
+}
+
 app-art-player,
 app-embedded-mpv-player,
 app-vjs-player,

@@ -418,30 +418,41 @@ clean.
 
 ### Task 3: Tile mode on `WebPlayerViewComponent` (opt-in)
 
-**Files:** `libs/ui/playback/src/lib/web-player-view/web-player-tile-context.ts`
-(new token + default), `web-player-view.component.{ts,html}`,
-`player-controls.component.ts`, `web-video-controls.adapter.ts`, new specs
-`web-player-view.component.tile-mode.spec.ts`,
-`web-video-controls.adapter.tile.spec.ts`.
+**Files (as built):** `libs/ui/playback/src/lib/web-player-view/` —
+`web-player-tile-mode.ts`, `web-player-tile-media.ts` (+ spec),
+`web-player-view.component.{ts,html,scss}`,
+`web-player-application-ownership.ts` (rendered-applications computation
+moved here unchanged to stay under the 400-line limit), new spec
+`web-player-view.component.tile-mode.spec.ts`; section "Multiview Tile Mode"
+in `docs/architecture/embedded-inline-playback.md`.
 
-- [ ] Inputs `controlsMode: 'full' | 'minimal' | 'none'` (default `'full'`),
-      `muted: boolean | null` (default `null` = not managed), `paused:
-      boolean | null` (default `null`), output `audioRequested`.
-- [ ] Token `WEB_PLAYER_TILE_CONTEXT` provided by the view, root default
-      equal to "full / unmanaged". The controls read it to hide the dock and
-      detach shortcuts when not `'full'`; the adapter applies `muted` to
-      `video.muted` and `paused` through play/pause on its current element
-      (also after an engine remount); a volume command on a managed-muted tile
-      emits `audioRequested` (D3).
-- [ ] With `controlsMode !== 'full'` the view does not render the diagnostic
-      panel or the fullscreen channel panel; failures still emit
-      `playbackFailed`, and a new `diagnosticChanged` output hands the
-      diagnostic to the tile's error overlay.
+Deviation from the first draft: no token, no change to
+`PlayerControlsComponent` or `WebVideoControlsAdapter`. The engines'
+existing `interactionEnabled` input already hides the shared dock and turns
+off shortcuts, and the adapter is not attached at all with the legacy
+controls setting, so mute and pause are applied by the view to the `<video>`
+elements in its host instead. That covers all three web engines in both
+controls settings and touches less shared code.
 
-**Tests:** new specs plus the whole `ui-playback` suite unchanged;
-`pnpm nx run electron-backend:build-e2e` (template type check).
-**Accept:** every existing `web-player-view.*.spec.ts` passes unedited;
-defaults proven by a "no inputs set" case.
+- [x] Inputs `controlsMode: 'full' | 'minimal' | 'none'` (default `'full'`),
+      `muted: boolean | null` and `paused: boolean | null` (default `null` =
+      not managed), outputs `audioRequested` and `diagnosticChanged`.
+- [x] Not `full`: engines get `interactionEnabled = false`, the fullscreen
+      channel panel is disabled, legacy vendor chrome is hidden by the host
+      class `web-player-view--chromeless`, the diagnostic panel is not
+      rendered; `playbackFailed` still fires and `diagnosticChanged` carries
+      the diagnostic.
+- [x] `WebPlayerTileMedia` keeps a muted tile muted and a held tile paused
+      across engine remounts, resumes on release, and reports the viewer
+      unmuting or playing a managed tile as `audioRequested` (D3) — judged by
+      a pointer or key interaction inside the tile within the last second.
+
+**Tests:** `web-player-tile-media.spec.ts` (15), tile-mode component spec
+(11; 4 fail with the template wiring reverted), whole `ui-playback` suite
+(1746, no existing spec edited), lint, `typecheck:web`, `typecheck:spec`,
+`electron-backend:build-e2e`.
+**Note:** `web-player-view.component.ts` is at 399 of 400 counted lines;
+later tasks must not add to it without moving code out first.
 
 ### Task 4: Dock action and translations
 

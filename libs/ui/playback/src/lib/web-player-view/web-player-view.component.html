@@ -11,7 +11,9 @@
                         [timelineSegments]="timelineSegments()"
                         [volume]="volume()"
                         [showCaptions]="showCaptions()"
-                        [interactionEnabled]="playbackInteractionEnabled()"
+                        [interactionEnabled]="
+                            tileMode.engineInteractionEnabled()
+                        "
                         [startTime]="effectiveStartTime()"
                         [seriesNavigation]="seriesNavigation()"
                         (timeUpdate)="handleTimeUpdate($event, application)"
@@ -43,7 +45,9 @@
                         [volume]="volume()"
                         [showCaptions]="showCaptions()"
                         [isLive]="resolvedIsLive()"
-                        [interactionEnabled]="playbackInteractionEnabled()"
+                        [interactionEnabled]="
+                            tileMode.engineInteractionEnabled()
+                        "
                         [startTime]="effectiveStartTime()"
                         [seriesNavigation]="seriesNavigation()"
                         (timeUpdate)="handleTimeUpdate($event, application)"
@@ -74,7 +78,9 @@
                         [volume]="volume()"
                         [showCaptions]="showCaptions()"
                         [isLive]="resolvedIsLive()"
-                        [interactionEnabled]="playbackInteractionEnabled()"
+                        [interactionEnabled]="
+                            tileMode.engineInteractionEnabled()
+                        "
                         [startTime]="effectiveStartTime()"
                         [seriesNavigation]="seriesNavigation()"
                         (timeUpdate)="handleTimeUpdate($event, application)"
@@ -120,10 +126,12 @@
      native-view Embedded MPV, which paints above the DOM. -->
 <app-fullscreen-channel-panel
     [stage]="fullscreenSurface"
-    [enabled]="channelPanelAvailable()"
+    [enabled]="channelPanelAvailable() && tileMode.chromeVisible()"
 />
 
-@if (visiblePlaybackDiagnostic(); as issue) {
+<!-- A multiview tile with reduced chrome reports the issue through
+     diagnosticChanged and draws its own overlay instead. -->
+@if (tileMode.chromeVisible() && visiblePlaybackDiagnostic(); as issue) {
     <app-playback-diagnostic-panel
         [diagnostic]="issue"
         [recommendations]="recommendations()"
