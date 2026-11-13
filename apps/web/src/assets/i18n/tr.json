@@ -2573,7 +2573,15 @@
             "EXIT": "Çık",
             "EXIT_HINT": "Sesli pencereyi tut, diğerlerini kapat",
             "MAIN_ANNOUNCEMENT": "{{title}} artık ana pencere",
-            "TILE_KEYS_HINT": "Ok tuşları pencereyi başka köşeye taşır, artı ve eksi boyutunu değiştirir, Enter ana pencereyle değiştirir."
+            "TILE_KEYS_HINT": "Ok tuşları pencereyi başka köşeye taşır, artı ve eksi boyutunu değiştirir, Enter ana pencereyle değiştirir.",
+            "ERROR_TITLE": "Bu kanal oynatılamıyor",
+            "ERROR_LIMIT_TITLE": "Bağlantı sınırına ulaşıldı",
+            "ERROR_LIMIT_CAUSE": "{{playlist}} aynı anda {{max}} yayına izin veriyor ve hepsi kullanımda.",
+            "ERROR_NETWORK_CAUSE": "Kaynağa ulaşılamadı. Çevrimdışı olabilir ya da sağlayıcı bir yayını daha reddetti.",
+            "ERROR_FORMAT_CAUSE": "Bu yayın, yerleşik oynatıcının desteklemediği bir biçim kullanıyor.",
+            "ERROR_GENERIC_CAUSE": "Yayın beklenmedik şekilde durdu.",
+            "REPLACE_MAIN": "Ana pencereyi değiştir",
+            "CHOOSE_ANOTHER": "Başka bir kaynak seç"
         }
     }
 }

@@ -2573,7 +2573,15 @@
             "EXIT": "Quitter",
             "EXIT_HINT": "Garder la fenêtre avec le son et fermer les autres",
             "MAIN_ANNOUNCEMENT": "{{title}} est maintenant la fenêtre principale",
-            "TILE_KEYS_HINT": "Les flèches déplacent la fenêtre vers un autre coin, plus et moins la redimensionnent, Entrée l’échange avec la fenêtre principale."
+            "TILE_KEYS_HINT": "Les flèches déplacent la fenêtre vers un autre coin, plus et moins la redimensionnent, Entrée l’échange avec la fenêtre principale.",
+            "ERROR_TITLE": "Cette chaîne ne peut pas être lue",
+            "ERROR_LIMIT_TITLE": "Limite de connexions atteinte",
+            "ERROR_LIMIT_CAUSE": "{{playlist}} autorise {{max}} flux à la fois, et ils sont tous utilisés.",
+            "ERROR_NETWORK_CAUSE": "La source est injoignable. Elle est peut-être hors ligne, ou le fournisseur a refusé un flux supplémentaire.",
+            "ERROR_FORMAT_CAUSE": "Ce flux utilise un format que le lecteur intégré ne peut pas lire.",
+            "ERROR_GENERIC_CAUSE": "Le flux s'est arrêté de façon inattendue.",
+            "REPLACE_MAIN": "Remplacer la fenêtre principale",
+            "CHOOSE_ANOTHER": "Choisir une autre source"
         }
     }
 }

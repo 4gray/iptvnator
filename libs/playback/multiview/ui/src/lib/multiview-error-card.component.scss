@@ -1,0 +1,86 @@
+// On-video card: player palette, theme-independent (prototype step 9).
+:host {
+    position: absolute;
+    z-index: 4;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px 18px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    background: rgba(15, 20, 28, 0.94);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+    color: #e7ecf3;
+}
+
+.mv-error__head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.mv-error__icon {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    color: #ff6b6b;
+    font-size: 20px;
+}
+
+.mv-error__title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.mv-error__cause {
+    margin: 0;
+    color: #9aa3b2;
+    font-size: 12.5px;
+    line-height: 1.45;
+}
+
+.mv-error__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.mv-error__button {
+    height: 30px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #9aa3b2;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: #e7ecf3;
+    }
+
+    &:focus-visible {
+        outline: 2px solid #e7ecf3;
+        outline-offset: 1px;
+    }
+
+    &--filled {
+        background: #3474e8;
+        color: #fff;
+
+        &:hover {
+            background: #2a66d6;
+            color: #fff;
+        }
+    }
+
+    &--tonal {
+        background: rgba(255, 255, 255, 0.1);
+        color: #e7ecf3;
+    }
+}

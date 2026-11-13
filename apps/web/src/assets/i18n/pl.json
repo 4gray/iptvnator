@@ -2573,7 +2573,15 @@
             "EXIT": "Zakończ",
             "EXIT_HINT": "Zostaw okno z dźwiękiem i zamknij pozostałe",
             "MAIN_ANNOUNCEMENT": "{{title}} jest teraz głównym oknem",
-            "TILE_KEYS_HINT": "Strzałki przenoszą okno do innego rogu, plus i minus zmieniają rozmiar, Enter zamienia je z głównym oknem."
+            "TILE_KEYS_HINT": "Strzałki przenoszą okno do innego rogu, plus i minus zmieniają rozmiar, Enter zamienia je z głównym oknem.",
+            "ERROR_TITLE": "Tego kanału nie można odtworzyć",
+            "ERROR_LIMIT_TITLE": "Osiągnięto limit połączeń",
+            "ERROR_LIMIT_CAUSE": "{{playlist}} pozwala na {{max}} strumieni naraz i wszystkie są zajęte.",
+            "ERROR_NETWORK_CAUSE": "Źródło jest niedostępne. Może być offline albo dostawca odrzucił kolejny strumień.",
+            "ERROR_FORMAT_CAUSE": "Ten strumień używa formatu, którego wbudowany odtwarzacz nie obsługuje.",
+            "ERROR_GENERIC_CAUSE": "Strumień nieoczekiwanie się zatrzymał.",
+            "REPLACE_MAIN": "Zastąp okno główne",
+            "CHOOSE_ANOTHER": "Wybierz inne źródło"
         }
     }
 }

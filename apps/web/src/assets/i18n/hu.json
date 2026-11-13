@@ -2573,7 +2573,15 @@
             "EXIT": "Kilépés",
             "EXIT_HINT": "A hangos ablak marad, a többi bezárul",
             "MAIN_ANNOUNCEMENT": "{{title}} lett a fő ablak",
-            "TILE_KEYS_HINT": "A nyilak másik sarokba viszik az ablakot, a plusz és a mínusz átméretezi, az Enter felcseréli a fő ablakkal."
+            "TILE_KEYS_HINT": "A nyilak másik sarokba viszik az ablakot, a plusz és a mínusz átméretezi, az Enter felcseréli a fő ablakkal.",
+            "ERROR_TITLE": "Ez a csatorna nem játszható le",
+            "ERROR_LIMIT_TITLE": "Elérte a kapcsolatkorlátot",
+            "ERROR_LIMIT_CAUSE": "{{playlist}} egyszerre {{max}} adatfolyamot enged, és mind használatban van.",
+            "ERROR_NETWORK_CAUSE": "A forrás nem érhető el. Lehet, hogy offline, vagy a szolgáltató elutasított egy újabb adatfolyamot.",
+            "ERROR_FORMAT_CAUSE": "Ez az adatfolyam olyan formátumot használ, amelyet a beépített lejátszó nem támogat.",
+            "ERROR_GENERIC_CAUSE": "Az adatfolyam váratlanul leállt.",
+            "REPLACE_MAIN": "Fő ablak cseréje",
+            "CHOOSE_ANOTHER": "Másik forrás választása"
         }
     }
 }

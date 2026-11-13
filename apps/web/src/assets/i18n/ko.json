@@ -2573,7 +2573,15 @@
             "EXIT": "나가기",
             "EXIT_HINT": "소리가 나는 창만 남기고 나머지 닫기",
             "MAIN_ANNOUNCEMENT": "이제 {{title}}이(가) 메인 창입니다",
-            "TILE_KEYS_HINT": "화살표 키로 다른 모서리로 옮기고, 더하기와 빼기로 크기를 바꾸며, Enter로 메인 창과 바꿉니다."
+            "TILE_KEYS_HINT": "화살표 키로 다른 모서리로 옮기고, 더하기와 빼기로 크기를 바꾸며, Enter로 메인 창과 바꿉니다.",
+            "ERROR_TITLE": "이 채널을 재생할 수 없습니다",
+            "ERROR_LIMIT_TITLE": "연결 한도에 도달했습니다",
+            "ERROR_LIMIT_CAUSE": "{{playlist}}은(는) 동시에 {{max}}개의 스트림을 허용하며 모두 사용 중입니다.",
+            "ERROR_NETWORK_CAUSE": "소스에 연결할 수 없습니다. 오프라인이거나 제공자가 추가 스트림을 거부했을 수 있습니다.",
+            "ERROR_FORMAT_CAUSE": "이 스트림은 내장 플레이어가 재생할 수 없는 형식입니다.",
+            "ERROR_GENERIC_CAUSE": "스트림이 예기치 않게 중지되었습니다.",
+            "REPLACE_MAIN": "메인 창 바꾸기",
+            "CHOOSE_ANOTHER": "다른 소스 선택"
         }
     }
 }

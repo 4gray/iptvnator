@@ -2573,7 +2573,15 @@
             "EXIT": "Afsluiten",
             "EXIT_HINT": "Venster met geluid houden en de andere sluiten",
             "MAIN_ANNOUNCEMENT": "{{title}} is nu het hoofdvenster",
-            "TILE_KEYS_HINT": "Pijltjestoetsen verplaatsen het venster naar een andere hoek, plus en min wijzigen het formaat, Enter wisselt het met het hoofdvenster."
+            "TILE_KEYS_HINT": "Pijltjestoetsen verplaatsen het venster naar een andere hoek, plus en min wijzigen het formaat, Enter wisselt het met het hoofdvenster.",
+            "ERROR_TITLE": "Dit kanaal speelt niet af",
+            "ERROR_LIMIT_TITLE": "Verbindingslimiet bereikt",
+            "ERROR_LIMIT_CAUSE": "{{playlist}} staat {{max}} streams tegelijk toe en die zijn allemaal in gebruik.",
+            "ERROR_NETWORK_CAUSE": "De bron is niet bereikbaar. Mogelijk is hij offline of weigerde de provider nog een stream.",
+            "ERROR_FORMAT_CAUSE": "Deze stream gebruikt een formaat dat de ingebouwde speler niet kan afspelen.",
+            "ERROR_GENERIC_CAUSE": "De stream is onverwacht gestopt.",
+            "REPLACE_MAIN": "Hoofdvenster vervangen",
+            "CHOOSE_ANOTHER": "Andere bron kiezen"
         }
     }
 }

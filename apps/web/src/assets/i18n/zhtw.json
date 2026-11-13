@@ -2573,7 +2573,15 @@
             "EXIT": "離開",
             "EXIT_HINT": "保留有聲音的視窗並關閉其他視窗",
             "MAIN_ANNOUNCEMENT": "{{title}} 現在是主視窗",
-            "TILE_KEYS_HINT": "方向鍵將視窗移到另一個角落，加號和減號調整大小，Enter 將其與主視窗交換。"
+            "TILE_KEYS_HINT": "方向鍵將視窗移到另一個角落，加號和減號調整大小，Enter 將其與主視窗交換。",
+            "ERROR_TITLE": "無法播放此頻道",
+            "ERROR_LIMIT_TITLE": "已達連線數上限",
+            "ERROR_LIMIT_CAUSE": "{{playlist}} 同時最多允許 {{max}} 路串流，目前已全部使用中。",
+            "ERROR_NETWORK_CAUSE": "無法連線到來源。它可能已離線，或供應商拒絕了另一路串流。",
+            "ERROR_FORMAT_CAUSE": "此串流使用內建播放器無法播放的格式。",
+            "ERROR_GENERIC_CAUSE": "串流意外停止。",
+            "REPLACE_MAIN": "取代主視窗",
+            "CHOOSE_ANOTHER": "選擇其他來源"
         }
     }
 }

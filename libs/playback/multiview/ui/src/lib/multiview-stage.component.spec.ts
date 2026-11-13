@@ -31,6 +31,7 @@ class StubWebPlayerViewComponent {
     readonly timeUpdate = output<{ currentTime: number; duration: number }>();
     readonly audioRequested = output<void>();
     readonly playbackFailed = output<unknown>();
+    readonly diagnosticChanged = output<unknown>();
 }
 
 function source(
@@ -265,6 +266,102 @@ describe('MultiviewStageComponent', () => {
         players()[1].playbackFailed.emit('network');
 
         expect(store.tiles()[1].status).toBe('error');
+    });
+
+    describe('error card (spec 9.6)', () => {
+        const card = (): HTMLElement | null =>
+            fixture.nativeElement.querySelector(
+                '[data-test-id="multiview-error-card"]'
+            );
+        const network = { code: 'network-error' };
+
+        it('appears at the corner of a small tile whose player reports a problem', () => {
+            start();
+            expect(card()).toBeNull();
+
+            players()[1].diagnosticChanged.emit(network);
+            fixture.detectChanges();
+
+            const element = card() as HTMLElement;
+            expect(element.textContent).toContain(
+                'PLAYER.MULTIVIEW.ERROR_TITLE'
+            );
+            expect(element.textContent).toContain(
+                'PLAYER.MULTIVIEW.ERROR_NETWORK_CAUSE'
+            );
+            // Bottom-right PiP: 16 px inset plus the 96 px dock clearance.
+            expect(element.style.right).toBe('16px');
+            expect(element.style.bottom).toBe('112px');
+            expect(element.style.width).toBe('400px');
+            expect(
+                element.querySelector('[data-test-id="multiview-error-choose"]')
+            ).toBeNull();
+        });
+
+        it('also appears for a tile marked failed without a diagnostic', () => {
+            start();
+            players()[1].playbackFailed.emit('network');
+            fixture.detectChanges();
+
+            expect(card()?.textContent).toContain(
+                'PLAYER.MULTIVIEW.ERROR_GENERIC_CAUSE'
+            );
+        });
+
+        it('leaves a failing main tile to its own player panel', () => {
+            start();
+            players()[0].diagnosticChanged.emit(network);
+            fixture.detectChanges();
+
+            expect(card()).toBeNull();
+        });
+
+        it('goes away when the player recovers', () => {
+            start();
+            players()[1].diagnosticChanged.emit(network);
+            fixture.detectChanges();
+            players()[1].diagnosticChanged.emit(null);
+            fixture.detectChanges();
+
+            expect(card()).toBeNull();
+        });
+
+        function click(testId: string): void {
+            (
+                card()?.querySelector(
+                    `[data-test-id="${testId}"]`
+                ) as HTMLButtonElement
+            ).click();
+        }
+
+        function survivorKey(): string | null {
+            const effect = store.notice()?.effect;
+            return effect?.type === 'ended'
+                ? (effect.survivor?.playbackSessionKey ?? null)
+                : null;
+        }
+
+        it('closes the failed tile and keeps the main one', () => {
+            start();
+            players()[1].diagnosticChanged.emit(network);
+            fixture.detectChanges();
+
+            click('multiview-error-close');
+
+            expect(store.exists()).toBe(false);
+            expect(survivorKey()).toBe('session:movie');
+        });
+
+        it('replaces the main tile with the failed one', () => {
+            start();
+            players()[1].diagnosticChanged.emit(network);
+            fixture.detectChanges();
+
+            click('multiview-error-replace-main');
+
+            expect(store.exists()).toBe(false);
+            expect(survivorKey()).toBe('session:match');
+        });
     });
 
     it('removes the tiles when the session ends', () => {

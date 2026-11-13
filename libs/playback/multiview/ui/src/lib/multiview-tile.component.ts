@@ -4,6 +4,7 @@ import {
     computed,
     inject,
     input,
+    output,
     signal,
 } from '@angular/core';
 import {
@@ -11,6 +12,7 @@ import {
     MultiviewSessionStore,
 } from '@iptvnator/playback/multiview/data-access';
 import { injectTranslationTick } from '@iptvnator/services';
+import type { PlaybackDiagnostic } from '@iptvnator/playback/util';
 import { WebPlayerViewComponent } from '@iptvnator/ui/playback';
 import { TranslateService } from '@ngx-translate/core';
 import { MultiviewPausedOverlayComponent } from './multiview-paused-overlay.component';
@@ -65,6 +67,8 @@ export class MultiviewTileComponent {
     readonly placement = input.required<TilePlacement>();
     /** Size of the area the tiles are laid out in. */
     readonly stage = input<StageSize>({ width: 0, height: 0 });
+    /** The player's diagnostic; the stage draws the error card (9.6). */
+    readonly diagnosticChanged = output<PlaybackDiagnostic | null>();
 
     protected readonly store = inject(MultiviewSessionStore);
     private readonly translate = inject(TranslateService);

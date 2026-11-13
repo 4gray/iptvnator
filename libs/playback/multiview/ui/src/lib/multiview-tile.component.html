@@ -12,6 +12,7 @@
     (timeUpdate)="onTimeUpdate($event)"
     (audioRequested)="onAudioRequested()"
     (playbackFailed)="onPlaybackFailed()"
+    (diagnosticChanged)="diagnosticChanged.emit($event)"
 />
 
 @if (placement().role === 'pip') {

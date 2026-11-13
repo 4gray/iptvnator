@@ -1,8 +1,12 @@
 import { Request, Response } from 'express';
+import { activeConnections } from '../connection-limit.js';
 import { getPortalData } from '../data-store.js';
 
 export function handleGetAccountInfo(req: Request, res: Response): void {
-    const { username = '', password = '' } = req.query as Record<string, string>;
+    const { username = '', password = '' } = req.query as Record<
+        string,
+        string
+    >;
     const data = getPortalData(username, password);
     const { scenario } = data;
     const serverClock = scenario.serverClock ?? {
@@ -26,11 +30,17 @@ export function handleGetAccountInfo(req: Request, res: Response): void {
             message: '',
             auth: 1,
             status: scenario.accountStatus,
-            exp_date: String(Math.floor(new Date(scenario.expiryDate).getTime() / 1000)),
+            exp_date: String(
+                Math.floor(new Date(scenario.expiryDate).getTime() / 1000)
+            ),
             is_trial: '0',
-            active_cons: '1',
+            active_cons: String(
+                scenario.connectionLimit === undefined
+                    ? 1
+                    : activeConnections(username, password)
+            ),
             created_at: String(Math.floor(Date.now() / 1000 - 86400 * 365)),
-            max_connections: '2',
+            max_connections: String(scenario.connectionLimit ?? 2),
             allowed_output_formats: ['m3u8', 'ts', 'rtmp'],
         },
         server_info: {

@@ -2573,7 +2573,15 @@
             "EXIT": "終了",
             "EXIT_HINT": "音声のあるウィンドウを残してほかを閉じる",
             "MAIN_ANNOUNCEMENT": "{{title}} がメインウィンドウになりました",
-            "TILE_KEYS_HINT": "矢印キーで別の隅へ移動、プラスとマイナスでサイズ変更、Enter でメインと入れ替えます。"
+            "TILE_KEYS_HINT": "矢印キーで別の隅へ移動、プラスとマイナスでサイズ変更、Enter でメインと入れ替えます。",
+            "ERROR_TITLE": "このチャンネルを再生できません",
+            "ERROR_LIMIT_TITLE": "接続数の上限に達しました",
+            "ERROR_LIMIT_CAUSE": "{{playlist}} では同時に {{max}} 本のストリームまで再生でき、すべて使用中です。",
+            "ERROR_NETWORK_CAUSE": "ソースに接続できません。オフラインか、プロバイダーが追加のストリームを拒否した可能性があります。",
+            "ERROR_FORMAT_CAUSE": "このストリームは内蔵プレーヤーで再生できない形式です。",
+            "ERROR_GENERIC_CAUSE": "ストリームが予期せず停止しました。",
+            "REPLACE_MAIN": "メイン画面と入れ替える",
+            "CHOOSE_ANOTHER": "別のソースを選ぶ"
         }
     }
 }

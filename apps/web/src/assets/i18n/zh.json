@@ -2573,7 +2573,15 @@
             "EXIT": "退出",
             "EXIT_HINT": "保留有声音的窗口并关闭其他窗口",
             "MAIN_ANNOUNCEMENT": "{{title}} 现在是主窗口",
-            "TILE_KEYS_HINT": "方向键将窗口移到另一个角，加号和减号调整大小，Enter 将其与主窗口交换。"
+            "TILE_KEYS_HINT": "方向键将窗口移到另一个角，加号和减号调整大小，Enter 将其与主窗口交换。",
+            "ERROR_TITLE": "无法播放此频道",
+            "ERROR_LIMIT_TITLE": "已达到连接数上限",
+            "ERROR_LIMIT_CAUSE": "{{playlist}} 同时最多允许 {{max}} 路流，目前已全部占用。",
+            "ERROR_NETWORK_CAUSE": "无法访问该源。它可能已离线，或提供商拒绝了另一路流。",
+            "ERROR_FORMAT_CAUSE": "此流使用内置播放器无法播放的格式。",
+            "ERROR_GENERIC_CAUSE": "流意外停止。",
+            "REPLACE_MAIN": "替换主窗口",
+            "CHOOSE_ANOTHER": "选择其他来源"
         }
     }
 }

@@ -2573,7 +2573,15 @@
             "EXIT": "Sair",
             "EXIT_HINT": "Manter a janela com som e fechar as restantes",
             "MAIN_ANNOUNCEMENT": "{{title}} é agora a janela principal",
-            "TILE_KEYS_HINT": "As setas movem a janela para outro canto, mais e menos alteram o tamanho, Enter troca-a com a janela principal."
+            "TILE_KEYS_HINT": "As setas movem a janela para outro canto, mais e menos alteram o tamanho, Enter troca-a com a janela principal.",
+            "ERROR_TITLE": "Este canal não reproduz",
+            "ERROR_LIMIT_TITLE": "Limite de ligações atingido",
+            "ERROR_LIMIT_CAUSE": "{{playlist}} permite {{max}} transmissões em simultâneo, e todas estão em uso.",
+            "ERROR_NETWORK_CAUSE": "Não foi possível aceder à fonte. Pode estar offline ou o fornecedor recusou outra transmissão.",
+            "ERROR_FORMAT_CAUSE": "Esta transmissão usa um formato que o leitor integrado não reproduz.",
+            "ERROR_GENERIC_CAUSE": "A transmissão parou inesperadamente.",
+            "REPLACE_MAIN": "Substituir a janela principal",
+            "CHOOSE_ANOTHER": "Escolher outra fonte"
         }
     }
 }

@@ -2573,7 +2573,15 @@
             "EXIT": "Beenden",
             "EXIT_HINT": "Fenster mit Ton behalten und die anderen schließen",
             "MAIN_ANNOUNCEMENT": "{{title}} ist jetzt das Hauptfenster",
-            "TILE_KEYS_HINT": "Pfeiltasten verschieben das Fenster in eine andere Ecke, Plus und Minus ändern die Größe, Enter tauscht es mit dem Hauptfenster."
+            "TILE_KEYS_HINT": "Pfeiltasten verschieben das Fenster in eine andere Ecke, Plus und Minus ändern die Größe, Enter tauscht es mit dem Hauptfenster.",
+            "ERROR_TITLE": "Dieser Sender lässt sich nicht abspielen",
+            "ERROR_LIMIT_TITLE": "Verbindungslimit erreicht",
+            "ERROR_LIMIT_CAUSE": "{{playlist}} erlaubt {{max}} Streams gleichzeitig, und alle sind belegt.",
+            "ERROR_NETWORK_CAUSE": "Die Quelle ist nicht erreichbar. Sie ist vielleicht offline, oder der Anbieter hat einen weiteren Stream abgelehnt.",
+            "ERROR_FORMAT_CAUSE": "Dieser Stream nutzt ein Format, das der integrierte Player nicht abspielen kann.",
+            "ERROR_GENERIC_CAUSE": "Der Stream wurde unerwartet beendet.",
+            "REPLACE_MAIN": "Hauptfenster ersetzen",
+            "CHOOSE_ANOTHER": "Andere Quelle wählen"
         }
     }
 }

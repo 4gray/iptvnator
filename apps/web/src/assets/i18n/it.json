@@ -2573,7 +2573,15 @@
             "EXIT": "Esci",
             "EXIT_HINT": "Mantieni la finestra con l’audio e chiudi le altre",
             "MAIN_ANNOUNCEMENT": "{{title}} è ora la finestra principale",
-            "TILE_KEYS_HINT": "Le frecce spostano la finestra in un altro angolo, più e meno la ridimensionano, Invio la scambia con la finestra principale."
+            "TILE_KEYS_HINT": "Le frecce spostano la finestra in un altro angolo, più e meno la ridimensionano, Invio la scambia con la finestra principale.",
+            "ERROR_TITLE": "Questo canale non si riproduce",
+            "ERROR_LIMIT_TITLE": "Limite di connessioni raggiunto",
+            "ERROR_LIMIT_CAUSE": "{{playlist}} consente {{max}} flussi alla volta e sono tutti in uso.",
+            "ERROR_NETWORK_CAUSE": "La sorgente non è raggiungibile. Potrebbe essere offline o il provider ha rifiutato un altro flusso.",
+            "ERROR_FORMAT_CAUSE": "Questo flusso usa un formato che il player integrato non supporta.",
+            "ERROR_GENERIC_CAUSE": "Il flusso si è interrotto inaspettatamente.",
+            "REPLACE_MAIN": "Sostituisci la finestra principale",
+            "CHOOSE_ANOTHER": "Scegli un'altra sorgente"
         }
     }
 }

@@ -8,6 +8,7 @@ import {
     inject,
     input,
     linkedSignal,
+    signal,
     untracked,
 } from '@angular/core';
 import {
@@ -15,8 +16,10 @@ import {
     MultiviewSessionStore,
 } from '@iptvnator/playback/multiview/data-access';
 import { injectTranslationTick } from '@iptvnator/services';
+import type { PlaybackDiagnostic } from '@iptvnator/playback/util';
 import { PLAYER_MULTIVIEW_ACTION } from '@iptvnator/ui/playback';
 import { TranslateService } from '@ngx-translate/core';
+import { MultiviewErrorCardComponent } from './multiview-error-card.component';
 import { stageMultiviewAction } from './multiview-stage-action';
 import { MultiviewTileComponent } from './multiview-tile.component';
 import {
@@ -24,6 +27,7 @@ import {
     stableTileOrder,
     type StageSize,
     type TileBox,
+    type TilePlacement,
 } from './pip-geometry';
 import {
     MULTIVIEW_BAR_HEIGHT,
@@ -43,7 +47,11 @@ const NO_BOX: TileBox = { left: 0, top: 0, width: 0, height: 0 };
     selector: 'app-multiview-stage',
     templateUrl: './multiview-stage.component.html',
     styleUrl: './multiview-stage.component.scss',
-    imports: [MultiviewTileComponent, MultiviewBarComponent],
+    imports: [
+        MultiviewTileComponent,
+        MultiviewBarComponent,
+        MultiviewErrorCardComponent,
+    ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     providers: [
         { provide: PLAYER_MULTIVIEW_ACTION, useFactory: stageMultiviewAction },
@@ -94,8 +102,31 @@ export class MultiviewStageComponent {
     }));
     readonly placements = computed(() => {
         const state = this.store.state();
-        return state ? placeTiles(this.tileArea(), state) : new Map();
+        return state
+            ? placeTiles(this.tileArea(), state)
+            : new Map<string, TilePlacement>();
     });
+    private readonly diagnostics = signal<
+        ReadonlyMap<string, PlaybackDiagnostic>
+    >(new Map());
+    /** The failed small tile, if any, with what its player reported (9.6). */
+    readonly failedPip = computed(() => {
+        for (const [id, placement] of this.placements()) {
+            const tile = this.store.tile(id);
+            const diagnostic = this.diagnostics().get(id) ?? null;
+            if (
+                tile &&
+                placement.role === 'pip' &&
+                (tile.status === 'error' || diagnostic)
+            ) {
+                return { tile, box: placement.box, diagnostic };
+            }
+        }
+        return null;
+    });
+    readonly pipCorner = computed(
+        () => this.store.pipGeometry()?.corner ?? 'bottom-right'
+    );
     /** Announced when another tile becomes the main one (spec 13). */
     readonly announcement = computed(() => {
         this.languageTick();
@@ -121,5 +152,14 @@ export class MultiviewStageComponent {
 
     tileById(id: string) {
         return this.store.tile(id);
+    }
+
+    onDiagnostic(id: string, diagnostic: PlaybackDiagnostic | null): void {
+        this.diagnostics.update((current) => {
+            const next = new Map(current);
+            if (diagnostic) next.set(id, diagnostic);
+            else next.delete(id);
+            return next;
+        });
     }
 }

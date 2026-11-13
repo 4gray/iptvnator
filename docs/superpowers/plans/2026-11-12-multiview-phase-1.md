@@ -855,18 +855,53 @@ on the way: the resize handle overlapped the label of a bottom-right tile.
 
 ### Task 12: Tile error state (R-E)
 
-**Files:** `multiview-error-overlay.component.*`, `multiview-error-copy.ts`
-(+ specs) in the UI project; Xtream mock scenario and stream handler.
+**Files:** `multiview-error-card.component.*`, `multiview-error-copy.ts`
+(+ specs) in the UI project; `connection-limit.ts` (+ spec), `scenarios.ts`,
+`server.ts` and `get-account-info.handler.ts` in the Xtream mock.
 
-- [ ] Overlay with title, one-sentence cause from the tile's diagnostic
+- [x] Error card with title, one-sentence cause from the tile's diagnostic
       (explicit wording when the budget says `active_cons >=
-      max_connections`), actions "Replace main tile", "Choose another source",
-      "Close".
-- [ ] Mock: scenario switch that refuses a stream when the account is at its
-      connection limit; default scenario unchanged (covered by the mock's own
-      spec).
+      max_connections`), actions "Replace main tile", "Choose another source"
+      (only while a picker is provided), "Close".
+- [x] Mock: the `limit:limit` account allows one connection; a further live
+      stream gets 403 while the other was requested within 20 s, and
+      `user_info` reports `max_connections` and `active_cons`. Other accounts
+      are unchanged (only `active_cons` is computed for limited scenarios).
 
-**Tests:** `pnpm nx test playback-multiview-ui xtream-mock-server`.
+**As built:**
+- The card is drawn by the stage, not inside the tile: a 240 × 135 tile
+  cannot hold a title, a cause and three buttons, and the prototype's card is
+  larger than the tile. It grows from the PiP's corner (400 px wide, at most
+  the tile area minus 2 × 16 px, never narrower than the tile), so it covers
+  the failed video and not the main tile's centre. Player palette, both
+  themes; `role="alertdialog"` named by its title.
+- It shows for a PiP tile whose player reports a diagnostic
+  (`diagnosticChanged`, re-emitted by the tile) or whose status is `error`;
+  a failing main tile keeps its own player's diagnostic panel. It goes away
+  when the diagnostic clears.
+- Cause mapping: network and browser-access → "could not be reached …
+  refused another stream"; container, codec, decode and DRM → format; other →
+  "stopped unexpectedly". The budget input exists; Task 13 supplies it.
+- "Replace main tile" moves the audio to the failed tile and removes the main
+  one, so the session ends with the failed source as survivor — one stream
+  instead of two. Adopting it follows D2: a source the view cannot select
+  falls back to the anchor's own channel (the Task 14 navigator port closes
+  this).
+- Keys `PLAYER.MULTIVIEW.ERROR_*`, `REPLACE_MAIN`, `CHOOSE_ANOTHER` in 21
+  locales; "Close" reuses the root `CLOSE`.
+
+**Tests:** `multiview-error-copy.spec.ts` (8), `multiview-error-card.component.spec.ts`
+(3: corner placement and clamping, picker replace, budget wording), stage spec
++6 (card on a PiP diagnostic, on `error` status, not for the main tile, clears
+on recovery, Close, Replace main); `connection-limit.spec.ts` (5).
+`playback-multiview-ui` 74, `xtream-mock-server` 116; lint, icon ligatures,
+`pnpm run i18n:check`, `typecheck:web`, `typecheck:spec`,
+`electron-backend:build-e2e`.
+**Live check (temporary probe, Xtream mock `limit:limit`, Electron, both
+themes):** the first channel plays, a second added stream gets 403 and the
+card appears at the PiP corner with the network cause, and the bar chip
+shows the warning icon. "Replace main tile" ends the session. One defect
+found and fixed: the card was 438 px wide (content-box padding).
 
 ### Task 13: Connection budget and picker data
 

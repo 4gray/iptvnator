@@ -22,8 +22,18 @@
                         [tile]="tile"
                         [placement]="placement"
                         [stage]="tileArea()"
+                        (diagnosticChanged)="onDiagnostic(id, $event)"
                     />
                 }
+            }
+            @if (failedPip(); as failed) {
+                <app-multiview-error-card
+                    [tile]="failed.tile"
+                    [diagnostic]="failed.diagnostic"
+                    [box]="failed.box"
+                    [corner]="pipCorner()"
+                    [stage]="tileArea()"
+                />
             }
         </div>
         <app-multiview-bar />

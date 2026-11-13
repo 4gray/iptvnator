@@ -2573,7 +2573,15 @@
             "EXIT": "Exit",
             "EXIT_HINT": "Keep the tile with sound and close the others",
             "MAIN_ANNOUNCEMENT": "{{title}} is now the main tile",
-            "TILE_KEYS_HINT": "Arrow keys move the tile to another corner, plus and minus resize it, Enter swaps it with the main tile."
+            "TILE_KEYS_HINT": "Arrow keys move the tile to another corner, plus and minus resize it, Enter swaps it with the main tile.",
+            "ERROR_TITLE": "This channel won't play",
+            "ERROR_LIMIT_TITLE": "Connection limit reached",
+            "ERROR_LIMIT_CAUSE": "{{playlist}} allows {{max}} streams at a time, and they are all in use.",
+            "ERROR_NETWORK_CAUSE": "The source could not be reached. It may be offline, or the provider refused another stream.",
+            "ERROR_FORMAT_CAUSE": "This stream uses a format the built-in player can't play.",
+            "ERROR_GENERIC_CAUSE": "The stream stopped unexpectedly.",
+            "REPLACE_MAIN": "Replace main tile",
+            "CHOOSE_ANOTHER": "Choose another source"
         }
     }
 }

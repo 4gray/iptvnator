@@ -2573,7 +2573,15 @@
             "EXIT": "Salir",
             "EXIT_HINT": "Conservar la ventana con sonido y cerrar las demás",
             "MAIN_ANNOUNCEMENT": "{{title}} es ahora la ventana principal",
-            "TILE_KEYS_HINT": "Las flechas mueven la ventana a otra esquina, más y menos cambian su tamaño, Intro la intercambia con la ventana principal."
+            "TILE_KEYS_HINT": "Las flechas mueven la ventana a otra esquina, más y menos cambian su tamaño, Intro la intercambia con la ventana principal.",
+            "ERROR_TITLE": "Este canal no se reproduce",
+            "ERROR_LIMIT_TITLE": "Límite de conexiones alcanzado",
+            "ERROR_LIMIT_CAUSE": "{{playlist}} permite {{max}} transmisiones a la vez y todas están en uso.",
+            "ERROR_NETWORK_CAUSE": "No se pudo acceder a la fuente. Puede estar sin conexión o el proveedor rechazó otra transmisión.",
+            "ERROR_FORMAT_CAUSE": "Esta transmisión usa un formato que el reproductor integrado no admite.",
+            "ERROR_GENERIC_CAUSE": "La transmisión se detuvo inesperadamente.",
+            "REPLACE_MAIN": "Reemplazar la ventana principal",
+            "CHOOSE_ANOTHER": "Elegir otra fuente"
         }
     }
 }
