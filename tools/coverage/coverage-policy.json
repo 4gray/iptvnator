@@ -111,6 +111,13 @@
                 "e2eTags": ["@persistence"]
             },
             {
+                "name": "playback-multiview-data-access",
+                "root": "libs/playback/multiview/data-access",
+                "sourceRoot": "libs/playback/multiview/data-access/src",
+                "validationCommand": "pnpm nx test playback-multiview-data-access",
+                "e2eTags": ["@playback"]
+            },
+            {
                 "name": "m3u-state",
                 "root": "libs/m3u-state",
                 "sourceRoot": "libs/m3u-state/src",

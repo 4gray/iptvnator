@@ -254,6 +254,17 @@ which holds "recently viewed" writes until playback is confirmed. It is kept
 out of `@iptvnator/services` on purpose: that barrel ships in the initial
 bundle, and this project is only reached from lazy player and portal code.
 
+`libs/playback/multiview/data-access` is the `playback-multiview-data-access`
+Nx project, imported through `@iptvnator/playback/multiview/data-access`
+(tags `scope:shared`, `domain:playback`, `type:data-access`). It owns the one
+multiview session of the app: a pure reducer for the session rules, its
+selectors and behaviour constants (no Angular imports), and the root
+`MultiviewSessionStore` that exposes them as signals. Multiview UI (stage,
+tiles, bar) lives in a separate UI project, and the source picker in a
+workspace feature project, so this project depends only on shared contracts
+and `@iptvnator/services`. The behaviour contract is
+`docs/superpowers/specs/2026-11-12-multiview-design.md`.
+
 `libs/shared/epg` is the pure `shared-epg` utility project, imported through
 `@iptvnator/shared/epg` (scope:shared, domain:shared-contracts, type:util).
 It owns epoch-millisecond time-axis projection, ticks and clipping used by Angular

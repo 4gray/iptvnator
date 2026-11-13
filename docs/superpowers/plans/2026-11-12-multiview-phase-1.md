@@ -376,15 +376,20 @@ except added cases; no release note (no user-visible change, PR label
 ### Task 2: Session reducer and store
 
 **Files:** new project `libs/playback/multiview/data-access` —
-`multiview-session.model.ts`, `multiview-session.reducer.ts` (+ spec),
+`multiview-session.model.ts`, `multiview-session.commands.ts`,
+`multiview-session.reducer.ts` (+ spec), `multiview-session.selectors.ts`,
 `multiview-behaviour.constants.ts`, `multiview-session.store.ts` (+ spec),
-`multiview-ports.ts`, `index.ts`; `tsconfig.base.json` alias.
+`index.ts`; `tsconfig.base.json` alias, `nx.json` Jest include, Tier A entry
+in `tools/coverage/coverage-policy.json`, project paragraph in
+`docs/architecture/nx-workspace-boundaries.md`. The port tokens (picker
+launcher, connection budget, tile resolver) are defined with their first
+consumer in Tasks 5 and 13 instead of here, so their shape follows real use.
 
-- [ ] Model per spec section 6: tile (`id`, `playback`, `playbackSessionKey`,
+- [x] Model per spec section 6: tile (`id`, `playback`, `playbackSessionKey`,
       `kind`, `playlistId`, `title`, `engine`, `status`, `lastPosition`),
       layout (`'pip'` only is reachable in phase 1), `activeTileId`,
       `audioTileId`, `anchorId`, PiP corner and size.
-- [ ] Reducer spec first: R1 start (tile 1 keeps engine and position, tile 2
+- [x] Reducer spec first: R1 start (tile 1 keeps engine and position, tile 2
       muted in the bottom-right corner), R2 single audio tile, R3 swap
       exchanges main and audio, R4 VOD/episode without audio is `paused` with
       its position and resumes on audio, live never pauses, R6 capacity and
@@ -393,12 +398,19 @@ except added cases; no release note (no user-visible change, PR label
       radio sources are rejected (non-goal), a parental relock removes a
       withheld tile and moves audio if needed, no next-episode autoplay while
       a session exists (D11).
-- [ ] Constants `PAUSE_VOD_WITHOUT_AUDIO` and `STOP_MUTED_LIVE_WHEN_MINIMISED`
+- [x] Constants `PAUSE_VOD_WITHOUT_AUDIO` and `STOP_MUTED_LIVE_WHEN_MINIMISED`
       (spec 5.4) as named exports read by the reducer.
-- [ ] Store: `providedIn: 'root'`, signals plus commands delegating to the
+- [x] Store: `providedIn: 'root'`, signals plus commands delegating to the
       reducer; `exists` computed; `tileNumberFor(source)` for badges; ends the
       session with a toast event when the selected player becomes
       `mpv`/`vlc`/`embedded-mpv`.
+- [x] Rules settled while writing the reducer: a swap in PiP always gives the
+      audio to the new main tile (in both R3 cases the tile that becomes
+      large ends up audible); replacing a tile's stream (R5) keeps its id,
+      engine and audio role, so the player is not re-created; an "add" that
+      replaces a tile (R6) leaves the new stream muted and hands a lost audio
+      role to the main tile; every effect is published as a numbered
+      `notice` signal for toasts and survivor adoption.
 
 **Tests:** `pnpm nx test playback-multiview-data-access`, lint, `pnpm nx show
 projects`. **Accept:** reducer is free of Angular imports; boundaries lint

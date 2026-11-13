@@ -71,6 +71,9 @@
             "@iptvnator/playback/data-access": [
                 "libs/playback/data-access/src/index.ts"
             ],
+            "@iptvnator/playback/multiview/data-access": [
+                "libs/playback/multiview/data-access/src/index.ts"
+            ],
             "@iptvnator/playback/util": ["libs/playback/util/src/index.ts"],
             "@iptvnator/playlist/shared/ui": [
                 "libs/playlist/shared/ui/src/index.ts"
