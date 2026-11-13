@@ -770,7 +770,8 @@ export class PlaylistsService {
 
     /** Applies a meta update only while the storage-current row still matches. */
     updatePlaylistMetaIfCurrent(
-        updatedPlaylist: PlaylistMetaUpdate,
+        updatedPlaylist: Pick<PlaylistMetaUpdate, '_id'> &
+            Partial<PlaylistMetaUpdate>,
         isCurrent: (playlist: Playlist) => boolean
     ) {
         return this.updatePlaylistMetaInQueue(updatedPlaylist, isCurrent);
@@ -780,11 +781,13 @@ export class PlaylistsService {
         updatedPlaylist: PlaylistMetaUpdate
     ): Observable<Playlist>;
     private updatePlaylistMetaInQueue(
-        updatedPlaylist: PlaylistMetaUpdate,
+        updatedPlaylist: Pick<PlaylistMetaUpdate, '_id'> &
+            Partial<PlaylistMetaUpdate>,
         isCurrent: (playlist: Playlist) => boolean
     ): Observable<Playlist | null>;
     private updatePlaylistMetaInQueue(
-        updatedPlaylist: PlaylistMetaUpdate,
+        updatedPlaylist: Pick<PlaylistMetaUpdate, '_id'> &
+            Partial<PlaylistMetaUpdate>,
         isCurrent?: (playlist: Playlist) => boolean
     ): Observable<Playlist | null> {
         return this.serializePlaylistWrite(updatedPlaylist._id, async () => {
@@ -813,7 +816,7 @@ export class PlaylistsService {
 
     private mergePlaylistMeta(
         playlist: Playlist,
-        updatedPlaylist: PlaylistMetaUpdate
+        updatedPlaylist: Partial<PlaylistMetaUpdate>
     ): Playlist {
         const epgSourceState = resolvePlaylistEpgSourceState({
             autoImportEpg: playlist.autoImportEpg,

@@ -121,6 +121,7 @@
                 "UPDATE_FAILED": "Laatste afspeellijstupdate mislukt",
                 "AUTO_UPDATE": "Automatisch bijwerken",
                 "AUTO_UPDATE_DESCRIPTION": "Als automatisch bijwerken is ingeschakeld, wordt de afspeellijst bij elke start van de app vernieuwd.",
+                "XTREAM_REFRESH_LIVE_ON_STARTUP": "Livekanalen vernieuwen bij het opstarten",
                 "CUSTOM_USER_AGENT": "Sommige IPTV-providers vereisen een specifieke user-agent om de afspeellijst af te spelen.",
                 "EXPORT_PLAYLIST": "Exporteer afspeellijst als m3u",
                 "SERVER_URL": "Server-URL",
@@ -177,6 +178,7 @@
             "AUTO_REFRESH_UPDATE_PARTIAL": "Automatisch vernieuwen onvolledig: {{updated}} van {{total}} afspeellijsten bijgewerkt, {{failed}} mislukt.",
             "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "Automatisch vernieuwen onvolledig: {{updated}} van {{total}} afspeellijsten bijgewerkt, {{failed}} mislukt, {{skipped}} overgeslagen (geen URL of bestandspad).",
             "AUTO_REFRESH_UPDATE_FAILED": "Automatisch vernieuwen van afspeellijsten mislukt. Geen van de {{total}} afspeellijsten kon worden bijgewerkt.",
+            "XTREAM_STARTUP_REFRESH_FAILED": "Een of meer Xtream-bronnen konden bij het opstarten niet worden vernieuwd.",
             "AUTO_REFRESH_UPDATE_SKIPPED": "Automatisch vernieuwen van afspeellijsten: {{updated}} van {{total}} bijgewerkt, {{skipped}} overgeslagen (geen URL of bestandspad).",
             "AUTO_REFRESH_ENABLED": "Automatisch vernieuwen ingeschakeld"
         },

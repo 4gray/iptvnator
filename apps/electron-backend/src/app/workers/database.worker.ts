@@ -837,6 +837,7 @@ async function executeRequest(
                     password?: string;
                     serverUrl?: string;
                     lastUpdated?: string;
+                    autoRefresh?: boolean;
                 };
             };
             return updatePlaylist(db, payload.playlistId, payload.updates);

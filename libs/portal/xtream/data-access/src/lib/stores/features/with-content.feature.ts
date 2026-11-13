@@ -1,4 +1,4 @@
-import { computed, inject } from '@angular/core';
+import { computed, inject, Injector } from '@angular/core';
 import {
     patchState,
     signalStoreFeature,
@@ -24,6 +24,7 @@ import {
     DatabaseService,
     DbOperationEvent,
     isDbAbortError,
+    ParentalLockService,
     resetHostConnectivityGuard,
     SourceActivityService,
     RuntimeCapabilitiesService,
@@ -239,6 +240,7 @@ export function withContent() {
         withMethods((store) => {
             const dataSource = inject(XTREAM_DATA_SOURCE);
             const runtime = inject(RuntimeCapabilitiesService);
+            const injector = inject(Injector);
             const usesSqlite = runtime.supportsXtreamSqliteDataSource;
             const isEnabled = (type: ContentType): boolean =>
                 !usesSqlite ||
@@ -1560,6 +1562,30 @@ export function withContent() {
                         liveStreams: [],
                         vodStreams: [],
                         serialStreams: [],
+                    });
+                },
+
+                async reloadLiveCatalog(playlistId: string): Promise<void> {
+                    const context = getCredentialsFromStore();
+                    if (context?.playlistId !== playlistId) return;
+                    const generation = cachedHydrationGeneration;
+                    const parentalLock = injector.get(ParentalLockService);
+                    const lockVersion = parentalLock.version();
+                    const [liveCategories, content] = await Promise.all([
+                        dataSource.getCachedCategories(playlistId, 'live'),
+                        dataSource.getCachedContent(playlistId, 'live'),
+                    ]);
+                    if (
+                        !isCurrentCachedHydrationContext(
+                            playlistId,
+                            generation
+                        ) ||
+                        parentalLock.version() !== lockVersion
+                    )
+                        return;
+                    patchState(store, {
+                        liveCategories,
+                        liveStreams: asCachedContent<XtreamLiveStream>(content),
                     });
                 },
 

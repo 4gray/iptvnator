@@ -121,6 +121,7 @@
                 "UPDATE_FAILED": "L'ultimo aggiornamento della playlist non è riuscito",
                 "AUTO_UPDATE": "Aggiornamento automatico",
                 "AUTO_UPDATE_DESCRIPTION": "Se la funzione di aggiornamento automatico è attivata, la playlist verrà aggiornata automaticamente ad ogni avvio dell'app.",
+                "XTREAM_REFRESH_LIVE_ON_STARTUP": "Aggiorna i canali in diretta all’avvio",
                 "CUSTOM_USER_AGENT": "Alcuni fornitori IPTV per riprodurre la loro playlist necessitano di uno user agent specifico.",
                 "EXPORT_PLAYLIST": "Esporta playlist come file m3u",
                 "SERVER_URL": "URL server",
@@ -177,6 +178,7 @@
             "AUTO_REFRESH_UPDATE_PARTIAL": "Aggiornamento automatico incompleto: aggiornate {{updated}} playlist su {{total}}, {{failed}} non riuscite.",
             "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "Aggiornamento automatico incompleto: aggiornate {{updated}} playlist su {{total}}, {{failed}} non riuscite, {{skipped}} ignorate (nessun URL o percorso file).",
             "AUTO_REFRESH_UPDATE_FAILED": "Aggiornamento automatico delle playlist non riuscito. Nessuna delle {{total}} playlist è stata aggiornata.",
+            "XTREAM_STARTUP_REFRESH_FAILED": "Impossibile aggiornare una o più sorgenti Xtream all’avvio.",
             "AUTO_REFRESH_UPDATE_SKIPPED": "Aggiornamento automatico delle playlist: aggiornate {{updated}} su {{total}}, {{skipped}} ignorate (nessun URL o percorso file).",
             "AUTO_REFRESH_ENABLED": "Aggiornamento automatico attivo"
         },

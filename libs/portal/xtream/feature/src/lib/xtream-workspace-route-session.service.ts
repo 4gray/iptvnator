@@ -1,8 +1,10 @@
+import { Location } from '@angular/common';
 import {
     DestroyRef,
     ENVIRONMENT_INITIALIZER,
     effect,
     inject,
+    Injector,
     Injectable,
     Provider,
     untracked,
@@ -17,10 +19,13 @@ import {
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
 import { SourceActivityService } from '@iptvnator/services';
+import { XtreamStartupRefreshService } from '@iptvnator/services/xtream-startup-refresh';
 import {
+    getXtreamRouteCategoryId,
     toXtreamPlaylistData,
     shouldBootstrapXtreamPlaylist,
 } from './xtream-route-playlist';
+import { reloadStartupLiveCategory } from './xtream-startup-live-category';
 
 /**
  * Sections whose content comes from the imported catalog, so a cold load
@@ -83,7 +88,9 @@ function getXtreamRouteTarget(url: string): {
     playlistId: string | null;
     section: PortalRailSection | null;
 } {
-    const match = url.match(/^\/workspace\/xtreams\/([^/?]+)(?:\/([^/?]+))?/);
+    const match = getRoutePath(url).match(
+        /^\/workspace\/xtreams\/([^/]+)(?:\/([^/]+))?/
+    );
 
     return {
         playlistId: match?.[1] ?? null,
@@ -91,28 +98,8 @@ function getXtreamRouteTarget(url: string): {
     };
 }
 
-function getXtreamRouteCategoryId(
-    url: string,
-    section: PortalRailSection | null
-): number | null {
-    if (section !== 'live' && section !== 'vod' && section !== 'series') {
-        return null;
-    }
-
-    const path = url.split('?')[0] ?? '';
-    const segments = path.split('/').filter(Boolean);
-    const categorySegment = segments[4];
-
-    if (!categorySegment) {
-        return null;
-    }
-
-    const categoryId = Number(categorySegment);
-    return Number.isNaN(categoryId) ? null : categoryId;
-}
-
 function getRoutePath(url: string): string {
-    return url.split('?')[0] ?? url;
+    return url.split(/[?#]/)[0] ?? url;
 }
 
 @Injectable()
@@ -120,8 +107,10 @@ export class XtreamWorkspaceRouteSession {
     private readonly destroyRef = inject(DestroyRef);
     private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly router = inject(Router);
+    private readonly location = inject(Location);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly activity = inject(SourceActivityService);
+    private readonly injector = inject(Injector);
     /** Sources this sync loop holds busy, released when the loop settles. */
     private readonly heldSources = new Map<string, () => void>();
 
@@ -240,6 +229,75 @@ export class XtreamWorkspaceRouteSession {
                 : null;
         const storePlaylistId = this.xtreamStore.playlistId();
         const currentPlaylist = this.xtreamStore.currentPlaylist();
+        if (
+            playlistId &&
+            routePlaylist?.updateDate &&
+            currentPlaylist &&
+            routePlaylist.updateDate !== currentPlaylist.updateDate &&
+            this.injector
+                .get(XtreamStartupRefreshService)
+                .matchesUpdate(playlistId, routePlaylist.updateDate) &&
+            !shouldBootstrapXtreamPlaylist(
+                playlistId,
+                routePlaylist,
+                storePlaylistId,
+                {
+                    ...currentPlaylist,
+                    updateDate: routePlaylist.updateDate,
+                }
+            )
+        ) {
+            try {
+                if (
+                    this.xtreamStore.contentLoadStateByType().live === 'ready'
+                ) {
+                    const isCurrent = () =>
+                        !this.destroyRef.destroyed && this.router.url === url;
+                    const routeCategoryId =
+                        routeSection === 'live'
+                            ? getXtreamRouteCategoryId(url, 'live')
+                            : null;
+                    const newRouteCategoryId = await reloadStartupLiveCategory(
+                        this.xtreamStore,
+                        playlistId,
+                        routeCategoryId,
+                        routeSection === 'live',
+                        isCurrent
+                    );
+                    if (!isCurrent()) return;
+                    if (
+                        routeCategoryId !== newRouteCategoryId &&
+                        !this.router.currentNavigation()
+                    ) {
+                        const path = getRoutePath(url);
+                        const liveRoot = path.slice(0, path.lastIndexOf('/'));
+                        const newPath =
+                            newRouteCategoryId === null
+                                ? liveRoot
+                                : `${liveRoot}/${newRouteCategoryId}`;
+                        // Keep the history entry that Back will return to.
+                        await this.router.navigateByUrl(
+                            newPath + url.slice(path.length),
+                            {
+                                replaceUrl: true,
+                                state: this.location.getState() as Record<
+                                    string,
+                                    unknown
+                                >,
+                            }
+                        );
+                    }
+                    void this.xtreamStore.refreshSearchResults();
+                }
+                this.xtreamStore.setCurrentPlaylist({
+                    ...currentPlaylist,
+                    updateDate: routePlaylist.updateDate,
+                });
+                return;
+            } catch {
+                // Fall through to the regular route bootstrap if a cache read fails.
+            }
+        }
         const shouldBootstrapPlaylist = shouldBootstrapXtreamPlaylist(
             playlistId,
             routePlaylist,

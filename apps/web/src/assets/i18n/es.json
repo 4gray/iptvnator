@@ -121,6 +121,7 @@
                 "UPDATE_FAILED": "Última actualización de la lista fallida",
                 "AUTO_UPDATE": "Auto-actualizar",
                 "AUTO_UPDATE_DESCRIPTION": "Si la función de auto-actualizar se activa, la lista de reproducción se refrescará automáticamente cada vez que se inicia la app.",
+                "XTREAM_REFRESH_LIVE_ON_STARTUP": "Actualizar los canales en directo al iniciar",
                 "CUSTOM_USER_AGENT": "Algunos proveedores de IPTV necesitan especificar el agente de usuario para reproducir su lista de reproducción.",
                 "EXPORT_PLAYLIST": "Exportar lista como m3u",
                 "SERVER_URL": "URL del servidor",
@@ -177,6 +178,7 @@
             "AUTO_REFRESH_UPDATE_PARTIAL": "Auto-actualización incompleta: se actualizaron {{updated}} de {{total}} listas de reproducción, {{failed}} fallaron.",
             "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "Auto-actualización incompleta: se actualizaron {{updated}} de {{total}} listas de reproducción, {{failed}} fallaron, {{skipped}} omitidas (sin URL ni ruta de archivo).",
             "AUTO_REFRESH_UPDATE_FAILED": "La auto-actualización de listas de reproducción falló. Ninguna de las {{total}} listas se pudo actualizar.",
+            "XTREAM_STARTUP_REFRESH_FAILED": "No se pudieron actualizar una o más fuentes de Xtream al iniciar.",
             "AUTO_REFRESH_UPDATE_SKIPPED": "Auto-actualización de listas de reproducción: se actualizaron {{updated}} de {{total}}, {{skipped}} omitidas (sin URL ni ruta de archivo).",
             "AUTO_REFRESH_ENABLED": "Auto-actualización activada"
         },

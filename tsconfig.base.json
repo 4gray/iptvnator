@@ -183,6 +183,9 @@
             "@iptvnator/services/xtream-catalog-refresh": [
                 "libs/services/src/lib/xtream-selected-catalog-refresh.service.ts"
             ],
+            "@iptvnator/services/xtream-startup-refresh": [
+                "libs/services/src/lib/xtream-startup-refresh.service.ts"
+            ],
             "@iptvnator/services/xtream-catalog-restore": [
                 "libs/services/src/lib/xtream-deferred-catalog-restore.service.ts"
             ],

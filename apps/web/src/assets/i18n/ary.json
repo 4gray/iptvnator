@@ -121,6 +121,7 @@
                 "UPDATE_FAILED": "التحديث الأخير ديال قائمة التشغيل فشل",
                 "AUTO_UPDATE": "تحديث تلقائي",
                 "AUTO_UPDATE_DESCRIPTION": "إلى كانت خاصية التحديث التلقائي مفعّلة، قائمة التشغيل غادي تتحدث أوتوماتيكياً كل مرة كيتحل التطبيق.",
+                "XTREAM_REFRESH_LIVE_ON_STARTUP": "حدّث قنوات اللايف ملي يتحلّ التطبيق",
                 "CUSTOM_USER_AGENT": "بعض مزودي IPTV كيحتاجو وكيل مستخدم محدد باش يخدمو قائمة التشغيل ديالهم.",
                 "EXPORT_PLAYLIST": "صدّر قائمة التشغيل على شكل m3u",
                 "SERVER_URL": "رابط الخادم",
@@ -177,6 +178,7 @@
             "AUTO_REFRESH_UPDATE_PARTIAL": "التحديث التلقائي ما كملش: تحدّاو {{updated}} من {{total}} ديال قوائم التشغيل، و{{failed}} فشلو.",
             "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "التحديث التلقائي ما كملش: تحدّاو {{updated}} من {{total}} ديال قوائم التشغيل، {{failed}} فشلو، و{{skipped}} تخطاو (بلا رابط ولا مسار ملف).",
             "AUTO_REFRESH_UPDATE_FAILED": "فشل التحديث التلقائي ديال قوائم التشغيل. حتى وحدة من {{total}} ما تحدّاتش.",
+            "XTREAM_STARTUP_REFRESH_FAILED": "ما قدرناش نحدّثو مصدر Xtream واحد ولا كثر ملي تحلّ التطبيق.",
             "AUTO_REFRESH_UPDATE_SKIPPED": "التحديث التلقائي ديال قوائم التشغيل: تحدّاو {{updated}} من {{total}}، و{{skipped}} تخطاو (بلا رابط ولا مسار ملف).",
             "AUTO_REFRESH_ENABLED": "التحديث التلقائي مفعل"
         },

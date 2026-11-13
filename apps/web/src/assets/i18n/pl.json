@@ -121,6 +121,7 @@
                 "UPDATE_FAILED": "Ostatnia aktualizacja listy odtwarzania nie powiodła się",
                 "AUTO_UPDATE": "Automatyczna aktualizacja",
                 "AUTO_UPDATE_DESCRIPTION": "Jeśli funkcja automatycznego odświeżania jest aktywna, lista odtwarzania będzie automatycznie aktualizowana przy każdym uruchomieniu aplikacji.",
+                "XTREAM_REFRESH_LIVE_ON_STARTUP": "Odświeżaj kanały na żywo przy uruchamianiu",
                 "CUSTOM_USER_AGENT": "Niektórzy dostawcy IPTV wymagają określonego agenta użytkownika, aby odtworzyć ich listę odtwarzania.",
                 "EXPORT_PLAYLIST": "Eksportuj listę odtwarzania jako m3u",
                 "SERVER_URL": "URL serwera",
@@ -177,6 +178,7 @@
             "AUTO_REFRESH_UPDATE_PARTIAL": "Automatyczne odświeżanie niekompletne: zaktualizowano {{updated}} z {{total}} list odtwarzania, {{failed}} nie powiodło się.",
             "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "Automatyczne odświeżanie niekompletne: zaktualizowano {{updated}} z {{total}} list odtwarzania, {{failed}} nie powiodło się, pominięto {{skipped}} (brak adresu URL lub ścieżki pliku).",
             "AUTO_REFRESH_UPDATE_FAILED": "Automatyczne odświeżanie list odtwarzania nie powiodło się. Nie zaktualizowano żadnej z {{total}} list.",
+            "XTREAM_STARTUP_REFRESH_FAILED": "Nie udało się odświeżyć co najmniej jednego źródła Xtream przy uruchamianiu.",
             "AUTO_REFRESH_UPDATE_SKIPPED": "Automatyczne odświeżanie list odtwarzania: zaktualizowano {{updated}} z {{total}}, pominięto {{skipped}} (brak adresu URL lub ścieżki pliku).",
             "AUTO_REFRESH_ENABLED": "Automatyczne odświeżanie włączone"
         },

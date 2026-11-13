@@ -121,6 +121,7 @@
                 "UPDATE_FAILED": "上次播放清單更新失敗",
                 "AUTO_UPDATE": "自動更新",
                 "AUTO_UPDATE_DESCRIPTION": "如果啟動自動重新整理功能，則每次啟動應用程式時都將自動更新播放清單。",
+                "XTREAM_REFRESH_LIVE_ON_STARTUP": "啟動時重新整理直播頻道",
                 "CUSTOM_USER_AGENT": "部分 IPTV 服務提供者需要特定的 User-Agent 才能播放他們的播放清單。",
                 "EXPORT_PLAYLIST": "以 m3u 格式匯出播放清單",
                 "SERVER_URL": "伺服器網址",
@@ -177,6 +178,7 @@
             "AUTO_REFRESH_UPDATE_PARTIAL": "播放清單自動重新整理未完成：{{total}} 個播放清單中已更新 {{updated}} 個，{{failed}} 個失敗。",
             "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "播放清單自動重新整理未完成：{{total}} 個播放清單中已更新 {{updated}} 個，{{failed}} 個失敗，略過 {{skipped}} 個（沒有 URL 或檔案路徑）。",
             "AUTO_REFRESH_UPDATE_FAILED": "播放清單自動重新整理失敗。{{total}} 個播放清單皆未更新。",
+            "XTREAM_STARTUP_REFRESH_FAILED": "啟動時無法重新整理一或多個 Xtream 來源。",
             "AUTO_REFRESH_UPDATE_SKIPPED": "播放清單自動重新整理：{{total}} 個中已更新 {{updated}} 個，略過 {{skipped}} 個（沒有 URL 或檔案路徑）。",
             "AUTO_REFRESH_ENABLED": "已啟用自動重新整理"
         },

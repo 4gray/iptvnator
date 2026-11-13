@@ -121,6 +121,7 @@
                 "UPDATE_FAILED": "A lejátszási lista legutóbbi frissítése sikertelen volt",
                 "AUTO_UPDATE": "Automatikus frissítés",
                 "AUTO_UPDATE_DESCRIPTION": "Az automatikus frissítés bekapcsolásakor a lejátszási lista az alkalmazás minden indításakor automatikusan frissül.",
+                "XTREAM_REFRESH_LIVE_ON_STARTUP": "Élő tévécsatornák frissítése indításkor",
                 "CUSTOM_USER_AGENT": "Egyes IPTV-szolgáltatóknál a lejátszási lista használatához meghatározott User-Agent HTTP-fejléc szükséges.",
                 "EXPORT_PLAYLIST": "Lejátszási lista exportálása M3U-fájlként",
                 "SERVER_URL": "Kiszolgáló URL-címe",
@@ -177,6 +178,7 @@
             "AUTO_REFRESH_UPDATE_PARTIAL": "Az automatikus frissítés csak részben sikerült: {{total}} lejátszási listából {{updated}} frissült, {{failed}} esetében hiba történt.",
             "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "Az automatikus frissítés csak részben sikerült: {{total}} lejátszási listából {{updated}} frissült, {{failed}} esetében hiba történt, {{skipped}} pedig URL-cím vagy fájlelérési út hiányában kimaradt.",
             "AUTO_REFRESH_UPDATE_FAILED": "A lejátszási listák automatikus frissítése sikertelen volt: a {{total}} lista közül egyet sem sikerült frissíteni.",
+            "XTREAM_STARTUP_REFRESH_FAILED": "Egy vagy több Xtream-forrás frissítése sikertelen volt indításkor.",
             "AUTO_REFRESH_UPDATE_SKIPPED": "Automatikus frissítés: {{total}} listából {{updated}} frissült, {{skipped}} pedig kimaradt (hiányzó URL-cím vagy fájlelérési út miatt).",
             "AUTO_REFRESH_ENABLED": "Automatikus frissítés bekapcsolva"
         },

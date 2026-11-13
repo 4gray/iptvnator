@@ -25,6 +25,10 @@ export const PlaylistActions = createActionGroup({
         'Add Playlist': props<{ playlist: Playlist }>(),
         'Add Many Playlists': props<{ playlists: Playlist[] }>(),
         'Playlist Removal Committed': props<{ playlistId: string }>(),
+        'Xtream Startup Refresh Committed': props<{
+            playlistId: string;
+            updateDate: number;
+        }>(),
         'Update Playlist Meta': props<{
             playlist: PlaylistMetaUpdate;
             /**

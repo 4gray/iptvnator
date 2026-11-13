@@ -121,6 +121,7 @@
                 "UPDATE_FAILED": "Last playlist update failed",
                 "AUTO_UPDATE": "Auto-update",
                 "AUTO_UPDATE_DESCRIPTION": "If the auto-refresh function is activated, the playlist will be updated automatically each time the app is started.",
+                "XTREAM_REFRESH_LIVE_ON_STARTUP": "Refresh live channels on startup",
                 "CUSTOM_USER_AGENT": "Some IPTV providers need a specific user-agent in order to play their playlist.",
                 "EXPORT_PLAYLIST": "Export playlist as m3u",
                 "SERVER_URL": "Server URL",
@@ -177,6 +178,7 @@
             "AUTO_REFRESH_UPDATE_PARTIAL": "Playlist auto-refresh incomplete: {{updated}} of {{total}} playlists updated, {{failed}} failed.",
             "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "Playlist auto-refresh incomplete: {{updated}} of {{total}} playlists updated, {{failed}} failed, {{skipped}} skipped (no URL or file path).",
             "AUTO_REFRESH_UPDATE_FAILED": "Playlist auto-refresh failed. None of the {{total}} playlists could be updated.",
+            "XTREAM_STARTUP_REFRESH_FAILED": "Couldn’t refresh one or more Xtream sources on startup.",
             "AUTO_REFRESH_UPDATE_SKIPPED": "Playlist auto-refresh: {{updated}} of {{total}} playlists updated, {{skipped}} skipped (no URL or file path).",
             "AUTO_REFRESH_ENABLED": "Auto-refresh enabled"
         },
