@@ -2,6 +2,7 @@ import {
     ChangeDetectionStrategy,
     Component,
     computed,
+    DestroyRef,
     effect,
     inject,
     linkedSignal,
@@ -257,6 +258,7 @@ export class M3uSeriesDetailRouteComponent {
 
     constructor() {
         this.menu.connect(this.seasonContainer);
+        inject(DestroyRef).onDestroy(() => (this.destroyed = true));
 
         // Reads the ids only, not the series: a catalog rebuild must not
         // re-read the positions, which also releases the progress throttle.
@@ -401,6 +403,17 @@ export class M3uSeriesDetailRouteComponent {
     }
 
     private shownSeriesKey = '';
+    private destroyed = false;
+
+    /**
+     * Whether an answer that arrives later (the positions read, the PIN
+     * prompt) still belongs to the page it was asked on. Leaving the page
+     * does not move `shownSeriesKey`, so its destruction is checked too:
+     * an MPV/VLC launch would otherwise open after the viewer left.
+     */
+    private isStillShown(key: string): boolean {
+        return !this.destroyed && key === this.shownSeriesKey;
+    }
 
     /** "Play from beginning" on an episode with saved progress. */
     protected onEpisodeRestartRequested(episode: XtreamSerieEpisode): void {
@@ -419,7 +432,7 @@ export class M3uSeriesDetailRouteComponent {
 
         const key = this.shownSeriesKey;
         void pending.then(() => {
-            if (key === this.shownSeriesKey) {
+            if (this.isStillShown(key)) {
                 this.openEpisode(episode);
             }
         });
@@ -440,7 +453,7 @@ export class M3uSeriesDetailRouteComponent {
         // the answer can arrive after the viewer has moved on.
         const key = this.shownSeriesKey;
         void this.access.requestAccess(playlistId, channel).then((granted) => {
-            if (granted && key === this.shownSeriesKey) {
+            if (granted && this.isStillShown(key)) {
                 this.play(episode, channel, playlistId, fromStart);
             }
         });

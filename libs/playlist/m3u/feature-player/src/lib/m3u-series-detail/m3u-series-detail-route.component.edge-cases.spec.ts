@@ -254,6 +254,48 @@ describe('M3uSeriesDetailRouteComponent edge cases', () => {
         expect(access.recordWhenPlayed).not.toHaveBeenCalled();
     });
 
+    it('opens no MPV or VLC player when the positions arrive after the page closed', async () => {
+        portalPlayer.isEmbeddedPlayer.mockReturnValue(false);
+        let deliver: (rows: unknown[]) => void = () => undefined;
+        positionBridge.getSeriesPlaybackPositions.mockReturnValueOnce(
+            new Promise<unknown[]>((resolve) => {
+                deliver = resolve;
+            })
+        );
+        const { fixture, page } = await render();
+        page.onEpisodeClicked(page.seasons()['1'][0]);
+
+        // Leaving for Movies or Settings keeps the series key unchanged.
+        fixture.destroy();
+        deliver([]);
+        await settle();
+
+        expect(portalPlayer.openResolvedPlayback).not.toHaveBeenCalled();
+        expect(access.recordWhenPlayed).not.toHaveBeenCalled();
+    });
+
+    it('opens no MPV or VLC player when the PIN is entered after the page closed', async () => {
+        portalPlayer.isEmbeddedPlayer.mockReturnValue(false);
+        access.isWithheld.mockReturnValue(true);
+        let answer: (granted: boolean) => void = () => undefined;
+        access.requestAccess.mockReturnValueOnce(
+            new Promise<boolean>((resolve) => {
+                answer = resolve;
+            })
+        );
+        const { fixture, page } = await render();
+        page.onEpisodeClicked(page.seasons()['1'][0]);
+        await settle();
+        expect(access.requestAccess).toHaveBeenCalledTimes(1);
+
+        fixture.destroy();
+        answer(true);
+        await settle();
+
+        expect(portalPlayer.openResolvedPlayback).not.toHaveBeenCalled();
+        expect(access.recordWhenPlayed).not.toHaveBeenCalled();
+    });
+
     it('ignores an episode the series does not hold', async () => {
         const { page } = await render();
 
