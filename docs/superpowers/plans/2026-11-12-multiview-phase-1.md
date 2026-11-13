@@ -682,6 +682,41 @@ so those existing specs would have had to change. Now:
   tokens were not exercised (the mock's links are reusable): if a real portal
   refuses the reused link, tile 1 shows the error state of Task 12.
 
+#### Task 9 as built (detail pages' inline player)
+
+- `portal-inline-player-multiview-host.ts`: anchor id
+  `portal-inline-player`; kind `live` / `episode` (episode metadata present)
+  / `vod`; `playlistId` from `playback.contentInfo`; engine = the host's
+  `playerOverride`, else the Settings player. No `adopt()`: the inline player
+  cannot switch titles itself.
+- R9 for every tile: `MultiviewTileSource.persistPosition` is called on each
+  tile time update. The inline player passes its own `timeUpdate` output, so
+  tile 1's progress reaches the page's existing saving code (Xtream, Stalker,
+  M3U VOD detail, series pages) exactly as in single playback. Sources added
+  later (picker, Task 13) set it for their own content.
+- `portal-inline-player.component.{ts,html}`: anchor field,
+  `provideMultiviewAnchor`, placeholder branch, `appMultiviewPlayer`.
+  Episode autoplay (D11) needs nothing extra: the page only advances on the
+  inline player's `playbackEnded`, which tiles never emit.
+- `portal-inline-player.multiview.spec.ts` (5); stage spec +1 for
+  `persistPosition`.
+- Checks: `ui-playback` 1772, `playback-multiview-ui` 23, data-access 75,
+  `portal-xtream-feature` 735, `portal-stalker-feature` 598,
+  `playlist-m3u-feature-player` 192 (no existing spec edited); lint,
+  typecheck, build-e2e.
+- Live check, Electron + Xtream mock movie (temporary probe): tile 1
+  continued at the player's position (2.66 s), its progress kept reaching
+  the page during the session (2.7 → 6.3 s), after a swap the movie was held
+  paused and muted at 6.52 s.
+- **Gap found (D2), new item for Task 14:** when the survivor is something
+  the anchor view cannot show itself (here a live channel after a movie
+  page's session), the view returns to its own title and the survivor is
+  lost. D2 asks for navigating to the survivor instead. Plan: a
+  `MULTIVIEW_SURVIVOR_NAVIGATOR` port in data-access, provided by the
+  workspace feature that already knows how Recent/Favorites open items; the
+  anchor calls it when `adopt()` is absent or declines. Until then this
+  only happens through debug entry points (no picker yet).
+
 ### Task 11: Tile chrome, multiview bar, swap, audio, close, exit
 
 **Files:** `libs/playback/multiview/ui` — `multiview-tile-chrome.component.*`,

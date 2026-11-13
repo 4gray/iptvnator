@@ -215,6 +215,25 @@ describe('MultiviewStageComponent', () => {
         expect(main.startTime()).toBe(3913);
     });
 
+    it('saves progress through the source the way its player would (R9)', () => {
+        const persistPosition = jest.fn();
+        store.start(
+            'xtream-live',
+            { ...source('movie', 'vod', 10), persistPosition },
+            VideoPlayer.VideoJs,
+            source('match')
+        );
+        fixture.detectChanges();
+        fixture.detectChanges();
+
+        players()[0].timeUpdate.emit({ currentTime: 12.5, duration: 90 });
+
+        expect(persistPosition).toHaveBeenCalledWith({
+            currentTime: 12.5,
+            duration: 90,
+        });
+    });
+
     it('marks a failed tile', () => {
         start();
         players()[1].playbackFailed.emit('network');

@@ -37,6 +37,14 @@ export interface MultiviewTileSource {
     readonly radio?: boolean;
     /** VOD position to start from, in seconds. */
     readonly position?: number;
+    /**
+     * Saves the tile's playback progress the way its single player would
+     * (R9). Called on every time update of the tile.
+     */
+    readonly persistPosition?: (event: {
+        readonly currentTime: number;
+        readonly duration: number;
+    }) => void;
 }
 
 export interface MultiviewTile extends MultiviewTileSource {

@@ -79,31 +79,36 @@
                     [style.--ambient-image]="ambientImageStyle()"
                 ></div>
             }
-            <app-web-player-view
-                [playbackSessionKey]="playbackSessionKey()"
-                [streamUrl]="streamUrl()"
-                [title]="title()"
-                [mediaTitle]="playerMediaTitle()"
-                [upNext]="playerUpNext()"
-                [playback]="playback()"
-                [volume]="volume()"
-                [playerOverride]="playerOverride()"
-                [startTime]="startTime()"
-                [seriesNavigation]="seriesNavigation()"
-                [alternativeSources]="alternativeSources()"
-                (alternativeSourceRequested)="
-                    alternativeSourceRequested.emit($event)
-                "
-                (sourceCheckRequested)="sourceCheckRequested.emit($event)"
-                (playbackFailed)="playbackFailed.emit($event)"
-                (timeUpdate)="onTimeUpdate($event)"
-                (playbackEnded)="onPlaybackEnded()"
-                (previousEpisodeRequested)="onPreviousEpisodeRequested()"
-                (nextEpisodeRequested)="onNextEpisodeRequested()"
-                (externalFallbackRequested)="
-                    onExternalFallbackRequested($event)
-                "
-            />
+            @if (multiviewAnchor.ownsSession()) {
+                <app-multiview-anchor-placeholder [anchor]="multiviewAnchor" />
+            } @else {
+                <app-web-player-view
+                    appMultiviewPlayer
+                    [playbackSessionKey]="playbackSessionKey()"
+                    [streamUrl]="streamUrl()"
+                    [title]="title()"
+                    [mediaTitle]="playerMediaTitle()"
+                    [upNext]="playerUpNext()"
+                    [playback]="playback()"
+                    [volume]="volume()"
+                    [playerOverride]="playerOverride()"
+                    [startTime]="startTime()"
+                    [seriesNavigation]="seriesNavigation()"
+                    [alternativeSources]="alternativeSources()"
+                    (alternativeSourceRequested)="
+                        alternativeSourceRequested.emit($event)
+                    "
+                    (sourceCheckRequested)="sourceCheckRequested.emit($event)"
+                    (playbackFailed)="playbackFailed.emit($event)"
+                    (timeUpdate)="onTimeUpdate($event)"
+                    (playbackEnded)="onPlaybackEnded()"
+                    (previousEpisodeRequested)="onPreviousEpisodeRequested()"
+                    (nextEpisodeRequested)="onNextEpisodeRequested()"
+                    (externalFallbackRequested)="
+                        onExternalFallbackRequested($event)
+                    "
+                />
+            }
             @if (upNextRailVisible()) {
                 <app-up-next-rail
                     class="player-shell__rail"

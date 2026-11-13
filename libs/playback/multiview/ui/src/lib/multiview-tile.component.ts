@@ -48,8 +48,10 @@ export class MultiviewTileComponent {
     readonly startTime = computed(() => this.tile().position ?? 0);
     private reportedSecond = -1;
 
-    onTimeUpdate(event: { currentTime: number }): void {
+    onTimeUpdate(event: { currentTime: number; duration: number }): void {
         const tile = this.tile();
+        // R9: progress is saved exactly as the source's own player saves it.
+        tile.persistPosition?.(event);
         const second = Math.floor(event.currentTime);
         if (tile.kind === 'live' || second === this.reportedSecond) return;
         this.reportedSecond = second;
