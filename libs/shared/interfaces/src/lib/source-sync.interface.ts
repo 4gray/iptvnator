@@ -41,6 +41,16 @@ export interface SavedSourceServerConnection extends SourceServerConnection {
     hasToken: boolean;
 }
 
+export const TMDB_TRANSFER_CODE_LENGTH = 4;
+export const TMDB_TRANSFER_CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTVWXYZ';
+const tmdbTransferCodePattern = new RegExp(
+    `^[${TMDB_TRANSFER_CODE_ALPHABET}]{${TMDB_TRANSFER_CODE_LENGTH}}$`
+);
+
+export function isTmdbTransferCode(value: unknown): value is string {
+    return typeof value === 'string' && tmdbTransferCodePattern.test(value);
+}
+
 export function isTmdbTransferCapability(value: unknown): value is string {
     return typeof value === 'string' && /^[A-Za-z0-9_-]{32}$/.test(value);
 }
@@ -56,7 +66,7 @@ export function isTmdbTransferKey(value: unknown): value is string {
 
 // The shared trace redactor recognizes credential fields ending in Token.
 export type TmdbTransferRequest =
-    | { action: 'start' }
+    | { action: 'start'; codeFormat?: 'short' }
     | { action: 'check' | 'status' | 'claim' | 'cancel'; transferToken: string }
     | { action: 'send'; transferToken: string; apiKey: string };
 

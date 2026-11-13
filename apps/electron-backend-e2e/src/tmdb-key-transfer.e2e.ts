@@ -33,16 +33,22 @@ async function openTransfer(page: Page) {
 async function receive(page: Page) {
     const dialog = await openTransfer(page);
     await dialog.getByRole('button', { name: 'Receive key' }).click();
+    const tiles = dialog
+        .getByRole('group', { name: 'Transfer code' })
+        .locator('.transfer-code__character');
+    await expect(tiles).toHaveCount(4);
     return {
         dialog,
-        code: await dialog.getByLabel('Transfer code').inputValue(),
+        code: (await tiles.allTextContents())
+            .map((tile) => tile.trim())
+            .join(''),
     };
 }
 
 async function send(page: Page, code: string) {
     const dialog = await openTransfer(page);
     await dialog.getByRole('button', { name: 'Send a saved key' }).click();
-    await dialog.getByLabel('Transfer code').fill(code);
+    await dialog.getByLabel('Transfer code').fill(code.toLowerCase());
     await dialog.getByRole('button', { name: 'Send key', exact: true }).click();
     return dialog;
 }

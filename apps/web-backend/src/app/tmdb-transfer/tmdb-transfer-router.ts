@@ -1,15 +1,39 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomInt } from 'node:crypto';
 import {
+    TMDB_TRANSFER_CODE_ALPHABET,
+    TMDB_TRANSFER_CODE_LENGTH,
     isTmdbTransferCapability,
+    isTmdbTransferCode,
     isTmdbTransferKey,
     type TmdbTransferSession,
 } from '@iptvnator/shared/interfaces';
-import express, { Router } from 'express';
+import express, { Router, type Request } from 'express';
 import { ipKeyGenerator, rateLimit } from 'express-rate-limit';
 import { StorageRequestError } from '../storage/storage-route-errors';
 
 const TTL = 5 * 60_000;
 const MAX_SESSIONS = 32;
+
+const transferLimit = (limit: number) =>
+    rateLimit({
+        windowMs: 60_000,
+        limit,
+        standardHeaders: 'draft-8',
+        legacyHeaders: false,
+        message: { code: 'transfer_busy' },
+        keyGenerator: (req: Request) =>
+            ipKeyGenerator(req.socket.remoteAddress ?? 'unknown'),
+    });
+
+function generateShortCode(): string {
+    return Array.from(
+        { length: TMDB_TRANSFER_CODE_LENGTH },
+        () =>
+            TMDB_TRANSFER_CODE_ALPHABET[
+                randomInt(TMDB_TRANSFER_CODE_ALPHABET.length)
+            ]
+    ).join('');
+}
 
 interface Session extends Omit<TmdbTransferSession, 'expiresInMs'> {
     expiresAt: number;
@@ -22,15 +46,8 @@ export function createTmdbTransferRouter(instanceId: string): Router {
     const router = Router();
     const receivers = new Map<string, Session>();
     const senders = new Map<string, Session>();
-    const limitStart = rateLimit({
-        windowMs: 60_000,
-        limit: 6,
-        standardHeaders: 'draft-8',
-        legacyHeaders: false,
-        message: { code: 'transfer_busy' },
-        keyGenerator: (req) =>
-            ipKeyGenerator(req.socket.remoteAddress ?? 'unknown'),
-    });
+    const limitStart = transferLimit(6);
+    const limitShortCode = transferLimit(12);
     const remove = (session: Session) => {
         clearTimeout(session.timer);
         receivers.delete(session.receiverToken);
@@ -51,10 +68,19 @@ export function createTmdbTransferRouter(instanceId: string): Router {
             next();
         },
         express.json({ limit: '4kb', inflate: false }),
-        (req, res, next) =>
-            req.body?.action === 'start' ? limitStart(req, res, next) : next(),
+        (req, res, next) => {
+            const { action, transferToken } = req.body ?? {};
+            if (action === 'start') return limitStart(req, res, next);
+            if (
+                (action === 'check' || action === 'send') &&
+                isTmdbTransferCode(transferToken)
+            )
+                return limitShortCode(req, res, next);
+            next();
+        },
         (req, res) => {
-            const { action, transferToken, apiKey } = req.body ?? {};
+            const { action, transferToken, apiKey, codeFormat } =
+                req.body ?? {};
             if (action === 'start') {
                 if (receivers.size >= MAX_SESSIONS)
                     throw new StorageRequestError(
@@ -62,15 +88,22 @@ export function createTmdbTransferRouter(instanceId: string): Router {
                         'transfer_busy',
                         'Too many transfers. Try again shortly.'
                     );
+                const generateSenderToken =
+                    codeFormat === 'short'
+                        ? generateShortCode
+                        : () => randomBytes(24).toString('base64url');
+                let senderToken = generateSenderToken();
+                while (senders.has(senderToken))
+                    senderToken = generateSenderToken();
                 const session: Session = {
                     receiverToken: randomBytes(24).toString('base64url'),
-                    senderToken: randomBytes(24).toString('base64url'),
+                    senderToken,
                     expiresAt: Date.now() + TTL,
                     timer: setTimeout(() => remove(session), TTL).unref(),
                 };
                 receivers.set(session.receiverToken, session);
                 senders.set(session.senderToken, session);
-                const { receiverToken, senderToken } = session;
+                const { receiverToken } = session;
                 res.status(201).json({
                     receiverToken,
                     senderToken,
@@ -80,9 +113,11 @@ export function createTmdbTransferRouter(instanceId: string): Router {
             }
 
             const sender = action === 'check' || action === 'send';
-            const session = isTmdbTransferCapability(transferToken)
-                ? (sender ? senders : receivers).get(transferToken)
-                : undefined;
+            const session =
+                isTmdbTransferCapability(transferToken) ||
+                (sender && isTmdbTransferCode(transferToken))
+                    ? (sender ? senders : receivers).get(transferToken)
+                    : undefined;
             if (!session || session.expiresAt <= Date.now()) {
                 if (session) remove(session);
                 throw new StorageRequestError(
