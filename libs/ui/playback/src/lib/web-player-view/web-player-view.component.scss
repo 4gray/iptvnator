@@ -43,3 +43,10 @@ app-html-video-player {
     height: 100%;
     background: #000;
 }
+
+// Multiview R1/R5: a channel row is dragged over the view's own player
+// (`appMultiviewPlayer` marks the host); the player accent of the tiles.
+app-web-player-view.multiview-drop-target .web-player-view {
+    outline: 2px solid #4f8eff;
+    outline-offset: -2px;
+}

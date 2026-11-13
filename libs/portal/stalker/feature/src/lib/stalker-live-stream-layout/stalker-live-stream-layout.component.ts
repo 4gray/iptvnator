@@ -2,6 +2,7 @@ import { stalkerFavoriteReference } from '@iptvnator/shared/interfaces/favorites
 import {
     ChannelContextMenuComponent,
     ChannelScrollFocusDirective,
+    MultiviewChannelDirective,
 } from '@iptvnator/ui/components';
 import { NgTemplateOutlet } from '@angular/common';
 import {
@@ -160,12 +161,14 @@ import {
     provideMultiviewAnchor,
 } from '@iptvnator/ui/playback/multiview-anchor';
 import { createStalkerLiveMultiviewHost } from './stalker-live-multiview-host';
+import { provideStalkerMultiviewChannels } from './stalker-multiview-channel';
 
 @Component({
     selector: 'app-stalker-live-stream-layout',
     templateUrl: './stalker-live-stream-layout.component.html',
     styleUrls: ['./stalker-live-stream-layout.component.scss'],
     imports: [
+        MultiviewChannelDirective,
         ChannelContextMenuComponent,
         ChannelScrollFocusDirective,
         AudioPlayerComponent,
@@ -190,6 +193,9 @@ import { createStalkerLiveMultiviewHost } from './stalker-live-multiview-host';
     providers: [
         provideMultiviewAnchor(
             () => inject(StalkerLiveStreamLayoutComponent).multiviewAnchor
+        ),
+        provideStalkerMultiviewChannels(() =>
+            inject(StalkerLiveStreamLayoutComponent)
         ),
         // The fullscreen channel panel inside the player renders this
         // category's channel list (see the `fullscreenChannelPanel` template).
@@ -241,6 +247,7 @@ export class StalkerLiveStreamLayoutComponent
         () => this.stalkerStore.selectedContentType() === 'radio'
     );
     readonly itvChannels = this.stalkerStore.itvChannels;
+    readonly multiviewPlaylist = this.stalkerStore.currentPlaylist;
     readonly radioChannels = this.stalkerStore.radioChannels;
     readonly channels = computed(() =>
         this.isRadioMode() ? this.radioChannels() : this.itvChannels()

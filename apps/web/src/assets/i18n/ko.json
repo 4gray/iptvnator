@@ -1099,7 +1099,9 @@
             "SEARCH_PLACEHOLDER": "그룹 검색...",
             "NO_RESULTS": "일치하는 그룹을 찾을 수 없습니다",
             "SAVE": "저장"
-        }
+        },
+        "MULTIVIEW_TILE": "타일 {{number}}에서 재생 중",
+        "MULTIVIEW_TILE_SOUND": "타일 {{number}}에서 소리와 함께 재생 중"
     },
     "TOP_MENU": {
         "OPEN_EPG_GUIDE": "프로그램 가이드"

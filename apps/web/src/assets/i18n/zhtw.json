@@ -1099,7 +1099,9 @@
             "SEARCH_PLACEHOLDER": "搜尋群組...",
             "NO_RESULTS": "找不到符合的群組",
             "SAVE": "儲存"
-        }
+        },
+        "MULTIVIEW_TILE": "正在視窗 {{number}} 中顯示",
+        "MULTIVIEW_TILE_SOUND": "正在視窗 {{number}} 中有聲顯示"
     },
     "TOP_MENU": {
         "OPEN_EPG_GUIDE": "節目表"

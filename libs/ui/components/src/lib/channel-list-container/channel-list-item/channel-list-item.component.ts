@@ -37,6 +37,14 @@ import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
 export class ChannelListItemComponent {
     private readonly programmeDialog = inject(EpgProgrammeDialogService);
     private readonly logoFailed = signal(false);
+    /**
+     * Set by `appMultiviewChannel` while the channel is on screen in a
+     * multiview session (spec 9.4); null everywhere else.
+     */
+    readonly multiviewTile = signal<{
+        readonly number: number;
+        readonly audio: boolean;
+    } | null>(null);
     private readonly settingsStore = inject(SettingsStore);
     readonly epgOffsetMinutes = this.settingsStore.resolvedEpgOffsetMinutes;
 

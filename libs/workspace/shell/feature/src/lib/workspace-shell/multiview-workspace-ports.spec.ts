@@ -61,10 +61,12 @@ describe('provideMultiviewWorkspacePorts', () => {
             ],
         });
         const entry = TestBed.inject(MultiviewEntryService);
+        const useChannelResolver = jest.spyOn(entry, 'useChannelResolver');
         expect(entry.hasPicker).toBe(false);
 
         const fixture = TestBed.createComponent(HostComponent);
         expect(entry.hasPicker).toBe(true);
+        expect(useChannelResolver).toHaveBeenCalledTimes(1);
         expect(load).not.toHaveBeenCalled();
 
         await entry.pick({ context: 'add' });

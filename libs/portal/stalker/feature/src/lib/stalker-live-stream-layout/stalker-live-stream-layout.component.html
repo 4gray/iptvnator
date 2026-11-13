@@ -332,6 +332,7 @@
                 track item.id ?? $index
             ) {
                 <app-channel-list-item
+                    [appMultiviewChannel]="item"
                     [attr.data-channel-id]="normalizeStalkerEntityId(item.id)"
                     [name]="item.o_name || item.name || ''"
                     [logo]="item.logo"

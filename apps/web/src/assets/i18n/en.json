@@ -1099,7 +1099,9 @@
             "SEARCH_PLACEHOLDER": "Search groups...",
             "NO_RESULTS": "No matching groups found",
             "SAVE": "Save"
-        }
+        },
+        "MULTIVIEW_TILE": "On screen in tile {{number}}",
+        "MULTIVIEW_TILE_SOUND": "On screen in tile {{number}}, with sound"
     },
     "TOP_MENU": {
         "OPEN_EPG_GUIDE": "Programme guide"

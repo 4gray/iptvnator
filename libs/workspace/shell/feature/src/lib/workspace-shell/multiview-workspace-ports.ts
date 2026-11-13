@@ -53,11 +53,22 @@ export function installMultiviewPicker(
     load: () => Promise<MultiviewWorkspaceFeature> = loadFeature
 ): void {
     const injector = inject(EnvironmentInjector);
-    const uninstall = inject(MultiviewEntryService).usePicker({
+    const entry = inject(MultiviewEntryService);
+    const uninstallPicker = entry.usePicker({
         async pick(request) {
             const feature = await load();
             return injector.get(feature.MultiviewPickerLauncher).pick(request);
         },
     });
-    inject(DestroyRef).onDestroy(uninstall);
+    // Alt+click and drag from channel lists (R5) resolve rows the same way.
+    const uninstallChannels = entry.useChannelResolver({
+        async resolve(item) {
+            const feature = await load();
+            return injector.get(feature.MultiviewChannelAdder).resolve(item);
+        },
+    });
+    inject(DestroyRef).onDestroy(() => {
+        uninstallPicker();
+        uninstallChannels();
+    });
 }

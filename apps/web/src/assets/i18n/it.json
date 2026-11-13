@@ -1099,7 +1099,9 @@
             "SEARCH_PLACEHOLDER": "Cerca gruppi...",
             "NO_RESULTS": "Nessun gruppo corrispondente",
             "SAVE": "Salva"
-        }
+        },
+        "MULTIVIEW_TILE": "Sullo schermo nella finestra {{number}}",
+        "MULTIVIEW_TILE_SOUND": "Sullo schermo nella finestra {{number}}, con audio"
     },
     "TOP_MENU": {
         "OPEN_EPG_GUIDE": "Guida programmi"

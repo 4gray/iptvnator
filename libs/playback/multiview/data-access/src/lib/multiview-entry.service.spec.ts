@@ -263,4 +263,81 @@ describe('MultiviewEntryService', () => {
             expect(store.exists()).toBe(false);
         });
     });
+
+    describe('channels from lists (R5)', () => {
+        const channel = {
+            uid: 'xtream::playlist-1::live:9',
+            name: 'Synthetic Channel 9',
+            contentType: 'live',
+            sourceType: 'xtream',
+            playlistId: 'playlist-1',
+            playlistName: 'Synthetic Provider',
+            xtreamId: 9,
+        } as const;
+
+        it('needs an installed resolver and an anchor that can add', () => {
+            const { entry, anchors } = setup();
+            anchors.register({
+                host: host('xtream', source('movie')),
+                element: signal(null),
+            });
+            expect(entry.canAddChannel()).toBe(false);
+
+            const remove = entry.useChannelResolver({
+                resolve: jest.fn().mockResolvedValue(source('ch9')),
+            });
+            expect(entry.canAddChannel()).toBe(true);
+
+            remove();
+            expect(entry.canAddChannel()).toBe(false);
+        });
+
+        it('adds a resolved channel, starting a session', async () => {
+            const { entry, anchors, store } = setup();
+            anchors.register({
+                host: host('xtream', source('movie')),
+                element: signal(null),
+            });
+            const resolve = jest.fn().mockResolvedValue(source('ch9'));
+            entry.useChannelResolver({ resolve });
+
+            await entry.addChannel(channel);
+
+            expect(resolve).toHaveBeenCalledWith(channel);
+            expect(store.tiles().map((t) => t.playbackSessionKey)).toEqual([
+                'session:movie',
+                'session:ch9',
+            ]);
+        });
+
+        it('replaces the tile a channel is dropped on', async () => {
+            const { entry, anchors, store } = setup();
+            anchors.register({
+                host: host('xtream', source('movie')),
+                element: signal(null),
+            });
+            entry.add(source('match'));
+            entry.useChannelResolver({
+                resolve: jest.fn().mockResolvedValue(source('ch9')),
+            });
+
+            await entry.replaceWithChannel(store.tiles()[0].id, channel);
+
+            expect(store.tiles()[0].playbackSessionKey).toBe('session:ch9');
+        });
+
+        it('changes nothing when the channel cannot be resolved', async () => {
+            const { entry, anchors, store } = setup();
+            anchors.register({
+                host: host('xtream', source('movie')),
+                element: signal(null),
+            });
+            entry.useChannelResolver({
+                resolve: jest.fn().mockRejectedValue(new Error('locked')),
+            });
+
+            await expect(entry.addChannel(channel)).resolves.toBeNull();
+            expect(store.exists()).toBe(false);
+        });
+    });
 });

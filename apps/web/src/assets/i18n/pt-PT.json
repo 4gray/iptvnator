@@ -1099,7 +1099,9 @@
             "SEARCH_PLACEHOLDER": "Pesquisar grupos…",
             "NO_RESULTS": "Nenhum grupo correspondente encontrado",
             "SAVE": "Guardar"
-        }
+        },
+        "MULTIVIEW_TILE": "No ecrã, na janela {{number}}",
+        "MULTIVIEW_TILE_SOUND": "No ecrã, na janela {{number}}, com som"
     },
     "TOP_MENU": {
         "OPEN_EPG_GUIDE": "Guia TV"

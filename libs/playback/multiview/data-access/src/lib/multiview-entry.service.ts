@@ -1,7 +1,9 @@
-import { Injectable, computed, inject } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import type { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 import { MultiviewAnchorRegistry } from './multiview-anchor-registry';
 import {
     MULTIVIEW_SOURCE_PICKER,
+    type MultiviewChannelResolver,
     type MultiviewPickRequest,
     type MultiviewSourcePicker,
 } from './multiview-ports';
@@ -47,6 +49,10 @@ export class MultiviewEntryService {
         };
     }
 
+    private readonly channelResolver = signal<MultiviewChannelResolver | null>(
+        null
+    );
+
     /** Whether a source can be added right now. */
     readonly canAdd = computed(() => {
         if (this.store.exists()) return true;
@@ -57,6 +63,44 @@ export class MultiviewEntryService {
             supportsMultiview(anchor.host.engine())
         );
     });
+
+    /** Whether a list row can be Alt+clicked or dragged in right now (R5). */
+    readonly canAddChannel = computed(
+        () => this.channelResolver() !== null && this.canAdd()
+    );
+
+    /**
+     * Installs how list rows become tile sources, at run time like the
+     * picker. Returns the uninstall function.
+     */
+    useChannelResolver(resolver: MultiviewChannelResolver): () => void {
+        this.channelResolver.set(resolver);
+        return () => {
+            if (this.channelResolver() === resolver) {
+                this.channelResolver.set(null);
+            }
+        };
+    }
+
+    /** R5: Alt+click or a drop on free player space adds the channel. */
+    async addChannel(item: UnifiedCollectionItem) {
+        const source = await this.resolveChannel(item);
+        return source ? this.add(source) : null;
+    }
+
+    /** R5: a channel dropped on a tile replaces that tile. */
+    async replaceWithChannel(tileId: string, item: UnifiedCollectionItem) {
+        const source = await this.resolveChannel(item);
+        return source ? this.store.replace(tileId, source) : null;
+    }
+
+    private async resolveChannel(
+        item: UnifiedCollectionItem
+    ): Promise<MultiviewTileSource | null> {
+        const resolver = this.channelResolver();
+        if (!resolver || !this.canAdd()) return null;
+        return resolver.resolve(item).catch(() => null);
+    }
 
     /** Adds a source to the session, starting one on the current anchor. */
     add(source: MultiviewTileSource): MultiviewEffect | null {

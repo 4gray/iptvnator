@@ -1099,7 +1099,9 @@
             "SEARCH_PLACEHOLDER": "Zoek groepen...",
             "NO_RESULTS": "Geen overeenkomende groepen gevonden",
             "SAVE": "Opslaan"
-        }
+        },
+        "MULTIVIEW_TILE": "Op het scherm in venster {{number}}",
+        "MULTIVIEW_TILE_SOUND": "Op het scherm in venster {{number}}, met geluid"
     },
     "TOP_MENU": {
         "OPEN_EPG_GUIDE": "Programmagids"

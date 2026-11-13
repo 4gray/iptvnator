@@ -32,8 +32,8 @@ import { watchUnifiedLiveAutoOpen } from './unified-live-auto-open';
 import {
     createUnifiedLiveMultiviewAnchor,
     UNIFIED_LIVE_MULTIVIEW_IMPORTS,
+    provideUnifiedLiveMultiview,
 } from './unified-live-multiview-host';
-import { provideMultiviewAnchor } from '@iptvnator/ui/playback/multiview-anchor';
 import { ResolvedLiveCollectionDetail } from '@iptvnator/portal/shared/data-access';
 import {
     EpgDateNavigationDirection,
@@ -97,9 +97,7 @@ import { createUnifiedLiveSelectionView } from './unified-live-selection-view';
         UNIFIED_LIVE_MULTIVIEW_IMPORTS,
     ],
     providers: [
-        provideMultiviewAnchor(
-            () => inject(UnifiedLiveTabComponent).multiviewAnchor
-        ),
+        ...provideUnifiedLiveMultiview(() => inject(UnifiedLiveTabComponent)),
         // The fullscreen channel panel inside the player renders this
         // collection's list (see the `fullscreenChannelPanel` template).
         {

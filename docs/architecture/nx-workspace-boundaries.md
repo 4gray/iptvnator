@@ -261,8 +261,10 @@ multiview session of the app: a pure reducer for the session rules, its
 selectors and behaviour constants (no Angular imports), and the root
 `MultiviewSessionStore` that exposes them as signals. Multiview UI (stage,
 tiles, bar) lives in a separate UI project, and the source picker in a
-workspace feature project, so this project depends only on shared contracts
-and `@iptvnator/services`. The behaviour contract is
+workspace feature project, so this project depends only on shared contracts,
+`@iptvnator/services`, `@iptvnator/playback/util` (session keys) and the
+collection item type of `@iptvnator/portal/shared/util` (list rows that
+become tiles, R5). The behaviour contract is
 `docs/superpowers/specs/2026-11-12-multiview-design.md`.
 
 `libs/playback/multiview/ui` is the `playback-multiview-ui` Nx project,

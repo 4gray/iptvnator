@@ -1127,26 +1127,75 @@ tiles; Escape during the session kept both tiles; no console errors.
 
 ### Task 16: Channel-list badges, Alt+click, drag
 
-**Files:** `channel-list-item.component.{ts,html,scss}` (optional
-`multiviewBadge` input and `altActivated` output, default none), a shared
-`multiview-list-binding.ts` helper, and the list hosts: M3U container views,
-Xtream `portal-channels-list`, Stalker layout and `stalker-itv-all-items`,
-unified live rows.
+**Files:** `channel-list-item.component.{ts,html,scss}` (a `multiviewTile`
+signal and the badge, nothing else), `multiview-channel.directive.ts` (+ spec)
+in `ui-components`; row mappers `m3u-multiview-channel.ts`,
+`xtream-multiview-channel.ts`, `stalker-multiview-channel.ts` (+ specs) and
+`provideUnifiedLiveMultiview()`; in data-access `multiview-collection-identity.ts`
+(moved from the feature), `multiview-channel-drag.ts` (+ spec), the
+`MultiviewChannelResolver` port and `MULTIVIEW_CHANNEL_MAPPER` token,
+`MultiviewEntryService.useChannelResolver/addChannel/replaceWithChannel`;
+drop targets on the tile, the bar and `appMultiviewPlayer`;
+`MultiviewChannelAdder` in the feature; the shell installs it with the picker;
+`CHANNELS.MULTIVIEW_TILE*` in 21 locales.
 
-- [ ] Badge with the tile number and a speaker icon for the audio tile, only
-      while a session exists (spec 9.4).
-- [ ] Alt+click adds the channel as a tile (R5) instead of selecting it;
-      a normal click keeps today's path.
-- [ ] Drag: native drag source on live rows with a multiview payload; drop on
-      a tile replaces it, on empty player space adds. Must not interfere with
-      the existing `cdkDrag` favourites reordering — if the two cannot coexist
-      cleanly, drag is reported back instead of forced.
-- [ ] The hint card under the channel list from mockup step 1 is not built
-      (D8).
-- [ ] Read the UI skills first (channel rows are a guarded surface).
+- [x] Badge with the tile number and a speaker for the audio tile, only while
+      the channel is on screen in a session (spec 9.4).
+- [x] Alt+click adds the channel as a tile (R5) instead of selecting it; a
+      normal click keeps today's path.
+- [x] Drag: native drag source on live rows; a drop on a tile replaces it,
+      on the multiview bar adds, on the view's own player (no session yet)
+      starts multiview. No conflict with `cdkDrag`: rows of a list that
+      reorders (favourites) get no native drag.
+- [x] The hint card under the channel list is not built (D8).
+- [x] UI skills read first (channel rows are a guarded surface).
 
-**Tests:** item spec (no badge and no new listeners by default), one spec per
-list host; existing list specs unedited.
+**As built:**
+- **One attribute per list:** the nine row hosts (M3U all / groups /
+  favourites / recent, Xtream live list, Stalker layout and "All items",
+  Favorites / Recent live tab) add `[appMultiviewChannel]="row"` to
+  `<app-channel-list-item>`; each list container provides one
+  `MULTIVIEW_CHANNEL_MAPPER` that turns its row into the collection item the
+  picker resolves (M3U through the active playlist, Xtream with the provider
+  category id the lock keys by, Stalker with its `cmd` for `create_link`,
+  unified rows by uid). Without a mapper — or without the real row
+  component, as in specs that stub it — the directive does nothing: no
+  badge, no listeners, no `draggable`.
+- **Alt+click** is taken in the capture phase on the row host, before the
+  row's own click handler, only while `canAddChannel()` (a resolver is
+  installed and the anchor can start or extend a session); otherwise it
+  falls through to the normal click. The row's `clicked` output and its
+  double-click / keyboard paths are untouched.
+- **Resolution** goes through `MultiviewChannelAdder` (lazy feature): the
+  picker's resolver, so R11 (catalog lock check before and after) and R10
+  (history deferred under the tile key) are the same as for the picker.
+  Radio rows and non-live rows map to nothing.
+- **Identity:** the badge uses the same `tileNumberFor` as the picker's
+  "In tile N", now in data-access so lists need no lazy chunk.
+- **Drag:** the data transfer carries only a token (`MultiviewChannelDrag`);
+  drop targets highlight with the player accent while a channel is over
+  them.
+- A transient "worker failed to exit gracefully" Jest warning appeared once
+  in a parallel `run-many`; it does not reproduce per project.
+
+**Tests:** directive 6 (badge with and without sound, Alt+click adds and
+does not select, plain click unchanged, Alt+click falls through when
+unavailable, drag only without `cdkDrag` reordering, no mapper = no
+change); drag carrier 5; entry service +4; mappers (Xtream 5, Stalker 3,
+M3U 2, unified 1); channel adder 3; stage +2 (drop on tile replaces, on bar
+adds); shell install +1. Existing list specs unedited (the Stalker layout
+spec stubs the row; the directive stays inert there). `components` 543,
+`portal-xtream-feature` 740, `portal-stalker-feature` 601,
+`portal-shared-ui` 276, `ui-playback` 1796, `playlist-m3u-feature-player`
+192; lint (module boundaries) on 9 projects, `typecheck:web`,
+`typecheck:spec`, `i18n:check`, icon ligatures,
+`electron-backend:build-e2e`.
+**Live check (temporary probe, Xtream mock, Electron, both themes):** rows
+are draggable while a channel plays; Alt+click on the second row started
+multiview with it muted in the PiP while the first row stayed selected;
+badges "1 + speaker" and "2"; dragging the third row onto the PiP replaced
+it and the "2" badge moved; no console errors. M3U, Stalker and the
+Favorites tab are covered by unit tests only.
 
 ### Task 17: End-to-end, docs, release note
 

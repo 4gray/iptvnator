@@ -10,3 +10,4 @@ export * from './lib/multiview-picker-search.service';
 export * from './lib/multiview-picker-context';
 export * from './lib/multiview-picker-launcher.service';
 export * from './lib/multiview-series-episodes.service';
+export * from './lib/multiview-channel-adder.service';

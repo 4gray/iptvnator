@@ -1,4 +1,10 @@
 import { DestroyRef, Directive, ElementRef, inject } from '@angular/core';
+import {
+    listenForChannelDrops,
+    MultiviewChannelDrag,
+    MultiviewEntryService,
+    MultiviewSessionStore,
+} from '@iptvnator/playback/multiview/data-access';
 import { PLAYER_MULTIVIEW_ACTION } from '../player-controls/player-multiview-action';
 import { MULTIVIEW_ANCHOR } from './multiview-anchor';
 
@@ -31,7 +37,19 @@ export class MultiviewPlayerDirective {
         };
         element.addEventListener('timeupdate', onTimeUpdate, true);
         anchor.attachPlayer(element);
+        // R1/R5: a channel dragged onto the view's player starts multiview.
+        const entry = inject(MultiviewEntryService);
+        const store = inject(MultiviewSessionStore);
+        const removeDrops = listenForChannelDrops(
+            element,
+            inject(MultiviewChannelDrag),
+            {
+                enabled: () => !store.exists() && entry.canAddChannel(),
+                drop: (item) => void entry.addChannel(item),
+            }
+        );
         inject(DestroyRef).onDestroy(() => {
+            removeDrops();
             element.removeEventListener('timeupdate', onTimeUpdate, true);
             anchor.attachPlayer(null);
         });

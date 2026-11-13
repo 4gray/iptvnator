@@ -14,6 +14,7 @@ import type {
     MultiviewPickerDialogData,
     MultiviewPickerResult,
 } from './multiview-picker-context';
+import { recordWhenPlaying } from './multiview-history';
 import { MultiviewPickerDialogComponent } from './multiview-picker-dialog.component';
 
 /** Spec 9.5: one 820 px dialog; its list area has a fixed height. */
@@ -28,7 +29,7 @@ const PICKER_DIALOG_CONFIG = {
 /**
  * The workspace's multiview source picker: opens the dialog with what it
  * needs to know about the session and records the picked item in recently
- * viewed once the tile really plays (R10, Q3).
+ * viewed once the tile really plays (R10, Q3, `recordWhenPlaying`).
  */
 @Injectable({ providedIn: 'root' })
 export class MultiviewPickerLauncher implements MultiviewSourcePicker {
@@ -51,7 +52,7 @@ export class MultiviewPickerLauncher implements MultiviewSourcePicker {
         });
         const result = await firstValueFrom(ref.afterClosed());
         if (!result) return null;
-        this.recordWhenPlaying(result);
+        recordWhenPlaying(this.history, this.recent, result);
         return result.source;
     }
 
@@ -72,21 +73,5 @@ export class MultiviewPickerLauncher implements MultiviewSourcePicker {
             replaceNumber: replaced ? this.store.tileNumber(replaced.id) : null,
             replaceTitle: replaced?.title ?? null,
         };
-    }
-
-    /**
-     * Deferred under the tile's own session key: the tile's player confirms
-     * it once the stream advances, so a tile that never plays is not
-     * history (the gate's contract).
-     */
-    private recordWhenPlaying({ source, item }: MultiviewPickerResult): void {
-        this.history.defer(
-            {
-                sourceId: item.playlistId,
-                sessionKey: source.playbackSessionKey,
-                streamUrls: [source.playback.streamUrl],
-            },
-            () => void this.recent.recordLivePlayback(item).catch(() => null)
-        );
     }
 }

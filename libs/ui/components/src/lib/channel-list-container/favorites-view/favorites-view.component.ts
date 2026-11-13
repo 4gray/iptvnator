@@ -32,6 +32,7 @@ import { EpgMappingDialogComponent } from '../epg-mapping-dialog/epg-mapping-dia
 import { ChannelDetailsDialogComponent } from '../channel-details-dialog/channel-details-dialog.component';
 import { resolveChannelLogo } from '../channel-logo-fallback.util';
 import { ChannelListItemComponent } from '../channel-list-item/channel-list-item.component';
+import { MultiviewChannelDirective } from '../channel-list-item/multiview-channel.directive';
 
 @Component({
     selector: 'app-favorites-view',
@@ -39,6 +40,7 @@ import { ChannelListItemComponent } from '../channel-list-item/channel-list-item
     styleUrls: ['./favorites-view.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        MultiviewChannelDirective,
         ChannelContextMenuComponent,
         ChannelScrollFocusDirective,
         ChannelListItemComponent,

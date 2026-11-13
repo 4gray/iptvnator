@@ -1,11 +1,16 @@
 import { signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { MULTIVIEW_CHANNEL_MAPPER } from '@iptvnator/playback/multiview/data-access';
 import type { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 import {
     type ResolvedPortalPlayback,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import type { UnifiedLiveTimeshift } from './unified-live-catchup';
-import { createUnifiedLiveMultiviewHost } from './unified-live-multiview-host';
+import {
+    createUnifiedLiveMultiviewHost,
+    provideUnifiedLiveMultiview,
+} from './unified-live-multiview-host';
 import { buildLiveItem } from './unified-live-tab.spec-data';
 
 const PLAYBACK: ResolvedPortalPlayback = {
@@ -88,5 +93,22 @@ describe('createUnifiedLiveMultiviewHost', () => {
 
         expect(adopted).toBe(false);
         expect(tab.onChannelSelected).not.toHaveBeenCalled();
+    });
+});
+
+describe('provideUnifiedLiveMultiview', () => {
+    it('maps a rendered row to its collection item by uid', () => {
+        const row = buildLiveItem('xtream');
+        TestBed.configureTestingModule({
+            providers: provideUnifiedLiveMultiview(() => ({
+                items: signal([row]),
+                multiviewAnchor: null as never,
+            })),
+        });
+        const map = TestBed.inject(MULTIVIEW_CHANNEL_MAPPER);
+
+        expect(map({ uid: row.uid })).toBe(row);
+        expect(map({ uid: 'missing' })).toBeNull();
+        expect(map(null)).toBeNull();
     });
 });

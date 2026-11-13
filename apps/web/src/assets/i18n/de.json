@@ -1099,7 +1099,9 @@
             "SEARCH_PLACEHOLDER": "Gruppen suchen...",
             "NO_RESULTS": "Keine passenden Gruppen gefunden",
             "SAVE": "Speichern"
-        }
+        },
+        "MULTIVIEW_TILE": "Auf dem Bildschirm in Fenster {{number}}",
+        "MULTIVIEW_TILE_SOUND": "Auf dem Bildschirm in Fenster {{number}}, mit Ton"
     },
     "TOP_MENU": {
         "OPEN_EPG_GUIDE": "Programmführer"

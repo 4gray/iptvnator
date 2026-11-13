@@ -24,6 +24,7 @@
             class="scroll-viewport-portals app-scrollbar"
         >
             <app-channel-list-item
+                [appMultiviewChannel]="item"
                 *cdkVirtualFor="
                     let item of filteredChannels();
                     trackBy: trackBy;

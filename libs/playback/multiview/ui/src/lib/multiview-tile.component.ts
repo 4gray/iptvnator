@@ -8,6 +8,7 @@ import {
     signal,
 } from '@angular/core';
 import {
+    MultiviewEntryService,
     type MultiviewTile,
     MultiviewSessionStore,
 } from '@iptvnator/playback/multiview/data-access';
@@ -15,6 +16,7 @@ import { injectTranslationTick } from '@iptvnator/services';
 import type { PlaybackDiagnostic } from '@iptvnator/playback/util';
 import { WebPlayerViewComponent } from '@iptvnator/ui/playback';
 import { TranslateService } from '@ngx-translate/core';
+import { acceptChannelDrops } from './multiview-channel-drop';
 import { MultiviewPausedOverlayComponent } from './multiview-paused-overlay.component';
 import { MultiviewTileChromeComponent } from './multiview-tile-chrome.component';
 import {
@@ -71,6 +73,7 @@ export class MultiviewTileComponent {
     readonly diagnosticChanged = output<PlaybackDiagnostic | null>();
 
     protected readonly store = inject(MultiviewSessionStore);
+    private readonly entry = inject(MultiviewEntryService);
     private readonly translate = inject(TranslateService);
     private readonly languageTick = injectTranslationTick();
     private readonly dragOffset = signal<{ x: number; y: number } | null>(null);
@@ -111,6 +114,13 @@ export class MultiviewTileComponent {
             title: this.tile().title,
         })}, ${this.translate.instant(state)}`;
     });
+
+    constructor() {
+        // R5: a channel dropped on a tile replaces that tile.
+        acceptChannelDrops(
+            (item) => void this.entry.replaceWithChannel(this.tile().id, item)
+        );
+    }
 
     onTimeUpdate(event: { currentTime: number; duration: number }): void {
         const tile = this.tile();

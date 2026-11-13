@@ -3,8 +3,11 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { TranslateModule } from '@ngx-translate/core';
 import {
+    MULTIVIEW_CHANNEL_DRAG_TYPE,
     MULTIVIEW_CONNECTION_BUDGET,
     MultiviewAnchorRegistry,
+    MultiviewChannelDrag,
+    MultiviewEntryService,
     MultiviewSessionStore,
     type MultiviewTileSource,
 } from '@iptvnator/playback/multiview/data-access';
@@ -387,6 +390,71 @@ describe('MultiviewStageComponent', () => {
 
             expect(store.exists()).toBe(false);
             expect(survivorKey()).toBe('session:match');
+        });
+    });
+
+    describe('channels dropped from a list (R5)', () => {
+        const channel = {
+            uid: 'xtream::playlist-1::live:9',
+            name: 'ch9',
+            contentType: 'live',
+            sourceType: 'xtream',
+            playlistId: 'playlist-1',
+            playlistName: 'p',
+            xtreamId: 9,
+        } as const;
+
+        function dropOn(element: Element): void {
+            const data = new Map<string, string>();
+            const transfer = {
+                get types() {
+                    return [...data.keys()];
+                },
+                setData: (type: string, value: string) => data.set(type, value),
+                getData: (type: string) => data.get(type) ?? '',
+            } as unknown as DataTransfer;
+            TestBed.inject(MultiviewChannelDrag).start(channel, transfer);
+            expect(transfer.types).toContain(MULTIVIEW_CHANNEL_DRAG_TYPE);
+            const event = new Event('drop', {
+                bubbles: true,
+                cancelable: true,
+            });
+            Object.defineProperty(event, 'dataTransfer', { value: transfer });
+            element.dispatchEvent(event);
+        }
+
+        beforeEach(() => {
+            TestBed.inject(MultiviewEntryService).useChannelResolver({
+                resolve: async () => source('ch9'),
+            });
+        });
+
+        it('replaces the tile it is dropped on', async () => {
+            start();
+            dropOn(
+                fixture.nativeElement.querySelector(
+                    '[data-tile-role="pip"]'
+                ) as Element
+            );
+            await new Promise((resolve) => setTimeout(resolve));
+
+            expect(store.tiles()[1].playbackSessionKey).toBe('session:ch9');
+            expect(store.tiles()).toHaveLength(2);
+        });
+
+        it('adds the channel when dropped on the bar', async () => {
+            start();
+            const replaced = store.tiles()[1].playbackSessionKey;
+            dropOn(
+                fixture.nativeElement.querySelector(
+                    '[data-test-id="multiview-bar"]'
+                ) as Element
+            );
+            await new Promise((resolve) => setTimeout(resolve));
+
+            // Phase 1 holds two tiles: an add replaces the PiP (D1).
+            expect(replaced).toBe('session:match');
+            expect(store.tiles()[1].playbackSessionKey).toBe('session:ch9');
         });
     });
 

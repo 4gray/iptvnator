@@ -1,7 +1,8 @@
-import { computed, type Signal } from '@angular/core';
-import type {
-    MultiviewAnchorHost,
-    MultiviewTileSource,
+import { computed, type Provider, type Signal } from '@angular/core';
+import {
+    MULTIVIEW_CHANNEL_MAPPER,
+    type MultiviewAnchorHost,
+    type MultiviewTileSource,
 } from '@iptvnator/playback/multiview/data-access';
 import type {
     UnifiedCollectionItem,
@@ -14,6 +15,7 @@ import type {
 import {
     injectMultiviewAnchor,
     type MultiviewAnchor,
+    provideMultiviewAnchor,
     MultiviewAnchorPlaceholderComponent,
     MultiviewPlayerDirective,
 } from '@iptvnator/ui/playback/multiview-anchor';
@@ -87,4 +89,29 @@ export function createUnifiedLiveMultiviewAnchor(
     tab: UnifiedLiveMultiviewTab
 ): MultiviewAnchor {
     return injectMultiviewAnchor(createUnifiedLiveMultiviewHost(tab));
+}
+
+/**
+ * The tab's multiview providers: its anchor, and badges, Alt+click and drag
+ * for its rows (R5), a rendered row being found in the tab's collection
+ * items by its uid.
+ */
+export function provideUnifiedLiveMultiview(
+    tab: () => Pick<UnifiedLiveMultiviewTab, 'items'> & {
+        readonly multiviewAnchor: MultiviewAnchor;
+    }
+): Provider[] {
+    return [
+        provideMultiviewAnchor(() => tab().multiviewAnchor),
+        {
+            provide: MULTIVIEW_CHANNEL_MAPPER,
+            useFactory: () => {
+                const items = tab().items;
+                return (row: unknown) => {
+                    const uid = (row as { uid?: string } | null)?.uid;
+                    return items().find((item) => item.uid === uid) ?? null;
+                };
+            },
+        },
+    ];
 }

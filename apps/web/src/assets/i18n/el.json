@@ -1099,7 +1099,9 @@
             "SEARCH_PLACEHOLDER": "Αναζήτηση ομάδων...",
             "NO_RESULTS": "Δεν βρέθηκαν αντίστοιχες ομάδες",
             "SAVE": "Αποθήκευση"
-        }
+        },
+        "MULTIVIEW_TILE": "Στην οθόνη, στο παράθυρο {{number}}",
+        "MULTIVIEW_TILE_SOUND": "Στην οθόνη, στο παράθυρο {{number}}, με ήχο"
     },
     "TOP_MENU": {
         "OPEN_EPG_GUIDE": "Οδηγός προγράμματος"

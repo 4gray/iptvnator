@@ -30,3 +30,9 @@
         0 0 0 1px rgba(255, 255, 255, 0.08),
         0 12px 32px rgba(0, 0, 0, 0.45);
 }
+
+// R5: a channel row is dragged over this drop target.
+:host(.multiview-drop-target) {
+    outline: 2px solid #4f8eff;
+    outline-offset: -2px;
+}

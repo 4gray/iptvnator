@@ -1099,7 +1099,9 @@
             "SEARCH_PLACEHOLDER": "Keresés a csoportok között…",
             "NO_RESULTS": "Nem található a keresésnek megfelelő csoport",
             "SAVE": "Mentés"
-        }
+        },
+        "MULTIVIEW_TILE": "A képernyőn, a(z) {{number}}. ablakban",
+        "MULTIVIEW_TILE_SOUND": "A képernyőn, a(z) {{number}}. ablakban, hanggal"
     },
     "TOP_MENU": {
         "OPEN_EPG_GUIDE": "Műsorújság"

@@ -79,6 +79,7 @@
             class="scroll-viewport app-scrollbar"
         >
             <app-channel-list-item
+                [appMultiviewChannel]="channel"
                 *cdkVirtualFor="
                     let channel of filteredChannels();
                     index as i;

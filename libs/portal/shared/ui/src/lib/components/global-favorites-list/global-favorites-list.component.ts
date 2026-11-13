@@ -2,6 +2,7 @@ import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
 import {
     ChannelContextMenuComponent,
     ChannelScrollFocusDirective,
+    MultiviewChannelDirective,
 } from '@iptvnator/ui/components';
 import {
     CdkDragDrop,
@@ -64,6 +65,7 @@ export type GlobalFavoritesListMode = 'favorites' | 'recent';
     styleUrl: './global-favorites-list.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        MultiviewChannelDirective,
         ChannelContextMenuComponent,
         ChannelScrollFocusDirective,
         ChannelListItemComponent,

@@ -1099,7 +1099,9 @@
             "SEARCH_PLACEHOLDER": "Пошук груп…",
             "NO_RESULTS": "Груп, які б відповідали критеріям пошуку, не знайдено",
             "SAVE": "Зберегти"
-        }
+        },
+        "MULTIVIEW_TILE": "На екрані у вікні {{number}}",
+        "MULTIVIEW_TILE_SOUND": "На екрані у вікні {{number}}, зі звуком"
     },
     "TOP_MENU": {
         "OPEN_EPG_GUIDE": "Програма передач"

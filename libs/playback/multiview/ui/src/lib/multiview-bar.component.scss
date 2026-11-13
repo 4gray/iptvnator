@@ -160,3 +160,9 @@
         outline-offset: 1px;
     }
 }
+
+// R5: a channel row is dragged over this drop target.
+:host(.multiview-drop-target) {
+    outline: 2px solid #4f8eff;
+    outline-offset: -2px;
+}

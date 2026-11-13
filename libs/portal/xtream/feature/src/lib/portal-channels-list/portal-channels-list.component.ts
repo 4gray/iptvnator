@@ -1,6 +1,7 @@
 import {
     ChannelContextMenuComponent,
     ChannelScrollFocusDirective,
+    MultiviewChannelDirective,
 } from '@iptvnator/ui/components';
 import {
     CdkVirtualScrollViewport,
@@ -74,6 +75,7 @@ import {
     xtreamCredentialsOf,
 } from './epg-refresh-coordinator.service';
 import { XtreamFavoriteMarksService } from './xtream-favorite-marks.service';
+import { provideXtreamMultiviewChannels } from './xtream-multiview-channel';
 
 export interface XtreamChannelListItem {
     readonly category_id?: string | number;
@@ -99,7 +101,9 @@ interface XtreamCategoryLike {
     templateUrl: './portal-channels-list.component.html',
     styleUrls: ['./portal-channels-list.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
+    providers: [provideXtreamMultiviewChannels()],
     imports: [
+        MultiviewChannelDirective,
         ChannelContextMenuComponent,
         ChannelScrollFocusDirective,
         ChannelListItemComponent,

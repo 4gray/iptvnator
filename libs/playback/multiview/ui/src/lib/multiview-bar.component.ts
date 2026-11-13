@@ -11,6 +11,7 @@ import {
     MultiviewSessionStore,
 } from '@iptvnator/playback/multiview/data-access';
 import { TranslatePipe } from '@ngx-translate/core';
+import { acceptChannelDrops } from './multiview-channel-drop';
 
 /** Height of the bar under the tiles, in CSS pixels (prototype: 48). */
 export const MULTIVIEW_BAR_HEIGHT = 48;
@@ -60,6 +61,11 @@ export class MultiviewBarComponent {
             };
         })
     );
+
+    constructor() {
+        // R5: a channel dropped on free player space is added.
+        acceptChannelDrops((item) => void this.entry.addChannel(item));
+    }
 
     addChannel(): void {
         void this.entry.pick();
