@@ -911,12 +911,18 @@ export interface ElectronBridgeApi {
         filePath: string,
         content: string
     ) => Promise<ElectronBridgeResult>;
+    /**
+     * `ownerId` names which scoped override a call with a `scopeUrl` sets or
+     * clears. Omitted, the call uses the one default override every
+     * single-player surface shares; multiview tiles pass their own.
+     */
     setUserAgent: (
         userAgent?: string | null,
         referer?: string | null,
         scopeUrl?: string | null,
         credentials?: ElectronBridgeStreamCredentials | null,
-        origin?: string | null
+        origin?: string | null,
+        ownerId?: string
     ) => Promise<boolean>;
     openInMpv: (
         url: string,

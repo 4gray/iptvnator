@@ -169,7 +169,7 @@ policy.
 Inline playback can request temporary `User-Agent`, `Referer`, and `Origin`
 header overrides — and, for auth-gated portal streams, `Cookie` and
 `Authorization` credentials — through `window.electron.setUserAgent(userAgent,
-referer, scopeUrl, credentials?, origin?)`.
+referer, scopeUrl, credentials?, origin?, ownerId?)`.
 
 The Electron backend handles that IPC in `apps/electron-backend/src/app/events/shared.events.ts`
 and delegates to `apps/electron-backend/src/app/services/request-header-overrides.service.ts`.
@@ -190,11 +190,39 @@ layout and the unified collection tab (global/portal Favorites and Recently
 Viewed). Individual player components must not call the bridge themselves —
 a narrower call would overwrite the credentialed override.
 
+### Override owners
+
+The backend keeps one scoped override per **owner**. A call without
+`ownerId` uses the default owner, and that is what every single-player
+surface does: there is one inline player at a time, the next stream's call
+replaces the previous override, and an empty scoped call clears it — a single
+slot. The preload forwards `ownerId` only when it is given, so those calls
+are unchanged on the wire.
+
+A named owner exists for multiview, where several streams play at once and
+each needs its own headers. A tile passes its id as
+`WebPlayerViewComponent`'s `headerOwner` input;
+`ElectronStreamHeadersService.apply(playback, owner)` and
+`clear(streamUrl, owner)` keep a separate apply sequence and scope URL per
+owner, so one tile neither supersedes another tile's pending header IPC nor
+releases its override. Owner ids are renderer-chosen labels of at most 128
+characters; any other value falls back to the default owner.
+
+When several owners match a request, the backend applies them weakest first
+(`request-header-override-matching.ts`): a request for an owner's exact
+stream URL gets that owner's headers; any other request on a shared origin —
+segments, keys — cannot be attributed to a tile, so the most recently
+configured owner wins. Credentials stay pinned to each override's own stream
+origin. Two concurrent streams on one origin that need different
+`User-Agent` or credentials are therefore not fully separable; this is an
+accepted limit of multiview.
+
 Rules:
 
-- empty playlist-level header overrides clear all active overrides
-- empty channel-level values with a `scopeUrl` clear only the scoped channel
-  override, preserving playlist-level defaults
+- empty playlist-level header overrides clear all active overrides, including
+  every owner's scoped override
+- empty channel-level values with a `scopeUrl` clear only that owner's scoped
+  override, preserving playlist-level defaults and other owners
 - channel playback should pass the stream URL as `scopeUrl`
 - scoped overrides apply only to the active stream origin and referer origin
 - an explicit `origin` header value takes precedence over the origin derived

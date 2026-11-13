@@ -288,7 +288,7 @@ imports `workspace-shell-feature`.
 The spec currently exists only as an untracked file in the main checkout; it
 was copied into this worktree unchanged.
 
-- [ ] Commit `docs/superpowers/specs/2026-11-12-multiview-design.md` and this
+- [x] Commit `docs/superpowers/specs/2026-11-12-multiview-design.md` and this
       plan. No other changes.
 
 **Accept:** `git status` clean; `pnpm run agents:validate` passes.
@@ -317,7 +317,7 @@ multiview tiles will pass their own owner.
 
 **Steps**
 
-- [ ] Write the new specs first (red):
+- [x] Write the new specs first (red):
   - main: two owners on different origins each get their own
     User-Agent/Referer/Origin/Cookie/Authorization; credentials stay pinned to
     the exact origin of their own scope URL; clearing one owner leaves the
@@ -332,22 +332,22 @@ multiview tiles will pass their own owner.
     without the bridge `apply()` returns `null` for any owner (PWA).
   - view: without `headerOwner` the IPC call has exactly today's five
     arguments; with it the owner is the sixth.
-- [ ] Main process: replace `activeScopedHeaderOverride` with
+- [x] Main process: replace `activeScopedHeaderOverride` with
       `Map<ownerId, override>` (stores scope URL and a configure sequence);
       `configureRequestHeaderOverride` gets an optional trailing `ownerId`
       defaulting to a module constant; request handling applies the global
       override, then matching scoped overrides ordered so the best match is
       applied last.
-- [ ] IPC: `set-user-agent` accepts an optional sixth argument, validated as a
+- [x] IPC: `set-user-agent` accepts an optional sixth argument, validated as a
       short string, otherwise the default owner. The preload appends it
       **only when defined**, so existing calls stay byte-identical on the wire.
-- [ ] Renderer: `ElectronStreamHeadersService.apply(playback, owner?)` and
+- [x] Renderer: `ElectronStreamHeadersService.apply(playback, owner?)` and
       `clear(streamUrl, owner?)` with per-owner state.
       `WebPlayerApplicationHandoffCoordinator` takes an optional owner getter;
       `WebPlayerViewComponent` gets `headerOwner = input<string | null>(null)`.
-- [ ] Docs: update the "exactly one scoped slot" wording in the service
-      comment and in the architecture doc that describes inline playback
-      headers.
+- [x] Docs: update the "exactly one scoped slot" wording in the service
+      comment, `docs/architecture/electron-security.md` ("Override owners")
+      and `docs/architecture/stalker-portal.md`.
 
 **Tests**
 

@@ -23,15 +23,23 @@ function sanitizeCredentials(value: unknown): StreamCredentialHeaders | null {
     };
 }
 
+/** Owner ids are short renderer-chosen labels; anything else is ignored. */
+function sanitizeOwnerId(value: unknown): string | undefined {
+    return typeof value === 'string' && value.length > 0 && value.length <= 128
+        ? value
+        : undefined;
+}
+
 ipcMain.handle(
     'set-user-agent',
-    (_event, userAgent, referer, scopeUrl, credentials, origin) => {
+    (_event, userAgent, referer, scopeUrl, credentials, origin, ownerId) => {
         setUserAgent(
             userAgent,
             referer,
             scopeUrl,
             sanitizeCredentials(credentials),
-            origin
+            origin,
+            sanitizeOwnerId(ownerId)
         );
         return true;
     }
@@ -46,19 +54,23 @@ ipcMain.handle(
  *   applied only to the exact origin of `scopeUrl` and only while the
  *   scoped override is active
  * @param origin explicit Origin override; otherwise derived from referer
+ * @param ownerId which scoped override to set or clear; omitted by every
+ *   single-player surface, which then shares the default one
  */
 export function setUserAgent(
     userAgent?: string | null,
     referer?: string | null,
     scopeUrl?: string | null,
     credentials?: StreamCredentialHeaders | null,
-    origin?: string | null
+    origin?: string | null,
+    ownerId?: string
 ): void {
     configureRequestHeaderOverride(
         userAgent,
         referer,
         scopeUrl,
         credentials,
-        origin
+        origin,
+        ownerId
     );
 }

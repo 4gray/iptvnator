@@ -137,7 +137,8 @@ export class WebPlayerViewComponent implements OnDestroy {
     private readonly applicationHandoff =
         new WebPlayerApplicationHandoffCoordinator(
             inject(ElectronStreamHeadersService),
-            this.recoverySession
+            this.recoverySession,
+            () => this.headerOwner()
         );
 
     readonly streamUrl = input.required<string>();
@@ -147,6 +148,12 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly startTime = input(0);
     readonly volume = input(1);
     readonly playerOverride = input<VideoPlayer | null>(null);
+    /**
+     * Owner of this view's scoped request-header override in Electron. Null
+     * (every single-player host) shares the default override; a multiview
+     * tile passes its own id so concurrent streams keep separate headers.
+     */
+    readonly headerOwner = input<string | null>(null);
     readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
     /** Next episode for the shared controls' "Up next" card; series hosts only. */

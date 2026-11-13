@@ -565,16 +565,29 @@ const electronApi: ElectronBridgeApi = {
             authorization?: string | null;
             cookie?: string | null;
         } | null,
-        origin?: string | null
+        origin?: string | null,
+        ownerId?: string
     ) =>
-        ipcRenderer.invoke(
-            'set-user-agent',
-            userAgent,
-            referer,
-            scopeUrl,
-            credentials,
-            origin
-        ),
+        // The owner is appended only when given, so every single-player
+        // caller sends the same five arguments it always has.
+        ownerId === undefined
+            ? ipcRenderer.invoke(
+                  'set-user-agent',
+                  userAgent,
+                  referer,
+                  scopeUrl,
+                  credentials,
+                  origin
+              )
+            : ipcRenderer.invoke(
+                  'set-user-agent',
+                  userAgent,
+                  referer,
+                  scopeUrl,
+                  credentials,
+                  origin,
+                  ownerId
+              ),
     openInMpv: (
         url: string,
         title: string,
