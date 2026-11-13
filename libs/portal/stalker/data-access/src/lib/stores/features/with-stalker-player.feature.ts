@@ -40,6 +40,7 @@ import {
     fetchStalkerPlaybackLink,
     hasStalkerLinkFlagEvidence,
     shouldResolveMovieFileId,
+    resolveStalkerStaticPlaybackUrl,
     type StalkerLinkFlagSource,
 } from '../utils';
 
@@ -235,6 +236,10 @@ export function withStalkerPlayer() {
 
                     return {
                         streamUrl,
+                        requiresFreshStreamUrl:
+                            isEpisode ||
+                            streamUrl !==
+                                resolveStalkerStaticPlaybackUrl(item, cmdToUse),
                         title: title ?? '',
                         thumbnail,
                         startTime,
@@ -327,6 +332,9 @@ export function withStalkerPlayer() {
 
                     return {
                         streamUrl,
+                        requiresFreshStreamUrl:
+                            streamUrl !==
+                            resolveStalkerStaticPlaybackUrl(item, item.cmd),
                         title: item.o_name || item.name || item.title || '',
                         thumbnail: item.logo ?? item.cover ?? null,
                         isLive: true,

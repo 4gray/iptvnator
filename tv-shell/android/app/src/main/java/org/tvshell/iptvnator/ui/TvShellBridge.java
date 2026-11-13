@@ -42,6 +42,10 @@ final class TvShellBridge {
                 String checkpointId = stringAt(args, 1);
                 if (checkpointId != null) activity.acknowledgeNativePlaybackCheckpoint(checkpointId);
                 break;
+            case "stopNative":
+                String playbackId = stringAt(args, 1);
+                if (playbackId != null) activity.stopNative(playbackId);
+                break;
             case "openExternal":
             case "onUrlCopied":
             case "onPlaybackError":

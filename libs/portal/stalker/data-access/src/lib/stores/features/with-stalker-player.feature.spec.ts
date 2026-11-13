@@ -198,6 +198,7 @@ describe('withStalkerPlayer', () => {
             123
         );
         expect(result.streamUrl).toBe('https://cdn.example/alpha.mp4');
+        expect(result.requiresFreshStreamUrl).toBe(true);
         expect(dataService.sendIpcEvent).toHaveBeenCalledTimes(1);
         expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
             expect.anything(),

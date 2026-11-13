@@ -155,6 +155,14 @@ try {
     await expect(action).toHaveCount(0);
     await setExperiment(true);
     await expect(action).toBeVisible();
+    const rejected = await page.evaluate((url) => new Promise((resolve) => {
+        const id = crypto.randomUUID();
+        window.addEventListener('iptvnator:android-playback-result', (event) => {
+            resolve(event.detail.id === id && event.detail.result === null);
+        }, { once: true });
+        window.TvShell.postMessage(JSON.stringify(['playNative', id, { url }]));
+    }), origin + '/synthetic.ism/Manifest');
+    assert.equal(rejected, true, 'Smooth Streaming must be rejected before starting Media3.');
     await page.evaluate(() => {
         window.addEventListener('iptvnator:android-playback-result', (event) => {
             window.__nativeResult = event.detail.result;

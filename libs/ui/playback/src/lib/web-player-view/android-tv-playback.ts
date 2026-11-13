@@ -4,15 +4,20 @@ import {
     Injector,
     afterNextRender,
     computed,
+    effect,
     inject,
     linkedSignal,
     signal,
     type WritableSignal,
 } from '@angular/core';
 import { getPlaybackMediaExtensionFromUrl } from '@iptvnator/playback/util';
+import { ParentalLockService } from '@iptvnator/services';
 import type { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
 import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
-import { readStoredVolume } from '../player-controls/controls-format.utils';
+import {
+    persistVolume,
+    readStoredVolume,
+} from '../player-controls/controls-format.utils';
 import { readVideoVolume } from '../player-controls/web-video-controls.media-helpers';
 
 type PlaybackLabels = { readonly open: string; readonly back: string };
@@ -32,6 +37,9 @@ export class AndroidTvPlayback {
     private readonly window = inject(DOCUMENT)
         .defaultView as AndroidWindow | null;
     private readonly injector = inject(Injector);
+    private readonly parentalLock = this.window?.TvShell?.postMessage
+        ? inject(ParentalLockService)
+        : null;
     private readonly session = signal<{
         readonly id: string;
         readonly owner: string;
@@ -64,6 +72,16 @@ export class AndroidTvPlayback {
         });
         const window = this.window;
         if (!window?.TvShell?.postMessage) return;
+        effect(() => {
+            const session = this.session();
+            if (
+                session?.pending &&
+                (!this.ownedSession() || this.parentalLock?.enabled())
+            ) {
+                this.cancel(session.id);
+                this.session.set(null);
+            }
+        });
         const availability = () => {
             const labels = window.iptvnatorAndroidPlaybackLabels ?? null;
             this.labels.set(labels);
@@ -112,6 +130,8 @@ export class AndroidTvPlayback {
         );
         window.addEventListener('iptvnator:android-playback-result', result);
         inject(DestroyRef).onDestroy(() => {
+            const session = this.session();
+            if (session?.pending) this.cancel(session.id);
             window.removeEventListener(
                 'iptvnator:android-playback-availability',
                 availability
@@ -127,14 +147,20 @@ export class AndroidTvPlayback {
         if (
             this.labels() === null ||
             typeof this.window?.TvShell?.postMessage !== 'function' ||
+            this.parentalLock?.enabled() ||
+            playback.requiresFreshStreamUrl ||
             playback.drm ||
             !/^https?:\/\//i.test(playback.streamUrl) ||
             getPlaybackMediaExtensionFromUrl(playback.streamUrl) === 'mpd'
         )
             return false;
         try {
-            const { username, password } = new URL(playback.streamUrl);
-            return !username && !password;
+            const { pathname, username, password } = new URL(
+                playback.streamUrl
+            );
+            return (
+                !username && !password && !/\.ism[l]?(?:\/|$)/i.test(pathname)
+            );
         } catch {
             return false;
         }
@@ -169,12 +195,11 @@ export class AndroidTvPlayback {
             ['referer', playback.referer],
             ['origin', playback.origin],
         ] as const) {
-            if (
-                value &&
-                !Object.keys(headers).some((name) => name.toLowerCase() === key)
-            ) {
-                headers[key] = value;
+            if (value === undefined) continue;
+            for (const name of Object.keys(headers)) {
+                if (name.toLowerCase() === key) delete headers[name];
             }
+            headers[key] = value;
         }
         // Let Angular destroy the previous engine before the provider sees a new request.
         afterNextRender(
@@ -222,7 +247,25 @@ export class AndroidTvPlayback {
     restoreWebVolume(): void {
         const volume = this.ownedSession()?.volume;
         this.session.set(null);
-        if (volume !== undefined) this.webVolume.set(volume);
+        if (volume !== undefined) {
+            // Shared controls read the persisted volume when they attach to the new engine.
+            try {
+                persistVolume(volume);
+            } catch {
+                // The engine input still preserves the volume when storage is unavailable.
+            }
+            this.webVolume.set(volume);
+        }
+    }
+
+    private cancel(id: string): void {
+        try {
+            this.window?.TvShell?.postMessage(
+                JSON.stringify(['stopNative', id])
+            );
+        } catch {
+            // A destroyed document may have already lost access to its bridge.
+        }
     }
 
     private ownedSession() {

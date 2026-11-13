@@ -119,8 +119,10 @@ player** to compare the two engines on the same stream.
 
 The pilot plays HLS and direct HTTP(S) video such as MP4, MPEG-TS and MKV. Audio
 and video codec support varies by device. The built-in player uses FFmpeg to
-decode AC-3 when the device cannot handle it. DASH and DRM streams continue using
-the existing web path. The native fullscreen screen supports play/pause, VOD
+decode AC-3 when the device cannot handle it. DASH, DRM, Smooth Streaming and
+temporary Stalker links stay in the web player. When parental controls are
+enabled, playback stays in the web player so it can enforce the lock.
+The native fullscreen screen supports play/pause, VOD
 seeking, audio tracks and subtitles. The Show subtitles setting picks the
 initial subtitle track and the native controls can change it. The player keeps
 the play state and selected tracks through rotation. It saves the VOD position

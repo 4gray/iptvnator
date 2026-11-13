@@ -672,6 +672,12 @@ public class MainActivity extends Activity {
             + JSONObject.quote(id) + ",result:" + data + "}}))");
     }
 
+    void stopNative(String id) {
+        if (!id.equals(nativePlaybackId)) return;
+        nativePlaybackContent = null;
+        finishActivity(NATIVE_PLAYBACK_REQUEST);
+    }
+
     private void deliverNativePlaybackCheckpoint() {
         Bundle checkpoint = nativePlaybackCheckpoint;
         if (!pageReady || webView == null || checkpoint == null) return;

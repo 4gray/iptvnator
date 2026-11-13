@@ -2,7 +2,13 @@ package org.tvshell.iptvnator.ui;
 
 import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
+
+import androidx.annotation.OptIn;
+import androidx.media3.common.C;
+import androidx.media3.common.util.UnstableApi;
+import androidx.media3.common.util.Util;
 
 import org.tvshell.iptvnator.backend.Json;
 
@@ -23,13 +29,15 @@ final class NativePlaybackRequest {
 
     private NativePlaybackRequest() {}
 
+    @OptIn(markerClass = UnstableApi.class)
     static Intent toIntent(Context context, Object payload) {
         if (!(payload instanceof Map<?, ?>)) return null;
         Map<?, ?> request = (Map<?, ?>) payload;
         String url = text(request.get("url"));
         HttpUrl stream = HttpUrl.parse(url);
-        if (stream == null || !stream.username().isEmpty() || !stream.password().isEmpty()
-            || stream.encodedPath().toLowerCase(Locale.ROOT).endsWith(".mpd")) return null;
+        if (stream == null || !stream.username().isEmpty() || !stream.password().isEmpty()) return null;
+        int sourceType = Util.inferContentType(Uri.parse(stream.toString()));
+        if (sourceType != C.CONTENT_TYPE_HLS && sourceType != C.CONTENT_TYPE_OTHER) return null;
         Bundle headers = new Bundle();
         if (request.get("headers") instanceof Map<?, ?>) {
             ((Map<?, ?>) request.get("headers")).forEach((key, value) -> {

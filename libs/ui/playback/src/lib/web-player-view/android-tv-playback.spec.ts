@@ -1,5 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { ParentalLockService } from '@iptvnator/services';
 import { AndroidTvPlayback } from './android-tv-playback';
 
 @Component({ template: '' })
@@ -7,12 +8,22 @@ class RenderHost {}
 
 function setup() {
     const postMessage = jest.fn();
+    const parentalLock = signal(false);
+    TestBed.configureTestingModule({
+        providers: [
+            {
+                provide: ParentalLockService,
+                useValue: { enabled: parentalLock },
+            },
+        ],
+    });
     const shell = { postMessage };
     const tvWindow = Object.assign(window, {
         TvShell: shell,
         iptvnatorAndroidPlaybackLabels: { open: 'Open', back: 'Back' },
     });
     const events: string[] = [];
+    const storedVolume = localStorage.getItem('volume');
     const token = signal(Symbol());
     const onPosition = jest.fn(() => events.push('position'));
     const fixture = TestBed.createComponent(RenderHost);
@@ -84,6 +95,8 @@ function setup() {
     const clear = () => {
         Reflect.deleteProperty(tvWindow, 'TvShell');
         Reflect.deleteProperty(tvWindow, 'iptvnatorAndroidPlaybackLabels');
+        if (storedVolume === null) localStorage.removeItem('volume');
+        else localStorage.setItem('volume', storedVolume);
     };
     return {
         clear,
@@ -91,6 +104,7 @@ function setup() {
         fixture,
         open,
         onPosition,
+        parentalLock,
         playback,
         postMessage,
         reply,
@@ -134,6 +148,7 @@ it('keeps mute on a second launch after the web video has unmounted', () => {
         reply(open(), false);
         playback.restoreWebVolume();
         expect(playback.webVolume()).toBe(0);
+        expect(localStorage.getItem('volume')).toBe('0');
     } finally {
         clear();
     }
@@ -158,11 +173,40 @@ it('leaves malformed and credential-bearing URLs to the existing player', () => 
         for (const streamUrl of [
             'https://synthetic:synthetic@media.example.test/episode.mkv',
             'https://',
+            'https://media.example.test/synthetic.ism/Manifest',
         ]) {
             expect(
                 playback.canOpen({ streamUrl, title: 'Synthetic episode' })
             ).toBe(false);
         }
+        expect(
+            playback.canOpen({
+                streamUrl: 'https://media.example.test/synthetic.mp4',
+                title: 'Synthetic episode',
+                requiresFreshStreamUrl: true,
+            })
+        ).toBe(false);
+    } finally {
+        clear();
+    }
+});
+
+it('cancels the owned handoff when parental controls are enabled', () => {
+    const { clear, fixture, open, playback, postMessage, parentalLock } =
+        setup();
+    try {
+        const id = open();
+        parentalLock.set(true);
+        fixture.detectChanges();
+        expect(postMessage).toHaveBeenLastCalledWith(
+            JSON.stringify(['stopNative', id])
+        );
+        expect(
+            playback.canOpen({
+                streamUrl: 'https://media.example.test/synthetic.mp4',
+                title: 'Synthetic episode',
+            })
+        ).toBe(false);
     } finally {
         clear();
     }
@@ -202,8 +246,11 @@ it('carries provider headers and recovers if the native bridge throws', () => {
             {
                 streamUrl: 'https://media.example.test/synthetic-live.m3u8',
                 title: 'Synthetic live stream',
-                headers: { 'User-Agent': 'Synthetic-Player' },
-                userAgent: 'Unused synthetic user agent',
+                headers: {
+                    'User-Agent': 'Synthetic-Default',
+                    Referer: 'https://example.test/default',
+                },
+                userAgent: 'Synthetic-Player',
                 referer: 'https://example.test/player',
                 origin: 'https://example.test',
             },
@@ -219,7 +266,7 @@ it('carries provider headers and recovers if the native bridge throws', () => {
         expect(request).toMatchObject({
             hls: true,
             headers: {
-                'User-Agent': 'Synthetic-Player',
+                'user-agent': 'Synthetic-Player',
                 referer: 'https://example.test/player',
                 origin: 'https://example.test',
             },

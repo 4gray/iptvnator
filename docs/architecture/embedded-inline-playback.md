@@ -151,6 +151,8 @@ watch-history confirmation require the original screen.
 The web engine can resume explicitly from that position. The
 [Android shell guide](../../tv-shell/README.md#trying-the-built-in-player)
 documents eligible streams, the bridge's header policy and device validation.
+The pilot is unavailable when parental controls are enabled and for provider
+links that require fresh resolution before another engine can open them.
 
 ## Two-State Detail Layout (Browse ↔ Watch)
 
