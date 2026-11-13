@@ -32,14 +32,18 @@ app-html-video-player {
 .web-player-android-actions {
     position: absolute;
     inset-block-start: 8px;
-    inset-inline-end: 8px;
+    // Reserve the shared controls' top-right Stream Info hit area.
+    left: 8px;
+    right: 72px;
     z-index: 6;
     display: flex;
     flex-wrap: wrap;
     justify-content: flex-end;
     gap: 8px;
+    pointer-events: none;
 
     button {
+        pointer-events: auto;
         background: var(--mat-sys-surface);
     }
 }

@@ -237,7 +237,7 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly androidPlayback = new AndroidTvPlayback(
         this.playbackSessionKey,
         this.applicationState.token,
-        () => this.historyGate.confirm(this.historyTarget()),
+        (seconds) => this.historyConfirmation.recordPlayedTime(seconds),
         (update) => {
             this.activity.record(this.playback(), update);
             this.recoverySession.recordTimeUpdate(

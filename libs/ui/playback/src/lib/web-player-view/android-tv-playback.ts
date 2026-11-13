@@ -9,7 +9,6 @@ import {
 } from '@angular/core';
 import { getPlaybackMediaExtensionFromUrl } from '@iptvnator/playback/util';
 import type { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
-import { PLAYBACK_CONFIRMATION_SECONDS } from '../playback-history/playback-progress-confirmation';
 import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
 import { readStoredVolume } from '../player-controls/controls-format.utils';
 import { readVideoVolume } from '../player-controls/web-video-controls.media-helpers';
@@ -36,6 +35,7 @@ export class AndroidTvPlayback {
         readonly owner: string;
         readonly token: symbol;
         readonly pending: boolean;
+        readonly volume: number;
     } | null>(null);
 
     readonly labels = signal(
@@ -47,7 +47,7 @@ export class AndroidTvPlayback {
     constructor(
         private readonly currentOwner: () => string,
         private readonly currentToken: () => symbol,
-        private readonly onWatched: () => void,
+        private readonly onPlayed: (seconds: number) => void,
         private readonly onPosition: (position: PlayerTimeUpdate) => void,
         private readonly onEnded: () => void
     ) {
@@ -75,11 +75,8 @@ export class AndroidTvPlayback {
                 data.positionMs >= 0 &&
                 data.durationMs >= data.positionMs
             ) {
-                if (
-                    Number.isSafeInteger(data.playedMs) &&
-                    data.playedMs >= PLAYBACK_CONFIRMATION_SECONDS * 1000
-                ) {
-                    this.onWatched();
+                if (Number.isSafeInteger(data.playedMs) && data.playedMs > 0) {
+                    this.onPlayed(data.playedMs / 1000);
                 }
                 if (data.durationMs > 0) {
                     this.onPosition({
@@ -112,13 +109,20 @@ export class AndroidTvPlayback {
     }
 
     canOpen(playback: ResolvedPortalPlayback): boolean {
-        return (
-            this.labels() !== null &&
-            typeof this.window?.TvShell?.postMessage === 'function' &&
-            !playback.drm &&
-            /^https?:\/\//i.test(playback.streamUrl) &&
-            getPlaybackMediaExtensionFromUrl(playback.streamUrl) !== 'mpd'
-        );
+        if (
+            this.labels() === null ||
+            typeof this.window?.TvShell?.postMessage !== 'function' ||
+            playback.drm ||
+            !/^https?:\/\//i.test(playback.streamUrl) ||
+            getPlaybackMediaExtensionFromUrl(playback.streamUrl) === 'mpd'
+        )
+            return false;
+        try {
+            const { username, password } = new URL(playback.streamUrl);
+            return !username && !password;
+        } catch {
+            return false;
+        }
     }
 
     open(
@@ -131,13 +135,16 @@ export class AndroidTvPlayback {
         const bridge = this.window?.TvShell;
         if (!bridge || !this.canOpen(playback) || this.pending()) return;
         const video = surface.querySelector('video');
-        const volume = video ? readVideoVolume(video) : readStoredVolume();
+        const volume = video
+            ? readVideoVolume(video)
+            : (this.ownedSession()?.volume ?? readStoredVolume());
         const id = crypto.randomUUID();
         this.session.set({
             id,
             owner: this.currentOwner(),
             token: this.currentToken(),
             pending: true,
+            volume,
         });
         const extension = getPlaybackMediaExtensionFromUrl(playback.streamUrl);
         const contentInfo = live ? undefined : playback.contentInfo;

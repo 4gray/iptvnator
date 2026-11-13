@@ -72,6 +72,7 @@ public final class NativePlayerActivity extends Activity {
         view = findViewById(R.id.native_player);
         live = getIntent().getBooleanExtra("live", false);
         hls = getIntent().getBooleanExtra("hls", false);
+        seedCaptions = getIntent().getBooleanExtra("captions", false);
         position = live ? 0 : getIntent().getLongExtra("position", 0);
         if (savedState != null) {
             position = savedState.getLong("position");
@@ -79,7 +80,10 @@ public final class NativePlayerActivity extends Activity {
             played = savedState.getLong("played");
             failed = savedState.getBoolean("failed");
             hls = savedState.getBoolean("hls", hls);
-            autoplay = false;
+            autoplay = savedState.getBoolean("playWhenReady");
+            seedCaptions = savedState.getBoolean("seedCaptions", seedCaptions);
+            Bundle tracks = savedState.getBundle("trackPreferences");
+            if (tracks != null) trackPreferences = TrackSelectionParameters.fromBundle(tracks);
         }
         view.setShowRewindButton(!live);
         view.setShowFastForwardButton(!live);
@@ -107,7 +111,6 @@ public final class NativePlayerActivity extends Activity {
             .build();
         player.setVolume(getIntent().getFloatExtra("volume", 1f));
         if (trackPreferences == null) {
-            seedCaptions = getIntent().getBooleanExtra("captions", false);
             trackPreferences = player.getTrackSelectionParameters().buildUpon()
                 .setIgnoredTextSelectionFlags(~C.SELECTION_FLAG_FORCED).build();
         }
@@ -237,7 +240,10 @@ public final class NativePlayerActivity extends Activity {
 
     @Override
     protected void onPause() {
-        if (player != null) player.pause();
+        if (player != null) {
+            autoplay = player.getPlayWhenReady();
+            player.pause();
+        }
         super.onPause();
     }
 
@@ -265,6 +271,10 @@ public final class NativePlayerActivity extends Activity {
         outState.putLong("played", playedMs());
         outState.putBoolean("failed", failed);
         outState.putBoolean("hls", hls);
+        outState.putBoolean("playWhenReady", autoplay);
+        outState.putBoolean("seedCaptions", seedCaptions);
+        TrackSelectionParameters tracks = player == null ? trackPreferences : player.getTrackSelectionParameters();
+        if (tracks != null) outState.putBundle("trackPreferences", tracks.toBundle());
         super.onSaveInstanceState(outState);
     }
 

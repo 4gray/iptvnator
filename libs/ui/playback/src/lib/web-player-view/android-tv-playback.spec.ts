@@ -20,7 +20,7 @@ function setup() {
             new AndroidTvPlayback(
                 () => 'synthetic-session',
                 token,
-                () => events.push('watched'),
+                (seconds) => events.push(`played:${seconds}`),
                 () => events.push('position'),
                 () => events.push('ended')
             )
@@ -101,17 +101,50 @@ it('reports only an owned natural end after recording the final position', () =>
     const { clear, events, open, reply, token } = setup();
     try {
         reply(open(), false, 100);
-        expect(events).toEqual(['position']);
+        expect(events).toEqual(['played:0.1', 'position']);
 
         const oldId = open();
         token.set(Symbol());
         reply(oldId, true);
-        expect(events).toEqual(['position']);
+        expect(events).toEqual(['played:0.1', 'position']);
 
         const id = open();
         reply(id, true);
         reply(id, true);
-        expect(events).toEqual(['position', 'watched', 'position', 'ended']);
+        expect(events).toEqual([
+            'played:0.1',
+            'position',
+            'played:9',
+            'position',
+            'ended',
+        ]);
+    } finally {
+        clear();
+    }
+});
+
+it('keeps mute on a second launch after the web video has unmounted', () => {
+    const { clear, open, reply, surface } = setup();
+    try {
+        reply(open(), false);
+        surface.querySelector('video')?.remove();
+        open();
+    } finally {
+        clear();
+    }
+});
+
+it('leaves malformed and credential-bearing URLs to the existing player', () => {
+    const { clear, playback } = setup();
+    try {
+        for (const streamUrl of [
+            'https://synthetic:synthetic@media.example.test/episode.mkv',
+            'https://',
+        ]) {
+            expect(
+                playback.canOpen({ streamUrl, title: 'Synthetic episode' })
+            ).toBe(false);
+        }
     } finally {
         clear();
     }

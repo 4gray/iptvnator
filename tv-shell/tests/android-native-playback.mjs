@@ -230,14 +230,19 @@ try {
     await expect.poll(captionsState, { timeout: 8000 }).toBe('Disable subtitles');
     adb('shell', 'input', 'keyevent', 'KEYCODE_MEDIA_PAUSE');
     await expect.poll(audioTrack).toBe('');
-    function tapNode(pattern) {
-        const node = dumpLayout().match(pattern)?.[0];
-        assert.ok(node, `Missing Android control ${pattern}`);
+    async function tapNode(pattern) {
+        let node;
+        await expect.poll(() => {
+            node = dumpLayout().match(pattern)?.[0];
+            if (!node && pattern === subtitleButton)
+                adb('shell', 'input', 'keyevent', 'KEYCODE_DPAD_CENTER');
+            return Boolean(node);
+        }, { message: `Android control ${pattern} is visible` }).toBe(true);
         const [, left, top, right, bottom] = node.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
         adb('shell', 'input', 'tap', String((+left + +right) / 2), String((+top + +bottom) / 2));
     }
-    tapNode(subtitleButton);
-    tapNode(/<node [^>]*text="None"[^>]*>/);
+    await tapNode(subtitleButton);
+    await tapNode(/<node [^>]*text="None"[^>]*>/);
     await expect.poll(captionsState).toBe('Enable subtitles');
     adb('shell', 'input', 'keyevent', 'KEYCODE_MEDIA_PLAY');
     await waitAudio();
@@ -250,6 +255,7 @@ try {
         window.TvShell.postMessage(JSON.stringify(['playNative', crypto.randomUUID(), {
             url,
             startTime: 25,
+            captions: true,
             checkpoint: {
                 playlistId: 'synthetic-reload-test',
                 contentType: 'episode',
@@ -260,6 +266,20 @@ try {
     }, origin + '/synthetic-ac3.mkv');
     await waitNative();
     await waitAudio();
+    const oldRotation = adb('shell', 'settings', 'get', 'system', 'user_rotation').trim();
+    const oldAutoRotation = adb('shell', 'settings', 'get', 'system', 'accelerometer_rotation').trim();
+    try {
+        const activity = topActivity();
+        adb('shell', 'settings', 'put', 'system', 'accelerometer_rotation', '0');
+        adb('shell', 'settings', 'put', 'system', 'user_rotation', oldRotation === '0' ? '1' : '0');
+        await expect.poll(topActivity).not.toBe(activity);
+        await waitNative();
+        await waitAudio();
+        await expect.poll(captionsState).toBe('Disable subtitles');
+    } finally {
+        adb('shell', 'settings', 'put', 'system', 'user_rotation', oldRotation);
+        adb('shell', 'settings', 'put', 'system', 'accelerometer_rotation', oldAutoRotation);
+    }
     // Reload while native playback owns the foreground. The new document cannot
     // receive the old player's event, just like a recreated WebView.
     await page.reload({ waitUntil: 'domcontentloaded' });
