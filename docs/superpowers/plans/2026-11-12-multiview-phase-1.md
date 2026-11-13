@@ -128,6 +128,47 @@ review.
 - **Search scope (Task 13).** With a playlist selected, search runs inside
   that playlist only and the scope chip shows its name.
 
+### Interactive prototype (HTML export, reviewed 2026-11-13)
+
+The maintainer supplied the full prototype as a bundled HTML file; it was
+rendered locally (headless Chromium, no network) and all nine steps were
+captured. It replaces the "steps 2–9 not visible" caveat above. Visual facts
+used by Tasks 11, 12, 14 and 16 (the prototype is dark-only; on-video chrome
+uses the theme-independent player palette, chrome outside the video uses
+app tokens in both themes):
+
+- **PiP tile, hover/focus (step 3):** top-left label pill — tile number
+  badge, `LIVE` (red) or `VOD` badge, title; bottom-left three 28 px icon
+  buttons — swap (accent-filled), audio here (speaker), side by side
+  (phase 2, not rendered); bottom-right close (×). At rest: picture only.
+  Rounded corners and a soft shadow. Double click swaps.
+- **Held VOD tile (step 4):** centred play circle and a chip
+  "Pause · 1:05:13" (position in mono). Play gives the tile the audio (R4).
+- **Multiview bar (steps 3, 4, 9):** a 48 px row under the video (prototype
+  48 px; spec 9.3 says 52 px — 48 is used), inside the player area,
+  `#0f141c`-like surface, 12 px side padding, 8 px gap:
+  - chips (30 px tall, radius 9 px, 12 px/500): number badge (17 px, radius
+    5 px; accent for the audio tile), title, state icon — speaker for the
+    audio tile, pause bars for a held VOD tile, warning for a failed tile;
+    the audio tile's chip has an accent outline;
+  - layout segmented control (radius 10 px, 2 px padding, 33×30 px icon
+    segments: PiP, side by side, 2×2, 1+3; phase 1 renders PiP only);
+  - "+ Channel" (tonal, 28 px, radius 8 px, 12 px/600) — only while a
+    picker exists; "× Exit" (text button, muted colour).
+- **Error tile (step 9):** the failed tile grows into a card over the video:
+  warning icon + bold title ("Provider refused a second stream"), one
+  sentence of cause naming the playlist and its limit, actions "Replace main
+  tile" (filled accent), "Another playlist" (tonal), "Close" (text). The
+  tile's chip shows a warning icon.
+- **Channel rows (step 3):** the row of an on-screen channel shows a small
+  pill with the tile number, plus a speaker for the audio tile; the active
+  tile's row keeps the selected highlight.
+- **Picker (step 2):** type chips with counts (All / TV / Movies / Series),
+  groups "On air now" / "Channels" / "Movies" with the query highlighted,
+  red minute badge for programmes, red `LIVE` badge otherwise, bottom-left
+  connection meter, bottom-right PiP / side-by-side toggle (phase 1: not
+  rendered).
+
 ### Where the mockup and the spec differ (the spec wins)
 
 | Mockup | Spec | Plan |
@@ -236,7 +277,10 @@ picker lists only the current playlist under "Playlists" (spec Q2).
   on some rows and "LIVE" on others without a visible rule. Proposal: elapsed
   minutes of the current programme when the row has EPG, "LIVE" when it has
   none.
-- **D12. System picture-in-picture (confirmed 2026-11-13).** The two features stay independent outside a session: the
+- **D12. System picture-in-picture (confirmed 2026-11-13).** Mechanism:
+  the tile media helper sets `disablePictureInPicture` on every tile video;
+  the dock's PiP capability already honours it, so no shared-controls change
+  is needed. The two features stay independent outside a session: the
   single player keeps its system PiP button exactly as today. During a
   session no tile can enter system PiP (per-tile pop-out is a non-goal):
   small tiles have no dock, and the main tile's dock hides its PiP button
