@@ -12,6 +12,7 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.media3.common.AudioAttributes;
 import androidx.media3.common.C;
+import androidx.media3.common.ForwardingSimpleBasePlayer;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MimeTypes;
 import androidx.media3.common.PlaybackException;
@@ -57,6 +58,7 @@ public final class NativePlayerActivity extends Activity {
     private boolean failed;
     private boolean ended;
     private boolean positionVerified;
+    private boolean currentPlayerReady;
     private long position;
     private long duration;
     private long played;
@@ -118,6 +120,7 @@ public final class NativePlayerActivity extends Activity {
             .setMediaSourceFactory(new DefaultMediaSourceFactory(dataSource))
             .setAudioAttributes(AudioAttributes.DEFAULT, true)
             .setHandleAudioBecomingNoisy(true)
+            .setUsePlatformDiagnostics(false)
             .build();
         player.setVolume(getIntent().getFloatExtra("volume", 1f));
         if (trackPreferences == null) {
@@ -125,7 +128,16 @@ public final class NativePlayerActivity extends Activity {
                 .setIgnoredTextSelectionFlags(~C.SELECTION_FLAG_FORCED).build();
         }
         player.setTrackSelectionParameters(trackPreferences);
-        mediaSession = new MediaSession.Builder(this, player)
+        Player sessionPlayer = new ForwardingSimpleBasePlayer(player) {
+            @Override
+            protected State getState() {
+                State state = super.getState();
+                // Media3 may embed signed media URLs in exceptions. Only the local view needs the error.
+                return getPlayer().getPlayerError() == null
+                    ? state : state.buildUpon().setPlayerError(null).build();
+            }
+        };
+        mediaSession = new MediaSession.Builder(this, sessionPlayer)
             .setId(UUID.randomUUID().toString())
             .setCallback(new MediaSession.Callback() {
                 @Override
@@ -168,7 +180,10 @@ public final class NativePlayerActivity extends Activity {
 
             @Override
             public void onPlaybackStateChanged(int state) {
-                if (state == Player.STATE_READY) positionVerified = true;
+                if (state == Player.STATE_READY) {
+                    currentPlayerReady = true;
+                    positionVerified = true;
+                }
                 if (state == Player.STATE_ENDED && player.getPlaybackState() == Player.STATE_ENDED
                     && !live && !isFinishing()) {
                     if (rewindUnreachableResume()) return;
@@ -200,6 +215,7 @@ public final class NativePlayerActivity extends Activity {
     }
 
     private void prepareStream() {
+        currentPlayerReady = false;
         MediaItem.Builder media = new MediaItem.Builder().setUri(stream.toString());
         if (hls) media.setMimeType(MimeTypes.APPLICATION_M3U8);
         initialSeek = live ? 0 : position;
@@ -344,7 +360,7 @@ public final class NativePlayerActivity extends Activity {
     }
 
     private void snapshot() {
-        if (player == null || live || !positionVerified) return;
+        if (player == null || live || !currentPlayerReady) return;
         duration = Math.max(0, player.getDuration());
         position = Math.max(0, player.getCurrentPosition());
         if (duration > 0) position = Math.min(duration, position);

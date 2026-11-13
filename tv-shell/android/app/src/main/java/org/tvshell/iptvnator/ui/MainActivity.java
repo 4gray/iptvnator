@@ -680,7 +680,7 @@ public class MainActivity extends Activity {
 
     private void deliverNativePlaybackCheckpoint() {
         Bundle checkpoint = nativePlaybackCheckpoint;
-        if (!pageReady || webView == null || checkpoint == null) return;
+        if (!pageReady || webView == null || checkpoint == null || SettingsActivity.dataCleared) return;
         // A fallback port uses a different WebView data store.
         if (!bridgeOrigin.equals(checkpoint.getString("origin"))) return;
         js("window.dispatchEvent(new CustomEvent('iptvnator:android-playback-checkpoint',{detail:{id:"
@@ -772,6 +772,7 @@ public class MainActivity extends Activity {
         super.onResume();
         resumed = true;
         hideSystemUi();
+        if (SettingsActivity.dataCleared) nativePlaybackCheckpoint = null;
         if (webView == null) {
             if (!webViewUnavailable) recreate(); // the renderer died while we were in the background
             return;

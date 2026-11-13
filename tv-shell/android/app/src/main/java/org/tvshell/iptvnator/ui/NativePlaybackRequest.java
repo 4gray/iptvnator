@@ -21,11 +21,20 @@ import okhttp3.Headers;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
 
 final class NativePlaybackRequest {
     private static final List<String> PROVIDER_HEADERS = Arrays.asList(
         "accept", "authorization", "cookie", "origin", "referer", "sn", "user-agent", "x-user-agent");
-    private static final OkHttpClient HTTP = new OkHttpClient();
+    private static final OkHttpClient HTTP = new OkHttpClient.Builder()
+        .addInterceptor(chain -> {
+            Response response = chain.proceed(chain.request());
+            if (response.isSuccessful() || response.body() == null) return response;
+            // Media3 copies error bodies into memory. Its local error UI only needs the status.
+            response.body().close();
+            return response.newBuilder().body(ResponseBody.create(new byte[0], null)).build();
+        }).build();
 
     private NativePlaybackRequest() {}
 
