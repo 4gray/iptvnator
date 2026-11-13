@@ -27,6 +27,8 @@ export interface MultiviewAnchorRegistration {
     readonly host: MultiviewAnchorHost;
     /** Placeholder the stage covers; null while the view shows its player. */
     readonly element: Signal<HTMLElement | null>;
+    /** Last playback position of the view's own player, in seconds. */
+    readonly position?: () => number | null;
 }
 
 /**

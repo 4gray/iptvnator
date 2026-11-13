@@ -1,9 +1,18 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import {
+    ChangeDetectionStrategy,
+    Component,
+    DestroyRef,
+    ElementRef,
+    type OnInit,
+    inject,
+    input,
+} from '@angular/core';
+import type { MultiviewAnchor } from './multiview-anchor';
 
 /**
- * Holds the player's place while a multiview session covers it. The stage
- * measures this element; it is black like the player it stands in for.
- * Styled through host bindings so no stylesheet is added.
+ * Holds the player's place while a multiview session covers it; the stage
+ * measures this element. Black like the player it stands in for, styled
+ * through host bindings so no stylesheet is added.
  */
 @Component({
     selector: 'app-multiview-anchor-placeholder',
@@ -17,4 +26,14 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
     },
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class MultiviewAnchorPlaceholderComponent {}
+export class MultiviewAnchorPlaceholderComponent implements OnInit {
+    readonly anchor = input.required<MultiviewAnchor>();
+    private readonly element: HTMLElement = inject(ElementRef).nativeElement;
+    private readonly destroyRef = inject(DestroyRef);
+
+    ngOnInit(): void {
+        const anchor = this.anchor();
+        anchor.attach(this.element);
+        this.destroyRef.onDestroy(() => anchor.detach(this.element));
+    }
+}

@@ -53,7 +53,17 @@ export class MultiviewEntryService {
         if (!anchor || !primary) return rejected('no-anchor');
         const engine = anchor.host.engine();
         if (!supportsMultiview(engine)) return rejected('unsupported-player');
-        return this.store.start(anchor.host.anchorId, primary, engine, source);
+        // R1: tile 1 continues a VOD where the view's player was.
+        const position =
+            primary.kind === 'live' || primary.position !== undefined
+                ? primary.position
+                : (anchor.position?.() ?? undefined);
+        return this.store.start(
+            anchor.host.anchorId,
+            position === undefined ? primary : { ...primary, position },
+            engine,
+            source
+        );
     }
 
     /** Opens the picker and applies its choice (spec 9.5 contexts). */

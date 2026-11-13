@@ -173,21 +173,27 @@
                     guide.isOpen() ? '' : null
                 "
             >
-                <app-web-player-view
-                    #inlinePlayer
-                    *appMultiviewAnchor="multiviewHost"
-                    [playbackSessionKey]="playbackSessionKey()"
-                    [streamUrl]="streamUrl"
-                    [title]="activePlayback()?.title ?? ''"
-                    [playback]="activePlayback()"
-                    [timelineSegments]="catchupTimelineSegments()"
-                    [recordingMetadata]="recordingMetadata()"
-                    (playbackStarted)="onInlinePlaybackStarted($event)"
-                    (externalFallbackRequested)="
-                        handleExternalFallbackRequest($event)
-                    "
-                    (recordingStopped)="onRecordingStopped($event)"
-                />
+                @if (multiviewAnchor.ownsSession()) {
+                    <app-multiview-anchor-placeholder
+                        [anchor]="multiviewAnchor"
+                    />
+                } @else {
+                    <app-web-player-view
+                        #inlinePlayer
+                        appMultiviewPlayer
+                        [playbackSessionKey]="playbackSessionKey()"
+                        [streamUrl]="streamUrl"
+                        [title]="activePlayback()?.title ?? ''"
+                        [playback]="activePlayback()"
+                        [timelineSegments]="catchupTimelineSegments()"
+                        [recordingMetadata]="recordingMetadata()"
+                        (playbackStarted)="onInlinePlaybackStarted($event)"
+                        (externalFallbackRequested)="
+                            handleExternalFallbackRequest($event)
+                        "
+                        (recordingStopped)="onRecordingStopped($event)"
+                    />
+                }
                 @if (guide.isOpen()) {
                     <ng-container *ngTemplateOutlet="guideNowPlaying" />
                 }

@@ -81,7 +81,6 @@ import {
     type FullscreenChannelPanelContext,
     type FullscreenChannelPanelHost,
     type PlaybackFallbackRequest,
-    MultiviewAnchorDirective,
     WebPlayerViewComponent,
 } from '@iptvnator/ui/playback';
 import { LiveEpgPanelSummary } from '@iptvnator/ui/shared-portals';
@@ -112,6 +111,12 @@ import {
     SettingsStore,
 } from '@iptvnator/services';
 import { LiveStreamAutoOpenStateService } from './live-stream-auto-open-state.service';
+import {
+    injectMultiviewAnchor,
+    MultiviewPlayerDirective,
+    MultiviewAnchorPlaceholderComponent,
+    provideMultiviewAnchor,
+} from '@iptvnator/ui/playback/multiview-anchor';
 import { createXtreamLiveMultiviewHost } from './xtream-live-multiview-host';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 import { injectXtreamRecentHistory } from '../xtream-recent-history';
@@ -148,6 +153,9 @@ const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
         XtreamGuideExternalPlayback,
         XtreamTuneRequests,
         { provide: EPG_GUIDE_SOURCE, useExisting: XtreamEpgGuideSourceService },
+        provideMultiviewAnchor(
+            () => inject(LiveStreamLayoutComponent).multiviewAnchor
+        ),
         LiveStreamAutoOpenStateService,
         XtreamLiveChannelNavigationService,
         // The fullscreen channel panel inside the player renders this
@@ -178,7 +186,8 @@ const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
         ResizableDirective,
         TranslatePipe,
         WebPlayerViewComponent,
-        MultiviewAnchorDirective,
+        MultiviewPlayerDirective,
+        MultiviewAnchorPlaceholderComponent,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -631,6 +640,7 @@ export class LiveStreamLayoutComponent
         player: () => this.settingsStore.player?.(),
         selectChannel: (channelId) => this.selectMultiviewChannel(channelId),
     });
+    readonly multiviewAnchor = injectMultiviewAnchor(this.multiviewHost);
     favorites = new Map<number, boolean>();
 
     constructor() {

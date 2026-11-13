@@ -98,6 +98,9 @@
             "@iptvnator/ui/playback/external-player-info-dialog": [
                 "libs/ui/playback/src/lib/external-player-info-dialog/external-player-info-dialog.component.ts"
             ],
+            "@iptvnator/ui/playback/multiview-anchor": [
+                "libs/ui/playback/src/lib/multiview-anchor/index.ts"
+            ],
             "@iptvnator/ui/playback/embedded-mpv-player": [
                 "libs/ui/playback/src/lib/embedded-mpv-player/index.ts"
             ],

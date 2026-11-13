@@ -268,9 +268,10 @@ and `@iptvnator/services`. The behaviour contract is
 `libs/playback/multiview/ui` is the `playback-multiview-ui` Nx project,
 imported through `@iptvnator/playback/multiview/ui` (tags `scope:shared`,
 `domain:playback`, `type:ui`). It owns the multiview stage and its tiles,
-which render `WebPlayerViewComponent` from `ui-playback`. The anchor
-directive that player views place around their player lives in
-`ui-playback` instead (`MultiviewAnchorDirective`), because
+which render `WebPlayerViewComponent` from `ui-playback`. The anchor that
+player views create (`injectMultiviewAnchor`, the placeholder and the
+`appMultiviewPlayer` directive) lives in `ui-playback` instead, behind the
+light entry `@iptvnator/ui/playback/multiview-anchor`, because
 `portal-inline-player` in that project hosts an anchor and the stage
 depends on `ui-playback`. The workspace shell loads this project only
 through a dynamic `import()`; nothing may import it statically, and its

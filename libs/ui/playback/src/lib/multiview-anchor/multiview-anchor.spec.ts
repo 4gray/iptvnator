@@ -1,5 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import {
     MULTIVIEW_SOURCE_PICKER,
     MultiviewAnchorRegistry,
@@ -12,7 +13,12 @@ import {
 import { SettingsStore } from '@iptvnator/services';
 import { VideoPlayer } from '@iptvnator/shared/interfaces';
 import { PLAYER_MULTIVIEW_ACTION } from '../player-controls/player-multiview-action';
-import { MultiviewAnchorDirective } from './multiview-anchor.directive';
+import { MultiviewPlayerDirective } from './multiview-player.directive';
+import {
+    injectMultiviewAnchor,
+    provideMultiviewAnchor,
+} from './multiview-anchor';
+import { MultiviewAnchorPlaceholderComponent } from './multiview-anchor-placeholder.component';
 
 function source(key: string): MultiviewTileSource {
     return {
@@ -29,7 +35,7 @@ function source(key: string): MultiviewTileSource {
 
 @Component({
     selector: 'app-probe-player',
-    template: 'own player',
+    template: 'own player<video></video>',
     host: { 'data-test-id': 'own-player' },
 })
 class ProbePlayerComponent {
@@ -37,29 +43,54 @@ class ProbePlayerComponent {
 }
 
 @Component({
+    selector: 'app-probe-view',
     template: `
         @if (shown()) {
-            <app-probe-player *appMultiviewAnchor="host" />
+            <div class="slot">
+                @if (anchor.ownsSession()) {
+                    <app-multiview-anchor-placeholder [anchor]="anchor" />
+                } @else {
+                    <app-probe-player appMultiviewPlayer />
+                }
+            </div>
+            <app-probe-player class="other-player" />
         }
     `,
-    imports: [MultiviewAnchorDirective, ProbePlayerComponent],
+    imports: [
+        MultiviewPlayerDirective,
+        MultiviewAnchorPlaceholderComponent,
+        ProbePlayerComponent,
+    ],
+    providers: [
+        provideMultiviewAnchor(() => inject(ProbeViewComponent).anchor),
+    ],
 })
-class HostViewComponent {
+class ProbeViewComponent {
     readonly shown = signal(true);
     readonly playing = signal<MultiviewTileSource | null>(source('movie'));
     readonly engine = signal(VideoPlayer.VideoJs);
     readonly adopt = jest.fn((tile: MultiviewTile) => this.playing.set(tile));
     readonly host: MultiviewAnchorHost = {
-        anchorId: 'xtream-live',
+        anchorId: 'probe-view',
         source: this.playing,
         engine: this.engine,
         adopt: (tile) => this.adopt(tile),
     };
+    readonly anchor = injectMultiviewAnchor(this.host);
 }
 
-describe('MultiviewAnchorDirective', () => {
-    let fixture: ComponentFixture<HostViewComponent>;
-    let view: HostViewComponent;
+@Component({
+    template: `@if (viewShown()) {
+        <app-probe-view />
+    }`,
+    imports: [ProbeViewComponent],
+})
+class PageComponent {
+    readonly viewShown = signal(true);
+}
+
+describe('MultiviewAnchor', () => {
+    let fixture: ComponentFixture<PageComponent>;
     let store: MultiviewSessionStore;
     let entry: MultiviewEntryService;
     let anchors: MultiviewAnchorRegistry;
@@ -81,8 +112,7 @@ describe('MultiviewAnchorDirective', () => {
                     : []),
             ],
         });
-        fixture = TestBed.createComponent(HostViewComponent);
-        view = fixture.componentInstance;
+        fixture = TestBed.createComponent(PageComponent);
         store = TestBed.inject(MultiviewSessionStore);
         entry = TestBed.inject(MultiviewEntryService);
         anchors = TestBed.inject(MultiviewAnchorRegistry);
@@ -91,16 +121,22 @@ describe('MultiviewAnchorDirective', () => {
 
     afterEach(() => fixture.destroy());
 
+    const view = (): ProbeViewComponent =>
+        fixture.debugElement.query(
+            (node) => node.componentInstance instanceof ProbeViewComponent
+        ).componentInstance;
     const ownPlayer = (): HTMLElement | null =>
-        fixture.nativeElement.querySelector('[data-test-id="own-player"]');
+        fixture.nativeElement.querySelector(
+            '.slot [data-test-id="own-player"]'
+        );
     const placeholder = (): HTMLElement | null =>
         fixture.nativeElement.querySelector(
             '[data-test-id="multiview-anchor-placeholder"]'
         );
-    const probe = (): ProbePlayerComponent =>
-        fixture.debugElement.query(
-            (node) => node.componentInstance instanceof ProbePlayerComponent
-        ).componentInstance;
+    const players = (): ProbePlayerComponent[] =>
+        fixture.debugElement
+            .queryAll(By.directive(ProbePlayerComponent))
+            .map((node) => node.componentInstance);
 
     function startSession(): void {
         entry.add(source('match'));
@@ -110,14 +146,14 @@ describe('MultiviewAnchorDirective', () => {
     describe('without a session', () => {
         beforeEach(() => create());
 
-        it('renders the view player in the first check', () => {
+        it('renders the view player', () => {
             expect(ownPlayer()?.textContent).toBe('own player');
             expect(placeholder()).toBeNull();
         });
 
         it('registers the view as the current anchor', () => {
-            expect(anchors.current()?.host).toBe(view.host);
-            expect(anchors.elementFor('xtream-live')).toBeNull();
+            expect(anchors.current()?.host).toBe(view().host);
+            expect(anchors.elementFor('probe-view')).toBeNull();
         });
 
         it('keeps the player when a session belongs to another view', () => {
@@ -143,17 +179,17 @@ describe('MultiviewAnchorDirective', () => {
             startSession();
         });
 
-        it('hands tile 1 the view playback and replaces the player with a placeholder', () => {
+        it('hands tile 1 the view playback and shows the placeholder instead', () => {
             expect(store.tiles()[0]).toMatchObject({
                 playbackSessionKey: 'session:movie',
                 engine: VideoPlayer.VideoJs,
             });
             expect(ownPlayer()).toBeNull();
-            expect(anchors.elementFor('xtream-live')).toBe(placeholder());
+            expect(anchors.elementFor('probe-view')).toBe(placeholder());
         });
 
         it('replaces the active tile when the view selects another source (R5)', () => {
-            view.playing.set(source('news'));
+            view().playing.set(source('news'));
             fixture.detectChanges();
 
             expect(
@@ -162,7 +198,7 @@ describe('MultiviewAnchorDirective', () => {
         });
 
         it('ends the session when the view leaves', () => {
-            view.shown.set(false);
+            fixture.componentInstance.viewShown.set(false);
             fixture.detectChanges();
 
             expect(store.exists()).toBe(false);
@@ -172,23 +208,75 @@ describe('MultiviewAnchorDirective', () => {
             });
         });
 
+        it('ends the session when the player slot goes away', () => {
+            view().shown.set(false);
+            fixture.detectChanges();
+
+            expect(store.exists()).toBe(false);
+        });
+
         it('brings the player back with the surviving tile (R8, D2)', () => {
             const pip = store.tiles()[1];
             store.setAudio(pip.id);
             store.exit();
             fixture.detectChanges();
 
-            expect(view.adopt).toHaveBeenCalledWith(pip);
+            expect(view().adopt).toHaveBeenCalledWith(pip);
+            expect(view().playing()).toBe(pip);
             expect(ownPlayer()).not.toBeNull();
             expect(placeholder()).toBeNull();
+            expect(store.exists()).toBe(false);
         });
 
         it('does not adopt a survivor the view already shows', () => {
             store.exit();
             fixture.detectChanges();
 
-            expect(view.adopt).not.toHaveBeenCalled();
+            expect(view().adopt).not.toHaveBeenCalled();
             expect(ownPlayer()).not.toBeNull();
+        });
+    });
+
+    describe('takeover position', () => {
+        function reportTime(seconds: number): void {
+            const video = ownPlayer()?.querySelector(
+                'video'
+            ) as HTMLVideoElement;
+            Object.defineProperty(video, 'currentTime', {
+                configurable: true,
+                value: seconds,
+            });
+            // Media events do not bubble; the directive listens in capture.
+            video.dispatchEvent(new Event('timeupdate'));
+        }
+
+        beforeEach(() => create());
+
+        it('starts tile 1 of a VOD where the view player was (R1)', () => {
+            view().playing.set({ ...source('movie'), kind: 'vod' });
+            fixture.detectChanges();
+            reportTime(754);
+            startSession();
+
+            expect(store.tiles()[0].position).toBe(754);
+        });
+
+        it('forgets the position when the view moves to another source', () => {
+            view().playing.set({ ...source('movie'), kind: 'vod' });
+            fixture.detectChanges();
+            reportTime(754);
+            view().playing.set({ ...source('film'), kind: 'vod' });
+            fixture.detectChanges();
+            startSession();
+
+            expect(store.tiles()[0].position).toBeUndefined();
+        });
+
+        it('ignores the position of a live stream', () => {
+            reportTime(42);
+            startSession();
+
+            expect(store.tiles()[0].position).toBeUndefined();
         });
     });
 
@@ -196,23 +284,28 @@ describe('MultiviewAnchorDirective', () => {
         it('offers none without a picker', () => {
             create();
 
-            expect(probe().action).toBeNull();
+            expect(players().map((player) => player.action)).toEqual([
+                null,
+                null,
+            ]);
         });
 
-        it('offers the action to the wrapped player when a picker exists', () => {
+        it('offers it only to the player marked appMultiviewPlayer', () => {
             create(true);
+            const [anchored, other] = players();
 
-            expect(probe().action?.enabled()).toBe(true);
-            expect(probe().action?.disabledReasonKey).toBe(
+            expect(anchored.action?.enabled()).toBe(true);
+            expect(anchored.action?.disabledReasonKey).toBe(
                 'PLAYER.MULTIVIEW.UNAVAILABLE_PLAYER'
             );
+            expect(other.action).toBeNull();
         });
 
         it('disables it for Embedded MPV', () => {
             create(true);
-            view.engine.set(VideoPlayer.EmbeddedMpv);
+            view().engine.set(VideoPlayer.EmbeddedMpv);
 
-            expect(probe().action?.enabled()).toBe(false);
+            expect(players()[0].action?.enabled()).toBe(false);
         });
     });
 });

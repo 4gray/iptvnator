@@ -118,6 +118,36 @@ describe('MultiviewEntryService', () => {
             ]);
         });
 
+        it('continues a VOD from the anchor position', () => {
+            const { entry, anchors, store } = setup();
+            anchors.register({
+                host: host('m3u', { ...source('movie'), kind: 'vod' }),
+                element: signal(null),
+                position: () => 754,
+            });
+
+            entry.add(source('match'));
+
+            expect(store.tiles()[0].position).toBe(754);
+        });
+
+        it('keeps a position the source already carries', () => {
+            const { entry, anchors, store } = setup();
+            anchors.register({
+                host: host('vod', {
+                    ...source('movie'),
+                    kind: 'vod',
+                    position: 30,
+                }),
+                element: signal(null),
+                position: () => 754,
+            });
+
+            entry.add(source('match'));
+
+            expect(store.tiles()[0].position).toBe(30);
+        });
+
         it('adds to a running session', () => {
             const { entry, anchors, store } = setup();
             anchors.register({
