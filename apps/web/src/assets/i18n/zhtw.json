@@ -2637,7 +2637,9 @@
                 "LOADING": "載入中…",
                 "LOAD_ERROR": "無法載入清單。",
                 "NO_RESULTS": "找不到任何內容",
-                "EMPTY": "這裡還沒有內容"
+                "EMPTY": "這裡還沒有內容",
+                "CATEGORY": "分類",
+                "CATEGORY_ALL": "全部分類"
             },
             "REPLACED": "已取代視窗 {{number}}"
         }

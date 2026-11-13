@@ -221,6 +221,41 @@
     }
 }
 
+.mv-picker__category {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 260px;
+    height: 28px;
+    margin-left: auto;
+    padding: 0 4px 0 8px;
+    border: 1px solid var(--app-separator);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--app-body-color);
+    font: inherit;
+    font-size: 0.78rem;
+    cursor: pointer;
+
+    mat-icon {
+        flex-shrink: 0;
+        width: 16px;
+        height: 16px;
+        font-size: 16px;
+    }
+
+    &:focus-visible {
+        @include focus-ring.focus-ring-declarations;
+    }
+}
+
+.mv-picker__category-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .mv-picker__type-count {
     color: var(--app-muted-color);
     font-size: 0.7rem;

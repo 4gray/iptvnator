@@ -22,6 +22,8 @@ import {
     type MultiviewPickerData,
     MultiviewPickerDataService,
 } from './multiview-picker-data.service';
+import { MultiviewPickerCategory } from './multiview-picker-category';
+import { searchAsTyped } from './multiview-picker-search-run';
 import { loadVisibleEpg, MultiviewEpgAllowance } from './multiview-picker-epg';
 import {
     loadPickerPlaylist,
@@ -52,7 +54,6 @@ import {
     MultiviewTileResolverService,
 } from './multiview-tile-resolver';
 
-const SEARCH_DEBOUNCE_MS = 200;
 /** Rows near the top that count as visible for the EPG allowance. */
 const VISIBLE_ROWS = 12;
 
@@ -95,11 +96,24 @@ export class MultiviewPickerController {
     readonly failedKey = signal<string | null>(null);
 
     readonly sections = computed(() => this.data()?.sections ?? []);
+    readonly category = new MultiviewPickerCategory({
+        data: this.data,
+        section: this.section,
+        loadGroup: (groupId) =>
+            this.dataService.loadPlaylistGroup(
+                this.context.playlistId ?? '',
+                groupId,
+                this.abort.signal
+            ),
+    });
     private readonly baseGroups = computed(() => {
         const results = this.results();
         if (results) return searchGroups(results);
         const id = this.section();
-        return sectionGroups(this.sections().find((s) => s.id === id));
+        const groups = sectionGroups(this.sections().find((s) => s.id === id));
+        if (id !== 'playlist') return groups;
+        const rows = this.category.rows(rowsOf(groups));
+        return rows.length ? [{ id: 'all', captionKey: null, rows }] : [];
     });
     readonly counts = computed(() => typeCounts(this.baseGroups()));
     readonly groups = computed(() =>
@@ -131,7 +145,22 @@ export class MultiviewPickerController {
         inject(DestroyRef).onDestroy(() => this.abort.abort());
         void this.load();
         void this.loadBudget();
-        this.searchAsTyped();
+        searchAsTyped({
+            term: this.query,
+            watch: () => {
+                this.data();
+                this.requery();
+                this.programs();
+            },
+            search: (term) =>
+                this.searchService.search(
+                    term,
+                    this.searchRows(),
+                    this.context.playlistId
+                ),
+            onStart: () => this.series.set(null),
+            onResults: (results) => this.results.set(results),
+        });
         loadVisibleEpg({
             visible: () =>
                 rowsOf(this.groups())
@@ -302,7 +331,9 @@ export class MultiviewPickerController {
         const scoped = this.scopedToPlaylist();
         const rows: MultiviewPickerRow[] = [];
         for (const section of this.sections()) {
-            if (!scoped || section.id === 'playlist') {
+            if (section.id === 'playlist') {
+                rows.push(...this.category.rows(rowsOf(section.groups)));
+            } else if (!scoped) {
                 rows.push(...rowsOf(section.groups));
             }
         }
@@ -310,38 +341,6 @@ export class MultiviewPickerController {
         return rows.map((row) => {
             const program = this.programOf(row);
             return program === row.program ? row : { ...row, program };
-        });
-    }
-
-    private searchAsTyped(): void {
-        let timer: ReturnType<typeof setTimeout> | undefined;
-        let searchRun = 0;
-        inject(DestroyRef).onDestroy(() => clearTimeout(timer));
-        effect(() => {
-            const term = this.query().trim();
-            this.data();
-            this.requery();
-            this.programs();
-            untracked(() => {
-                clearTimeout(timer);
-                if (!term) {
-                    searchRun += 1;
-                    this.results.set(null);
-                    return;
-                }
-                this.series.set(null);
-                // Each run supersedes the previous one: a scope, data or
-                // EPG change re-runs the same term.
-                const run = ++searchRun;
-                timer = setTimeout(async () => {
-                    const results = await this.searchService.search(
-                        term,
-                        this.searchRows(),
-                        this.context.playlistId
-                    );
-                    if (run === searchRun) this.results.set(results);
-                }, SEARCH_DEBOUNCE_MS);
-            });
         });
     }
 }

@@ -2637,7 +2637,9 @@
                 "LOADING": "Chargement…",
                 "LOAD_ERROR": "Impossible de charger la liste.",
                 "NO_RESULTS": "Aucun résultat",
-                "EMPTY": "Rien pour l'instant"
+                "EMPTY": "Rien pour l'instant",
+                "CATEGORY": "Catégorie",
+                "CATEGORY_ALL": "Toutes les catégories"
             },
             "REPLACED": "Fenêtre {{number}} remplacée"
         }

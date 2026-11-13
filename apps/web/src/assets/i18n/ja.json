@@ -2637,7 +2637,9 @@
                 "LOADING": "読み込み中…",
                 "LOAD_ERROR": "リストを読み込めませんでした。",
                 "NO_RESULTS": "見つかりませんでした",
-                "EMPTY": "まだ何もありません"
+                "EMPTY": "まだ何もありません",
+                "CATEGORY": "カテゴリ",
+                "CATEGORY_ALL": "すべてのカテゴリ"
             },
             "REPLACED": "タイル {{number}} を置き換えました"
         }

@@ -120,7 +120,8 @@ its view. Replacing a tile shows "Replaced tile N" with Undo (R6).
 An 820 px dialog on `app-dialog-shell`: search with a scope chip, sections
 Live now (favourites, then recent, then the current playlist — D9), Continue
 (Xtream films with a resume point), Favorites, Recent, and the current
-playlist only (Q2) with its connection badge; grouped search results; series
+playlist only (Q2) with its connection badge and a category menu (a portal
+that lists channels per group only loads one group at a time); grouped search results; series
 episodes as the one drill-down; footer connection meter. EPG is requested for
 at most 20 visible rows per open (Q1). Rows already on screen show "In tile
 N" and are disabled; before a session the playing source counts as tile 1.

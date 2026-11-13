@@ -2637,7 +2637,9 @@
                 "LOADING": "Cargando…",
                 "LOAD_ERROR": "No se pudo cargar la lista.",
                 "NO_RESULTS": "No se encontró nada",
-                "EMPTY": "Aún no hay nada"
+                "EMPTY": "Aún no hay nada",
+                "CATEGORY": "Categoría",
+                "CATEGORY_ALL": "Todas las categorías"
             },
             "REPLACED": "Ventana {{number}} reemplazada"
         }

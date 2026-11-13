@@ -68,7 +68,15 @@ describe('MultiviewPickerDialogComponent', () => {
     ): Promise<void> {
         data.load.mockResolvedValue({
             sections: sections(onScreen),
-            playlistGroups: [],
+            playlistGroups: [
+                { id: 'g1', name: 'Synthetic News' },
+                { id: 'g2', name: 'Synthetic Sport' },
+            ],
+            playlistRowGroups: new Map([
+                [toPickerRow(liveItem(2), []).sessionKey, 'g1'],
+                [toPickerRow(liveItem(3), []).sessionKey, 'g2'],
+            ]),
+            playlistPaged: false,
         });
         TestBed.configureTestingModule({
             imports: [
@@ -240,6 +248,38 @@ describe('MultiviewPickerDialogComponent', () => {
         expect(text()).toContain('PLAYER.MULTIVIEW.PICKER.BUDGET_FULL');
         expect(text()).toContain('PLAYER.MULTIVIEW.PICKER.FULL_WARNING');
         expect(rows()).toHaveLength(2);
+    });
+
+    it('filters the playlist by the category menu', async () => {
+        await open();
+        (
+            host().querySelector(
+                '[data-test-id="multiview-picker-section-playlist"]'
+            ) as HTMLButtonElement
+        ).click();
+        await settle();
+        expect(rows()).toHaveLength(2);
+
+        (
+            host().querySelector(
+                '[data-test-id="multiview-picker-category"]'
+            ) as HTMLButtonElement
+        ).click();
+        await settle();
+        const sport = Array.from(
+            document.querySelectorAll('[mat-menu-item]')
+        ).find((item) => item.textContent?.includes('Synthetic Sport')) as
+            HTMLButtonElement | undefined;
+        sport?.click();
+        await settle();
+
+        expect(rows().map((row) => row.textContent)).toEqual([
+            expect.stringContaining('Synthetic Channel 3'),
+        ]);
+        expect(
+            host().querySelector('[data-test-id="multiview-picker-category"]')
+                ?.textContent
+        ).toContain('Synthetic Sport');
     });
 
     it('moves with the arrows, skipping a row already on screen, and adds with Enter', async () => {

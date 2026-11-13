@@ -2637,7 +2637,9 @@
                 "LOADING": "Wird geladen…",
                 "LOAD_ERROR": "Die Liste konnte nicht geladen werden.",
                 "NO_RESULTS": "Nichts gefunden",
-                "EMPTY": "Noch nichts hier"
+                "EMPTY": "Noch nichts hier",
+                "CATEGORY": "Kategorie",
+                "CATEGORY_ALL": "Alle Kategorien"
             },
             "REPLACED": "Fenster {{number}} ersetzt"
         }

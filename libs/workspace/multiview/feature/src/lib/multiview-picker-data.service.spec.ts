@@ -66,7 +66,11 @@ describe('MultiviewEpgAllowance', () => {
 describe('MultiviewPickerDataService', () => {
     const favorites = { getFavorites: jest.fn() };
     const recent = { getRecentItems: jest.fn() };
-    const catalog = { load: jest.fn(), isAllowed: jest.fn() };
+    const catalog = {
+        load: jest.fn(),
+        isAllowed: jest.fn(),
+        loadGroup: jest.fn(),
+    };
     const resolver = { loadEpgForItems: jest.fn() };
     const positions = { getPlaybackPosition: jest.fn() };
     const withholdsEverything = signal(false);
@@ -84,6 +88,10 @@ describe('MultiviewPickerDataService', () => {
             groups: [{ id: '10', name: 'News' }],
             channels: [{ item: liveItem(3), group: '10' }],
         });
+        catalog.loadGroup.mockResolvedValue([
+            { item: liveItem(4), group: '20' },
+            { item: liveItem(5, { radio: 'true' }), group: '20' },
+        ]);
         catalog.isAllowed.mockReturnValue(true);
         positions.getPlaybackPosition.mockImplementation(
             async (_playlist: string, id: number) =>
@@ -130,6 +138,34 @@ describe('MultiviewPickerDataService', () => {
         expect(section('playlist')?.count).toBe(1);
         expect(section('live-now')?.groups[0].rows[0].inTile).toBe(1);
         expect(data.playlistGroups).toEqual([{ id: '10', name: 'News' }]);
+        expect([...data.playlistRowGroups.values()]).toEqual(['10']);
+        expect(data.playlistPaged).toBe(false);
+    });
+
+    it('marks a portal that lists channels per group only as paged', async () => {
+        catalog.load.mockResolvedValue({
+            groups: [{ id: '20', name: 'Sport' }],
+            channels: [],
+        });
+
+        const data = await service().load('playlist-1', signalOf());
+
+        expect(data.playlistPaged).toBe(true);
+    });
+
+    it('loads one group of a paged portal as rows, without radio', async () => {
+        const rows = await service().loadPlaylistGroup(
+            'playlist-1',
+            '20',
+            signalOf()
+        );
+
+        expect(catalog.loadGroup).toHaveBeenCalledWith(
+            'playlist-1',
+            '20',
+            expect.anything()
+        );
+        expect(rows.map((row) => row.item.xtreamId)).toEqual([4]);
     });
 
     it('lists no playlist without a current one', async () => {

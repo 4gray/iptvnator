@@ -2637,7 +2637,9 @@
                 "LOADING": "Laden…",
                 "LOAD_ERROR": "De lijst kon niet worden geladen.",
                 "NO_RESULTS": "Niets gevonden",
-                "EMPTY": "Nog niets"
+                "EMPTY": "Nog niets",
+                "CATEGORY": "Categorie",
+                "CATEGORY_ALL": "Alle categorieën"
             },
             "REPLACED": "Venster {{number}} vervangen"
         }

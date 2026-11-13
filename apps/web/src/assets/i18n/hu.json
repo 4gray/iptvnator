@@ -2637,7 +2637,9 @@
                 "LOADING": "Betöltés…",
                 "LOAD_ERROR": "A lista nem tölthető be.",
                 "NO_RESULTS": "Nincs találat",
-                "EMPTY": "Még nincs itt semmi"
+                "EMPTY": "Még nincs itt semmi",
+                "CATEGORY": "Kategória",
+                "CATEGORY_ALL": "Minden kategória"
             },
             "REPLACED": "A(z) {{number}}. ablak lecserélve"
         }

@@ -2637,7 +2637,9 @@
                 "LOADING": "Ładowanie…",
                 "LOAD_ERROR": "Nie udało się wczytać listy.",
                 "NO_RESULTS": "Nic nie znaleziono",
-                "EMPTY": "Na razie pusto"
+                "EMPTY": "Na razie pusto",
+                "CATEGORY": "Kategoria",
+                "CATEGORY_ALL": "Wszystkie kategorie"
             },
             "REPLACED": "Zastąpiono okno {{number}}"
         }

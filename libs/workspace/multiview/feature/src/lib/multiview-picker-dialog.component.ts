@@ -8,6 +8,7 @@ import {
     viewChild,
 } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import {
     DialogFooterStartDirective,
@@ -59,6 +60,7 @@ const NAVIGATION_KEYS = new Set(['ArrowDown', 'ArrowUp', 'Enter']);
         DialogShellComponent,
         DialogFooterStartDirective,
         MatIconModule,
+        MatMenuModule,
         MultiviewPickerRowComponent,
         TranslatePipe,
     ],
@@ -137,6 +139,11 @@ export class MultiviewPickerDialogComponent {
     /** The search keeps the keyboard: arrows and Enter act on the list. */
     selectSection(id: MultiviewPickerSectionId): void {
         this.picker.selectSection(id);
+        this.searchInput()?.nativeElement.focus();
+    }
+
+    selectCategory(id: string | null): void {
+        void this.picker.category.select(id);
         this.searchInput()?.nativeElement.focus();
     }
 

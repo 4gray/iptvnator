@@ -255,6 +255,67 @@
                                 }}</span>
                             </button>
                         }
+                        @if (
+                            !query &&
+                            picker.section() === 'playlist' &&
+                            picker.category.groups().length
+                        ) {
+                            <button
+                                type="button"
+                                class="mv-picker__category"
+                                data-test-id="multiview-picker-category"
+                                [matMenuTriggerFor]="categoryMenu"
+                                [matMenuTriggerRestoreFocus]="false"
+                                [attr.aria-label]="
+                                    'PLAYER.MULTIVIEW.PICKER.CATEGORY'
+                                        | translate
+                                "
+                            >
+                                <mat-icon aria-hidden="true"
+                                    >folder_open</mat-icon
+                                >
+                                <span class="mv-picker__category-name">{{
+                                    picker.category.selectedName() ??
+                                        ('PLAYER.MULTIVIEW.PICKER.CATEGORY_ALL'
+                                            | translate)
+                                }}</span>
+                                <mat-icon aria-hidden="true"
+                                    >arrow_drop_down</mat-icon
+                                >
+                            </button>
+                            <mat-menu #categoryMenu="matMenu">
+                                @if (!picker.category.paged()) {
+                                    <button
+                                        mat-menu-item
+                                        type="button"
+                                        (click)="selectCategory(null)"
+                                    >
+                                        {{
+                                            'PLAYER.MULTIVIEW.PICKER.CATEGORY_ALL'
+                                                | translate
+                                        }}
+                                    </button>
+                                }
+                                @for (
+                                    group of picker.category.groups();
+                                    track group.id
+                                ) {
+                                    <button
+                                        mat-menu-item
+                                        type="button"
+                                        [attr.aria-current]="
+                                            picker.category.selected() ===
+                                            group.id
+                                                ? 'true'
+                                                : null
+                                        "
+                                        (click)="selectCategory(group.id)"
+                                    >
+                                        {{ group.name }}
+                                    </button>
+                                }
+                            </mat-menu>
+                        }
                     </div>
                     @if (
                         !query &&
@@ -280,7 +341,12 @@
                             'PLAYER.MULTIVIEW.PICKER.RESULTS' | translate
                         "
                     >
-                        @if (picker.loadState() === 'loading') {
+                        @if (
+                            picker.loadState() === 'loading' ||
+                            (!query &&
+                                picker.section() === 'playlist' &&
+                                picker.category.loading())
+                        ) {
                             <p class="mv-picker__state" role="status">
                                 {{
                                     'PLAYER.MULTIVIEW.PICKER.LOADING'

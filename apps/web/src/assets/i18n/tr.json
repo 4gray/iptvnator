@@ -2637,7 +2637,9 @@
                 "LOADING": "Yükleniyor…",
                 "LOAD_ERROR": "Liste yüklenemedi.",
                 "NO_RESULTS": "Hiçbir şey bulunamadı",
-                "EMPTY": "Henüz bir şey yok"
+                "EMPTY": "Henüz bir şey yok",
+                "CATEGORY": "Kategori",
+                "CATEGORY_ALL": "Tüm kategoriler"
             },
             "REPLACED": "{{number}}. pencere değiştirildi"
         }

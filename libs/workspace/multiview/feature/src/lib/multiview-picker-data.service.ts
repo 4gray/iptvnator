@@ -21,7 +21,11 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { MultiviewOnScreenSources } from './multiview-on-screen';
 import type { MultiviewEpgAllowance } from './multiview-picker-epg';
-import { toPickerRow } from './multiview-picker-row';
+import {
+    type MultiviewPickerRow,
+    pickerSessionKey,
+    toPickerRow,
+} from './multiview-picker-row';
 import {
     composePickerSections,
     type MultiviewContinueItem,
@@ -36,6 +40,13 @@ export interface MultiviewPickerData {
     readonly sections: readonly MultiviewPickerSection[];
     /** Groups of the current playlist, for the category menu (Q2). */
     readonly playlistGroups: readonly MultiviewCatalogSource[];
+    /** The group of each current-playlist row, by its session key. */
+    readonly playlistRowGroups: ReadonlyMap<string, string>;
+    /**
+     * The portal lists its channels per group only (a Stalker portal without
+     * the full channel list): the category menu loads one group at a time.
+     */
+    readonly playlistPaged: boolean;
 }
 
 export function isResumable(position: PlaybackPositionData | null): boolean {
@@ -101,7 +112,33 @@ export class MultiviewPickerDataService {
                     toPickerRow(item, tiles, { position }),
             }),
             playlistGroups: playlist?.groups ?? [],
+            playlistRowGroups: new Map(
+                (playlist?.channels ?? []).map((row) => [
+                    pickerSessionKey(row.item),
+                    row.group,
+                ])
+            ),
+            playlistPaged:
+                !!playlist &&
+                playlist.channels.length === 0 &&
+                playlist.groups.length > 0,
         };
+    }
+
+    /** One group of a paged portal, as rows (the category menu). */
+    async loadPlaylistGroup(
+        playlistId: string,
+        groupId: string,
+        signal: AbortSignal
+    ): Promise<MultiviewPickerRow[]> {
+        const channels = await this.catalog
+            .loadGroup(playlistId, groupId, signal)
+            .catch(() => []);
+        const tiles = this.onScreen.current();
+        return channels
+            .map((row) => row.item)
+            .filter((item) => item.radio !== 'true' && this.isAllowed(item))
+            .map((item) => toPickerRow(item, tiles));
     }
 
     /** Current programmes of the visible rows, within the open's allowance. */

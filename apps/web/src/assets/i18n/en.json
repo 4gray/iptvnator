@@ -2637,7 +2637,9 @@
                 "LOADING": "Loading…",
                 "LOAD_ERROR": "The list could not be loaded.",
                 "NO_RESULTS": "Nothing found",
-                "EMPTY": "Nothing here yet"
+                "EMPTY": "Nothing here yet",
+                "CATEGORY": "Category",
+                "CATEGORY_ALL": "All categories"
             },
             "REPLACED": "Replaced tile {{number}}"
         }

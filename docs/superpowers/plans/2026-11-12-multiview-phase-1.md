@@ -1339,10 +1339,17 @@ the maintainer's request):** five findings.
   sources: requests on an origin a named owner covers no longer get them, and
   a released tile is forgotten through the new `releaseHeaderOwner` IPC
   instead of leaving a header-free claim.
-- Not fixed, gap — P2, a Stalker portal without the full ITV cache shows an
-  empty current-playlist section: the picker lacks the category menu of spec
-  9.5 that would load one genre at a time (`MultiviewCatalogService.loadGroup`
-  exists). Recorded for the next multiview step.
+- Fixed afterwards (maintainer's request) — P2, a Stalker portal without the
+  full ITV cache showed an empty current-playlist section: the picker now has
+  the category menu of spec 9.5 (`MultiviewPickerCategory`). With the whole
+  list loaded it filters the playlist section by group; a portal that lists
+  channels per group only loads the chosen genre through
+  `MultiviewCatalogService.loadGroup` and opens on its first genre. Live
+  check on the Xtream mock: 9 menu entries, 320 → 40 rows for one category,
+  focus stays in the search. The per-genre path is unit-tested only: the
+  Stalker mock has no portal that lists channels per genre only. The
+  controller is at 310 counted lines (search run extracted to
+  `multiview-picker-search-run.ts`).
 - Repeated, declined as before — the VOD survivor handoff (D2, round 1) and
   the catch-up position on live views (phase 1 limit, round 3).
 

@@ -2637,7 +2637,9 @@
                 "LOADING": "불러오는 중…",
                 "LOAD_ERROR": "목록을 불러오지 못했습니다.",
                 "NO_RESULTS": "결과 없음",
-                "EMPTY": "아직 없음"
+                "EMPTY": "아직 없음",
+                "CATEGORY": "카테고리",
+                "CATEGORY_ALL": "모든 카테고리"
             },
             "REPLACED": "타일 {{number}}을(를) 바꿨습니다"
         }
