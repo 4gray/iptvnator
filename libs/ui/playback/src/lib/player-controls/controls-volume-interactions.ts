@@ -6,6 +6,8 @@ export interface ControlsVolumeInteractionsDeps {
     menus: ControlsMenuState;
     /** Pointer-type attribution, provided by the surface. */
     wasTouchInteraction: (event?: Event) => boolean;
+    /** Whether a pointerenter is a tap's emulated hover, provided by the surface. */
+    isEmulatedHover: (event?: Event) => boolean;
     /**
      * Whether the `focusout` being dispatched is the surface releasing the
      * focus a pointer click left on a control. The pointer is still over the
@@ -30,6 +32,19 @@ export class ControlsVolumeInteractions {
 
     hoverEnter(event?: Event): void {
         if (this.deps.wasTouchInteraction(event)) {
+            return;
+        }
+        this.deps.volume.hoverEnter();
+    }
+
+    /**
+     * Pointer hover on the anchor. After a tap Chromium may dispatch a
+     * mouse-typed pointerenter on the anchor fading in under the finger, with
+     * no pointerleave to follow; opening the popover on it would keep the
+     * controls up for good. Focus keeps its own path (`hoverEnter`).
+     */
+    pointerEnter(event?: Event): void {
+        if (this.deps.isEmulatedHover(event)) {
             return;
         }
         this.deps.volume.hoverEnter();

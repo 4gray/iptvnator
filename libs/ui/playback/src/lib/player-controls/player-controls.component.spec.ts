@@ -324,6 +324,50 @@ describe('PlayerControlsComponent', () => {
             expect(fixture.componentInstance.controlsAreVisible()).toBe(false);
         });
 
+        it('does not open the volume popover on the emulated hover a tap leaves', () => {
+            setCapabilities({ volume: true });
+            fixture.detectChanges();
+            const anchor = query(
+                '.player-controls__popover-anchor'
+            ) as HTMLElement;
+            const touchDown = new MouseEvent('pointerdown', { bubbles: true });
+            Object.defineProperty(touchDown, 'pointerType', { value: 'touch' });
+            document.dispatchEvent(touchDown);
+            const emulated = new MouseEvent('pointerenter');
+            Object.defineProperty(emulated, 'pointerType', { value: 'mouse' });
+            anchor.dispatchEvent(emulated);
+            fixture.detectChanges();
+
+            expect(fixture.componentInstance.menus.volumeOpen()).toBe(false);
+            jest.advanceTimersByTime(10000);
+            fixture.detectChanges();
+            expect(fixture.componentInstance.controlsAreVisible()).toBe(false);
+        });
+
+        it('lets a real mouse moving over the bar claim hover after a touch', () => {
+            const typed = (type: string, pointerType: string) => {
+                const event = new MouseEvent(type, { bubbles: true });
+                Object.defineProperty(event, 'pointerType', {
+                    value: pointerType,
+                });
+                return event;
+            };
+            document.dispatchEvent(typed('pointerdown', 'touch'));
+            // A genuine mouse enter inside the touch window is ignored...
+            bar()?.dispatchEvent(typed('pointerenter', 'mouse'));
+            expect(fixture.componentInstance.chrome.hovered()).toBe(false);
+
+            // ...and its next move, once the window has passed, claims hover.
+            jest.advanceTimersByTime(1500);
+            bar()?.dispatchEvent(typed('pointermove', 'mouse'));
+            fixture.detectChanges();
+            expect(fixture.componentInstance.chrome.hovered()).toBe(true);
+
+            jest.advanceTimersByTime(10000);
+            fixture.detectChanges();
+            expect(fixture.componentInstance.controlsAreVisible()).toBe(true);
+        });
+
         it('reveals on focus, stays visible within the bar, and hides after focus leaves', () => {
             setCapabilities({ seek: true });
             setState({

@@ -46,6 +46,7 @@
             settings.isOpen() && layout.roomy()
         "
         (pointerenter)="chrome.onPointerEnter($event)"
+        (pointermove)="chrome.onPointerMove($event)"
         (pointerleave)="chrome.onPointerLeave()"
         (pointerdown)="chrome.onPointerDown()"
         (click)="chrome.onClick($event)"
@@ -130,6 +131,7 @@
             settings.isOpen() && !layout.roomy()
         "
         (pointerenter)="chrome.onPointerEnter($event)"
+        (pointermove)="chrome.onPointerMove($event)"
         (pointerleave)="chrome.onPointerLeave()"
         (pointerdown)="chrome.onPointerDown()"
         (click)="chrome.onClick($event)"
@@ -155,7 +157,7 @@
                 @if (capabilities().volume) {
                     <div
                         class="player-controls__popover-anchor player-controls__volume"
-                        (pointerenter)="volumeInteractions.hoverEnter($event)"
+                        (pointerenter)="volumeInteractions.pointerEnter($event)"
                         (pointerleave)="volumeInteractions.hoverLeave($event)"
                         (focusin)="volumeInteractions.hoverEnter($event)"
                         (focusout)="volumeInteractions.hoverLeave($event)"
@@ -591,6 +593,7 @@
             [title]="'EMBEDDED_MPV.PLAYER.SETTINGS' | translate"
             (closeRequested)="settings.close()"
             (pointerenter)="chrome.onPointerEnter($event)"
+            (pointermove)="chrome.onPointerMove($event)"
             (pointerleave)="chrome.onPointerLeave()"
             (pointerdown)="chrome.onPointerDown()"
             (click)="chrome.onClick($event)"
@@ -612,6 +615,7 @@
             (dismissed)="upNextCard.dismiss()"
             (collapseRequested)="upNextCard.collapse()"
             (pointerenter)="chrome.onPointerEnter($event)"
+            (pointermove)="chrome.onPointerMove($event)"
             (pointerleave)="chrome.onPointerLeave()"
             (pointerdown)="chrome.onPointerDown()"
             (click)="chrome.onClick($event)"
