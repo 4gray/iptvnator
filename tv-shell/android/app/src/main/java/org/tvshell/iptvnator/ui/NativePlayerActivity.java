@@ -56,6 +56,7 @@ public final class NativePlayerActivity extends Activity {
     private boolean autoplay = true;
     private boolean failed;
     private boolean ended;
+    private boolean positionVerified;
     private long position;
     private long duration;
     private long played;
@@ -85,6 +86,7 @@ public final class NativePlayerActivity extends Activity {
         if (savedState != null) {
             position = savedState.getLong("position");
             duration = savedState.getLong("duration");
+            positionVerified = savedState.getBoolean("positionVerified");
             played = savedState.getLong("played");
             failed = savedState.getBoolean("failed");
             hls = savedState.getBoolean("hls", hls);
@@ -166,6 +168,7 @@ public final class NativePlayerActivity extends Activity {
 
             @Override
             public void onPlaybackStateChanged(int state) {
+                if (state == Player.STATE_READY) positionVerified = true;
                 if (state == Player.STATE_ENDED && player.getPlaybackState() == Player.STATE_ENDED
                     && !live && !isFinishing()) {
                     if (rewindUnreachableResume()) return;
@@ -282,6 +285,7 @@ public final class NativePlayerActivity extends Activity {
         snapshot();
         outState.putLong("position", position);
         outState.putLong("duration", duration);
+        outState.putBoolean("positionVerified", positionVerified);
         outState.putLong("played", playedMs());
         outState.putBoolean("failed", failed);
         outState.putBoolean("hls", hls);
@@ -328,8 +332,9 @@ public final class NativePlayerActivity extends Activity {
 
     private Intent playbackResult() {
         snapshot();
-        return new Intent().putExtra("position", position)
-            .putExtra("duration", duration).putExtra("played", playedMs()).putExtra("ended", ended);
+        return new Intent().putExtra("position", positionVerified ? position : 0)
+            .putExtra("duration", positionVerified ? duration : 0)
+            .putExtra("played", playedMs()).putExtra("ended", ended && positionVerified);
     }
 
     private long playedMs() {
@@ -339,7 +344,7 @@ public final class NativePlayerActivity extends Activity {
     }
 
     private void snapshot() {
-        if (player == null || live) return;
+        if (player == null || live || !positionVerified) return;
         duration = Math.max(0, player.getDuration());
         position = Math.max(0, player.getCurrentPosition());
         if (duration > 0) position = Math.min(duration, position);

@@ -2,7 +2,7 @@
  * ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-native-playback.mjs emulator-5554
  */
 import assert from 'node:assert/strict';
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -46,6 +46,11 @@ try {
         '-disposition:s:0', '0', mkv]);
     const clip = readFileSync(mp4);
     const ac3Clip = readFileSync(mkv);
+    const chunkedClip = Buffer.concat(
+        Array.from({ length: 10 }, (_, index) =>
+            readFileSync(join(fixtures, `synthetic${index}.ts`))
+        )
+    );
     const seen = { origin: [], target: [], segments: 0 };
     const respond = (req, res, data, mime) => {
         const range = /^bytes=(\d+)-(\d*)$/.exec(req.headers.range ?? '');
@@ -79,10 +84,15 @@ try {
             res.end();
         } else if (req.url === '/synthetic-chunked.ts') {
             res.writeHead(200, { 'Content-Type': 'video/mp2t' });
-            const encoder = spawn('ffmpeg', ['-nostdin', '-loglevel', 'error',
-                '-re', '-i', mp4, '-c', 'copy', '-f', 'mpegts', 'pipe:1']);
-            encoder.stdout.pipe(res);
-            res.on('close', () => encoder.kill());
+            res.flushHeaders();
+            const chunkSize = Math.ceil(chunkedClip.length / 80);
+            let offset = 0;
+            const timer = setInterval(() => {
+                res.write(chunkedClip.subarray(offset, offset + chunkSize));
+                offset += chunkSize;
+                if (offset >= chunkedClip.length) res.end();
+            }, 250);
+            res.on('close', () => clearInterval(timer));
         } else if (req.url === '/synthetic-ac3.mkv') {
             respond(req, res, ac3Clip, 'video/x-matroska');
         } else if (/^\/synthetic\d+\.ts$/.test(req.url)) {
@@ -288,6 +298,16 @@ try {
     const unknownDuration = await page.evaluate(() => window.__nativeResult);
     assert.equal(unknownDuration.durationMs, 0);
     assert.ok(unknownDuration.positionMs > 0, 'Preserve the playhead even when duration is unknown.');
+
+    await page.evaluate((url) => {
+        delete window.__nativeResult;
+        window.TvShell.postMessage(JSON.stringify(['playNative', crypto.randomUUID(), { url, startTime: 12 }]));
+    }, origin + '/synthetic-missing.mp4');
+    await waitNative();
+    await back();
+    await page.waitForFunction(() => window.__nativeResult !== undefined);
+    assert.equal((await page.evaluate(() => window.__nativeResult)).positionMs, 0,
+        'Leaving before the VOD loads must not save the requested offset.');
 
     const playlistId = 'synthetic-reload-' + randomUUID();
     await page.evaluate(({ url, playlistId }) => {
