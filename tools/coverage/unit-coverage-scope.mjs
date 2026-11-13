@@ -13,8 +13,8 @@
  * allowlist of paths no Tier A test reads. Anything unknown runs the suite.
  *
  * Usage:
- *   git diff --name-only <base>...HEAD |
- *       node tools/coverage/unit-coverage-scope.mjs [--base <base>] [--github-output]
+ *   git diff --name-only -z --no-renames <base> HEAD -- |
+ *       node tools/coverage/unit-coverage-scope.mjs --null --base <base> [--github-output]
  */
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, readFileSync } from 'node:fs';
@@ -106,7 +106,10 @@ export function declaredWorkspaceInputs(tierAProjects, readProject) {
 }
 
 export function isSkippable(file) {
-    return SKIPPABLE_PATTERNS.some((pattern) => pattern.test(file));
+    return (
+        !/[\r\n]/.test(file) &&
+        SKIPPABLE_PATTERNS.some((pattern) => pattern.test(file))
+    );
 }
 
 /**
@@ -142,7 +145,7 @@ export function decideUnitCoverageScope(
     { packageJsonScriptsOnly = false, declaredInputs = [] } = {}
 ) {
     const declared = declaredInputs.map(globToRegExp);
-    const changed = files.map((file) => file.trim()).filter(Boolean);
+    const changed = files.filter(Boolean);
     if (changed.length === 0) {
         return {
             run: true,
@@ -189,9 +192,12 @@ if (isMain) {
     const argv = process.argv.slice(2);
     const baseIndex = argv.indexOf('--base');
     const base = baseIndex === -1 ? null : argv[baseIndex + 1];
-    const files = readFileSync(0, 'utf8').split('\n');
+    const input = readFileSync(0, 'utf8');
+    const files = argv.includes('--null')
+        ? input.split('\0')
+        : input.split('\n').map((file) => file.trim());
     let packageJsonScriptsOnly = false;
-    if (base && files.some((file) => file.trim() === 'package.json')) {
+    if (base && files.includes('package.json')) {
         const basePackageJson = gitShow(base, 'package.json');
         const headPackageJson = readFileSync('package.json', 'utf8');
         packageJsonScriptsOnly =
@@ -215,7 +221,7 @@ if (isMain) {
     });
     console.log(`Tier A unit coverage: ${decision.run ? 'run' : 'skip'}. ${decision.reason}`);
     for (const file of decision.blocking.slice(0, 20)) {
-        console.log(`  needs tests: ${file}`);
+        console.log(`  needs tests: ${JSON.stringify(file)}`);
     }
     if (decision.blocking.length > 20) {
         console.log(`  … and ${decision.blocking.length - 20} more`);
