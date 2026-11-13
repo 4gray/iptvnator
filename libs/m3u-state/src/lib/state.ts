@@ -11,6 +11,13 @@ export interface PlaylistState {
     epgAvailable: boolean;
     channelsLoading: boolean;
     channels: Channel[]; // TODO: use entity store
+    /**
+     * The playlist `channels` was read from; absent or null when unknown
+     * (read it through `selectChannelsPlaylistId`, which answers null for
+     * both). The active playlist can change without an M3U route loading
+     * its rows, so the two are not the same thing.
+     */
+    channelsPlaylistId?: string | null;
     playlists: PlaylistMetaState;
 }
 

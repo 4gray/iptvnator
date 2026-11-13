@@ -17,7 +17,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { EpgProgrammeDialogService, getProgramTimeMs } from '@iptvnator/ui/epg';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { SettingsStore } from '@iptvnator/services';
-import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
+import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils/name-strip';
 
 @Component({
     selector: 'app-channel-list-item',

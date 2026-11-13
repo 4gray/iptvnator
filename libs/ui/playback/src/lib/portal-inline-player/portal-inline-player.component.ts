@@ -28,7 +28,7 @@ import {
 import type { PlaybackFallbackRequest } from '@iptvnator/playback/util';
 import type { PlaybackDiagnosticCode } from '@iptvnator/playback/util';
 import { SettingsStore } from '@iptvnator/services';
-import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
+import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils/name-strip';
 import type { PlayerMediaTitle, PlayerUpNextItem } from '../player-controls';
 import {
     FULLSCREEN_CHANNEL_PANEL,

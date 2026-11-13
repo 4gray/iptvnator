@@ -740,6 +740,8 @@
         "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "Ha lejátszás közben megszakad az adatfolyam, a beágyazott lejátszó legfeljebb hat alkalommal, egyre hosszabb várakozás után próbálja újra betölteni. Ha a lejátszás el sem indult, az Újrapróbálkozás műveletet kézzel kell elindítani.",
         "VOD_AUTO_FAILOVER": "Automatikus forrásváltás lejátszási hiba esetén",
         "VOD_AUTO_FAILOVER_DESCRIPTION": "Ha egy film nem játszható le, de egy másik lejátszási listában is megtalálható, az alkalmazás automatikusan átválthat a másik forrásra, és megőrzi a lejátszási pozíciót. A funkció alapértelmezés szerint ki van kapcsolva. A váltásról mindig értesítés jelenik meg, mert az eltérő források más szinkronváltozatot tartalmazhatnak.",
+        "M3U_CATALOG_TABS": "Film- és sorozatszakaszok",
+        "M3U_CATALOG_TABS_DESCRIPTION": "Külön Filmek és Sorozatok szakasz megjelenítése a filmeket vagy epizódokat tartalmazó lejátszási listákhoz, ahelyett hogy minden elem élő csatornaként jelenne meg.",
         "NAV_PARENTAL": "Szülői felügyelet",
         "PARENTAL_LOCK": {
             "TITLE": "Szülői felügyelet",
@@ -1099,6 +1101,13 @@
             "SEARCH_PLACEHOLDER": "Keresés a csoportok között…",
             "NO_RESULTS": "Nem található a keresésnek megfelelő csoport",
             "SAVE": "Mentés"
+        },
+        "CATALOG": {
+            "NO_MOVIES": "Ebben a lejátszási listában nincsenek filmek",
+            "NO_SERIES": "Ebben a lejátszási listában nincsenek sorozatok",
+            "EMPTY_HINT": "Ez a lejátszási lista csak élő csatornákat tartalmaz.",
+            "EMPTY_HINT_MOVIES": "A lejátszási lista filmjei a Filmek szakaszban találhatók.",
+            "EMPTY_HINT_SERIES": "A lejátszási lista sorozatai a Sorozatok szakaszban találhatók."
         }
     },
     "TOP_MENU": {
@@ -1660,6 +1669,8 @@
             "AGE_RATING_COUNTRY_FALLBACK": "A kiválasztott országhoz ({{country}}) nem érhető el korhatár-besorolás. Helyette a következő forrás besorolása látható: {{fallback}}.",
             "AGE_RATING_MULTIPLE": "A besorolások kiadásonként eltérnek."
         },
+        "SEASON_COUNT_ONE": "1 évad",
+        "SEASON_COUNT_OTHER": "{{count}} évad",
         "SCROLL_LEFT": "Görgetés balra",
         "SCROLL_RIGHT": "Görgetés jobbra",
         "EPISODE_NAVIGATION": "Epizódnavigáció",

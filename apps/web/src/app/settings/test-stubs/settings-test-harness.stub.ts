@@ -94,6 +94,7 @@ export const DEFAULT_SETTINGS = {
     fullscreenChannelPanel: true,
     vodAutoFailover: false,
     m3uVodDetails: true,
+    m3uCatalogTabs: true,
     ageRatingCountry: 'auto',
     streamFormat: StreamFormat.AutoStreamFormat,
     openStreamOnDoubleClick: false,

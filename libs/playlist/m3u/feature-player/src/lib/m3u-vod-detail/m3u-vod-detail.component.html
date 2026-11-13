@@ -42,6 +42,20 @@
                 (pressed)="startPlayback()"
             />
         }
+        <app-detail-icon-button
+            [label]="
+                (isFavorite()
+                    ? 'PORTALS.REMOVE_FROM_FAVORITES'
+                    : 'PORTALS.ADD_TO_FAVORITES'
+                ) | translate
+            "
+            [icon]="isFavorite() ? 'favorite' : 'favorite_border'"
+            tone="favorite"
+            [active]="isFavorite()"
+            [pressedState]="isFavorite()"
+            testId="m3u-vod-favorite-toggle"
+            (pressed)="toggleFavorite()"
+        />
     </ng-template>
 
     @if (inlinePlayback(); as playback) {

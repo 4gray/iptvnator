@@ -77,6 +77,31 @@
         }
     </div>
 
+    @if (showFavoriteButton()) {
+        <button
+            mat-icon-button
+            type="button"
+            class="favorite-button"
+            data-testid="content-card-favorite-toggle"
+            [matTooltip]="
+                (favorite()
+                    ? 'PORTALS.REMOVE_FROM_FAVORITES'
+                    : 'PORTALS.ADD_TO_FAVORITES'
+                ) | translate
+            "
+            [attr.aria-label]="
+                (favorite()
+                    ? 'PORTALS.REMOVE_FROM_FAVORITES'
+                    : 'PORTALS.ADD_TO_FAVORITES'
+                ) | translate
+            "
+            [attr.aria-pressed]="favorite()"
+            (click)="onFavoriteClick($event)"
+        >
+            <mat-icon>{{ favorite() ? 'star' : 'star_outline' }}</mat-icon>
+        </button>
+    }
+
     @if (showRemoveButton()) {
         <button
             mat-icon-button

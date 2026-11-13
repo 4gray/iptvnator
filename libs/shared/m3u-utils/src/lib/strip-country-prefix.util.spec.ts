@@ -17,6 +17,11 @@ describe('stripCountryPrefix', () => {
             expect(stripCountryPrefix('|DE| ARD')).toBe('ARD');
         });
 
+        it('drops a bare leading pipe', () => {
+            expect(stripCountryPrefix('| Globe News')).toBe('Globe News');
+            expect(stripCountryPrefix('|Globe News')).toBe('Globe News');
+        });
+
         it('strips long prefixes before a pipe', () => {
             expect(stripCountryPrefix('US East | CNN')).toBe('CNN');
         });
@@ -41,6 +46,23 @@ describe('stripCountryPrefix', () => {
 
         it('strips a colon-separated tag', () => {
             expect(stripCountryPrefix('US: CNN')).toBe('CNN');
+        });
+
+        it('strips a colon tag welded to the name', () => {
+            // Panels routinely omit the space. Requiring it meant the
+            // setting did nothing on playlists that write it this way.
+            expect(stripCountryPrefix('TR:KANAL ORNEK 1 HD')).toBe(
+                'KANAL ORNEK 1 HD'
+            );
+            expect(stripCountryPrefix('DE:WILDLIFE PLUS UHD')).toBe(
+                'WILDLIFE PLUS UHD'
+            );
+        });
+
+        it('keeps franchise titles whose colon prefix is too long', () => {
+            expect(stripCountryPrefix('KDSQ:Harbor City')).toBe(
+                'KDSQ:Harbor City'
+            );
         });
 
         it('strips compound quality/provider tags', () => {

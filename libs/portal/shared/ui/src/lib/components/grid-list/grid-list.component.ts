@@ -15,7 +15,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
-import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
+import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils/name-strip';
 import { EpgProgram, readProviderRating } from '@iptvnator/shared/interfaces';
 import { getProgramTimeMs } from '@iptvnator/ui/epg';
 import {

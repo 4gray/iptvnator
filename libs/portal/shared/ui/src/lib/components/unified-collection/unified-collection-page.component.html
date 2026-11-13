@@ -243,7 +243,9 @@
                         [mode]="mode()"
                         [contentType]="'movie'"
                         [searchTerm]="workspaceSearchTerm()"
+                        [favoriteUids]="favoriteUidSet()"
                         (itemSelected)="onGridItemSelected($event)"
+                        (favoriteToggled)="onFavoriteToggled($event)"
                         (removeItem)="onRemoveItem($event)"
                     />
                 }
@@ -255,7 +257,9 @@
                         [mode]="mode()"
                         [contentType]="'series'"
                         [searchTerm]="workspaceSearchTerm()"
+                        [favoriteUids]="favoriteUidSet()"
                         (itemSelected)="onGridItemSelected($event)"
+                        (favoriteToggled)="onFavoriteToggled($event)"
                         (removeItem)="onRemoveItem($event)"
                     />
                 }

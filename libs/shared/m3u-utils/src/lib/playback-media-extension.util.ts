@@ -97,6 +97,13 @@ function getMediaExtensionFromQuery(
     url: string,
     queryKeys: readonly string[]
 ): string {
+    // Without a `?` there is no query to read. The M3U catalog index asks
+    // this for every row of a playlist, and building a `URL` per row was
+    // most of the index cost on rows that are plain file paths.
+    if (!url.includes('?')) {
+        return '';
+    }
+
     try {
         const parsedUrl = new URL(url, 'http://iptvnator.local');
         for (const key of queryKeys) {

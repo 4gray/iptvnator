@@ -17,7 +17,7 @@ import {
     ExternalPlayerSession,
 } from '@iptvnator/shared/interfaces';
 import { SettingsStore } from '@iptvnator/services';
-import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
+import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils/name-strip';
 
 @Component({
     selector: 'app-external-playback-dock',
