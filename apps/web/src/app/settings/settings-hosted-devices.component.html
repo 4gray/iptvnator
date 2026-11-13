@@ -92,9 +92,17 @@
                                 <span class="device-name">{{
                                     claim.name
                                 }}</span>
-                                <code class="hosted-value">{{
-                                    claim.confirmationCode
-                                }}</code>
+                                <span class="pairing-code-group">
+                                    <span class="pairing-code-label">
+                                        {{
+                                            'HOSTED_SERVER.PAIR_CODE'
+                                                | translate
+                                        }}
+                                    </span>
+                                    <code class="pairing-code">{{
+                                        claim.confirmationCode
+                                    }}</code>
+                                </span>
                                 <button
                                     mat-button
                                     type="button"

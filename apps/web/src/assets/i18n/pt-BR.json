@@ -2368,6 +2368,8 @@
         }
     },
     "HOSTED_SERVER": {
+        "TITLE": "Hospedar um servidor",
+        "PAIR_CODE": "Código de confirmação",
         "ALLOW_DEVICE_APPROVAL": "Permitir que este dispositivo aprove solicitações de pareamento",
         "PHONE_PAIRING_TITLE": "Aprove TVs pelo celular",
         "PHONE_PAIRING_DESCRIPTION": "Defina uma senha separada para aprovar solicitações de pareamento pelo celular depois de escanear o código QR na TV. O código de acesso do espectador ainda é usado para abrir o player web.",
@@ -2380,7 +2382,6 @@
         "PHONE_PASSWORD_CLEARED": "Senha de aprovação pelo celular removida.",
         "PHONE_PASSWORD_LOAD_FAILED": "Não foi possível carregar as configurações de aprovação pelo celular.",
         "PHONE_PASSWORD_UPDATE_FAILED": "Não foi possível atualizar a senha de aprovação pelo celular. Tente novamente.",
-        "TITLE": "Hospedar um servidor",
         "DESCRIPTION": "Funciona enquanto o IPTVnator estiver aberto, mesmo minimizado. Sair do aplicativo interrompe o servidor.",
         "SETUP_GUIDE": "Como iniciar um servidor neste computador",
         "LOCAL_ONLY": "Disponível apenas neste computador.",

@@ -2368,6 +2368,8 @@
         }
     },
     "HOSTED_SERVER": {
+        "TITLE": "Héberger un serveur",
+        "PAIR_CODE": "Code de confirmation",
         "PHONE_PAIRING_TITLE": "Approuver des téléviseurs depuis votre téléphone",
         "PHONE_PAIRING_DESCRIPTION": "Définissez un mot de passe distinct pour approuver les demandes d’association sur votre téléphone après avoir scanné le code QR du téléviseur. Le code d’accès spectateur sert toujours à ouvrir le lecteur web.",
         "PHONE_PASSWORD_LABEL": "Mot de passe d’approbation sur téléphone",
@@ -2398,7 +2400,6 @@
         "PAIR_QR_LABEL": "Code QR d’association",
         "COPY_PAIR_LINK": "Copier le lien d’association",
         "PAIR_LINK_COPIED": "Lien d’association copié.",
-        "PAIR_SCAN": "Scannez ce code avec l’appareil photo de votre téléphone. Ouvrez le lien dans l’application IPTVnator pour demander l’accès. Gardez les deux appareils sur le même réseau.",
         "PAIR_EXPIRED": "Ce code d’association a expiré. Sélectionnez Associer un appareil pour générer un nouveau code.",
         "PAIR_COMPARE": "Comparez le code de confirmation avec celui qui s’affiche sur l’appareil. Autorisez l’accès si les codes correspondent.",
         "PAIR_REQUESTS": "Demandes d’association",
@@ -2421,7 +2422,6 @@
         "MANUAL_CLOUDFLARE": "Cloudflare manuel",
         "MANUAL_CLOUDFLARE_DESCRIPTION": "Accédez au serveur à distance via un tunnel créé dans Cloudflare.",
         "MANUAL_CLOUDFLARE_SETUP": "Configurer Cloudflare manuellement",
-        "TITLE": "Héberger un serveur",
         "DESCRIPTION": "Fonctionne tant qu’IPTVnator reste ouvert, même si la fenêtre est réduite. Quitter l’application arrête le serveur.",
         "SETUP_GUIDE": "Comment lancer un serveur sur cet ordinateur",
         "CLIENT_GUIDE": "Comment se connecter à un serveur existant",
@@ -2449,7 +2449,8 @@
         "COPY_FAILED": "Impossible de copier l’adresse.",
         "SHOW_CODE": "Afficher le code d’accès",
         "HIDE_CODE": "Masquer le code d’accès",
-        "CODE_FAILED": "Impossible de lire le code d’accès du serveur."
+        "CODE_FAILED": "Impossible de lire le code d’accès du serveur.",
+        "PAIR_SCAN": "Dans Connectivité, appuyez sur l’icône QR pour scanner ce code. Vous pouvez aussi le scanner avec l’appareil photo de votre téléphone et ouvrir le lien dans l’application IPTVnator pour demander l’accès. Gardez les deux appareils sur le même réseau."
     },
     "SOURCE_SYNC": {
         "ABOUT_TITLE": "À propos de la synchronisation par serveur",

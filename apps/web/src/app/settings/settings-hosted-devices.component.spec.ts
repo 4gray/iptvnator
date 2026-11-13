@@ -108,9 +108,12 @@ describe('hosted device settings', () => {
         expect(
             root.querySelector('[data-test-id="hosted-device-pair-qr"]')
         ).toBeNull();
-        expect(root.querySelector('.device-row code')?.textContent).toBe(
-            '012345'
+        const confirmationCode = root.querySelector(
+            '.pairing-code'
         );
+        expect(confirmationCode?.textContent).toBe('012345');
+        expect(confirmationCode?.closest('.pairing-code-group')?.textContent)
+            .toContain('HOSTED_SERVER.PAIR_CODE');
         expect(control).not.toHaveBeenCalledWith(
             expect.objectContaining({ action: 'approve' })
         );

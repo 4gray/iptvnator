@@ -2368,6 +2368,8 @@
         }
     },
     "HOSTED_SERVER": {
+        "TITLE": "Hostuj serwer",
+        "PAIR_CODE": "Kod potwierdzający",
         "ALLOW_DEVICE_APPROVAL": "Pozwól temu urządzeniu zatwierdzać prośby o parowanie",
         "PHONE_PAIRING_TITLE": "Zatwierdzaj telewizory z telefonu",
         "PHONE_PAIRING_DESCRIPTION": "Ustaw osobne hasło, aby zatwierdzać na telefonie prośby o parowanie po zeskanowaniu kodu QR na telewizorze. Kod dostępu widza nadal służy do otwierania odtwarzacza internetowego.",
@@ -2380,7 +2382,6 @@
         "PHONE_PASSWORD_CLEARED": "Usunięto hasło do zatwierdzania z telefonu.",
         "PHONE_PASSWORD_LOAD_FAILED": "Nie udało się wczytać ustawień zatwierdzania z telefonu.",
         "PHONE_PASSWORD_UPDATE_FAILED": "Nie udało się zmienić hasła do zatwierdzania z telefonu. Spróbuj ponownie.",
-        "TITLE": "Hostuj serwer",
         "DESCRIPTION": "Działa, gdy IPTVnator jest otwarty, także po zminimalizowaniu. Zamknięcie aplikacji zatrzymuje serwer.",
         "SETUP_GUIDE": "Jak uruchomić serwer na tym komputerze",
         "LOCAL_ONLY": "Dostępny tylko na tym komputerze.",

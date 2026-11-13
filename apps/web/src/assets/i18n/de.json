@@ -2368,6 +2368,8 @@
         }
     },
     "HOSTED_SERVER": {
+        "TITLE": "Server hosten",
+        "PAIR_CODE": "Bestätigungscode",
         "ALLOW_DEVICE_APPROVAL": "Diesem Gerät erlauben, Kopplungsanfragen zu bestätigen",
         "PHONE_PAIRING_TITLE": "Fernseher über das Smartphone freigeben",
         "PHONE_PAIRING_DESCRIPTION": "Legen Sie ein eigenes Passwort fest, um Kopplungsanfragen nach dem Scannen des QR-Codes auf dem Fernseher am Smartphone zu bestätigen. Zum Öffnen des Webplayers dient weiterhin der Zuschauer-Zugangscode.",
@@ -2380,7 +2382,6 @@
         "PHONE_PASSWORD_CLEARED": "Das Passwort für die Freigabe per Smartphone wurde entfernt.",
         "PHONE_PASSWORD_LOAD_FAILED": "Die Einstellungen für die Freigabe per Smartphone konnten nicht geladen werden.",
         "PHONE_PASSWORD_UPDATE_FAILED": "Das Passwort für die Freigabe per Smartphone konnte nicht aktualisiert werden. Versuchen Sie es erneut.",
-        "TITLE": "Server hosten",
         "DESCRIPTION": "Läuft, solange IPTVnator geöffnet ist, auch minimiert. Beim Beenden der App stoppt der Server.",
         "SETUP_GUIDE": "Server auf diesem Computer einrichten",
         "LOCAL_ONLY": "Nur auf diesem Computer verfügbar.",

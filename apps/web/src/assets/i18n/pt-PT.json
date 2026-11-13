@@ -2368,6 +2368,8 @@
         }
     },
     "HOSTED_SERVER": {
+        "TITLE": "Alojar um servidor",
+        "PAIR_CODE": "Código de confirmação",
         "ALLOW_DEVICE_APPROVAL": "Permitir que este dispositivo aprove pedidos de emparelhamento",
         "PHONE_PAIRING_TITLE": "Aprove televisores a partir do telemóvel",
         "PHONE_PAIRING_DESCRIPTION": "Defina uma palavra-passe própria para aprovar pedidos de emparelhamento no telemóvel depois de ler o código QR no televisor. O código de acesso de espectador continua a servir para abrir o leitor web.",
@@ -2380,7 +2382,6 @@
         "PHONE_PASSWORD_CLEARED": "Palavra-passe de aprovação pelo telemóvel removida.",
         "PHONE_PASSWORD_LOAD_FAILED": "Não foi possível carregar as definições de aprovação pelo telemóvel.",
         "PHONE_PASSWORD_UPDATE_FAILED": "Não foi possível atualizar a palavra-passe de aprovação pelo telemóvel. Tente novamente.",
-        "TITLE": "Alojar um servidor",
         "DESCRIPTION": "Funciona enquanto o IPTVnator estiver aberto, mesmo minimizado. Sair da aplicação para o servidor.",
         "SETUP_GUIDE": "Como iniciar um servidor neste computador",
         "LOCAL_ONLY": "Disponível apenas neste computador.",

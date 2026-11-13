@@ -2368,6 +2368,8 @@
         }
     },
     "HOSTED_SERVER": {
+        "TITLE": "Ospita un server",
+        "PAIR_CODE": "Codice di conferma",
         "ALLOW_DEVICE_APPROVAL": "Consenti a questo dispositivo di approvare le richieste di associazione",
         "PHONE_PAIRING_TITLE": "Approva le TV dal telefono",
         "PHONE_PAIRING_DESCRIPTION": "Imposta una password separata per approvare le richieste di associazione dal telefono dopo aver scansionato il codice QR sulla TV. Il codice di accesso per gli spettatori serve ancora per aprire il lettore web.",
@@ -2380,7 +2382,6 @@
         "PHONE_PASSWORD_CLEARED": "Password di approvazione dal telefono rimossa.",
         "PHONE_PASSWORD_LOAD_FAILED": "Impossibile caricare le impostazioni di approvazione dal telefono.",
         "PHONE_PASSWORD_UPDATE_FAILED": "Impossibile aggiornare la password di approvazione dal telefono. Riprova.",
-        "TITLE": "Ospita un server",
         "DESCRIPTION": "Funziona finché IPTVnator è aperto, anche se ridotto a icona. Chiudere l’app arresta il server.",
         "SETUP_GUIDE": "Come avviare un server su questo computer",
         "LOCAL_ONLY": "Disponibile solo su questo computer.",

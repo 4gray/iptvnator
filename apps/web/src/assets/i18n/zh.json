@@ -2368,6 +2368,8 @@
         }
     },
     "HOSTED_SERVER": {
+        "TITLE": "托管服务器",
+        "PAIR_CODE": "确认码",
         "ALLOW_DEVICE_APPROVAL": "允许此设备批准配对请求",
         "PHONE_PAIRING_TITLE": "在手机上批准电视配对",
         "PHONE_PAIRING_DESCRIPTION": "设置单独的密码，以便扫描电视上的二维码后在手机上批准配对请求。观看访问码仍用于打开网页播放器。",
@@ -2380,7 +2382,6 @@
         "PHONE_PASSWORD_CLEARED": "手机批准密码已清除。",
         "PHONE_PASSWORD_LOAD_FAILED": "无法加载手机批准设置。",
         "PHONE_PASSWORD_UPDATE_FAILED": "无法更新手机批准密码。请重试。",
-        "TITLE": "托管服务器",
         "DESCRIPTION": "只要 IPTVnator 保持打开，即使最小化也会继续运行。退出应用会停止服务器。",
         "SETUP_GUIDE": "如何在此电脑上运行服务器",
         "LOCAL_ONLY": "仅可在此电脑上使用。",

@@ -2368,6 +2368,8 @@
         }
     },
     "HOSTED_SERVER": {
+        "TITLE": "Szerver üzemeltetése",
+        "PAIR_CODE": "Megerősítő kód",
         "ALLOW_DEVICE_APPROVAL": "Ez az eszköz jóváhagyhatja a párosítási kérelmeket",
         "PHONE_PAIRING_TITLE": "Tévék jóváhagyása telefonról",
         "PHONE_PAIRING_DESCRIPTION": "Állítson be külön jelszót a tévépárosítási kérelmek jóváhagyásához a telefonján, miután beolvasta a tévén megjelenő QR-kódot. A webes lejátszó megnyitásához továbbra is a nézői hozzáférési kódot használhatja.",
@@ -2380,7 +2382,6 @@
         "PHONE_PASSWORD_CLEARED": "A telefonos jóváhagyási jelszó törölve.",
         "PHONE_PASSWORD_LOAD_FAILED": "Nem sikerült betölteni a telefonos jóváhagyás beállításait.",
         "PHONE_PASSWORD_UPDATE_FAILED": "Nem sikerült frissíteni a telefonos jóváhagyási jelszót. Próbálja újra.",
-        "TITLE": "Szerver üzemeltetése",
         "DESCRIPTION": "A kiszolgáló az IPTVnator futása közben akkor is működik, ha az alkalmazás ablakát minimalizálja. Az alkalmazás bezárásakor leáll.",
         "SETUP_GUIDE": "Útmutató a kiszolgáló futtatásához ezen a számítógépen",
         "LOCAL_ONLY": "Csak ezen a számítógépen érhető el.",
