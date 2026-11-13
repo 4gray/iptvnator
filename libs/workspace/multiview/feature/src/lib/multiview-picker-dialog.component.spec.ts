@@ -321,6 +321,36 @@ describe('MultiviewPickerDialogComponent', () => {
         expect(rows()).toHaveLength(1);
     });
 
+    it('finds programmes of the loaded EPG in search (On air now)', async () => {
+        data.programFor.mockImplementation((item: UnifiedCollectionItem) =>
+            item.xtreamId === 3 ? { title: 'Synthetic Final' } : null
+        );
+        search.search.mockImplementation(
+            async (_term: string, rows: { program: unknown }[]) => ({
+                ...EMPTY_PICKER_SEARCH,
+                onAir: rows.filter((row) => row.program),
+            })
+        );
+        await open();
+        input().value = 'final';
+        input().dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+        await new Promise((resolve) => setTimeout(resolve, 260));
+        await settle();
+
+        const [, rows] = search.search.mock.calls.at(-1) as [
+            string,
+            {
+                item: UnifiedCollectionItem;
+                program: { title: string } | null;
+            }[],
+        ];
+        expect(
+            rows.find((row) => row.item.xtreamId === 3)?.program?.title
+        ).toBe('Synthetic Final');
+        expect(text()).toContain('PLAYER.MULTIVIEW.PICKER.SEARCH_ON_AIR');
+    });
+
     it('opens the episodes of a series and adds the picked one', async () => {
         const episode = {
             sessionKey: 'episode-1',

@@ -84,14 +84,32 @@ export class MultiviewEntryService {
 
     /** R5: Alt+click or a drop on free player space adds the channel. */
     async addChannel(item: UnifiedCollectionItem) {
+        const owner = this.owner();
         const source = await this.resolveChannel(item);
-        return source ? this.add(source) : null;
+        // Exit, another view or another session while resolving: too late.
+        return source && this.owner() === owner ? this.add(source) : null;
     }
 
     /** R5: a channel dropped on a tile replaces that tile. */
     async replaceWithChannel(tileId: string, item: UnifiedCollectionItem) {
+        const owner = this.owner();
+        const replaced = this.store.tile(tileId)?.playbackSessionKey;
         const source = await this.resolveChannel(item);
-        return source ? this.store.replace(tileId, source) : null;
+        if (
+            !source ||
+            this.owner() !== owner ||
+            this.store.tile(tileId)?.playbackSessionKey !== replaced
+        ) {
+            return null;
+        }
+        return this.store.replace(tileId, source);
+    }
+
+    /** Who an Alt+click or drop is for: the running session or the view. */
+    private owner(): string {
+        return this.store.exists()
+            ? `session:${this.store.anchorId()}`
+            : `view:${this.anchors.current()?.host.anchorId ?? ''}`;
     }
 
     private async resolveChannel(

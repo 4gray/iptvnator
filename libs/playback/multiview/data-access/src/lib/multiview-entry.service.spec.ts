@@ -39,6 +39,14 @@ function host(
     };
 }
 
+function deferredSource() {
+    let resolve!: (value: MultiviewTileSource) => void;
+    const promise = new Promise<MultiviewTileSource>((done) => {
+        resolve = done;
+    });
+    return { promise, resolve };
+}
+
 describe('MultiviewEntryService', () => {
     let picker: jest.Mocked<MultiviewSourcePicker> | null;
 
@@ -324,6 +332,43 @@ describe('MultiviewEntryService', () => {
             await entry.replaceWithChannel(store.tiles()[0].id, channel);
 
             expect(store.tiles()[0].playbackSessionKey).toBe('session:ch9');
+        });
+
+        it('drops a channel that resolves after the session ended', async () => {
+            const { entry, anchors, store } = setup();
+            anchors.register({
+                host: host('xtream', source('movie')),
+                element: signal(null),
+            });
+            entry.add(source('match'));
+            const later = deferredSource();
+            entry.useChannelResolver({ resolve: () => later.promise });
+
+            const pending = entry.addChannel(channel);
+            store.exit();
+            later.resolve(source('ch9'));
+
+            await expect(pending).resolves.toBeNull();
+            expect(store.exists()).toBe(false);
+        });
+
+        it('drops a drop whose tile changed meanwhile', async () => {
+            const { entry, anchors, store } = setup();
+            anchors.register({
+                host: host('xtream', source('movie')),
+                element: signal(null),
+            });
+            entry.add(source('match'));
+            const later = deferredSource();
+            entry.useChannelResolver({ resolve: () => later.promise });
+            const pipId = store.tiles()[1].id;
+
+            const pending = entry.replaceWithChannel(pipId, channel);
+            store.replace(pipId, source('news'));
+            later.resolve(source('ch9'));
+
+            await expect(pending).resolves.toBeNull();
+            expect(store.tile(pipId)?.playbackSessionKey).toBe('session:news');
         });
 
         it('changes nothing when the channel cannot be resolved', async () => {

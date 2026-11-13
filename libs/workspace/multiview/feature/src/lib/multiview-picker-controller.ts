@@ -306,7 +306,11 @@ export class MultiviewPickerController {
                 rows.push(...rowsOf(section.groups));
             }
         }
-        return rows;
+        // Programme lines loaded so far take part in "On air now".
+        return rows.map((row) => {
+            const program = this.programOf(row);
+            return program === row.program ? row : { ...row, program };
+        });
     }
 
     private searchAsTyped(): void {
@@ -316,6 +320,7 @@ export class MultiviewPickerController {
             const term = this.query().trim();
             this.data();
             this.requery();
+            this.programs();
             untracked(() => {
                 clearTimeout(timer);
                 if (!term) {

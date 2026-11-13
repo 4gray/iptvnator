@@ -50,9 +50,16 @@ export class MultiviewRelockGuard {
                 return locked ? tile.id : null;
             })
         );
-        const withheld = checks.filter((id): id is string => id !== null);
-        const current = new Set(this.store.tiles().map((tile) => tile.id));
-        const still = withheld.filter((id) => current.has(id));
+        // A tile replaced while its check ran keeps its id: only withhold a
+        // tile that still plays the source that was checked.
+        const checked = new Map(
+            tiles.map((tile) => [tile.id, tile.playbackSessionKey])
+        );
+        const still = checks.filter(
+            (id): id is string =>
+                id !== null &&
+                this.store.tile(id)?.playbackSessionKey === checked.get(id)
+        );
         if (still.length > 0) this.store.withhold(still);
     }
 

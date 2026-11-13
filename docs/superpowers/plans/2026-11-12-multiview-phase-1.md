@@ -1284,6 +1284,22 @@ fix in `multiview-tile-resolver.ts` (+ spec).
 - P2, R6 replacement toast with Undo was never shown: the stage announces
   every replacement ("Replaced tile N" · Undo → `undoReplace`).
 
+**Round 3 (Codex, commit `98b523d50`):** five findings.
+- Fixed — an Alt+click or drop still resolving when the viewer exits (or
+  another view or session takes over) no longer starts or changes a session:
+  `MultiviewEntryService` compares who the action was for before and after
+  resolving, and a drop also needs its tile to still play the same source.
+- Fixed — a relock result for a source a tile no longer plays (replaced while
+  the check ran) is ignored.
+- Fixed — picker search sees the programme lines loaded so far ("On air
+  now") and searches again when more arrive.
+- Declined — a catch-up programme that survives on a live view restarts from
+  zero: the live views do not bind `startTime` because their existing spec
+  stubs have no such input (parity rule); recorded as a phase 1 limit.
+- Declined for phase 1 — the remote's next/previous channel after a swap
+  steps from the view's own selection, not the active tile: remote control
+  is outside the phase 1 spec; follow-up for the remote-control contract.
+
 Greptile: not run (the `greptile` CLI is not installed on this machine).
 
 ## Phase acceptance (spec 14)

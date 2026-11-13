@@ -31,7 +31,13 @@ describe('MultiviewRelockGuard (R11)', () => {
                 },
                 {
                     provide: MultiviewSessionStore,
-                    useValue: { tiles, exists: () => true, withhold },
+                    useValue: {
+                        tiles,
+                        exists: () => true,
+                        withhold,
+                        tile: (id: string) =>
+                            tiles().find((candidate) => candidate.id === id),
+                    },
                 },
                 {
                     provide: MultiviewXtreamLock,
@@ -82,6 +88,25 @@ describe('MultiviewRelockGuard (R11)', () => {
         await new Promise((resolve) => setTimeout(resolve));
 
         expect(withhold).toHaveBeenCalledWith(['multiview-tile-2']);
+    });
+
+    it('ignores a lock result for a source the tile no longer plays', async () => {
+        guard();
+        xtreamLocked.add(liveItem(9).uid);
+        version.update((n) => n + 1);
+        TestBed.tick();
+        // The tile is replaced before the check answers.
+        tiles.set([
+            tile({ id: 'multiview-tile-1', playbackSessionKey: 'own' }),
+            tile({ id: 'multiview-tile-2', playbackSessionKey: 'replacement' }),
+        ]);
+        await new Promise((resolve) => setTimeout(resolve));
+
+        expect(withhold).not.toHaveBeenCalled();
+        tiles.set([
+            tile({ id: 'multiview-tile-1', playbackSessionKey: 'own' }),
+            tile({ id: 'multiview-tile-2', playbackSessionKey: 'picked' }),
+        ]);
     });
 
     it('leaves tiles it did not add to their own view', async () => {
