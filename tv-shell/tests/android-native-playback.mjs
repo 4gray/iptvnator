@@ -118,6 +118,15 @@ try {
         await page.waitForFunction((value) => Boolean(window.iptvnatorAndroidPlaybackLabels) === value, enabled);
     }
     await setExperiment(false);
+    await page.goto(new URL('/workspace/settings/playback', page.url()).href);
+    const captions = page.getByRole('switch', { name: 'Show subtitles' });
+    await expect(captions).toBeVisible();
+    if (!(await captions.isChecked())) {
+        await captions.click();
+        const save = page.getByRole('button', { name: 'Save changes' });
+        await save.click();
+        await expect(save).toBeHidden();
+    }
     const playlist = [
         '#EXTM3U',
         '#EXTINF:-1 group-title="Movies",Synthetic Feature',
@@ -206,21 +215,6 @@ try {
         'Native HLS must play without browser CORS headers.');
     assert.equal(await page.evaluate(() => window.__nativeResult.ended), false, 'Back is a playback checkpoint.');
     await page.evaluate(() => { delete window.__nativeResult; });
-    await page.goto(new URL('/workspace/settings/playback', page.url()).href);
-    const captions = page.getByRole('switch', { name: 'Show subtitles' });
-    await expect(captions).toBeVisible();
-    if (!(await captions.isChecked())) {
-        await captions.click();
-        const save = page.getByRole('button', { name: 'Save changes' });
-        await save.click();
-        await expect(save).toBeHidden();
-    }
-    await page.goto(channelRoute);
-    await page.evaluate(() => {
-        window.addEventListener('iptvnator:android-playback-result', (event) => {
-            window.__nativeResult = event.detail.result;
-        });
-    });
     await entry('Synthetic AC-3').click();
     await expect(action).toBeVisible();
     await action.click();
@@ -228,12 +222,25 @@ try {
     await expect(video).toHaveCount(0);
     await waitAudio();
     const subtitleButton = /<node [^>]*resource-id="org\.tvshell\.iptvnator:id\/exo_subtitle"[^>]*>/;
-    await expect.poll(() => {
-        const xml = dumpLayout();
-        const button = xml.match(subtitleButton)?.[0];
+    const captionsState = () => {
+        const button = dumpLayout().match(subtitleButton)?.[0];
         if (!button) adb('shell', 'input', 'keyevent', 'KEYCODE_DPAD_CENTER');
         return button?.match(/content-desc="([^"]*)"/)?.[1] ?? '';
-    }, { timeout: 8000 }).toBe('Disable subtitles');
+    };
+    await expect.poll(captionsState, { timeout: 8000 }).toBe('Disable subtitles');
+    adb('shell', 'input', 'keyevent', 'KEYCODE_MEDIA_PAUSE');
+    await expect.poll(audioTrack).toBe('');
+    function tapNode(pattern) {
+        const node = dumpLayout().match(pattern)?.[0];
+        assert.ok(node, `Missing Android control ${pattern}`);
+        const [, left, top, right, bottom] = node.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
+        adb('shell', 'input', 'tap', String((+left + +right) / 2), String((+top + +bottom) / 2));
+    }
+    tapNode(subtitleButton);
+    tapNode(/<node [^>]*text="None"[^>]*>/);
+    await expect.poll(captionsState).toBe('Enable subtitles');
+    adb('shell', 'input', 'keyevent', 'KEYCODE_MEDIA_PLAY');
+    await waitAudio();
     await page.waitForFunction(() => window.__nativeResult?.ended === true, undefined, { timeout: 30000 });
     await expect.poll(topActivity).toContain('.ui.MainActivity');
     await setExperiment(false);
@@ -242,7 +249,7 @@ try {
     await page.evaluate((url) => {
         window.TvShell.postMessage(JSON.stringify(['playNative', crypto.randomUUID(), {
             url,
-            startTime: 8,
+            startTime: 25,
             checkpoint: {
                 playlistId: 'synthetic-reload-test',
                 contentType: 'episode',
@@ -256,12 +263,12 @@ try {
     // Reload while native playback owns the foreground. The new document cannot
     // receive the old player's event, just like a recreated WebView.
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.waitForFunction(() => !document.getElementById('initial-splash'));
     await back();
+    await page.waitForFunction(() => !document.getElementById('initial-splash'));
     await expect.poll(() => page.evaluate(() => {
         const stored = JSON.parse(localStorage.getItem('xtream-playback-positions') || '{}');
-        return stored['synthetic-reload-test']?.find((item) => item.contentXtreamId === 17)?.positionSeconds ?? 0;
-    })).toBeGreaterThanOrEqual(8);
+        return stored['synthetic-reload-test']?.find((item) => item.contentXtreamId === 17)?.positionSeconds;
+    })).toBeLessThan(20);
     await setExperiment(false);
     console.log('PASS Android Media3 opt-in, mute handoff, VOD resume after Home and WebView reload, redirect header scope, extensionless HLS Back, AC-3 audio, captions and natural VOD completion');
 } finally {

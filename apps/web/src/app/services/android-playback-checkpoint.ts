@@ -1,5 +1,6 @@
 import { DOCUMENT, inject, provideAppInitializer } from '@angular/core';
 import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util/tokens';
+import { announceActivityChange } from '@iptvnator/services/activity-changes';
 import type {
     PlaybackPositionData,
     PlayerContentInfo,
@@ -52,11 +53,13 @@ export function provideAndroidPlaybackCheckpoint() {
                     if (
                         !Number.isFinite(previousSavedAt) ||
                         previousSavedAt < data.savedAt
-                    )
+                    ) {
                         await positions.savePlaybackPositionOrThrow(
                             playlistId,
                             record
                         );
+                        announceActivityChange();
+                    }
                 }
                 shell.postMessage(
                     JSON.stringify([

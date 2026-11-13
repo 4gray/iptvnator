@@ -101,6 +101,7 @@ dependencies {
     implementation "androidx.media3:media3-exoplayer-hls:$media3Version"
     implementation "androidx.media3:media3-datasource-okhttp:$media3Version"
     implementation "androidx.media3:media3-ui:$media3Version"
+    implementation "androidx.media3:media3-session:$media3Version"
     // Last published NanoHTTPD. Known advisories do not apply: CVE-2020-13697 is in
     // RouterNanoHTTPD (nanolets, not used); CVE-2022-21230 concerns temp files in a shared
     // java.io.tmpdir, which on Android is the app-private cache dir. Request bodies are

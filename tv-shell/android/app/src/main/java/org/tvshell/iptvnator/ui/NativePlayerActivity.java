@@ -16,7 +16,10 @@ import androidx.media3.common.MediaItem;
 import androidx.media3.common.MimeTypes;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
+import androidx.media3.common.Timeline;
+import androidx.media3.common.TrackSelectionOverride;
 import androidx.media3.common.TrackSelectionParameters;
+import androidx.media3.common.Tracks;
 import androidx.media3.common.util.Log;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.datasource.okhttp.OkHttpDataSource;
@@ -26,7 +29,12 @@ import androidx.media3.exoplayer.analytics.PlaybackStats;
 import androidx.media3.exoplayer.analytics.PlaybackStatsListener;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import androidx.media3.exoplayer.source.UnrecognizedInputFormatException;
+import androidx.media3.session.MediaSession;
+import androidx.media3.session.SessionCommands;
 import androidx.media3.ui.PlayerView;
+
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 
 import org.tvshell.iptvnator.R;
 
@@ -35,6 +43,7 @@ import okhttp3.HttpUrl;
 @OptIn(markerClass = UnstableApi.class)
 public final class NativePlayerActivity extends Activity {
     private ExoPlayer player;
+    private MediaSession mediaSession;
     private PlayerView view;
     private PlaybackStatsListener stats;
     private HttpUrl stream;
@@ -46,6 +55,9 @@ public final class NativePlayerActivity extends Activity {
     private long position;
     private long duration;
     private long played;
+    private long initialSeek;
+    private boolean seedCaptions;
+    private TrackSelectionParameters trackPreferences;
 
     @Override
     protected void onCreate(Bundle savedState) {
@@ -94,13 +106,33 @@ public final class NativePlayerActivity extends Activity {
             .setHandleAudioBecomingNoisy(true)
             .build();
         player.setVolume(getIntent().getFloatExtra("volume", 1f));
-        TrackSelectionParameters.Builder selection = player.getTrackSelectionParameters().buildUpon();
-        if (getIntent().getBooleanExtra("captions", false)) {
-            selection.setSelectTextByDefault(true);
-        } else {
-            selection.setIgnoredTextSelectionFlags(C.SELECTION_FLAG_DEFAULT);
+        if (trackPreferences == null) {
+            seedCaptions = getIntent().getBooleanExtra("captions", false);
+            trackPreferences = player.getTrackSelectionParameters().buildUpon()
+                .setIgnoredTextSelectionFlags(~C.SELECTION_FLAG_FORCED).build();
         }
-        player.setTrackSelectionParameters(selection.build());
+        player.setTrackSelectionParameters(trackPreferences);
+        mediaSession = new MediaSession.Builder(this, player)
+            .setCallback(new MediaSession.Callback() {
+                @Override
+                public ListenableFuture<MediaSession.ConnectionResult> onConnectAsync(
+                    MediaSession session, MediaSession.ControllerInfo controller) {
+                    if (!controller.isTrusted()) {
+                        return Futures.immediateFuture(MediaSession.ConnectionResult.reject());
+                    }
+                    // Keep provider URLs and media-item replacement out of Android's transport controls.
+                    return Futures.immediateFuture(MediaSession.ConnectionResult.accept(SessionCommands.EMPTY,
+                        new Player.Commands.Builder().addAll(Player.COMMAND_PLAY_PAUSE, Player.COMMAND_STOP,
+                            Player.COMMAND_SEEK_BACK, Player.COMMAND_SEEK_FORWARD).build()));
+                }
+
+                @Override
+                public boolean onMediaButtonEvent(MediaSession session, MediaSession.ControllerInfo controller, Intent intent) {
+                    KeyEvent event = intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT);
+                    return controller.isTrusted() && event != null
+                        && event.getKeyCode() == KeyEvent.KEYCODE_MEDIA_STOP && handleExitKey(event);
+                }
+            }).build();
         stats = new PlaybackStatsListener(false, null);
         player.addAnalyticsListener(stats);
         player.addListener(new Player.Listener() {
@@ -111,8 +143,20 @@ public final class NativePlayerActivity extends Activity {
             }
 
             @Override
+            public void onTimelineChanged(Timeline timeline, int reason) {
+                rewindUnreachableResume();
+            }
+
+            @Override
+            public void onTracksChanged(Tracks tracks) {
+                selectInitialCaption(tracks);
+            }
+
+            @Override
             public void onPlaybackStateChanged(int state) {
-                if (state == Player.STATE_ENDED && !live && !isFinishing()) {
+                if (state == Player.STATE_ENDED && player.getPlaybackState() == Player.STATE_ENDED
+                    && !live && !isFinishing()) {
+                    if (rewindUnreachableResume()) return;
                     ended = true;
                     finish();
                 }
@@ -139,8 +183,34 @@ public final class NativePlayerActivity extends Activity {
     private void prepareStream() {
         MediaItem.Builder media = new MediaItem.Builder().setUri(stream.toString());
         if (hls) media.setMimeType(MimeTypes.APPLICATION_M3U8);
-        player.setMediaItem(media.build(), !live && position > 0 ? position : C.TIME_UNSET);
+        initialSeek = live ? 0 : position;
+        player.setMediaItem(media.build(), initialSeek > 0 ? initialSeek : C.TIME_UNSET);
         player.prepare();
+    }
+
+    private boolean rewindUnreachableResume() {
+        long length = player.getDuration();
+        if (initialSeek <= 0 || length <= 0) return false;
+        long seek = initialSeek;
+        initialSeek = 0;
+        if (seek < length) return false;
+        player.seekTo(0);
+        return true;
+    }
+
+    private void selectInitialCaption(Tracks tracks) {
+        if (!seedCaptions) return;
+        for (Tracks.Group group : tracks.getGroups()) {
+            if (group.getType() != C.TRACK_TYPE_TEXT) continue;
+            for (int index = 0; index < group.length; index++) {
+                if (!group.isTrackSupported(index)
+                    || (group.getTrackFormat(index).selectionFlags & C.SELECTION_FLAG_FORCED) != 0) continue;
+                seedCaptions = false;
+                player.setTrackSelectionParameters(player.getTrackSelectionParameters().buildUpon()
+                    .setOverrideForType(new TrackSelectionOverride(group.getMediaTrackGroup(), index)).build());
+                return;
+            }
+        }
     }
 
     @Override
@@ -176,7 +246,9 @@ public final class NativePlayerActivity extends Activity {
         if (player != null) {
             snapshot();
             played = playedMs();
+            trackPreferences = player.getTrackSelectionParameters();
             view.setPlayer(null);
+            mediaSession.release();
             player.release();
             player = null;
         }
@@ -198,12 +270,16 @@ public final class NativePlayerActivity extends Activity {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
+        return handleExitKey(event) || super.dispatchKeyEvent(event);
+    }
+
+    private boolean handleExitKey(KeyEvent event) {
         int code = event.getKeyCode();
         if (code == KeyEvent.KEYCODE_BACK || code == KeyEvent.KEYCODE_MEDIA_STOP) {
             if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) finish();
             return true;
         }
-        return super.dispatchKeyEvent(event);
+        return false;
     }
 
     @Override

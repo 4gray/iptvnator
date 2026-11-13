@@ -78,7 +78,16 @@ describe('restoring Android playback checkpoints', () => {
     }
 
     it('saves the original episode once before acknowledging duplicate delivery', async () => {
-        await Promise.all([deliver(), deliver()]);
+        const refreshed = jest.fn();
+        window.addEventListener('iptvnator-activity-changed', refreshed, {
+            once: true,
+        });
+        try {
+            await Promise.all([deliver(), deliver()]);
+            expect(refreshed).toHaveBeenCalledTimes(1);
+        } finally {
+            window.removeEventListener('iptvnator-activity-changed', refreshed);
+        }
         expect(getPlaybackPosition).toHaveBeenCalledWith(
             content.playlistId,
             content.contentXtreamId,
