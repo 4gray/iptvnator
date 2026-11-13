@@ -13,6 +13,8 @@ them. The skills stay short on purpose; the detail lives here.
 **During ordinary PRs** every user-visible change adds one
 `.changes/<area>-<slug>.md` note, written while the context is fresh. CI's
 "Release note gate" enforces it. Format and field table: `.changes/README.md`.
+The gate evaluates changes between the tested PR merge and its first parent.
+It reads the `no-release-note` label live so it can be applied before a rerun.
 
 **At release time** `tools/release/build-release-notes.mjs` fans those notes
 out into every surface, then deletes them. Nothing derives the version — it is

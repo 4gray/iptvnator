@@ -54,6 +54,9 @@ jobs:
         steps:
             - name: Checkout code
               uses: actions/checkout@v7
+              with:
+                  # The first parent is the base of the tested PR merge tree.
+                  fetch-depth: 2
 
             # The gate scripts are dependency-free Node, so this job skips
             # pnpm install entirely and stays cheap.
@@ -71,19 +74,10 @@ jobs:
               run: |
                   set -euo pipefail
 
-                  gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files?per_page=100" \
-                      --paginate --jq '[.[] | {filename, status}]' |
-                      jq -s 'add // []' > /tmp/pr-files.json
-
                   gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/labels?per_page=100" \
                       --paginate --jq '[.[].name]' |
-                      jq -s 'add // []' > /tmp/pr-labels.json
-
-                  jq -n \
-                      --slurpfile files /tmp/pr-files.json \
-                      --slurpfile labels /tmp/pr-labels.json \
-                      '{files: $files[0], labels: $labels[0]}' |
-                      node tools/release/check-release-note-gate.mjs
+                      jq -s 'add // []' |
+                      node tools/release/check-release-note-gate.mjs --merge-checkout
 
     lint:
         name: Lint
