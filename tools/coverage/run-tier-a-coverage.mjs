@@ -196,7 +196,7 @@ if (
 ) {
     const prefetch = spawnSync(
         process.execPath,
-        [path.join(workspaceRoot, 'tools/testing/ensure-electron-binary.mjs')],
+        [path.join(workspaceRoot, 'tools/testing/electron/ensure-electron-binary.mjs')],
         { stdio: 'inherit' }
     );
     if (prefetch.status !== 0) {

@@ -1635,8 +1635,8 @@ stays and is not part of the evidence.
 The job also refuses a weakened baselines file:
 `tools/performance/check-baseline-direction.mjs` compares
 `journey-baselines.json` with the revision the change is measured against
-(the target branch of a pull request, the previous head of a `master` push,
-`master` for a manual dispatch) and fails when any
+(the first parent of the tested PR merge commit, the previous head of a
+`master` push, or `master` for a manual dispatch) and fails when any
 entry's enforced limit (`value × toleranceRatio` or `value + slack`) went up,
 a tolerance or slack widened or an entry disappeared, so a PR cannot grow the
 payload and raise the baseline to match. A counter's `value` may not go up

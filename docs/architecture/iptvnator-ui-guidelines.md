@@ -553,6 +553,9 @@ host by its padding and border on the first move.
   themes. Each stop must draw exactly one ring in the token's colour, uncut
   by an ancestor's `overflow: hidden`, at 3:1 where it sits on a flat
   colour, and a click must draw none.
+  It also checks that the detail page stays ringless when seeking after a
+  click, including a click on the already focused page. Tabbing back to the
+  page shows its focus ring.
 
 Catalog result counts use an atomic `status` region so search/filter changes
 are announced without moving focus from the search field. Opening a catalog

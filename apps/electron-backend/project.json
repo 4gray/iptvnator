@@ -276,9 +276,11 @@
             "command": "eslint \"apps/electron-backend/**/*.ts\" \"apps/electron-backend/src/app/services/embedded-mpv-frame-copy-runtime.ts\" \"apps/electron-backend/src/app/services/embedded-mpv-frame-copy-runtime/**/*.ts\""
         },
         "test": {
+            "dependsOn": ["electron-test-tools:ensure-electron-binary"],
             "inputs": [
                 "default",
                 "^production",
+                "{workspaceRoot}/tools/testing/electron/**/*",
                 "{workspaceRoot}/jest.preset.js",
                 "{workspaceRoot}/tools/embedded-mpv/linux-source-archive-contract.cjs",
                 "{workspaceRoot}/tools/embedded-mpv/linux-source-archive-contract.d.cts",
