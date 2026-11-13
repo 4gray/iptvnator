@@ -34,7 +34,12 @@ export class ControlsChromeInteractions {
         return this.hovered() || this.focused();
     }
 
-    onPointerEnter(): void {
+    onPointerEnter(event?: Event): void {
+        // A tap's emulated hover reveals nothing the tap itself did not, and
+        // must not pin the controls: no pointerleave ever follows it.
+        if (this.config.surface.isEmulatedHover(event)) {
+            return;
+        }
         this.hovered.set(true);
         this.config.reveal({ scheduleHide: false });
     }

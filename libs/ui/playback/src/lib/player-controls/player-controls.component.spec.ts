@@ -307,6 +307,23 @@ describe('PlayerControlsComponent', () => {
             expect(fixture.componentInstance.controlsAreVisible()).toBe(false);
         });
 
+        it('still hides after a tap whose emulated hover lands on the bar', () => {
+            // Chromium follows a tap with a mouse-typed pointerenter on the
+            // controls fading in under the finger, and no pointerleave.
+            const touchDown = new MouseEvent('pointerdown', { bubbles: true });
+            Object.defineProperty(touchDown, 'pointerType', { value: 'touch' });
+            document.dispatchEvent(touchDown);
+            const emulated = new MouseEvent('pointerenter');
+            Object.defineProperty(emulated, 'pointerType', { value: 'mouse' });
+            bar()?.dispatchEvent(emulated);
+            fixture.detectChanges();
+
+            expect(fixture.componentInstance.chrome.hovered()).toBe(false);
+            jest.advanceTimersByTime(10000);
+            fixture.detectChanges();
+            expect(fixture.componentInstance.controlsAreVisible()).toBe(false);
+        });
+
         it('reveals on focus, stays visible within the bar, and hides after focus leaves', () => {
             setCapabilities({ seek: true });
             setState({
