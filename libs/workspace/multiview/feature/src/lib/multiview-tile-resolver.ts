@@ -11,8 +11,9 @@ import {
     getUnifiedCollectionDetailNavigation,
     type UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
-import { PlaybackPositionService } from '@iptvnator/services';
+import { PlaybackPositionService, PlaylistsService } from '@iptvnator/services';
 import type { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
+import { firstValueFrom } from 'rxjs';
 import {
     type MultiviewPickerRow,
     providerContentId,
@@ -49,6 +50,7 @@ export class MultiviewTileResolverService {
     private readonly vod = inject(VodSourceResolverService);
     private readonly positions = inject(PlaybackPositionService);
     private readonly router = inject(Router);
+    private readonly playlists = inject(PlaylistsService);
 
     /** D2: opens the item in its own view, as the Recent list does. */
     reopenFor(item: UnifiedCollectionItem): (() => void) | undefined {
@@ -67,7 +69,10 @@ export class MultiviewTileResolverService {
     async resolve(row: MultiviewPickerRow): Promise<MultiviewTileSource> {
         const { item } = row;
         if (row.kind === 'live') {
-            const playback = await this.catalog.resolve({ item, group: '' });
+            const playback = await this.withPlaylistHeaders(
+                item,
+                await this.catalog.resolve({ item, group: '' })
+            );
             return {
                 playback,
                 playbackSessionKey: row.sessionKey,
@@ -86,6 +91,31 @@ export class MultiviewTileResolverService {
             return this.resolveXtreamFilm(row, item.xtreamId);
         }
         throw new MultiviewUnresolvableError();
+    }
+
+    /**
+     * The shared resolver leaves an Xtream live playback without its
+     * source's User-Agent, Referer and Origin. A tile needs them: its header
+     * owner would otherwise fall back to another tile's override on the same
+     * host (D4), which a provider that checks the agent refuses.
+     */
+    private async withPlaylistHeaders(
+        item: UnifiedCollectionItem,
+        playback: ResolvedPortalPlayback
+    ): Promise<ResolvedPortalPlayback> {
+        if (item.sourceType !== 'xtream' || playback.userAgent) {
+            return playback;
+        }
+        const playlist = await firstValueFrom(
+            this.playlists.getPlaylistById(item.playlistId)
+        ).catch(() => null);
+        if (!playlist) return playback;
+        return {
+            ...playback,
+            userAgent: playlist.userAgent?.trim() || undefined,
+            referer: playlist.referrer || undefined,
+            origin: playlist.origin || undefined,
+        };
     }
 
     private async resolveXtreamFilm(

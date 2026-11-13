@@ -3,7 +3,8 @@ import {
     MultiviewCatalogService,
     VodSourceResolverService,
 } from '@iptvnator/portal/shared/data-access';
-import { PlaybackPositionService } from '@iptvnator/services';
+import { PlaybackPositionService, PlaylistsService } from '@iptvnator/services';
+import { of } from 'rxjs';
 import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { liveItem, movieItem } from './multiview-picker.fixtures';
 import { toPickerRow } from './multiview-picker-row';
@@ -16,14 +17,20 @@ describe('MultiviewTileResolverService', () => {
     const catalog = { resolve: jest.fn() };
     const vod = { resolve: jest.fn() };
     const positions = { savePlaybackPosition: jest.fn() };
+    let playlist: Record<string, unknown> | undefined;
 
     beforeEach(() => {
         jest.resetAllMocks();
+        playlist = undefined;
         TestBed.configureTestingModule({
             providers: [
                 { provide: MultiviewCatalogService, useValue: catalog },
                 { provide: VodSourceResolverService, useValue: vod },
                 { provide: PlaybackPositionService, useValue: positions },
+                {
+                    provide: PlaylistsService,
+                    useValue: { getPlaylistById: () => of(playlist) },
+                },
             ],
         });
     });
@@ -51,6 +58,28 @@ describe('MultiviewTileResolverService', () => {
         expect(catalog.resolve).toHaveBeenCalledWith({
             item: row.item,
             group: '',
+        });
+    });
+
+    it("gives an Xtream channel its source's headers (D4)", async () => {
+        playlist = {
+            _id: 'playlist-1',
+            userAgent: ' Synthetic-Agent ',
+            referrer: 'https://ref.example/',
+            origin: 'https://origin.example',
+        };
+        catalog.resolve.mockResolvedValue({
+            streamUrl: 'http://xtream.example/live/u/p/7.ts',
+            title: 'Synthetic Channel 7',
+            isLive: true,
+        });
+
+        const source = await service().resolve(toPickerRow(liveItem(7), []));
+
+        expect(source.playback).toMatchObject({
+            userAgent: 'Synthetic-Agent',
+            referer: 'https://ref.example/',
+            origin: 'https://origin.example',
         });
     });
 
