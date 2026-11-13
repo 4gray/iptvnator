@@ -19,8 +19,9 @@
         <button
             type="button"
             class="epg-timeline__group"
-            [style.left.px]="item.leftPx"
-            [style.width.px]="item.widthPx"
+            [attr.style]="
+                'left:' + item.leftPx + 'px;width:' + item.widthPx + 'px'
+            "
             (click)="groupExpand.emit(item)"
         >
             <span class="epg-timeline__group-count">{{ item.count }}</span>
@@ -41,8 +42,9 @@
             [class.is-playing]="isPlaying(item)"
             [class.is-selected]="isSelected(item)"
             [class.is-short]="item.block.durationMin < 10"
-            [style.left.px]="item.leftPx"
-            [style.width.px]="item.widthPx"
+            [attr.style]="
+                'left:' + item.leftPx + 'px;width:' + item.widthPx + 'px'
+            "
             (click)="blockClick.emit(item.block)"
             (keydown.enter)="onBlockActivate($event, item.block)"
             (mouseenter)="onBlockEnter(item, $event)"

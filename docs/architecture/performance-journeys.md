@@ -1155,6 +1155,10 @@ programmes near the visible range. On the runner
 734 mutations per run, except one iteration with a fifth bridge call and
 748 mutations.
 
+The Xtream multi-channel guide adds actions to Live TV and its EPG panel.
+The single-channel ribbon writes each programme card's position and width
+together in one style update to keep J3 within the existing mutation budget.
+
 `renderer.ipcSerialDepthToPlaying` came later. One local macOS
 `perf:journeys` run on 2026-10-10 read 3 in all six iterations, warm-up
 included, with `depthLowerBound` 3, no ambiguous completion and no call in
