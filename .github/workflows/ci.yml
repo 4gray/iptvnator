@@ -429,14 +429,13 @@ jobs:
         name: Unit Tests and Typechecks
         runs-on: ubuntu-latest
         timeout-minutes: 45
-        permissions:
-            contents: read
-            # The scope step lists the PR's changed files through the API.
-            pull-requests: read
 
         steps:
             - name: Checkout code
               uses: actions/checkout@v7
+              with:
+                  # The first parent is the base of the tested PR merge tree.
+                  fetch-depth: 2
 
             - name: Install pnpm
               uses: pnpm/action-setup@v6.1.0
@@ -548,10 +547,6 @@ jobs:
               id: scope
               env:
                   EVENT_NAME: ${{ github.event_name }}
-                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  PR_NUMBER: ${{ github.event.pull_request.number }}
-                  BASE_SHA: ${{ github.event.pull_request.base.sha }}
-                  CHANGED_FILES: ${{ github.event.pull_request.changed_files }}
               run: |
                   set -euo pipefail
                   if [ "$EVENT_NAME" != "pull_request" ]; then
@@ -559,17 +554,10 @@ jobs:
                       echo "run=true" >> "$GITHUB_OUTPUT"
                       exit 0
                   fi
-                  # The list-files endpoint stops at 3,000 files; a truncated
-                  # list could hide a file that needs the suite.
-                  if [ "${CHANGED_FILES:-0}" -ge 3000 ]; then
-                      echo "PR changes ${CHANGED_FILES} files, beyond the API listing limit; running the full suite."
-                      echo "run=true" >> "$GITHUB_OUTPUT"
-                      exit 0
-                  fi
-                  git fetch --no-tags --depth=1 origin "$BASE_SHA"
-                  gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files?per_page=100" \
-                      --paginate --jq '.[] | .filename, (.previous_filename // empty)' |
-                      node tools/coverage/unit-coverage-scope.mjs --base FETCH_HEAD --github-output
+                  # Compare the checkout, even if a newer push changes the PR.
+                  # Treat renames as deletions and additions to check both paths.
+                  git diff --name-only -z --no-renames --ignore-submodules=none HEAD^1 HEAD -- |
+                      node tools/coverage/unit-coverage-scope.mjs --null --base HEAD^1 --github-output
 
             # pnpm only runs build scripts for allow-listed packages
             # (pnpm-workspace.yaml), so electron's postinstall never fetches

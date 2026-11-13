@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { after, before, test } from 'node:test';
+import { parse } from 'yaml';
 
 import { readResolvedProjects } from './nx-coverage-projects.mjs';
 import { tierAExternalReferences } from './tier-a-external-references.mjs';
@@ -147,7 +148,7 @@ test('declared-input globs keep ** recursive and * within one segment', () => {
 
 test('an empty file list runs the suite rather than skipping it', () => {
     assert.equal(decideUnitCoverageScope([]).run, true);
-    assert.equal(decideUnitCoverageScope(['', '  ']).run, true);
+    assert.equal(decideUnitCoverageScope(['']).run, true);
 });
 
 test('package.json is skippable only when the caller proved a scripts-only change', () => {
@@ -218,9 +219,94 @@ test('CLI lists the files that need tests and writes run=true', async () => {
     });
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /Tier A unit coverage: run\. 1 of 2 changed files/);
-    assert.match(result.stdout, /needs tests: libs\/services\/src\/lib\/x\.ts/);
+    assert.match(result.stdout, /needs tests: "libs\/services\/src\/lib\/x\.ts"/);
     assert.equal(await readFile(outputFile, 'utf8'), 'run=true\n');
 });
+
+test('CLI preserves filenames with newlines in a NUL-delimited diff', async () => {
+    const outputFile = path.join(workDir, 'github-output-null');
+    const result = spawnSync(
+        process.execPath,
+        [scriptPath, '--null', '--github-output'],
+        {
+            input: 'fixture.md\ndocs/runtime.ts\0',
+            encoding: 'utf8',
+            env: { ...process.env, GITHUB_OUTPUT: outputFile },
+        }
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.ok(result.stdout.includes('needs tests: "fixture.md\\ndocs/runtime.ts"'));
+    assert.equal(isSkippable('fixture.md\n'), false);
+    assert.equal(await readFile(outputFile, 'utf8'), 'run=true\n');
+});
+
+test(
+    'CI scopes coverage to the tested merge and checks both paths of a rename',
+    { skip: process.platform === 'win32' && 'workflow uses Bash' },
+    async () => {
+        const workflow = parse(
+            await readFile(path.join(workspaceRoot, '.github/workflows/ci.yml'), 'utf8')
+        );
+        const steps = workflow.jobs['unit-and-typecheck'].steps;
+        assert.equal(steps.find((step) => step.name === 'Checkout code').with?.['fetch-depth'], 2);
+        const script = steps.find((step) => step.id === 'scope').run;
+        const repo = path.join(workDir, 'merge-fixture');
+        await mkdir(repo);
+        const env = {
+            ...Object.fromEntries(
+                Object.entries(process.env).filter(([key]) => !/^GIT_/i.test(key))
+            ),
+            GIT_CONFIG_GLOBAL: os.devNull,
+            GIT_CONFIG_NOSYSTEM: '1',
+        };
+        const git = (...args) => {
+            const result = spawnSync(
+                'git',
+                ['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.test', ...args],
+                { cwd: repo, env, encoding: 'utf8' }
+            );
+            assert.equal(result.status, 0, result.stderr);
+            return result.stdout.trim();
+        };
+        git('init', '-b', 'master');
+        await mkdir(path.join(repo, 'docs'));
+        await writeFile(path.join(repo, 'fixture.ts'), 'export const fixture = true;\n');
+        git('add', '.');
+        git('commit', '-m', 'base');
+        git('switch', '-c', 'feature');
+        await rename(path.join(repo, 'fixture.ts'), path.join(repo, 'docs/fixture.md'));
+        await writeFile(path.join(repo, 'HEAD'), 'ambiguous revision name\n');
+        git('add', '.');
+        git('commit', '-m', 'move runtime fixture to docs');
+        git('switch', 'master');
+        git('merge', '--no-ff', 'feature');
+        const testedMerge = git('rev-parse', 'HEAD');
+        git('switch', 'feature');
+        git('reset', '--hard', 'master^1');
+        await mkdir(path.join(repo, 'docs'));
+        await writeFile(path.join(repo, 'docs/later.md'), '# Later push\n');
+        git('add', '.');
+        git('commit', '-m', 'docs only on the current PR head');
+        git('switch', '--detach', testedMerge);
+
+        // Run the workflow's shell and capture the diff it pipes to Node.
+        const result = spawnSync(
+            'bash',
+            ['-c', 'node() { printf "%s\\n" "$@"; cat; }\n' + script],
+            { cwd: repo, encoding: 'utf8', env: { ...env, EVENT_NAME: 'pull_request' } }
+        );
+        assert.equal(result.status, 0, result.stderr);
+        const [tool, delimiter, baseFlag, base, outputFlag, diff] = result.stdout.split('\n');
+        assert.deepEqual(
+            [tool, delimiter, baseFlag, base, outputFlag],
+            ['tools/coverage/unit-coverage-scope.mjs', '--null', '--base', 'HEAD^1', '--github-output']
+        );
+        const decision = decideUnitCoverageScope(diff.split('\0'));
+        assert.deepEqual(decision.blocking, ['HEAD', 'fixture.ts']);
+        assert.equal(decision.run, true);
+        assert.equal(decideUnitCoverageScope(['docs/later.md']).run, false);
+    }
+);
 
 test('CLI refuses --github-output without GITHUB_OUTPUT', () => {
     const env = { ...process.env };
