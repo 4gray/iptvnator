@@ -574,6 +574,36 @@ the host's existing `timeUpdate` → `PlaybackPositionService` path (R9).
 existing e2e (`inline-player-layout.e2e.ts`, live layout specs).
 **Accept:** existing specs of the view unedited and green.
 
+#### Task 6 as built (Xtream live)
+
+- `xtream-live-multiview-host.ts` (+ spec, 10): anchor id `xtream-live`;
+  source = the playing channel (`kind: 'live'`, `contentId` = stream id); a
+  catch-up programme is its own source (`kind: 'vod'`, key suffixed with the
+  programme start) so a list click from live to catch-up replaces the tile;
+  engine = the Settings player; `adopt()` plays a surviving live channel of
+  the same playlist through `playLive(item, false)` plus `setSelectedItem`,
+  so no new history entry.
+- `live-stream-layout.component.{ts,html}`: one `multiviewHost` field, the
+  `selectMultiviewChannel()` helper, `*appMultiviewAnchor` on the player,
+  `MultiviewAnchorDirective` import. `MultiviewTileSource` gains an optional
+  `contentId`.
+- `live-stream-layout.multiview.spec.ts` (5; 3 fail without the anchor):
+  inline player unchanged without a session, takeover, R5 replace, survivor
+  adoption, leaving ends the session.
+- Checks: `portal-xtream-feature` 735 (no existing spec edited),
+  `playback-multiview-data-access` 73, lint, typecheck, build-e2e.
+- First runtime check, Electron + Xtream mock (temporary local probe, session
+  started through Angular's debug API): stage exactly over the player, tile 1
+  kept Video.js, tile 2 HTML5 muted 240×135 bottom-right above the dock, both
+  playing; swap kept both `<video>` elements and playback, audio moved; exit
+  handed the audio tile back to the layout; no console errors.
+- Found on the way, for Task 13: `XtreamStore.constructStreamUrl()` also
+  selects the item in the store. The picker's resolver must build Xtream
+  URLs through `XtreamUrlService` instead, or the layout's selection moves.
+- Known phase 1 limit: a parental relock that withholds the layout's own
+  channel removes the player and so ends the whole session (the anchor
+  leaves), rather than closing only that tile.
+
 ### Task 11: Tile chrome, multiview bar, swap, audio, close, exit
 
 **Files:** `libs/playback/multiview/ui` — `multiview-tile-chrome.component.*`,

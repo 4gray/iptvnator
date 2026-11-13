@@ -175,6 +175,7 @@
             >
                 <app-web-player-view
                     #inlinePlayer
+                    *appMultiviewAnchor="multiviewHost"
                     [playbackSessionKey]="playbackSessionKey()"
                     [streamUrl]="streamUrl"
                     [title]="activePlayback()?.title ?? ''"

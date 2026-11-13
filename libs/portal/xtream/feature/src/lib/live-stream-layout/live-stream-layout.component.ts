@@ -81,6 +81,7 @@ import {
     type FullscreenChannelPanelContext,
     type FullscreenChannelPanelHost,
     type PlaybackFallbackRequest,
+    MultiviewAnchorDirective,
     WebPlayerViewComponent,
 } from '@iptvnator/ui/playback';
 import { LiveEpgPanelSummary } from '@iptvnator/ui/shared-portals';
@@ -111,6 +112,7 @@ import {
     SettingsStore,
 } from '@iptvnator/services';
 import { LiveStreamAutoOpenStateService } from './live-stream-auto-open-state.service';
+import { createXtreamLiveMultiviewHost } from './xtream-live-multiview-host';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 import { injectXtreamRecentHistory } from '../xtream-recent-history';
 
@@ -176,6 +178,7 @@ const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
         ResizableDirective,
         TranslatePipe,
         WebPlayerViewComponent,
+        MultiviewAnchorDirective,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -618,6 +621,17 @@ export class LiveStreamLayoutComponent
         const program = findCurrentEpgItem(this.playingSchedule(), now);
         return program ? toSharedEpgProgram(program) : null;
     });
+    /** Lets a multiview session take over and hand back the inline player. */
+    readonly multiviewHost = createXtreamLiveMultiviewHost({
+        playlistId: () => this.xtreamStore.currentPlaylist()?.id,
+        playback: this.activePlayback,
+        sessionKey: this.playbackSessionKey,
+        channelId: this.activeLiveItemId,
+        catchupProgram: this.activeCatchupProgram,
+        player: () => this.settingsStore.player?.(),
+        selectChannel: (channelId) => this.selectMultiviewChannel(channelId),
+    });
+    favorites = new Map<number, boolean>();
 
     constructor() {
         this.externalGuide.bind({
@@ -1314,6 +1328,19 @@ export class LiveStreamLayoutComponent
         );
         request.trackLaunch(launch);
         void launch;
+    }
+
+    /** Plays a surviving multiview tile here without a new history entry. */
+    private selectMultiviewChannel(channelId: number): boolean {
+        const item = this.getAllLiveStreams().find(
+            (channel) => Number(channel?.xtream_id) === channelId
+        );
+        if (!item) return false;
+        this.playLive(item, false);
+        this.xtreamStore.setSelectedItem(
+            item as unknown as Record<string, unknown>
+        );
+        return true;
     }
 
     private getAllLiveStreams(): XtreamLiveChannelItem[] {

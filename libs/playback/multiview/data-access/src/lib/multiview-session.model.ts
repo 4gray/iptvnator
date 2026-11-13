@@ -30,6 +30,8 @@ export interface MultiviewTileSource {
     readonly playbackSessionKey: string;
     readonly kind: MultiviewTileKind;
     readonly playlistId: string;
+    /** Provider id of the content, so a player view can select it again. */
+    readonly contentId?: string;
     readonly title: string;
     /** Radio is audio-only and never becomes a tile (non-goal). */
     readonly radio?: boolean;
