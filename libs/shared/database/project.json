@@ -18,6 +18,18 @@
         },
         "lint": {
             "command": "eslint \"libs/shared/database/**/*.ts\""
+        },
+        "test": {
+            "dependsOn": ["electron-test-tools:ensure-electron-binary"],
+            "inputs": [
+                "default",
+                "^production",
+                "{workspaceRoot}/jest.preset.js",
+                "{workspaceRoot}/tools/testing/electron/**/*",
+                {
+                    "externalDependencies": ["jest", "@nx/jest", "ts-jest"]
+                }
+            ]
         }
     }
 }

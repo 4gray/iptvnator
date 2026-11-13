@@ -577,7 +577,7 @@ jobs:
               if: steps.scope.outputs.run == 'true'
               env:
                   GH_TOKEN: ${{ github.token }}
-              run: node tools/testing/ensure-electron-binary.mjs
+              run: node tools/testing/electron/ensure-electron-binary.mjs
 
             # Jest's transform cache (TypeScript/Angular transpilation plus
             # coverage instrumentation, keyed by file content) is persisted
