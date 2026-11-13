@@ -22,7 +22,8 @@ export interface M3uMultiviewDeps {
     /** Engine the inline player uses (DASH forces its own). */
     readonly engine: () => VideoPlayer | null | undefined;
     /** Makes a channel of the current playlist the active one. */
-    readonly selectChannel: (channelId: string) => void;
+    /** Selects the channel; false when the view does not list it. */
+    readonly selectChannel: (channelId: string) => boolean;
 }
 
 /**
@@ -64,8 +65,7 @@ export function createM3uMultiviewHost(
             if (!tile.contentId || tile.playlistId !== deps.playlistId()) {
                 return false;
             }
-            deps.selectChannel(tile.contentId);
-            return true;
+            return deps.selectChannel(tile.contentId);
         },
     };
 }

@@ -63,8 +63,7 @@ export function createXtreamLiveMultiviewHost(
             ) {
                 return false;
             }
-            deps.selectChannel(Number(tile.contentId));
-            return true;
+            return deps.selectChannel(Number(tile.contentId));
         },
     };
 }

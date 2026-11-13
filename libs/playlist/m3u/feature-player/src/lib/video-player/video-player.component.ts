@@ -751,6 +751,7 @@ export class VideoPlayerComponent
                         ChannelActions.setActiveChannel({ channel })
                     );
                 }
+                return !!channel;
             },
         })
     );

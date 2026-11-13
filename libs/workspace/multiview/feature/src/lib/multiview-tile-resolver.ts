@@ -123,7 +123,18 @@ export class MultiviewTileResolverService {
         xtreamId: number
     ): Promise<MultiviewTileSource> {
         const { item } = row;
-        const position = row.position?.positionSeconds;
+        // Favorites, Recent and search rows carry no progress: read it.
+        const saved =
+            row.position ??
+            (await this.positions.getPlaybackPosition(
+                item.playlistId,
+                xtreamId,
+                'vod'
+            ));
+        const position =
+            saved && !saved.watched && saved.positionSeconds > 0
+                ? saved.positionSeconds
+                : undefined;
         const resolved = await this.vod.resolve(
             {
                 id: `${item.playlistId}:xtream:${xtreamId}`,

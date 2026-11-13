@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import { UnifiedRecentDataService } from '@iptvnator/portal/shared/data-access';
 import { MultiviewChannelAdder } from './multiview-channel-adder.service';
+import { MultiviewRelockGuard } from './multiview-relock-guard.service';
 import { liveItem, movieItem } from './multiview-picker.fixtures';
 import {
     MultiviewTileResolverService,
@@ -11,6 +12,7 @@ import {
 describe('MultiviewChannelAdder', () => {
     const resolve = jest.fn();
     const defer = jest.fn();
+    const track = jest.fn();
 
     beforeEach(() => {
         jest.resetAllMocks();
@@ -21,6 +23,7 @@ describe('MultiviewChannelAdder', () => {
                     useValue: { resolve },
                 },
                 { provide: PlaybackHistoryGate, useValue: { defer } },
+                { provide: MultiviewRelockGuard, useValue: { track } },
                 {
                     provide: UnifiedRecentDataService,
                     useValue: { recordLivePlayback: jest.fn() },

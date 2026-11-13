@@ -11,10 +11,12 @@ import { VideoPlayer } from '@iptvnator/shared/interfaces';
 import { of } from 'rxjs';
 import { liveItem, tile } from './multiview-picker.fixtures';
 import { MultiviewPickerLauncher } from './multiview-picker-launcher.service';
+import { MultiviewRelockGuard } from './multiview-relock-guard.service';
 
 describe('MultiviewPickerLauncher', () => {
     const open = jest.fn();
     const defer = jest.fn();
+    const track = jest.fn();
     const recordLivePlayback = jest.fn();
     let tiles: ReturnType<typeof tile>[] = [];
     const anchorSource = signal<unknown>(null);
@@ -27,6 +29,7 @@ describe('MultiviewPickerLauncher', () => {
             providers: [
                 { provide: MatDialog, useValue: { open } },
                 { provide: PlaybackHistoryGate, useValue: { defer } },
+                { provide: MultiviewRelockGuard, useValue: { track } },
                 {
                     provide: UnifiedRecentDataService,
                     useValue: { recordLivePlayback },

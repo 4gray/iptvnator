@@ -15,6 +15,7 @@ import type {
     MultiviewPickerResult,
 } from './multiview-picker-context';
 import { recordWhenPlaying } from './multiview-history';
+import { MultiviewRelockGuard } from './multiview-relock-guard.service';
 import { MultiviewPickerDialogComponent } from './multiview-picker-dialog.component';
 
 /** Spec 9.5: one 820 px dialog; its list area has a fixed height. */
@@ -38,6 +39,7 @@ export class MultiviewPickerLauncher implements MultiviewSourcePicker {
     private readonly anchors = inject(MultiviewAnchorRegistry);
     private readonly history = inject(PlaybackHistoryGate);
     private readonly recent = inject(UnifiedRecentDataService);
+    private readonly relock = inject(MultiviewRelockGuard);
 
     async pick(
         request: MultiviewPickRequest
@@ -53,6 +55,7 @@ export class MultiviewPickerLauncher implements MultiviewSourcePicker {
         const result = await firstValueFrom(ref.afterClosed());
         if (!result) return null;
         recordWhenPlaying(this.history, this.recent, result);
+        this.relock.track(result.source, result.item);
         return result.source;
     }
 

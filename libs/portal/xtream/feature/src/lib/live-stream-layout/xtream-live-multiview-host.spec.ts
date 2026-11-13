@@ -108,6 +108,13 @@ describe('createXtreamLiveMultiviewHost', () => {
         expect(deps.selectChannel).toHaveBeenCalledWith(202);
     });
 
+    it('reports a survivor the view does not list as not adopted (D2)', () => {
+        const { host, deps } = setup();
+        deps.selectChannel.mockReturnValue(false);
+
+        expect(host.adopt?.(tile({}))).toBe(false);
+    });
+
     it.each([
         ['another playlist', { playlistId: 'playlist-2' }],
         ['a catch-up programme', { kind: 'vod' as const }],

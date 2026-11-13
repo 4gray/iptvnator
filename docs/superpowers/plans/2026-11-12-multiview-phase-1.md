@@ -1241,6 +1241,30 @@ fix in `multiview-tile-resolver.ts` (+ spec).
   stream too).
 - Stability: Electron `--repeat-each=2` 8/8, web `--repeat-each=3` 3/3.
 
+### Local review gate
+
+**Round 1 (Codex, base `origin/master`, commit `ce94de578`):** five findings.
+- Fixed — P1, relocks did not reach added tiles: `store.withhold()` had no
+  caller. `MultiviewRelockGuard` (feature) remembers the item of every tile
+  added from the picker or a list and withholds it when the lock version or
+  "withhold everything" changes and the item is no longer allowed. The
+  anchor's own tile keeps following its view.
+- Fixed — P2, films picked outside Continue started at zero and overwrote
+  their resume point: the resolver now reads the saved position (unless
+  watched).
+- Fixed — P2, Stalker (and M3U, Xtream) `adopt()` returned true for a
+  survivor the view does not list: `selectChannel` returns whether it found
+  the channel, and `adopt()` returns that, so `reopen()` runs.
+- Fixed — P2, a tile's `error` status stayed after it played again: a time
+  update past 0 reports it `playing`.
+- Declined — P2, a VOD or episode survivor reopened on its detail page does
+  not keep playing: D2 (confirmed) opens a foreign survivor "through the same
+  navigation the Recent/Favorites lists use", which opens detail pages
+  without playback; a play-on-arrival handoff for detail pages is new
+  detail-page behaviour and a maintainer decision.
+
+Greptile: not run (the `greptile` CLI is not installed on this machine).
+
 ## Phase acceptance (spec 14)
 
 - The scenario works in Electron and the PWA with all three source types.

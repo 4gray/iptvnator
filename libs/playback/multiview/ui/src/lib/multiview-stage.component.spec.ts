@@ -278,6 +278,17 @@ describe('MultiviewStageComponent', () => {
         expect(store.tiles()[1].status).toBe('error');
     });
 
+    it('clears the failure once the tile plays again', () => {
+        start();
+        players()[1].playbackFailed.emit('network');
+        players()[1].timeUpdate.emit({ currentTime: 0, duration: 0 });
+        expect(store.tiles()[1].status).toBe('error');
+
+        players()[1].timeUpdate.emit({ currentTime: 2.5, duration: 0 });
+
+        expect(store.tiles()[1].status).toBe('playing');
+    });
+
     describe('error card (spec 9.6)', () => {
         const card = (): HTMLElement | null =>
             fixture.nativeElement.querySelector(

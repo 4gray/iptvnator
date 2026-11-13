@@ -7,6 +7,7 @@ import type {
 import { UnifiedRecentDataService } from '@iptvnator/portal/shared/data-access';
 import type { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 import { recordWhenPlaying } from './multiview-history';
+import { MultiviewRelockGuard } from './multiview-relock-guard.service';
 import { toPickerRow } from './multiview-picker-row';
 import {
     isPickableRow,
@@ -24,6 +25,7 @@ export class MultiviewChannelAdder implements MultiviewChannelResolver {
     private readonly resolver = inject(MultiviewTileResolverService);
     private readonly history = inject(PlaybackHistoryGate);
     private readonly recent = inject(UnifiedRecentDataService);
+    private readonly relock = inject(MultiviewRelockGuard);
 
     async resolve(item: UnifiedCollectionItem): Promise<MultiviewTileSource> {
         const row = toPickerRow(item, []);
@@ -32,6 +34,7 @@ export class MultiviewChannelAdder implements MultiviewChannelResolver {
         }
         const source = await this.resolver.resolve(row);
         recordWhenPlaying(this.history, this.recent, { source, item });
+        this.relock.track(source, item);
         return source;
     }
 }

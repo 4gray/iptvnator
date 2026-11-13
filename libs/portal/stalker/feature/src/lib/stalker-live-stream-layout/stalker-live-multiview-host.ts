@@ -21,7 +21,8 @@ export interface StalkerLiveMultiviewDeps {
     readonly radio: Signal<boolean>;
     readonly player: () => VideoPlayer | undefined;
     /** Plays a channel of the current portal; resolves a fresh link. */
-    readonly selectChannel: (channelId: string) => void;
+    /** Selects the channel; false when the view does not list it. */
+    readonly selectChannel: (channelId: string) => boolean;
 }
 
 /**
@@ -60,8 +61,7 @@ export function createStalkerLiveMultiviewHost(
             ) {
                 return false;
             }
-            deps.selectChannel(tile.contentId);
-            return true;
+            return deps.selectChannel(tile.contentId);
         },
     };
 }

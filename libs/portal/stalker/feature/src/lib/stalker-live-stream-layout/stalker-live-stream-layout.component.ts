@@ -446,6 +446,7 @@ export class StalkerLiveStreamLayoutComponent
                         normalizeStalkerEntityId(channel.id) === channelId
                 );
                 if (item) void this.playChannel(item, true);
+                return !!item;
             },
         })
     );

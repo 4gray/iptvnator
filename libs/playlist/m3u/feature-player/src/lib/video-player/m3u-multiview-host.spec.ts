@@ -24,7 +24,7 @@ function setup() {
         sessionKey: signal('live|playlist-1|ch-1'),
         catchupUrl: signal<string | null>(null),
         engine: signal<VideoPlayer | null>(VideoPlayer.Html5Player),
-        selectChannel: jest.fn(),
+        selectChannel: jest.fn(() => true),
     };
     return { deps, host: createM3uMultiviewHost(deps) };
 }
@@ -112,6 +112,13 @@ describe('createM3uMultiviewHost', () => {
         expect(host.adopt?.(tile({}))).toBe(true);
 
         expect(deps.selectChannel).toHaveBeenCalledWith('ch-2');
+    });
+
+    it('reports a survivor the view does not list as not adopted (D2)', () => {
+        const { host, deps } = setup();
+        deps.selectChannel.mockReturnValue(false);
+
+        expect(host.adopt?.(tile({}))).toBe(false);
     });
 
     it.each([

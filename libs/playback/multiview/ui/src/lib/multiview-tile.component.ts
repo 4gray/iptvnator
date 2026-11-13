@@ -126,6 +126,13 @@ export class MultiviewTileComponent {
         const tile = this.tile();
         // R9: progress is saved exactly as the source's own player saves it.
         tile.persistPosition?.(event);
+        // A tile that plays again after a failure is no longer failed.
+        if (
+            event.currentTime > 0 &&
+            this.store.tile(tile.id)?.status === 'error'
+        ) {
+            this.store.reportStatus(tile.id, 'playing');
+        }
         const second = Math.floor(event.currentTime);
         if (tile.kind === 'live' || second === this.reportedSecond) return;
         this.reportedSecond = second;

@@ -16,7 +16,10 @@ import {
 describe('MultiviewTileResolverService', () => {
     const catalog = { resolve: jest.fn() };
     const vod = { resolve: jest.fn() };
-    const positions = { savePlaybackPosition: jest.fn() };
+    const positions = {
+        savePlaybackPosition: jest.fn(),
+        getPlaybackPosition: jest.fn(),
+    };
     let playlist: Record<string, unknown> | undefined;
 
     beforeEach(() => {
@@ -140,6 +143,55 @@ describe('MultiviewTileResolverService', () => {
         await expect(service().resolve(row)).rejects.toBeInstanceOf(
             MultiviewUnresolvableError
         );
+    });
+
+    it('resumes a film picked outside Continue at its saved position', async () => {
+        positions.getPlaybackPosition.mockResolvedValue({
+            contentXtreamId: 4,
+            contentType: 'vod',
+            positionSeconds: 300,
+        });
+        vod.resolve.mockResolvedValue({
+            playback: {
+                streamUrl: 'http://xtream.example/movie/u/p/4.mkv',
+                title: 'f',
+            },
+            candidate: {},
+        });
+
+        const source = await service().resolve(toPickerRow(movieItem(4), []));
+
+        expect(positions.getPlaybackPosition).toHaveBeenCalledWith(
+            'playlist-1',
+            4,
+            'vod'
+        );
+        expect(vod.resolve).toHaveBeenCalledWith(expect.anything(), {
+            startTime: 300,
+        });
+        expect(source.position).toBe(300);
+    });
+
+    it('starts a watched film from the beginning', async () => {
+        positions.getPlaybackPosition.mockResolvedValue({
+            contentXtreamId: 4,
+            contentType: 'vod',
+            positionSeconds: 5000,
+            watched: true,
+        });
+        vod.resolve.mockResolvedValue({
+            playback: {
+                streamUrl: 'http://xtream.example/movie/u/p/4.mkv',
+                title: 'f',
+            },
+            candidate: {},
+        });
+
+        await service().resolve(toPickerRow(movieItem(4), []));
+
+        expect(vod.resolve).toHaveBeenCalledWith(expect.anything(), {
+            startTime: undefined,
+        });
     });
 
     it('refuses a film whose source cannot be resolved', async () => {

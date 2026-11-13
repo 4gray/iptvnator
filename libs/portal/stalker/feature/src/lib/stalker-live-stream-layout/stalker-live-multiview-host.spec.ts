@@ -25,7 +25,7 @@ function setup() {
         sessionKey: signal('live|portal-1|101'),
         radio: signal(false),
         player: signal<VideoPlayer | undefined>(VideoPlayer.Html5Player),
-        selectChannel: jest.fn(),
+        selectChannel: jest.fn(() => true),
     };
     return { deps, host: createStalkerLiveMultiviewHost(deps) };
 }
@@ -92,6 +92,13 @@ describe('createStalkerLiveMultiviewHost', () => {
         expect(host.adopt?.(tile({}))).toBe(true);
 
         expect(deps.selectChannel).toHaveBeenCalledWith('202');
+    });
+
+    it('reports a survivor the view does not list as not adopted (D2)', () => {
+        const { host, deps } = setup();
+        deps.selectChannel.mockReturnValue(false);
+
+        expect(host.adopt?.(tile({}))).toBe(false);
     });
 
     it.each([
