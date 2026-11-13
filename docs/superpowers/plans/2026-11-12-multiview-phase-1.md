@@ -456,27 +456,36 @@ later tasks must not add to it without moving code out first.
 
 ### Task 4: Dock action and translations
 
-**Files:** `libs/ui/playback/src/lib/player-controls/player-multiview-action.ts`
-(token), `player-controls.component.{ts,html}`, spec
-`player-controls.component.multiview.spec.ts`, 21 locale files.
+**Files (as built):** `libs/ui/playback/src/lib/player-controls/` —
+`player-multiview-action.ts` (token `PLAYER_MULTIVIEW_ACTION` and template
+directive `appPlayerMultiviewAction`), `player-controls.component.{ts,html}`,
+spec `player-controls.component.multiview.spec.ts`; 21 locale files; dock
+paragraph in `docs/architecture/player-controls-contract.md`.
 
-- [ ] Optional token `PLAYER_MULTIVIEW_ACTION` (`run()`, `enabled` signal,
-      `disabledTooltipKey`). No provider → no button (spec 11.2.3). Grid
-      icon; position per the mockup: after volume, before the settings
-      button (the record and system-PiP buttons, which the mockup does not
-      show, keep their place between settings and fullscreen). Tooltip
-      "Multiview · Shift+M" with the existing tooltip style of the dock,
-      accessible name equal to the tooltip. No new button style: it reuses
-      the dock's icon-button class and hover state.
-- [ ] Start from the prototype's `TWO_STREAMS.*` strings for the keys that
-      overlap, so those 21 translations are reused, not redone.
-- [ ] Add all phase 1 keys under `PLAYER.MULTIVIEW.*` (dock, bar, tile
-      actions, picker, errors, toasts, shortcut labels) to `en.json` and
-      translate them in the other 20 locales.
+- [x] Optional token `PLAYER_MULTIVIEW_ACTION` (`enabled` signal,
+      optional `disabledReasonKey`, `run()`). No provider → no button. The
+      button markup lives in the dock template behind a template directive
+      that stamps it only when the token is provided, so it reuses the
+      dock's `player-controls__button` styles (the dock uses emulated
+      encapsulation, a child component would not get them). Grid icon,
+      right group before `tune`; tooltip "Multiview · Shift+M"; accessible
+      name "Multiview". Disabled uses `disabledInteractive`, so the reason
+      tooltip stays reachable and the click is ignored.
+- [x] `player-controls.component.ts` was at 399 of 400 counted lines: the
+      private `canHide()` was inlined into the `ControlsVisibility` factory
+      (as on `agent/two-stream-mpv`) to make room; it is still at 399.
+- [x] Keys `PLAYER.MULTIVIEW.ACTION`, `ACTION_TOOLTIP`, `UNAVAILABLE_PLAYER`
+      in all 21 locales. Deviation: the remaining phase 1 keys are added with
+      the task that renders them (picker, bar, tile chrome, toasts,
+      shortcuts), so every string ships with its UI and the usage check
+      stays meaningful; the prototype's `TWO_STREAMS.*` translations are
+      reused there.
 
-**Tests:** `pnpm nx test ui-playback`, `node tools/i18n/check-drift.mjs`,
-existing `player-controls-keyboard.e2e.ts` unchanged.
-**Accept:** dock snapshot/DOM specs without a provider are unchanged.
+**Tests:** new dock spec (6; 5 red before the template change), whole
+`ui-playback` (1752), `pnpm run i18n:check`, icon ligature check, lint,
+`typecheck:web`, `typecheck:spec`, `electron-backend:build-e2e`.
+`player-controls-keyboard.e2e.ts` was not run: without a provider the dock
+DOM is unchanged and no host provides the action yet.
 
 ### Task 5: Stage in the shell and the anchor directive
 

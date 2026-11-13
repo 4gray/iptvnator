@@ -2549,5 +2549,12 @@
         "STATE_offline": "History saved locally; server unavailable",
         "STATE_incompatible": "This server does not support history synchronization",
         "PENDING": "Queued history changes: {{count}}"
+    },
+    "PLAYER": {
+        "MULTIVIEW": {
+            "ACTION": "Multiview",
+            "ACTION_TOOLTIP": "Multiview · Shift+M",
+            "UNAVAILABLE_PLAYER": "Available with the built-in player"
+        }
     }
 }

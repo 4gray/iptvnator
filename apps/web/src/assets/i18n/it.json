@@ -2549,5 +2549,12 @@
         "STATE_offline": "Cronologia salvata localmente; server non disponibile",
         "STATE_incompatible": "Questo server non supporta la sincronizzazione della cronologia",
         "PENDING": "Modifiche alla cronologia in coda: {{count}}"
+    },
+    "PLAYER": {
+        "MULTIVIEW": {
+            "ACTION": "Multivista",
+            "ACTION_TOOLTIP": "Multivista · Shift+M",
+            "UNAVAILABLE_PLAYER": "Disponibile con il lettore integrato"
+        }
     }
 }

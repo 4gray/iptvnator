@@ -2549,5 +2549,12 @@
         "STATE_offline": "Az előzményeket az alkalmazás helyben mentette; a kiszolgáló nem érhető el",
         "STATE_incompatible": "Ez a kiszolgáló nem támogatja a megtekintési előzmények szinkronizálását",
         "PENDING": "Küldésre váró előzménymódosítások: {{count}}"
+    },
+    "PLAYER": {
+        "MULTIVIEW": {
+            "ACTION": "Többképes nézet",
+            "ACTION_TOOLTIP": "Többképes nézet · Shift+M",
+            "UNAVAILABLE_PLAYER": "A beépített lejátszóval érhető el"
+        }
     }
 }

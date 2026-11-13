@@ -2549,5 +2549,12 @@
         "STATE_offline": "Geçmiş yerel kaydedildi; sunucu kullanılamıyor",
         "STATE_incompatible": "Bu sunucu geçmiş eşitlemeyi desteklemiyor",
         "PENDING": "Kuyruktaki geçmiş değişiklikleri: {{count}}"
+    },
+    "PLAYER": {
+        "MULTIVIEW": {
+            "ACTION": "Çoklu görünüm",
+            "ACTION_TOOLTIP": "Çoklu görünüm · Shift+M",
+            "UNAVAILABLE_PLAYER": "Yerleşik oynatıcıda kullanılabilir"
+        }
     }
 }

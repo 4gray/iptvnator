@@ -2549,5 +2549,12 @@
         "STATE_offline": "기록을 로컬에 저장함. 서버 사용 불가",
         "STATE_incompatible": "이 서버는 기록 동기화를 지원하지 않습니다",
         "PENDING": "대기 중인 기록 변경: {{count}}개"
+    },
+    "PLAYER": {
+        "MULTIVIEW": {
+            "ACTION": "멀티뷰",
+            "ACTION_TOOLTIP": "멀티뷰 · Shift+M",
+            "UNAVAILABLE_PLAYER": "내장 플레이어에서 사용할 수 있습니다"
+        }
     }
 }

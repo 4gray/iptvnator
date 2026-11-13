@@ -401,8 +401,17 @@ one colour in every player surface (UI guidelines, "Watch progress colour").
   the hover/tap popover in the compact mode — inline, the button is a
   plain mute toggle for every pointer type (`buttonClick(event,
   { inlineSlider: true })`). Center: previous episode · −10s · **play** ·
-  +10s · next episode. Right: the value chips, the `tune` button,
-  recording, picture-in-picture and fullscreen, end-aligned.
+  +10s · next episode. Right: the value chips, multiview, the `tune`
+  button, recording, picture-in-picture and fullscreen, end-aligned.
+- **Multiview action** (`data-test-id="player-controls-multiview"`, grid
+  icon): rendered only when a host above the player provides
+  `PLAYER_MULTIVIEW_ACTION` (`player-multiview-action.ts`); the
+  `appPlayerMultiviewAction` template directive stamps it inside the dock
+  template so it keeps the dock's icon-button styles. Without a provider the
+  dock is unchanged. A disabled action stays visible and focusable
+  (`disabledInteractive`, `aria-disabled`) and its tooltip names the reason
+  (`disabledReasonKey`); an enabled one shows "Multiview · Shift+M". It hides
+  with the other right-group actions while the roomy settings panel is open.
 - **Play button** (`.player-controls__play`, `data-test-id
   ="player-controls-play"`): a 52px filled accent circle with a white glyph,
   not a Material icon button. Fills under a white glyph (play, active
@@ -1789,6 +1798,7 @@ libs/ui/playback/src/lib/player-controls/
 ├── player-settings-panel.component.html
 ├── player-settings-panel.component.scss
 ├── settings-radio-group.directive.ts
+├── player-multiview-action.ts
 ├── controls-fullscreen.ts
 ├── controls-menu-selection.ts
 ├── controls-menu-state.ts

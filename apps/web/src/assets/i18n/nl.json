@@ -2549,5 +2549,12 @@
         "STATE_offline": "Geschiedenis lokaal opgeslagen; server niet bereikbaar",
         "STATE_incompatible": "Deze server ondersteunt geen geschiedenissynchronisatie",
         "PENDING": "Geschiedeniswijzigingen in wachtrij: {{count}}"
+    },
+    "PLAYER": {
+        "MULTIVIEW": {
+            "ACTION": "Meervoudige weergave",
+            "ACTION_TOOLTIP": "Meervoudige weergave · Shift+M",
+            "UNAVAILABLE_PLAYER": "Beschikbaar met de ingebouwde speler"
+        }
     }
 }

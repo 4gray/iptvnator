@@ -2549,5 +2549,12 @@
         "STATE_offline": "歷史已儲存在本機；伺服器無法使用",
         "STATE_incompatible": "此伺服器不支援歷史同步",
         "PENDING": "佇列中的歷史變更：{{count}}"
+    },
+    "PLAYER": {
+        "MULTIVIEW": {
+            "ACTION": "多畫面",
+            "ACTION_TOOLTIP": "多畫面 · Shift+M",
+            "UNAVAILABLE_PLAYER": "在內建播放器中可用"
+        }
     }
 }

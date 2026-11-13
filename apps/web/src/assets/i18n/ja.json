@@ -2549,5 +2549,12 @@
         "STATE_offline": "履歴を端末に保存しました。サーバーに接続できません",
         "STATE_incompatible": "このサーバーは履歴の同期に対応していません",
         "PENDING": "送信待ちの履歴変更：{{count}} 件"
+    },
+    "PLAYER": {
+        "MULTIVIEW": {
+            "ACTION": "マルチビュー",
+            "ACTION_TOOLTIP": "マルチビュー · Shift+M",
+            "UNAVAILABLE_PLAYER": "内蔵プレーヤーで利用できます"
+        }
     }
 }

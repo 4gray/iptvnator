@@ -2549,5 +2549,12 @@
         "STATE_offline": "Verlauf lokal gespeichert; Server nicht erreichbar",
         "STATE_incompatible": "Dieser Server unterstützt keine Verlaufssynchronisierung",
         "PENDING": "Verlaufsänderungen in der Warteschlange: {{count}}"
+    },
+    "PLAYER": {
+        "MULTIVIEW": {
+            "ACTION": "Mehrfachansicht",
+            "ACTION_TOOLTIP": "Mehrfachansicht · Shift+M",
+            "UNAVAILABLE_PLAYER": "Im integrierten Player verfügbar"
+        }
     }
 }

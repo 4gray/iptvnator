@@ -2549,5 +2549,12 @@
         "STATE_offline": "历史已保存在本地；服务器不可用",
         "STATE_incompatible": "此服务器不支持历史同步",
         "PENDING": "排队中的历史更改：{{count}}"
+    },
+    "PLAYER": {
+        "MULTIVIEW": {
+            "ACTION": "多画面",
+            "ACTION_TOOLTIP": "多画面 · Shift+M",
+            "UNAVAILABLE_PLAYER": "在内置播放器中可用"
+        }
     }
 }

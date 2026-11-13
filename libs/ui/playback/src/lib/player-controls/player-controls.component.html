@@ -439,6 +439,35 @@
                     }
                 }
 
+                <!-- Multiview (spec 9.1): only when a host provides the action;
+                     disabled-interactive so the reason tooltip still shows. -->
+                <ng-template appPlayerMultiviewAction let-action>
+                    @if (!(settings.isOpen() && layout.roomy())) {
+                        <button
+                            mat-icon-button
+                            type="button"
+                            class="player-controls__button"
+                            data-test-id="player-controls-multiview"
+                            [disabled]="!action.enabled()"
+                            [disabledInteractive]="true"
+                            (click)="action.enabled() && action.run()"
+                            [attr.aria-label]="
+                                'PLAYER.MULTIVIEW.ACTION' | translate
+                            "
+                            [matTooltip]="
+                                (action.enabled()
+                                    ? 'PLAYER.MULTIVIEW.ACTION_TOOLTIP'
+                                    : (action.disabledReasonKey ??
+                                      'PLAYER.MULTIVIEW.ACTION_TOOLTIP')
+                                ) | translate
+                            "
+                            matTooltipPosition="above"
+                        >
+                            <mat-icon>grid_view</mat-icon>
+                        </button>
+                    }
+                </ng-template>
+
                 @if (settings.available()) {
                     <button
                         mat-icon-button

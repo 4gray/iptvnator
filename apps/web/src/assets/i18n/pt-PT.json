@@ -2549,5 +2549,12 @@
         "STATE_offline": "Histórico guardado localmente; servidor indisponível",
         "STATE_incompatible": "Este servidor não suporta sincronização do histórico",
         "PENDING": "Alterações do histórico na fila: {{count}}"
+    },
+    "PLAYER": {
+        "MULTIVIEW": {
+            "ACTION": "Multivisualização",
+            "ACTION_TOOLTIP": "Multivisualização · Shift+M",
+            "UNAVAILABLE_PLAYER": "Disponível no leitor integrado"
+        }
     }
 }

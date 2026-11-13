@@ -2549,5 +2549,12 @@
         "STATE_offline": "Historia zapisana lokalnie; serwer niedostępny",
         "STATE_incompatible": "Ten serwer nie obsługuje synchronizacji historii",
         "PENDING": "Zmiany historii w kolejce: {{count}}"
+    },
+    "PLAYER": {
+        "MULTIVIEW": {
+            "ACTION": "Wiele obrazów",
+            "ACTION_TOOLTIP": "Wiele obrazów · Shift+M",
+            "UNAVAILABLE_PLAYER": "Dostępne we wbudowanym odtwarzaczu"
+        }
     }
 }

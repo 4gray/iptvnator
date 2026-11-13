@@ -2549,5 +2549,12 @@
         "STATE_offline": "Historique enregistré localement ; serveur indisponible",
         "STATE_incompatible": "Ce serveur ne prend pas en charge la synchronisation de l’historique",
         "PENDING": "Modifications de l’historique en attente : {{count}}"
+    },
+    "PLAYER": {
+        "MULTIVIEW": {
+            "ACTION": "Multivue",
+            "ACTION_TOOLTIP": "Multivue · Shift+M",
+            "UNAVAILABLE_PLAYER": "Disponible avec le lecteur intégré"
+        }
     }
 }

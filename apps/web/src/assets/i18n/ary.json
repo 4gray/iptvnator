@@ -2549,5 +2549,12 @@
         "STATE_offline": "السجل تحفظ محلياً؛ السيرفر ما متوفرش",
         "STATE_incompatible": "هاد السيرفر ما كيدعمش مزامنة السجل",
         "PENDING": "تغييرات السجل فالانتظار: {{count}}"
+    },
+    "PLAYER": {
+        "MULTIVIEW": {
+            "ACTION": "عرض متعدد",
+            "ACTION_TOOLTIP": "عرض متعدد · Shift+M",
+            "UNAVAILABLE_PLAYER": "كاين غير فالمشغّل المدمج"
+        }
     }
 }
