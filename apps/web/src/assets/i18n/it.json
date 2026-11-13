@@ -2214,7 +2214,10 @@
                 "COMMAND_PALETTE_RUN": "Esegui elemento selezionato della palette comandi",
                 "CLOSE_DIALOGS": "Chiudi dialogo o nascondi overlay",
                 "DOWNLOADS_OPEN_ITEM": "Apri nella libreria l’elemento download selezionato",
-                "OPEN_PLAYLIST_SWITCHER": "Cambia playlist"
+                "OPEN_PLAYLIST_SWITCHER": "Cambia playlist",
+                "MULTIVIEW_OPEN_PICKER": "Apri la scelta della sorgente della multivista",
+                "MULTIVIEW_SWAP": "Multivista: scambia la finestra principale e quella piccola",
+                "MULTIVIEW_AUDIO": "Multivista: sposta l'audio sulla finestra attiva"
             }
         },
         "GLOBAL_FAVORITES": {

@@ -30,8 +30,10 @@ export class MultiviewPlayerDirective {
             }
         };
         element.addEventListener('timeupdate', onTimeUpdate, true);
-        inject(DestroyRef).onDestroy(() =>
-            element.removeEventListener('timeupdate', onTimeUpdate, true)
-        );
+        anchor.attachPlayer(element);
+        inject(DestroyRef).onDestroy(() => {
+            element.removeEventListener('timeupdate', onTimeUpdate, true);
+            anchor.attachPlayer(null);
+        });
     }
 }

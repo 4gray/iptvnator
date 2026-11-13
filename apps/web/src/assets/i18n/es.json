@@ -2214,7 +2214,10 @@
                 "COMMAND_PALETTE_RUN": "Ejecutar el elemento seleccionado de la paleta de comandos",
                 "CLOSE_DIALOGS": "Cerrar diálogo o descartar superposición",
                 "DOWNLOADS_OPEN_ITEM": "Abrir en la biblioteca el elemento de descarga enfocado",
-                "OPEN_PLAYLIST_SWITCHER": "Cambiar de lista"
+                "OPEN_PLAYLIST_SWITCHER": "Cambiar de lista",
+                "MULTIVIEW_OPEN_PICKER": "Abrir el selector de fuentes de multivista",
+                "MULTIVIEW_SWAP": "Multivista: intercambiar la ventana principal y la pequeña",
+                "MULTIVIEW_AUDIO": "Multivista: llevar el sonido a la ventana activa"
             }
         },
         "GLOBAL_FAVORITES": {

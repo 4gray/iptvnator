@@ -2214,7 +2214,10 @@
                 "COMMAND_PALETTE_RUN": "Geselecteerd item in opdrachtpalet uitvoeren",
                 "CLOSE_DIALOGS": "Dialoogvenster sluiten of overlay verbergen",
                 "DOWNLOADS_OPEN_ITEM": "Gefocust downloaditem in de bibliotheek openen",
-                "OPEN_PLAYLIST_SWITCHER": "Afspeellijst wisselen"
+                "OPEN_PLAYLIST_SWITCHER": "Afspeellijst wisselen",
+                "MULTIVIEW_OPEN_PICKER": "Bronkeuze van multiview openen",
+                "MULTIVIEW_SWAP": "Multiview: hoofdvenster en klein venster wisselen",
+                "MULTIVIEW_AUDIO": "Multiview: geluid naar het actieve venster verplaatsen"
             }
         },
         "GLOBAL_FAVORITES": {

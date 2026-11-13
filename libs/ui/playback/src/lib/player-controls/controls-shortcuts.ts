@@ -48,6 +48,30 @@ const INTERACTIVE_SELECTOR = [
     '[role="textbox"]',
 ].join(',');
 
+/**
+ * Whether a keypress comes from a dialog or an interactive control anywhere
+ * in its composed path; player and multiview shortcuts leave those keys to
+ * the control.
+ */
+export function comesFromInteractiveTarget(event: KeyboardEvent): boolean {
+    const path =
+        typeof event.composedPath === 'function' ? event.composedPath() : [];
+    const nodes = path.length > 0 ? path : [event.target];
+    return nodes.some((node) => {
+        const element = node as HTMLElement | null;
+        if (!element || typeof element.tagName !== 'string') {
+            return false;
+        }
+        if (
+            typeof element.matches === 'function' &&
+            element.matches(INTERACTIVE_SELECTOR)
+        ) {
+            return true;
+        }
+        return element.isContentEditable === true;
+    });
+}
+
 export class ControlsShortcuts {
     private static readonly instances = new Set<ControlsShortcuts>();
     private static active: ControlsShortcuts | null = null;
@@ -188,24 +212,7 @@ export class ControlsShortcuts {
             return true;
         }
 
-        const path =
-            typeof event.composedPath === 'function'
-                ? event.composedPath()
-                : [];
-        const nodes = path.length > 0 ? path : [event.target];
-        return nodes.some((node) => {
-            const element = node as HTMLElement | null;
-            if (!element || typeof element.tagName !== 'string') {
-                return false;
-            }
-            if (
-                typeof element.matches === 'function' &&
-                element.matches(INTERACTIVE_SELECTOR)
-            ) {
-                return true;
-            }
-            return element.isContentEditable === true;
-        });
+        return comesFromInteractiveTarget(event);
     }
 
     private static resolvePlaybackOwner(): ControlsShortcuts | null {

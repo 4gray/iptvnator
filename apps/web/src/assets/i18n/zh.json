@@ -2214,7 +2214,10 @@
                 "COMMAND_PALETTE_RUN": "运行选中的命令面板项目",
                 "CLOSE_DIALOGS": "关闭对话框或取消覆盖层",
                 "DOWNLOADS_OPEN_ITEM": "在媒体库中打开聚焦的下载项",
-                "OPEN_PLAYLIST_SWITCHER": "切换播放列表"
+                "OPEN_PLAYLIST_SWITCHER": "切换播放列表",
+                "MULTIVIEW_OPEN_PICKER": "打开多画面来源选择",
+                "MULTIVIEW_SWAP": "多画面：交换主窗口和小窗口",
+                "MULTIVIEW_AUDIO": "多画面：将声音移到活动窗口"
             }
         },
         "GLOBAL_FAVORITES": {

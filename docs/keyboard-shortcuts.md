@@ -19,6 +19,9 @@ Press `?` or `Shift+/` in the workspace to open the in-app shortcuts list.
 | Playback          | `ArrowLeft` / `ArrowRight`  | Seek VOD playback by 5 seconds                             |
 | Playback          | `ArrowUp` / `ArrowDown`     | Adjust volume by 5%                                        |
 | Playback          | `M`                         | Mute audio                                                 |
+| Playback          | `Shift+M`                   | Open the multiview source picker                           |
+| Playback          | `S`                         | Multiview: swap the main tile and the small one            |
+| Playback          | `A`                         | Multiview: move the sound to the active tile               |
 | Dialogs and lists | `ArrowUp` / `ArrowDown`     | Move command palette selection                             |
 | Dialogs and lists | `Enter`                     | Run the selected command or open a focused item            |
 | Dialogs and lists | `Escape`                    | Close dialogs and dismiss overlays                         |

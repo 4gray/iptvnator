@@ -2214,7 +2214,10 @@
                 "COMMAND_PALETTE_RUN": "A parancspalettán kijelölt művelet végrehajtása",
                 "CLOSE_DIALOGS": "Párbeszédpanel bezárása vagy az előugró felület eltüntetése",
                 "DOWNLOADS_OPEN_ITEM": "A fókuszban lévő letöltés megnyitása a médiatárban",
-                "OPEN_PLAYLIST_SWITCHER": "Lejátszási lista váltása"
+                "OPEN_PLAYLIST_SWITCHER": "Lejátszási lista váltása",
+                "MULTIVIEW_OPEN_PICKER": "A többnézet forrásválasztójának megnyitása",
+                "MULTIVIEW_SWAP": "Többnézet: a fő és a kis ablak cseréje",
+                "MULTIVIEW_AUDIO": "Többnézet: a hang áthelyezése az aktív ablakba"
             }
         },
         "GLOBAL_FAVORITES": {

@@ -2214,7 +2214,10 @@
                 "COMMAND_PALETTE_RUN": "Выполнить выбранный пункт палитры команд",
                 "CLOSE_DIALOGS": "Закрыть диалог или скрыть оверлей",
                 "DOWNLOADS_OPEN_ITEM": "Открыть выбранную загрузку в библиотеке",
-                "OPEN_PLAYLIST_SWITCHER": "Переключить плейлист"
+                "OPEN_PLAYLIST_SWITCHER": "Переключить плейлист",
+                "MULTIVIEW_OPEN_PICKER": "Открыть выбор источника для мультивью",
+                "MULTIVIEW_SWAP": "Мультивью: поменять основное и малое окно",
+                "MULTIVIEW_AUDIO": "Мультивью: перенести звук в активное окно"
             }
         },
         "GLOBAL_FAVORITES": {

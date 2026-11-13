@@ -2214,7 +2214,10 @@
                 "COMMAND_PALETTE_RUN": "선택한 명령 팔레트 항목 실행",
                 "CLOSE_DIALOGS": "대화상자 닫기 또는 오버레이 해제",
                 "DOWNLOADS_OPEN_ITEM": "포커스된 다운로드 항목을 라이브러리에서 열기",
-                "OPEN_PLAYLIST_SWITCHER": "재생목록 전환"
+                "OPEN_PLAYLIST_SWITCHER": "재생목록 전환",
+                "MULTIVIEW_OPEN_PICKER": "멀티뷰 소스 선택 열기",
+                "MULTIVIEW_SWAP": "멀티뷰: 메인 타일과 작은 타일 바꾸기",
+                "MULTIVIEW_AUDIO": "멀티뷰: 소리를 활성 타일로 옮기기"
             }
         },
         "GLOBAL_FAVORITES": {

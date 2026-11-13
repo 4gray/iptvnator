@@ -2214,7 +2214,10 @@
                 "COMMAND_PALETTE_RUN": "Exécuter l’élément sélectionné dans la palette de commandes",
                 "CLOSE_DIALOGS": "Fermer une boîte de dialogue ou masquer une superposition",
                 "DOWNLOADS_OPEN_ITEM": "Ouvrir l’élément de téléchargement ciblé dans la bibliothèque",
-                "OPEN_PLAYLIST_SWITCHER": "Changer de playlist"
+                "OPEN_PLAYLIST_SWITCHER": "Changer de playlist",
+                "MULTIVIEW_OPEN_PICKER": "Ouvrir le choix de source de la multivue",
+                "MULTIVIEW_SWAP": "Multivue : échanger la fenêtre principale et la petite",
+                "MULTIVIEW_AUDIO": "Multivue : passer le son à la fenêtre active"
             }
         },
         "GLOBAL_FAVORITES": {

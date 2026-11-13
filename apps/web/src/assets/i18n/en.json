@@ -2214,7 +2214,10 @@
                 "COMMAND_PALETTE_RUN": "Run selected command palette item",
                 "CLOSE_DIALOGS": "Close dialog or dismiss overlay",
                 "DOWNLOADS_OPEN_ITEM": "Open focused download item in the library",
-                "OPEN_PLAYLIST_SWITCHER": "Switch playlist"
+                "OPEN_PLAYLIST_SWITCHER": "Switch playlist",
+                "MULTIVIEW_OPEN_PICKER": "Open the multiview source picker",
+                "MULTIVIEW_SWAP": "Multiview: swap the main and the small tile",
+                "MULTIVIEW_AUDIO": "Multiview: move the sound to the active tile"
             }
         },
         "GLOBAL_FAVORITES": {

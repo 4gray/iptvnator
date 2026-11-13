@@ -1076,21 +1076,54 @@ console errors.
 
 ### Task 15: Keyboard shortcuts
 
-**Files:** `multiview-shortcuts.service.ts` (+ spec) in the feature project,
-`keyboard-shortcut-definitions.ts`, `docs/keyboard-shortcuts.md`,
-`player-controls-contract.md` (keyboard ownership section).
+**Files:** `libs/ui/playback/src/lib/multiview-anchor/multiview-shortcuts.ts`
+(+ spec), exported from the light entry `@iptvnator/ui/playback/multiview-anchor`;
+`controls-shortcuts.ts` (`comesFromInteractiveTarget` extracted, behaviour
+unchanged); anchor and `appMultiviewPlayer` (the anchor registration now
+reports the view's player element); `workspace-shell.component.ts`
+(`installMultiviewShortcuts()`); `keyboard-shortcut-definitions.ts`;
+`docs/keyboard-shortcuts.md`; `player-controls-contract.md` (keyboard
+ownership); `WORKSPACE.SHORTCUTS.ITEMS.MULTIVIEW_*` in 21 locales.
 
-- [ ] `Shift+M` opens the picker (works without a session, only when an
-      anchor with a web player is mounted); `S` swap; `A` audio to the active
-      tile; `Esc` closes the picker only and never ends the session. `Alt+1–4`
-      is phase 2.
-- [ ] Same ignore rules as `ControlsShortcuts`: not in inputs or interactive
-      targets, not inside `[inert]` / `[data-player-shortcuts-suspended]`;
-      plain `M` (mute) and digits stay untouched — spec cases prove `M` still
-      mutes and `Shift+M` does not.
-- [ ] Entries in the in-app shortcuts dialog.
+- [x] `Shift+M` opens the picker (without a session too, only when a picker
+      is installed and the current anchor can start one); `S` swap; `A`
+      audio to the active tile; `Esc` stays with the picker dialog and never
+      ends the session. `Alt+1–4` is phase 2.
+- [x] Same ignore rules as `ControlsShortcuts`: not from interactive targets
+      (shared helper), not with Ctrl/Cmd/Alt, not while the player surface is
+      `inert` or inside `[data-player-shortcuts-suspended]`. Plain `M` and
+      digits are never taken.
+- [x] Entries in the in-app shortcuts dialog (playback group, after Mute).
 
-**Tests:** service spec; `player-controls-keyboard.e2e.ts` unchanged.
+**As built:**
+- **Location:** the plan put the service in the feature project, but the
+  feature is a lazy chunk and `Shift+M` must work before it loads. The
+  handler lives next to the anchor in `ui-playback` (light entry, which the
+  shell may import statically), where it also reuses the player's
+  interactive-target rule without a cycle with data-access.
+- **Shift+M vs mute:** `ControlsShortcuts` mutes on `m` and `M`, so
+  `Shift+M` muted before. The multiview listener runs in the capture phase
+  on `document` and marks a taken key `defaultPrevented`, which
+  `ControlsShortcuts` already skips. Where no picker is installed, Shift+M
+  still mutes (unchanged).
+- **Player surface:** the anchor placeholder during a session, else the
+  element `appMultiviewPlayer` marks (new `player` in the anchor
+  registration). A key is ignored without a connected surface.
+- As with the player's own keys, a keypress while a list row or another
+  control has focus is left to that control.
+
+**Tests:** `multiview-shortcuts.spec.ts` (15: Shift+M with and without a
+session, five refusals, chord refusals, interactive target, S and A, keys
+left alone; with `ControlsShortcuts` attached: Shift+M opens without muting,
+M still mutes, Shift+M still mutes without a picker); anchor spec +1 (player
+element). `ui-playback` 1796, `workspace-shell-feature` 401,
+`portal-shared-util` 381 (shortcut list ids stay unique); lint,
+`typecheck:web`, `typecheck:spec`, `i18n:check`, icon ligatures.
+`player-controls-keyboard.e2e.ts` unchanged.
+**Live check (temporary probe, Xtream mock, Electron):** Shift+M opened the
+picker and the main video stayed unmuted; Escape closed it without a
+session; plain M muted; Shift+M + Enter started a session; S swapped the
+tiles; Escape during the session kept both tiles; no console errors.
 
 ### Task 16: Channel-list badges, Alt+click, drag
 

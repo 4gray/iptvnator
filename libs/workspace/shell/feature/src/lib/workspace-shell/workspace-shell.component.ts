@@ -14,6 +14,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { ExternalPlaybackDockComponent } from '@iptvnator/ui/components';
 // File-level entry: the @iptvnator/ui/playback barrel would put the web players on the first route.
 import { EmbeddedMpvOverlayVisibilityService } from '@iptvnator/ui/playback/embedded-mpv-player';
+import { installMultiviewShortcuts } from '@iptvnator/ui/playback/multiview-anchor';
 import {
     PlaylistDropOverlayComponent,
     PlaylistDropZoneDirective,
@@ -108,6 +109,7 @@ export class WorkspaceShellComponent {
         // read it, and the stage, created lazily inside the content frame
         // when the first session starts, over a player view's anchor.
         installMultiviewPicker();
+        installMultiviewShortcuts();
         hostMultiviewStage({
             frame: () => this.contentFrame()?.nativeElement,
             clipTo: () => this.workspaceContent()?.nativeElement,

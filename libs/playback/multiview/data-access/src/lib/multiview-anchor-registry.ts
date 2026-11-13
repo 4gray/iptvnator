@@ -30,6 +30,8 @@ export interface MultiviewAnchorRegistration {
     readonly element: Signal<HTMLElement | null>;
     /** Last playback position of the view's own player, in seconds. */
     readonly position?: () => number | null;
+    /** The view's own player element while it shows one (shortcut checks). */
+    readonly player?: () => HTMLElement | null;
 }
 
 /**

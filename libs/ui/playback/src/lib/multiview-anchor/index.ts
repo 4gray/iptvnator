@@ -3,3 +3,4 @@
 export * from './multiview-player.directive';
 export * from './multiview-anchor';
 export * from './multiview-anchor-placeholder.component';
+export * from './multiview-shortcuts';

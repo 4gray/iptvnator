@@ -1149,6 +1149,20 @@ their `transitionKey`. Session disposal, retry, channel changes, and engine
 handoff therefore clear stale recording ownership without showing a false
 `RECORDING_SAVED` confirmation.
 
+Multiview keys (`multiview-anchor/multiview-shortcuts.ts`, installed by the
+workspace shell) follow the same ownership rules: they ignore keys from
+interactive targets (`comesFromInteractiveTarget`, shared with
+`ControlsShortcuts`), Ctrl/Cmd/Alt chords, and a player surface that is
+`inert` or inside `[data-player-shortcuts-suspended]`. The surface is the
+anchor placeholder while a session runs, else the player that
+`appMultiviewPlayer` marks. `Shift+M` opens the source picker when one is
+installed and the current anchor can start or extend a session; `S` swaps
+and `A` moves the sound only during a session. The listener runs in the
+capture phase on `document`, so a `Shift+M` it takes is `defaultPrevented`
+before `ControlsShortcuts` sees it as mute. Without an installed picker
+`Shift+M` still mutes, and plain `M` and the M3U digits are never taken.
+Escape stays with the picker dialog and never ends a session.
+
 ### Vendor-chrome (preference-off) keyboard shortcuts
 
 With `webPlayerSharedControls` off, `app-player-controls` never renders, so no

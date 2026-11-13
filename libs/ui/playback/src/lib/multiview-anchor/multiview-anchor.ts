@@ -40,6 +40,7 @@ export class MultiviewAnchor {
     private readonly store = inject(MultiviewSessionStore);
     private readonly entry = inject(MultiviewEntryService);
     private readonly element = signal<HTMLElement | null>(null);
+    private playerElement: HTMLElement | null = null;
     /** Whether the running (or just ended) session belonged to this view. */
     private ownedSession = false;
     /** Position of the view's own player in its current source. */
@@ -81,6 +82,7 @@ export class MultiviewAnchor {
             host,
             element: this.element.asReadonly(),
             position: () => this.currentPosition(),
+            player: () => this.playerElement,
         });
         effect(() => {
             if (this.ownsSession()) this.ownedSession = true;
@@ -106,6 +108,11 @@ export class MultiviewAnchor {
         return this.position && this.position.key === key
             ? this.position.seconds
             : null;
+    }
+
+    /** Called by `appMultiviewPlayer` for the player it marks. */
+    attachPlayer(element: HTMLElement | null): void {
+        this.playerElement = element;
     }
 
     /** Called by the placeholder once it is in the DOM. */

@@ -159,6 +159,13 @@ describe('MultiviewAnchor', () => {
             expect(anchors.elementFor('probe-view')).toBeNull();
         });
 
+        it('reports the player the directive marks, for shortcut checks', () => {
+            expect(anchors.current()?.player?.()).toBe(ownPlayer());
+
+            startSession();
+            expect(anchors.current()?.player?.()).toBeNull();
+        });
+
         it('keeps the player when a session belongs to another view', () => {
             anchors.register({
                 host: {

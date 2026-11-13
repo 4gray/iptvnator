@@ -2214,7 +2214,10 @@
                 "COMMAND_PALETTE_RUN": "Ausgewählten Eintrag der Befehlspalette ausführen",
                 "CLOSE_DIALOGS": "Dialog schließen oder Overlay ausblenden",
                 "DOWNLOADS_OPEN_ITEM": "Fokussierten Download-Eintrag in der Bibliothek öffnen",
-                "OPEN_PLAYLIST_SWITCHER": "Playlist wechseln"
+                "OPEN_PLAYLIST_SWITCHER": "Playlist wechseln",
+                "MULTIVIEW_OPEN_PICKER": "Quellenauswahl der Mehrfachansicht öffnen",
+                "MULTIVIEW_SWAP": "Mehrfachansicht: Haupt- und kleines Fenster tauschen",
+                "MULTIVIEW_AUDIO": "Mehrfachansicht: Ton zum aktiven Fenster verschieben"
             }
         },
         "GLOBAL_FAVORITES": {
