@@ -15,6 +15,69 @@ const buildWorkflowConfig = parse(
 const posixOnly = { skip: process.platform === 'win32' };
 
 test(
+    'macOS ticket validation retries only a lost connection',
+    posixOnly,
+    (t) => {
+        const root = fs.mkdtempSync(
+            path.join(os.tmpdir(), 'stapler-validation-')
+        );
+        t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+        fs.mkdirSync(path.join(root, 'dist/executables/mac/IPTVnator.app'), {
+            recursive: true,
+        });
+        const step = buildWorkflowConfig.jobs[
+            'build-cross-platform'
+        ].steps.find(({ name }) => name === 'Verify signed macOS app');
+        const stubs = `
+        codesign() { echo "codesign $1"; }
+        spctl() { echo "gatekeeper"; }
+        sleep() { echo "wait $1"; }
+        xattr() { :; }
+        xcrun() {
+            test "$*" = 'stapler validate dist/executables/mac/IPTVnator.app' || return 99
+            echo attempt >> attempts
+            if [ "$(wc -l < attempts)" -eq 1 ]; then
+                echo "$STAPLER_ERROR" >&2
+                return 68
+            fi
+            return "$STAPLER_RETRY_STATUS"
+        }
+    `;
+        const script = step.run.replaceAll('${{ matrix.arch }}', 'x64');
+        const connectionLost =
+            'error is Error Domain=NSURLErrorDomain Code=-1005 "The network connection was lost."';
+        for (const [error, retryStatus, expectedStatus, attempts] of [
+            [connectionLost, 0, 0, 2],
+            [connectionLost, 68, 68, 2],
+            ['Ticket does not match the bundle.', 0, 68, 1],
+            ['Error Domain=NSURLErrorDomain Code=-10050', 0, 68, 1],
+        ]) {
+            fs.writeFileSync(path.join(root, 'attempts'), '');
+            const result = spawnSync('bash', ['-c', stubs + script], {
+                cwd: root,
+                encoding: 'utf8',
+                env: {
+                    ...process.env,
+                    STAPLER_ERROR: error,
+                    STAPLER_RETRY_STATUS: String(retryStatus),
+                },
+            });
+            assert.equal(result.status, expectedStatus, result.stderr);
+            assert.match(result.stdout, /codesign --verify\ngatekeeper/);
+            assert.equal(
+                fs.readFileSync(path.join(root, 'attempts'), 'utf8'),
+                'attempt\n'.repeat(attempts)
+            );
+            assert.equal(result.stdout.includes('wait 5'), attempts === 2);
+            assert.equal(
+                result.stdout.includes('::group::Extended attributes'),
+                expectedStatus !== 0
+            );
+        }
+    }
+);
+
+test(
     'only website changes in a PR merge tree can skip Electron packaging',
     posixOnly,
     (t) => {

@@ -280,6 +280,13 @@ An asset no rule claims is reported as a `NOTE:` and does **not** fail the run:
 a new build target should surface for a human to notice, not block a release
 until the rules catch up.
 
+## macOS signature and ticket validation
+
+Nightly and tag builds require strict code-signature verification, Gatekeeper
+assessment and a valid stapled ticket. If `stapler validate` reports
+`NSURLErrorDomain Code=-1005`, the build retries ticket validation once after
+five seconds. A failed retry or any other validation error blocks packaging.
+
 ## Linux CI package installation
 
 The Linux packaging dependency step replaces the runner's Ubuntu `mirror+file`
