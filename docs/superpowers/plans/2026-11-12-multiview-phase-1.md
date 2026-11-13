@@ -717,6 +717,29 @@ so those existing specs would have had to change. Now:
   anchor calls it when `adopt()` is absent or declines. Until then this
   only happens through debug entry points (no picker yet).
 
+#### Task 10 as built (Favorites / Recently viewed live tab)
+
+- `unified-live-multiview-host.ts` (+ spec, 5): anchor id `unified-live`;
+  rows identified by their collection uid (`contentId`), `playlistId` from
+  the row; catch-up is its own VOD-like source; radio flagged `radio`;
+  engine = the tab's inline player (M3U DASH override included); `adopt()`
+  selects a surviving row of the list through `onChannelSelected()`.
+- `unified-live-tab.component.ts` was at 400 of 400 counted lines: the
+  auto-open effect moved unchanged to `unified-live-auto-open.ts`, and the
+  anchor is created by `createUnifiedLiveMultiviewAnchor(this)` with the
+  template parts in `UNIFIED_LIVE_MULTIVIEW_IMPORTS`; now 397.
+- `unified-live-tab.multiview.spec.ts` (4).
+- Checks: `portal-shared-ui` 275 (no existing spec edited), `ui-playback`
+  1772, data-access 75; lint, typecheck, build-e2e.
+- Live check, Electron + Xtream mock, two channels favourited, Global
+  favorites (temporary probe): takeover, muted PiP at 30 % (258 px of an
+  860 px stage), exit selected and played the surviving row; no console
+  errors.
+
+All five anchors are in place. Every live check so far started the session
+through Angular's debug API: the user-facing entry points arrive with the
+picker (Tasks 13–14) and Alt+click (Task 16).
+
 ### Task 11: Tile chrome, multiview bar, swap, audio, close, exit
 
 **Files:** `libs/playback/multiview/ui` — `multiview-tile-chrome.component.*`,
