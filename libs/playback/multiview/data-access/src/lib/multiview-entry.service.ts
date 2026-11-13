@@ -105,11 +105,14 @@ export class MultiviewEntryService {
         return this.store.replace(tileId, source);
     }
 
-    /** Who an Alt+click or drop is for: the running session or the view. */
-    private owner(): string {
+    /**
+     * Who an Alt+click or drop is for: this very session, or this very view
+     * registration (an anchor id is reused by the next session or playlist).
+     */
+    private owner(): unknown {
         return this.store.exists()
-            ? `session:${this.store.anchorId()}`
-            : `view:${this.anchors.current()?.host.anchorId ?? ''}`;
+            ? this.store.generation()
+            : (this.anchors.current() ?? null);
     }
 
     private async resolveChannel(

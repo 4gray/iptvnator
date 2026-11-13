@@ -96,7 +96,13 @@ export type MultiviewRejection =
 
 /** Why a session ended; hosts decide what to do with the survivor. */
 export type MultiviewEndReason =
-    'last-tile' | 'exit' | 'withheld' | 'anchor-left' | 'player-unsupported';
+    | 'last-tile'
+    | 'exit'
+    | 'withheld'
+    | 'anchor-left'
+    | 'player-unsupported'
+    /** The stage could not be loaded; the view plays on its own. */
+    | 'stage-unavailable';
 
 export type MultiviewEffect =
     | { readonly type: 'rejected'; readonly reason: MultiviewRejection }

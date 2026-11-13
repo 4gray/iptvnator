@@ -103,19 +103,22 @@ export function selectScopedOverrides(
     overrides: Iterable<ScopedHeaderOverride>
 ): ScopedHeaderOverride[] {
     let winner: ScopedHeaderOverride | null = null;
-    let winnerExact = false;
+    let winnerRank = -1;
     for (const override of overrides) {
         if (!shouldApplyOverride(url, override)) continue;
         const exact = override.scopeUrl === url;
-        // Header-free owners only claim their own stream URL.
+        // Header-free owners only claim their own stream URL, and an owner
+        // with headers on the same URL (a player restored after a session,
+        // while the old tile's release arrives) outranks the claim.
         if (override.headerFree && !exact) continue;
+        const rank = exact ? (override.headerFree ? 1 : 2) : 0;
         if (
-            !winner ||
-            (exact && !winnerExact) ||
-            (exact === winnerExact && override.sequence > winner.sequence)
+            rank > winnerRank ||
+            (rank === winnerRank &&
+                override.sequence > (winner?.sequence ?? -1))
         ) {
             winner = override;
-            winnerExact = exact;
+            winnerRank = rank;
         }
     }
     return winner && !winner.headerFree ? [winner] : [];

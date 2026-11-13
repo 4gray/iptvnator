@@ -100,6 +100,23 @@ describe('hostMultiviewStage', () => {
         expect(stages[0].textContent).toBe('stage');
     });
 
+    it('ends the session when the stage cannot be loaded', async () => {
+        load.mockImplementationOnce(() => Promise.reject(new Error('chunk')));
+        const fixture = TestBed.createComponent(ShellLikeComponent);
+        await settle(fixture);
+        const store = TestBed.inject(MultiviewSessionStore);
+
+        store.start('anchor', source('a'), VideoPlayer.VideoJs, source('b'));
+        await settle(fixture);
+        await settle(fixture);
+
+        expect(store.exists()).toBe(false);
+        expect(store.notice()?.effect).toMatchObject({
+            type: 'ended',
+            reason: 'stage-unavailable',
+        });
+    });
+
     it('passes the scroller and the drawer state to the stage', async () => {
         const fixture = TestBed.createComponent(ShellLikeComponent);
         await settle(fixture);

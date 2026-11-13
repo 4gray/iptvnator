@@ -77,8 +77,11 @@ export function hostMultiviewStage(options: MultiviewStageHostOptions): void {
                     sync();
                 })
                 .catch(() => {
-                    // A failed chunk load is retried by the next session.
+                    // Without the stage the session cannot be seen or left:
+                    // end it so the view plays on its own again. The next
+                    // session retries the chunk.
                     loading = false;
+                    store.end('stage-unavailable');
                 });
         });
     });

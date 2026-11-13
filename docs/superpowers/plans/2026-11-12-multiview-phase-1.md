@@ -1315,6 +1315,20 @@ fix in `multiview-tile-resolver.ts` (+ spec).
 - P2, arrow keys moved the picker's active row out of sight: it scrolls into
   view.
 
+**Round 5 (Codex, commit `177b8e7e2`):** four findings, all fixed; the
+gate's five-round limit is reached, so these fixes have not been reviewed
+again.
+- P1 (regression of round 4) — a released tile's header-free claim could
+  outrank a player restored on the same URL and strip its headers: among
+  exact matches an owner with headers now outranks a header-free claim.
+- P2 — a pending Alt+click could land in a later session on the same view:
+  ownership is now the session generation or the anchor registration
+  object, not the reusable anchor id.
+- P2 — an older picker search could overwrite a newer one after a scope
+  change: every search run supersedes the previous one.
+- P2 — a failed stage chunk left an invisible session: the session ends
+  (`stage-unavailable`) and the view plays on its own.
+
 Greptile: not run (the `greptile` CLI is not installed on this machine).
 
 ## Phase acceptance (spec 14)

@@ -352,6 +352,25 @@ describe('MultiviewEntryService', () => {
             expect(store.exists()).toBe(false);
         });
 
+        it('drops a channel resolved for a session that was replaced by another', async () => {
+            const { entry, anchors, store } = setup();
+            anchors.register({
+                host: host('xtream', source('movie')),
+                element: signal(null),
+            });
+            entry.add(source('match'));
+            const later = deferredSource();
+            entry.useChannelResolver({ resolve: () => later.promise });
+
+            const pending = entry.addChannel(channel);
+            store.exit();
+            entry.add(source('news'));
+            later.resolve(source('ch9'));
+
+            await expect(pending).resolves.toBeNull();
+            expect(store.tiles()[1].playbackSessionKey).toBe('session:news');
+        });
+
         it('drops a drop whose tile changed meanwhile', async () => {
             const { entry, anchors, store } = setup();
             anchors.register({

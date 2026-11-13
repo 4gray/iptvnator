@@ -105,6 +105,26 @@ describe('header-free owners', () => {
     });
 });
 
+describe('a restored player and a released tile on one URL', () => {
+    it("keeps the player's headers over the tile's header-free claim", () => {
+        const player = scoped('https://a.example/one.ts', 4, 'Player');
+        const releasedTile: ScopedHeaderOverride = {
+            ...scoped('https://a.example/one.ts', 9, ''),
+            userAgent: undefined,
+            headerFree: true,
+        };
+
+        expect(
+            agents(
+                selectScopedOverrides('https://a.example/one.ts', [
+                    player,
+                    releasedTile,
+                ])
+            )
+        ).toEqual(['Player']);
+    });
+});
+
 describe('toComparableUrl', () => {
     it('normalizes the way request URLs are reported', () => {
         expect(toComparableUrl(' HTTPS://A.Example:443/live/one.ts ')).toBe(

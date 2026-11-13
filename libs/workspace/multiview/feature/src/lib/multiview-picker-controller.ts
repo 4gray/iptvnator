@@ -315,6 +315,7 @@ export class MultiviewPickerController {
 
     private searchAsTyped(): void {
         let timer: ReturnType<typeof setTimeout> | undefined;
+        let searchRun = 0;
         inject(DestroyRef).onDestroy(() => clearTimeout(timer));
         effect(() => {
             const term = this.query().trim();
@@ -324,17 +325,21 @@ export class MultiviewPickerController {
             untracked(() => {
                 clearTimeout(timer);
                 if (!term) {
+                    searchRun += 1;
                     this.results.set(null);
                     return;
                 }
                 this.series.set(null);
+                // Each run supersedes the previous one: a scope, data or
+                // EPG change re-runs the same term.
+                const run = ++searchRun;
                 timer = setTimeout(async () => {
                     const results = await this.searchService.search(
                         term,
                         this.searchRows(),
                         this.context.playlistId
                     );
-                    if (this.query().trim() === term) this.results.set(results);
+                    if (run === searchRun) this.results.set(results);
                 }, SEARCH_DEBOUNCE_MS);
             });
         });

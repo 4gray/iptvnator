@@ -58,6 +58,6 @@ export type MultiviewCommand =
           readonly type: 'end';
           readonly reason: Extract<
               MultiviewEndReason,
-              'anchor-left' | 'player-unsupported'
+              'anchor-left' | 'player-unsupported' | 'stage-unavailable'
           >;
       };

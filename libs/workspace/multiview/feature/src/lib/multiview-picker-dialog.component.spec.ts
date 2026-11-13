@@ -338,6 +338,43 @@ describe('MultiviewPickerDialogComponent', () => {
         expect(rows()).toHaveLength(1);
     });
 
+    it('keeps the results of the newest search when the scope changes', async () => {
+        let finishWide: (value: unknown) => void = () => undefined;
+        search.search
+            .mockImplementationOnce(
+                () => new Promise((resolve) => (finishWide = resolve))
+            )
+            .mockResolvedValue({
+                ...EMPTY_PICKER_SEARCH,
+                channels: [toPickerRow(liveItem(3), [])],
+            });
+        await open();
+        input().value = 'channel';
+        input().dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+        await new Promise((resolve) => setTimeout(resolve, 260));
+        (
+            host().querySelector(
+                '[data-test-id="multiview-picker-section-playlist"]'
+            ) as HTMLButtonElement
+        ).click();
+        fixture.detectChanges();
+        await new Promise((resolve) => setTimeout(resolve, 260));
+        await settle();
+        finishWide({
+            ...EMPTY_PICKER_SEARCH,
+            channels: [
+                toPickerRow(liveItem(1), []),
+                toPickerRow(liveItem(2), []),
+            ],
+        });
+        await settle();
+
+        expect(rows().map((row) => row.textContent)).toEqual([
+            expect.stringContaining('Synthetic Channel 3'),
+        ]);
+    });
+
     it('finds programmes of the loaded EPG in search (On air now)', async () => {
         data.programFor.mockImplementation((item: UnifiedCollectionItem) =>
             item.xtreamId === 3 ? { title: 'Synthetic Final' } : null

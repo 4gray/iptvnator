@@ -66,6 +66,8 @@ export class MultiviewSessionStore {
     private tileSequence = 0;
     private noticeSequence = 0;
 
+    /** Grows with every session start; tells two sessions apart. */
+    private sessionGeneration = 0;
     readonly state = this.session.asReadonly();
     readonly notice = this.lastNotice.asReadonly();
     readonly exists = computed(() => this.session() !== null);
@@ -95,6 +97,7 @@ export class MultiviewSessionStore {
         primaryEngine: VideoPlayer,
         added: MultiviewTileSource
     ): MultiviewEffect | null {
+        this.sessionGeneration += 1;
         return this.dispatch({
             type: 'start',
             anchorId,
@@ -163,10 +166,15 @@ export class MultiviewSessionStore {
         return this.dispatch({ type: 'exit' });
     }
 
+    /** Identifies the running session for asynchronous callers. */
+    generation(): number {
+        return this.sessionGeneration;
+    }
+
     end(
         reason: Extract<
             MultiviewEndReason,
-            'anchor-left' | 'player-unsupported'
+            'anchor-left' | 'player-unsupported' | 'stage-unavailable'
         >
     ) {
         return this.dispatch({ type: 'end', reason });
