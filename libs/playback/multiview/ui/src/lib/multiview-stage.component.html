@@ -9,12 +9,25 @@
         [style.width.px]="stageBox().width"
         [style.height.px]="stageBox().height"
     >
-        @for (id of order(); track id) {
-            @let tile = tileById(id);
-            @let placement = placements().get(id);
-            @if (tile && placement) {
-                <app-multiview-tile [tile]="tile" [placement]="placement" />
+        <div
+            class="multiview-stage__tiles"
+            [style.height.px]="tileArea().height"
+        >
+            @for (id of order(); track id) {
+                @let tile = tileById(id);
+                @let placement = placements().get(id);
+                @if (tile && placement) {
+                    <app-multiview-tile
+                        [tile]="tile"
+                        [placement]="placement"
+                        [stage]="tileArea()"
+                    />
+                }
             }
-        }
+        </div>
+        <app-multiview-bar />
+        <div class="multiview-stage__announcer" aria-live="polite">
+            {{ announcement() }}
+        </div>
     </div>
 }

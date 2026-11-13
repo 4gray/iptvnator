@@ -2554,7 +2554,26 @@
         "MULTIVIEW": {
             "ACTION": "Çoklu görünüm",
             "ACTION_TOOLTIP": "Çoklu görünüm · Shift+M",
-            "UNAVAILABLE_PLAYER": "Yerleşik oynatıcıda kullanılabilir"
+            "UNAVAILABLE_PLAYER": "Yerleşik oynatıcıda kullanılabilir",
+            "TILE_LABEL": "Pencere {{number}}: {{title}}",
+            "STATE_SOUND": "ses açık",
+            "STATE_MUTED": "sessiz",
+            "STATE_PAUSED": "duraklatıldı",
+            "STATE_ERROR": "oynatılmıyor",
+            "BADGE_VOD": "Video",
+            "SWAP": "Ana pencereyle değiştir",
+            "AUDIO_HERE": "Ses burada",
+            "CLOSE_TILE": "{{number}}. pencereyi kapat",
+            "PAUSED_AT": "Duraklatıldı · {{position}}",
+            "RESUME": "Sesli oynat",
+            "LAYOUT": "Yerleşim",
+            "LAYOUT_PIP": "Resim içinde resim",
+            "ADD_CHANNEL": "Kanal",
+            "ADD_CHANNEL_HINT": "Kanal ekle",
+            "EXIT": "Çık",
+            "EXIT_HINT": "Sesli pencereyi tut, diğerlerini kapat",
+            "MAIN_ANNOUNCEMENT": "{{title}} artık ana pencere",
+            "TILE_KEYS_HINT": "Ok tuşları pencereyi başka köşeye taşır, artı ve eksi boyutunu değiştirir, Enter ana pencereyle değiştirir."
         }
     }
 }

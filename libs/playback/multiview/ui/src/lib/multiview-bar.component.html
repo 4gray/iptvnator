@@ -1,0 +1,55 @@
+<span class="mv-bar__name">{{ 'PLAYER.MULTIVIEW.ACTION' | translate }}</span>
+<ul class="mv-bar__chips">
+    @for (chip of chips(); track chip.id) {
+        <li
+            class="mv-bar__chip"
+            [class.mv-bar__chip--audio]="chip.hasAudio"
+            [attr.data-tile-id]="chip.id"
+        >
+            <span class="mv-bar__number">{{ chip.number }}</span>
+            <span class="mv-bar__title">{{ chip.title }}</span>
+            <mat-icon class="mv-bar__state" aria-hidden="true">{{
+                chip.icon
+            }}</mat-icon>
+        </li>
+    }
+</ul>
+
+<div
+    class="mv-bar__seg"
+    role="group"
+    [attr.aria-label]="'PLAYER.MULTIVIEW.LAYOUT' | translate"
+>
+    <button
+        type="button"
+        class="mv-bar__seg-button mv-bar__seg-button--on"
+        aria-pressed="true"
+        [attr.aria-label]="'PLAYER.MULTIVIEW.LAYOUT_PIP' | translate"
+        [matTooltip]="'PLAYER.MULTIVIEW.LAYOUT_PIP' | translate"
+    >
+        <mat-icon>picture_in_picture_alt</mat-icon>
+    </button>
+</div>
+
+@if (entry.hasPicker) {
+    <button
+        type="button"
+        class="mv-bar__button mv-bar__button--tonal"
+        data-test-id="multiview-bar-add"
+        [attr.aria-label]="'PLAYER.MULTIVIEW.ADD_CHANNEL_HINT' | translate"
+        (click)="addChannel()"
+    >
+        <mat-icon>add</mat-icon>
+        {{ 'PLAYER.MULTIVIEW.ADD_CHANNEL' | translate }}
+    </button>
+}
+<button
+    type="button"
+    class="mv-bar__button"
+    data-test-id="multiview-bar-exit"
+    [matTooltip]="'PLAYER.MULTIVIEW.EXIT_HINT' | translate"
+    (click)="exit()"
+>
+    <mat-icon>close</mat-icon>
+    {{ 'PLAYER.MULTIVIEW.EXIT' | translate }}
+</button>

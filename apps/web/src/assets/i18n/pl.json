@@ -2554,7 +2554,26 @@
         "MULTIVIEW": {
             "ACTION": "Wiele obrazów",
             "ACTION_TOOLTIP": "Wiele obrazów · Shift+M",
-            "UNAVAILABLE_PLAYER": "Dostępne we wbudowanym odtwarzaczu"
+            "UNAVAILABLE_PLAYER": "Dostępne we wbudowanym odtwarzaczu",
+            "TILE_LABEL": "Okno {{number}}: {{title}}",
+            "STATE_SOUND": "dźwięk włączony",
+            "STATE_MUTED": "wyciszone",
+            "STATE_PAUSED": "wstrzymane",
+            "STATE_ERROR": "nie odtwarza",
+            "BADGE_VOD": "Wideo",
+            "SWAP": "Zamień z głównym oknem",
+            "AUDIO_HERE": "Dźwięk tutaj",
+            "CLOSE_TILE": "Zamknij okno {{number}}",
+            "PAUSED_AT": "Wstrzymano · {{position}}",
+            "RESUME": "Odtwórz z dźwiękiem",
+            "LAYOUT": "Układ",
+            "LAYOUT_PIP": "Obraz w obrazie",
+            "ADD_CHANNEL": "Kanał",
+            "ADD_CHANNEL_HINT": "Dodaj kanał",
+            "EXIT": "Zakończ",
+            "EXIT_HINT": "Zostaw okno z dźwiękiem i zamknij pozostałe",
+            "MAIN_ANNOUNCEMENT": "{{title}} jest teraz głównym oknem",
+            "TILE_KEYS_HINT": "Strzałki przenoszą okno do innego rogu, plus i minus zmieniają rozmiar, Enter zamienia je z głównym oknem."
         }
     }
 }

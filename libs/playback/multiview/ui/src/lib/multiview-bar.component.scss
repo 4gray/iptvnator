@@ -1,0 +1,162 @@
+// Part of the player area, which is dark in both themes (UI guidelines,
+// player theme boundary); colours follow the player palette.
+:host {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 48px;
+    padding: 0 12px;
+    background: #0f141c;
+    color: #e7ecf3;
+    font-size: 13px;
+}
+
+.mv-bar__name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+}
+
+.mv-bar__chips {
+    display: flex;
+    flex: 1 1 auto;
+    gap: 6px;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.mv-bar__chip {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    height: 30px;
+    padding: 0 10px 0 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 9px;
+    background: #161d28;
+    font-size: 12px;
+    font-weight: 500;
+
+    &--audio {
+        border-color: rgba(79, 142, 255, 0.5);
+    }
+}
+
+.mv-bar__number {
+    display: grid;
+    flex-shrink: 0;
+    place-items: center;
+    width: 17px;
+    height: 17px;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.14);
+    font-size: 10.5px;
+    font-weight: 700;
+
+    .mv-bar__chip--audio & {
+        background: #3474e8;
+        color: #fff;
+    }
+}
+
+.mv-bar__title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mv-bar__state {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    color: #9aa3b2;
+    font-size: 14px;
+
+    .mv-bar__chip--audio & {
+        color: #98b8ff;
+    }
+}
+
+.mv-bar__seg {
+    display: flex;
+    flex-shrink: 0;
+    gap: 1px;
+    padding: 2px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    background: #0a0e14;
+}
+
+.mv-bar__seg-button {
+    display: grid;
+    place-items: center;
+    width: 33px;
+    height: 30px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #6b7384;
+
+    &--on {
+        background: #1d2533;
+        color: #e7ecf3;
+    }
+
+    mat-icon {
+        width: 18px;
+        height: 18px;
+        font-size: 18px;
+    }
+}
+
+.mv-bar__button {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 11px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #9aa3b2;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+
+    mat-icon {
+        width: 16px;
+        height: 16px;
+        font-size: 16px;
+    }
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: #e7ecf3;
+    }
+
+    &--tonal {
+        background: rgba(255, 255, 255, 0.1);
+        color: #e7ecf3;
+    }
+}
+
+.mv-bar__seg-button,
+.mv-bar__button {
+    &:focus-visible {
+        outline: 2px solid #e7ecf3;
+        outline-offset: 1px;
+    }
+}

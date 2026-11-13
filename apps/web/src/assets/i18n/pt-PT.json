@@ -2554,7 +2554,26 @@
         "MULTIVIEW": {
             "ACTION": "Multivisualização",
             "ACTION_TOOLTIP": "Multivisualização · Shift+M",
-            "UNAVAILABLE_PLAYER": "Disponível no leitor integrado"
+            "UNAVAILABLE_PLAYER": "Disponível no leitor integrado",
+            "TILE_LABEL": "Janela {{number}}: {{title}}",
+            "STATE_SOUND": "com som",
+            "STATE_MUTED": "sem som",
+            "STATE_PAUSED": "em pausa",
+            "STATE_ERROR": "não está a reproduzir",
+            "BADGE_VOD": "Vídeo",
+            "SWAP": "Trocar com a janela principal",
+            "AUDIO_HERE": "Som aqui",
+            "CLOSE_TILE": "Fechar janela {{number}}",
+            "PAUSED_AT": "Em pausa · {{position}}",
+            "RESUME": "Reproduzir com som",
+            "LAYOUT": "Disposição",
+            "LAYOUT_PIP": "Imagem na imagem",
+            "ADD_CHANNEL": "Canal",
+            "ADD_CHANNEL_HINT": "Adicionar um canal",
+            "EXIT": "Sair",
+            "EXIT_HINT": "Manter a janela com som e fechar as restantes",
+            "MAIN_ANNOUNCEMENT": "{{title}} é agora a janela principal",
+            "TILE_KEYS_HINT": "As setas movem a janela para outro canto, mais e menos alteram o tamanho, Enter troca-a com a janela principal."
         }
     }
 }

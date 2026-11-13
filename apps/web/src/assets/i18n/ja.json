@@ -2554,7 +2554,26 @@
         "MULTIVIEW": {
             "ACTION": "マルチビュー",
             "ACTION_TOOLTIP": "マルチビュー · Shift+M",
-            "UNAVAILABLE_PLAYER": "内蔵プレーヤーで利用できます"
+            "UNAVAILABLE_PLAYER": "内蔵プレーヤーで利用できます",
+            "TILE_LABEL": "ウィンドウ {{number}}: {{title}}",
+            "STATE_SOUND": "音声オン",
+            "STATE_MUTED": "ミュート",
+            "STATE_PAUSED": "一時停止中",
+            "STATE_ERROR": "再生されていません",
+            "BADGE_VOD": "ビデオ",
+            "SWAP": "メインと入れ替え",
+            "AUDIO_HERE": "ここで音声",
+            "CLOSE_TILE": "ウィンドウ {{number}} を閉じる",
+            "PAUSED_AT": "一時停止 · {{position}}",
+            "RESUME": "音声付きで再生",
+            "LAYOUT": "レイアウト",
+            "LAYOUT_PIP": "ピクチャーインピクチャー",
+            "ADD_CHANNEL": "チャンネル",
+            "ADD_CHANNEL_HINT": "チャンネルを追加",
+            "EXIT": "終了",
+            "EXIT_HINT": "音声のあるウィンドウを残してほかを閉じる",
+            "MAIN_ANNOUNCEMENT": "{{title}} がメインウィンドウになりました",
+            "TILE_KEYS_HINT": "矢印キーで別の隅へ移動、プラスとマイナスでサイズ変更、Enter でメインと入れ替えます。"
         }
     }
 }

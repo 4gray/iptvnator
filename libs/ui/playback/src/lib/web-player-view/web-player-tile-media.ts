@@ -17,6 +17,8 @@ export interface WebPlayerTileMediaOptions {
  * `<video>` elements of one tile, whichever web engine renders them and
  * however often it remounts or replaces its element.
  *
+ * Tile videos also cannot enter system picture-in-picture.
+ *
  * Only restrictive states are enforced on their own: a muted tile stays
  * muted and a held tile stays paused even when an engine unmutes or starts
  * itself. When the viewer does that inside the tile, the tile asks for the
@@ -77,6 +79,11 @@ export class WebPlayerTileMedia {
     }
 
     private enforce(video: HTMLVideoElement): void {
+        // A multiview tile never pops out on its own (decision D12); the
+        // dock's picture-in-picture capability honours this flag.
+        if (this.muted !== null || this.paused !== null) {
+            video.disablePictureInPicture = true;
+        }
         if (this.muted === true && !video.muted) video.muted = true;
         if (this.paused === true && !video.paused) video.pause();
     }

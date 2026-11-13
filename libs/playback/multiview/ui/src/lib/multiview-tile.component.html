@@ -13,3 +13,26 @@
     (audioRequested)="onAudioRequested()"
     (playbackFailed)="onPlaybackFailed()"
 />
+
+@if (placement().role === 'pip') {
+    <app-multiview-tile-chrome
+        [tile]="tile()"
+        [tileNumber]="tileNumber()"
+        [corner]="corner()"
+        [hasAudio]="hasAudio()"
+        [label]="label()"
+        (swapRequested)="onSwap()"
+        (audioRequested)="onAudioRequested()"
+        (closeRequested)="onClose()"
+        (dragStarted)="onDragStart($event)"
+        (resizeStarted)="onResizeStart($event)"
+        (keyPressed)="onKey($event)"
+    />
+}
+
+@if (paused()) {
+    <app-multiview-paused-overlay
+        [seconds]="tile().lastPosition"
+        (resumeRequested)="onAudioRequested()"
+    />
+}

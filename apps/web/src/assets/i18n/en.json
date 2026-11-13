@@ -2554,7 +2554,26 @@
         "MULTIVIEW": {
             "ACTION": "Multiview",
             "ACTION_TOOLTIP": "Multiview · Shift+M",
-            "UNAVAILABLE_PLAYER": "Available with the built-in player"
+            "UNAVAILABLE_PLAYER": "Available with the built-in player",
+            "TILE_LABEL": "Tile {{number}}: {{title}}",
+            "STATE_SOUND": "sound on",
+            "STATE_MUTED": "muted",
+            "STATE_PAUSED": "paused",
+            "STATE_ERROR": "not playing",
+            "BADGE_VOD": "VOD",
+            "SWAP": "Swap with the main tile",
+            "AUDIO_HERE": "Sound here",
+            "CLOSE_TILE": "Close tile {{number}}",
+            "PAUSED_AT": "Paused · {{position}}",
+            "RESUME": "Play with sound",
+            "LAYOUT": "Layout",
+            "LAYOUT_PIP": "Picture in picture",
+            "ADD_CHANNEL": "Channel",
+            "ADD_CHANNEL_HINT": "Add a channel",
+            "EXIT": "Exit",
+            "EXIT_HINT": "Keep the tile with sound and close the others",
+            "MAIN_ANNOUNCEMENT": "{{title}} is now the main tile",
+            "TILE_KEYS_HINT": "Arrow keys move the tile to another corner, plus and minus resize it, Enter swaps it with the main tile."
         }
     }
 }

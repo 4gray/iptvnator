@@ -2554,7 +2554,26 @@
         "MULTIVIEW": {
             "ACTION": "Мультыпрагляд",
             "ACTION_TOOLTIP": "Мультыпрагляд · Shift+M",
-            "UNAVAILABLE_PLAYER": "Даступна ва ўбудаваным прайгравальніку"
+            "UNAVAILABLE_PLAYER": "Даступна ва ўбудаваным прайгравальніку",
+            "TILE_LABEL": "Акно {{number}}: {{title}}",
+            "STATE_SOUND": "гук уключаны",
+            "STATE_MUTED": "без гуку",
+            "STATE_PAUSED": "на паўзе",
+            "STATE_ERROR": "не прайграецца",
+            "BADGE_VOD": "Відэа",
+            "SWAP": "Памяняць з галоўным акном",
+            "AUDIO_HERE": "Гук сюды",
+            "CLOSE_TILE": "Закрыць акно {{number}}",
+            "PAUSED_AT": "Паўза · {{position}}",
+            "RESUME": "Прайграць з гукам",
+            "LAYOUT": "Раскладка",
+            "LAYOUT_PIP": "Карцінка ў карцінцы",
+            "ADD_CHANNEL": "Канал",
+            "ADD_CHANNEL_HINT": "Дадаць канал",
+            "EXIT": "Выйсці",
+            "EXIT_HINT": "Пакінуць акно з гукам і закрыць астатнія",
+            "MAIN_ANNOUNCEMENT": "{{title}} цяпер галоўнае акно",
+            "TILE_KEYS_HINT": "Стрэлкі перамяшчаюць акно ў іншы кут, плюс і мінус мяняюць памер, Enter мяняе яго з галоўным акном."
         }
     }
 }

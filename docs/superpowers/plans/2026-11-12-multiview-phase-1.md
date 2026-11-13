@@ -786,33 +786,53 @@ picker (Tasks 13–14) and Alt+click (Task 16).
 
 ### Task 11: Tile chrome, multiview bar, swap, audio, close, exit
 
-**Files:** `libs/playback/multiview/ui` — `multiview-tile-chrome.component.*`,
-`multiview-paused-overlay.component.*`, `multiview-bar.component.*`,
-`pip-drag-resize.ts` (+ specs, ported from the prototype's
-`second-stream-position.ts`); stage wiring.
+**Files (as built):** `libs/playback/multiview/ui/src/lib/` —
+`multiview-tile-chrome.component.*`, `multiview-paused-overlay.component.*`,
+`multiview-bar.component.*`, `pip-drag.ts` (+ spec), `pip-pointer.ts`,
+tile and stage changes, `multiview-chrome.spec.ts`; `web-player-tile-media.ts`
+(D12 flag); 19 new `PLAYER.MULTIVIEW.*` keys in 21 locales; picture-in-picture
+paragraph in `player-controls-contract.md`.
 
-- [ ] PiP tile: at rest a clean picture with a shadow and no chrome, number
-      or speaker (those appear at rest only with more than two tiles, phase
-      2); on hover/focus exactly three buttons — swap, audio here, close
-      (the fourth, side by side, is phase 2). No move handle, no label, no
-      "No sound" text, no pause button on the tile. Drag by the whole tile with corner
-      snapping, resize from the corner facing the stage centre, both
-      remembered for the session. Double-click swaps (R3). Keyboard: with the
-      tile focused, arrow keys move it between corners and resize it (kept
-      from the prototype).
-- [ ] Main tile keeps its normal dock. Paused VOD overlay with position (R4).
-- [ ] Bar (52 px, under the stage inside the player view): tile chips with
-      state icon, layout segmented control showing PiP only, "+ Channel",
-      "Exit" (R8). Uses the shared `.seg` and button kit.
-- [ ] Accessibility (spec 13): real buttons with names, tile regions labelled
-      "Tile N, title, state", live announcement on active-tile change,
-      `prefers-reduced-motion` switches instantly.
-- [ ] Read the `iptvnator-ui-design` and `iptvnator-theme-style` skills first;
-      compare with the mockup in light and dark.
+- [x] PiP tile at rest: picture and shadow only. On hover or keyboard focus:
+      label (number, LIVE/VOD badge, title), swap (accent), sound here (only
+      while muted), close; one resize handle in the corner facing the stage
+      centre — the element that would sit in that corner steps aside. No
+      side-by-side button (phase 2), no move handle, no pause button.
+- [x] Drag by the whole tile, snapping to the corner whose quadrant holds
+      the tile centre (L1); resize from the handle, both remembered in the
+      session's PiP geometry and clamped to 240–480 px. A press without
+      movement is a click. Double click and Enter swap (R3). Keyboard: arrows
+      move between corners, + and − resize. The prototype's free-position
+      math (`second-stream-position.ts`) did not apply: phase 1 snaps.
+- [x] The chrome covers the tile, so engine clicks never reach the small
+      tile's player.
+- [x] Held VOD overlay (R4): play button (gives the tile the audio) and
+      "Paused · 1:05:13", on any held tile, main included.
+- [x] Bar, 48 px under the tiles inside the stage (the stage keeps the
+      anchor's size, so the host layout does not change): chips with number,
+      title and state (sound, muted, paused, error), audio chip outlined;
+      layout switch with PiP only; "+ Channel" only while a picker exists;
+      "Exit" (R8). The bar is part of the player area and stays dark in both
+      themes, like the dock.
+- [x] Accessibility (spec 13): each tile is a region named "Tile N: title,
+      state"; the PiP chrome is focusable with the keyboard hint as
+      description; a polite live region announces the new main tile;
+      `prefers-reduced-motion` turns off the tile transitions (L6).
+- [x] D12: tile videos get `disablePictureInPicture`, so the main tile's dock
+      shows no system PiP button.
+- Placement: the 96 px dock clearance of the bottom corners is kept: in the
+  app the PiP's bottom edge sits above the dock's two rows, as the prototype
+  shows for its one-row dock.
 
-**Tests:** component specs for every action and for reduced motion; reducer
-already covers the rules. **Accept:** swap/audio/close/exit work in the
-Xtream mock by hand; no `<video>` re-created on swap (spec).
+**Tests:** `pip-drag.spec.ts` (19), `multiview-chrome.spec.ts` (15: chrome,
+drag snap, click vs drag, resize, keys, held overlay, bar, exit, picker
+button), tile media +1; `playback-multiview-ui` 56, `ui-playback` 1773,
+data-access 75; lint, icon ligatures, `pnpm run i18n:check`,
+`typecheck:web`, `typecheck:spec`, `electron-backend:build-e2e`.
+**Live check (temporary probe, local M3U, Electron, light and dark):** hover
+chrome, held VOD overlay after swap, drag to the top-left corner, no PiP
+button in the main tile's dock, no console errors. One defect found and fixed
+on the way: the resize handle overlapped the label of a bottom-right tile.
 
 ### Task 12: Tile error state (R-E)
 

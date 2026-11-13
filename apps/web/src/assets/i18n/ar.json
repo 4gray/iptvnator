@@ -2554,7 +2554,26 @@
         "MULTIVIEW": {
             "ACTION": "عرض متعدد",
             "ACTION_TOOLTIP": "عرض متعدد · Shift+M",
-            "UNAVAILABLE_PLAYER": "متاح في المشغّل المدمج"
+            "UNAVAILABLE_PLAYER": "متاح في المشغّل المدمج",
+            "TILE_LABEL": "النافذة {{number}}: {{title}}",
+            "STATE_SOUND": "الصوت مفعّل",
+            "STATE_MUTED": "مكتوم",
+            "STATE_PAUSED": "متوقف مؤقتًا",
+            "STATE_ERROR": "لا يعمل",
+            "BADGE_VOD": "فيديو",
+            "SWAP": "تبديل مع النافذة الرئيسية",
+            "AUDIO_HERE": "الصوت هنا",
+            "CLOSE_TILE": "إغلاق النافذة {{number}}",
+            "PAUSED_AT": "متوقف مؤقتًا · {{position}}",
+            "RESUME": "تشغيل مع الصوت",
+            "LAYOUT": "التخطيط",
+            "LAYOUT_PIP": "صورة داخل صورة",
+            "ADD_CHANNEL": "قناة",
+            "ADD_CHANNEL_HINT": "إضافة قناة",
+            "EXIT": "خروج",
+            "EXIT_HINT": "الإبقاء على النافذة التي بها صوت وإغلاق الباقي",
+            "MAIN_ANNOUNCEMENT": "{{title}} أصبحت النافذة الرئيسية",
+            "TILE_KEYS_HINT": "مفاتيح الأسهم تنقل النافذة إلى زاوية أخرى، وزر الجمع والطرح يغيّران حجمها، وEnter يبدّلها مع النافذة الرئيسية."
         }
     }
 }

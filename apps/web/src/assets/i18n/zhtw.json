@@ -2554,7 +2554,26 @@
         "MULTIVIEW": {
             "ACTION": "多畫面",
             "ACTION_TOOLTIP": "多畫面 · Shift+M",
-            "UNAVAILABLE_PLAYER": "在內建播放器中可用"
+            "UNAVAILABLE_PLAYER": "在內建播放器中可用",
+            "TILE_LABEL": "視窗 {{number}}：{{title}}",
+            "STATE_SOUND": "聲音開啟",
+            "STATE_MUTED": "已靜音",
+            "STATE_PAUSED": "已暫停",
+            "STATE_ERROR": "未在播放",
+            "BADGE_VOD": "影片",
+            "SWAP": "與主視窗交換",
+            "AUDIO_HERE": "在此播放聲音",
+            "CLOSE_TILE": "關閉視窗 {{number}}",
+            "PAUSED_AT": "已暫停 · {{position}}",
+            "RESUME": "帶聲音播放",
+            "LAYOUT": "版面配置",
+            "LAYOUT_PIP": "子母畫面",
+            "ADD_CHANNEL": "頻道",
+            "ADD_CHANNEL_HINT": "新增頻道",
+            "EXIT": "離開",
+            "EXIT_HINT": "保留有聲音的視窗並關閉其他視窗",
+            "MAIN_ANNOUNCEMENT": "{{title}} 現在是主視窗",
+            "TILE_KEYS_HINT": "方向鍵將視窗移到另一個角落，加號和減號調整大小，Enter 將其與主視窗交換。"
         }
     }
 }

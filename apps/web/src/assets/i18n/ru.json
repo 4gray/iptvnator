@@ -2554,7 +2554,26 @@
         "MULTIVIEW": {
             "ACTION": "Мультипросмотр",
             "ACTION_TOOLTIP": "Мультипросмотр · Shift+M",
-            "UNAVAILABLE_PLAYER": "Доступно во встроенном плеере"
+            "UNAVAILABLE_PLAYER": "Доступно во встроенном плеере",
+            "TILE_LABEL": "Окно {{number}}: {{title}}",
+            "STATE_SOUND": "со звуком",
+            "STATE_MUTED": "без звука",
+            "STATE_PAUSED": "на паузе",
+            "STATE_ERROR": "не воспроизводится",
+            "BADGE_VOD": "Видео",
+            "SWAP": "Поменять с главным окном",
+            "AUDIO_HERE": "Звук сюда",
+            "CLOSE_TILE": "Закрыть окно {{number}}",
+            "PAUSED_AT": "Пауза · {{position}}",
+            "RESUME": "Воспроизвести со звуком",
+            "LAYOUT": "Раскладка",
+            "LAYOUT_PIP": "Картинка в картинке",
+            "ADD_CHANNEL": "Канал",
+            "ADD_CHANNEL_HINT": "Добавить канал",
+            "EXIT": "Выйти",
+            "EXIT_HINT": "Оставить окно со звуком и закрыть остальные",
+            "MAIN_ANNOUNCEMENT": "{{title}} теперь главное окно",
+            "TILE_KEYS_HINT": "Стрелки перемещают окно в другой угол, плюс и минус меняют размер, Enter меняет его с главным окном."
         }
     }
 }

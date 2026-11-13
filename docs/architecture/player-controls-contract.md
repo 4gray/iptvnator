@@ -1350,6 +1350,11 @@ layouts, and the portal detail inline player — gets it without wiring.
 
 ### Standard element picture-in-picture
 
+Multiview tiles never enter system picture-in-picture (multiview decision
+D12): `WebPlayerTileMedia` sets `disablePictureInPicture` on every tile
+video, and the capability check below already honours that flag, so the
+main tile's dock shows no PiP button. A single player is unaffected.
+
 Picture-in-picture is part of the default-on shared web-controls
 rollout. It is available through standard element PiP for HTML5, Video.js, and
 ArtPlayer only when their host snapshot enables `WEB_PLAYER_SHARED_CONTROLS`.

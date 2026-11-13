@@ -1,0 +1,224 @@
+// On-video chrome: theme-independent like the player dock, whose palette
+// (accent #4f8eff, text #e7ecf3) it repeats.
+:host {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: block;
+}
+
+.tile-chrome {
+    position: absolute;
+    inset: 0;
+    cursor: grab;
+    touch-action: none;
+    outline: none;
+
+    &:focus-visible {
+        box-shadow: inset 0 0 0 2px #e7ecf3;
+        border-radius: inherit;
+    }
+}
+
+.tile-chrome__label,
+.tile-chrome__actions,
+.tile-chrome__close,
+.tile-chrome__resize {
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.tile-chrome:hover,
+.tile-chrome:focus-within {
+    .tile-chrome__label,
+    .tile-chrome__actions,
+    .tile-chrome__close,
+    .tile-chrome__resize {
+        opacity: 1;
+    }
+}
+
+// Devices without hover keep the actions reachable.
+@media (hover: none) {
+    .tile-chrome__label,
+    .tile-chrome__actions,
+    .tile-chrome__close,
+    .tile-chrome__resize {
+        opacity: 1;
+    }
+}
+
+.tile-chrome__label {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    max-width: calc(100% - 16px);
+    padding: 3px 8px 3px 4px;
+    border-radius: 8px;
+    background: rgba(10, 14, 20, 0.78);
+    color: #e7ecf3;
+    font-size: 12px;
+    font-weight: 500;
+    pointer-events: none;
+}
+
+.tile-chrome__number {
+    display: grid;
+    place-items: center;
+    min-width: 17px;
+    height: 17px;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.14);
+    font-size: 10.5px;
+    font-weight: 700;
+}
+
+.tile-chrome__badge {
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.14);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+
+    &--live {
+        background: #d32f2f;
+        color: #fff;
+    }
+}
+
+.tile-chrome__title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tile-chrome__actions {
+    position: absolute;
+    left: 8px;
+    bottom: 8px;
+    display: flex;
+    gap: 4px;
+}
+
+.tile-chrome__button {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: rgba(10, 14, 20, 0.78);
+    color: #e7ecf3;
+    cursor: pointer;
+
+    mat-icon {
+        width: 18px;
+        height: 18px;
+        font-size: 18px;
+    }
+
+    &:hover {
+        background: rgba(40, 48, 62, 0.92);
+    }
+
+    &:focus-visible {
+        outline: 2px solid #e7ecf3;
+        outline-offset: 1px;
+    }
+
+    &--accent {
+        background: #3474e8;
+        color: #fff;
+
+        &:hover {
+            background: #2a66d6;
+        }
+    }
+}
+
+.tile-chrome__close {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+}
+
+.tile-chrome__resize {
+    position: absolute;
+    width: 18px;
+    height: 18px;
+
+    &::after {
+        content: '';
+        position: absolute;
+        inset: 4px;
+        border: 0 solid rgba(231, 236, 243, 0.85);
+    }
+
+    &[data-corner='top-left'] {
+        top: 0;
+        left: 0;
+        cursor: nwse-resize;
+
+        &::after {
+            border-width: 2px 0 0 2px;
+            border-top-left-radius: 4px;
+        }
+    }
+
+    &[data-corner='top-right'] {
+        top: 0;
+        right: 0;
+        cursor: nesw-resize;
+
+        &::after {
+            border-width: 2px 2px 0 0;
+            border-top-right-radius: 4px;
+        }
+    }
+
+    &[data-corner='bottom-left'] {
+        bottom: 0;
+        left: 0;
+        cursor: nesw-resize;
+
+        &::after {
+            border-width: 0 0 2px 2px;
+            border-bottom-left-radius: 4px;
+        }
+    }
+
+    &[data-corner='bottom-right'] {
+        right: 0;
+        bottom: 0;
+        cursor: nwse-resize;
+
+        &::after {
+            border-width: 0 2px 2px 0;
+            border-bottom-right-radius: 4px;
+        }
+    }
+}
+
+// The resize handle owns its corner: whatever else sits there steps aside.
+.tile-chrome[data-handle='top-left'] .tile-chrome__label {
+    left: 26px;
+    max-width: calc(100% - 34px);
+}
+
+.tile-chrome[data-handle='top-right'] .tile-chrome__label {
+    max-width: calc(100% - 42px);
+}
+
+.tile-chrome[data-handle='bottom-left'] .tile-chrome__actions {
+    left: 26px;
+}
+
+.tile-chrome[data-handle='bottom-right'] .tile-chrome__close {
+    right: 26px;
+}

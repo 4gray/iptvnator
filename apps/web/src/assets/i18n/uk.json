@@ -2554,7 +2554,26 @@
         "MULTIVIEW": {
             "ACTION": "Мультиперегляд",
             "ACTION_TOOLTIP": "Мультиперегляд · Shift+M",
-            "UNAVAILABLE_PLAYER": "Доступно у вбудованому програвачі"
+            "UNAVAILABLE_PLAYER": "Доступно у вбудованому програвачі",
+            "TILE_LABEL": "Вікно {{number}}: {{title}}",
+            "STATE_SOUND": "зі звуком",
+            "STATE_MUTED": "без звуку",
+            "STATE_PAUSED": "на паузі",
+            "STATE_ERROR": "не відтворюється",
+            "BADGE_VOD": "Відео",
+            "SWAP": "Поміняти з головним вікном",
+            "AUDIO_HERE": "Звук сюди",
+            "CLOSE_TILE": "Закрити вікно {{number}}",
+            "PAUSED_AT": "Пауза · {{position}}",
+            "RESUME": "Відтворити зі звуком",
+            "LAYOUT": "Розкладка",
+            "LAYOUT_PIP": "Картинка в картинці",
+            "ADD_CHANNEL": "Канал",
+            "ADD_CHANNEL_HINT": "Додати канал",
+            "EXIT": "Вийти",
+            "EXIT_HINT": "Залишити вікно зі звуком і закрити інші",
+            "MAIN_ANNOUNCEMENT": "{{title}} тепер головне вікно",
+            "TILE_KEYS_HINT": "Стрілки переміщують вікно в інший кут, плюс і мінус змінюють розмір, Enter міняє його з головним вікном."
         }
     }
 }

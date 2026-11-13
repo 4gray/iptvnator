@@ -2554,7 +2554,26 @@
         "MULTIVIEW": {
             "ACTION": "Multivue",
             "ACTION_TOOLTIP": "Multivue · Shift+M",
-            "UNAVAILABLE_PLAYER": "Disponible avec le lecteur intégré"
+            "UNAVAILABLE_PLAYER": "Disponible avec le lecteur intégré",
+            "TILE_LABEL": "Fenêtre {{number}} : {{title}}",
+            "STATE_SOUND": "son activé",
+            "STATE_MUTED": "coupée",
+            "STATE_PAUSED": "en pause",
+            "STATE_ERROR": "ne joue pas",
+            "BADGE_VOD": "Vidéo",
+            "SWAP": "Échanger avec la fenêtre principale",
+            "AUDIO_HERE": "Son ici",
+            "CLOSE_TILE": "Fermer la fenêtre {{number}}",
+            "PAUSED_AT": "En pause · {{position}}",
+            "RESUME": "Lire avec le son",
+            "LAYOUT": "Disposition",
+            "LAYOUT_PIP": "Image dans l’image",
+            "ADD_CHANNEL": "Chaîne",
+            "ADD_CHANNEL_HINT": "Ajouter une chaîne",
+            "EXIT": "Quitter",
+            "EXIT_HINT": "Garder la fenêtre avec le son et fermer les autres",
+            "MAIN_ANNOUNCEMENT": "{{title}} est maintenant la fenêtre principale",
+            "TILE_KEYS_HINT": "Les flèches déplacent la fenêtre vers un autre coin, plus et moins la redimensionnent, Entrée l’échange avec la fenêtre principale."
         }
     }
 }

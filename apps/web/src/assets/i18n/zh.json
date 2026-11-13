@@ -2554,7 +2554,26 @@
         "MULTIVIEW": {
             "ACTION": "多画面",
             "ACTION_TOOLTIP": "多画面 · Shift+M",
-            "UNAVAILABLE_PLAYER": "在内置播放器中可用"
+            "UNAVAILABLE_PLAYER": "在内置播放器中可用",
+            "TILE_LABEL": "窗口 {{number}}：{{title}}",
+            "STATE_SOUND": "声音开启",
+            "STATE_MUTED": "已静音",
+            "STATE_PAUSED": "已暂停",
+            "STATE_ERROR": "未在播放",
+            "BADGE_VOD": "视频",
+            "SWAP": "与主窗口交换",
+            "AUDIO_HERE": "在此播放声音",
+            "CLOSE_TILE": "关闭窗口 {{number}}",
+            "PAUSED_AT": "已暂停 · {{position}}",
+            "RESUME": "带声音播放",
+            "LAYOUT": "布局",
+            "LAYOUT_PIP": "画中画",
+            "ADD_CHANNEL": "频道",
+            "ADD_CHANNEL_HINT": "添加频道",
+            "EXIT": "退出",
+            "EXIT_HINT": "保留有声音的窗口并关闭其他窗口",
+            "MAIN_ANNOUNCEMENT": "{{title}} 现在是主窗口",
+            "TILE_KEYS_HINT": "方向键将窗口移到另一个角，加号和减号调整大小，Enter 将其与主窗口交换。"
         }
     }
 }

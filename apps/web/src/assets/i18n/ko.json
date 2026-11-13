@@ -2554,7 +2554,26 @@
         "MULTIVIEW": {
             "ACTION": "멀티뷰",
             "ACTION_TOOLTIP": "멀티뷰 · Shift+M",
-            "UNAVAILABLE_PLAYER": "내장 플레이어에서 사용할 수 있습니다"
+            "UNAVAILABLE_PLAYER": "내장 플레이어에서 사용할 수 있습니다",
+            "TILE_LABEL": "창 {{number}}: {{title}}",
+            "STATE_SOUND": "소리 켜짐",
+            "STATE_MUTED": "음소거",
+            "STATE_PAUSED": "일시정지됨",
+            "STATE_ERROR": "재생되지 않음",
+            "BADGE_VOD": "비디오",
+            "SWAP": "메인 창과 바꾸기",
+            "AUDIO_HERE": "여기서 소리",
+            "CLOSE_TILE": "창 {{number}} 닫기",
+            "PAUSED_AT": "일시정지 · {{position}}",
+            "RESUME": "소리와 함께 재생",
+            "LAYOUT": "레이아웃",
+            "LAYOUT_PIP": "화면 속 화면",
+            "ADD_CHANNEL": "채널",
+            "ADD_CHANNEL_HINT": "채널 추가",
+            "EXIT": "나가기",
+            "EXIT_HINT": "소리가 나는 창만 남기고 나머지 닫기",
+            "MAIN_ANNOUNCEMENT": "이제 {{title}}이(가) 메인 창입니다",
+            "TILE_KEYS_HINT": "화살표 키로 다른 모서리로 옮기고, 더하기와 빼기로 크기를 바꾸며, Enter로 메인 창과 바꿉니다."
         }
     }
 }

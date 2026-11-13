@@ -2554,7 +2554,26 @@
         "MULTIVIEW": {
             "ACTION": "Meervoudige weergave",
             "ACTION_TOOLTIP": "Meervoudige weergave · Shift+M",
-            "UNAVAILABLE_PLAYER": "Beschikbaar met de ingebouwde speler"
+            "UNAVAILABLE_PLAYER": "Beschikbaar met de ingebouwde speler",
+            "TILE_LABEL": "Venster {{number}}: {{title}}",
+            "STATE_SOUND": "geluid aan",
+            "STATE_MUTED": "gedempt",
+            "STATE_PAUSED": "gepauzeerd",
+            "STATE_ERROR": "speelt niet",
+            "BADGE_VOD": "Video",
+            "SWAP": "Wisselen met het hoofdvenster",
+            "AUDIO_HERE": "Geluid hier",
+            "CLOSE_TILE": "Venster {{number}} sluiten",
+            "PAUSED_AT": "Gepauzeerd · {{position}}",
+            "RESUME": "Afspelen met geluid",
+            "LAYOUT": "Indeling",
+            "LAYOUT_PIP": "Beeld-in-beeld",
+            "ADD_CHANNEL": "Zender",
+            "ADD_CHANNEL_HINT": "Een zender toevoegen",
+            "EXIT": "Afsluiten",
+            "EXIT_HINT": "Venster met geluid houden en de andere sluiten",
+            "MAIN_ANNOUNCEMENT": "{{title}} is nu het hoofdvenster",
+            "TILE_KEYS_HINT": "Pijltjestoetsen verplaatsen het venster naar een andere hoek, plus en min wijzigen het formaat, Enter wisselt het met het hoofdvenster."
         }
     }
 }

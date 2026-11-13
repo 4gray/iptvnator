@@ -2554,7 +2554,26 @@
         "MULTIVIEW": {
             "ACTION": "عرض متعدد",
             "ACTION_TOOLTIP": "عرض متعدد · Shift+M",
-            "UNAVAILABLE_PLAYER": "كاين غير فالمشغّل المدمج"
+            "UNAVAILABLE_PLAYER": "كاين غير فالمشغّل المدمج",
+            "TILE_LABEL": "النافذة {{number}}: {{title}}",
+            "STATE_SOUND": "الصوت خدام",
+            "STATE_MUTED": "مسكّت",
+            "STATE_PAUSED": "موقّف",
+            "STATE_ERROR": "ما خدامش",
+            "BADGE_VOD": "فيديو",
+            "SWAP": "بدّل مع النافذة الكبيرة",
+            "AUDIO_HERE": "الصوت هنا",
+            "CLOSE_TILE": "سدّ النافذة {{number}}",
+            "PAUSED_AT": "موقّف · {{position}}",
+            "RESUME": "شغّل بالصوت",
+            "LAYOUT": "التصميم",
+            "LAYOUT_PIP": "صورة وسط صورة",
+            "ADD_CHANNEL": "قناة",
+            "ADD_CHANNEL_HINT": "زيد قناة",
+            "EXIT": "خروج",
+            "EXIT_HINT": "خلّي النافذة اللي فيها الصوت وسدّ الباقي",
+            "MAIN_ANNOUNCEMENT": "{{title}} ولات هي النافذة الكبيرة",
+            "TILE_KEYS_HINT": "السهام كيحركو النافذة لشي ركن آخر، زائد وناقص كيبدلو الحجم، وEnter كيبدلها مع النافذة الكبيرة."
         }
     }
 }

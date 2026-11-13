@@ -2554,7 +2554,26 @@
         "MULTIVIEW": {
             "ACTION": "Multivista",
             "ACTION_TOOLTIP": "Multivista · Shift+M",
-            "UNAVAILABLE_PLAYER": "Disponibile con il lettore integrato"
+            "UNAVAILABLE_PLAYER": "Disponibile con il lettore integrato",
+            "TILE_LABEL": "Finestra {{number}}: {{title}}",
+            "STATE_SOUND": "audio attivo",
+            "STATE_MUTED": "muta",
+            "STATE_PAUSED": "in pausa",
+            "STATE_ERROR": "non in riproduzione",
+            "BADGE_VOD": "Video",
+            "SWAP": "Scambia con la finestra principale",
+            "AUDIO_HERE": "Audio qui",
+            "CLOSE_TILE": "Chiudi finestra {{number}}",
+            "PAUSED_AT": "In pausa · {{position}}",
+            "RESUME": "Riproduci con audio",
+            "LAYOUT": "Disposizione",
+            "LAYOUT_PIP": "Picture-in-picture",
+            "ADD_CHANNEL": "Canale",
+            "ADD_CHANNEL_HINT": "Aggiungi un canale",
+            "EXIT": "Esci",
+            "EXIT_HINT": "Mantieni la finestra con l’audio e chiudi le altre",
+            "MAIN_ANNOUNCEMENT": "{{title}} è ora la finestra principale",
+            "TILE_KEYS_HINT": "Le frecce spostano la finestra in un altro angolo, più e meno la ridimensionano, Invio la scambia con la finestra principale."
         }
     }
 }

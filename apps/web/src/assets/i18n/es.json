@@ -2554,7 +2554,26 @@
         "MULTIVIEW": {
             "ACTION": "Multivista",
             "ACTION_TOOLTIP": "Multivista · Shift+M",
-            "UNAVAILABLE_PLAYER": "Disponible con el reproductor integrado"
+            "UNAVAILABLE_PLAYER": "Disponible con el reproductor integrado",
+            "TILE_LABEL": "Ventana {{number}}: {{title}}",
+            "STATE_SOUND": "con sonido",
+            "STATE_MUTED": "silenciada",
+            "STATE_PAUSED": "en pausa",
+            "STATE_ERROR": "sin reproducir",
+            "BADGE_VOD": "Vídeo",
+            "SWAP": "Intercambiar con la ventana principal",
+            "AUDIO_HERE": "Sonido aquí",
+            "CLOSE_TILE": "Cerrar ventana {{number}}",
+            "PAUSED_AT": "En pausa · {{position}}",
+            "RESUME": "Reproducir con sonido",
+            "LAYOUT": "Diseño",
+            "LAYOUT_PIP": "Imagen en imagen",
+            "ADD_CHANNEL": "Canal",
+            "ADD_CHANNEL_HINT": "Añadir un canal",
+            "EXIT": "Salir",
+            "EXIT_HINT": "Conservar la ventana con sonido y cerrar las demás",
+            "MAIN_ANNOUNCEMENT": "{{title}} es ahora la ventana principal",
+            "TILE_KEYS_HINT": "Las flechas mueven la ventana a otra esquina, más y menos cambian su tamaño, Intro la intercambia con la ventana principal."
         }
     }
 }

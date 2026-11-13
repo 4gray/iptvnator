@@ -11,3 +11,18 @@
     pointer-events: auto;
     background: #000;
 }
+
+.multiview-stage__tiles {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+}
+
+.multiview-stage__announcer {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+}

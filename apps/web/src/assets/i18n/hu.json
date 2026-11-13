@@ -2554,7 +2554,26 @@
         "MULTIVIEW": {
             "ACTION": "Többképes nézet",
             "ACTION_TOOLTIP": "Többképes nézet · Shift+M",
-            "UNAVAILABLE_PLAYER": "A beépített lejátszóval érhető el"
+            "UNAVAILABLE_PLAYER": "A beépített lejátszóval érhető el",
+            "TILE_LABEL": "{{number}}. ablak: {{title}}",
+            "STATE_SOUND": "hang bekapcsolva",
+            "STATE_MUTED": "némítva",
+            "STATE_PAUSED": "szüneteltetve",
+            "STATE_ERROR": "nem játszik",
+            "BADGE_VOD": "Videó",
+            "SWAP": "Csere a fő ablakkal",
+            "AUDIO_HERE": "Hang ide",
+            "CLOSE_TILE": "{{number}}. ablak bezárása",
+            "PAUSED_AT": "Szüneteltetve · {{position}}",
+            "RESUME": "Lejátszás hanggal",
+            "LAYOUT": "Elrendezés",
+            "LAYOUT_PIP": "Kép a képben",
+            "ADD_CHANNEL": "Csatorna",
+            "ADD_CHANNEL_HINT": "Csatorna hozzáadása",
+            "EXIT": "Kilépés",
+            "EXIT_HINT": "A hangos ablak marad, a többi bezárul",
+            "MAIN_ANNOUNCEMENT": "{{title}} lett a fő ablak",
+            "TILE_KEYS_HINT": "A nyilak másik sarokba viszik az ablakot, a plusz és a mínusz átméretezi, az Enter felcseréli a fő ablakkal."
         }
     }
 }

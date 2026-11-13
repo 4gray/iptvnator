@@ -14,10 +14,21 @@ import {
     MultiviewAnchorRegistry,
     MultiviewSessionStore,
 } from '@iptvnator/playback/multiview/data-access';
+import { injectTranslationTick } from '@iptvnator/services';
 import { PLAYER_MULTIVIEW_ACTION } from '@iptvnator/ui/playback';
+import { TranslateService } from '@ngx-translate/core';
 import { stageMultiviewAction } from './multiview-stage-action';
 import { MultiviewTileComponent } from './multiview-tile.component';
-import { placeTiles, stableTileOrder, type TileBox } from './pip-geometry';
+import {
+    placeTiles,
+    stableTileOrder,
+    type StageSize,
+    type TileBox,
+} from './pip-geometry';
+import {
+    MULTIVIEW_BAR_HEIGHT,
+    MultiviewBarComponent,
+} from './multiview-bar.component';
 import { StageRectTracker } from './stage-rect-tracker';
 
 const NO_BOX: TileBox = { left: 0, top: 0, width: 0, height: 0 };
@@ -32,7 +43,7 @@ const NO_BOX: TileBox = { left: 0, top: 0, width: 0, height: 0 };
     selector: 'app-multiview-stage',
     templateUrl: './multiview-stage.component.html',
     styleUrl: './multiview-stage.component.scss',
-    imports: [MultiviewTileComponent],
+    imports: [MultiviewTileComponent, MultiviewBarComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     providers: [
         { provide: PLAYER_MULTIVIEW_ACTION, useFactory: stageMultiviewAction },
@@ -55,6 +66,8 @@ export class MultiviewStageComponent {
 
     protected readonly store = inject(MultiviewSessionStore);
     private readonly anchors = inject(MultiviewAnchorRegistry);
+    private readonly translate = inject(TranslateService);
+    private readonly languageTick = injectTranslationTick();
     private readonly tracker = new StageRectTracker();
     readonly rects = this.tracker.rects;
 
@@ -74,9 +87,24 @@ export class MultiviewStageComponent {
         source: () => this.rects()?.anchor ?? null,
         computation: (box, previous) => box ?? previous?.value ?? NO_BOX,
     });
+    /** The tiles share the stage with the bar underneath (spec 9.3). */
+    readonly tileArea = computed<StageSize>(() => ({
+        width: this.stageBox().width,
+        height: Math.max(0, this.stageBox().height - MULTIVIEW_BAR_HEIGHT),
+    }));
     readonly placements = computed(() => {
         const state = this.store.state();
-        return state ? placeTiles(this.stageBox(), state) : new Map();
+        return state ? placeTiles(this.tileArea(), state) : new Map();
+    });
+    /** Announced when another tile becomes the main one (spec 13). */
+    readonly announcement = computed(() => {
+        this.languageTick();
+        const main = this.store.tiles()[0];
+        return main
+            ? this.translate.instant('PLAYER.MULTIVIEW.MAIN_ANNOUNCEMENT', {
+                  title: main.title,
+              })
+            : '';
     });
 
     constructor() {

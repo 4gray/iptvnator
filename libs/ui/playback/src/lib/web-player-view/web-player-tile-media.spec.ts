@@ -211,6 +211,16 @@ describe('WebPlayerTileMedia', () => {
         });
     });
 
+    it('keeps managed tile videos out of system picture-in-picture (D12)', async () => {
+        const video = addVideo();
+        create().sync(false, null);
+        const later = addVideo();
+        await flushMutations();
+
+        expect(video.disablePictureInPicture).toBe(true);
+        expect(later.disablePictureInPicture).toBe(true);
+    });
+
     it('stops managing videos once destroyed', async () => {
         const video = addVideo();
         const tile = create();

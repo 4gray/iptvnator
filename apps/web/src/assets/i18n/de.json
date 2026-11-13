@@ -2554,7 +2554,26 @@
         "MULTIVIEW": {
             "ACTION": "Mehrfachansicht",
             "ACTION_TOOLTIP": "Mehrfachansicht · Shift+M",
-            "UNAVAILABLE_PLAYER": "Im integrierten Player verfügbar"
+            "UNAVAILABLE_PLAYER": "Im integrierten Player verfügbar",
+            "TILE_LABEL": "Fenster {{number}}: {{title}}",
+            "STATE_SOUND": "Ton an",
+            "STATE_MUTED": "stumm",
+            "STATE_PAUSED": "pausiert",
+            "STATE_ERROR": "wird nicht abgespielt",
+            "BADGE_VOD": "Video",
+            "SWAP": "Mit dem Hauptfenster tauschen",
+            "AUDIO_HERE": "Ton hierher",
+            "CLOSE_TILE": "Fenster {{number}} schließen",
+            "PAUSED_AT": "Pausiert · {{position}}",
+            "RESUME": "Mit Ton abspielen",
+            "LAYOUT": "Anordnung",
+            "LAYOUT_PIP": "Bild im Bild",
+            "ADD_CHANNEL": "Sender",
+            "ADD_CHANNEL_HINT": "Sender hinzufügen",
+            "EXIT": "Beenden",
+            "EXIT_HINT": "Fenster mit Ton behalten und die anderen schließen",
+            "MAIN_ANNOUNCEMENT": "{{title}} ist jetzt das Hauptfenster",
+            "TILE_KEYS_HINT": "Pfeiltasten verschieben das Fenster in eine andere Ecke, Plus und Minus ändern die Größe, Enter tauscht es mit dem Hauptfenster."
         }
     }
 }

@@ -1,6 +1,7 @@
-import { Component, input, output, signal } from '@angular/core';
+import { Component, type Type, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { TranslateModule } from '@ngx-translate/core';
 import {
     MultiviewAnchorRegistry,
     MultiviewSessionStore,
@@ -57,10 +58,21 @@ function rect(left: number, top: number, width: number, height: number) {
 // Engines import video.js: load the components after the mocks above.
 let MultiviewStageComponent: typeof import('./multiview-stage.component').MultiviewStageComponent;
 let MultiviewTileComponent: typeof import('./multiview-tile.component').MultiviewTileComponent;
+let tileImports: () => Type<unknown>[];
 
 beforeAll(async () => {
     ({ MultiviewStageComponent } = await import('./multiview-stage.component'));
     ({ MultiviewTileComponent } = await import('./multiview-tile.component'));
+    // The real chrome and overlay; only the engine is stood in for.
+    const { MultiviewTileChromeComponent } =
+        await import('./multiview-tile-chrome.component');
+    const { MultiviewPausedOverlayComponent } =
+        await import('./multiview-paused-overlay.component');
+    tileImports = () => [
+        StubWebPlayerViewComponent,
+        MultiviewTileChromeComponent,
+        MultiviewPausedOverlayComponent,
+    ];
 });
 
 describe('MultiviewStageComponent', () => {
@@ -72,6 +84,7 @@ describe('MultiviewStageComponent', () => {
 
     beforeEach(() => {
         TestBed.configureTestingModule({
+            imports: [TranslateModule.forRoot()],
             providers: [
                 {
                     provide: SettingsStore,
@@ -79,7 +92,7 @@ describe('MultiviewStageComponent', () => {
                 },
             ],
         }).overrideComponent(MultiviewTileComponent, {
-            set: { imports: [StubWebPlayerViewComponent] },
+            set: { imports: tileImports() },
         });
         store = TestBed.inject(MultiviewSessionStore);
 
