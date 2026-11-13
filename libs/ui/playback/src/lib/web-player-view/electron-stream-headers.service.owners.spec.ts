@@ -73,6 +73,20 @@ describe('ElectronStreamHeadersService owners', () => {
         ]);
     });
 
+    it('releases a named owner through the release call when the bridge has it', async () => {
+        const releaseHeaderOwner = jest.fn().mockResolvedValue(true);
+        (
+            window as unknown as {
+                electron: { releaseHeaderOwner: jest.Mock };
+            }
+        ).electron.releaseHeaderOwner = releaseHeaderOwner;
+        await service.apply(PLAYBACK_B, 'tile-b');
+        service.clear(STREAM_B, 'tile-b');
+
+        expect(releaseHeaderOwner).toHaveBeenCalledWith('tile-b');
+        expect(setUserAgent).toHaveBeenCalledTimes(1);
+    });
+
     it('does not supersede another owner pending apply', async () => {
         const resolvers: Array<() => void> = [];
         setUserAgent.mockImplementation(

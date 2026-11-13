@@ -140,16 +140,23 @@ export class ElectronStreamHeadersService {
         state.sequence += 1;
         state.scopeUrl = null;
         const request =
-            owner === null
-                ? window.electron.setUserAgent(undefined, undefined, streamUrl)
-                : window.electron.setUserAgent(
-                      undefined,
-                      undefined,
-                      streamUrl,
-                      undefined,
-                      undefined,
-                      owner
-                  );
+            owner !== null &&
+            typeof window.electron.releaseHeaderOwner === 'function'
+                ? window.electron.releaseHeaderOwner(owner)
+                : owner === null
+                  ? window.electron.setUserAgent(
+                        undefined,
+                        undefined,
+                        streamUrl
+                    )
+                  : window.electron.setUserAgent(
+                        undefined,
+                        undefined,
+                        streamUrl,
+                        undefined,
+                        undefined,
+                        owner
+                    );
         if (owner !== null) {
             // A tile's owner id is never reused; drop its bookkeeping.
             this.namedOwners.delete(owner);

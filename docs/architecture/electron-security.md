@@ -208,14 +208,26 @@ owner, so one tile neither supersedes another tile's pending header IPC nor
 releases its override. Owner ids are renderer-chosen labels of at most 128
 characters; any other value falls back to the default owner.
 
-When several owners match a request, the backend applies them weakest first
-(`request-header-override-matching.ts`): a request for an owner's exact
-stream URL gets that owner's headers; any other request on a shared origin —
-segments, keys — cannot be attributed to a tile, so the most recently
-configured owner wins. Credentials stay pinned to each override's own stream
-origin. Two concurrent streams on one origin that need different
-`User-Agent` or credentials are therefore not fully separable; this is an
-accepted limit of multiview.
+When several owners match a request, exactly one applies
+(`request-header-override-matching.ts`), so headers are never merged across
+owners: a request for an owner's exact stream URL gets that owner's headers;
+any other request on a shared origin — segments, keys — cannot be attributed
+to a tile, so the most recently configured owner with headers wins.
+Credentials stay pinned to each override's own stream origin. Two concurrent
+streams on one origin that need different `User-Agent` or credentials are
+therefore not fully separable for segment requests; this is an accepted limit
+of multiview.
+
+A named owner configured without headers keeps a header-free claim on its
+exact stream URL, so another tile's headers never reach that stream; an owner
+with headers on the same URL (a player restored after a session) outranks the
+claim. A tile whose player is gone is forgotten through
+`releaseHeaderOwner(ownerId)` (`release-header-owner`), which is distinct
+from configuring it without headers. The playlist-wide override (a call
+without a scope URL) belongs to one playlist: requests on an origin a named
+owner covers do not get it, so a tile of another source never inherits its
+User-Agent, Referer or Origin. Without named owners — every single-player
+surface — nothing of this changes.
 
 Rules:
 

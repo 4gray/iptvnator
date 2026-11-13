@@ -96,7 +96,8 @@ function handleBeforeSendHeaders(
     applyYoutubeEmbedRefererShim(details.url, requestHeaders);
     const overrides: HeaderOverride[] =
         activeHeaderOverride &&
-        shouldApplyOverride(details.url, activeHeaderOverride)
+        shouldApplyOverride(details.url, activeHeaderOverride) &&
+        !claimedByTile(details.url)
             ? [activeHeaderOverride]
             : [];
     if (scopedHeaderOverrides.size > 0) {
@@ -169,8 +170,9 @@ const MAX_HEADER_FREE_OWNERS = 16;
 /**
  * A multiview tile without custom headers keeps its exact stream URL, so a
  * request for it never falls back to another tile's headers on the same
- * host. Releasing the owner sends the same empty configuration, which leaves
- * a harmless claim that applies nothing; the list is bounded.
+ * host. A released tile is forgotten (`releaseRequestHeaderOwner`); a
+ * renderer without that call leaves a claim that applies nothing, and the
+ * number kept is bounded.
  */
 function claimHeaderFreeStream(
     ownerId: string,
@@ -276,6 +278,30 @@ export function configureRequestHeaderOverride(
  * Registers the header listener at startup so the YouTube embed Referer
  * shim is active even before any playlist-level override is configured.
  */
+/** Forgets a named owner; the default owner is cleared by configuring it. */
+export function releaseRequestHeaderOwner(ownerId: string): void {
+    if (ownerId !== DEFAULT_SCOPED_OVERRIDE_OWNER) {
+        scopedHeaderOverrides.delete(ownerId);
+    }
+}
+
+/**
+ * Whether a multiview tile's owner covers the request's origin. Its own
+ * override (or its header-free claim) then decides the headers, and the
+ * playlist-wide override, which belongs to one playlist, stays out.
+ */
+function claimedByTile(url: string): boolean {
+    for (const [owner, override] of scopedHeaderOverrides) {
+        if (
+            owner !== DEFAULT_SCOPED_OVERRIDE_OWNER &&
+            shouldApplyOverride(url, override)
+        ) {
+            return true;
+        }
+    }
+    return false;
+}
+
 export function registerStaticHeaderShims(): void {
     ensureHeaderOverrideListener();
 }

@@ -1,9 +1,11 @@
-import { computed, type Signal } from '@angular/core';
+import { computed, signal, type Signal } from '@angular/core';
+import { createInlinePlaybackPositionWriter } from '@iptvnator/portal/shared/util';
 import type {
     MultiviewAnchorHost,
     MultiviewTileSource,
 } from '@iptvnator/playback/multiview/data-access';
 import {
+    type PlaybackPositionData,
     type ResolvedPortalPlayback,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
@@ -22,6 +24,14 @@ export interface PortalInlinePlayerMultiviewDeps {
         readonly currentTime: number;
         readonly duration: number;
     }) => void;
+    /**
+     * Saves a position directly, for a tile whose title the page no longer
+     * shows (the viewer picked another episode meanwhile).
+     */
+    readonly savePosition: (
+        playlistId: string,
+        position: PlaybackPositionData
+    ) => void;
 }
 
 /**
@@ -30,6 +40,25 @@ export interface PortalInlinePlayerMultiviewDeps {
  * opened it (R9). The player cannot switch to another title by itself, so a
  * survivor other than its own title is not adopted here.
  */
+/**
+ * R9 with the right identity: while the page still shows this title, its
+ * own handler saves (and tracks) the progress; once the page moved to
+ * another title, a writer bound to this playback saves it instead.
+ */
+function boundProgress(
+    deps: PortalInlinePlayerMultiviewDeps,
+    playback: ResolvedPortalPlayback
+): MultiviewTileSource['persistPosition'] {
+    const writer = createInlinePlaybackPositionWriter({
+        playback: signal<ResolvedPortalPlayback | null>(playback),
+        save: deps.savePosition,
+    });
+    return (event) => {
+        if (deps.playback() === playback) deps.persistPosition(event);
+        else writer.handleTimeUpdate(event);
+    };
+}
+
 export function createPortalInlinePlayerMultiviewHost(
     deps: PortalInlinePlayerMultiviewDeps
 ): MultiviewAnchorHost {
@@ -47,7 +76,7 @@ export function createPortalInlinePlayerMultiviewHost(
                   : 'vod',
             playlistId: playback.contentInfo?.playlistId ?? '',
             title: playback.title,
-            persistPosition: deps.persistPosition,
+            persistPosition: boundProgress(deps, playback),
             ...(deps.volume ? { volume: deps.volume() } : {}),
         };
     });

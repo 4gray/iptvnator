@@ -1329,6 +1329,23 @@ again.
 - P2 — a failed stage chunk left an invisible session: the session ends
   (`stage-unavailable`) and the view plays on its own.
 
+**Round 6 (Codex, commit `bae2736aa`, run beyond the five-round limit on
+the maintainer's request):** five findings.
+- Fixed — P1, an episode tile's progress was saved under the episode the
+  detail page showed later: the inline-player host forwards progress to the
+  page only while the page still shows that title, and otherwise saves it
+  through a writer bound to the tile's own playback.
+- Fixed — P2, playlist-wide (unscoped) headers reached tiles of other
+  sources: requests on an origin a named owner covers no longer get them, and
+  a released tile is forgotten through the new `releaseHeaderOwner` IPC
+  instead of leaving a header-free claim.
+- Not fixed, gap — P2, a Stalker portal without the full ITV cache shows an
+  empty current-playlist section: the picker lacks the category menu of spec
+  9.5 that would load one genre at a time (`MultiviewCatalogService.loadGroup`
+  exists). Recorded for the next multiview step.
+- Repeated, declined as before — the VOD survivor handoff (D2, round 1) and
+  the catch-up position on live views (phase 1 limit, round 3).
+
 Greptile: not run (the `greptile` CLI is not installed on this machine).
 
 ## Phase acceptance (spec 14)

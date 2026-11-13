@@ -203,7 +203,7 @@ describe('request header overrides per owner', () => {
         expect(headersFor('https://other.example/x')).toEqual({});
     });
 
-    it('layers every owner over the playlist override', async () => {
+    it('keeps the playlist override for requests no tile claims', async () => {
         const { configureRequestHeaderOverride } = await loadService();
         configureRequestHeaderOverride(
             'PlaylistAgent/1.0',
@@ -218,11 +218,8 @@ describe('request header overrides per owner', () => {
             TILE_B
         );
 
-        expect(headersFor(STREAM_B)).toEqual({
-            Origin: 'https://playlist.example',
-            Referer: 'https://playlist.example/',
-            'User-Agent': 'AgentB/1.0',
-        });
+        // A tile's request carries its own headers only (round 6 review).
+        expect(headersFor(STREAM_B)).toEqual({ 'User-Agent': 'AgentB/1.0' });
         expect(headersFor(STREAM_A)).toEqual({
             Origin: 'https://playlist.example',
             Referer: 'https://playlist.example/',
@@ -336,6 +333,56 @@ describe('request header overrides per owner', () => {
         );
 
         expect(mockOnBeforeSendHeaders).not.toHaveBeenCalled();
+    });
+
+    it('forgets a released owner and keeps a header-free one claiming its stream', async () => {
+        const { configureRequestHeaderOverride, releaseRequestHeaderOwner } =
+            await loadService();
+        const FIRST = 'https://shared.example/live/first.ts';
+        const SECOND = 'https://shared.example/live/second.ts';
+        configureRequestHeaderOverride(
+            'AgentA/1.0',
+            undefined,
+            FIRST,
+            undefined,
+            undefined,
+            TILE_A
+        );
+        configureRequestHeaderOverride(
+            undefined,
+            undefined,
+            SECOND,
+            undefined,
+            undefined,
+            TILE_B
+        );
+        expect(headersFor(SECOND)).toEqual({});
+
+        releaseRequestHeaderOwner(TILE_B);
+
+        expect(headersFor(SECOND)).toEqual({ 'User-Agent': 'AgentA/1.0' });
+    });
+
+    it('keeps playlist-wide headers off a tile of another source', async () => {
+        const { configureRequestHeaderOverride } = await loadService();
+        // A playlist-wide override (no scope), as the M3U player sets it.
+        configureRequestHeaderOverride(
+            'PlaylistAgent/1.0',
+            'https://list.example/'
+        );
+        configureRequestHeaderOverride(
+            undefined,
+            undefined,
+            STREAM_B,
+            undefined,
+            undefined,
+            TILE_B
+        );
+
+        expect(headersFor(STREAM_B)).toEqual({});
+        expect(headersFor('https://elsewhere.example/x.ts')).toMatchObject({
+            'User-Agent': 'PlaylistAgent/1.0',
+        });
     });
 });
 

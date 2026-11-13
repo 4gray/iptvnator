@@ -1,4 +1,7 @@
-import type { HostedServerCommand, HostedServerStatus } from './hosted-server.interface';
+import type {
+    HostedServerCommand,
+    HostedServerStatus,
+} from './hosted-server.interface';
 export type ElectronBridgeAppMenuAction = 'settings' | 'check-for-updates';
 import type { AppUpdateChannel } from './app-update-channel.util';
 import type { SourceProbeContext, SourceHealthResult } from './source-health';
@@ -780,7 +783,9 @@ export interface ElectronBridgeApi {
             tokenPersisted: boolean;
         }
     >;
-    hostedServerControl?: (command: HostedServerCommand) => Promise<HostedServerStatus>;
+    hostedServerControl?: (
+        command: HostedServerCommand
+    ) => Promise<HostedServerStatus>;
     hostedServerAccessCode?: () => Promise<string>;
     sourceSyncDisconnect?: () => Promise<void>;
     sourceSyncForget?: () => Promise<void>;
@@ -924,6 +929,12 @@ export interface ElectronBridgeApi {
         origin?: string | null,
         ownerId?: string
     ) => Promise<boolean>;
+    /**
+     * Forgets a named header owner (a multiview tile whose player is gone),
+     * as opposed to `setUserAgent` without headers, which keeps the owner's
+     * claim on its stream.
+     */
+    releaseHeaderOwner?: (ownerId: string) => Promise<boolean>;
     openInMpv: (
         url: string,
         title: string,

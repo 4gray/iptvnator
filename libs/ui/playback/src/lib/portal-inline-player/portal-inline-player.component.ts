@@ -27,7 +27,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import type { PlaybackFallbackRequest } from '@iptvnator/playback/util';
 import type { PlaybackDiagnosticCode } from '@iptvnator/playback/util';
-import { SettingsStore } from '@iptvnator/services';
+import { PlaybackPositionService, SettingsStore } from '@iptvnator/services';
 import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
 import type { PlayerMediaTitle, PlayerUpNextItem } from '../player-controls';
 import {
@@ -152,6 +152,7 @@ export class PortalInlinePlayerComponent {
      */
     readonly playerOverride = input<VideoPlayer | null>(null);
     private readonly settingsStore = inject(SettingsStore);
+    private readonly playbackPositions = inject(PlaybackPositionService);
     /**
      * Title row (name, copy-URL, close) visibility: shown on pointer
      * activity over the viewport, hidden again once idle, matching standard
@@ -184,6 +185,11 @@ export class PortalInlinePlayerComponent {
             engine: () =>
                 this.playerOverride() ?? this.settingsStore.player?.(),
             persistPosition: (event) => this.timeUpdate.emit(event),
+            savePosition: (playlistId, position) =>
+                void this.playbackPositions.savePlaybackPosition(
+                    playlistId,
+                    position
+                ),
         })
     );
     /**

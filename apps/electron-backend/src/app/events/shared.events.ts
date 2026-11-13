@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron';
 import {
     configureRequestHeaderOverride,
+    releaseRequestHeaderOwner,
     type StreamCredentialHeaders,
 } from '../services/request-header-overrides.service';
 
@@ -29,6 +30,13 @@ function sanitizeOwnerId(value: unknown): string | undefined {
         ? value
         : undefined;
 }
+
+/** A multiview tile's player is gone: forget its header owner. */
+ipcMain.handle('release-header-owner', (_event, ownerId) => {
+    const owner = sanitizeOwnerId(ownerId);
+    if (owner) releaseRequestHeaderOwner(owner);
+    return true;
+});
 
 ipcMain.handle(
     'set-user-agent',
