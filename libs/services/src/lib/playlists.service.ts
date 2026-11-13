@@ -839,6 +839,12 @@ export class PlaylistsService {
             ...(updatedPlaylist.autoRefresh != null
                 ? { autoRefresh: updatedPlaylist.autoRefresh }
                 : {}),
+            ...(updatedPlaylist.url != null
+                ? { url: updatedPlaylist.url }
+                : {}),
+            ...(updatedPlaylist.filePath != null
+                ? { filePath: updatedPlaylist.filePath }
+                : {}),
             ...(updatedPlaylist.userAgent != null
                 ? { userAgent: updatedPlaylist.userAgent }
                 : {}),

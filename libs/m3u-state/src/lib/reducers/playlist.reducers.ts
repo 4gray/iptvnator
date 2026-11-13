@@ -199,6 +199,11 @@ export const playlistReducers = [
                             ? { referrer: p.referrer }
                             : {}),
                         ...(p.origin !== undefined ? { origin: p.origin } : {}),
+                        // An M3U source edited in the details dialog (#1677).
+                        ...(p.url != null ? { url: p.url } : {}),
+                        ...(p.filePath != null
+                            ? { filePath: p.filePath }
+                            : {}),
                         ...(p.serverUrl != null
                             ? { serverUrl: p.serverUrl }
                             : {}),

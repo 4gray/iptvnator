@@ -77,3 +77,68 @@ describe('playlist edit connection validation', () => {
         expect(details.valid).toBe(true);
     });
 });
+
+describe('M3U source editing (#1677)', () => {
+    const urlPlaylist = {
+        _id: 'm3u-url',
+        title: 'From URL',
+        url: 'https://provider.test/get.php?token=old',
+    } as PlaylistMeta;
+    const filePlaylist = {
+        _id: 'm3u-file',
+        title: 'From file',
+        filePath: '/home/user/list.m3u',
+    } as PlaylistMeta;
+
+    it('makes the URL of a URL playlist editable', () => {
+        const details = form(urlPlaylist);
+        expect(details.get('url')?.enabled).toBe(true);
+        expect(details.get('filePath')?.enabled).toBe(false);
+        details
+            .get('url')
+            ?.setValue(' https://new-host.test/get.php?token=new ');
+        expect(details.valid).toBe(true);
+    });
+
+    it.each([
+        '',
+        ' ',
+        'not-a-url',
+        'ftp://provider.test/list.m3u',
+        'file:///list.m3u',
+        'https://',
+    ])('rejects the M3U URL %p', (value) => {
+        const details = form(urlPlaylist);
+        details.get('url')?.setValue(value);
+        expect(details.valid).toBe(false);
+        expect(details.get('url')?.errors).toBeTruthy();
+    });
+
+    it('makes the file path of a file playlist editable and requires it', () => {
+        const details = form(filePlaylist);
+        expect(details.get('filePath')?.enabled).toBe(true);
+        expect(details.get('url')?.enabled).toBe(false);
+        details.get('filePath')?.setValue(' ');
+        expect(details.valid).toBe(false);
+        details.get('filePath')?.setValue('/media/usb/list.m3u');
+        expect(details.valid).toBe(true);
+    });
+
+    it('keeps the source read-only for Xtream and Stalker playlists', () => {
+        const stalker = {
+            _id: 'stalker',
+            title: 'Stalker',
+            portalUrl: 'http://portal.test/c/',
+            macAddress: '00:1A:79:00:00:01',
+            url: 'http://portal.test/c/',
+        } as PlaylistMeta;
+        for (const playlist of [
+            { ...xtream, url: 'https://panel.test/get.php' },
+            stalker,
+        ]) {
+            expect(form(playlist as PlaylistMeta).get('url')?.enabled).toBe(
+                false
+            );
+        }
+    });
+});

@@ -119,6 +119,40 @@ describe('PlaylistsService', () => {
         });
     });
 
+    it('persists an edited M3U URL and file path (#1677)', async () => {
+        const playlist = {
+            _id: 'm3u',
+            url: 'https://old.test/list.m3u',
+            filePath: '/old/list.m3u',
+        } as Playlist;
+        const dbUpsertAppPlaylist = jest.fn().mockResolvedValue(undefined);
+        testWindow.electron = {
+            dbGetAppState: jest.fn().mockResolvedValue('1'),
+            dbSetAppState: jest.fn(),
+            dbGetAppPlaylists: jest.fn().mockResolvedValue([]),
+            dbGetAppPlaylist: jest.fn().mockResolvedValue(playlist),
+            dbUpsertAppPlaylist,
+        };
+        const service = createService();
+        await firstValueFrom(
+            service.updatePlaylistMeta({
+                ...playlist,
+                title: 'M3U',
+                count: 0,
+                importDate: '',
+                autoRefresh: false,
+                url: 'https://new.test/list.m3u',
+                filePath: '/new/list.m3u',
+            })
+        );
+        expect(dbUpsertAppPlaylist).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: 'https://new.test/list.m3u',
+                filePath: '/new/list.m3u',
+            })
+        );
+    });
+
     it('announces committed deletion but does not retire health after a failed write', async () => {
         const service = createService();
         const next = jest.fn();
