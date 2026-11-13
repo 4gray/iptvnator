@@ -34,7 +34,26 @@ export class ControlsChromeInteractions {
         return this.hovered() || this.focused();
     }
 
-    onPointerEnter(): void {
+    onPointerEnter(event?: Event): void {
+        // A tap's emulated hover reveals nothing the tap itself did not, and
+        // must not pin the controls: no pointerleave ever follows it.
+        if (this.config.surface.isEmulatedHover(event)) {
+            return;
+        }
+        this.hovered.set(true);
+        this.config.reveal({ scheduleHide: false });
+    }
+
+    /**
+     * A real mouse moving over the chrome claims hover. The enter that a tap
+     * emulates is ignored, and on a device with both touch and a mouse a
+     * genuine enter can land in that same window; the next real move then
+     * restores hover, so the controls stay up under a resting mouse.
+     */
+    onPointerMove(event: Event): void {
+        if (this.hovered() || this.config.surface.isEmulatedHover(event)) {
+            return;
+        }
         this.hovered.set(true);
         this.config.reveal({ scheduleHide: false });
     }
