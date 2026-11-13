@@ -396,9 +396,11 @@ supplies the shared
 EGL/GL/GLX/GBM/DRM/VA userspace; the existing GNOME content runtime supplies
 ALSA/PulseAudio. These providers are external shared snaps, so their binaries,
 source, notices, and installed bytes are not part of the IPTVnator Snap or its
-compliance archive. CI installs and explicitly connects both providers for a
-locally installed `--dangerous` artifact, then runs the application-level
-probe under strict confinement.
+compliance archive. CI downloads missing prerequisites with their Snap Store
+assertions, acknowledges the assertions and installs the verified
+local files. This avoids depending on a Snap Store device session. CI explicitly
+connects both providers for the locally installed `--dangerous` IPTVnator
+artifact, then runs the application-level probe under strict confinement.
 
 The package carries the empty content target itself because core22 does not
 create `$SNAP` content targets while packing. Metadata verification rejects a

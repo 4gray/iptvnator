@@ -11,7 +11,7 @@
 // the binary while another is still extracting it (ETXTBSY on Linux, clobbered
 // framework symlinks on macOS). Running this first leaves nothing to download.
 //
-// Usage: node tools/testing/ensure-electron-binary.mjs
+// Usage: node tools/testing/electron/ensure-electron-binary.mjs
 
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';

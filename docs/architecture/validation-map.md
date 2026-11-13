@@ -149,10 +149,17 @@ first `require` downloads and extracts the binary. With projects and Jest
 workers in parallel, one process can exec it while another is still extracting
 it (`spawnSync … ETXTBSY` on Linux). When a selected project has a spec that
 calls `createRequire(...)('electron')`, `coverage:unit:ci` first runs
-`tools/testing/ensure-electron-binary.mjs`, which downloads the binary once and
+`tools/testing/electron/ensure-electron-binary.mjs`, which downloads the binary once and
 fails unless it runs and reports the pinned version; CI also runs it as its own
 step when the Tier A suite is in scope. In a fresh worktree, run it before
 starting several of these specs at once by other means.
+The `database:test`, `electron-backend:test` and `packaging:test` targets
+share the non-cached `electron-test-tools:ensure-electron-binary` dependency.
+Nx runs it once before these tests in a task graph, including in the full
+workspace test run. For a filtered selection known to run under Node alone,
+use `pnpm nx test database --excludeTaskDependencies --testPathPatterns=path-utils`.
+Leave the dependency enabled for the full suites and for specs that spawn
+Electron.
 
 In CI, a pull request skips the Tier A suite (and the merged-coverage upload)
 when every changed file is outside Tier A test inputs:
