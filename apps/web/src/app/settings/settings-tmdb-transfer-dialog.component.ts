@@ -2,6 +2,7 @@ import { ClipboardModule } from '@angular/cdk/clipboard';
 import {
     ChangeDetectionStrategy,
     Component,
+    computed,
     DestroyRef,
     inject,
     signal,
@@ -18,7 +19,9 @@ import {
     sourceConnection,
 } from '@iptvnator/services/source-sync/connection';
 import {
+    TMDB_TRANSFER_CODE_LENGTH,
     isTmdbTransferCapability,
+    isTmdbTransferCode,
     isTmdbTransferKey,
     type TmdbTransferRequest,
     type TmdbTransferSession,
@@ -48,7 +51,7 @@ type Stage = 'choose' | 'send' | 'waiting' | 'ready' | 'sent' | 'closed';
     providers: [provideFormFieldDefaults(), SettingsTmdbTransferStorage],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './settings-tmdb-transfer-dialog.component.html',
-    styles: ['mat-form-field { width: 100%; }'],
+    styleUrl: './settings-tmdb-transfer-dialog.component.scss',
 })
 export class SettingsTmdbTransferDialogComponent {
     private readonly settings = inject(SettingsTmdbTransferStorage);
@@ -64,6 +67,9 @@ export class SettingsTmdbTransferDialogComponent {
     readonly busy = signal(false);
     readonly error = signal('');
     readonly sendCode = signal('');
+    readonly codeCharacters = computed(() =>
+        isTmdbTransferCode(this.sendCode()) ? [...this.sendCode()] : []
+    );
     readonly copied = signal(false);
     readonly codeInput = new FormControl('', { nonNullable: true });
     readonly replacing = signal(false);
@@ -85,9 +91,10 @@ export class SettingsTmdbTransferDialogComponent {
             const expectedKey = await this.settings.readSavedTmdbKey();
             const startedAt = performance.now();
             const { senderToken, receiverToken, expiresInMs } =
-                await this.request({ action: 'start' });
+                await this.request({ action: 'start', codeFormat: 'short' });
             if (
-                !isTmdbTransferCapability(senderToken) ||
+                (!isTmdbTransferCode(senderToken) &&
+                    !isTmdbTransferCapability(senderToken)) ||
                 !isTmdbTransferCapability(receiverToken) ||
                 typeof expiresInMs !== 'number' ||
                 !Number.isFinite(expiresInMs) ||
@@ -112,8 +119,15 @@ export class SettingsTmdbTransferDialogComponent {
 
     async send(): Promise<void> {
         await this.run(async () => {
-            const transferToken = this.codeInput.value.trim();
-            if (!isTmdbTransferCapability(transferToken)) {
+            const input = this.codeInput.value.trim();
+            const transferToken =
+                input.length === TMDB_TRANSFER_CODE_LENGTH
+                    ? input.toUpperCase()
+                    : input;
+            if (
+                !isTmdbTransferCode(transferToken) &&
+                !isTmdbTransferCapability(transferToken)
+            ) {
                 this.error.set('INVALID_CODE');
                 return;
             }
