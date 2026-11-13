@@ -34,6 +34,9 @@
         "../../libs/playback/util/src/**/*.test.ts",
         "../../libs/playback/util/src/**/*.spec.ts",
         "../../libs/playback/util/src/**/*.d.ts",
+        "../../libs/playback/multiview/ui/src/**/*.test.ts",
+        "../../libs/playback/multiview/ui/src/**/*.spec.ts",
+        "../../libs/playback/multiview/ui/src/**/*.d.ts",
         "../../libs/playlist/m3u/feature-player/src/**/*.test.ts",
         "../../libs/playlist/m3u/feature-player/src/**/*.spec.ts",
         "../../libs/playlist/m3u/feature-player/src/**/*.d.ts"

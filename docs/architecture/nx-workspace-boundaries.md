@@ -265,6 +265,18 @@ workspace feature project, so this project depends only on shared contracts
 and `@iptvnator/services`. The behaviour contract is
 `docs/superpowers/specs/2026-11-12-multiview-design.md`.
 
+`libs/playback/multiview/ui` is the `playback-multiview-ui` Nx project,
+imported through `@iptvnator/playback/multiview/ui` (tags `scope:shared`,
+`domain:playback`, `type:ui`). It owns the multiview stage and its tiles,
+which render `WebPlayerViewComponent` from `ui-playback`. The anchor
+directive that player views place around their player lives in
+`ui-playback` instead (`MultiviewAnchorDirective`), because
+`portal-inline-player` in that project hosts an anchor and the stage
+depends on `ui-playback`. The workspace shell loads this project only
+through a dynamic `import()`; nothing may import it statically, and its
+specs must not lazy-import `@iptvnator/ui/playback`, which the shell
+imports statically.
+
 `libs/shared/epg` is the pure `shared-epg` utility project, imported through
 `@iptvnator/shared/epg` (scope:shared, domain:shared-contracts, type:util).
 It owns epoch-millisecond time-axis projection, ticks and clipping used by Angular

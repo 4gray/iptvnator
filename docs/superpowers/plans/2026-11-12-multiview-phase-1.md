@@ -489,40 +489,64 @@ DOM is unchanged and no host provides the action yet.
 
 ### Task 5: Stage in the shell and the anchor directive
 
-**Files:** `libs/playback/multiview/ui` — `multiview-stage.component.*`,
-`multiview-tile.component.*`, `pip-geometry.ts` (+ specs);
-`libs/ui/playback/src/lib/multiview-anchor/multiview-anchor.directive.ts`
-(+ spec), `multiview-anchor.model.ts`; `workspace-shell.component.{ts,html}`.
+**Files (as built):**
+- `playback-multiview-data-access`: `multiview-anchor-registry.ts`
+  (`MultiviewAnchorHost`, registry), `multiview-entry.service.ts` (start or
+  add on the current anchor, picker round trip), `multiview-ports.ts`
+  (`MULTIVIEW_SOURCE_PICKER`), new rejections `no-anchor` and
+  `unsupported-player`; undo now resumes at the replaced tile's position.
+- `ui-playback`: `multiview-anchor/multiview-anchor.directive.ts`,
+  `multiview-anchor-placeholder.component.ts`; `PLAYER_MULTIVIEW_ACTION`
+  exported from the player-controls barrel.
+- New project `playback-multiview-ui` (`libs/playback/multiview/ui`):
+  `multiview-stage.component.*`, `multiview-tile.component.*`,
+  `pip-geometry.ts`, `stage-rect-tracker.ts`, `multiview-stage-action.ts`;
+  alias, Tier A coverage entry, spec include in `apps/web/tsconfig.spec.json`.
+- Shell: `workspace-shell/multiview-stage-host.ts` (+ spec), `#contentFrame`
+  ref and one call in `workspace-shell.component.ts`.
+- Docs: `nx-workspace-boundaries.md`, `workspace-shell.md` ("Multiview
+  stage").
 
-- [ ] Anchor: structural directive taking a descriptor (anchor id, current
-      source as a signal, `adopt(tile)` callback, D2). No session for this
-      anchor → renders the host template as is. Session → renders a
-      placeholder, registers its element in the store's anchor registry, and
-      provides `PLAYER_MULTIVIEW_ACTION` to the wrapped player (disabled with
-      "Available with the built-in player" for `mpv`/`vlc`/`embedded-mpv`).
-      When the host's current source changes during a session it replaces the
-      active tile (R5); when the anchor is destroyed the session ends and VOD
-      positions are flushed (phase 1 navigation rule).
-- [ ] Stage: one instance inside `.workspace-content-frame`, rendered only
-      while a session exists, positioned over the anchor rect
-      (ResizeObserver + scroll). `@for` over tiles tracked by tile id with
-      absolute positioning, so swap never re-creates a `<video>`. Each tile is
-      a `WebPlayerViewComponent` with `headerOwner = tile.id`,
-      `playerOverride` (tile 1: its engine; added tiles: `Html5Player`),
-      `controlsMode`, `muted`, `paused`, and `startTime` from the takeover
-      position.
-- [ ] PiP geometry (L1) as pure functions: 30 % width clamped 240–480 px,
-      16:9, four corners with 16 px inset above the dock area.
-- [ ] Keep-awake (R12): verify the existing per-engine keep-awake reporting
-      already holds the blocker while any tile plays; add a case, change
-      nothing if it does.
+- [x] Anchor directive `*appMultiviewAnchor="host"` on the player element.
+      Renders its template in the same check as `@if` would; with a session
+      owned by this view it renders a black placeholder instead and the
+      stage covers it. R5: a new selection in the view replaces the active
+      tile. Leaving the view ends the session (`anchor-left`). When a session
+      ends, the survivor is handed to `host.adopt()` before the player
+      returns (D2), unless the view already shows it. It provides
+      `PLAYER_MULTIVIEW_ACTION` to the wrapped player, disabled for
+      unsupported engines — and provides nothing while no picker exists.
+- [x] Stage created lazily by the shell (not in its template: the launch
+      journey's DOM-mutation counter has no slack and the stage chunk carries
+      the web players). Tiles render in creation order (`stableTileOrder`)
+      and are moved only by CSS, so a swap never moves a `<video>` in the
+      DOM; tiles stay mounted for the whole session even if the anchor is
+      briefly unmeasured. Each tile: `headerOwner = tile.id`, its engine,
+      `startTime` = takeover position (later positions do not remount),
+      `controlsMode` full/minimal by role, session `muted`/`paused`,
+      `audioRequested` → audio here, `playbackFailed` → status `error`, VOD
+      positions to the store once per second.
+- [x] PiP geometry (L1): 30 % width clamped 240–480 px and to the stage,
+      16:9, corners with 16 px inset; bottom corners keep 96 px above the
+      dock (value to confirm in the Task 11 visual review).
+- [x] Keep-awake (R12): `PlaybackKeepAwakeService` already tracks every
+      playing `<video>` in the document, so the lock holds while any tile
+      plays. No change.
 
-**Tests:** component specs: tile instances survive swap (same element
-identity), anchor without session renders the original content, takeover
-passes session key/engine/position, destroy ends the session;
-`pnpm nx test playback-multiview-ui ui-playback workspace-shell-feature`.
-**Accept:** shell DOM without a session contains no stage element; existing
-shell specs unedited.
+**Tests:** anchor 11, stage 8 (swap keeps instances and elements), geometry
+12, stage action 2, entry/registry 11, undo position 1, stage host 4; `ui-playback` 1763,
+`playback-multiview-ui` 22, `playback-multiview-data-access` 73,
+`workspace-shell-feature` 399 (no existing spec edited); lint,
+`typecheck:web`, `typecheck:spec`, coverage policy,
+`electron-backend:build-e2e`.
+**Not yet verified in the running app:** nothing hosts an anchor until
+Task 6 and nothing opens a session before Task 14/16, so the first runtime
+check happens with Task 6 (session started from the dev console or a test
+hook).
+**Known limits for later tasks:** the main tile's own fullscreen covers only
+that tile (stage fullscreen is L7, phase 2); VOD positions reach only the
+store — persisting them through `PlaybackPositionService` (R9) lands with the
+inline-player anchor in Task 9.
 
 ### Tasks 6–10: Anchors in the five player views (one commit each)
 

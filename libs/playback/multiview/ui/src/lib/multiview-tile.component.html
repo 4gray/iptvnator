@@ -1,0 +1,15 @@
+<app-web-player-view
+    [playbackSessionKey]="tile().playbackSessionKey"
+    [streamUrl]="tile().playback.streamUrl"
+    [title]="tile().title"
+    [playback]="tile().playback"
+    [playerOverride]="tile().engine"
+    [headerOwner]="tile().id"
+    [startTime]="startTime()"
+    [controlsMode]="controlsMode()"
+    [muted]="muted()"
+    [paused]="paused()"
+    (timeUpdate)="onTimeUpdate($event)"
+    (audioRequested)="onAudioRequested()"
+    (playbackFailed)="onPlaybackFailed()"
+/>

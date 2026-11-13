@@ -1,0 +1,20 @@
+<!-- Tiles stay mounted for the whole session: unmounting a tile stops its
+     stream. Without a measured anchor the stage is only hidden. -->
+@if (store.exists()) {
+    <div
+        class="multiview-stage__viewport"
+        data-test-id="multiview-stage"
+        [style.left.px]="stageBox().left"
+        [style.top.px]="stageBox().top"
+        [style.width.px]="stageBox().width"
+        [style.height.px]="stageBox().height"
+    >
+        @for (id of order(); track id) {
+            @let tile = tileById(id);
+            @let placement = placements().get(id);
+            @if (tile && placement) {
+                <app-multiview-tile [tile]="tile" [placement]="placement" />
+            }
+        }
+    </div>
+}

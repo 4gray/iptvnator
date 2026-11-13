@@ -73,7 +73,9 @@ export type MultiviewRejection =
     | 'already-on-screen'
     | 'unknown-tile'
     | 'layout-unavailable'
-    | 'not-swappable';
+    | 'not-swappable'
+    | 'no-anchor'
+    | 'unsupported-player';
 
 /** Why a session ended; hosts decide what to do with the survivor. */
 export type MultiviewEndReason =

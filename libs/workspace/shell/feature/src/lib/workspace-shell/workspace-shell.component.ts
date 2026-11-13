@@ -30,6 +30,7 @@ import { WorkspaceShellXtreamImportService } from './services/workspace-shell-xt
 import { WorkspaceShellCommandPaletteService } from './services/workspace-shell-command-palette.service';
 import { WorkspaceShellHeaderService } from './services/workspace-shell-header.service';
 import { warmPlayerChunk } from './warm-player-chunk';
+import { hostMultiviewStage } from './multiview-stage-host';
 import { WorkspaceShellRouteStateService } from './services/workspace-shell-route-state.service';
 import { WorkspaceShellSearchSyncService } from './services/workspace-shell-search-sync.service';
 import { WorkspaceShellSearchService } from './services/workspace-shell-search.service';
@@ -90,11 +91,20 @@ export class WorkspaceShellComponent {
         viewChild<WorkspaceShellHeaderShortcutTarget>('workspaceHeader');
     private readonly workspaceContent =
         viewChild<ElementRef<HTMLElement>>('workspaceContent');
+    private readonly contentFrame =
+        viewChild<ElementRef<HTMLElement>>('contentFrame');
 
     constructor() {
         // The web players are not on the first route: load them once it has
         // rendered, so the first list or portal opens without waiting for them.
         warmPlayerChunk(inject(Router));
+        // The multiview stage lies over a player view's anchor; it is created
+        // lazily, inside the content frame, when the first session starts.
+        hostMultiviewStage({
+            frame: () => this.contentFrame()?.nativeElement,
+            clipTo: () => this.workspaceContent()?.nativeElement,
+            inert: () => this.contextDrawer.isOpen(),
+        });
 
         // Focus restoration is the closing half of the drawer's focus
         // contract: CdkTrapFocus captures focus into the drawer on open, but

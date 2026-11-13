@@ -222,7 +222,14 @@ function reduceTileCommand(
             }
             const rejection = sourceRejection(state, previous, previous.id);
             if (rejection) return reject(state, rejection);
-            return next(replaceTile(state, { ...previous, status: 'loading' }));
+            // Resume where the replaced stream was, not where it started.
+            return next(
+                replaceTile(state, {
+                    ...previous,
+                    status: 'loading',
+                    position: previous.lastPosition,
+                })
+            );
         }
         case 'remove':
             return findTile(state, command.tileId)

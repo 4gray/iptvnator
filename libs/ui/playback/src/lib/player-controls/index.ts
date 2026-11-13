@@ -24,3 +24,4 @@ export * from './web-player-controls.flag';
 export * from './web-video-controls.adapter';
 export * from './web-video-stream-stats';
 export * from './web-video-controls.host';
+export * from './player-multiview-action';

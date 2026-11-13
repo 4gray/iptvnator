@@ -1,0 +1,16 @@
+:host {
+    position: absolute;
+    z-index: 1;
+    display: block;
+    overflow: hidden;
+    background: #000;
+}
+
+// The small tile at rest: picture and shadow only (mockup audit item 8).
+:host(.multiview-tile--pip) {
+    z-index: 2;
+    border-radius: 12px;
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.08),
+        0 12px 32px rgba(0, 0, 0, 0.45);
+}

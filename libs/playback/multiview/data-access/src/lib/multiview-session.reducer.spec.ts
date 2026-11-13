@@ -362,6 +362,26 @@ describe('reduceMultiviewSession', () => {
             expect(keys(state)).toEqual(['session:movie', 'session:match']);
         });
 
+        it('resumes an undone VOD tile where it was replaced', () => {
+            const vod = started(MATCH, source('film', 'vod'));
+            const replaced = run(
+                vod,
+                { type: 'tile-position', tileId: 'tile-2', seconds: 754 },
+                { type: 'add', source: NEWS, tileId: 'tile-3' }
+            );
+            if (replaced.effect?.type !== 'replaced') throw new Error();
+            const { state } = run(replaced.state, {
+                type: 'undo-replace',
+                previous: replaced.effect.previous,
+            });
+
+            expect(state?.tiles[1]).toMatchObject({
+                playbackSessionKey: 'session:film',
+                position: 754,
+                lastPosition: 754,
+            });
+        });
+
         it('appends below the capacity of a larger layout', () => {
             const grid: MultiviewSessionState = {
                 ...started(),

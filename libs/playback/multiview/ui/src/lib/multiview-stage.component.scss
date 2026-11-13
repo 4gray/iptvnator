@@ -1,0 +1,13 @@
+// Covers the visible content area; only the tiles take pointer input.
+:host {
+    position: absolute;
+    z-index: 1;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.multiview-stage__viewport {
+    position: absolute;
+    pointer-events: auto;
+    background: #000;
+}

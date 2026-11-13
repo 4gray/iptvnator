@@ -4,3 +4,6 @@ export * from './lib/multiview-session.model';
 export * from './lib/multiview-session.reducer';
 export * from './lib/multiview-session.selectors';
 export * from './lib/multiview-session.store';
+export * from './lib/multiview-anchor-registry';
+export * from './lib/multiview-entry.service';
+export * from './lib/multiview-ports';

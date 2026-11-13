@@ -18,3 +18,4 @@ export * from './lib/video-player/sidebar/sidebar.component';
 export * from './lib/vod-details/vod-details.component';
 export * from './lib/web-player-view/electron-stream-headers.service';
 export * from './lib/web-player-view/web-player-view.component';
+export * from './lib/multiview-anchor/multiview-anchor.directive';
