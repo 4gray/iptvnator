@@ -17,7 +17,6 @@ import androidx.media3.common.MediaItem;
 import androidx.media3.common.MimeTypes;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
-import androidx.media3.common.Timeline;
 import androidx.media3.common.TrackSelectionOverride;
 import androidx.media3.common.TrackSelectionParameters;
 import androidx.media3.common.Tracks;
@@ -169,11 +168,6 @@ public final class NativePlayerActivity extends Activity {
             }
 
             @Override
-            public void onTimelineChanged(Timeline timeline, int reason) {
-                rewindUnreachableResume();
-            }
-
-            @Override
             public void onTracksChanged(Tracks tracks) {
                 selectInitialCaption(tracks);
             }
@@ -181,12 +175,12 @@ public final class NativePlayerActivity extends Activity {
             @Override
             public void onPlaybackStateChanged(int state) {
                 if (state == Player.STATE_READY) {
+                    applyInitialSeek();
                     currentPlayerReady = true;
                     positionVerified = true;
                 }
                 if (state == Player.STATE_ENDED && player.getPlaybackState() == Player.STATE_ENDED
                     && !live && !isFinishing()) {
-                    if (rewindUnreachableResume()) return;
                     ended = true;
                     finish();
                 }
@@ -219,18 +213,17 @@ public final class NativePlayerActivity extends Activity {
         MediaItem.Builder media = new MediaItem.Builder().setUri(stream.toString());
         if (hls) media.setMimeType(MimeTypes.APPLICATION_M3U8);
         initialSeek = live ? 0 : position;
-        player.setMediaItem(media.build(), initialSeek > 0 ? initialSeek : C.TIME_UNSET);
+        player.setMediaItem(media.build());
         player.prepare();
     }
 
-    private boolean rewindUnreachableResume() {
-        long length = player.getDuration();
-        if (initialSeek <= 0 || length <= 0) return false;
+    private void applyInitialSeek() {
         long seek = initialSeek;
         initialSeek = 0;
-        if (seek < length) return false;
-        player.seekTo(0);
-        return true;
+        if (seek <= 0 || !player.isCurrentMediaItemSeekable()) return;
+        // An out-of-range seek during preparation can leave a progressive stream at EOF.
+        long length = player.getDuration();
+        if (length == C.TIME_UNSET || seek < length) player.seekTo(seek);
     }
 
     private void selectInitialCaption(Tracks tracks) {

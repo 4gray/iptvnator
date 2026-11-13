@@ -53,7 +53,7 @@ import {
     activityEventsFactory,
 } from './services/activity-sync.providers';
 import { providePortalPlaybackPositions } from './services/portal-playback-positions.service';
-import { provideAndroidPlaybackCheckpoint } from './services/android-playback-checkpoint';
+import { provideAndroidPlaybackCheckpoint } from './services/android-playback-checkpoint.providers';
 import { PwaService } from './services/pwa.service';
 import { shouldEnableServiceWorker } from './services/runtime-config';
 import { LazyStalkerPlaylistConnectionEditor } from './services/lazy-stalker-playlist-connection-editor';

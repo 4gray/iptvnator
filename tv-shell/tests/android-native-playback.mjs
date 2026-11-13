@@ -309,6 +309,17 @@ try {
     assert.equal((await page.evaluate(() => window.__nativeResult)).positionMs, 0,
         'Leaving before the VOD loads must not save the requested offset.');
 
+    await page.evaluate((url) => {
+        delete window.__nativeResult;
+        window.TvShell.postMessage(JSON.stringify(['playNative', crypto.randomUUID(), { url, startTime: 8 }]));
+    }, origin + '/synthetic-ac3.mkv');
+    await waitNative();
+    await waitAudio();
+    await back();
+    await page.waitForFunction(() => window.__nativeResult !== undefined);
+    assert.ok((await page.evaluate(() => window.__nativeResult)).positionMs >= 8000,
+        'Resume a VOD from a valid saved offset.');
+
     const playlistId = 'synthetic-reload-' + randomUUID();
     await page.evaluate(({ url, playlistId }) => {
         window.TvShell.postMessage(JSON.stringify(['playNative', crypto.randomUUID(), {

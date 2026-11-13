@@ -1,7 +1,7 @@
-import { DOCUMENT } from '@angular/core';
+import { ApplicationInitStatus, DOCUMENT } from '@angular/core';
 import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util/tokens';
 import { TestBed } from '@angular/core/testing';
-import { provideAndroidPlaybackCheckpoint } from './android-playback-checkpoint';
+import { provideAndroidPlaybackCheckpoint } from './android-playback-checkpoint.providers';
 
 const id = '00000000-0000-4000-8000-000000000001';
 const savedAt = 100_000;
@@ -24,13 +24,31 @@ const content = {
     },
 };
 
+it('skips checkpoint setup without the Android bridge', async () => {
+    const positionsFactory = jest.fn();
+    TestBed.configureTestingModule({
+        providers: [
+            { provide: DOCUMENT, useValue: { defaultView: window } },
+            {
+                provide: PORTAL_PLAYBACK_POSITIONS,
+                useFactory: positionsFactory,
+            },
+            provideAndroidPlaybackCheckpoint(),
+        ],
+    });
+
+    await TestBed.inject(ApplicationInitStatus).donePromise;
+
+    expect(positionsFactory).not.toHaveBeenCalled();
+});
+
 describe('restoring Android playback checkpoints', () => {
     const getPlaybackPosition = jest.fn();
     const savePlaybackPositionOrThrow = jest.fn();
     const postMessage = jest.fn();
     let documentWindow: EventTarget;
 
-    beforeEach(() => {
+    beforeEach(async () => {
         jest.resetAllMocks();
         getPlaybackPosition.mockResolvedValue(null);
         savePlaybackPositionOrThrow.mockResolvedValue(undefined);
@@ -55,7 +73,7 @@ describe('restoring Android playback checkpoints', () => {
                 provideAndroidPlaybackCheckpoint(),
             ],
         });
-        TestBed.inject(DOCUMENT);
+        await TestBed.inject(ApplicationInitStatus).donePromise;
     });
 
     function deliver(patch: Record<string, unknown> = {}) {

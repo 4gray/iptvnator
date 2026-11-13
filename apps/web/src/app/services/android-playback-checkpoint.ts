@@ -1,4 +1,4 @@
-import { DOCUMENT, inject, provideAppInitializer } from '@angular/core';
+import { inject } from '@angular/core';
 import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util/tokens';
 import { announceActivityChange } from '@iptvnator/services/activity-changes';
 import type {
@@ -17,62 +17,52 @@ type Checkpoint = {
     savedAt: number;
 };
 
-export function provideAndroidPlaybackCheckpoint() {
-    return provideAppInitializer(() => {
-        const window = inject(DOCUMENT).defaultView as
-            | (Window & { TvShell?: { postMessage(message: string): void } })
-            | null;
-        const shell = window?.TvShell;
-        if (!window || !shell || typeof shell.postMessage !== 'function')
+export function installAndroidPlaybackCheckpoint(
+    window: Window,
+    shell: { postMessage(message: string): void }
+) {
+    const positions = inject(PORTAL_PLAYBACK_POSITIONS);
+    let pending: string | undefined;
+    window.addEventListener(checkpointEvent, async (event) => {
+        if (!(event instanceof CustomEvent)) return;
+        const data = event.detail as Checkpoint | null;
+        if (
+            !data ||
+            typeof data.id !== 'string' ||
+            !/^[a-f0-9-]{36}$/.test(data.id) ||
+            pending !== undefined
+        )
             return;
-        const positions = inject(PORTAL_PLAYBACK_POSITIONS);
-        let pending: string | undefined;
-        window.addEventListener(checkpointEvent, async (event) => {
-            if (!(event instanceof CustomEvent)) return;
-            const data = event.detail as Checkpoint | null;
-            if (
-                !data ||
-                typeof data.id !== 'string' ||
-                !/^[a-f0-9-]{36}$/.test(data.id) ||
-                pending !== undefined
-            )
-                return;
-            pending = data.id;
-            try {
-                const position = readCheckpoint(data);
-                if (position) {
-                    const [playlistId, record] = position;
-                    const previous = await positions.getPlaybackPosition(
-                        playlistId,
-                        record.contentXtreamId,
-                        record.contentType
-                    );
-                    const previousSavedAt = Date.parse(
-                        previous?.updatedAt ?? ''
-                    );
-                    if (
-                        !Number.isFinite(previousSavedAt) ||
-                        previousSavedAt < data.savedAt
-                    ) {
-                        await positions.savePlaybackPositionOrThrow(
-                            playlistId,
-                            record
-                        );
-                        announceActivityChange();
-                    }
-                }
-                shell.postMessage(
-                    JSON.stringify([
-                        'acknowledgeNativePlaybackCheckpoint',
-                        data.id,
-                    ])
+        pending = data.id;
+        try {
+            const position = readCheckpoint(data);
+            if (position) {
+                const [playlistId, record] = position;
+                const previous = await positions.getPlaybackPosition(
+                    playlistId,
+                    record.contentXtreamId,
+                    record.contentType
                 );
-            } catch {
-                // Keep the checkpoint in Android until a page can persist it.
-            } finally {
-                pending = undefined;
+                const previousSavedAt = Date.parse(previous?.updatedAt ?? '');
+                if (
+                    !Number.isFinite(previousSavedAt) ||
+                    previousSavedAt < data.savedAt
+                ) {
+                    await positions.savePlaybackPositionOrThrow(
+                        playlistId,
+                        record
+                    );
+                    announceActivityChange();
+                }
             }
-        });
+            shell.postMessage(
+                JSON.stringify(['acknowledgeNativePlaybackCheckpoint', data.id])
+            );
+        } catch {
+            // Keep the checkpoint in Android until a page can persist it.
+        } finally {
+            pending = undefined;
+        }
     });
 }
 

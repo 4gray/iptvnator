@@ -143,12 +143,15 @@ watch time and VOD position only while the originating playback owner is current
 The final native position settles the resume guard and persists immediately,
 including when the viewer seeks and leaves before the watch-history threshold
 or Media3 cannot determine the VOD duration.
+Media3 applies a saved offset after the stream is ready and starts at the
+default position if the stream is shorter than that offset.
 A natural VOD end closes the native activity and reaches the same series
 autoplay handler as the web player. Back and Home return a position checkpoint.
 If Android recreates the WebView during playback, the shell returns the final
 position for the original portal item to the same storage origin. The new
-screen saves the position through the portal's resume store. Autoplay and
-watch-history confirmation require the original screen.
+screen saves the position through the portal's resume store. The checkpoint
+listener loads during web startup only when the Android bridge is available.
+Autoplay and watch-history confirmation require the original screen.
 The web engine can resume explicitly from that position. The
 [Android shell guide](../../tv-shell/README.md#trying-the-built-in-player)
 documents eligible streams, the bridge's header policy and device validation.
