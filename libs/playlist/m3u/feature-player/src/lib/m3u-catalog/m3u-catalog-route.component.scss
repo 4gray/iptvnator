@@ -1,0 +1,51 @@
+:host {
+    display: block;
+    height: 100%;
+    min-height: 0;
+}
+
+.catalog {
+    display: flex;
+    height: 100%;
+    min-height: 0;
+}
+
+.catalog__groups {
+    flex: 0 0 240px;
+    min-width: 0;
+    overflow-y: auto;
+    border-right: 1px solid var(--mat-sys-outline-variant, rgba(0, 0, 0, 0.12));
+}
+
+.catalog__content {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-y: auto;
+    // Same gutter as the portal grids. Without it the cards sit on the pane
+    // edges and this scroll container clips their focus ring and hover lift.
+    padding: 16px 20px 20px;
+    box-sizing: border-box;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--app-muted-color) 55%, transparent)
+        transparent;
+}
+
+// The group rail costs more than it gives on a phone: the grid is the
+// content, and a 240px column leaves it too narrow to show a poster row.
+@media (max-width: 720px) {
+    .catalog {
+        flex-direction: column;
+    }
+
+    .catalog__groups {
+        flex: 0 0 auto;
+        max-height: 30vh;
+        border-right: none;
+        border-bottom: 1px solid
+            var(--mat-sys-outline-variant, rgba(0, 0, 0, 0.12));
+    }
+
+    .catalog__content {
+        padding: 12px 16px 16px;
+    }
+}

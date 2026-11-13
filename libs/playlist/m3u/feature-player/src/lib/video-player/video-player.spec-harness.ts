@@ -9,6 +9,7 @@ import {
     selectCurrentEpgProgram,
     selectFavorites,
 } from '@iptvnator/m3u-state';
+import { selectChannelsPlaylistId } from '@iptvnator/m3u-state/catalog-index';
 import {
     Channel,
     EpgProgram,
@@ -24,6 +25,8 @@ import { BehaviorSubject, EMPTY, of } from 'rxjs';
  * Jest gives every spec file its own module registry.
  */
 export const playlistId = signal('playlist-1');
+/** The playlist the stored rows belong to; the active one by default. */
+export const channelsPlaylistId = signal<string | null>('playlist-1');
 export const activeChannel = signal<Channel | null>(null);
 export const activePlaybackUrl = signal<string | null>(null);
 export const channels = signal<Channel[]>([]);
@@ -59,6 +62,8 @@ export const storeMock = {
                 return channels;
             case selectChannelsLoading:
                 return channelsLoading;
+            case selectChannelsPlaylistId:
+                return channelsPlaylistId;
             case selectCurrentEpgProgram:
                 return currentEpgProgram;
             case selectActiveEpgProgram:

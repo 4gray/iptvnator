@@ -740,6 +740,8 @@
         "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "Quando uma transmissão em reprodução é interrompida, o leitor integrado volta a carregá-la com intervalos crescentes, até 6 tentativas. Se a transmissão nunca chegou a iniciar, é necessário utilizar Tentar novamente manualmente.",
         "VOD_AUTO_FAILOVER": "Trocar de fonte automaticamente ao falhar a reprodução",
         "VOD_AUTO_FAILOVER_DESCRIPTION": "Quando um filme falha na reprodução e existe noutra playlist, muda automaticamente para essa fonte e mantém a posição. Desativado por predefinição. A mudança é sempre anunciada porque a outra fonte pode ter uma dobragem diferente.",
+        "M3U_CATALOG_TABS": "Secções de filmes e séries",
+        "M3U_CATALOG_TABS_DESCRIPTION": "Mostra secções separadas de Filmes e Séries para playlists que contêm filmes ou episódios, em vez de listar cada entrada como um canal em direto.",
         "NAV_PARENTAL": "Controlo parental",
         "PARENTAL_LOCK": {
             "TITLE": "Controlo parental",
@@ -1099,6 +1101,13 @@
             "SEARCH_PLACEHOLDER": "Pesquisar grupos…",
             "NO_RESULTS": "Nenhum grupo correspondente encontrado",
             "SAVE": "Guardar"
+        },
+        "CATALOG": {
+            "NO_MOVIES": "Nenhum filme nesta playlist",
+            "NO_SERIES": "Nenhuma série nesta playlist",
+            "EMPTY_HINT": "Esta playlist contém apenas canais em direto.",
+            "EMPTY_HINT_MOVIES": "Os filmes desta playlist estão em Filmes.",
+            "EMPTY_HINT_SERIES": "As séries desta playlist estão em Séries."
         }
     },
     "TOP_MENU": {
@@ -1660,6 +1669,8 @@
             "AGE_RATING_COUNTRY_FALLBACK": "Sem classificação para {{country}}; a mostrar {{fallback}}.",
             "AGE_RATING_MULTIPLE": "As classificações variam entre versões."
         },
+        "SEASON_COUNT_ONE": "1 temporada",
+        "SEASON_COUNT_OTHER": "{{count}} temporadas",
         "SCROLL_LEFT": "Deslocar para a esquerda",
         "SCROLL_RIGHT": "Deslocar para a direita",
         "EPISODE_NAVIGATION": "Navegação de episódios",

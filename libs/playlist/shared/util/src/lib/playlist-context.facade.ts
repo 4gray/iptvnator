@@ -10,6 +10,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import {
+    m3uCatalogSource,
     PlaylistActions,
     selectActivePlaylistId,
     selectAllPlaylistsMeta,
@@ -21,7 +22,7 @@ import {
     PortalProvider,
     PortalRailSection,
 } from '@iptvnator/portal/shared/util';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import { PlaylistRecentHistoryService } from './playlist-recent-history.service';
 
 export interface PlaylistRouteContext {
@@ -66,12 +67,28 @@ const STALKER_SECTIONS = [
     'search',
     'downloads',
 ] as const;
-const M3U_SECTIONS = ['all', 'groups', 'favorites', 'recent'] as const;
+const M3U_SECTIONS = [
+    'all',
+    'groups',
+    'vod',
+    'series',
+    'favorites',
+    'recent',
+] as const;
+/**
+ * M3U sections that exist only for a playlist holding films or episodes.
+ * Unlike every other section they are a property of one playlist's content,
+ * so they are restored from that playlist's own memory but never carried to
+ * another source: a live-only playlist offers no Movies link, and following
+ * the viewer there would open a section its rail does not show.
+ */
+const M3U_CATALOG_SECTIONS: ReadonlySet<string> = new Set(['vod', 'series']);
 
 @Injectable({ providedIn: 'root' })
 export class PlaylistContextFacade {
     private readonly destroyRef = inject(DestroyRef);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly settingsStore = inject(SettingsStore);
     private readonly router = inject(Router);
     private readonly store = inject(Store);
     private readonly recentHistory = inject(PlaylistRecentHistoryService);
@@ -234,7 +251,8 @@ export class PlaylistContextFacade {
             const section = this.resolveTargetSection(
                 provider,
                 routeContext.section,
-                playlistId
+                playlistId,
+                routeContext.playlistId
             );
             return [...prefix, 'playlists', playlistId, section];
         }
@@ -306,13 +324,18 @@ export class PlaylistContextFacade {
     private resolveTargetSection(
         provider: PortalProvider,
         currentSection: PortalRailSection | null,
-        targetPlaylistId: string
+        targetPlaylistId: string,
+        currentPlaylistId: string | null = null
     ): string {
         const fromCurrent = this.normalizeSectionForProvider(
             currentSection,
             provider
         );
-        if (fromCurrent) {
+        if (
+            fromCurrent &&
+            (targetPlaylistId === currentPlaylistId ||
+                !this.isPlaylistBoundSection(fromCurrent, provider))
+        ) {
             return fromCurrent;
         }
 
@@ -327,7 +350,20 @@ export class PlaylistContextFacade {
                 playlistMemory.section,
                 provider
             );
-            if (normalizedPlaylistSection) {
+            // A remembered Movies/Series is only worth restoring while the
+            // rail still offers it: with the setting off, or once a refresh
+            // has emptied the section, the viewer would land on a page that
+            // has no link back.
+            const catalogSectionOff =
+                this.isPlaylistBoundSection(
+                    normalizedPlaylistSection ?? '',
+                    provider
+                ) &&
+                !this.offersCatalogSection(
+                    targetPlaylistId,
+                    normalizedPlaylistSection ?? ''
+                );
+            if (normalizedPlaylistSection && !catalogSectionOff) {
                 return normalizedPlaylistSection;
             }
         }
@@ -337,7 +373,10 @@ export class PlaylistContextFacade {
             providerMemory,
             provider
         );
-        if (normalizedProviderSection) {
+        if (
+            normalizedProviderSection &&
+            !this.isPlaylistBoundSection(normalizedProviderSection, provider)
+        ) {
             return normalizedProviderSection;
         }
 
@@ -346,6 +385,24 @@ export class PlaylistContextFacade {
         }
 
         return 'vod';
+    }
+
+    private isPlaylistBoundSection(
+        section: string,
+        provider: PortalProvider
+    ): boolean {
+        return provider === 'playlists' && M3U_CATALOG_SECTIONS.has(section);
+    }
+
+    private offersCatalogSection(playlistId: string, section: string): boolean {
+        if (this.settingsStore.m3uCatalogTabs?.() === false) {
+            return false;
+        }
+
+        // Unknown until the playlist has been opened this session; then the
+        // memory is trusted and the page's empty state covers a miss.
+        const known = m3uCatalogSource()?.sectionsOf(playlistId) ?? null;
+        return !known || (section === 'vod' ? known.movies : known.series);
     }
 
     private supportsSectionNavigation(provider: PortalProvider): boolean {

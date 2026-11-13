@@ -257,6 +257,53 @@ describe('ChannelListContainerComponent', () => {
         );
     });
 
+    it('manages every group of the playlist when the list shows only part of it', () => {
+        // A split M3U playlist lists its live rows only; its film groups
+        // must still be hideable and lockable from the management dialog.
+        const inGroup = (id: string, group: string) => ({
+            ...createChannel(id, `https://example.com/${id}.m3u8`),
+            group: { title: group },
+        });
+        fixture.componentInstance.channelList = [inGroup('live', 'News')];
+        fixture.componentRef.setInput('managementChannels', [
+            inGroup('live', 'News'),
+            inGroup('film', 'Films'),
+        ]);
+
+        expect(
+            fixture.componentInstance.managementGroups().map((g) => g.key)
+        ).toEqual(['News', 'Films']);
+        expect(
+            fixture.componentInstance.displayedChannels().map((c) => c.id)
+        ).toEqual(['live']);
+    });
+
+    it('keeps the groups view for a split playlist that lists no row but has groups to manage', () => {
+        // A film-only M3U playlist hands the list no live row; the manage
+        // action in the groups view is the only way to lock or hide there.
+        const film = {
+            ...createChannel('film', 'https://example.com/movie/film.mp4'),
+            group: { title: 'Films' },
+        };
+        const component = fixture.componentInstance;
+        component.channelList = [];
+        fixture.componentRef.setInput('activeView', 'groups');
+
+        // A host that passes no management list keeps the empty state.
+        expect(component.showChannelViews()).toBe(false);
+
+        fixture.componentRef.setInput('managementChannels', [film]);
+        expect(component.showChannelViews()).toBe(true);
+
+        // Only the groups view carries the manage action.
+        fixture.componentRef.setInput('activeView', 'all');
+        expect(component.showChannelViews()).toBe(false);
+
+        fixture.componentRef.setInput('activeView', 'groups');
+        fixture.componentRef.setInput('managementChannels', []);
+        expect(component.showChannelViews()).toBe(false);
+    });
+
     it('does not clear the shared channel list on destroy', () => {
         fixture.detectChanges();
 

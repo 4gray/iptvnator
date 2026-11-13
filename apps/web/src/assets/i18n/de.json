@@ -740,6 +740,8 @@
         "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "Wenn ein laufender Stream unterbrochen wird, lädt der eingebettete Player ihn in bis zu 6 Versuchen mit immer längeren Wartezeiten neu, bevor er aufgibt. Ein Stream, der gar nicht erst gestartet ist, erfordert weiterhin ein manuelles „Erneut versuchen“.",
         "VOD_AUTO_FAILOVER": "Quelle bei Wiedergabefehler automatisch wechseln",
         "VOD_AUTO_FAILOVER_DESCRIPTION": "Wenn sich ein Film nicht abspielen lässt und derselbe Film in einer anderen Playlist vorhanden ist, wird automatisch dorthin gewechselt und die Wiedergabeposition beibehalten. Standardmäßig deaktiviert; der Wechsel wird immer angekündigt, da eine andere Quelle eine andere Synchronfassung enthalten kann.",
+        "M3U_CATALOG_TABS": "Bereiche für Filme und Serien",
+        "M3U_CATALOG_TABS_DESCRIPTION": "Zeigt eigene Bereiche für Filme und Serien bei Playlists, die Filme oder Episoden enthalten, statt jeden Eintrag als Live-Kanal zu listen.",
         "NAV_PARENTAL": "Kindersicherung",
         "PARENTAL_LOCK": {
             "TITLE": "Kindersicherung",
@@ -1099,6 +1101,13 @@
             "SEARCH_PLACEHOLDER": "Gruppen suchen...",
             "NO_RESULTS": "Keine passenden Gruppen gefunden",
             "SAVE": "Speichern"
+        },
+        "CATALOG": {
+            "NO_MOVIES": "Keine Filme in dieser Playlist",
+            "NO_SERIES": "Keine Serien in dieser Playlist",
+            "EMPTY_HINT": "Diese Playlist enthält nur Live-Kanäle.",
+            "EMPTY_HINT_MOVIES": "Die Filme dieser Playlist stehen unter Filme.",
+            "EMPTY_HINT_SERIES": "Die Serien dieser Playlist stehen unter Serien."
         }
     },
     "TOP_MENU": {
@@ -1660,6 +1669,8 @@
             "AGE_RATING_COUNTRY_FALLBACK": "Keine Freigabe für {{country}}; angezeigt wird {{fallback}}.",
             "AGE_RATING_MULTIPLE": "Die Freigaben unterscheiden sich je nach Veröffentlichung."
         },
+        "SEASON_COUNT_ONE": "1 Staffel",
+        "SEASON_COUNT_OTHER": "{{count}} Staffeln",
         "SCROLL_LEFT": "Nach links scrollen",
         "SCROLL_RIGHT": "Nach rechts scrollen",
         "EPISODE_NAVIGATION": "Episodennavigation",

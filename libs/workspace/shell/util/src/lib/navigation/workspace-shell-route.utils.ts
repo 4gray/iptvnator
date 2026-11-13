@@ -132,6 +132,8 @@ function resolvePortalSearchMode(
     if (context.provider === 'playlists') {
         return section === 'all' ||
             section === 'groups' ||
+            section === 'vod' ||
+            section === 'series' ||
             section === 'favorites' ||
             section === 'recent'
             ? 'local-filter'
@@ -266,6 +268,13 @@ export function parseWorkspaceShellRoute(url: string): WorkspaceShellRoute {
             section === 'downloads' &&
             segments.length === 5 &&
             Boolean(segments[4]);
+        // /workspace/playlists/:id/series/:seriesId is one series' page,
+        // not the Series grid: it has nothing a header filter could narrow.
+        const hidesRouteSearch =
+            isFocusedDownloadDetail ||
+            (provider === 'playlists' &&
+                section === 'series' &&
+                Boolean(segments[4]));
 
         return {
             kind: 'portal',
@@ -275,10 +284,10 @@ export function parseWorkspaceShellRoute(url: string): WorkspaceShellRoute {
                 section === 'favorites' &&
                 (provider === 'xtreams' || provider === 'stalker') &&
                 queryParams.get('scope') === 'all',
-            searchMode: isFocusedDownloadDetail
+            searchMode: hidesRouteSearch
                 ? 'none'
                 : resolveRouteSearchMode('portal', context, section),
-            usesQuerySearch: isFocusedDownloadDetail
+            usesQuerySearch: hidesRouteSearch
                 ? false
                 : usesWorkspaceRouteQuerySearch(context, section),
             contextPanel: isFocusedDownloadDetail

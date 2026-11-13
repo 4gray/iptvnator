@@ -2,6 +2,7 @@ import { NO_ERRORS_SCHEMA, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
+import { M3uCatalogIndexService } from '@iptvnator/m3u-state/catalog-index';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { BehaviorSubject, of } from 'rxjs';
 import {
@@ -157,6 +158,17 @@ describe('VideoPlayerComponent fullscreen channel panel + zapping', () => {
                     },
                 },
                 { provide: Store, useValue: storeMock },
+                {
+                    // The live views read their rows through the catalog
+                    // index now, so films and episodes stop appearing in
+                    // them. This spec is about zapping, so it hands back
+                    // the same channels it always did.
+                    provide: M3uCatalogIndexService,
+                    useValue: {
+                        liveChannels: channels,
+                        splitsCatalog: signal(false),
+                    },
+                },
                 translateServiceProvider,
                 { provide: DataService, useValue: { sendIpcEvent: jest.fn() } },
                 {
@@ -363,6 +375,24 @@ describe('VideoPlayerComponent fullscreen channel panel + zapping', () => {
     });
 
     describe('fullscreen panel rows', () => {
+        it('withholds radio stations from the panel live list too', () => {
+            // All and Groups in the panel read the live split, and a radio
+            // row there would leave fullscreen just the same.
+            const radioChannel = {
+                ...sampleChannel,
+                id: 'radio-2',
+                url: 'http://localhost/radio-2.mp3',
+                name: 'Sample FM 2',
+                radio: 'true',
+            } as Channel;
+            channels.set([sampleChannel, radioChannel, nextChannel]);
+
+            expect(component.fullscreenPanelLiveChannels()).toEqual([
+                sampleChannel,
+                nextChannel,
+            ]);
+        });
+
         it('withholds recognized movies only while they would open the VOD detail', () => {
             // With enrichment on, a movie row swaps the live layout for the
             // VOD detail shell, which replaces the fullscreen-owning player —

@@ -706,7 +706,7 @@ channel-list-container/
 
 ### Loading States
 
-- `M3uWorkspaceRouteSession` owns route-driven channel loading for the player/sidebar routes: `all` and `groups`.
+- `M3uWorkspaceRouteSession` owns route-driven channel loading for every section that reads the channel array: `all`, `groups`, `vod` and `series`. The catalog sections derive everything they show from that array, so a section missing from `isLoadedSection` opens permanently empty. Moving between two loaded sections does not re-dispatch `setChannels` — the catalog index memoises on the array reference, so a needless dispatch would rebuild it on every tab change. A read that failed is the exception: the next loaded section retries it instead of staying empty. That holds because ONE session, provided on a componentless parent of every M3U child route, serves all sections: route-level injectors outlive the route once created, so a session per route left one more live session per section visited and made each section's first visit re-read and re-parse the whole playlist. Changing playlist on a section that reads no channels (`favorites`, `recent`) clears the stored rows, so the rail never counts one playlist's catalog as another's.
 - The route session sets `channelsLoading` before `getPlaylist()` resolves and clears it when `ChannelActions.setChannels` lands.
 - The route session dispatches reducer-only `FavoritesActions.hydrateFavorites`
   after that persisted read. Hydration must not use the persistence-bearing
@@ -1928,11 +1928,261 @@ Routes live in `libs/playlist/m3u/feature-player/src/lib/m3u-workspace.routes.ts
 (`createM3uWorkspaceRoutes()`), nested under the workspace shell:
 
 ```
-/workspace/playlists/:id            # M3U player (redirects to .../all)
-/workspace/playlists/:id/favorites  # Favorites collection view
-/workspace/playlists/:id/recent     # Recently viewed collection view
-/workspace/playlists/:id/:view      # Video player with channel list view
+/workspace/playlists/:id                  # M3U player (redirects to .../all)
+/workspace/playlists/:id/favorites        # Favorites collection view
+/workspace/playlists/:id/recent           # Recently viewed collection view
+/workspace/playlists/:id/vod              # Movies catalog (poster grid)
+/workspace/playlists/:id/series           # Series catalog (poster grid)
+/workspace/playlists/:id/series/:seriesId # Series detail (seasons/episodes)
+/workspace/playlists/:id/:view            # Video player with channel list view
 ```
+
+`vod` and `series` are declared BEFORE the `:view` catch-all, which would
+otherwise swallow them and open the player on a non-existent channel view.
+They reuse the portals' own `vod`/`series` section tokens, so the rail
+tooltips, the search mode (`local-filter`) and the section memory recognise
+them without a new vocabulary.
+
+### Content Catalog Sections
+
+An M3U playlist is not necessarily a list of live channels. In a large
+Xtream-exported playlist (~63k rows) typically only about 7% of the rows are
+live; the rest are films (~29%) and episode rows (~64%).
+`buildM3uCatalogIndex` (`libs/shared/m3u-utils`) splits the array by derived
+content kind and `buildM3uSeriesCatalog` collapses the episode rows into
+series, typically 20-50 rows per series. Both are memoised
+`computed()`s in `libs/m3u-state`, keyed implicitly on the channel array
+reference: the index on `M3uCatalogIndexService`, the series layer on
+`M3uSeriesCatalogService`. The split is for the initial payload: esbuild
+puts every module a barrel re-exports in the chunk the launch loads once the
+startup path reaches that barrel, even when only lazy routes use it. So the
+index service, the classifier and the series code sit behind their own entry
+points (`@iptvnator/m3u-state/catalog-index`,
+`@iptvnator/shared/m3u-utils/catalog`, `@iptvnator/m3u-state/series-catalog`,
+`@iptvnator/shared/m3u-utils/series`) and load with the M3U routes. Import
+them from those, never through the two barrels. The startup path (the shell
+rail, section memory, channel zapping in the root effects) reads the index
+through the `m3uCatalogSource` signal, which the index sets when the
+M3U route session creates it; until then every answer is "not known".
+`pnpm run perf:initial-bytes:check` catches a regression. There is no schema
+change, and
+the catalog itself behaves identically in the PWA. Episode progress is the
+exception: it goes through `PlaybackPositionService`, whose storage is the
+Electron SQLite bridge, so in the PWA episodes neither resume nor keep
+watched marks (the same limit Stalker positions have there).
+
+Both derivations run synchronously on the UI thread, so their cost is a
+visible stall. The index runs whenever a playlist opens (the live list
+renders `liveChannels`); the series layer runs on the first visit to Series.
+Keep them to one pass over the rows with no per-row allocation beyond the
+output:
+
+- No `URL` objects per row. `getPlaybackMediaExtensionFromUrl` returns early
+  for a URL without a `?`, and `classifyM3uEntry` reads a row's extension
+  once (the DASH check is that extension compared with `mpd`).
+- `buildM3uSeriesCatalog` resolves a series identity (tag split, title
+  normalization, year) once per distinct parsed title within one build, not
+  once per row: every episode of a show repeats its title. A row filed under
+  its file name (blank name) is never shared.
+- `m3u-catalog-index.perf.spec.ts` guards both as ratios to a reference pass
+  timed in the same process (CPU time, not wall-clock).
+
+Measured on synthetic playlists with a realistic mix (7.5% live, 28.5%
+films, 64% episodes, unique episode coordinates), median CPU time, macOS:
+
+| Rows    | Index before → after | Series layer before → after |
+| ------- | -------------------- | --------------------------- |
+| ~63,000 | 28.5 ms → 14 ms      | 75.6 ms → 37 ms             |
+| 250,000 | 113 ms → 55 ms       | 296 ms → 138 ms             |
+
+In the built PWA (headless Chromium, three rounds) opening a 250,000-row
+playlist from storage takes as long as on a build without the catalog
+(about 450 ms to the first row), and the Series section's longest task
+dropped from 284 ms to 149 ms. The remaining series cost is placement and id
+minting (`placeNumberedEpisode`, `remintM3uEpisodeIds`); placement probes
+the extra rows of a coordinate linearly, which only matters when one
+coordinate holds dozens of rows.
+
+- `classifyM3uEntry` resolves every ambiguity toward `live`, because a
+  hidden channel leaves the sidebar, numbering and zapping while a film left
+  live only keeps the old behaviour. Path evidence first: `/live/` is live,
+  `/series/` an episode, the Xtream `/movie/` segment a film whatever the
+  container. DASH (`.mpd`) is never a film: it is live unless `/series/`
+  makes it an episode, which the series page plays inline. The folder
+  names `/movies/` and `/vod/` count only for a file, not for a streaming
+  container (`.m3u8`, `.m3u`, `.ts`). A container
+  extension with no path evidence leaves the live list only when the row
+  states no broadcast — no `tvg-id`, no catch-up window —, is not `.flv`
+  (HTTP-FLV live delivery), and its name reads like a film or an episode: a
+  strong episode code makes an episode, a release year as its own token
+  ("Title (2021)", "Title - 2021") a film. A plainly named clip
+  ("Synthetic Clip.webm", a loop channel's `.mp4`) stays a channel, so
+  hand-made playlists and the E2E fixtures that play a local clip are
+  unchanged. Broadcast evidence is a non-blank VALUE (`tvg-id`, `tvg-rec`,
+  `timeshift`, or any `catchup` field): the parser gives every row blank
+  `tvg` and `catchup` objects, so their presence proves nothing.
+- The live views render `M3uCatalogIndexService.liveChannels` rather than the
+  whole array, so the sections are a SPLIT and not an addition. It falls back
+  to the complete list when the split is off or the playlist is live-only.
+- The store records which playlist its channel rows were read from
+  (`channelsPlaylistId`, set by `setChannels({ channels, playlistId })`).
+  Off an M3U route the rail follows the ACTIVE playlist, which can change
+  without any rows being loaded, so the rail counts the catalog only when
+  the rows are that playlist's.
+  `M3uCatalogIndexService.sectionsOf(playlistId)` is the one answer to
+  "does this playlist have films / series": from the rows while they are
+  that playlist's, from the last such answer otherwise (loading, Favorites
+  and Recent, off-route), never from another playlist. The rail reads it
+  for its links and section memory reads it before restoring a remembered
+  `vod`/`series`, together with the setting.
+- The Movies, Series and series-detail pages are `loadComponent` routes:
+  a live-only playlist never fetches the catalog grid or the series code.
+- The rail offers each catalog section only when the playlist has rows of
+  that kind (`counts.movie` / `counts.episode`) AND `Settings.m3uCatalogTabs`
+  is not explicitly `false` — a playlist with films but no series is
+  ordinary, and a permanently empty rail section is worse than no rail change
+  at all. The empty state stays reachable by deep link and names whichever
+  kind the playlist DOES hold.
+- `vod` and `series` are bound to one playlist's content, so section memory
+  (`PlaylistContextFacade`) restores them only from that playlist's own
+  record and never carries them to another source; a switch from either, or
+  from a portal's `vod`/`series`, opens the target M3U playlist at `all`.
+- `M3uCatalogIndexService.index` (and the series layer built on it) is empty
+  while `channelsLoading` is set. A playlist switch keeps the previous
+  playlist's rows in the store until the new ones arrive, and a catalog built
+  from them would open another source's film or save episode progress under
+  the new playlist's id. The catalog shows the grid skeleton meanwhile; the
+  live sidebar keeps reading the stored rows, as it did before the split.
+- The catalog honours the parental lock the way the channel list does.
+  `M3uCatalogIndexService.withheldGroups` is empty while the lock is
+  inactive or unlocked, the playlist's locked group titles while it is
+  active, and `'all'` when the lock store cannot be read (fail closed); it
+  follows `ParentalLockService.version`. `index` and the catalog group
+  rails drop withheld groups (`withholdM3uCatalogGroups`);
+  `hasNonLiveContent` does not, so locking a group never turns the split
+  off. `liveChannels` keeps them: the channel list withholds locked groups
+  itself and builds its "N locked · Enter PIN to show" row from them, and
+  the app-wide enforcement resets a locked channel that zapping reaches.
+  The sidebar also gets the whole playlist as `managementChannels`, so the
+  group management dialog (hide, lock) and the locked-group count cover
+  film and series groups too. The series layer aggregates EVERY episode
+  row (`allEpisodes`) and withholds afterwards (`withholdM3uSeriesGroups`):
+  placement and id minting see the whole series, so locking or unlocking a
+  group never moves an episode id or its watch history.
+- The Series page plays from its own state and launches MPV/VLC itself, so
+  the app-wide enforcement (which watches the store's active channel) and
+  the channel player's history effect never see its episodes.
+  `M3uEpisodeAccessService` applies both: a withheld row asks for the PIN
+  (`requestUnlock`) before it plays inline or externally, a lock `version`
+  change stops an episode whose group is now withheld, and every launch is
+  recorded in Recently viewed through `PlaybackHistoryGate` — inline once
+  playback is confirmed under the playlist-scoped episode session key,
+  external by URL. `M3uRecentlyViewedRecorder` is the one writer both the
+  channel player and the Series page use.
+- An episode with DRM — `drm`, or `#KODIPROP` lines kept only in `raw` by
+  older imports — plays inline under every player setting, like DASH: MPV
+  and VLC cannot receive the keys. `m3uPlaybackKey` reads the same effective
+  DRM when it decides whether a repeated URL is the same stream.
+- The catalog group rails leave out the playlist's `hiddenGroupTitles`, as
+  the Groups view does. Search still spans the whole section, like the
+  channel list's search: hiding is a preference, not a lock.
+- A movie card hands its row to the `all` route as navigation state
+  (`openM3uChannelUrl` plus `openM3uChannelId`), which is the path global
+  search already uses; state survives the reset and reload a cold or
+  cross-playlist entry performs, which a dispatch made before navigating
+  would not. The id selects the
+  clicked row when several share one URL, and a stale id falls back to the
+  URL (`findM3uChannelOpenTarget`). The handoff is consumed only once the
+  stored rows are the target playlist's (`selectChannelsPlaylistId`, not
+  loading), so a switch never opens another playlist's row that shares the
+  URL. A handed-over film or episode has no row in the split list to
+  double-click, so the consumer requests playback for it
+  (`handoffAction`); live rows and the Favorites/Recent views keep a plain
+  selection.
+- Every host that hands the channel list a split or partial list also
+  passes `managementChannels` (the sidebar and the fullscreen channel
+  panel): group management lists every group of the playlist, the Groups
+  view renders whenever there is a group to manage, and Save keeps hidden
+  or locked titles the dialog did not list. A split playlist with no live
+  rows shows a hint under "No channels found" pointing at Movies or Series
+  (`m3uLiveEmptyHintKey`).
+- Films are favourited from the M3U movie detail; films and episodes from
+  their Recently viewed cards. A dashboard Recent/Favorites click on an
+  M3U film or episode is resolved by the collection page, which hands the
+  row to the playlist's `all` route as above.
+- Series episode ids are derived from `series key × season × episode`, never
+  from the URL: providers rotate tokens through the path on refresh, so a
+  URL-keyed id would silently drop every watched flag on the next auto
+  update. The hash is 48-bit (`hashM3uId`) because these ids key persisted
+  playback positions and a 31-bit hash collides at ≈0.4% over ~42k keys.
+  The one exception is a row the parser reads no number from. It has no
+  coordinates, and several such rows of one show are listed as separate
+  season-1 entries in playlist order; that slot moves on a reorder, so the
+  id is keyed on `rowKey`, the file name the URL ends in — the part of a
+  URL the rotating tokens (directories, query) do not touch. Unnumbered
+  rows of one series that share a file name are keyed on their whole URL:
+  a rotated token then drops the mark instead of moving it to another row.
+  `remintM3uEpisodeIds` is the only place an episode id is derived; it
+  hashes the series key once (`createM3uIdHasher`) and continues it per
+  episode.
+- No episode row with its own URL is hidden behind another
+  (`m3u-series-placement.util.ts`). The first row at a season×episode
+  holds the coordinate and the id derived from it; a later row there with
+  another URL (a second quality, a "Part 2", a trailer, a show whose title
+  merely normalizes the same) is listed beside it under the same number
+  with a `rowKey` id. `alternatives` holds only the same stream listed again
+  (same URL, request headers and DRM; `m3uPlaybackKey`).
+  A year written in brackets ("Harbor Lights (2018)") counts as the stated year,
+  so remakes spelled that way reach the remake split.
+- `/series/` means an episode unless the row is a streaming container that
+  also states a broadcast — a channel in a folder named `series`.
+- The player asks ONE rule whether a row opens as a film
+  (`isM3uMovieRow`): while the split is in effect the classifier decides
+  for the rows it files as films or episodes, and a row it leaves live is
+  still answered by the original `isLikelyM3uMovie`; with the split off
+  that gate answers alone. Next/previous in the audio player
+  steps through the list the viewer sees (`resolveAdjacentChannel`).
+- Inline episode playback carries `contentInfo` (the episode's id and
+  coordinates), which is what makes the shared inline player offer its
+  fullscreen episode panel; a pick there arrives as `upNextEpisodeSelected`.
+  An external-player launch carries none and stays untracked.
+  The series page also hands the inline player the stored M3U volume and
+  answers its `externalFallbackRequested` (the failure overlay's "open in
+  MPV/VLC"), again without the episode identity.
+- A title whose rows state at most one year is one series under a year-free
+  key. When a second year appears (a remake), the earliest year keeps that
+  key, so a refresh that adds the remake leaves the original's ids and watch
+  history in place. Known limit, because the previous catalog is not
+  stored: an original added AFTER its remake takes the year-free key, so it
+  inherits the remake's watched marks and resume points while the remake
+  starts empty; and once a second year appears, rows with no year become
+  their own series, losing progress on any coordinate only they carried.
+- Episode progress reaches storage at most once per 15 s per episode; the
+  held-back tick is written when the player closes, another episode starts,
+  another series opens, or the page is destroyed.
+- The series detail page feeds the portals' own `PortalDetailShellComponent`
+  / `SeasonContainerComponent` / `PortalInlinePlayerComponent` through an
+  adapter in the feature library. Nothing shared is forked.
+- With MPV or VLC saved as the player, an episode click launches it through
+  `PORTAL_PLAYER.openResolvedPlayback` at the episode's resume offset instead
+  of mounting the inline player, which has no engine for them. DASH episodes
+  stay inline under every setting, as on the `:view` route. The external
+  launch writes no progress: the M3U payload carries no content info for
+  the player's position reports to be attributed to.
+- The season and series watched toggles are started from the hero "More"
+  menu (`M3uSeriesMenuService`) and persist through the batch position
+  IPC, one transaction per direction; `toggleRunning` guards a double
+  submit.
+- The inline episode keeps the playlist row captured when it was opened,
+  so a catalog rebuild (a refresh, a sync re-publish, a lock change for
+  another group) does not remount the player; it closes when its own
+  group is withheld. Positions are re-read only when the playlist or the
+  series changes.
+- A marker-only name ("S01E01", "5.BÖLÜM") takes its series title from
+  `group-title`; with a blank group it stays a standalone row. A
+  number-first marker is not read number-first when the episode word is
+  followed by its own number ("The 100 Episode 5" is series "The 100",
+  episode 5), and the classifier's strong-code rule agrees.
 
 ## Adding New Features
 

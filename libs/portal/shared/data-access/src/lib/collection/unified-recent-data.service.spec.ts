@@ -286,6 +286,283 @@ describe('UnifiedRecentDataService', () => {
         });
     });
 
+    it('carries M3U artwork to the field each collection tab reads', async () => {
+        // The live tab renders `logo`, the movie and series tabs render
+        // `posterUrl`. An M3U row has one artwork field, so a recently
+        // watched film showed the missing-artwork placeholder once these
+        // rows stopped being labelled live.
+        const movie: Channel = {
+            ...channels[0],
+            id: 'channel-3',
+            name: 'Some Film',
+            url: 'https://example.com/movie/u/p/3.mkv',
+            tvg: { ...channels[0].tvg, logo: 'film.png' },
+        };
+        store.select.mockReturnValue(
+            of([
+                {
+                    _id: 'm3u-1',
+                    title: 'M3U List',
+                    count: 0,
+                    importDate: '2026-01-01T00:00:00.000Z',
+                    autoRefresh: false,
+                    recentlyViewed: [
+                        {
+                            source: 'm3u',
+                            id: movie.url,
+                            url: movie.url,
+                            title: 'Some Film',
+                            channel_id: 'channel-3',
+                            // Every M3U recent row is persisted as `live`;
+                            // the kind comes from the channel behind it.
+                            category_id: 'live',
+                            added_at: '2026-03-26T11:00:00.000Z',
+                        },
+                    ],
+                },
+            ] satisfies PlaylistMeta[])
+        );
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'm3u-1',
+                playlist: { items: [...channels, movie] },
+            } satisfies Partial<Playlist>)
+        );
+
+        const items = await service.getRecentItems('playlist', 'm3u-1', 'm3u');
+
+        expect(items).toHaveLength(1);
+        expect(items[0].contentType).toBe('movie');
+        expect(items[0].posterUrl).toBe('film.png');
+        expect(items[0].logo).toBe('film.png');
+    });
+
+    it('resolves a recent M3U row by its saved id when rows share the URL', async () => {
+        // Two rows, one URL: the film the viewer opened and a channel that
+        // states a guide id. A URL lookup returns the last row, which is the
+        // channel, and the film would be listed on the Live tab.
+        const url = 'https://example.com/shared.mkv';
+        const film: Channel = {
+            ...channels[0],
+            id: 'film-row',
+            // The year is what files a bare container as a film.
+            name: 'Some Film (2019)',
+            url,
+            tvg: { ...channels[0].tvg, id: '' },
+        };
+        const live: Channel = {
+            ...channels[0],
+            id: 'live-row',
+            name: 'Some Channel',
+            url,
+            tvg: { ...channels[0].tvg, id: 'some.channel' },
+        };
+        store.select.mockReturnValue(
+            of([
+                {
+                    _id: 'm3u-1',
+                    title: 'M3U List',
+                    count: 0,
+                    importDate: '2026-01-01T00:00:00.000Z',
+                    autoRefresh: false,
+                    recentlyViewed: [
+                        {
+                            source: 'm3u',
+                            id: url,
+                            url,
+                            title: 'Some Film',
+                            channel_id: 'film-row',
+                            category_id: 'live',
+                            added_at: '2026-03-26T11:00:00.000Z',
+                        },
+                    ],
+                },
+            ] satisfies PlaylistMeta[])
+        );
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'm3u-1',
+                playlist: { items: [film, live] },
+            } satisfies Partial<Playlist>)
+        );
+
+        const items = await service.getRecentItems('playlist', 'm3u-1', 'm3u');
+
+        expect(items).toHaveLength(1);
+        expect(items[0].channelId).toBe('film-row');
+        expect(items[0].contentType).toBe('movie');
+    });
+
+    describe('M3U recent rows whose saved identity is incomplete', () => {
+        function givenRecent(
+            recentlyViewed: PlaylistMeta['recentlyViewed'],
+            items: Channel[]
+        ): void {
+            store.select.mockReturnValue(
+                of([
+                    {
+                        _id: 'm3u-1',
+                        title: 'M3U List',
+                        count: 0,
+                        importDate: '2026-01-01T00:00:00.000Z',
+                        autoRefresh: false,
+                        recentlyViewed,
+                    },
+                ] satisfies PlaylistMeta[])
+            );
+            playlistsService.getPlaylistById.mockReturnValue(
+                of({
+                    _id: 'm3u-1',
+                    playlist: { items },
+                } satisfies Partial<Playlist>)
+            );
+        }
+
+        const recentRow = (
+            url: string,
+            extra: Partial<M3uRecentlyViewedItem> = {}
+        ): M3uRecentlyViewedItem => ({
+            source: 'm3u',
+            id: url,
+            url,
+            title: '',
+            category_id: 'live',
+            added_at: '2026-03-26T11:00:00.000Z',
+            ...extra,
+        });
+
+        it('falls back to the URL when the saved id is absent, stale or names a row without a stream', async () => {
+            // Rows saved before ids were recorded carry none; a refresh
+            // re-mints ids; and a row can lose its URL. In each case the
+            // URL is what still names the stream.
+            const urlless = {
+                ...channels[0],
+                id: 'urlless-row',
+                name: 'No Stream',
+                url: undefined,
+            } as unknown as Channel;
+            const third: Channel = {
+                ...channels[0],
+                id: 'channel-3',
+                name: 'Channel Three',
+                url: 'https://example.com/3.m3u8',
+            };
+            givenRecent(
+                [
+                    recentRow(channels[0].url, {
+                        added_at: '2026-03-26T13:00:00.000Z',
+                    }),
+                    recentRow(channels[1].url, {
+                        channel_id: 'channel-1',
+                        added_at: '2026-03-26T12:00:00.000Z',
+                    }),
+                    recentRow(third.url, {
+                        channel_id: 'urlless-row',
+                        added_at: '2026-03-26T11:00:00.000Z',
+                    }),
+                ],
+                [...channels, urlless, third]
+            );
+
+            const items = await service.getRecentItems(
+                'playlist',
+                'm3u-1',
+                'm3u'
+            );
+
+            expect(items.map((item) => item.channelId)).toEqual([
+                'channel-1',
+                'channel-2',
+                'channel-3',
+            ]);
+            expect(items.map((item) => item.streamUrl)).toEqual([
+                channels[0].url,
+                channels[1].url,
+                third.url,
+            ]);
+        });
+
+        it('drops a row whose only match has no stream to play', async () => {
+            const urlless = {
+                ...channels[0],
+                id: 'urlless-row',
+                url: undefined,
+            } as unknown as Channel;
+            givenRecent(
+                [
+                    recentRow('https://gone.example/9.m3u8', {
+                        channel_id: 'urlless-row',
+                    }),
+                ],
+                [urlless]
+            );
+
+            expect(
+                await service.getRecentItems('playlist', 'm3u-1', 'm3u')
+            ).toEqual([]);
+        });
+
+        it('uses the saved poster when the row has no artwork, and none when neither has', async () => {
+            // A row parsed without a tvg block, and one whose tvg block
+            // states no logo.
+            const bare = {
+                ...channels[0],
+                id: 'bare-row',
+                name: 'Bare Row',
+                url: 'https://example.com/bare.m3u8',
+                tvg: undefined,
+            } as unknown as Channel;
+            const logoless = {
+                ...channels[0],
+                id: 'logoless-row',
+                name: 'Logoless Row',
+                url: 'https://example.com/logoless.m3u8',
+                tvg: { ...channels[0].tvg, logo: undefined },
+            } as unknown as Channel;
+            const plain = {
+                ...bare,
+                id: 'plain-row',
+                url: 'https://example.com/plain.m3u8',
+            } as Channel;
+            givenRecent(
+                [
+                    recentRow(bare.url, {
+                        poster_url: 'saved-bare.png',
+                        added_at: '2026-03-26T13:00:00.000Z',
+                    }),
+                    recentRow(logoless.url, {
+                        poster_url: 'saved-logoless.png',
+                        added_at: '2026-03-26T12:00:00.000Z',
+                    }),
+                    recentRow(plain.url, {
+                        added_at: '2026-03-26T11:00:00.000Z',
+                    }),
+                ],
+                [bare, logoless, plain]
+            );
+
+            const items = await service.getRecentItems(
+                'playlist',
+                'm3u-1',
+                'm3u'
+            );
+
+            expect(items.map((item) => item.logo)).toEqual([
+                'saved-bare.png',
+                'saved-logoless.png',
+                null,
+            ]);
+        });
+    });
+
+    it('leaves a live row with artwork only in the field the live tab reads', async () => {
+        const items = await service.getRecentItems('playlist', 'm3u-1', 'm3u');
+
+        expect(items[0].contentType).toBe('live');
+        expect(items[0].logo).toBe('two.png');
+        expect(items[0].posterUrl).toBeNull();
+    });
+
     it('records M3U live playback through playlist recently viewed storage', async () => {
         const item = {
             uid: 'm3u::m3u-1::https://example.com/1.m3u8',

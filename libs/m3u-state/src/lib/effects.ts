@@ -59,6 +59,7 @@ import {
     selectFavorites,
 } from './selectors';
 import { resolveChannelEpgLookupKey } from './channel-epg-lookup.util';
+import { m3uCatalogSource } from './m3u-catalog-source';
 import {
     buildExternalPlayerPayload,
     type ExternalPlayerHeaderFallback,
@@ -556,19 +557,20 @@ export class PlaylistEffects {
                 this.store.select(selectActive)
             ),
             map(([action, channels, activeChannel]) => {
-                let adjacentChannel;
-                const index = channels.findIndex(
-                    (channel) => channel.id === activeChannel?.id
-                );
-                if (action.direction === 'next') {
-                    if (index === channels.length - 1)
-                        adjacentChannel = activeChannel;
-                    adjacentChannel = channels[index + 1];
-                } else if (action.direction === 'previous') {
-                    if (index === -1 || index === 0)
-                        adjacentChannel = activeChannel;
-                    adjacentChannel = channels[index - 1];
-                }
+                // The catalog steps through the list the viewer sees. Until
+                // an M3U route has created it, the stored rows are that list.
+                const catalog = m3uCatalogSource();
+                const adjacentChannel = catalog
+                    ? catalog.adjacentChannel(
+                          action.direction,
+                          activeChannel,
+                          channels
+                      )
+                    : channels[
+                          channels.findIndex(
+                              (channel) => channel.id === activeChannel?.id
+                          ) + (action.direction === 'next' ? 1 : -1)
+                      ];
                 return ChannelActions.setActiveChannelSuccess({
                     channel: adjacentChannel!,
                 });

@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import {
+    m3uCatalogSource,
     PlaylistActions,
     selectActivePlaylistId,
     selectAllPlaylistsMeta,
@@ -10,7 +11,7 @@ import {
 } from '@iptvnator/m3u-state';
 import { Subject } from 'rxjs';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import {
     PlaylistContextFacade,
     PlaylistRouteContext,
@@ -44,6 +45,11 @@ describe('PlaylistContextFacade', () => {
     let playlistsSignal: ReturnType<typeof signal<PlaylistMeta[]>>;
     let loadedSignal: ReturnType<typeof signal<boolean>>;
     let activePlaylistIdSignal: ReturnType<typeof signal<string | null>>;
+    const catalogTabs = signal<boolean | undefined>(true);
+    const knownSections = new Map<
+        string,
+        { movies: boolean; series: boolean }
+    >();
     let runtimeCapabilities: { supportsXtreamSectionNavigation: boolean };
 
     const xtreamA = createPlaylist({
@@ -111,6 +117,8 @@ describe('PlaylistContextFacade', () => {
         loadedSignal = signal(true);
         activePlaylistIdSignal = signal<string | null>(xtreamA._id);
         runtimeCapabilities = { supportsXtreamSectionNavigation: true };
+        catalogTabs.set(true);
+        knownSections.clear();
 
         TestBed.configureTestingModule({
             providers: [
@@ -144,11 +152,21 @@ describe('PlaylistContextFacade', () => {
                     provide: RuntimeCapabilitiesService,
                     useValue: runtimeCapabilities,
                 },
+                {
+                    provide: SettingsStore,
+                    useValue: { m3uCatalogTabs: catalogTabs },
+                },
             ],
+        });
+        m3uCatalogSource.set({
+            sectionsOf: (playlistId: string) =>
+                knownSections.get(playlistId) ?? null,
+            adjacentChannel: () => undefined,
         });
     });
 
     afterEach(() => {
+        m3uCatalogSource.set(null);
         localStorage.clear();
         routerEvents.complete();
         jest.restoreAllMocks();
@@ -195,6 +213,228 @@ describe('PlaylistContextFacade', () => {
                 section: 'groups',
             })
         ).toEqual(['workspace', 'playlists', m3uB._id, 'groups']);
+    });
+
+    it.each(['vod', 'series'] as const)(
+        'opens the channel list rather than carrying the %s catalog to another M3U playlist',
+        (section) => {
+            const service = instantiateFacade();
+
+            expect(
+                service.resolveTargetCommands('playlists', m3uB._id, {
+                    inWorkspace: true,
+                    provider: 'playlists',
+                    playlistId: m3uA._id,
+                    section,
+                })
+            ).toEqual(['workspace', 'playlists', m3uB._id, 'all']);
+        }
+    );
+
+    it('keeps an M3U catalog section when the target is the same playlist', () => {
+        const service = instantiateFacade();
+
+        expect(
+            service.resolveTargetCommands('playlists', m3uA._id, {
+                inWorkspace: true,
+                provider: 'playlists',
+                playlistId: m3uA._id,
+                section: 'series',
+            })
+        ).toEqual(['workspace', 'playlists', m3uA._id, 'series']);
+    });
+
+    it('does not turn a portal Movies section into an M3U catalog', () => {
+        const service = instantiateFacade();
+
+        expect(
+            service.resolveTargetCommands('playlists', m3uA._id, {
+                inWorkspace: true,
+                provider: 'xtreams',
+                playlistId: xtreamA._id,
+                section: 'vod',
+            })
+        ).toEqual(['workspace', 'playlists', m3uA._id, 'all']);
+    });
+
+    it('restores a catalog section only from the playlist that remembered it', () => {
+        localStorage.setItem(
+            LAST_SECTION_STORAGE_KEY,
+            JSON.stringify({
+                providers: { playlists: 'vod' },
+                playlists: {
+                    [m3uA._id]: {
+                        provider: 'playlists',
+                        section: 'vod',
+                        updatedAt: 1,
+                    },
+                },
+            })
+        );
+        const service = instantiateFacade();
+        const noSection = {
+            inWorkspace: true,
+            provider: 'xtreams' as const,
+            playlistId: xtreamA._id,
+            section: null,
+        };
+
+        expect(
+            service.resolveTargetCommands('playlists', m3uA._id, noSection)
+        ).toEqual(['workspace', 'playlists', m3uA._id, 'vod']);
+        expect(
+            service.resolveTargetCommands('playlists', m3uB._id, noSection)
+        ).toEqual(['workspace', 'playlists', m3uB._id, 'all']);
+    });
+
+    it('does not restore a remembered catalog section once the setting is off', () => {
+        // The rail no longer offers Movies; landing there would leave the
+        // viewer on a section with no link back.
+        localStorage.setItem(
+            LAST_SECTION_STORAGE_KEY,
+            JSON.stringify({
+                providers: {},
+                playlists: {
+                    [m3uA._id]: {
+                        provider: 'playlists',
+                        section: 'vod',
+                        updatedAt: 1,
+                    },
+                },
+            })
+        );
+        catalogTabs.set(false);
+
+        expect(
+            instantiateFacade().resolveTargetCommands('playlists', m3uA._id, {
+                inWorkspace: true,
+                provider: 'xtreams',
+                playlistId: xtreamA._id,
+                section: null,
+            })
+        ).toEqual(['workspace', 'playlists', m3uA._id, 'all']);
+    });
+
+    it('does not restore a remembered catalog section a refresh has emptied', () => {
+        localStorage.setItem(
+            LAST_SECTION_STORAGE_KEY,
+            JSON.stringify({
+                providers: {},
+                playlists: {
+                    [m3uA._id]: {
+                        provider: 'playlists',
+                        section: 'vod',
+                        updatedAt: 1,
+                    },
+                },
+            })
+        );
+        const from = {
+            inWorkspace: true,
+            provider: 'xtreams' as const,
+            playlistId: xtreamA._id,
+            section: null,
+        };
+        const service = instantiateFacade();
+
+        // Seen this session, and it no longer holds a film.
+        knownSections.set(m3uA._id, { movies: false, series: true });
+        expect(
+            service.resolveTargetCommands('playlists', m3uA._id, from)
+        ).toEqual(['workspace', 'playlists', m3uA._id, 'all']);
+
+        knownSections.set(m3uA._id, { movies: true, series: false });
+        expect(
+            service.resolveTargetCommands('playlists', m3uA._id, from)
+        ).toEqual(['workspace', 'playlists', m3uA._id, 'vod']);
+    });
+
+    describe('remembered M3U catalog sections', () => {
+        const fromXtream = {
+            inWorkspace: true,
+            provider: 'xtreams' as const,
+            playlistId: xtreamA._id,
+            section: null,
+        };
+
+        function remember(section: string, extra: object = {}): void {
+            localStorage.setItem(
+                LAST_SECTION_STORAGE_KEY,
+                JSON.stringify({
+                    playlists: {
+                        [m3uA._id]: {
+                            provider: 'playlists',
+                            section,
+                            updatedAt: 1,
+                        },
+                    },
+                    ...extra,
+                })
+            );
+        }
+
+        it('restores Series only while the playlist still holds episodes', () => {
+            remember('series', { providers: {} });
+            const service = instantiateFacade();
+
+            knownSections.set(m3uA._id, { movies: true, series: false });
+            expect(
+                service.resolveTargetCommands('playlists', m3uA._id, fromXtream)
+            ).toEqual(['workspace', 'playlists', m3uA._id, 'all']);
+
+            knownSections.set(m3uA._id, { movies: false, series: true });
+            expect(
+                service.resolveTargetCommands('playlists', m3uA._id, fromXtream)
+            ).toEqual(['workspace', 'playlists', m3uA._id, 'series']);
+        });
+
+        it('trusts the memory before any catalog index is registered', () => {
+            // Nothing can say the section is empty yet; the page's own
+            // empty state covers a miss.
+            remember('vod', { providers: {} });
+            m3uCatalogSource.set(null);
+
+            expect(
+                instantiateFacade().resolveTargetCommands(
+                    'playlists',
+                    m3uA._id,
+                    fromXtream
+                )
+            ).toEqual(['workspace', 'playlists', m3uA._id, 'vod']);
+        });
+
+        it('restores the section when the settings store predates the setting', () => {
+            // Only an explicit opt-out blocks the restore.
+            remember('vod', { providers: {} });
+            TestBed.overrideProvider(SettingsStore, { useValue: {} });
+
+            expect(
+                instantiateFacade().resolveTargetCommands(
+                    'playlists',
+                    m3uA._id,
+                    fromXtream
+                )
+            ).toEqual(['workspace', 'playlists', m3uA._id, 'vod']);
+        });
+
+        it.each([
+            ['absent', {}],
+            ['null', { providers: null }],
+            ['not an object', { providers: 'vod' }],
+        ])(
+            'keeps the per-playlist memory when the provider memory is %s',
+            (_label, extra) => {
+                remember('vod', extra);
+
+                expect(
+                    instantiateFacade().resolveTargetCommands(
+                        'playlists',
+                        m3uA._id,
+                        fromXtream
+                    )
+                ).toEqual(['workspace', 'playlists', m3uA._id, 'vod']);
+            }
+        );
     });
 
     it('maps Stalker ITV routes to Xtream live routes', () => {

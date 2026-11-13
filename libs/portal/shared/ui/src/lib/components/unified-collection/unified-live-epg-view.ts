@@ -1,10 +1,10 @@
 import { computed, inject, Signal, signal } from '@angular/core';
 import {
-    applyChannelNameStrip,
     getM3uArchiveDays,
     getM3uCatchupWindowEndSeconds,
     isM3uCatchupPlaybackSupported,
 } from '@iptvnator/shared/m3u-utils';
+import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils/name-strip';
 import { ResolvedLiveCollectionDetail } from '@iptvnator/portal/shared/data-access';
 import {
     LiveEpgPanelState,

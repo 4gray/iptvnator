@@ -377,6 +377,14 @@ export class GroupsViewComponent {
     });
 
     readonly hasAnyGroups = computed(() => this.allGroups().length > 0);
+    /**
+     * Groups only the management dialog lists: a split M3U playlist with no
+     * live row has nothing to list here, yet its film and series groups must
+     * stay lockable and hideable, so the manage action keeps rendering.
+     */
+    readonly hasManageableGroups = computed(
+        () => (this.managementGroups()?.length ?? 0) > 0
+    );
 
     readonly selectedGroup = computed(() => {
         const selectedGroupKey = this.selectedGroupKey();
@@ -552,23 +560,42 @@ export class GroupsViewComponent {
         if (this.parentalLock.active() || this.playlistId() !== playlistId) {
             return;
         }
+        const hiddenGroupTitles = this.hiddenGroupTitles();
         const dialogRef = this.dialog.open(GroupManagementDialogComponent, {
             data: {
                 groups,
-                hiddenGroupTitles: this.hiddenGroupTitles(),
+                hiddenGroupTitles,
                 ...(lockedGroupTitles ? { lockedGroupTitles } : {}),
             },
             ...dialogSize('md'),
         });
+        // The dialog answers only for the groups it listed, and the host
+        // replaces the stored lists with what is emitted. A stored title it
+        // never showed (the list was handed only part of the playlist) is
+        // carried over, or Save would silently unhide and unlock it.
+        const listed = new Set(groups.map((group) => group.key));
+        const keepUnlisted = (saved: string[], stored: string[]) => [
+            ...saved,
+            ...stored.filter(
+                (title) => !listed.has(title) && !saved.includes(title)
+            ),
+        ];
 
         dialogRef.afterClosed().subscribe((result) => {
             if (result === undefined || this.playlistId() !== playlistId) {
                 return;
             }
 
-            this.hiddenGroupTitlesChanged.emit(result.hiddenGroupTitles);
+            this.hiddenGroupTitlesChanged.emit(
+                keepUnlisted(result.hiddenGroupTitles, hiddenGroupTitles)
+            );
             if (result.lockedGroupTitles) {
-                this.lockedGroupTitlesChanged.emit(result.lockedGroupTitles);
+                this.lockedGroupTitlesChanged.emit(
+                    keepUnlisted(
+                        result.lockedGroupTitles,
+                        lockedGroupTitles ?? []
+                    )
+                );
             }
         });
     }

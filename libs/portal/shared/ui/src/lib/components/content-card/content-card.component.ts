@@ -53,6 +53,12 @@ export class ContentCardComponent {
     /** Tooltip text for the remove button; empty means the generic "Remove" */
     readonly removeTooltip = input<string>('');
 
+    /** Whether to show the favourite toggle; off for every host by default */
+    readonly showFavoriteButton = input<boolean>(false);
+
+    /** Whether the item is currently a favourite (toggle pressed state) */
+    readonly favorite = input<boolean>(false);
+
     /** Whether to show placeholder when no poster */
     readonly showPlaceholder = input<boolean>(true);
 
@@ -72,6 +78,9 @@ export class ContentCardComponent {
 
     /** Emitted when the remove button is clicked */
     readonly remove = output<void>();
+
+    /** Emitted when the favourite toggle is clicked */
+    readonly favoriteToggle = output<void>();
     /** A failed poster URL falls back per card; a new URL gets a fresh try. */
     protected readonly artworkFailed = linkedSignal({
         source: this.posterUrl,
@@ -124,6 +133,11 @@ export class ContentCardComponent {
     onRemoveClick(event: Event): void {
         event.stopPropagation();
         this.remove.emit();
+    }
+
+    onFavoriteClick(event: Event): void {
+        event.stopPropagation();
+        this.favoriteToggle.emit();
     }
 
     onImageError(): void {

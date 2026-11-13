@@ -29,9 +29,11 @@ export class UnifiedGridTabComponent {
     readonly mode = input<'favorites' | 'recent'>('favorites');
     readonly contentType = input<CollectionContentType>('movie');
     readonly searchTerm = input('');
+    readonly favoriteUids = input<ReadonlySet<string>>(new Set<string>());
 
     readonly removeItem = output<UnifiedCollectionItem>();
     readonly itemSelected = output<UnifiedCollectionItem>();
+    readonly favoriteToggled = output<UnifiedCollectionItem>();
 
     private readonly normalizedSearchTerm = computed(() =>
         foldSearchText(this.searchTerm().trim())
@@ -53,6 +55,16 @@ export class UnifiedGridTabComponent {
     });
 
     readonly isUnavailable = isCatalogUnavailable;
+
+    /**
+     * M3U films and episodes have no detail page of their own to carry a
+     * favourite control, and the channel list no longer shows them, so the
+     * Recently viewed card is where they are favourited. Portal items keep
+     * the control on their detail view.
+     */
+    canToggleFavorite(item: UnifiedCollectionItem): boolean {
+        return this.mode() === 'recent' && item.sourceType === 'm3u';
+    }
 
     onCardClick(item: UnifiedCollectionItem): void {
         if (isCatalogUnavailable(item)) return;
