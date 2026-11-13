@@ -159,6 +159,8 @@ Xtream import signals travel as a separate, renderer-local argument to
 on-demand `pwa-xtream-request.ts` transport unsubscribes the caller's pending
 target-registration wait or catalog GET when aborted. A category failure can
 therefore settle sibling requests before releasing the import's busy hold.
+The Xtream proxy also cancels the provider GET when the browser disconnects,
+so an abandoned guide row or import does not keep an upstream socket busy.
 Xtream uses the same bounded `ProviderTargetClient` as M3U and Stalker, so its
 one missing-target recovery attempt is covered by the same abort subscription.
 Provider-target registrations remain shared between independent callers;
@@ -1551,7 +1553,8 @@ No absence-based deletion, automatic pruning or receipt TTL is introduced.
 The native Xtream browsing cap remains 100; archival storage is retained.
 
 History continues to use `PlaybackHistoryGate`: confirmed inline progress or the
-existing external launch confirmation records a start. Downloaded progress,
+first successful transition of an external launch records a start. Idle updates
+and restored external sessions do not confirm another start. Downloaded progress,
 watched marks, opening a detail view and provider link resolution never manufacture
 history. Xtream collections retain their existing parent-series history; Stalker
 keeps regular, embedded and lazy series modes. Portable references reuse favorites:

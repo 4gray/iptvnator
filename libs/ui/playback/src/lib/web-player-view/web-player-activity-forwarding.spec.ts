@@ -38,6 +38,7 @@ function harness(enabled = true) {
         ownership: { owns: () => true },
         activity,
         playback: () => playback,
+        recovery: { recordTimeUpdate: () => false },
         recoverySession: { recordTimeUpdate: jest.fn() },
         historyConfirmation: { record: jest.fn() },
         timeUpdate: { emit },

@@ -37,13 +37,14 @@ export interface XtreamRecentItemRequest {
 export function injectXtreamRecentHistory(): (
     streamUrl: string,
     request: XtreamRecentItemRequest,
-    sessionKey?: string
+    sessionKey?: string,
+    launchId?: string
 ) => void {
     const gate = inject(PlaybackHistoryGate);
     const store = inject(XtreamStore);
     const injector = inject(Injector);
 
-    return (streamUrl, request, sessionKey) => {
+    return (streamUrl, request, sessionKey, launchId) => {
         const playlist = signal(store.currentPlaylist()).asReadonly();
         const captured = {
             ...request,
@@ -52,7 +53,12 @@ export function injectXtreamRecentHistory(): (
                 : {}),
         };
         gate.defer(
-            { sourceId: playlist()?.id, sessionKey, streamUrls: [streamUrl] },
+            {
+                sourceId: playlist()?.id,
+                sessionKey,
+                launchId,
+                streamUrls: [streamUrl],
+            },
             () => {
                 const playlistId = playlist()?.id;
                 if (store.currentPlaylist()?.id === playlistId) {

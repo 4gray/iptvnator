@@ -1,8 +1,8 @@
-import { spawn } from 'child_process';
 import { AddressInfo, createServer } from 'net';
 import {
     PlayerContentInfo,
     readExternalPlayerErrorCode,
+    XTREAM_CLIENT_USER_AGENT,
 } from '@iptvnator/shared/interfaces';
 import {
     VLC_PLAYER_ARGUMENTS,
@@ -32,7 +32,16 @@ import {
     traceExternalPlayer,
 } from './external-player-runtime';
 import { externalPlayerProcessTeardownGate } from './external-player-process';
-import { getVlcPlaybackSnapshot, getVlcPlaybackState } from './vlc-rc';
+import {
+    createPrivatePlayerIpcEndpoint,
+    spawnPlayerWithEndpoint,
+} from './mpv-ipc-endpoint';
+import {
+    getVlcPlaybackSnapshot,
+    getVlcPlaybackState,
+    markVlcOpened,
+    type VlcRcAddress,
+} from './vlc-rc';
 export {
     buildVlcEnqueueCommands,
     parseVlcRcNumericResponse,
@@ -53,6 +62,7 @@ export interface OpenVlcPlayerRequest {
     contentInfo?: PlayerContentInfo;
     startTime?: number;
     headers?: Record<string, string>;
+    launchId?: string;
 }
 
 const reusableVlcProcess = new VlcReusableProcess();
@@ -86,7 +96,7 @@ function stopVlcPositionPolling(sessionId?: string): void {
 }
 
 function startVlcPositionPolling(
-    port: number,
+    port: VlcRcAddress,
     contentInfo: PlayerContentInfo,
     sessionId: string,
     onSnapshot?: (snapshot: ExternalPlaybackSnapshot) => void,
@@ -179,12 +189,20 @@ export async function openVlcPlayer({
     contentInfo,
     startTime,
     headers,
+    launchId,
 }: OpenVlcPlayerRequest) {
     externalPlayerProcessTeardownGate.assertLaunchAllowed();
+    const isFlatpak = isRunningInFlatpak();
+    const requestedReuseInstance = store.get(VLC_REUSE_INSTANCE, false);
+    const reuseInstance = shouldReuseVlcInstance(
+        requestedReuseInstance,
+        isFlatpak
+    );
+    const stopped = reuseInstance ? reusableVlcProcess.watchStop() : undefined;
     const displacedSessionId = externalPlayerSessions.getActiveSessionId();
-    const previousProcessSessionId = reusableVlcProcess.currentSessionId();
     const session = externalPlayerSessions.beginSession({
         player: 'vlc',
+        launchId,
         title,
         thumbnail,
         streamUrl: url,
@@ -197,33 +215,34 @@ export async function openVlcPlayer({
         requestedClose: null,
     };
     let freshTeardownUnconfirmed = false;
+    let closeRetained: (() => Promise<void>) | undefined;
 
     try {
-        const isFlatpak = isRunningInFlatpak();
         const vlcLaunchContext = resolveExternalPlayerLaunchContext(
             'vlc',
             getVlcPath({ isFlatpak }),
             { isFlatpak }
         );
         const customVlcArguments = store.get(VLC_PLAYER_ARGUMENTS, '');
-        const requestedReuseInstance = store.get(VLC_REUSE_INSTANCE, false);
-        const reuseInstance = shouldReuseVlcInstance(
-            requestedReuseInstance,
-            isFlatpak
-        );
-        const {
-            mergedHeaders,
-            effectiveOrigin,
-            effectiveReferer,
-            effectiveUserAgent,
-            headerFields,
-        } = resolveEffectiveExternalPlaybackRequest({
+        const guideLaunch = !!session.launchId && !contentInfo;
+        const effectiveRequest = resolveEffectiveExternalPlaybackRequest({
             url,
             userAgent,
             referer,
             origin,
             headers,
         });
+        if (guideLaunch)
+            effectiveRequest.effectiveUserAgent =
+                effectiveRequest.effectiveUserAgent?.trim() ||
+                XTREAM_CLIENT_USER_AGENT;
+        const {
+            mergedHeaders,
+            effectiveOrigin,
+            effectiveReferer,
+            effectiveUserAgent,
+            headerFields,
+        } = effectiveRequest;
         traceExternalPlayer('open vlc player', {
             path: vlcLaunchContext.playerPath,
             launchMode: vlcLaunchContext.mode,
@@ -239,30 +258,65 @@ export async function openVlcPlayer({
                 parseExternalPlayerArguments(customVlcArguments).length,
         });
 
-        if (reuseInstance) {
-            const reused = await reusableVlcProcess.tryReuse({
-                session,
-                previousProcessSessionId,
-                url,
-                title,
-                effectiveUserAgent,
-                effectiveReferer,
-                effectiveOrigin,
-                mergedHeaders,
-                contentInfo,
-                startTime,
-                state: reuseState,
-                startPositionPolling: startVlcPositionPolling,
-                stopPositionPolling: () =>
-                    stopVlcPositionPolling(
-                        previousProcessSessionId ?? undefined
-                    ),
-            });
-            if (reused) return reused;
+        const superseded = () =>
+            (guideLaunch || reusableVlcProcess.hasPrivateControl()) &&
+            externalPlayerSessions.isNewerLaunch(
+                reusableVlcProcess.currentSessionId(),
+                session
+            );
+        while (reuseInstance) {
+            if (stopped?.())
+                return (
+                    externalPlayerSessions.markClosed(session.id, true) ??
+                    session
+                );
+            if (reuseState.closeRequested) break;
+            if (superseded())
+                return externalPlayerSessions.markClosed(session.id) ?? session;
+            if (!guideLaunch || reusableVlcProcess.hasPrivateControl()) {
+                const previousProcessSessionId =
+                    reusableVlcProcess.currentSessionId();
+                reuseState.contentMutated = false;
+                const reused = await reusableVlcProcess.tryReuse({
+                    session,
+                    url,
+                    title,
+                    effectiveUserAgent,
+                    effectiveReferer,
+                    effectiveOrigin,
+                    mergedHeaders,
+                    contentInfo,
+                    startTime,
+                    state: reuseState,
+                    startPositionPolling: startVlcPositionPolling,
+                    stopPositionPolling: stopVlcPositionPolling,
+                });
+                if (reused) return reused;
+                if (
+                    guideLaunch &&
+                    previousProcessSessionId !==
+                        reusableVlcProcess.currentSessionId()
+                )
+                    continue;
+            }
+            closeRetained = reusableVlcProcess.replacementCloser(guideLaunch);
+            if (!closeRetained) break;
+            try {
+                await closeRetained();
+                closeRetained = undefined;
+            } catch (error) {
+                reuseState.teardownUnconfirmed = true;
+                throw error;
+            }
+            if (!guideLaunch) break;
         }
 
-        let rcPort = 0;
-        if (contentInfo || reuseInstance) {
+        const privateEndpoint =
+            guideLaunch && !isFlatpak
+                ? createPrivatePlayerIpcEndpoint('vlc')
+                : undefined;
+        let rcPort: VlcRcAddress = privateEndpoint?.path ?? 0;
+        if (!guideLaunch && (contentInfo || reuseInstance)) {
             try {
                 rcPort = await getFreePort();
                 traceExternalPlayer('using vlc rc port', { rcPort });
@@ -273,7 +327,14 @@ export async function openVlcPlayer({
 
         const args: string[] = [];
 
-        if (rcPort > 0) {
+        if (typeof rcPort === 'string') {
+            args.push(
+                '--extraintf=oldrc',
+                `--rc-unix=${rcPort}`,
+                '--rc-host=',
+                '--rc-fake-tty'
+            );
+        } else if (rcPort) {
             args.push('--extraintf=rc');
             args.push(`--rc-host=127.0.0.1:${rcPort}`);
             if (process.platform === 'win32') {
@@ -281,6 +342,11 @@ export async function openVlcPlayer({
                 args.push('--rc-quiet');
             }
         }
+
+        if (startTime) {
+            args.push(`--start-time=${startTime}`);
+        }
+        args.push(url);
 
         if (effectiveUserAgent) {
             args.push(`:http-user-agent=${effectiveUserAgent}`);
@@ -301,20 +367,16 @@ export async function openVlcPlayer({
             args.push(`:http-header=${field}`);
         });
 
-        if (startTime) {
-            args.push(`--start-time=${startTime}`);
-        }
-
-        args.push(url);
         if (title) {
             args.push(`:meta-title=${title}`);
         }
 
         traceExternalPlayer('vlc args prepared', {
             argCount: args.length,
-            hasRcPort: rcPort > 0,
+            hasRcPort: !!rcPort,
         });
         let lastVlcSnapshot: ExternalPlaybackSnapshot | null = null;
+        let getPlaybackRcPort: () => VlcRcAddress = () => 0;
 
         await new Promise<void>((resolve, reject) => {
             let settled = false;
@@ -341,6 +403,7 @@ export async function openVlcPlayer({
 
             const spawnVlc = (playerArgs: string[], isRetry = false) => {
                 if (reuseState.closeRequested) {
+                    privateEndpoint?.dispose();
                     closeRequested = true;
                     const pendingReuseClose =
                         reuseState.requestedClose ?? Promise.resolve();
@@ -352,9 +415,13 @@ export async function openVlcPlayer({
                 }
                 if (
                     externalPlayerSessions.getSession(session.id)?.status ===
-                    'closed'
+                        'closed' ||
+                    stopped?.() ||
+                    (reuseInstance && superseded())
                 ) {
+                    privateEndpoint?.dispose();
                     closeRequested = true;
+                    externalPlayerSessions.markClosed(session.id, stopped?.());
                     resolveSpawn();
                     return;
                 }
@@ -365,6 +432,7 @@ export async function openVlcPlayer({
                     // actual spawn boundary as well as at request entry.
                     externalPlayerProcessTeardownGate.assertLaunchAllowed();
                 } catch (error) {
+                    privateEndpoint?.dispose();
                     const launchError =
                         error instanceof Error
                             ? error
@@ -397,24 +465,52 @@ export async function openVlcPlayer({
                         playerArgs
                     )
                 );
-                // Reuse ownership exists only when an RC port was allocated.
-                // Without it this child is a normal one-shot process whose
-                // exact session closer must still terminate it.
-                const trackProcess = reuseInstance && !isRetry && rcPort > 0;
-                const proc = spawn(spawnSpec.command, spawnSpec.args, {
-                    shell: false,
-                    detached: !trackProcess,
-                    stdio: trackProcess ? ['ignore', 'pipe', 'pipe'] : 'ignore',
-                });
+                const trackProcess =
+                    reuseInstance && (guideLaunch || (!isRetry && !!rcPort));
+                const proc = spawnPlayerWithEndpoint(
+                    spawnSpec.command,
+                    spawnSpec.args,
+                    trackProcess,
+                    isRetry ? undefined : privateEndpoint,
+                    guideLaunch ? 'ignore' : undefined
+                );
+                getPlaybackRcPort = () =>
+                    !isRetry &&
+                    !externalPlayerProcessTeardownGate.isStopping(proc) &&
+                    (trackProcess
+                        ? reusableVlcProcess.canPoll(proc, session.id)
+                        : !!session.launchId)
+                        ? rcPort
+                        : 0;
 
                 proc.once('spawn', () => {
-                    if (!closeRequested) {
-                        resolveSpawn();
-                    }
+                    if (closeRequested) return;
+                    if (
+                        isRetry &&
+                        (session.launchId ||
+                            externalPlayerSessions.getSession(session.id)
+                                ?.playbackIdle !== undefined)
+                    )
+                        externalPlayerSessions.updateSession(session.id, {
+                            playbackIdle: undefined,
+                            reuseAvailable: false,
+                            ...(session.launchId && !contentInfo
+                                ? {
+                                      mediaLoaded: false,
+                                      playbackUnverified: true,
+                                      mediaObservationUnavailable: true,
+                                  }
+                                : {}),
+                        });
+                    resolveSpawn();
                 });
 
-                if (trackProcess && rcPort > 0) {
-                    reusableVlcProcess.track(proc, rcPort, session.id);
+                if (trackProcess) {
+                    reusableVlcProcess.track(
+                        proc,
+                        isRetry ? 0 : rcPort,
+                        session.id
+                    );
                     traceExternalPlayer('tracking vlc process for reuse', {
                         rcPort,
                     });
@@ -440,7 +536,7 @@ export async function openVlcPlayer({
                 };
 
                 const flushVlcPlaybackPosition = async () => {
-                    if (isRetry || rcPort <= 0 || !contentInfo) {
+                    if (isRetry || !rcPort || !contentInfo) {
                         return;
                     }
 
@@ -499,8 +595,7 @@ export async function openVlcPlayer({
                     }
                     return requestedClose;
                 });
-
-                if (!isRetry && rcPort > 0 && contentInfo) {
+                if (!isRetry && !!rcPort && contentInfo) {
                     startVlcPositionPolling(
                         rcPort,
                         contentInfo,
@@ -534,12 +629,20 @@ export async function openVlcPlayer({
 
                 proc.on('error', (err) => {
                     console.error('Failed to start VLC player:', err);
+                    if (
+                        !closeRequested &&
+                        externalPlayerProcessTeardownGate.isTeardownPending(
+                            proc
+                        )
+                    )
+                        return;
                     const processSessionId = reusableVlcProcess.sessionIdFor(
                         proc,
                         session.id
                     );
                     reusableVlcProcess.clear(proc);
                     stopVlcPositionPolling(processSessionId);
+                    if (reusableVlcProcess.isRecovering(proc)) return;
                     if (closeRequested) {
                         void requestedClose?.then(() => {
                             // A spawn failure reports `close` without an
@@ -551,7 +654,11 @@ export async function openVlcPlayer({
                         }, rejectSpawn);
                         return;
                     }
-                    if (!isRetry && rcPort > 0) {
+                    if (
+                        processSessionId === session.id &&
+                        !isRetry &&
+                        !!rcPort
+                    ) {
                         traceExternalPlayer(
                             'retry vlc without rc interface after start error'
                         );
@@ -559,6 +666,8 @@ export async function openVlcPlayer({
                             (arg) =>
                                 !arg.includes('--extraintf') &&
                                 !arg.includes('--rc-host') &&
+                                !arg.includes('--rc-unix') &&
+                                arg !== '--rc-fake-tty' &&
                                 arg !== '--rc-quiet'
                         );
                         spawnVlc(retryArgs, true);
@@ -582,6 +691,14 @@ export async function openVlcPlayer({
                     );
                     reusableVlcProcess.clear(proc);
                     stopVlcPositionPolling(processSessionId);
+                    if (reusableVlcProcess.isRecovering(proc)) return;
+                    const stopping =
+                        externalPlayerProcessTeardownGate.isTeardownPending(
+                            proc
+                        ) ||
+                        externalPlayerSessions.isCloseRequested(
+                            processSessionId
+                        );
 
                     if (
                         !closeRequested &&
@@ -599,9 +716,11 @@ export async function openVlcPlayer({
 
                     if (
                         code === 1 &&
+                        processSessionId === session.id &&
                         !closeRequested &&
+                        !stopping &&
                         !isRetry &&
-                        rcPort > 0
+                        !!rcPort
                     ) {
                         traceExternalPlayer(
                             'retry vlc without rc interface after exit'
@@ -611,13 +730,15 @@ export async function openVlcPlayer({
                             (arg) =>
                                 !arg.includes('--extraintf') &&
                                 !arg.includes('--rc-host') &&
+                                !arg.includes('--rc-unix') &&
+                                arg !== '--rc-fake-tty' &&
                                 arg !== '--rc-quiet'
                         );
                         spawnVlc(retryArgs, true);
                         return;
                     }
 
-                    if (code !== 0 && code !== null) {
+                    if (code && !stopping) {
                         console.error(
                             `[VLC ERROR] VLC exited with error code ${code}`
                         );
@@ -647,7 +768,14 @@ export async function openVlcPlayer({
             spawnVlc(args);
         });
 
-        return externalPlayerSessions.markOpened(session.id) ?? session;
+        return (
+            markVlcOpened(
+                session.id,
+                () => getPlaybackRcPort(),
+                effectiveRequest,
+                reuseInstance
+            ) ?? session
+        );
     } catch (error) {
         console.error('Error opening VLC player:', error);
         const restoredSession =
@@ -659,6 +787,8 @@ export async function openVlcPlayer({
                       session.id
                   )
                 : null;
+        if (reuseState.teardownUnconfirmed && !restoredSession && closeRetained)
+            externalPlayerSessions.attachCloser(session.id, closeRetained);
         externalPlayerSessions.markError(
             session.id,
             error instanceof Error ? error.message : String(error),

@@ -8,6 +8,7 @@ import {
 import {
     ElectronBridgeCurrentProgramsOptions,
     ElectronBridgeEpgGuideWindow,
+    ElectronBridgeEpgLookupOptions,
     ElectronBridgeTrustOptions,
     EpgChannelMetadata,
     EpgProgram,
@@ -66,7 +67,10 @@ export default class EpgEvents {
             'GET_CHANNEL_PROGRAMS',
             async (
                 _event,
-                args: { channelId: string; options?: { sourceUrls?: string[] } }
+                args: {
+                    channelId: string;
+                    options?: ElectronBridgeEpgLookupOptions;
+                }
             ) => {
                 return this.handleGetChannelPrograms(
                     args.channelId,
@@ -273,7 +277,7 @@ export default class EpgEvents {
 
     private static async handleGetChannelPrograms(
         channelId: string,
-        options?: { sourceUrls?: string[] }
+        options?: ElectronBridgeEpgLookupOptions
     ): Promise<EpgProgram[]> {
         return epgQueryService.getChannelPrograms(channelId, options);
     }

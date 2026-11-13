@@ -48,6 +48,7 @@ export class EpgGuideToolbarComponent {
     readonly scopeId = input('');
     readonly onlyWithEpg = input(false);
     readonly coverageLoaded = input(false);
+    readonly coverageStatus = input<'idle' | 'loading' | 'error'>('idle');
     readonly density = input<EpgGuideDensity>('comfortable');
     readonly zoom = input(EPG_GUIDE_ZOOM_MIN);
     readonly filter = input('');

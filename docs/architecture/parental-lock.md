@@ -265,9 +265,10 @@ so a cancelled or refused PIN leaves it showing the real state.
   `LiveStreamLayoutComponent` keeps the playing channel's provider category
   id (mapped from the SQLite row id on Electron — through the visible
   category list, else through the unfiltered rows, since search can play a
-  channel of a HIDDEN category; until that lookup lands the id is unknown
-  and a relock stops the channel, and a lookup that lands after a later
-  playback — same provider id, other playlist — is discarded) and drops `activePlayback` on a `version`
+  channel of a HIDDEN category). External launches wait for that lookup
+  and check the current lock before starting. Embedded playback treats an
+  unresolved id as unknown and stops it on relock. A result for a superseded
+  request is discarded. The layout drops `activePlayback` on a `version`
   change that locks it, because the player is gated on that
   signal, not on the store selection — which an ordinary category switch
   also clears while the channel keeps playing.

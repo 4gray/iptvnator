@@ -1021,7 +1021,28 @@ jobs:
 
                   codesign --verify --deep --strict --verbose=4 "${APP_PATH}"
                   spctl -a -vvv --type execute "${APP_PATH}"
-                  xcrun stapler validate "${APP_PATH}"
+
+                  validate_stapled_ticket() {
+                      local output status
+                      if output="$(xcrun stapler validate "${APP_PATH}" 2>&1)"; then
+                          printf '%s\n' "$output"
+                          return 0
+                      else
+                          status=$?
+                      fi
+                      printf '%s\n' "$output" >&2
+
+                      # Apple can drop the connection while looking up an otherwise valid ticket.
+                      if grep -Eq 'NSURLErrorDomain Code=-1005([^0-9]|$)' <<< "$output"; then
+                          echo "::warning::Stapler lost its connection; retrying ticket validation in 5 seconds."
+                          sleep 5
+                          xcrun stapler validate "${APP_PATH}" || return $?
+                      else
+                          return "$status"
+                      fi
+                  }
+
+                  validate_stapled_ticket
 
             - name: Make Electron app
               if: matrix.os != 'macos' || github.event_name == 'pull_request'

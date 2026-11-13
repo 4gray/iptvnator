@@ -163,6 +163,8 @@ Electron.
 
 In CI, a pull request skips the Tier A suite (and the merged-coverage upload)
 when every changed file is outside Tier A test inputs:
+`git diff` compares the checked-out PR merge commit with its first parent,
+including both paths of any rename. A newer PR push cannot change that diff.
 `tools/coverage/unit-coverage-scope.mjs` holds the allowlist (Markdown, `docs/`,
 notes and plans, agent guidance, workflows other than `ci.yml` and
 `build-and-make.yaml`, the website, E2E and mock-server apps,

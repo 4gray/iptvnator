@@ -1,9 +1,11 @@
 @use '@angular/material' as mat;
 @use '../../../../../../ui/styles/panel-header' as panel;
 @use '../../../../../../ui/styles/portal-layout' as portal;
+@use '../../../../../../ui/styles/epg-guide-dock' as guide;
 @use '../../../../../../ui/styles/portal-sidebar';
 
 @include portal.live-layout;
+@include guide.dock;
 
 // ─── Sidebar-header overrides ──────────────────────────────────────────────
 // Base .sidebar-header styles come from portal-sidebar

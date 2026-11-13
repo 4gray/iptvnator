@@ -425,6 +425,8 @@ export interface ElectronBridgeEpgSearchResult {
 
 export interface ElectronBridgeEpgLookupOptions {
     sourceUrls?: string[];
+    /** For getChannelPrograms: distinguish an unavailable database from an empty schedule. */
+    rejectOnError?: boolean;
 }
 
 /**
@@ -925,7 +927,8 @@ export interface ElectronBridgeApi {
         origin?: string,
         contentInfo?: PlayerContentInfo,
         startTime?: number,
-        headers?: Record<string, string>
+        headers?: Record<string, string>,
+        launchId?: string
     ) => Promise<ExternalPlayerSession>;
     openInVlc: (
         url: string,
@@ -936,7 +939,8 @@ export interface ElectronBridgeApi {
         origin?: string,
         contentInfo?: PlayerContentInfo,
         startTime?: number,
-        headers?: Record<string, string>
+        headers?: Record<string, string>,
+        launchId?: string
     ) => Promise<ExternalPlayerSession>;
     autoUpdatePlaylists: (
         playlists: Playlist[],
@@ -1389,7 +1393,8 @@ export interface ElectronBridgeApi {
         callback: (data: EmbeddedMpvSession) => void
     ) => () => void;
     closeExternalPlayerSession: (
-        sessionId: string
+        sessionId: string,
+        exact?: boolean
     ) => Promise<ExternalPlayerSession | null>;
     getEmbeddedMpvSupport: () => Promise<EmbeddedMpvSupport>;
     prepareEmbeddedMpv?: () => Promise<EmbeddedMpvSupport>;

@@ -1,8 +1,18 @@
 import type { ChildProcess } from 'child_process';
 import {
+    externalPlayerSessions,
     sendPlayerErrorNotification,
     traceExternalPlayer,
 } from './external-player-runtime';
+
+export function markMpvExitFailure(sessionId: string, code: number): void {
+    const message = `MPV player closed unexpectedly (exit code: ${code})`;
+    console.error(message);
+    sendPlayerErrorNotification('MPV', message, 'closed-unexpectedly');
+    externalPlayerSessions.markError(sessionId, message, {
+        code: 'closed-unexpectedly',
+    });
+}
 
 function shouldIgnoreMpvStdoutLine(line: string): boolean {
     return /^(\(Paused\)\s*)?AV:\s/.test(line);

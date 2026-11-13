@@ -182,6 +182,30 @@ export function buildExternalPlayerSpawnSpec(
 
 export { parseExternalPlayerArguments };
 
+export function buildFreshMpvArgs(
+    socketPath: string | null,
+    options: {
+        userAgent?: string;
+        referer?: string;
+        headerArgument?: string;
+        title: string;
+        startTime?: number;
+    }
+): string[] {
+    const { userAgent, referer, headerArgument, title, startTime } = options;
+    return [
+        ...(socketPath
+            ? [`--input-ipc-server=${socketPath}`, '--idle=yes']
+            : []),
+        '--ytdl=no',
+        ...(userAgent ? [`--user-agent=${userAgent}`] : []),
+        ...(referer ? [`--referrer=${referer}`] : []),
+        ...(headerArgument ? [`--http-header-fields=${headerArgument}`] : []),
+        ...(title ? [`--force-media-title=${title}`] : []),
+        ...(startTime ? [`--start=${startTime}`] : []),
+    ];
+}
+
 export function buildPlayerArgsWithCustomArguments(
     customArguments: ExternalPlayerArgumentsInput,
     playerArgs: string[]

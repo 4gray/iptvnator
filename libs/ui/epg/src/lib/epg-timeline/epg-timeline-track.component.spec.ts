@@ -152,6 +152,29 @@ describe('EpgTimelineTrackComponent', () => {
         expect(noOpTitleWrites).toHaveLength(0);
     });
 
+    it('updates a reused block position and width in one style write', () => {
+        const item = renderBlock();
+        fixture.componentRef.setInput('items', [item]);
+        fixture.detectChanges();
+
+        const block: HTMLElement = fixture.nativeElement.querySelector(
+            '.epg-timeline__block'
+        );
+        const observer = new MutationObserver(() => undefined);
+        observer.observe(block, { attributeFilter: ['style'] });
+
+        fixture.componentRef.setInput('items', [
+            { ...item, leftPx: 14.5, widthPx: 83.25 },
+        ]);
+        fixture.detectChanges();
+
+        const writes = observer.takeRecords();
+        observer.disconnect();
+        expect(block.style.left).toBe('14.5px');
+        expect(block.style.width).toBe('83.25px');
+        expect(writes).toHaveLength(1);
+    });
+
     it('shows a popover for a non-wide block on enter', () => {
         const item = renderBlock({ tier: 'narrow' });
         const event = {

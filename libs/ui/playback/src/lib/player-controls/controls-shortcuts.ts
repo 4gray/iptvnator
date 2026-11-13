@@ -22,6 +22,9 @@ export interface ControlsShortcutHandlers {
     toggleMute: () => void;
 }
 
+export const PLAYER_SHORTCUTS_SUSPENDED_SELECTOR =
+    '[inert], [data-player-shortcuts-suspended]';
+
 const INTERACTIVE_SELECTOR = [
     'a[href]',
     'button',
@@ -100,7 +103,7 @@ export class ControlsShortcuts {
         if (
             handlers
                 .hostElement?.()
-                ?.closest('[inert], [data-player-shortcuts-suspended]')
+                ?.closest(PLAYER_SHORTCUTS_SUSPENDED_SELECTOR)
         ) {
             return;
         }

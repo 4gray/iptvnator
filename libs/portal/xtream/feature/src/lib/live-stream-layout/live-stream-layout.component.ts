@@ -1,6 +1,8 @@
 import {
     activateXtreamArchiveAction,
     getProgramTimestampSeconds,
+    supportsXtreamArchive,
+    xtreamArchiveDays,
 } from './xtream-live-archive-actions';
 import { EpgArchiveDownloadService } from '@iptvnator/ui/epg';
 import { NgTemplateOutlet } from '@angular/common';
@@ -56,13 +58,14 @@ import {
     restorePortalChannelSortMode,
 } from '@iptvnator/portal/shared/util';
 import {
-    FavoriteItem,
-    FavoritesService,
     findCurrentEpgItem,
     XtreamUrlService,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
 import {
+    EPG_GUIDE_SOURCE,
+    EpgGuideComponent,
+    EpgGuideNowPlayingComponent,
     EpgArchiveCopyService,
     EpgDateNavigationDirection,
     EpgListViewComponent,
@@ -92,6 +95,7 @@ import {
     RecordingStoppedEvent,
     ResolvedPortalPlayback,
     toRecordingProgramSnapshot,
+    VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import {
     PortalChannelsListComponent,
@@ -111,9 +115,23 @@ import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 import { injectXtreamRecentHistory } from '../xtream-recent-history';
 
 import {
+    sameXtreamChannelCopy,
     XtreamLiveChannelNavigationService,
     type XtreamLiveChannelItem,
 } from './xtream-live-channel-navigation.service';
+
+import { XtreamEpgGuideSourceService } from './xtream-epg-guide-source.service';
+import { XtreamLiveGuideService } from './xtream-live-guide.service';
+import {
+    isXtreamLiveCategoryWithheld,
+    sameXtreamLiveOwner,
+    type XtreamLiveOwner,
+} from './xtream-external-live-sessions.service';
+import { XtreamGuideExternalPlayback } from './xtream-guide-external-playback.service';
+import { scheduleKey } from './xtream-guide-schedules';
+import { retainXtreamPlayingSchedule } from './xtream-guide-now-playing';
+import { XtreamTuneRequests } from './xtream-tune-requests.service';
+import { toSharedEpgProgram } from '../portal-channels-list/epg-preview-program';
 
 const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
 
@@ -121,7 +139,13 @@ const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
     selector: 'app-live-stream-layout',
     templateUrl: './live-stream-layout.component.html',
     styleUrls: ['./live-stream-layout.component.scss'],
+    host: { '(document:fullscreenchange)': 'guide.closeOnFullscreen()' },
     providers: [
+        XtreamEpgGuideSourceService,
+        XtreamLiveGuideService,
+        XtreamGuideExternalPlayback,
+        XtreamTuneRequests,
+        { provide: EPG_GUIDE_SOURCE, useExisting: XtreamEpgGuideSourceService },
         LiveStreamAutoOpenStateService,
         XtreamLiveChannelNavigationService,
         // The fullscreen channel panel inside the player renders this
@@ -132,6 +156,8 @@ const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
         },
     ],
     imports: [
+        EpgGuideComponent,
+        EpgGuideNowPlayingComponent,
         EpgListViewComponent,
         EpgTimelineComponent,
         MatButtonModule,
@@ -160,7 +186,8 @@ export class LiveStreamLayoutComponent
     private readonly hostElement = inject(ElementRef<HTMLElement>);
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
-    private readonly favoritesService = inject(FavoritesService);
+    readonly guide = inject(XtreamLiveGuideService);
+    private readonly guideSource = inject(XtreamEpgGuideSourceService);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly recordRecentItem = injectXtreamRecentHistory();
     readonly archiveContextKey = computed(() =>
@@ -246,7 +273,7 @@ export class LiveStreamLayoutComponent
         return item.xtream_id ? item : null;
     });
     readonly controlledEpgPrograms = computed<EpgProgram[]>(() =>
-        this.epgItems().map((program) => this.toControlledEpgProgram(program))
+        this.epgItems().map(toSharedEpgProgram)
     );
     private readonly recordingsService = inject(RecordingsService);
     /** Channel/EPG snapshot for the embedded-MPV recording tracker. */
@@ -313,7 +340,10 @@ export class LiveStreamLayoutComponent
         void this.recordingsService.updatePrograms(event.targetPath, programs);
     }
     private readonly currentTimeMs = signal(Date.now());
-    readonly activeCatchupProgram = signal<EpgProgram | null>(null);
+    private readonly panelCatchupProgram = signal<EpgProgram | null>(null);
+    readonly activeCatchupProgram = computed(() =>
+        this.activePlayback() ? this.panelCatchupProgram() : null
+    );
     /** The archive window's programmes as seek-bar segments; null live. */
     readonly catchupTimelineSegments = computed(() =>
         buildCatchupTimelineSegments(
@@ -322,19 +352,13 @@ export class LiveStreamLayoutComponent
         )
     );
     readonly controlledArchiveDays = computed(() =>
-        Math.max(
-            0,
-            Number(this.selectedLiveItem()?.tv_archive_duration ?? 0) || 0
-        )
+        xtreamArchiveDays(this.selectedLiveItem())
     );
-    readonly archivePlaybackAvailable = computed(() => {
-        const selectedItem = this.selectedLiveItem();
-        return (
+    readonly archivePlaybackAvailable = computed(
+        () =>
             this.runtime.supportsProviderCatchUp &&
-            Number(selectedItem?.tv_archive ?? 0) === 1 &&
-            this.controlledArchiveDays() > 0
-        );
-    });
+            supportsXtreamArchive(this.selectedLiveItem())
+    );
     readonly hasPastPrograms = computed(() => {
         const now = this.currentTimeMs();
         return this.controlledEpgPrograms().some((program) => {
@@ -398,7 +422,8 @@ export class LiveStreamLayoutComponent
             : 'EPG.CURRENT_PROGRAM'
     );
     readonly showReturnToLive = computed(
-        () => this.activeCatchupProgram() !== null
+        () =>
+            this.activeCatchupProgram() !== null || !!this.archiveReturnSource()
     );
     readonly liveChannelSortLabelKey = computed(() =>
         getPortalChannelSortModeLabelKey(this.liveChannelSortMode())
@@ -442,14 +467,34 @@ export class LiveStreamLayoutComponent
 
     private unsubscribeRemoteChannelChange?: () => void;
     private unsubscribeRemoteCommand?: () => void;
-    private playbackRequestId = 0;
-    private activePlaylistId: string | null = null;
+    private readonly tuneRequests = inject(XtreamTuneRequests);
+    private readonly inlinePlayer =
+        viewChild<WebPlayerViewComponent>('inlinePlayer');
+    private readonly activeOwner = signal<XtreamLiveOwner | undefined>(
+        undefined
+    );
+    private archivePreview?: {
+        item: XtreamLiveChannelItem;
+        queue: readonly XtreamLiveChannelItem[];
+    };
 
     readonly usesEmbeddedPlayer = computed(() =>
         this.portalPlayer.isEmbeddedPlayer()
     );
-    readonly activePlayback = signal<ResolvedPortalPlayback | null>(null);
+    private readonly panelPlayback = signal<ResolvedPortalPlayback | null>(
+        null
+    );
+    readonly activePlayback = computed(() => {
+        const owner = this.activeOwner();
+        const current = this.externalGuide.owner();
+        return owner === current || sameXtreamLiveOwner(owner, current)
+            ? this.panelPlayback()
+            : null;
+    });
     private readonly activeLiveItemId = signal<number | null>(null);
+    private readonly activeGuideItem = signal<XtreamLiveChannelItem | null>(
+        null
+    );
     /**
      * Provider category id of the playing channel, for the parental lock.
      * `null`: nothing playing (or no category); `'unknown'`: Electron has
@@ -459,8 +504,10 @@ export class LiveStreamLayoutComponent
     /** Bumped per resolution so a slow hidden-category lookup cannot land on a later playback. */
     private liveCategoryLookupGeneration = 0;
     readonly playbackSessionKey = computed(() => {
-        const sourceId = this.xtreamStore.currentPlaylist()?.id;
-        const contentId = this.activeLiveItemId();
+        const sourceId = this.activeOwner()?.playlistId;
+        const contentId = this.activePlayback()
+            ? this.activeLiveItemId()
+            : null;
         return sourceId && contentId
             ? createPlaybackSessionKey({ kind: 'live', sourceId, contentId })
             : '';
@@ -468,17 +515,221 @@ export class LiveStreamLayoutComponent
     readonly activeStreamUrl = computed(
         () => this.activePlayback()?.streamUrl ?? ''
     );
-    favorites = new Map<number, boolean>();
+    private readonly externalGuide = inject(XtreamGuideExternalPlayback);
+    private readonly archiveReturnSource = computed(() => {
+        if (this.usesEmbeddedPlayer()) return undefined;
+        const opened = this.externalGuide.unverifiedPlayback()?.source;
+        if (opened?.archive) return opened;
+        const confirmed = this.externalGuide.confirmed();
+        return confirmed?.archive ? confirmed.lockSource : undefined;
+    });
+    private readonly socketlessRemoteSource = computed(() => {
+        const playback = this.externalGuide.unverifiedPlayback();
+        return playback?.session.player === 'mpv' &&
+            playback.session.mediaObservationUnavailable &&
+            !this.externalGuide.confirmed()
+            ? playback.source
+            : undefined;
+    });
+    private readonly unverifiedRemoteSource = computed(() => {
+        const playback = this.externalGuide.unverifiedPlayback();
+        return playback && !this.externalGuide.confirmed()
+            ? playback.source
+            : undefined;
+    });
+    private readonly usesSelectionForRemote = computed(
+        () =>
+            this.usesEmbeddedPlayer() ||
+            !this.externalGuide.hasSessionUpdates ||
+            (this.settingsStore.player?.() === VideoPlayer.MPV &&
+                /(?:^|[\\/])iina(?:-cli)?$/i.test(
+                    this.settingsStore.mpvPlayerPath?.()?.trim() ?? ''
+                ))
+    );
+    private readonly remoteLiveItem = computed(() =>
+        this.usesSelectionForRemote()
+            ? this.selectedLiveItem()
+            : (this.externalGuide.confirmed()?.item ??
+              this.socketlessRemoteSource()?.channel ??
+              null)
+    );
+    private readonly remoteAnchor = computed(() => {
+        if (this.usesSelectionForRemote()) return null;
+        const item = (
+            this.unverifiedRemoteSource() ??
+            this.externalGuide.stoppedTuningSource()
+        )?.channel;
+        return item &&
+            this.channelNavigation
+                .remoteChannels()
+                .some((channel) => sameXtreamChannelCopy(channel, item))
+            ? item
+            : null;
+    });
+    private readonly guideChannel = computed(() =>
+        this.usesEmbeddedPlayer()
+            ? this.activePlayback()
+                ? this.activeGuideItem()
+                : null
+            : (this.externalGuide.confirmed()?.item ?? null)
+    );
+    private readonly guideArchiveProgram = computed(() =>
+        this.usesEmbeddedPlayer()
+            ? this.activeCatchupProgram()
+            : (this.externalGuide.confirmed()?.archive ?? null)
+    );
+    readonly guideNowPlayingChannel = computed(
+        () =>
+            (this.usesEmbeddedPlayer()
+                ? this.activePlayback()?.title
+                : this.externalGuide.confirmed()?.session.title) ?? ''
+    );
+    private readonly playingSchedule = retainXtreamPlayingSchedule(() => {
+        const playing = this.guideChannel();
+        const refreshed = this.guideSource.playingItem();
+        const matches =
+            playing && refreshed && sameXtreamChannelCopy(playing, refreshed);
+        const copy = matches ? refreshed : playing;
+        const selected = this.selectedLiveItem();
+        return {
+            owner: this.externalGuide.owner(),
+            key: copy ? `${copy.category_id}:${scheduleKey(copy)}` : undefined,
+            revision: this.guideSource.revision(),
+            guide: matches
+                ? (this.guideSource.playingScheduleItems() ?? undefined)
+                : undefined,
+            panel:
+                copy &&
+                selected &&
+                sameXtreamChannelCopy(copy, selected) &&
+                scheduleKey(copy) === scheduleKey(selected) &&
+                !this.isLoadingEpg()
+                    ? this.epgItems()
+                    : undefined,
+        };
+    });
+    readonly guideNowPlayingProgram = computed(() => {
+        const archive = this.guideArchiveProgram();
+        if (archive) return archive;
+        const now = epgProviderClockMs(
+            this.currentTimeMs(),
+            this.epgOffsetMinutes()
+        );
+        const program = findCurrentEpgItem(this.playingSchedule(), now);
+        return program ? toSharedEpgProgram(program) : null;
+    });
 
     constructor() {
+        this.externalGuide.bind({
+            enabled: () => !this.usesEmbeddedPlayer(),
+            cancelPendingRequest: () => this.tuneRequests.invalidate(),
+            dispatchGuard: () => this.tuneRequests.dispatchGuard(),
+            current: this.activePlayback,
+            currentItem: this.activeGuideItem,
+            select: (item) => this.selectGuideLiveItem(item),
+            capture: (item, queue) =>
+                this.channelNavigation.capture(item, queue, 'replace'),
+            restore: ({ item, archive, playback, lockSource }) => {
+                this.activeOwner.set(lockSource);
+                this.panelPlayback.set(playback);
+                this.activeLiveItemId.set(item.xtream_id);
+                this.panelCatchupProgram.set(archive);
+                this.selectGuideLiveItem(item, lockSource.categoryId);
+            },
+        });
         effect(() => {
-            const playlistId = this.xtreamStore.currentPlaylist()?.id ?? null;
-            if (this.activePlaylistId && this.activePlaylistId !== playlistId) {
-                this.playbackRequestId += 1;
-                this.activePlaylistId = null;
-                this.activePlayback.set(null);
+            if (this.usesEmbeddedPlayer()) return;
+            const source =
+                this.socketlessRemoteSource() ??
+                this.unverifiedRemoteSource() ??
+                (!this.externalGuide.confirmed()
+                    ? (this.externalGuide.stoppedTuningSource() ??
+                      this.externalGuide.remoteTuningSource())
+                    : undefined);
+            if (!source?.channel) return;
+            const { channel, queue } = source;
+            untracked(() =>
+                this.channelNavigation.capture(
+                    channel,
+                    queue ?? [channel],
+                    'replace'
+                )
+            );
+        });
+        this.guide.bind(
+            computed(() =>
+                this.usesEmbeddedPlayer()
+                    ? !!this.activeStreamUrl()
+                    : typeof window.electron?.closeExternalPlayerSession ===
+                          'function' &&
+                      (!!this.externalGuide.confirmed() ||
+                          !!this.externalGuide.unverifiedPlayback() ||
+                          (this.guide.isOpen() &&
+                              (this.externalGuide.launching() ||
+                                  !!this.externalGuide.stoppedTuningSource())))
+            )
+        );
+        this.tuneRequests.bindGuide(this.guideSource, {
+            usesInlinePlayer: this.usesEmbeddedPlayer,
+            playingLiveChannel: () =>
+                this.guideArchiveProgram() ? null : this.guideChannel(),
+            category: (item) => this.readLiveProviderCategoryId(item),
+            selectInlineCopy: (item) => {
+                this.selectGuideLiveItem(item);
+                this.channelNavigation.replacePlayingCopy(item);
+            },
+            clearPreview: () => {
+                this.archivePreview = undefined;
+            },
+            confirmInline: (onConfirmed) => {
+                this.retryInlinePlayback();
+                this.confirmInlinePlayback(onConfirmed);
+            },
+            tune: (item, channels, onConfirmed) =>
+                this.playLive(item, true, channels, false, onConfirmed),
+            playArchive: (program, item, channels) => {
+                void this.playCatchup(program, item, channels);
+            },
+        });
+        effect(() =>
+            this.guideSource.setPlayback(
+                this.guideChannel(),
+                this.guideArchiveProgram() === null
+            )
+        );
+        effect(() => {
+            const items = this.guideSource.activePlayingScheduleItems();
+            if (!items) return;
+            const playing = this.guideSource.playingItem();
+            const selected = this.selectedLiveItem();
+            if (playing && selected && sameXtreamChannelCopy(playing, selected))
+                untracked(() => {
+                    if (playing.epg_channel_id !== selected.epg_channel_id)
+                        this.xtreamStore.setSelectedItem({
+                            ...selected,
+                            epg_channel_id: playing.epg_channel_id,
+                        });
+                    this.xtreamStore.setGuideSchedule(items);
+                });
+        });
+
+        effect(() => {
+            const owner = this.activeOwner();
+            const current = this.externalGuide.owner();
+            if (owner && !sameXtreamLiveOwner(owner, current)) {
+                this.tuneRequests.invalidate();
+                this.activeOwner.set(undefined);
+                this.archivePreview = undefined;
+                this.externalGuide.reset();
+                this.panelPlayback.set(null);
                 this.activeLiveItemId.set(null);
-                this.activeCatchupProgram.set(null);
+                this.activeGuideItem.set(null);
+                this.panelCatchupProgram.set(null);
+                this.activeLiveProviderCategoryId = null;
+                untracked(() => {
+                    if (!this.usesEmbeddedPlayer())
+                        this.externalGuide.restoreConfirmedPanel();
+                });
             }
         });
         // A relock (idle timer, Lock now) must stop a channel playing from a
@@ -491,26 +742,21 @@ export class LiveStreamLayoutComponent
             untracked(() => {
                 const categoryId = this.activeLiveProviderCategoryId;
                 const playlistId = this.xtreamStore.currentPlaylist()?.id;
-                if (categoryId === null || !playlistId) {
+                if (
+                    !playlistId ||
+                    !this.isLiveCategoryWithheld(playlistId, categoryId)
+                )
                     return;
-                }
-                // Unresolved category: fail closed while the lock is active
-                // rather than keep a possibly locked stream running.
-                const withheld =
-                    categoryId === 'unknown'
-                        ? this.parentalLock.active()
-                        : this.parentalLock.isXtreamCategoryLocked(
-                              playlistId,
-                              'live',
-                              categoryId
-                          );
-                if (!withheld) {
+                this.tuneRequests.invalidate();
+                if (
+                    !this.usesEmbeddedPlayer() &&
+                    this.externalGuide.restoreConfirmedPanel()
+                )
                     return;
-                }
-                this.playbackRequestId += 1;
-                this.activePlayback.set(null);
+                this.panelPlayback.set(null);
                 this.activeLiveItemId.set(null);
-                this.activeCatchupProgram.set(null);
+                this.activeGuideItem.set(null);
+                this.panelCatchupProgram.set(null);
                 this.activeLiveProviderCategoryId = null;
             });
         });
@@ -609,12 +855,25 @@ export class LiveStreamLayoutComponent
             }
 
             const selectedContentType = this.xtreamStore.selectedContentType();
-            const selectedItem = this.xtreamStore.selectedItem();
+            const selectedItem = this.remoteLiveItem();
             const channels = this.getVisibleChannels();
             const activeProgram =
-                this.activeCatchupProgram() ?? this.currentEpgItem();
+                selectedItem && this.supportsProviderEpg
+                    ? this.usesSelectionForRemote()
+                        ? (this.activeCatchupProgram() ?? this.currentEpgItem())
+                        : this.externalGuide.confirmed()
+                          ? this.guideNowPlayingProgram()
+                          : null
+                    : null;
 
-            if (selectedContentType !== 'live' || !selectedItem?.xtream_id) {
+            if (
+                selectedContentType !== 'live' ||
+                !(
+                    selectedItem ||
+                    this.remoteAnchor() ||
+                    this.externalGuide.remoteTuningSource()
+                )
+            ) {
                 remoteControl.updateRemoteControlStatus({
                     portal: 'xtream',
                     isLiveView: false,
@@ -625,13 +884,13 @@ export class LiveStreamLayoutComponent
 
             const currentIndex = channels.findIndex(
                 (item) =>
-                    Number(item.xtream_id) === Number(selectedItem.xtream_id)
+                    Number(item.xtream_id) === Number(selectedItem?.xtream_id)
             );
 
             remoteControl.updateRemoteControlStatus({
                 portal: 'xtream',
                 isLiveView: true,
-                channelName: selectedItem.title ?? selectedItem.name,
+                channelName: selectedItem?.title ?? selectedItem?.name,
                 channelNumber: currentIndex >= 0 ? currentIndex + 1 : undefined,
                 epgTitle: activeProgram?.title,
                 epgStart: activeProgram?.start,
@@ -667,40 +926,99 @@ export class LiveStreamLayoutComponent
         this.liveChannelSortMode.set(
             restorePortalChannelSortMode(LIVE_CHANNEL_SORT_STORAGE_KEY)
         );
-
-        const playlist = this.xtreamStore.currentPlaylist();
-        if (playlist) {
-            this.favoritesService
-                .getFavorites(playlist.id)
-                .subscribe((favorites) => {
-                    // Map using content.id instead of xtream_id
-                    favorites.forEach((fav: FavoriteItem) => {
-                        this.favorites.set(fav.xtream_id, true);
-                    });
-                });
-        }
     }
 
     playLive(
         item: XtreamLiveChannelItem,
         startPlayback = !this.settingsStore.openStreamOnDoubleClick(),
         displayedChannels?: readonly XtreamLiveChannelItem[],
-        remote = false
-    ) {
-        this.playbackRequestId += 1;
-        const streamUrl = this.xtreamStore.constructStreamUrl(item);
-        this.channelNavigation.capture(item, displayedChannels, remote);
-        this.activeCatchupProgram.set(null);
-        // Keep both root/recently-added playback and same-category replays in
-        // sync with the category rail. For already-selected channels this is a
-        // store no-op.
-        if (!remote) this.selectLiveItemCategory(item);
-        this.activeLiveItemId.set(item.xtream_id);
-        this.activeLiveProviderCategoryId =
-            this.resolveLiveProviderCategoryId(item);
+        remote = false,
+        onConfirmed?: () => void
+    ): void {
+        const request = this.tuneRequests.begin();
+        const { owner } = request;
+        if (
+            startPlayback &&
+            owner &&
+            !this.usesEmbeddedPlayer() &&
+            this.externalGuide.hasSessionUpdates
+        ) {
+            const category = this.readLiveProviderCategoryId(item);
+            const keepPanel =
+                (remote || this.guide.isOpen()) &&
+                !!this.externalGuide.confirmed();
+            const start = (resolved: typeof category) => {
+                if (
+                    !this.tuneRequests.isCurrent(request) ||
+                    this.isLiveCategoryWithheld(owner.playlistId, resolved)
+                )
+                    return;
+                this.applyLivePlayback(
+                    item,
+                    true,
+                    displayedChannels,
+                    remote,
+                    resolved,
+                    onConfirmed,
+                    keepPanel
+                );
+            };
+            if (category === 'unknown')
+                void this.lookupLiveProviderCategoryId(
+                    owner.playlistId,
+                    item
+                ).then(start);
+            else start(category);
+            return;
+        }
+        this.applyLivePlayback(
+            item,
+            startPlayback,
+            displayedChannels,
+            remote,
+            undefined,
+            onConfirmed
+        );
+    }
+
+    private applyLivePlayback(
+        item: XtreamLiveChannelItem,
+        startPlayback: boolean,
+        displayedChannels: readonly XtreamLiveChannelItem[] | undefined,
+        remote: boolean,
+        category?: number | null | 'unknown',
+        onConfirmed?: () => void,
+        keepPanel = false
+    ): void {
+        const streamUrl = keepPanel
+            ? this.xtreamStore.constructStreamUrl(item, undefined, false)
+            : this.guide.isOpen()
+              ? this.xtreamStore.constructStreamUrl(item, (signal) =>
+                    this.readGuideSchedule(item, signal)
+                )
+              : this.xtreamStore.constructStreamUrl(item);
+        const tracksExternalPlayback =
+            !this.usesEmbeddedPlayer() && this.externalGuide.hasSessionUpdates;
+        const captureOnSelection = this.usesSelectionForRemote();
+        const scope =
+            displayedChannels ??
+            (captureOnSelection || !remote
+                ? this.channelNavigation.displayedChannels()
+                : []);
+        this.archivePreview =
+            tracksExternalPlayback && !startPlayback
+                ? { item, queue: scope }
+                : undefined;
+        const queuePolicy = remote
+            ? displayedChannels
+                ? 'replace'
+                : 'preserve'
+            : 'on-channel-change';
+        if (captureOnSelection)
+            this.channelNavigation.capture(item, scope, queuePolicy);
+        const categoryId = this.resolveLiveProviderCategoryId(item, category);
         const playlist = this.xtreamStore.currentPlaylist();
-        this.activePlaylistId = playlist?.id ?? null;
-        this.activePlayback.set({
+        const playback: ResolvedPortalPlayback = {
             streamUrl,
             liveAutoTsUrl: playlist
                 ? this.xtreamUrlService.constructAutoLiveTsUrl(
@@ -714,7 +1032,24 @@ export class LiveStreamLayoutComponent
             title: item.title ?? item.name ?? '',
             thumbnail: item.poster_url ?? item.stream_icon ?? null,
             isLive: true,
-        });
+        };
+        if (!keepPanel) {
+            this.panelCatchupProgram.set(null);
+            if (!remote && !this.guide.isOpen())
+                this.selectLiveItemCategory(item);
+            this.activeLiveItemId.set(item.xtream_id);
+            this.activeGuideItem.set(item);
+            this.activeLiveProviderCategoryId = categoryId;
+            this.activeOwner.set(this.externalGuide.owner());
+            this.panelPlayback.set(playback);
+        }
+        const launchId =
+            tracksExternalPlayback &&
+            this.externalGuide.owner() &&
+            streamUrl &&
+            startPlayback
+                ? crypto.randomUUID()
+                : undefined;
         if (startPlayback && streamUrl) {
             this.recordRecentItem(
                 streamUrl,
@@ -731,17 +1066,55 @@ export class LiveStreamLayoutComponent
                 },
                 this.usesEmbeddedPlayer()
                     ? this.playbackSessionKey()
-                    : undefined
+                    : undefined,
+                launchId
             );
         }
-        if (this.usesEmbeddedPlayer() || !startPlayback) {
+        if (this.usesEmbeddedPlayer()) {
+            this.confirmInlinePlayback(onConfirmed);
             return;
         }
-        this.xtreamStore.openPlayer(
-            streamUrl,
-            item.title ?? item.name ?? '',
-            item.poster_url ?? item.stream_icon ?? null
+        if (!startPlayback) return;
+        this.externalGuide.start(
+            playback,
+            item,
+            null,
+            categoryId,
+            this.channelNavigation.queueFor(item, scope, queuePolicy),
+            {
+                remote,
+                onConfirmed,
+                launchId,
+                replaceWith:
+                    remote || this.guide.isOpen()
+                        ? this.settingsStore.player?.()
+                        : undefined,
+            }
         );
+    }
+
+    private confirmInlinePlayback(callback?: () => void): void {
+        const player = this.inlinePlayer();
+        this.tuneRequests.confirmInlineWhenReady(
+            callback,
+            !!player &&
+                player.playback() === this.activePlayback() &&
+                player.hasStartedPlayback()
+        );
+    }
+
+    private retryInlinePlayback(): boolean {
+        const player = this.inlinePlayer();
+        return (
+            !!player &&
+            player.playback() === this.activePlayback() &&
+            player.retryFailedPlayback()
+        );
+    }
+
+    onInlinePlaybackStarted(playback: ResolvedPortalPlayback): void {
+        if (playback === this.activePlayback())
+            this.tuneRequests.confirmInline();
     }
 
     async onProgramActivated(event: EpgProgramActivationEvent): Promise<void> {
@@ -800,6 +1173,9 @@ export class LiveStreamLayoutComponent
 
     @HostListener('document:keydown', ['$event'])
     handleSidebarShortcut(event: KeyboardEvent): void {
+        this.guide.handleKey(event);
+        if (event.defaultPrevented || this.guide.isOpen()) return;
+
         if (
             (event.metaKey || event.ctrlKey) &&
             event.key.toLowerCase() === 'b' &&
@@ -825,16 +1201,16 @@ export class LiveStreamLayoutComponent
     }
 
     returnToLivePlayback(): void {
-        const selectedItem = this.selectedLiveItem();
-        if (!selectedItem?.xtream_id) {
-            return;
-        }
-
-        this.playLive(selectedItem, true);
+        const source = this.archiveReturnSource();
+        const item =
+            source?.channel ??
+            (this.activeCatchupProgram() && this.activeGuideItem()) ??
+            this.selectedLiveItem();
+        if (item?.xtream_id) this.playLive(item, true, source?.queue, !!source);
     }
 
     ngOnDestroy(): void {
-        this.playbackRequestId += 1;
+        this.tuneRequests.invalidate();
         this.unsubscribeRemoteChannelChange?.();
         this.unsubscribeRemoteCommand?.();
         // Leaving the live view would otherwise keep the last channel
@@ -845,7 +1221,12 @@ export class LiveStreamLayoutComponent
     }
 
     private handleRemoteChannelChange(direction: 'up' | 'down'): void {
-        const activeItem = this.xtreamStore.selectedItem();
+        const selectionBased = this.usesSelectionForRemote();
+        const tuning = selectionBased
+            ? undefined
+            : this.externalGuide.remoteTuningSource()?.channel;
+        const anchor = this.remoteAnchor();
+        const activeItem = tuning ?? this.remoteLiveItem() ?? anchor;
         if (!activeItem?.xtream_id) {
             return;
         }
@@ -858,8 +1239,29 @@ export class LiveStreamLayoutComponent
             (item) => item.xtream_id
         );
 
-        if (!nextItem) {
-            return;
+        const socketless = this.usesEmbeddedPlayer()
+            ? undefined
+            : this.socketlessRemoteSource();
+        const archive = socketless
+            ? socketless.archive
+            : selectionBased
+              ? this.activeCatchupProgram()
+              : this.guideArchiveProgram();
+        if (!nextItem) return;
+        if (nextItem.xtream_id === activeItem.xtream_id) {
+            if (tuning) return;
+            if (!archive && !anchor) {
+                if (!this.usesEmbeddedPlayer()) return;
+                const playback = this.activePlayback();
+                if (
+                    playback?.isLive &&
+                    this.activeLiveItemId() === nextItem.xtream_id
+                ) {
+                    if (this.retryInlinePlayback())
+                        this.tuneRequests.invalidate();
+                    return;
+                }
+            }
         }
 
         this.playLive(nextItem, true, undefined, true);
@@ -883,6 +1285,25 @@ export class LiveStreamLayoutComponent
             return;
         }
 
+        const playing = this.usesSelectionForRemote()
+            ? null
+            : this.externalGuide.confirmed();
+        if (
+            playing?.item.xtream_id === channel.xtream_id &&
+            !playing.archive &&
+            !playing.session.playbackUnverified &&
+            !this.externalGuide.isStopping()
+        ) {
+            this.tuneRequests.invalidate();
+            const cancelled = this.externalGuide.cancelPendingSwitch(channel);
+            if (cancelled)
+                this.tuneRequests.afterCancellation(
+                    cancelled,
+                    channel.xtream_id,
+                    () => this.playLive(channel, true, undefined, true)
+                );
+            return;
+        }
         this.playLive(channel, true, undefined, true);
     }
 
@@ -903,6 +1324,16 @@ export class LiveStreamLayoutComponent
         return [...this.channelNavigation.remoteChannels()];
     }
 
+    private isLiveCategoryWithheld(
+        playlistId: string,
+        categoryId: number | null | 'unknown'
+    ): boolean {
+        return isXtreamLiveCategoryWithheld(this.parentalLock, {
+            playlistId,
+            categoryId,
+        });
+    }
+
     /**
      * The provider category id the parental lock is keyed by. Electron rows
      * carry the SQLite category row id in `category_id` and the provider id
@@ -910,12 +1341,9 @@ export class LiveStreamLayoutComponent
      * both. A row whose category is not in the list resolves to null rather
      * than to a guess that could collide with a locked provider id.
      */
-    private resolveLiveProviderCategoryId(
+    private readLiveProviderCategoryId(
         item: XtreamLiveChannelItem
     ): number | null | 'unknown' {
-        // Every resolution retires the lookups before it, including one for
-        // a same-id channel of another playlist that resolved synchronously.
-        const generation = ++this.liveCategoryLookupGeneration;
         const categoryId = Number(item.category_id);
         if (!Number.isFinite(categoryId)) {
             return null;
@@ -928,35 +1356,65 @@ export class LiveStreamLayoutComponent
                 Number((candidate as { id?: number }).id) === categoryId
         ) as { xtream_id?: number } | undefined;
         const providerId = Number(category?.xtream_id);
-        if (Number.isFinite(providerId)) {
-            return providerId;
-        }
+        return Number.isFinite(providerId) ? providerId : 'unknown';
+    }
+
+    private resolveLiveProviderCategoryId(
+        item: XtreamLiveChannelItem,
+        resolved?: number | null | 'unknown'
+    ): number | null | 'unknown' {
+        // Every resolution retires lookups from the previous selection.
+        const generation = ++this.liveCategoryLookupGeneration;
+        if (resolved !== undefined) return resolved;
+        const providerId = this.readLiveProviderCategoryId(item);
+        if (providerId !== 'unknown') return providerId;
         // Not in the visible list — a hidden category (search can play its
         // channels). Resolve through the unfiltered rows; until that lands
         // the id is unknown and a relock stops the channel.
-        const playlistId = this.xtreamStore.currentPlaylist()?.id;
-        if (playlistId) {
-            void this.databaseService
-                .getAllXtreamCategories(playlistId, 'live')
-                .then((rows) => {
+        const owner = this.externalGuide.owner();
+        if (owner) {
+            void this.lookupLiveProviderCategoryId(owner.playlistId, item).then(
+                (resolved) => {
                     if (
+                        resolved === 'unknown' ||
                         generation !== this.liveCategoryLookupGeneration ||
-                        this.xtreamStore.currentPlaylist()?.id !== playlistId ||
+                        !sameXtreamLiveOwner(
+                            owner,
+                            this.externalGuide.owner()
+                        ) ||
                         this.activeLiveItemId() !== item.xtream_id
                     ) {
                         return;
                     }
-                    const row = rows.find(
-                        (candidate) => Number(candidate.id) === categoryId
+                    this.activeLiveProviderCategoryId = resolved;
+                    this.externalGuide.resolveCategory(
+                        this.activeStreamUrl(),
+                        item,
+                        resolved
                     );
-                    const resolved = Number(row?.xtream_id);
-                    if (Number.isFinite(resolved)) {
-                        this.activeLiveProviderCategoryId = resolved;
-                    }
-                })
-                .catch(() => undefined);
+                }
+            );
         }
         return 'unknown';
+    }
+
+    private async lookupLiveProviderCategoryId(
+        playlistId: string,
+        item: XtreamLiveChannelItem
+    ): Promise<number | 'unknown'> {
+        try {
+            const rows = await this.databaseService.getAllXtreamCategories(
+                playlistId,
+                'live'
+            );
+            const categoryId = Number(item.category_id);
+            const resolved = Number(
+                rows.find((row) => Number(row.id) === categoryId)?.xtream_id
+            );
+            return Number.isFinite(resolved) ? resolved : 'unknown';
+        } catch {
+            return 'unknown';
+        }
     }
 
     private selectLiveItemCategory(item: XtreamLiveChannelItem): void {
@@ -968,7 +1426,8 @@ export class LiveStreamLayoutComponent
 
     private async playCatchup(
         program: EpgProgram,
-        item: XtreamLiveChannelItem
+        item: XtreamLiveChannelItem,
+        displayedChannels?: readonly XtreamLiveChannelItem[]
     ): Promise<void> {
         const playlist = this.xtreamStore.currentPlaylist();
         if (!playlist) {
@@ -988,10 +1447,30 @@ export class LiveStreamLayoutComponent
             return;
         }
 
-        const requestId = ++this.playbackRequestId;
-        this.activeLiveItemId.set(item.xtream_id);
-        this.activeLiveProviderCategoryId =
-            this.resolveLiveProviderCategoryId(item);
+        const request = this.tuneRequests.begin();
+        const preview = this.archivePreview;
+        const fromPreview =
+            preview &&
+            sameXtreamLiveOwner(this.activeOwner(), request.owner) &&
+            sameXtreamChannelCopy(preview.item, item);
+        const queue = this.channelNavigation.queueFor(
+            item,
+            displayedChannels ??
+                (fromPreview
+                    ? preview.queue
+                    : this.channelNavigation.displayedChannels()),
+            displayedChannels || fromPreview ? 'replace' : 'on-channel-change'
+        );
+        const category = this.readLiveProviderCategoryId(item);
+        const resolved =
+            category === 'unknown'
+                ? await this.lookupLiveProviderCategoryId(playlist.id, item)
+                : category;
+        if (
+            !this.tuneRequests.isCurrent(request) ||
+            this.isLiveCategoryWithheld(playlist.id, resolved)
+        )
+            return;
         const catchupUrl = await this.xtreamUrlService.resolveCatchupUrl(
             playlist.id,
             {
@@ -1007,49 +1486,62 @@ export class LiveStreamLayoutComponent
             playlist.serverTimezone
         );
         if (
-            requestId !== this.playbackRequestId ||
-            this.xtreamStore.currentPlaylist()?.id !== playlist.id ||
-            this.activeLiveItemId() !== item.xtream_id
+            !this.tuneRequests.isCurrent(request) ||
+            this.isLiveCategoryWithheld(playlist.id, resolved)
         ) {
             return;
         }
 
-        this.activePlaylistId = playlist.id;
-        this.activeCatchupProgram.set(program);
-        this.activePlayback.set({
+        const playback: ResolvedPortalPlayback = {
             streamUrl: catchupUrl,
             title: this.getCatchupPlaybackTitle(item, program),
             thumbnail: item.poster_url ?? item.stream_icon ?? null,
             isLive: false,
-        });
-        if (this.usesEmbeddedPlayer()) {
-            return;
+        };
+        const inline = this.usesEmbeddedPlayer();
+        if (this.usesSelectionForRemote()) {
+            if (displayedChannels) {
+                this.selectGuideLiveItem(item, resolved);
+                this.channelNavigation.capture(item, queue, 'replace');
+            }
+            this.activeLiveItemId.set(item.xtream_id);
+            this.activeLiveProviderCategoryId =
+                this.resolveLiveProviderCategoryId(item, resolved);
+            this.activeOwner.set(request.owner);
+            this.activeGuideItem.set(item);
+            this.panelCatchupProgram.set(program);
+            this.panelPlayback.set(playback);
         }
+        if (inline) return;
 
-        this.xtreamStore.openPlayer(
-            catchupUrl,
-            this.getCatchupPlaybackTitle(item, program),
-            item.poster_url ?? item.stream_icon ?? null
+        this.externalGuide.start(playback, item, program, resolved, queue, {
+            replaceWith: this.guide.isOpen()
+                ? this.settingsStore.player?.()
+                : undefined,
+        });
+    }
+
+    private selectGuideLiveItem(
+        item: XtreamLiveChannelItem,
+        category?: number | null | 'unknown'
+    ): void {
+        this.activeLiveProviderCategoryId = this.resolveLiveProviderCategoryId(
+            item,
+            category
+        );
+        this.activeGuideItem.set(item);
+        this.xtreamStore.setSelectedItem({ ...item });
+        void this.xtreamStore.loadEpg((signal) =>
+            this.readGuideSchedule(item, signal)
         );
     }
 
-    private toControlledEpgProgram(program: EpgItem): EpgProgram {
-        return {
-            start: program.start,
-            stop: program.stop ?? program.end,
-            channel: program.channel_id ?? program.id,
-            title: program.title,
-            desc: program.description ?? null,
-            category: null,
-            startTimestamp: getProgramTimestampSeconds(
-                program.start,
-                program.start_timestamp
-            ),
-            stopTimestamp: getProgramTimestampSeconds(
-                program.stop ?? program.end,
-                program.stop_timestamp
-            ),
-        };
+    private async readGuideSchedule(
+        item: XtreamLiveChannelItem,
+        signal: AbortSignal
+    ) {
+        const schedule = await this.guideSource.playbackSchedule(item, signal);
+        return this.destroyRef.destroyed ? [] : schedule;
     }
 
     private toLiveEpgPanelSummary(
