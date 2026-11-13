@@ -1200,20 +1200,46 @@ Favorites tab are covered by unit tests only.
 ### Task 17: End-to-end, docs, release note
 
 **Files:** `apps/electron-backend-e2e/src/multiview-pip.e2e.ts`,
-`apps/web-e2e/src/multiview-pip.e2e.ts`, `docs/architecture/multiview.md`,
-`workspace-shell.md`, `embedded-inline-playback.md`,
-`docs/maintenance/agent-context-map.md`, `validation-map.md`,
-`.changes/playback-multiview-pip.md`.
+`apps/web-e2e/src/multiview-pip.e2e.ts`, `docs/architecture/multiview.md`
+(canonical), `agent-context-map.md`, `validation-map.md`,
+`xtream-mock-server.md` (`limit:limit`), `.changes/playback-multiview-pip.md`;
+fix in `multiview-tile-resolver.ts` (+ spec).
 
-- [ ] Electron: start PiP from the dock; swap; VOD resumes at its position;
-      Alt+click add; two tiles with different headers both reach the mock
-      with their own headers; connection-limit error and its actions; leaving
-      the route ends the session and saves positions.
-- [ ] PWA: PiP start and swap.
-- [ ] Scenario "movie → match → swap → swap back" on Xtream mock, M3U and
-      Stalker mock; light and dark; synthetic data only in screenshots.
-- [ ] Canonical doc for the subsystem, context-map entry, release note
-      (`release-notes` skill), `pnpm run release:notes:validate`.
+- [x] Electron (4 tests): start from the dock picker (focus in search, the
+      playing channel disabled as tile 1), PiP plays muted, `S` swaps size and
+      sound, the tile's swap button swaps back, leaving the view ends the
+      session; Alt+click adds, list badges ("1 + speaker", "2"), the row
+      stays unselected, a dragged row replaces the PiP and the badge moves,
+      Exit clears the badges; a tile that gets 403 shows the error card and
+      Close keeps the main channel playing; two tiles from two sources reach
+      the provider with their own User-Agent.
+- [x] PWA (1 test): PiP from the dock picker, `S` swap, Exit.
+- [ ] Scenario on M3U and Stalker mocks, VOD resume and leaving the route
+      with saved positions in e2e — not automated, see below.
+- [x] Canonical doc, context-map entry, validation-map commands, mock doc,
+      release note (`pnpm run release:notes:validate`: 24 valid).
+
+**As built:**
+- **Deterministic media:** the default mock accounts redirect streams to a
+  public test stream, so the specs use the `live-fallback` account with the
+  TS stream format, whose channels 10000, 10001 and 10003 play a local
+  MPEG-TS clip and 10002 answers 403. The fixture echoes the request's
+  User-Agent in `x-fixture-user-agent`.
+- **Defect found by the header test, fixed:** a tile picked from the picker
+  for an Xtream channel had no headers, because the shared
+  `StreamResolverService.resolveXtream` returns no User-Agent / Referer /
+  Origin; its owner then fell back to the main tile's override on the same
+  host (D4). `MultiviewTileResolverService` now adds the source playlist's
+  headers to Xtream live playbacks. The same omission exists outside
+  multiview (the Favorites / Recent live tab plays Xtream rows without the
+  playlist's User-Agent); it is left alone here (scope guard).
+- **Not automated:** VOD resume and the M3U / Stalker scenario need local
+  media for films, episodes, M3U and Stalker streams (the mocks redirect to
+  the public stream). They are covered by unit specs and by the live probes
+  recorded under Tasks 6–11 and 14. The connection-limit wording is covered
+  by unit specs and the Task 12/13 probes (`limit:limit` streams the public
+  stream too).
+- Stability: Electron `--repeat-each=2` 8/8, web `--repeat-each=3` 3/3.
 
 ## Phase acceptance (spec 14)
 

@@ -435,9 +435,20 @@ sometimes only respond to that misspelled action.
 | `emptyvod:emptyvod`       | 7007  | 2 each                     | 5         | active         |
 | `marketing:marketing`     | 8020  | live:4, vod:4, series:4    | curated   | active         |
 | `streamdrop:streamdrop`   | 8181  | series:1                   | 1         | active         |
+| `limit:limit`             | 1201  | live:2, vod:2, series:1    | 6         | active         |
 | `expired:expired`         | 4004  | 4 each                     | 10        | Expired        |
 | `inactive:inactive`       | 5005  | 4 each                     | 10        | Disabled       |
 | `<any other>`             | hash  | 6 each                     | 30        | active         |
+
+### `limit:limit` fixture details
+
+The account allows one connection (`connectionLimit: 1`, see
+`connection-limit.ts`). A live stream counts as connected for 20 s after its
+last request; a further stream id is refused with `403 Maximum number of
+connections reached` while another one is connected. `user_info` reports
+`max_connections: "1"` and the live `active_cons`. It drives the multiview
+error card's connection-limit wording. Other accounts keep `max_connections:
+"2"` and `active_cons: "1"`.
 
 ### `epg:epg` fixture details
 
