@@ -50,6 +50,18 @@ export class ControlsVolumeInteractions {
         this.deps.volume.hoverEnter();
     }
 
+    /**
+     * A real mouse moving over the anchor opens the popover when its enter
+     * landed inside a touch press's window and was ignored, the same recovery
+     * the chrome bar has; once open, moves change nothing.
+     */
+    pointerMove(event?: Event): void {
+        if (this.deps.menus.volumeOpen() || this.deps.isEmulatedHover(event)) {
+            return;
+        }
+        this.deps.volume.hoverEnter();
+    }
+
     hoverLeave(event?: Event): void {
         if (
             this.deps.wasTouchInteraction(event) ||

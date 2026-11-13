@@ -158,6 +158,7 @@
                     <div
                         class="player-controls__popover-anchor player-controls__volume"
                         (pointerenter)="volumeInteractions.pointerEnter($event)"
+                        (pointermove)="volumeInteractions.pointerMove($event)"
                         (pointerleave)="volumeInteractions.hoverLeave($event)"
                         (focusin)="volumeInteractions.hoverEnter($event)"
                         (focusout)="volumeInteractions.hoverLeave($event)"

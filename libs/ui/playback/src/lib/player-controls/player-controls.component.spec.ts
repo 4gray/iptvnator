@@ -344,6 +344,29 @@ describe('PlayerControlsComponent', () => {
             expect(fixture.componentInstance.controlsAreVisible()).toBe(false);
         });
 
+        it('opens the volume popover when a real mouse moves over the anchor after a touch', () => {
+            setCapabilities({ volume: true });
+            fixture.detectChanges();
+            const anchor = query(
+                '.player-controls__popover-anchor'
+            ) as HTMLElement;
+            const typed = (type: string, pointerType: string) => {
+                const event = new MouseEvent(type, { bubbles: true });
+                Object.defineProperty(event, 'pointerType', {
+                    value: pointerType,
+                });
+                return event;
+            };
+            document.dispatchEvent(typed('pointerdown', 'touch'));
+            anchor.dispatchEvent(typed('pointerenter', 'mouse'));
+            expect(fixture.componentInstance.menus.volumeOpen()).toBe(false);
+
+            jest.advanceTimersByTime(1500);
+            anchor.dispatchEvent(typed('pointermove', 'mouse'));
+            fixture.detectChanges();
+            expect(fixture.componentInstance.menus.volumeOpen()).toBe(true);
+        });
+
         it('lets a real mouse moving over the bar claim hover after a touch', () => {
             const typed = (type: string, pointerType: string) => {
                 const event = new MouseEvent(type, { bubbles: true });
