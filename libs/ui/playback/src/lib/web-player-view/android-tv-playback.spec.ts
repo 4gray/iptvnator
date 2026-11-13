@@ -35,6 +35,14 @@ function setup() {
             {
                 streamUrl: 'https://media.example.test/synthetic-episode.mkv',
                 title: 'Synthetic episode',
+                contentInfo: {
+                    playlistId: 'synthetic-playlist',
+                    contentXtreamId: 17,
+                    contentType: 'episode',
+                    seriesXtreamId: 3,
+                    activitySessionId: 'synthetic-activity',
+                    activityTitle: 'Synthetic private title',
+                },
             },
             false,
             0,
@@ -45,6 +53,13 @@ function setup() {
         const message = postMessage.mock.lastCall?.[0] as string;
         const [, id, request] = JSON.parse(message);
         expect(request.volume).toBe(0);
+        expect(request.checkpoint).toEqual({
+            playlistId: 'synthetic-playlist',
+            contentXtreamId: 17,
+            contentType: 'episode',
+            seriesXtreamId: 3,
+            activitySessionId: 'synthetic-activity',
+        });
         return id as string;
     }
 

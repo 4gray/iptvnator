@@ -53,6 +53,7 @@ import {
     activityEventsFactory,
 } from './services/activity-sync.providers';
 import { providePortalPlaybackPositions } from './services/portal-playback-positions.service';
+import { provideAndroidPlaybackCheckpoint } from './services/android-playback-checkpoint';
 import { PwaService } from './services/pwa.service';
 import { shouldEnableServiceWorker } from './services/runtime-config';
 import { LazyStalkerPlaylistConnectionEditor } from './services/lazy-stalker-playlist-connection-editor';
@@ -151,6 +152,7 @@ export const appConfig: ApplicationConfig = {
             useExisting: ExternalPlaybackService,
         },
         ...providePortalPlaybackPositions(),
+        provideAndroidPlaybackCheckpoint(),
         {
             provide: STALKER_PLAYLIST_CONNECTION_EDITOR,
             useExisting: LazyStalkerPlaylistConnectionEditor,

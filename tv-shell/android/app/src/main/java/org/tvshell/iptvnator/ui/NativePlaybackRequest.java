@@ -4,6 +4,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 
+import org.tvshell.iptvnator.backend.Json;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
@@ -68,6 +70,18 @@ final class NativePlaybackRequest {
             }
             return chain.proceed(scoped.build());
         }).build();
+    }
+
+    static Bundle checkpointContent(Object payload, String origin) {
+        // Called only for a validated request. Keep the stream URL and headers out of saved state here.
+        Object checkpoint = ((Map<?, ?>) payload).get("checkpoint");
+        if (!(checkpoint instanceof Map<?, ?>)) return null;
+        String content = Json.write(checkpoint);
+        if (content.length() > 8192) return null;
+        Bundle saved = new Bundle();
+        saved.putString("origin", origin);
+        saved.putString("content", content);
+        return saved;
     }
 
     private static float volume(Object raw) {

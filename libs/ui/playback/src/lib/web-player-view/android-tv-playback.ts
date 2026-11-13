@@ -140,6 +140,7 @@ export class AndroidTvPlayback {
             pending: true,
         });
         const extension = getPlaybackMediaExtensionFromUrl(playback.streamUrl);
+        const contentInfo = live ? undefined : playback.contentInfo;
         const headers = { ...playback.headers };
         for (const [key, value] of [
             ['user-agent', playback.userAgent],
@@ -169,6 +170,18 @@ export class AndroidTvPlayback {
                             headers,
                             captions,
                             volume,
+                            // Only resume metadata crosses this bridge alongside the stream request.
+                            checkpoint: contentInfo && {
+                                playlistId: contentInfo.playlistId,
+                                contentXtreamId: contentInfo.contentXtreamId,
+                                contentType: contentInfo.contentType,
+                                seriesXtreamId: contentInfo.seriesXtreamId,
+                                seasonNumber: contentInfo.seasonNumber,
+                                episodeNumber: contentInfo.episodeNumber,
+                                activitySessionId:
+                                    contentInfo.activitySessionId,
+                                activityIdentity: contentInfo.activityIdentity,
+                            },
                         },
                     ]);
                     if (message.length > 64 * 1024) {

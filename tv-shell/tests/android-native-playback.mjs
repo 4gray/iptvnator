@@ -238,7 +238,32 @@ try {
     await expect.poll(topActivity).toContain('.ui.MainActivity');
     await setExperiment(false);
     await expect(action).toHaveCount(0);
-    console.log('PASS Android Media3 opt-in, mute handoff, VOD resume after Home, redirect header scope, extensionless HLS Back, AC-3 audio, captions and natural VOD completion');
+    await setExperiment(true);
+    await page.evaluate((url) => {
+        window.TvShell.postMessage(JSON.stringify(['playNative', crypto.randomUUID(), {
+            url,
+            startTime: 8,
+            checkpoint: {
+                playlistId: 'synthetic-reload-test',
+                contentType: 'episode',
+                contentXtreamId: 17,
+                seriesXtreamId: 3,
+            },
+        }]));
+    }, origin + '/synthetic-ac3.mkv');
+    await waitNative();
+    await waitAudio();
+    // Reload while native playback owns the foreground. The new document cannot
+    // receive the old player's event, just like a recreated WebView.
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => !document.getElementById('initial-splash'));
+    await back();
+    await expect.poll(() => page.evaluate(() => {
+        const stored = JSON.parse(localStorage.getItem('xtream-playback-positions') || '{}');
+        return stored['synthetic-reload-test']?.find((item) => item.contentXtreamId === 17)?.positionSeconds ?? 0;
+    })).toBeGreaterThanOrEqual(8);
+    await setExperiment(false);
+    console.log('PASS Android Media3 opt-in, mute handoff, VOD resume after Home and WebView reload, redirect header scope, extensionless HLS Back, AC-3 audio, captions and natural VOD completion');
 } finally {
     if (settingsOpen || topActivity().includes('.ui.NativePlayerActivity')) adb('shell', 'input', 'keyevent', '4');
     await device?.close();

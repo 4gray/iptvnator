@@ -42,7 +42,7 @@ function createPosition(
 }
 
 function createController(playbackOwnerKey?: () => string) {
-    const inlinePlayback = signal(null);
+    const inlinePlayback = signal<ResolvedPortalPlayback | null>(null);
     const selectedVodPosition = signal<PlaybackPositionData | null>(null);
     const playbackPositions = {
         savePlaybackPosition: jest.fn(),
@@ -91,6 +91,34 @@ function createController(playbackOwnerKey?: () => string) {
 }
 
 describe('StalkerVodPlaybackController', () => {
+    it('saves the final native seek within the ordinary playback throttle', () => {
+        const {
+            controller,
+            inlinePlayback,
+            playbackPositions,
+            selectedVodPosition,
+        } = createController();
+        inlinePlayback.set({
+            title: 'Synthetic movie',
+            streamUrl: 'https://media.example.test/synthetic.mp4',
+            contentInfo: {
+                playlistId: 'synthetic-playlist',
+                contentType: 'vod',
+                contentXtreamId: 17,
+            },
+        });
+        controller.handleInlineTimeUpdate({ currentTime: 21, duration: 90 });
+        controller.handleInlineTimeUpdate({ currentTime: 22, duration: 90 });
+        expect(playbackPositions.savePlaybackPosition).toHaveBeenCalledTimes(1);
+        controller.handleInlineTimeUpdate({
+            currentTime: 60,
+            duration: 90,
+            checkpoint: true,
+        });
+        expect(playbackPositions.savePlaybackPosition).toHaveBeenCalledTimes(2);
+        expect(selectedVodPosition()?.positionSeconds).toBe(60);
+    });
+
     it('ignores stale VOD position loads that resolve after a newer selection', async () => {
         const { controller, playbackPositions, selectedVodPosition } =
             createController();

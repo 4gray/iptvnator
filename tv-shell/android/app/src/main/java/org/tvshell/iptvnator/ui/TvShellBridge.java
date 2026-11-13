@@ -38,6 +38,10 @@ final class TvShellBridge {
                     if (id != null && id.matches("[a-f0-9-]{36}")) activity.playNative(id, args.get(2));
                 }
                 break;
+            case "acknowledgeNativePlaybackCheckpoint":
+                String checkpointId = stringAt(args, 1);
+                if (checkpointId != null) activity.acknowledgeNativePlaybackCheckpoint(checkpointId);
+                break;
             case "openExternal":
             case "onUrlCopied":
             case "onPlaybackError":
