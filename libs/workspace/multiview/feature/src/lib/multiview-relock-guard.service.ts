@@ -6,6 +6,7 @@ import {
 import type { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 import { ParentalLockService } from '@iptvnator/services';
 import { MultiviewPickerDataService } from './multiview-picker-data.service';
+import { MultiviewXtreamLock } from './multiview-xtream-lock';
 
 /**
  * R11 after the fact: a tile added from the picker or a list stops as soon
@@ -17,6 +18,7 @@ import { MultiviewPickerDataService } from './multiview-picker-data.service';
 export class MultiviewRelockGuard {
     private readonly store = inject(MultiviewSessionStore);
     private readonly data = inject(MultiviewPickerDataService);
+    private readonly xtreamLock = inject(MultiviewXtreamLock);
     private readonly items = new Map<string, UnifiedCollectionItem>();
 
     constructor() {
@@ -30,15 +32,28 @@ export class MultiviewRelockGuard {
                     this.items.clear();
                     return;
                 }
-                const withheld = tiles
-                    .filter((tile) => {
-                        const item = this.items.get(tile.playbackSessionKey);
-                        return !!item && !this.data.isAllowed(item);
-                    })
-                    .map((tile) => tile.id);
-                if (withheld.length > 0) this.store.withhold(withheld);
+                void this.withholdLocked(tiles);
             });
         });
+    }
+
+    private async withholdLocked(
+        tiles: readonly { id: string; playbackSessionKey: string }[]
+    ): Promise<void> {
+        const checks = await Promise.all(
+            tiles.map(async (tile) => {
+                const item = this.items.get(tile.playbackSessionKey);
+                if (!item) return null;
+                const locked =
+                    !this.data.isAllowed(item) ||
+                    (await this.xtreamLock.isLocked(item));
+                return locked ? tile.id : null;
+            })
+        );
+        const withheld = checks.filter((id): id is string => id !== null);
+        const current = new Set(this.store.tiles().map((tile) => tile.id));
+        const still = withheld.filter((id) => current.has(id));
+        if (still.length > 0) this.store.withhold(still);
     }
 
     /** Remembers which item a tile source plays, for the lock checks. */

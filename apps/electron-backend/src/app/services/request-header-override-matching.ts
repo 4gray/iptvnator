@@ -82,33 +82,33 @@ export function shouldApplyOverride(
 }
 
 /**
- * Scoped overrides that apply to a request, weakest first: callers apply
- * them in order, so the last one wins a header both set.
+ * The scoped override that applies to a request, as a list of at most one.
  *
  * With a single override — every surface outside multiview — this is that
- * override or nothing. With several owners on one origin, a request for an
- * owner's exact stream URL gets that owner's headers; any other request on
- * the origin (segments, keys) cannot be attributed to an owner, so the most
- * recently configured override wins.
+ * override or nothing. With several owners on one origin exactly one wins and
+ * headers are never merged across owners, so one tile's credentials cannot
+ * reach another tile's request: a request for an owner's exact stream URL
+ * gets that owner's override; any other request on the origin (segments,
+ * keys) cannot be attributed to an owner, so the most recently configured
+ * override wins (D4).
  */
 export function selectScopedOverrides(
     url: string,
     overrides: Iterable<ScopedHeaderOverride>
 ): ScopedHeaderOverride[] {
-    const matching: ScopedHeaderOverride[] = [];
+    let winner: ScopedHeaderOverride | null = null;
+    let winnerExact = false;
     for (const override of overrides) {
-        if (shouldApplyOverride(url, override)) {
-            matching.push(override);
+        if (!shouldApplyOverride(url, override)) continue;
+        const exact = override.scopeUrl === url;
+        if (
+            !winner ||
+            (exact && !winnerExact) ||
+            (exact === winnerExact && override.sequence > winner.sequence)
+        ) {
+            winner = override;
+            winnerExact = exact;
         }
     }
-
-    if (matching.length < 2) {
-        return matching;
-    }
-
-    return matching.sort((left, right) => {
-        const leftExact = left.scopeUrl === url ? 1 : 0;
-        const rightExact = right.scopeUrl === url ? 1 : 0;
-        return leftExact - rightExact || left.sequence - right.sequence;
-    });
+    return winner ? [winner] : [];
 }

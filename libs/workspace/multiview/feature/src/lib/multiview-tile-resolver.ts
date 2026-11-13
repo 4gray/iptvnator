@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import type { MultiviewTileSource } from '@iptvnator/playback/multiview/data-access';
 import {
     MultiviewCatalogService,
+    StreamResolverService,
     VodSourceResolverService,
 } from '@iptvnator/portal/shared/data-access';
 import {
@@ -18,6 +19,7 @@ import {
     type MultiviewPickerRow,
     providerContentId,
 } from './multiview-picker-row';
+import { MultiviewXtreamLock } from './multiview-xtream-lock';
 
 /** The picked row cannot become a tile (series, radio, other VOD). */
 export class MultiviewUnresolvableError extends Error {
@@ -51,6 +53,15 @@ export class MultiviewTileResolverService {
     private readonly positions = inject(PlaybackPositionService);
     private readonly router = inject(Router);
     private readonly playlists = inject(PlaylistsService);
+    private readonly streams = inject(StreamResolverService);
+    private readonly xtreamLock = inject(MultiviewXtreamLock);
+
+    /** R11 for Xtream items, checked before and after resolving. */
+    async assertAllowed(item: UnifiedCollectionItem): Promise<void> {
+        if (await this.xtreamLock.isLocked(item)) {
+            throw new MultiviewUnresolvableError();
+        }
+    }
 
     /** D2: opens the item in its own view, as the Recent list does. */
     reopenFor(item: UnifiedCollectionItem): (() => void) | undefined {
@@ -71,7 +82,7 @@ export class MultiviewTileResolverService {
         if (row.kind === 'live') {
             const playback = await this.withPlaylistHeaders(
                 item,
-                await this.catalog.resolve({ item, group: '' })
+                await this.resolveLive(item)
             );
             return {
                 playback,
@@ -91,6 +102,23 @@ export class MultiviewTileResolverService {
             return this.resolveXtreamFilm(row, item.xtreamId);
         }
         throw new MultiviewUnresolvableError();
+    }
+
+    /**
+     * Xtream channels skip the catalog's category check (it reads the item's
+     * category as a provider id) for the stream-id lock check; other
+     * providers keep the catalog's check before and after.
+     */
+    private async resolveLive(
+        item: UnifiedCollectionItem
+    ): Promise<ResolvedPortalPlayback> {
+        if (item.sourceType !== 'xtream') {
+            return this.catalog.resolve({ item, group: '' });
+        }
+        await this.assertAllowed(item);
+        const playback = await this.streams.resolvePlayback(item);
+        await this.assertAllowed(item);
+        return playback;
     }
 
     /**
@@ -123,6 +151,7 @@ export class MultiviewTileResolverService {
         xtreamId: number
     ): Promise<MultiviewTileSource> {
         const { item } = row;
+        await this.assertAllowed(item);
         // Favorites, Recent and search rows carry no progress: read it.
         const saved =
             row.position ??
@@ -149,6 +178,7 @@ export class MultiviewTileResolverService {
             { startTime: position }
         );
         if (!resolved) throw new MultiviewUnresolvableError();
+        await this.assertAllowed(item);
         const writer = createInlinePlaybackPositionWriter({
             playback: signal<ResolvedPortalPlayback | null>(resolved.playback),
             save: (playlistId, data) =>

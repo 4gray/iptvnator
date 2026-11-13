@@ -37,6 +37,8 @@ export interface MultiviewTileSource {
     readonly radio?: boolean;
     /** VOD position to start from, in seconds. */
     readonly position?: number;
+    /** The view player's volume, kept by tile 1 (0–1; default full). */
+    readonly volume?: number;
     /**
      * Saves the tile's playback progress the way its single player would
      * (R9). Called on every time update of the tile.

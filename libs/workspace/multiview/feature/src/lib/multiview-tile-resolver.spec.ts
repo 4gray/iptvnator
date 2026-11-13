@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import {
     MultiviewCatalogService,
+    StreamResolverService,
     VodSourceResolverService,
 } from '@iptvnator/portal/shared/data-access';
 import { PlaybackPositionService, PlaylistsService } from '@iptvnator/services';
@@ -12,9 +13,12 @@ import {
     MultiviewTileResolverService,
     MultiviewUnresolvableError,
 } from './multiview-tile-resolver';
+import { MultiviewXtreamLock } from './multiview-xtream-lock';
 
 describe('MultiviewTileResolverService', () => {
     const catalog = { resolve: jest.fn() };
+    const streams = { resolvePlayback: jest.fn() };
+    const isLocked = jest.fn();
     const vod = { resolve: jest.fn() };
     const positions = {
         savePlaybackPosition: jest.fn(),
@@ -24,10 +28,13 @@ describe('MultiviewTileResolverService', () => {
 
     beforeEach(() => {
         jest.resetAllMocks();
+        isLocked.mockResolvedValue(false);
         playlist = undefined;
         TestBed.configureTestingModule({
             providers: [
                 { provide: MultiviewCatalogService, useValue: catalog },
+                { provide: StreamResolverService, useValue: streams },
+                { provide: MultiviewXtreamLock, useValue: { isLocked } },
                 { provide: VodSourceResolverService, useValue: vod },
                 { provide: PlaybackPositionService, useValue: positions },
                 {
@@ -46,7 +53,7 @@ describe('MultiviewTileResolverService', () => {
             title: 'Synthetic Channel 7',
             isLive: true,
         };
-        catalog.resolve.mockResolvedValue(playback);
+        streams.resolvePlayback.mockResolvedValue(playback);
         const row = toPickerRow(liveItem(7), []);
 
         await expect(service().resolve(row)).resolves.toEqual({
@@ -58,10 +65,8 @@ describe('MultiviewTileResolverService', () => {
             title: 'Synthetic Channel 7',
             reopen: expect.any(Function),
         });
-        expect(catalog.resolve).toHaveBeenCalledWith({
-            item: row.item,
-            group: '',
-        });
+        expect(streams.resolvePlayback).toHaveBeenCalledWith(row.item);
+        expect(isLocked).toHaveBeenCalledTimes(2);
     });
 
     it("gives an Xtream channel its source's headers (D4)", async () => {
@@ -71,7 +76,7 @@ describe('MultiviewTileResolverService', () => {
             referrer: 'https://ref.example/',
             origin: 'https://origin.example',
         };
-        catalog.resolve.mockResolvedValue({
+        streams.resolvePlayback.mockResolvedValue({
             streamUrl: 'http://xtream.example/live/u/p/7.ts',
             title: 'Synthetic Channel 7',
             isLive: true,
@@ -192,6 +197,35 @@ describe('MultiviewTileResolverService', () => {
         expect(vod.resolve).toHaveBeenCalledWith(expect.anything(), {
             startTime: undefined,
         });
+    });
+
+    it('resolves M3U and Stalker channels through the catalog', async () => {
+        catalog.resolve.mockResolvedValue({
+            streamUrl: 'https://stream.example/s.m3u8',
+            title: 's',
+        });
+        const row = toPickerRow(liveItem(7, { sourceType: 'stalker' }), []);
+
+        await service().resolve(row);
+
+        expect(catalog.resolve).toHaveBeenCalledWith({
+            item: row.item,
+            group: '',
+        });
+        expect(streams.resolvePlayback).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ['a locked Xtream channel', () => toPickerRow(liveItem(7), [])],
+        ['a locked Xtream film', () => toPickerRow(movieItem(4), [])],
+    ])('refuses %s (R11)', async (_label, row) => {
+        isLocked.mockResolvedValue(true);
+
+        await expect(service().resolve(row())).rejects.toBeInstanceOf(
+            MultiviewUnresolvableError
+        );
+        expect(streams.resolvePlayback).not.toHaveBeenCalled();
+        expect(vod.resolve).not.toHaveBeenCalled();
     });
 
     it('refuses a film whose source cannot be resolved', async () => {

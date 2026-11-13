@@ -3,6 +3,7 @@ import {
     MULTIVIEW_CHANNEL_MAPPER,
     type MultiviewAnchorHost,
     type MultiviewTileSource,
+    tileNumberFor,
 } from '@iptvnator/playback/multiview/data-access';
 import type {
     UnifiedCollectionItem,
@@ -74,7 +75,15 @@ export function createUnifiedLiveMultiviewHost(
         source,
         engine: computed(() => tab.inlinePlayer()),
         adopt(tile): boolean {
-            const row = tab.items().find((item) => item.uid === tile.contentId);
+            // Tiles from the picker or a list carry the provider id, the
+            // tab's own tile the uid: match either identity.
+            const row = tab
+                .items()
+                .find(
+                    (item) =>
+                        item.uid === tile.contentId ||
+                        tileNumberFor(item, [tile]) === 1
+                );
             if (!row) return false;
             void tab.onChannelSelected({
                 uid: row.uid,

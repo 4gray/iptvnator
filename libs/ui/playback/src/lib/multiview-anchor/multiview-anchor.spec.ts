@@ -341,6 +341,18 @@ describe('MultiviewAnchor', () => {
             expect(view().anchor.resumePosition()).toBeNull();
         });
 
+        it('drops it when the view starts the same title again', () => {
+            startVod();
+            store.reportPosition(store.tiles()[0].id, 754);
+            fixture.detectChanges();
+            store.exit();
+            fixture.detectChanges();
+            // Start over: same title, a new playback.
+            view().playing.set({ ...source('movie'), kind: 'vod' });
+
+            expect(view().anchor.resumePosition()).toBeNull();
+        });
+
         it('has none for a live source', () => {
             startSession();
             store.exit();

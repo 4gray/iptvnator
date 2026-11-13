@@ -20,6 +20,7 @@ import type {
 } from '@iptvnator/shared/interfaces';
 import { firstValueFrom } from 'rxjs';
 import { MultiviewUnresolvableError } from './multiview-tile-resolver';
+import { MultiviewXtreamLock } from './multiview-xtream-lock';
 
 /** One episode in the picker's "Episodes" view. */
 export interface MultiviewEpisodeRow {
@@ -67,6 +68,7 @@ export class MultiviewSeriesEpisodesService {
     private readonly urls = inject(XtreamUrlService);
     private readonly positions = inject(PlaybackPositionService);
     private readonly router = inject(Router);
+    private readonly xtreamLock = inject(MultiviewXtreamLock);
 
     hasEpisodes(item: UnifiedCollectionItem): boolean {
         return (
@@ -120,6 +122,9 @@ export class MultiviewSeriesEpisodesService {
         series: UnifiedCollectionItem,
         row: MultiviewEpisodeRow
     ): Promise<MultiviewTileSource> {
+        if (await this.xtreamLock.isLocked(series)) {
+            throw new MultiviewUnresolvableError();
+        }
         const { credentials, playlist } = await this.source(series.playlistId);
         const streamUrl =
             row.episode.direct_source?.trim() ||

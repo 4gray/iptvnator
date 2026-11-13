@@ -2638,7 +2638,8 @@
                 "LOAD_ERROR": "Liste yüklenemedi.",
                 "NO_RESULTS": "Hiçbir şey bulunamadı",
                 "EMPTY": "Henüz bir şey yok"
-            }
+            },
+            "REPLACED": "{{number}}. pencere değiştirildi"
         }
     }
 }

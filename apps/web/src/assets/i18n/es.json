@@ -2638,7 +2638,8 @@
                 "LOAD_ERROR": "No se pudo cargar la lista.",
                 "NO_RESULTS": "No se encontró nada",
                 "EMPTY": "Aún no hay nada"
-            }
+            },
+            "REPLACED": "Ventana {{number}} reemplazada"
         }
     }
 }

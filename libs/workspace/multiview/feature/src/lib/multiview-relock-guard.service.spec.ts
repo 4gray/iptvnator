@@ -6,6 +6,7 @@ import { ParentalLockService } from '@iptvnator/services';
 import { MultiviewPickerDataService } from './multiview-picker-data.service';
 import { liveItem, tile } from './multiview-picker.fixtures';
 import { MultiviewRelockGuard } from './multiview-relock-guard.service';
+import { MultiviewXtreamLock } from './multiview-xtream-lock';
 
 describe('MultiviewRelockGuard (R11)', () => {
     const version = signal(0);
@@ -16,9 +17,11 @@ describe('MultiviewRelockGuard (R11)', () => {
     ]);
     const withhold = jest.fn();
     const locked = new Set<string>();
+    const xtreamLocked = new Set<string>();
 
     beforeEach(() => {
         locked.clear();
+        xtreamLocked.clear();
         withhold.mockReset();
         TestBed.configureTestingModule({
             providers: [
@@ -29,6 +32,13 @@ describe('MultiviewRelockGuard (R11)', () => {
                 {
                     provide: MultiviewSessionStore,
                     useValue: { tiles, exists: () => true, withhold },
+                },
+                {
+                    provide: MultiviewXtreamLock,
+                    useValue: {
+                        isLocked: async (item: UnifiedCollectionItem) =>
+                            xtreamLocked.has(item.uid),
+                    },
                 },
                 {
                     provide: MultiviewPickerDataService,
@@ -51,22 +61,35 @@ describe('MultiviewRelockGuard (R11)', () => {
         return service;
     }
 
-    it('stops a picked tile once a relock withholds its item', () => {
+    it('stops a picked tile once a relock withholds its item', async () => {
         guard();
         expect(withhold).not.toHaveBeenCalled();
 
         locked.add(liveItem(9).uid);
         version.update((n) => n + 1);
         TestBed.tick();
+        await Promise.resolve();
+        await Promise.resolve();
 
         expect(withhold).toHaveBeenCalledWith(['multiview-tile-2']);
     });
 
-    it('leaves tiles it did not add to their own view', () => {
+    it('stops a picked Xtream tile whose category the data source now locks', async () => {
+        guard();
+        xtreamLocked.add(liveItem(9).uid);
+        version.update((n) => n + 1);
+        TestBed.tick();
+        await new Promise((resolve) => setTimeout(resolve));
+
+        expect(withhold).toHaveBeenCalledWith(['multiview-tile-2']);
+    });
+
+    it('leaves tiles it did not add to their own view', async () => {
         guard();
         locked.add('xtream::playlist-1::1');
         version.update((n) => n + 1);
         TestBed.tick();
+        await new Promise((resolve) => setTimeout(resolve));
 
         expect(withhold).not.toHaveBeenCalled();
     });

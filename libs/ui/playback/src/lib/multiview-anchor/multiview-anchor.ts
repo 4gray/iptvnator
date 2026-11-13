@@ -47,9 +47,12 @@ export class MultiviewAnchor {
     private position: { key: string; seconds: number } | null = null;
     /** Where the tile playing the view's own source last was. */
     private ownTile: { key: string; seconds: number } | null = null;
-    private readonly resume = signal<{ key: string; seconds: number } | null>(
-        null
-    );
+    private readonly resume = signal<{
+        key: string;
+        seconds: number;
+        /** The view's playback when the session ended. */
+        playback: unknown;
+    } | null>(null);
 
     /**
      * R7: when the session ends and the view plays its own VOD source again,
@@ -58,7 +61,12 @@ export class MultiviewAnchor {
      */
     readonly resumePosition = computed(() => {
         const resume = this.resume();
-        return resume && resume.key === this.host.source()?.playbackSessionKey
+        const source = this.host.source();
+        // A new start of the same title (Start over) replaces the playback
+        // and is not a handback.
+        return resume &&
+            resume.key === source?.playbackSessionKey &&
+            resume.playback === source.playback
             ? resume.seconds
             : null;
     });
@@ -160,7 +168,12 @@ export class MultiviewAnchor {
         untracked(() => {
             if (!this.ownedSession || notice?.effect.type !== 'ended') return;
             this.ownedSession = false;
-            this.resume.set(this.ownTile);
+            this.resume.set(
+                this.ownTile && {
+                    ...this.ownTile,
+                    playback: this.host.source()?.playback,
+                }
+            );
             this.ownTile = null;
             const survivor = notice.effect.survivor;
             if (

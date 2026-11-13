@@ -36,6 +36,8 @@ function toCollectionItem(
         posterUrl: row.poster_url || null,
         xtreamId: row.xtream_id,
         contentId: row.id,
+        // Detail navigation (the survivor's way back) needs the category.
+        categoryId: row.category_id,
     };
 }
 

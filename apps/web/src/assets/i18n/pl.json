@@ -2638,7 +2638,8 @@
                 "LOAD_ERROR": "Nie udało się wczytać listy.",
                 "NO_RESULTS": "Nic nie znaleziono",
                 "EMPTY": "Na razie pusto"
-            }
+            },
+            "REPLACED": "Zastąpiono okno {{number}}"
         }
     }
 }

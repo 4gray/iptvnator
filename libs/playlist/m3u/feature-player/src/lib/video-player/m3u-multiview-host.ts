@@ -21,6 +21,8 @@ export interface M3uMultiviewDeps {
     readonly catchupUrl: Signal<string | null | undefined>;
     /** Engine the inline player uses (DASH forces its own). */
     readonly engine: () => VideoPlayer | null | undefined;
+    /** The player's volume, so tile 1 does not jump to full volume. */
+    readonly volume?: () => number;
     /** Makes a channel of the current playlist the active one. */
     /** Selects the channel; false when the view does not list it. */
     readonly selectChannel: (channelId: string) => boolean;
@@ -52,6 +54,7 @@ export function createM3uMultiviewHost(
             playlistId,
             contentId: catchupUrl ? undefined : String(channel.id),
             title: playback.title,
+            ...(deps.volume ? { volume: deps.volume() } : {}),
             // Radio plays in the audio player and never becomes a tile.
             ...(channel.radio === 'true' ? { radio: true } : {}),
         };

@@ -2638,7 +2638,8 @@
                 "LOAD_ERROR": "Impossibile caricare l'elenco.",
                 "NO_RESULTS": "Nessun risultato",
                 "EMPTY": "Ancora niente"
-            }
+            },
+            "REPLACED": "Finestra {{number}} sostituita"
         }
     }
 }

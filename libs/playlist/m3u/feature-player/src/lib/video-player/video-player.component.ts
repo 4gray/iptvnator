@@ -738,6 +738,7 @@ export class VideoPlayerComponent
             playback: this.embeddedPlayback,
             sessionKey: this.playbackSessionKey,
             catchupUrl: this.activePlaybackUrl,
+            volume: () => this.volume(),
             engine: () =>
                 this.activeChannelIsDash()
                     ? this.dashPlayerOverride()

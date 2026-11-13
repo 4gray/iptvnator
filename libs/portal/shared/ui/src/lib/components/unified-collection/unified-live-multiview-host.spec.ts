@@ -80,6 +80,25 @@ describe('createUnifiedLiveMultiviewHost', () => {
         expect(host.source()).toBeNull();
     });
 
+    it('adopts a picked tile of a listed channel by its provider id', () => {
+        const { tab, host } = setup();
+        const row = tab.items()[0];
+        const adopted = host.adopt?.({
+            ...(host.source() as NonNullable<ReturnType<typeof host.source>>),
+            playbackSessionKey: 'picked',
+            contentId: String(row.xtreamId ?? row.stalkerId ?? row.channelId),
+            playlistId: row.playlistId,
+            kind: 'live',
+            id: 'tile-2',
+            engine: VideoPlayer.Html5Player,
+            status: 'playing',
+            lastPosition: 0,
+        });
+
+        expect(adopted).toBe(true);
+        expect(tab.onChannelSelected).toHaveBeenCalledWith({ uid: row.uid });
+    });
+
     it('ignores a survivor that is not a row of the list', () => {
         const { tab, host } = setup();
         const adopted = host.adopt?.({

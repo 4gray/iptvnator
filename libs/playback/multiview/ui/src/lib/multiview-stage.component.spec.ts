@@ -1,7 +1,9 @@
 import { Component, type Type, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateModule } from '@ngx-translate/core';
+import { Subject } from 'rxjs';
 import {
     MULTIVIEW_CHANNEL_DRAG_TYPE,
     MULTIVIEW_CONNECTION_BUDGET,
@@ -29,6 +31,7 @@ class StubWebPlayerViewComponent {
     readonly playerOverride = input<VideoPlayer | null>(null);
     readonly headerOwner = input<string | null>(null);
     readonly startTime = input(0);
+    readonly volume = input(1);
     readonly controlsMode = input('full');
     readonly muted = input<boolean | null>(null);
     readonly paused = input<boolean | null>(null);
@@ -87,9 +90,12 @@ describe('MultiviewStageComponent', () => {
     let clip: HTMLElement;
     let anchor: HTMLElement;
     const budgetFor = jest.fn();
+    const undoAction = new Subject<void>();
+    const snackOpen = jest.fn(() => ({ onAction: () => undoAction }));
 
     beforeEach(() => {
         budgetFor.mockReset().mockResolvedValue(null);
+        snackOpen.mockClear();
         TestBed.configureTestingModule({
             imports: [TranslateModule.forRoot()],
             providers: [
@@ -101,6 +107,7 @@ describe('MultiviewStageComponent', () => {
                     provide: MULTIVIEW_CONNECTION_BUDGET,
                     useValue: { budgetFor },
                 },
+                { provide: MatSnackBar, useValue: { open: snackOpen } },
             ],
         }).overrideComponent(MultiviewTileComponent, {
             set: { imports: tileImports() },
@@ -467,6 +474,38 @@ describe('MultiviewStageComponent', () => {
             expect(replaced).toBe('session:match');
             expect(store.tiles()[1].playbackSessionKey).toBe('session:ch9');
         });
+    });
+
+    it('keeps the view player volume on tile 1', () => {
+        store.start(
+            'xtream-live',
+            { ...source('movie', 'vod', 1), volume: 0.4 },
+            VideoPlayer.VideoJs,
+            source('match')
+        );
+        fixture.detectChanges();
+        fixture.detectChanges();
+
+        expect(players()[0].volume()).toBe(0.4);
+        expect(players()[1].volume()).toBe(1);
+    });
+
+    it('offers Undo when a tile is replaced (R6)', () => {
+        start();
+        const replaced = store.tiles()[1];
+        store.add(source('news'));
+        fixture.detectChanges();
+
+        expect(snackOpen).toHaveBeenCalledWith(
+            'PLAYER.MULTIVIEW.REPLACED',
+            'PORTALS.MULTI_SOURCE.UNDO',
+            expect.objectContaining({ duration: expect.any(Number) })
+        );
+        undoAction.next();
+
+        expect(store.tiles()[1].playbackSessionKey).toBe(
+            replaced.playbackSessionKey
+        );
     });
 
     it('removes the tiles when the session ends', () => {

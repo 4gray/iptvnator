@@ -2638,7 +2638,8 @@
                 "LOAD_ERROR": "A lista nem tölthető be.",
                 "NO_RESULTS": "Nincs találat",
                 "EMPTY": "Még nincs itt semmi"
-            }
+            },
+            "REPLACED": "A(z) {{number}}. ablak lecserélve"
         }
     }
 }

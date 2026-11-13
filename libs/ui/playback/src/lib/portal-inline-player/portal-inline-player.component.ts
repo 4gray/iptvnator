@@ -178,6 +178,7 @@ export class PortalInlinePlayerComponent {
     readonly multiviewAnchor = injectMultiviewAnchor(
         createPortalInlinePlayerMultiviewHost({
             playback: this.playback,
+            volume: () => this.volume(),
             sessionKey: this.playbackSessionKey,
             isEpisode: () => this.episodeMetadata() !== null,
             engine: () =>

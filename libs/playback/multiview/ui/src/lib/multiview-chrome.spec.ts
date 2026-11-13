@@ -25,6 +25,7 @@ class StubWebPlayerViewComponent {
     readonly playerOverride = input<VideoPlayer | null>(null);
     readonly headerOwner = input<string | null>(null);
     readonly startTime = input(0);
+    readonly volume = input(1);
     readonly controlsMode = input('full');
     readonly muted = input<boolean | null>(null);
     readonly paused = input<boolean | null>(null);

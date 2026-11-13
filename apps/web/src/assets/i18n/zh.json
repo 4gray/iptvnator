@@ -2638,7 +2638,8 @@
                 "LOAD_ERROR": "无法加载列表。",
                 "NO_RESULTS": "未找到任何内容",
                 "EMPTY": "这里还没有内容"
-            }
+            },
+            "REPLACED": "已替换窗口 {{number}}"
         }
     }
 }

@@ -7,6 +7,8 @@ import { PlaybackPositionService, PlaylistsService } from '@iptvnator/services';
 import { of } from 'rxjs';
 import { movieItem, tile } from './multiview-picker.fixtures';
 import { MultiviewSeriesEpisodesService } from './multiview-series-episodes.service';
+import { MultiviewUnresolvableError } from './multiview-tile-resolver';
+import { MultiviewXtreamLock } from './multiview-xtream-lock';
 
 const series = movieItem(30, { contentType: 'series', name: 'Synthetic Show' });
 
@@ -27,9 +29,11 @@ describe('MultiviewSeriesEpisodesService', () => {
     const getSeriesPlaybackPositions = jest.fn();
     const savePlaybackPosition = jest.fn();
     const constructEpisodeUrl = jest.fn();
+    const isLocked = jest.fn();
 
     beforeEach(() => {
         jest.resetAllMocks();
+        isLocked.mockResolvedValue(false);
         constructEpisodeUrl.mockImplementation(
             (_c: unknown, e: { id: string }) =>
                 `http://xtream.example/series/u/p/${e.id}.mkv`
@@ -54,6 +58,7 @@ describe('MultiviewSeriesEpisodesService', () => {
                     provide: XtreamUrlService,
                     useValue: { constructEpisodeUrl },
                 },
+                { provide: MultiviewXtreamLock, useValue: { isLocked } },
                 {
                     provide: PlaybackPositionService,
                     useValue: {
@@ -131,6 +136,15 @@ describe('MultiviewSeriesEpisodesService', () => {
                 contentXtreamId: 12,
                 positionSeconds: 95,
             })
+        );
+    });
+
+    it('refuses an episode of a locked series (R11)', async () => {
+        const [row] = await service().load(series, []);
+        isLocked.mockResolvedValue(true);
+
+        await expect(service().resolve(series, row)).rejects.toBeInstanceOf(
+            MultiviewUnresolvableError
         );
     });
 

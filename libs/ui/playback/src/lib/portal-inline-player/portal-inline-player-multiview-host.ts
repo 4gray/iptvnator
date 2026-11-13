@@ -15,6 +15,8 @@ export interface PortalInlinePlayerMultiviewDeps {
     readonly sessionKey: Signal<string>;
     readonly isEpisode: () => boolean;
     readonly engine: () => VideoPlayer | null | undefined;
+    /** The player's volume, so tile 1 does not jump to full volume. */
+    readonly volume?: () => number;
     /** The host's own progress saving: the player's `timeUpdate` output. */
     readonly persistPosition: (event: {
         readonly currentTime: number;
@@ -46,6 +48,7 @@ export function createPortalInlinePlayerMultiviewHost(
             playlistId: playback.contentInfo?.playlistId ?? '',
             title: playback.title,
             persistPosition: deps.persistPosition,
+            ...(deps.volume ? { volume: deps.volume() } : {}),
         };
     });
 

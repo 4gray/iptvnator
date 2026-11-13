@@ -62,11 +62,18 @@ export class MultiviewPickerDataService {
     private readonly onScreen = inject(MultiviewOnScreenSources);
 
     /**
-     * R11: a live channel follows the parental lock as the channel lists do;
-     * films and series as the Favorites and Recent pages show them.
+     * R11 for listing: M3U and Stalker channels follow the parental lock as
+     * their channel lists do; Xtream rows, films and series are listed as
+     * the Favorites and Recent pages show them, and resolving them checks
+     * the lock again.
      */
     isAllowed(item: UnifiedCollectionItem): boolean {
-        if (item.contentType === 'live') return this.catalog.isAllowed(item);
+        // Xtream rows can carry a stored category id, which the catalog's
+        // category check would misread; they are checked by stream id when
+        // resolved (`MultiviewXtreamLock`).
+        if (item.contentType === 'live' && item.sourceType !== 'xtream') {
+            return this.catalog.isAllowed(item);
+        }
         return !this.locks.withholdsEverything() && !isCatalogUnavailable(item);
     }
 

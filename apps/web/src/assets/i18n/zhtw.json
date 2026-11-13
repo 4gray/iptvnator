@@ -2638,7 +2638,8 @@
                 "LOAD_ERROR": "無法載入清單。",
                 "NO_RESULTS": "找不到任何內容",
                 "EMPTY": "這裡還沒有內容"
-            }
+            },
+            "REPLACED": "已取代視窗 {{number}}"
         }
     }
 }

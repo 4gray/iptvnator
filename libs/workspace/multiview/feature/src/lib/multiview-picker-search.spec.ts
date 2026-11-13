@@ -93,6 +93,7 @@ describe('MultiviewPickerSearchService', () => {
                 title: 'The Match',
                 type: 'movie',
                 poster_url: '',
+                category_id: 12,
             },
             {
                 id: 41,
@@ -126,6 +127,7 @@ describe('MultiviewPickerSearchService', () => {
             contentType: 'movie',
             xtreamId: 3,
             playlistName: 'Synthetic Provider',
+            categoryId: 12,
         });
         expect(results.series.map((r) => r.kind)).toEqual([null]);
     });

@@ -2638,7 +2638,8 @@
                 "LOAD_ERROR": "The list could not be loaded.",
                 "NO_RESULTS": "Nothing found",
                 "EMPTY": "Nothing here yet"
-            }
+            },
+            "REPLACED": "Replaced tile {{number}}"
         }
     }
 }

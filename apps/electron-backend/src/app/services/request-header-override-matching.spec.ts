@@ -39,7 +39,7 @@ describe('selectScopedOverrides', () => {
         ).toEqual([only]);
     });
 
-    it('orders same-origin overrides by configure sequence', () => {
+    it('picks the most recently configured override on a shared origin', () => {
         expect(
             agents(
                 selectScopedOverrides('https://a.example/segment.ts', [
@@ -47,10 +47,10 @@ describe('selectScopedOverrides', () => {
                     scoped('https://a.example/one.ts', 2, 'earlier'),
                 ])
             )
-        ).toEqual(['earlier', 'later']);
+        ).toEqual(['later']);
     });
 
-    it('puts the exact stream URL last even when it was configured first', () => {
+    it("picks the exact stream URL's owner over a newer one", () => {
         expect(
             agents(
                 selectScopedOverrides('https://a.example/one.ts', [
@@ -58,7 +58,24 @@ describe('selectScopedOverrides', () => {
                     scoped('https://a.example/two.ts', 9, 'newer'),
                 ])
             )
-        ).toEqual(['newer', 'exact']);
+        ).toEqual(['exact']);
+    });
+
+    it('never merges headers of two owners', () => {
+        const withCredentials: ScopedHeaderOverride = {
+            ...scoped('https://a.example/one.ts', 1, 'A'),
+            authorization: 'Bearer synthetic-a',
+            referer: 'https://a.example/',
+        };
+        const selected = selectScopedOverrides('https://a.example/two.ts', [
+            withCredentials,
+            scoped('https://a.example/two.ts', 2, 'B'),
+        ]);
+
+        expect(selected).toHaveLength(1);
+        expect(selected[0].userAgent).toBe('B');
+        expect(selected[0].authorization).toBeUndefined();
+        expect(selected[0].referer).toBeUndefined();
     });
 });
 

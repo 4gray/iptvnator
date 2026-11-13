@@ -2638,7 +2638,8 @@
                 "LOAD_ERROR": "De lijst kon niet worden geladen.",
                 "NO_RESULTS": "Niets gevonden",
                 "EMPTY": "Nog niets"
-            }
+            },
+            "REPLACED": "Venster {{number}} vervangen"
         }
     }
 }

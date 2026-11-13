@@ -1263,6 +1263,27 @@ fix in `multiview-tile-resolver.ts` (+ spec).
   without playback; a play-on-arrival handoff for detail pages is new
   detail-page behaviour and a maintainer decision.
 
+**Round 2 (Codex, commit `37945c6b2`):** eight findings, all fixed.
+- P1, two owners' headers were merged on a shared origin (A's Authorization
+  could reach B's exact URL): `selectScopedOverrides` now returns exactly one
+  owner — the exact URL's, else the most recently configured.
+- P1, films and series ignored category locks, and P1, stored (SQLite)
+  category ids were read as provider ids: Xtream items are now checked by
+  stream id through the data source with `excludeLocked`
+  (`MultiviewXtreamLock`), before and after resolving and by the relock
+  guard; Xtream channels skip the catalog's category check. Listing still
+  follows the Favorites / Recent pages.
+- P2, the handback position overrode a later Start over: it now applies only
+  to the playback object the view had when the session ended.
+- P2, the Favorites / Recent tab did not adopt a picked tile of one of its
+  rows: `adopt()` also matches by provider identity (`tileNumberFor`).
+- P2, catalog search results lost their category, so a survivor had no way
+  back: `categoryId` is kept.
+- P2, tile 1 lost the view player's volume (legacy controls): sources carry
+  `volume` (M3U player, portal inline player) and tiles bind it.
+- P2, R6 replacement toast with Undo was never shown: the stage announces
+  every replacement ("Replaced tile N" · Undo → `undoReplace`).
+
 Greptile: not run (the `greptile` CLI is not installed on this machine).
 
 ## Phase acceptance (spec 14)

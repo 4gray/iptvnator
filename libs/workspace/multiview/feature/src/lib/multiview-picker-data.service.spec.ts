@@ -148,9 +148,13 @@ describe('MultiviewPickerDataService', () => {
         expect(data.sections.find((s) => s.id === 'recent')?.count).toBe(3);
     });
 
-    it('checks live rows against the lock and withholds VOD while locks load', () => {
+    it('checks M3U and Stalker channels like their lists and withholds the rest while locks load', () => {
         catalog.isAllowed.mockReturnValue(false);
-        expect(service().isAllowed(liveItem(1))).toBe(false);
+        expect(
+            service().isAllowed(liveItem(1, { sourceType: 'stalker' }))
+        ).toBe(false);
+        // Xtream rows are checked by stream id when resolved.
+        expect(service().isAllowed(liveItem(1))).toBe(true);
         expect(service().isAllowed(movieItem(2))).toBe(true);
 
         withholdsEverything.set(true);

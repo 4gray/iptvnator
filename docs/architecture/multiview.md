@@ -76,7 +76,8 @@ view's engine. Tile videos never enter system picture-in-picture (D12).
 Each tile is its own header owner (`headerOwner` = tile id) in the Electron
 main process (`request-header-overrides.service.ts`). A request matches by
 exact URL first, then by origin with the most recently configured override
-(D4). A tile's playback therefore carries its source's User-Agent, Referer
+(D4); exactly one owner's override applies to a request, so one tile's
+credentials never reach another tile's request. A tile's playback therefore carries its source's User-Agent, Referer
 and Origin; the picker's resolver adds them for Xtream live channels, whose
 shared resolution leaves them out.
 
@@ -99,12 +100,19 @@ them.
   to the active tile, under the player's keyboard-ownership rules; a taken
   `Shift+M` is not a mute. See `player-controls-contract.md`.
 
-Every way in resolves a row through `MultiviewTileResolverService`: live
-channels through the catalog (parental lock checked before and after, R11),
+Every way in resolves a row through `MultiviewTileResolverService`: M3U and
+Stalker channels through the catalog (parental lock checked before and
+after, R11), Xtream items checked by stream id through the data source
+(`MultiviewXtreamLock`, which applies the lock itself, so stored and provider
+category ids cannot be confused) before and after resolving,
 Xtream films through `VodSourceResolverService` resuming at their position,
 Xtream episodes from the picker's episode list; tiles save progress like
 their own players (R9). A picked or dropped item is recorded in recently
 viewed through `PlaybackHistoryGate`, confirmed once the tile plays (R10).
+
+A parental relock stops every tile added from the picker or a list whose
+item is now withheld (`MultiviewRelockGuard`); the anchor's own tile follows
+its view. Replacing a tile shows "Replaced tile N" with Undo (R6).
 
 ## Picker
 
