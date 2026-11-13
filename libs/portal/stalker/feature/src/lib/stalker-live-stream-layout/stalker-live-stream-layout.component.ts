@@ -153,6 +153,14 @@ import { StalkerLiveNavigation } from './stalker-live-navigation';
 import { StalkerLiveAutoOpen } from './stalker-live-auto-open';
 import { StalkerWorkspaceRouteSession } from '../stalker-workspace-route-session.service';
 
+import {
+    injectMultiviewAnchor,
+    MultiviewAnchorPlaceholderComponent,
+    MultiviewPlayerDirective,
+    provideMultiviewAnchor,
+} from '@iptvnator/ui/playback/multiview-anchor';
+import { createStalkerLiveMultiviewHost } from './stalker-live-multiview-host';
+
 @Component({
     selector: 'app-stalker-live-stream-layout',
     templateUrl: './stalker-live-stream-layout.component.html',
@@ -176,8 +184,13 @@ import { StalkerWorkspaceRouteSession } from '../stalker-workspace-route-session
         StalkerItvAllItemsComponent,
         TranslatePipe,
         WebPlayerViewComponent,
+        MultiviewPlayerDirective,
+        MultiviewAnchorPlaceholderComponent,
     ],
     providers: [
+        provideMultiviewAnchor(
+            () => inject(StalkerLiveStreamLayoutComponent).multiviewAnchor
+        ),
         // The fullscreen channel panel inside the player renders this
         // category's channel list (see the `fullscreenChannelPanel` template).
         {
@@ -412,6 +425,23 @@ export class StalkerLiveStreamLayoutComponent
             : '';
     });
     readonly streamUrl = computed(() => this.activePlayback()?.streamUrl ?? '');
+    /** Lets a multiview session take over and hand back the inline player. */
+    readonly multiviewAnchor = injectMultiviewAnchor(
+        createStalkerLiveMultiviewHost({
+            identity: this.activePlaybackIdentity,
+            playback: this.activePlayback,
+            sessionKey: this.playbackSessionKey,
+            radio: this.isRadioMode,
+            player: () => this.settingsStore.player?.(),
+            selectChannel: (channelId) => {
+                const item = this.itvChannels().find(
+                    (channel) =>
+                        normalizeStalkerEntityId(channel.id) === channelId
+                );
+                if (item) void this.playChannel(item, true);
+            },
+        })
+    );
     readonly activePlaybackTitle = computed(
         () =>
             this.activePlayback()?.title ||

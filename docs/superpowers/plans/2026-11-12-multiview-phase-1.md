@@ -236,8 +236,7 @@ picker lists only the current playlist under "Playlists" (spec Q2).
   on some rows and "LIVE" on others without a visible rule. Proposal: elapsed
   minutes of the current programme when the row has EPG, "LIVE" when it has
   none.
-- **D12. System picture-in-picture (proposed 2026-11-13, awaiting
-  confirmation).** The two features stay independent outside a session: the
+- **D12. System picture-in-picture (confirmed 2026-11-13).** The two features stay independent outside a session: the
   single player keeps its system PiP button exactly as today. During a
   session no tile can enter system PiP (per-tile pop-out is a non-goal):
   small tiles have no dock, and the main tile's dock hides its PiP button
@@ -661,6 +660,27 @@ so those existing specs would have had to change. Now:
   tile 1 continued at the player's position; the muted VOD PiP was held
   paused; after a swap the movie paused at 3.04 s and resumed from 3.04 s on
   swap back (R4); exit handed the audio tile back; no console errors.
+
+#### Task 8 as built (Stalker live)
+
+- `stalker-live-multiview-host.ts` (+ spec, 9): anchor id `stalker-live`;
+  source = the playing ITV channel from the layout's playback identity
+  (`playlistId` = portal id, `contentId` = channel id); radio mode flags the
+  source `radio`, so it never becomes a tile; engine = the Settings player;
+  `adopt()` calls `playChannel()` for a surviving channel of the same
+  portal, which resolves a fresh portal link instead of reusing the tile's.
+- `stalker-live-stream-layout.component.{ts,html}`: `multiviewAnchor`
+  field, `provideMultiviewAnchor`, `@else if (ownsSession)` placeholder after
+  the radio branch, `appMultiviewPlayer` on the inline player.
+- `stalker-live-stream-layout.multiview.spec.ts` (4).
+- Checks: `portal-stalker-feature` 598 (no existing spec edited), lint,
+  `typecheck:web`, `typecheck:spec`, `electron-backend:build-e2e`.
+- Live check, Electron + Stalker mock (temporary probe): tile 1 reused the
+  resolved link and kept Video.js, tile 2 HTML5 muted in the corner, both
+  playing; swap kept both `<video>` elements; exit re-resolved and played the
+  surviving channel in the layout; no console errors. Single-use portal
+  tokens were not exercised (the mock's links are reusable): if a real portal
+  refuses the reused link, tile 1 shows the error state of Task 12.
 
 ### Task 11: Tile chrome, multiview bar, swap, audio, close, exit
 

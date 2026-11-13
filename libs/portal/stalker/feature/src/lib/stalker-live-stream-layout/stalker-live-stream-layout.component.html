@@ -178,8 +178,13 @@
                             handleRadioChannelSwitch($event)
                         "
                     />
+                } @else if (multiviewAnchor.ownsSession()) {
+                    <app-multiview-anchor-placeholder
+                        [anchor]="multiviewAnchor"
+                    />
                 } @else {
                     <app-web-player-view
+                        appMultiviewPlayer
                         [playbackSessionKey]="playbackSessionKey()"
                         [streamUrl]="streamUrl()"
                         [title]="activePlayback()?.title ?? ''"
