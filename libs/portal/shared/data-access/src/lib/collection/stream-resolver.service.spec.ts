@@ -1099,6 +1099,7 @@ describe('StreamResolverService', () => {
         expect(requestedActions).not.toContain('create_link');
         expect(playback.streamUrl).toBe('http://cdn.example.com/live/90.m3u8');
         expect(playback.isLive).toBe(true);
+        expect(playback.requiresFreshStreamUrl).toBeUndefined();
     });
 
     it('authenticates a cold full-portal session before a static stream', async () => {
@@ -1305,6 +1306,7 @@ describe('StreamResolverService', () => {
         expect(playback.streamUrl).toBe(
             'http://cdn.example.com/tmp/90.m3u8?tok=1'
         );
+        expect(playback.requiresFreshStreamUrl).toBe(true);
     });
 
     it('appends query-only Stalker create_link responses to the original cmd URL', async () => {

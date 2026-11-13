@@ -112,6 +112,17 @@ describe('restoring Android playback checkpoints', () => {
         expect(postMessage).toHaveBeenCalledTimes(1);
     });
 
+    it('keeps a nonzero position when the duration is unknown', async () => {
+        await deliver({ durationMs: 0 });
+        expect(savePlaybackPositionOrThrow).toHaveBeenCalledWith(
+            content.playlistId,
+            expect.objectContaining({
+                positionSeconds: 32,
+                durationSeconds: undefined,
+            })
+        );
+    });
+
     it('retries a failed write when Android delivers the checkpoint again', async () => {
         savePlaybackPositionOrThrow.mockRejectedValueOnce(
             new Error('synthetic storage failure')
@@ -124,6 +135,7 @@ describe('restoring Android playback checkpoints', () => {
 
     it.each([
         { positionMs: 91_000 },
+        { positionMs: 0, durationMs: 0 },
         { content: '{' },
         { content: JSON.stringify({ ...content, contentType: 'live' }) },
     ])('discards invalid checkpoint %j', async (patch) => {

@@ -588,6 +588,7 @@ export class StreamResolverService {
                 rawCmd
             ),
             isLive: item.radio === 'true' ? undefined : true,
+            requiresFreshStreamUrl: true,
         });
     }
 
@@ -626,6 +627,7 @@ export class StreamResolverService {
             portalUrl: string;
             streamUrl: string;
             isLive?: boolean;
+            requiresFreshStreamUrl?: boolean;
         }
     ): Promise<ResolvedPortalPlayback> {
         // The item may carry portal/mac overrides for playlists that no
@@ -679,6 +681,9 @@ export class StreamResolverService {
             title: item.name,
             thumbnail: item.logo ?? null,
             isLive: resolved.isLive,
+            ...(resolved.requiresFreshStreamUrl && {
+                requiresFreshStreamUrl: true,
+            }),
             headers,
             userAgent: headers['User-Agent'] || playlist?.userAgent,
             referer: crossOriginStream

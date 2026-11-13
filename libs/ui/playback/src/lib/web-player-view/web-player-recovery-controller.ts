@@ -147,6 +147,32 @@ export class WebPlayerRecoveryController {
         );
     }
 
+    retryFailedPlayback(
+        mpv:
+            | {
+                  isReconnecting(): boolean;
+                  isErrored(): boolean;
+                  isLiveEnded(): boolean;
+                  retry(): void;
+              }
+            | undefined,
+        retryWeb: () => void
+    ): boolean {
+        if (!mpv) {
+            if (!this.canRetry()) return false;
+            retryWeb();
+        } else {
+            if (
+                mpv.isReconnecting() ||
+                (!mpv.isErrored() && !mpv.isLiveEnded())
+            )
+                return false;
+            this.recordEnd(this.deps.playbackApplicationToken());
+            mpv.retry();
+        }
+        return true;
+    }
+
     handlePlaybackIssue(
         issue: PlaybackDiagnostic | null,
         binding: PlaybackBinding

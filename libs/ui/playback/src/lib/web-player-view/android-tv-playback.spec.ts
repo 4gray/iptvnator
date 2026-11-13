@@ -76,14 +76,19 @@ function setup() {
         return id as string;
     }
 
-    function reply(id: string, ended: boolean, playedMs = 9000) {
+    function reply(
+        id: string,
+        ended: boolean,
+        playedMs = 9000,
+        durationMs = 9000
+    ) {
         window.dispatchEvent(
             new CustomEvent('iptvnator:android-playback-result', {
                 detail: {
                     id,
                     result: {
                         positionMs: 9000,
-                        durationMs: 9000,
+                        durationMs,
                         playedMs,
                         ended,
                     },
@@ -161,6 +166,23 @@ it('reports a completed position with a separate replay point of zero', () => {
         expect(onPosition).toHaveBeenCalledWith(
             expect.objectContaining({ currentTime: 9, checkpoint: true }),
             0
+        );
+    } finally {
+        clear();
+    }
+});
+
+it('uses the playhead as the resume point when VOD duration is unknown', () => {
+    const { clear, open, reply, onPosition } = setup();
+    try {
+        reply(open(), false, 100, 0);
+        expect(onPosition).toHaveBeenCalledWith(
+            expect.objectContaining({
+                currentTime: 9,
+                duration: 0,
+                checkpoint: true,
+            }),
+            9
         );
     } finally {
         clear();

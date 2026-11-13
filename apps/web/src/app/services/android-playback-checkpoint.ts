@@ -86,8 +86,9 @@ function readCheckpoint(
         !Number.isSafeInteger(data.durationMs) ||
         !Number.isSafeInteger(data.savedAt) ||
         data.positionMs < 0 ||
-        data.durationMs <= 0 ||
-        data.positionMs > data.durationMs ||
+        data.durationMs < 0 ||
+        (data.durationMs === 0 && data.positionMs === 0) ||
+        (data.durationMs > 0 && data.positionMs > data.durationMs) ||
         data.savedAt <= 0
     )
         return null;
@@ -125,7 +126,8 @@ function readCheckpoint(
                         : undefined,
                 activityIdentity,
                 positionSeconds: Math.floor(data.positionMs / 1000),
-                durationSeconds: Math.floor(data.durationMs / 1000),
+                durationSeconds:
+                    Math.floor(data.durationMs / 1000) || undefined,
             },
         ];
     } catch {

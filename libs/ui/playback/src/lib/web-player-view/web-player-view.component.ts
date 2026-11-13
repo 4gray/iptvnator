@@ -71,7 +71,6 @@ import { WebPlayerRecoveryController } from './web-player-recovery-controller';
 import {
     isPlaybackExternallyTransferable,
     resolveRenderableWebPlayer,
-    toInlinePlaybackPlayer,
     toVideoPlayer,
 } from './web-player-recovery-policy';
 import { resolveWebPlayerSharedControls } from './web-player-shared-controls';
@@ -344,27 +343,14 @@ export class WebPlayerViewComponent implements OnDestroy {
                 this.recoverySession.syncSourceRevision(sourceRevision)
             );
             const token = this.playbackApplicationToken();
-            const playback = untracked(this.resolvedPlayback);
-            const isLive = untracked(this.resolvedIsLive);
-            const selectedPlayer = untracked(this.selectedPlayer);
-            const reloadToken = untracked(this.reloadToken);
-            const target = toInlinePlaybackPlayer(selectedPlayer);
             this.channel.set(undefined);
             this.vjsOptions.set(undefined);
             this.recovery.clearDiagnostic();
-            if (target === null) {
-                this.applicationHandoff.release();
-                this.recoverySession.clearPlaybackBinding();
-                return;
-            }
-            const binding = untracked(() =>
-                this.recoverySession.beginPlayback(target)
-            );
             this.applicationHandoff.apply(
-                playback,
-                isLive,
-                reloadToken,
-                binding,
+                untracked(this.resolvedPlayback),
+                untracked(this.resolvedIsLive),
+                untracked(this.reloadToken),
+                untracked(this.selectedPlayer),
                 token,
                 () => this.playbackApplicationToken(),
                 (handoff) => {
@@ -393,7 +379,13 @@ export class WebPlayerViewComponent implements OnDestroy {
     handlePlaybackStarted(binding: PlaybackBinding): void {
         if (this.androidPlayback.suspended()) return;
         this.recovery.syncSession();
-        if (this.ownsBinding(binding) && !this.liveAutoFormat.pending())
+        if (
+            this.applicationHandoff.owns(
+                binding,
+                this.playbackApplicationToken()
+            ) &&
+            !this.liveAutoFormat.pending()
+        )
             this.liveAutoFormat.started();
     }
 
@@ -430,13 +422,6 @@ export class WebPlayerViewComponent implements OnDestroy {
         this.reloadToken.update((value) => value + 1);
     }
 
-    private ownsBinding(
-        binding: PlaybackBinding | null,
-        token = this.playbackApplicationToken()
-    ): boolean {
-        return !!binding && this.applicationHandoff.owns(binding, token);
-    }
-
     requestRecommendedPlayer(target: PlaybackRecommendationTarget): void {
         this.recovery.requestRecommendedPlayer(target);
     }
@@ -447,24 +432,22 @@ export class WebPlayerViewComponent implements OnDestroy {
             return;
         }
         this.recovery.syncSession();
-        if (binding && !this.ownsBinding(binding)) return;
+        if (
+            binding &&
+            !this.applicationHandoff.owns(
+                binding,
+                this.playbackApplicationToken()
+            )
+        )
+            return;
         // A current engine can remain buffering after an earlier manual retry.
         // Its wait notice is a fresh user action, not a duplicate old callback.
         if (binding) this.recoverySession.settle(binding);
         this.recovery.retryPlayback();
     }
 
-    retryFailedPlayback(): boolean {
-        const mpv = this.embeddedMpvPlayer();
-        if (!mpv && this.recovery.canRetry()) this.retryPlayback();
-        else if (
-            mpv &&
-            !mpv.isReconnecting() &&
-            (mpv.isErrored() || mpv.isLiveEnded())
-        ) {
-            this.recovery.recordEnd(this.playbackApplicationToken());
-            mpv.retry();
-        } else return false;
-        return true;
-    }
+    readonly retryFailedPlayback = () =>
+        this.recovery.retryFailedPlayback(this.embeddedMpvPlayer(), () =>
+            this.retryPlayback()
+        );
 }

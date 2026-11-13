@@ -102,12 +102,12 @@ export class AndroidTvPlayback {
                 Number.isSafeInteger(data.positionMs) &&
                 Number.isSafeInteger(data.durationMs) &&
                 data.positionMs >= 0 &&
-                data.durationMs >= data.positionMs
+                (data.durationMs === 0 || data.durationMs >= data.positionMs)
             ) {
                 if (Number.isSafeInteger(data.playedMs) && data.playedMs > 0) {
                     this.onPlayed(data.playedMs / 1000);
                 }
-                if (data.durationMs > 0) {
+                if (data.durationMs > 0 || data.positionMs > 0) {
                     const currentTime = data.positionMs / 1000;
                     this.onPosition(
                         {

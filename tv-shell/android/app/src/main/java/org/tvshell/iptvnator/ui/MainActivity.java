@@ -842,7 +842,7 @@ public class MainActivity extends Activity {
             if (id != null && nativePlaybackDocumentCurrent) {
                 replyToNativePlayback(id, result);
             } else if (id != null && content != null && result != null
-                && result.getLongExtra("duration", 0) > 0) {
+                && (result.getLongExtra("duration", 0) > 0 || result.getLongExtra("position", 0) > 0)) {
                 content.putString("id", id);
                 content.putLong("position", result.getLongExtra("position", 0));
                 content.putLong("duration", result.getLongExtra("duration", 0));

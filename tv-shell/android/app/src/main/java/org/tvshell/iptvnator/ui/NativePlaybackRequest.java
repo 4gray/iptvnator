@@ -71,10 +71,10 @@ final class NativePlaybackRequest {
             HttpUrl target = request.url();
             boolean sameOrigin = stream.scheme().equals(target.scheme())
                 && stream.host().equals(target.host()) && stream.port() == target.port();
+            if (!sameOrigin) return chain.proceed(request);
             Request.Builder scoped = request.newBuilder();
             for (String name : providerHeaders.names()) {
-                if (sameOrigin) scoped.header(name, providerHeaders.get(name));
-                else scoped.removeHeader(name);
+                scoped.header(name, providerHeaders.get(name));
             }
             return chain.proceed(scoped.build());
         }).build();

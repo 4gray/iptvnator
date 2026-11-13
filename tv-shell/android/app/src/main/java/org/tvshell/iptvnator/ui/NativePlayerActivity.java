@@ -38,6 +38,8 @@ import com.google.common.util.concurrent.ListenableFuture;
 
 import org.tvshell.iptvnator.R;
 
+import java.util.UUID;
+
 import okhttp3.HttpUrl;
 
 @OptIn(markerClass = UnstableApi.class)
@@ -60,11 +62,12 @@ public final class NativePlayerActivity extends Activity {
     private long initialSeek;
     private boolean seedCaptions;
     private TrackSelectionParameters trackPreferences;
+    private String requestId;
 
     @Override
     protected void onCreate(Bundle savedState) {
         super.onCreate(savedState);
-        String requestId = getIntent().getStringExtra("requestId");
+        requestId = getIntent().getStringExtra("requestId");
         if (requestId == null || !requestId.equals(checkpointId)) pausedCheckpoint = null;
         checkpointId = requestId;
         String url = getIntent().getStringExtra("url");
@@ -121,6 +124,7 @@ public final class NativePlayerActivity extends Activity {
         }
         player.setTrackSelectionParameters(trackPreferences);
         mediaSession = new MediaSession.Builder(this, player)
+            .setId(UUID.randomUUID().toString())
             .setCallback(new MediaSession.Callback() {
                 @Override
                 public ListenableFuture<MediaSession.ConnectionResult> onConnectAsync(
@@ -252,7 +256,7 @@ public final class NativePlayerActivity extends Activity {
         if (player != null) {
             autoplay = player.getPlayWhenReady();
             player.pause();
-            if (!isFinishing()) pausedCheckpoint = playbackResult();
+            if (!isFinishing() && ownsCheckpoint()) pausedCheckpoint = playbackResult();
         }
         super.onPause();
     }
@@ -304,16 +308,22 @@ public final class NativePlayerActivity extends Activity {
 
     @Override
     public void finish() {
-        pausedCheckpoint = playbackResult();
-        setResult(RESULT_OK, pausedCheckpoint);
+        Intent result = playbackResult();
+        if (ownsCheckpoint()) pausedCheckpoint = result;
+        setResult(RESULT_OK, result);
         super.finish();
     }
 
     static Intent takeCheckpoint(String id) {
         if (!id.equals(checkpointId)) return null;
         Intent result = pausedCheckpoint;
+        checkpointId = null;
         pausedCheckpoint = null;
         return result;
+    }
+
+    private boolean ownsCheckpoint() {
+        return requestId != null && requestId.equals(checkpointId);
     }
 
     private Intent playbackResult() {
@@ -329,8 +339,9 @@ public final class NativePlayerActivity extends Activity {
     }
 
     private void snapshot() {
-        if (player == null || live || player.getDuration() <= 0) return;
-        duration = player.getDuration();
-        position = Math.min(duration, player.getCurrentPosition());
+        if (player == null || live) return;
+        duration = Math.max(0, player.getDuration());
+        position = Math.max(0, player.getCurrentPosition());
+        if (duration > 0) position = Math.min(duration, position);
     }
 }

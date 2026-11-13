@@ -2,7 +2,8 @@
  * ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-native-playback.mjs emulator-5554
  */
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
@@ -76,6 +77,12 @@ try {
         if (req.url === '/synthetic.mp4') {
             res.writeHead(302, { Location: target + '/redirected.mp4', 'Access-Control-Allow-Origin': '*' });
             res.end();
+        } else if (req.url === '/synthetic-chunked.ts') {
+            res.writeHead(200, { 'Content-Type': 'video/mp2t' });
+            const encoder = spawn('ffmpeg', ['-nostdin', '-loglevel', 'error',
+                '-re', '-i', mp4, '-c', 'copy', '-f', 'mpegts', 'pipe:1']);
+            encoder.stdout.pipe(res);
+            res.on('close', () => encoder.kill());
         } else if (req.url === '/synthetic-ac3.mkv') {
             respond(req, res, ac3Clip, 'video/x-matroska');
         } else if (/^\/synthetic\d+\.ts$/.test(req.url)) {
@@ -205,8 +212,17 @@ try {
     assert.equal(result.ended, false, 'Leaving via Home is a playback checkpoint.');
     assert.ok(seen.origin.some((headers) => headers['user-agent'] === 'Synthetic-Playback'),
         'The resolved provider user agent must reach the stream origin.');
+    assert.ok(seen.target.slice(redirectedBefore).some((headers) => /^okhttp\//i.test(headers['user-agent'] ?? '')),
+        'The native redirect must retain the default OkHttp user agent.');
     assert.ok(seen.target.slice(redirectedBefore).every((headers) => headers['user-agent'] !== 'Synthetic-Playback'),
         'A cross-origin redirect must not receive the provider user agent.');
+    for (let attempt = 0; attempt < 3; attempt++) {
+        await expect(action).toBeEnabled();
+        await action.click();
+        await waitNative();
+        await back();
+    }
+    await expect(action).toBeEnabled();
     await stage.getByRole('button', { name: 'Return to web player' }).click();
     await expect.poll(() => video.evaluate((media) => media.currentTime)).toBeGreaterThanOrEqual(result.positionMs / 1000 - 1);
     await expect.poll(() => video.evaluate((media) => media.muted ? 0 : media.volume)).toBe(0);
@@ -261,18 +277,32 @@ try {
     await expect(action).toHaveCount(0);
     await setExperiment(true);
     await page.evaluate((url) => {
+        delete window.__nativeResult;
+        window.TvShell.postMessage(JSON.stringify(['playNative', crypto.randomUUID(), { url }]));
+    }, origin + '/synthetic-chunked.ts');
+    await waitNative();
+    await waitAudio();
+    await delay(2500);
+    await back();
+    await page.waitForFunction(() => window.__nativeResult !== undefined);
+    const unknownDuration = await page.evaluate(() => window.__nativeResult);
+    assert.equal(unknownDuration.durationMs, 0);
+    assert.ok(unknownDuration.positionMs > 0, 'Preserve the playhead even when duration is unknown.');
+
+    const playlistId = 'synthetic-reload-' + randomUUID();
+    await page.evaluate(({ url, playlistId }) => {
         window.TvShell.postMessage(JSON.stringify(['playNative', crypto.randomUUID(), {
             url,
             startTime: 25,
             captions: true,
             checkpoint: {
-                playlistId: 'synthetic-reload-test',
+                playlistId,
                 contentType: 'episode',
                 contentXtreamId: 17,
                 seriesXtreamId: 3,
             },
         }]));
-    }, origin + '/synthetic-ac3.mkv');
+    }, { url: origin + '/synthetic-ac3.mkv', playlistId });
     await waitNative();
     await waitAudio();
     const nativeCreates = () => adb('logcat', '-b', 'events', '-d', '-s', 'wm_on_create_called')
@@ -296,10 +326,11 @@ try {
     await page.reload({ waitUntil: 'domcontentloaded' });
     await back();
     await page.waitForFunction(() => !document.getElementById('initial-splash'));
-    await expect.poll(() => page.evaluate(() => {
+    await expect.poll(() => page.evaluate((id) => {
         const stored = JSON.parse(localStorage.getItem('xtream-playback-positions') || '{}');
-        return stored['synthetic-reload-test']?.find((item) => item.contentXtreamId === 17)?.positionSeconds;
-    })).toBeLessThan(20);
+        const position = stored[id]?.find((item) => item.contentXtreamId === 17)?.positionSeconds;
+        return position > 0 && position < 20;
+    }, playlistId)).toBe(true);
     await setExperiment(false);
     console.log('PASS Android Media3 opt-in, mute handoff, VOD resume after Home and WebView reload, redirect header scope, extensionless HLS Back, AC-3 audio, captions and natural VOD completion');
 } finally {
