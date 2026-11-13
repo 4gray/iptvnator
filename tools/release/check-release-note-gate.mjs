@@ -2,16 +2,16 @@
 /**
  * Release-note gate policy for pull requests.
  *
- * The CI job feeds it `{files: [{filename, status}], labels: [...]}` on
- * stdin (from the GitHub PR API) and it decides whether the PR needs a
- * `.changes/*.md` note. Kept as a pure function so the policy is unit-tested
- * instead of living in workflow bash.
+ * With --merge-checkout, CI passes live PR labels as a JSON array on stdin.
+ * Changed files come from the checked-out merge commit and its first parent.
+ * The default JSON input is `{files: [{filename, status}], labels: [...]}`.
  *
  * Policy: a PR that touches runtime code under `apps/` or `libs/` must add
  * one release note, unless it carries the `no-release-note` label. Test-only,
  * website, e2e, and mock-server changes never require a note.
  */
 
+import { execFileSync } from 'node:child_process';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
@@ -52,12 +52,11 @@ function requiresNote(file) {
 /**
  * Only a note this PR actually authored satisfies the gate.
  *
- * `status: 'added'` exclusively: the PR files API compares base…head, so a
- * note created and then renamed inside the same PR still reports as `added`.
- * A `renamed` entry therefore means the file already existed on the base
- * branch — moving another PR's unconsumed note is not documenting this
- * change, and the generator resolves PR links from the commit that added a
- * path, which a rename does not provide.
+ * `status: 'added'` exclusively: a note created and then renamed inside
+ * the same PR still appears as added in the merge diff. A renamed entry
+ * comes from a file already present on the base. The generator resolves PR
+ * links from the commit that added a note, so moving an older note cannot
+ * satisfy the gate.
  *
  * Direct children only: `loadNotes()` reads the immediate `.changes/`
  * directory, so a nested `.changes/sub/note.md` would satisfy a prefix check
@@ -134,7 +133,10 @@ function main() {
         raw += chunk;
     });
     process.stdin.on('end', () => {
-        const input = JSON.parse(raw);
+        const parsed = JSON.parse(raw);
+        const input = process.argv.includes('--merge-checkout')
+            ? { files: filesFromMergeCheckout(), labels: parsed }
+            : parsed;
 
         if (!Array.isArray(input.files) || !Array.isArray(input.labels)) {
             console.error(
@@ -148,6 +150,38 @@ function main() {
         console.log(verdict.message);
         process.exit(verdict.ok ? 0 : 1);
     });
+}
+
+function filesFromMergeCheckout() {
+    const diff = execFileSync(
+        'git',
+        [
+            'diff',
+            '--name-status',
+            '-z',
+            '--find-renames',
+            '--ignore-submodules=none',
+            'HEAD^1',
+            'HEAD',
+            '--',
+        ],
+        { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 }
+    );
+    const fields = diff.split('\0');
+    const files = [];
+    for (let index = 0; index < fields.length - 1; ) {
+        const code = fields[index++][0];
+        const filename = fields[index++];
+        if (code === 'R') {
+            files.push({ filename, status: 'removed' });
+            files.push({ filename: fields[index++], status: 'renamed' });
+        } else if (code === 'C') {
+            files.push({ filename: fields[index++], status: 'added' });
+        } else {
+            files.push({ filename, status: code === 'A' ? 'added' : 'changed' });
+        }
+    }
+    return files;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

@@ -23,6 +23,7 @@
                 "{workspaceRoot}/tools/release/screenshots.manifest.json",
                 "{workspaceRoot}/tools/release/capture-navigation-*-actions.ts",
                 "{workspaceRoot}/.github/workflows/build-and-make.yaml",
+                "{workspaceRoot}/.github/workflows/ci.yml",
                 "{workspaceRoot}/tools/release/release-notes.test.mjs",
                 "{workspaceRoot}/tools/release/release-note-gate.test.mjs",
                 "{workspaceRoot}/tools/release/build-release-notes.test.mjs",

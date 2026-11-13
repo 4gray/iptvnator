@@ -1,10 +1,19 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { describe, it } from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import {
     evaluateGate,
     GATE_LABEL,
 } from './check-release-note-gate.mjs';
+
+const gateScript = fileURLToPath(
+    new URL('./check-release-note-gate.mjs', import.meta.url)
+);
 
 function file(filename, status = 'modified') {
     return { filename, status };
@@ -140,4 +149,63 @@ describe('evaluateGate', () => {
         assert.equal(verdict.ok, false);
         assert.match(verdict.message, /… and 5 more/);
     });
+});
+
+it('checks the tested merge paths and still reads the current exemption label', (t) => {
+    const root = mkdtempSync(path.join(os.tmpdir(), 'release-note-gate-'));
+    t.after(() => rmSync(root, { recursive: true, force: true }));
+    const env = {
+        ...Object.fromEntries(
+            Object.entries(process.env).filter(([key]) => !/^GIT_/i.test(key))
+        ),
+        GIT_CONFIG_GLOBAL: os.devNull,
+        GIT_CONFIG_NOSYSTEM: '1',
+    };
+    function git(...args) {
+        const result = spawnSync(
+            'git',
+            ['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.test', ...args],
+            { cwd: root, env, encoding: 'utf8' }
+        );
+        assert.equal(result.status, 0, result.stderr);
+        return result.stdout.trim();
+    }
+    function check(labels, expected, message) {
+        const result = spawnSync(process.execPath, [gateScript, '--merge-checkout'], {
+            cwd: root,
+            env,
+            input: JSON.stringify(labels),
+            encoding: 'utf8',
+        });
+        assert.equal(result.status, expected, result.stderr);
+        assert.match(result.stdout, message);
+    }
+
+    git('init', '-b', 'master');
+    for (const dir of ['.changes', 'docs', 'libs']) mkdirSync(path.join(root, dir));
+    writeFileSync(path.join(root, '.changes/old.md'), 'Existing release note.');
+    writeFileSync(path.join(root, 'libs/fixture.ts'), 'export const fixture = true;');
+    git('add', '.');
+    git('commit', '-m', 'base');
+    git('switch', '-c', 'feature');
+    renameSync(path.join(root, 'libs/fixture.ts'), path.join(root, 'docs/fixture.md'));
+    renameSync(path.join(root, '.changes/old.md'), path.join(root, '.changes/renamed.md'));
+    git('add', '.');
+    git('commit', '-m', 'move runtime fixture and a pre-existing note');
+    git('switch', 'master');
+    git('merge', '--no-ff', 'feature');
+    const testedMerge = git('rev-parse', 'HEAD');
+    git('switch', 'feature');
+    writeFileSync(path.join(root, '.changes/new.md'), 'New release note.');
+    git('add', '.');
+    git('commit', '-m', 'add a real note on the newer PR head');
+    git('switch', '--detach', testedMerge);
+
+    check([], 1, /libs\/fixture\.ts/);
+    check([GATE_LABEL], 0, /no-release-note/);
+
+    git('switch', 'master');
+    git('reset', '--hard', 'HEAD^1');
+    git('merge', '--no-ff', 'feature');
+    check([], 0, /Release note present: \.changes\/new\.md/);
 });
