@@ -67,6 +67,10 @@ move by CSS, so swap and audio changes never remount a player. The 48 px bar
 under the tiles shows a chip per tile, the layout control (PiP only), "+
 Channel" (while a picker exists) and Exit.
 
+The stage carries the anchor view's `data-player-shortcuts-suspended` marker
+while the view has one (the M3U guide), so the tiles' player shortcuts stand
+down as the view's own player would.
+
 Tiles render `WebPlayerViewComponent` in tile mode (`controlsMode`, `muted`,
 `paused`, `headerOwner`); added tiles use the HTML5 engine, tile 1 keeps the
 view's engine. Tile videos never enter system picture-in-picture (D12).

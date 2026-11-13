@@ -1353,6 +1353,17 @@ the maintainer's request):** five findings.
 - Repeated, declined as before — the VOD survivor handoff (D2, round 1) and
   the catch-up position on live views (phase 1 limit, round 3).
 
+**Round 7 (Codex, commit `9a2991dc7`):** four findings.
+- Fixed — P1, an Xtream item the data source does not know (a PWA catalog
+  not cached, a failed lookup) was treated as unlocked: it is now allowed
+  only while its playlist has no locked category of its type, otherwise it is
+  withheld (as the catalog does for unknown categories).
+- Fixed — P2, the tiles ignored the anchor view's
+  `data-player-shortcuts-suspended` (M3U guide open), because they live in
+  the stage: the stage mirrors the marker of the anchor's container.
+- Repeated, declined as before — VOD survivor handoff (D2) and the catch-up
+  position on live views (phase 1 limit).
+
 Greptile: not run (the `greptile` CLI is not installed on this machine).
 
 ## Phase acceptance (spec 14)

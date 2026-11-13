@@ -3,6 +3,12 @@ import type { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 import { XTREAM_DATA_SOURCE } from '@iptvnator/portal/xtream/data-access';
 import { ParentalLockService } from '@iptvnator/services';
 
+const LOCK_TYPES = {
+    live: 'live',
+    movie: 'movies',
+    series: 'series',
+} as const;
+
 /**
  * R11 for Xtream items: whether the parental lock withholds the item now.
  * Collection rows carry either a provider or a stored category id depending
@@ -22,20 +28,30 @@ export class MultiviewXtreamLock {
         if (this.locks.withholdsEverything()) return true;
         if (!this.locks.active()) return false;
         const type = item.contentType;
-        const known = await this.source
-            .getContentByXtreamId(item.xtreamId, item.playlistId, type)
-            .catch(() => null);
-        if (!known) return false;
-        const allowed = await this.source
-            .getContentByXtreamId(
+        // Unknown content (a catalog the PWA has not cached, a failed
+        // lookup) is only allowed while nothing of its type is locked in its
+        // playlist: fail closed otherwise.
+        const unknown = () =>
+            this.locks.lockedXtreamIds(item.playlistId, LOCK_TYPES[type])
+                .length > 0;
+        try {
+            const known = await this.source.getContentByXtreamId(
+                item.xtreamId,
+                item.playlistId,
+                type
+            );
+            if (!known) return unknown();
+            const allowed = await this.source.getContentByXtreamId(
                 item.xtreamId,
                 item.playlistId,
                 type,
                 undefined,
                 undefined,
                 true
-            )
-            .catch(() => null);
-        return allowed === null;
+            );
+            return allowed === null;
+        } catch {
+            return unknown();
+        }
     }
 }

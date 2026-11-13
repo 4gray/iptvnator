@@ -22,6 +22,7 @@ import type { PlaybackDiagnostic } from '@iptvnator/playback/util';
 import { PLAYER_MULTIVIEW_ACTION } from '@iptvnator/ui/playback';
 import { TranslateService } from '@ngx-translate/core';
 import { MultiviewErrorCardComponent } from './multiview-error-card.component';
+import { mirrorShortcutSuspension } from './mirror-shortcut-suspension';
 import { announceReplacements } from './multiview-replace-notice';
 import { stageMultiviewAction } from './multiview-stage-action';
 import { MultiviewTileComponent } from './multiview-tile.component';
@@ -156,6 +157,7 @@ export class MultiviewStageComponent {
             );
         });
         inject(DestroyRef).onDestroy(() => this.tracker.disconnect());
+        mirrorShortcutSuspension(host, this.anchorElement);
         this.loadBudgetOfFailedTile();
         announceReplacements();
     }

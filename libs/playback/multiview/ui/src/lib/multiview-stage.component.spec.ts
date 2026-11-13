@@ -508,6 +508,24 @@ describe('MultiviewStageComponent', () => {
         );
     });
 
+    it("follows the anchor view's shortcut suspension (M3U guide)", async () => {
+        start();
+        const host: HTMLElement = fixture.nativeElement;
+        expect(host.hasAttribute('data-player-shortcuts-suspended')).toBe(
+            false
+        );
+
+        clip.setAttribute('data-player-shortcuts-suspended', '');
+        await new Promise((resolve) => setTimeout(resolve));
+        expect(host.hasAttribute('data-player-shortcuts-suspended')).toBe(true);
+
+        clip.removeAttribute('data-player-shortcuts-suspended');
+        await new Promise((resolve) => setTimeout(resolve));
+        expect(host.hasAttribute('data-player-shortcuts-suspended')).toBe(
+            false
+        );
+    });
+
     it('removes the tiles when the session ends', () => {
         start();
         store.exit();
