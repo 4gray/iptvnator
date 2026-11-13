@@ -14,14 +14,16 @@ function setup() {
     });
     const events: string[] = [];
     const token = signal(Symbol());
+    const onPosition = jest.fn(() => events.push('position'));
     const fixture = TestBed.createComponent(RenderHost);
     const playback = TestBed.runInInjectionContext(
         () =>
             new AndroidTvPlayback(
                 () => 'synthetic-session',
                 token,
+                signal(1),
                 (seconds) => events.push(`played:${seconds}`),
-                () => events.push('position'),
+                onPosition,
                 () => events.push('ended')
             )
     );
@@ -88,6 +90,7 @@ function setup() {
         events,
         fixture,
         open,
+        onPosition,
         playback,
         postMessage,
         reply,
@@ -124,11 +127,26 @@ it('reports only an owned natural end after recording the final position', () =>
 });
 
 it('keeps mute on a second launch after the web video has unmounted', () => {
-    const { clear, open, reply, surface } = setup();
+    const { clear, open, playback, reply, surface } = setup();
     try {
         reply(open(), false);
         surface.querySelector('video')?.remove();
-        open();
+        reply(open(), false);
+        playback.restoreWebVolume();
+        expect(playback.webVolume()).toBe(0);
+    } finally {
+        clear();
+    }
+});
+
+it('reports a completed position with a separate replay point of zero', () => {
+    const { clear, open, reply, onPosition } = setup();
+    try {
+        reply(open(), true);
+        expect(onPosition).toHaveBeenCalledWith(
+            expect.objectContaining({ currentTime: 9, checkpoint: true }),
+            0
+        );
     } finally {
         clear();
     }

@@ -660,7 +660,7 @@ public class MainActivity extends Activity {
         nativePlaybackDocumentCurrent = true;
         if (externalDialog != null) externalDialog.dismiss();
         hideCustomView();
-        startActivityForResult(intent, NATIVE_PLAYBACK_REQUEST);
+        startActivityForResult(intent.putExtra("requestId", id), NATIVE_PLAYBACK_REQUEST);
     }
 
     private void replyToNativePlayback(String id, Intent result) {
@@ -831,13 +831,15 @@ public class MainActivity extends Activity {
             Bundle content = nativePlaybackContent;
             nativePlaybackId = null;
             nativePlaybackContent = null;
+            Intent fallback = id == null ? null : NativePlayerActivity.takeCheckpoint(id);
+            Intent result = resultCode == RESULT_OK && data != null ? data : fallback;
             if (id != null && nativePlaybackDocumentCurrent) {
-                replyToNativePlayback(id, resultCode == RESULT_OK ? data : null);
-            } else if (id != null && content != null && resultCode == RESULT_OK && data != null
-                && data.getLongExtra("duration", 0) > 0) {
+                replyToNativePlayback(id, result);
+            } else if (id != null && content != null && result != null
+                && result.getLongExtra("duration", 0) > 0) {
                 content.putString("id", id);
-                content.putLong("position", data.getLongExtra("position", 0));
-                content.putLong("duration", data.getLongExtra("duration", 0));
+                content.putLong("position", result.getLongExtra("position", 0));
+                content.putLong("duration", result.getLongExtra("duration", 0));
                 content.putLong("savedAt", System.currentTimeMillis());
                 nativePlaybackCheckpoint = content;
                 deliverNativePlaybackCheckpoint();

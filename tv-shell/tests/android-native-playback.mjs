@@ -201,6 +201,7 @@ try {
         'A cross-origin redirect must not receive the provider user agent.');
     await stage.getByRole('button', { name: 'Return to web player' }).click();
     await expect.poll(() => video.evaluate((media) => media.currentTime)).toBeGreaterThanOrEqual(result.positionMs / 1000 - 1);
+    await expect.poll(() => video.evaluate((media) => media.muted ? 0 : media.volume)).toBe(0);
 
     await page.evaluate(() => { delete window.__nativeResult; });
     await entry('Synthetic Live').click();
@@ -266,13 +267,15 @@ try {
     }, origin + '/synthetic-ac3.mkv');
     await waitNative();
     await waitAudio();
+    const nativeCreates = () => adb('logcat', '-b', 'events', '-d', '-s', 'wm_on_create_called')
+        .split('\n').filter((line) => line.includes(app + '.ui.NativePlayerActivity')).length;
     const oldRotation = adb('shell', 'settings', 'get', 'system', 'user_rotation').trim();
     const oldAutoRotation = adb('shell', 'settings', 'get', 'system', 'accelerometer_rotation').trim();
     try {
-        const activity = topActivity();
+        const activityCount = nativeCreates();
         adb('shell', 'settings', 'put', 'system', 'accelerometer_rotation', '0');
         adb('shell', 'settings', 'put', 'system', 'user_rotation', oldRotation === '0' ? '1' : '0');
-        await expect.poll(topActivity).not.toBe(activity);
+        await expect.poll(nativeCreates).toBeGreaterThan(activityCount);
         await waitNative();
         await waitAudio();
         await expect.poll(captionsState).toBe('Disable subtitles');

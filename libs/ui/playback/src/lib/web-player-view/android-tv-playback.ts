@@ -5,7 +5,9 @@ import {
     afterNextRender,
     computed,
     inject,
+    linkedSignal,
     signal,
+    type WritableSignal,
 } from '@angular/core';
 import { getPlaybackMediaExtensionFromUrl } from '@iptvnator/playback/util';
 import type { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
@@ -43,20 +45,29 @@ export class AndroidTvPlayback {
     );
     readonly suspended = computed(() => this.ownedSession() !== null);
     readonly pending = computed(() => this.ownedSession()?.pending ?? false);
+    readonly webVolume: WritableSignal<number>;
 
     constructor(
         private readonly currentOwner: () => string,
         private readonly currentToken: () => symbol,
+        volume: () => number,
         private readonly onPlayed: (seconds: number) => void,
-        private readonly onPosition: (position: PlayerTimeUpdate) => void,
+        private readonly onPosition: (
+            position: PlayerTimeUpdate,
+            replayTime: number
+        ) => void,
         private readonly onEnded: () => void
     ) {
+        this.webVolume = linkedSignal({
+            source: () => [this.currentOwner(), volume()],
+            computation: () => volume(),
+        });
         const window = this.window;
         if (!window?.TvShell?.postMessage) return;
         const availability = () => {
             const labels = window.iptvnatorAndroidPlaybackLabels ?? null;
             this.labels.set(labels);
-            if (!labels) this.returnToWeb();
+            if (!labels) this.restoreWebVolume();
         };
         const result = (event: Event) => {
             if (!(event instanceof CustomEvent)) return;
@@ -65,7 +76,7 @@ export class AndroidTvPlayback {
             const { id } = session;
             const data = event.detail.result as PlaybackResult | null;
             if (!data) {
-                this.session.set(null);
+                this.restoreWebVolume();
                 return;
             }
             this.session.set({ ...session, pending: false });
@@ -79,12 +90,16 @@ export class AndroidTvPlayback {
                     this.onPlayed(data.playedMs / 1000);
                 }
                 if (data.durationMs > 0) {
-                    this.onPosition({
-                        currentTime: data.positionMs / 1000,
-                        duration: data.durationMs / 1000,
-                        playing: false,
-                        checkpoint: true,
-                    });
+                    const currentTime = data.positionMs / 1000;
+                    this.onPosition(
+                        {
+                            currentTime,
+                            duration: data.durationMs / 1000,
+                            playing: false,
+                            checkpoint: true,
+                        },
+                        data.ended === true ? 0 : currentTime
+                    );
                 }
             }
             if (data.ended === true && this.ownedSession()?.id === id) {
@@ -192,20 +207,22 @@ export class AndroidTvPlayback {
                         },
                     ]);
                     if (message.length > 64 * 1024) {
-                        this.returnToWeb();
+                        this.restoreWebVolume();
                         return;
                     }
                     bridge.postMessage(message);
                 } catch {
-                    this.session.set(null);
+                    this.restoreWebVolume();
                 }
             },
             { injector: this.injector }
         );
     }
 
-    returnToWeb(): void {
+    restoreWebVolume(): void {
+        const volume = this.ownedSession()?.volume;
         this.session.set(null);
+        if (volume !== undefined) this.webVolume.set(volume);
     }
 
     private ownedSession() {

@@ -237,11 +237,12 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly androidPlayback = new AndroidTvPlayback(
         this.playbackSessionKey,
         this.applicationState.token,
+        this.volume,
         (seconds) => this.historyConfirmation.recordPlayedTime(seconds),
-        (update) => {
+        (update, replayTime) => {
             this.activity.record(this.playback(), update);
             this.recoverySession.recordTimeUpdate(
-                update,
+                { ...update, currentTime: replayTime },
                 this.resolvedIsLive()
             );
             this.timeUpdate.emit(update);
@@ -424,7 +425,7 @@ export class WebPlayerViewComponent implements OnDestroy {
     }
 
     returnToWebPlayback(): void {
-        this.androidPlayback.returnToWeb();
+        this.androidPlayback.restoreWebVolume();
         this.reloadToken.update((value) => value + 1);
     }
 

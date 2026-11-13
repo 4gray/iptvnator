@@ -42,6 +42,8 @@ import okhttp3.HttpUrl;
 
 @OptIn(markerClass = UnstableApi.class)
 public final class NativePlayerActivity extends Activity {
+    private static String checkpointId;
+    private static Intent pausedCheckpoint;
     private ExoPlayer player;
     private MediaSession mediaSession;
     private PlayerView view;
@@ -62,6 +64,9 @@ public final class NativePlayerActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedState) {
         super.onCreate(savedState);
+        String requestId = getIntent().getStringExtra("requestId");
+        if (requestId == null || !requestId.equals(checkpointId)) pausedCheckpoint = null;
+        checkpointId = requestId;
         String url = getIntent().getStringExtra("url");
         stream = url == null ? null : HttpUrl.parse(url);
         if (stream == null) {
@@ -179,8 +184,12 @@ public final class NativePlayerActivity extends Activity {
         });
         view.setPlayer(player);
         prepareStream();
-        player.setPlayWhenReady(autoplay);
-        autoplay = false;
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (player != null) player.setPlayWhenReady(autoplay);
     }
 
     private void prepareStream() {
@@ -243,6 +252,7 @@ public final class NativePlayerActivity extends Activity {
         if (player != null) {
             autoplay = player.getPlayWhenReady();
             player.pause();
+            if (!isFinishing()) pausedCheckpoint = playbackResult();
         }
         super.onPause();
     }
@@ -294,10 +304,22 @@ public final class NativePlayerActivity extends Activity {
 
     @Override
     public void finish() {
-        snapshot();
-        setResult(RESULT_OK, new Intent().putExtra("position", position)
-            .putExtra("duration", duration).putExtra("played", playedMs()).putExtra("ended", ended));
+        pausedCheckpoint = playbackResult();
+        setResult(RESULT_OK, pausedCheckpoint);
         super.finish();
+    }
+
+    static Intent takeCheckpoint(String id) {
+        if (!id.equals(checkpointId)) return null;
+        Intent result = pausedCheckpoint;
+        pausedCheckpoint = null;
+        return result;
+    }
+
+    private Intent playbackResult() {
+        snapshot();
+        return new Intent().putExtra("position", position)
+            .putExtra("duration", duration).putExtra("played", playedMs()).putExtra("ended", ended);
     }
 
     private long playedMs() {
