@@ -829,6 +829,25 @@ drag snap, click vs drag, resize, keys, held overlay, bar, exit, picker
 button), tile media +1; `playback-multiview-ui` 56, `ui-playback` 1773,
 data-access 75; lint, icon ligatures, `pnpm run i18n:check`,
 `typecheck:web`, `typecheck:spec`, `electron-backend:build-e2e`.
+**Detail pages check (after Task 11, Xtream mock movie and series, both
+themes):** three defects found and fixed:
+- the inline player's title row ("Now playing", copy, Close player) hid
+  itself during a session, because its idle timer only sees pointer
+  activity over the viewport the stage now covers — it stays visible while
+  the inline player's anchor owns a session;
+- the stage had square corners over the detail page's rounded player — the
+  stage viewport now takes the border radius of the box that clips the
+  anchor;
+- after a session the inline player restarted its title from the original
+  start instead of where its tile was (R7) — `MultiviewAnchor.resumePosition`
+  keeps the own tile's last VOD position, and the inline player starts there
+  while it plays the same source. Live views do not bind it: their existing
+  spec stubs have no `startTime` input, so catch-up and M3U movie files in
+  the live players still restart after a session (known phase 1 limit).
+Movie resume verified live (held at 6.0 s, continued from there). The
+series run was blocked by the public test stream the mock redirects series
+to (HTTP 522); its start time was verified to be the tile's position.
+
 **Live check (temporary probe, local M3U, Electron, light and dark):** hover
 chrome, held VOD overlay after swap, drag to the top-left corner, no PiP
 button in the main tile's dock, no console errors. One defect found and fixed

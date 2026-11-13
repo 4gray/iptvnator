@@ -6,6 +6,8 @@ export interface StageRects {
     readonly clip: TileBox;
     /** The anchor placeholder, relative to the clip box. */
     readonly anchor: TileBox;
+    /** Corner radius of the box that clips the anchor, e.g. a rounded stage. */
+    readonly radius: string;
 }
 
 function relative(rect: DOMRect, origin: DOMRect): TileBox {
@@ -82,6 +84,9 @@ export class StageRectTracker {
         this.rects.set({
             clip: relative(clipRect, frame.getBoundingClientRect()),
             anchor: relative(anchor.getBoundingClientRect(), clipRect),
+            radius: anchor.parentElement
+                ? getComputedStyle(anchor.parentElement).borderRadius
+                : '0px',
         });
     }
 

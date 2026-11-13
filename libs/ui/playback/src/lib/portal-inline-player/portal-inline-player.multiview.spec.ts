@@ -164,6 +164,26 @@ describe('PortalInlinePlayerComponent multiview anchor', () => {
         expect(progress).toEqual([95]);
     });
 
+    it('keeps the title row visible during the session', () => {
+        startSession();
+
+        expect(
+            fixture.nativeElement.querySelector('.player-shell__header')
+                .classList
+        ).not.toContain('player-shell__header--idle');
+    });
+
+    it('continues the movie where its tile was when the session ends (R7)', () => {
+        startSession();
+        const store = TestBed.inject(MultiviewSessionStore);
+        store.reportPosition(store.tiles()[0].id, 95);
+        fixture.detectChanges();
+        store.exit();
+        fixture.detectChanges();
+
+        expect(component.startTime()).toBe(95);
+    });
+
     it('ends the session when the player is closed', () => {
         startSession();
 

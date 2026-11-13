@@ -280,6 +280,45 @@ describe('MultiviewAnchor', () => {
         });
     });
 
+    describe('resume position (R7)', () => {
+        beforeEach(() => create());
+
+        function startVod(): void {
+            view().playing.set({ ...source('movie'), kind: 'vod' });
+            fixture.detectChanges();
+            startSession();
+        }
+
+        it('continues the view source where its tile was', () => {
+            startVod();
+            store.reportPosition(store.tiles()[0].id, 754);
+            fixture.detectChanges();
+            store.exit();
+            fixture.detectChanges();
+
+            expect(view().anchor.resumePosition()).toBe(754);
+        });
+
+        it('forgets it once the view plays something else', () => {
+            startVod();
+            store.reportPosition(store.tiles()[0].id, 754);
+            fixture.detectChanges();
+            store.exit();
+            fixture.detectChanges();
+            view().playing.set({ ...source('film'), kind: 'vod' });
+
+            expect(view().anchor.resumePosition()).toBeNull();
+        });
+
+        it('has none for a live source', () => {
+            startSession();
+            store.exit();
+            fixture.detectChanges();
+
+            expect(view().anchor.resumePosition()).toBeNull();
+        });
+    });
+
     describe('dock action', () => {
         it('offers none without a picker', () => {
             create();

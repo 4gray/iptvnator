@@ -7,7 +7,9 @@
     >
         <header
             class="player-shell__header"
-            [class.player-shell__header--idle]="!headerControls.visible()"
+            [class.player-shell__header--idle]="
+                !headerControls.visible() && !multiviewAnchor.ownsSession()
+            "
         >
             <div class="player-shell__title-row">
                 <div class="player-shell__heading">

@@ -105,6 +105,7 @@ describe('MultiviewStageComponent', () => {
         frame.getBoundingClientRect = () => rect(100, 50, 1400, 900);
         clip.getBoundingClientRect = () => rect(100, 90, 1400, 860);
         anchor.getBoundingClientRect = () => rect(140, 130, 1280, 720);
+        clip.style.borderRadius = '14px';
         TestBed.inject(MultiviewAnchorRegistry).register({
             host: {
                 anchorId: 'xtream-live',
@@ -181,6 +182,18 @@ describe('MultiviewStageComponent', () => {
         expect(viewport.style.top).toBe('40px');
         expect(viewport.style.width).toBe('1280px');
         expect(viewport.style.height).toBe('720px');
+    });
+
+    it('takes the corner radius of the box that clips the anchor', () => {
+        start();
+
+        expect(
+            (
+                fixture.nativeElement.querySelector(
+                    '[data-test-id="multiview-stage"]'
+                ) as HTMLElement
+            ).style.borderRadius
+        ).toBe('14px');
     });
 
     it('keeps both player instances and elements across a swap', () => {

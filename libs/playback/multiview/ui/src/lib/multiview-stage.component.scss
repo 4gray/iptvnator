@@ -8,6 +8,7 @@
 
 .multiview-stage__viewport {
     position: absolute;
+    overflow: hidden;
     pointer-events: auto;
     background: #000;
 }

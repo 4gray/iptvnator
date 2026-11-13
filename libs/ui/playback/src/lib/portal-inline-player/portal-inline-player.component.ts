@@ -167,7 +167,13 @@ export class PortalInlinePlayerComponent {
         )
     );
     readonly streamUrl = computed(() => this.playback()?.streamUrl ?? '');
-    readonly startTime = computed(() => this.playback()?.startTime ?? 0);
+    /** After a multiview session, continue where its tile was (R7). */
+    readonly startTime = computed(
+        () =>
+            this.multiviewAnchor.resumePosition() ??
+            this.playback()?.startTime ??
+            0
+    );
     /** Lets a multiview session take over and hand back this player. */
     readonly multiviewAnchor = injectMultiviewAnchor(
         createPortalInlinePlayerMultiviewHost({

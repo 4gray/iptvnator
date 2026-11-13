@@ -44,6 +44,23 @@ export class MultiviewAnchor {
     private ownedSession = false;
     /** Position of the view's own player in its current source. */
     private position: { key: string; seconds: number } | null = null;
+    /** Where the tile playing the view's own source last was. */
+    private ownTile: { key: string; seconds: number } | null = null;
+    private readonly resume = signal<{ key: string; seconds: number } | null>(
+        null
+    );
+
+    /**
+     * R7: when the session ends and the view plays its own VOD source again,
+     * the position its tile reached; null otherwise. Views pass it as their
+     * player's start time.
+     */
+    readonly resumePosition = computed(() => {
+        const resume = this.resume();
+        return resume && resume.key === this.host.source()?.playbackSessionKey
+            ? resume.seconds
+            : null;
+    });
 
     readonly ownsSession = computed(
         () =>
@@ -68,6 +85,7 @@ export class MultiviewAnchor {
         effect(() => {
             if (this.ownsSession()) this.ownedSession = true;
         });
+        effect(() => this.trackOwnTile());
         effect(() => this.adoptSurvivor());
         effect(() => this.followSelection());
         inject(DestroyRef).onDestroy(() => {
@@ -102,6 +120,20 @@ export class MultiviewAnchor {
         if (untracked(this.ownsSession)) this.store.end('anchor-left');
     }
 
+    /** Remembers the progress of the tile that plays the view's source. */
+    private trackOwnTile(): void {
+        const tiles = this.store.tiles();
+        untracked(() => {
+            if (!this.ownsSession()) return;
+            const key = this.host.source()?.playbackSessionKey;
+            const own = tiles.find((tile) => tile.playbackSessionKey === key);
+            this.ownTile =
+                own && key && own.kind !== 'live'
+                    ? { key, seconds: own.lastPosition }
+                    : null;
+        });
+    }
+
     /** R5: picking another source in the view replaces the active tile. */
     private followSelection(): void {
         const source = this.host.source();
@@ -121,6 +153,8 @@ export class MultiviewAnchor {
         untracked(() => {
             if (!this.ownedSession || notice?.effect.type !== 'ended') return;
             this.ownedSession = false;
+            this.resume.set(this.ownTile);
+            this.ownTile = null;
             const survivor = notice.effect.survivor;
             if (
                 survivor &&
