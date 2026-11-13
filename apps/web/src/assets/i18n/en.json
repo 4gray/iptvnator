@@ -747,6 +747,7 @@
         "ANDROID_PAIR_DEVICE": "Pair this device",
         "ANDROID_CONNECT_CODE": "Connect with access code",
         "ANDROID_APPROVAL_ADDRESS": "HTTPS approval address (optional)",
+        "ANDROID_REMOVE_PAIRING": "Remove pairing",
         "ANDROID_LIBRARY_TITLE": "Library connection",
         "ANDROID_SCAN_QR": "Scan QR code",
         "ANDROID_LOCAL_LIBRARY": "Using local library",

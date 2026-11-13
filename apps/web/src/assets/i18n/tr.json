@@ -747,6 +747,7 @@
         "ANDROID_PAIR_DEVICE": "Bu cihazı eşleştir",
         "ANDROID_CONNECT_CODE": "Erişim koduyla bağlan",
         "ANDROID_APPROVAL_ADDRESS": "HTTPS onay adresi (isteğe bağlı)",
+        "ANDROID_REMOVE_PAIRING": "Eşleştirmeyi kaldır",
         "ANDROID_LIBRARY_TITLE": "Kitaplık bağlantısı",
         "ANDROID_SCAN_QR": "QR kodunu tara",
         "ANDROID_LOCAL_LIBRARY": "Yerel kitaplık kullanılıyor",

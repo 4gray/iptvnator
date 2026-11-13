@@ -53,6 +53,27 @@
             <div class="server-actions">
                 @if (library.origin) {
                     <code class="hosted-value">{{ library.origin }}</code>
+                } @else {
+                    <p class="server-message">
+                        {{ 'SETTINGS.ANDROID_LOCAL_LIBRARY' | translate }}
+                    </p>
+                    @if (library.savedOrigin) {
+                        <button
+                            type="button"
+                            mat-flat-button
+                            (click)="
+                                androidLibrary.connectLibrary(
+                                    library.savedOrigin
+                                )
+                            "
+                            data-test-id="android-library-reconnect"
+                        >
+                            {{ 'SOURCE_SYNC.CONNECT' | translate }}
+                            {{ library.savedOrigin }}
+                        </button>
+                    }
+                }
+                @if (library.origin || library.offline) {
                     <button
                         type="button"
                         mat-flat-button
@@ -61,10 +82,16 @@
                     >
                         {{ 'SOURCE_SYNC.DISCONNECT' | translate }}
                     </button>
-                } @else {
-                    <p class="server-message">
-                        {{ 'SETTINGS.ANDROID_LOCAL_LIBRARY' | translate }}
-                    </p>
+                }
+                @if (library.paired && androidLibrary.removeLibraryPairing) {
+                    <button
+                        type="button"
+                        mat-button
+                        (click)="androidLibrary.removeLibraryPairing?.()"
+                        data-test-id="android-library-remove-pairing"
+                    >
+                        {{ 'SETTINGS.ANDROID_REMOVE_PAIRING' | translate }}
+                    </button>
                 }
                 @if (library.canScanQr) {
                     <button

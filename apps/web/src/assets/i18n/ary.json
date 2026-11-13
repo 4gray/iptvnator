@@ -747,6 +747,7 @@
         "ANDROID_PAIR_DEVICE": "قرن هاد الجهاز",
         "ANDROID_CONNECT_CODE": "اتصل برمز الولوج",
         "ANDROID_APPROVAL_ADDRESS": "عنوان الموافقة عبر HTTPS (اختياري)",
+        "ANDROID_REMOVE_PAIRING": "حيد الربط",
         "ANDROID_LIBRARY_TITLE": "اتصال المكتبة",
         "ANDROID_SCAN_QR": "مسح رمز QR",
         "ANDROID_LOCAL_LIBRARY": "استخدام المكتبة المحلية",

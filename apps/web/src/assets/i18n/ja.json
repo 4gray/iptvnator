@@ -747,6 +747,7 @@
         "ANDROID_PAIR_DEVICE": "このデバイスをペアリング",
         "ANDROID_CONNECT_CODE": "アクセスコードで接続",
         "ANDROID_APPROVAL_ADDRESS": "HTTPS 承認アドレス（任意）",
+        "ANDROID_REMOVE_PAIRING": "ペアリングを解除",
         "ANDROID_LIBRARY_TITLE": "ライブラリ接続",
         "ANDROID_SCAN_QR": "QR コードをスキャン",
         "ANDROID_LOCAL_LIBRARY": "ローカルライブラリを使用中",

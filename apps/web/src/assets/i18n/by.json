@@ -747,6 +747,7 @@
         "ANDROID_PAIR_DEVICE": "Прывязаць гэту прыладу",
         "ANDROID_CONNECT_CODE": "Падключыцца з дапамогай кода доступу",
         "ANDROID_APPROVAL_ADDRESS": "Адрас пацвярджэння HTTPS (неабавязкова)",
+        "ANDROID_REMOVE_PAIRING": "Выдаліць спалучэнне",
         "ANDROID_LIBRARY_TITLE": "Падключэнне бібліятэкі",
         "ANDROID_SCAN_QR": "Сканаваць QR-код",
         "ANDROID_LOCAL_LIBRARY": "Выкарыстоўваецца лакальная бібліятэка",

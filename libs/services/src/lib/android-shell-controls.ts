@@ -13,9 +13,12 @@ export interface AndroidLibraryControls {
         savedOrigin: string;
         approvalOrigin?: string;
         canScanQr: boolean;
+        offline?: boolean;
+        paired?: boolean;
     };
     scanLibraryQr(): void;
     disconnectLibrary(): void;
+    removeLibraryPairing?(): void;
     pairLibrary(address: string, approvalAddress: string): void;
     connectLibrary(address: string): void;
 }

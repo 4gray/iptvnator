@@ -747,6 +747,7 @@
         "ANDROID_PAIR_DEVICE": "Associa questo dispositivo",
         "ANDROID_CONNECT_CODE": "Connetti con codice di accesso",
         "ANDROID_APPROVAL_ADDRESS": "Indirizzo di approvazione HTTPS (facoltativo)",
+        "ANDROID_REMOVE_PAIRING": "Rimuovi associazione",
         "ANDROID_LIBRARY_TITLE": "Connessione alla libreria",
         "ANDROID_SCAN_QR": "Scansiona il codice QR",
         "ANDROID_LOCAL_LIBRARY": "Uso della libreria locale",

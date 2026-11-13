@@ -747,6 +747,7 @@
         "ANDROID_PAIR_DEVICE": "Σύζευξη αυτής της συσκευής",
         "ANDROID_CONNECT_CODE": "Σύνδεση με κωδικό πρόσβασης",
         "ANDROID_APPROVAL_ADDRESS": "Διεύθυνση έγκρισης HTTPS (προαιρετικό)",
+        "ANDROID_REMOVE_PAIRING": "Κατάργηση σύζευξης",
         "ANDROID_LIBRARY_TITLE": "Σύνδεση βιβλιοθήκης",
         "ANDROID_SCAN_QR": "Σάρωση κωδικού QR",
         "ANDROID_LOCAL_LIBRARY": "Χρήση τοπικής βιβλιοθήκης",

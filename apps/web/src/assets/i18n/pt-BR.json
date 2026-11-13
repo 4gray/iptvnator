@@ -747,6 +747,7 @@
         "ANDROID_PAIR_DEVICE": "Parear este dispositivo",
         "ANDROID_CONNECT_CODE": "Conectar com código de acesso",
         "ANDROID_APPROVAL_ADDRESS": "Endereço de aprovação HTTPS (opcional)",
+        "ANDROID_REMOVE_PAIRING": "Remover pareamento",
         "ANDROID_LIBRARY_TITLE": "Conexão da biblioteca",
         "ANDROID_SCAN_QR": "Ler código QR",
         "ANDROID_LOCAL_LIBRARY": "Usando a biblioteca local",

@@ -747,6 +747,7 @@
         "ANDROID_PAIR_DEVICE": "配对此设备",
         "ANDROID_CONNECT_CODE": "使用访问码连接",
         "ANDROID_APPROVAL_ADDRESS": "HTTPS 批准地址（可选）",
+        "ANDROID_REMOVE_PAIRING": "解除配对",
         "ANDROID_LIBRARY_TITLE": "媒体库连接",
         "ANDROID_SCAN_QR": "扫描二维码",
         "ANDROID_LOCAL_LIBRARY": "正在使用本地媒体库",
