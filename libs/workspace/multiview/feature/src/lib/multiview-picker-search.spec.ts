@@ -1,9 +1,9 @@
 import { TestBed } from '@angular/core/testing';
-import { MultiviewSessionStore } from '@iptvnator/playback/multiview/data-access';
 import { XTREAM_DATA_SOURCE } from '@iptvnator/portal/xtream/data-access';
 import { PlaylistsService } from '@iptvnator/services';
 import type { EpgProgram } from '@iptvnator/shared/interfaces';
 import { of } from 'rxjs';
+import { MultiviewOnScreenSources } from './multiview-on-screen';
 import { liveItem, movieItem } from './multiview-picker.fixtures';
 import { toPickerRow } from './multiview-picker-row';
 import {
@@ -68,8 +68,8 @@ describe('MultiviewPickerSearchService', () => {
                 { provide: XTREAM_DATA_SOURCE, useValue: { searchContent } },
                 { provide: PlaylistsService, useValue: { getPlaylistById } },
                 {
-                    provide: MultiviewSessionStore,
-                    useValue: { tiles: () => [] },
+                    provide: MultiviewOnScreenSources,
+                    useValue: { current: () => [] },
                 },
             ],
         });

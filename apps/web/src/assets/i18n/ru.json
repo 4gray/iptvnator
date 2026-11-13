@@ -2581,7 +2581,59 @@
             "ERROR_FORMAT_CAUSE": "Поток в формате, который встроенный плеер не поддерживает.",
             "ERROR_GENERIC_CAUSE": "Поток неожиданно остановился.",
             "REPLACE_MAIN": "Заменить основное окно",
-            "CHOOSE_ANOTHER": "Выбрать другой источник"
+            "CHOOSE_ANOTHER": "Выбрать другой источник",
+            "PICKER": {
+                "TITLE_ADD": "Добавить в мультивью",
+                "TITLE_REPLACE": "Заменить окно {{number}}",
+                "SUBTITLE_ADD": "{{title}} продолжит играть со звуком. Новое начнётся без звука.",
+                "SUBTITLE_REPLACE": "{{title}} будет заменено. Новое начнётся без звука.",
+                "SUBTITLE_MUTED": "Новое начнётся без звука.",
+                "SEARCH_LABEL": "Поиск источников",
+                "SEARCH_PLACEHOLDER": "Каналы, передачи, фильмы, сериалы…",
+                "SCOPE_EVERYWHERE": "везде",
+                "SECTIONS": "Разделы",
+                "QUICK": "Быстро",
+                "PLAYLISTS": "Плейлисты",
+                "SECTION": {
+                    "live-now": "Сейчас в эфире",
+                    "continue": "Продолжить",
+                    "favorites": "Избранное",
+                    "recent": "Недавние"
+                },
+                "BUDGET_FREE": "{{count}} своб.",
+                "BUDGET_FULL": "занято",
+                "BUDGET_UNKNOWN": "лимит ?",
+                "FULL_WARNING": "У {{playlist}} нет свободных подключений, новый поток, скорее всего, не запустится.",
+                "METER": "{{playlist}}: занято {{used}} из {{max}}",
+                "METER_UNKNOWN": "{{playlist}}: лимит подключений неизвестен",
+                "TYPES": "Тип контента",
+                "TYPE": {
+                    "all": "Всё",
+                    "live": "ТВ",
+                    "movie": "Фильмы",
+                    "series": "Сериалы"
+                },
+                "RESULTS": "Источники",
+                "GROUP_FROM_FAVORITES": "Из избранного",
+                "GROUP_MORE_ON_AIR": "Ещё в эфире",
+                "SEARCH_ON_AIR": "Идёт сейчас",
+                "SEARCH_CHANNELS": "Каналы",
+                "SEARCH_MOVIES": "Фильмы",
+                "SEARCH_SERIES": "Сериалы",
+                "TYPE_MOVIE": "Фильм",
+                "TYPE_SERIES_ONE": "Сериал",
+                "CONTINUE_FROM": "Продолжить с {{position}}",
+                "IN_TILE": "В окне {{number}}",
+                "EPISODES": "Серии",
+                "NO_EPISODES": "Нет серий",
+                "STARTED": "Начато",
+                "UNAVAILABLE": "Не для мультивью",
+                "RESOLVE_ERROR": "Этот источник не открывается.",
+                "LOADING": "Загрузка…",
+                "LOAD_ERROR": "Не удалось загрузить список.",
+                "NO_RESULTS": "Ничего не найдено",
+                "EMPTY": "Здесь пока пусто"
+            }
         }
     }
 }

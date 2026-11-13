@@ -52,14 +52,16 @@ export function createStalkerLiveMultiviewHost(
         anchorId: STALKER_LIVE_ANCHOR_ID,
         source,
         engine: computed(() => deps.player() ?? VideoPlayer.VideoJs),
-        adopt(tile: MultiviewTile): void {
+        adopt(tile: MultiviewTile): boolean {
             if (
-                tile.contentId &&
-                !tile.radio &&
-                tile.playlistId === deps.identity()?.sourceId
+                !tile.contentId ||
+                tile.radio ||
+                tile.playlistId !== deps.identity()?.sourceId
             ) {
-                deps.selectChannel(tile.contentId);
+                return false;
             }
+            deps.selectChannel(tile.contentId);
+            return true;
         },
     };
 }

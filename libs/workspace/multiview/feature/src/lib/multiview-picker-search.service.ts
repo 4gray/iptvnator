@@ -1,5 +1,4 @@
 import { Injectable, inject } from '@angular/core';
-import { MultiviewSessionStore } from '@iptvnator/playback/multiview/data-access';
 import { sourceSortName } from '@iptvnator/playlist/shared/util';
 import type { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 import {
@@ -8,6 +7,7 @@ import {
 } from '@iptvnator/portal/xtream/data-access';
 import { PlaylistsService } from '@iptvnator/services';
 import { firstValueFrom } from 'rxjs';
+import { MultiviewOnScreenSources } from './multiview-on-screen';
 import { type MultiviewPickerRow, toPickerRow } from './multiview-picker-row';
 import {
     EMPTY_PICKER_SEARCH,
@@ -50,7 +50,7 @@ function toCollectionItem(
 export class MultiviewPickerSearchService {
     private readonly xtream = inject(XTREAM_DATA_SOURCE);
     private readonly playlists = inject(PlaylistsService);
-    private readonly store = inject(MultiviewSessionStore);
+    private readonly onScreen = inject(MultiviewOnScreenSources);
 
     async search(
         term: string,
@@ -79,7 +79,7 @@ export class MultiviewPickerSearchService {
                 true
             );
             const name = sourceSortName(playlist);
-            const tiles = this.store.tiles();
+            const tiles = this.onScreen.current();
             return rows
                 .slice(0, CATALOG_RESULT_LIMIT * 2)
                 .map((row) => toCollectionItem(row, playlistId, name))

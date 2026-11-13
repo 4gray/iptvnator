@@ -3,6 +3,7 @@ import { MultiviewAnchorRegistry } from './multiview-anchor-registry';
 import {
     MULTIVIEW_SOURCE_PICKER,
     type MultiviewPickRequest,
+    type MultiviewSourcePicker,
 } from './multiview-ports';
 import type {
     MultiviewEffect,
@@ -26,12 +27,25 @@ const rejected = (
 export class MultiviewEntryService {
     private readonly store = inject(MultiviewSessionStore);
     private readonly anchors = inject(MultiviewAnchorRegistry);
-    private readonly picker = inject(MULTIVIEW_SOURCE_PICKER, {
-        optional: true,
-    });
+    private picker = inject(MULTIVIEW_SOURCE_PICKER, { optional: true });
 
     /** Whether a picker exists at all; without one there is no dock button. */
-    readonly hasPicker = this.picker !== null;
+    get hasPicker(): boolean {
+        return this.picker !== null;
+    }
+
+    /**
+     * Installs the picker at run time, for a host that provides it below the
+     * root (the workspace shell). Player views read {@link hasPicker} when
+     * they are created, so the host installs it before it renders them.
+     * Returns the uninstall function.
+     */
+    usePicker(picker: MultiviewSourcePicker): () => void {
+        this.picker = picker;
+        return () => {
+            if (this.picker === picker) this.picker = null;
+        };
+    }
 
     /** Whether a source can be added right now. */
     readonly canAdd = computed(() => {

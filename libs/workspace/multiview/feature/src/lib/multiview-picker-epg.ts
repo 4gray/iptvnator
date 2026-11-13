@@ -1,3 +1,5 @@
+import { effect, untracked } from '@angular/core';
+import type { EpgProgram } from '@iptvnator/shared/interfaces';
 import {
     collectionEpgKey,
     type UnifiedCollectionItem,
@@ -34,4 +36,24 @@ export class MultiviewEpgAllowance {
         }
         return batch;
     }
+}
+
+/**
+ * Q1: loads the programme line of the rows on screen whenever they change,
+ * within the open's allowance. Must be called in an injection context.
+ */
+export function loadVisibleEpg(options: {
+    readonly visible: () => readonly UnifiedCollectionItem[];
+    readonly load: (
+        items: readonly UnifiedCollectionItem[]
+    ) => Promise<ReadonlyMap<string, EpgProgram | null>>;
+    readonly apply: (loaded: ReadonlyMap<string, EpgProgram | null>) => void;
+}): void {
+    effect(() => {
+        const visible = options.visible();
+        untracked(async () => {
+            const loaded = await options.load(visible);
+            if (loaded.size > 0) options.apply(loaded);
+        });
+    });
 }

@@ -2581,7 +2581,59 @@
             "ERROR_FORMAT_CAUSE": "يستخدم هذا البث تنسيقًا لا يدعمه المشغّل المدمج.",
             "ERROR_GENERIC_CAUSE": "توقّف البث بشكل غير متوقع.",
             "REPLACE_MAIN": "استبدال النافذة الرئيسية",
-            "CHOOSE_ANOTHER": "اختيار مصدر آخر"
+            "CHOOSE_ANOTHER": "اختيار مصدر آخر",
+            "PICKER": {
+                "TITLE_ADD": "إضافة إلى العرض المتعدد",
+                "TITLE_REPLACE": "استبدال النافذة {{number}}",
+                "SUBTITLE_ADD": "يستمر {{title}} بالصوت. تبدأ الجديدة دون صوت.",
+                "SUBTITLE_REPLACE": "سيُستبدل {{title}}. تبدأ الجديدة دون صوت.",
+                "SUBTITLE_MUTED": "تبدأ الجديدة دون صوت.",
+                "SEARCH_LABEL": "البحث في المصادر",
+                "SEARCH_PLACEHOLDER": "قنوات، برامج، أفلام، مسلسلات…",
+                "SCOPE_EVERYWHERE": "في كل مكان",
+                "SECTIONS": "الأقسام",
+                "QUICK": "سريع",
+                "PLAYLISTS": "قوائم التشغيل",
+                "SECTION": {
+                    "live-now": "مباشر الآن",
+                    "continue": "متابعة",
+                    "favorites": "المفضلة",
+                    "recent": "الأخيرة"
+                },
+                "BUDGET_FREE": "{{count}} متاح",
+                "BUDGET_FULL": "ممتلئ",
+                "BUDGET_UNKNOWN": "الحد ؟",
+                "FULL_WARNING": "لا توجد اتصالات متاحة في {{playlist}}، لذا قد لا يبدأ البث الجديد.",
+                "METER": "{{playlist}}: {{used}} من {{max}} قيد الاستخدام",
+                "METER_UNKNOWN": "{{playlist}}: حد الاتصالات غير معروف",
+                "TYPES": "نوع المحتوى",
+                "TYPE": {
+                    "all": "الكل",
+                    "live": "التلفاز",
+                    "movie": "الأفلام",
+                    "series": "المسلسلات"
+                },
+                "RESULTS": "المصادر",
+                "GROUP_FROM_FAVORITES": "من المفضلة",
+                "GROUP_MORE_ON_AIR": "المزيد على الهواء",
+                "SEARCH_ON_AIR": "يُعرض الآن",
+                "SEARCH_CHANNELS": "القنوات",
+                "SEARCH_MOVIES": "الأفلام",
+                "SEARCH_SERIES": "المسلسلات",
+                "TYPE_MOVIE": "فيلم",
+                "TYPE_SERIES_ONE": "مسلسل",
+                "CONTINUE_FROM": "المتابعة من {{position}}",
+                "IN_TILE": "في النافذة {{number}}",
+                "EPISODES": "الحلقات",
+                "NO_EPISODES": "لا توجد حلقات",
+                "STARTED": "بدأ",
+                "UNAVAILABLE": "غير متاح في العرض المتعدد",
+                "RESOLVE_ERROR": "تعذّر فتح هذا المصدر.",
+                "LOADING": "جارٍ التحميل…",
+                "LOAD_ERROR": "تعذّر تحميل القائمة.",
+                "NO_RESULTS": "لم يُعثر على شيء",
+                "EMPTY": "لا شيء هنا بعد"
+            }
         }
     }
 }

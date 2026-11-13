@@ -45,6 +45,11 @@ export interface MultiviewTileSource {
         readonly currentTime: number;
         readonly duration: number;
     }) => void;
+    /**
+     * Opens the source in its own view, for a survivor the anchor view
+     * cannot show itself (D2). Sources picked from a list carry it.
+     */
+    readonly reopen?: () => void;
 }
 
 export interface MultiviewTile extends MultiviewTileSource {

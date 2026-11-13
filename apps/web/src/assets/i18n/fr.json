@@ -2581,7 +2581,59 @@
             "ERROR_FORMAT_CAUSE": "Ce flux utilise un format que le lecteur intégré ne peut pas lire.",
             "ERROR_GENERIC_CAUSE": "Le flux s'est arrêté de façon inattendue.",
             "REPLACE_MAIN": "Remplacer la fenêtre principale",
-            "CHOOSE_ANOTHER": "Choisir une autre source"
+            "CHOOSE_ANOTHER": "Choisir une autre source",
+            "PICKER": {
+                "TITLE_ADD": "Ajouter à la multivue",
+                "TITLE_REPLACE": "Remplacer la fenêtre {{number}}",
+                "SUBTITLE_ADD": "{{title}} continue avec le son. La nouvelle démarre sans son.",
+                "SUBTITLE_REPLACE": "{{title}} sera remplacé. La nouvelle démarre sans son.",
+                "SUBTITLE_MUTED": "La nouvelle démarre sans son.",
+                "SEARCH_LABEL": "Rechercher des sources",
+                "SEARCH_PLACEHOLDER": "Chaînes, émissions, films, séries…",
+                "SCOPE_EVERYWHERE": "partout",
+                "SECTIONS": "Rubriques",
+                "QUICK": "Accès rapide",
+                "PLAYLISTS": "Listes de lecture",
+                "SECTION": {
+                    "live-now": "En direct",
+                    "continue": "Reprendre",
+                    "favorites": "Favoris",
+                    "recent": "Récents"
+                },
+                "BUDGET_FREE": "{{count}} libres",
+                "BUDGET_FULL": "complet",
+                "BUDGET_UNKNOWN": "limite ?",
+                "FULL_WARNING": "{{playlist}} n'a plus de connexion libre ; un nouveau flux ne démarrera probablement pas.",
+                "METER": "{{playlist}} : {{used}} sur {{max}} utilisées",
+                "METER_UNKNOWN": "{{playlist}} : limite de connexions inconnue",
+                "TYPES": "Type de contenu",
+                "TYPE": {
+                    "all": "Tout",
+                    "live": "Télé",
+                    "movie": "Films",
+                    "series": "Séries"
+                },
+                "RESULTS": "Sources",
+                "GROUP_FROM_FAVORITES": "Depuis les favoris",
+                "GROUP_MORE_ON_AIR": "Autres directs",
+                "SEARCH_ON_AIR": "À l'antenne",
+                "SEARCH_CHANNELS": "Chaînes",
+                "SEARCH_MOVIES": "Films",
+                "SEARCH_SERIES": "Séries",
+                "TYPE_MOVIE": "Film",
+                "TYPE_SERIES_ONE": "Série",
+                "CONTINUE_FROM": "Reprendre à {{position}}",
+                "IN_TILE": "Dans la fenêtre {{number}}",
+                "EPISODES": "Épisodes",
+                "NO_EPISODES": "Aucun épisode",
+                "STARTED": "Commencé",
+                "UNAVAILABLE": "Pas en multivue",
+                "RESOLVE_ERROR": "Impossible d'ouvrir cette source.",
+                "LOADING": "Chargement…",
+                "LOAD_ERROR": "Impossible de charger la liste.",
+                "NO_RESULTS": "Aucun résultat",
+                "EMPTY": "Rien pour l'instant"
+            }
         }
     }
 }

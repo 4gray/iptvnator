@@ -2581,7 +2581,59 @@
             "ERROR_FORMAT_CAUSE": "Αυτή η ροή χρησιμοποιεί μορφή που δεν υποστηρίζει το ενσωματωμένο πρόγραμμα αναπαραγωγής.",
             "ERROR_GENERIC_CAUSE": "Η ροή σταμάτησε απροσδόκητα.",
             "REPLACE_MAIN": "Αντικατάσταση κύριου παραθύρου",
-            "CHOOSE_ANOTHER": "Επιλογή άλλης πηγής"
+            "CHOOSE_ANOTHER": "Επιλογή άλλης πηγής",
+            "PICKER": {
+                "TITLE_ADD": "Προσθήκη σε πολλαπλή προβολή",
+                "TITLE_REPLACE": "Αντικατάσταση παραθύρου {{number}}",
+                "SUBTITLE_ADD": "Το {{title}} συνεχίζει με ήχο. Το νέο ξεκινά χωρίς ήχο.",
+                "SUBTITLE_REPLACE": "Το {{title}} θα αντικατασταθεί. Το νέο ξεκινά χωρίς ήχο.",
+                "SUBTITLE_MUTED": "Το νέο ξεκινά χωρίς ήχο.",
+                "SEARCH_LABEL": "Αναζήτηση πηγών",
+                "SEARCH_PLACEHOLDER": "Κανάλια, εκπομπές, ταινίες, σειρές…",
+                "SCOPE_EVERYWHERE": "παντού",
+                "SECTIONS": "Ενότητες",
+                "QUICK": "Γρήγορα",
+                "PLAYLISTS": "Λίστες",
+                "SECTION": {
+                    "live-now": "Ζωντανά τώρα",
+                    "continue": "Συνέχεια",
+                    "favorites": "Αγαπημένα",
+                    "recent": "Πρόσφατα"
+                },
+                "BUDGET_FREE": "{{count}} ελεύθ.",
+                "BUDGET_FULL": "πλήρης",
+                "BUDGET_UNKNOWN": "όριο ?",
+                "FULL_WARNING": "Η λίστα {{playlist}} δεν έχει ελεύθερη σύνδεση, οπότε μια νέα ροή μάλλον δεν θα ξεκινήσει.",
+                "METER": "{{playlist}}: {{used}} από {{max}} σε χρήση",
+                "METER_UNKNOWN": "{{playlist}}: άγνωστο όριο συνδέσεων",
+                "TYPES": "Τύπος περιεχομένου",
+                "TYPE": {
+                    "all": "Όλα",
+                    "live": "Τηλεόραση",
+                    "movie": "Ταινίες",
+                    "series": "Σειρές"
+                },
+                "RESULTS": "Πηγές",
+                "GROUP_FROM_FAVORITES": "Από τα αγαπημένα",
+                "GROUP_MORE_ON_AIR": "Άλλα ζωντανά",
+                "SEARCH_ON_AIR": "Προβάλλεται τώρα",
+                "SEARCH_CHANNELS": "Κανάλια",
+                "SEARCH_MOVIES": "Ταινίες",
+                "SEARCH_SERIES": "Σειρές",
+                "TYPE_MOVIE": "Ταινία",
+                "TYPE_SERIES_ONE": "Σειρά",
+                "CONTINUE_FROM": "Συνέχεια από {{position}}",
+                "IN_TILE": "Στο παράθυρο {{number}}",
+                "EPISODES": "Επεισόδια",
+                "NO_EPISODES": "Κανένα επεισόδιο",
+                "STARTED": "Ξεκίνησε",
+                "UNAVAILABLE": "Όχι σε πολλαπλή προβολή",
+                "RESOLVE_ERROR": "Αυτή η πηγή δεν ανοίγει.",
+                "LOADING": "Φόρτωση…",
+                "LOAD_ERROR": "Η λίστα δεν φορτώθηκε.",
+                "NO_RESULTS": "Δεν βρέθηκε τίποτα",
+                "EMPTY": "Τίποτα ακόμη"
+            }
         }
     }
 }

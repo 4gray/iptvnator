@@ -2581,7 +2581,59 @@
             "ERROR_FORMAT_CAUSE": "Паток у фармаце, які ўбудаваны плэер не падтрымлівае.",
             "ERROR_GENERIC_CAUSE": "Паток нечакана спыніўся.",
             "REPLACE_MAIN": "Замяніць асноўнае акно",
-            "CHOOSE_ANOTHER": "Выбраць іншую крыніцу"
+            "CHOOSE_ANOTHER": "Выбраць іншую крыніцу",
+            "PICKER": {
+                "TITLE_ADD": "Дадаць у мультыпрагляд",
+                "TITLE_REPLACE": "Замяніць акно {{number}}",
+                "SUBTITLE_ADD": "{{title}} будзе граць далей з гукам. Новае пачнецца без гуку.",
+                "SUBTITLE_REPLACE": "{{title}} будзе заменена. Новае пачнецца без гуку.",
+                "SUBTITLE_MUTED": "Новае пачнецца без гуку.",
+                "SEARCH_LABEL": "Пошук крыніц",
+                "SEARCH_PLACEHOLDER": "Каналы, перадачы, фільмы, серыялы…",
+                "SCOPE_EVERYWHERE": "усюды",
+                "SECTIONS": "Раздзелы",
+                "QUICK": "Хутка",
+                "PLAYLISTS": "Плэйлісты",
+                "SECTION": {
+                    "live-now": "Зараз у эфіры",
+                    "continue": "Працягнуць",
+                    "favorites": "Абранае",
+                    "recent": "Нядаўнія"
+                },
+                "BUDGET_FREE": "{{count}} вольн.",
+                "BUDGET_FULL": "занята",
+                "BUDGET_UNKNOWN": "ліміт ?",
+                "FULL_WARNING": "У {{playlist}} няма вольных падключэнняў, новы паток, хутчэй за ўсё, не запусціцца.",
+                "METER": "{{playlist}}: занята {{used}} з {{max}}",
+                "METER_UNKNOWN": "{{playlist}}: ліміт падключэнняў невядомы",
+                "TYPES": "Тып змесціва",
+                "TYPE": {
+                    "all": "Усё",
+                    "live": "ТБ",
+                    "movie": "Фільмы",
+                    "series": "Серыялы"
+                },
+                "RESULTS": "Крыніцы",
+                "GROUP_FROM_FAVORITES": "З абранага",
+                "GROUP_MORE_ON_AIR": "Яшчэ ў эфіры",
+                "SEARCH_ON_AIR": "Ідзе зараз",
+                "SEARCH_CHANNELS": "Каналы",
+                "SEARCH_MOVIES": "Фільмы",
+                "SEARCH_SERIES": "Серыялы",
+                "TYPE_MOVIE": "Фільм",
+                "TYPE_SERIES_ONE": "Серыял",
+                "CONTINUE_FROM": "Працягнуць з {{position}}",
+                "IN_TILE": "У акне {{number}}",
+                "EPISODES": "Серыі",
+                "NO_EPISODES": "Няма серый",
+                "STARTED": "Пачата",
+                "UNAVAILABLE": "Не для мультыпрагляду",
+                "RESOLVE_ERROR": "Гэтая крыніца не адкрываецца.",
+                "LOADING": "Загрузка…",
+                "LOAD_ERROR": "Не ўдалося загрузіць спіс.",
+                "NO_RESULTS": "Нічога не знойдзена",
+                "EMPTY": "Тут пакуль пуста"
+            }
         }
     }
 }

@@ -18,9 +18,10 @@ export interface MultiviewAnchorHost {
     readonly engine: Signal<VideoPlayer>;
     /**
      * Makes the tile that survives a session the view's own selection again
-     * (R7, R8, D2). Views that cannot show it leave it out.
+     * (R7, R8, D2). Returns false when the view cannot show it; the survivor
+     * then reopens in its own view.
      */
-    adopt?(tile: MultiviewTile): void;
+    adopt?(tile: MultiviewTile): boolean;
 }
 
 export interface MultiviewAnchorRegistration {

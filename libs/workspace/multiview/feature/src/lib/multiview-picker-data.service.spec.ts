@@ -1,6 +1,5 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { MultiviewSessionStore } from '@iptvnator/playback/multiview/data-access';
 import {
     MultiviewCatalogService,
     StreamResolverService,
@@ -13,6 +12,7 @@ import {
     PlaybackPositionService,
 } from '@iptvnator/services';
 import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
+import { MultiviewOnScreenSources } from './multiview-on-screen';
 import { liveItem, movieItem, tile } from './multiview-picker.fixtures';
 import {
     isResumable,
@@ -101,9 +101,9 @@ describe('MultiviewPickerDataService', () => {
                     useValue: { withholdsEverything },
                 },
                 {
-                    provide: MultiviewSessionStore,
+                    provide: MultiviewOnScreenSources,
                     useValue: {
-                        tiles: () => [tile({ id: 'a', contentId: '1' })],
+                        current: () => [tile({ id: 'a', contentId: '1' })],
                     },
                 },
             ],

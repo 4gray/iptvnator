@@ -232,6 +232,25 @@ describe('MultiviewEntryService', () => {
             expect(store.tile(pipId)?.playbackSessionKey).toBe('session:news');
         });
 
+        it('takes a picker installed at run time until it is removed', async () => {
+            const { entry, anchors, store } = setup();
+            anchors.register({
+                host: host('xtream', source('movie')),
+                element: signal(null),
+            });
+            const installed = {
+                pick: jest.fn().mockResolvedValue(source('match')),
+            };
+
+            const remove = entry.usePicker(installed);
+            expect(entry.hasPicker).toBe(true);
+            await entry.pick();
+            expect(store.tiles()).toHaveLength(2);
+
+            remove();
+            expect(entry.hasPicker).toBe(false);
+        });
+
         it('changes nothing when the viewer closes the picker', async () => {
             picker = { pick: jest.fn().mockResolvedValue(null) };
             const { entry, anchors, store } = setup();

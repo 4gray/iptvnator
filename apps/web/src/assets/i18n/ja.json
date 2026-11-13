@@ -2581,7 +2581,59 @@
             "ERROR_FORMAT_CAUSE": "このストリームは内蔵プレーヤーで再生できない形式です。",
             "ERROR_GENERIC_CAUSE": "ストリームが予期せず停止しました。",
             "REPLACE_MAIN": "メイン画面と入れ替える",
-            "CHOOSE_ANOTHER": "別のソースを選ぶ"
+            "CHOOSE_ANOTHER": "別のソースを選ぶ",
+            "PICKER": {
+                "TITLE_ADD": "マルチビューに追加",
+                "TITLE_REPLACE": "タイル {{number}} を置き換え",
+                "SUBTITLE_ADD": "{{title}} は音声付きで再生を続けます。新しいものはミュートで始まります。",
+                "SUBTITLE_REPLACE": "{{title}} が置き換えられます。新しいものはミュートで始まります。",
+                "SUBTITLE_MUTED": "新しいものはミュートで始まります。",
+                "SEARCH_LABEL": "ソースを検索",
+                "SEARCH_PLACEHOLDER": "チャンネル、番組、映画、シリーズ…",
+                "SCOPE_EVERYWHERE": "すべて",
+                "SECTIONS": "セクション",
+                "QUICK": "クイック",
+                "PLAYLISTS": "プレイリスト",
+                "SECTION": {
+                    "live-now": "放送中",
+                    "continue": "続きから",
+                    "favorites": "お気に入り",
+                    "recent": "最近"
+                },
+                "BUDGET_FREE": "空き {{count}}",
+                "BUDGET_FULL": "満杯",
+                "BUDGET_UNKNOWN": "上限 ?",
+                "FULL_WARNING": "{{playlist}} に空き接続がないため、新しいストリームは開始されない可能性があります。",
+                "METER": "{{playlist}}: {{max}} 中 {{used}} 使用中",
+                "METER_UNKNOWN": "{{playlist}}: 接続上限は不明",
+                "TYPES": "コンテンツの種類",
+                "TYPE": {
+                    "all": "すべて",
+                    "live": "テレビ",
+                    "movie": "映画",
+                    "series": "シリーズ"
+                },
+                "RESULTS": "ソース",
+                "GROUP_FROM_FAVORITES": "お気に入りから",
+                "GROUP_MORE_ON_AIR": "その他の放送中",
+                "SEARCH_ON_AIR": "いま放送中",
+                "SEARCH_CHANNELS": "チャンネル",
+                "SEARCH_MOVIES": "映画",
+                "SEARCH_SERIES": "シリーズ",
+                "TYPE_MOVIE": "映画",
+                "TYPE_SERIES_ONE": "シリーズ",
+                "CONTINUE_FROM": "{{position}} から再開",
+                "IN_TILE": "タイル {{number}} で再生中",
+                "EPISODES": "エピソード",
+                "NO_EPISODES": "エピソードがありません",
+                "STARTED": "視聴中",
+                "UNAVAILABLE": "マルチビュー非対応",
+                "RESOLVE_ERROR": "このソースを開けません。",
+                "LOADING": "読み込み中…",
+                "LOAD_ERROR": "リストを読み込めませんでした。",
+                "NO_RESULTS": "見つかりませんでした",
+                "EMPTY": "まだ何もありません"
+            }
         }
     }
 }

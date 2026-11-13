@@ -71,13 +71,13 @@ export function createUnifiedLiveMultiviewHost(
         anchorId: UNIFIED_LIVE_ANCHOR_ID,
         source,
         engine: computed(() => tab.inlinePlayer()),
-        adopt(tile): void {
+        adopt(tile): boolean {
             const row = tab.items().find((item) => item.uid === tile.contentId);
-            if (row) {
-                void tab.onChannelSelected({
-                    uid: row.uid,
-                } as UnifiedFavoriteChannel);
-            }
+            if (!row) return false;
+            void tab.onChannelSelected({
+                uid: row.uid,
+            } as UnifiedFavoriteChannel);
+            return true;
         },
     };
 }

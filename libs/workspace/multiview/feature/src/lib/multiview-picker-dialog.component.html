@@ -1,0 +1,397 @@
+@let query = picker.query().trim();
+<app-dialog-shell
+    icon="grid_view"
+    bodyLayout="column"
+    [heading]="
+        isReplace
+            ? ('PLAYER.MULTIVIEW.PICKER.TITLE_REPLACE'
+              | translate: { number: data.replaceNumber })
+            : ('PLAYER.MULTIVIEW.PICKER.TITLE_ADD' | translate)
+    "
+    [subtitle]="
+        isReplace
+            ? ('PLAYER.MULTIVIEW.PICKER.SUBTITLE_REPLACE'
+              | translate: { title: data.replaceTitle })
+            : data.mainTitle
+              ? ('PLAYER.MULTIVIEW.PICKER.SUBTITLE_ADD'
+                | translate: { title: data.mainTitle })
+              : ('PLAYER.MULTIVIEW.PICKER.SUBTITLE_MUTED' | translate)
+    "
+>
+    <div class="mv-picker">
+        <label class="mv-picker__search">
+            <mat-icon class="mv-picker__search-icon" aria-hidden="true"
+                >search</mat-icon
+            >
+            <input
+                #searchInput
+                type="search"
+                role="combobox"
+                autocomplete="off"
+                aria-expanded="true"
+                aria-controls="mv-picker-list"
+                data-test-id="multiview-picker-search"
+                [attr.aria-activedescendant]="activeId()"
+                [attr.aria-label]="
+                    'PLAYER.MULTIVIEW.PICKER.SEARCH_LABEL' | translate
+                "
+                [placeholder]="
+                    'PLAYER.MULTIVIEW.PICKER.SEARCH_PLACEHOLDER' | translate
+                "
+                [value]="picker.query()"
+                (input)="onQuery($any($event.target).value)"
+            />
+            <span class="mv-picker__scope">
+                @if (picker.scopedToPlaylist() && picker.playlist(); as pl) {
+                    {{ pl.name }}
+                } @else {
+                    {{ 'PLAYER.MULTIVIEW.PICKER.SCOPE_EVERYWHERE' | translate }}
+                }
+            </span>
+        </label>
+
+        <div class="mv-picker__body">
+            <nav
+                class="mv-picker__nav"
+                [attr.aria-label]="
+                    'PLAYER.MULTIVIEW.PICKER.SECTIONS' | translate
+                "
+            >
+                <p class="mv-picker__nav-caption">
+                    {{ 'PLAYER.MULTIVIEW.PICKER.QUICK' | translate }}
+                </p>
+                @for (id of quickSections; track id) {
+                    <button
+                        type="button"
+                        class="mv-picker__nav-item"
+                        [class.mv-picker__nav-item--selected]="
+                            !query && picker.section() === id
+                        "
+                        [attr.aria-current]="
+                            !query && picker.section() === id ? 'true' : null
+                        "
+                        [attr.data-test-id]="'multiview-picker-section-' + id"
+                        (click)="selectSection(id)"
+                    >
+                        <mat-icon aria-hidden="true">{{ icons[id] }}</mat-icon>
+                        <span class="mv-picker__nav-label">{{
+                            'PLAYER.MULTIVIEW.PICKER.SECTION.' + id | translate
+                        }}</span>
+                        <span class="mv-picker__nav-count">{{
+                            sectionCount(id)
+                        }}</span>
+                    </button>
+                }
+                @if (picker.playlist(); as playlist) {
+                    <p class="mv-picker__nav-caption">
+                        {{ 'PLAYER.MULTIVIEW.PICKER.PLAYLISTS' | translate }}
+                    </p>
+                    <button
+                        type="button"
+                        class="mv-picker__nav-item mv-picker__nav-item--playlist"
+                        data-test-id="multiview-picker-section-playlist"
+                        [class.mv-picker__nav-item--selected]="
+                            !query && picker.section() === 'playlist'
+                        "
+                        [class.mv-picker__nav-item--full]="picker.isFull()"
+                        [attr.aria-current]="
+                            !query && picker.section() === 'playlist'
+                                ? 'true'
+                                : null
+                        "
+                        (click)="selectSection('playlist')"
+                    >
+                        <mat-icon aria-hidden="true">{{
+                            icons.playlist
+                        }}</mat-icon>
+                        <span class="mv-picker__nav-label">
+                            <span>{{ playlist.name }}</span>
+                            <span class="mv-picker__nav-type">{{
+                                sourceNames[playlist.type]
+                            }}</span>
+                        </span>
+                        @switch (picker.budgetBadge().kind) {
+                            @case ('free') {
+                                <span
+                                    class="mv-picker__badge mv-picker__badge--free"
+                                    >{{
+                                        'PLAYER.MULTIVIEW.PICKER.BUDGET_FREE'
+                                            | translate
+                                                : {
+                                                      count: $any(
+                                                          picker.budgetBadge()
+                                                      ).free,
+                                                  }
+                                    }}</span
+                                >
+                            }
+                            @case ('full') {
+                                <span
+                                    class="mv-picker__badge mv-picker__badge--full"
+                                    >{{
+                                        'PLAYER.MULTIVIEW.PICKER.BUDGET_FULL'
+                                            | translate
+                                    }}</span
+                                >
+                            }
+                            @default {
+                                <span class="mv-picker__badge">{{
+                                    'PLAYER.MULTIVIEW.PICKER.BUDGET_UNKNOWN'
+                                        | translate
+                                }}</span>
+                            }
+                        }
+                    </button>
+                }
+            </nav>
+
+            <section class="mv-picker__pane">
+                @if (picker.series(); as series) {
+                    <button
+                        type="button"
+                        class="mv-picker__back"
+                        data-test-id="multiview-picker-back"
+                        (click)="picker.closeEpisodes()"
+                    >
+                        <mat-icon aria-hidden="true">chevron_left</mat-icon>
+                        {{ series.name }}
+                    </button>
+                    <div
+                        id="mv-picker-list"
+                        class="mv-picker__list"
+                        role="listbox"
+                        [attr.aria-label]="
+                            'PLAYER.MULTIVIEW.PICKER.EPISODES' | translate
+                        "
+                    >
+                        @if (picker.episodeRows(); as episodes) {
+                            @for (row of episodes; track row.sessionKey) {
+                                <div
+                                    role="option"
+                                    class="mv-picker__episode"
+                                    [id]="rowIds().get(row.sessionKey)"
+                                    [class.mv-picker__episode--active]="
+                                        picker.activeKey() === row.sessionKey
+                                    "
+                                    [attr.aria-selected]="
+                                        picker.activeKey() === row.sessionKey
+                                    "
+                                    [attr.aria-disabled]="
+                                        row.inTile !== null || null
+                                    "
+                                    (click)="picker.chooseEpisode(row)"
+                                >
+                                    <span class="mv-picker__episode-number"
+                                        >S{{ row.season }} E{{
+                                            row.number
+                                        }}</span
+                                    >
+                                    <span class="mv-picker__episode-title">{{
+                                        row.title
+                                    }}</span>
+                                    @if (row.inTile !== null) {
+                                        <span class="mv-picker__badge">{{
+                                            'PLAYER.MULTIVIEW.PICKER.IN_TILE'
+                                                | translate
+                                                    : { number: row.inTile }
+                                        }}</span>
+                                    } @else if (row.position) {
+                                        <span class="mv-picker__badge">{{
+                                            'PLAYER.MULTIVIEW.PICKER.STARTED'
+                                                | translate
+                                        }}</span>
+                                    }
+                                    @if (
+                                        picker.failedKey() === row.sessionKey
+                                    ) {
+                                        <span
+                                            class="mv-picker__error"
+                                            role="alert"
+                                            >{{
+                                                'PLAYER.MULTIVIEW.PICKER.RESOLVE_ERROR'
+                                                    | translate
+                                            }}</span
+                                        >
+                                    }
+                                </div>
+                            } @empty {
+                                <p class="mv-picker__state">
+                                    {{
+                                        'PLAYER.MULTIVIEW.PICKER.NO_EPISODES'
+                                            | translate
+                                    }}
+                                </p>
+                            }
+                        } @else {
+                            <p class="mv-picker__state" role="status">
+                                {{
+                                    'PLAYER.MULTIVIEW.PICKER.LOADING'
+                                        | translate
+                                }}
+                            </p>
+                        }
+                    </div>
+                } @else {
+                    <div
+                        class="mv-picker__types"
+                        role="group"
+                        [attr.aria-label]="
+                            'PLAYER.MULTIVIEW.PICKER.TYPES' | translate
+                        "
+                    >
+                        @for (type of types; track type) {
+                            <button
+                                type="button"
+                                class="mv-picker__type"
+                                [attr.aria-pressed]="picker.type() === type"
+                                (click)="selectType(type)"
+                            >
+                                {{
+                                    'PLAYER.MULTIVIEW.PICKER.TYPE.' + type
+                                        | translate
+                                }}
+                                <span class="mv-picker__type-count">{{
+                                    picker.counts()[type]
+                                }}</span>
+                            </button>
+                        }
+                    </div>
+                    @if (
+                        !query &&
+                            picker.section() === 'playlist' &&
+                            picker.isFull() &&
+                            picker.playlist();
+                        as playlist
+                    ) {
+                        <p class="mv-picker__warning" role="status">
+                            <mat-icon aria-hidden="true">warning</mat-icon>
+                            {{
+                                'PLAYER.MULTIVIEW.PICKER.FULL_WARNING'
+                                    | translate: { playlist: playlist.name }
+                            }}
+                        </p>
+                    }
+                    <div
+                        id="mv-picker-list"
+                        class="mv-picker__list"
+                        role="listbox"
+                        data-test-id="multiview-picker-list"
+                        [attr.aria-label]="
+                            'PLAYER.MULTIVIEW.PICKER.RESULTS' | translate
+                        "
+                    >
+                        @if (picker.loadState() === 'loading') {
+                            <p class="mv-picker__state" role="status">
+                                {{
+                                    'PLAYER.MULTIVIEW.PICKER.LOADING'
+                                        | translate
+                                }}
+                            </p>
+                        } @else if (picker.loadState() === 'error') {
+                            <p class="mv-picker__state" role="alert">
+                                {{
+                                    'PLAYER.MULTIVIEW.PICKER.LOAD_ERROR'
+                                        | translate
+                                }}
+                            </p>
+                        } @else {
+                            @for (group of picker.groups(); track group.id) {
+                                <div
+                                    role="group"
+                                    class="mv-picker__group"
+                                    [attr.aria-label]="
+                                        group.captionKey
+                                            ? (group.captionKey | translate)
+                                            : null
+                                    "
+                                >
+                                    @if (group.captionKey) {
+                                        <p
+                                            class="mv-picker__caption"
+                                            aria-hidden="true"
+                                        >
+                                            {{ group.captionKey | translate }}
+                                        </p>
+                                    }
+                                    @for (
+                                        row of group.rows;
+                                        track row.sessionKey
+                                    ) {
+                                        <app-multiview-picker-row
+                                            [id]="rowIds().get(row.sessionKey)"
+                                            [row]="row"
+                                            [program]="picker.programOf(row)"
+                                            [active]="
+                                                picker.activeKey() ===
+                                                row.sessionKey
+                                            "
+                                            [disabled]="!picker.isEnabled(row)"
+                                            [busy]="
+                                                picker.busyKey() ===
+                                                row.sessionKey
+                                            "
+                                            [failed]="
+                                                picker.failedKey() ===
+                                                row.sessionKey
+                                            "
+                                            (click)="picker.choose(row)"
+                                        />
+                                    }
+                                </div>
+                            } @empty {
+                                <p class="mv-picker__state">
+                                    @if (query && picker.results() === null) {
+                                        {{
+                                            'PLAYER.MULTIVIEW.PICKER.LOADING'
+                                                | translate
+                                        }}
+                                    } @else if (query) {
+                                        {{
+                                            'PLAYER.MULTIVIEW.PICKER.NO_RESULTS'
+                                                | translate
+                                        }}
+                                    } @else {
+                                        {{
+                                            'PLAYER.MULTIVIEW.PICKER.EMPTY'
+                                                | translate
+                                        }}
+                                    }
+                                </p>
+                            }
+                        }
+                    </div>
+                }
+            </section>
+        </div>
+    </div>
+
+    <div appDialogFooterStart class="mv-picker__meter">
+        @if (picker.playlist(); as playlist) {
+            @if (picker.budget(); as budget) {
+                <span class="mv-picker__segments" aria-hidden="true">
+                    @for (segment of meter(); track $index) {
+                        <span
+                            [class.mv-picker__segment--used]="
+                                segment === 'used'
+                            "
+                        ></span>
+                    }
+                </span>
+                {{
+                    'PLAYER.MULTIVIEW.PICKER.METER'
+                        | translate
+                            : {
+                                  playlist: playlist.name,
+                                  used: budget.activeConnections,
+                                  max: budget.maxConnections,
+                              }
+                }}
+            } @else if (picker.budget() === null) {
+                {{
+                    'PLAYER.MULTIVIEW.PICKER.METER_UNKNOWN'
+                        | translate: { playlist: playlist.name }
+                }}
+            }
+        }
+    </div>
+</app-dialog-shell>

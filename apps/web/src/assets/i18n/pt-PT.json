@@ -2581,7 +2581,59 @@
             "ERROR_FORMAT_CAUSE": "Esta transmissão usa um formato que o leitor integrado não reproduz.",
             "ERROR_GENERIC_CAUSE": "A transmissão parou inesperadamente.",
             "REPLACE_MAIN": "Substituir a janela principal",
-            "CHOOSE_ANOTHER": "Escolher outra fonte"
+            "CHOOSE_ANOTHER": "Escolher outra fonte",
+            "PICKER": {
+                "TITLE_ADD": "Adicionar à multivista",
+                "TITLE_REPLACE": "Substituir a janela {{number}}",
+                "SUBTITLE_ADD": "{{title}} continua com som. A nova começa sem som.",
+                "SUBTITLE_REPLACE": "{{title}} será substituído. A nova começa sem som.",
+                "SUBTITLE_MUTED": "A nova começa sem som.",
+                "SEARCH_LABEL": "Pesquisar fontes",
+                "SEARCH_PLACEHOLDER": "Canais, programas, filmes, séries…",
+                "SCOPE_EVERYWHERE": "em tudo",
+                "SECTIONS": "Secções",
+                "QUICK": "Acesso rápido",
+                "PLAYLISTS": "Listas",
+                "SECTION": {
+                    "live-now": "Em direto agora",
+                    "continue": "Continuar",
+                    "favorites": "Favoritos",
+                    "recent": "Recentes"
+                },
+                "BUDGET_FREE": "{{count}} livres",
+                "BUDGET_FULL": "cheia",
+                "BUDGET_UNKNOWN": "limite ?",
+                "FULL_WARNING": "{{playlist}} não tem ligações livres; uma nova transmissão provavelmente não vai começar.",
+                "METER": "{{playlist}}: {{used}} de {{max}} em uso",
+                "METER_UNKNOWN": "{{playlist}}: limite de ligações desconhecido",
+                "TYPES": "Tipo de conteúdo",
+                "TYPE": {
+                    "all": "Tudo",
+                    "live": "Televisão",
+                    "movie": "Filmes",
+                    "series": "Séries"
+                },
+                "RESULTS": "Fontes",
+                "GROUP_FROM_FAVORITES": "Dos favoritos",
+                "GROUP_MORE_ON_AIR": "Mais em direto",
+                "SEARCH_ON_AIR": "No ar agora",
+                "SEARCH_CHANNELS": "Canais",
+                "SEARCH_MOVIES": "Filmes",
+                "SEARCH_SERIES": "Séries",
+                "TYPE_MOVIE": "Filme",
+                "TYPE_SERIES_ONE": "Série",
+                "CONTINUE_FROM": "Continuar a partir de {{position}}",
+                "IN_TILE": "Na janela {{number}}",
+                "EPISODES": "Episódios",
+                "NO_EPISODES": "Nenhum episódio",
+                "STARTED": "Iniciado",
+                "UNAVAILABLE": "Indisponível na multivista",
+                "RESOLVE_ERROR": "Não foi possível abrir esta fonte.",
+                "LOADING": "A carregar…",
+                "LOAD_ERROR": "Não foi possível carregar a lista.",
+                "NO_RESULTS": "Nada encontrado",
+                "EMPTY": "Ainda não há nada"
+            }
         }
     }
 }

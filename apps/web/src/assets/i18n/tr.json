@@ -2581,7 +2581,59 @@
             "ERROR_FORMAT_CAUSE": "Bu yayın, yerleşik oynatıcının desteklemediği bir biçim kullanıyor.",
             "ERROR_GENERIC_CAUSE": "Yayın beklenmedik şekilde durdu.",
             "REPLACE_MAIN": "Ana pencereyi değiştir",
-            "CHOOSE_ANOTHER": "Başka bir kaynak seç"
+            "CHOOSE_ANOTHER": "Başka bir kaynak seç",
+            "PICKER": {
+                "TITLE_ADD": "Çoklu görünüme ekle",
+                "TITLE_REPLACE": "{{number}}. pencereyi değiştir",
+                "SUBTITLE_ADD": "{{title}} sesli oynamaya devam eder. Yenisi sessiz başlar.",
+                "SUBTITLE_REPLACE": "{{title}} değiştirilecek. Yenisi sessiz başlar.",
+                "SUBTITLE_MUTED": "Yenisi sessiz başlar.",
+                "SEARCH_LABEL": "Kaynak ara",
+                "SEARCH_PLACEHOLDER": "Kanallar, programlar, filmler, diziler…",
+                "SCOPE_EVERYWHERE": "her yerde",
+                "SECTIONS": "Bölümler",
+                "QUICK": "Hızlı",
+                "PLAYLISTS": "Oynatma listeleri",
+                "SECTION": {
+                    "live-now": "Şu an yayında",
+                    "continue": "Devam et",
+                    "favorites": "Favoriler",
+                    "recent": "Son izlenenler"
+                },
+                "BUDGET_FREE": "{{count}} boş",
+                "BUDGET_FULL": "dolu",
+                "BUDGET_UNKNOWN": "sınır ?",
+                "FULL_WARNING": "{{playlist}} için boş bağlantı yok; yeni yayın muhtemelen başlamaz.",
+                "METER": "{{playlist}}: {{max}} bağlantının {{used}} tanesi kullanımda",
+                "METER_UNKNOWN": "{{playlist}}: bağlantı sınırı bilinmiyor",
+                "TYPES": "İçerik türü",
+                "TYPE": {
+                    "all": "Tümü",
+                    "live": "Televizyon",
+                    "movie": "Filmler",
+                    "series": "Diziler"
+                },
+                "RESULTS": "Kaynaklar",
+                "GROUP_FROM_FAVORITES": "Favorilerden",
+                "GROUP_MORE_ON_AIR": "Yayındaki diğerleri",
+                "SEARCH_ON_AIR": "Şu an yayında olanlar",
+                "SEARCH_CHANNELS": "Kanallar",
+                "SEARCH_MOVIES": "Filmler",
+                "SEARCH_SERIES": "Diziler",
+                "TYPE_MOVIE": "Film",
+                "TYPE_SERIES_ONE": "Dizi",
+                "CONTINUE_FROM": "{{position}} noktasından devam et",
+                "IN_TILE": "{{number}}. pencerede",
+                "EPISODES": "Bölümler",
+                "NO_EPISODES": "Bölüm yok",
+                "STARTED": "Başlandı",
+                "UNAVAILABLE": "Çoklu görünümde yok",
+                "RESOLVE_ERROR": "Bu kaynak açılamıyor.",
+                "LOADING": "Yükleniyor…",
+                "LOAD_ERROR": "Liste yüklenemedi.",
+                "NO_RESULTS": "Hiçbir şey bulunamadı",
+                "EMPTY": "Henüz bir şey yok"
+            }
         }
     }
 }

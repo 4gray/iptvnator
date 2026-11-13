@@ -989,28 +989,90 @@ allows 1 streams at a time".
 
 ### Task 14: Picker dialog and entry points
 
-**Files:** `multiview-picker-dialog.component.*` (+ spec),
-`multiview-launcher.service.ts`, provider wiring in the shell.
+**Files:** in `workspace-multiview-feature`:
+`multiview-picker-dialog.component.*`, `multiview-picker-row.component.*`,
+`multiview-picker-controller.ts`, `multiview-picker-list.ts`,
+`multiview-picker-context.ts`, `multiview-picker-playlist.ts`,
+`multiview-on-screen.ts`, `multiview-series-episodes.service.ts`,
+`multiview-picker-launcher.service.ts` (+ specs); in the shell
+`multiview-workspace-ports.ts`; in data-access `MultiviewEntryService.usePicker`,
+`MultiviewTileSource.reopen` and the boolean `adopt()` contract (the four
+hosts follow it); `PLAYER.MULTIVIEW.PICKER.*` in 21 locales.
 
-- [ ] Dialog on the shared `ipt-dialog` shell, 820 px, contexts "add" and
-      "replace" (slot context is phase 2). Layout per the mockup: header with
-      icon tile, title and the subtitle naming the main tile; search field
-      with the scope chip; left navigation ("Quick" with icons and counts,
-      "Playlists" with type line and budget badge); list caption; rows for
-      live (logo, name, programme line, progress bar, badge per D10), movie
-      and series with "Episodes ›" drill-down; grouped search results;
-      footer with the segmented connection meter. The PiP / side-by-side
-      toggle is not rendered in phase 1.
-- [ ] A full playlist stays selectable, is marked in the navigation and
-      shows a warning banner above the list ("probably won't start").
-- [ ] Keyboard: typing goes to search, ↑↓, Enter adds, Esc closes; focus
-      trapped.
-- [ ] Opened from the dock button, "+ Channel", "Choose another source".
-      Adding records recently viewed through the existing history gate at add
-      time (R10, Q3).
+- [x] Dialog on the shared `app-dialog-shell`, 820 px, contexts "add" and
+      "replace" (slot context is phase 2). Header with the grid icon tile,
+      title and the subtitle naming the main tile (or the replaced tile);
+      search with the scope chip; navigation "Quick" (icons, counts) and
+      "Playlists" (name, provider type, budget badge); type chips with
+      counts; rows for live (logo or initials, name, programme · start–end ·
+      playlist, progress bar, minutes or LIVE per D10), films (resume point)
+      and series ("Episodes ›", the one drill-down); grouped search results;
+      footer meter "<playlist>: N of M in use". No PiP / side-by-side toggle.
+- [x] A full playlist stays selectable, its badge reads "full" and the
+      playlist list shows the "probably won't start" banner.
+- [x] Keyboard: the search field is a combobox over the list
+      (`aria-activedescendant`); typing anywhere goes to it, ↑↓ move over
+      enabled rows with wrap-around, Enter adds, Backspace leaves the
+      episodes, Escape closes (Material). Clicking a section or a type chip
+      returns focus to the search. Focus is trapped by the dialog.
+- [x] Opened from the dock button, "+ Channel" and "Choose another source"
+      (all through `MultiviewEntryService.pick`). The picked item is recorded
+      in recently viewed through `PlaybackHistoryGate.defer` under the tile's
+      own session key; the tile's player confirms it once the stream
+      advances (R10, Q3).
+- [x] D2 survivor: `adopt()` now returns whether the view took the survivor;
+      when it did not (or the view has no `adopt`), the anchor calls the
+      survivor's `reopen()`. Sources from the picker carry it: live rows
+      navigate like "Open in playlist" (`getLiveCollectionPlaylistNavigation`),
+      films and episodes to their detail page
+      (`getUnifiedCollectionDetailNavigation`). This replaces the planned
+      `MULTIVIEW_SURVIVOR_NAVIGATOR` port: the source knows its own way back.
 
-**Tests:** dialog spec (contexts, disabled rows, keyboard);
-`dialog-shell.e2e.ts` / `dialog-accessibility.e2e.ts` unchanged.
+**As built:**
+- **Picker installation:** `MultiviewEntryService` is root-provided, so a
+  token provided on the shell cannot reach it. The shell installs the picker
+  at run time (`installMultiviewPicker()` in its constructor, before the
+  outlet renders player views; `hasPicker` became a getter) and uninstalls it
+  on destroy. The picker, like the budget port, loads the feature through a
+  dynamic `import()` on first use: no initial-bundle or J1 change.
+- **Default section:** the spec's rule (film → Live now, channel → Continue,
+  then the last used section, remembered per app session in
+  `MultiviewPickerMemory`). Deviation: until the viewer chose a section, an
+  empty default gives way to Live now — in a fresh profile Continue is empty
+  and the picker would otherwise open on "Nothing here yet".
+- **"In tile N" before a session:** the view's own playback counts as tile 1
+  (`MultiviewOnScreenSources`), so the channel that is already playing is
+  disabled in the list instead of being offered as a duplicate.
+- **Height:** the list area has a fixed 440 px (shrinking with the shell's
+  cap), so the dialog does not jump between sections and results.
+- **Series episodes:** Xtream only (`get_series_info`), in season/episode
+  order, saved progress per episode, the most recently watched unfinished
+  episode active; the tile resumes and saves progress like the series page
+  (contentInfo `episode`). Other providers' series list no episodes.
+- **Visual review fixes (live probe):** the minute badge became a tinted
+  chip in the live colour (white on light red had too little contrast); a
+  logo that fails to load falls back to the initials; under one minute the
+  badge reads LIVE instead of `0′`; the busy icon `progress_activity` is not
+  in the bundled font and became `autorenew`.
+- Identical-to-English baseline: 6 entries that are correct as they are
+  (es/nl "Series", fr "Sources", pl "limit ?").
+
+**Tests:** `workspace-multiview-feature` 94 (dialog 14: contexts, default
+section and the empty fallback, budget badge and meter, full warning,
+keyboard over enabled rows, disabled click, resolve error, typing to search,
+grouped search, episodes drill-down, section memory; row component 7; list
+helpers; launcher 5 incl. R10 defer; episodes 4; on-screen sources 2);
+`workspace-shell-feature` 401 (picker install/uninstall); anchor spec +2
+(D2 reopen only when not adopted); entry service +1 (`usePicker`); host specs
+assert the `adopt()` result. `dialog-shell.e2e.ts` / `dialog-accessibility`
+unchanged. Lint, `typecheck:web`, `typecheck:spec`, `i18n:check`, icon
+ligatures, `electron-backend:build-e2e`.
+**Live check (temporary probe, Xtream mock, Electron, both themes):** the
+dock button opens the picker with focus in the search; the playing channel
+is "In tile 1"; Enter adds the next channel muted in the PiP; search groups
+channels, films and series; a series opens its episodes; "+ Channel" opens
+it again with Recent = 2 (R10) and both tiles marked; Escape closes; no
+console errors.
 
 ### Task 15: Keyboard shortcuts
 

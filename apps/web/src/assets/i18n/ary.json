@@ -2581,7 +2581,59 @@
             "ERROR_FORMAT_CAUSE": "هاد البث كيستعمل فورما ما كيقراهاش المشغّل المدمج.",
             "ERROR_GENERIC_CAUSE": "البث وقف بلا ما نتسناو.",
             "REPLACE_MAIN": "بدّل النافذة الرئيسية",
-            "CHOOSE_ANOTHER": "ختار مصدر آخر"
+            "CHOOSE_ANOTHER": "ختار مصدر آخر",
+            "PICKER": {
+                "TITLE_ADD": "زيد للعرض المتعدد",
+                "TITLE_REPLACE": "بدّل النافذة {{number}}",
+                "SUBTITLE_ADD": "{{title}} غادي يبقى خدام بالصوت. الجديدة كتبدا بلا صوت.",
+                "SUBTITLE_REPLACE": "{{title}} غادي يتبدّل. الجديدة كتبدا بلا صوت.",
+                "SUBTITLE_MUTED": "الجديدة كتبدا بلا صوت.",
+                "SEARCH_LABEL": "قلّب على المصادر",
+                "SEARCH_PLACEHOLDER": "قنوات، برامج، أفلام، مسلسلات…",
+                "SCOPE_EVERYWHERE": "فكل بلاصة",
+                "SECTIONS": "الأقسام",
+                "QUICK": "بالزربة",
+                "PLAYLISTS": "قوائم التشغيل",
+                "SECTION": {
+                    "live-now": "مباشر دابا",
+                    "continue": "كمّل",
+                    "favorites": "المفضلة",
+                    "recent": "اللي شفتي مؤخرا"
+                },
+                "BUDGET_FREE": "{{count}} خاوين",
+                "BUDGET_FULL": "عامر",
+                "BUDGET_UNKNOWN": "الحد ؟",
+                "FULL_WARNING": "{{playlist}} ما فيهاش اتصال خاوي، البث الجديد يمكن ما يبداش.",
+                "METER": "{{playlist}}: {{used}} من {{max}} مستعملين",
+                "METER_UNKNOWN": "{{playlist}}: حد الاتصالات ما معروفش",
+                "TYPES": "نوع المحتوى",
+                "TYPE": {
+                    "all": "كولشي",
+                    "live": "التلفزة",
+                    "movie": "الأفلام",
+                    "series": "المسلسلات"
+                },
+                "RESULTS": "المصادر",
+                "GROUP_FROM_FAVORITES": "من المفضلة",
+                "GROUP_MORE_ON_AIR": "كثر فالمباشر",
+                "SEARCH_ON_AIR": "كيدوز دابا",
+                "SEARCH_CHANNELS": "القنوات",
+                "SEARCH_MOVIES": "الأفلام",
+                "SEARCH_SERIES": "المسلسلات",
+                "TYPE_MOVIE": "فيلم",
+                "TYPE_SERIES_ONE": "مسلسل",
+                "CONTINUE_FROM": "كمّل من {{position}}",
+                "IN_TILE": "فالنافذة {{number}}",
+                "EPISODES": "الحلقات",
+                "NO_EPISODES": "ما كاين حتى حلقة",
+                "STARTED": "بديتيه",
+                "UNAVAILABLE": "ماشي للعرض المتعدد",
+                "RESOLVE_ERROR": "هاد المصدر ما بغاش يتحل.",
+                "LOADING": "كيتشارجا…",
+                "LOAD_ERROR": "ما قدرناش نشارجيو اللائحة.",
+                "NO_RESULTS": "ما لقينا والو",
+                "EMPTY": "والو هنا دابا"
+            }
         }
     }
 }

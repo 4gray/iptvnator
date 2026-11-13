@@ -60,10 +60,12 @@ export function createM3uMultiviewHost(
         anchorId: M3U_PLAYER_ANCHOR_ID,
         source,
         engine: computed(() => deps.engine() ?? VideoPlayer.VideoJs),
-        adopt(tile: MultiviewTile): void {
-            if (tile.contentId && tile.playlistId === deps.playlistId()) {
-                deps.selectChannel(tile.contentId);
+        adopt(tile: MultiviewTile): boolean {
+            if (!tile.contentId || tile.playlistId !== deps.playlistId()) {
+                return false;
             }
+            deps.selectChannel(tile.contentId);
+            return true;
         },
     };
 }

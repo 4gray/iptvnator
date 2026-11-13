@@ -2581,7 +2581,59 @@
             "ERROR_FORMAT_CAUSE": "Ez az adatfolyam olyan formátumot használ, amelyet a beépített lejátszó nem támogat.",
             "ERROR_GENERIC_CAUSE": "Az adatfolyam váratlanul leállt.",
             "REPLACE_MAIN": "Fő ablak cseréje",
-            "CHOOSE_ANOTHER": "Másik forrás választása"
+            "CHOOSE_ANOTHER": "Másik forrás választása",
+            "PICKER": {
+                "TITLE_ADD": "Hozzáadás a többnézethez",
+                "TITLE_REPLACE": "A(z) {{number}}. ablak cseréje",
+                "SUBTITLE_ADD": "A(z) {{title}} hanggal szól tovább. Az új némán indul.",
+                "SUBTITLE_REPLACE": "A(z) {{title}} lecserélődik. Az új némán indul.",
+                "SUBTITLE_MUTED": "Az új némán indul.",
+                "SEARCH_LABEL": "Források keresése",
+                "SEARCH_PLACEHOLDER": "Csatornák, műsorok, filmek, sorozatok…",
+                "SCOPE_EVERYWHERE": "mindenhol",
+                "SECTIONS": "Szakaszok",
+                "QUICK": "Gyors",
+                "PLAYLISTS": "Lejátszási listák",
+                "SECTION": {
+                    "live-now": "Most élőben",
+                    "continue": "Folytatás",
+                    "favorites": "Kedvencek",
+                    "recent": "Legutóbbiak"
+                },
+                "BUDGET_FREE": "{{count}} szabad",
+                "BUDGET_FULL": "tele",
+                "BUDGET_UNKNOWN": "korlát ?",
+                "FULL_WARNING": "A(z) {{playlist}} listának nincs szabad kapcsolata, így egy új adás valószínűleg nem indul el.",
+                "METER": "{{playlist}}: {{max}} kapcsolatból {{used}} foglalt",
+                "METER_UNKNOWN": "{{playlist}}: a kapcsolatkorlát ismeretlen",
+                "TYPES": "Tartalomtípus",
+                "TYPE": {
+                    "all": "Összes",
+                    "live": "Televízió",
+                    "movie": "Filmek",
+                    "series": "Sorozatok"
+                },
+                "RESULTS": "Források",
+                "GROUP_FROM_FAVORITES": "A kedvencekből",
+                "GROUP_MORE_ON_AIR": "További élő adások",
+                "SEARCH_ON_AIR": "Most műsoron",
+                "SEARCH_CHANNELS": "Csatornák",
+                "SEARCH_MOVIES": "Filmek",
+                "SEARCH_SERIES": "Sorozatok",
+                "TYPE_MOVIE": "Film",
+                "TYPE_SERIES_ONE": "Sorozat",
+                "CONTINUE_FROM": "Folytatás innen: {{position}}",
+                "IN_TILE": "A(z) {{number}}. ablakban",
+                "EPISODES": "Epizódok",
+                "NO_EPISODES": "Nincsenek epizódok",
+                "STARTED": "Elkezdve",
+                "UNAVAILABLE": "Többnézetben nem",
+                "RESOLVE_ERROR": "Ez a forrás nem nyitható meg.",
+                "LOADING": "Betöltés…",
+                "LOAD_ERROR": "A lista nem tölthető be.",
+                "NO_RESULTS": "Nincs találat",
+                "EMPTY": "Még nincs itt semmi"
+            }
         }
     }
 }

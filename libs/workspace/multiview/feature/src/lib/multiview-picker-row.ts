@@ -1,6 +1,6 @@
 import type {
-    MultiviewTile,
     MultiviewTileKind,
+    MultiviewTileSource,
 } from '@iptvnator/playback/multiview/data-access';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 import type { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
@@ -72,7 +72,7 @@ export function pickerSessionKey(item: UnifiedCollectionItem): string {
  */
 export function tileNumberFor(
     item: UnifiedCollectionItem,
-    tiles: readonly MultiviewTile[]
+    tiles: readonly MultiviewTileSource[]
 ): number | null {
     const key = pickerSessionKey(item);
     const live = item.contentType === 'live';
@@ -91,7 +91,7 @@ export function tileNumberFor(
 
 export function toPickerRow(
     item: UnifiedCollectionItem,
-    tiles: readonly MultiviewTile[],
+    tiles: readonly MultiviewTileSource[],
     extras: {
         readonly program?: EpgProgram | null;
         readonly position?: PlaybackPositionData | null;

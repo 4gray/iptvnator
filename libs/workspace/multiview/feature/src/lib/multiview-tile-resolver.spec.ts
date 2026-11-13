@@ -46,6 +46,7 @@ describe('MultiviewTileResolverService', () => {
             playlistId: 'playlist-1',
             contentId: '7',
             title: 'Synthetic Channel 7',
+            reopen: expect.any(Function),
         });
         expect(catalog.resolve).toHaveBeenCalledWith({
             item: row.item,

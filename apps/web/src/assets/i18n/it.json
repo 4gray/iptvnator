@@ -2581,7 +2581,59 @@
             "ERROR_FORMAT_CAUSE": "Questo flusso usa un formato che il player integrato non supporta.",
             "ERROR_GENERIC_CAUSE": "Il flusso si è interrotto inaspettatamente.",
             "REPLACE_MAIN": "Sostituisci la finestra principale",
-            "CHOOSE_ANOTHER": "Scegli un'altra sorgente"
+            "CHOOSE_ANOTHER": "Scegli un'altra sorgente",
+            "PICKER": {
+                "TITLE_ADD": "Aggiungi alla multivista",
+                "TITLE_REPLACE": "Sostituisci la finestra {{number}}",
+                "SUBTITLE_ADD": "{{title}} continua con l'audio. La nuova parte senza audio.",
+                "SUBTITLE_REPLACE": "{{title}} verrà sostituito. La nuova parte senza audio.",
+                "SUBTITLE_MUTED": "La nuova parte senza audio.",
+                "SEARCH_LABEL": "Cerca sorgenti",
+                "SEARCH_PLACEHOLDER": "Canali, programmi, film, serie…",
+                "SCOPE_EVERYWHERE": "ovunque",
+                "SECTIONS": "Sezioni",
+                "QUICK": "Accesso rapido",
+                "PLAYLISTS": "Playlist",
+                "SECTION": {
+                    "live-now": "In onda ora",
+                    "continue": "Continua",
+                    "favorites": "Preferiti",
+                    "recent": "Recenti"
+                },
+                "BUDGET_FREE": "{{count}} liberi",
+                "BUDGET_FULL": "piena",
+                "BUDGET_UNKNOWN": "limite ?",
+                "FULL_WARNING": "{{playlist}} non ha connessioni libere: probabilmente un nuovo flusso non partirà.",
+                "METER": "{{playlist}}: {{used}} su {{max}} in uso",
+                "METER_UNKNOWN": "{{playlist}}: limite di connessioni sconosciuto",
+                "TYPES": "Tipo di contenuto",
+                "TYPE": {
+                    "all": "Tutto",
+                    "live": "Televisione",
+                    "movie": "Film",
+                    "series": "Serie"
+                },
+                "RESULTS": "Sorgenti",
+                "GROUP_FROM_FAVORITES": "Dai preferiti",
+                "GROUP_MORE_ON_AIR": "Altro in onda",
+                "SEARCH_ON_AIR": "In onda",
+                "SEARCH_CHANNELS": "Canali",
+                "SEARCH_MOVIES": "Film",
+                "SEARCH_SERIES": "Serie",
+                "TYPE_MOVIE": "Film",
+                "TYPE_SERIES_ONE": "Serie",
+                "CONTINUE_FROM": "Riprendi da {{position}}",
+                "IN_TILE": "Nella finestra {{number}}",
+                "EPISODES": "Episodi",
+                "NO_EPISODES": "Nessun episodio",
+                "STARTED": "Iniziato",
+                "UNAVAILABLE": "Non per la multivista",
+                "RESOLVE_ERROR": "Impossibile aprire questa sorgente.",
+                "LOADING": "Caricamento…",
+                "LOAD_ERROR": "Impossibile caricare l'elenco.",
+                "NO_RESULTS": "Nessun risultato",
+                "EMPTY": "Ancora niente"
+            }
         }
     }
 }

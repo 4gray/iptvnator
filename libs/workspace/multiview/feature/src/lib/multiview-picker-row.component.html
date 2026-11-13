@@ -1,0 +1,90 @@
+<span
+    class="mv-picker-row__art"
+    [class.mv-picker-row__art--poster]="item().contentType !== 'live'"
+    aria-hidden="true"
+>
+    @if (image(); as src) {
+        <img
+            [src]="src"
+            alt=""
+            loading="lazy"
+            referrerpolicy="no-referrer"
+            (error)="imageFailed.set(true)"
+        />
+    } @else {
+        {{ initials() }}
+    }
+</span>
+
+<span class="mv-picker-row__text">
+    <span class="mv-picker-row__name">{{ item().name }}</span>
+    <span class="mv-picker-row__line">
+        @switch (item().contentType) {
+            @case ('live') {
+                @if (program(); as current) {
+                    <span class="mv-picker-row__programme">{{
+                        current.title
+                    }}</span>
+                    @if (times()) {
+                        · {{ times() }}
+                    }
+                    ·
+                }
+            }
+            @case ('movie') {
+                @if (resumeAt(); as at) {
+                    {{
+                        'PLAYER.MULTIVIEW.PICKER.CONTINUE_FROM'
+                            | translate: { position: at }
+                    }}
+                    ·
+                } @else {
+                    {{ 'PLAYER.MULTIVIEW.PICKER.TYPE_MOVIE' | translate }} ·
+                }
+            }
+            @case ('series') {
+                {{ 'PLAYER.MULTIVIEW.PICKER.TYPE_SERIES_ONE' | translate }} ·
+            }
+        }
+        {{ item().playlistName }}
+    </span>
+    @if (progress(); as running) {
+        <span class="mv-picker-row__progress" aria-hidden="true">
+            <span [style.width.%]="running.percent"></span>
+        </span>
+    }
+    @if (failed()) {
+        <span class="mv-picker-row__error" role="alert">
+            {{ 'PLAYER.MULTIVIEW.PICKER.RESOLVE_ERROR' | translate }}
+        </span>
+    }
+</span>
+
+<span class="mv-picker-row__end">
+    @if (busy()) {
+        <mat-icon class="mv-picker-row__spin" aria-hidden="true"
+            >autorenew</mat-icon
+        >
+    } @else if (row().inTile; as number) {
+        <span class="mv-picker-row__chip">
+            {{ 'PLAYER.MULTIVIEW.PICKER.IN_TILE' | translate: { number } }}
+        </span>
+    } @else if (item().contentType === 'series') {
+        <span class="mv-picker-row__episodes">
+            {{ 'PLAYER.MULTIVIEW.PICKER.EPISODES' | translate }}
+            <mat-icon aria-hidden="true">chevron_right</mat-icon>
+        </span>
+    } @else if (disabled()) {
+        <span class="mv-picker-row__chip">
+            {{ 'PLAYER.MULTIVIEW.PICKER.UNAVAILABLE' | translate }}
+        </span>
+    } @else if (item().contentType === 'live') {
+        <span class="mv-picker-row__live">
+            @if (progress()?.minutes; as minutes) {
+                {{ minutes }}′
+            } @else {
+                {{ 'EMBEDDED_MPV.PLAYER.LIVE_BADGE' | translate }}
+            }
+        </span>
+    }
+</span>

@@ -1,7 +1,13 @@
-import { EnvironmentInjector, inject, type Provider } from '@angular/core';
+import {
+    DestroyRef,
+    EnvironmentInjector,
+    inject,
+    type Provider,
+} from '@angular/core';
 import {
     MULTIVIEW_CONNECTION_BUDGET,
     type MultiviewConnectionBudgetSource,
+    MultiviewEntryService,
 } from '@iptvnator/playback/multiview/data-access';
 
 type MultiviewWorkspaceFeature =
@@ -35,4 +41,23 @@ export function provideMultiviewWorkspacePorts(
             },
         },
     ];
+}
+
+/**
+ * Installs the workspace's source picker for the shell's life. The player
+ * views inside the shell read it when they are created, so the shell calls
+ * this in its constructor, before it renders them. Must be called in an
+ * injection context.
+ */
+export function installMultiviewPicker(
+    load: () => Promise<MultiviewWorkspaceFeature> = loadFeature
+): void {
+    const injector = inject(EnvironmentInjector);
+    const uninstall = inject(MultiviewEntryService).usePicker({
+        async pick(request) {
+            const feature = await load();
+            return injector.get(feature.MultiviewPickerLauncher).pick(request);
+        },
+    });
+    inject(DestroyRef).onDestroy(uninstall);
 }

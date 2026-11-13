@@ -7,3 +7,6 @@ export * from './lib/multiview-picker-search';
 export * from './lib/multiview-picker-sections';
 export * from './lib/multiview-tile-resolver';
 export * from './lib/multiview-picker-search.service';
+export * from './lib/multiview-picker-context';
+export * from './lib/multiview-picker-launcher.service';
+export * from './lib/multiview-series-episodes.service';

@@ -77,7 +77,7 @@ describe('createUnifiedLiveMultiviewHost', () => {
 
     it('ignores a survivor that is not a row of the list', () => {
         const { tab, host } = setup();
-        host.adopt?.({
+        const adopted = host.adopt?.({
             ...(host.source() as NonNullable<ReturnType<typeof host.source>>),
             contentId: 'stalker::pl-3::30',
             id: 'tile-2',
@@ -86,6 +86,7 @@ describe('createUnifiedLiveMultiviewHost', () => {
             lastPosition: 0,
         });
 
+        expect(adopted).toBe(false);
         expect(tab.onChannelSelected).not.toHaveBeenCalled();
     });
 });

@@ -159,9 +159,11 @@ export class MultiviewAnchor {
             if (
                 survivor &&
                 survivor.playbackSessionKey !==
-                    this.host.source()?.playbackSessionKey
+                    this.host.source()?.playbackSessionKey &&
+                this.host.adopt?.(survivor) !== true
             ) {
-                this.host.adopt?.(survivor);
+                // D2: the view cannot show it, so it opens in its own view.
+                survivor.reopen?.();
             }
         });
     }

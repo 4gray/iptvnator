@@ -103,7 +103,7 @@ describe('createXtreamLiveMultiviewHost', () => {
 
     it('selects a surviving channel of the same playlist', () => {
         const { deps, host } = setup();
-        host.adopt?.(tile({}));
+        expect(host.adopt?.(tile({}))).toBe(true);
 
         expect(deps.selectChannel).toHaveBeenCalledWith(202);
     });
@@ -114,7 +114,7 @@ describe('createXtreamLiveMultiviewHost', () => {
         ['no channel id', { contentId: undefined }],
     ])('leaves a survivor from %s alone', (_label, overrides) => {
         const { deps, host } = setup();
-        host.adopt?.(tile(overrides));
+        expect(host.adopt?.(tile(overrides))).toBe(false);
 
         expect(deps.selectChannel).not.toHaveBeenCalled();
     });

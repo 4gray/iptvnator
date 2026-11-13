@@ -31,7 +31,10 @@ import { WorkspaceShellCommandPaletteService } from './services/workspace-shell-
 import { WorkspaceShellHeaderService } from './services/workspace-shell-header.service';
 import { warmPlayerChunk } from './warm-player-chunk';
 import { hostMultiviewStage } from './multiview-stage-host';
-import { provideMultiviewWorkspacePorts } from './multiview-workspace-ports';
+import {
+    installMultiviewPicker,
+    provideMultiviewWorkspacePorts,
+} from './multiview-workspace-ports';
 import { WorkspaceShellRouteStateService } from './services/workspace-shell-route-state.service';
 import { WorkspaceShellSearchSyncService } from './services/workspace-shell-search-sync.service';
 import { WorkspaceShellSearchService } from './services/workspace-shell-search.service';
@@ -101,8 +104,10 @@ export class WorkspaceShellComponent {
         // The web players are not on the first route: load them once it has
         // rendered, so the first list or portal opens without waiting for them.
         warmPlayerChunk(inject(Router));
-        // The multiview stage lies over a player view's anchor; it is created
-        // lazily, inside the content frame, when the first session starts.
+        // Multiview: the source picker (a lazy chunk) before the player views
+        // read it, and the stage, created lazily inside the content frame
+        // when the first session starts, over a player view's anchor.
+        installMultiviewPicker();
         hostMultiviewStage({
             frame: () => this.contentFrame()?.nativeElement,
             clipTo: () => this.workspaceContent()?.nativeElement,

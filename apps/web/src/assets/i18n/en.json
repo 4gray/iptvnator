@@ -2581,7 +2581,59 @@
             "ERROR_FORMAT_CAUSE": "This stream uses a format the built-in player can't play.",
             "ERROR_GENERIC_CAUSE": "The stream stopped unexpectedly.",
             "REPLACE_MAIN": "Replace main tile",
-            "CHOOSE_ANOTHER": "Choose another source"
+            "CHOOSE_ANOTHER": "Choose another source",
+            "PICKER": {
+                "TITLE_ADD": "Add to multiview",
+                "TITLE_REPLACE": "Replace tile {{number}}",
+                "SUBTITLE_ADD": "{{title}} keeps playing with sound. The new one starts muted.",
+                "SUBTITLE_REPLACE": "{{title}} will be replaced. The new one starts muted.",
+                "SUBTITLE_MUTED": "The new one starts muted.",
+                "SEARCH_LABEL": "Search sources",
+                "SEARCH_PLACEHOLDER": "Channels, programmes, movies, series…",
+                "SCOPE_EVERYWHERE": "everywhere",
+                "SECTIONS": "Sections",
+                "QUICK": "Quick",
+                "PLAYLISTS": "Playlists",
+                "SECTION": {
+                    "live-now": "Live now",
+                    "continue": "Continue",
+                    "favorites": "Favorites",
+                    "recent": "Recent"
+                },
+                "BUDGET_FREE": "{{count}} free",
+                "BUDGET_FULL": "full",
+                "BUDGET_UNKNOWN": "limit ?",
+                "FULL_WARNING": "{{playlist}} has no free connection, so a new stream probably won't start.",
+                "METER": "{{playlist}}: {{used}} of {{max}} in use",
+                "METER_UNKNOWN": "{{playlist}}: connection limit unknown",
+                "TYPES": "Content type",
+                "TYPE": {
+                    "all": "All",
+                    "live": "TV",
+                    "movie": "Movies",
+                    "series": "Series"
+                },
+                "RESULTS": "Sources",
+                "GROUP_FROM_FAVORITES": "From favourites",
+                "GROUP_MORE_ON_AIR": "More on air",
+                "SEARCH_ON_AIR": "On air now",
+                "SEARCH_CHANNELS": "Channels",
+                "SEARCH_MOVIES": "Movies",
+                "SEARCH_SERIES": "Series",
+                "TYPE_MOVIE": "Movie",
+                "TYPE_SERIES_ONE": "Series",
+                "CONTINUE_FROM": "Continue from {{position}}",
+                "IN_TILE": "In tile {{number}}",
+                "EPISODES": "Episodes",
+                "NO_EPISODES": "No episodes",
+                "STARTED": "Started",
+                "UNAVAILABLE": "Not in multiview",
+                "RESOLVE_ERROR": "This source can't be opened.",
+                "LOADING": "Loading…",
+                "LOAD_ERROR": "The list could not be loaded.",
+                "NO_RESULTS": "Nothing found",
+                "EMPTY": "Nothing here yet"
+            }
         }
     }
 }

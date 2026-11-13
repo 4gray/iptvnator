@@ -69,7 +69,10 @@ class ProbeViewComponent {
     readonly shown = signal(true);
     readonly playing = signal<MultiviewTileSource | null>(source('movie'));
     readonly engine = signal(VideoPlayer.VideoJs);
-    readonly adopt = jest.fn((tile: MultiviewTile) => this.playing.set(tile));
+    readonly adopt = jest.fn((tile: MultiviewTile): boolean => {
+        this.playing.set(tile);
+        return true;
+    });
     readonly host: MultiviewAnchorHost = {
         anchorId: 'probe-view',
         source: this.playing,
@@ -226,6 +229,27 @@ describe('MultiviewAnchor', () => {
             expect(ownPlayer()).not.toBeNull();
             expect(placeholder()).toBeNull();
             expect(store.exists()).toBe(false);
+        });
+
+        it('reopens a survivor the view cannot show in its own view (D2)', () => {
+            const reopen = jest.fn();
+            store.replace(store.tiles()[1].id, { ...source('news'), reopen });
+            view().adopt.mockReturnValueOnce(false);
+            store.setAudio(store.tiles()[1].id);
+            store.exit();
+            fixture.detectChanges();
+
+            expect(reopen).toHaveBeenCalledTimes(1);
+        });
+
+        it('does not reopen a survivor the view adopted', () => {
+            const reopen = jest.fn();
+            store.replace(store.tiles()[1].id, { ...source('news'), reopen });
+            store.setAudio(store.tiles()[1].id);
+            store.exit();
+            fixture.detectChanges();
+
+            expect(reopen).not.toHaveBeenCalled();
         });
 
         it('does not adopt a survivor the view already shows', () => {

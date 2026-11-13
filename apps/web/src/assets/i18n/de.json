@@ -2581,7 +2581,59 @@
             "ERROR_FORMAT_CAUSE": "Dieser Stream nutzt ein Format, das der integrierte Player nicht abspielen kann.",
             "ERROR_GENERIC_CAUSE": "Der Stream wurde unerwartet beendet.",
             "REPLACE_MAIN": "Hauptfenster ersetzen",
-            "CHOOSE_ANOTHER": "Andere Quelle wählen"
+            "CHOOSE_ANOTHER": "Andere Quelle wählen",
+            "PICKER": {
+                "TITLE_ADD": "Zur Mehrfachansicht hinzufügen",
+                "TITLE_REPLACE": "Fenster {{number}} ersetzen",
+                "SUBTITLE_ADD": "{{title}} läuft mit Ton weiter. Das neue startet stumm.",
+                "SUBTITLE_REPLACE": "{{title}} wird ersetzt. Das neue startet stumm.",
+                "SUBTITLE_MUTED": "Das neue startet stumm.",
+                "SEARCH_LABEL": "Quellen durchsuchen",
+                "SEARCH_PLACEHOLDER": "Sender, Sendungen, Filme, Serien…",
+                "SCOPE_EVERYWHERE": "überall",
+                "SECTIONS": "Bereiche",
+                "QUICK": "Schnellzugriff",
+                "PLAYLISTS": "Wiedergabelisten",
+                "SECTION": {
+                    "live-now": "Jetzt live",
+                    "continue": "Weiterschauen",
+                    "favorites": "Favoriten",
+                    "recent": "Zuletzt gesehen"
+                },
+                "BUDGET_FREE": "{{count}} frei",
+                "BUDGET_FULL": "voll",
+                "BUDGET_UNKNOWN": "Limit ?",
+                "FULL_WARNING": "{{playlist}} hat keine freie Verbindung, ein neuer Stream startet wahrscheinlich nicht.",
+                "METER": "{{playlist}}: {{used}} von {{max}} belegt",
+                "METER_UNKNOWN": "{{playlist}}: Verbindungslimit unbekannt",
+                "TYPES": "Inhaltstyp",
+                "TYPE": {
+                    "all": "Alle",
+                    "live": "Fernsehen",
+                    "movie": "Filme",
+                    "series": "Serien"
+                },
+                "RESULTS": "Quellen",
+                "GROUP_FROM_FAVORITES": "Aus den Favoriten",
+                "GROUP_MORE_ON_AIR": "Weitere Sendungen",
+                "SEARCH_ON_AIR": "Läuft gerade",
+                "SEARCH_CHANNELS": "Sender",
+                "SEARCH_MOVIES": "Filme",
+                "SEARCH_SERIES": "Serien",
+                "TYPE_MOVIE": "Film",
+                "TYPE_SERIES_ONE": "Serie",
+                "CONTINUE_FROM": "Ab {{position}} weiterschauen",
+                "IN_TILE": "In Fenster {{number}}",
+                "EPISODES": "Folgen",
+                "NO_EPISODES": "Keine Folgen",
+                "STARTED": "Begonnen",
+                "UNAVAILABLE": "Nicht für Mehrfachansicht",
+                "RESOLVE_ERROR": "Diese Quelle lässt sich nicht öffnen.",
+                "LOADING": "Wird geladen…",
+                "LOAD_ERROR": "Die Liste konnte nicht geladen werden.",
+                "NO_RESULTS": "Nichts gefunden",
+                "EMPTY": "Noch nichts hier"
+            }
         }
     }
 }

@@ -1,6 +1,13 @@
+import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { MULTIVIEW_CONNECTION_BUDGET } from '@iptvnator/playback/multiview/data-access';
-import { provideMultiviewWorkspacePorts } from './multiview-workspace-ports';
+import {
+    MULTIVIEW_CONNECTION_BUDGET,
+    MultiviewEntryService,
+} from '@iptvnator/playback/multiview/data-access';
+import {
+    installMultiviewPicker,
+    provideMultiviewWorkspacePorts,
+} from './multiview-workspace-ports';
 
 describe('provideMultiviewWorkspacePorts', () => {
     it('loads the feature only when a budget is asked for', async () => {
@@ -31,5 +38,39 @@ describe('provideMultiviewWorkspacePorts', () => {
         });
         expect(load).toHaveBeenCalledTimes(1);
         expect(budgetFor).toHaveBeenCalledWith('playlist-1');
+    });
+
+    it('installs the picker for the host life and loads it on first pick', async () => {
+        const pick = jest.fn().mockResolvedValue(null);
+        class MultiviewPickerLauncher {
+            pick = pick;
+        }
+        const load = jest.fn().mockResolvedValue({ MultiviewPickerLauncher });
+        @Component({ template: '' })
+        class HostComponent {
+            constructor() {
+                installMultiviewPicker(load);
+            }
+        }
+        TestBed.configureTestingModule({
+            providers: [
+                {
+                    provide: MultiviewPickerLauncher,
+                    useClass: MultiviewPickerLauncher,
+                },
+            ],
+        });
+        const entry = TestBed.inject(MultiviewEntryService);
+        expect(entry.hasPicker).toBe(false);
+
+        const fixture = TestBed.createComponent(HostComponent);
+        expect(entry.hasPicker).toBe(true);
+        expect(load).not.toHaveBeenCalled();
+
+        await entry.pick({ context: 'add' });
+        expect(pick).toHaveBeenCalledWith({ context: 'add' });
+
+        fixture.destroy();
+        expect(entry.hasPicker).toBe(false);
     });
 });

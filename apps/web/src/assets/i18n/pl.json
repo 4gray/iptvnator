@@ -2581,7 +2581,59 @@
             "ERROR_FORMAT_CAUSE": "Ten strumień używa formatu, którego wbudowany odtwarzacz nie obsługuje.",
             "ERROR_GENERIC_CAUSE": "Strumień nieoczekiwanie się zatrzymał.",
             "REPLACE_MAIN": "Zastąp okno główne",
-            "CHOOSE_ANOTHER": "Wybierz inne źródło"
+            "CHOOSE_ANOTHER": "Wybierz inne źródło",
+            "PICKER": {
+                "TITLE_ADD": "Dodaj do multiwidoku",
+                "TITLE_REPLACE": "Zastąp okno {{number}}",
+                "SUBTITLE_ADD": "{{title}} gra dalej z dźwiękiem. Nowe startuje bez dźwięku.",
+                "SUBTITLE_REPLACE": "{{title}} zostanie zastąpione. Nowe startuje bez dźwięku.",
+                "SUBTITLE_MUTED": "Nowe startuje bez dźwięku.",
+                "SEARCH_LABEL": "Szukaj źródeł",
+                "SEARCH_PLACEHOLDER": "Kanały, programy, filmy, seriale…",
+                "SCOPE_EVERYWHERE": "wszędzie",
+                "SECTIONS": "Sekcje",
+                "QUICK": "Szybki dostęp",
+                "PLAYLISTS": "Listy",
+                "SECTION": {
+                    "live-now": "Teraz na żywo",
+                    "continue": "Kontynuuj",
+                    "favorites": "Ulubione",
+                    "recent": "Ostatnie"
+                },
+                "BUDGET_FREE": "{{count}} woln.",
+                "BUDGET_FULL": "pełna",
+                "BUDGET_UNKNOWN": "limit ?",
+                "FULL_WARNING": "{{playlist}} nie ma wolnych połączeń, nowy strumień prawdopodobnie nie ruszy.",
+                "METER": "{{playlist}}: zajęte {{used}} z {{max}}",
+                "METER_UNKNOWN": "{{playlist}}: limit połączeń nieznany",
+                "TYPES": "Rodzaj treści",
+                "TYPE": {
+                    "all": "Wszystko",
+                    "live": "Telewizja",
+                    "movie": "Filmy",
+                    "series": "Seriale"
+                },
+                "RESULTS": "Źródła",
+                "GROUP_FROM_FAVORITES": "Z ulubionych",
+                "GROUP_MORE_ON_AIR": "Więcej na żywo",
+                "SEARCH_ON_AIR": "Teraz w eterze",
+                "SEARCH_CHANNELS": "Kanały",
+                "SEARCH_MOVIES": "Filmy",
+                "SEARCH_SERIES": "Seriale",
+                "TYPE_MOVIE": "Film",
+                "TYPE_SERIES_ONE": "Serial",
+                "CONTINUE_FROM": "Kontynuuj od {{position}}",
+                "IN_TILE": "W oknie {{number}}",
+                "EPISODES": "Odcinki",
+                "NO_EPISODES": "Brak odcinków",
+                "STARTED": "Rozpoczęte",
+                "UNAVAILABLE": "Niedostępne w multiwidoku",
+                "RESOLVE_ERROR": "Nie można otworzyć tego źródła.",
+                "LOADING": "Ładowanie…",
+                "LOAD_ERROR": "Nie udało się wczytać listy.",
+                "NO_RESULTS": "Nic nie znaleziono",
+                "EMPTY": "Na razie pusto"
+            }
         }
     }
 }

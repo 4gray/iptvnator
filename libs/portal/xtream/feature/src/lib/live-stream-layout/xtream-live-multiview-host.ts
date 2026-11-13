@@ -54,16 +54,17 @@ export function createXtreamLiveMultiviewHost(
         anchorId: XTREAM_LIVE_ANCHOR_ID,
         source,
         engine: computed(() => deps.player() ?? VideoPlayer.VideoJs),
-        adopt(tile: MultiviewTile): void {
+        adopt(tile: MultiviewTile): boolean {
             // Catch-up survivors and other playlists cannot be selected here.
             if (
                 tile.kind !== 'live' ||
                 !tile.contentId ||
                 tile.playlistId !== deps.playlistId()
             ) {
-                return;
+                return false;
             }
             deps.selectChannel(Number(tile.contentId));
+            return true;
         },
     };
 }

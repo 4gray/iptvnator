@@ -10,7 +10,6 @@ import {
     collectionEpgKey,
     type UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
-import { MultiviewSessionStore } from '@iptvnator/playback/multiview/data-access';
 import {
     ParentalLockService,
     PlaybackPositionService,
@@ -20,6 +19,7 @@ import {
     isCatalogUnavailable,
     type PlaybackPositionData,
 } from '@iptvnator/shared/interfaces';
+import { MultiviewOnScreenSources } from './multiview-on-screen';
 import type { MultiviewEpgAllowance } from './multiview-picker-epg';
 import { toPickerRow } from './multiview-picker-row';
 import {
@@ -59,7 +59,7 @@ export class MultiviewPickerDataService {
     private readonly resolver = inject(StreamResolverService);
     private readonly positions = inject(PlaybackPositionService);
     private readonly locks = inject(ParentalLockService);
-    private readonly store = inject(MultiviewSessionStore);
+    private readonly onScreen = inject(MultiviewOnScreenSources);
 
     /**
      * R11: a live channel follows the parental lock as the channel lists do;
@@ -82,7 +82,7 @@ export class MultiviewPickerDataService {
                 : Promise.resolve(null),
         ]);
         const continueItems = await this.continueItems(recent);
-        const tiles = this.store.tiles();
+        const tiles = this.onScreen.current();
         return {
             sections: composePickerSections({
                 favorites,

@@ -2581,7 +2581,59 @@
             "ERROR_FORMAT_CAUSE": "Deze stream gebruikt een formaat dat de ingebouwde speler niet kan afspelen.",
             "ERROR_GENERIC_CAUSE": "De stream is onverwacht gestopt.",
             "REPLACE_MAIN": "Hoofdvenster vervangen",
-            "CHOOSE_ANOTHER": "Andere bron kiezen"
+            "CHOOSE_ANOTHER": "Andere bron kiezen",
+            "PICKER": {
+                "TITLE_ADD": "Toevoegen aan multiview",
+                "TITLE_REPLACE": "Venster {{number}} vervangen",
+                "SUBTITLE_ADD": "{{title}} speelt verder met geluid. De nieuwe start zonder geluid.",
+                "SUBTITLE_REPLACE": "{{title}} wordt vervangen. De nieuwe start zonder geluid.",
+                "SUBTITLE_MUTED": "De nieuwe start zonder geluid.",
+                "SEARCH_LABEL": "Bronnen zoeken",
+                "SEARCH_PLACEHOLDER": "Zenders, programma's, films, series…",
+                "SCOPE_EVERYWHERE": "overal",
+                "SECTIONS": "Onderdelen",
+                "QUICK": "Snel",
+                "PLAYLISTS": "Afspeellijsten",
+                "SECTION": {
+                    "live-now": "Nu live",
+                    "continue": "Verder kijken",
+                    "favorites": "Favorieten",
+                    "recent": "Recent bekeken"
+                },
+                "BUDGET_FREE": "{{count}} vrij",
+                "BUDGET_FULL": "vol",
+                "BUDGET_UNKNOWN": "limiet ?",
+                "FULL_WARNING": "{{playlist}} heeft geen vrije verbinding, dus een nieuwe stream start waarschijnlijk niet.",
+                "METER": "{{playlist}}: {{used}} van {{max}} in gebruik",
+                "METER_UNKNOWN": "{{playlist}}: verbindingslimiet onbekend",
+                "TYPES": "Inhoudstype",
+                "TYPE": {
+                    "all": "Alles",
+                    "live": "Televisie",
+                    "movie": "Films",
+                    "series": "Series"
+                },
+                "RESULTS": "Bronnen",
+                "GROUP_FROM_FAVORITES": "Uit favorieten",
+                "GROUP_MORE_ON_AIR": "Meer live",
+                "SEARCH_ON_AIR": "Nu op tv",
+                "SEARCH_CHANNELS": "Zenders",
+                "SEARCH_MOVIES": "Films",
+                "SEARCH_SERIES": "Series",
+                "TYPE_MOVIE": "Film",
+                "TYPE_SERIES_ONE": "Serie",
+                "CONTINUE_FROM": "Verder vanaf {{position}}",
+                "IN_TILE": "In venster {{number}}",
+                "EPISODES": "Afleveringen",
+                "NO_EPISODES": "Geen afleveringen",
+                "STARTED": "Begonnen",
+                "UNAVAILABLE": "Niet in multiview",
+                "RESOLVE_ERROR": "Deze bron kan niet worden geopend.",
+                "LOADING": "Laden…",
+                "LOAD_ERROR": "De lijst kon niet worden geladen.",
+                "NO_RESULTS": "Niets gevonden",
+                "EMPTY": "Nog niets"
+            }
         }
     }
 }
