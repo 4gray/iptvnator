@@ -1162,6 +1162,10 @@ capture phase on `document`, so a `Shift+M` it takes is `defaultPrevented`
 before `ControlsShortcuts` sees it as mute. Without an installed picker
 `Shift+M` still mutes, and plain `M` and the M3U digits are never taken.
 Escape stays with the picker dialog and never ends a session.
+When `ControlsShortcuts` takes a key it dispatches the bubbling
+`PLAYER_SHORTCUT_EVENT` on its host element; a multiview tile counts it as
+the viewer's own action (D3), so M or Space on a muted tile asks for its
+sound instead of being undone.
 
 ### Vendor-chrome (preference-off) keyboard shortcuts
 

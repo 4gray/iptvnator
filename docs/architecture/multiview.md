@@ -77,7 +77,8 @@ Each tile is its own header owner (`headerOwner` = tile id) in the Electron
 main process (`request-header-overrides.service.ts`). A request matches by
 exact URL first, then by origin with the most recently configured override
 (D4); exactly one owner's override applies to a request, so one tile's
-credentials never reach another tile's request. A tile's playback therefore carries its source's User-Agent, Referer
+credentials never reach another tile's request. A tile without custom headers
+keeps a header-free claim on its exact stream URL for the same reason. A tile's playback therefore carries its source's User-Agent, Referer
 and Origin; the picker's resolver adds them for Xtream live channels, whose
 shared resolution leaves them out.
 

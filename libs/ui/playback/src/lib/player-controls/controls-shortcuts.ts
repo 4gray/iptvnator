@@ -25,6 +25,13 @@ export interface ControlsShortcutHandlers {
 export const PLAYER_SHORTCUTS_SUSPENDED_SELECTOR =
     '[inert], [data-player-shortcuts-suspended]';
 
+/**
+ * Dispatched (bubbling) on the player's host element when one of its
+ * document-level shortcuts acts on it; a multiview tile counts it as the
+ * viewer's own action (D3).
+ */
+export const PLAYER_SHORTCUT_EVENT = 'iptvnator-player-shortcut';
+
 const INTERACTIVE_SELECTOR = [
     'a[href]',
     'button',
@@ -151,7 +158,7 @@ export class ControlsShortcuts {
                 if (!handlers.canTogglePaused()) {
                     return;
                 }
-                event.preventDefault();
+                this.take(event, handlers);
                 handlers.togglePaused();
                 return;
             case 'f':
@@ -159,35 +166,35 @@ export class ControlsShortcuts {
                 if (!handlers.canToggleFullscreen()) {
                     return;
                 }
-                event.preventDefault();
+                this.take(event, handlers);
                 handlers.toggleFullscreen();
                 return;
             case 'ArrowLeft':
                 if (!handlers.canSeek()) {
                     return;
                 }
-                event.preventDefault();
+                this.take(event, handlers);
                 handlers.seekBy(-5);
                 return;
             case 'ArrowRight':
                 if (!handlers.canSeek()) {
                     return;
                 }
-                event.preventDefault();
+                this.take(event, handlers);
                 handlers.seekBy(5);
                 return;
             case 'ArrowUp':
                 if (!handlers.canAdjustVolume()) {
                     return;
                 }
-                event.preventDefault();
+                this.take(event, handlers);
                 handlers.adjustVolume(0.05);
                 return;
             case 'ArrowDown':
                 if (!handlers.canAdjustVolume()) {
                     return;
                 }
-                event.preventDefault();
+                this.take(event, handlers);
                 handlers.adjustVolume(-0.05);
                 return;
             case 'm':
@@ -195,10 +202,20 @@ export class ControlsShortcuts {
                 if (!handlers.canAdjustVolume()) {
                     return;
                 }
-                event.preventDefault();
+                this.take(event, handlers);
                 handlers.toggleMute();
                 return;
         }
+    }
+
+    /** Marks the key handled and tells the player's element it was used. */
+    private take(event: KeyboardEvent, handlers: ControlsShortcutHandlers) {
+        event.preventDefault();
+        handlers
+            .hostElement?.()
+            ?.dispatchEvent(
+                new Event(PLAYER_SHORTCUT_EVENT, { bubbles: true })
+            );
     }
 
     /**

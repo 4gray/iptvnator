@@ -79,6 +79,32 @@ describe('selectScopedOverrides', () => {
     });
 });
 
+describe('header-free owners', () => {
+    it('claim only their exact stream URL and apply nothing', () => {
+        const headerFree: ScopedHeaderOverride = {
+            ...scoped('https://a.example/two.ts', 9, ''),
+            userAgent: undefined,
+            headerFree: true,
+        };
+        const owner = scoped('https://a.example/one.ts', 1, 'A');
+
+        expect(
+            selectScopedOverrides('https://a.example/two.ts', [
+                owner,
+                headerFree,
+            ])
+        ).toEqual([]);
+        expect(
+            agents(
+                selectScopedOverrides('https://a.example/seg.ts', [
+                    owner,
+                    headerFree,
+                ])
+            )
+        ).toEqual(['A']);
+    });
+});
+
 describe('toComparableUrl', () => {
     it('normalizes the way request URLs are reported', () => {
         expect(toComparableUrl(' HTTPS://A.Example:443/live/one.ts ')).toBe(

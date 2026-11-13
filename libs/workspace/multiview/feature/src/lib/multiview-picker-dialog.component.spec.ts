@@ -266,6 +266,23 @@ describe('MultiviewPickerDialogComponent', () => {
         expect(close).toHaveBeenCalledWith({ source, item: liveItem(3) });
     });
 
+    it('scrolls the active row into view as the arrows move', async () => {
+        const scrolled: string[] = [];
+        const original = HTMLElement.prototype.scrollIntoView;
+        HTMLElement.prototype.scrollIntoView = function (this: HTMLElement) {
+            scrolled.push(this.id);
+        };
+        try {
+            await open();
+            key('ArrowDown');
+            await settle();
+
+            expect(scrolled).toContain(rows()[1].id);
+        } finally {
+            HTMLElement.prototype.scrollIntoView = original;
+        }
+    });
+
     it('ignores a click on a row already on screen', async () => {
         await open({}, liveItem(1));
 

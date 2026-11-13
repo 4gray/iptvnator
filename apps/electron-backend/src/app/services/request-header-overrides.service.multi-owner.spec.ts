@@ -263,6 +263,33 @@ describe('request header overrides per owner', () => {
             });
         });
 
+        it("keeps another owner's credentials off a header-free owner's stream", async () => {
+            const { configureRequestHeaderOverride } = await loadService();
+            configureRequestHeaderOverride(
+                'AgentA/1.0',
+                'https://shared.example/',
+                FIRST,
+                { authorization: 'Bearer synthetic-a' },
+                undefined,
+                TILE_A
+            );
+            configureRequestHeaderOverride(
+                undefined,
+                undefined,
+                SECOND,
+                undefined,
+                undefined,
+                TILE_B
+            );
+
+            expect(headersFor(SECOND)).toEqual({});
+            // A request no owner can be identified by keeps the owner with
+            // headers (D4).
+            expect(
+                headersFor('https://shared.example/live/segment-9.ts')
+            ).toMatchObject({ 'User-Agent': 'AgentA/1.0' });
+        });
+
         it('lets the most recently configured owner win other requests', async () => {
             const { configureRequestHeaderOverride } = await loadService();
             configureRequestHeaderOverride(

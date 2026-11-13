@@ -1,3 +1,4 @@
+import { PLAYER_SHORTCUT_EVENT } from '../player-controls/controls-shortcuts';
 import { WebPlayerTileMedia } from './web-player-tile-media';
 
 const flushMutations = () =>
@@ -119,6 +120,22 @@ describe('WebPlayerTileMedia', () => {
 
             expect(audioRequested).toHaveBeenCalledTimes(1);
             expect(video.muted).toBe(true);
+        });
+
+        it("counts the player's own shortcut on the tile as the viewer (D3)", () => {
+            const video = addVideo();
+            const controls = document.createElement('div');
+            root.appendChild(controls);
+            create().sync(true, null);
+
+            // M handled by the document-level player shortcuts.
+            controls.dispatchEvent(
+                new Event(PLAYER_SHORTCUT_EVENT, { bubbles: true })
+            );
+            video.muted = false;
+            video.dispatchEvent(new Event('volumechange'));
+
+            expect(audioRequested).toHaveBeenCalledTimes(1);
         });
 
         it('does not count an interaction outside the tile', () => {

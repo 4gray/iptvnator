@@ -19,6 +19,12 @@ export type ScopedHeaderOverride = HeaderOverride & {
     scopeUrl: string;
     /** Grows with every configure call; higher means configured later. */
     sequence: number;
+    /**
+     * A named owner (a multiview tile) that plays without custom headers. It
+     * claims its exact stream URL, so another owner's headers never reach it,
+     * and applies nothing.
+     */
+    headerFree?: boolean;
 };
 
 export function normalizeHeaderValue(
@@ -101,6 +107,8 @@ export function selectScopedOverrides(
     for (const override of overrides) {
         if (!shouldApplyOverride(url, override)) continue;
         const exact = override.scopeUrl === url;
+        // Header-free owners only claim their own stream URL.
+        if (override.headerFree && !exact) continue;
         if (
             !winner ||
             (exact && !winnerExact) ||
@@ -110,5 +118,5 @@ export function selectScopedOverrides(
             winnerExact = exact;
         }
     }
-    return winner ? [winner] : [];
+    return winner && !winner.headerFree ? [winner] : [];
 }

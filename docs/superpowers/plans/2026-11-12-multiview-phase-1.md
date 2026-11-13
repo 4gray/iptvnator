@@ -1300,6 +1300,21 @@ fix in `multiview-tile-resolver.ts` (+ spec).
   steps from the view's own selection, not the active tile: remote control
   is outside the phase 1 spec; follow-up for the remote-control contract.
 
+**Round 4 (Codex, commit `a5584dc46`):** four findings, all fixed.
+- P1, a tile without custom headers released its owner entry, so its exact
+  stream URL fell back to another tile's override (credentials included): a
+  named owner without headers now keeps a header-free claim on its exact URL
+  that applies nothing (bounded to 16); segment requests still go to the
+  most recent owner with headers (D4). The default owner is unchanged.
+- P2, a film and a series with the same provider id shared one picker key:
+  series keys are namespaced and a series never counts as a film tile.
+- P2, the player's document-level shortcuts (M, Space) on the main tile did
+  not count as the viewer's action (D3), so the tile re-muted: when
+  `ControlsShortcuts` takes a key it dispatches `PLAYER_SHORTCUT_EVENT` on
+  the player element, which the tile media counts.
+- P2, arrow keys moved the picker's active row out of sight: it scrolls into
+  view.
+
 Greptile: not run (the `greptile` CLI is not installed on this machine).
 
 ## Phase acceptance (spec 14)

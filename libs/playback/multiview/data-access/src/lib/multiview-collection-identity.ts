@@ -21,10 +21,12 @@ export function providerContentId(
  * an item picked here and the same item playing in its view are one tile.
  */
 export function pickerSessionKey(item: UnifiedCollectionItem): string {
+    const id = providerContentId(item);
     return createPlaybackSessionKey({
         kind: item.contentType === 'live' ? 'live' : 'vod',
         sourceId: item.playlistId,
-        contentId: providerContentId(item),
+        // A series is never a tile itself; its id space is not the films'.
+        contentId: item.contentType === 'series' ? `series:${id}` : id,
     });
 }
 
@@ -38,6 +40,13 @@ export function tileNumberFor(
     tiles: readonly MultiviewTileSource[]
 ): number | null {
     const key = pickerSessionKey(item);
+    // A series plays as episodes, which have their own keys.
+    if (item.contentType === 'series') {
+        const index = tiles.findIndex(
+            (tile) => tile.playbackSessionKey === key
+        );
+        return index === -1 ? null : index + 1;
+    }
     const live = item.contentType === 'live';
     const ids = new Set([item.uid, String(providerContentId(item))]);
     const index = tiles.findIndex(

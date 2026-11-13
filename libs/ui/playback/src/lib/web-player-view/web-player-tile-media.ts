@@ -1,3 +1,5 @@
+import { PLAYER_SHORTCUT_EVENT } from '../player-controls/controls-shortcuts';
+
 /**
  * How long after a pointer or key interaction inside the tile a media change
  * still counts as the viewer's own action.
@@ -44,6 +46,12 @@ export class WebPlayerTileMedia {
             true
         );
         options.root.addEventListener('keydown', this.recordInteraction, true);
+        // The player's document-level shortcuts (M, Space) act on the tile
+        // without a key event inside it.
+        options.root.addEventListener(
+            PLAYER_SHORTCUT_EVENT,
+            this.recordInteraction
+        );
         this.observer = new MutationObserver(() => this.scan());
         this.observer.observe(options.root, { childList: true, subtree: true });
         this.scan();
@@ -73,6 +81,10 @@ export class WebPlayerTileMedia {
             'keydown',
             this.recordInteraction,
             true
+        );
+        this.options.root.removeEventListener(
+            PLAYER_SHORTCUT_EVENT,
+            this.recordInteraction
         );
         for (const release of this.videos.values()) release();
         this.videos.clear();

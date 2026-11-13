@@ -163,6 +163,38 @@ function ensureHeaderOverrideListener(): void {
     listenerRegistered = true;
 }
 
+/** Header-free owners kept at most; the oldest are forgotten first. */
+const MAX_HEADER_FREE_OWNERS = 16;
+
+/**
+ * A multiview tile without custom headers keeps its exact stream URL, so a
+ * request for it never falls back to another tile's headers on the same
+ * host. Releasing the owner sends the same empty configuration, which leaves
+ * a harmless claim that applies nothing; the list is bounded.
+ */
+function claimHeaderFreeStream(
+    ownerId: string,
+    scopeUrl: string,
+    scopeOrigin: string | undefined
+): void {
+    scopedOverrideSequence += 1;
+    scopedHeaderOverrides.set(ownerId, {
+        scopeOrigins: new Set(scopeOrigin ? [scopeOrigin] : []),
+        scopeUrl: toComparableUrl(scopeUrl),
+        sequence: scopedOverrideSequence,
+        headerFree: true,
+    });
+    const headerFree = [...scopedHeaderOverrides].filter(
+        ([, override]) => override.headerFree
+    );
+    for (const [owner] of headerFree.slice(
+        0,
+        Math.max(0, headerFree.length - MAX_HEADER_FREE_OWNERS)
+    )) {
+        scopedHeaderOverrides.delete(owner);
+    }
+}
+
 export function configureRequestHeaderOverride(
     userAgent?: string | null,
     referer?: string | null,
@@ -197,7 +229,11 @@ export function configureRequestHeaderOverride(
         !normalizedCookie &&
         !normalizedAuthorization
     ) {
-        if (isScopedOverride) {
+        if (isScopedOverride && ownerId !== DEFAULT_SCOPED_OVERRIDE_OWNER) {
+            // No listener of its own: a claim only matters next to an owner
+            // with headers, which registered it.
+            claimHeaderFreeStream(ownerId, scopeUrl ?? '', scopeOrigin);
+        } else if (isScopedOverride) {
             scopedHeaderOverrides.delete(ownerId);
         } else {
             clearRequestHeaderOverride();

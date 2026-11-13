@@ -1,4 +1,5 @@
 import {
+    afterRenderEffect,
     ChangeDetectionStrategy,
     Component,
     computed,
@@ -93,6 +94,13 @@ export class MultiviewPickerDialogComponent {
     readonly activeId = computed(() => {
         const key = this.picker.activeKey();
         return key ? (this.rowIds().get(key) ?? null) : null;
+    });
+    /** Keyboard moves stay visible: the list scrolls to the active row. */
+    private readonly revealActive = afterRenderEffect(() => {
+        const id = this.activeId();
+        if (id) {
+            document.getElementById(id)?.scrollIntoView?.({ block: 'nearest' });
+        }
     });
     readonly meter = computed(() => {
         const budget = this.picker.budget();
