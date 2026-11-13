@@ -16,6 +16,7 @@ export interface ResolvedPortalPlayback {
     thumbnail?: string | null;
     isLive?: boolean;
     startTime?: number;
+    launchId?: string;
     contentInfo?: PlayerContentInfo;
     headers?: Record<string, string>;
     userAgent?: string;

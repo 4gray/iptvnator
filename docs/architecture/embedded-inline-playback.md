@@ -1024,8 +1024,13 @@ close rejects and keeps the exact session live so a replacement cannot overlap
 it. A process-wide teardown gate starts before any potentially slow teardown
 preparation, including VLC position flush and a reused player's MPV IPC or VLC
 RC quit command, and rejects both player launches until that exact child
-reports exit; `ChildProcess.killed` is never treated as proof. If
-bounded teardown fails while a fresh launch IPC is pending, the IPC rejects and
+reports exit; `ChildProcess.killed` is never treated as proof. Reuse connections
+check the gate again before dispatching content commands.
+If the gate vetoes the first MPV `loadfile`, the launch stops the exact idle
+child before reporting the rejection and does not retry with a positional URL.
+If an unrelated child is stopping, a rejected reuse restores its still-playing
+owner in the dock.
+If bounded teardown fails while a fresh launch IPC is pending, the IPC rejects and
 the exact session becomes a closable error instead of remaining in Opening.
 If a pre-content reuse failure has no still-live displaced session to restore,
 the replacement error keeps its attached closer so Stop can retry teardown of
@@ -1082,6 +1087,41 @@ Stop, so a retried Stop never reaches a player started later, and a late Stop
 for an older queued launch cancels only that launch. The cancelled launch
 settles only once its own Stop has: if the exit cannot be confirmed it stays a
 closable error, so Stop can be retried. App shutdown cancels the whole queue.
+An MPV child launched separately from the app is stopped on shutdown if its
+first media command has not been sent. A pending fallback also cancels on
+shutdown, even if it was already waiting for the old child to exit. A detached
+child already playing remains open. After a session receives Stop, late MPV
+media events cannot confirm it.
+The playback dock signals explicit Stop before native teardown so Xtream can
+cancel renderer-side tunes waiting for that player. A detached player's Stop
+does not cancel an inline tune. Automatic handoff closes do not send this signal.
+Parental relock uses an exact session close. When the session is queued, this
+cancels only that launch. The allowed in-flight launch can finish, and the
+newest remaining queued tune can run. After
+the queued launch starts, an exact close waits for its own closer instead of
+invoking the queued Stop handler on another player. Cancelling the active
+queue entry republishes the surviving session so the dock can still stop it.
+An exact close before the first content command preserves the reused child's
+previous owner and republishes it when it can still be stopped.
+If fallback teardown has already started, the exact close waits for that same
+child to exit before settling, even if no content command was sent.
+Once a reused process accepts a replacement content command, its previous
+session retires; the replacement alone reports the child's eventual exit.
+Overlapping VLC replacements reserve their order at the first RC write, so an
+older replacement stops sending commands and cannot restart the child on an
+RC error, even if it still owns the child. With private control, the previous
+session still owns the child while the app waits briefly for VLC to confirm it
+stopped with no input. A refused or unverified clear falls back only after that
+child exits. If the replacement is cancelled after sending clear, the previous
+session stays closable and must verify its input again before reporting playback.
+Legacy TCP control retires the previous owner at the first write.
+If another child takes the reuse slot, the session that owns the first child
+continues reading playback state from its RC port and can stop it by session
+ID.
+If the old child exits before that write and no newer launch took ownership,
+the replacement starts a fresh child.
+VLC's fallback launch without RC applies only while the original session
+still owns that child. The fallback starts with no observed playback state.
 A queued launch that finds the teardown gate closed, because the launch before
 it could not confirm its child's exit, restores the session that still owns
 that child, preferring the last launch that started (with reuse off its
@@ -1094,7 +1134,13 @@ exit is confirmed, or as a closable error when it is not. No `seek` follows
 `loadfile`: mpv rejects a seek before the file is loaded, so the resume offset
 travels as the per-file `start` option. The `loadfile` reply only acknowledges
 the command; a stream that later fails to open is reported through the reused
-child's output and exit, not through the reply.
+child's output and exit, not through the reply. Xtream guide requests observe
+the corresponding MPV playlist entry for media load confirmation separately.
+For streams without saved position metadata, MPV's socket and VLC's RC
+connection report when playback becomes idle or stopped. The exact session
+remains closable. Polling continues for the exact session so resuming in the
+player updates the guide. VLC's greeting prompt is not a status reply; the
+monitor reads both Lua RC and legacy Windows RC states.
 If Stop is observed before a pending MPV content command or VLC enqueue command
 is dispatched, that command is skipped. A source handoff also fails closed
 while a live session has no closer (`canClose: false`); renderer Dismiss is not
@@ -1117,9 +1163,9 @@ restoring stale content metadata. Such an error still participates in every
 replacement close. Stop during an in-flight MPV or VLC reuse command, including
 the teardown wait after a failed command and VLC's subsequent fallback
 port-allocation wait, settles that exact close and cancels the fallback spawn.
-If a partially applied reuse
-command is instead recovered by a fresh spawn, the old child's exit is retired
-under its previous session so it cannot close the replacement session. A
+If a partially applied reuse command is recovered by a fresh spawn, the
+replacement owns the old child until teardown is confirmed. That child's
+exit does not close the replacement session while recovery is in progress. A
 during-start Stop also settles VLC's launch IPC when a spawn error reports
 `close` without `exit`. The dock keeps Stop as the only global teardown action
 while that exact closer remains live; safe Dismiss is available only after an
@@ -1183,6 +1229,9 @@ The arguments apply only when IPTVnator spawns a new external player process. If
 MPV or VLC instance reuse is active and an existing process is reused, subsequent
 streams are loaded through MPV IPC or VLC RC commands and new process arguments
 are not re-applied until a fresh process starts.
+If a private VLC RC command would exceed the `oldrc` input buffer, IPTVnator
+skips the queue commands and waits for the old process to exit before launching
+the full input in a new process.
 
 VLC enables its TCP RC interface when content metadata requires progress
 tracking or instance reuse is enabled. On Windows, these managed RC launches
@@ -1242,9 +1291,19 @@ Current contract:
 - AppImage, deb/rpm, snap, macOS, and Windows keep the existing direct process spawn flow.
 - VLC keeps the current external-session flow in Flatpak, including the RC port used for progress polling.
 - MPV is intentionally reduced in Flatpak: the app does not reuse an existing MPV instance there and does not open the Unix socket bridge used for non-Flatpak progress polling.
-- VLC instance reuse is also gated off in Flatpak. Outside Flatpak the user can opt in via the "Reuse VLC instance" setting; the app then keeps a single tracked VLC process and drives subsequent stream loads through its RC interface (`clear` + `add <url> :http-*`) instead of spawning a new window per click.
+- VLC instance reuse is also gated off in Flatpak. Outside Flatpak, "Reuse VLC
+  instance" keeps a single tracked process. When it can use the existing control
+  endpoint, the app switches media through RC. Xtream Live TV requires a private
+  Unix endpoint for RC; when unavailable, the app waits for the previous process
+  to exit before starting another. After a failed reuse attempt, a pending tune
+  checks whether another tune has already installed a reusable child. Turning
+  reuse off while a replacement is waiting for the previous child to exit
+  cancels the replacement.
+  It also stops the retained process when changing
+  control modes, even if VLC already marked its media session closed. Raw output
+  from Xtream Live TV launches is discarded because it can contain stream URLs.
 
-This keeps non-Flatpak behavior unchanged while allowing Flatpak builds to open host-installed external players.
+Flatpak can open host-installed players without app-managed instance reuse.
 
 ## Typed Playback Payload
 
@@ -1326,11 +1385,13 @@ reaches history.
   engine or format swap of the same stream keeps its progress. The radio
   `AudioPlayerComponent` confirms the same way (with the host's session key
   when given).
-- MPV/VLC cannot report whether a live stream plays, so the gate itself
-  subscribes to the Electron external-player session updates and confirms a
-  session's `streamUrl` once it is `opened` or `playing`; a launch that ends
-  in `error` is not recorded. (Subscribing in the gate, which the first
-  deferred write creates, keeps it off the initial bundle.) That
+- The gate subscribes to Electron external-player session updates and confirms
+  the launch ID, where the caller has one, or the `streamUrl` of an `opened`
+  or `playing` session once it verifies the
+  requested media. Players without readiness support confirm on opening. A
+  launch that ends before confirmation is not recorded. VLC reports an
+  unobservable fallback only after its replacement process spawns. (Subscribing
+  in the gate, which the first deferred write creates, keeps it off the initial bundle.) That
   confirmation carries no session key, so an "Open in MPV/VLC" recovery
   launch is also confirmed by the `WebPlayerViewComponent` that requested
   it, under its own session key, once the launch has opened. M3U keeps

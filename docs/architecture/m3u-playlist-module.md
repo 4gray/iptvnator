@@ -1592,7 +1592,8 @@ untouched `app-web-player-view` into a 128 px docked strip
 collapses to one 48 px line (`epg-guide:dock-collapsed`), which is also the
 fixed height of the strip shown for an external MPV/VLC session — that one has
 no video to reveal, so it hides the Collapse toggle (`collapsible=false`) and
-writes no preference. Nothing remounts, so playback and native-view Embedded
+writes no preference. Short screens also use the compact strip without
+changing the saved dock preference. Nothing remounts, so playback and native-view Embedded
 MPV bounds survive. While the guide is open the docked `.video-player` carries
 `data-player-shortcuts-suspended`, which makes `ControlsShortcuts` (shared and
 legacy player shortcuts alike) yield ↑/↓, Space, F and M to the guide's own

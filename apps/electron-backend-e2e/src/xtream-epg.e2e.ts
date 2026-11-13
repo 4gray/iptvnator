@@ -22,6 +22,7 @@ import {
 import {
     fetchStalkerCategoryFixture,
     fetchXtreamEpgFixture,
+    fetchXtreamLiveFixture,
 } from './portal-mock-fixtures';
 
 const epgPortalName = 'Xtream EPG Fixture';
@@ -29,6 +30,132 @@ const epgCredentials = {
     username: 'epg',
     password: 'epg',
 };
+
+test('@epg @xtream @electron opens the multi-channel guide without remounting the player', async ({
+    dataDir,
+    request,
+}) => {
+    test.setTimeout(120000);
+    await resetMockServers(request, ['xtream']);
+    const fixture = await fetchXtreamEpgFixture(request, epgCredentials);
+    const live = await fetchXtreamLiveFixture(request, epgCredentials);
+    const [first, second] = live.items;
+    const app = await launchElectronApp(dataDir);
+    const page = app.mainWindow;
+    try {
+        await app.electronApp.evaluate(({ BrowserWindow }) =>
+            BrowserWindow.getAllWindows()[0].setSize(1600, 1000)
+        );
+        await addXtreamPortal(page, {
+            name: 'Synthetic Guide Portal',
+            ...epgCredentials,
+        });
+        await waitForXtreamWorkspaceReady(page);
+        await openWorkspaceSection(page, 'Live TV');
+        await clickCategoryByNameExact(page, fixture.categoryName);
+        const shortcut = page.getByTestId('xtream-epg-guide');
+        await expect(shortcut).toBeDisabled();
+        await channelItemByTitle(page, first.name ?? '')
+            .first()
+            .click();
+        const player = page.locator(
+            'app-live-stream-layout app-web-player-view'
+        );
+        await player.evaluate((element) =>
+            element.setAttribute('data-guide-test-player', 'original')
+        );
+        const sidebar = page.locator(
+            'app-live-stream-layout .sidebar app-portal-channels-list'
+        );
+        await sidebar.evaluate((element) =>
+            element.setAttribute('data-guide-test-sidebar', 'original')
+        );
+        const categoryPanel = page.locator(
+            'app-workspace-shell-context-sidebar'
+        );
+        await categoryPanel
+            .getByRole('button', { name: 'Search', exact: true })
+            .click();
+        const categorySearch = categoryPanel.getByRole('searchbox', {
+            name: 'Search categories',
+        });
+        await categorySearch.fill(fixture.categoryName);
+        await categorySearch.blur();
+        await expect(page.locator('body')).toBeFocused();
+        await page.keyboard.press('g');
+
+        const guide = page.locator('app-epg-guide');
+        await expect(categoryPanel).toHaveAttribute('inert', '');
+        await expect(categoryPanel).toBeHidden();
+        const firstRow = guide.getByRole('button', {
+            name: first.name,
+            exact: true,
+        });
+        const secondRow = guide.getByRole('button', {
+            name: second.name,
+            exact: true,
+        });
+        const currentTitle = fixture.shortEpg[0].title;
+        await expect(firstRow).toBeVisible();
+        await expect(secondRow).toBeVisible();
+        await expect(
+            guide.getByRole('button', { name: currentTitle, exact: true })
+        ).toBeVisible();
+        await expect(player).toHaveAttribute(
+            'data-guide-test-player',
+            'original'
+        );
+        await expect(shortcut).toHaveAttribute('aria-pressed', 'true');
+
+        const onlyWithEpg = guide.locator('.guide-toolbar__toggle');
+        await onlyWithEpg.click();
+        await expect(secondRow).toHaveCount(0);
+        await onlyWithEpg.click();
+        await expect(secondRow).toBeVisible();
+
+        await guide.getByPlaceholder('Search programmes').fill(currentTitle);
+        await expect(
+            guide.getByRole('option').filter({ hasText: currentTitle })
+        ).toBeVisible();
+        await guide.getByPlaceholder('Search programmes').clear();
+        await guide.getByRole('button', { name: /Channels shown:/i }).click();
+        await page
+            .getByRole('menuitemradio', { name: 'All channels', exact: true })
+            .click();
+        const anotherGroup = guide.getByRole('button', {
+            name: 'Overflow Live 1',
+            exact: true,
+        });
+        await anotherGroup.click();
+        await expect(page.locator('app-epg-guide-now-playing')).toContainText(
+            'Overflow Live 1'
+        );
+        await expect(player).toHaveAttribute(
+            'data-guide-test-player',
+            'original'
+        );
+        await anotherGroup.press('Escape');
+        await expect(guide).toHaveCount(0);
+        await expect(player).toHaveAttribute(
+            'data-guide-test-player',
+            'original'
+        );
+        await expect(shortcut).toBeFocused();
+        await expect(categorySearch).toBeVisible();
+        await expect(categorySearch).toHaveValue(fixture.categoryName);
+        await expect(sidebar).toHaveAttribute(
+            'data-guide-test-sidebar',
+            'original'
+        );
+        await expect(
+            channelItemByTitle(page, first.name ?? '').first()
+        ).toBeVisible();
+        await openWorkspaceSection(page, 'Movies');
+        await expect(shortcut).toHaveCount(0);
+    } finally {
+        await closeElectronApp(app);
+    }
+});
 
 test('@epg @xtream @electron removes uploaded guide data and restores provider EPG without restarting', async ({
     dataDir,

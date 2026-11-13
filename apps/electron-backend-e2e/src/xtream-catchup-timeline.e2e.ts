@@ -72,6 +72,44 @@ test('@epg @xtream @electron draws the catch-up programme on the seek bar', asyn
 
         await row.click();
         await expect(titledSegments).toHaveCount(0, { timeout: 20000 });
+
+        await channelItemByTitle(page, 'Night Sports').first().click();
+        await page.getByTestId('xtream-epg-guide').click();
+        const guide = page.locator('app-epg-guide');
+        const past = fixture.fullEpg.find(
+            (programme) => programme.title === PAST_PROGRAM
+        )!;
+        if (
+            await page.evaluate(
+                (stop) =>
+                    new Date(stop * 1000).toDateString() !==
+                    new Date().toDateString(),
+                past.stopTimestamp
+            )
+        ) {
+            await guide.getByRole('button', { name: 'Previous day' }).click();
+        }
+        const earlier = guide.getByRole('button', {
+            name: PAST_PROGRAM,
+            exact: true,
+        });
+        await earlier.click();
+        await page
+            .getByRole('dialog')
+            .getByRole('button', { name: 'Watch from start' })
+            .click();
+        await expect(segment).toHaveCount(1, { timeout: 30000 });
+        await expect(
+            player.locator('.player-controls__slider--timeline')
+        ).toBeEnabled({ timeout: 30000 });
+        await expect(page.locator('app-epg-guide-now-playing')).toContainText(
+            PAST_PROGRAM
+        );
+        await expect(
+            guide.getByRole('button', { name: CHANNEL, exact: true })
+        ).toHaveAttribute('aria-pressed', 'true');
+        await guide.getByRole('button', { name: CHANNEL, exact: true }).click();
+        await expect(titledSegments).toHaveCount(0);
     } finally {
         await closeElectronApp(app);
     }

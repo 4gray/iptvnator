@@ -8,7 +8,8 @@
         [scopes]="scopes()"
         [scopeId]="scopeId()"
         [onlyWithEpg]="onlyWithEpg()"
-        [coverageLoaded]="coverageLoaded()"
+        [coverageLoaded]="coverageFilterAvailable()"
+        [coverageStatus]="coverageStatus()"
         [density]="density()"
         [zoom]="zoom()"
         [filter]="filter()"
@@ -27,30 +28,57 @@
     />
 
     @if (searchPanelVisible()) {
-        <div class="epg-guide__search-results" role="listbox">
-            @for (
-                hit of searchResults();
-                track hit.program.channel + hit.program.start + $index
-            ) {
-                <button
-                    type="button"
-                    class="epg-guide__search-result"
-                    role="option"
-                    [attr.aria-selected]="false"
-                    (click)="openSearchResult(hit)"
-                >
-                    <span class="epg-guide__search-title">{{
-                        hit.program.title
+        <div class="epg-guide__search-results">
+            @if (searchStatus() !== 'idle') {
+                <div class="epg-guide__search-empty">
+                    <span role="status">{{
+                        (searchStatus() === 'loading'
+                            ? 'EPG.FETCH_EPG'
+                            : 'EPG.ERROR'
+                        ) | translate
                     }}</span>
-                    <span class="epg-guide__search-meta">
-                        {{
-                            searchHitStartMs(hit)
-                                | date: 'EEE d MMM HH:mm' : '' : currentLocale()
-                        }}
-                        · {{ hit.channelName ?? hit.program.channel }}
-                    </span>
-                </button>
-            } @empty {
+                    @if (searchProgress(); as progress) {
+                        <span
+                            >{{ progress.checked }} / {{ progress.total }}</span
+                        >
+                    }
+                </div>
+            }
+            @if (searchResults().length) {
+                <div
+                    role="listbox"
+                    [attr.aria-label]="
+                        'EPG.GUIDE.SEARCH_PROGRAMMES' | translate
+                    "
+                >
+                    @for (
+                        hit of searchResults();
+                        track hit.program.channel + hit.program.start + $index
+                    ) {
+                        <button
+                            type="button"
+                            class="epg-guide__search-result"
+                            role="option"
+                            [attr.aria-selected]="false"
+                            (click)="openSearchResult(hit)"
+                        >
+                            <span class="epg-guide__search-title">{{
+                                hit.program.title
+                            }}</span>
+                            <span class="epg-guide__search-meta">
+                                {{
+                                    searchHitStartMs(hit)
+                                        | date
+                                            : 'EEE d MMM HH:mm'
+                                            : ''
+                                            : currentLocale()
+                                }}
+                                · {{ hit.channelName ?? hit.program.channel }}
+                            </span>
+                        </button>
+                    }
+                </div>
+            } @else if (searchStatus() === 'idle') {
                 <div class="epg-guide__search-empty">
                     {{ 'EPG.GUIDE.NO_RESULTS' | translate }}
                 </div>
@@ -98,6 +126,7 @@
         #viewport
         class="epg-guide__viewport"
         role="grid"
+        [attr.tabindex]="rows().length ? null : 0"
         [attr.aria-label]="'EPG.GUIDE.TITLE' | translate"
         [attr.aria-rowcount]="rows().length"
         [itemSize]="rowHeightPx()"
@@ -118,7 +147,7 @@
             [hourWidthPx]="zoom()"
             [nowMs]="view.nowMs()"
             [offsetMinutes]="offsetMinutes()"
-            [catchUpAvailable]="catchUpAvailable"
+            [catchUp]="catchUp"
             [active]="channel.id === activeChannelId()"
             [density]="density()"
             [rowFocused]="focus()?.row === index"
@@ -126,8 +155,8 @@
             [tabbable]="tabbableRow() === index"
             [style.height.px]="rowHeightPx()"
             (focusRequested)="focusCell(index, $event)"
-            (channelActivated)="activateRow(channel)"
-            (channelCommitted)="commitRow(channel)"
+            (channelActivated)="pointerRow(channel)"
+            (channelCommitted)="pointerRow(channel, $event)"
             (detailsRequested)="openDetails(channel, $event)"
             (watchRequested)="watch(channel, $event)"
         />

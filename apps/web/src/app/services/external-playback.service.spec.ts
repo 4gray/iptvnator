@@ -62,6 +62,40 @@ describe('ExternalPlaybackService', () => {
         expect(service.visibleSession()).toEqual(next);
     });
 
+    it('restores a dismissed dock only for its exact active session', () => {
+        const current = createSession({ status: 'error' });
+        listener?.(current);
+        service.dismissActiveSession();
+        service.restoreDismissedSession('synthetic-other');
+        expect(service.visibleSession()).toBeNull();
+        service.restoreDismissedSession(current.id);
+        expect(service.visibleSession()).toEqual(current);
+    });
+
+    it('restores Stop for a survivor only while the cancelled switch owns the dock', () => {
+        const survivor = createSession({
+            id: 'synthetic-survivor',
+            status: 'opened',
+        });
+        const cancelled = createSession({
+            id: 'synthetic-cancelled',
+            launchOrder: 2,
+        });
+        listener?.(survivor);
+        listener?.(cancelled);
+        listener?.({ ...cancelled, status: 'closed', canClose: false });
+        service.restoreDisplacedSession(survivor, cancelled.id);
+        expect(service.visibleSession()).toMatchObject({
+            id: survivor.id,
+            canClose: true,
+        });
+
+        const newer = createSession({ id: 'synthetic-newer', launchOrder: 3 });
+        listener?.(newer);
+        service.restoreDisplacedSession(survivor, cancelled.id);
+        expect(service.visibleSession()).toBe(newer);
+    });
+
     it('keeps the newest launch when an older launch republishes as launching', () => {
         const older = createSession({
             id: 'session-older',
@@ -140,9 +174,14 @@ describe('ExternalPlaybackService', () => {
         );
     });
 
-    it('delegates close requests for closable sessions', async () => {
+    it('announces explicit Stop before requesting native teardown', async () => {
         const session = createSession({ status: 'opened' });
         listener?.(session);
+        const stopped = jest.fn(() => {
+            expect(closeExternalPlayerSession).not.toHaveBeenCalled();
+            expect(service.pendingStop(session.id)).toBeDefined();
+        });
+        service.stopRequested.subscribe(stopped);
 
         closeExternalPlayerSession.mockResolvedValue(
             createSession({
@@ -153,14 +192,20 @@ describe('ExternalPlaybackService', () => {
             })
         );
 
-        await service.closeActiveSession();
+        const stopping = service.closeActiveSession();
+        expect(service.pendingStop(session.id)).toBeDefined();
+        await stopping;
+        expect(service.pendingStop(session.id)).toBeUndefined();
 
+        expect(stopped).toHaveBeenCalledWith(session.id);
         expect(closeExternalPlayerSession).toHaveBeenCalledWith(session.id);
         expect(service.visibleSession()).toBeNull();
     });
 
     it('can close a specific session directly', async () => {
         const session = createSession({ id: 'session-2', status: 'playing' });
+        const stopped = jest.fn();
+        service.stopRequested.subscribe(stopped);
 
         closeExternalPlayerSession.mockResolvedValue(
             createSession({
@@ -174,6 +219,7 @@ describe('ExternalPlaybackService', () => {
         await service.closeSession(session);
 
         expect(closeExternalPlayerSession).toHaveBeenCalledWith('session-2');
+        expect(stopped).not.toHaveBeenCalled();
     });
 
     it('hides closed sessions but keeps errors visible until dismissed', () => {

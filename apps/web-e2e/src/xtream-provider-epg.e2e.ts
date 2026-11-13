@@ -20,6 +20,240 @@ test.beforeEach(async ({ page, request }) => {
     await interceptXtreamRequests(page);
 });
 
+test('@xtream @epg PWA opens the multi-channel programme guide in both themes', async ({
+    page,
+}) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    let refreshed = false;
+    let countSwitchReads = false;
+    const switchReads: (string | null)[] = [];
+    await page.route('**/localhost:3000/xtream**', async (route) => {
+        const params = new URL(route.request().url()).searchParams;
+        if (
+            countSwitchReads &&
+            params.get('action') === 'get_simple_data_table'
+        )
+            switchReads.push(params.get('stream_id'));
+        if (
+            !refreshed ||
+            params.get('action') !== 'get_simple_data_table' ||
+            params.get('stream_id') !== '10000'
+        ) {
+            await route.fallback();
+            return;
+        }
+        const now = Math.floor(Date.now() / 1000);
+        await route.fulfill({
+            json: {
+                payload: {
+                    epg_listings: [
+                        {
+                            id: 'synthetic-refreshed',
+                            title: Buffer.from(
+                                'Synthetic Refreshed Programme'
+                            ).toString('base64'),
+                            channel_id: 'synthetic',
+                            start_timestamp: String(now - 1200),
+                            stop_timestamp: String(now + 3600),
+                        },
+                    ],
+                },
+            },
+        });
+    });
+    await page.route('**/live/**', (route) => route.abort());
+    await addXtreamPortal(page, EPG_PORTAL);
+    await page.getByRole('link', { name: 'Live TV', exact: true }).click();
+    await page
+        .locator('.context-panel .category-item')
+        .filter({ hasText: 'EPG Focus' })
+        .click();
+    await page
+        .locator('app-live-stream-layout [data-test-id="channel-item"]')
+        .filter({ hasText: 'Timezone News' })
+        .click();
+
+    const guide = page.locator('app-epg-guide');
+    const shortcut = page.locator('[data-test-id="xtream-epg-guide"]');
+    await shortcut.click();
+    await expect(guide).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(
+        guide.locator('[data-epg-guide-grid][tabindex="0"]')
+    ).toBeFocused();
+    for (const dark of [false, true]) {
+        await applyUiTheme(page, dark);
+        await expect(
+            guide.getByRole('grid', { name: 'Programme guide' })
+        ).toBeVisible();
+        await expect(
+            guide.getByRole('button', { name: 'Global Headlines', exact: true })
+        ).toBeVisible();
+        await expect(
+            guide.getByRole('button', { name: 'Night Sports', exact: true })
+        ).toBeVisible();
+    }
+    for (const row of await guide.locator('app-epg-guide-row').all()) {
+        await expect(
+            row.locator('.epg-guide-row__block, .epg-guide-row__empty').first()
+        ).toBeAttached();
+    }
+    const channelRows = guide.locator('.epg-guide-row__channel');
+    countSwitchReads = true;
+    for (const index of [1, 0]) {
+        await channelRows.nth(index).click();
+        await expect(channelRows.nth(index)).toHaveAttribute(
+            'aria-pressed',
+            'true'
+        );
+    }
+    expect(switchReads).toEqual([]);
+    countSwitchReads = false;
+
+    const isRetryChannel = (url: string) =>
+        /^\/live\/.+\/10001\.(m3u8|ts)$/.test(new URL(url).pathname);
+    const failedPlayback = page.waitForEvent('requestfailed', (request) =>
+        isRetryChannel(request.url())
+    );
+    await channelRows.nth(1).dblclick();
+    await failedPlayback;
+    await expect(channelRows.nth(1)).toHaveAttribute('aria-pressed', 'true');
+    await expect(guide).toBeVisible();
+    await expect(page.locator('app-playback-diagnostic-panel')).toBeVisible();
+    const retried = page.waitForEvent('requestfailed', (request) =>
+        isRetryChannel(request.url())
+    );
+    await channelRows.nth(1).press('Enter');
+    await retried;
+    await expect(guide).toBeVisible();
+    await channelRows.nth(0).click();
+
+    const search = guide.getByPlaceholder('Search programmes…');
+    await search.fill('Global Headlines');
+    const results = guide.getByRole('listbox');
+    const match = results
+        .getByRole('option')
+        .filter({ hasText: 'Global Headlines' })
+        .first();
+    await expect(match).toBeVisible();
+    await expect
+        .poll(async () =>
+            Math.abs(
+                ((await results.boundingBox())?.width ?? 0) -
+                    ((await match.boundingBox())?.width ?? 0)
+            )
+        )
+        .toBeLessThan(1);
+    await search.fill('');
+    await search.blur();
+
+    const nowPlayingBody = page.locator(
+        'app-epg-guide-now-playing .now-playing__body'
+    );
+    await expect(nowPlayingBody).toContainText('Global Headlines');
+    refreshed = true;
+    await page.clock.setFixedTime(new Date(Date.now() + 360_000));
+    await guide.getByRole('button', { name: 'Next day' }).click();
+    await guide.getByRole('button', { name: 'Now', exact: true }).click();
+    await expect(
+        guide.getByRole('button', {
+            name: 'Synthetic Refreshed Programme',
+            exact: true,
+        })
+    ).toBeVisible();
+    await expect(nowPlayingBody).toContainText('Synthetic Refreshed Programme');
+
+    await page.setViewportSize({ width: 320, height: 700 });
+    await expect
+        .poll(async () => (await nowPlayingBody.boundingBox())?.width ?? 0)
+        .toBeGreaterThan(80);
+    for (const [width, height] of [
+        [320, 568],
+        [568, 320],
+    ]) {
+        await page.setViewportSize({ width, height });
+        await expect
+            .poll(
+                async () =>
+                    (await guide.locator('.epg-guide__viewport').boundingBox())
+                        ?.height ?? 0
+            )
+            .toBeGreaterThanOrEqual(52);
+    }
+    await page
+        .locator('app-epg-guide-now-playing')
+        .getByRole('button', { name: /^Close guide/ })
+        .press('Escape');
+    await expect(guide).toHaveCount(0);
+    await expect(
+        page.locator('app-live-stream-layout app-epg-timeline')
+    ).toContainText('Synthetic Refreshed Programme');
+});
+
+test('@xtream @epg PWA fits a long channel name and programme in the compact dock', async ({
+    page,
+}) => {
+    const title =
+        'Synthetic Regional International Documentary Network Test Channel';
+    await page.route('**/localhost:3000/xtream**', async (route) => {
+        const action = new URL(route.request().url()).searchParams.get(
+            'action'
+        );
+        if (action !== 'get_live_streams') return route.fallback();
+        await route.fulfill({
+            json: {
+                payload: [
+                    {
+                        name: title,
+                        stream_id: 10000,
+                        category_id: '100',
+                        stream_type: 'live',
+                    },
+                ],
+            },
+        });
+    });
+    await page.route('**/live/**', (route) => route.abort());
+    await addXtreamPortal(page, EPG_PORTAL);
+    await page.getByRole('link', { name: 'Live TV', exact: true }).click();
+    await page
+        .locator('app-live-stream-layout')
+        .getByText(title, { exact: true })
+        .first()
+        .click();
+    await page.locator('[data-test-id="xtream-epg-guide"]').click();
+    await page.setViewportSize({ width: 320, height: 568 });
+
+    const dock = page.locator('app-epg-guide-now-playing');
+    await expect(dock.locator('.now-playing__on')).toBeVisible();
+    await expect(
+        dock.getByRole('button', { name: /^Close guide/ })
+    ).toBeInViewport();
+    const bounds = await dock.evaluate((element) => {
+        const dockBounds = element
+            .closest('.video-player')!
+            .getBoundingClientRect();
+        const channel = element
+            .querySelector('.now-playing__eyebrow > span')!
+            .getBoundingClientRect();
+        const programme = element
+            .querySelector('.now-playing__title')!
+            .getBoundingClientRect();
+        return {
+            overhang: Math.max(
+                0,
+                dockBounds.top - channel.top,
+                channel.bottom - dockBounds.bottom
+            ),
+            channelWidth: channel.width,
+            programmeWidth: programme.width,
+        };
+    });
+    expect(bounds.overhang).toBe(0);
+    expect(bounds.channelWidth).toBeGreaterThan(0);
+    expect(bounds.programmeWidth).toBeGreaterThan(0);
+});
+
 test('@xtream @epg PWA keeps CJK narrow titles upright without rotating other scripts differently', async ({
     page,
 }) => {

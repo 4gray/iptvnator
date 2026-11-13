@@ -6,8 +6,9 @@
         [attr.tabindex]="channelTabIndex()"
         [attr.aria-label]="channel().name"
         [attr.aria-pressed]="active()"
-        (click)="onChannelClick()"
-        (dblclick)="channelCommitted.emit()"
+        (focus)="focusRequested.emit(null)"
+        (click)="onChannelClick($event)"
+        (dblclick)="commitGesture()"
     >
         <span class="epg-guide-row__num">{{ channel().number }}</span>
         <span class="epg-guide-row__logo">
@@ -42,7 +43,9 @@
     role="gridcell"
     [style.width.px]="trackWidthPx()"
 >
-    @if (showEmpty()) {
+    @if (status() === 'error') {
+        <span class="epg-guide-row__empty">{{ 'EPG.ERROR' | translate }}</span>
+    } @else if (showEmpty()) {
         <span class="epg-guide-row__empty">{{
             'EPG.GUIDE.NO_PROGRAMME_INFO_LONG' | translate
         }}</span>
@@ -66,6 +69,7 @@
             role="button"
             data-epg-guide-grid
             [attr.tabindex]="blockTabIndex(index)"
+            (focus)="focusRequested.emit(index)"
             [attr.data-tier]="item.tier"
             [class.is-past]="item.block.when === 'past'"
             [class.is-now]="item.block.when === 'now'"
@@ -80,7 +84,7 @@
                     : ''
             "
             [attr.aria-label]="item.block.program.title"
-            (click)="onBlockClick(item, index)"
+            (click)="onBlockClick(item, index, $event)"
             (dblclick)="onBlockDoubleClick(item)"
         >
             @if (item.block.when === 'now') {

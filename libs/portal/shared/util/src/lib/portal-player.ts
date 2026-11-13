@@ -18,7 +18,8 @@ export interface PortalPlayer {
         origin?: string,
         contentInfo?: unknown,
         startTime?: number,
-        headers?: Record<string, string>
+        headers?: Record<string, string>,
+        launchId?: string
     ): Promise<ExternalPlayerSession | void>;
     openResolvedPlayback(
         playback: ResolvedPortalPlayback,
@@ -30,6 +31,4 @@ export interface PortalPlayer {
     ): Promise<ExternalPlayerSession | void>;
 }
 
-export const PORTAL_PLAYER = new InjectionToken<PortalPlayer>(
-    'PORTAL_PLAYER'
-);
+export const PORTAL_PLAYER = new InjectionToken<PortalPlayer>('PORTAL_PLAYER');

@@ -1,5 +1,20 @@
-import { computed, effect, inject, Injectable, signal } from '@angular/core';
+import {
+    computed,
+    DestroyRef,
+    effect,
+    inject,
+    Injectable,
+    signal,
+    untracked,
+} from '@angular/core';
 import { createDevLogger, EpgProgram } from '@iptvnator/shared/interfaces';
+import {
+    changedCoverage,
+    createCoverageRefreshBudget,
+    NO_PROGRAMMES,
+    type CoverageCheck,
+    type CoverageScan,
+} from './epg-guide-coverage-refresh';
 import {
     EPG_GUIDE_SOURCE,
     EpgGuideChannel,
@@ -16,9 +31,13 @@ export const EPG_GUIDE_LOAD_CHUNK = 100;
  */
 export const EPG_GUIDE_COVERAGE_CHUNK = 1000;
 
-export type EpgGuideRowStatus = 'idle' | 'loading' | 'loaded' | 'none';
+export type EpgGuideRowStatus =
+    'idle' | 'loading' | 'loaded' | 'none' | 'error';
+type RowScheduleStatus = EpgGuideRowStatus | 'stale';
 
 const EMPTY: readonly EpgProgram[] = [];
+const COVERAGE_BATCH_MS = 200;
+const ROW_RETRY_MS = 30_000;
 
 const debugEpgGuidePrograms = createDevLogger('EpgGuideProgramsService');
 
@@ -31,10 +50,8 @@ function hasEpgKey(channel: EpgGuideChannel): boolean {
 
 /**
  * Per-day programme cache for the guide. Programmes load lazily for the rows
- * the viewport asks about; coverage (which rows have anything at all) loads
- * eagerly for the whole scope so "Only with EPG" can answer before rows
- * scroll into view. Every response is tagged with the generation it was
- * requested under, so a window or scope change makes older answers no-ops.
+ * the viewport asks about. Coverage checks the whole scope, on demand for
+ * per-stream providers. Window, scope and source changes abort old reads.
  */
 @Injectable()
 export class EpgGuideProgramsService {
@@ -43,19 +60,39 @@ export class EpgGuideProgramsService {
     private readonly programs = signal<
         ReadonlyMap<string, readonly EpgProgram[]>
     >(new Map());
-    private readonly statuses = signal<ReadonlyMap<string, EpgGuideRowStatus>>(
+    private readonly statuses = signal<ReadonlyMap<string, RowScheduleStatus>>(
         new Map()
     );
-    private readonly coverage = signal<ReadonlySet<string> | null>(null);
+    private readonly coverage = signal<ReadonlyMap<
+        string,
+        CoverageCheck
+    > | null>(null);
 
     private range: { fromMs: number; toMs: number } | null = null;
-    private generation = 0;
+    private readonly programRequests = new Map<
+        AbortController,
+        EpgGuideChannel[]
+    >();
+    private coverageRequest?: CoverageScan;
+    private coverageRequested = false;
+    private readonly failedCoverage = new Set<string>();
+    private readonly coverageRefresh = createCoverageRefreshBudget(
+        this.failedCoverage
+    );
+    private readonly rowExpiry = new Map<string, number>();
+    private visibleRows = new Set<string>();
     /** Last channel reference seen by the constructor effect (see below). */
     private seenChannels: readonly EpgGuideChannel[] | null = null;
+    private seenRevision: unknown;
 
     readonly coverageLoaded = computed(() => this.coverage() !== null);
+    readonly coverageStatus = signal<'idle' | 'loading' | 'error'>('idle');
 
     constructor() {
+        inject(DestroyRef).onDestroy(() => {
+            this.cancelProgramRequests();
+            this.cancelCoverageRequest();
+        });
         // A new channel set (scope change) invalidates everything, including
         // coverage: the toggle must be answered for the new rows. The first
         // effect run must NOT invalidate: a host can call `setWindow` (and
@@ -64,23 +101,43 @@ export class EpgGuideProgramsService {
         // in-flight request's answer along with any coverage it kicked off.
         effect(() => {
             const next = this.source.channels();
-            if (next === this.seenChannels) {
+            const revision = this.source.revision?.();
+            if (next === this.seenChannels && revision === this.seenRevision)
                 return;
-            }
             const first = this.seenChannels === null;
             this.seenChannels = next;
-            if (first) {
-                return;
-            }
+            this.seenRevision = revision;
+            if (first) return;
             this.invalidate();
             this.requestCoverage();
         });
+        if (this.source.recoveredPrograms) {
+            effect(() => {
+                const id = this.source.activeChannelId();
+                if (!this.canRecover(id) || !id || !this.range) return;
+                const recovered = this.source.recoveredPrograms?.(this.range);
+                if (recovered)
+                    untracked(() => this.storePrograms([[id, recovered]]));
+            });
+        }
+    }
+
+    setCoverageRequested(requested: boolean): void {
+        if (
+            !this.source.deferredCoverage ||
+            requested === this.coverageRequested
+        )
+            return;
+        this.coverageRequested = requested;
+        if (requested) this.requestCoverage();
+        else {
+            this.cancelCoverageRequest();
+            this.coverageStatus.set('idle');
+        }
     }
 
     setWindow(fromMs: number, toMs: number): void {
-        if (this.range?.fromMs === fromMs && this.range?.toMs === toMs) {
-            return;
-        }
+        if (this.range?.fromMs === fromMs && this.range?.toMs === toMs) return;
         this.range = { fromMs, toMs };
         this.invalidate();
         this.requestCoverage();
@@ -91,76 +148,206 @@ export class EpgGuideProgramsService {
     }
 
     statusFor(channelId: string): EpgGuideRowStatus {
-        return this.statuses().get(channelId) ?? 'idle';
+        const status = this.statuses().get(channelId);
+        return status === 'stale' ? 'loaded' : (status ?? 'idle');
+    }
+
+    private canRecover(id: string | null): boolean {
+        const status = this.statuses().get(id ?? '');
+        return (
+            !!id &&
+            (status === 'error' || status === 'stale') &&
+            this.visibleRows.has(id)
+        );
     }
 
     /** Unknown (coverage not loaded yet, or a chunk failed) counts as covered
      * so rows never blink. */
     isCovered(channelId: string): boolean {
-        const coverage = this.coverage();
-        return coverage === null || coverage.has(channelId);
+        return this.coverage()?.get(channelId)?.hasPrograms !== false;
     }
 
-    /** Request programmes for rows that are idle; chunked, generation-tagged. */
+    refreshExpiredCoverage(nowMs: number): void {
+        const checks = this.coverage();
+        if (!this.coverageRequested || this.coverageRequest || !checks) return;
+        const scope = this.source.channels();
+        const expired = this.coverageRefresh.collect(nowMs, scope, checks);
+        if (expired.length) this.requestCoverage(expired);
+    }
+
+    /** Request programmes for rows that are idle, discarding obsolete per-stream work. */
     ensureLoaded(channels: readonly EpgGuideChannel[]): void {
         const range = this.range;
-        if (!range) {
-            return;
+        if (!range) return;
+        const previousRows = this.visibleRows;
+        const visible = new Set(channels.map((channel) => channel.id));
+        this.visibleRows = visible;
+        if (this.source.programBatchSize) {
+            for (const [request, rows] of this.programRequests) {
+                if (rows.some((row) => visible.has(row.id))) continue;
+                request.abort();
+                this.programRequests.delete(request);
+            }
+            const departed = [...previousRows].filter((id) => !visible.has(id));
+            if (departed.length) {
+                const programs = new Map(this.programs());
+                const statuses = new Map(this.statuses());
+                for (const id of departed) {
+                    programs.delete(id);
+                    if (statuses.get(id) !== 'none') statuses.delete(id);
+                    this.rowExpiry.delete(id);
+                }
+                this.programs.set(programs);
+                this.statuses.set(statuses);
+            }
         }
-        const pending = channels.filter(
-            (channel) =>
-                this.statusFor(channel.id) === 'idle' && hasEpgKey(channel)
-        );
-        if (pending.length === 0) {
-            return;
-        }
+        const now = Date.now();
+        const pending = channels.filter((channel) => {
+            const status = this.statusFor(channel.id);
+            return (
+                hasEpgKey(channel) &&
+                (status === 'idle' ||
+                    (status === 'loaded' &&
+                        (this.rowExpiry.get(channel.id) ?? Infinity) <= now) ||
+                    (status === 'error' && !previousRows.has(channel.id)))
+            );
+        });
+        if (!pending.length) return;
         this.patchStatuses(pending.map((channel) => [channel.id, 'loading']));
-        const generation = this.generation;
-        for (
-            let start = 0;
-            start < pending.length;
-            start += EPG_GUIDE_LOAD_CHUNK
-        ) {
-            const chunk = pending.slice(start, start + EPG_GUIDE_LOAD_CHUNK);
-            this.loadChunk({ channels: chunk, ...range }, generation);
+        const batchSize = this.source.programBatchSize ?? EPG_GUIDE_LOAD_CHUNK;
+        for (let start = 0; start < pending.length; start += batchSize) {
+            const chunk = pending.slice(start, start + batchSize);
+            const request = new AbortController();
+            this.programRequests.set(request, chunk);
+            this.loadChunk(
+                { channels: chunk, ...range, signal: request.signal },
+                request
+            );
         }
     }
 
-    private loadChunk(request: EpgGuideWindow, generation: number): void {
+    private loadChunk(
+        request: EpgGuideWindow,
+        controller: AbortController
+    ): void {
         this.source
             .loadPrograms(request)
             .then(
                 (result) => result,
                 () => {
-                    debugEpgGuidePrograms(
-                        'loadPrograms failed for a chunk; marking as loaded-empty',
-                        { channelCount: request.channels.length }
-                    );
+                    if (!controller.signal.aborted)
+                        debugEpgGuidePrograms(
+                            'loadPrograms failed for a chunk',
+                            { channelCount: request.channels.length }
+                        );
                     return null;
                 }
             )
             .then((result) => {
-                if (generation !== this.generation) {
-                    return;
-                }
-                const next = new Map(this.programs());
-                for (const channel of request.channels) {
-                    next.set(channel.id, result?.get(channel.id) ?? EMPTY);
-                }
-                this.programs.set(next);
-                this.patchStatuses(
-                    request.channels.map((channel) => [channel.id, 'loaded'])
+                this.programRequests.delete(controller);
+                if (controller.signal.aborted) return;
+                this.storePrograms(
+                    request.channels
+                        .filter(
+                            ({ id }) =>
+                                !this.source.programBatchSize ||
+                                this.visibleRows.has(id)
+                        )
+                        .map(({ id }) => [id, result?.get(id)]),
+                    result ?? []
                 );
             });
     }
 
-    private requestCoverage(): void {
-        const range = this.range;
-        if (!range) {
-            return;
+    private storePrograms(
+        entries: ReadonlyArray<
+            readonly [string, readonly EpgProgram[] | undefined]
+        >,
+        coverageEntries: Iterable<
+            readonly [string, readonly EpgProgram[] | undefined]
+        > = entries
+    ): void {
+        const next = new Map(this.programs());
+        const statuses = new Map(this.statuses());
+        for (const [id, programs] of entries) {
+            if (programs) next.set(id, programs);
+            const retry = !programs && this.rowExpiry.has(id);
+            const expiresAt = retry
+                ? Date.now() + ROW_RETRY_MS
+                : programs && this.source.programsExpireAt?.(id);
+            if (expiresAt !== undefined) this.rowExpiry.set(id, expiresAt);
+            statuses.set(id, programs ? 'loaded' : retry ? 'stale' : 'error');
         }
-        const generation = this.generation;
-        const keyed = this.source.channels().filter(hasEpgKey);
+        this.programs.set(next);
+        this.statuses.set(statuses);
+        if (!this.source.deferredCoverage) return;
+        const checks = this.coverage();
+        const scan = this.coverageRequest;
+        let updated: Map<string, CoverageCheck> | undefined;
+        for (const [id, programs] of coverageEntries) {
+            if (!programs) continue;
+            const hasPrograms = programs.length > 0;
+            if (scan?.progress) {
+                this.reportCoverage(scan, id, hasPrograms);
+            } else if (checks) {
+                if (this.failedCoverage.delete(id) && !this.failedCoverage.size)
+                    this.coverageStatus.set('idle');
+                const check = changedCoverage(
+                    checks.get(id),
+                    hasPrograms,
+                    this.source.programsExpireAt?.(id) ?? Infinity
+                );
+                if (check) (updated ??= new Map(checks)).set(id, check);
+            }
+        }
+        if (updated) this.coverage.set(updated);
+    }
+
+    private reportCoverage(
+        scan: CoverageScan,
+        id: string,
+        hasPrograms: boolean | null
+    ): void {
+        const progress = scan.progress;
+        if (!progress) return;
+        if (hasPrograms === null) {
+            if (progress.confirmed.has(id)) return;
+            this.failedCoverage.add(id);
+            if (!progress.checks.delete(id)) return;
+        } else {
+            progress.confirmed.add(id);
+            this.failedCoverage.delete(id);
+            const check = changedCoverage(
+                progress.checks.get(id),
+                hasPrograms,
+                this.source.programsExpireAt?.(id) ?? Infinity
+            );
+            if (!check) return;
+            progress.checks.set(id, check);
+        }
+        progress.timer ??= setTimeout(() => {
+            progress.timer = undefined;
+            this.coverage.set(new Map(progress.checks));
+        }, COVERAGE_BATCH_MS);
+    }
+
+    private requestCoverage(recheck?: readonly EpgGuideChannel[]): void {
+        const range = this.range;
+        if (!range || (this.source.deferredCoverage && !this.coverageRequested))
+            return;
+        const request = new AbortController();
+        const scan: CoverageScan = { controller: request };
+        if (this.source.deferredCoverage) {
+            scan.progress = {
+                confirmed: new Set(),
+                checks: new Map(recheck ? this.coverage() : null),
+            };
+            if (!recheck) this.coverage.set(null);
+        }
+        this.coverageRequest = scan;
+        this.coverageStatus.set('loading');
+        const channels = recheck ?? this.source.channels();
+        const keyed = channels.filter(hasEpgKey);
         const chunks: EpgGuideChannel[][] = [];
         for (
             let start = 0;
@@ -171,38 +358,62 @@ export class EpgGuideProgramsService {
         }
         Promise.all(
             chunks.map((channels) =>
-                this.source.loadCoverage({ channels, ...range }).then(
-                    (covered) => covered,
-                    () => null
-                )
+                this.source
+                    .loadCoverage(
+                        { channels, ...range, signal: request.signal },
+                        (id, programs) => {
+                            if (request.signal.aborted) return;
+                            this.reportCoverage(
+                                scan,
+                                id,
+                                programs && programs.length > 0
+                            );
+                            if (programs && this.canRecover(id))
+                                this.storePrograms([[id, programs]]);
+                        }
+                    )
+                    .catch(() => {
+                        if (!request.signal.aborted)
+                            for (const { id } of channels)
+                                this.reportCoverage(scan, id, null);
+                        return null;
+                    })
             )
         ).then((sets) => {
-            if (generation !== this.generation) {
-                return;
-            }
-            // Fail open: if any chunk failed, coverage stays unknown (`null`)
-            // rather than publishing a partial/empty set that would hide rows
-            // that do have programmes.
+            if (request.signal.aborted) return;
+            this.coverageRequest = undefined;
+            clearTimeout(scan.progress?.timer);
             if (sets.some((set) => set === null)) {
+                if (scan.progress) this.coverage.set(scan.progress.checks);
                 debugEpgGuidePrograms(
                     'loadCoverage failed for a chunk; leaving coverage unknown',
                     { chunkCount: sets.length }
                 );
+                this.coverageStatus.set('error');
                 return;
             }
             const merged = new Set<string>();
-            for (const set of sets) {
-                if (set === null) {
-                    continue;
-                }
-                set.forEach((id) => merged.add(id));
+            for (const set of sets) set?.forEach((id) => merged.add(id));
+            const checks =
+                scan.progress?.checks ?? new Map<string, CoverageCheck>();
+            for (const { id } of channels) {
+                if (scan.progress?.confirmed.has(id)) continue;
+                if (merged.has(id)) checks.delete(id);
+                else checks.set(id, NO_PROGRAMMES);
             }
-            this.coverage.set(merged);
+            this.coverage.set(checks);
+            this.coverageStatus.set(
+                this.failedCoverage.size ? 'error' : 'idle'
+            );
         });
     }
 
     private invalidate(): void {
-        this.generation += 1;
+        this.cancelProgramRequests();
+        this.rowExpiry.clear();
+        this.visibleRows.clear();
+        this.cancelCoverageRequest();
+        this.coverageStatus.set('idle');
         this.programs.set(new Map());
         this.statuses.set(
             new Map(
@@ -215,11 +426,22 @@ export class EpgGuideProgramsService {
         this.coverage.set(null);
     }
 
+    private cancelCoverageRequest(): void {
+        this.coverageRequest?.controller.abort();
+        clearTimeout(this.coverageRequest?.progress?.timer);
+        this.coverageRequest = undefined;
+        this.coverageRefresh.reset();
+        this.failedCoverage.clear();
+    }
+
+    private cancelProgramRequests(): void {
+        this.programRequests.forEach((_rows, controller) => controller.abort());
+        this.programRequests.clear();
+    }
+
     private patchStatuses(entries: Array<[string, EpgGuideRowStatus]>): void {
         const next = new Map(this.statuses());
-        for (const [id, status] of entries) {
-            next.set(id, status);
-        }
+        for (const [id, status] of entries) next.set(id, status);
         this.statuses.set(next);
     }
 }

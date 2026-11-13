@@ -1037,7 +1037,9 @@ listeners still fire, so the optional `hostElement` handler on
 above the player (e.g. the workspace's phone context drawer) owns the
 keyboard. `EmbeddedMpvShortcutHandlers` (the native-view legacy dock) and
 the radio audio player's document-level volume/mute keys apply the same
-rule.
+rule. Shared and native-view player controls also yield every shortcut while
+an ancestor carries `data-player-shortcuts-suspended`, used by the programme
+guide while the player is docked.
 
 Action-specific keys are prevented only when the active controller can handle
 them: seek requires both capability and current seekability, volume/mute

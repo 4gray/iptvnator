@@ -6,6 +6,9 @@ export interface WorkspaceHeaderAction {
     icon: string;
     tooltipKey: string;
     ariaLabelKey: string;
+    /** Portal actions belong to one routed playlist section. */
+    owner?: { provider: string; playlistId: string; section: string };
+    hidesContextPanel?: () => boolean;
     /** Pressed/highlighted state for toggling actions (e.g. the guide). */
     active?: () => boolean;
     /**

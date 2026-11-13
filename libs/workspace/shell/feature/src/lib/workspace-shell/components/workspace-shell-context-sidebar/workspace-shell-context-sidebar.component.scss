@@ -5,6 +5,10 @@
     min-height: 0;
 }
 
+:host([hidden]) {
+    display: none;
+}
+
 // Dismiss affordance for the phone drawer; the desktop sidebar is not
 // dismissable, so the whole row only exists below the breakpoint.
 .context-drawer-header {

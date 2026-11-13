@@ -155,10 +155,18 @@ Xtream and Stalker live views keep a component-owned playback queue through
 captures the actual displayed order, including search/sort and a fullscreen
 panel's own filter. Remote up/down, numeric selection and the published channel
 number use that queue while category or search browsing remains independent.
+The Xtream programme guide numbers its visible rows in the same order after
+applying its channel and EPG filters.
+In Xtream, up or down returns from an archive to the same channel's live
+stream if it is the only channel in the queue.
+When the external player stays open after its stream stops, Xtream keeps the
+last eligible channel as the tuning anchor and clears the now-playing details.
 Xtream history handoffs from global search or Recently Added capture the
 eligible destination category in the selected channel sort order; an unrelated
 previous category/query does not define that queue. Explicit All Items clicks
-still capture their displayed list. Same-channel replay and remote selection preserve it. Source/type changes and
+still capture their displayed list. An external archive launched from an
+Xtream preview uses its displayed order once playback opens. Same-channel
+replay and remote selection preserve the current queue. Source/type changes and
 view destruction discard it; ITV and radio never share an owner.
 
 Stalker captures before asynchronous URL resolution and commits only the winning
@@ -169,7 +177,8 @@ categories from eligible queue entries.
 
 A conditional **Show playing channel** icon in the channel header appears when
 the playing channel is absent from the browsed results and its category remains
-accessible. It clears `q` and the store query, returns to that category, expands
+accessible. Xtream checks the exact category copy of the playing stream.
+It clears `q` and the store query, returns to that category, expands
 the sidebar, then scrolls and focuses the playing row. It never starts playback
 or changes the playback/session/catchup identity. A collapsed sidebar first uses
 its existing restore action. Removed categories are not recreated or unhidden.

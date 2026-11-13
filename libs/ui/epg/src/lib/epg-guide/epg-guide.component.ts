@@ -31,6 +31,7 @@ import { EpgDateNavigationDirection } from '../epg-date';
 import { EpgProgrammeDialogService } from '../epg-programme-dialog.service';
 import { TimelineRenderBlock } from '../epg-timeline/epg-timeline-render.util';
 import { EpgGuideDialogController } from './epg-guide-dialog.controller';
+import { EpgGuideFocusController } from './epg-guide-focus.controller';
 import { EpgGuideKeyboardController } from './epg-guide-keyboard.controller';
 import {
     EPG_GUIDE_CHANNEL_COLUMN_PX,
@@ -41,6 +42,7 @@ import {
     EpgGuideRowStatus,
 } from './epg-guide-programs.service';
 import { EpgGuideRowComponent } from './epg-guide-row.component';
+import { createEpgGuideRowActivation } from './epg-guide-row-activation';
 import { EpgGuideSearchController } from './epg-guide-search.controller';
 import {
     EPG_GUIDE_SOURCE,
@@ -92,11 +94,19 @@ export class EpgGuideComponent implements OnDestroy {
      * host reacts through the store instead and leaves it unbound.
      */
     readonly channelActivated = output<string>();
+    private readonly rowActivation = createEpgGuideRowActivation(
+        this.source,
+        () => this.rows(),
+        (id) => this.channelActivated.emit(id),
+        () => {
+            if (!this.destroyRef.destroyed) this.close.emit();
+        }
+    );
 
     readonly viewport = viewChild<CdkVirtualScrollViewport>('viewport');
 
     /** Day, zoom, density, filters, clock and the derived day geometry. */
-    readonly view = new EpgGuideViewState();
+    readonly view = new EpgGuideViewState(!this.source.deferredCoverage);
     readonly dayKey = this.view.dayKey;
     readonly zoom = this.view.zoom;
     readonly density = this.view.density;
@@ -115,21 +125,34 @@ export class EpgGuideComponent implements OnDestroy {
     readonly scopes = this.source.scopes;
     readonly scopeId = this.source.scopeId;
     readonly activeChannelId = this.source.activeChannelId;
-    readonly coverageLoaded = this.programsService.coverageLoaded;
+    readonly coverageFilterAvailable = computed(
+        () =>
+            this.source.deferredCoverage ||
+            this.programsService.coverageLoaded()
+    );
+    readonly coverageStatus = computed(() =>
+        this.source.deferredCoverage
+            ? this.programsService.coverageStatus()
+            : 'idle'
+    );
     private readonly search = new EpgGuideSearchController(
         this.source.searchPrograms?.bind(this.source)
     );
     readonly searchEnabled = this.search.enabled;
     readonly searchQuery = this.search.query;
     readonly searchResults = this.search.results;
+    readonly searchProgress = this.search.progress;
+    readonly searchStatus = this.search.status;
     readonly searchPanelVisible = this.search.panelVisible;
-    readonly catchUpAvailable = this.source.catchUp !== undefined;
+    readonly catchUp = this.source.catchUp;
     readonly channelColumnPx = EPG_GUIDE_CHANNEL_COLUMN_PX;
 
     readonly totalCount = computed(() => this.source.channels().length);
     readonly rows = computed(() =>
-        this.view.filterRows(this.source.channels(), (channelId) =>
-            this.programsService.isCovered(channelId)
+        this.view.filterRows(
+            this.source.channels(),
+            (channelId) => this.programsService.isCovered(channelId),
+            this.source.numberByDisplayedOrder
         )
     );
     readonly activeRowIndex = computed(() => {
@@ -155,13 +178,6 @@ export class EpgGuideComponent implements OnDestroy {
     });
     readonly focus = this.keyboard.focus;
     /**
-     * The channel the roving focus sits on. `rows()` is rebuilt by the filters,
-     * by a scope switch and by coverage arriving late, so the focused index
-     * alone goes stale — Enter would then play a different channel. Recorded
-     * whenever the focus moves and reconciled whenever the rows change.
-     */
-    private focusedRowId: string | null = null;
-    /**
      * The row that carries the grid's single `tabindex="0"`: the focused one,
      * else the playing one, else the first — so Tab always reaches the grid,
      * and lands where the keyboard left off. A focus left behind by a filter
@@ -174,6 +190,7 @@ export class EpgGuideComponent implements OnDestroy {
     });
 
     private readonly viewportController = new EpgGuideViewportController({
+        guideElement: () => this.hostElement.nativeElement,
         viewport: () => this.viewport(),
         rows: () => this.rows(),
         rowHeightPx: () => this.rowHeightPx(),
@@ -185,14 +202,26 @@ export class EpgGuideComponent implements OnDestroy {
         afterRender: (callback) => this.afterNextGuideRender(callback),
     });
 
+    private readonly focusController = new EpgGuideFocusController({
+        focus: this.focus,
+        rows: this.rows,
+        blocksFor: (row) => this.blocksFor(row),
+        trackProgrammes: (id) => this.programsFor(id),
+        statusFor: (id) => this.statusFor(id),
+        restoreFocus: (focus, deferDomFocus) =>
+            this.viewportController.restoreFocus(focus, deferDomFocus),
+        focusRow: (row) => this.viewportController.focusRovingTargetOnRow(row),
+    });
+
     private readonly dialogs = new EpgGuideDialogController(
         inject(EpgProgrammeDialogService),
         {
             rows: () => this.rows(),
             offsetMinutes: () => this.offsetMinutes(),
             focusRow: (rowIndex) => this.revealRow(rowIndex),
-            activate: (channel) => this.activateRow(channel),
-            catchUp: () => this.source.catchUp,
+            activate: (channel) => this.activateRow(channel, true),
+            catchUp: () => this.catchUp,
+            isChannelVisible: this.source.isChannelVisible?.bind(this.source),
         }
     );
 
@@ -200,29 +229,35 @@ export class EpgGuideComponent implements OnDestroy {
         effect(() => {
             const axis = this.view.axis();
             const offset = this.offsetMinutes();
+            const now = this.source.programsExpireAt ? this.view.nowMs() : null;
             untracked(() => {
                 this.programsService.setWindow(
                     epgProviderClockMs(axis.startMs, offset),
                     epgProviderClockMs(axis.endMs, offset)
                 );
                 this.viewportController.loadRenderedRange();
+                if (now !== null)
+                    this.programsService.refreshExpiredCoverage(now);
             });
         });
+        effect(() => this.focusController.observeProgrammes());
         effect(() => {
-            const focused = this.focus();
-            untracked(() => {
-                this.focusedRowId = focused
-                    ? (this.rows()[focused.row]?.id ?? null)
-                    : null;
-            });
-        });
-        effect(() => {
+            this.source.revision?.();
             const rows = this.rows();
             untracked(() => {
-                this.reconcileFocus(rows);
+                this.focusController.reconcileRows(rows);
                 this.viewportController.loadRenderedRange();
             });
         });
+        if (this.source.revision) {
+            effect(() => {
+                this.source.revision?.();
+                untracked(() => {
+                    this.dialogs.checkVisibility();
+                    this.search.setQuery(this.search.query());
+                });
+            });
+        }
         effect(() => {
             const viewport = this.viewport();
             if (!viewport) {
@@ -251,6 +286,7 @@ export class EpgGuideComponent implements OnDestroy {
     }
 
     ngOnDestroy(): void {
+        this.dialogs.close();
         this.view.destroy();
         this.search.destroy();
     }
@@ -264,16 +300,15 @@ export class EpgGuideComponent implements OnDestroy {
      */
     @HostListener('document:keydown', ['$event'])
     onKeydown(event: KeyboardEvent): void {
-        if (!this.keyboard.handle(event)) {
-            return;
-        }
+        if (!this.keyboard.handle(event)) return;
         event.preventDefault();
         this.viewportController.focusRovingTargetOnRow(this.tabbableRow());
     }
 
-    trackRow(_index: number, channel: EpgGuideChannel): string {
-        return `${channel.number}:${channel.id}`;
-    }
+    readonly trackRow = (_index: number, channel: EpgGuideChannel): string =>
+        this.source.numberByDisplayedOrder
+            ? channel.id
+            : `${channel.number}:${channel.id}`;
 
     programsFor(channelId: string): readonly EpgProgram[] {
         return this.programsService.programsFor(channelId);
@@ -284,12 +319,13 @@ export class EpgGuideComponent implements OnDestroy {
     }
 
     focusedBlockFor(row: number): number | null {
-        const focused = this.focus();
-        return focused?.row === row ? focused.block : null;
+        return this.focusController.blockFor(row);
     }
 
     /** Pointer focus: the roving tabindex follows the mouse, without scrolling. */
     focusCell(row: number, block: number | null): void {
+        const focused = this.focus();
+        if (focused?.row === row && focused.block === block) return;
         this.focus.set({ row, block });
     }
 
@@ -306,12 +342,13 @@ export class EpgGuideComponent implements OnDestroy {
     setScope(scopeId: string): void {
         this.source.setScope(scopeId);
         this.focus.set(null);
-        // Search hits carry scope-local row ids, so none may outlive the scope.
-        this.search.setQuery('');
+        // Scope-local hits cannot outlive the scope that owns their row IDs.
+        if (!this.source.searchAcrossScopes) this.search.setQuery('');
     }
 
     setOnlyWithEpg(value: boolean): void {
         this.view.onlyWithEpg.set(value);
+        this.programsService.setCoverageRequested(value);
     }
 
     setDensity(value: EpgGuideDensity): void {
@@ -353,33 +390,16 @@ export class EpgGuideComponent implements OnDestroy {
         this.dialogs.watch(channel, item);
     }
 
-    /**
-     * A double-click arrives as click, click, dblclick, and the store restarts
-     * playback on every `activate`, so the row that is already playing is
-     * left alone; `commitRow` then only closes.
-     */
-    activateRow(channel: EpgGuideChannel | undefined): void {
-        if (!channel) {
-            return;
-        }
-        // The active row is left alone only while its live stream plays; in
-        // catch-up the same click is the way back to live.
-        const alreadyLive =
-            channel.id === this.activeChannelId() &&
-            (this.source.livePlayback?.() ?? true);
-        if (alreadyLive) {
-            return;
-        }
-        this.source.activate(channel.id);
-        this.channelActivated.emit(channel.id);
+    activateRow(channel: EpgGuideChannel | undefined, watchLive = false): void {
+        this.rowActivation.activate(channel, watchLive);
     }
 
-    commitRow(channel: EpgGuideChannel | undefined): void {
-        if (!channel) {
-            return;
-        }
-        this.activateRow(channel);
-        this.close.emit();
+    commitRow(channel: EpgGuideChannel | undefined, allowRetry = true): void {
+        this.rowActivation.commit(channel, allowRetry);
+    }
+
+    pointerRow(channel: EpgGuideChannel, allowRetry?: boolean): void {
+        this.rowActivation.pointer(channel, allowRetry);
     }
 
     /**
@@ -391,41 +411,13 @@ export class EpgGuideComponent implements OnDestroy {
      * at all.
      */
     private ownsTarget(target: EventTarget | null): boolean {
-        if (target === null) {
-            return true;
-        }
-        if (!(target instanceof Node)) {
-            return false;
-        }
+        if (target === null) return true;
+        if (!(target instanceof Node)) return false;
         return (
             target === document.body ||
             target === document.documentElement ||
             this.hostElement.nativeElement.contains(target)
         );
-    }
-
-    /**
-     * Keep the roving focus on the channel it was put on rather than on a row
-     * number the list has moved under it, and drop it when that channel is no
-     * longer shown — `tabbableRow` then falls back to the playing row. A focus
-     * that follows its channel loses its block: the list changed underneath, so
-     * the programmes behind that index may have moved with it, and the row is
-     * what Enter acts on.
-     */
-    private reconcileFocus(rows: readonly EpgGuideChannel[]): void {
-        const focused = this.focus();
-        const channelId = this.focusedRowId;
-        if (!focused || channelId === null) {
-            return;
-        }
-        const row = rows.findIndex((channel) => channel.id === channelId);
-        if (row < 0) {
-            this.focus.set(null);
-            return;
-        }
-        if (row !== focused.row) {
-            this.focus.set({ row, block: null });
-        }
     }
 
     private revealRow(rowIndex: number): void {
@@ -435,11 +427,12 @@ export class EpgGuideComponent implements OnDestroy {
 
     private blocksFor(row: number): TimelineRenderBlock[] {
         const channel = this.rows()[row];
+        const catchUp = this.catchUp;
         return channel
             ? this.view.blocksFor(
                   this.programsService.programsFor(channel.id),
                   this.offsetMinutes(),
-                  this.catchUpAvailable
+                  catchUp && ((program) => catchUp.canWatch(channel, program))
               )
             : [];
     }

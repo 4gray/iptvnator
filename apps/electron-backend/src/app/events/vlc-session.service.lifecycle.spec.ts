@@ -1,6 +1,6 @@
 /**
- * Instance reuse, process exit, and spawn-error coverage for the VLC session
- * service. Pure helpers and launch-argument construction live in
+ * Instance reuse and process exit coverage for the VLC session
+ * service. Launch arguments and spawn errors live in
  * `vlc-session.service.spec.ts`.
  */
 jest.mock('electron', () => ({
@@ -45,7 +45,11 @@ import {
 } from '../services/store.service';
 import { externalPlayerSessions } from './external-player-runtime';
 import { externalPlayerProcessTeardownGate } from './external-player-process';
-import { openVlcPlayer, shutdownVlcSession } from './vlc-session.service';
+import {
+    openVlcPlayer,
+    setVlcReuseInstance,
+    shutdownVlcSession,
+} from './vlc-session.service';
 
 const originalPlatform = process.platform;
 const spawnMock = spawn as unknown as jest.Mock;
@@ -81,13 +85,25 @@ function mockStoreValues(values: Record<string, unknown>): void {
     );
 }
 
-function installRcSocketMock(behavior: 'ack' | 'error'): void {
+function installRcSocketMock(
+    behavior: 'ack' | 'error',
+    playbackState?: 'playing' | 'stopped'
+): void {
     (createConnection as unknown as jest.Mock).mockImplementation(() => {
         const socket = Object.assign(new EventEmitter(), {
             destroyed: false,
             write: jest.fn((data: string) => {
                 rcWrites.push(data);
-                setImmediate(() => socket.emit('data', Buffer.from('> ')));
+                setImmediate(() => {
+                    socket.emit('data', Buffer.from('> '));
+                    if (data === 'status\n' && playbackState)
+                        setImmediate(() =>
+                            socket.emit(
+                                'data',
+                                Buffer.from(`( state ${playbackState} )\n> `)
+                            )
+                        );
+                });
                 return true;
             }),
             destroy: jest.fn(() => {
@@ -148,24 +164,100 @@ describe('vlc-session.service process lifecycle', () => {
             });
         });
 
-        it('reuses the tracked VLC instance through RC commands', async () => {
+        it('reports stopped and resumed VLC playback after the RC greeting', async () => {
+            jest.useFakeTimers({ doNotFake: ['setImmediate'] });
+            const proc = createMockChildProcess();
+            try {
+                await openTrackedVlcInstance(proc);
+                const id =
+                    externalPlayerSessions.getActiveSessionId() as string;
+                for (const state of ['stopped', 'playing'] as const) {
+                    installRcSocketMock('ack', state);
+                    await jest.advanceTimersByTimeAsync(2_000);
+                    await new Promise<void>((done) =>
+                        setImmediate(() => setImmediate(done))
+                    );
+                    expect(externalPlayerSessions.getSession(id)).toMatchObject(
+                        {
+                            status: 'opened',
+                            playbackIdle: state === 'stopped',
+                            canClose: true,
+                        }
+                    );
+                }
+            } finally {
+                Object.defineProperty(proc, 'exitCode', { value: 0 });
+                proc.emit('exit', 0);
+                jest.useRealTimers();
+            }
+        });
+
+        it.each([false, true])(
+            'reuses the tracked VLC instance through RC commands (overlap: %s)',
+            async (overlap) => {
+                const proc = createMockChildProcess();
+                await openTrackedVlcInstance(proc);
+                installRcSocketMock('ack');
+
+                const earlier = overlap
+                    ? openVlcPlayer({ title: 'Earlier', url: streamUrl })
+                    : undefined;
+                const session = await openVlcPlayer({
+                    title: 'Second',
+                    url: 'https://example.com/two.m3u8',
+                    referer: 'https://ref.example',
+                });
+
+                expect(spawnMock).toHaveBeenCalledTimes(1);
+                expect(rcWrites).toEqual([
+                    ...(overlap ? ['clear\n'] : []),
+                    'clear\n',
+                    'add https://example.com/two.m3u8 :start-time=0 ' +
+                        ':http-referrer=https://ref.example :meta-title=Second\n',
+                ]);
+                expect(session.status).toBe('opened');
+                if (earlier) expect((await earlier).status).toBe('closed');
+            }
+        );
+
+        it('keeps the previous process owner when exact cancellation precedes clear', async () => {
+            const proc = createMockChildProcess();
+            await openTrackedVlcInstance(proc);
+            const previous = externalPlayerSessions.getActiveSessionId();
+            installRcSocketMock('ack');
+            const opening = openVlcPlayer({
+                title: 'Synthetic Replacement',
+                url: 'https://example.test/replacement.m3u8',
+            });
+            const id = externalPlayerSessions.getActiveSessionId() as string;
+
+            const closed = { id, status: 'closed' };
+            const result = await externalPlayerSessions.closeSession(id, true);
+            expect(result).toMatchObject(closed);
+            await expect(opening).resolves.toMatchObject(closed);
+            expect(externalPlayerSessions.getActiveSessionId()).toBe(previous);
+            expect(rcWrites).toEqual([]);
+            expect(proc.kill).not.toHaveBeenCalled();
+        });
+
+        it('reports exit code 1 on the reused session without retrying its original launch', async () => {
+            Object.defineProperty(process, 'platform', { value: 'win32' });
             const proc = createMockChildProcess();
             await openTrackedVlcInstance(proc);
             installRcSocketMock('ack');
-
-            const session = await openVlcPlayer({
-                title: 'Second',
-                url: 'https://example.com/two.m3u8',
-                referer: 'https://ref.example',
+            const replacement = await openVlcPlayer({
+                title: 'Synthetic Replacement',
+                url: 'https://example.test/replacement.m3u8',
             });
-
+            Object.defineProperty(proc, 'exitCode', { value: 1 });
+            proc.emit('exit', 1);
+            expect(
+                externalPlayerSessions.getSession(replacement.id)
+            ).toMatchObject({
+                status: 'error',
+                errorCode: 'closed-unexpectedly',
+            });
             expect(spawnMock).toHaveBeenCalledTimes(1);
-            expect(rcWrites).toEqual([
-                'clear\n',
-                'add https://example.com/two.m3u8 :start-time=0 ' +
-                    ':http-referrer=https://ref.example :meta-title=Second\n',
-            ]);
-            expect(session.status).toBe('opened');
         });
 
         it('quits a reused VLC process and waits for its exact exit on close', async () => {
@@ -199,50 +291,74 @@ describe('vlc-session.service process lifecycle', () => {
             });
         });
 
-        it('guards reused VLC teardown while its protocol quit is pending', async () => {
+        it.each([false, true])(
+            'blocks a pending reuse command while a player is stopping (unrelated: %s)',
+            async (unrelated) => {
+                const proc = createMockChildProcess();
+                await openTrackedVlcInstance(proc);
+                installRcSocketMock('ack');
+                const session = await openVlcPlayer({
+                    title: 'Synthetic Current',
+                    url: 'https://example.test/current.m3u8',
+                });
+                rcWrites.length = 0;
+                const opening = openVlcPlayer({
+                    title: 'Synthetic Replacement',
+                    url: 'https://example.test/replacement.m3u8',
+                });
+                const rejected = expect(opening).rejects.toThrow(
+                    'previous external player is still shutting down'
+                );
+                const target = unrelated ? createMockChildProcess() : proc;
+                if (unrelated)
+                    externalPlayerProcessTeardownGate.beginTeardown(target);
+                const closing = unrelated
+                    ? undefined
+                    : externalPlayerSessions.closeSession(session.id, true);
+
+                try {
+                    await rejected;
+                    await new Promise<void>((resolve) => setImmediate(resolve));
+                    expect(rcWrites).toEqual(unrelated ? [] : ['quit\n']);
+                    if (unrelated)
+                        expect(
+                            externalPlayerSessions.getActiveSessionId()
+                        ).toBe(session.id);
+                    expect(() =>
+                        externalPlayerProcessTeardownGate.assertLaunchAllowed()
+                    ).toThrow(
+                        'previous external player is still shutting down'
+                    );
+                } finally {
+                    Object.defineProperty(target, 'exitCode', { value: 0 });
+                    target.emit('exit', 0);
+                    await closing;
+                }
+            }
+        );
+
+        it('cancels pending VLC reuse when reuse is disabled and waits for exit', async () => {
             const proc = createMockChildProcess();
             await openTrackedVlcInstance(proc);
-            const sockets: EventEmitter[] = [];
-            (createConnection as unknown as jest.Mock).mockImplementation(
-                () => {
-                    const socket = Object.assign(new EventEmitter(), {
-                        destroyed: false,
-                        write: jest.fn((data: string) => {
-                            if (data !== 'quit\n') {
-                                setImmediate(() =>
-                                    socket.emit('data', Buffer.from('> '))
-                                );
-                            }
-                            return true;
-                        }),
-                        destroy: jest.fn(() => {
-                            socket.destroyed = true;
-                        }),
-                    });
-                    sockets.push(socket);
-                    setImmediate(() => socket.emit('connect'));
-                    return socket;
-                }
-            );
-            const session = await openVlcPlayer({
-                title: 'Second',
-                url: 'https://example.com/two.m3u8',
+            installRcSocketMock('ack');
+            const opening = openVlcPlayer({
+                title: 'Synthetic Replacement',
+                url: streamUrl,
             });
-            const closing = externalPlayerSessions.closeSession(session.id);
-
-            try {
-                expect(() =>
-                    externalPlayerProcessTeardownGate.assertLaunchAllowed()
-                ).toThrow('previous external player is still shutting down');
-            } finally {
-                while (sockets.length === 0) {
-                    await Promise.resolve();
-                }
-                Object.defineProperty(proc, 'exitCode', { value: 0 });
-                sockets.at(-1)?.emit('data', Buffer.from('> '));
-                proc.emit('exit', 0);
-                await closing;
-            }
+            const id = externalPlayerSessions.getActiveSessionId() as string;
+            setVlcReuseInstance(false);
+            await new Promise<void>((done) => setImmediate(done));
+            expect(externalPlayerSessions.getSession(id)?.status).toBe(
+                'launching'
+            );
+            expect(rcWrites).toEqual([]);
+            Object.defineProperty(proc, 'exitCode', { value: 0 });
+            proc.emit('exit', 0);
+            await expect(opening).resolves.toMatchObject({
+                id,
+                status: 'closed',
+            });
+            expect(spawnMock).toHaveBeenCalledTimes(1);
         });
 
         it('guards a VLC content session while Stop flushes its position', async () => {
@@ -457,36 +573,7 @@ describe('vlc-session.service process lifecycle', () => {
                 });
                 return true;
             });
-            let releaseClose: (() => void) | undefined;
-            (createConnection as unknown as jest.Mock)
-                .mockImplementationOnce(() => {
-                    const socket = Object.assign(new EventEmitter(), {
-                        destroyed: false,
-                        write: jest.fn(),
-                        destroy: jest.fn(() => {
-                            socket.destroyed = true;
-                        }),
-                    });
-                    setImmediate(() =>
-                        socket.emit('error', new Error('rc connect failed'))
-                    );
-                    return socket;
-                })
-                .mockImplementationOnce(() => {
-                    const socket = Object.assign(new EventEmitter(), {
-                        destroyed: false,
-                        write: jest.fn((data: string) => {
-                            rcWrites.push(data);
-                            return true;
-                        }),
-                        destroy: jest.fn(() => {
-                            socket.destroyed = true;
-                        }),
-                    });
-                    releaseClose = () => socket.emit('data', Buffer.from('> '));
-                    setImmediate(() => socket.emit('connect'));
-                    return socket;
-                });
+            installRcSocketMock('error');
             let releasePort: (() => void) | undefined;
             (createServer as unknown as jest.Mock).mockImplementationOnce(
                 () => ({
@@ -512,22 +599,12 @@ describe('vlc-session.service process lifecycle', () => {
             }
             expect(releasePort).toBeDefined();
 
-            const closing = externalPlayerSessions.closeSession(replacementId);
-            for (let attempt = 0; attempt < 20 && !releaseClose; attempt += 1) {
-                await new Promise<void>((resolve) => setImmediate(resolve));
-            }
-            expect(releaseClose).toBeDefined();
-
-            // Resume the pending launch while Stop is still awaiting the old
-            // reuse closer. It must observe that cancellation instead of
-            // attaching a fresh child to the same session.
+            await expect(
+                externalPlayerSessions.closeSession(replacementId)
+            ).resolves.toMatchObject({ status: 'closed' });
+            expect(rcWrites).toEqual([]);
             releasePort?.();
-            await new Promise<void>((resolve) => setImmediate(resolve));
-            expect(spawnMock).toHaveBeenCalledTimes(1);
 
-            releaseClose?.();
-
-            await expect(closing).resolves.toMatchObject({ status: 'closed' });
             await expect(opening).resolves.toMatchObject({
                 id: replacementId,
                 status: 'closed',
@@ -535,31 +612,33 @@ describe('vlc-session.service process lifecycle', () => {
             expect(spawnMock).toHaveBeenCalledTimes(1);
         });
 
-        it('kills the stale instance and spawns fresh when RC reuse fails', async () => {
-            const proc = createMockChildProcess();
-            await openTrackedVlcInstance(proc);
-            installRcSocketMock('error');
+        it.each([false, true])(
+            'spawns fresh when RC reuse fails (already exited: %s)',
+            async (exited) => {
+                const proc = createMockChildProcess();
+                await openTrackedVlcInstance(proc);
+                installRcSocketMock('error');
 
-            const freshProc = createMockChildProcess();
-            spawnMock.mockReturnValueOnce(freshProc);
-            const openPromise = openVlcPlayer({
-                title: 'Second',
-                url: 'https://example.com/two.m3u8',
-            });
-            await new Promise<void>((resolve) => setImmediate(resolve));
+                const freshProc = createMockChildProcess();
+                spawnMock.mockReturnValueOnce(freshProc);
+                const openPromise = openVlcPlayer({
+                    title: 'Second',
+                    url: 'https://example.com/two.m3u8',
+                });
+                if (!exited)
+                    await new Promise<void>((done) => setImmediate(done));
+                expect(proc.kill).toHaveBeenCalledTimes(exited ? 0 : 1);
 
-            expect(proc.kill).toHaveBeenCalledTimes(1);
-            expect(spawnMock).toHaveBeenCalledTimes(1);
-
-            Object.defineProperty(proc, 'exitCode', { value: 0 });
-            proc.emit('exit', 0);
-            await waitForSpawnCallCount(2);
-            freshProc.emit('spawn');
-            const session = await openPromise;
-
-            expect(spawnMock).toHaveBeenCalledTimes(2);
-            expect(session.status).toBe('opened');
-        });
+                Object.defineProperty(proc, 'exitCode', { value: 0 });
+                proc.emit('exit', 0);
+                await waitForSpawnCallCount(2);
+                freshProc.emit('spawn');
+                await expect(openPromise).resolves.toMatchObject({
+                    status: 'opened',
+                });
+                expect(spawnMock).toHaveBeenCalledTimes(2);
+            }
+        );
 
         it('keeps the fallback VLC session live after partial reuse failure', async () => {
             const reusedProc = createMockChildProcess();
@@ -1236,50 +1315,6 @@ describe('vlc-session.service process lifecycle', () => {
                 stdio: 'ignore',
             });
             expect(retryProc.unref).toHaveBeenCalled();
-        });
-    });
-
-    describe('spawn error handling', () => {
-        it('rejects with an actionable error when VLC fails to start', async () => {
-            const proc = createMockChildProcess();
-            spawnMock.mockReturnValueOnce(proc);
-            const openPromise = openVlcPlayer({ title: 'S', url: streamUrl });
-            const sessionId = externalPlayerSessions.getActiveSessionId();
-            await waitForSpawnCallCount(1);
-
-            proc.emit('error', new Error('boom'));
-
-            await expect(openPromise).rejects.toThrow(
-                "Failed to start VLC player: boom. Make sure VLC is installed and the path '/usr/bin/vlc' is correct."
-            );
-            expect(
-                externalPlayerSessions.getSession(sessionId as string)?.status
-            ).toBe('error');
-        });
-
-        it('retries without the RC interface after a start error', async () => {
-            Object.defineProperty(process, 'platform', { value: 'win32' });
-            mockStoreValues({
-                [VLC_PLAYER_PATH]: '/usr/bin/vlc',
-                [VLC_REUSE_INSTANCE]: true,
-            });
-            const proc = createMockChildProcess();
-            const retryProc = createMockChildProcess();
-            spawnMock.mockReturnValueOnce(proc).mockReturnValueOnce(retryProc);
-
-            const openPromise = openVlcPlayer({ title: 'S', url: streamUrl });
-            await waitForSpawnCallCount(1);
-            expect(spawnMock.mock.calls[0][1]).toContain('--rc-quiet');
-            proc.emit('error', new Error('rc unsupported'));
-            await waitForSpawnCallCount(2);
-
-            const retryArgs = spawnMock.mock.calls[1][1] as string[];
-            expect(retryArgs.join(' ')).not.toContain('--extraintf');
-            expect(retryArgs.join(' ')).not.toContain('--rc-host');
-            expect(retryArgs).not.toContain('--rc-quiet');
-            retryProc.emit('spawn');
-            const session = await openPromise;
-            expect(session.status).toBe('opened');
         });
     });
 });

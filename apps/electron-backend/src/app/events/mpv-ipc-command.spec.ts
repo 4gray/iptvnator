@@ -2,17 +2,26 @@ jest.mock('net', () => ({
     createConnection: jest.fn(),
 }));
 
-jest.mock('./external-player-runtime', () => ({
-    traceExternalPlayer: jest.fn(),
-}));
+jest.mock('./external-player-runtime', () => {
+    const { ExternalPlayerSessionRegistry } = jest.requireActual(
+        './external-player-session-registry'
+    );
+    return {
+        traceExternalPlayer: jest.fn(),
+        externalPlayerSessions: new ExternalPlayerSessionRegistry(jest.fn()),
+    };
+});
 
 import { EventEmitter } from 'events';
 import { createConnection } from 'net';
+import { externalPlayerSessions } from './external-player-runtime';
+import { externalPlayerProcessTeardownGate } from './external-player-process';
 import {
     MPV_IPC_COMMAND_TIMEOUT_MS,
     MpvIpcCommandError,
     sendMpvCommand,
 } from './mpv-ipc-command';
+import { loadFreshMpvGuideMedia, markMpvOpened } from './mpv-ipc-playback';
 
 type SocketMock = EventEmitter & {
     write: jest.Mock;
@@ -69,6 +78,145 @@ describe('sendMpvCommand', () => {
         jest.useRealTimers();
     });
 
+    it('opens a socketless guide launch without confirming media', () => {
+        const session = externalPlayerSessions.beginSession({
+            player: 'mpv',
+            launchId: 'synthetic-guide-launch',
+            title: 'Synthetic Channel',
+            streamUrl: 'https://example.test/synthetic.ts',
+        });
+        expect(
+            markMpvOpened(session.id, null, undefined, {
+                confirmFreshMedia: true,
+            })
+        ).toMatchObject({
+            status: 'opened',
+            reuseAvailable: false,
+            mediaLoaded: false,
+            playbackUnverified: true,
+            mediaObservationUnavailable: true,
+        });
+        expect(createConnectionMock).not.toHaveBeenCalled();
+    });
+
+    it.each(['redirect', 'timeout'] as const)(
+        'follows only the fresh loadfile entry (%s)',
+        async (outcome) => {
+            jest.useFakeTimers();
+            const session = externalPlayerSessions.beginSession({
+                player: 'mpv',
+                title: 'Synthetic Channel',
+                streamUrl,
+            });
+            externalPlayerSessions.markOpened(session.id);
+            externalPlayerSessions.updateSession(session.id, {
+                mediaLoaded: false,
+            });
+            const starting = nextSocket();
+            const socket = nextSocket();
+            const opening = loadFreshMpvGuideMedia(
+                session.id,
+                socketPath,
+                streamUrl,
+                () => true,
+                new AbortController().signal
+            );
+            starting.emit('error', new Error('connect ENOENT'));
+            await jest.advanceTimersByTimeAsync(50);
+            expect(starting.write).not.toHaveBeenCalled();
+            socket.emit('connect');
+            const { command, request_id } = writtenRequest(socket);
+            expect(command).toEqual(['loadfile', streamUrl, 'replace']);
+            reply(socket, {
+                request_id,
+                error: 'success',
+                data: { playlist_entry_id: 2 },
+            });
+            await opening;
+            reply(
+                socket,
+                { event: 'start-file', playlist_entry_id: 20 },
+                { event: 'file-loaded' }
+            );
+            expect(
+                externalPlayerSessions.getSession(session.id)?.mediaLoaded
+            ).toBe(false);
+            if (outcome === 'redirect') {
+                reply(
+                    socket,
+                    {
+                        event: 'end-file',
+                        reason: 'redirect',
+                        playlist_entry_id: 2,
+                        playlist_insert_id: 3,
+                        playlist_insert_num_entries: 1,
+                    },
+                    { event: 'start-file', playlist_entry_id: 3 },
+                    { event: 'file-loaded' }
+                );
+                expect(
+                    externalPlayerSessions.getSession(session.id)?.mediaLoaded
+                ).toBe(true);
+                reply(
+                    socket,
+                    { event: 'start-file', playlist_entry_id: 20 },
+                    { event: 'file-loaded' }
+                );
+                expect(
+                    externalPlayerSessions.getSession(session.id)
+                ).toMatchObject({
+                    mediaLoaded: false,
+                    playbackUnverified: true,
+                });
+            } else {
+                await jest.advanceTimersByTimeAsync(30_000);
+                expect(
+                    externalPlayerSessions.getSession(session.id)
+                ).toMatchObject({
+                    mediaLoaded: false,
+                    playbackUnverified: true,
+                });
+            }
+            externalPlayerSessions.markClosed(session.id);
+        }
+    );
+
+    it('reports that the fresh MPV write was vetoed by teardown', async () => {
+        const session = externalPlayerSessions.beginSession({
+            player: 'mpv',
+            title: 'Synthetic Channel',
+            streamUrl,
+        });
+        const socket = nextSocket();
+        const gate = jest
+            .spyOn(externalPlayerProcessTeardownGate, 'assertLaunchAllowed')
+            .mockImplementationOnce(() => {
+                throw new Error('Synthetic player still stopping');
+            });
+        try {
+            const opening = loadFreshMpvGuideMedia(
+                session.id,
+                socketPath,
+                streamUrl,
+                () => true,
+                new AbortController().signal
+            );
+            socket.emit('connect');
+            await expect(opening).resolves.toBe(false);
+            expect(socket.write).not.toHaveBeenCalled();
+            expect(externalPlayerSessions.getSession(session.id)).toMatchObject(
+                {
+                    status: 'error',
+                    errorCode: 'previous-closing',
+                    canClose: true,
+                }
+            );
+        } finally {
+            gate.mockRestore();
+            externalPlayerSessions.markClosed(session.id);
+        }
+    });
+
     it('sends a request_id and resolves with the matching reply', async () => {
         const socket = nextSocket();
         const pending = sendMpvCommand(socketPath, 'loadfile', [
@@ -101,6 +249,212 @@ describe('sendMpvCommand', () => {
             data: { playlist_entry_id: 1 },
         });
         expect(socket.destroy).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([true, false])(
+        'observes media for the acknowledged playlist entry (%s)',
+        async (loaded) => {
+            const socket = nextSocket();
+            const controller = new AbortController();
+            const onOutcome = jest.fn();
+            const pending = sendMpvCommand(
+                socketPath,
+                'loadfile',
+                [streamUrl],
+                {
+                    media: { signal: controller.signal, onOutcome },
+                }
+            );
+            socket.emit('connect');
+            reply(socket, {
+                request_id: writtenRequest(socket).request_id,
+                error: 'success',
+                data: { playlist_entry_id: 2 },
+            });
+            await expect(pending).resolves.toMatchObject({ error: 'success' });
+            expect(onOutcome).not.toHaveBeenCalled();
+            expect(socket.destroyed).toBe(false);
+
+            reply(
+                socket,
+                { event: 'start-file', playlist_entry_id: 1 },
+                { event: 'file-loaded' }
+            );
+            expect(onOutcome).not.toHaveBeenCalled();
+            reply(
+                socket,
+                { event: 'start-file', playlist_entry_id: 2 },
+                loaded
+                    ? { event: 'file-loaded' }
+                    : {
+                          event: 'end-file',
+                          reason: 'error',
+                          playlist_entry_id: 2,
+                      }
+            );
+            expect(onOutcome).toHaveBeenCalledTimes(1);
+            expect(onOutcome).toHaveBeenCalledWith(loaded);
+            if (loaded) {
+                reply(socket, {
+                    event: 'end-file',
+                    reason: 'stop',
+                    playlist_entry_id: 2,
+                });
+                expect(onOutcome).toHaveBeenLastCalledWith(false);
+            }
+            expect(socket.destroyed).toBe(false);
+            reply(
+                socket,
+                { event: 'start-file', playlist_entry_id: 2 },
+                { event: 'file-loaded' }
+            );
+            expect(onOutcome).toHaveBeenLastCalledWith(true);
+            controller.abort();
+            expect(socket.destroyed).toBe(true);
+        }
+    );
+
+    it('releases an acknowledged media observer when superseded', async () => {
+        const socket = nextSocket();
+        const controller = new AbortController();
+        const onOutcome = jest.fn();
+        const pending = sendMpvCommand(socketPath, 'loadfile', [streamUrl], {
+            media: { signal: controller.signal, onOutcome },
+        });
+        socket.emit('connect');
+        reply(socket, {
+            request_id: writtenRequest(socket).request_id,
+            error: 'success',
+            data: { playlist_entry_id: 2 },
+        });
+        await pending;
+        controller.abort();
+        reply(
+            socket,
+            { event: 'start-file', playlist_entry_id: 2 },
+            { event: 'file-loaded' }
+        );
+        expect(onOutcome).not.toHaveBeenCalled();
+        expect(socket.destroyed).toBe(true);
+    });
+
+    it('follows a matching redirect and ignores media outside its inserted entries', async () => {
+        const socket = nextSocket();
+        const onOutcome = jest.fn();
+        const pending = sendMpvCommand(socketPath, 'loadfile', [streamUrl], {
+            media: { signal: new AbortController().signal, onOutcome },
+        });
+        socket.emit('connect');
+        reply(
+            socket,
+            { event: 'start-file', playlist_entry_id: 2 },
+            {
+                event: 'end-file',
+                reason: 'redirect',
+                playlist_entry_id: 2,
+                playlist_insert_id: 3,
+                playlist_insert_num_entries: 2,
+            },
+            { event: 'start-file', playlist_entry_id: 20 },
+            { event: 'file-loaded' }
+        );
+        reply(socket, {
+            request_id: writtenRequest(socket).request_id,
+            error: 'success',
+            data: { playlist_entry_id: 2 },
+        });
+        await pending;
+        expect(onOutcome).not.toHaveBeenCalled();
+        reply(
+            socket,
+            { event: 'start-file', playlist_entry_id: 4 },
+            { event: 'file-loaded' }
+        );
+        expect(onOutcome).toHaveBeenCalledWith(true);
+    });
+
+    it.each([true, false])(
+        'observes outer siblings after a nested redirect (%s)',
+        async (loaded) => {
+            const socket = nextSocket();
+            const onOutcome = jest.fn();
+            const pending = sendMpvCommand(
+                socketPath,
+                'loadfile',
+                [streamUrl],
+                {
+                    media: { signal: new AbortController().signal, onOutcome },
+                }
+            );
+            socket.emit('connect');
+            reply(socket, {
+                request_id: writtenRequest(socket).request_id,
+                error: 'success',
+                data: { playlist_entry_id: 2 },
+            });
+            await pending;
+            reply(
+                socket,
+                {
+                    event: 'end-file',
+                    reason: 'redirect',
+                    playlist_entry_id: 2,
+                    playlist_insert_id: 3,
+                    playlist_insert_num_entries: 2,
+                },
+                {
+                    event: 'end-file',
+                    reason: 'redirect',
+                    playlist_entry_id: 3,
+                    playlist_insert_id: 5,
+                    playlist_insert_num_entries: 1,
+                },
+                { event: 'end-file', reason: 'error', playlist_entry_id: 5 }
+            );
+            expect(onOutcome).not.toHaveBeenCalled();
+            reply(
+                socket,
+                { event: 'start-file', playlist_entry_id: 4 },
+                loaded
+                    ? { event: 'file-loaded' }
+                    : {
+                          event: 'end-file',
+                          reason: 'error',
+                          playlist_entry_id: 4,
+                      }
+            );
+            expect(onOutcome).toHaveBeenCalledTimes(1);
+            expect(onOutcome).toHaveBeenCalledWith(loaded);
+        }
+    );
+
+    it('reports a readiness timeout and still confirms the same slow MPV entry', async () => {
+        jest.useFakeTimers();
+        const socket = nextSocket();
+        const controller = new AbortController();
+        const onOutcome = jest.fn();
+        const pending = sendMpvCommand(socketPath, 'loadfile', [streamUrl], {
+            media: { signal: controller.signal, onOutcome },
+        });
+        socket.emit('connect');
+        reply(socket, {
+            request_id: writtenRequest(socket).request_id,
+            error: 'success',
+            data: { playlist_entry_id: 2 },
+        });
+        await pending;
+        await jest.runOnlyPendingTimersAsync();
+        expect(onOutcome).toHaveBeenCalledTimes(1);
+        expect(onOutcome).toHaveBeenCalledWith(undefined);
+        expect(socket.destroyed).toBe(false);
+        reply(
+            socket,
+            { event: 'start-file', playlist_entry_id: 2 },
+            { event: 'file-loaded' }
+        );
+        expect(onOutcome).toHaveBeenLastCalledWith(true);
+        controller.abort();
+        expect(socket.destroyed).toBe(true);
     });
 
     it('gives consecutive commands distinct request ids', async () => {

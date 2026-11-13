@@ -12,7 +12,10 @@ import {
 } from '@iptvnator/services';
 
 type ElectronEpgBridge = {
-    getChannelPrograms?: (channelId: string) => Promise<EpgProgram[]>;
+    getChannelPrograms?: (
+        channelId: string,
+        options: { rejectOnError: boolean }
+    ) => Promise<EpgProgram[]>;
     getCurrentProgramsBatch?: (
         channelIds: string[],
         options?: { nowMs?: number }
@@ -58,14 +61,11 @@ export class XtreamXmltvFallbackService {
         const fn = this.bridge?.getChannelPrograms;
         if (typeof fn !== 'function') return [];
 
-        try {
-            const programs = await fn.call(this.bridge, id);
-            if (revision !== this.sources.revision()) return [];
-            return (programs ?? []).map((p) => mapEpgProgramToEpgItem(p, id));
-        } catch (error) {
-            this.logger.error(`Failed to load XMLTV programs for ${id}`, error);
-            return [];
-        }
+        const programs = await fn.call(this.bridge, id, {
+            rejectOnError: true,
+        });
+        if (revision !== this.sources.revision()) return [];
+        return programs.map((p) => mapEpgProgramToEpgItem(p, id));
     }
 
     async getCurrentProgramsBatch(
@@ -123,18 +123,31 @@ export class XtreamXmltvFallbackService {
         epgChannelId: string | null | undefined;
         preferUploaded: boolean;
         fetchProvider: () => Promise<EpgItem[]>;
+        signal?: AbortSignal;
     }): Promise<EpgItem[]> {
+        args.signal?.throwIfAborted();
         const id = (args.epgChannelId ?? '').trim();
 
-        if (args.preferUploaded && id) {
-            const xmltv = await this.getProgramsForChannel(id);
-            if (xmltv.length > 0) return xmltv;
-            return args.fetchProvider();
-        }
+        if (!id) return args.fetchProvider();
+        const readXmltv = () => {
+            args.signal?.throwIfAborted();
+            return this.getProgramsForChannel(id);
+        };
 
-        const provider = await args.fetchProvider();
-        if (provider.length > 0 || !id) return provider;
-        return this.getProgramsForChannel(id);
+        const primary = args.preferUploaded ? readXmltv : args.fetchProvider;
+        const fallback = args.preferUploaded ? args.fetchProvider : readXmltv;
+
+        try {
+            const programs = await primary();
+            if (programs.length) return programs;
+        } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError')
+                throw error;
+            const programs = await fallback();
+            if (!programs.length) throw error;
+            return programs;
+        }
+        return fallback();
     }
 }
 

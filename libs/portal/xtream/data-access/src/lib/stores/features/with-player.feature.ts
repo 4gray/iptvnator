@@ -12,6 +12,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { XtreamCredentials } from '../../services/xtream-api.service';
 import { XtreamUrlService } from '../../services/xtream-url.service';
+import type { XtreamGuideEpgRead } from './with-epg.feature';
 
 /**
  * Player state for managing stream URLs and player settings
@@ -42,7 +43,7 @@ type XtreamPlaylistHeadersLike = XtreamCredentials & {
 
 type ParentPlayerStoreLike = {
     currentPlaylist?: () => XtreamPlaylistHeadersLike | null;
-    loadEpg?: () => void;
+    loadEpg?: (readGuide?: XtreamGuideEpgRead) => void;
     selectedContentType?: () => 'live' | 'vod' | 'series' | undefined;
     setSelectedItem?: (item: XtreamPlayableItem) => void;
 };
@@ -95,7 +96,11 @@ export function withPlayer() {
                 /**
                  * Construct and return live stream URL
                  */
-                constructStreamUrl(item: XtreamPlayableItem): string {
+                constructStreamUrl(
+                    item: XtreamPlayableItem,
+                    readGuide?: XtreamGuideEpgRead,
+                    select = true
+                ): string {
                     const credentials = getCredentialsFromStore();
                     if (!credentials) {
                         return '';
@@ -105,6 +110,7 @@ export function withPlayer() {
                         credentials,
                         item.xtream_id
                     );
+                    if (!select) return streamUrl;
 
                     // Set selected item in parent store and load EPG
                     const storeAny = store as ParentPlayerStoreLike;
@@ -112,7 +118,7 @@ export function withPlayer() {
                         storeAny.setSelectedItem(item);
                     }
                     if (storeAny.loadEpg) {
-                        storeAny.loadEpg();
+                        storeAny.loadEpg(readGuide);
                     }
 
                     patchState(store, { streamUrl });
@@ -161,14 +167,15 @@ export function withPlayer() {
                     title: string,
                     thumbnail: string | null = null,
                     startTime?: number,
-                    contentInfo?: unknown
-                ): void {
+                    contentInfo?: unknown,
+                    launchId?: string
+                ) {
                     const playlist = getPlaylistFromStore();
                     const storeAny = store as ParentPlayerStoreLike;
                     const contentType =
                         storeAny.selectedContentType?.() || 'vod';
 
-                    void playerService.openPlayer(
+                    return playerService.openPlayer(
                         streamUrl,
                         title,
                         thumbnail,
@@ -179,7 +186,9 @@ export function withPlayer() {
                         playlist?.referrer,
                         playlist?.origin,
                         contentInfo,
-                        startTime
+                        startTime,
+                        undefined,
+                        launchId
                     );
                 },
 

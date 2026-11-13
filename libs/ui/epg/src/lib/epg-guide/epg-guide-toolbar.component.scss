@@ -274,3 +274,13 @@
     color: $text-tertiary;
     white-space: nowrap;
 }
+
+@media (max-height: 400px) {
+    .guide-toolbar {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+    }
+    .guide-toolbar__input--search {
+        flex-basis: 160px;
+    }
+}

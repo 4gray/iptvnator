@@ -22,6 +22,7 @@ const ACTIVE_ROW_MARGIN = 3;
 const INITIAL_LOAD_ROWS = 30;
 
 export interface EpgGuideViewportHost {
+    guideElement(): HTMLElement;
     viewport(): CdkVirtualScrollViewport | undefined;
     rows(): readonly EpgGuideChannel[];
     rowHeightPx(): number;
@@ -164,18 +165,32 @@ export class EpgGuideViewportController {
      */
     focusRovingTarget(): void {
         const element = this.host.viewport()?.elementRef.nativeElement;
-        const active = document.activeElement;
-        // Only a focus inside the grid, or one already lost to the page, is
-        // moved: a deferred call must not take it from a control used since.
-        if (active && active !== document.body && !element?.contains(active)) {
-            return;
-        }
-        const target = element?.querySelector<HTMLElement>(
-            '[data-epg-guide-grid][tabindex="0"]'
-        );
+        if (!this.canFocusGrid(element)) return;
+        const target = this.host.rows().length
+            ? element?.querySelector<HTMLElement>(
+                  '[data-epg-guide-grid][tabindex="0"]'
+              )
+            : element;
         if (typeof target?.focus === 'function') {
             target.focus({ preventScroll: true });
         }
+    }
+
+    restoreFocus(focused: EpgGuideFocus | null, deferDomFocus = false): void {
+        const element = this.host.viewport()?.elementRef.nativeElement;
+        if (!this.canFocusGrid(element)) return;
+        if (element?.clientHeight) this.revealFocus(focused);
+        if (!deferDomFocus) this.focusRovingTargetOnRow(focused?.row ?? 0);
+    }
+
+    private canFocusGrid(viewport?: HTMLElement): boolean {
+        const active = document.activeElement;
+        return (
+            !active ||
+            active === document.body ||
+            active === this.host.guideElement() ||
+            !!viewport?.contains(active)
+        );
     }
 
     /**
@@ -192,7 +207,11 @@ export class EpgGuideViewportController {
             this.host.afterRender(() => this.focusRovingTarget());
         const rendered = (range: ListRange | null) =>
             range === null || (range.start <= row && row < range.end);
-        if (!viewport || rendered(this.renderedRange)) {
+        if (
+            !viewport ||
+            !this.host.rows().length ||
+            rendered(this.renderedRange)
+        ) {
             focus();
             return;
         }

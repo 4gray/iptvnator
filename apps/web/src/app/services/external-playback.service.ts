@@ -3,6 +3,7 @@ import {
     ExternalPlayerSession,
     PlayerContentInfo,
 } from '@iptvnator/shared/interfaces';
+import { Subject } from 'rxjs';
 
 /** Launch order when both carry it, else the start time. */
 function startedBefore(
@@ -20,6 +21,9 @@ function startedBefore(
 })
 export class ExternalPlaybackService {
     readonly activeSession = signal<ExternalPlayerSession | null>(null);
+    private readonly userStops = new Subject<string>();
+    readonly stopRequested = this.userStops.asObservable();
+    private readonly stops = new Map<string, Promise<void>>();
     private readonly dismissedSessionId = signal<string | null>(null);
 
     readonly visibleSession = computed(() => {
@@ -50,12 +54,36 @@ export class ExternalPlaybackService {
         this.dismissedSessionId.set(session.id);
     }
 
+    restoreDismissedSession(sessionId: string): void {
+        if (
+            this.activeSession()?.id === sessionId &&
+            this.dismissedSessionId() === sessionId
+        )
+            this.dismissedSessionId.set(null);
+    }
+
+    restoreDisplacedSession(
+        session: ExternalPlayerSession,
+        displacedId: string
+    ): void {
+        if (this.activeSession()?.id === displacedId)
+            this.handleSessionUpdate({
+                ...session,
+                restoredFromSessionId: displacedId,
+            });
+    }
+
     async closeActiveSession(): Promise<void> {
-        await this.closeSession(this.activeSession());
+        await this.closeSession(this.activeSession(), true);
+    }
+
+    pendingStop(sessionId: string): Promise<void> | undefined {
+        return this.stops.get(sessionId);
     }
 
     async closeSession(
-        session: ExternalPlayerSession | null | undefined
+        session: ExternalPlayerSession | null | undefined,
+        userRequested = false
     ): Promise<void> {
         if (!session) {
             return;
@@ -64,6 +92,17 @@ export class ExternalPlaybackService {
         if (!session.canClose || !window.electron?.closeExternalPlayerSession) {
             this.dismissedSessionId.set(session.id);
             return;
+        }
+
+        if (userRequested) {
+            const pending = this.pendingStop(session.id);
+            if (pending) return pending;
+            const closing = Promise.resolve()
+                .then(() => this.closeSession(session))
+                .finally(() => this.stops.delete(session.id));
+            this.stops.set(session.id, closing);
+            this.userStops.next(session.id);
+            return closing;
         }
 
         const previousDismissedSessionId = this.dismissedSessionId();

@@ -33,11 +33,16 @@ export interface EpgGuideWindow {
     readonly channels: readonly EpgGuideChannel[];
     readonly fromMs: number;
     readonly toMs: number;
+    readonly signal?: AbortSignal;
 }
 
 export interface EpgGuideCatchUp {
     canWatch(channel: EpgGuideChannel, program: EpgProgram): boolean;
-    watch(channel: EpgGuideChannel, program: EpgProgram): void;
+    watch(
+        channel: EpgGuideChannel,
+        program: EpgProgram,
+        displayed: readonly EpgGuideChannel[]
+    ): void;
 }
 
 /**
@@ -48,9 +53,17 @@ export interface EpgGuideCatchUp {
  */
 export interface EpgGuideSearchHit {
     channelId: string | null;
+    /** Match only the copy that supplied this result when row ids repeat across scopes. */
+    channelEpgKey?: string;
     /** Display name for the hit's channel: the playlist row's when resolved, else the guide source's own (e.g. the XMLTV display name). */
     channelName?: string | null;
     program: EpgProgram;
+}
+
+export interface EpgGuideSearchUpdate {
+    readonly matches: readonly EpgGuideSearchHit[];
+    readonly checked: number;
+    readonly total: number;
 }
 
 /**
@@ -62,13 +75,35 @@ export interface EpgGuideSearchHit {
 export interface EpgGuideSource {
     /** Scope-resolved channels in playlist order (radio/movies excluded by host). */
     readonly channels: Signal<EpgGuideChannel[]>;
+    /** Use the position in the displayed playback queue as the channel number. */
+    readonly numberByDisplayedOrder?: boolean;
     readonly scopes: Signal<EpgGuideScope[]>;
     readonly scopeId: Signal<string>;
     setScope(id: string): void;
     /** Programmes overlapping the window, keyed by `EpgGuideChannel.id`. */
     loadPrograms(range: EpgGuideWindow): Promise<Map<string, EpgProgram[]>>;
-    /** Ids of channels with at least one programme in the window. */
-    loadCoverage(range: EpgGuideWindow): Promise<Set<string>>;
+    /** An already fetched schedule for the active row when its own read failed. */
+    recoveredPrograms?(
+        window: Pick<EpgGuideWindow, 'fromMs' | 'toMs'>
+    ): readonly EpgProgram[] | null;
+    /** Per-stream cache expiry for a successfully loaded row. */
+    programsExpireAt?(channelId: string): number;
+    /** Per-stream sources publish each row as it arrives. */
+    readonly programBatchSize?: number;
+    /** Ids with programmes or unknown coverage. A reported null means the check failed. */
+    loadCoverage(
+        range: EpgGuideWindow,
+        reportPrograms?: (
+            channelId: string,
+            programs: EpgProgram[] | null
+        ) => void
+    ): Promise<Set<string>>;
+    /** Checking every channel requires provider requests, so wait for the filter. */
+    readonly deferredCoverage?: boolean;
+    /** Source changes that don't change the channel catalogue. */
+    readonly revision?: Signal<unknown>;
+    /** Whether a copy is still available anywhere in the catalogue. */
+    isChannelVisible?(epgKey: string): boolean;
     readonly activeChannelId: Signal<string | null>;
     /**
      * False while the host plays something other than the active channel's
@@ -76,10 +111,31 @@ export interface EpgGuideSource {
      * activated again, which is how the host returns to live.
      */
     readonly livePlayback?: Signal<boolean>;
+    /** Allow the active row to be selected again, including from Watch Live. */
+    canRetuneActive?(watchLive?: boolean): boolean;
+    /** Keep a committed row open until the host confirms playback. */
+    readonly closeOnPlaybackConfirmation?: boolean;
     /** Switch playback; the guide stays open. */
-    activate(channelId: string): void;
+    activate(
+        channelId: string,
+        epgKey?: string | null,
+        displayed?: readonly EpgGuideChannel[],
+        onConfirmed?: () => void
+    ): void;
+    /** Explicitly replay a channel whose external playback cannot be verified. */
+    retryActive?(
+        channel: EpgGuideChannel,
+        displayed?: readonly EpgGuideChannel[],
+        onConfirmed?: () => void
+    ): boolean;
+    /** Results identify catalogue entries independently of the selected scope. */
+    readonly searchAcrossScopes?: boolean;
     /** Optional programme search; the toolbar hides its field when absent. */
-    searchPrograms?(query: string): Promise<EpgGuideSearchHit[]>;
+    searchPrograms?(
+        query: string,
+        signal?: AbortSignal,
+        report?: (update: EpgGuideSearchUpdate) => void
+    ): Promise<EpgGuideSearchHit[]>;
     readonly catchUp?: EpgGuideCatchUp;
 }
 

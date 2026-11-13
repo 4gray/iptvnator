@@ -2,13 +2,68 @@ import {
     XtreamPlaylistData,
     XtreamUrlService,
 } from '@iptvnator/portal/xtream/data-access';
-import { XTREAM_CLIENT_USER_AGENT } from '@iptvnator/shared/interfaces';
+import {
+    EpgProgram,
+    epgProviderClockMs,
+    XTREAM_CLIENT_USER_AGENT,
+} from '@iptvnator/shared/interfaces';
 import {
     EpgArchiveCopyService,
     EpgArchiveDownloadService,
     EpgProgramActivationEvent,
+    type EpgGuideCatchUp,
+    type EpgGuideChannel,
+    isWithinArchiveWindow,
 } from '@iptvnator/ui/epg';
 import { XtreamLiveChannelItem } from './xtream-live-channel-navigation.service';
+
+export function xtreamArchiveDays(item: XtreamLiveChannelItem | null): number {
+    return Math.max(0, Number(item?.tv_archive_duration ?? 0) || 0);
+}
+
+export function supportsXtreamArchive(
+    item: XtreamLiveChannelItem | null
+): boolean {
+    return Number(item?.tv_archive ?? 0) === 1 && xtreamArchiveDays(item) > 0;
+}
+
+export function createXtreamGuideCatchUp(
+    offsetMinutes: () => number,
+    resolve: (channel: EpgGuideChannel) => XtreamLiveChannelItem | undefined,
+    play: (
+        program: EpgProgram,
+        item: XtreamLiveChannelItem,
+        displayed: readonly EpgGuideChannel[]
+    ) => void
+): EpgGuideCatchUp {
+    const available = (channel: EpgGuideChannel, program: EpgProgram) => {
+        const item = resolve(channel);
+        if (!item || !supportsXtreamArchive(item)) return undefined;
+        const start = getProgramTimestampSeconds(
+            program.start,
+            program.startTimestamp
+        );
+        const stop = getProgramTimestampSeconds(
+            program.stop,
+            program.stopTimestamp
+        );
+        const now = epgProviderClockMs(Date.now(), offsetMinutes());
+        return start &&
+            stop &&
+            stop > start &&
+            stop * 1000 <= now &&
+            isWithinArchiveWindow(start * 1000, xtreamArchiveDays(item), now)
+            ? item
+            : undefined;
+    };
+    return {
+        canWatch: (channel, program) => !!available(channel, program),
+        watch: (channel, program, displayed) => {
+            const item = available(channel, program);
+            if (item) play(program, item, displayed);
+        },
+    };
+}
 
 /** Archive actions capture their source without changing the playback session. */
 export async function activateXtreamArchiveAction(

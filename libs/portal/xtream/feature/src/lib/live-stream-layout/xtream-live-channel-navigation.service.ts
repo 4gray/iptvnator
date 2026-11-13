@@ -20,18 +20,78 @@ import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { foldSearchText } from '@iptvnator/shared/interfaces';
 
 export interface XtreamLiveChannelItem {
+    readonly id?: string | number;
     readonly added?: string;
     readonly category_id?: string | number;
     readonly last_modified?: string;
     readonly name?: string;
     readonly poster_url?: string;
     readonly stream_icon?: string;
+    readonly epg_channel_id?: string | null;
     readonly title?: string;
     readonly tmdb_id?: number | null;
     readonly release_year?: number | null;
     readonly tv_archive?: number | null;
     readonly tv_archive_duration?: number | string | null;
     readonly xtream_id: number;
+}
+
+type QueuePolicy = 'on-channel-change' | 'preserve' | 'replace';
+
+export function xtreamCategoryKey(
+    id: string | number | null | undefined
+): string {
+    const raw = String(id ?? '').trim();
+    const numeric = Number(raw);
+    return raw && Number.isFinite(numeric) ? String(numeric) : raw;
+}
+
+export function sameXtreamChannelCopy(
+    left: XtreamLiveChannelItem,
+    right: XtreamLiveChannelItem
+): boolean {
+    return (
+        left.xtream_id === right.xtream_id &&
+        xtreamCategoryKey(left.category_id) ===
+            xtreamCategoryKey(right.category_id)
+    );
+}
+
+function channelCopyKey(item: XtreamLiveChannelItem): string {
+    return `${item.xtream_id}:${xtreamCategoryKey(item.category_id)}`;
+}
+
+function rowsWithActiveCopy(
+    items: readonly XtreamLiveChannelItem[],
+    active: XtreamLiveChannelItem
+): XtreamLiveChannelItem[] {
+    return items.filter(
+        (item) =>
+            item.xtream_id !== active.xtream_id ||
+            sameXtreamChannelCopy(item, active)
+    );
+}
+
+export function replaceXtreamQueuedCopy(
+    queue: readonly XtreamLiveChannelItem[],
+    item: XtreamLiveChannelItem
+): readonly XtreamLiveChannelItem[] {
+    return queue.some((entry) => entry.xtream_id === item.xtream_id)
+        ? queue.map((entry) =>
+              entry.xtream_id === item.xtream_id ? item : entry
+          )
+        : [item];
+}
+
+export function xtreamRowsByStreamId(
+    items: readonly XtreamLiveChannelItem[]
+): Map<string, XtreamLiveChannelItem> {
+    const rows = new Map<string, XtreamLiveChannelItem>();
+    for (const item of items) {
+        const id = String(item.xtream_id);
+        if (!rows.has(id)) rows.set(id, item);
+    }
+    return rows;
 }
 
 /** Browse state is independent from the ordered list that started playback. */
@@ -92,13 +152,13 @@ export class XtreamLiveChannelNavigationService {
     readonly remoteChannels = computed(() => {
         const available = new Map(
             this.accessibleChannels().map((item) => [
-                Number(item.xtream_id),
+                channelCopyKey(item),
                 item,
             ])
         );
         return this.queue
             .items(this.owner())
-            .map((item) => available.get(Number(item.xtream_id)))
+            .map((item) => available.get(channelCopyKey(item)))
             .filter(
                 (item): item is XtreamLiveChannelItem => item !== undefined
             );
@@ -107,11 +167,11 @@ export class XtreamLiveChannelNavigationService {
         const active = this.activeItem();
         return (
             !!active &&
-            this.accessibleChannels().some(
-                (item) => Number(item.xtream_id) === Number(active.xtream_id)
+            this.accessibleChannels().some((item) =>
+                sameXtreamChannelCopy(item, active)
             ) &&
-            !this.displayedChannels().some(
-                (item) => Number(item.xtream_id) === Number(active.xtream_id)
+            !this.displayedChannels().some((item) =>
+                sameXtreamChannelCopy(item, active)
             )
         );
     });
@@ -122,8 +182,10 @@ export class XtreamLiveChannelNavigationService {
     } | null>(null);
     readonly revealRequest = computed(() => {
         const request = this.pendingReveal();
+        const active = this.activeItem();
         return request &&
-            request.channelId === this.activeItem()?.xtream_id &&
+            request.channelId === active?.xtream_id &&
+            request.categoryId === Number(active.category_id) &&
             request.categoryId === this.store.selectedCategoryId() &&
             !this.query().trim()
             ? request
@@ -171,12 +233,12 @@ export class XtreamLiveChannelNavigationService {
     capture(
         item: XtreamLiveChannelItem,
         items: readonly XtreamLiveChannelItem[] = this.displayedChannels(),
-        preserveQueue = false
+        policy: QueuePolicy = 'on-channel-change'
     ): void {
         this.requestSequence++;
         this.pendingReveal.set(null);
         const owner = this.owner();
-        if (!preserveQueue && this.activeItem()?.xtream_id !== item.xtream_id) {
+        if (this.shouldReplaceQueue(item, policy)) {
             this.queue.capture(
                 owner,
                 JSON.stringify([
@@ -184,18 +246,47 @@ export class XtreamLiveChannelNavigationService {
                     this.query(),
                     this.sortMode(),
                 ]),
-                items,
+                rowsWithActiveCopy(items, item),
                 item
             );
         }
         this.playing.set({ owner, item });
     }
 
+    replacePlayingCopy(item: XtreamLiveChannelItem): void {
+        const saved = this.queue.items(this.owner());
+        this.capture(item, replaceXtreamQueuedCopy(saved, item), 'replace');
+    }
+
+    queueFor(
+        item: XtreamLiveChannelItem,
+        items: readonly XtreamLiveChannelItem[],
+        policy: QueuePolicy = 'on-channel-change'
+    ): readonly XtreamLiveChannelItem[] {
+        if (!this.shouldReplaceQueue(item, policy))
+            return this.queue.items(this.owner());
+        const rows = xtreamRowsByStreamId(rowsWithActiveCopy(items, item));
+        return rows.has(String(item.xtream_id)) ? [...rows.values()] : [item];
+    }
+
+    private shouldReplaceQueue(
+        item: XtreamLiveChannelItem,
+        policy: QueuePolicy
+    ): boolean {
+        const active = this.activeItem();
+        return (
+            policy === 'replace' ||
+            (policy === 'on-channel-change' &&
+                (!active || !sameXtreamChannelCopy(active, item)))
+        );
+    }
+
     async reveal(): Promise<void> {
         if (!this.canReveal()) return;
         const active = this.activeItem();
-        const target = this.accessibleChannels().find(
-            (item) => item.xtream_id === active?.xtream_id
+        if (!active) return;
+        const target = this.accessibleChannels().find((item) =>
+            sameXtreamChannelCopy(item, active)
         );
         if (!target) return;
         const categoryId = Number(target.category_id);
@@ -219,15 +310,17 @@ export class XtreamLiveChannelNavigationService {
             : Promise.resolve(true);
         try {
             const navigated = await navigation;
+            const current = this.activeItem();
             if (
                 navigated === false ||
                 this.destroyRef.destroyed ||
                 sequence !== this.requestSequence ||
                 owner !== this.owner() ||
                 this.navigationGeneration > generation + 1 ||
-                this.activeItem()?.xtream_id !== target.xtream_id ||
-                !this.accessibleChannels().some(
-                    (item) => item.xtream_id === target.xtream_id
+                !current ||
+                !sameXtreamChannelCopy(current, target) ||
+                !this.accessibleChannels().some((item) =>
+                    sameXtreamChannelCopy(item, target)
                 ) ||
                 (this.store.selectedCategoryId() !== previousCategory &&
                     this.store.selectedCategoryId() !== categoryId)

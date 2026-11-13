@@ -8,6 +8,7 @@ import {
 
 interface CreateExternalPlayerSessionOptions {
     player: ExternalPlayerName;
+    launchId?: string;
     title: string;
     thumbnail?: string | null;
     streamUrl: string;
@@ -19,11 +20,20 @@ interface UpdateExternalPlayerSessionOptions {
     error?: string;
     errorCode?: ExternalPlayerErrorCode;
     canClose?: boolean;
+    reuseAvailable?: boolean;
+    closedByRequest?: true;
+    playbackIdle?: boolean;
+    playbackUnverified?: boolean;
+    mediaLoaded?: boolean;
+    mediaObservationUnavailable?: boolean;
+    mediaReadinessTimedOut?: boolean;
 }
 
 interface ExternalPlayerSessionRuntime {
     snapshot: ExternalPlayerSession;
-    close?: () => Promise<void> | void;
+    close?: (exact?: boolean) => Promise<void> | void;
+    cancelQueued?: () => boolean;
+    closeRequested?: boolean;
 }
 
 interface MarkExternalPlayerSessionErrorOptions {
@@ -56,6 +66,10 @@ export class ExternalPlayerSessionRegistry {
         const startedAt = new Date().toISOString();
         const session: ExternalPlayerSession = {
             id: crypto.randomUUID(),
+            ...(typeof options.launchId === 'string' &&
+            options.launchId.length <= 128
+                ? { launchId: options.launchId }
+                : {}),
             player: options.player,
             status: 'launching',
             title: options.title,
@@ -80,6 +94,11 @@ export class ExternalPlayerSessionRegistry {
 
     getSession(id: string): ExternalPlayerSession | null {
         return this.sessions.get(id)?.snapshot ?? null;
+    }
+
+    isNewerLaunch(id: string | null, session: ExternalPlayerSession): boolean {
+        const order = id ? this.getSession(id)?.launchOrder : undefined;
+        return (order ?? 0) > (session.launchOrder ?? 0);
     }
 
     /**
@@ -110,7 +129,8 @@ export class ExternalPlayerSessionRegistry {
 
     attachCloser(
         id: string,
-        close: () => Promise<void> | void
+        close: (exact?: boolean) => Promise<void> | void,
+        cancelQueued?: () => boolean
     ): ExternalPlayerSession | null {
         const runtime = this.sessions.get(id);
         if (!runtime) {
@@ -118,6 +138,7 @@ export class ExternalPlayerSessionRegistry {
         }
 
         runtime.close = close;
+        runtime.cancelQueued = cancelQueued;
         return this.updateSession(id, { canClose: true });
     }
 
@@ -162,7 +183,7 @@ export class ExternalPlayerSessionRegistry {
         return this.updateSession(id, { status: 'playing' });
     }
 
-    markClosed(id: string): ExternalPlayerSession | null {
+    markClosed(id: string, requested = false): ExternalPlayerSession | null {
         const current = this.getSession(id);
         if (!current || current.status === 'closed') {
             return current;
@@ -170,7 +191,21 @@ export class ExternalPlayerSessionRegistry {
         if (this.activeSessionId === id) {
             this.activeSessionId = null;
         }
-        return this.updateSession(id, { status: 'closed', canClose: false });
+        return this.updateSession(id, {
+            status: 'closed',
+            canClose: false,
+            closedByRequest:
+                requested || this.isCloseRequested(id) ? true : undefined,
+        });
+    }
+
+    isCloseRequested(id: string): boolean {
+        return this.sessions.get(id)?.closeRequested === true;
+    }
+
+    requestClose(id: string | null): void {
+        const runtime = id ? this.sessions.get(id) : undefined;
+        if (runtime) runtime.closeRequested = true;
     }
 
     markError(
@@ -193,7 +228,10 @@ export class ExternalPlayerSessionRegistry {
         });
     }
 
-    async closeSession(id: string): Promise<ExternalPlayerSession | null> {
+    async closeSession(
+        id: string,
+        exact = false
+    ): Promise<ExternalPlayerSession | null> {
         const runtime = this.sessions.get(id);
         if (!runtime) {
             return null;
@@ -207,10 +245,17 @@ export class ExternalPlayerSessionRegistry {
             return runtime.snapshot;
         }
 
+        if (exact && runtime.cancelQueued)
+            return runtime.cancelQueued()
+                ? this.markClosed(id, true)
+                : runtime.snapshot;
+        if (exact && !runtime.close) return runtime.snapshot;
+        this.requestClose(id);
+
         // A failed closer cannot prove that the underlying process stopped.
         // Preserve the live session and propagate the failure so callers do
         // not start a replacement process alongside it.
-        await runtime.close?.();
+        await (exact ? runtime.close?.(true) : runtime.close?.());
 
         return this.markClosed(id);
     }

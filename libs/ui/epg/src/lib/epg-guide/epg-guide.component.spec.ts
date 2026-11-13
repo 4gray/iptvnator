@@ -67,18 +67,23 @@ describe('EpgGuideComponent', () => {
     const livePlayback = signal(true);
     const offsetMinutes = signal(0);
     const searchHits = signal<EpgGuideSearchHit[]>([]);
+    const revision = signal(0);
+    let schedule: EpgProgram[];
+    let covered: Set<string>;
     const activate = jest.fn();
     const setScope = jest.fn();
-    const dialogOpen = jest.fn(
-        (
-            _data: EpgItemDialogData
-        ): Observable<EpgItemDialogAction | undefined> => of(undefined)
-    );
+    const dialogOpen = jest.fn<
+        Observable<EpgItemDialogAction | undefined>,
+        [EpgItemDialogData]
+    >(() => of(undefined));
 
     beforeEach(() => {
         localStorage.clear();
         offsetMinutes.set(0);
         searchHits.set([]);
+        revision.set(0);
+        schedule = [nowProgram('a')];
+        covered = new Set(['a']);
         activate.mockReset();
         setScope.mockReset();
         dialogOpen.mockClear();
@@ -91,6 +96,7 @@ describe('EpgGuideComponent', () => {
         livePlayback.set(true);
         const source: EpgGuideSource = {
             channels,
+            revision,
             scopes: signal([{ id: 'all', label: 'All channels', kind: 'all' }]),
             scopeId: signal('all'),
             setScope,
@@ -98,10 +104,12 @@ describe('EpgGuideComponent', () => {
                 new Map(
                     window.channels.map((item) => [
                         item.id,
-                        item.id === 'a' ? [nowProgram('a')] : [],
+                        schedule.filter(
+                            (program) => program.channel === item.id
+                        ),
                     ])
                 ),
-            loadCoverage: async () => new Set(['a']),
+            loadCoverage: async () => covered,
             activeChannelId,
             livePlayback,
             activate,
@@ -142,6 +150,51 @@ describe('EpgGuideComponent', () => {
         component = fixture.componentInstance;
     });
 
+    it('offers explicit replay without replaying an active channel on click', async () => {
+        await settle(fixture);
+        const row = component.rows()[0];
+        const source = fixture.debugElement.injector.get(EPG_GUIDE_SOURCE);
+        const retry = jest.fn(() => true);
+        source.retryActive = retry;
+
+        component.activateRow(row);
+        expect(retry).not.toHaveBeenCalled();
+        component.commitRow(row);
+        expect(retry).toHaveBeenCalledWith(row, component.rows());
+        expect(activate).not.toHaveBeenCalled();
+    });
+
+    it('retunes the active channel on click while its previous stream is stopping', async () => {
+        await settle(fixture);
+        const row = component.rows()[0];
+        const source = fixture.debugElement.injector.get(EPG_GUIDE_SOURCE);
+        const stopping = signal(false);
+        Object.assign(source, {
+            closeOnPlaybackConfirmation: true,
+            canRetuneActive: stopping,
+        });
+
+        component.pointerRow(row);
+        expect(activate).not.toHaveBeenCalled();
+        stopping.set(true);
+        component.pointerRow(row);
+        expect(activate).toHaveBeenCalledWith(
+            row.id,
+            row.epgKey,
+            component.rows(),
+            expect.any(Function)
+        );
+    });
+
+    it('passes the displayed row order when activating a filtered channel', async () => {
+        await settle(fixture);
+        component.setFilter('channel c');
+        const rows = component.rows();
+        component.activateRow(rows[0]);
+        expect(activate).toHaveBeenCalledWith('c', rows[0].epgKey, rows);
+        expect(rows.map((row) => row.id)).toEqual(['c']);
+    });
+
     it('lists the scope channels in order and marks the active one', async () => {
         await settle(fixture);
         expect(component.rows().map((row) => row.id)).toEqual(['a', 'b', 'c']);
@@ -153,13 +206,15 @@ describe('EpgGuideComponent', () => {
         const close = jest.fn();
         component.close.subscribe(close);
         activate.mockImplementation((id: string) => activeChannelId.set(id));
-        component.activateRow(component.rows()[2]);
-        expect(activate).toHaveBeenCalledWith('c');
+        component.pointerRow(component.rows()[2]);
+        expect(activate).toHaveBeenCalledWith(
+            'c',
+            component.rows()[2].epgKey,
+            component.rows()
+        );
         expect(close).not.toHaveBeenCalled();
-        // click, click, dblclick: the second click and the commit must not
-        // restart the stream that is already playing.
-        component.activateRow(component.rows()[2]);
-        component.commitRow(component.rows()[2]);
+        // The row reports the first click and then the double-click commit.
+        component.pointerRow(component.rows()[2], false);
         expect(activate).toHaveBeenCalledTimes(1);
         expect(close).toHaveBeenCalledTimes(1);
         // Enter plays the active row ('c' by now): it is already playing, so
@@ -168,6 +223,50 @@ describe('EpgGuideComponent', () => {
         expect(activate).toHaveBeenCalledTimes(1);
         expect(close).toHaveBeenCalledTimes(2);
     });
+
+    it.each([0, 2])(
+        'keeps a committed channel visible until its host confirms playback (%s)',
+        async (index) => {
+            await settle(fixture);
+            const close = jest.fn();
+            component.close.subscribe(close);
+            const source = fixture.debugElement.injector.get(EPG_GUIDE_SOURCE);
+            Object.assign(source, { closeOnPlaybackConfirmation: true });
+            const row = component.rows()[index];
+            component.commitRow(row);
+            expect(close).not.toHaveBeenCalled();
+            const confirm = (
+                activate.mock.lastCall as unknown[]
+            )[3] as () => void;
+            confirm();
+            expect(close).toHaveBeenCalledTimes(1);
+        }
+    );
+
+    it.each([false, true])(
+        'uses the same tune for double-click, including when it confirms early (%s)',
+        async (early) => {
+            await settle(fixture);
+            const close = jest.fn();
+            component.close.subscribe(close);
+            const source = fixture.debugElement.injector.get(EPG_GUIDE_SOURCE);
+            Object.assign(source, { closeOnPlaybackConfirmation: true });
+            const row = component.rows()[2];
+            component.pointerRow(row);
+            const confirm = (
+                activate.mock.lastCall as unknown[]
+            )[3] as () => void;
+            if (early) confirm();
+            expect(close).not.toHaveBeenCalled();
+            component.pointerRow(row, false);
+            expect(activate).toHaveBeenCalledTimes(1);
+            if (!early) {
+                expect(close).not.toHaveBeenCalled();
+                confirm();
+            }
+            expect(close).toHaveBeenCalledTimes(1);
+        }
+    );
 
     it('hides only uncovered rows when "Only with EPG" is on, after coverage arrived', async () => {
         await settle(fixture);
@@ -181,8 +280,27 @@ describe('EpgGuideComponent', () => {
         await settle(fixture);
         component.setFilter('channel c');
         expect(component.rows().map((row) => row.id)).toEqual(['c']);
+        expect(component.rows()[0].number).toBe(3);
         component.setFilter('');
         expect(component.rows()).toHaveLength(3);
+    });
+
+    it('numbers portal rows by their position in the queue after both filters', async () => {
+        const source = fixture.debugElement.injector.get(EPG_GUIDE_SOURCE);
+        Object.assign(source, { numberByDisplayedOrder: true });
+        covered = new Set(['c']);
+        schedule = [nowProgram('c')];
+        await settle(fixture);
+        component.setFilter('channel c');
+        expect(component.rows().map(({ id, number }) => [id, number])).toEqual([
+            ['c', 1],
+        ]);
+        component.setFilter('');
+        component.setOnlyWithEpg(true);
+        await settle(fixture);
+        expect(component.rows().map(({ id, number }) => [id, number])).toEqual([
+            ['c', 1],
+        ]);
     });
 
     it('persists density and zoom and restores them', async () => {
@@ -195,58 +313,104 @@ describe('EpgGuideComponent', () => {
         expect(component.rowHeightPx()).toBe(44);
     });
 
-    it('opens the programme dialog for a non-live card and activates on "live"', async () => {
-        await settle(fixture);
-        dialogOpen.mockReturnValueOnce(of('live'));
-        const row = component.rows()[2];
-        const item = {
-            kind: 'block' as const,
-            key: 'k',
-            block: {
-                program: nowProgram('a'),
+    it.each([0, 2])(
+        'forwards Watch Live from programme details for row %s',
+        async (index) => {
+            await settle(fixture);
+            dialogOpen.mockReturnValueOnce(of('live'));
+            const row = component.rows()[index];
+            if (index === 0) {
+                const source =
+                    fixture.debugElement.injector.get(EPG_GUIDE_SOURCE);
+                source.canRetuneActive = (watchLive) => watchLive === true;
+                component.activateRow(row);
+                expect(activate).not.toHaveBeenCalled();
+            }
+            const item = {
+                kind: 'block' as const,
                 key: 'k',
-                startMs: 0,
-                stopMs: 1,
-                when: 'past' as const,
-                offsetMin: 0,
-                durationMin: 1,
-            },
-            leftPx: 0,
-            widthPx: 10,
-            tier: 'wide' as const,
-            nowFillPercent: 0,
-            canCatchUp: false,
-        };
-        component.openDetails(row, item);
-        expect(dialogOpen).toHaveBeenCalledWith(
-            expect.objectContaining({
-                channelName: 'Channel c',
-                primaryAction: null,
-                archiveUnavailableNote: true,
-            })
-        );
-        expect(activate).toHaveBeenCalledWith('c');
-    });
+                block: {
+                    program: nowProgram('a'),
+                    key: 'k',
+                    startMs: 0,
+                    stopMs: 1,
+                    when: 'past' as const,
+                    offsetMin: 0,
+                    durationMin: 1,
+                },
+                leftPx: 0,
+                widthPx: 10,
+                tier: 'wide' as const,
+                nowFillPercent: 0,
+                canCatchUp: false,
+            };
+            component.openDetails(row, item);
+            expect(dialogOpen).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    channelName: row.name,
+                    primaryAction: null,
+                    archiveUnavailableNote: true,
+                }),
+                expect.any(AbortSignal)
+            );
+            expect(activate).toHaveBeenCalledWith(
+                row.id,
+                row.epgKey,
+                component.rows()
+            );
+        }
+    );
 
     it('re-activates the active row while catch-up plays, so the host can return to live', async () => {
         livePlayback.set(false);
         await settle(fixture);
         component.activateRow(component.rows()[0]);
-        expect(activate).toHaveBeenCalledWith('a');
+        expect(activate).toHaveBeenCalledWith(
+            'a',
+            component.rows()[0].epgKey,
+            component.rows()
+        );
         livePlayback.set(true);
         activate.mockClear();
         component.activateRow(component.rows()[0]);
         expect(activate).not.toHaveBeenCalled();
     });
 
-    it('drops the programme search when the scope changes', async () => {
+    it.each([false, true])(
+        'preserves programme results only for a catalogue search on scope change (%s)',
+        async (searchAcrossScopes) => {
+            const source = fixture.debugElement.injector.get(EPG_GUIDE_SOURCE);
+            Object.assign(source, { searchAcrossScopes });
+            const hit = {
+                channelId: 'a',
+                channelEpgKey: 'synthetic-exact-copy',
+                program: nowProgram('a'),
+            };
+            searchHits.set([hit]);
+            await settle(fixture);
+            component.onSearchQueryChange('news');
+            await new Promise((resolve) => setTimeout(resolve, 400));
+            await settle(fixture);
+            expect(component.searchQuery()).toBe('news');
+            expect(component.searchResults()).toEqual([hit]);
+            component.setScope('favorites');
+            expect(component.searchQuery()).toBe(
+                searchAcrossScopes ? 'news' : ''
+            );
+            expect(component.searchResults()).toEqual(
+                searchAcrossScopes ? [hit] : []
+            );
+            expect(setScope).toHaveBeenCalledWith('favorites');
+        }
+    );
+
+    it('keeps the query and restarts search when the guide source is refreshed', async () => {
         await settle(fixture);
-        component.onSearchQueryChange('news');
-        expect(component.searchQuery()).toBe('news');
-        component.setScope('all');
-        expect(component.searchQuery()).toBe('');
-        expect(component.searchResults()).toEqual([]);
-        expect(setScope).toHaveBeenCalledWith('all');
+        component.onSearchQueryChange('synthetic');
+        revision.update((value) => value + 1);
+        fixture.detectChanges();
+        expect(component.searchQuery()).toBe('synthetic');
+        expect(component.searchStatus()).toBe('loading');
     });
 
     it('closes on Escape and steps days with PageUp/PageDown', async () => {
@@ -320,29 +484,40 @@ describe('EpgGuideComponent', () => {
         outside.remove();
     });
 
-    it('moves the roving focus with its channel and drops it with the row', async () => {
+    it('moves the roving focus with its channel and then to a surviving row', async () => {
+        schedule.push(nowProgram('c'));
+        covered.add('c');
         await settle(fixture);
         component.focusCell(2, 0);
         await settle(fixture);
         expect(component.focus()).toEqual({ row: 2, block: 0 });
 
-        // The first channel disappears: the focus follows 'c' to its new index.
-        channels.set([channel('b', null, 2), channel('c', 'c', 3)]);
+        // An uncovered channel above 'c' disappears from the visible rows.
+        component.setOnlyWithEpg(true);
         await settle(fixture);
-        expect(component.rows().map((row) => row.id)).toEqual(['b', 'c']);
-        expect(component.focus()).toEqual({ row: 1, block: null });
+        expect(component.rows().map((row) => row.id)).toEqual(['a', 'c']);
+        expect(component.focus()).toEqual({ row: 1, block: 0 });
+        const card = fixture.nativeElement.querySelector(
+            '.epg-guide-row__block[tabindex="0"]'
+        ) as HTMLElement;
+        expect(document.activeElement).toBe(card);
+        component.onKeydown(keydown('i', card));
+        expect(dialogOpen).toHaveBeenCalledWith(
+            expect.objectContaining({ channelName: 'Channel c' }),
+            expect.any(AbortSignal)
+        );
 
-        // A filter that hides the focused channel clears the focus instead of
-        // leaving it pointing at whatever moved into that row.
+        // Move to a surviving channel when a filter hides the focused row.
+        component.setOnlyWithEpg(false);
         component.setFilter('channel b');
         await settle(fixture);
         expect(component.rows().map((row) => row.id)).toEqual(['b']);
-        expect(component.focus()).toBeNull();
+        expect(component.focus()).toEqual({ row: 0, block: null });
 
-        // Undoing the filter must not bring the stale focus back.
+        // Undoing the filter follows the new focused channel.
         component.setFilter('');
         await settle(fixture);
-        expect(component.focus()).toBeNull();
+        expect(component.focus()).toEqual({ row: 1, block: null });
     });
 
     it('opens a search hit with its own channel and focuses that row', async () => {
@@ -358,7 +533,8 @@ describe('EpgGuideComponent', () => {
             program: nowProgram('c'),
         });
         expect(dialogOpen).toHaveBeenCalledWith(
-            expect.objectContaining({ channelName: 'Channel c' })
+            expect.objectContaining({ channelName: 'Channel c' }),
+            expect.any(AbortSignal)
         );
         expect(component.focus()).toEqual({ row: 2, block: null });
 
@@ -368,7 +544,8 @@ describe('EpgGuideComponent', () => {
             program: nowProgram('x'),
         });
         expect(dialogOpen).toHaveBeenCalledWith(
-            expect.not.objectContaining({ channelName: expect.anything() })
+            expect.not.objectContaining({ channelName: expect.anything() }),
+            expect.any(AbortSignal)
         );
     });
 
@@ -445,7 +622,81 @@ describe('EpgGuideComponent', () => {
         expect(cells().map((cell) => cell.getAttribute('tabindex'))).toEqual([
             '0',
         ]);
+        expect(document.activeElement).toBe(cells()[0]);
+        component.setFilter('synthetic unmatched channel');
+        await settle(fixture);
+        expect(viewportEl.getAttribute('tabindex')).toBe('0');
+        expect(document.activeElement).toBe(viewportEl);
     });
+
+    it.each([
+        [true, false, false],
+        [false, false, false],
+        [true, true, false],
+        [false, true, false],
+        [true, false, true],
+        [false, true, true],
+    ] as const)(
+        'restores focus after a programme reload (present: %s, row moved: %s, first load fails: %s)',
+        async (present, moved, failed) => {
+            await settle(fixture);
+            const card = fixture.nativeElement.querySelector(
+                '.epg-guide-row__block'
+            ) as HTMLElement;
+            component.focusCell(0, 0);
+            await settle(fixture);
+            card.focus();
+            expect(document.activeElement).toBe(card);
+
+            const source = fixture.debugElement.injector.get(EPG_GUIDE_SOURCE);
+            const load = source.loadPrograms;
+            let fail = failed;
+            let release!: () => void;
+            const reload = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            jest.spyOn(source, 'loadPrograms').mockImplementation(
+                async (window) => {
+                    await reload;
+                    if (fail) throw new Error('Synthetic schedule failure');
+                    return load(window);
+                }
+            );
+            if (!present) schedule = [];
+            if (moved)
+                channels.set([channels()[1], channels()[0], channels()[2]]);
+            const row = moved ? 1 : 0;
+            revision.update((value) => value + 1);
+            fixture.detectChanges();
+            expect(component.focus()).toEqual({ row, block: 0 });
+            expect(component.focusedBlockFor(row)).toBeNull();
+            release();
+            await new Promise<void>((resolve) => setTimeout(resolve, 0));
+            await settle(fixture);
+            if (failed) {
+                expect(component.statusFor(channels()[row].id)).toBe('error');
+                expect(component.focus()).toEqual({ row, block: 0 });
+                expect(component.focusedBlockFor(row)).toBeNull();
+                fail = false;
+                revision.update((value) => value + 1);
+                fixture.detectChanges();
+                await new Promise<void>((resolve) => setTimeout(resolve, 0));
+                await settle(fixture);
+                expect(component.statusFor(channels()[row].id)).toBe('loaded');
+            }
+
+            const target = fixture.nativeElement
+                .querySelectorAll('app-epg-guide-row')
+                [row].querySelector(
+                    present
+                        ? '.epg-guide-row__block'
+                        : '.epg-guide-row__channel'
+                ) as HTMLElement;
+            expect(card.isConnected).toBe(false);
+            expect(target.getAttribute('tabindex')).toBe('0');
+            expect(document.activeElement).toBe(target);
+        }
+    );
 
     it('jumps to now on N without scrolling back to a focus left off-screen', async () => {
         await settle(fixture);

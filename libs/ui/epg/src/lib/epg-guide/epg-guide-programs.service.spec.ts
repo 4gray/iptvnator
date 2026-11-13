@@ -37,23 +37,35 @@ describe('EpgGuideProgramsService', () => {
         Promise<Map<string, EpgProgram[]>>,
         [unknown]
     >();
-    const loadCoverage = jest.fn<Promise<Set<string>>, [unknown]>();
+    const loadCoverage = jest.fn<
+        Promise<Set<string>>,
+        Parameters<EpgGuideSource['loadCoverage']>
+    >();
     let service: EpgGuideProgramsService;
+    let source: EpgGuideSource;
+    const revision = signal(0);
+    const activeChannelId = signal<string | null>(null);
+    const recoveredPrograms = signal<EpgProgram[] | null>(null);
 
     beforeEach(() => {
         loadPrograms.mockReset();
         loadCoverage.mockReset();
         loadCoverage.mockResolvedValue(new Set());
         channels.set([channel('a'), channel('b'), channel('c', null)]);
-        const source: EpgGuideSource = {
+        revision.set(0);
+        activeChannelId.set(null);
+        recoveredPrograms.set(null);
+        source = {
             channels,
             scopes: signal([]),
             scopeId: signal('all'),
             setScope: jest.fn(),
             loadPrograms,
             loadCoverage,
-            activeChannelId: signal(null),
+            activeChannelId,
+            recoveredPrograms,
             activate: jest.fn(),
+            revision,
         };
         TestBed.configureTestingModule({
             providers: [
@@ -65,6 +77,399 @@ describe('EpgGuideProgramsService', () => {
         // Consume the constructor effect's first run (a no-op by design) so
         // each test starts from a clean, predictable call count.
         TestBed.flushEffects();
+    });
+
+    it('checks deferred coverage only on request and aborts a cancelled scan', async () => {
+        Object.assign(source, { deferredCoverage: true });
+        let resolve!: (ids: Set<string>) => void;
+        loadCoverage.mockImplementation(
+            () => new Promise((done) => (resolve = done))
+        );
+        service.setWindow(1000, 2000);
+        expect(loadCoverage).not.toHaveBeenCalled();
+        service.setCoverageRequested(true);
+        expect(loadCoverage).toHaveBeenCalledTimes(1);
+        expect(service.coverageStatus()).toBe('loading');
+        const request = loadCoverage.mock.calls[0][0] as {
+            signal: AbortSignal;
+        };
+        service.setCoverageRequested(false);
+        expect(request.signal.aborted).toBe(true);
+        resolve(new Set(['a']));
+        await flush();
+        expect(service.coverageLoaded()).toBe(false);
+        expect(service.isCovered('b')).toBe(true);
+    });
+
+    it('uses the coverage scan to recover a visible failed row without fetching it again', async () => {
+        Object.assign(source, { deferredCoverage: true });
+        loadPrograms.mockResolvedValue(new Map());
+        service.setWindow(1000, 2000);
+        service.ensureLoaded([channels()[0]]);
+        await flush();
+        expect(service.statusFor('a')).toBe('error');
+
+        const programme = programFor('a');
+        loadCoverage.mockImplementation(async (_window, report) => {
+            report?.('a', [programme]);
+            return new Set(['a']);
+        });
+        service.setCoverageRequested(true);
+        await flush();
+        expect(service.programsFor('a')).toEqual([programme]);
+        expect(service.statusFor('a')).toBe('loaded');
+        expect(loadPrograms).toHaveBeenCalledTimes(1);
+    });
+
+    it('uses the recovered dock schedule when coverage is disabled', async () => {
+        Object.assign(source, { deferredCoverage: true });
+        activeChannelId.set('a');
+        loadPrograms.mockResolvedValue(new Map());
+        service.setWindow(1000, 2000);
+        service.ensureLoaded([channels()[0]]);
+        await flush();
+        expect(service.statusFor('a')).toBe('error');
+        TestBed.flushEffects();
+
+        const programme = programFor('a');
+        recoveredPrograms.set([programme]);
+        TestBed.flushEffects();
+        expect(service.programsFor('a')).toEqual([programme]);
+        expect(service.statusFor('a')).toBe('loaded');
+        expect(loadPrograms).toHaveBeenCalledTimes(1);
+        expect(loadCoverage).not.toHaveBeenCalled();
+    });
+
+    it.each(['dock', 'coverage'])(
+        'applies a successful %s read to a visible stale row without waiting for its retry',
+        async (recovery) => {
+            jest.useFakeTimers({ now: 1_000 });
+            try {
+                const expiry = jest.fn(() => 2_000);
+                Object.assign(source, {
+                    deferredCoverage: true,
+                    programsExpireAt: expiry,
+                });
+                activeChannelId.set('a');
+                const initial = programFor('a');
+                const refreshed = {
+                    ...initial,
+                    title: 'Synthetic Recovered Programme',
+                };
+                loadPrograms
+                    .mockResolvedValueOnce(new Map([['a', [initial]]]))
+                    .mockResolvedValueOnce(new Map());
+                service.setWindow(1_000, 2_000);
+                service.ensureLoaded([channels()[0]]);
+                await flush();
+                jest.setSystemTime(2_000);
+                service.ensureLoaded([channels()[0]]);
+                await flush();
+                expect(service.programsFor('a')).toEqual([initial]);
+                expect(service.statusFor('a')).toBe('loaded');
+                expiry.mockReturnValue(60_000);
+                if (recovery === 'dock') {
+                    recoveredPrograms.set([refreshed]);
+                    TestBed.flushEffects();
+                } else {
+                    loadCoverage.mockImplementation(async (_window, report) => {
+                        report?.('a', [refreshed]);
+                        return new Set(['a']);
+                    });
+                    service.setCoverageRequested(true);
+                    await flush();
+                }
+                expect(service.programsFor('a')).toEqual([refreshed]);
+                expect(loadPrograms).toHaveBeenCalledTimes(2);
+            } finally {
+                jest.useRealTimers();
+            }
+        }
+    );
+
+    it('uses an empty recovered dock schedule to clear failed coverage', async () => {
+        Object.assign(source, { deferredCoverage: true });
+        channels.set([channel('a')]);
+        activeChannelId.set('a');
+        TestBed.flushEffects();
+        loadPrograms.mockResolvedValue(new Map());
+        loadCoverage.mockRejectedValueOnce(
+            new Error('Synthetic coverage failure')
+        );
+        service.setWindow(1000, 2000);
+        service.setCoverageRequested(true);
+        service.ensureLoaded([channels()[0]]);
+        await flush();
+        await flush();
+        expect(service.statusFor('a')).toBe('error');
+        expect(service.isCovered('a')).toBe(true);
+        expect(service.coverageStatus()).toBe('error');
+        TestBed.flushEffects();
+
+        recoveredPrograms.set([]);
+        TestBed.flushEffects();
+        expect(service.statusFor('a')).toBe('loaded');
+        expect(service.isCovered('a')).toBe(false);
+        expect(service.coverageStatus()).toBe('idle');
+        expect(loadCoverage).toHaveBeenCalledTimes(1);
+        expect(loadPrograms).toHaveBeenCalledTimes(1);
+    });
+
+    it('hides confirmed empty rows during a pending scan while unverified rows stay visible', async () => {
+        jest.useFakeTimers();
+        try {
+            Object.assign(source, { deferredCoverage: true });
+            channels.set([channel('a'), channel('b'), channel('c')]);
+            TestBed.flushEffects();
+            let finish!: (ids: Set<string>) => void;
+            loadCoverage.mockImplementation(
+                (_window, report) =>
+                    new Promise((resolve) => {
+                        report?.('a', []);
+                        report?.('b', null);
+                        finish = resolve;
+                    })
+            );
+            service.setWindow(1000, 2000);
+            service.setCoverageRequested(true);
+            await jest.advanceTimersByTimeAsync(250);
+            expect(service.coverageStatus()).toBe('loading');
+            expect(service.isCovered('a')).toBe(false);
+            expect(service.isCovered('b')).toBe(true);
+            expect(service.isCovered('c')).toBe(true);
+            finish(new Set(['b', 'c']));
+            await flush();
+            expect(service.coverageStatus()).toBe('error');
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('keeps expired empty rows hidden until a failed recheck leaves them unverified', async () => {
+        jest.useFakeTimers();
+        try {
+            jest.setSystemTime(1000);
+            const programsExpireAt = jest.fn().mockReturnValue(2000);
+            Object.assign(source, { deferredCoverage: true, programsExpireAt });
+            loadCoverage.mockImplementation(async (_window, report) => {
+                report?.('a', []);
+                return new Set(['b']);
+            });
+            service.setWindow(1000, 4000);
+            service.setCoverageRequested(true);
+            await flush();
+            expect(service.isCovered('a')).toBe(false);
+
+            jest.setSystemTime(2000);
+            let failRecheck!: () => void;
+            loadCoverage.mockImplementationOnce(
+                (_window, report) =>
+                    new Promise((resolve) => {
+                        failRecheck = () => {
+                            report?.('a', null);
+                            resolve(new Set(['a']));
+                        };
+                    })
+            );
+            service.refreshExpiredCoverage(2000);
+            expect(service.coverageStatus()).toBe('loading');
+            expect(service.isCovered('a')).toBe(false);
+            failRecheck();
+            await flush();
+            expect(service.isCovered('a')).toBe(true);
+            expect(service.coverageStatus()).toBe('error');
+            jest.setSystemTime(62_000);
+            service.refreshExpiredCoverage(62_000);
+            await flush();
+            expect(
+                loadCoverage.mock.calls[2][0].channels.map(({ id }) => id)
+            ).toEqual(['a']);
+            expect(service.isCovered('a')).toBe(false);
+            expect(service.coverageStatus()).toBe('idle');
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it.each([true, false])(
+        'rechecks expired coverage outside the viewport (now has programmes: %s)',
+        async (hasProgrammes) => {
+            jest.useFakeTimers();
+            try {
+                jest.setSystemTime(1000);
+                Object.assign(source, {
+                    deferredCoverage: true,
+                    programsExpireAt: (id: string) =>
+                        id === 'a' && Date.now() < 2000 ? 2000 : 3000,
+                });
+                loadCoverage.mockImplementationOnce(async (_window, report) => {
+                    report?.('a', hasProgrammes ? [] : [programFor('a')]);
+                    report?.('b', []);
+                    return new Set(hasProgrammes ? [] : ['a']);
+                });
+                service.setWindow(1000, 4000);
+                service.setCoverageRequested(true);
+                await flush();
+                expect(service.isCovered('a')).toBe(!hasProgrammes);
+                expect(service.isCovered('b')).toBe(false);
+
+                jest.setSystemTime(2000);
+                loadCoverage.mockImplementationOnce(async (_window, report) => {
+                    report?.('a', hasProgrammes ? [programFor('a')] : []);
+                    return new Set(hasProgrammes ? ['a'] : []);
+                });
+                service.refreshExpiredCoverage(2000);
+                service.refreshExpiredCoverage(2000);
+                await flush();
+                expect(loadCoverage).toHaveBeenCalledTimes(2);
+                expect(
+                    loadCoverage.mock.calls[1][0].channels.map(({ id }) => id)
+                ).toEqual(['a']);
+                expect(loadPrograms).not.toHaveBeenCalled();
+                expect(service.isCovered('a')).toBe(hasProgrammes);
+                expect(service.isCovered('b')).toBe(false);
+            } finally {
+                jest.useRealTimers();
+            }
+        }
+    );
+
+    it('paces coverage rechecks and rotates through expired channels', async () => {
+        const rows = Array.from({ length: 40 }, (_, index) =>
+            channel(`sample-${index}`)
+        );
+        channels.set(rows);
+        TestBed.flushEffects();
+        Object.assign(source, {
+            deferredCoverage: true,
+            programsExpireAt: () => 2000,
+        });
+        loadCoverage.mockImplementation(async ({ channels }, report) => {
+            for (const { id } of channels) report?.(id, []);
+            return new Set();
+        });
+        service.setWindow(1000, 4000);
+        service.setCoverageRequested(true);
+        await flush();
+        expect(loadCoverage.mock.calls[0][0].channels).toEqual(rows);
+
+        service.refreshExpiredCoverage(2000);
+        await flush();
+        service.refreshExpiredCoverage(61_999);
+        expect(loadCoverage).toHaveBeenCalledTimes(2);
+        expect(loadCoverage.mock.calls[1][0].channels).toEqual(
+            rows.slice(0, 12)
+        );
+
+        service.refreshExpiredCoverage(62_000);
+        await flush();
+        expect(loadCoverage.mock.calls[2][0].channels).toEqual(
+            rows.slice(12, 24)
+        );
+    });
+
+    it.each([true, false])(
+        'shows an incomplete scan and applies a successful retry (scan first: %s)',
+        async (scanFirst) => {
+            Object.assign(source, { deferredCoverage: true });
+            let finish!: (ids: Set<string>) => void;
+            loadCoverage.mockImplementation(
+                (_window, report) =>
+                    new Promise((resolve) => {
+                        report?.('a', null);
+                        report?.('b', []);
+                        finish = resolve;
+                    })
+            );
+            service.setWindow(1000, 2000);
+            service.setCoverageRequested(true);
+            if (scanFirst) {
+                finish(new Set(['a']));
+                await flush();
+                expect(service.coverageStatus()).toBe('error');
+                expect(service.isCovered('a')).toBe(true);
+                expect(service.isCovered('b')).toBe(false);
+            }
+
+            loadPrograms.mockResolvedValue(new Map([['a', []]]));
+            service.ensureLoaded([channels()[0]]);
+            await flush();
+            if (!scanFirst) {
+                finish(new Set(['a']));
+                await flush();
+            }
+            expect(service.coverageStatus()).toBe('idle');
+            expect(service.isCovered('a')).toBe(false);
+        }
+    );
+
+    it('aborts visible-row work and invalidates cached programmes after a source revision', async () => {
+        let finish!: (programs: Map<string, EpgProgram[]>) => void;
+        loadPrograms
+            .mockResolvedValueOnce(new Map([['a', [programFor('a')]]]))
+            .mockImplementationOnce(
+                () => new Promise((resolve) => (finish = resolve))
+            );
+        service.setWindow(1000, 2000);
+        service.ensureLoaded([channels()[0]]);
+        await flush();
+        expect(service.programsFor('a')).toHaveLength(1);
+        service.ensureLoaded([channels()[1]]);
+        const request = loadPrograms.mock.calls[1][0] as {
+            signal: AbortSignal;
+        };
+        revision.update((value) => value + 1);
+        TestBed.flushEffects();
+        expect(request.signal.aborted).toBe(true);
+        finish(new Map([['b', [programFor('b')]]]));
+        await flush();
+        expect(service.programsFor('a')).toEqual([]);
+        expect(service.programsFor('b')).toEqual([]);
+        expect(service.statusFor('a')).toBe('idle');
+    });
+
+    it('retires pending per-stream requests when the rows scroll out of range', async () => {
+        Object.assign(source, { programBatchSize: 1 });
+        let finish!: (programs: Map<string, EpgProgram[]>) => void;
+        loadPrograms.mockImplementationOnce(
+            () => new Promise((resolve) => (finish = resolve))
+        );
+        loadPrograms.mockResolvedValue(new Map([['b', [programFor('b')]]]));
+        service.setWindow(1000, 2000);
+        service.ensureLoaded([channels()[0]]);
+        const first = loadPrograms.mock.calls[0][0] as { signal: AbortSignal };
+        service.ensureLoaded([channels()[1]]);
+        finish(new Map([['a', [programFor('a')]]]));
+        await flush();
+        expect(first.signal.aborted).toBe(true);
+        expect(service.statusFor('a')).toBe('idle');
+        expect(service.programsFor('a')).toEqual([]);
+        expect(service.programsFor('b')).toHaveLength(1);
+    });
+
+    it('drops completed per-stream rows outside the rendered range', async () => {
+        Object.assign(source, {
+            programBatchSize: 1,
+            programsExpireAt: () => Infinity,
+        });
+        const [first, second] = channels();
+        loadPrograms
+            .mockResolvedValueOnce(new Map([['a', [programFor('a')]]]))
+            .mockResolvedValueOnce(new Map([['b', [programFor('b')]]]))
+            .mockResolvedValueOnce(new Map([['a', [programFor('a')]]]));
+        service.setWindow(1000, 2000);
+        service.ensureLoaded([first]);
+        await flush();
+        expect(service.statusFor('a')).toBe('loaded');
+        service.ensureLoaded([second]);
+        await flush();
+        expect(service.programsFor('a')).toEqual([]);
+        expect(service.statusFor('a')).toBe('idle');
+        expect(service.programsFor('b')).toHaveLength(1);
+        service.ensureLoaded([first]);
+        await flush();
+        expect(service.programsFor('a')).toHaveLength(1);
+        expect(loadPrograms).toHaveBeenCalledTimes(3);
     });
 
     it('reports "none" for channels without an EPG key and never requests them', async () => {
@@ -118,15 +523,98 @@ describe('EpgGuideProgramsService', () => {
         expect(service.programsFor('a')).toEqual([]);
     });
 
-    it('marks a failed batch as loaded-empty instead of retrying on every scroll', async () => {
+    it('retries a failed row when it returns to the viewport without retrying visible rows repeatedly', async () => {
         loadPrograms.mockRejectedValue(new Error('ipc down'));
         service.setWindow(1_000, 2_000);
         service.ensureLoaded(channels());
         await flush();
-        expect(service.statusFor('a')).toBe('loaded');
+        expect(service.statusFor('a')).toBe('error');
         service.ensureLoaded(channels());
         expect(loadPrograms).toHaveBeenCalledTimes(1);
+        service.ensureLoaded([]);
+        loadPrograms.mockResolvedValue(new Map([['a', []]]));
+        service.ensureLoaded([channels()[0]]);
+        await flush();
+        expect(loadPrograms).toHaveBeenCalledTimes(2);
+        expect(service.statusFor('a')).toBe('loaded');
+        expect(service.programsFor('a')).toEqual([]);
     });
+
+    it('keeps rendered programmes on a failed refresh and retries after a delay', async () => {
+        jest.useFakeTimers({ now: 1000 });
+        try {
+            const programsExpireAt = jest.fn().mockReturnValue(2000);
+            Object.assign(source, { programsExpireAt });
+            const row = channels()[0];
+            const original = programFor('a');
+            const refreshed = {
+                ...original,
+                title: 'Synthetic Refreshed Programme',
+            };
+            loadPrograms
+                .mockResolvedValueOnce(new Map([['a', [original]]]))
+                .mockResolvedValueOnce(new Map())
+                .mockResolvedValueOnce(new Map([['a', [refreshed]]]));
+            service.setWindow(1000, 2000);
+            service.ensureLoaded([row]);
+            await flush();
+            service.ensureLoaded([row]);
+            expect(loadPrograms).toHaveBeenCalledTimes(1);
+            jest.setSystemTime(2000);
+            service.ensureLoaded([row]);
+            await flush();
+            expect(loadPrograms).toHaveBeenCalledTimes(2);
+            expect(service.programsFor('a')).toEqual([original]);
+            expect(service.statusFor('a')).toBe('loaded');
+            jest.setSystemTime(31_999);
+            service.ensureLoaded([row]);
+            expect(loadPrograms).toHaveBeenCalledTimes(2);
+            jest.setSystemTime(32_000);
+            programsExpireAt.mockReturnValue(60_000);
+            service.ensureLoaded([row]);
+            await flush();
+            expect(loadPrograms).toHaveBeenCalledTimes(3);
+            expect(service.programsFor('a')).toEqual([refreshed]);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it.each([true, false])(
+        'removes a recovered empty row when coverage resolves first: %s',
+        async (coverageFirst) => {
+            Object.assign(source, {
+                deferredCoverage: true,
+                programBatchSize: 1,
+            });
+            let finishCoverage!: (ids: Set<string>) => void;
+            loadCoverage.mockImplementation(
+                () => new Promise((resolve) => (finishCoverage = resolve))
+            );
+            const row = channels()[0];
+            loadPrograms
+                .mockResolvedValueOnce(new Map())
+                .mockResolvedValueOnce(new Map([['a', []]]));
+            service.setWindow(1000, 2000);
+            service.setCoverageRequested(true);
+            service.ensureLoaded([row]);
+            await flush();
+            if (coverageFirst) {
+                finishCoverage(new Set(['a']));
+                await flush();
+            }
+            expect(service.isCovered('a')).toBe(true);
+            service.ensureLoaded([]);
+            service.ensureLoaded([row]);
+            await flush();
+            if (!coverageFirst) {
+                service.ensureLoaded([]);
+                finishCoverage(new Set(['a']));
+                await flush();
+            }
+            expect(service.isCovered('a')).toBe(false);
+        }
+    );
 
     it('loads coverage for the whole scope when the window is set and answers isCovered', async () => {
         loadCoverage.mockResolvedValue(new Set(['a']));
@@ -153,9 +641,7 @@ describe('EpgGuideProgramsService', () => {
         await flush();
         expect(service.statusFor('a')).toBe('idle');
         expect(loadCoverage.mock.calls.length).toBe(callsBefore + 1);
-        const requested = loadCoverage.mock.calls[callsBefore][0] as {
-            channels: EpgGuideChannel[];
-        };
+        const requested = loadCoverage.mock.calls[callsBefore][0];
         const requestedIds = requested.channels.map((item) => item.id);
         expect(requestedIds).toContain('z');
         expect(requestedIds).not.toContain('b');
@@ -192,9 +678,7 @@ describe('EpgGuideProgramsService', () => {
         expect(requestedPrograms.channels.map((item) => item.id)).not.toContain(
             'empty'
         );
-        const requestedCoverage = loadCoverage.mock.calls[0][0] as {
-            channels: EpgGuideChannel[];
-        };
+        const requestedCoverage = loadCoverage.mock.calls[0][0];
         expect(requestedCoverage.channels.map((item) => item.id)).not.toContain(
             'empty'
         );

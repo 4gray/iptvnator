@@ -5,6 +5,7 @@ import {
 import { isHostConnectivityFastFailMessage } from '@iptvnator/shared/interfaces';
 import axios from 'axios';
 import express from 'express';
+import { EventEmitter, once } from 'node:events';
 import { createWebBackendApp, WebBackendHttpClient } from './web-backend-app';
 import {
     registerProviderTarget,
@@ -71,6 +72,81 @@ describe('provider proxy redirect boundary', () => {
 });
 
 describe('redirect routes and admission lifecycle', () => {
+    it.each([false, true])(
+        'cancels Xtream upstream and preserves redirect evidence (%s)',
+        async (redirected) => {
+            const activity = new EventEmitter();
+            const provider = express();
+            if (redirected)
+                provider.get('/player_api.php', (_req, res) =>
+                    res.redirect('/pending')
+                );
+            provider.get(
+                redirected ? '/pending' : '/player_api.php',
+                (_req, res) => {
+                    res.once('close', () => activity.emit('closed'));
+                    activity.emit('started');
+                }
+            );
+            let now = 1000;
+            const hostGuard = new HostConnectivityGuard({ now: () => now });
+            const release = hostGuard.reportInconclusive.bind(hostGuard);
+            jest.spyOn(hostGuard, 'reportInconclusive').mockImplementation(
+                (token) => {
+                    release(token);
+                    activity.emit('settled');
+                }
+            );
+            await withServer(provider, async (providerUrl) => {
+                for (let attempt = 0; attempt < 2; attempt++) {
+                    const admission = hostGuard.check(providerUrl);
+                    if (!admission.allowed)
+                        throw new Error('Expected admission');
+                    hostGuard.reportFailure(admission.token);
+                }
+                now += OPEN_DURATION_MS + 1;
+                await withServer(
+                    createWebBackendApp({
+                        allowPrivateNetworkTargets: true,
+                        hostGuard,
+                    }),
+                    async (backend) => {
+                        const id = await registerProviderTarget(
+                            backend,
+                            providerUrl
+                        );
+                        const controller = new AbortController();
+                        const started = once(activity, 'started', {
+                            signal: AbortSignal.timeout(2000),
+                        });
+                        const request = fetch(
+                            `${backend}/xtream?targetId=${id}&action=get_simple_data_table`,
+                            {
+                                signal: controller.signal,
+                            }
+                        );
+                        await started;
+                        const closed = once(activity, 'closed', {
+                            signal: AbortSignal.timeout(2000),
+                        });
+                        const settled = once(activity, 'settled', {
+                            signal: AbortSignal.timeout(2000),
+                        });
+                        controller.abort();
+                        await expect(request).rejects.toMatchObject({
+                            name: 'AbortError',
+                        });
+                        await Promise.all([closed, settled]);
+                        expect(hostGuard.check(providerUrl)).toMatchObject({
+                            allowed: true,
+                            token: { trial: !redirected },
+                        });
+                    }
+                );
+            });
+        }
+    );
+
     it.each(['/xtream', '/stalker', '/parse', '/parse-xml'])(
         '%s follows an allowed local redirect and parses the final body',
         async (route) => {

@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
-import { Observable } from 'rxjs';
+import { EMPTY, finalize, Observable } from 'rxjs';
 import {
     EpgItemDescriptionComponent,
     EpgItemDialogAction,
@@ -17,6 +17,7 @@ export const EPG_PROGRAMME_DIALOG_CONFIG = {
     maxHeight: 'calc(100dvh - 32px)',
     panelClass: 'epg-programme-dialog-panel',
 } as const satisfies MatDialogConfig;
+const OWNED_PANEL = 'epg-owned-programme-dialog';
 
 /**
  * Opens the shared programme-details dialog and returns the chosen action.
@@ -27,16 +28,39 @@ export const EPG_PROGRAMME_DIALOG_CONFIG = {
 export class EpgProgrammeDialogService {
     private readonly dialog = inject(MatDialog);
 
-    open(data: EpgItemDialogData): Observable<EpgItemDialogAction | undefined> {
-        return this.dialog
-            .open<
-                EpgItemDescriptionComponent,
-                EpgItemDialogData,
-                EpgItemDialogAction
-            >(EpgItemDescriptionComponent, {
-                ...EPG_PROGRAMME_DIALOG_CONFIG,
-                data,
-            })
-            .afterClosed();
+    ownedAfterClosed(focused: Element | null): Observable<unknown> | undefined {
+        const owner = focused?.closest<HTMLElement>(
+            `.${OWNED_PANEL} mat-dialog-container`
+        );
+        return owner
+            ? this.dialog.getDialogById(owner.id)?.afterClosed()
+            : undefined;
+    }
+
+    open(
+        data: EpgItemDialogData,
+        signal?: AbortSignal
+    ): Observable<EpgItemDialogAction | undefined> {
+        if (signal?.aborted) return EMPTY;
+        const ref = this.dialog.open<
+            EpgItemDescriptionComponent,
+            EpgItemDialogData,
+            EpgItemDialogAction
+        >(EpgItemDescriptionComponent, {
+            ...EPG_PROGRAMME_DIALOG_CONFIG,
+            ...(signal && {
+                panelClass: [
+                    EPG_PROGRAMME_DIALOG_CONFIG.panelClass,
+                    OWNED_PANEL,
+                ],
+            }),
+            data,
+        });
+        if (!signal) return ref.afterClosed();
+        const close = () => ref.close();
+        signal.addEventListener('abort', close, { once: true });
+        return ref
+            .afterClosed()
+            .pipe(finalize(() => signal.removeEventListener('abort', close)));
     }
 }

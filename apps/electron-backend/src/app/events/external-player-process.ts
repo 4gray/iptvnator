@@ -21,6 +21,14 @@ const EXTERNAL_PLAYER_TEARDOWN_PENDING_ERROR = tagExternalPlayerError(
 export class ExternalPlayerProcessTeardownGate {
     private readonly pending = new Map<ChildProcess, () => void>();
 
+    isStopping(child: ChildProcess): boolean {
+        return this.isTeardownPending(child) || hasExited(child);
+    }
+
+    isTeardownPending(child: ChildProcess): boolean {
+        return this.pending.has(child);
+    }
+
     assertLaunchAllowed(): void {
         for (const child of this.pending.keys()) {
             if (hasExited(child)) {
@@ -187,6 +195,6 @@ function waitForExternalPlayerProcessExitWithin(
     });
 }
 
-function hasExited(child: ChildProcess): boolean {
+export function hasExited(child: ChildProcess): boolean {
     return child.exitCode !== null || child.signalCode !== null;
 }

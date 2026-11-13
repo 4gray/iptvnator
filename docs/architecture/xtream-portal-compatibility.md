@@ -778,6 +778,225 @@ and private-network checks.
 
 ## Provider EPG
 
+The Xtream Live TV header, command palette, timeline and list panel, and `G`
+open the shared multi-channel programme guide while a channel is playing.
+On desktop, past programmes in the grid can play from their own channel's
+archive within the provider's retention window. The grid uses the same archive
+playback path as the Live TV EPG panel and keeps its displayed channel order.
+The EPG time correction applies to the programme end and retention checks.
+Replay URLs keep the provider's original timestamps.
+With MPV or VLC selected, the preload must support session updates and closing
+an exact session, and the session must have opened before the guide can open.
+When the player reports the stream stopped, an open guide keeps its schedule
+visible and lets the user retry. If VLC's playback state cannot be read, Enter
+or a double-click that starts on the active row explicitly retries it, even
+after an earlier successful VLC status read. Cancelling a different pending
+tune still retries the playing VLC stream if its status remains unreadable.
+A double-click on a new row commits the tune requested by its first click.
+The guide keeps the player mounted in the dock and hides the live sidebars
+while preserving their browsing state. Short screens show a compact dock so
+schedule rows remain visible. If an external channel switch fails and the
+player restores the previous session or rejects a switch while the old session
+is still playing, the guide keeps its scope and search. Enter and double-click
+close the guide only after the requested stream opens, including in the inline
+player. Committing the same row after an inline playback error or stream end
+retries the stream; committing while it is still opening waits for that attempt.
+An inline retry must confirm again even when the stream URL is unchanged.
+An embedded MPV reconnect also waits for the resumed stream to play.
+A guide or remote switch reuses the managed player when available. Otherwise
+it waits for the exact previous process to exit before opening the new channel,
+so a one-connection account does not have two simultaneous streams. An older
+VLC launch that has not spawned cannot take the newer guide's private reuse slot.
+A newer tune waits for an already dispatched launch to become closable, and for an
+already cancelled launch to exit. Selecting the previous channel while it is
+stopping restarts it after exit and waits for that
+playback to open, including when a click still lands on its active row.
+An explicit Stop in the playback dock cancels an earlier external tune from
+the same playlist, including during category or archive lookup or while waiting
+for the player to exit. A tune already dispatched is cancelled by launch ID; its exact
+session is closed when it becomes available. The dock's own Stop still owns
+teardown of the session it targeted and clears any failed tune kept for the
+remote. The handoff's exact close does not cancel its replacement.
+Selecting the same channel during a dock Stop also waits for that process to
+exit and confirms only the restarted stream.
+If a replacement fails after the previous stream ends, the already open guide
+keeps its scope and search so the user can retry, including when both streams
+used the same process.
+A fresh or reused MPV
+process with IPC confirms its requested playlist entry, including siblings left
+by nested redirects, and clears confirmation when that input ends or another
+entry takes over. A late load or replay of the same entry can confirm again.
+If the launcher exits before `loadfile` is sent, or the socket never accepts it,
+MPV retries with the original URL argument after the idle process exits. Stop
+or disabling instance reuse cancels that fallback and any pending IPC write.
+An opening request cancelled by Stop or by disabling reuse waits for that exact
+child to exit before releasing the next queued request.
+The Unix socket lives in a private directory owned by the app user. The app
+removes it when the child exits or on orderly shutdown, even if a detached
+player is still running. Older MPV versions that acknowledge without an
+entry ID keep the remote queue without confirming guide playback.
+VLC guide launches use a private Unix socket for control where available, and
+otherwise open directly without an unauthenticated TCP control port. VLC RC
+checks the requested input before and after reading its playback clock. URL
+comparison preserves escaped delimiters such as `%2F`.
+VLC skips known direct media when verifying a mismatched input. A HEAD request
+can follow up to three validated redirects within the same request limits. The
+verifier reads only the identified playlist from the address that answered
+HEAD, without resolving DNS again or following a GET redirect.
+An unidentifiable input stays unverified. If the original URL has an M3U
+extension and rejects HEAD as unsupported, it can be read directly.
+When VLC opens a direct child of a plain M3U, the verifier resolves relative
+entries against the final playlist URL. It rechecks the active input
+before confirming. A playlist with an M3U extension or media type can omit the
+header; HLS tags still exclude it. A mismatched child can refresh a previously
+identified playlist after five seconds. Failed reads get up to three consecutive
+retries. Playlist verification uses VLC's Origin as the fallback
+Referer. Guide playback and verification use the same User-Agent, with the
+standard Xtream player value when no override was provided.
+A host change or HTTPS downgrade keeps only the standard User-Agent for
+subsequent requests.
+A readable zero stays pending; an unrelated URL invalidates confirmation. A
+stopped VLC input must pass the clock check again before the guide marks it live.
+VLC's initial stopped state leaves a new tune pending until confirmation,
+timeout, or the launch ends.
+Retrying the same unverified input closes the exact MPV or VLC session first,
+including a VLC session restored after a failed switch. Temporary RC failures
+keep the committed selection pending until a readiness timeout or terminal outcome.
+If the player cannot verify readiness, the guide stays available for a retry and a
+committed selection keeps it open. Committing the still-playing channel cancels
+every outstanding switch away from it, including timed-out launches that can
+still start playing. With MPV or VLC, it waits for those switches to settle
+and retunes the original channel if the player no longer has it open. An unverified
+VLC launch cannot replace confirmed playback.
+The dock, player panel and remote status follow the confirmed session. The remote
+keeps channel and programme metadata tied to the same playback. An unverified
+channel can keep remote tuning available, including the first launch from the
+sidebar. It supplies its tuning queue but no unconfirmed programme metadata.
+An opened archive without media observation can still return to the live
+stream for its channel, using the archive's saved queue. After switching to
+the inline player, Return to Live follows inline playback even if the external
+archive is still open.
+Selecting the number of a channel already playing live cancels pending tunes,
+including archive lookups, without reopening it.
+The tune request service coordinates guide activation and playback confirmation.
+It invalidates category and archive lookups, inline confirmation and deferred
+retunes when Stop or a newer selection wins.
+A native launch waiting for the previous player to exit checks this again before
+dispatch. Choosing the same waiting launch can adopt it as the latest request.
+Selecting a live channel in the guide, including **Watch Live** from programme
+details, also retires older archive lookups while reusing any matching player
+launch. When the queue has only one inline channel, the remote's channel
+buttons can retry it after playback fails or ends.
+The player panel stays on confirmed playback while a remote tune is pending.
+The dock restores Stop for the surviving session when the launch that owns
+the dock ends. An idle failed replacement closes before that restore. If the
+first launch fails or exits before confirming
+playback, its channel and queue remain available for remote tuning without
+now-playing details, including when it exits after the readiness timeout.
+An explicit Stop clears the exact unconfirmed tune, even
+after a closable error or if MPV or VLC exits with a nonzero code while stopping.
+Consecutive remote tuning commands advance from the latest requested channel
+until it opens or fails. A VLC fallback from an older launch cannot retire a
+newer tune.
+IINA keeps the selection-based remote queue because its launcher can exit
+while playback continues. MPV without an observation bridge keeps the queue
+captured when the channel was selected, without confirming guide playback.
+Browsing another channel does not replace the remote order or detach the
+guide. Confirming the already playing channel in the guide replaces a sidebar
+preview with that channel's programme without restarting it or changing its
+saved remote order. A detached session's Stop or retry state does not affect
+inline tuning or its remote queue. Starting archive playback from a preview
+commits that preview's order when the archive session opens. An earlier live tune confirming
+does not cancel a newer archive lookup. Inline and external archive requests
+both check their own channel and category after resolving the URL.
+If a relock withholds that
+channel or the pending replacement, the guide hides the withheld channel and
+closes its external session even if it finishes opening later, reports a
+closable error, has already left the dock or returns while teardown is pending.
+If the guide closes while its programme details have focus, it waits for that
+dialog to close before returning focus to the workspace.
+If teardown fails, unlocking the
+category restores Stop for that same active session. Cancelling a queued replacement
+leaves the allowed player running. If a replacement fails, the guide follows
+the newest allowed session in the playlist that has opened and is still live. The
+app retries an exact close if the external player cannot confirm its exit.
+A replacement that opens and exits before the guide updates clears its
+pending switch, restores the surviving channel's panel, and can be retried.
+Returning to Live TV in external-player mode reattaches the guide to a session
+still playing on the same playlist and provider connection, including a failed
+replacement's survivor or a session displaced from the global dock. A server or
+account change prevents reattachment to the previous connection. Each session
+keeps its own category and queue, even when launches share a stream URL.
+A retry closes a prior session by its ID; VLC never infers ownership from the URL.
+Pending live and archive requests recheck that connection after asynchronous lookups.
+Native lifecycle events carry the requesting launch's identifier so
+unrelated players at the same URL cannot claim that session.
+The queue saved for a same-channel replay is the queue it preserves.
+Restoring a surviving session restores that session's order even if the
+channel is the same. Guide tuning captures the rows visible after filtering.
+The guide uses the current playlist's visible, unlocked
+live catalogue and can scope it to a category or resolved live favorites.
+If a saved favorite resolves to a locked or hidden copy, the guide uses a
+visible copy only after verifying its favorite identity.
+A stream shared by multiple categories appears in each of those scopes and
+once in All Channels. Choosing another copy of a stream already playing
+switches its EPG mapping without restarting playback and keeps temporarily
+hidden channels in the saved queue. If the stream is still opening, the last
+choice supplies its mapping when it opens. Programme
+details play the copy they describe while it remains available. Remote tuning
+also retains the category copy saved in the queue. Changing the copy of the
+playing channel replaces that entry in the saved queue and preserves its order.
+
+Xtream supplies full schedules per stream. The guide starts with the rendered
+rows, shares in-flight work and a bounded five-minute in-memory cache, and
+limits request concurrency. Switching channels from the guide uses that
+same schedule for the player panel. The grid releases rows outside its rendered range
+and buffer. Rendered rows and the playing stream's dock revalidate after their
+schedules expire, even if the playing row is outside the current scope. The
+dock follows the playing copy's latest XMLTV identity after a catalog recheck
+and keeps the player panel and remote programme current when the guide closes.
+After the guide closes, a refresh of the playing channel's panel replaces the
+guide snapshot. The latest confirmed schedule stays tied to the playing channel,
+even while the panel previews a different channel or the channel list is
+reordered. Changing the Xtream server or account clears the panel's old playback
+association even if the playlist and stream IDs are unchanged. Closing the
+guide cancels its reads.
+Initial failures retry when rows return to the viewport. If a visible row's
+refresh fails, it keeps its last schedule and can retry after 30 seconds.
+A coverage scan or dock refresh that obtains a fresh schedule also updates
+the corresponding visible row after an initial failure or a failed refresh.
+It checks the current scope's coverage only when the user turns on **Only with
+EPG** and keeps channels whose coverage could not be checked until a successful
+lookup determines whether they have programmes. It hides confirmed empty
+rows as results arrive and keeps them hidden during rechecks. While the filter
+is on, it rotates through expired results in batches of up to 12 per minute.
+Rendered rows and the playing channel still refresh on schedule expiry. Failed
+checks, including unavailable XMLTV reads, stay visible as unknown and retry
+within the same budget. If both full-schedule actions are unsupported, the
+provider has no schedule; a transient failure remains retryable. Programme
+search reads the available live
+catalogue on demand, including channels outside the viewport and distinct
+schedules for streams shared by multiple categories. Search publishes
+matches and progress as it scans, counting equivalent airings of the same
+stream only once. A match keeps the first category copy that supplied
+its schedule, even if the guide scope changes before the match opens. Guide
+details close when their channel is withheld. A failed
+schedule does not discard matches from other channels. Large scopes can take longer to
+search or filter. Closing the guide cancels its in-flight provider requests.
+Replacing a search or viewport request cancels work once no other guide
+consumer needs it. An XMLTV read already sent to Electron keeps its concurrency
+slot until the native request settles. During a parental-lock reload, the guide
+keeps the requested category without showing withheld rows. It returns to All
+Channels if the filtered category list confirms that the category is unavailable.
+Visibility changes refresh the guide's favorites. Background favorites
+synchronization also refreshes membership while the guide is open.
+Rechecking the same playlist keeps the guide open and preserves its scope and
+search query. Guide and player use the same full EPG resolver, including
+manual XMLTV mappings and the user's source priority. The renderer loads the
+provider response parser only when an EPG response arrives. Temporary failures
+on the legacy provider action remain errors even if the primary action returned
+an empty schedule.
+
 The global `Settings.epgEnabled` opt-out gates short/full provider requests and
 XMLTV fallbacks, including collections and dashboard previews. Turning it off
 retires queue state and pending answers and hides programme UI; provider channel
@@ -805,6 +1024,9 @@ or with an error status cannot fast-fail playback.
 The local XMLTV parts keep the XMLTV capabilities and stay off in the PWA:
 the `epg_channel_id` fallback and `preferUploadedEpgOverXtream`
 (`XtreamXmltvFallbackService`), and manual EPG mapping (`supportsEpgMapping`).
+When the provider is preferred, a missing or failed provider schedule falls
+back to available XMLTV. If both fail to provide a schedule, a provider error
+remains an error so the guide can retry it.
 The PWA hides the catch-up actions of the EPG panel (watch, copy, download):
 `RuntimeCapabilitiesService.supportsProviderCatchUp` is false there until a
 manual check against a real provider shows that the browser players play the
@@ -1222,8 +1444,8 @@ replaces its existing global-order slots and preserves other sources' positions.
 Capture source incarnation, profile and consent before reading either archive or
 catalog. Recheck ownership before publishing a projection and before committing
 a membership action, including lookups after a native projection has completed.
-Action/status paths call `getFavorites(playlistId, false)` to read the PWA archive
-without hydrating older unresolved entries. Ordinary collection reads retain
+Action/status paths and guide membership call `getFavorites(playlistId, false)`
+to read the PWA archive without hydrating older unresolved entries. Ordinary collection reads retain
 hydration by default; reference/snapshot conversion stays in the shared provider
 reference adapters used by preview and backup.
 PWA cache-only identity lookup also applies TMDB/year hints, preferring fully

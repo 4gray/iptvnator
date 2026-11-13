@@ -9,7 +9,7 @@ import {
     convertToParamMap,
 } from '@angular/router';
 import { MockPipe } from 'ng-mocks';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslateModule, TranslatePipe } from '@ngx-translate/core';
 import { BehaviorSubject, Subject, of } from 'rxjs';
 import {
     LIVE_EPG_PANEL_STATE_STORAGE_KEY,
@@ -178,7 +178,11 @@ describe('LiveStreamLayoutComponent', () => {
         routeQueryParamMap = new BehaviorSubject(convertToParamMap({}));
 
         await TestBed.configureTestingModule({
-            imports: [LiveStreamLayoutComponent, NoopAnimationsModule],
+            imports: [
+                TranslateModule.forRoot(),
+                LiveStreamLayoutComponent,
+                NoopAnimationsModule,
+            ],
             providers: [
                 {
                     provide: EpgArchiveDownloadService,
@@ -783,11 +787,11 @@ describe('LiveStreamLayoutComponent', () => {
             1775300400,
             undefined
         );
-        expect(xtreamStore.openPlayer).toHaveBeenCalledWith(
+        expect(xtreamStore.openPlayer.mock.lastCall?.slice(0, 3)).toEqual([
             'https://example.com/timeshift.ts',
             'Channel 101 - Archived Show',
-            'channel-101.png'
-        );
+            'channel-101.png',
+        ]);
         expect(component.activePlayback()).toEqual(
             expect.objectContaining({
                 streamUrl: 'https://example.com/timeshift.ts',
@@ -1072,22 +1076,22 @@ describe('LiveStreamLayoutComponent', () => {
     });
 
     it('starts external playback from remote channel navigation when double-click opening is enabled', () => {
+        const firstChannel = { ...sampleChannel, category_id: '1' };
         const nextChannel = {
-            ...sampleChannel,
-            category_id: '1',
+            ...firstChannel,
             xtream_id: 102,
             name: 'Channel 102',
         };
         settingsStore.openStreamOnDoubleClick.set(true);
         portalPlayer.isEmbeddedPlayer.mockReturnValue(false);
-        selectedItem.set(sampleChannel);
+        selectedItem.set(firstChannel);
         xtreamStore.selectItemsFromSelectedCategory.mockReturnValue([
-            sampleChannel,
+            firstChannel,
             nextChannel,
         ]);
 
-        liveStreams.set([{ ...sampleChannel, category_id: '1' }, nextChannel]);
-        component.playLive(sampleChannel);
+        liveStreams.set([firstChannel, nextChannel]);
+        component.playLive(firstChannel);
         xtreamStore.openPlayer.mockClear();
         (
             component as unknown as {
@@ -1095,11 +1099,11 @@ describe('LiveStreamLayoutComponent', () => {
             }
         ).handleRemoteChannelChange('down');
 
-        expect(xtreamStore.openPlayer).toHaveBeenCalledWith(
+        expect(xtreamStore.openPlayer.mock.lastCall?.slice(0, 3)).toEqual([
             'https://example.com/live.ts',
             'Channel 102',
-            'channel-101.png'
-        );
+            'channel-101.png',
+        ]);
     });
 
     it('shows an archive-unavailable notice when past programs exist but archive playback is unavailable', () => {
