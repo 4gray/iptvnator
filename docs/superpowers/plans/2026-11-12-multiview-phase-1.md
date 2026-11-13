@@ -236,6 +236,15 @@ picker lists only the current playlist under "Playlists" (spec Q2).
   on some rows and "LIVE" on others without a visible rule. Proposal: elapsed
   minutes of the current programme when the row has EPG, "LIVE" when it has
   none.
+- **D12. System picture-in-picture (proposed 2026-11-13, awaiting
+  confirmation).** The two features stay independent outside a session: the
+  single player keeps its system PiP button exactly as today. During a
+  session no tile can enter system PiP (per-tile pop-out is a non-goal):
+  small tiles have no dock, and the main tile's dock hides its PiP button
+  (Task 11). Starting a session while the video is in system PiP is allowed;
+  tile 1 replaces the player element, so the browser closes the PiP window
+  and the stream continues in the app. The multiview button is not disabled
+  while system PiP is active.
 - **D6. Plan location.** `AGENTS.md` asks for finalized plans in `.plans/`;
   this file is in `docs/superpowers/plans/` as requested. Say if you want a
   copy there once approved.
@@ -574,6 +583,29 @@ the host's existing `timeUpdate` → `PlaybackPositionService` path (R9).
 existing e2e (`inline-player-layout.e2e.ts`, live layout specs).
 **Accept:** existing specs of the view unedited and green.
 
+#### Anchor scheme change (made during Task 7)
+
+The structural `*appMultiviewAnchor` directive of Task 5 is replaced. The
+M3U, Stalker and unified-live specs replace their component's imports
+wholesale (`overrideComponent(..., { set: { imports } })`); a structural
+directive missing from those imports would stop the player from rendering,
+so those existing specs would have had to change. Now:
+
+- `injectMultiviewAnchor(host)` (constructor or field initializer of the
+  view) creates the anchor: registration, R5, adoption, ending the session on
+  leave or when the placeholder disappears.
+- The view's player slot is plain control flow:
+  `@if (anchor.ownsSession()) { <app-multiview-anchor-placeholder> } @else
+  { <app-web-player-view appMultiviewPlayer …> }`. Without a session it
+  renders exactly as before, whatever the spec imports.
+- `appMultiviewPlayer` (attribute directive, no input) gives that player's
+  dock the multiview action through `provideMultiviewAnchor()` on the view,
+  and reports the player's position from its `<video>` `timeupdate` events
+  (capture phase), so tile 1 continues a VOD where the view's player was
+  (R1). Found by the live M3U check: without it tile 1 restarted from 0.
+- Views import it from the light entry `@iptvnator/ui/playback/multiview-anchor`
+  (no web players behind it), so specs can import it statically.
+
 #### Task 6 as built (Xtream live)
 
 - `xtream-live-multiview-host.ts` (+ spec, 10): anchor id `xtream-live`;
@@ -603,6 +635,32 @@ existing e2e (`inline-player-layout.e2e.ts`, live layout specs).
 - Known phase 1 limit: a parental relock that withholds the layout's own
   channel removes the player and so ends the whole session (the anchor
   leaves), rather than closing only that tile.
+
+#### Task 7 as built (M3U player)
+
+- `m3u-multiview-host.ts` (+ spec, 12): anchor id `m3u-player`; kind from
+  the resolved playback (`isLive === false` → `vod`, so movie files and
+  catch-up are held paused without audio); catch-up is its own source
+  (key suffixed with the catch-up URL, no `contentId`); radio channels are
+  flagged `radio` and never become tiles; engine = the inline player's
+  (DASH override, else the player settings); `adopt()` dispatches
+  `setActiveChannel` for a surviving channel of the same playlist. Note:
+  the M3U player records every active-channel change as recently viewed, so
+  adopting a survivor refreshes its history timestamp.
+- `video-player.component.{ts,html}`: `multiviewAnchor` field,
+  `provideMultiviewAnchor`, the `@else if (ownsSession)` placeholder branch
+  after the radio branch, `appMultiviewPlayer` on the inline player. The
+  movie-detail player gets no multiview action.
+- `video-player.multiview.spec.ts` (4) on the existing harness.
+- Checks: `playlist-m3u-feature-player` 192 (no existing spec edited),
+  `portal-xtream-feature` 735, `ui-playback` 1767, `playback-multiview-ui` 22,
+  `playback-multiview-data-access` 75, `workspace-shell-feature` 399; lint,
+  `typecheck:web`, `typecheck:spec`, `electron-backend:build-e2e`.
+- Live check, Electron with a local M3U of two WebM files and the Xtream
+  mock (temporary probe, session started through Angular's debug API):
+  tile 1 continued at the player's position; the muted VOD PiP was held
+  paused; after a swap the movie paused at 3.04 s and resumed from 3.04 s on
+  swap back (R4); exit handed the audio tile back; no console errors.
 
 ### Task 11: Tile chrome, multiview bar, swap, audio, close, exit
 

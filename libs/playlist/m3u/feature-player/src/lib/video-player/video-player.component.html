@@ -114,8 +114,13 @@
                             [playbackSessionKey]="playbackSessionKey()"
                             (volumeChange)="onInlineVolumeChange($event)"
                         />
+                    } @else if (multiviewAnchor.ownsSession()) {
+                        <app-multiview-anchor-placeholder
+                            [anchor]="multiviewAnchor"
+                        />
                     } @else {
                         <app-web-player-view
+                            appMultiviewPlayer
                             [playbackSessionKey]="playbackSessionKey()"
                             [streamUrl]="embeddedPlayback()?.streamUrl ?? ''"
                             [title]="inlinePlayerTitle()"
