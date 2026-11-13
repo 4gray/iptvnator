@@ -51,7 +51,7 @@ try {
             readFileSync(join(fixtures, `synthetic${index}.ts`))
         )
     );
-    const seen = { origin: [], target: [], segments: 0 };
+    const seen = { origin: [], target: [], segments: 0, sessionCookie: '' };
     const respond = (req, res, data, mime) => {
         const range = /^bytes=(\d+)-(\d*)$/.exec(req.headers.range ?? '');
         const start = range ? Number(range[1]) : 0;
@@ -82,6 +82,18 @@ try {
         if (req.url === '/synthetic.mp4') {
             res.writeHead(302, { Location: target + '/redirected.mp4', 'Access-Control-Allow-Origin': '*' });
             res.end();
+        } else if (req.url === '/synthetic-session.mp4') {
+            res.writeHead(302, {
+                Location: '/synthetic-session-video.mp4',
+                'Set-Cookie': 'synthetic_session=fresh; Path=/',
+            }).end();
+        } else if (req.url === '/synthetic-session-video.mp4') {
+            seen.sessionCookie = req.headers.cookie ?? '';
+            if (seen.sessionCookie.includes('synthetic_session=fresh')) {
+                res.writeHead(302, { Location: target + '/redirected.mp4' }).end();
+            } else {
+                res.writeHead(403).end();
+            }
         } else if (req.url === '/synthetic-chunked.ts') {
             res.writeHead(200, { 'Content-Type': 'video/mp2t' });
             res.flushHeaders();
@@ -286,6 +298,27 @@ try {
     await setExperiment(false);
     await expect(action).toHaveCount(0);
     await setExperiment(true);
+    const systemCaptionSettings = ['accessibility_captioning_enabled', 'accessibility_captioning_locale'];
+    const previousCaptionSettings = systemCaptionSettings.map((key) =>
+        adb('shell', 'settings', 'get', 'secure', key).trim()
+    );
+    try {
+        adb('shell', 'settings', 'put', 'secure', systemCaptionSettings[0], '1');
+        adb('shell', 'settings', 'put', 'secure', systemCaptionSettings[1], 'en_US');
+        await page.evaluate((url) => {
+            window.TvShell.postMessage(JSON.stringify(['playNative', crypto.randomUUID(), { url, captions: false }]));
+        }, origin + '/synthetic-ac3.mkv');
+        await waitNative();
+        await waitAudio();
+        await expect.poll(captionsState, { timeout: 8000 }).toBe('Enable subtitles');
+        await back();
+    } finally {
+        for (const [index, key] of systemCaptionSettings.entries()) {
+            const value = previousCaptionSettings[index];
+            if (value === 'null') adb('shell', 'settings', 'delete', 'secure', key);
+            else adb('shell', 'settings', 'put', 'secure', key, value);
+        }
+    }
     await page.evaluate((url) => {
         delete window.__nativeResult;
         window.TvShell.postMessage(JSON.stringify(['playNative', crypto.randomUUID(), { url }]));
@@ -298,6 +331,34 @@ try {
     const unknownDuration = await page.evaluate(() => window.__nativeResult);
     assert.equal(unknownDuration.durationMs, 0);
     assert.ok(unknownDuration.positionMs > 0, 'Preserve the playhead even when duration is unknown.');
+
+    await page.evaluate((url) => {
+        delete window.__nativeResult;
+        window.TvShell.postMessage(JSON.stringify(['playNative', crypto.randomUUID(), { url, startTime: 10 }]));
+    }, origin + '/synthetic-chunked.ts');
+    await waitNative();
+    await waitAudio();
+    await delay(1000);
+    await back();
+    await page.waitForFunction(() => window.__nativeResult !== undefined);
+    const unseekableResume = await page.evaluate(() => window.__nativeResult);
+    assert.equal(unseekableResume.positionMs, 0, 'Keep the existing resume point when the source cannot seek.');
+    assert.equal(unseekableResume.durationMs, 0);
+    assert.ok(unseekableResume.playedMs > 0, 'Report playback time even when the existing resume point is preserved.');
+
+    const sessionRedirectBefore = seen.target.length;
+    await page.evaluate((url) => {
+        window.TvShell.postMessage(JSON.stringify(['playNative', crypto.randomUUID(), {
+            url, headers: { Cookie: 'synthetic_session=old; synthetic_other=initial' },
+        }]));
+    }, origin + '/synthetic-session.mp4');
+    await waitNative();
+    await waitAudio();
+    assert.deepEqual(seen.sessionCookie.split('; ').sort(), ['synthetic_other=initial', 'synthetic_session=fresh']);
+    assert.ok(seen.target.length > sessionRedirectBefore);
+    assert.ok(seen.target.slice(sessionRedirectBefore).every((headers) => !headers.cookie),
+        'Provider and session cookies stay on the original origin.');
+    await back();
 
     await page.evaluate((url) => {
         delete window.__nativeResult;
@@ -336,15 +397,19 @@ try {
     }, { url: origin + '/synthetic-ac3.mkv', playlistId });
     await waitNative();
     await waitAudio();
-    const nativeCreates = () => adb('logcat', '-b', 'events', '-d', '-s', 'wm_on_create_called')
-        .split('\n').filter((line) => line.includes(app + '.ui.NativePlayerActivity')).length;
+    const lastNativeCreate = () => adb('logcat', '-b', 'events', '-d', '-v', 'epoch', '-s', 'wm_on_create_called')
+        .split('\n').findLast((line) => line.includes(app + '.ui.NativePlayerActivity')) ?? '';
     const oldRotation = adb('shell', 'settings', 'get', 'system', 'user_rotation').trim();
     const oldAutoRotation = adb('shell', 'settings', 'get', 'system', 'accelerometer_rotation').trim();
     try {
-        const activityCount = nativeCreates();
+        const previousCreate = lastNativeCreate();
+        assert.ok(previousCreate, 'The initial native Activity creation must be in the event log.');
         adb('shell', 'settings', 'put', 'system', 'accelerometer_rotation', '0');
         adb('shell', 'settings', 'put', 'system', 'user_rotation', oldRotation === '0' ? '1' : '0');
-        await expect.poll(nativeCreates).toBeGreaterThan(activityCount);
+        await expect.poll(() => {
+            const currentCreate = lastNativeCreate();
+            return Boolean(currentCreate) && currentCreate !== previousCreate;
+        }).toBe(true);
         await waitNative();
         await waitAudio();
         await expect.poll(captionsState).toBe('Disable subtitles');

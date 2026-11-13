@@ -1263,7 +1263,9 @@ a CDN-hosted one keeps the permanent URL that survives retry.
 A temporary link lives about 5 seconds (`tv_tmp_link_ttl` /
 `vclub_tmp_link_ttl`, both default 5). It is time-limited but not single-use,
 so the rule is to resolve immediately before playback and never persist,
-cache or replay the result. What each persisting path actually stores:
+cache or replay the result. The Android handoff uses the resolver's explicit
+fresh-link flag, including when `create_link` returns the same text as the
+catalog command. What each persisting path actually stores:
 
 | Path                                                                  | Stores                                                                             | Verdict                                                                                                                         |
 | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |

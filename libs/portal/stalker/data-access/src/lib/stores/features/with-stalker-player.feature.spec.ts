@@ -211,6 +211,44 @@ describe('withStalkerPlayer', () => {
         );
     });
 
+    it.each(['vod', 'itv'] as const)(
+        'marks a %s link from create_link as fresh even if the URL is unchanged',
+        async (kind) => {
+            const cmd = 'http://demo.example/synthetic.mp4';
+            const item = {
+                id: '42',
+                cmd,
+                use_http_tmp_link: '0',
+                use_load_balancing: '0',
+            };
+            const session = TestBed.inject(StalkerSessionService);
+            jest.mocked(session.ensureToken).mockRejectedValueOnce(
+                new Error('Synthetic session unavailable')
+            );
+            dataService.sendIpcEvent.mockResolvedValueOnce({ js: { cmd } });
+            store.setSelectedContentType(kind);
+            store.setSelectedItem(item);
+
+            const result =
+                kind === 'vod'
+                    ? await store.resolveVodPlayback(cmd)
+                    : await store.resolveItvPlayback(item);
+
+            expect(result).toMatchObject({
+                streamUrl: cmd,
+                requiresFreshStreamUrl: true,
+            });
+            expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.objectContaining({
+                    params: expect.objectContaining({
+                        action: StalkerPortalActions.CreateLink,
+                    }),
+                })
+            );
+        }
+    );
+
     it('falls back to file ids for VOD playback and persists recently viewed metadata', async () => {
         dataService.sendIpcEvent
             .mockResolvedValueOnce({

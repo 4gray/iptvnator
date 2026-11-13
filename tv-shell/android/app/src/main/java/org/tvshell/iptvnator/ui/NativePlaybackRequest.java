@@ -12,11 +12,15 @@ import androidx.media3.common.util.Util;
 
 import org.tvshell.iptvnator.backend.Json;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import okhttp3.Cookie;
+import okhttp3.CookieJar;
 import okhttp3.Headers;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -69,24 +73,72 @@ final class NativePlaybackRequest {
     }
 
     static OkHttpClient client(HttpUrl stream, Bundle headers) {
-        if (headers == null || headers.isEmpty()) return HTTP;
         Headers.Builder builder = new Headers.Builder();
-        for (String name : headers.keySet()) builder.set(name, headers.getString(name));
+        if (headers != null) {
+            for (String name : headers.keySet()) {
+                if (!name.equalsIgnoreCase("Cookie")) builder.set(name, headers.getString(name));
+            }
+        }
         Headers providerHeaders = builder.build();
         // The network interceptor runs for each redirect, segment and HLS key request.
         // Provider headers never become part of OkHttp's request for another origin.
-        return HTTP.newBuilder().addNetworkInterceptor(chain -> {
+        String initialCookies = headers == null ? null : headers.getString("cookie");
+        return HTTP.newBuilder().cookieJar(new PlaybackCookies(stream, initialCookies)).addNetworkInterceptor(chain -> {
             Request request = chain.request();
-            HttpUrl target = request.url();
-            boolean sameOrigin = stream.scheme().equals(target.scheme())
-                && stream.host().equals(target.host()) && stream.port() == target.port();
-            if (!sameOrigin) return chain.proceed(request);
+            if (!sameOrigin(stream, request.url())) return chain.proceed(request);
             Request.Builder scoped = request.newBuilder();
             for (String name : providerHeaders.names()) {
                 scoped.header(name, providerHeaders.get(name));
             }
             return chain.proceed(scoped.build());
         }).build();
+    }
+
+    private static boolean sameOrigin(HttpUrl origin, HttpUrl url) {
+        return origin.scheme().equals(url.scheme()) && origin.host().equals(url.host())
+            && origin.port() == url.port();
+    }
+
+    private static final class PlaybackCookies implements CookieJar {
+        private final HttpUrl origin;
+        private final List<Cookie> cookies = new ArrayList<>();
+
+        PlaybackCookies(HttpUrl origin, String initialCookies) {
+            this.origin = origin;
+            if (initialCookies == null) return;
+            for (String field : initialCookies.split(";")) {
+                Cookie cookie = Cookie.parse(origin, field.trim() + "; Path=/");
+                if (cookie != null) cookies.add(cookie);
+            }
+            if (cookies.size() > 64) cookies.subList(64, cookies.size()).clear();
+        }
+
+        @Override
+        public synchronized void saveFromResponse(HttpUrl url, List<Cookie> received) {
+            if (!sameOrigin(origin, url)) return;
+            long now = System.currentTimeMillis();
+            cookies.removeIf(cookie -> cookie.expiresAt() <= now);
+            for (Cookie next : received) {
+                cookies.removeIf(cookie -> cookie.name().equals(next.name())
+                    && cookie.domain().equals(next.domain()) && cookie.path().equals(next.path()));
+                if (next.expiresAt() > now && next.name().length() + next.value().length() <= 4096) {
+                    if (cookies.size() == 64) cookies.remove(0);
+                    cookies.add(next);
+                }
+            }
+        }
+
+        @Override
+        public synchronized List<Cookie> loadForRequest(HttpUrl url) {
+            if (!sameOrigin(origin, url)) return Collections.emptyList();
+            long now = System.currentTimeMillis();
+            List<Cookie> matches = new ArrayList<>();
+            for (Cookie cookie : cookies) {
+                if (cookie.expiresAt() > now && cookie.matches(url)) matches.add(cookie);
+            }
+            matches.sort((left, right) -> Integer.compare(right.path().length(), left.path().length()));
+            return matches;
+        }
     }
 
     static Bundle checkpointContent(Object payload, String origin) {

@@ -41,6 +41,7 @@ import org.tvshell.iptvnator.R;
 import java.util.UUID;
 
 import okhttp3.HttpUrl;
+import okhttp3.OkHttpClient;
 
 @OptIn(markerClass = UnstableApi.class)
 public final class NativePlayerActivity extends Activity {
@@ -51,13 +52,15 @@ public final class NativePlayerActivity extends Activity {
     private PlayerView view;
     private PlaybackStatsListener stats;
     private HttpUrl stream;
+    private OkHttpClient httpClient;
     private boolean live;
     private boolean hls;
     private boolean autoplay = true;
     private boolean failed;
     private boolean ended;
     private boolean positionVerified;
-    private boolean currentPlayerReady;
+    private boolean canSnapshotCurrentPlayer;
+    private boolean preserveSavedPosition;
     private long position;
     private long duration;
     private long played;
@@ -111,8 +114,13 @@ public final class NativePlayerActivity extends Activity {
         }
         // Media3's default exception logging can include signed media URLs.
         Log.setLogLevel(Log.LOG_LEVEL_OFF);
-        OkHttpDataSource.Factory dataSource = new OkHttpDataSource.Factory(
-            NativePlaybackRequest.client(stream, getIntent().getBundleExtra("headers")));
+        if (httpClient == null) {
+            httpClient = (OkHttpClient) getLastNonConfigurationInstance();
+            if (httpClient == null) {
+                httpClient = NativePlaybackRequest.client(stream, getIntent().getBundleExtra("headers"));
+            }
+        }
+        OkHttpDataSource.Factory dataSource = new OkHttpDataSource.Factory(httpClient);
         DefaultRenderersFactory renderers = new DefaultRenderersFactory(this)
             .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON);
         player = new ExoPlayer.Builder(this, renderers)
@@ -123,7 +131,9 @@ public final class NativePlayerActivity extends Activity {
             .build();
         player.setVolume(getIntent().getFloatExtra("volume", 1f));
         if (trackPreferences == null) {
+            // The app seeds captions. Android's caption language must not turn them on by itself.
             trackPreferences = player.getTrackSelectionParameters().buildUpon()
+                .setPreferredTextLanguages()
                 .setIgnoredTextSelectionFlags(~C.SELECTION_FLAG_FORCED).build();
         }
         player.setTrackSelectionParameters(trackPreferences);
@@ -176,8 +186,8 @@ public final class NativePlayerActivity extends Activity {
             public void onPlaybackStateChanged(int state) {
                 if (state == Player.STATE_READY) {
                     applyInitialSeek();
-                    currentPlayerReady = true;
-                    positionVerified = true;
+                    canSnapshotCurrentPlayer = !preserveSavedPosition;
+                    positionVerified |= canSnapshotCurrentPlayer;
                 }
                 if (state == Player.STATE_ENDED && player.getPlaybackState() == Player.STATE_ENDED
                     && !live && !isFinishing()) {
@@ -208,8 +218,14 @@ public final class NativePlayerActivity extends Activity {
         if (player != null) player.setPlayWhenReady(autoplay);
     }
 
+    @Override
+    public Object onRetainNonConfigurationInstance() {
+        return httpClient;
+    }
+
     private void prepareStream() {
-        currentPlayerReady = false;
+        canSnapshotCurrentPlayer = false;
+        preserveSavedPosition = false;
         MediaItem.Builder media = new MediaItem.Builder().setUri(stream.toString());
         if (hls) media.setMimeType(MimeTypes.APPLICATION_M3U8);
         initialSeek = live ? 0 : position;
@@ -220,10 +236,12 @@ public final class NativePlayerActivity extends Activity {
     private void applyInitialSeek() {
         long seek = initialSeek;
         initialSeek = 0;
-        if (seek <= 0 || !player.isCurrentMediaItemSeekable()) return;
+        if (seek <= 0) return;
         // An out-of-range seek during preparation can leave a progressive stream at EOF.
         long length = player.getDuration();
-        if (length == C.TIME_UNSET || seek < length) player.seekTo(seek);
+        if (length != C.TIME_UNSET && seek >= length) return;
+        preserveSavedPosition = !player.isCurrentMediaItemSeekable();
+        if (!preserveSavedPosition) player.seekTo(seek);
     }
 
     private void selectInitialCaption(Tracks tracks) {
@@ -341,9 +359,10 @@ public final class NativePlayerActivity extends Activity {
 
     private Intent playbackResult() {
         snapshot();
+        long watched = playedMs();
         return new Intent().putExtra("position", positionVerified ? position : 0)
             .putExtra("duration", positionVerified ? duration : 0)
-            .putExtra("played", playedMs()).putExtra("ended", ended && positionVerified);
+            .putExtra("played", watched).putExtra("ended", ended && (positionVerified || watched > 0));
     }
 
     private long playedMs() {
@@ -353,7 +372,7 @@ public final class NativePlayerActivity extends Activity {
     }
 
     private void snapshot() {
-        if (player == null || live || !currentPlayerReady) return;
+        if (player == null || live || !canSnapshotCurrentPlayer) return;
         duration = Math.max(0, player.getDuration());
         position = Math.max(0, player.getCurrentPosition());
         if (duration > 0) position = Math.min(duration, position);

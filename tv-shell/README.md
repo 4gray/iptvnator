@@ -155,8 +155,9 @@ and actual playlist titles.
   (`chrome://inspect`) is **opt-in** in the IPTVnator settings.
 - The native player gets its request from the same trusted main frame. It
   attaches allowlisted provider headers only to requests on the original
-  stream origin, including redirects, segments and HLS key requests. Native
-  Media3 exception logging is disabled because errors can contain stream URLs.
+  stream origin, including redirects, segments and HLS key requests. It keeps
+  response cookies in memory for that origin during the playback session.
+  Native Media3 exception logging is disabled because errors can contain stream URLs.
 - Native diagnostics and forwarded WebView errors share a redactor. It removes
   full URLs, including signed paths containing apostrophes, plus credential
   fields and authorization values before logging or

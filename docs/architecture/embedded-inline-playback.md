@@ -144,7 +144,8 @@ The final native position settles the resume guard and persists immediately,
 including when the viewer seeks and leaves before the watch-history threshold
 or Media3 cannot determine the VOD duration.
 Media3 applies a saved offset after the stream is ready and starts at the
-default position if the stream is shorter than that offset.
+default position if the stream is shorter than that offset. A source that
+cannot seek keeps its previous resume point and still reports watch time.
 A natural VOD end closes the native activity and reaches the same series
 autoplay handler as the web player. Back and Home return a position checkpoint.
 If Android recreates the WebView during playback, the shell returns the final
