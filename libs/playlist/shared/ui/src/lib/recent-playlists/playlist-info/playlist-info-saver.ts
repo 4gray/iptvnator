@@ -114,6 +114,23 @@ export class PlaylistInfoSaver {
                     this.host.epg.prepareSave(submittedPlaylist),
                     this.host.playlist
                 );
+            // A new M3U source is fetched as soon as it is saved. While a
+            // refresh is running that fetch would be skipped and the old
+            // channels kept, so refuse the save before anything is written,
+            // as an Xtream edit already does.
+            if (
+                hasM3uSourceChanged(this.host.playlist, {
+                    ...this.host.playlist,
+                    ...normalizedPlaylist,
+                } as PlaylistMeta) &&
+                this.injector
+                    .get(PlaylistRefreshActionService)
+                    .isBlocked(this.host.playlist._id)
+            ) {
+                throw new Error(
+                    'Wait for the playlist refresh to finish before changing its source.'
+                );
+            }
             const sharedSource = this.playlistStorage.kind() === 'server';
             if (sharedSource)
                 normalizedPlaylist = {

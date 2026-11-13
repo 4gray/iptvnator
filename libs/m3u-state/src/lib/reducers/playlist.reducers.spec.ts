@@ -168,6 +168,37 @@ describe('playlistReducers', () => {
         ).toBeUndefined();
         expect(next.playlists.entities['removed']).toBeUndefined();
     });
+    it('updates an edited M3U URL and file path in metadata (#1677)', () => {
+        const state = {
+            ...initialState,
+            playlists: playlistsAdapter.addMany(
+                [
+                    { _id: 'web', url: 'https://old.example/a.m3u' },
+                    { _id: 'file', filePath: '/old/a.m3u' },
+                ] as PlaylistMeta[],
+                initialState.playlists
+            ),
+        };
+        const withUrl = reducer(
+            state,
+            PlaylistActions.updatePlaylistMeta({
+                playlist: {
+                    _id: 'web',
+                    url: 'https://new.example/a.m3u',
+                } as PlaylistMeta,
+            })
+        );
+        const next = reducer(
+            withUrl,
+            PlaylistActions.updatePlaylistMeta({
+                playlist: { _id: 'file', filePath: '/new/a.m3u' } as PlaylistMeta,
+            })
+        );
+        expect(next.playlists.entities['web']?.url).toBe(
+            'https://new.example/a.m3u'
+        );
+        expect(next.playlists.entities['file']?.filePath).toBe('/new/a.m3u');
+    });
     it('keeps explicit empty Xtream selections in metadata and retains them on unrelated edits', () => {
         const playlist = {
             _id: 'xc',

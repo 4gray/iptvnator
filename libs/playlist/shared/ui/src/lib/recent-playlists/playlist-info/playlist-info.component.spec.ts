@@ -246,7 +246,7 @@ describe('PlaylistInfoComponent', () => {
     });
 
     it('saves a trimmed new M3U URL and refreshes from it (#1677)', async () => {
-        const refreshAction = { refresh: jest.fn() };
+        const refreshAction = { refresh: jest.fn(), isBlocked: () => false };
         TestBed.overrideProvider(PlaylistRefreshActionService, {
             useValue: refreshAction,
         });
