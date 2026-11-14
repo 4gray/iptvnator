@@ -90,7 +90,8 @@ describe('SeasonContainerComponent metadata state', () => {
         expect(component.metaState()).toBe('bare');
         expect(all('app-episode-item.episode-item--bare')).toHaveLength(3);
         expect(all('.episode-item__thumb')).toHaveLength(0);
-        expect(all('.view-toggle')).toHaveLength(0);
+        expect(all('mat-button-toggle-group')).toHaveLength(0);
+        expect(all('.play-random-episode')).toHaveLength(1);
         expect(all('.episodes-list--bare')).toHaveLength(1);
     });
 
