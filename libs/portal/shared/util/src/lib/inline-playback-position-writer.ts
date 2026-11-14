@@ -97,6 +97,9 @@ export function createInlinePlaybackPositionWriter(
                 ...playback.contentInfo,
                 positionSeconds: Math.floor(event.currentTime),
                 durationSeconds: Math.floor(event.duration),
+                ...(event.nativeCheckpointAt
+                    ? { nativeCheckpointAt: event.nativeCheckpointAt }
+                    : {}),
             };
 
             config.save(playback.contentInfo.playlistId, position);

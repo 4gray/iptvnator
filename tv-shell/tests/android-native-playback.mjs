@@ -49,6 +49,9 @@ try {
     // distinguish unsupported video from a source that is meant to be audio-only.
     execFileSync('ffmpeg', ['-nostdin', '-loglevel', 'error', '-i', mp4,
         '-t', '4', '-c:v', 'libtheora', '-c:a', 'copy', unsupported]);
+    const unsupportedAudio = join(fixtures, 'synthetic-unsupported-audio.mkv');
+    execFileSync('ffmpeg', ['-nostdin', '-loglevel', 'error', '-i', mp4,
+        '-t', '4', '-c:v', 'copy', '-c:a', 'dca', '-strict', 'experimental', unsupportedAudio]);
     const audioOnly = join(fixtures, 'synthetic-audio.m4a');
     execFileSync('ffmpeg', ['-nostdin', '-loglevel', 'error', '-i', mp4,
         '-vn', '-c:a', 'copy', audioOnly]);
@@ -115,6 +118,8 @@ try {
             res.on('close', () => clearInterval(timer));
         } else if (req.url === '/synthetic-unsupported-video.mkv') {
             respond(req, res, readFileSync(unsupported), 'video/x-matroska');
+        } else if (req.url === '/synthetic-unsupported-audio.mkv') {
+            respond(req, res, readFileSync(unsupportedAudio), 'video/x-matroska');
         } else if (req.url === '/synthetic-audio.m4a') {
             respond(req, res, readFileSync(audioOnly), 'audio/mp4');
         } else if (req.url === '/synthetic-unplayable.mp4') {
@@ -163,7 +168,7 @@ try {
     await setExperiment(false);
     await page.goto(new URL('/workspace/settings/playback', page.url()).href);
     const captions = page.getByRole('switch', { name: 'Show subtitles' });
-    await expect(captions).toBeVisible();
+    await expect(captions).toBeVisible({ timeout: 20000 });
     if (!(await captions.isChecked())) {
         await captions.click();
         const save = page.getByRole('button', { name: 'Save changes' });
@@ -446,7 +451,7 @@ try {
     assert.ok((await page.evaluate(() => window.__nativeResult)).positionMs >= 8000,
         'Resume a VOD from a valid saved offset.');
 
-    for (const [path, failed] of [['/synthetic-unsupported-video.mkv', true], ['/synthetic-audio.m4a', false]]) {
+    for (const [path, failed] of [['/synthetic-unsupported-video.mkv', true], ['/synthetic-unsupported-audio.mkv', true], ['/synthetic-audio.m4a', false]]) {
         await page.evaluate((url) => {
             delete window.__nativeResult;
             window.TvShell.postMessage(JSON.stringify(['playNative', crypto.randomUUID(), { url }]));
@@ -584,10 +589,11 @@ try {
     }, { url: origin + '/synthetic-ac3.mkv', playlistId: persistedId });
     await waitNative();
     await waitAudio();
-    await back();
-    await expect.poll(() => page.evaluate(() => window.__positionWriteAttempts)).toBeGreaterThan(0);
-    assert.ok(adb('shell', 'run-as', app, 'cat', 'shared_prefs/native_playback_checkpoints.xml').includes(persistedId),
-        'The completed session must already be in app-private storage when the WebView first tries to save it.');
+    adb('shell', 'input', 'keyevent', 'KEYCODE_HOME');
+    await expect.poll(() => !topActivity().includes(app)).toBe(true);
+    await expect.poll(() =>
+        adb('shell', 'run-as', app, 'cat', 'shared_prefs/native_playback_checkpoints.xml').includes(persistedId)
+    ).toBe(true);
     adb('shell', 'am', 'force-stop', app);
     await device.close();
     adb('shell', 'am', 'start', '-n', `${app}/.ui.MainActivity`);

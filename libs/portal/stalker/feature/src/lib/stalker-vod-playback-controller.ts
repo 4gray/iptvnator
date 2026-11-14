@@ -167,6 +167,9 @@ export class StalkerVodPlaybackController {
             ...playback.contentInfo,
             positionSeconds: Math.floor(event.currentTime),
             durationSeconds: Math.floor(event.duration),
+            ...(event.nativeCheckpointAt
+                ? { nativeCheckpointAt: event.nativeCheckpointAt }
+                : {}),
         };
 
         void this.config.playbackPositions.savePlaybackPosition(

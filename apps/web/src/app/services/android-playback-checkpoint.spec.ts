@@ -152,6 +152,15 @@ describe('restoring Android playback checkpoints', () => {
         expect(postMessage).toHaveBeenCalledTimes(1);
     });
 
+    it('compares restored desktop timestamps in UTC', async () => {
+        getPlaybackPosition.mockResolvedValue({
+            updatedAt: '2025-01-01 10:00:00',
+        });
+        await deliver({ savedAt: Date.parse('2025-01-01T10:00:01Z') });
+        expect(savePlaybackPositionOrThrow).toHaveBeenCalledTimes(1);
+        expect(postMessage).toHaveBeenCalledTimes(1);
+    });
+
     it('saves a second episode even while the first awaits a retry', async () => {
         const secondId = '00000000-0000-4000-8000-000000000002';
         savePlaybackPositionOrThrow.mockRejectedValueOnce(

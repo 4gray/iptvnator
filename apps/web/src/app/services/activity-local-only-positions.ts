@@ -186,6 +186,7 @@ export class ActivityLocalOnlyPositions {
             activityIdentity: position.activityIdentity,
             playlistId: sourceId,
             nativeCheckpointAt: position.nativeCheckpointAt,
+            nativeCheckpointSeasonGroup: position.nativeCheckpointSeasonGroup,
             updatedAt: position.nativeCheckpointAt ?? new Date().toISOString(),
         };
         this.write(sourceId, position, {

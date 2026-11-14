@@ -1,3 +1,4 @@
+import { playbackTimestamp } from '@iptvnator/shared/interfaces';
 import {
     writeXtreamUserDataMap,
     type UserDataStorage,
@@ -10,6 +11,7 @@ import type {
 import {
     type Positions,
     nativePlaybackScopeId,
+    nativePlaybackResetIn,
     nativePlaybackResetId,
     readPlaybackPositions,
     playbackPositionsStorageKey,
@@ -46,26 +48,32 @@ export class PwaPlaybackPositions {
         playlistId: string,
         data: PlaybackPositionData
     ): Promise<void> {
-        const allPositions = this.getPlaybackPositionsFromStorage();
-        if (!allPositions[playlistId]) {
-            allPositions[playlistId] = [];
+        const { nativeCheckpointAt, nativeCheckpointSeasonGroup, ...position } =
+            data;
+        const allPositions = nativeCheckpointAt
+            ? readPlaybackPositions(this.storage)
+            : this.getPlaybackPositionsFromStorage();
+        const prior = allPositions[playlistId] ?? [];
+        const sameItem = (row: PlaybackPositionData) =>
+            row.contentXtreamId === data.contentXtreamId &&
+            row.contentType === data.contentType;
+        if (nativeCheckpointAt) {
+            const at = Date.parse(nativeCheckpointAt);
+            const latest = playbackTimestamp(prior.find(sameItem)?.updatedAt);
+            if (
+                latest >= at ||
+                nativePlaybackResetIn(allPositions, playlistId, data) >= at
+            )
+                return;
         }
-
-        // Remove existing entry if present
-        allPositions[playlistId] = allPositions[playlistId].filter(
-            (p) =>
-                !(
-                    p.contentXtreamId === data.contentXtreamId &&
-                    p.contentType === data.contentType
-                )
-        );
-
-        // Add new entry
-        const { nativeCheckpointAt, ...position } = data;
-        allPositions[playlistId].push({
-            ...position,
-            updatedAt: nativeCheckpointAt ?? new Date().toISOString(),
-        });
+        allPositions[playlistId] = [
+            ...prior.filter((row) => !sameItem(row)),
+            {
+                ...position,
+                updatedAt: nativeCheckpointAt ?? new Date().toISOString(),
+            },
+        ];
+        void nativeCheckpointSeasonGroup;
 
         this.savePlaybackPositionsToStorage(allPositions);
     }

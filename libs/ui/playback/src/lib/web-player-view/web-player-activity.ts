@@ -48,6 +48,9 @@ export class WebPlayerActivity {
             ...info,
             positionSeconds: event.currentTime,
             durationSeconds: event.duration,
+            ...(event.nativeCheckpointAt
+                ? { nativeCheckpointAt: event.nativeCheckpointAt }
+                : {}),
         };
         this.latest = this.last;
         if (Date.now() - this.savedAt >= 5000 || event.playing === false)

@@ -1,6 +1,7 @@
 package org.tvshell.iptvnator.ui;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
@@ -23,6 +24,19 @@ final class NativePlaybackCheckpoints {
         storage = context.getSharedPreferences("native_playback_checkpoints", Context.MODE_PRIVATE);
     }
 
+    void saveResult(Bundle content, String id, Intent result) {
+        if (content == null || id == null || result == null) return;
+        long position = result.getLongExtra("position", 0);
+        long duration = result.getLongExtra("duration", 0);
+        if (position <= 0 && duration <= 0) return;
+        Bundle checkpoint = new Bundle(content);
+        checkpoint.putString("id", id);
+        checkpoint.putLong("position", position);
+        checkpoint.putLong("duration", duration);
+        checkpoint.putLong("savedAt", result.getLongExtra("savedAt", System.currentTimeMillis()));
+        save(checkpoint);
+    }
+
     void save(Bundle checkpoint) {
         try {
             JSONObject content = new JSONObject(checkpoint.getString("content", ""));
@@ -32,7 +46,7 @@ final class NativePlaybackCheckpoints {
                 .put(content.getString("contentType")).put(content.getLong("contentXtreamId")).toString();
             JSONObject previous = read(storage.getString(key, null));
             long savedAt = checkpoint.getLong("savedAt");
-            if (previous != null && previous.optLong("savedAt") > savedAt) return;
+            if (previous != null && previous.optLong("savedAt") >= savedAt) return;
 
             JSONObject entry = new JSONObject()
                 .put("id", checkpoint.getString("id")).put("origin", origin)

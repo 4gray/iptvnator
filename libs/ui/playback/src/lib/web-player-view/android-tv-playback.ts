@@ -26,6 +26,7 @@ type PlaybackResult = {
     readonly positionMs: number;
     readonly durationMs: number;
     readonly playedMs: number;
+    readonly savedAt?: number;
     readonly started?: boolean;
     readonly ended?: boolean;
     readonly failed?: boolean;
@@ -52,16 +53,24 @@ export class AndroidTvPlayback {
         readonly live: boolean;
         readonly volume: number;
         readonly reportFailure: () => void;
+        readonly failed?: boolean;
     } | null>(null);
 
     readonly labels = signal(
         this.window?.iptvnatorAndroidPlaybackLabels ?? null
     );
     private readonly enabled = computed(() => this.labels() !== null);
+    private readonly continuedAttempt = signal<{
+        token: symbol;
+        attempt: string;
+    } | null>(null);
     readonly attempt = computed(() => {
         if (!this.enabled()) return null;
-        this.currentToken();
-        return crypto.randomUUID();
+        const token = this.currentToken();
+        const continued = this.continuedAttempt();
+        return continued?.token === token
+            ? continued.attempt
+            : crypto.randomUUID();
     });
     readonly suspended = computed(() => this.ownedSession() !== null);
     readonly pending = computed(() => this.ownedSession()?.pending ?? false);
@@ -112,7 +121,11 @@ export class AndroidTvPlayback {
                 this.restoreWebVolume();
                 return;
             }
-            this.session.set({ ...session, pending: false });
+            this.session.set({
+                ...session,
+                pending: false,
+                failed: data.failed,
+            });
             if (data.failed) session.reportFailure();
             if (
                 Number.isSafeInteger(data.positionMs) &&
@@ -134,6 +147,16 @@ export class AndroidTvPlayback {
                             duration: data.durationMs / 1000,
                             playing: false,
                             checkpoint: true,
+                            ...(data.savedAt &&
+                            Number.isSafeInteger(data.savedAt) &&
+                            data.savedAt > 0 &&
+                            data.savedAt <= 8_640_000_000_000_000
+                                ? {
+                                      nativeCheckpointAt: new Date(
+                                          data.savedAt
+                                      ).toISOString(),
+                                  }
+                                : {}),
                         },
                         data.ended === true ? 0 : currentTime
                     );
@@ -282,6 +305,15 @@ export class AndroidTvPlayback {
             },
             { injector: this.injector }
         );
+    }
+
+    returnToWeb(reload: () => void): void {
+        const attempt = this.ownedSession()?.failed ? this.attempt() : null;
+        this.restoreWebVolume();
+        reload();
+        if (attempt) {
+            this.continuedAttempt.set({ token: this.currentToken(), attempt });
+        }
     }
 
     restoreWebVolume(): void {

@@ -6,8 +6,6 @@ export interface PlayerContentInfo extends Omit<
     'positionSeconds' | 'durationSeconds' | 'updatedAt'
 > {
     playlistId: string;
-    /** The season map key used by the season reset, which may differ from episode metadata. */
-    nativeCheckpointSeasonGroup?: number;
 }
 
 export interface ResolvedPortalPlayback {

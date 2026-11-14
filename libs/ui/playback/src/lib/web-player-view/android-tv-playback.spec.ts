@@ -81,7 +81,8 @@ function setup() {
         id: string,
         ended: boolean,
         playedMs = 9000,
-        durationMs = 9000
+        durationMs = 9000,
+        failed = false
     ) {
         window.dispatchEvent(
             new CustomEvent('iptvnator:android-playback-result', {
@@ -92,6 +93,7 @@ function setup() {
                         durationMs,
                         playedMs,
                         ended,
+                        failed,
                     },
                 },
             })
@@ -132,6 +134,20 @@ it('keeps an attempt across Android settings refreshes and retires it for a new 
         tvWindow.dispatchEvent(
             new Event('iptvnator:android-playback-availability')
         );
+        expect(playback.attempt()).toBe(attempt);
+        token.set(Symbol());
+        expect(playback.attempt()).not.toBe(attempt);
+    } finally {
+        clear();
+    }
+});
+
+it('keeps a failed attempt only for an explicit return to the same web player', () => {
+    const { clear, playback, open, reply, token } = setup();
+    try {
+        const attempt = playback.attempt();
+        reply(open(), false, 0, 9000, true);
+        playback.returnToWeb(() => token.set(Symbol()));
         expect(playback.attempt()).toBe(attempt);
         token.set(Symbol());
         expect(playback.attempt()).not.toBe(attempt);

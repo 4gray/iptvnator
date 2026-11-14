@@ -15,6 +15,8 @@ export interface PlaybackPositionData {
     activitySessionId?: string;
     /** Original time of a delayed native checkpoint, carried through activity sync. */
     nativeCheckpointAt?: string;
+    /** Provider season map key used by resets when it differs from the episode label. */
+    nativeCheckpointSeasonGroup?: number;
     activityTitle?: string;
     activityAction?: 'mark-watched';
     activityIdentity?: import('./activity-sync/activity-sync.contract').ActivityContentIdentity;
@@ -33,4 +35,15 @@ export interface PlaybackPositionUpdate {
     readonly duration: number;
     /** A verified final position from a playback handoff, saved immediately. */
     readonly checkpoint?: true;
+    readonly nativeCheckpointAt?: string;
+}
+
+/** SQLite writes UTC without a zone. Normalize it before comparing against ISO times. */
+export function playbackTimestamp(value: string | undefined): number {
+    if (!value) return 0;
+    const sqliteUtc = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d+)?$/;
+    const timestamp = Date.parse(
+        sqliteUtc.test(value) ? `${value.replace(' ', 'T')}Z` : value
+    );
+    return Number.isFinite(timestamp) ? timestamp : 0;
 }

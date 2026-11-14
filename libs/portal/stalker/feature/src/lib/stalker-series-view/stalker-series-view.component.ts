@@ -1140,6 +1140,9 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             ...playback.contentInfo,
             positionSeconds: Math.floor(event.currentTime),
             durationSeconds: Math.floor(event.duration),
+            ...(event.nativeCheckpointAt
+                ? { nativeCheckpointAt: event.nativeCheckpointAt }
+                : {}),
         };
         void this.positions
             .persistSeriesPosition(playback.contentInfo.playlistId, position)

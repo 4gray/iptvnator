@@ -1,3 +1,4 @@
+import { playbackTimestamp } from '@iptvnator/shared/interfaces';
 import { ActivitySupersededError } from './activity-action-fence';
 import { createRandomId } from '@iptvnator/shared/interfaces';
 import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
@@ -226,6 +227,14 @@ export async function saveActivity(
             if (!currentAction())
                 throw new ActivitySupersededError('Activity action superseded');
             const state = current?.state ?? emptyActivityState();
+            if (
+                current &&
+                position.nativeCheckpointAt &&
+                playbackTimestamp(
+                    current.position?.updatedAt ?? state.updatedAt
+                ) >= playbackTimestamp(position.nativeCheckpointAt)
+            )
+                return current;
             if (
                 session &&
                 (this.retiredSessions.has(position.activitySessionId!) ||

@@ -1,3 +1,4 @@
+import { playbackTimestamp } from '@iptvnator/shared/interfaces';
 import { inject } from '@angular/core';
 import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util/tokens';
 import { announceActivityChange } from '@iptvnator/services/activity-changes';
@@ -59,7 +60,7 @@ export function installAndroidPlaybackCheckpoint(
                 if (position && key) {
                     // A failing newer checkpoint must still take priority over an older one.
                     if ((newest.get(key) ?? 0) > data.savedAt) return;
-                    const { playlistId, record, seasonGroup } = position;
+                    const { playlistId, record } = position;
                     const previous = await positions.getPlaybackPosition(
                         playlistId,
                         record.contentXtreamId,
@@ -67,18 +68,13 @@ export function installAndroidPlaybackCheckpoint(
                     );
                     if (!ownsProfile() || (newest.get(key) ?? 0) > data.savedAt)
                         return;
-                    const previousSavedAt = Date.parse(
-                        previous?.updatedAt ?? ''
+                    const previousSavedAt = playbackTimestamp(
+                        previous?.updatedAt
                     );
                     if (
-                        androidPlaybackResetAt(
-                            storage,
-                            playlistId,
-                            record,
-                            seasonGroup
-                        ) < data.savedAt &&
-                        (!Number.isFinite(previousSavedAt) ||
-                            previousSavedAt < data.savedAt)
+                        androidPlaybackResetAt(storage, playlistId, record) <
+                            data.savedAt &&
+                        previousSavedAt < data.savedAt
                     ) {
                         await positions.savePlaybackPositionOrThrow(
                             playlistId,
@@ -108,7 +104,6 @@ function readCheckpoint(data: Checkpoint): {
     profile: string;
     playlistId: string;
     record: PlaybackPositionData;
-    seasonGroup?: number;
 } | null {
     if (
         typeof data.content !== 'string' ||
@@ -150,13 +145,19 @@ function readCheckpoint(data: Checkpoint): {
         return {
             profile: info.profile,
             playlistId: info.playlistId,
-            seasonGroup: optionalInteger(info.seasonGroup),
             record: {
                 playlistId: info.playlistId,
                 contentXtreamId: info.contentXtreamId,
                 contentType: info.contentType,
                 seriesXtreamId: optionalInteger(info.seriesXtreamId),
                 seasonNumber: optionalInteger(info.seasonNumber),
+                ...(info.seasonGroup === undefined
+                    ? {}
+                    : {
+                          nativeCheckpointSeasonGroup: optionalInteger(
+                              info.seasonGroup
+                          ),
+                      }),
                 episodeNumber: optionalInteger(info.episodeNumber),
                 activitySessionId:
                     typeof info.activitySessionId === 'string'

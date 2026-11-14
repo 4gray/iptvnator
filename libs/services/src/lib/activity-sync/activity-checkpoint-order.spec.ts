@@ -91,7 +91,9 @@ describe('checkpoint invocation order through Electron CAS retries', () => {
             };
             await client.begin('synthetic-source', position);
             await client.flush();
-            const nativeCheckpointAt = '2025-01-01T12:00:00.000Z';
+            const nativeCheckpointAt = new Date(
+                Date.now() + 1000
+            ).toISOString();
             const delayed = client.save('synthetic-source', {
                 ...position,
                 positionSeconds: older,

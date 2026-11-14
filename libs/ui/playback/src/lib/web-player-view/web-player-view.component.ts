@@ -418,8 +418,9 @@ export class WebPlayerViewComponent implements OnDestroy {
     }
 
     returnToWebPlayback(): void {
-        this.androidPlayback.restoreWebVolume();
-        this.reloadToken.update((value) => value + 1);
+        this.androidPlayback.returnToWeb(() =>
+            this.reloadToken.update((value) => value + 1)
+        );
     }
 
     requestRecommendedPlayer(target: PlaybackRecommendationTarget): void {

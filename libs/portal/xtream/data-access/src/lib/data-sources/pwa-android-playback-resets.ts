@@ -40,10 +40,22 @@ export function readPlaybackPositions(storage: UserDataStorage): Positions {
 export function androidPlaybackResetAt(
     storage: UserDataStorage,
     playlistId: string,
-    item: PositionId & Partial<PlaybackPositionResetScope>,
-    seasonGroup = item.seasonNumber
+    item: PlaybackPositionData
+): number {
+    return nativePlaybackResetIn(
+        readPlaybackPositions(storage),
+        playlistId,
+        item
+    );
+}
+
+export function nativePlaybackResetIn(
+    positions: Positions,
+    playlistId: string,
+    item: PlaybackPositionData
 ): number {
     const keys = [playlistId, nativePlaybackResetId(playlistId, item)];
+    const seasonGroup = item.nativeCheckpointSeasonGroup ?? item.seasonNumber;
     if (item.contentType === 'episode' && item.seriesXtreamId !== undefined) {
         keys.push(
             nativePlaybackScopeId(playlistId, {
@@ -59,5 +71,5 @@ export function androidPlaybackResetAt(
             );
         }
     }
-    return nativePlaybackResetAt(readPlaybackPositions(storage), ...keys);
+    return nativePlaybackResetAt(positions, ...keys);
 }

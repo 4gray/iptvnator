@@ -42,6 +42,33 @@ describe('Android playback position resets', () => {
         expect(recent[1].updatedAt).toBe(older);
     });
 
+    it('rejects a delayed save against the current position or a completed reset', async () => {
+        const playlist = 'synthetic-playlist';
+        const row = position({
+            nativeCheckpointAt: '2025-01-01T00:00:00.000Z',
+        });
+        Object.assign(window, { TvShell: { postMessage: jest.fn() } });
+        try {
+            await positions.savePlaybackPosition(playlist, {
+                ...row,
+                nativeCheckpointAt: undefined,
+                positionSeconds: 99,
+            });
+            await positions.savePlaybackPosition(playlist, row);
+            expect(
+                (await positions.getPlaybackPosition(playlist, 100, 'vod'))
+                    ?.positionSeconds
+            ).toBe(99);
+            await positions.clearPlaybackPosition(playlist, 100, 'vod');
+            await positions.savePlaybackPosition(playlist, row);
+            expect(
+                await positions.getPlaybackPosition(playlist, 100, 'vod')
+            ).toBeNull();
+        } finally {
+            Reflect.deleteProperty(window, 'TvShell');
+        }
+    });
+
     it.each([undefined, 2])(
         'clears a series or season at quota with a single marker (%s)',
         async (seasonNumber) => {

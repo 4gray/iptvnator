@@ -200,8 +200,8 @@ public final class NativePlayerActivity extends Activity {
 
             @Override
             public void onTracksChanged(Tracks tracks) {
-                if (tracks.containsType(C.TRACK_TYPE_VIDEO)
-                    && !tracks.isTypeSupported(C.TRACK_TYPE_VIDEO, true)) {
+                if (hasUnsupportedTrack(tracks, C.TRACK_TYPE_VIDEO)
+                    || hasUnsupportedTrack(tracks, C.TRACK_TYPE_AUDIO)) {
                     failed = true;
                     player.stop();
                     showError();
@@ -314,6 +314,10 @@ public final class NativePlayerActivity extends Activity {
         }
     }
 
+    private static boolean hasUnsupportedTrack(Tracks tracks, int type) {
+        return tracks.containsType(type) && !tracks.isTypeSupported(type, true);
+    }
+
     private void showError() {
         view.setCustomErrorMessage(getString(R.string.native_playback_failed));
         view.hideController();
@@ -387,7 +391,13 @@ public final class NativePlayerActivity extends Activity {
     @Override
     public void finish() {
         Intent result = playbackResult();
-        if (ownsCheckpoint()) pausedCheckpoint = result;
+        if (ownsCheckpoint() && !isFinishing()) {
+            pausedCheckpoint = result;
+            Bundle content = getIntent().getBundleExtra("checkpointContent");
+            if (content != null) {
+                new NativePlaybackCheckpoints(this).saveResult(content, requestId, result);
+            }
+        }
         setResult(RESULT_OK, result);
         super.finish();
     }
@@ -398,6 +408,10 @@ public final class NativePlayerActivity extends Activity {
         checkpointId = null;
         pausedCheckpoint = null;
         return result;
+    }
+
+    static void revokeCheckpoint(String id) {
+        takeCheckpoint(id);
     }
 
     private boolean ownsCheckpoint() {
@@ -414,7 +428,8 @@ public final class NativePlayerActivity extends Activity {
             position = duration;
         }
         boolean savePosition = positionVerified || completed;
-        return new Intent().putExtra("position", savePosition ? position : 0)
+        return new Intent().putExtra("savedAt", System.currentTimeMillis())
+            .putExtra("position", savePosition ? position : 0)
             .putExtra("duration", savePosition ? duration : 0)
             .putExtra("played", playedMs()).putExtra("started", started)
             .putExtra("ended", completed || (live && ended)).putExtra("failed", failed);

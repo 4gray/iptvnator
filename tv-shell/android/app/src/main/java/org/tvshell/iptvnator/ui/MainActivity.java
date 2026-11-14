@@ -668,13 +668,15 @@ public class MainActivity extends Activity {
         nativePlaybackDocumentCurrent = true;
         if (externalDialog != null) externalDialog.dismiss();
         hideCustomView();
-        startActivityForResult(intent.putExtra("requestId", id), NATIVE_PLAYBACK_REQUEST);
+        startActivityForResult(intent.putExtra("requestId", id)
+            .putExtra("checkpointContent", nativePlaybackContent), NATIVE_PLAYBACK_REQUEST);
     }
 
     private void replyToNativePlayback(String id, Intent result) {
         String data = result == null ? "null" : "{positionMs:" + result.getLongExtra("position", 0)
             + ",durationMs:" + result.getLongExtra("duration", 0)
             + ",playedMs:" + result.getLongExtra("played", 0)
+            + ",savedAt:" + result.getLongExtra("savedAt", 0)
             + ",started:" + result.getBooleanExtra("started", false)
             + ",ended:" + result.getBooleanExtra("ended", false)
             + ",failed:" + result.getBooleanExtra("failed", false) + "}";
@@ -685,6 +687,7 @@ public class MainActivity extends Activity {
     void stopNative(String id) {
         if (!id.equals(nativePlaybackId)) return;
         nativePlaybackContent = null;
+        NativePlayerActivity.revokeCheckpoint(id);
         finishActivity(NATIVE_PLAYBACK_REQUEST);
     }
 
@@ -842,14 +845,7 @@ public class MainActivity extends Activity {
             nativePlaybackContent = null;
             Intent fallback = id == null ? null : NativePlayerActivity.takeCheckpoint(id);
             Intent result = resultCode == RESULT_OK && data != null ? data : fallback;
-            if (id != null && content != null && result != null
-                && (result.getLongExtra("duration", 0) > 0 || result.getLongExtra("position", 0) > 0)) {
-                content.putString("id", id);
-                content.putLong("position", result.getLongExtra("position", 0));
-                content.putLong("duration", result.getLongExtra("duration", 0));
-                content.putLong("savedAt", System.currentTimeMillis());
-                nativePlaybackCheckpoints.save(content);
-            }
+            if (result == fallback) nativePlaybackCheckpoints.saveResult(content, id, result);
             if (id != null && nativePlaybackDocumentCurrent) replyToNativePlayback(id, result);
             deliverNativePlaybackCheckpoint();
             return;
