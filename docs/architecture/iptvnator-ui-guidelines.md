@@ -23,6 +23,12 @@ Use it when changing existing views or introducing new list-based UI in the work
 
 5. Scroll ownership must be explicit.
    Headers stay visible. Lists scroll. Do not let nested panes compete for scroll.
+   The viewport and independent vertical page scrollers stop at their edges in
+   standalone PWAs and the native Android TV shell. The web stylesheet sets
+   `--app-overscroll-y` for those runtimes and applies it to the viewport.
+   The lazy workspace stylesheet applies it to routed scroll panes. Browser
+   tabs retain their normal behavior and horizontal rails still hand vertical
+   gestures to the page.
 
 6. Normal text, including metadata and selected labels, keeps at least 4.5:1
    contrast. Use `--app-muted-color` for secondary text and
@@ -340,6 +346,10 @@ instead, through `--app-list-selected-*`: a soft tint with no lift or glow,
 outlined in light theme. Its text is the heading colour in light theme (the
 selection blue on its own tint is 3.3:1) and the selection colour in dark.
 
+Browser tabs use standard text selection. Electron, the Android TV shell,
+and PWA windows in standalone display mode suppress general text selection.
+Text fields and explicitly copyable values remain selectable.
+
 ## Single-Choice Menus And Status Chips
 
 Catalog headers keep the category title/count on the left and the active
@@ -428,6 +438,10 @@ the blurred poster. The layout is decided once per title, so a backdrop that
 TMDB enrichment adds a moment later fills the compact hero instead of
 growing it. The pane is a size container (`detail`); the poster hides below
 760px of pane width.
+
+The detail shell owns vertical scrolling and follows the app's overscroll
+policy so dragging past the content cannot expose a gap beneath the workspace
+header in standalone apps.
 
 The pieces are shared and provider-neutral (`libs/ui/components/src/lib/detail-ui/`):
 `app-meta-chip` (pill; `rating` and `status` variants; facets as projected

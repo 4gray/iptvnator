@@ -49,7 +49,7 @@ export function VirtualCollection<T extends { id: string }>({
             initialColumns
         ),
         columns: initialColumns,
-        step: layout === 'channels' ? 95 : layout === 'episodes' ? 200 : 430,
+        step: layout === 'channels' ? 105 : layout === 'episodes' ? 200 : 430,
     }));
     const pending = useRef<{ index: number; origin: HTMLElement }>();
     const focusAfterRender = useRef<number>();
@@ -75,9 +75,14 @@ export function VirtualCollection<T extends { id: string }>({
             !!restoreKey;
         const measure = () => {
             const current = latest.current;
-            const first = grid.current?.querySelector<HTMLElement>(
-                '[data-virtual-index]'
-            );
+            // Measure an item without focus: the focused card is scaled.
+            const first =
+                grid.current?.querySelector<HTMLElement>(
+                    '[data-virtual-index]:not(:focus):not(:focus-within)'
+                ) ??
+                grid.current?.querySelector<HTMLElement>(
+                    '[data-virtual-index]'
+                );
             if (!first || !element.offsetWidth || !root.clientHeight) return;
             const style = getComputedStyle(grid.current!);
             const columns =

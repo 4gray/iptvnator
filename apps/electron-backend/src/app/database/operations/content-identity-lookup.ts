@@ -38,7 +38,11 @@ export async function getContentByXtreamId(
             sql`(${schema.content.releaseYear} IS NULL OR ${schema.content.releaseYear} = ${patch.releaseYear})`
         );
     const query = db
-        .select(selectContentFields())
+        .select({
+            ...selectContentFields(),
+            tmdb_id: schema.content.tmdbId,
+            release_year: schema.content.releaseYear,
+        })
         .from(schema.content)
         .innerJoin(
             schema.categories,

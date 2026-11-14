@@ -53,7 +53,6 @@ describe('SettingsDeleteAllPlaylistsDialogComponent', () => {
                         CONSEQUENCE_FAVORITES: 'Favorites',
                         CONSEQUENCE_RECENTLY_VIEWED: 'Recently viewed history',
                         CONSEQUENCE_PLAYBACK: 'Playback positions',
-                        CONSEQUENCE_DOWNLOADS: 'Download history',
                         CONSEQUENCE_XTREAM_CACHE: 'Xtream cache',
                         BACKUP_HINT: 'Use Export first if you need a backup.',
                         CONFIRM: 'Delete everything',
@@ -84,6 +83,8 @@ describe('SettingsDeleteAllPlaylistsDialogComponent', () => {
         expect(text).toContain('Xtream');
         expect(text).toContain('Stalker');
         expect(text).toContain('Favorites');
+        // Downloads outlive their sources; delete-all keeps the library.
+        expect(text).not.toMatch(/download/i);
         expect(text).toContain('Use Export first if you need a backup.');
     });
 

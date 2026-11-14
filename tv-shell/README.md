@@ -23,6 +23,10 @@ APK
 
 ## What it does
 
+The Android WebView and the PWA's vertical page scrollers stop at their scroll
+edges. The native bridge activates the PWA rule, so browser remote emulation
+keeps browser scrolling behavior.
+
 Local playlist import and backup restore use Android's document picker, without
 broad storage permissions. Cancellation leaves the file input unchanged; devices
 without a document picker show an explanatory message. The shared parsers validate
