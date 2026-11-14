@@ -164,6 +164,8 @@ without a positive limit show "limit ?".
 - Continue lists Xtream films only; series episodes exist for Xtream only;
   Stalker and M3U films cannot become tiles.
 - The main tile's fullscreen covers that tile only.
+- The remote control keeps addressing the view's own selection during a
+  session (channel steps, status, volume), not the active tile.
 - Two tiles on one host with different headers cannot be told apart for
   requests their URLs do not identify (D4).
 

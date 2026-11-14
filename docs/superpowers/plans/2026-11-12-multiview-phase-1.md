@@ -1404,6 +1404,17 @@ the maintainer's request):** five findings.
   source": R6 asks for it only when an add replaces a tile at capacity; a
   direct replace is the user's explicit choice (R5).
 
+**Round 11 (Codex, commit `058d8833e`):** four findings, no change; the
+round repeats earlier ones, so the gate stops here.
+- Repeated, declined as before — an episode survivor the details page cannot
+  restore (the VOD survivor handoff, D2, round 1) and the catch-up position
+  on live views (phase 1 limit, round 3).
+- Repeated, declined as before — remote channel steps and status after a
+  swap (round 3), and new in the same area: remote volume commands reach the
+  view's player, not the tile. Remote control during a session is one
+  follow-up for the remote-control contract; listed under Phase 1 limits in
+  `docs/architecture/multiview.md`.
+
 Greptile: not run (the `greptile` CLI is not installed on this machine).
 
 ## Phase acceptance (spec 14)
