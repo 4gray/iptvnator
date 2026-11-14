@@ -2,10 +2,14 @@ import {
     writeXtreamUserDataMap,
     type UserDataStorage,
 } from '@iptvnator/services';
-import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
+import { stampNativePlaybackReset } from '@iptvnator/services/pwa-native-playback-resets';
+import type {
+    PlaybackPositionData,
+    PlaybackPositionResetScope,
+} from '@iptvnator/shared/interfaces';
 import {
     type Positions,
-    nativePlaybackResetKey,
+    nativePlaybackScopeId,
     nativePlaybackResetId,
     readPlaybackPositions,
     playbackPositionsStorageKey,
@@ -34,6 +38,7 @@ export class PwaPlaybackPositions {
     clearPlaylist(playlistId: string): void {
         const allPositions = this.getPlaybackPositionsFromStorage();
         delete allPositions[playlistId];
+        stampNativePlaybackReset(allPositions, playlistId);
         this.savePlaybackPositionsToStorage(allPositions);
     }
 
@@ -160,7 +165,8 @@ export class PwaPlaybackPositions {
 
     async clearPlaybackPositionsBatch(
         playlistId: string,
-        items: { contentXtreamId: number; contentType: 'vod' | 'episode' }[]
+        items: { contentXtreamId: number; contentType: 'vod' | 'episode' }[],
+        scope?: PlaybackPositionResetScope
     ): Promise<void> {
         if (items.length === 0) {
             return;
@@ -180,15 +186,12 @@ export class PwaPlaybackPositions {
                 (p) => !removedKeys.has(`${p.contentType}_${p.contentXtreamId}`)
             );
         }
-        if (android) {
-            // Commit the fence in the same write that frees space by removing the position.
-            const resets = { ...allPositions[nativePlaybackResetKey] };
-            const timestamp = Date.now();
-            for (const item of items) {
-                resets[nativePlaybackResetId(playlistId, item)] = timestamp;
-            }
-            allPositions[nativePlaybackResetKey] = resets;
-        }
+        stampNativePlaybackReset(
+            allPositions,
+            ...(scope
+                ? [nativePlaybackScopeId(playlistId, scope)]
+                : items.map((item) => nativePlaybackResetId(playlistId, item)))
+        );
         this.savePlaybackPositionsToStorage(allPositions);
     }
 }

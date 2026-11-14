@@ -393,7 +393,7 @@ public final class NativePlayerActivity extends Activity {
         return new Intent().putExtra("position", savePosition ? position : 0)
             .putExtra("duration", savePosition ? duration : 0)
             .putExtra("played", playedMs()).putExtra("started", started)
-            .putExtra("ended", completed || (live && ended));
+            .putExtra("ended", completed || (live && ended)).putExtra("failed", failed);
     }
 
     private long playedMs() {

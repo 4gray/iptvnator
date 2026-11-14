@@ -28,6 +28,7 @@ type PlaybackResult = {
     readonly playedMs: number;
     readonly started?: boolean;
     readonly ended?: boolean;
+    readonly failed?: boolean;
 };
 
 type AndroidWindow = Window & {
@@ -50,6 +51,7 @@ export class AndroidTvPlayback {
         readonly pending: boolean;
         readonly live: boolean;
         readonly volume: number;
+        readonly reportFailure: () => void;
     } | null>(null);
 
     readonly labels = signal(
@@ -105,6 +107,7 @@ export class AndroidTvPlayback {
                 return;
             }
             this.session.set({ ...session, pending: false });
+            if (data.failed) session.reportFailure();
             if (
                 Number.isSafeInteger(data.positionMs) &&
                 Number.isSafeInteger(data.durationMs) &&
@@ -202,6 +205,16 @@ export class AndroidTvPlayback {
             pending: true,
             live,
             volume,
+            reportFailure: () =>
+                surface.dispatchEvent(
+                    new CustomEvent('iptvnator:android-playback-failed', {
+                        bubbles: true,
+                        detail: {
+                            url: playback.streamUrl,
+                            title: playback.title,
+                        },
+                    })
+                ),
         });
         const extension = getPlaybackMediaExtensionFromUrl(playback.streamUrl);
         const contentInfo = live ? undefined : playback.contentInfo;

@@ -19,6 +19,12 @@ export interface PlaybackPositionData {
     watched?: boolean;
 }
 
+/** The group explicitly cleared by a season or series action. */
+export interface PlaybackPositionResetScope {
+    readonly seriesXtreamId: number;
+    readonly seasonNumber?: number;
+}
+
 /** A position the inline engine reports to the content owner. */
 export interface PlaybackPositionUpdate {
     readonly currentTime: number;

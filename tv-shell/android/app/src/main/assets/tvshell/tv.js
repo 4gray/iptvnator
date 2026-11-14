@@ -56,8 +56,6 @@
 
     // --------------------------------------------------------------- bridge
     function native(method) {
-        // The current player already offers in-app recovery. External playback stays available on demand.
-        if (method === 'onPlaybackError' && document.querySelector('[data-tv-native-playback]')) return true;
         var args = Array.prototype.slice.call(arguments, 1);
         if (isAndroid) {
             try {
@@ -1357,6 +1355,26 @@
             promptedRoot = root;
             return true;
         }
+        var webFailures = new WeakMap(), nativeFailures = new WeakMap();
+        function offerAfterWebError(url, title, code, root) {
+            var stage = root && root.closest('app-web-player-view');
+            var button = stage && stage.querySelector('[data-tv-native-playback]');
+            if (button && nativeFailures.get(button) !== url) {
+                webFailures.set(button, url);
+                return;
+            }
+            native('onPlaybackError', url, title, String(code));
+        }
+        document.addEventListener('iptvnator:android-playback-failed', function (event) {
+            var button = event.target.querySelector('[data-tv-native-playback]');
+            var detail = event.detail;
+            if (!button || !detail || typeof detail.url !== 'string') return;
+            nativeFailures.set(button, detail.url);
+            if (webFailures.get(button) === detail.url) {
+                webFailures.delete(button);
+                native('onPlaybackError', detail.url, detail.title || document.title || '', '4');
+            }
+        });
         document.addEventListener('error', function (e) {
             var t = e.target;
             if (!t || !(t.tagName === 'VIDEO' || t.tagName === 'AUDIO')) return;
@@ -1373,7 +1391,7 @@
                 // player would fail the same way.
                 if (!url || code < 3 || !armPrompt(url, t.closest ? t.closest('.video-js') : null)) return;
                 lastMediaTitle = document.title;
-                native('onPlaybackError', url, lastMediaTitle || '', String(code));
+                offerAfterWebError(url, lastMediaTitle || '', code, t);
             }, 400);
         }, true);
         // The screen stays on only while something plays (the shell holds no wake lock otherwise).
@@ -1399,7 +1417,7 @@
             var url = api.currentStreamUrl();
             var root = currentVideo && currentVideo.closest ? currentVideo.closest('.video-js') : null;
             if (!url || !armPrompt(url, root)) return;
-            native('onPlaybackError', url, document.title || '', '4');
+            offerAfterWebError(url, document.title || '', 4, event.target);
         });
         // video.js never sets the <video> src when no tech accepts the source
         // (raw .ts streams): it flags its root with `vjs-error` instead.
@@ -1413,7 +1431,7 @@
                 var url = videoJsSource();
                 if (!url || !armPrompt(url, el)) continue;
                 lastMediaTitle = document.title;
-                native('onPlaybackError', url, lastMediaTitle || '', '4');
+                offerAfterWebError(url, lastMediaTitle || '', 4, el);
             }
         });
         vjsObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'], subtree: true });

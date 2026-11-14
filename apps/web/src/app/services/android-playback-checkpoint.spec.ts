@@ -195,7 +195,12 @@ describe('restoring Android playback checkpoints', () => {
         );
     });
 
-    it('does not restore a checkpoint from before an item was reset', async () => {
+    it.each([
+        ['item clear', JSON.stringify([content.playlistId, 'episode', 17])],
+        ['season clear', JSON.stringify([content.playlistId, 'season', 3, 2])],
+        ['series clear', JSON.stringify([content.playlistId, 'series', 3])],
+        ['playlist restore', content.playlistId],
+    ])('discards an older checkpoint on %s', async (_reason, resetKey) => {
         savePlaybackPositionOrThrow.mockRejectedValueOnce(
             new Error('Synthetic storage failure')
         );
@@ -205,11 +210,7 @@ describe('restoring Android playback checkpoints', () => {
             'xtream-playback-positions',
             JSON.stringify({
                 __iptvnator_native_playback_resets__: {
-                    [JSON.stringify([
-                        content.playlistId,
-                        content.contentType,
-                        content.contentXtreamId,
-                    ])]: Date.now(),
+                    [resetKey]: Date.now(),
                 },
             })
         );

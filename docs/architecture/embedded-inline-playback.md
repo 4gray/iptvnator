@@ -153,9 +153,9 @@ Android retains each final position until the WebView acknowledges it, even
 when the original screen survives and the first save fails. The checkpoint
 listener loads only with the Android bridge. It saves through the portal resume
 store for the original WebView origin and source profile. A page in another
-profile leaves the checkpoint pending. Resetting an item records the reset
-time in the same write as the removal, so retrying an old checkpoint cannot
-restore cleared progress.
+profile leaves the checkpoint pending. A reset or backup restore records its
+time in the same write as the position change. Older checkpoints cannot undo
+that change. Bulk resets use one marker for the season or series.
 While a VOD plays, Android keeps an in-memory checkpoint so a launcher relaunch
 can recover progress even if it clears the player before the pause callback.
 Autoplay and watch-history confirmation require the original screen.

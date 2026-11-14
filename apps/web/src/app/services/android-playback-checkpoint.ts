@@ -8,7 +8,7 @@ import type {
     PlayerContentInfo,
 } from '@iptvnator/shared/interfaces';
 import { parseActivityAddress } from '@iptvnator/shared/interfaces/activity-sync';
-import { androidPlaybackResetAt } from '@iptvnator/portal/xtream/data-access';
+import { androidPlaybackResetAt } from '@iptvnator/portal/xtream/data-access/android-playback-resets';
 
 const checkpointEvent = 'iptvnator:android-playback-checkpoint';
 

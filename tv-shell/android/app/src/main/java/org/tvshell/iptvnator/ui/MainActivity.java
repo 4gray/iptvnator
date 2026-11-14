@@ -673,7 +673,8 @@ public class MainActivity extends Activity {
             + ",durationMs:" + result.getLongExtra("duration", 0)
             + ",playedMs:" + result.getLongExtra("played", 0)
             + ",started:" + result.getBooleanExtra("started", false)
-            + ",ended:" + result.getBooleanExtra("ended", false) + "}";
+            + ",ended:" + result.getBooleanExtra("ended", false)
+            + ",failed:" + result.getBooleanExtra("failed", false) + "}";
         js("window.dispatchEvent(new CustomEvent('iptvnator:android-playback-result',{detail:{id:"
             + JSONObject.quote(id) + ",result:" + data + "}}))");
     }

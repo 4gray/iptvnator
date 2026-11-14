@@ -5,6 +5,7 @@ import {
     ContentMetadataPatch,
     Playlist,
     PlaybackPositionData,
+    PlaybackPositionResetScope,
     XtreamPendingRestoreState,
     XtreamCategory,
     XtreamLiveStream,
@@ -810,11 +811,13 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
 
     async clearPlaybackPositionsBatch(
         playlistId: string,
-        items: { contentXtreamId: number; contentType: 'vod' | 'episode' }[]
+        items: { contentXtreamId: number; contentType: 'vod' | 'episode' }[],
+        scope?: PlaybackPositionResetScope
     ): Promise<void> {
         return (await this.playbackPositions()).clearPlaybackPositionsBatch(
             playlistId,
-            items
+            items,
+            scope
         );
     }
 
