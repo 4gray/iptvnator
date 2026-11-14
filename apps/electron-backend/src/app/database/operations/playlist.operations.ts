@@ -693,6 +693,12 @@ export async function setAppState(
     return { success: true };
 }
 
+/**
+ * Clears every source and its catalog and user data. Downloads are locally
+ * owned records, not playlist children (docs/architecture/download-manager.md):
+ * their rows, files, `.part` paths and archive proofs outlive the sources, as
+ * for a single source delete.
+ */
 export async function deleteAllPlaylists(
     db: AppDatabase,
     control?: OperationControl
@@ -709,10 +715,6 @@ export async function deleteAllPlaylists(
         {
             phase: 'deleting-playback-positions',
             execute: () => db.delete(schema.playbackPositions),
-        },
-        {
-            phase: 'deleting-downloads',
-            execute: () => db.delete(schema.downloads),
         },
         {
             phase: 'deleting-content',

@@ -1592,7 +1592,8 @@ untouched `app-web-player-view` into a 128 px docked strip
 collapses to one 48 px line (`epg-guide:dock-collapsed`), which is also the
 fixed height of the strip shown for an external MPV/VLC session — that one has
 no video to reveal, so it hides the Collapse toggle (`collapsible=false`) and
-writes no preference. Nothing remounts, so playback and native-view Embedded
+writes no preference. Short screens also use the compact strip without
+changing the saved dock preference. Nothing remounts, so playback and native-view Embedded
 MPV bounds survive. While the guide is open the docked `.video-player` carries
 `data-player-shortcuts-suspended`, which makes `ControlsShortcuts` (shared and
 legacy player shortcuts alike) yield ↑/↓, Space, F and M to the guide's own
@@ -2004,6 +2005,11 @@ so unrelated preferences do not depend on cache cleanup. An explicitly edited
 EPG array requests reconciliation even when the committed URLs already match
 (for example retrying a failed cleanup); removing a row marks that array dirty,
 and only successful saving clears it. Startup reconciliation always runs.
+
+`SettingsStore` normalizes saved global XMLTV sources on load. It accepts a
+single legacy string and skips non-string or blank entries while keeping
+local guide paths. The startup refresh and channel rows read this list from
+the store.
 
 `EpgSourceSettingsService` waits for `PlaylistsService.getAllPlaylists()` (which
 performs the legacy playlist migration) before invoking `EPG_RECONCILE_SOURCES`.

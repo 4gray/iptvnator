@@ -9,7 +9,10 @@ import {
     type TvMediaAction,
 } from '@iptvnator/tv/util';
 import {
+    backspaceEdits,
     currentTvPlatform,
+    editingText,
+    installImeGuard,
     installRemote,
     platformBack,
     registerTvKeys,
@@ -119,6 +122,200 @@ test('both remote Back codes and browser aliases reach navigation; text Backspac
         new dom.window.KeyboardEvent('keydown', { keyCode: 10009 })
     );
     assert.equal(backs, 5, 'cleanup removes navigation listener');
+});
+
+test('IME guard keeps focus read-only until Enter or click starts editing', (t) => {
+    const dom = browser(t);
+    const remove = installImeGuard();
+    const input = dom.window.document.querySelector(
+        'input'
+    ) as HTMLInputElement;
+    input.focus();
+    assert.equal(input.readOnly, true, 'focus alone must not edit');
+    const enter = new dom.window.KeyboardEvent('keydown', {
+        key: 'Enter',
+        keyCode: 13,
+        bubbles: true,
+        cancelable: true,
+    });
+    input.dispatchEvent(enter);
+    assert.equal(enter.defaultPrevented, true);
+    assert.equal(input.readOnly, false, 'explicit OK starts editing');
+    assert.equal(dom.window.document.activeElement, input);
+    const submit = new dom.window.KeyboardEvent('keydown', {
+        key: 'Enter',
+        keyCode: 13,
+        bubbles: true,
+        cancelable: true,
+    });
+    input.dispatchEvent(submit);
+    assert.equal(
+        submit.defaultPrevented,
+        false,
+        'Enter inside an editable field stays native'
+    );
+    input.blur();
+    assert.equal(input.readOnly, true, 'leaving restores read-only');
+    input.focus();
+    assert.equal(input.readOnly, true);
+    input.dispatchEvent(
+        new dom.window.MouseEvent('click', {
+            bubbles: true,
+            cancelable: true,
+        })
+    );
+    assert.equal(input.readOnly, false, 'explicit click starts editing');
+    input.blur();
+    remove();
+    input.focus();
+    assert.equal(input.readOnly, false, 'cleanup removes the read-only guard');
+});
+
+test('Backspace and caret keys belong to text entry only while editable', (t) => {
+    const dom = browser(t);
+    const input = dom.window.document.querySelector(
+        'input'
+    ) as HTMLInputElement;
+    const backspace = () => {
+        const event = new dom.window.KeyboardEvent('keydown', {
+            key: 'Backspace',
+            keyCode: 8,
+            bubbles: true,
+            cancelable: true,
+        });
+        input.dispatchEvent(event);
+        return event;
+    };
+    assert.equal(
+        backspaceEdits(backspace()),
+        true,
+        'editable field keeps deletion'
+    );
+    input.readOnly = true;
+    assert.equal(
+        backspaceEdits(backspace()),
+        false,
+        'read-only field passes Back'
+    );
+    assert.equal(editingText(input), false);
+    input.readOnly = false;
+    assert.equal(editingText(input), true);
+    const remove = installImeGuard();
+    let backs = 0;
+    const removeRemote = installRemote(
+        () => backs++,
+        () => false,
+        () => undefined
+    );
+    input.readOnly = true;
+    backspace();
+    assert.equal(backs, 1, 'read-only Backspace reaches the back action');
+    input.readOnly = false;
+    backspace();
+    assert.equal(backs, 1, 'editable Backspace stays native deletion');
+    removeRemote();
+    remove();
+});
+
+test('IME guard unlocks form fields on submit so required checks still run', (t) => {
+    const dom = browser(t);
+    const form = dom.window.document.createElement('form');
+    const required = dom.window.document.createElement('input');
+    required.required = true;
+    const save = dom.window.document.createElement('button');
+    const other = dom.window.document.createElement('input');
+    const locked = dom.window.document.createElement('input');
+    locked.readOnly = true;
+    form.append(required, other, locked, save);
+    dom.window.document.body.append(form);
+    const remove = installImeGuard();
+    required.focus();
+    assert.equal(required.readOnly, true);
+    save.dispatchEvent(
+        new dom.window.MouseEvent('click', {
+            bubbles: true,
+            cancelable: true,
+        })
+    );
+    assert.equal(
+        required.readOnly,
+        false,
+        'submit attempt re-enables constraint validation'
+    );
+    other.focus();
+    required.focus();
+    assert.equal(other.readOnly, true);
+    const enter = () =>
+        required.dispatchEvent(
+            new dom.window.KeyboardEvent('keydown', {
+                key: 'Enter',
+                keyCode: 13,
+                bubbles: true,
+                cancelable: true,
+            })
+        );
+    enter();
+    assert.equal(required.readOnly, false, 'Enter starts editing');
+    enter();
+    assert.equal(
+        other.readOnly,
+        false,
+        'implicit submission also unlocks the form'
+    );
+    assert.equal(
+        locked.readOnly,
+        true,
+        'fields owned by the app stay read-only'
+    );
+    remove();
+});
+
+test('physical editing keys release guarded fields without consuming the key', (t) => {
+    const dom = browser(t);
+    const remove = installImeGuard();
+    const input = dom.window.document.querySelector('input')!;
+    for (const key of [
+        { key: 'a' },
+        { key: '@', altKey: true },
+        { key: 'Dead', altKey: true },
+        { key: '@', ctrlKey: true, altKey: true, modifierAltGraph: true },
+        { key: 'Process' },
+        { key: 'Unidentified', keyCode: 229 },
+        { key: 'Enter', isComposing: true },
+        { key: 'v', ctrlKey: true },
+        { key: 'Delete' },
+    ]) {
+        input.focus();
+        assert.equal(input.readOnly, true);
+        const event = new dom.window.KeyboardEvent('keydown', {
+            ...key,
+            bubbles: true,
+            cancelable: true,
+        });
+        input.dispatchEvent(event);
+        assert.equal(input.readOnly, false, key.key);
+        assert.equal(event.defaultPrevented, false, key.key);
+        input.blur();
+    }
+    remove();
+});
+
+test('IME guard leaves range, checkbox and button inputs editable-free', (t) => {
+    const dom = browser(t);
+    const remove = installImeGuard();
+    for (const type of ['range', 'checkbox', 'button']) {
+        const control = dom.window.document.createElement('input');
+        control.type = type;
+        dom.window.document.body.append(control);
+        control.focus();
+        assert.equal(
+            control.readOnly,
+            false,
+            `type=${type} never gains read-only focus`
+        );
+        control.remove();
+    }
+    remove();
 });
 
 test('Tizen registers used media keys only, survives an unsupported key and exits through its application API', (t) => {

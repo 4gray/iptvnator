@@ -6,9 +6,11 @@ import {
     signal,
 } from '@angular/core';
 import {
+    EpgItem,
     EpgProgram,
     RecordingStartMetadata,
     RecordingStoppedEvent,
+    ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import {
     EpgProgramActivationEvent,
@@ -64,6 +66,9 @@ export class StubWebPlayerViewComponent {
     readonly timelineSegments = input<unknown>(null);
     readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
     readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
+    readonly playbackStarted = output<ResolvedPortalPlayback>();
+    readonly hasStartedPlayback = signal(false);
+    readonly retryFailedPlayback = jest.fn(() => false);
     readonly recordingStopped = output<RecordingStoppedEvent>();
 }
 
@@ -96,6 +101,8 @@ export class StubEpgTimelineComponent {
     readonly summaryLabelKey = input('');
     readonly offsetMinutes = input(0);
     readonly programActivated = output<EpgProgramActivationEvent>();
+    readonly guideAvailable = input(false);
+    readonly openGuide = output<void>();
     readonly returnToLive = output<void>();
     readonly selectedDateChange = output<string>();
     readonly collapsedChange = output<boolean>();
@@ -114,3 +121,28 @@ export const playlist = {
     username: 'demo',
     password: 'secret',
 };
+
+export const HOUR = 3600;
+const T0 = Date.parse('2026-04-04T10:00:00.000Z') / 1000;
+
+export function epgItem(
+    title: string,
+    fromHour: number,
+    toHour: number
+): EpgItem {
+    const start = new Date((T0 + fromHour * HOUR) * 1000).toISOString();
+    const stop = new Date((T0 + toHour * HOUR) * 1000).toISOString();
+    return {
+        id: title,
+        epg_id: `epg-${title}`,
+        title,
+        description: '',
+        lang: 'en',
+        start,
+        stop,
+        end: stop,
+        channel_id: 'channel-101',
+        start_timestamp: String(T0 + fromHour * HOUR),
+        stop_timestamp: String(T0 + toHour * HOUR),
+    };
+}

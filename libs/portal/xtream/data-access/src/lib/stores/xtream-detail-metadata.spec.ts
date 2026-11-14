@@ -89,6 +89,44 @@ describe('Xtream detail placeholders', () => {
         });
     });
 
+    it('turns numeric text fields into the strings the detail routes split (#2188)', () => {
+        const info = stripXtreamSerieInfoPlaceholders({
+            name: 'Numeric Series',
+            genre: 18,
+            cast: 'Sienna Wave, Cora Bell',
+            director: 'Cora Bell',
+            releaseDate: 2021,
+            rating: 7.5,
+            episode_run_time: 45,
+            rating_5based: 3.8,
+        } as unknown as XtreamSerieInfo);
+
+        expect(info).toEqual({
+            name: 'Numeric Series',
+            genre: '18',
+            cast: 'Sienna Wave, Cora Bell',
+            director: 'Cora Bell',
+            releaseDate: '2021',
+            rating: '7.5',
+            episode_run_time: '45',
+            rating_5based: 3.8,
+        });
+
+        expect(
+            stripXtreamVodInfoPlaceholders({
+                name: 'Numeric Film',
+                genre: 18,
+                rating_imdb: 0,
+                duration_secs: 5400,
+            } as unknown as XtreamVodInfo)
+        ).toEqual({
+            name: 'Numeric Film',
+            genre: '18',
+            rating_imdb: '',
+            duration_secs: 5400,
+        });
+    });
+
     it('passes a malformed info payload through unchanged', () => {
         expect(stripXtreamSerieInfoPlaceholders(undefined as never)).toBe(
             undefined

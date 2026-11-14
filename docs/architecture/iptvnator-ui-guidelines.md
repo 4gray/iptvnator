@@ -339,6 +339,10 @@ instead, through `--app-list-selected-*`: a soft tint with no lift or glow,
 outlined in light theme. Its text is the heading colour in light theme (the
 selection blue on its own tint is 3.3:1) and the selection colour in dark.
 
+Browser tabs use standard text selection. Electron, the Android TV shell,
+and PWA windows in standalone display mode suppress general text selection.
+Text fields and explicitly copyable values remain selectable.
+
 ## Single-Choice Menus And Status Chips
 
 Catalog headers keep the category title/count on the left and the active
@@ -427,6 +431,10 @@ the blurred poster. The layout is decided once per title, so a backdrop that
 TMDB enrichment adds a moment later fills the compact hero instead of
 growing it. The pane is a size container (`detail`); the poster hides below
 760px of pane width.
+
+The detail shell owns vertical scrolling. In standalone PWA windows it stops
+vertical overscroll at both edges so dragging past the content cannot expose a
+gap beneath the workspace header.
 
 The pieces are shared and provider-neutral (`libs/ui/components/src/lib/detail-ui/`):
 `app-meta-chip` (pill; `rating` and `status` variants; facets as projected
@@ -553,6 +561,9 @@ host by its padding and border on the first move.
   themes. Each stop must draw exactly one ring in the token's colour, uncut
   by an ancestor's `overflow: hidden`, at 3:1 where it sits on a flat
   colour, and a click must draw none.
+  It also checks that the detail page stays ringless when seeking after a
+  click, including a click on the already focused page. Tabbing back to the
+  page shows its focus ring.
 
 Catalog result counts use an atomic `status` region so search/filter changes
 are announced without moving focus from the search field. Opening a catalog
@@ -583,6 +594,12 @@ Scrolling from a virtual row moves focus to its viewport
 before CDK can recycle the row; asynchronous data updates preserve connected
 focused controls. If the focused row is removed, focus moves to the next row
 at the same index, the previous row at the end, or the empty scroll owner.
+When filtering shifts a programme guide row, focus follows its programme
+if it is still present, or the channel cell otherwise. During a schedule
+refresh, keep the focused programme identity through errors until the row has
+loaded successfully.
+If its row moves during that refresh, reveal the row and defer DOM focus
+until the programme is present or the refreshed schedule shows it is gone.
 A destroyed pane falls back to its captured workspace main landmark. This
 recovery never takes focus from another active control.
 Xtream aligns a newly selected channel only when it is outside the viewport;
@@ -805,12 +822,21 @@ remain local when the meaning is explicit.
 - There is deliberately no "channels hidden, categories visible" state: a
   category click has to bring the channels back anyway. Surfaces without a
   categories rail (M3U, the unified-collection live tab) treat level 2 like
-  level 1 — and so does the live ROOT (no selected category, Xtream `/live`
-  "All Items", Stalker's all-items grid): there is no channels rail to host
-  the way back, so the shell folds the categories rail at level 2 only while
-  the portal store has a selected category (`hasLiveCategorySelection`), and
-  the rail's hide chevron is withheld there too. Level 3 folds it regardless,
-  since the floating restore handle lives in the content area.
+  level 1. The live ROOT (no selected category: Xtream `/live` "All Items",
+  Stalker's all-items grid or its select-a-category placeholder) folds at level
+  2 like any category, so the rail's hide chevron is offered there too. With no
+  channels header to host the way back, each root view renders its own
+  `data-test-id="live-show-categories"` button while
+  `LivePanelsController.isCategoriesRailFolded()` is true: one Xtream button
+  that floats over the header's leading edge (the header reserves the room), kept
+  outside the loading switch so its focus survives the loading-to-ready swap;
+  the Stalker `app-stalker-itv-all-items` header; or a floating handle on the
+  Stalker placeholder and while a Stalker channel plays without a category.
+  Level 3 hides it again in favour of the restore handle. The one exception is
+  a blocked Xtream portal (`XtreamStore.isContentBlocked`):
+  `XtreamContentGateComponent` then replaces the live layout with an error view,
+  so the shell keeps the rail unfolded (`isLiveContentBlocked`) and the rail
+  withholds its hide chevron, rather than hiding the only way back.
 - Xtream Live TV's root view (`/live` with no selected category) follows the
   same paginated `All Items` shell as VOD and Series: a widget header with the
   total channel count, page-size controls, and page navigation above the shared
@@ -921,14 +947,14 @@ remain local when the meaning is explicit.
   so focus drops to `<body>`; the side that gains the replacement affordance
   picks it up after its next render via `focusIfFocusLost()`
   (`@iptvnator/portal/shared/util`): the layouts' `LivePanelsController`
-  installs `handoffFocusOnLiveSidebarChange()` over the EFFECTIVE level (on
-  the live root the first category selection folds the rail with no state
-  change) and focuses the floating restore handle at player-only or the
-  show-categories button while the rail is folded, and the shell sidebar,
-  watching the rail's ACTUAL fold state (on the live root the rail stays
-  visible at level 2, so only player-only ↔ visible is a transition there),
-  focuses the control the context panel names (`focusTarget()`: its hide
-  chevron, or its first header action when the chevron is withheld) and,
+  installs `handoffFocusOnLiveSidebarChange()` over the EFFECTIVE level and
+  focuses the floating restore handle at player-only or the show-categories
+  button while the rail is folded. If a view change removes a focused
+  category control while the rail stays folded, the controller passes focus
+  to the replacement show-categories button. The shell sidebar watches the
+  rail's fold state and focuses the control the context panel names
+  (`focusTarget()`: its hide chevron, or its first header action when the
+  chevron is withheld) and,
   while none is rendered (categories loading, a failed load), the
   `tabindex="-1"` aside itself — only on transitions, and never when another
   control still owns focus.

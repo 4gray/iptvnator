@@ -17,6 +17,7 @@ export const SETTINGS_CONTROL_SECTIONS: Readonly<Record<string, string>> = {
     webPlayerSharedControls: 'playback',
     playerAmbientMode: 'playback',
     playerUpNextRail: 'playback',
+    seriesAutoplay: 'playback',
     playerUpNextCard: 'playback',
     detailTrailerBackdrop: 'playback',
     fullscreenChannelPanel: 'playback',

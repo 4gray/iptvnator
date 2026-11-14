@@ -162,6 +162,7 @@ export class SettingsComponent
     private readonly settingsCtx = inject(SettingsContextService);
     private readonly settingsSnackbar = inject(SettingsSnackbarService);
     private readonly unloadGuard = inject(SettingsUnloadGuardService);
+    readonly confirmLeaveWithUnsavedChanges = this.unloadGuard.confirmLeave;
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly vodSourceDiscovery = inject(VodSourceDiscoveryService);
     private readonly matDialog = inject(MatDialog);
@@ -376,7 +377,7 @@ export class SettingsComponent
         // same edits against window close, app quit, and page reload.
         this.unloadGuard.activate({
             form: this.settingsForm,
-            confirmClose: () => this.confirmLeaveWithUnsavedChanges(),
+            confirmClose: () => this.confirmSettingsExit(),
         });
 
         // Wait for settings to load before setting the form
@@ -428,10 +429,8 @@ export class SettingsComponent
      * write that did not land would silently lose the edits the dialog just
      * promised to keep.
      */
-    async confirmLeaveWithUnsavedChanges(): Promise<boolean> {
-        if (this.settingsForm.pristine) {
-            return true;
-        }
+    private async confirmSettingsExit(): Promise<boolean> {
+        if (this.settingsForm.pristine) return true;
 
         const choice = await firstValueFrom(
             this.matDialog

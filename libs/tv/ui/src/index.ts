@@ -1,6 +1,7 @@
 export * from './components';
 export { Backdrop } from './backdrop';
 export * from './focus';
+export * from './ime-guard';
 export * from './platform';
 export { TvIcon } from './icon';
 export { VirtualCollection } from './virtual-collection';

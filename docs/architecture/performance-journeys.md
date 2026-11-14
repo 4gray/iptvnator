@@ -1155,6 +1155,10 @@ programmes near the visible range. On the runner
 734 mutations per run, except one iteration with a fifth bridge call and
 748 mutations.
 
+The Xtream multi-channel guide adds actions to Live TV and its EPG panel.
+The single-channel ribbon writes each programme card's position and width
+together in one style update to keep J3 within the existing mutation budget.
+
 `renderer.ipcSerialDepthToPlaying` came later. One local macOS
 `perf:journeys` run on 2026-10-10 read 3 in all six iterations, warm-up
 included, with `depthLowerBound` 3, no ambiguous completion and no call in
@@ -1381,8 +1385,11 @@ persisted status (`xtream-import-status:<id>:<type>`) reads `completed` and
 the type has rows, unless the portal has no categories of that type. Rows
 are required because a refresh deletes the catalog without resetting the
 status. `xtream-import-wait.e2e.ts` holds the account check past the overlay
-window and fails without it. Two J4 counters are enforced since #1899
-(see [Enforced journey counters](#enforced-journey-counters)).
+window and fails without it. Tests reopening a persisted source from outside
+the Xtream workspace can use `waitForXtreamCatalog(page, { cached: true })`.
+That path checks SQLite, waits for the renderer's catalog initialization
+to finish, and waits for any overlay to clear. Two J4 counters are enforced
+since #1899 (see [Enforced journey counters](#enforced-journey-counters)).
 
 ## `renderer.initialBytes`
 
@@ -1632,8 +1639,8 @@ stays and is not part of the evidence.
 The job also refuses a weakened baselines file:
 `tools/performance/check-baseline-direction.mjs` compares
 `journey-baselines.json` with the revision the change is measured against
-(the target branch of a pull request, the previous head of a `master` push,
-`master` for a manual dispatch) and fails when any
+(the first parent of the tested PR merge commit, the previous head of a
+`master` push, or `master` for a manual dispatch) and fails when any
 entry's enforced limit (`value × toleranceRatio` or `value + slack`) went up,
 a tolerance or slack widened or an entry disappeared, so a PR cannot grow the
 payload and raise the baseline to match. A counter's `value` may not go up
@@ -1676,10 +1683,11 @@ Playwright config starts the Xtream mock), writes the measurements to the job
 summary and uploads `dist/performance/journeys/` as the `performance-journeys`
 artifact. The `Performance journeys scope` job skips it only for pull
 requests that change nothing but Markdown, `docs/**`, `.plans/**`,
-`.codex/**`, `.claude/**`, `.changes/**` or `apps/website/**` (the E2E
-workflow's ignore list plus release notes); any other file, including root
-build inputs such as `.nvmrc`, `nx.json` or `tsconfig.base.json`, runs it.
-Pushes to `master` and manual dispatches always run it. The job was introduced
+`.agents/**`, `.codex/**`, `.claude/**`, `.changes/**` or `apps/website/**`.
+It compares the merge tree with its first parent and treats moves as a
+deletion and an addition. An unavailable diff or any other changed path,
+including root build inputs such as `.nvmrc`, `nx.json` or `tsconfig.base.json`,
+runs the journeys. Pushes to `master` and manual dispatches always run them. The job was introduced
 as warn-only (`continue-on-error: true`) in #1717. PR #1926 (plan item B3)
 removes that setting, so a regression fails the workflow. On `master`, the
 blocking policy takes effect when #1926 is merged, not on its commit or

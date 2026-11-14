@@ -1,0 +1,93 @@
+import { signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
+import { TranslateModule } from '@ngx-translate/core';
+import { SourceSyncService } from '@iptvnator/services/source-sync';
+import { SourceSyncStatusViewComponent } from './source-sync-status-view.component';
+
+describe(SourceSyncStatusViewComponent.name, () => {
+    const setup = async (hasCachedLibrary: boolean) => {
+        const sync = {
+            connection: { apiUrl: 'https://nas.test/api', instanceId: 'nas' },
+            hasCachedLibrary,
+            state: signal('offline'),
+            stateKey: signal('SOURCE_SYNC.STATE_offline'),
+            errorKey: signal('SOURCE_SYNC.OFFLINE'),
+            refresh: jest.fn(),
+        };
+        await TestBed.configureTestingModule({
+            imports: [SourceSyncStatusViewComponent, TranslateModule.forRoot()],
+            providers: [
+                provideRouter([]),
+                { provide: SourceSyncService, useValue: sync },
+            ],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(SourceSyncStatusViewComponent);
+        const root = fixture.nativeElement as HTMLElement;
+        fixture.detectChanges();
+        return { fixture, root, sync };
+    };
+
+    it('keeps a dismissed outage hidden across retries but shows a new recovery problem', async () => {
+        const { fixture, root, sync } = await setup(true);
+        root.querySelector<HTMLButtonElement>('button[aria-label]')?.click();
+        fixture.detectChanges();
+        expect(sync.refresh).not.toHaveBeenCalled();
+        expect(root.querySelector('section')).toBeNull();
+
+        sync.state.set('connected');
+        fixture.detectChanges();
+        sync.state.set('offline');
+        fixture.detectChanges();
+        expect(root.querySelector('section')).toBeNull();
+
+        sync.errorKey.set('SOURCE_SYNC.INSTANCE_CHANGED');
+        fixture.detectChanges();
+        expect(root.textContent).toContain('SOURCE_SYNC.INSTANCE_CHANGED');
+        expect(root.querySelector('button[aria-label]')).toBeNull();
+
+        sync.errorKey.set('SOURCE_SYNC.LOCKED');
+        sync.state.set('locked');
+        fixture.detectChanges();
+        expect(root.querySelector('input')).toBeNull();
+        expect(
+            root.querySelector('a.server-status__primary')?.textContent
+        ).toContain('SOURCE_SYNC.OPEN_SETTINGS');
+        expect(root.querySelector('a')?.getAttribute('href')).toBe(
+            '/workspace/settings/server'
+        );
+        expect(root.querySelector('button')).toBeNull();
+    });
+
+    it('disables retry while the first inventory is connecting', async () => {
+        const { fixture, root, sync } = await setup(false);
+        sync.state.set('connecting');
+        fixture.detectChanges();
+
+        const retry = root.querySelector<HTMLButtonElement>('button');
+        expect(retry?.disabled).toBe(true);
+        expect(root.querySelector('a')).not.toBeNull();
+    });
+
+    it('keeps recovery available when the first inventory has not loaded', async () => {
+        const { root } = await setup(false);
+        expect(root.querySelector('a')).not.toBeNull();
+        expect(root.querySelector('button[aria-label]')).toBeNull();
+        expect(root.querySelector('input')).toBeNull();
+        expect(root.textContent).toContain('SOURCE_SYNC.RETRY_CONNECTION');
+        expect(root.textContent).not.toContain('SOURCE_SYNC.OPEN_SETTINGS');
+    });
+
+    it('reports a failed retry and lets the user retry again', async () => {
+        const { fixture, root, sync } = await setup(false);
+        sync.refresh.mockRejectedValueOnce(new Error('Network unavailable'));
+        root.querySelector('button')?.click();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(sync.refresh).toHaveBeenCalledTimes(1);
+        expect(root.textContent).toContain('SOURCE_SYNC.REQUEST_FAILED');
+        expect(root.querySelector('input')).toBeNull();
+        expect(root.querySelector('button')?.disabled).toBe(false);
+    });
+});

@@ -101,7 +101,8 @@ ipcMain.handle(
         origin?: string,
         contentInfo?: PlayerContentInfo,
         startTime?: number,
-        headers?: Record<string, string>
+        headers?: Record<string, string>,
+        launchId?: string
     ) => {
         await waitForPathIfBareName('mpv', store.get(MPV_PLAYER_PATH));
         return openMpvPlayer({
@@ -114,6 +115,7 @@ ipcMain.handle(
             contentInfo,
             startTime,
             headers,
+            launchId,
         });
     }
 );
@@ -145,7 +147,8 @@ ipcMain.handle(
         origin?: string,
         contentInfo?: PlayerContentInfo,
         startTime?: number,
-        headers?: Record<string, string>
+        headers?: Record<string, string>,
+        launchId?: string
     ) => {
         await waitForPathIfBareName('vlc', store.get(VLC_PLAYER_PATH));
         return openVlcPlayer({
@@ -158,6 +161,7 @@ ipcMain.handle(
             contentInfo,
             startTime,
             headers,
+            launchId,
         });
     }
 );
@@ -179,8 +183,8 @@ ipcMain.handle('SET_VLC_REUSE_INSTANCE', (_event, reuseInstance: boolean) => {
 
 ipcMain.handle(
     CLOSE_EXTERNAL_PLAYER_SESSION,
-    async (_event, sessionId: string) => {
-        return externalPlayerSessions.closeSession(sessionId);
+    async (_event, sessionId: string, exact?: boolean) => {
+        return externalPlayerSessions.closeSession(sessionId, exact === true);
     }
 );
 

@@ -1,4 +1,5 @@
 import { isBackKey } from '@iptvnator/tv/util';
+import { backspaceEdits } from './focus';
 import { createPortal } from 'preact/compat';
 import type { ComponentChildren } from 'preact';
 import { useLayoutEffect, useRef } from 'preact/hooks';
@@ -70,13 +71,7 @@ export function TvDialog({
                 }}
                 onKeyDown={(event) => {
                     if (isBackKey(event)) {
-                        if (
-                            event.key === 'Backspace' &&
-                            (event.target as HTMLElement).matches(
-                                'input,textarea'
-                            )
-                        )
-                            return;
+                        if (backspaceEdits(event)) return;
                         event.preventDefault();
                         event.stopPropagation();
                         close();

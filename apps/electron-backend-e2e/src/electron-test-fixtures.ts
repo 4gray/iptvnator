@@ -1780,9 +1780,17 @@ export async function waitForM3uCatalog(page: Page): Promise<void> {
     });
 }
 
-export async function waitForXtreamCatalog(page: Page): Promise<void> {
+type XtreamCatalogWaitOptions = {
+    /** For an imported source opened from outside the Xtream workspace. */
+    readonly cached?: true;
+};
+
+export async function waitForXtreamCatalog(
+    page: Page,
+    options?: XtreamCatalogWaitOptions
+): Promise<void> {
     await page.waitForURL(/\/workspace\/xtreams\/.+/);
-    await waitForXtreamImportToFinish(page);
+    await waitForXtreamImportToFinish(page, options);
 
     const categories = page.locator(
         'app-workspace-context-panel .category-item'
@@ -1821,19 +1829,32 @@ export async function expectPlaylistUpdatedToast(page: Page): Promise<void> {
     });
 }
 
-export async function waitForXtreamImportToFinish(page: Page): Promise<void> {
+export async function waitForXtreamImportToFinish(
+    page: Page,
+    options?: XtreamCatalogWaitOptions
+): Promise<void> {
     const overlay = page.locator('.workspace-loading-overlay');
 
-    try {
-        await overlay.waitFor({ state: 'visible', timeout: 5000 });
-    } catch {
-        // The overlay may already be gone, or not shown yet: it appears only
-        // once the portal has answered, so the import status decides below.
+    if (!options?.cached) {
+        try {
+            await overlay.waitFor({ state: 'visible', timeout: 5000 });
+        } catch {
+            // The overlay may already be gone, or not shown yet: it appears only
+            // once the portal has answered, so the import status decides below.
+        }
     }
 
     const playlistId = xtreamPlaylistIdFromUrl(page.url());
     if (playlistId) {
         await waitForXtreamImportCompleted(page, playlistId);
+    }
+
+    if (options?.cached) {
+        await expect(page.locator('.xtream-route-content')).toHaveAttribute(
+            'data-xtream-catalog-ready',
+            'true',
+            { timeout: 30000 }
+        );
     }
 
     await expect(overlay).toHaveCount(0, { timeout: 30000 });

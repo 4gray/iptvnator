@@ -89,6 +89,7 @@ export const DEFAULT_SETTINGS = {
     playerAmbientMode: false,
     detailTrailerBackdrop: false,
     playerUpNextRail: true,
+    seriesAutoplay: true,
     playerUpNextCard: true,
     fullscreenChannelPanel: true,
     vodAutoFailover: false,
@@ -195,6 +196,7 @@ export class MockSettingsStore {
     getSettings = () => this._settings();
     language = () => this._settings().language;
     ageRatingCountry = () => this._settings().ageRatingCountry;
+    readonly savedTmdbApiKey = signal<string | undefined>(undefined);
 
     getTrustOptions = () => ({
         trustedPrivateNetworkEpgUrls:

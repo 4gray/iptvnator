@@ -43,6 +43,7 @@ import {
     StubAudioPlayerComponent,
     StubChannelListItemComponent,
     StubEpgTimelineComponent,
+    liveCategoriesPopoverProvider,
     StubPortalEmptyStateComponent,
     StubResizableDirective,
     StubWebPlayerViewComponent,
@@ -272,6 +273,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
             imports: [StalkerLiveStreamLayoutComponent, NoopAnimationsModule],
             providers: [
                 { provide: StalkerStore, useValue: stalkerStore },
+                liveCategoriesPopoverProvider,
                 {
                     provide: RuntimeCapabilitiesService,
                     useValue: {
@@ -1033,13 +1035,14 @@ describe('StalkerLiveStreamLayoutComponent', () => {
     registerStalkerLiveOverviewCases({
         fixture: () => fixture,
         component: () => component,
-        enterOverview: () => {
+        enterOverview: (fullList = true) => {
             selectedCategoryId.set(null);
             selectedItem.set(null);
             itvChannels.set([]);
-            itvFullListActive.set(true);
+            itvFullListActive.set(fullList);
             itvFullChannelList.set(defaultItvChannels());
         },
+        setFullListLoading: (loading) => itvFullListLoading.set(loading),
         settle: settleEagerEpg,
         ensureBulk: () => ensureBulkItvEpg,
         fetchShort: () => fetchChannelEpg,
@@ -1052,8 +1055,6 @@ describe('StalkerLiveStreamLayoutComponent', () => {
     it('keeps the select-a-category placeholder on portals without a usable full list', () => {
         selectedCategoryId.set(null);
         selectedItem.set(null);
-        itvFullListActive.set(false);
-        itvFullListLoading.set(false);
         fixture.detectChanges();
 
         expect(

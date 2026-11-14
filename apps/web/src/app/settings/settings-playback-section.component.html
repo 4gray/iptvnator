@@ -597,6 +597,21 @@
                 </div>
             </div>
 
+            <div class="setting-item" data-setting-id="series-autoplay">
+                <div class="setting-item__meta">
+                    <h4>{{ 'SETTINGS.SERIES_AUTOPLAY' | translate }}</h4>
+                    <p>
+                        {{ 'SETTINGS.SERIES_AUTOPLAY_DESCRIPTION' | translate }}
+                    </p>
+                </div>
+                <div class="setting-item__control setting-item__toggle">
+                    <mat-slide-toggle
+                        [aria-label]="'SETTINGS.SERIES_AUTOPLAY' | translate"
+                        formControlName="seriesAutoplay"
+                    ></mat-slide-toggle>
+                </div>
+            </div>
+
             @if (isWebPlayerSelected()) {
                 <div
                     class="setting-item"

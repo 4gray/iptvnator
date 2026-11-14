@@ -100,13 +100,20 @@ for (const language of ['en', 'ru']) {
                 await expect(heading).toContainText(longTitle);
                 await expect(copy).toBeVisible();
                 await expect(close).toBeVisible();
-                for (const control of [heading, copy, close]) {
-                    const box = (await control.boundingBox())!;
-                    const panel = (await shell.boundingBox())!;
-                    expect(box.x).toBeGreaterThanOrEqual(panel.x);
-                    expect(box.x + box.width).toBeLessThanOrEqual(
-                        panel.x + panel.width
+                // A resize can move the player between separate browser calls.
+                const [panel, ...controls] = await shell.evaluate((element) => {
+                    const controls = element.querySelectorAll(
+                        '.player-shell__title, .player-shell__actions > button'
                     );
+                    return [element, ...controls].map((item) => {
+                        const { left, right } = item.getBoundingClientRect();
+                        return { left, right };
+                    });
+                });
+                expect(controls).toHaveLength(3);
+                for (const box of controls) {
+                    expect(box.left).toBeGreaterThanOrEqual(panel.left);
+                    expect(box.right).toBeLessThanOrEqual(panel.right);
                 }
                 await expect(copy).toHaveCSS('width', '40px');
                 await expect(shell).toHaveCSS('background-image', 'none');

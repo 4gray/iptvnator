@@ -43,8 +43,8 @@ nightly builds, see [Installation](docs/installation.md).
 
 - **Your sources together:** local or remote M3U/M3U8 playlists, Xtream Codes,
   and Stalker / Ministra portals.
-- **Live TV:** channel groups, search and favorites; XMLTV guide, multi-channel
-  EPG and catch-up on desktop.
+- **Live TV:** channel groups, search and favorites, with a multi-channel
+  programme guide for M3U and Xtream. XMLTV imports and catch-up run on desktop.
 - **Movies and series:** posters, seasons, watch history and resume positions;
   optional TMDB metadata with your own API key.
 - **Playback options:** built-in web players, external MPV/VLC/IINA and
@@ -134,11 +134,16 @@ remote. Tested on the Dreambox DM520 and Vu+ Uno 4K SE.
 Support development through [GitHub Sponsors](https://github.com/sponsors/4gray),
 [Ko-fi](https://ko-fi.com/4gray), or a star on GitHub.
 
-<!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
+## Contributors
 
-[![All Contributors](https://img.shields.io/badge/all_contributors-13-orange.svg?style=flat-square)](https://github.com/4gray/iptvnator/graphs/contributors)
+[![GitHub commit contributors](https://img.shields.io/github/contributors/4gray/iptvnator)](https://github.com/4gray/iptvnator/graphs/contributors)
 
-<!-- ALL-CONTRIBUTORS-BADGE:END -->
+<details>
+<summary>Show contributors</summary>
+
+[![Contributor avatars](https://contrib.rocks/image?repo=4gray/iptvnator)](https://github.com/4gray/iptvnator/graphs/contributors)
+
+</details>
 
 ## License and trademark
 

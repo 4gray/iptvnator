@@ -8,6 +8,7 @@ import {
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
+import { copyTextToClipboard } from '@iptvnator/services/clipboard-copy';
 import {
     VideoPlayer,
     type ExternalPlayerName,
@@ -170,7 +171,7 @@ export class VodDetailsMenuService {
             return;
         }
         try {
-            await navigator.clipboard.writeText(
+            await copyTextToClipboard(
                 this.xtreamStore.constructVodStreamUrl(item)
             );
             this.notify('PORTALS.STREAM_URL_COPIED');

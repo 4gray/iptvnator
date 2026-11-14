@@ -3,8 +3,83 @@ import { workspaceRoot } from '@nx/devkit';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { mkdir } from 'node:fs/promises';
-import { chooseTv, addSource, nav, start } from './helpers';
+import {
+    chooseTv,
+    addSource,
+    backend,
+    fillTvField,
+    nav,
+    start,
+} from './helpers';
 import { enableMarketingTmdb } from './marketing-tmdb';
+
+test('a physical key starts editing a focused TV field without OK', async ({
+    page,
+}) => {
+    await start(page);
+    await expect(
+        page
+            .getByRole('navigation')
+            .getByRole('button', { name: 'Sources', exact: true })
+    ).toBeFocused();
+    const name = page.getByRole('textbox', { name: 'Name', exact: true });
+    await name.focus();
+    await expect(name).toHaveJSProperty('readOnly', true);
+    await name.press('a');
+    await expect(name).toHaveValue('a');
+    await page.keyboard.press('Backspace');
+    await expect(name).toHaveValue('');
+    await expect(name).toBeFocused();
+});
+
+test('clicking into existing text preserves the pointer caret', async ({
+    page,
+}) => {
+    await start(page);
+    const name = page.getByRole('textbox', { name: 'Name', exact: true });
+    const value = 'abcdefgh';
+    await name.click();
+    await name.fill(value);
+    await page.getByLabel('Provider URL').focus();
+    await expect(name).toHaveJSProperty('readOnly', true);
+    await name.click({ position: { x: 36, y: 16 } });
+    const selection = await name.evaluate((element) => {
+        const input = element as HTMLInputElement;
+        return {
+            start: input.selectionStart ?? -1,
+            end: input.selectionEnd ?? -1,
+        };
+    });
+    expect(selection.start).toBeGreaterThan(0);
+    expect(selection.start).toBeLessThan(value.length);
+    expect(selection.end).toBe(selection.start);
+    await page.keyboard.press('z');
+    await expect(name).toHaveValue(
+        value.slice(0, selection.start) + 'z' + value.slice(selection.start)
+    );
+});
+
+test('an invalid source submission keeps native validation visible', async ({
+    page,
+}) => {
+    await start(page);
+    const name = page.getByRole('textbox', { name: 'Name', exact: true });
+    const url = page.getByLabel('Provider URL');
+    await fillTvField(page.getByLabel('IPTVnator backend URL'), backend);
+    await name.focus();
+    await expect(name).toHaveJSProperty('readOnly', true);
+
+    await page.getByRole('button', { name: 'Save and connect' }).click();
+    await expect(name).toBeFocused();
+    await expect(name).toHaveJSProperty('willValidate', true);
+    await expect(name).not.toHaveJSProperty('validationMessage', '');
+
+    await page.keyboard.press('ArrowDown');
+    await expect(url).toBeFocused();
+    await expect(url).toHaveJSProperty('readOnly', true);
+    await expect(name).toHaveJSProperty('readOnly', true);
+});
+
 test('packaged classic script boots and connects from file protocol', async ({
     page,
 }) => {
@@ -37,9 +112,13 @@ test('remote arrows can leave source fields and reach native disclosure controls
     await expect(
         page.getByText('Backend access token (if required)', { exact: true })
     ).toBeFocused();
-    await page.getByLabel('Name', { exact: true }).focus();
+    const name = page.getByLabel('Name', { exact: true });
+    await name.focus();
     await page.keyboard.press('ArrowLeft');
-    await expect(page.getByLabel('Name', { exact: true })).toBeFocused();
+    await expect(name).not.toBeFocused();
+    await name.press('Enter');
+    await page.keyboard.press('ArrowLeft');
+    await expect(name).toBeFocused();
     await page.keyboard.press('ArrowDown');
     await expect(page.getByLabel('Provider URL')).toBeFocused();
     await page.getByRole('button', { name: 'STALKER', exact: true }).click();

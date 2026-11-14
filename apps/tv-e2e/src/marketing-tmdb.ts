@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test';
-import { nav, xtream } from './helpers';
+import { fillTvField, nav, xtream } from './helpers';
 
 /** Exercise the real metadata client against the local fictional API and artwork. */
 export async function enableMarketingTmdb(page: Page): Promise<void> {
@@ -20,9 +20,10 @@ export async function enableMarketingTmdb(page: Page): Promise<void> {
         .getByRole('tab', { name: 'Metadata · TMDB', exact: false })
         .click();
     await page.getByLabel('Use TMDB metadata').check();
-    await page
-        .getByLabel('TMDB API key or read access token')
-        .fill('synthetic-demo-key');
+    await fillTvField(
+        page.getByLabel('TMDB API key or read access token'),
+        'synthetic-demo-key'
+    );
     await page.getByRole('button', { name: 'Save TMDB settings' }).click();
     await expect(page.locator('.tmdb-settings [role=status]')).toContainText(
         'saved'

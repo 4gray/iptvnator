@@ -31,6 +31,7 @@ import EmbeddedMpvEvents, {
 } from '../events/embedded-mpv.events';
 import EpgEvents from '../events/epg.events';
 import AppUpdateEvents from '../events/app-update.events';
+import { disposePrivatePlayerIpcEndpoints } from '../events/mpv-ipc-endpoint';
 import { shutdownMpvSession } from '../events/mpv-session.service';
 import PlayerEvents from '../events/player.events';
 import { shutdownVlcSession } from '../events/vlc-session.service';
@@ -140,6 +141,7 @@ export function shutdownDeferredServices(): void {
     shutdownEmbeddedMpv();
     shutdownMpvSession();
     shutdownVlcSession();
+    disposePrivatePlayerIpcEndpoints();
     void databaseWorkerClient.shutdown();
 }
 

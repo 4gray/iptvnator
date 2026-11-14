@@ -13,6 +13,8 @@ them. The skills stay short on purpose; the detail lives here.
 **During ordinary PRs** every user-visible change adds one
 `.changes/<area>-<slug>.md` note, written while the context is fresh. CI's
 "Release note gate" enforces it. Format and field table: `.changes/README.md`.
+The gate evaluates changes between the tested PR merge and its first parent.
+It reads the `no-release-note` label live so it can be applied before a rerun.
 
 **At release time** `tools/release/build-release-notes.mjs` fans those notes
 out into every surface, then deletes them. Nothing derives the version — it is
@@ -280,6 +282,13 @@ An asset no rule claims is reported as a `NOTE:` and does **not** fail the run:
 a new build target should surface for a human to notice, not block a release
 until the rules catch up.
 
+## macOS signature and ticket validation
+
+Nightly and tag builds require strict code-signature verification, Gatekeeper
+assessment and a valid stapled ticket. If `stapler validate` reports
+`NSURLErrorDomain Code=-1005`, the build retries ticket validation once after
+five seconds. A failed retry or any other validation error blocks packaging.
+
 ## Linux CI package installation
 
 The Linux packaging dependency step replaces the runner's Ubuntu `mirror+file`
@@ -330,11 +339,27 @@ References: [AppImage desktop keys](https://docs.appimage.org/reference/desktop-
 
 ## Rolling test drafts
 
+On PRs, the packaging workflow compares the checked-out merge tree with its
+first parent. If there are no changes outside `apps/website/`, it skips
+Electron packaging and checks the website instead. Moves across that boundary
+and changes to shared files run the full matrix. A missing comparison also
+runs the matrix. Nightly pushes, tags and manual runs keep their packaging
+scope. The PR scope job takes the place of nightly version resolution on PRs
+and cancels older scope checks for the same PR.
+
+The website-only job builds the site with offline release data and checks the
+four nonempty PNG files at their published paths. Every Linux packaging
+profile performs the same screenshot check and validates the AppStream XML
+and packaged metadata.
+
 Every non-fork PR build publishes its artifacts to a rolling **draft** release
 tagged `test-pr-<n>`; a non-PR, non-tag build (a dispatch on a branch) uses
 `test-<branch>`, the shape master pushes used before the nightly channel took
 over. The tag is stable per PR, so the draft is updated in place and a PR has
-at most one.
+at most one. If a new diff only changes the website, already running packages
+can finish. The release job checks that the PR is open at the built head
+before pruning or uploading, so an older draft can remain until the PR
+closes. Its title and body identify the packaged commit.
 
 `cleanup-pr-draft.yml` deletes a PR's draft when the PR closes. That event is
 the fast path, not a guarantee: GitHub does not run a `pull_request: closed`
@@ -459,7 +484,10 @@ button that submits the settings form
 (`SettingsAboutSectionComponent.saveAndCheckForAppUpdate` →
 `SettingsComponent.onSubmit()`). No renderer-side check follows: the saved
 channel reaches `persistAppUpdateChannel`, whose change listener calls
-`AppUpdateService.setChannel`, which already re-checks an idle updater. A
+`AppUpdateService.setChannel`, which checks the saved channel. If a check is
+already running, it finishes before the service checks the latest saved
+channel. The service skips superseded availability results. The main process
+also accepts one install request at a time and releases that guard on failure. A
 download in flight or finished belongs to the previous channel and is kept
 by `setChannel`, so in those states the plain check stays and only the hint
 is shown. Because that kept download outlives the channel it was found on,

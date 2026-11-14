@@ -1,4 +1,4 @@
-import { signal } from '@angular/core';
+import { signal, WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import {
     convertToParamMap,
@@ -9,7 +9,6 @@ import {
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { Store } from '@ngrx/store';
-import { StorageMap } from '@ngx-pwa/local-storage';
 import { BehaviorSubject, firstValueFrom, of, Subject } from 'rxjs';
 import { EpgService } from '@iptvnator/epg/data-access';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
@@ -79,14 +78,14 @@ describe('ChannelListContainerComponent', () => {
     };
     let favoriteChannelIds$: BehaviorSubject<string[]>;
     let runtimeCapabilities: { supportsEpg: boolean };
-    let storageGet: jest.Mock;
+    let globalEpgUrls: WritableSignal<string[]>;
 
     beforeEach(async () => {
         const routerEvents$ = new Subject<NavigationEnd>();
         dispatch = jest.fn();
         favoriteChannelIds$ = new BehaviorSubject<string[]>([]);
         runtimeCapabilities = { supportsEpg: true };
-        storageGet = jest.fn().mockReturnValue(of({}));
+        globalEpgUrls = signal([]);
         epgService = {
             epgAvailable$: new BehaviorSubject<boolean>(false),
             getChannelMetadataForChannels: jest
@@ -143,14 +142,9 @@ describe('ChannelListContainerComponent', () => {
                 {
                     provide: SettingsStore,
                     useValue: {
+                        epgUrl: globalEpgUrls,
                         openStreamOnDoubleClick: signal(false),
                         resolvedEpgOffsetMinutes: signal(0),
-                    },
-                },
-                {
-                    provide: StorageMap,
-                    useValue: {
-                        get: storageGet,
                     },
                 },
                 {
@@ -299,33 +293,25 @@ describe('ChannelListContainerComponent', () => {
 
     it('does not enable EPG rows when runtime EPG support is unavailable', () => {
         runtimeCapabilities.supportsEpg = false;
-        storageGet.mockReturnValue(
-            of({ epgUrl: ['https://example.com/epg.xml'] })
-        );
+        globalEpgUrls.set(['https://example.test/epg.xml']);
 
         fixture.detectChanges();
 
         expect(fixture.componentInstance.shouldShowEpg()).toBe(false);
         expect(fixture.componentInstance.itemSize()).toBe(52);
-        expect(storageGet).not.toHaveBeenCalled();
     });
 
-    it('enables EPG rows when runtime EPG support and an EPG URL are available', () => {
-        runtimeCapabilities.supportsEpg = true;
-        storageGet.mockReturnValue(
-            of({ epgUrl: ['https://example.com/epg.xml'] })
-        );
-
+    it('enables EPG rows when a global guide becomes available in settings', () => {
         fixture.detectChanges();
+        expect(fixture.componentInstance.shouldShowEpg()).toBe(false);
 
-        expect(storageGet).toHaveBeenCalled();
+        globalEpgUrls.set(['https://example.test/epg.xml']);
         expect(fixture.componentInstance.shouldShowEpg()).toBe(true);
         expect(fixture.componentInstance.itemSize()).toBe(68);
     });
 
     it('enables EPG rows and scopes lookups when the active M3U playlist has detected EPG URLs', () => {
         runtimeCapabilities.supportsEpg = true;
-        storageGet.mockReturnValue(of({ epgUrl: [] }));
         activePlaylistSignal.set({
             _id: 'playlist-1',
             title: 'Playlist One',
@@ -352,9 +338,7 @@ describe('ChannelListContainerComponent', () => {
 
     it('drops a superseded EPG refresh that completes after the newer one', () => {
         runtimeCapabilities.supportsEpg = true;
-        storageGet.mockReturnValue(
-            of({ epgUrl: ['https://global.example.com/guide.xml'] })
-        );
+        globalEpgUrls.set(['https://example.test/epg.xml']);
         const first = new Subject<Map<string, EpgProgram | null>>();
         const program = (title: string): EpgProgram => ({
             start: '2026-04-11T10:00:00.000Z',
@@ -392,7 +376,6 @@ describe('ChannelListContainerComponent', () => {
 
     it('refreshes visible channel EPG when playlist EPG URLs arrive after channels', () => {
         runtimeCapabilities.supportsEpg = true;
-        storageGet.mockReturnValue(of({ epgUrl: [] }));
 
         fixture.detectChanges();
         fixture.componentInstance.channelList = [

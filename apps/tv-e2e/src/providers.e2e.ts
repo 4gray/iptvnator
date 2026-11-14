@@ -1,5 +1,13 @@
 import { expect, test } from '@playwright/test';
-import { chooseTv, addSource, nav, start, stalker, xtream } from './helpers';
+import {
+    fillTvField,
+    chooseTv,
+    addSource,
+    nav,
+    start,
+    stalker,
+    xtream,
+} from './helpers';
 test('Stalker lazy episodes resolve their own media file when another show owns the episode-number file', async ({
     page,
 }) => {
@@ -75,7 +83,10 @@ test('Xtream: source, live preview/fullscreen, movie, episode, favorites and rel
     await nav(page, 'Favorites');
     await expect(page.locator('.poster-grid .poster-card')).toHaveCount(1);
     await nav(page, 'Search');
-    await page.getByLabel('Search this source').fill('zzzz-unavailable');
+    await fillTvField(
+        page.getByLabel('Search this source'),
+        'zzzz-unavailable'
+    );
     await expect(page.locator('.poster-grid .poster-card')).toHaveCount(0);
     expect(await page.locator('video').count()).toBe(1);
 });

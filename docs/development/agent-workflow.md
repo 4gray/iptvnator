@@ -159,24 +159,35 @@ Markdown/link validation, not app unit/E2E tests. Tooling changes need their own
 
 ## Local review before a pull request
 
-Every push to a pull-request branch starts the whole CI matrix and both review
-bots, and runs from several open pull requests queue behind one another. Fix
-rounds therefore happen locally: push only a commit that both reviewers have
-already accepted.
+A push to a pull-request branch can restart the CI matrix, and runs from
+several open pull requests can queue behind one another. Fix rounds happen
+locally: push only a commit that both reviewers have already accepted.
 
-Greptile reviews committed work only, so commit first and fetch the base; both
-reviewers then judge the same change. Run them from the branch's worktree and
-keep their output outside the repository:
+Greptile reviews committed work only. Commit first, then fetch the destination
+branch and resolve it to a commit SHA. For a PR into `master` on `origin`:
 
-- Codex: `codex review --base origin/master -c model_reasoning_effort=high`.
+```sh
+review_base=$(
+    git fetch --quiet --no-tags origin \
+        +refs/heads/master:refs/remotes/origin/master &&
+    git rev-parse --verify 'refs/remotes/origin/master^{commit}'
+)
+```
+
+For a fork, use the remote for the repository receiving the PR in both lines
+inside the assignment. If the fetch and resolution succeed, pass the SHA to
+both reviewers so they use the same commit even if they select different Git
+remotes. Run them from the branch's worktree and keep their output outside it.
+
+- Codex: `codex review --base "$review_base" -c model_reasoning_effort=high`.
   The verdict is the final message on stdout; stderr carries the session log.
   The flag pins the review effort whatever the caller's default is. Codex
   otherwise runs with the caller's own configuration and may install
   dependencies or run tests in the worktree, so do not start other installs or
   builds there while it reviews.
-- Greptile: `greptile review --json`. Clean means `confidence` is 5 and
-  `comments` is empty. A non-zero exit means the review did not run, not that
-  it found problems.
+- Greptile: `greptile review -b "$review_base" --json`. Clean means
+  `confidence` is 5 and `comments` is empty. A non-zero exit means the review
+  did not run, not that it found problems.
 
 1. Finish the change and its targeted checks, then commit.
 2. Run both reviewers on the same commit; they are independent and can run in
@@ -190,9 +201,21 @@ keep their output outside the repository:
 5. Push, open the pull request, and name the reviewed commit and any declined
    findings in the completion report.
 
-The GitHub bots still review the opened pull request. Treat their findings and
-CI failures the same way: collect the whole round, fix it locally, pass both
-local reviewers again and push once. Do not push one fix per finding.
+Check which commit each GitHub bot reviewed. After a push, request a fresh
+review if a bot still reports an older head. Comment `@codex review` for Codex
+or `@greptileai` for Greptile. Collect the whole round of bot findings and CI
+failures, fix it locally, pass both local reviewers again and push once.
+
+When reporting whether a PR is ready, distinguish the reviewed head from the
+base actually tested by CI. Query the live destination branch in the receiving
+repository with `gh api repos/OWNER/REPO/git/ref/heads/BRANCH --jq .object.sha`.
+The PR's stored base SHA can lag the branch. For a check that used
+[GitHub's PR merge checkout](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#how-the-merge-branch-affects-your-workflow),
+the checkout log's commit identifies the tested merge. Compare its first
+parent with the intended base and its second parent with the reviewed head.
+For a head-only checkout, compare the checkout SHA with the reviewed head.
+If newer base changes overlap the PR, verify the affected behavior in the
+combined tree before relying on the earlier CI results.
 
 A reviewer whose CLI is missing, signed out, outside a Greptile organization or
 left without reviewable files (Greptile ignores Markdown-only changes) does not

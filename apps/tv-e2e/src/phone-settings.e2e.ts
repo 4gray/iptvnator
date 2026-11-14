@@ -1,11 +1,11 @@
 import { expect, test } from '@playwright/test';
-import { chooseTv, backend, nav, start } from './helpers';
+import { fillTvField, chooseTv, backend, nav, start } from './helpers';
 test('phone settings require TV confirmation, preserve the saved key on blank replacement and survive reload', async ({
     page,
     browser,
 }) => {
     await start(page);
-    await page.getByLabel('IPTVnator backend URL').fill(backend);
+    await fillTvField(page.getByLabel('IPTVnator backend URL'), backend);
     await page.getByRole('button', { name: 'Check and connect' }).click();
     await expect(page.locator('.connection-status')).toHaveText('Connected');
     await nav(page, 'Settings');
@@ -91,15 +91,19 @@ test('explicit unchanged phone settings replace local preference drafts only aft
     browser,
 }) => {
     await start(page);
-    await page.getByLabel('IPTVnator backend URL').fill(backend);
+    await fillTvField(page.getByLabel('IPTVnator backend URL'), backend);
     await page.getByRole('button', { name: 'Check and connect' }).click();
     await expect(page.locator('.connection-status')).toHaveText('Connected');
     await nav(page, 'Settings');
     await page.getByRole('tab', { name: 'Library', exact: false }).click();
-    await page.getByLabel('Library server URL').fill('http://draft.invalid');
-    await page
-        .getByLabel('Library access token (if required)')
-        .fill('library-draft-fixture');
+    await fillTvField(
+        page.getByLabel('Library server URL'),
+        'http://draft.invalid'
+    );
+    await fillTvField(
+        page.getByLabel('Library access token (if required)'),
+        'library-draft-fixture'
+    );
     await page.getByRole('tab', { name: 'Appearance', exact: false }).click();
     await chooseTv(page, 'Home composition', 'shelf');
     await page
@@ -108,9 +112,10 @@ test('explicit unchanged phone settings replace local preference drafts only aft
     await page.getByLabel('Show provider programme guide').uncheck();
     await page.getByRole('tab', { name: 'Metadata', exact: false }).click();
     await page.getByLabel('Use TMDB metadata').check();
-    await page
-        .getByLabel('TMDB API key or read access token')
-        .fill('unsaved-key-fixture');
+    await fillTvField(
+        page.getByLabel('TMDB API key or read access token'),
+        'unsaved-key-fixture'
+    );
     await chooseTv(page, 'Metadata language', 'de');
     const response = page.waitForResponse(
         (r) =>

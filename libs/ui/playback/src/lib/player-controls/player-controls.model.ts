@@ -78,6 +78,8 @@ export interface PlayerUpNextItem {
     label: string;
     title: string;
     thumbnailUrl: string | null;
+    /** Whether playback will advance automatically at the end of the episode. */
+    showCountdown?: boolean;
     /** Watch progress in percent (0–100); null when never started. */
     progressPercent: number | null;
 }

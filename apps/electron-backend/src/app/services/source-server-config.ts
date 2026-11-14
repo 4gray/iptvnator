@@ -9,10 +9,11 @@ import { getHostedServerAccessCode } from './hosted-server-session';
 
 interface StoredConnection extends SourceServerConnection {
     encryptedToken?: string;
+    disconnected?: true;
 }
 const filename = () => join(getIptvnatorDataRoot(), 'source-server.json');
 
-export function readSourceServerConfig(): StoredConnection | null {
+function readStoredConnection(): StoredConnection | null {
     try {
         const value = JSON.parse(
             readFileSync(filename(), 'utf8')
@@ -20,7 +21,8 @@ export function readSourceServerConfig(): StoredConnection | null {
         if (
             typeof value?.apiUrl !== 'string' ||
             typeof value.instanceId !== 'string' ||
-            !value.instanceId
+            !value.instanceId ||
+            (value.disconnected !== undefined && value.disconnected !== true)
         )
             throw new Error('SOURCE_SYNC.INCOMPATIBLE');
         const url = new URL(value.apiUrl);
@@ -36,6 +38,20 @@ export function readSourceServerConfig(): StoredConnection | null {
     } catch (error) {
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
         throw new Error('SOURCE_SYNC.INCOMPATIBLE');
+    }
+}
+
+export function readSourceServerConfig(): StoredConnection | null {
+    const config = readStoredConnection();
+    return config?.disconnected ? null : config;
+}
+
+export function readSavedSourceServerConfig(): StoredConnection | null {
+    try {
+        const config = readStoredConnection();
+        return config?.disconnected ? config : null;
+    } catch {
+        return null;
     }
 }
 
@@ -60,7 +76,7 @@ export function activateSourceServerProfile(): void {
 
 let sessionToken: string | undefined;
 export function sourceServerToken(config: StoredConnection): string {
-    if (sessionToken !== undefined) return sessionToken;
+    if (!config.disconnected && sessionToken !== undefined) return sessionToken;
     const hostedCode = getHostedServerAccessCode(config);
     if (hostedCode) return hostedCode;
     if (!config.encryptedToken) return '';
@@ -86,16 +102,19 @@ export function saveSourceServerConfig(
         token && protectedStorage
             ? safeStorage.encryptString(token).toString('base64')
             : undefined;
+    writeStoredConnection({ ...config, encryptedToken });
+    sessionToken = token;
+    return !token || protectedStorage;
+}
+
+function writeStoredConnection(config: StoredConnection): void {
     const temporary = `${filename()}.${randomUUID()}.tmp`;
     try {
-        writeFileSync(
-            temporary,
-            JSON.stringify({
-                ...config,
-                ...(encryptedToken ? { encryptedToken } : {}),
-            }),
-            { mode: 0o600, flag: 'wx', flush: true }
-        );
+        writeFileSync(temporary, JSON.stringify(config), {
+            mode: 0o600,
+            flag: 'wx',
+            flush: true,
+        });
         renameSync(temporary, filename());
     } finally {
         try {
@@ -104,8 +123,21 @@ export function saveSourceServerConfig(
             /* Renamed or never created. */
         }
     }
-    sessionToken = token;
-    return !token || protectedStorage;
+}
+
+export function disconnectSourceServerConfig(): void {
+    let config: StoredConnection | null;
+    try {
+        config = readStoredConnection();
+    } catch {
+        // A corrupt record can still be cleared to leave the recovery profile.
+        clearSourceServerConfig();
+        return;
+    }
+    if (config && !config.disconnected)
+        writeStoredConnection({ ...config, disconnected: true });
+    sessionToken = undefined;
+    delete process.env.IPTVNATOR_SOURCE_PROFILE;
 }
 
 export function clearSourceServerConfig(): void {

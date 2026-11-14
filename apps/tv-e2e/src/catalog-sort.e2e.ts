@@ -1,5 +1,12 @@
 import { expect, Page, test } from '@playwright/test';
-import { chooseTv, addSource, backend, nav, start } from './helpers';
+import {
+    fillTvField,
+    chooseTv,
+    addSource,
+    backend,
+    nav,
+    start,
+} from './helpers';
 async function xtreamCatalog(page: Page) {
     await start(page);
     await page.route(`${backend}/xtream?**`, async (route) => {
@@ -54,7 +61,7 @@ test('movie and series sorting defaults to recent, survives append/detail/relaun
     await chooseTv(page, 'Sort by', 'title');
     await expect(title(page)).toHaveText('Title 000');
     await expect(page.getByLabel('Sort by')).toBeFocused();
-    await page.getByLabel('Search this source').fill('Title 01');
+    await fillTvField(page.getByLabel('Search this source'), 'Title 01');
     await expect(title(page)).toHaveText('Title 010');
     await nav(page, 'Series');
     await expect(page.getByLabel('Sort by')).toHaveAttribute(

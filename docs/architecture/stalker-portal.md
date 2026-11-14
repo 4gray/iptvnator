@@ -512,7 +512,10 @@ portal or route session is replaced. Existing progress classification (90%
 completion, including manual marks) hides only movies; started movies and all
 three supported series shapes remain visible. Initial progress read failures
 leave activation disabled with Retry. Refresh failures retain the last snapshot
-and show a retry notice; newer player updates beat in-flight snapshot reads.
+and show a retry notice. The notice stays visible with Retry disabled while
+the read is pending. Newer player updates beat in-flight snapshot reads.
+The progress loading notice appears while fetching the first snapshot.
+Subsequent reads update the watch marks when they finish.
 Accepted throttled inline-player writes feed the same catalog snapshot as
 external-player events, so returning from inline completion immediately hides
 that movie without re-reading the whole progress history.
@@ -1727,7 +1730,7 @@ Series inline playback behavior is shared across all three modes:
   state.
 - The inline player header shows the current episode metadata below the title, for example `S01E03 - Episode title`.
 - Embedded players receive previous/next episode state for the current season only.
-- Inline series autoplay is enabled by default. On player EOF (`ended`), Stalker starts the next episode only when it already exists in the current season's mapped episode list.
+- On player EOF (`ended`), Stalker advances to the next mapped episode in the current season when [inline series autoplay](embedded-inline-playback.md#series-inline-episode-continuation) is enabled.
 - Autoplay and Next stop at the last episode of the current season. They do not jump to the next season and do not lazy-load an unloaded `is_series=1` season. Quick start remains the only flow that may load another VOD-series season before playback.
 - Previous is disabled on the first episode of the current season and otherwise switches directly to the previous episode.
 - Before either inline or external playback starts, the resolved content info

@@ -12,6 +12,20 @@
             <mat-icon>chevron_right</mat-icon>
         </button>
     }
+    @if (categoriesFolded()) {
+        <button
+            #showCategoriesButton
+            type="button"
+            mat-icon-button
+            class="overview-restore"
+            data-test-id="live-show-categories"
+            [attr.aria-label]="'LAYOUT.SHOW_CATEGORIES' | translate"
+            [matTooltip]="'LAYOUT.SHOW_CATEGORIES' | translate"
+            (click)="showCategories.emit()"
+        >
+            <mat-icon>chevron_right</mat-icon>
+        </button>
+    }
     <div class="category-meta">
         <h2 class="category-title">
             {{ 'CHANNELS.ALL_CHANNELS' | translate }}

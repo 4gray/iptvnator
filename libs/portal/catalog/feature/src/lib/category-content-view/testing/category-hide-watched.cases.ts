@@ -64,10 +64,11 @@ export function registerHideWatchedCases({
 
     it('disables the checkbox without a progress snapshot and exposes progress retry', () => {
         catalog.provider = 'stalker';
-        const retryPositions = jest.fn();
+        const loadState = signal<'error' | 'retrying'>('error');
+        const retryPositions = jest.fn(() => loadState.set('retrying'));
         catalog.hideWatched = {
             enabled: signal(false),
-            loadState: signal('error'),
+            loadState,
             hasSnapshot: signal(false),
             paused: signal(false),
             resumeVersion: signal(0),
@@ -77,18 +78,26 @@ export function registerHideWatchedCases({
             pauseAutomaticLoading: jest.fn(),
         };
         isPaginatedContentLoading.set(false);
-        getFixture().detectChanges();
-        expect(
-            getFixture().nativeElement.querySelector(
-                '.catalog-progress-notice[role="alert"]'
-            )
-        ).not.toBeNull();
-        getFixture()
-            .nativeElement.querySelector('.catalog-progress-notice button')
-            .click();
+        const fixture = getFixture();
+        fixture.detectChanges();
+        const notice = fixture.nativeElement.querySelector(
+            '.catalog-progress-notice[role="alert"]'
+        ) as HTMLElement;
+        const button = notice.querySelector('button') as HTMLButtonElement;
+        button.click();
+        fixture.detectChanges();
         expect(retryPositions).toHaveBeenCalledTimes(1);
-        getFixture().nativeElement.querySelector('.refine-action').click();
-        getFixture().detectChanges();
+        expect(
+            fixture.nativeElement.querySelector('.catalog-progress-notice')
+        ).toBe(notice);
+        expect(notice.getAttribute('aria-busy')).toBe('true');
+        expect(button.disabled).toBe(true);
+        loadState.set('error');
+        fixture.detectChanges();
+        expect(button.disabled).toBe(false);
+
+        fixture.nativeElement.querySelector('.refine-action').click();
+        fixture.detectChanges();
         expect(
             document.querySelector<HTMLButtonElement>(
                 '[role="menuitemcheckbox"]'

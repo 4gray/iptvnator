@@ -6,6 +6,7 @@ import {
     type APIRequestContext,
 } from '@playwright/test';
 import {
+    fillTvField,
     chooseTv,
     addSource,
     backend,
@@ -43,10 +44,11 @@ async function connect(page: Page) {
         .getByRole('tab', { name: 'Library & sync', exact: false })
         .click();
     const pane = page.getByRole('region', { name: 'Server library' });
-    await pane.getByLabel('Library server URL').fill(server);
-    await pane
-        .getByLabel('Library access token (if required)')
-        .fill('tv-library-test');
+    await fillTvField(pane.getByLabel('Library server URL'), server);
+    await fillTvField(
+        pane.getByLabel('Library access token (if required)'),
+        'tv-library-test'
+    );
     await pane
         .getByRole('button', { name: 'Connect library', exact: true })
         .click();
@@ -86,7 +88,7 @@ test('source replacement leaves stale details and keeps new playback under the r
             password: 'pass1',
         });
     await start(page);
-    await page.getByLabel('IPTVnator backend URL').fill(backend);
+    await fillTvField(page.getByLabel('IPTVnator backend URL'), backend);
     await page.getByRole('button', { name: 'Check and connect' }).click();
     await connect(page);
     await nav(page, 'Sources');
@@ -147,7 +149,7 @@ test('library removal of the active source resets Live categories for the replac
         macAddress: '00:1a:79:00:00:03',
     });
     await start(page);
-    await page.getByLabel('IPTVnator backend URL').fill(backend);
+    await fillTvField(page.getByLabel('IPTVnator backend URL'), backend);
     await page.getByRole('button', { name: 'Check and connect' }).click();
     await connect(page);
     await nav(page, 'Sources');
@@ -214,7 +216,10 @@ test('renaming a retained server source preserves MAG identity; an explicit MAC 
         .click();
     await page.getByLabel('MAC address').focus();
     await page.keyboard.press('Tab');
-    await page.getByLabel('Name', { exact: true }).fill('Renamed portal');
+    await fillTvField(
+        page.getByLabel('Name', { exact: true }),
+        'Renamed portal'
+    );
     await page.getByRole('button', { name: 'Save and connect' }).click();
     await expect
         .poll(
@@ -237,7 +242,7 @@ test('renaming a retained server source preserves MAG identity; an explicit MAC 
     expect(
         (await snapshot(page)).sources.find((s) => s.name === 'Renamed portal')
     ).toMatchObject(identity);
-    await page.getByLabel('MAC address').fill('00-1a-79-19-44-04');
+    await fillTvField(page.getByLabel('MAC address'), '00-1a-79-19-44-04');
     await page.getByRole('button', { name: 'Save and connect' }).click();
     await expect
         .poll(
@@ -359,8 +364,11 @@ test('auth/offline/replaced instance preserve cache; disconnect restores origina
     await pane.getByRole('button', { name: 'Disconnect library' }).click();
     await expect(pane.getByRole('status')).toContainText('Disconnected');
     expect((await snapshot(page)).sources[0].name).toBe('TV xtream');
-    await pane.getByLabel('Library server URL').fill(server);
-    await pane.getByLabel('Library access token (if required)').fill('wrong');
+    await fillTvField(pane.getByLabel('Library server URL'), server);
+    await fillTvField(
+        pane.getByLabel('Library access token (if required)'),
+        'wrong'
+    );
     await pane
         .getByRole('button', { name: 'Connect library', exact: true })
         .click();

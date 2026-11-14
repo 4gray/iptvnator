@@ -196,8 +196,13 @@ Controls declare stable focus keys in their owning components. Dynamic backend
 results have separate keys; inserting them must not renumber or reuse keys of
 existing controls.
 Right/OK enters the category's last available control, Left returns to its category
-except in text fields, and Back returns to categories before leaving Settings.
-Native text caret and select-choice keys retain the shared remote contract.
+except while editing text, and Back returns to categories before leaving Settings.
+Moving focus onto a text field keeps the on-screen keyboard closed. OK or a click
+starts editing, and clicking inside existing text preserves the pointer's caret
+position. Typing on a physical keyboard starts editing directly. Once editing,
+the field keeps its native caret and Backspace behavior. An invalid submission
+lets the browser focus the first invalid field and show its validation message.
+Native selects keep Up/Down for their choices.
 Within a panel, Up/Down follow visible enabled controls instead of crossing into
 categories; Right leaves a select for the next control (including Save), while
 OK toggles a checkbox without submitting its form. Closed-disclosure fields are

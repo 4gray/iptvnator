@@ -126,7 +126,10 @@
                         />
                     }
                     @case ('tmdb') {
-                        <app-settings-tmdb-section [form]="settingsForm" />
+                        <app-settings-tmdb-section
+                            [form]="settingsForm"
+                            (transferSaved)="form.applyTransferredTmdbKey()"
+                        />
                     }
                     @case ('parental') {
                         <app-settings-parental-lock-section

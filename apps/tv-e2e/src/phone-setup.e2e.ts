@@ -1,8 +1,8 @@
 import { expect, test, Page } from '@playwright/test';
-import { backend, nav, stalker, start, xtream } from './helpers';
+import { fillTvField, backend, nav, stalker, start, xtream } from './helpers';
 async function connect(page: Page) {
     await start(page);
-    await page.getByLabel('IPTVnator backend URL').fill(backend);
+    await fillTvField(page.getByLabel('IPTVnator backend URL'), backend);
     await page.getByRole('button', { name: 'Check and connect' }).click();
     await expect(page.locator('.connection-status')).toHaveText('Connected');
 }
@@ -209,9 +209,10 @@ test('automatic discovery verifies a candidate and manual edits retire its conne
     await expect(page.getByLabel('IPTVnator backend URL')).toHaveValue(
         'http://iptvnator.local:3335'
     );
-    await page
-        .getByLabel('IPTVnator backend URL')
-        .fill('http://unrelated.example');
+    await fillTvField(
+        page.getByLabel('IPTVnator backend URL'),
+        'http://unrelated.example'
+    );
     await expect(page.locator('.connection-status')).toHaveText('Not checked');
     await expect(
         page.getByRole('button', { name: 'Add from phone', exact: true })
@@ -286,11 +287,14 @@ test('multiple discovered backends require a choice and late checks cannot overr
             /* cancelled */
         }
     });
-    await page.getByLabel('IPTVnator backend URL').fill('http://slow.example');
+    await fillTvField(
+        page.getByLabel('IPTVnator backend URL'),
+        'http://slow.example'
+    );
     const started = page.waitForRequest('http://slow.example/tv/connection');
     await page.getByRole('button', { name: 'Check and connect' }).click();
     await started;
-    await page.getByLabel('IPTVnator backend URL').fill(backend);
+    await fillTvField(page.getByLabel('IPTVnator backend URL'), backend);
     release();
     await expect(page.locator('.connection-status')).toHaveText('Not checked');
     await page.getByRole('button', { name: 'Check and connect' }).click();

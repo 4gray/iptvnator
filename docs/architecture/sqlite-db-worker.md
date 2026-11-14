@@ -436,7 +436,8 @@ Current shipped operation names:
 All five are tracked. Save content, delete Xtream content, restore Xtream user
 data, and delete playlist are cancellable. Delete all playlists deliberately
 uses `cancellable: false`: its renderer-visible progress is tracked, but a
-cancel request does not interrupt it.
+cancel request does not interrupt it. Like a single source delete, it leaves
+the `downloads` table and its archive-finalization proofs alone.
 
 The event is forwarded to the renderer as `DB_OPERATION_EVENT`.
 

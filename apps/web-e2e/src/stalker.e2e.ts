@@ -506,6 +506,21 @@ test('@stalker ITV full channel list loads via get_all_channels and search cover
     });
     await expect(categories.nth(1).locator('.item-count')).toHaveText('40');
 
+    // The categories column can be folded on "All Items" too: the grid
+    // header then carries the way back.
+    const categoriesRailOnRoot = page.locator('aside.context-panel--route');
+    await page
+        .getByRole('button', { name: 'Hide categories', exact: true })
+        .click();
+    await expect(categoriesRailOnRoot).toHaveAttribute('inert', '');
+    const showCategories = allItemsGrid.locator(
+        '[data-test-id="live-show-categories"]'
+    );
+    await expect(showCategories).toBeFocused();
+    await showCategories.click();
+    await expect(categoriesRailOnRoot).not.toHaveAttribute('inert');
+    await expect(showCategories).toHaveCount(0);
+
     // Starting from All Items leaves the category unset. Its fullscreen
     // list must still show and window the full cache without a search term.
     await allItemsGrid.locator('mat-card').first().click();

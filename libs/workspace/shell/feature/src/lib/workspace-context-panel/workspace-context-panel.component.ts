@@ -153,19 +153,21 @@ export class WorkspaceContextPanelComponent {
                 (section === 'itv' || section === 'radio'))
         );
     });
-    // Only while a category is selected: that is when the live layout
-    // renders the channels rail whose header offers the way back. Not in the
-    // open phone drawer either: its stylesheet ignores the folded state, so
-    // the tap would change nothing visible while persisting a preference
-    // that only bites once the window is wide again.
+    // Every live view carries its own way back (the channels header or the
+    // all-items header). Not in the open phone drawer: its stylesheet ignores
+    // the folded state, so the tap would change nothing visible while
+    // persisting a preference that only bites once the window is wide again.
+    // Nor on a blocked Xtream portal, whose error view has no way back and
+    // keeps the rail unfolded (the fold would only apply after a retry).
     readonly canHideCategories = computed(
         () =>
             this.presentation() === 'sidebar' &&
             this.isLiveSection() &&
             !this.contextDrawer?.isOpen() &&
-            (this.context().provider === 'xtreams'
-                ? this.xtreamSelectedCategoryId() !== null
-                : !!this.stalkerSelectedCategoryId())
+            !(
+                this.context().provider === 'xtreams' &&
+                this.xtreamStore.isContentBlocked()
+            )
     );
     private readonly hideCategoriesButton = viewChild('hideCategoriesButton', {
         read: ElementRef<HTMLElement>,

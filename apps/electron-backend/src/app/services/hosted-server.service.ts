@@ -116,8 +116,12 @@ async function start(lanAddress: string): Promise<void> {
         const code = accessCode();
         const process = utilityProcess.fork(entry, [], {
             env: {
+                ...globalThis.process.env,
                 IPTVNATOR_STORAGE: 'server',
                 IPTVNATOR_DATA_DIR: dataDir(),
+                // The E2E data root would take precedence over the hosted directory.
+                IPTVNATOR_E2E_DATA_DIR: '',
+                IPTVNATOR_SOURCE_PROFILE: '',
                 IPTVNATOR_ACCESS_TOKEN: code,
                 IPTVNATOR_HOSTED_ASSETS: assets,
                 IPTVNATOR_HOSTED_LAN: lanHost,

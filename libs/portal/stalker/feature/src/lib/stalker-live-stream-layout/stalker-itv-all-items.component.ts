@@ -82,6 +82,8 @@ export class StalkerItvAllItemsComponent {
     readonly progress = input<StalkerItvLoadProgress | null>(null);
     readonly searchTerm = input('');
     readonly sidebarCollapsed = input(false);
+    /** The categories rail is folded and this header carries the way back. */
+    readonly categoriesFolded = input(false);
     readonly showEpg = input(false);
     readonly epgLoading = input(false);
     readonly epgPrograms = input<ReadonlyMap<string | number, EpgProgram>>(
@@ -93,10 +95,14 @@ export class StalkerItvAllItemsComponent {
 
     readonly channelActivated = output<StalkerItvChannel>();
     readonly restorePanels = output<void>();
+    readonly showCategories = output<void>();
     readonly visibleChannelsChanged = output<StalkerItvChannel[]>();
     readonly previewRefreshRequested = output<void>();
     readonly viewMode = signal<ViewMode>(restoreViewMode());
     readonly restoreButton = viewChild('restoreButton', {
+        read: ElementRef<HTMLButtonElement>,
+    });
+    readonly showCategoriesButton = viewChild('showCategoriesButton', {
         read: ElementRef<HTMLButtonElement>,
     });
     private readonly scrollContainer =

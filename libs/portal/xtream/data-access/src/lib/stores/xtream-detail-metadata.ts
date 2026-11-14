@@ -46,8 +46,9 @@ const SERIE_RATING_FIELDS = [
  * The VOD and series detail routes bind these `info` fields directly, and
  * TMDB enrichment keeps any non-empty provider rating and release date — a
  * stand-in left here is both rendered and shields the TMDB value that should
- * have replaced it. Only string fields that are present are rewritten, to
- * `''` (how these shapes spell "absent"), so the response keeps its shape.
+ * have replaced it. Only text or numeric fields that are present are
+ * rewritten — to their text, or to `''` (how these shapes spell "absent") —
+ * so the response keeps its declared string shape.
  */
 export function stripXtreamVodInfoPlaceholders(
     info: XtreamVodInfo
@@ -80,7 +81,9 @@ function stripPlaceholders<T extends { backdrop_path?: unknown }>(
     ) => {
         for (const field of fields) {
             const value = info[field];
-            if (typeof value === 'string') {
+            // Some panels send these as JSON numbers (`"genre": 18`); the
+            // detail routes split and match them as text (#2188).
+            if (typeof value === 'string' || typeof value === 'number') {
                 stripped[field] = read(value) ?? '';
             }
         }

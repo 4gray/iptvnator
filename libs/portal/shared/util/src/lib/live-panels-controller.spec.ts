@@ -11,7 +11,6 @@ describe('LivePanelsController', () => {
         close: jest.fn(),
         showCategoriesPanel: jest.fn(),
     };
-    const hasSelectedCategory = signal(true);
     let showButton: HTMLButtonElement;
     let restoreButton: HTMLButtonElement;
 
@@ -24,7 +23,6 @@ describe('LivePanelsController', () => {
         return TestBed.runInInjectionContext(() =>
             createLivePanelsController({
                 surface: 'portal',
-                hasSelectedCategory,
                 showCategoriesButton: signal(new ElementRef(showButton)),
                 restoreButton: signal(new ElementRef(restoreButton)),
             })
@@ -41,7 +39,6 @@ describe('LivePanelsController', () => {
         popover.open.mockClear();
         popover.close.mockClear();
         popover.showCategoriesPanel.mockClear();
-        hasSelectedCategory.set(true);
         showButton = document.createElement('button');
         restoreButton = document.createElement('button');
         document.body.append(showButton, restoreButton);
@@ -54,20 +51,20 @@ describe('LivePanelsController', () => {
         localStorage.removeItem(liveSidebarStateStorageKey('portal'));
     });
 
-    it('offers the dropdown only with a provider, a folded rail and a selected category', () => {
+    it('offers the dropdown with a provider and a folded rail, selected category or not', () => {
         const controller = create();
         const state = TestBed.inject(LiveLayoutSidebarStateService);
         expect(controller.canOpenCategoriesPopover()).toBe(false);
+        expect(controller.isCategoriesRailFolded()).toBe(false);
 
         state.hideCategories('portal');
         expect(controller.canOpenCategoriesPopover()).toBe(true);
+        expect(controller.isCategoriesRailFolded()).toBe(true);
         expect(controller.effectiveLevel()).toBe('categories-hidden');
 
-        hasSelectedCategory.set(false);
-        expect(controller.canOpenCategoriesPopover()).toBe(false);
-        expect(controller.effectiveLevel()).toBe('expanded');
-
+        // Player only: the floating restore handle replaces the header.
         state.collapse('portal');
+        expect(controller.isCategoriesRailFolded()).toBe(false);
         expect(controller.effectiveLevel()).toBe('collapsed');
     });
 
@@ -103,16 +100,12 @@ describe('LivePanelsController', () => {
         expect(state.stateOf('portal')()).toBe('categories-hidden');
     });
 
-    it('hands focus across level changes, including a fold by category selection', async () => {
+    it('hands focus across level changes', async () => {
         const controller = create();
         const state = TestBed.inject(LiveLayoutSidebarStateService);
-        hasSelectedCategory.set(false);
-        state.hideCategories('portal');
         await settle();
-        (document.activeElement as HTMLElement | null)?.blur();
 
-        // Live root: selecting the first category folds the rail.
-        hasSelectedCategory.set(true);
+        state.hideCategories('portal');
         await settle();
         expect(document.activeElement).toBe(showButton);
 

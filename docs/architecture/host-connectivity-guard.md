@@ -183,7 +183,9 @@ disables automatic redirects and holds one admission for the entire chain.
 `ProviderRequestError.initialResponded` becomes true only after receiving an
 actual redirect response. A later transport or DNS failure, URL policy refusal,
 invalid location, cycle or exhausted budget therefore clears the initial
-endpoint's failure streak when the chain settles. This also handles redirects
+endpoint's failure streak when the chain settles, including when the Xtream
+browser request disconnects after a redirect. A disconnect before any response
+does not count as a failure. This also handles redirects
 that change only the query. It does not release the half-open slot early: the
 route retains ownership through validation, all hops and the final body, and
 releases in `finally` even when reporting throws. Before any redirect, initial

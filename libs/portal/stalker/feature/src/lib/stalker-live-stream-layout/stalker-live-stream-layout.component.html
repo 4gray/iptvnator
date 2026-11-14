@@ -124,6 +124,20 @@
             <mat-icon>chevron_right</mat-icon>
         </button>
     }
+    @if (showContentCategoriesButton()) {
+        <button
+            #contentShowCategoriesButton
+            mat-icon-button
+            type="button"
+            class="sidebar-restore"
+            data-test-id="live-show-categories"
+            [attr.aria-label]="'LAYOUT.SHOW_CATEGORIES' | translate"
+            [matTooltip]="'LAYOUT.SHOW_CATEGORIES' | translate"
+            (click)="livePanels.showCategories()"
+        >
+            <mat-icon>chevron_right</mat-icon>
+        </button>
+    }
     @if (!stalkerStore.selectedItem() && !stalkerStore.selectedCategoryId()) {
         @if (showItvAllItems()) {
             <!-- Xtream parity: all channels of the portal, paginated, before
@@ -134,11 +148,13 @@
                 [progress]="fullListProgress()"
                 [searchTerm]="searchTerm()"
                 [sidebarCollapsed]="isSidebarCollapsed()"
+                [categoriesFolded]="livePanels.isCategoriesRailFolded()"
                 [showEpg]="supportsProviderEpg"
                 [epgLoading]="stalkerStore.isLoadingBulkItvEpg()"
                 [epgPrograms]="epgPreviewPrograms"
                 [epgProgress]="currentProgramsProgress"
                 (restorePanels)="livePanels.toggleSidebar()"
+                (showCategories)="livePanels.showCategories()"
                 (visibleChannelsChanged)="overviewVisibleChannels.set($event)"
                 (previewRefreshRequested)="scheduleEpgPreviewRefresh()"
                 (channelActivated)="playChannel($event, true)"

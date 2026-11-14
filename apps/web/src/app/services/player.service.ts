@@ -47,7 +47,8 @@ export class PlayerService {
         origin?: string,
         contentInfo?: PlayerContentInfo,
         startTime?: number,
-        headers?: Record<string, string>
+        headers?: Record<string, string>,
+        launchId?: string
     ): Promise<ExternalPlayerSession | void> {
         return this.openResolvedPlayback(
             {
@@ -56,6 +57,7 @@ export class PlayerService {
                 thumbnail,
                 isLive: isLiveContent,
                 startTime,
+                launchId,
                 contentInfo,
                 headers,
                 userAgent,
@@ -140,6 +142,7 @@ export class PlayerService {
                 headers: playback.headers,
                 contentInfo: playback.contentInfo,
                 startTime: playback.startTime,
+                launchId: playback.launchId,
             }
         );
     }

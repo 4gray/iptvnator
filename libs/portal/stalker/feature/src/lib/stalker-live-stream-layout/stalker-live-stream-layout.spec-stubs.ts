@@ -5,6 +5,7 @@ import {
     input,
     output,
 } from '@angular/core';
+import { LIVE_CATEGORIES_POPOVER } from '@iptvnator/portal/shared/util';
 import { type PlaybackFallbackRequest } from '@iptvnator/ui/playback';
 import {
     EpgProgram,
@@ -17,6 +18,16 @@ import {
  * the real inputs/outputs so specs can assert what the host hands each child
  * without pulling in the players or the EPG timeline.
  */
+
+/** The shell's categories popover, which the layout reaches through a token. */
+export const liveCategoriesPopoverProvider = {
+    provide: LIVE_CATEGORIES_POPOVER,
+    useValue: {
+        open: jest.fn(),
+        close: jest.fn(),
+        showCategoriesPanel: jest.fn(),
+    },
+};
 
 @Component({
     changeDetection: ChangeDetectionStrategy.Eager,

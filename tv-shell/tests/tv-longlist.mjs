@@ -81,6 +81,17 @@ f = await focused();
 const onVideo = /^video/.test(f || '');
 check(onVideo, 'picture reachable with Right: ' + f);
 if (onVideo) {
+    // Left returns to the playing channel. The way back passes through its Favorite button.
+    const back = await key('ArrowLeft', 1, 300);
+    const onPlaying = await page.evaluate(() => !!document.activeElement?.closest('.channel-list-item.active'));
+    check(/channel-content/.test(back || '') && onPlaying, 'Left from the live picture returns to the playing channel: ' + back);
+    await key('ArrowRight', 1, 300);
+    check(await page.evaluate(() => document.activeElement.matches('.channel-list-item.active .favorite-button[aria-pressed]')),
+        'Right from the channel can reach its Favorite button');
+    const again = await key('ArrowRight', 1, 300);
+    check(/^video/.test(again || ''), 'Right from the row actions reaches the picture: ' + again);
+}
+if (onVideo) {
     const down = [];
     for (let i = 0; i < 3; i++) down.push(((await key('ArrowDown', 1, 300)) || '∅').slice(0, 80));
     console.log('  Down ×3 from the picture:\n    ' + down.join('\n    '));

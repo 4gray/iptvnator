@@ -73,6 +73,18 @@ describe('embedded MPV extra options', () => {
         ]);
     });
 
+    it('never enables reconnect_streamed by default (#1682)', () => {
+        // ffmpeg would re-request every HLS playlist/segment served without
+        // Content-Length at its normal end, stalling live playback.
+        const lavf = EMBEDDED_MPV_NETWORK_DEFAULT_OPTIONS.find((option) =>
+            option.startsWith('demuxer-lavf-o=')
+        );
+        expect(lavf).toBe('demuxer-lavf-o=reconnect=1,reconnect_delay_max=5');
+        expect(EMBEDDED_MPV_NETWORK_DEFAULT_OPTIONS.join('\n')).not.toMatch(
+            /reconnect_streamed/
+        );
+    });
+
     it('keeps the user override after the default it replaces', () => {
         const options =
             resolveEmbeddedMpvSessionOptionArguments('network-timeout=3');

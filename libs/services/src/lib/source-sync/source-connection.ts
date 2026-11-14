@@ -27,9 +27,32 @@ export const sourceProfileName = () =>
 export const tokenKey = ({ apiUrl, instanceId }: SourceServerConnection) =>
     `iptvnator:server-token:${JSON.stringify([apiUrl, instanceId])}`;
 
+export function parseSourceConnection(raw: string): SourceServerConnection {
+    const connection = JSON.parse(raw) as SourceServerConnection;
+    if (
+        typeof connection?.apiUrl !== 'string' ||
+        typeof connection.instanceId !== 'string' ||
+        !connection.instanceId
+    )
+        throw new Error(INCOMPATIBLE);
+    const apiUrl = new URL(connection.apiUrl);
+    if (
+        !['http:', 'https:'].includes(apiUrl.protocol) ||
+        apiUrl.username ||
+        apiUrl.password ||
+        apiUrl.search ||
+        apiUrl.hash
+    )
+        throw new Error(INCOMPATIBLE);
+    return {
+        apiUrl: apiUrl.toString().replace(/\/$/, ''),
+        instanceId: connection.instanceId,
+    };
+}
+
 export function assertSourceInstance(
     value: unknown
-): asserts value is ServerInstanceInfo {
+): asserts value is ServerInstanceInfo & { instanceId: string } {
     const info = value as ServerInstanceInfo;
     if (
         info?.service !== 'iptvnator' ||
@@ -58,24 +81,7 @@ export async function prepareSourceConnection(
         }
         const saved = localStorage.getItem(CONNECTION_KEY);
         if (saved) {
-            const connection = JSON.parse(saved) as SourceServerConnection;
-            if (
-                typeof connection.apiUrl !== 'string' ||
-                typeof connection.instanceId !== 'string' ||
-                !connection.instanceId
-            )
-                throw new Error(INCOMPATIBLE);
-            const apiUrl = new URL(connection.apiUrl);
-            if (
-                !['http:', 'https:'].includes(apiUrl.protocol) ||
-                apiUrl.username ||
-                apiUrl.password
-            )
-                throw new Error(INCOMPATIBLE);
-            selected = {
-                apiUrl: apiUrl.toString().replace(/\/$/, ''),
-                instanceId: connection.instanceId,
-            };
+            selected = parseSourceConnection(saved);
             return;
         }
         if (!runtimeBackendUrl || localStorage.getItem(DISABLED_KEY)) return;

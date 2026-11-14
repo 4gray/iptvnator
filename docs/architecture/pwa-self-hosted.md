@@ -45,6 +45,15 @@ network. The code is stored in the server data directory with user-only file
 permissions where supported. A change to the selected network address requires
 selecting the new address and starting the server again.
 
+The utility process inherits the desktop environment, including operating-system
+variables such as Windows `SystemRoot`, `PATH` and temporary-directory settings.
+Hosted storage, data paths, access code, assets, LAN binding and port override
+any inherited values so the worker always uses its dedicated server profile.
+The desktop's `IPTVNATOR_SOURCE_PROFILE` is cleared in the worker environment,
+so switching desktop server connections does not change the hosted database.
+The worker also clears `IPTVNATOR_E2E_DATA_DIR`, which otherwise takes
+precedence over the hosted data directory during Electron tests.
+
 The desktop package includes `web-backend:build` and `web:build-hosted`. The
 latter emits a separate PWA bundle, so the Electron renderer and Docker
 deployment keep their own build outputs. The outer Nx graph builds shared
@@ -150,6 +159,8 @@ Xtream import signals travel as a separate, renderer-local argument to
 on-demand `pwa-xtream-request.ts` transport unsubscribes the caller's pending
 target-registration wait or catalog GET when aborted. A category failure can
 therefore settle sibling requests before releasing the import's busy hold.
+The Xtream proxy also cancels the provider GET when the browser disconnects,
+so an abandoned guide row or import does not keep an upstream socket busy.
 Xtream uses the same bounded `ProviderTargetClient` as M3U and Stalker, so its
 one missing-target recovery attempt is covered by the same abort subscription.
 Provider-target registrations remain shared between independent callers;
@@ -286,9 +297,13 @@ runtime discovery probe preserves choices made by another tab while it waits.
 Confirmed source-server profiles never use the stateless fallback.
 Once a server is selected, network/authentication/compatibility errors do not
 silently select local storage. The recovery banner remains available even when
-the initial source inventory cannot load. Malformed saved connection data or
-unavailable browser storage does not prevent Angular bootstrap; a recovery
-alert links directly to the Server settings without discarding the saved data.
+the initial source inventory cannot load. When the server rejects credentials,
+the banner links to Settings → Server to update the access token. If a new
+probe fails because the server is unavailable, the banner offers **Retry
+connection**, even after an earlier credential rejection. Malformed saved
+connection data or unavailable browser storage does not prevent Angular
+bootstrap. A recovery alert links directly to the Server settings without
+discarding the saved data.
 An unreadable native `source-server.json` selects a separate recovery database
 and browser-storage namespace. Inventory reads fail closed while Server settings
 allow explicit reconnection or disconnection; the standalone library and prior
@@ -302,6 +317,12 @@ Rechecking the selected endpoint keeps its saved token when the password field
 is empty. Renewing credentials for the same endpoint and instance does not
 reload either client. Switching an endpoint or server instance still requires
 the native profile restart; disconnecting returns to the retained local profile.
+Disconnecting saves the last confirmed server address for an explicit
+**Reconnect**. Startup stays in the local library until the user reconnects.
+**Forget server** removes the saved address and credential without enabling
+automatic discovery. The browser can still clear the address if it denies
+access to tab storage. Reconnect verifies the server instance before reusing a
+token. A replacement server requires a new token or a fresh connection.
 Connection and activity status share a compact summary with timestamps formatted
 in the selected UI language.
 The form validates full HTTP(S) app addresses before either runtime is called;
@@ -343,8 +364,17 @@ reconciliation cannot deadlock parental cleanup. The store's ready flag keeps
 rejecting incomplete inventory after a failed projection, preserving the loading
 error instead of exposing a false empty library. Server
 settings bypass the source-loading screen and remain reachable through the
-connection banner. A successful projection publishes its inventory change to
-refresh mounted views. Its collection revision advances only after the local
+connection banner. Once a local source inventory is ready, a connectivity
+notice can be hidden for the current app session without changing profiles or
+stopping background retries. Settings → Server can still check the connection
+and shows the result there. A missing inventory, rejected token, or server
+identity error keeps its recovery controls visible. The status panel uses
+**Retry connection** as a secondary action and offers an icon-only dismiss
+action for a cached outage. During an outage that blocks startup, retry is
+the primary action. For rejected credentials, the primary action opens
+Server settings. Disconnect in Server settings uses the destructive tint. A successful projection
+publishes its inventory change to refresh mounted views. Its collection
+revision advances only after the local
 initialization receipt is persisted, so a failed write retries the inventory
 instead of accepting HTTP 304 with an unreadable cache. Electron Xtream metadata
 paths in `DatabaseService` use the same wrapper.
@@ -485,10 +515,13 @@ sessions still apply. Synchronization does not proxy desktop media through NAS.
 Uploaded M3U shares the playlist text, not media files referenced by it. Streams
 and relative paths must remain reachable from the receiving runtime.
 
-Browser access tokens live in sessionStorage for that tab. Electron encrypts
+Browser access tokens live in sessionStorage for that tab and survive a
+disconnect and reload in the same tab. Electron encrypts
 tokens with OS-protected `safeStorage` when available; Linux `basic_text` is
 not treated as protected storage. Otherwise the token lasts for the process
-and must be entered again after restart. Source-sync IPC accepts named
+and must be entered again after restart. Electron exposes saved connection
+metadata and token availability to settings. The main process reuses the token
+for the saved endpoint without returning it to the renderer. Source-sync IPC accepts named
 operations, never arbitrary request paths or headers, and refuses redirects.
 The main process verifies the configured instance anonymously before sending
 tokens or source bodies. Identity, authentication and transport failures revoke
@@ -843,6 +876,9 @@ Overflow destroys the body stream and returns a size error with status 413 and
 `code: 'PROVIDER_RESPONSE_TOO_LARGE'`; portal routes retain their HTTP 200 error
 envelope. This is not a host-connectivity failure. The limit is per response;
 it is not a total process-memory or concurrent-request budget.
+
+When this error blocks an Xtream import, the browser identifies the response
+limit as the cause and explains how to raise it on the server before retrying.
 
 ### Provider redirects and connection policy
 
@@ -1517,7 +1553,8 @@ No absence-based deletion, automatic pruning or receipt TTL is introduced.
 The native Xtream browsing cap remains 100; archival storage is retained.
 
 History continues to use `PlaybackHistoryGate`: confirmed inline progress or the
-existing external launch confirmation records a start. Downloaded progress,
+first successful transition of an external launch records a start. Idle updates
+and restored external sessions do not confirm another start. Downloaded progress,
 watched marks, opening a detail view and provider link resolution never manufacture
 history. Xtream collections retain their existing parent-series history; Stalker
 keeps regular, embedded and lazy series modes. Portable references reuse favorites:

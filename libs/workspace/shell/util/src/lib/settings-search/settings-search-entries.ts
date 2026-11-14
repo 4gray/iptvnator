@@ -208,6 +208,13 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         keywords: ['tmdb', 'themoviedb', 'metadata', 'posters', 'ratings'],
     },
     {
+        id: 'tmdb-key-transfer',
+        section: 'tmdb',
+        labelKey: 'SETTINGS.TMDB_TRANSFER.ACTION',
+        descriptionKey: 'SETTINGS.TMDB_TRANSFER.DESCRIPTION',
+        keywords: ['pairing', 'copy', 'device', 'api key'],
+    },
+    {
         id: 'tmdb-api-key',
         section: 'tmdb',
         labelKey: 'SETTINGS.TMDB_API_KEY',

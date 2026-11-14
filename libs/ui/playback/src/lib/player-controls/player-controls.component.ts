@@ -131,6 +131,7 @@ export class PlayerControlsComponent implements OnDestroy {
         volume: this.volume,
         menus: this.menus,
         wasTouchInteraction: (event) => this.surface.wasTouchInteraction(event),
+        isEmulatedHover: (event) => this.surface.isEmulatedHover(event),
         wasPointerFocusRelease: () => this.surface.wasPointerFocusRelease(),
         canAdjustVolume: () => this.capabilities().volume,
         reveal: (options) => this.reveal(options),

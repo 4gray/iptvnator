@@ -5,6 +5,12 @@ import { workspaceRoot } from '@nx/devkit';
 export const backend = tvOrigins.backend;
 export const xtream = tvOrigins.xtream;
 export const stalker = tvOrigins.stalker;
+
+export async function fillTvField(field: Locator, value: string) {
+    await field.click();
+    await field.fill(value);
+}
+
 export async function cardAction(
     page: Page,
     card: Locator,
@@ -79,32 +85,35 @@ export async function addSource(
     await page
         .getByRole('button', { name: type.toUpperCase(), exact: true })
         .click();
-    await page.getByLabel('IPTVnator backend URL').fill(backend);
-    await page
-        .getByLabel('Name', { exact: true })
-        .fill(options.name ?? `TV ${type}`);
-    await page
-        .getByLabel(type === 'm3u' ? 'Playlist URL' : 'Provider URL')
-        .fill(
-            options.url ??
-                (type === 'stalker'
-                    ? `${stalker}/server/load.php`
-                    : type === 'm3u'
-                      ? `${xtream}/playlist.m3u`
-                      : xtream)
-        );
+    await fillTvField(page.getByLabel('IPTVnator backend URL'), backend);
+    await fillTvField(
+        page.getByLabel('Name', { exact: true }),
+        options.name ?? `TV ${type}`
+    );
+    await fillTvField(
+        page.getByLabel(type === 'm3u' ? 'Playlist URL' : 'Provider URL'),
+        options.url ??
+            (type === 'stalker'
+                ? `${stalker}/server/load.php`
+                : type === 'm3u'
+                  ? `${xtream}/playlist.m3u`
+                  : xtream)
+    );
     if (type !== 'm3u') {
-        await page
-            .getByLabel(/^Username/)
-            .fill(options.username ?? (type === 'xtream' ? 'user1' : ''));
-        await page
-            .getByLabel('Password', { exact: true })
-            .fill(options.password ?? (type === 'xtream' ? 'pass1' : ''));
+        await fillTvField(
+            page.getByLabel(/^Username/),
+            options.username ?? (type === 'xtream' ? 'user1' : '')
+        );
+        await fillTvField(
+            page.getByLabel('Password', { exact: true }),
+            options.password ?? (type === 'xtream' ? 'pass1' : '')
+        );
     }
     if (type === 'stalker')
-        await page
-            .getByLabel('MAC address')
-            .fill(options.mac ?? '00:1a:79:00:00:03');
+        await fillTvField(
+            page.getByLabel('MAC address'),
+            options.mac ?? '00:1a:79:00:00:03'
+        );
     await page.getByRole('button', { name: 'Save and connect' }).click();
     await expect(page.locator('.source-form')).toHaveCount(0);
     await expect(page.locator('.loading')).toBeHidden({ timeout: 25000 });

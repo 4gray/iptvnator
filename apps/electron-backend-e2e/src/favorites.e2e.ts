@@ -31,6 +31,7 @@ import {
     playlistSwitcherTitle,
     waitForM3uCatalog,
     waitForStalkerCatalog,
+    waitForXtreamCatalog,
     waitForXtreamWorkspaceReady,
     writeTemporaryM3uFile,
     type LaunchedElectronApp,
@@ -425,7 +426,7 @@ test.describe('Electron Favorites', () => {
 
             await openSources(app.mainWindow);
             await sourceRowByTitle(app.mainWindow, portalTitle).first().click();
-            await waitForXtreamWorkspaceReady(app.mainWindow);
+            await waitForXtreamCatalog(app.mainWindow, { cached: true });
             await openPlaylistFavorites(app.mainWindow);
             await switchUnifiedCollectionScope(app.mainWindow, 'All playlists');
             await switchUnifiedCollectionContent(app.mainWindow, 'Live TV');
@@ -529,7 +530,7 @@ test.describe('Electron Favorites', () => {
             app = await restartElectronApp(app, dataDir);
             await openSources(app.mainWindow);
             await sourceRowByTitle(app.mainWindow, portalTitle).first().click();
-            await waitForXtreamWorkspaceReady(app.mainWindow);
+            await waitForXtreamCatalog(app.mainWindow, { cached: true });
             await expectSavedMovieCards(app.mainWindow, titles);
             expect(
                 savedFavoriteIdentity(

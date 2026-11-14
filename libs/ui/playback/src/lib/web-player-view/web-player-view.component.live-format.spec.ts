@@ -19,6 +19,7 @@ import {
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import {
     type ExternalPlayerSession,
+    type EmbeddedMpvSession,
     STORE_KEY,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
@@ -170,6 +171,98 @@ describe('WebPlayerViewComponent live format integration', () => {
         expect(component.reloadToken()).toBe(before + 2);
         await render();
         expect(component.vjsOptions()!.reloadToken).toBe(before + 2);
+    });
+
+    it('retries an ended stream once, without treating the replacement as ended', async () => {
+        await render();
+        const player = fixture.debugElement.query(
+            By.directive(StubVjsPlayerComponent)
+        ).componentInstance as StubVjsPlayerComponent;
+        const before = component.reloadToken();
+        expect(component.retryFailedPlayback()).toBe(false);
+        player.playbackEnded.emit();
+        expect(component.visiblePlaybackDiagnostic()).toBeNull();
+        expect(component.retryFailedPlayback()).toBe(true);
+        expect(component.reloadToken()).toBe(before + 1);
+        await render();
+        player.playbackEnded.emit();
+        expect(component.retryFailedPlayback()).toBe(false);
+        expect(component.reloadToken()).toBe(before + 1);
+    });
+
+    it('requires fresh playback confirmation after retrying the same source', async () => {
+        const playback = {
+            streamUrl: 'https://example.test/synthetic-live.m3u8',
+            title: 'Synthetic Live',
+            isLive: true,
+        };
+        fixture.componentRef.setInput('playback', playback);
+        await render();
+        const current = () =>
+            fixture.debugElement.query(By.directive(StubVjsPlayerComponent))
+                .componentInstance as StubVjsPlayerComponent;
+        const report = { currentTime: 1, duration: 0, playing: true };
+        const previous = current();
+        previous.timeUpdate.emit(report);
+        expect(component.hasStartedPlayback()).toBe(true);
+        previous.playbackIssue.emit(networkIssue('videojs'));
+        component.retryPlayback();
+        expect(component.playback()).toBe(playback);
+        expect(component.hasStartedPlayback()).toBe(false);
+        await render();
+        previous.timeUpdate.emit(report);
+        expect(component.hasStartedPlayback()).toBe(false);
+        current().timeUpdate.emit(report);
+        expect(component.hasStartedPlayback()).toBe(true);
+    });
+
+    it('waits for embedded MPV to play again after a reconnect in the same session', async () => {
+        fixture.componentRef.setInput(
+            'playerOverride',
+            VideoPlayer.EmbeddedMpv
+        );
+        await render();
+        const player = fixture.debugElement.query(
+            By.directive(StubEmbeddedMpvPlayerComponent)
+        ).componentInstance as StubEmbeddedMpvPlayerComponent;
+        const session: EmbeddedMpvSession = {
+            id: 'synthetic-native-session',
+            title: 'Synthetic Live',
+            streamUrl: 'https://example.test/synthetic.ts',
+            status: 'playing',
+            positionSeconds: 1,
+            durationSeconds: null,
+            volume: 1,
+            audioTracks: [],
+            selectedAudioTrackId: null,
+            subtitleTracks: [],
+            selectedSubtitleTrackId: null,
+            playbackSpeed: 1,
+            aspectOverride: '',
+            startedAt: '2026-04-04T10:00:00Z',
+            updatedAt: '2026-04-04T10:00:00Z',
+        };
+        const report = { currentTime: 1, duration: 0, playing: true };
+        const started = jest.fn();
+        component.playbackStarted.subscribe(started);
+        player.session.set(session);
+        player.timeUpdate.emit(report);
+        expect(component.hasStartedPlayback()).toBe(true);
+        player.session.set({
+            ...session,
+            reconnect: {
+                attempt: 1,
+                maxAttempts: 3,
+                nextAttemptAt: session.updatedAt,
+            },
+        });
+        expect(component.hasStartedPlayback()).toBe(false);
+        player.session.set({ ...session, status: 'loading' });
+        expect(component.hasStartedPlayback()).toBe(false);
+        player.session.set(session);
+        player.timeUpdate.emit(report);
+        expect(component.hasStartedPlayback()).toBe(true);
+        expect(started).toHaveBeenCalledTimes(2);
     });
 
     it.each([

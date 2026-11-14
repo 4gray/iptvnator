@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { addSource, nav, start } from './helpers';
+import { fillTvField, addSource, nav, start } from './helpers';
 
 for (const { index, actions } of [
     { index: 72, actions: false },
@@ -82,9 +82,10 @@ for (const { index, actions } of [
             .getByRole('tab', { name: 'Metadata · TMDB', exact: false })
             .click();
         await page.getByLabel('Use TMDB metadata').check();
-        await page
-            .getByLabel('TMDB API key or read access token')
-            .fill('fake-key');
+        await fillTvField(
+            page.getByLabel('TMDB API key or read access token'),
+            'fake-key'
+        );
         await page.getByRole('button', { name: 'Save TMDB settings' }).click();
         await expect(
             page.locator('.tmdb-settings [role=status]')

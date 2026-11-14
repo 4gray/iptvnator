@@ -149,13 +149,22 @@ first `require` downloads and extracts the binary. With projects and Jest
 workers in parallel, one process can exec it while another is still extracting
 it (`spawnSync … ETXTBSY` on Linux). When a selected project has a spec that
 calls `createRequire(...)('electron')`, `coverage:unit:ci` first runs
-`tools/testing/ensure-electron-binary.mjs`, which downloads the binary once and
+`tools/testing/electron/ensure-electron-binary.mjs`, which downloads the binary once and
 fails unless it runs and reports the pinned version; CI also runs it as its own
 step when the Tier A suite is in scope. In a fresh worktree, run it before
 starting several of these specs at once by other means.
+The `database:test`, `electron-backend:test` and `packaging:test` targets
+share the non-cached `electron-test-tools:ensure-electron-binary` dependency.
+Nx runs it once before these tests in a task graph, including in the full
+workspace test run. For a filtered selection known to run under Node alone,
+use `pnpm nx test database --excludeTaskDependencies --testPathPatterns=path-utils`.
+Leave the dependency enabled for the full suites and for specs that spawn
+Electron.
 
 In CI, a pull request skips the Tier A suite (and the merged-coverage upload)
 when every changed file is outside Tier A test inputs:
+`git diff` compares the checked-out PR merge commit with its first parent,
+including both paths of any rename. A newer PR push cannot change that diff.
 `tools/coverage/unit-coverage-scope.mjs` holds the allowlist (Markdown, `docs/`,
 notes and plans, agent guidance, workflows other than `ci.yml` and
 `build-and-make.yaml`, the website, E2E and mock-server apps,
@@ -257,7 +266,12 @@ changing source exclusions or coverage ratchets to correct a reporting problem.
 | --------------------- | ----------------------------------------------- |
 | Web app browser flows | `pnpm nx run web-e2e:e2e -- --project=chromium` |
 | Electron flows        | `pnpm nx run electron-backend-e2e:e2e`          |
+| Desktop-hosted server | `pnpm nx run electron-backend-e2e:hosted-server` |
 | VOD multi-source      | `pnpm nx run electron-backend-e2e:e2e-ci--src/vod-multi-source.e2e.ts` |
+
+The Windows hosted server job runs the dedicated Electron target. It checks
+that the server's instance ID matches the one in its dedicated SQLite database
+after restarting the desktop with an active source profile.
 
 The Web E2E CI job runs Chromium with `--workers=2`; retry and timeout
 settings remain defined by the Playwright configuration. This override applies

@@ -127,7 +127,6 @@ html:has(> body.dark-theme) {
 
 body,
 html {
-    user-select: none;
     margin: 0;
     padding: 0;
     height: 100%;
@@ -144,13 +143,24 @@ html {
     -moz-osx-font-smoothing: grayscale;
 }
 
-// Re-enable context menu and text selection for input fields
+// Desktop and TV shells keep native-style interaction.
+html:is(.electron, .tv-shell),
+html:is(.electron, .tv-shell) > body {
+    user-select: none;
+}
+
+// Text fields remain selectable in every runtime.
 input,
 textarea {
     user-select: text;
 }
 
 @media (display-mode: standalone) {
+    html,
+    body {
+        user-select: none;
+    }
+
     body {
         overscroll-behavior-y: contain;
         overflow: hidden;

@@ -2,6 +2,7 @@ import { Component, input, model, output, signal } from '@angular/core';
 import type { PlaybackDiagnostic } from '@iptvnator/playback/util';
 import type {
     EmbeddedMpvSupport,
+    EmbeddedMpvSession,
     RecordingStartMetadata,
     RecordingStoppedEvent,
 } from '@iptvnator/shared/interfaces';
@@ -100,6 +101,7 @@ export class StubFullscreenChannelPanelComponent {
 })
 export class StubEmbeddedMpvPlayerComponent {
     readonly support = signal<EmbeddedMpvSupport | null>(null);
+    readonly session = signal<EmbeddedMpvSession | null>(null);
     readonly liveSubtitlesOff = model(false);
     readonly playback = input.required<unknown>();
     readonly fullscreenTarget = input<HTMLElement | null>(null);

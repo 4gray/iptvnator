@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { addSource, backend, nav, start } from './helpers';
+import { fillTvField, addSource, backend, nav, start } from './helpers';
 import { playLive, prepareLiveMedia } from './live-media';
 
 const recents = (page: Page) =>
@@ -364,8 +364,11 @@ test('TV Live comfort account edits invalidate Previous without autoplay or dele
         .filter({ hasText: 'Demo North' })
         .getByRole('button', { name: 'Edit', exact: true })
         .click();
-    await page.getByLabel(/^Username/).fill('marketing');
-    await page.getByLabel('Password', { exact: true }).fill('marketing');
+    await fillTvField(page.getByLabel(/^Username/), 'marketing');
+    await fillTvField(
+        page.getByLabel('Password', { exact: true }),
+        'marketing'
+    );
     await page
         .getByRole('button', { name: 'Save and connect', exact: true })
         .click();

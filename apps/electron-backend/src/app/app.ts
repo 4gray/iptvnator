@@ -46,6 +46,7 @@ import {
     trackNativeFullScreen,
 } from './services/native-fullscreen-transitions';
 import { attachWindowBackGestures } from './services/window-back-gestures';
+import { resolveVisibleWindowBounds } from './services/window-bounds';
 
 const externalBrowserProtocols = new Set(['http:', 'https:']);
 const trustedDevRendererHosts = new Set([
@@ -499,7 +500,10 @@ export default class App {
         const width = Math.min(1280, workAreaSize.width || 1280);
         const height = Math.min(720, workAreaSize.height || 720);
 
-        const savedWindowBounds = store.get(WINDOW_BOUNDS);
+        const savedWindowBounds = resolveVisibleWindowBounds(
+            store.get(WINDOW_BOUNDS),
+            screen.getAllDisplays().map((display) => display.workArea)
+        );
         const startupWindowMode = resolveStartupWindowMode({
             // One-shot: the switch describes the launch, not every window
             // this process ever opens. On macOS the process outlives its

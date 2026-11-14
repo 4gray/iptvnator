@@ -30,7 +30,10 @@ const SUPPORTED: EmbeddedMpvSupport = {
 
 describe('SettingsStore saved Embedded MPV selection', () => {
     const testWindow = window as unknown as {
-        electron?: { getEmbeddedMpvSupport: jest.Mock };
+        electron?: {
+            getEmbeddedMpvSupport: jest.Mock;
+            prepareEmbeddedMpv?: jest.Mock;
+        };
     };
     const originalElectron = testWindow.electron;
     let getEmbeddedMpvSupport: jest.Mock;
@@ -188,5 +191,22 @@ describe('SettingsStore saved Embedded MPV selection', () => {
         } finally {
             warn.mockRestore();
         }
+    });
+    it('retries warming the saved player after preparation is unavailable', async () => {
+        const prepareEmbeddedMpv = jest
+            .fn()
+            .mockResolvedValueOnce(MPV_MISSING)
+            .mockResolvedValue(SUPPORTED);
+        testWindow.electron = { getEmbeddedMpvSupport, prepareEmbeddedMpv };
+        getEmbeddedMpvSupport.mockResolvedValue(SUPPORTED);
+
+        const store = await start();
+        await jest.advanceTimersByTimeAsync(5000);
+        expect(prepareEmbeddedMpv).toHaveBeenCalledTimes(1);
+
+        await store.updateSettings({ showCaptions: true });
+        await jest.advanceTimersByTimeAsync(5000);
+        expect(prepareEmbeddedMpv).toHaveBeenCalledTimes(2);
+        expect(store.player()).toBe(VideoPlayer.EmbeddedMpv);
     });
 });

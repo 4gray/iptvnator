@@ -29,6 +29,7 @@ export interface PwaXtreamRequest {
 }
 
 interface PwaXtreamResponse {
+    readonly code?: string;
     readonly payload?: unknown;
     readonly status?: number;
 }
@@ -40,6 +41,7 @@ interface PwaXtreamResult {
 }
 
 interface PwaErrorResult {
+    readonly code?: string;
     readonly message: string;
     readonly status: number;
     readonly type: typeof ERROR;
@@ -142,6 +144,14 @@ export async function forwardPwaXtreamRequest(
                 )
             );
             logPortalDebugEvent(createPortalDebugErrorEvent(context, response));
+            result = {
+                type: ERROR,
+                status: response.status ?? 500,
+                message: normalizedMessage,
+                ...(typeof response.code === 'string'
+                    ? { code: response.code }
+                    : {}),
+            };
             if (
                 payload.suppressErrorLog === true ||
                 silentXtreamActions.has(action)
@@ -150,17 +160,8 @@ export async function forwardPwaXtreamRequest(
                     `Background Xtream action failed (${action ?? 'unknown'}):`,
                     normalizedMessage
                 );
-                return {
-                    type: ERROR,
-                    status: response.status ?? 500,
-                    message: normalizedMessage,
-                };
+                return result;
             }
-            result = {
-                type: ERROR,
-                status: response.status ?? 500,
-                message: normalizedMessage,
-            };
             window.postMessage(result);
         } else {
             result = {

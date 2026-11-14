@@ -182,7 +182,7 @@ test.describe('server storage @self-hosted @persistence', () => {
             offline = false;
             await page.bringToFront();
             await status
-                .getByRole('button', { name: 'Refresh', exact: true })
+                .getByRole('button', { name: 'Retry connection', exact: true })
                 .click();
             await expect(status).toHaveCount(0);
             expect(
@@ -560,27 +560,33 @@ test.describe('server storage @self-hosted @persistence', () => {
             });
             await page.reload();
             const status = page.locator('[data-test-id="source-sync-status"]');
-            await expect(
-                status.locator('input[type="password"]')
-            ).toBeVisible();
+            const settings = status.getByRole('link', {
+                name: 'Open server settings',
+            });
+            await expect(settings).toBeVisible();
+            await expect(status.locator('input')).toHaveCount(0);
             expect(credentials).toEqual([undefined]);
-            await status
-                .locator('input[type="password"]')
+            await settings.click();
+            await expect(page).toHaveURL(/\/workspace\/settings\/server$/);
+            await page
+                .locator('[data-test-id="source-server-token"]')
                 .fill('new-instance-token');
-            await status
-                .getByRole('button', { name: 'Refresh', exact: true })
+            await page
+                .locator('[data-test-id="source-server-connect"]')
                 .click();
             await expect(status).toHaveCount(0);
-            expect(credentials).toEqual([
-                undefined,
-                'Bearer new-instance-token',
-                'Bearer new-instance-token',
-            ]);
-            expect(revisions).toEqual([
-                undefined,
-                undefined,
-                '"replacement-library"',
-            ]);
+            await page
+                .locator('[data-test-id="source-server-refresh"]')
+                .click();
+            await expect
+                .poll(() => revisions)
+                .toContain('"replacement-library"');
+            expect(credentials.slice(1)).not.toHaveLength(0);
+            expect(
+                credentials
+                    .slice(1)
+                    .every((value) => value === 'Bearer new-instance-token')
+            ).toBe(true);
         } finally {
             await page.context().close();
         }

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { addSource, nav, start } from './helpers';
+import { fillTvField, addSource, nav, start } from './helpers';
 
 const svg =
     '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="170"><rect width="300" height="170" fill="#275947"/></svg>';
@@ -15,7 +15,10 @@ test('@tmdb checking a valid key explains that metadata is disabled and unsaved'
     await page
         .getByRole('tab', { name: 'Metadata · TMDB', exact: false })
         .click();
-    await page.getByLabel('TMDB API key or read access token').fill('fake-key');
+    await fillTvField(
+        page.getByLabel('TMDB API key or read access token'),
+        'fake-key'
+    );
     await page.getByRole('button', { name: 'Check TMDB key' }).click();
     await expect(page.locator('.tmdb-settings [role=status]')).toContainText(
         'Metadata is disabled'
@@ -110,7 +113,10 @@ test('@tmdb credits and season stills/descriptions preserve episode playback and
         .getByRole('tab', { name: 'Metadata · TMDB', exact: false })
         .click();
     await page.getByLabel('Use TMDB metadata').check();
-    await page.getByLabel('TMDB API key or read access token').fill('fake-key');
+    await fillTvField(
+        page.getByLabel('TMDB API key or read access token'),
+        'fake-key'
+    );
     await page.getByRole('button', { name: 'Save TMDB settings' }).click();
     await expect(page.locator('.tmdb-settings [role=status]')).toContainText(
         'saved'
@@ -281,7 +287,10 @@ test('@tmdb a late season response cannot replace episodes of another selected s
         .getByRole('tab', { name: 'Metadata · TMDB', exact: false })
         .click();
     await page.getByLabel('Use TMDB metadata').check();
-    await page.getByLabel('TMDB API key or read access token').fill('fake-key');
+    await fillTvField(
+        page.getByLabel('TMDB API key or read access token'),
+        'fake-key'
+    );
     await page.getByRole('button', { name: 'Save TMDB settings' }).click();
     await expect(page.locator('.tmdb-settings [role=status]')).toContainText(
         'saved'
