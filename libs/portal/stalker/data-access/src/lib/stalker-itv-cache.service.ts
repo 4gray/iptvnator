@@ -9,6 +9,7 @@ import {
 } from './stalker-itv-channel-loader';
 import { StalkerPortalRepairService } from './stalker-portal-repair.service';
 import { StalkerSessionService } from './stalker-session.service';
+import { stalkerSessionFingerprint } from './stalker-session-store';
 import { StalkerRequestDeps } from './stores/utils';
 
 export type { StalkerItvLoadProgress };
@@ -157,8 +158,18 @@ export class StalkerItvCacheService {
         await this.runLoad(key, playlist);
     }
 
+    /**
+     * The playlist plus its connection: editing the portal URL, MAC, device
+     * identity or credentials keeps `_id`, but the channels (and their `cmd`s)
+     * belong to the account they were crawled from, so an edited source gets
+     * its own entry and is loaded again.
+     */
     private keyFor(playlist: PlaylistMeta | undefined): string | null {
-        return playlist?._id ?? playlist?.portalUrl ?? null;
+        const id = playlist?._id ?? playlist?.portalUrl;
+        if (!playlist || !id) return null;
+        return `${id}\u0000${stalkerSessionFingerprint(
+            playlist as Parameters<typeof stalkerSessionFingerprint>[0]
+        )}`;
     }
 
     private versionSignalFor(key: string): WritableSignal<number> {

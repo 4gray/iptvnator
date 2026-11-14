@@ -736,14 +736,13 @@ export class UnifiedRecentDataService {
             const imageUrl = extractStalkerItemPoster(item) || null;
 
             return {
+                // Typed, like synced history: Stalker numbers live and VOD
+                // separately, so a channel and a movie can share an id and
+                // both be recent rows.
                 uid: buildCollectionUid(
                     'stalker',
                     meta._id,
-                    this.history.active()
-                        ? JSON.stringify(
-                              stalkerFavoriteReference(item) ?? stalkerId
-                          )
-                        : stalkerId
+                    JSON.stringify(stalkerFavoriteReference(item) ?? stalkerId)
                 ),
                 name: extractStalkerItemTitle(item),
                 contentType,

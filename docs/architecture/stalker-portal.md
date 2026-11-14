@@ -522,6 +522,12 @@ that movie without re-reading the whole progress history.
 Catalog entry also refreshes local progress so watched toggles and inline
 playback in Favorites/Recent are reflected when returning to Movies; retained
 provider pages are not refetched for that refresh.
+Every inline Stalker player saves through the shared
+`createInlinePlaybackPositionWriter` (`@iptvnator/portal/shared/util`): the
+catalog detail, `StalkerVodPlaybackController` (search, Favorites, Recent and
+dashboard collections) and the series view. Its one-shot resume latch skips
+the ~0 s updates an engine reports before reaching `startTime`, which would
+otherwise overwrite the position being resumed from.
 
 `StalkerCatalogFacadeService` derives the visible list from retained raw pages;
 provider totals, deduplication and exhaustion remain store-owned. Counts say how
@@ -1506,6 +1512,11 @@ list:
   transient failure (network, or a page that failed both attempts) is retried
   later but throttled by a per-portal cooldown (`ERROR_COOLDOWN_MS`, 30s) so a
   deterministically-failing page can't trigger an unbounded re-crawl loop.
+- Keyed by the playlist id plus `stalkerSessionFingerprint` (portal
+  endpoint, MAC and device identity, credentials). Editing the source keeps
+  its id, but the crawled channels and their `cmd`s belong to the previous
+  account, so an edited connection gets a fresh entry (and a fresh
+  `unsupported` verdict) and loads again.
 - Per-portal reactivity: the "cache ready / refreshed" trigger is a
   **per-portal** version signal (`versionFor(playlist)`), not one global
   counter, and the content resource reads it **only for ITV**. This is
@@ -1889,6 +1900,17 @@ Where this is used:
 - `libs/portal/stalker/feature/src/lib/stalker-search/stalker-search.component.ts`
 - `libs/portal/stalker/feature/src/lib/stalker-catalog-detail/stalker-catalog-detail.component.ts`
 - `libs/portal/stalker/feature/src/lib/stalker-favorites-button/stalker-favorites-button.component.ts`
+
+A local Recently Viewed touch (`mutatePlaylistHistory`,
+`libs/services/src/lib/playlist-history.ts`) moves a row to the top by its
+normalized id, but only over a row of a compatible kind (live, radio, movie or
+series, from `stalkerFavoriteReference`). Stalker numbers live channels and VOD
+separately, so a live channel and a movie can both be `42`: before, the newer
+one replaced the older row and inherited its fields (`radio`, `series_id`).
+Rows of an unknown kind, such as older untyped snapshots, still match by id.
+The unified Recent collection gives each Stalker row a typed uid
+(`stalkerFavoriteReference`, as synced history already did), so promoting
+one of two same-id rows does not drop the other from the list.
 
 Navigation rule to preserve:
 

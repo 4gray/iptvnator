@@ -520,4 +520,41 @@ describe('StalkerSeriesViewComponent dashboard resume handoff', () => {
         expect(quickStart?.kind).toBe(SERIES_QUICK_START_ACTION_KIND.Resume);
         expect(Number(quickStart?.episode.episode_num)).toBe(1);
     });
+
+    it('does not overwrite an episode resume point before the engine reaches it', async () => {
+        await stabilize();
+        await settle();
+        const episodeId = trackingIdOf('1', 1);
+        fixture.componentInstance.inlinePlayback.set({
+            streamUrl: 'https://resolved.example/episode.mpg',
+            title: 'Regular Series',
+            thumbnail: 'poster.jpg',
+            startTime: 1200,
+            contentInfo: {
+                playlistId: 'stalker-1',
+                contentXtreamId: episodeId,
+                contentType: 'episode',
+                seriesXtreamId: 30001,
+                seasonNumber: 1,
+                episodeNumber: 1,
+            },
+        } as ResolvedPortalPlayback);
+        const saved = () =>
+            fixture.componentInstance.episodePlaybackPositions().get(episodeId)
+                ?.positionSeconds;
+
+        fixture.componentInstance.handleInlineTimeUpdate({
+            currentTime: 0.4,
+            duration: 1800,
+        });
+        await settle();
+        expect(saved()).toBeUndefined();
+
+        fixture.componentInstance.handleInlineTimeUpdate({
+            currentTime: 1201,
+            duration: 1800,
+        });
+        await settle();
+        expect(saved()).toBe(1201);
+    });
 });

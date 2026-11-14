@@ -5,6 +5,7 @@ import {
     type Playlist,
     type PlaylistRecentlyViewedItem,
 } from '@iptvnator/shared/interfaces';
+import { stalkerFavoriteReference } from '@iptvnator/shared/interfaces/favorites-sync';
 import type {
     HistoryPlaylistAction,
     HistoryPlaylistBridge,
@@ -37,6 +38,22 @@ function matchesPlaylistRecentIdentity(
     );
 }
 
+/**
+ * Portal ids repeat across kinds (a live channel and a movie can both be
+ * "42"), so a touch only takes over a row of a compatible kind. A row whose
+ * kind cannot be told (an older untyped snapshot) still matches by id alone.
+ */
+function samePortalRecentKind(
+    left: PlaylistRecentlyViewedItem,
+    right: PlaylistRecentlyViewedItem
+): boolean {
+    if (isM3uRecentlyViewedItem(left) || isM3uRecentlyViewedItem(right))
+        return true;
+    const leftKind = stalkerFavoriteReference(left)?.kind;
+    const rightKind = stalkerFavoriteReference(right)?.kind;
+    return !leftKind || !rightKind || leftKind === rightKind;
+}
+
 export function sortedPlaylistHistory(
     playlist: Playlist
 ): PlaylistRecentlyViewedItem[] {
@@ -67,11 +84,12 @@ export async function mutatePlaylistHistory(
             const recentItems = Array.isArray(playlist.recentlyViewed)
                 ? (playlist.recentlyViewed as PlaylistRecentlyViewedItem[])
                 : [];
-            const existingIndex = recentItems.findIndex((recentItem) =>
-                matchesPlaylistRecentIdentity(
-                    recentItem,
-                    getPlaylistRecentIdentity(action.item)
-                )
+            const existingIndex = recentItems.findIndex(
+                (recentItem) =>
+                    matchesPlaylistRecentIdentity(
+                        recentItem,
+                        getPlaylistRecentIdentity(action.item)
+                    ) && samePortalRecentKind(recentItem, action.item)
             );
             const existingItem =
                 existingIndex >= 0 ? recentItems[existingIndex] : null;

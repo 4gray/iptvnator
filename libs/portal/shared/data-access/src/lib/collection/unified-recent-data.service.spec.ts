@@ -680,7 +680,7 @@ describe('UnifiedRecentDataService', () => {
 
         expect(items).toEqual([
             expect.objectContaining({
-                uid: 'stalker::stalker-1::40001',
+                uid: 'stalker::stalker-1::{"provider":"stalker","kind":"radio","id":"40001"}',
                 name: 'Jazz Radio',
                 contentType: 'live',
                 logo: 'jazz.png',
@@ -690,6 +690,53 @@ describe('UnifiedRecentDataService', () => {
                 categoryId: 'radio-genre-1',
             }),
         ]);
+    });
+
+    it('gives a live channel and a movie that share a Stalker id distinct uids', async () => {
+        // Playing one promotes it by uid; with one shared uid the other row
+        // left the Recent list.
+        const rows = [
+            {
+                id: '42',
+                name: 'Synthetic Channel',
+                favoriteContentType: 'itv',
+                added_at: '2026-03-26T12:00:00.000Z',
+            },
+            {
+                id: '42',
+                name: 'Synthetic Film',
+                favoriteContentType: 'vod',
+                added_at: '2026-03-26T11:00:00.000Z',
+            },
+        ];
+        store.select.mockReturnValue(
+            of([
+                {
+                    _id: 'stalker-1',
+                    title: 'Stalker Portal',
+                    portalUrl: 'https://stalker.example.com/portal.php',
+                    macAddress: '00:11:22:33:44:55',
+                    recentlyViewed: rows,
+                } as unknown as PlaylistMeta,
+            ])
+        );
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'stalker-1',
+                title: 'Stalker Portal',
+                portalUrl: 'https://stalker.example.com/portal.php',
+                macAddress: '00:11:22:33:44:55',
+            } satisfies Partial<Playlist>)
+        );
+
+        const items = await service.getRecentItems(
+            'playlist',
+            'stalker-1',
+            'stalker'
+        );
+
+        expect(items).toHaveLength(2);
+        expect(new Set(items.map((item) => item.uid)).size).toBe(2);
     });
 
     it('coalesces multiple M3U items from one playlist into a single batched removal', async () => {

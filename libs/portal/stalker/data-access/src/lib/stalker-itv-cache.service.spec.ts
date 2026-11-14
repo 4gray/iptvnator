@@ -155,6 +155,57 @@ describe('StalkerItvCacheService', () => {
         );
     });
 
+    it('loads the channels again after the source moves to another account', async () => {
+        // Editing the MAC (or portal URL) keeps the playlist id; the old
+        // channels and their cmds belong to the previous account.
+        const edited = {
+            ...PLAYLIST,
+            macAddress: '00:1A:79:00:00:02',
+        } as PlaylistMeta;
+        let account = 'first';
+        mockRequests({
+            allChannels: () =>
+                pageOf(
+                    [
+                        account === 'first'
+                            ? channel('1', 'First Account', '5')
+                            : channel('9', 'Second Account', '5'),
+                    ],
+                    1
+                ),
+        });
+        await service.ensureLoaded(PLAYLIST);
+        expect(service.getChannels(PLAYLIST)?.map((item) => item.id)).toEqual([
+            '1',
+        ]);
+
+        account = 'second';
+        expect(service.isReady(edited)).toBe(false);
+        await service.ensureLoaded(edited);
+
+        expect(service.getChannels(edited)?.map((item) => item.id)).toEqual([
+            '9',
+        ]);
+        expect(sendIpcEvent).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not keep an unsupported verdict for another account of the source', async () => {
+        mockRequests({
+            allChannels: () => UNSUPPORTED_ACTION,
+            page: () => pageOf([], 0),
+        });
+        await service.ensureLoaded(PLAYLIST);
+        expect(service.isUnsupported(PLAYLIST)).toBe(true);
+
+        expect(
+            service.isUnsupported({
+                ...PLAYLIST,
+                portalUrl:
+                    'http://other.example/stalker_portal/server/load.php',
+            } as PlaylistMeta)
+        ).toBe(false);
+    });
+
     it('falls back to crawling get_ordered_list pages when get_all_channels is unsupported', async () => {
         mockRequests({
             allChannels: () => UNSUPPORTED_ACTION,

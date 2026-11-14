@@ -4,7 +4,9 @@ import type { TranslateService } from '@ngx-translate/core';
 import {
     type Logger,
     type PortalPlaybackPositions,
+    type InlinePlaybackPositionWriter,
     type PortalPlayer,
+    createInlinePlaybackPositionWriter,
     createPendingPlaybackStart,
 } from '@iptvnator/portal/shared/util';
 import type { PlaybackFallbackRequest } from '@iptvnator/ui/playback';
@@ -43,11 +45,26 @@ export class StalkerVodPlaybackController {
     retirePendingStart(owner: string | undefined): void {
         this.pendingStart.retire(owner);
     }
-    private lastInlineSaveTime = 0;
+    /**
+     * The shared writer, with its resume latch: a resuming engine reports
+     * ~0 before it reaches `startTime`, and saving that would overwrite the
+     * position being resumed from.
+     */
+    private readonly positionWriter: InlinePlaybackPositionWriter;
     private loadSelectedVodPositionRequestId = 0;
     private playbackRequestId = 0;
 
-    constructor(private readonly config: StalkerVodPlaybackControllerConfig) {}
+    constructor(private readonly config: StalkerVodPlaybackControllerConfig) {
+        this.positionWriter = createInlinePlaybackPositionWriter({
+            playback: config.inlinePlayback,
+            save: (playlistId, position) =>
+                void config.playbackPositions.savePlaybackPosition(
+                    playlistId,
+                    position
+                ),
+            onSaved: (position) => config.selectedVodPosition.set(position),
+        });
+    }
 
     /**
      * An explicit launch as one of this controller's starts: it supersedes
@@ -80,7 +97,7 @@ export class StalkerVodPlaybackController {
                 return;
             }
 
-            this.lastInlineSaveTime = 0;
+            this.positionWriter.reset();
             if (usesEmbeddedPlayer) {
                 this.config.inlinePlayback.set(playback);
                 return;
@@ -154,34 +171,13 @@ export class StalkerVodPlaybackController {
         currentTime: number;
         duration: number;
     }): void {
-        const playback = this.config.inlinePlayback();
-        if (!playback?.contentInfo) {
-            return;
-        }
-
-        const now = Date.now();
-        if (now - this.lastInlineSaveTime <= 15000) {
-            return;
-        }
-
-        this.lastInlineSaveTime = now;
-        const position: PlaybackPositionData = {
-            ...playback.contentInfo,
-            positionSeconds: Math.floor(event.currentTime),
-            durationSeconds: Math.floor(event.duration),
-        };
-
-        void this.config.playbackPositions.savePlaybackPosition(
-            playback.contentInfo.playlistId,
-            position
-        );
-        this.config.selectedVodPosition.set(position);
+        this.positionWriter.handleTimeUpdate(event);
     }
 
     closeInlinePlayer(): void {
         this.playbackRequestId += 1;
         this.config.inlinePlayback.set(null);
-        this.lastInlineSaveTime = 0;
+        this.positionWriter.reset();
     }
 
     private isPlaybackRequestCurrent(
