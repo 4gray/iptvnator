@@ -24,7 +24,9 @@ export function HorizontalRail({
         const next = {
             overflow: end > 1,
             left: row.scrollLeft > 1,
-            right: row.scrollLeft < end - 1,
+            // The trailing padding holds the focus ring and the focused card's
+            // scale; scrolling stops there, so it does not count as content.
+            right: row.scrollLeft < end - 24,
         };
         setEdges((previous) =>
             previous.overflow === next.overflow &&

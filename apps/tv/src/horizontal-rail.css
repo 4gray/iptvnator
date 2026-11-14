@@ -2,7 +2,9 @@
     position: relative;
     min-width: 0;
     flex: none;
+    /* Arrows sit in the safe-area gutter so cards keep the content edge. */
     padding: 0 48px;
+    margin: 0 -48px;
 }
 [data-tv-horizontal] {
     scrollbar-width: none;
@@ -19,7 +21,7 @@
     align-items: center;
     justify-content: center;
     width: 40px;
-    min-height: 64px;
+    min-height: var(--tv-control-height);
     padding: 6px;
 }
 .rail-arrow-left {
@@ -27,4 +29,10 @@
 }
 .rail-arrow-right {
     right: 0;
+}
+@media (max-width: 1400px) {
+    /* Narrower windows have a gutter smaller than the arrows. */
+    .horizontal-rail {
+        margin: 0;
+    }
 }
