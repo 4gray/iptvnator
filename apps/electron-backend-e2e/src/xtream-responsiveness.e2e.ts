@@ -6,6 +6,7 @@ import {
     expectRendererFramesAdvance,
     launchElectronApp,
     resetMockServers,
+    restartElectronApp,
     test,
     waitForDbOperationEvent,
     waitForXtreamCatalog,
@@ -343,6 +344,131 @@ test.describe('Electron Xtream Responsiveness', () => {
             await expect(
                 app.mainWindow.locator(playlistRowByName(stressPortalName))
             ).toHaveCount(0);
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
+    test('keeps favorites and progress when a large delete is cancelled', async ({
+        dataDir,
+        request,
+    }) => {
+        await resetMockServers(request, ['xtream']);
+
+        let app = await launchElectronApp(dataDir, {
+            env: {
+                IPTVNATOR_DB_WORKER_BATCH_DELAY_MS: dbWorkerBatchDelayMs,
+                IPTVNATOR_DB_WORKER_ROWS_PER_TRANSACTION:
+                    dbWorkerRowsPerTransaction,
+            },
+        });
+        let page = app.mainWindow;
+
+        try {
+            await addXtreamPortal(page, {
+                name: stressPortalName,
+                password: stressXtreamPassword,
+                username: stressXtreamUsername,
+            });
+            await waitForXtreamCatalog(page);
+            const seeded = await page.evaluate(async (title) => {
+                const bridge = window.electron;
+                const playlistId =
+                    (await bridge.dbGetAppPlaylistMetas()).find(
+                        (entry) => entry.title === title
+                    )?._id ?? '';
+                const [movie] = await bridge.dbGetContent(playlistId, 'movie');
+                await bridge.dbAddFavorite(movie.id, playlistId);
+                await bridge.dbSavePlaybackPosition(playlistId, {
+                    contentXtreamId: movie.xtream_id,
+                    contentType: 'vod',
+                    positionSeconds: 321,
+                    durationSeconds: 3600,
+                });
+                return { playlistId, xtreamId: movie.xtream_id };
+            }, stressPortalName);
+            await openSources(page);
+
+            const playlistRow = page.locator(
+                playlistRowByName(stressPortalName)
+            );
+            await playlistRow.hover();
+            await playlistRow.locator('.source-row__more').click();
+            await page
+                .locator('.cdk-overlay-pane [mat-menu-item]')
+                .filter({ hasText: 'Remove playlist' })
+                .click();
+
+            // Cancel once catalog rows are already gone.
+            await waitForDbOperationEvent(page, {
+                operation: 'delete-playlist',
+                predicate: (event) =>
+                    event.status === 'progress' &&
+                    event.phase === 'deleting-content' &&
+                    (event.current ?? 0) > 0,
+                timeoutMs: 30000,
+            });
+            await playlistRow.locator('.source-row__cancel').click();
+            await waitForDbOperationEvent(page, {
+                operation: 'delete-playlist',
+                status: 'cancelled',
+                timeoutMs: 30000,
+            });
+            await expect(playlistRow.locator('.source-row__busy')).toHaveCount(
+                0,
+                { timeout: 20000 }
+            );
+            await expect(playlistRow).toBeVisible();
+
+            const kept = await page.evaluate(
+                async ({ playlistId, xtreamId }) => {
+                    const bridge = window.electron;
+                    return {
+                        favorites: (
+                            await bridge.dbGetFavoritesForBackup(playlistId)
+                        ).map((row) => row.xtream_id),
+                        position:
+                            (
+                                await bridge.dbGetPlaybackPosition(
+                                    playlistId,
+                                    xtreamId,
+                                    'vod'
+                                )
+                            )?.positionSeconds ?? null,
+                        status: await bridge.dbGetAppState(
+                            `xtream-import-status:${playlistId}:movie`
+                        ),
+                    };
+                },
+                seeded
+            );
+            expect(kept).toEqual({
+                favorites: [seeded.xtreamId],
+                position: 321,
+                // The interrupted-import marker: the next open clears and
+                // re-imports the catalog.
+                status: 'importing',
+            });
+
+            // The next launch finds the interrupted-import marker: opening
+            // the source clears and re-imports its catalog, and the favorite
+            // is linked to the new catalog row again.
+            app = await restartElectronApp(app, dataDir);
+            page = app.mainWindow;
+            await openSources(page);
+            await page.locator(playlistRowByName(stressPortalName)).click();
+            await waitForXtreamCatalog(page);
+            await expect
+                .poll(() =>
+                    page.evaluate(
+                        async (playlistId) =>
+                            (
+                                await window.electron.dbGetFavorites(playlistId)
+                            ).map((row) => row.xtream_id),
+                        seeded.playlistId
+                    )
+                )
+                .toEqual([seeded.xtreamId]);
         } finally {
             await closeElectronApp(app);
         }

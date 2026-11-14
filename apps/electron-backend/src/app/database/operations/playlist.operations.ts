@@ -15,7 +15,6 @@ import type { Channel, M3uFavoriteChannel } from '@iptvnator/shared/interfaces';
 import {
     APP_PLAYLIST_GET_PERFORMANCE_PHASE,
     APP_PLAYLIST_UPSERT_PERFORMANCE_PHASE,
-    XTREAM_DATABASE_PERFORMANCE_PHASE,
     type AppPlaylistGetPerformancePhase,
     type AppPlaylistUpsertPerformancePhase,
     type PerformancePhaseMetadata,
@@ -28,18 +27,10 @@ import type {
 import { setConditionalCatalogState } from './xtream-catalog-state';
 import { deleteExplicitCategoryVisibility } from './category-visibility';
 import {
-    type CategoryRowCount,
-    countContentRowsByCategory,
-    deleteCategoriesWhere,
-    deleteContentByCategoryGroups,
-    sumCategoryRowCounts,
-} from './catalog-deletion';
-import {
     checkpointOperation,
     type OperationControl,
     reportOperationProgress,
 } from './operation-control';
-import type { DatabaseOperationPerformancePhaseCapture } from './performance-phase-capture';
 import {
     playlistConflictUpdate,
     readPayloadServerTimezone,
@@ -53,6 +44,8 @@ import {
     PLAYLIST_TYPES,
     type AppPlaylistType,
 } from '@iptvnator/shared/database/app-playlist';
+
+export { deletePlaylist } from './playlist-delete.operations';
 
 // Kept for existing importers (specs, playlist-migration.operations.ts).
 export {
@@ -449,198 +442,6 @@ export async function updatePlaylist(
                   : { payload }),
         })
         .where(eq(schema.playlists.id, playlistId));
-
-    return { success: true };
-}
-
-interface PlaylistDeletionCollection {
-    readonly categoryIds: number[];
-    /** Content rows per category, the unit the delete is batched by. */
-    readonly contentRowCounts: CategoryRowCount[];
-    readonly favoriteCount: number;
-    readonly playbackPositionCount: number;
-    readonly recentlyViewedCount: number;
-}
-
-async function countPlaylistRows(
-    db: AppDatabase,
-    table:
-        | typeof schema.favorites
-        | typeof schema.playbackPositions
-        | typeof schema.recentlyViewed,
-    playlistId: string
-): Promise<number> {
-    const rows = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(table)
-        .where(eq(table.playlistId, playlistId));
-    return rows[0]?.count ?? 0;
-}
-
-async function collectPlaylistDeletionRows(
-    db: AppDatabase,
-    playlistId: string
-): Promise<PlaylistDeletionCollection> {
-    const [favoriteCount, recentlyViewedCount, playbackPositionCount] =
-        await Promise.all([
-            countPlaylistRows(db, schema.favorites, playlistId),
-            countPlaylistRows(db, schema.recentlyViewed, playlistId),
-            countPlaylistRows(db, schema.playbackPositions, playlistId),
-        ]);
-
-    const categoryRows = await db
-        .select({ id: schema.categories.id })
-        .from(schema.categories)
-        .where(eq(schema.categories.playlistId, playlistId));
-    const categoryIds = categoryRows.map((category) => category.id);
-    const contentRowCounts =
-        categoryIds.length > 0
-            ? await countContentRowsByCategory(
-                  db,
-                  eq(schema.categories.playlistId, playlistId)
-              )
-            : [];
-
-    return {
-        categoryIds,
-        contentRowCounts,
-        favoriteCount,
-        playbackPositionCount,
-        recentlyViewedCount,
-    };
-}
-
-function countPlaylistDeletionRows(
-    collection: PlaylistDeletionCollection
-): number {
-    return (
-        collection.favoriteCount +
-        collection.recentlyViewedCount +
-        collection.playbackPositionCount +
-        sumCategoryRowCounts(collection.contentRowCounts) +
-        collection.categoryIds.length
-    );
-}
-
-/**
- * Removes the playlist's rows table by table so progress and cancellation
- * keep their stage granularity, then the playlist row itself. User-data
- * tables go in one statement each (they are playlist-indexed and small next
- * to the catalog); content goes in row-budgeted category groups; categories
- * go in one statement. A stage with nothing counted is skipped — the final
- * playlist delete cascades anything that appeared in between.
- */
-async function deleteCollectedPlaylistRows(
-    db: AppDatabase,
-    playlistId: string,
-    collection: PlaylistDeletionCollection,
-    control?: OperationControl
-): Promise<number> {
-    const userDataStages = [
-        {
-            phase: 'deleting-favorites',
-            expected: collection.favoriteCount,
-            table: schema.favorites,
-        },
-        {
-            phase: 'deleting-recently-viewed',
-            expected: collection.recentlyViewedCount,
-            table: schema.recentlyViewed,
-        },
-        {
-            phase: 'deleting-playback-positions',
-            expected: collection.playbackPositionCount,
-            table: schema.playbackPositions,
-        },
-    ] as const;
-
-    for (const stage of userDataStages) {
-        if (stage.expected === 0) {
-            continue;
-        }
-        await checkpointOperation(control);
-        const changes = await db.transaction(
-            (tx) =>
-                tx
-                    .delete(stage.table)
-                    .where(eq(stage.table.playlistId, playlistId))
-                    .run().changes
-        );
-        await reportOperationProgress(control, {
-            phase: stage.phase,
-            current: changes,
-            total: stage.expected,
-            increment: changes,
-        });
-    }
-
-    await deleteContentByCategoryGroups(db, collection.contentRowCounts, {
-        control,
-        phase: 'deleting-content',
-    });
-
-    const totalCategories = collection.categoryIds.length;
-    if (totalCategories > 0) {
-        await checkpointOperation(control);
-        const changes = await deleteCategoriesWhere(
-            db,
-            eq(schema.categories.playlistId, playlistId)
-        );
-        await reportOperationProgress(control, {
-            phase: 'deleting-categories',
-            current: changes,
-            total: totalCategories,
-            increment: changes,
-        });
-    }
-
-    await checkpointOperation(control);
-    await db
-        .delete(schema.playlists)
-        .where(eq(schema.playlists.id, playlistId));
-    await reportOperationProgress(control, {
-        phase: 'deleting-playlist',
-        current: 1,
-        total: 1,
-        increment: 1,
-    });
-
-    deleteHistoryRecovery(db, playlistId);
-    deleteExplicitCategoryVisibility(db, playlistId);
-    return countPlaylistDeletionRows(collection) + 1;
-}
-
-export async function deletePlaylist(
-    db: AppDatabase,
-    playlistId: string,
-    control?: OperationControl,
-    capturePhase?: DatabaseOperationPerformancePhaseCapture
-): Promise<{ success: boolean }> {
-    const collection = capturePhase
-        ? await capturePhase.captureAsync(
-              XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_PLAYLIST_DELETE_COLLECT_IDS,
-              () => collectPlaylistDeletionRows(db, playlistId),
-              (result) => ({
-                  itemCount: countPlaylistDeletionRows(result),
-              })
-          )
-        : await collectPlaylistDeletionRows(db, playlistId);
-
-    if (capturePhase) {
-        await capturePhase.captureAsync(
-            XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_PLAYLIST_DELETE_WRITE_TRANSACTIONS,
-            () =>
-                deleteCollectedPlaylistRows(
-                    db,
-                    playlistId,
-                    collection,
-                    control
-                ),
-            (itemCount) => ({ itemCount })
-        );
-    } else {
-        await deleteCollectedPlaylistRows(db, playlistId, collection, control);
-    }
 
     return { success: true };
 }

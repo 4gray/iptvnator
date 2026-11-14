@@ -859,7 +859,7 @@ async function executeRequest(
                 },
                 async (controller) => {
                     controller.emitStarted({
-                        phase: DB_OPERATION_PHASES.DELETING_FAVORITES,
+                        phase: DB_OPERATION_PHASES.DELETING_CONTENT,
                         current: 0,
                     });
 
