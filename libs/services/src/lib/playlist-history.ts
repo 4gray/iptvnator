@@ -40,18 +40,22 @@ function matchesPlaylistRecentIdentity(
 
 /**
  * Portal ids repeat across kinds (a live channel and a movie can both be
- * "42"), so a touch only takes over a row of a compatible kind. A row whose
- * kind cannot be told (an older untyped snapshot) still matches by id alone.
+ * "42"), so a touch requires a compatible kind and series mode. Older
+ * untyped snapshots still match by id alone.
  */
-function samePortalRecentKind(
+function compatiblePortalRecentType(
     left: PlaylistRecentlyViewedItem,
     right: PlaylistRecentlyViewedItem
 ): boolean {
     if (isM3uRecentlyViewedItem(left) || isM3uRecentlyViewedItem(right))
         return true;
-    const leftKind = stalkerFavoriteReference(left)?.kind;
-    const rightKind = stalkerFavoriteReference(right)?.kind;
-    return !leftKind || !rightKind || leftKind === rightKind;
+    const leftRef = stalkerFavoriteReference(left);
+    const rightRef = stalkerFavoriteReference(right);
+    return (
+        !leftRef ||
+        !rightRef ||
+        (leftRef.kind === rightRef.kind && leftRef.mode === rightRef.mode)
+    );
 }
 
 export function sortedPlaylistHistory(
@@ -89,7 +93,7 @@ export async function mutatePlaylistHistory(
                     matchesPlaylistRecentIdentity(
                         recentItem,
                         getPlaylistRecentIdentity(action.item)
-                    ) && samePortalRecentKind(recentItem, action.item)
+                    ) && compatiblePortalRecentType(recentItem, action.item)
             );
             const existingItem =
                 existingIndex >= 0 ? recentItems[existingIndex] : null;

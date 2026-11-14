@@ -206,6 +206,54 @@ describe('StalkerItvCacheService', () => {
         ).toBe(false);
     });
 
+    it('uses authenticated channels after the same endpoint changes portal mode', async () => {
+        const authenticated = jest.mocked(
+            TestBed.inject(StalkerSessionService).makeAuthenticatedRequest
+        );
+        authenticated.mockResolvedValue(
+            pageOf([channel('9', 'Authenticated Channel', '5')], 1)
+        );
+        mockRequests({
+            allChannels: () => pageOf([channel('1', 'Public Channel', '5')], 1),
+        });
+        await service.ensureLoaded(PLAYLIST);
+        expect(service.getChannels(PLAYLIST)?.map((item) => item.id)).toEqual([
+            '1',
+        ]);
+
+        const edited = { ...PLAYLIST, isFullStalkerPortal: true };
+        await service.ensureLoaded(edited);
+
+        expect(service.getChannels(edited)?.map((item) => item.id)).toEqual([
+            '9',
+        ]);
+    });
+
+    it('does not cache a list without a playlist or reuse it across unnamed endpoints', async () => {
+        const first = {
+            ...PLAYLIST,
+            _id: undefined,
+        } as unknown as PlaylistMeta;
+        const second = {
+            ...first,
+            portalUrl: 'http://other.example/portal.php',
+        };
+        const unconfigured = { ...first, portalUrl: undefined };
+        mockRequests({
+            allChannels: () => pageOf([channel('1', 'Public Channel', '5')], 1),
+        });
+
+        await service.ensureLoaded(undefined);
+        await service.ensureLoaded(unconfigured);
+        expect(service.getChannels(undefined)).toBeNull();
+        expect(service.getChannels(unconfigured)).toBeNull();
+        expect(sendIpcEvent).not.toHaveBeenCalled();
+
+        await service.ensureLoaded(first);
+        expect(service.isReady(first)).toBe(true);
+        expect(service.isReady(second)).toBe(false);
+    });
+
     it('falls back to crawling get_ordered_list pages when get_all_channels is unsupported', async () => {
         mockRequests({
             allChannels: () => UNSUPPORTED_ACTION,

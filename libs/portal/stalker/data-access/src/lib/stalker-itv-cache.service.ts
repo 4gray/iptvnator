@@ -1,7 +1,10 @@
 import { Injectable, WritableSignal, inject, signal } from '@angular/core';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import { DataService, resetHostConnectivityGuard } from '@iptvnator/services';
-import { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import {
+    isFullStalkerPortalPlaylist,
+    type PlaylistMeta,
+} from '@iptvnator/shared/interfaces';
 import { StalkerItvChannel } from './models';
 import {
     StalkerItvLoadProgress,
@@ -160,16 +163,18 @@ export class StalkerItvCacheService {
 
     /**
      * The playlist plus its connection: editing the portal URL, MAC, device
-     * identity or credentials keeps `_id`, but the channels (and their `cmd`s)
-     * belong to the account they were crawled from, so an edited source gets
-     * its own entry and is loaded again.
+     * identity, credentials or observed mode keeps `_id`. The channel list
+     * belongs to the configuration it was loaded with.
      */
     private keyFor(playlist: PlaylistMeta | undefined): string | null {
-        const id = playlist?._id ?? playlist?.portalUrl;
-        if (!playlist || !id) return null;
-        return `${id}\u0000${stalkerSessionFingerprint(
-            playlist as Parameters<typeof stalkerSessionFingerprint>[0]
-        )}`;
+        if (!playlist) return null;
+        const id = playlist._id ?? playlist.portalUrl;
+        if (!id) return null;
+        return JSON.stringify([
+            id,
+            stalkerSessionFingerprint(playlist),
+            isFullStalkerPortalPlaylist(playlist),
+        ]);
     }
 
     private versionSignalFor(key: string): WritableSignal<number> {

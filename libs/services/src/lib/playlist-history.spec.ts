@@ -67,6 +67,31 @@ describe('mutatePlaylistHistory touch (Stalker)', () => {
         expect(await touch([live], series)).toHaveLength(2);
     });
 
+    it('keeps regular and VOD series with the same parent id separate', async () => {
+        const regular = {
+            id: '42:101',
+            series_id: '42',
+            title: 'Synthetic Regular Series',
+            favoriteContentType: 'series',
+        } as const;
+        const lazy = {
+            id: '42:201',
+            series_id: '42',
+            title: 'Synthetic VOD Series',
+            favoriteContentType: 'vod',
+            is_series: '1',
+        } as const;
+        const nextEpisode = { ...regular, id: '42:102' };
+
+        const rows = await touch(await touch([regular], lazy), nextEpisode);
+
+        expect(rows).toEqual([
+            expect.objectContaining(nextEpisode),
+            expect.objectContaining(lazy),
+        ]);
+        expect(rows[0]).not.toHaveProperty('is_series');
+    });
+
     it('moves the same item to the top and keeps its earlier fields', async () => {
         const first = {
             id: '42',
@@ -100,5 +125,22 @@ describe('mutatePlaylistHistory touch (Stalker)', () => {
         } as unknown as PlaylistRecentlyViewedItem;
 
         expect(await touch([legacy], typed)).toHaveLength(1);
+        expect(await touch([typed], legacy)).toHaveLength(1);
+    });
+
+    it('updates the same M3U stream by URL', async () => {
+        const channel = {
+            source: 'm3u',
+            id: 'synthetic-channel',
+            url: 'https://stream.example/channel.m3u8',
+            title: 'Synthetic Channel',
+            category_id: 'live',
+            added_at: '2026-03-26T11:00:00.000Z',
+        } as const;
+        const updated = { ...channel, title: 'Renamed Channel' };
+
+        expect(await touch([channel], updated)).toEqual([
+            expect.objectContaining({ url: channel.url, title: updated.title }),
+        ]);
     });
 });
