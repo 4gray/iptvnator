@@ -40,7 +40,8 @@ export function readPlaybackPositions(storage: UserDataStorage): Positions {
 export function androidPlaybackResetAt(
     storage: UserDataStorage,
     playlistId: string,
-    item: PositionId & Partial<PlaybackPositionResetScope>
+    item: PositionId & Partial<PlaybackPositionResetScope>,
+    seasonGroup = item.seasonNumber
 ): number {
     const keys = [playlistId, nativePlaybackResetId(playlistId, item)];
     if (item.contentType === 'episode' && item.seriesXtreamId !== undefined) {
@@ -49,11 +50,11 @@ export function androidPlaybackResetAt(
                 seriesXtreamId: item.seriesXtreamId,
             })
         );
-        if (item.seasonNumber !== undefined) {
+        if (seasonGroup !== undefined) {
             keys.push(
                 nativePlaybackScopeId(playlistId, {
                     seriesXtreamId: item.seriesXtreamId,
-                    seasonNumber: item.seasonNumber,
+                    seasonNumber: seasonGroup,
                 })
             );
         }

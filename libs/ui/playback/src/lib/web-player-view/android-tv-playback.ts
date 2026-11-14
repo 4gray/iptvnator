@@ -57,6 +57,11 @@ export class AndroidTvPlayback {
     readonly labels = signal(
         this.window?.iptvnatorAndroidPlaybackLabels ?? null
     );
+    readonly attempt = computed(() => {
+        if (!this.labels()) return null;
+        this.currentToken();
+        return crypto.randomUUID();
+    });
     readonly suspended = computed(() => this.ownedSession() !== null);
     readonly pending = computed(() => this.ownedSession()?.pending ?? false);
     readonly webVolume: WritableSignal<number>;
@@ -197,6 +202,7 @@ export class AndroidTvPlayback {
             : (this.ownedSession()?.volume ?? readStoredVolume());
         const id = crypto.randomUUID();
         const profile = sourceProfileName();
+        const attempt = this.attempt();
         this.session.set({
             id,
             owner: this.currentOwner(),
@@ -210,6 +216,7 @@ export class AndroidTvPlayback {
                     new CustomEvent('iptvnator:android-playback-failed', {
                         bubbles: true,
                         detail: {
+                            attempt,
                             url: playback.streamUrl,
                             title: playback.title,
                         },
@@ -254,6 +261,8 @@ export class AndroidTvPlayback {
                                 contentType: contentInfo.contentType,
                                 seriesXtreamId: contentInfo.seriesXtreamId,
                                 seasonNumber: contentInfo.seasonNumber,
+                                seasonGroup:
+                                    contentInfo.nativeCheckpointSeasonGroup,
                                 episodeNumber: contentInfo.episodeNumber,
                                 activitySessionId:
                                     contentInfo.activitySessionId,

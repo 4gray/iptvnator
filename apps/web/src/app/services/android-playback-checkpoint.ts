@@ -59,7 +59,7 @@ export function installAndroidPlaybackCheckpoint(
                 if (position && key) {
                     // A failing newer checkpoint must still take priority over an older one.
                     if ((newest.get(key) ?? 0) > data.savedAt) return;
-                    const { playlistId, record } = position;
+                    const { playlistId, record, seasonGroup } = position;
                     const previous = await positions.getPlaybackPosition(
                         playlistId,
                         record.contentXtreamId,
@@ -71,8 +71,12 @@ export function installAndroidPlaybackCheckpoint(
                         previous?.updatedAt ?? ''
                     );
                     if (
-                        androidPlaybackResetAt(storage, playlistId, record) <
-                            data.savedAt &&
+                        androidPlaybackResetAt(
+                            storage,
+                            playlistId,
+                            record,
+                            seasonGroup
+                        ) < data.savedAt &&
                         (!Number.isFinite(previousSavedAt) ||
                             previousSavedAt < data.savedAt)
                     ) {
@@ -100,12 +104,11 @@ export function installAndroidPlaybackCheckpoint(
     });
 }
 
-function readCheckpoint(
-    data: Checkpoint
-): {
+function readCheckpoint(data: Checkpoint): {
     profile: string;
     playlistId: string;
     record: PlaybackPositionData;
+    seasonGroup?: number;
 } | null {
     if (
         typeof data.content !== 'string' ||
@@ -117,12 +120,14 @@ function readCheckpoint(
         data.durationMs < 0 ||
         (data.durationMs === 0 && data.positionMs === 0) ||
         (data.durationMs > 0 && data.positionMs > data.durationMs) ||
-        data.savedAt <= 0
+        data.savedAt <= 0 ||
+        data.savedAt > 8_640_000_000_000_000
     )
         return null;
     try {
         const info = JSON.parse(data.content) as
-            (PlayerContentInfo & { profile?: string }) | null;
+            | (PlayerContentInfo & { profile?: string; seasonGroup?: number })
+            | null;
         if (
             !info ||
             typeof info.profile !== 'string' ||
@@ -145,6 +150,7 @@ function readCheckpoint(
         return {
             profile: info.profile,
             playlistId: info.playlistId,
+            seasonGroup: optionalInteger(info.seasonGroup),
             record: {
                 playlistId: info.playlistId,
                 contentXtreamId: info.contentXtreamId,
@@ -157,6 +163,7 @@ function readCheckpoint(
                         ? info.activitySessionId
                         : undefined,
                 activityIdentity,
+                updatedAt: new Date(data.savedAt).toISOString(),
                 positionSeconds: Math.floor(data.positionMs / 1000),
                 durationSeconds:
                     Math.floor(data.durationMs / 1000) || undefined,

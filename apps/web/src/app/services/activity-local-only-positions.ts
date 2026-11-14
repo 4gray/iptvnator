@@ -185,7 +185,7 @@ export class ActivityLocalOnlyPositions {
             watched: position.watched,
             activityIdentity: position.activityIdentity,
             playlistId: sourceId,
-            updatedAt: new Date().toISOString(),
+            updatedAt: position.updatedAt ?? new Date().toISOString(),
         };
         this.write(sourceId, position, {
             version: 2,

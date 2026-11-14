@@ -116,7 +116,12 @@ describe('restoring Android playback checkpoints', () => {
         expect(savePlaybackPositionOrThrow).toHaveBeenCalledTimes(1);
         expect(savePlaybackPositionOrThrow).toHaveBeenCalledWith(
             content.playlistId,
-            { ...content, positionSeconds: 32, durationSeconds: 90 }
+            {
+                ...content,
+                positionSeconds: 32,
+                durationSeconds: 90,
+                updatedAt: new Date(savedAt).toISOString(),
+            }
         );
         expect(postMessage).toHaveBeenCalledWith(
             JSON.stringify(['acknowledgeNativePlaybackCheckpoint', id])
@@ -224,6 +229,27 @@ describe('restoring Android playback checkpoints', () => {
             savedAt: Date.now() + 1000,
         });
         expect(savePlaybackPositionOrThrow).toHaveBeenCalledTimes(2);
+    });
+
+    it('uses the provider season group rather than the episode label', async () => {
+        localStorage.setItem(
+            'xtream-playback-positions',
+            JSON.stringify({
+                __iptvnator_native_playback_resets__: {
+                    [JSON.stringify([content.playlistId, 'season', 3, 5])]:
+                        savedAt + 1,
+                },
+            })
+        );
+        await deliver({
+            content: JSON.stringify({
+                ...content,
+                profile: 'iptvnator',
+                seasonGroup: 5,
+            }),
+        });
+        expect(savePlaybackPositionOrThrow).not.toHaveBeenCalled();
+        expect(postMessage).toHaveBeenCalledTimes(1);
     });
 
     it('keeps a nonzero position when the duration is unknown', async () => {

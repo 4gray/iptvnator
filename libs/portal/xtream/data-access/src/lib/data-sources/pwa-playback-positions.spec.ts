@@ -17,6 +17,31 @@ describe('Android playback position resets', () => {
 
     beforeEach(() => localStorage.clear());
 
+    it('keeps later episodes ahead of a checkpoint saved on retry', async () => {
+        const older = '2025-01-01T00:00:00.000Z';
+        await positions.savePlaybackPosition(
+            'synthetic-playlist',
+            position({
+                contentType: 'episode',
+                contentXtreamId: 102,
+            })
+        );
+        await positions.savePlaybackPosition(
+            'synthetic-playlist',
+            position({
+                contentType: 'episode',
+                contentXtreamId: 101,
+                updatedAt: older,
+            })
+        );
+        const recent =
+            await positions.getRecentPlaybackPositions('synthetic-playlist');
+        expect(recent.map((episode) => episode.contentXtreamId)).toEqual([
+            102, 101,
+        ]);
+        expect(recent[1].updatedAt).toBe(older);
+    });
+
     it.each([undefined, 2])(
         'clears a series or season at quota with a single marker (%s)',
         async (seasonNumber) => {

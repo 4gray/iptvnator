@@ -146,7 +146,7 @@
             <button
                 mat-stroked-button
                 type="button"
-                data-tv-native-playback
+                [attr.data-tv-native-playback]="androidPlayback.attempt()"
                 [attr.aria-disabled]="androidPlayback.pending() || null"
                 (click)="
                     androidPlayback.open(

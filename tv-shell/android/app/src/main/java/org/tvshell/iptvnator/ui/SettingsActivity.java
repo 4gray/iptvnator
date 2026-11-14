@@ -146,6 +146,7 @@ public class SettingsActivity extends Activity {
                         Toast.makeText(SettingsActivity.this, R.string.webview_unavailable, Toast.LENGTH_LONG).show();
                         return;
                     }
+                    new NativePlaybackCheckpoints(SettingsActivity.this).clear();
                     dataCleared = true;
                     Toast.makeText(SettingsActivity.this, R.string.reset_done, Toast.LENGTH_SHORT).show();
                 }

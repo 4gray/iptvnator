@@ -518,6 +518,28 @@ console.log('9. under the Android bridge: the screen follows playback, error cod
         issue('unsupported-codec');
         await wait(150);
         out.engineInsertedError = recent().filter((call) => call.startsWith('onPlaybackError '));
+        const stage = document.createElement('app-web-player-view');
+        const tryNative = document.createElement('button');
+        tryNative.setAttribute('data-tv-native-playback', 'synthetic-first');
+        stage.appendChild(tryNative);
+        stage.appendChild(diagnostic);
+        document.body.appendChild(stage);
+        engineVideo.dispatchEvent(new Event('loadstart'));
+        const offerCount = () => window.__calls.filter((call) => call.startsWith('onPlaybackError ')).length;
+        const fallbackStart = offerCount();
+        issue('unsupported-codec');
+        const failed = (attempt) => stage.dispatchEvent(new CustomEvent('iptvnator:android-playback-failed', {
+            bubbles: true, detail: { attempt, url: provider + '/movie/synthetic stream.mp4' },
+        }));
+        tryNative.setAttribute('data-tv-native-playback', 'synthetic-next');
+        failed('synthetic-first');
+        out.staleAndroidFailure = offerCount() - fallbackStart;
+        engineVideo.dispatchEvent(new Event('loadstart'));
+        issue('unsupported-codec');
+        out.waitedForNative = offerCount() - fallbackStart;
+        failed('synthetic-next');
+        out.bothEnginesFailed = offerCount() - fallbackStart;
+        stage.remove();
         diagnostic.remove();
         engineVideo.removeAttribute('src');
         engineVideo.load();
@@ -580,6 +602,8 @@ console.log('9. under the Android bridge: the screen follows playback, error cod
         'an engine codec failure offers the external player without a native media error');
     check(r.engineDuplicateError.length === 1, 'the same engine failure offers the external player once');
     check(r.engineInsertedError.length === 2, 'a new load attempt can offer one prompt even when its codec diagnostic is unchanged');
+    check(r.staleAndroidFailure === 0 && r.waitedForNative === 0 && r.bothEnginesFailed === 1,
+        'external fallback waits for both engines in the current attempt regardless of URL spelling');
     check(!r.removedPlayerError.some((call) => call.startsWith('onPlaybackError ')), 'a removed player cannot offer recovery for its replacement');
     check(!r.retriedPlayerError.some((call) => call.startsWith('onPlaybackError ')), 'a fresh attempt of the same source discards the previous delayed error');
     check(!r.changedPlayerError.some((call) => call.startsWith('onPlaybackError ')), 'changing source before loadstart also discards the old error');

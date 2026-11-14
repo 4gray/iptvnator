@@ -116,7 +116,9 @@ The diagnostic panel publishes a bubbling `iptvnator:playback-issue` DOM event
 after rendering each issue, with only its bounded `code` in the detail. It contains
 no stream URL or provider credentials; the TV
 shell uses format/decode codes for its external-player offer without treating
-network failures as unsupported media.
+network failures as unsupported media. With the Media3 pilot enabled, the
+shell waits for both engines to fail in the same playback attempt before
+offering an external player.
 Delayed native media errors retain the media element, source and load-attempt
 identity. Removal, replacement, a changed source or another `loadstart` discards
 that error before it can offer recovery for a newer playback attempt.

@@ -149,13 +149,15 @@ cannot seek keeps its previous resume point on Back or Home and still reports
 watch time. Natural VOD completion reports the terminal position, using the
 final playhead as the duration when the stream supplies none. It closes the
 native activity and reaches the same series autoplay handler as the web player.
-Android retains each final position until the WebView acknowledges it, even
+Android retains each final position in app-private storage until the WebView acknowledges it, even
 when the original screen survives and the first save fails. The checkpoint
 listener loads only with the Android bridge. It saves through the portal resume
 store for the original WebView origin and source profile. A page in another
 profile leaves the checkpoint pending. A reset or backup restore records its
 time in the same write as the position change. Older checkpoints cannot undo
-that change. Bulk resets use one marker for the season or series.
+that change. Bulk resets use one marker for the season or series. Retries
+retain the original playback time so older episodes keep their place in the
+series resume order.
 While a VOD plays, Android keeps an in-memory checkpoint so a launcher relaunch
 can recover progress even if it clears the player before the pause callback.
 Autoplay and watch-history confirmation require the original screen.

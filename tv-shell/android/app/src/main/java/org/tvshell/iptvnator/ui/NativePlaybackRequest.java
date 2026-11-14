@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 
@@ -145,7 +146,13 @@ final class NativePlaybackRequest {
         // Called only for a validated request. Keep the stream URL and headers out of saved state here.
         Object checkpoint = ((Map<?, ?>) payload).get("checkpoint");
         if (!(checkpoint instanceof Map<?, ?>)) return null;
-        String content = Json.write(checkpoint);
+        Map<?, ?> raw = (Map<?, ?>) checkpoint;
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        for (String key : Arrays.asList("profile", "playlistId", "contentXtreamId", "contentType",
+            "seriesXtreamId", "seasonNumber", "seasonGroup", "episodeNumber", "activitySessionId", "activityIdentity")) {
+            if (raw.containsKey(key)) metadata.put(key, raw.get(key));
+        }
+        String content = Json.write(metadata);
         if (content.length() > 8192) return null;
         Bundle saved = new Bundle();
         saved.putString("origin", origin);

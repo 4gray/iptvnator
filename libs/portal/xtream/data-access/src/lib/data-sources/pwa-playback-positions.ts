@@ -63,7 +63,7 @@ export class PwaPlaybackPositions {
         // Add new entry
         allPositions[playlistId].push({
             ...data,
-            updatedAt: new Date().toISOString(),
+            updatedAt: data.updatedAt ?? new Date().toISOString(),
         });
 
         this.savePlaybackPositionsToStorage(allPositions);

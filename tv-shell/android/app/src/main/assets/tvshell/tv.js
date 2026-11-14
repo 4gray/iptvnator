@@ -1357,21 +1357,25 @@
         }
         var webFailures = new WeakMap(), nativeFailures = new WeakMap();
         function offerAfterWebError(url, title, code, root) {
-            var stage = root && root.closest('app-web-player-view');
+            var stage = root instanceof Element ? root.closest('app-web-player-view') : null;
             var button = stage && stage.querySelector('[data-tv-native-playback]');
-            if (button && nativeFailures.get(button) !== url) {
-                webFailures.set(button, url);
+            var attempt = button && button.getAttribute('data-tv-native-playback');
+            if (attempt && nativeFailures.get(stage) !== attempt) {
+                webFailures.set(stage, attempt);
                 return;
             }
             native('onPlaybackError', url, title, String(code));
         }
         document.addEventListener('iptvnator:android-playback-failed', function (event) {
-            var button = event.target.querySelector('[data-tv-native-playback]');
+            var stage = event.target;
             var detail = event.detail;
-            if (!button || !detail || typeof detail.url !== 'string') return;
-            nativeFailures.set(button, detail.url);
-            if (webFailures.get(button) === detail.url) {
-                webFailures.delete(button);
+            var button = stage instanceof Element && stage.querySelector('[data-tv-native-playback]');
+            if (!button || !detail || !detail.attempt ||
+                button.getAttribute('data-tv-native-playback') !== detail.attempt ||
+                typeof detail.url !== 'string') return;
+            nativeFailures.set(stage, detail.attempt);
+            if (webFailures.get(stage) === detail.attempt) {
+                webFailures.delete(stage);
                 native('onPlaybackError', detail.url, detail.title || document.title || '', '4');
             }
         });

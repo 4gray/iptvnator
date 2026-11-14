@@ -11,8 +11,9 @@ export function projectActivity(
     alias?: Partial<PlaybackPositionData>
 ): PlaybackPositionData {
     const content = address.content;
+    const { playedAt, ...metadata } = state.positionMetadata ?? {};
     return {
-        ...state.positionMetadata,
+        ...metadata,
         ...(alias
             ? {
                   contentXtreamId: alias.contentXtreamId,
@@ -40,7 +41,7 @@ export function projectActivity(
             ? { durationSeconds: state.resume.durationSeconds }
             : {}),
         watched: state.watched,
-        updatedAt: state.updatedAt,
+        updatedAt: playedAt ?? state.updatedAt,
         activityTitle: state.positionMetadata?.title,
         playlistId: address.sourceId,
         activityIdentity: content,

@@ -69,7 +69,7 @@ export function beginActivity(
                 position: {
                     ...position,
                     watched: result.state.watched,
-                    updatedAt: new Date().toISOString(),
+                    updatedAt: position.updatedAt ?? new Date().toISOString(),
                 },
                 pending: [
                     ...(current?.pending ?? []),
@@ -258,7 +258,12 @@ export async function saveActivity(
                               )
                           ) + 1,
                       resume: activityResume(position),
-                      positionMetadata: metadata(position),
+                      positionMetadata: {
+                          ...metadata(position),
+                          ...(position.updatedAt === undefined
+                              ? {}
+                              : { playedAt: position.updatedAt }),
+                      },
                   }
                 : {
                       kind: 'mark-watched',
