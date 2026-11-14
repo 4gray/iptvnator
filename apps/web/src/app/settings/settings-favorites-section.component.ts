@@ -65,6 +65,11 @@ export class SettingsFavoritesSectionComponent {
         await this.action(() => this.runtime()!.setEnabled(change.checked));
         change.source.checked = this.runtime()?.enabled() ?? false;
         this.preview.set(null);
+        if (!change.source.checked) return;
+        // Enabling must not silently empty the list: offer the local
+        // favorites for import before any upload can happen.
+        await this.previewImport();
+        if (!this.count()) this.preview.set(null);
     }
     async previewImport() {
         await this.action(async () =>

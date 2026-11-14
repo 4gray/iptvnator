@@ -87,7 +87,7 @@ export function useSeriesDetails(tv: TvModel) {
             );
             let parent = seriesForEpisode(episode, [
                 ...tv.home,
-                ...tv.data.favorites,
+                ...tv.favoriteItems(),
                 ...(tv.selected ? [tv.selected] : []),
             ]);
             if (!parent && tv.guideClient && source)

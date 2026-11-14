@@ -79,9 +79,7 @@ export function Live({
                                 aria-label="Favorite channel"
                                 onClick={() => tv.favorite(selected)}
                             >
-                                {tv.data.favorites.some(
-                                    (m) => m.id === selected.id
-                                )
+                                {tv.isFavorite(selected)
                                     ? '♥ Saved'
                                     : '♡ Save channel'}
                             </button>

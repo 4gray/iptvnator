@@ -2,6 +2,7 @@ import { createSourceSwitcher } from './source-selection';
 import { useNotice, connectionNotice } from './use-notice';
 import { useReconnect } from './use-reconnect';
 import { useLibrary } from './use-library';
+import { useFavoritesSync } from './use-favorites-sync';
 import { useBackend } from './use-backend';
 import { firstRoute, isSavedView, type View } from './navigation';
 import { useRouteHistory, type NavigationOrigin } from './use-route-history';
@@ -18,6 +19,7 @@ import {
     resumeSeconds,
 } from '@iptvnator/tv/util';
 import { focusKey, platformBack, restoreFocus } from '@iptvnator/tv/ui';
+import { favoriteItems, isFavoriteItem } from '@iptvnator/tv/data-access';
 export function useTv(video: { current: HTMLVideoElement | null }) {
     const [route, setRoute] = useState(firstRoute);
     const { error, errorRetry, errorRetryLabel, setError, clearError } =
@@ -63,6 +65,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         pendingScroll.current = undefined;
     });
     const library = useLibrary(data, storageReady, !!playing, update);
+    const favoritesSync = useFavoritesSync(data, storageReady, !!playing, update);
     const backend = useBackend(data, storageReady, update);
     const { provider, ready, busy, connectionKey, enabled } = useProvider(
         data,
@@ -351,6 +354,12 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
     return {
         ...user,
         library,
+        favoritesSync,
+        favorite: async (item: Media) => {
+            if (!(await favoritesSync.toggle(item))) await user.favorite(item);
+        },
+        isFavorite: (item: Media) => isFavoriteItem(data, item),
+        favoriteItems: () => favoriteItems(data),
         guideClient: ready ? provider.current : undefined,
         retryPlayback,
         retryConnection,

@@ -1,3 +1,8 @@
+import type {
+    FavoriteAddress,
+    FavoriteLocalRecord,
+    FavoriteSourceContext,
+} from '@iptvnator/shared/interfaces/favorites-sync';
 import {
     CatalogSort,
     CatalogSortPreferences,
@@ -137,6 +142,15 @@ export interface LibrarySettings {
     /** Original local sources survive linking, server deletion and disconnect. */
     originals: Record<string, Source>;
 }
+/** Shared favorite projection plus outbox, keyed by favoriteAddressKey. */
+export interface SharedFavoriteEntry {
+    address: FavoriteAddress;
+    record: FavoriteLocalRecord;
+    /** Resolved TV item for display/playback; absent until resolvable. */
+    media?: Media;
+    /** Bounded conflict-rebase attempts before the server state wins. */
+    retries?: number;
+}
 export interface UserData {
     library?: LibrarySettings;
     sources: Source[];
@@ -145,6 +159,15 @@ export interface UserData {
     backendToken: string;
     favorites: Media[];
     favoriteScope: 'all' | 'current';
+    /** Local favorites stay untouched in every mode; switching never merges or deletes them. */
+    favoritesMode: 'local' | 'shared';
+    /** Consent generation of the current shared opt-in; empty while local-only. */
+    favoritesConsent: string;
+    /** Stable device identity attached to shared favorite operations. */
+    favoritesDeviceId: string;
+    sharedFavorites: Record<string, SharedFavoriteEntry>;
+    /** Verified source contexts keyed by server playlist id. */
+    sharedFavoriteContexts: Record<string, FavoriteSourceContext>;
     history: Progress[];
     positions: Record<string, Progress>;
     catalogSort: CatalogSortPreferences;
@@ -159,6 +182,11 @@ export const initialData = (): UserData => ({
     backendToken: '',
     favorites: [],
     favoriteScope: 'all',
+    favoritesMode: 'local',
+    favoritesConsent: '',
+    favoritesDeviceId: '',
+    sharedFavorites: {},
+    sharedFavoriteContexts: {},
     history: [],
     positions: {},
     catalogSort: { movie: 'recent', series: 'recent' },
@@ -238,6 +266,22 @@ export function recordProgress(data: UserData, progress: Progress): UserData {
 export function hydrateUserData(saved: Partial<UserData>): UserData {
     const data = { ...initialData(), ...saved };
     data.favoriteScope = saved.favoriteScope === 'current' ? 'current' : 'all';
+    data.favoritesConsent =
+        typeof saved.favoritesConsent === 'string' ? saved.favoritesConsent : '';
+    data.favoritesMode =
+        saved.favoritesMode === 'shared' && data.favoritesConsent
+            ? 'shared'
+            : 'local';
+    if (data.favoritesMode !== 'shared') data.favoritesConsent = '';
+    if (typeof saved.favoritesDeviceId !== 'string')
+        data.favoritesDeviceId = '';
+    if (!saved.sharedFavorites || typeof saved.sharedFavorites !== 'object')
+        data.sharedFavorites = {};
+    if (
+        !saved.sharedFavoriteContexts ||
+        typeof saved.sharedFavoriteContexts !== 'object'
+    )
+        data.sharedFavoriteContexts = {};
     data.catalogSort = {
         movie: normalizeCatalogSort(saved.catalogSort?.movie),
         series: normalizeCatalogSort(saved.catalogSort?.series),

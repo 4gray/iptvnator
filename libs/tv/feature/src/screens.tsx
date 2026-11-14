@@ -39,12 +39,14 @@ export function Home({
         [
             'favorite-channels',
             'Favorite channels',
-            tv.data.favorites.filter((m) => m.kind === 'live').slice(0, 8),
+            tv.favoriteItems()
+                .filter((m) => m.kind === 'live')
+                .slice(0, 8),
         ],
         [
             'saved-movies',
             'Saved films',
-            tv.data.favorites
+            tv.favoriteItems()
                 .filter((m) => m.kind === 'movie')
                 .slice(-12)
                 .reverse(),
@@ -52,7 +54,7 @@ export function Home({
         [
             'saved-series',
             'Saved series',
-            tv.data.favorites
+            tv.favoriteItems()
                 .filter((m) => m.kind === 'series' || m.kind === 'episode')
                 .slice(-12)
                 .reverse(),
@@ -131,7 +133,7 @@ export function Home({
                                                 ),
                                                 [
                                                     ...tv.home,
-                                                    ...tv.data.favorites,
+                                                    ...tv.favoriteItems(),
                                                 ]
                                             ),
                                         }}
@@ -144,7 +146,7 @@ export function Home({
                     </section>
                 ))}
             {!history.length &&
-            !tv.data.favorites.length &&
+            !tv.favoriteItems().length &&
             !tv.home.length &&
             !tv.busy ? (
                 <Empty>

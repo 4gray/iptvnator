@@ -34,3 +34,6 @@ export { findParentSeries } from './parent-series';
 
 export * from './library';
 export * from './library-sources';
+export * from './favorites-projection';
+export * from './favorites-refs';
+export * from './favorites-sync';
