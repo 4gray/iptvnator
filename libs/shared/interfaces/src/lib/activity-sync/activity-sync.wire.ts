@@ -64,7 +64,7 @@ export function parseActivityAddress(value: unknown): ActivityAddress {
                 };
     return {
         instanceId: input.instanceId,
-        scope: 'shared',
+        scope: input.scope,
         sourceId: input.sourceId,
         sourceIncarnation: input.sourceIncarnation,
         content,

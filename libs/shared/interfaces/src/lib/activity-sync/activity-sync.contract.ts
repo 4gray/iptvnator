@@ -1,7 +1,10 @@
+import type { PersonalScope } from '../profiles/profile-scope';
+
 /** Versioned opt-in protocol for the household activity of a verified source server. */
 export interface ActivityAddress {
     instanceId: string;
-    scope: 'shared';
+    /** Whose activity: `'shared'` (the Default profile) or `profile:<id>`. */
+    scope: PersonalScope;
     sourceId: string;
     sourceIncarnation: string;
     content: ActivityContentIdentity;
