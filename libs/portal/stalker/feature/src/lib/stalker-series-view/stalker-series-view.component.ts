@@ -508,6 +508,24 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             this.positions.applyReconciledSeriesPositions();
         });
 
+        effect(() => {
+            const hasSeasonContainer = Boolean(this.seasonContainerRef());
+            const isVod = this.isVodSeries();
+            const loadedKey = this.positions.seriesPositionsLoadedKey();
+            const hasSavedProgress =
+                this.positions.rawSeriesPositions().length > 0;
+            this.vodSeriesSeasons();
+            if (!hasSeasonContainer || !isVod || !loadedKey) {
+                return;
+            }
+            untracked(() =>
+                this.vodSeasonLoader.hydrateForSavedProgress(
+                    loadedKey,
+                    hasSavedProgress
+                )
+            );
+        });
+
         // Dashboard "Continue watching" handoff: once the persisted
         // positions for THIS series are in (so the episode resumes at its
         // saved offset, not from zero) and the target episode is on the

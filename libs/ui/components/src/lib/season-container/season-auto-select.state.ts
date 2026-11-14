@@ -44,6 +44,11 @@ export interface SeasonAutoSelectState {
      * flip that follows is then not treated as an initial load.
      */
     markLocalWatchedMutation(): void;
+    /**
+     * Record that the user explicitly chose a season in the picker, so lazy
+     * season hydration does not override their manual choice.
+     */
+    markManualSelection(): void;
 }
 
 /** Key of the loaded season that holds the episode with this content id. */
@@ -73,12 +78,24 @@ export function findSeasonOfEpisode(
 export function createSeasonAutoSelectState(
     sources: SeasonAutoSelectSources
 ): SeasonAutoSelectState {
-    const autoSelectKey = computed(
-        () =>
-            `${sources.sortedSeasonKeys().join('|')}::${
-                sources.playbackPositions().size > 0 ? '1' : '0'
-            }`
-    );
+    const autoSelectKey = computed(() => {
+        const keys = sources.sortedSeasonKeys();
+        const seasonsWithPositions = keys
+            .filter((key) =>
+                (sources.seasons()[key] ?? []).some(
+                    (episode) => sources.positionOf(episode) !== undefined
+                )
+            )
+            .join('|');
+        const hasUnloaded =
+            sources.hasUnloadedSeasons() ||
+            sources.unloadedSeasonKeys().length > 0;
+        return `${keys.join('|')}::${
+            sources.playbackPositions().size > 0 ? '1' : '0'
+        }::${seasonsWithPositions}::${
+            hasUnloaded ? '1' : '0'
+        }::${sources.unloadedSeasonKeys().join('|')}`;
+    });
     let lastAutoSelectKey: string | null = null;
     let lastAutoSelectSeasonSet: string | null = null;
     /**
@@ -88,6 +105,7 @@ export function createSeasonAutoSelectState(
      * season they just marked (e.g. all-watched season 1 → jump to season 2).
      */
     let hasLocalWatchedMutation = false;
+    let hasManualSelection = false;
     let lastEmittedSeason: string | undefined;
 
     /** Auto-select rules live in season-auto-select.util.ts. */
@@ -114,10 +132,17 @@ export function createSeasonAutoSelectState(
         const seasonSetUnchanged = seasonSet === lastAutoSelectSeasonSet;
         lastAutoSelectKey = key;
         lastAutoSelectSeasonSet = seasonSet;
-        // A positions-emptiness flip after a local watched toggle keeps
-        // the current selection; only the async initial positions load
-        // (or a season-set change) re-resolves the season.
-        if (seasonSetUnchanged && hasLocalWatchedMutation) {
+        if (!seasonSetUnchanged) {
+            hasLocalWatchedMutation = false;
+            hasManualSelection = false;
+        }
+        // A positions-emptiness flip after a local watched toggle or a manual
+        // season pick keeps the current selection; only the async initial
+        // positions/season hydration (or a season-set change) re-resolves.
+        if (
+            seasonSetUnchanged &&
+            (hasLocalWatchedMutation || hasManualSelection)
+        ) {
             return;
         }
         sources.selectedSeason.set(untracked(() => resolveAutoSeason()));
@@ -136,6 +161,9 @@ export function createSeasonAutoSelectState(
     return {
         markLocalWatchedMutation: () => {
             hasLocalWatchedMutation = true;
+        },
+        markManualSelection: () => {
+            hasManualSelection = true;
         },
     };
 }

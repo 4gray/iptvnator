@@ -1659,13 +1659,17 @@ records. Both accept the same closed set: boolean `true`, numeric `1`, or string
   season key/number separately for stable tracking IDs and compatible legacy
   progress; provider request ids remain unchanged.
 - The series quick-start CTA can load the first unloaded VOD-series season
-  before playback. Unloaded seasons are considered unplayed in full season
-  order, so an earlier unloaded season is not skipped just because a later
-  season was loaded manually. If all currently loaded episodes are watched and
-  more season metadata exists, quick start loads the next unloaded season
-  instead of showing the completed state. After a lazy load, quick start is
-  recomputed from the mapped episodes before playback so provider episode
-  ordering cannot start the wrong episode.
+  before playback. When a series opens with saved playback positions, pending
+  regular VOD-series seasons hydrate sequentially so the season picker displays
+  episode and watched counts and reconciles saved progress across seasons.
+  Unloaded seasons only precede the quick-start target when no later episode
+  has been watched; once the viewer has watched episodes in a later season,
+  quick start and the season auto-selection continue from the first unwatched
+  episode after the last watched episode. If all currently loaded episodes from
+  the last watched season onward are watched and more season metadata exists,
+  quick start loads the next unloaded season instead of showing the completed
+  state. After a lazy load, quick start is recomputed from the mapped episodes
+  before playback so provider episode ordering cannot start the wrong episode.
 - Extras (season 0) follow the shared next-episode rule (`getSeriesNextUp`):
   while the series has other seasons they never become the quick-start target,
   and the lazy load before playback picks the first regular season the portal
