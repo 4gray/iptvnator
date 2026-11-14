@@ -1460,8 +1460,8 @@ the index base. Do not ship the Electron frontend build as a PWA deployment.
 
 Settings → Connectivity provides an independent, disabled-by-default favorites consent.
 Connecting a server or enabling progress does not read/upload favorites. One shared
-library belongs to the server; there are no personal accounts or cross-provider
-matches. Membership is scoped by instance, source ID, persisted source incarnation
+library per profile belongs to the server (see [Household profiles](#household-profiles));
+there are no cross-provider matches. Membership is scoped by instance, profile, source ID, persisted source incarnation
 and a typed portable reference. Collection order remains device-local; Recently
 Viewed has its own independent consent below.
 
@@ -1647,8 +1647,8 @@ The same identity-compatibility helper guards both visible projection and export
 
 Settings → Connectivity → Recently viewed enables `history-v1` separately from sources,
 favorites and progress/watched. All clients of an instance share one history
-within each shared source; there are no household accounts or cross-provider
-matches. Connecting or enabling another domain does not authorize history reads
+per profile within each shared source (see [Household profiles](#household-profiles));
+there are no cross-provider matches. Connecting or enabling another domain does not authorize history reads
 or uploads. Initial enable reads shared history and retains the original local
 archive. Older local rows enter the queue only through explicit preview/import.
 
@@ -1745,3 +1745,35 @@ collection page's guarded reload, retaining nested detail/player ownership.
 Mixed-runtime tests are in `history-sync.e2e.ts` and `history-provider-sync.e2e.ts`
 under the isolated source-sync Playwright configuration. Protocol, real multi-tab
 IDB, native CAS and populated historical SQLite schemas have focused regressions.
+
+## Household profiles
+
+`profiles-v1` adds people to a household (#2224). Playlists and sources stay
+shared; personal state is scoped per profile. Phase 1 is the server contract only,
+with no client UI yet.
+
+The activity and favorites addresses carry `scope`, and history scopes carry an
+optional `personalScope`: `'shared'` is the Default profile and `profile:<uuid>`
+is any other. Records written before profiles existed keep their keys byte for
+byte, because `'shared'` was already part of the activity and favorites keys, and
+history adds the scope to its key only for profiles other than Default. No data
+migration runs.
+
+The server-only `server_profiles` table holds the profiles, with `household_id`
+fixed to `default` for now so a household level can be added above profiles later.
+The Default profile (`id` `default`) gets a row only once it is renamed,
+recoloured or given a PIN. A household has at most 12 profiles.
+
+Authenticated, uncached `/v1/profiles` routes require the verified instance header:
+`GET` lists the Default profile first; `POST` creates one; `PATCH /:id` renames,
+recolours, or sets or clears (`pin: null`) a PIN; `DELETE /:id` removes a profile
+and its activity, favorites and history states and receipts in one transaction;
+`POST /:id/unlock` checks a PIN. PINs are 4 to 8 digits, stored as scrypt hashes
+and never returned; five wrong PINs lock a profile for 30 seconds. A PIN only
+guards against picking someone else's profile by accident: the server access token
+remains the security boundary.
+
+Every activity, favorites and history read or write checks that a `profile:`
+scope names an existing profile, answering `409 profile_missing` otherwise. The
+source item lists and `GET /v1/history/sources/:id` take `?scope=`; without it
+they return the Default profile, as earlier clients expect.
