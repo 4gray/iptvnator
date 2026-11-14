@@ -237,17 +237,48 @@ describe('WebVideoControlsAdapter', () => {
         expect(video.currentTime).toBe(0);
     });
 
-    it('gates capabilities: recording always false, aspectRatio false', () => {
+    it('gates capabilities: recording is false and web video fit is available', () => {
         adapter.attach(createVideo({ duration: 100 }), {
             isLive: () => false,
         });
         const caps = adapter.capabilities();
         expect(caps.recording).toBe(false);
-        expect(caps.aspectRatio).toBe(false);
+        expect(caps.aspectRatio).toBe(true);
         expect(caps.seek).toBe(true);
         expect(caps.volume).toBe(true);
         expect(caps.playbackSpeed).toBe(true);
         expect(caps.fullscreen).toBe(true);
+    });
+
+    it('applies web video fit modes and restores the original inline style', () => {
+        const video = createVideo();
+        video.style.setProperty('object-fit', 'scale-down', 'important');
+        adapter.attach(video);
+
+        expect(
+            adapter.state().aspectPresets.map((preset) => preset.value)
+        ).toEqual(['no', 'contain', 'cover', 'fill']);
+
+        adapter.commands.setAspectRatio('contain');
+        expect(video.style.getPropertyValue('object-fit')).toBe('contain');
+        expect(adapter.state().aspectRatio).toBe('contain');
+
+        adapter.commands.setAspectRatio('cover');
+        expect(video.style.getPropertyValue('object-fit')).toBe('cover');
+        adapter.commands.setAspectRatio('fill');
+        expect(video.style.getPropertyValue('object-fit')).toBe('fill');
+
+        adapter.commands.setAspectRatio('invalid');
+        expect(video.style.getPropertyValue('object-fit')).toBe('fill');
+
+        adapter.commands.setAspectRatio('no');
+        expect(video.style.getPropertyValue('object-fit')).toBe('scale-down');
+        expect(video.style.getPropertyPriority('object-fit')).toBe('important');
+
+        adapter.commands.setAspectRatio('cover');
+        adapter.detach();
+        expect(video.style.getPropertyValue('object-fit')).toBe('scale-down');
+        expect(video.style.getPropertyPriority('object-fit')).toBe('important');
     });
 
     it('enables audioTracks only when more than one track is exposed', () => {

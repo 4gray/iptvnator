@@ -400,11 +400,11 @@ one colour in every player surface (UI guidelines, "Watch progress colour").
   button, with the slider **inline** (72px) in the wide mode and behind
   the hover/tap popover in the compact mode — inline, the button is a
   plain mute toggle for every pointer type (`buttonClick(event,
-  { inlineSlider: true })`). Center: previous episode · −10s · **play** ·
+{ inlineSlider: true })`). Center: previous episode · −10s · **play** ·
   +10s · next episode. Right: the value chips, the `tune` button,
   recording, picture-in-picture and fullscreen, end-aligned.
 - **Play button** (`.player-controls__play`, `data-test-id
-  ="player-controls-play"`): a 52px filled accent circle with a white glyph,
+="player-controls-play"`): a 52px filled accent circle with a white glyph,
   not a Material icon button. Fills under a white glyph (play, active
   `tune`) use `--pc-accent-blue-strong` `#3474e8` (4.4:1) rather than the
   `#4f8eff` accent (3.2:1), and hover darkens to `#2a66d6` (5.3:1) without
@@ -569,6 +569,12 @@ speed and aspect their capabilities), whether anything is on or changed,
 and owns open/toggle/close; the `tune` button and the panel render only
 while at least one group exists, and the availability reconciliation closes
 the panel the moment the last group disappears.
+
+For HTML5-backed players, the aspect group is labeled **Video fit** and offers
+Default, Fit (`object-fit: contain`), Fill (`cover`) and Stretch (`fill`).
+Default restores the video element's original inline `object-fit` value and
+priority; detaching the controls adapter also restores that original style.
+Embedded MPV continues to use its native aspect-ratio presets.
 
 - **Roomy wide dock** (≥ 960px): two **value chips** precede `tune` — subtitles
   (`closed_caption` + the selected track's label, or "Off") and speed
@@ -1594,8 +1600,9 @@ regressions:
 The subtitles group of the settings panel carries three capability-gated
 extensions beyond track selection (#1408): loading an external subtitle
 file, adjusting the subtitle timing offset, and styling subtitle text (size
-+ color). Each is honest per engine — an engine that cannot support a control
-simply never advertises the capability, and the UI is not rendered.
+
+- color). Each is honest per engine — an engine that cannot support a control
+  simply never advertises the capability, and the UI is not rendered.
 
 Contract surface:
 

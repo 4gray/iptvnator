@@ -82,6 +82,9 @@ export class PlayerSettingsPanelComponent implements OnDestroy {
     readonly groups = computed(() => this.settings().groups());
     readonly focusGroup = computed(() => this.settings().focusGroup());
     readonly defaultAspect = computed(() => this.settings().defaultAspect());
+    readonly videoFitModes = computed(() =>
+        this.state().aspectPresets.some((preset) => preset.value === 'contain')
+    );
 
     readonly subtitleSizePresets = SUBTITLE_SIZE_PRESETS;
     readonly subtitleColorPresets = SUBTITLE_COLOR_PRESETS;

@@ -398,7 +398,12 @@
                     class="player-settings__dot player-settings__dot--neutral"
                     aria-hidden="true"
                 ></span>
-                {{ 'EMBEDDED_MPV.PLAYER.ASPECT_RATIO' | translate }}
+                {{
+                    (videoFitModes()
+                        ? 'EMBEDDED_MPV.PLAYER.VIDEO_FIT'
+                        : 'EMBEDDED_MPV.PLAYER.ASPECT_RATIO'
+                    ) | translate
+                }}
             </h3>
             <div
                 class="player-settings__seg"
@@ -424,7 +429,16 @@
                             preset.value === 'no'
                                 ? ('EMBEDDED_MPV.PLAYER.ASPECT_DEFAULT'
                                   | translate)
-                                : preset.label
+                                : preset.value === 'contain'
+                                  ? ('EMBEDDED_MPV.PLAYER.ASPECT_FIT'
+                                    | translate)
+                                  : preset.value === 'cover'
+                                    ? ('EMBEDDED_MPV.PLAYER.ASPECT_FILL'
+                                      | translate)
+                                    : preset.value === 'fill'
+                                      ? ('EMBEDDED_MPV.PLAYER.ASPECT_STRETCH'
+                                        | translate)
+                                      : preset.label
                         }}
                     </button>
                 }

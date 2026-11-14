@@ -1,7 +1,6 @@
 import { Injectable, type Signal, computed, signal } from '@angular/core';
 import {
     createEmptyControlsState,
-    DEFAULT_ASPECT_PRESETS,
     DEFAULT_PLAYER_CAPABILITIES,
     DEFAULT_SPEED_PRESETS,
 } from './player-controls-defaults';
@@ -69,6 +68,13 @@ interface WebVideoControlsContext {
     seriesNavigation: Signal<SeriesPlaybackNavigation | null>;
 }
 
+const WEB_VIDEO_ASPECT_PRESETS = [
+    { value: 'no', label: 'Default' },
+    { value: 'contain', label: 'Fit' },
+    { value: 'cover', label: 'Fill' },
+    { value: 'fill', label: 'Stretch' },
+] as const;
+
 /**
  * Can bridge any `<video>`-backed web engine onto the generic
  * {@link PlayerController} contract using only DOM/video APIs.
@@ -79,6 +85,9 @@ export class WebVideoControlsAdapter implements PlayerController {
     private opts: WebVideoControlsOptions = {};
     private detachFn: (() => void) | null = null;
     private bindingGeneration = 0;
+    private originalObjectFit: { value: string; priority: string } | null =
+        null;
+    private aspectRatio = 'no';
 
     /** Bumped whenever DOM or engine-specific state must be re-read. */
     private readonly tick = signal(0);
@@ -142,7 +151,7 @@ export class WebVideoControlsAdapter implements PlayerController {
                 (this.opts.canAdjustSubtitleDelay?.() ?? true),
             subtitleStyle: typeof this.opts.setSubtitleStyle === 'function',
             qualityLevels: hasQualityLevels,
-            aspectRatio: false,
+            aspectRatio: true,
             recording: false,
             pictureInPicture: pictureInPicture.supported,
             seriesNavigation: !isLive && this.seriesNavigation() !== null,
@@ -190,8 +199,8 @@ export class WebVideoControlsAdapter implements PlayerController {
             qualityAutoEnabled: this.opts.isAutoQualityEnabled?.() ?? true,
             playbackSpeed: video?.playbackRate ?? 1,
             speedPresets: DEFAULT_SPEED_PRESETS,
-            aspectRatio: 'no',
-            aspectPresets: DEFAULT_ASPECT_PRESETS,
+            aspectRatio: this.aspectRatio,
+            aspectPresets: WEB_VIDEO_ASPECT_PRESETS,
             recording: { active: false, elapsedSeconds: 0, message: null },
             pictureInPictureActive: pictureInPicture.active,
             canPictureInPicture: pictureInPicture.canToggle,
@@ -244,7 +253,7 @@ export class WebVideoControlsAdapter implements PlayerController {
                 this.refresh()
             ),
         setPlaybackSpeed: (speed) => applyVideoSpeed(this.video, speed),
-        setAspectRatio: () => undefined,
+        setAspectRatio: (value) => this.setAspectRatio(value),
         toggleRecording: () => undefined,
         togglePictureInPicture: () => this.pictureInPicture.toggle(),
     };
@@ -255,6 +264,11 @@ export class WebVideoControlsAdapter implements PlayerController {
         const generation = this.bindingGeneration;
         this.video = video;
         this.opts = opts;
+        this.originalObjectFit = {
+            value: video.style.getPropertyValue('object-fit'),
+            priority: video.style.getPropertyPriority('object-fit'),
+        };
+        this.aspectRatio = 'no';
         this.streamStats.reset();
 
         const onEvent = () => {
@@ -289,11 +303,47 @@ export class WebVideoControlsAdapter implements PlayerController {
         this.bindingGeneration += 1;
         this.detachFn?.();
         this.detachFn = null;
+        if (previousVideo) {
+            this.restoreOriginalObjectFit(previousVideo);
+        }
         this.video = null;
         this.opts = {};
+        this.originalObjectFit = null;
+        this.aspectRatio = 'no';
         this.streamStats.reset();
         this.pictureInPicture.release(previousVideo);
         this.refresh();
+    }
+
+    private setAspectRatio(value: string): void {
+        const video = this.video;
+        if (
+            !video ||
+            !WEB_VIDEO_ASPECT_PRESETS.some((preset) => preset.value === value)
+        ) {
+            return;
+        }
+
+        if (value === 'no') {
+            this.restoreOriginalObjectFit(video);
+        } else {
+            video.style.setProperty('object-fit', value);
+        }
+        this.aspectRatio = value;
+        this.refresh();
+    }
+
+    private restoreOriginalObjectFit(video: HTMLVideoElement): void {
+        const original = this.originalObjectFit;
+        if (!original?.value) {
+            video.style.removeProperty('object-fit');
+            return;
+        }
+        video.style.setProperty(
+            'object-fit',
+            original.value,
+            original.priority
+        );
     }
 
     /** Pushes reactive context (series navigation) used for capability gating. */

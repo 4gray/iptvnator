@@ -142,6 +142,10 @@ describe('PlayerControlsComponent settings panel', () => {
                     AUDIO_TRACKS: 'Audio tracks',
                     ASPECT_RATIO: 'Aspect ratio',
                     ASPECT_DEFAULT: 'Default',
+                    VIDEO_FIT: 'Video fit',
+                    ASPECT_FIT: 'Fit',
+                    ASPECT_FILL: 'Fill',
+                    ASPECT_STRETCH: 'Stretch',
                     ENTER_PICTURE_IN_PICTURE: 'Enter picture-in-picture',
                     ENTER_FULLSCREEN: 'Enter fullscreen',
                 },
@@ -360,6 +364,33 @@ describe('PlayerControlsComponent settings panel', () => {
                 'player-controls__bar--panel-open'
             );
         });
+    });
+
+    it('offers video fit choices in the compact bottom settings sheet', () => {
+        setCapabilities({ aspectRatio: true });
+        setState({
+            aspectPresets: [
+                { value: 'no', label: 'Default' },
+                { value: 'contain', label: 'Fit' },
+                { value: 'cover', label: 'Fill' },
+                { value: 'fill', label: 'Stretch' },
+            ],
+        });
+        resizeTo(500);
+        component.settings.open('aspect');
+        fixture.detectChanges();
+
+        const panel = query('[data-test-id="player-controls-settings-panel"]');
+        expect(panel?.classList).toContain('player-settings--sheet');
+        expect(
+            query('[data-test-id="player-settings-aspect"] h3')?.textContent
+        ).toContain('Video fit');
+
+        const fill = queryAll(
+            '[data-test-id="player-settings-aspect"] .player-settings__seg-item'
+        ).find((item) => item.textContent?.includes('Fill'));
+        fill?.click();
+        expect(fake.commands.setAspectRatio).toHaveBeenCalledWith('cover');
     });
 
     describe('compact dock', () => {
