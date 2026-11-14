@@ -953,14 +953,14 @@ describe('LiveStreamLayoutComponent', () => {
 
     it('returns archive playback to the selected live stream from the panel action', async () => {
         const archivedProgram = buildArchivedProgram();
-        currentEpgItem.set(
+        epgItems.set([
             buildEpgItem(
                 'current',
                 'Current Show',
                 '2026-04-05T11:30:00.000Z',
                 '2026-04-05T12:30:00.000Z'
-            )
-        );
+            ),
+        ]);
 
         component.playLive(sampleChannel);
         await component.onProgramActivated({

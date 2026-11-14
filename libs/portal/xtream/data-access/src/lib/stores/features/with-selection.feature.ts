@@ -25,6 +25,7 @@ import {
     initialSelectionState,
     matchesCurrentSelection,
 } from './with-selection.models';
+import { findSelectedCategory } from './with-selection-category.util';
 import {
     sortByMode,
     filterBySearchTerm,
@@ -226,18 +227,10 @@ export function withSelection() {
                         };
                     }
 
-                    // Access parent store categories (from withContent)
-                    const storeAny = store as ParentSelectionStoreLike;
-                    const allCategories: XtreamSelectionCategory[] = [
-                        ...(storeAny.vodCategories?.() || []),
-                        ...(storeAny.liveCategories?.() || []),
-                        ...(storeAny.serialCategories?.() || []),
-                    ];
-
-                    return allCategories.find(
-                        (c) =>
-                            c.id === categoryId ||
-                            c.category_id === String(categoryId)
+                    return findSelectedCategory(
+                        store as ParentSelectionStoreLike,
+                        store.selectedContentType(),
+                        categoryId
                     );
                 }),
 

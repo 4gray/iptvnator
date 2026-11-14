@@ -190,6 +190,8 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     favorites = new Map<string, boolean>();
     epgPrograms = new Map<number, EpgProgram>();
     currentProgramsProgress = new Map<number, number>();
+    /** The playlist `epgPrograms` was filled for. */
+    private previewsPlaylistId: string | null = null;
 
     /** Leaves the shared refresh tick; called from `ngOnDestroy`. */
     private leaveEpgRefresh?: () => void;
@@ -472,6 +474,20 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         );
     }
 
+    /**
+     * Drop the previews on screen when the list now shows another playlist.
+     * Stream ids repeat across providers, so a kept preview would both show
+     * the other playlist's programme and keep the row from being requested.
+     */
+    private retirePreviewsOfOtherPlaylist(playlistId: string): void {
+        if (this.previewsPlaylistId === playlistId) return;
+        this.previewsPlaylistId = playlistId;
+        this.epgPrograms.clear();
+        this.currentProgramsProgress.clear();
+        // OnPush: the rows must drop it even if no replacement arrives.
+        this.cdr.markForCheck();
+    }
+
     private repickPreviewsForOffsetChange(): void {
         this.epgPrograms.clear();
         this.currentProgramsProgress.clear();
@@ -484,13 +500,20 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
             return;
         }
 
-        if (!this.xtreamStore.currentPlaylist()) return;
+        const playlist = this.xtreamStore.currentPlaylist();
+        if (!playlist) return;
+        this.retirePreviewsOfOtherPlaylist(playlist.id);
+        // The queue is shared: only this account's cached previews apply.
+        const credentials = xtreamCredentialsOf(playlist);
 
         const uncachedChannels: XtreamChannelListItem[] = [];
 
         // Apply cached results immediately
         for (const channel of channels) {
-            const cached = this.epgQueueService.getCached(channel.xtream_id);
+            const cached = this.epgQueueService.getCached(
+                channel.xtream_id,
+                credentials
+            );
             if (cached !== null) {
                 const previewProgram = pickEpgPreviewItem(
                     cached,
@@ -539,6 +562,8 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
 
         const playlist = this.xtreamStore.currentPlaylist();
         if (!playlist) return null;
+        this.retirePreviewsOfOtherPlaylist(playlist.id);
+        const credentials = xtreamCredentialsOf(playlist);
 
         const now = this.epgClockMs();
         const wallClockNow = Date.now();
@@ -554,7 +579,10 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                 continue;
             }
 
-            const cached = this.epgQueueService.getCached(streamId);
+            const cached = this.epgQueueService.getCached(
+                streamId,
+                credentials
+            );
             if (cached === null) {
                 staleChannels.push(channel);
                 continue;
@@ -596,7 +624,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
 
         return {
             playlistId: playlist.id,
-            credentials: xtreamCredentialsOf(playlist),
+            credentials,
             // The whole slice, not just what is being fetched: the queue drops
             // anything outside the visible set it was last handed.
             visibleStreamIds: channels.map((channel) => channel.xtream_id),
