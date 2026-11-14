@@ -41,7 +41,8 @@ test('compact page headers leave room for posters and remove prototype chrome at
         expect(geometry.headingTop).toBeLessThan(65);
         expect(geometry.countTop).toBeLessThan(110);
         expect(geometry.headingRight).toBeLessThan(geometry.sourceLeft);
-        expect(geometry.posterTop).toBeLessThan(240);
+        // The 1920 canvas uses the TV type scale (72px controls, 28px body).
+        expect(geometry.posterTop).toBeLessThan(width === 1920 ? 300 : 240);
         expect(geometry.ratio).toBeCloseTo(1.5, 1);
         expect(geometry.overflow).toBe(false);
     }

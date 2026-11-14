@@ -198,6 +198,7 @@ export function NativePlayerView({
                                 </button>
                             ) : null}
                             <button
+                                class="tv-toggle"
                                 aria-pressed={tv.data.favorites.some(
                                     (item) => item.id === current?.id
                                 )}

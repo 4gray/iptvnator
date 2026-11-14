@@ -130,6 +130,7 @@ export function Detail({
                             </button>
                         ) : null}
                         <button
+                            class="tv-toggle"
                             data-focus="favorite"
                             aria-pressed={saved}
                             onClick={() => tv.favorite(item)}
