@@ -195,13 +195,15 @@ export class EpgService {
      * failed or slow read keeps the schedule on screen and raises no toast.
      */
     private readSchedule(channelId: string, refill: boolean): void {
+        // Recorded even while EPG is off: turning it on refills this channel,
+        // not the one open before it was switched off.
+        this.scheduleChannelId = channelId;
         if (
             !this.epgPreferences.enabled() ||
             !this.epgBridge.supportsProgramLookup
         )
             return;
         debugEpgService('Fetching EPG for channel ID:', channelId);
-        this.scheduleChannelId = channelId;
         const request = ++this.scheduleRequest;
         const canPublish = () =>
             channelId === this.scheduleChannelId &&

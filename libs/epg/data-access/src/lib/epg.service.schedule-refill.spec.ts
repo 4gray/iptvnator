@@ -37,9 +37,11 @@ describe('EpgService schedule refill', () => {
     let onProgress: (progress: EpgImportProgress) => void;
     let sourcesChanged: Subject<void>;
     let shown: EpgProgram[][];
+    let epgEnabled: boolean;
 
     beforeEach(() => {
         getChannelPrograms = jest.fn(async () => []);
+        epgEnabled = true;
         sourcesChanged = new Subject<void>();
         const identity =
             () =>
@@ -63,7 +65,7 @@ describe('EpgService schedule refill', () => {
                 },
                 {
                     provide: EpgPreferencesService,
-                    useValue: { enabled: () => true, guard: identity },
+                    useValue: { enabled: () => epgEnabled, guard: identity },
                 },
                 {
                     provide: EpgSourceSettingsService,
@@ -240,6 +242,21 @@ describe('EpgService schedule refill', () => {
         expect(shown.at(-1)?.map(({ title }) => title)).toEqual([
             'Opening read',
         ]);
+    });
+
+    it('refills the channel opened while EPG was off once it is turned on', async () => {
+        await openChannel('a.example');
+        epgEnabled = false;
+        sourcesChanged.next();
+        service.getChannelPrograms('b.example');
+        await flush();
+        expect(getChannelPrograms).toHaveBeenCalledTimes(1);
+
+        epgEnabled = true;
+        sourcesChanged.next();
+        await flush();
+
+        expect(getChannelPrograms).toHaveBeenLastCalledWith('b.example');
     });
 
     it('does nothing before a channel was opened', async () => {

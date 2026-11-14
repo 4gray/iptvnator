@@ -147,9 +147,9 @@ describe('epg-timeline.utils', () => {
     describe('ticks on daylight-saving days', () => {
         // A DST day is 23 or 25 hours. `TZ` cannot be pinned per test in a
         // running Node process, so these are invariants that hold in every
-        // zone; they exercise the 23h/25h days when the suite runs in a
-        // European zone (2026-03-29 springs forward, 2026-10-25 falls back),
-        // e.g. `TZ=Europe/Berlin pnpm nx test ui-epg`.
+        // zone. The ui-epg `test` target runs with `TZ=Europe/Berlin`
+        // (project.json), where 2026-03-29 springs forward and 2026-10-25
+        // falls back, so they exercise both clock changes on every run.
         it.each(['2026-03-29', '2026-10-25', '2026-06-28'])(
             'places every tick of %s on its wall-clock step inside the day',
             (dayKey) => {
