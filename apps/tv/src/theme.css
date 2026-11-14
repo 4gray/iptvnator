@@ -380,8 +380,9 @@ header .tv-select {
 .rail {
     display: flex;
     overflow: auto;
-    padding: 16px 16px 24px;
-    margin: -16px -16px 0;
+    /* Room for the focused card's 1.06 scale plus its 10px ring. */
+    padding: 24px 16px;
+    margin: -24px -16px 0;
 }
 .rail > .poster-card {
     width: 192px;
@@ -1362,7 +1363,7 @@ main.live-page {
     font-size: var(--tv-type-meta);
 }
 .virtual-collection .episode {
-    height: 260px;
+    height: 300px;
     display: flex;
     align-items: flex-start;
     text-align: left;
@@ -1394,11 +1395,11 @@ main.live-page {
     margin-bottom: 8px;
 }
 .rich-episodes .episode-grid {
-    grid-auto-rows: 480px;
+    grid-auto-rows: 500px;
     align-items: start;
 }
 .rich-episodes .virtual-collection .episode.with-still {
-    height: 480px;
+    height: 500px;
     flex-direction: column;
     padding: 0;
 }
@@ -1413,7 +1414,7 @@ main.live-page {
     padding: 20px;
 }
 .with-still .episode-description {
-    -webkit-line-clamp: 3;
+    -webkit-line-clamp: 2;
 }
 .people-list {
     display: flex;
@@ -1553,10 +1554,10 @@ main.live-page {
 
 /* Episode actions are siblings of playback, with one stable virtual row height. */
 .detail-page .episode-grid {
-    grid-auto-rows: 344px;
+    grid-auto-rows: 384px;
 }
 .detail-page .rich-episodes .episode-grid {
-    grid-auto-rows: 564px;
+    grid-auto-rows: 584px;
 }
 .episode-entry {
     min-width: 0;

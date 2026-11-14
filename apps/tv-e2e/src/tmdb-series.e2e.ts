@@ -139,7 +139,7 @@ test('@tmdb credits and season stills/descriptions preserve episode playback and
             .locator('.episode')
             .first()
             .evaluate((el) => el.getBoundingClientRect().height)
-    ).toBe(260);
+    ).toBe(300);
     failSeason = false;
     await page.getByRole('button', { name: 'Retry episode metadata' }).click();
     await expect(page.locator('.episode-description').first()).toHaveText(
@@ -155,13 +155,13 @@ test('@tmdb credits and season stills/descriptions preserve episode playback and
             .locator('.episode')
             .first()
             .evaluate((el) => el.getBoundingClientRect().height)
-    ).toBe(480);
+    ).toBe(500);
     expect(
         await page
             .locator('.episode')
             .nth(1)
             .evaluate((el) => el.getBoundingClientRect().height)
-    ).toBe(260);
+    ).toBe(300);
     expect(
         await page
             .locator('.episode-still')
