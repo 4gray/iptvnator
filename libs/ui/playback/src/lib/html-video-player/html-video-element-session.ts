@@ -45,8 +45,21 @@ export class HtmlVideoElementSession {
         this.config.emitPlaybackIssue(null);
     };
 
+    private seenVolume = 1;
+    private seenMuted = false;
+
+    /**
+     * `volumechange` also fires for mute changes. A mute alone (the viewer's,
+     * or one a multiview session applies to a tile) leaves the saved volume
+     * as it is, so a tile never writes its level over the viewer's.
+     */
     private readonly handleVolumeChange = (): void => {
-        const currentVolume = this.config.video.volume;
+        const { volume: currentVolume, muted } = this.config.video;
+        const muteOnly =
+            muted !== this.seenMuted && currentVolume === this.seenVolume;
+        this.seenVolume = currentVolume;
+        this.seenMuted = muted;
+        if (muteOnly) return;
         debugHtmlPlayer('Volume changed to:', currentVolume);
         localStorage.setItem('volume', currentVolume.toString());
     };
@@ -90,6 +103,8 @@ export class HtmlVideoElementSession {
             return;
         }
         this.attached = true;
+        this.seenVolume = this.config.video.volume;
+        this.seenMuted = this.config.video.muted;
         for (const [event, listener] of this.listeners) {
             this.config.video.addEventListener(event, listener);
         }

@@ -2,6 +2,7 @@ import { stalkerFavoriteReference } from '@iptvnator/shared/interfaces/favorites
 import {
     ChannelContextMenuComponent,
     ChannelScrollFocusDirective,
+    MultiviewChannelDirective,
 } from '@iptvnator/ui/components';
 import { NgTemplateOutlet } from '@angular/common';
 import {
@@ -153,11 +154,24 @@ import { StalkerLiveNavigation } from './stalker-live-navigation';
 import { StalkerLiveAutoOpen } from './stalker-live-auto-open';
 import { StalkerWorkspaceRouteSession } from '../stalker-workspace-route-session.service';
 
+import {
+    injectMultiviewAnchor,
+    MultiviewAnchorPlaceholderComponent,
+    MultiviewPlayerDirective,
+    provideMultiviewAnchor,
+} from '@iptvnator/ui/playback/multiview-anchor';
+import { createStalkerLiveMultiviewHost } from './stalker-live-multiview-host';
+import {
+    provideStalkerMultiviewChannels,
+    stalkerMultiviewChannelItem,
+} from './stalker-multiview-channel';
+
 @Component({
     selector: 'app-stalker-live-stream-layout',
     templateUrl: './stalker-live-stream-layout.component.html',
     styleUrls: ['./stalker-live-stream-layout.component.scss'],
     imports: [
+        MultiviewChannelDirective,
         ChannelContextMenuComponent,
         ChannelScrollFocusDirective,
         AudioPlayerComponent,
@@ -176,8 +190,16 @@ import { StalkerWorkspaceRouteSession } from '../stalker-workspace-route-session
         StalkerItvAllItemsComponent,
         TranslatePipe,
         WebPlayerViewComponent,
+        MultiviewPlayerDirective,
+        MultiviewAnchorPlaceholderComponent,
     ],
     providers: [
+        provideMultiviewAnchor(
+            () => inject(StalkerLiveStreamLayoutComponent).multiviewAnchor
+        ),
+        provideStalkerMultiviewChannels(() =>
+            inject(StalkerLiveStreamLayoutComponent)
+        ),
         // The fullscreen channel panel inside the player renders this
         // category's channel list (see the `fullscreenChannelPanel` template).
         {
@@ -228,6 +250,7 @@ export class StalkerLiveStreamLayoutComponent
         () => this.stalkerStore.selectedContentType() === 'radio'
     );
     readonly itvChannels = this.stalkerStore.itvChannels;
+    readonly multiviewPlaylist = this.stalkerStore.currentPlaylist;
     readonly radioChannels = this.stalkerStore.radioChannels;
     readonly channels = computed(() =>
         this.isRadioMode() ? this.radioChannels() : this.itvChannels()
@@ -412,6 +435,26 @@ export class StalkerLiveStreamLayoutComponent
             : '';
     });
     readonly streamUrl = computed(() => this.activePlayback()?.streamUrl ?? '');
+    /** Lets a multiview session take over and hand back the inline player. */
+    readonly multiviewAnchor = injectMultiviewAnchor(
+        createStalkerLiveMultiviewHost({
+            identity: this.activePlaybackIdentity,
+            playback: this.activePlayback,
+            sessionKey: this.playbackSessionKey,
+            radio: this.isRadioMode,
+            player: () => this.settingsStore.player?.(),
+            lockItem: () =>
+                stalkerMultiviewChannelItem(
+                    this.multiviewPlaylist() ?? null,
+                    this.listedChannel(this.activePlaybackIdentity()?.contentId)
+                ),
+            selectChannel: (channelId) => {
+                const item = this.listedChannel(channelId);
+                if (item) void this.playChannel(item, true);
+                return !!item;
+            },
+        })
+    );
     readonly activePlaybackTitle = computed(
         () =>
             this.activePlayback()?.title ||
@@ -1008,6 +1051,14 @@ export class StalkerLiveStreamLayoutComponent
         this.playbackRequestId += 1;
         this.streamHeaders.clear(this.radioHeaderScopeUrl);
         this.clearActivePlayback();
+    }
+
+    private listedChannel(id: string | undefined): StalkerItvChannel | null {
+        return id === undefined
+            ? null
+            : (this.itvChannels().find(
+                  (channel) => normalizeStalkerEntityId(channel.id) === id
+              ) ?? null);
     }
 
     isSelectedChannel(item: StalkerItvChannel): boolean {

@@ -1099,7 +1099,9 @@
             "SEARCH_PLACEHOLDER": "Поиск групп…",
             "NO_RESULTS": "Подходящих групп не найдено",
             "SAVE": "Сохранить"
-        }
+        },
+        "MULTIVIEW_TILE": "На экране в окне {{number}}",
+        "MULTIVIEW_TILE_SOUND": "На экране в окне {{number}}, со звуком"
     },
     "TOP_MENU": {
         "OPEN_EPG_GUIDE": "Программа передач"
@@ -2214,7 +2216,10 @@
                 "COMMAND_PALETTE_RUN": "Выполнить выбранный пункт палитры команд",
                 "CLOSE_DIALOGS": "Закрыть диалог или скрыть оверлей",
                 "DOWNLOADS_OPEN_ITEM": "Открыть выбранную загрузку в библиотеке",
-                "OPEN_PLAYLIST_SWITCHER": "Переключить плейлист"
+                "OPEN_PLAYLIST_SWITCHER": "Переключить плейлист",
+                "MULTIVIEW_OPEN_PICKER": "Открыть выбор источника для мультивью",
+                "MULTIVIEW_SWAP": "Мультивью: поменять основное и малое окно",
+                "MULTIVIEW_AUDIO": "Мультивью: перенести звук в активное окно"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -2549,5 +2554,94 @@
         "STATE_offline": "История сохранена локально; сервер недоступен",
         "STATE_incompatible": "Сервер не поддерживает синхронизацию истории",
         "PENDING": "Изменений истории в очереди: {{count}}"
+    },
+    "PLAYER": {
+        "MULTIVIEW": {
+            "ACTION": "Мультипросмотр",
+            "ACTION_TOOLTIP": "Мультипросмотр · Shift+M",
+            "UNAVAILABLE_PLAYER": "Доступно во встроенном плеере",
+            "TILE_LABEL": "Окно {{number}}: {{title}}",
+            "STATE_SOUND": "со звуком",
+            "STATE_MUTED": "без звука",
+            "STATE_PAUSED": "на паузе",
+            "STATE_ERROR": "не воспроизводится",
+            "BADGE_VOD": "Видео",
+            "SWAP": "Поменять с главным окном",
+            "AUDIO_HERE": "Звук сюда",
+            "CLOSE_TILE": "Закрыть окно {{number}}",
+            "PAUSED_AT": "Пауза · {{position}}",
+            "RESUME": "Воспроизвести со звуком",
+            "LAYOUT": "Раскладка",
+            "LAYOUT_PIP": "Картинка в картинке",
+            "ADD_CHANNEL": "Канал",
+            "ADD_CHANNEL_HINT": "Добавить канал",
+            "EXIT": "Выйти",
+            "EXIT_HINT": "Оставить окно со звуком и закрыть остальные",
+            "MAIN_ANNOUNCEMENT": "{{title}} теперь главное окно",
+            "TILE_KEYS_HINT": "Стрелки перемещают окно в другой угол, плюс и минус меняют размер, Enter меняет его с главным окном.",
+            "ERROR_TITLE": "Этот канал не воспроизводится",
+            "ERROR_LIMIT_TITLE": "Достигнут лимит подключений",
+            "ERROR_LIMIT_CAUSE": "{{playlist}} разрешает {{max}} потоков одновременно, и все они заняты.",
+            "ERROR_NETWORK_CAUSE": "Источник недоступен. Возможно, он офлайн или провайдер отказал во втором потоке.",
+            "ERROR_FORMAT_CAUSE": "Поток в формате, который встроенный плеер не поддерживает.",
+            "ERROR_GENERIC_CAUSE": "Поток неожиданно остановился.",
+            "REPLACE_MAIN": "Заменить основное окно",
+            "CHOOSE_ANOTHER": "Выбрать другой источник",
+            "PICKER": {
+                "TITLE_ADD": "Добавить в мультивью",
+                "TITLE_REPLACE": "Заменить окно {{number}}",
+                "SUBTITLE_ADD": "{{title}} продолжит играть со звуком. Новое начнётся без звука.",
+                "SUBTITLE_REPLACE": "{{title}} будет заменено. Новое начнётся без звука.",
+                "SUBTITLE_MUTED": "Новое начнётся без звука.",
+                "SEARCH_LABEL": "Поиск источников",
+                "SEARCH_PLACEHOLDER": "Каналы, передачи, фильмы, сериалы…",
+                "SCOPE_EVERYWHERE": "везде",
+                "SECTIONS": "Разделы",
+                "QUICK": "Быстро",
+                "PLAYLISTS": "Плейлисты",
+                "SECTION": {
+                    "live-now": "Сейчас в эфире",
+                    "continue": "Продолжить",
+                    "favorites": "Избранное",
+                    "recent": "Недавние"
+                },
+                "BUDGET_FREE": "{{count}} своб.",
+                "BUDGET_FULL": "занято",
+                "BUDGET_UNKNOWN": "лимит ?",
+                "FULL_WARNING": "У {{playlist}} нет свободных подключений, новый поток, скорее всего, не запустится.",
+                "METER": "{{playlist}}: занято {{used}} из {{max}}",
+                "METER_UNKNOWN": "{{playlist}}: лимит подключений неизвестен",
+                "TYPES": "Тип контента",
+                "TYPE": {
+                    "all": "Всё",
+                    "live": "ТВ",
+                    "movie": "Фильмы",
+                    "series": "Сериалы"
+                },
+                "RESULTS": "Источники",
+                "GROUP_FROM_FAVORITES": "Из избранного",
+                "GROUP_MORE_ON_AIR": "Ещё в эфире",
+                "SEARCH_ON_AIR": "Идёт сейчас",
+                "SEARCH_CHANNELS": "Каналы",
+                "SEARCH_MOVIES": "Фильмы",
+                "SEARCH_SERIES": "Сериалы",
+                "TYPE_MOVIE": "Фильм",
+                "TYPE_SERIES_ONE": "Сериал",
+                "CONTINUE_FROM": "Продолжить с {{position}}",
+                "IN_TILE": "В окне {{number}}",
+                "EPISODES": "Серии",
+                "NO_EPISODES": "Нет серий",
+                "STARTED": "Начато",
+                "UNAVAILABLE": "Не для мультивью",
+                "RESOLVE_ERROR": "Этот источник не открывается.",
+                "LOADING": "Загрузка…",
+                "LOAD_ERROR": "Не удалось загрузить список.",
+                "NO_RESULTS": "Ничего не найдено",
+                "EMPTY": "Здесь пока пусто",
+                "CATEGORY": "Категория",
+                "CATEGORY_ALL": "Все категории"
+            },
+            "REPLACED": "Окно {{number}} заменено"
+        }
     }
 }

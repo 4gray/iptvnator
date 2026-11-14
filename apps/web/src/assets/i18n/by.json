@@ -1099,7 +1099,9 @@
             "SEARCH_PLACEHOLDER": "Пошук груп...",
             "NO_RESULTS": "Адпаведных груп не знойдзена",
             "SAVE": "Захаваць"
-        }
+        },
+        "MULTIVIEW_TILE": "На экране ў акне {{number}}",
+        "MULTIVIEW_TILE_SOUND": "На экране ў акне {{number}}, з гукам"
     },
     "TOP_MENU": {
         "OPEN_EPG_GUIDE": "Праграма перадач"
@@ -2214,7 +2216,10 @@
                 "COMMAND_PALETTE_RUN": "Выканаць выбраны элемент палітры каманд",
                 "CLOSE_DIALOGS": "Закрыць дыялог або схаваць накладку",
                 "DOWNLOADS_OPEN_ITEM": "Адкрыць сфакусаваную спампоўку ў бібліятэцы",
-                "OPEN_PLAYLIST_SWITCHER": "Пераключыць плэйліст"
+                "OPEN_PLAYLIST_SWITCHER": "Пераключыць плэйліст",
+                "MULTIVIEW_OPEN_PICKER": "Адкрыць выбар крыніцы для мультыпрагляду",
+                "MULTIVIEW_SWAP": "Мультыпрагляд: памяняць асноўнае і малое акно",
+                "MULTIVIEW_AUDIO": "Мультыпрагляд: перанесці гук у актыўнае акно"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -2549,5 +2554,94 @@
         "STATE_offline": "Гісторыя захавана лакальна; сервер недаступны",
         "STATE_incompatible": "Гэты сервер не падтрымлівае сінхранізацыю гісторыі",
         "PENDING": "Зменаў гісторыі ў чарзе: {{count}}"
+    },
+    "PLAYER": {
+        "MULTIVIEW": {
+            "ACTION": "Мультыпрагляд",
+            "ACTION_TOOLTIP": "Мультыпрагляд · Shift+M",
+            "UNAVAILABLE_PLAYER": "Даступна ва ўбудаваным прайгравальніку",
+            "TILE_LABEL": "Акно {{number}}: {{title}}",
+            "STATE_SOUND": "гук уключаны",
+            "STATE_MUTED": "без гуку",
+            "STATE_PAUSED": "на паўзе",
+            "STATE_ERROR": "не прайграецца",
+            "BADGE_VOD": "Відэа",
+            "SWAP": "Памяняць з галоўным акном",
+            "AUDIO_HERE": "Гук сюды",
+            "CLOSE_TILE": "Закрыць акно {{number}}",
+            "PAUSED_AT": "Паўза · {{position}}",
+            "RESUME": "Прайграць з гукам",
+            "LAYOUT": "Раскладка",
+            "LAYOUT_PIP": "Карцінка ў карцінцы",
+            "ADD_CHANNEL": "Канал",
+            "ADD_CHANNEL_HINT": "Дадаць канал",
+            "EXIT": "Выйсці",
+            "EXIT_HINT": "Пакінуць акно з гукам і закрыць астатнія",
+            "MAIN_ANNOUNCEMENT": "{{title}} цяпер галоўнае акно",
+            "TILE_KEYS_HINT": "Стрэлкі перамяшчаюць акно ў іншы кут, плюс і мінус мяняюць памер, Enter мяняе яго з галоўным акном.",
+            "ERROR_TITLE": "Гэты канал не прайграецца",
+            "ERROR_LIMIT_TITLE": "Дасягнуты ліміт падключэнняў",
+            "ERROR_LIMIT_CAUSE": "{{playlist}} дазваляе {{max}} патокаў адначасова, і ўсе яны занятыя.",
+            "ERROR_NETWORK_CAUSE": "Крыніца недаступная. Магчыма, яна афлайн або правайдар адмовіў у яшчэ адным патоку.",
+            "ERROR_FORMAT_CAUSE": "Паток у фармаце, які ўбудаваны плэер не падтрымлівае.",
+            "ERROR_GENERIC_CAUSE": "Паток нечакана спыніўся.",
+            "REPLACE_MAIN": "Замяніць асноўнае акно",
+            "CHOOSE_ANOTHER": "Выбраць іншую крыніцу",
+            "PICKER": {
+                "TITLE_ADD": "Дадаць у мультыпрагляд",
+                "TITLE_REPLACE": "Замяніць акно {{number}}",
+                "SUBTITLE_ADD": "{{title}} будзе граць далей з гукам. Новае пачнецца без гуку.",
+                "SUBTITLE_REPLACE": "{{title}} будзе заменена. Новае пачнецца без гуку.",
+                "SUBTITLE_MUTED": "Новае пачнецца без гуку.",
+                "SEARCH_LABEL": "Пошук крыніц",
+                "SEARCH_PLACEHOLDER": "Каналы, перадачы, фільмы, серыялы…",
+                "SCOPE_EVERYWHERE": "усюды",
+                "SECTIONS": "Раздзелы",
+                "QUICK": "Хутка",
+                "PLAYLISTS": "Плэйлісты",
+                "SECTION": {
+                    "live-now": "Зараз у эфіры",
+                    "continue": "Працягнуць",
+                    "favorites": "Абранае",
+                    "recent": "Нядаўнія"
+                },
+                "BUDGET_FREE": "{{count}} вольн.",
+                "BUDGET_FULL": "занята",
+                "BUDGET_UNKNOWN": "ліміт ?",
+                "FULL_WARNING": "У {{playlist}} няма вольных падключэнняў, новы паток, хутчэй за ўсё, не запусціцца.",
+                "METER": "{{playlist}}: занята {{used}} з {{max}}",
+                "METER_UNKNOWN": "{{playlist}}: ліміт падключэнняў невядомы",
+                "TYPES": "Тып змесціва",
+                "TYPE": {
+                    "all": "Усё",
+                    "live": "ТБ",
+                    "movie": "Фільмы",
+                    "series": "Серыялы"
+                },
+                "RESULTS": "Крыніцы",
+                "GROUP_FROM_FAVORITES": "З абранага",
+                "GROUP_MORE_ON_AIR": "Яшчэ ў эфіры",
+                "SEARCH_ON_AIR": "Ідзе зараз",
+                "SEARCH_CHANNELS": "Каналы",
+                "SEARCH_MOVIES": "Фільмы",
+                "SEARCH_SERIES": "Серыялы",
+                "TYPE_MOVIE": "Фільм",
+                "TYPE_SERIES_ONE": "Серыял",
+                "CONTINUE_FROM": "Працягнуць з {{position}}",
+                "IN_TILE": "У акне {{number}}",
+                "EPISODES": "Серыі",
+                "NO_EPISODES": "Няма серый",
+                "STARTED": "Пачата",
+                "UNAVAILABLE": "Не для мультыпрагляду",
+                "RESOLVE_ERROR": "Гэтая крыніца не адкрываецца.",
+                "LOADING": "Загрузка…",
+                "LOAD_ERROR": "Не ўдалося загрузіць спіс.",
+                "NO_RESULTS": "Нічога не знойдзена",
+                "EMPTY": "Тут пакуль пуста",
+                "CATEGORY": "Катэгорыя",
+                "CATEGORY_ALL": "Усе катэгорыі"
+            },
+            "REPLACED": "Акно {{number}} заменена"
+        }
     }
 }

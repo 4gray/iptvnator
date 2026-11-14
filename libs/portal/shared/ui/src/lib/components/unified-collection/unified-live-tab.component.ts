@@ -22,13 +22,18 @@ import {
     DEFAULT_FAVORITES_CHANNEL_SORT_MODE,
     FavoritesChannelSortMode,
     getLiveCollectionPlaylistNavigation,
-    matchesOpenLiveCollectionItem,
     OpenLiveCollectionItemState,
     PORTAL_PLAYER,
     UnifiedCollectionItem,
     UnifiedFavoriteChannel,
 } from '@iptvnator/portal/shared/util';
 import { setupUnifiedLiveTabRemoteControl } from './unified-live-tab-remote-control';
+import { watchUnifiedLiveAutoOpen } from './unified-live-auto-open';
+import {
+    createUnifiedLiveMultiviewAnchor,
+    UNIFIED_LIVE_MULTIVIEW_IMPORTS,
+    provideUnifiedLiveMultiview,
+} from './unified-live-multiview-host';
 import { ResolvedLiveCollectionDetail } from '@iptvnator/portal/shared/data-access';
 import {
     EpgDateNavigationDirection,
@@ -89,8 +94,10 @@ import { createUnifiedLiveSelectionView } from './unified-live-selection-view';
         ResizableDirective,
         TranslatePipe,
         WebPlayerViewComponent,
+        UNIFIED_LIVE_MULTIVIEW_IMPORTS,
     ],
     providers: [
+        ...provideUnifiedLiveMultiview(() => inject(UnifiedLiveTabComponent)),
         // The fullscreen channel panel inside the player renders this
         // collection's list (see the `fullscreenChannelPanel` template).
         {
@@ -177,6 +184,7 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     readonly openInPlaylistTarget = this.view.openInPlaylistTarget;
     readonly openInPlaylistName = this.view.openInPlaylistName;
     readonly playbackSessionKey = this.view.playbackSessionKey;
+    readonly multiviewAnchor = createUnifiedLiveMultiviewAnchor(this);
     /** M3U selections need XMLTV; Xtream and Stalker ones read the portal guide. */
     readonly showsEpgPanel = computed(
         () =>
@@ -286,34 +294,14 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
             }
         });
 
-        effect(() => {
-            const target = this.autoOpenItem();
-            const items = this.items();
-            if (!target || items.length === 0) {
-                return;
-            }
-
-            const matchedItem = items.find((item) =>
-                matchesOpenLiveCollectionItem(item, target)
-            );
-            if (!matchedItem) {
-                return;
-            }
-
-            // Handled only once the row is on screen: while it is merely the
-            // pending highlight, `activeDetail` still belongs to the retained
-            // stream, and `activate` folds this intent into the request in
-            // flight instead of restarting it.
-            if (
-                this.activeUid() === matchedItem.uid &&
-                this.activeItem()?.uid === matchedItem.uid &&
-                this.activeDetail()
-            ) {
-                this.autoOpenHandled.emit();
-                return;
-            }
-
-            void this.selection.activate(matchedItem, true);
+        watchUnifiedLiveAutoOpen({
+            target: this.autoOpenItem,
+            items: this.items,
+            activeUid: this.activeUid,
+            activeItem: this.activeItem,
+            activeDetail: this.activeDetail,
+            handled: () => this.autoOpenHandled.emit(),
+            activate: (item) => void this.selection.activate(item, true),
         });
 
         setupUnifiedLiveTabRemoteControl({

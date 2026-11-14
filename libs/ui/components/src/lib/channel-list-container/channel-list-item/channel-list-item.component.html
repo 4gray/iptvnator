@@ -34,6 +34,30 @@
         <div class="channel-details">
             <div class="channel-name-row">
                 <div class="channel-name">{{ displayName() }}</div>
+                @if (multiviewTile(); as tile) {
+                    <span
+                        class="multiview-tile-badge"
+                        data-test-id="multiview-tile-badge"
+                        [class.multiview-tile-badge--audio]="tile.audio"
+                        [matTooltip]="
+                            (tile.audio
+                                ? 'CHANNELS.MULTIVIEW_TILE_SOUND'
+                                : 'CHANNELS.MULTIVIEW_TILE'
+                            ) | translate: { number: tile.number }
+                        "
+                    >
+                        {{ tile.number }}
+                        @if (tile.audio) {
+                            <mat-icon aria-hidden="true">volume_up</mat-icon>
+                        }
+                    </span>
+                    <span class="visually-hidden">{{
+                        (tile.audio
+                            ? 'CHANNELS.MULTIVIEW_TILE_SOUND'
+                            : 'CHANNELS.MULTIVIEW_TILE'
+                        ) | translate: { number: tile.number }
+                    }}</span>
+                }
                 @if (showEpg() && catchupAvailable()) {
                     <mat-icon
                         class="catchup-badge"

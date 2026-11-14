@@ -265,6 +265,31 @@ When adding shell behavior, prefer placing it in the service that owns the
 nearest existing state. Keep `WorkspaceShellFacade` as a stable re-export layer
 for the template unless the template contract itself intentionally changes.
 
+### Multiview stage
+
+The multiview stage (`@iptvnator/playback/multiview/ui`) is the one place
+multiview tiles are rendered. `hostMultiviewStage()`
+(`workspace-shell/multiview-stage-host.ts`) creates it inside
+`.workspace-content-frame` the first time a session starts and keeps it for
+the shell's life; it is a lazy chunk because its tiles are web players. The
+shell template only names the frame (`#contentFrame`); no node is added to it,
+since the launch journey counts DOM mutations. The stage covers the visible
+content area (`main.workspace-content`), lies exactly over the anchor
+placeholder of the player view that owns the session, and becomes `inert`
+with the content while the context drawer is open. Behaviour contract:
+`docs/superpowers/specs/2026-11-12-multiview-design.md`.
+
+The shell also implements multiview's workspace ports
+(`workspace-shell/multiview-workspace-ports.ts`). Its constructor calls
+`installMultiviewPicker()`, which installs the source picker into
+`MultiviewEntryService` before the player views inside the outlet read it
+(the dock button and "+ Channel" exist only while a picker is installed), and
+removes it when the shell is destroyed. The component provides
+`MULTIVIEW_CONNECTION_BUDGET` for the stage. Both load
+`@iptvnator/workspace/multiview/feature` (picker dialog, picker data,
+Xtream budget) through a dynamic `import()` on first use, so they add nothing
+to the launch path.
+
 ### Route swaps
 
 The router's activation runs in one task, outside change detection:

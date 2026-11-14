@@ -27,7 +27,11 @@
 }
 
 .series-playback-navigation-controls__button {
-    @include mat.icon-button-overrides((state-layer-size: 40px));
+    @include mat.icon-button-overrides(
+        (
+            state-layer-size: 40px,
+        )
+    );
 
     width: 40px;
     height: 40px;

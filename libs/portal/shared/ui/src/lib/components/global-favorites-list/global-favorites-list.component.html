@@ -31,6 +31,7 @@
 
     @for (ch of enrichedChannels(); track trackByUid($index, ch)) {
         <app-channel-list-item
+            [appMultiviewChannel]="ch"
             [isDraggable]="canDragDrop()"
             [logo]="ch.logo"
             [name]="ch.name"

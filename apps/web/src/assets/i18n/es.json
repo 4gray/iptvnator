@@ -1099,7 +1099,9 @@
             "SEARCH_PLACEHOLDER": "Buscar grupos…",
             "NO_RESULTS": "No se encontraron grupos coincidentes",
             "SAVE": "Guardar"
-        }
+        },
+        "MULTIVIEW_TILE": "En pantalla en la ventana {{number}}",
+        "MULTIVIEW_TILE_SOUND": "En pantalla en la ventana {{number}}, con sonido"
     },
     "TOP_MENU": {
         "OPEN_EPG_GUIDE": "Guía de programas"
@@ -2214,7 +2216,10 @@
                 "COMMAND_PALETTE_RUN": "Ejecutar el elemento seleccionado de la paleta de comandos",
                 "CLOSE_DIALOGS": "Cerrar diálogo o descartar superposición",
                 "DOWNLOADS_OPEN_ITEM": "Abrir en la biblioteca el elemento de descarga enfocado",
-                "OPEN_PLAYLIST_SWITCHER": "Cambiar de lista"
+                "OPEN_PLAYLIST_SWITCHER": "Cambiar de lista",
+                "MULTIVIEW_OPEN_PICKER": "Abrir el selector de fuentes de multivista",
+                "MULTIVIEW_SWAP": "Multivista: intercambiar la ventana principal y la pequeña",
+                "MULTIVIEW_AUDIO": "Multivista: llevar el sonido a la ventana activa"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -2549,5 +2554,94 @@
         "STATE_offline": "Historial guardado localmente; servidor no disponible",
         "STATE_incompatible": "Este servidor no admite la sincronización del historial",
         "PENDING": "Cambios del historial en cola: {{count}}"
+    },
+    "PLAYER": {
+        "MULTIVIEW": {
+            "ACTION": "Multivista",
+            "ACTION_TOOLTIP": "Multivista · Shift+M",
+            "UNAVAILABLE_PLAYER": "Disponible con el reproductor integrado",
+            "TILE_LABEL": "Ventana {{number}}: {{title}}",
+            "STATE_SOUND": "con sonido",
+            "STATE_MUTED": "silenciada",
+            "STATE_PAUSED": "en pausa",
+            "STATE_ERROR": "sin reproducir",
+            "BADGE_VOD": "Vídeo",
+            "SWAP": "Intercambiar con la ventana principal",
+            "AUDIO_HERE": "Sonido aquí",
+            "CLOSE_TILE": "Cerrar ventana {{number}}",
+            "PAUSED_AT": "En pausa · {{position}}",
+            "RESUME": "Reproducir con sonido",
+            "LAYOUT": "Diseño",
+            "LAYOUT_PIP": "Imagen en imagen",
+            "ADD_CHANNEL": "Canal",
+            "ADD_CHANNEL_HINT": "Añadir un canal",
+            "EXIT": "Salir",
+            "EXIT_HINT": "Conservar la ventana con sonido y cerrar las demás",
+            "MAIN_ANNOUNCEMENT": "{{title}} es ahora la ventana principal",
+            "TILE_KEYS_HINT": "Las flechas mueven la ventana a otra esquina, más y menos cambian su tamaño, Intro la intercambia con la ventana principal.",
+            "ERROR_TITLE": "Este canal no se reproduce",
+            "ERROR_LIMIT_TITLE": "Límite de conexiones alcanzado",
+            "ERROR_LIMIT_CAUSE": "{{playlist}} permite {{max}} transmisiones a la vez y todas están en uso.",
+            "ERROR_NETWORK_CAUSE": "No se pudo acceder a la fuente. Puede estar sin conexión o el proveedor rechazó otra transmisión.",
+            "ERROR_FORMAT_CAUSE": "Esta transmisión usa un formato que el reproductor integrado no admite.",
+            "ERROR_GENERIC_CAUSE": "La transmisión se detuvo inesperadamente.",
+            "REPLACE_MAIN": "Reemplazar la ventana principal",
+            "CHOOSE_ANOTHER": "Elegir otra fuente",
+            "PICKER": {
+                "TITLE_ADD": "Añadir a multivista",
+                "TITLE_REPLACE": "Reemplazar ventana {{number}}",
+                "SUBTITLE_ADD": "{{title}} sigue sonando. La nueva empieza sin sonido.",
+                "SUBTITLE_REPLACE": "{{title}} será reemplazado. La nueva empieza sin sonido.",
+                "SUBTITLE_MUTED": "La nueva empieza sin sonido.",
+                "SEARCH_LABEL": "Buscar fuentes",
+                "SEARCH_PLACEHOLDER": "Canales, programas, películas, series…",
+                "SCOPE_EVERYWHERE": "en todo",
+                "SECTIONS": "Secciones",
+                "QUICK": "Acceso rápido",
+                "PLAYLISTS": "Listas",
+                "SECTION": {
+                    "live-now": "En directo",
+                    "continue": "Continuar",
+                    "favorites": "Favoritos",
+                    "recent": "Recientes"
+                },
+                "BUDGET_FREE": "{{count}} libres",
+                "BUDGET_FULL": "completo",
+                "BUDGET_UNKNOWN": "límite ?",
+                "FULL_WARNING": "{{playlist}} no tiene conexiones libres; es probable que una nueva transmisión no empiece.",
+                "METER": "{{playlist}}: {{used}} de {{max}} en uso",
+                "METER_UNKNOWN": "{{playlist}}: límite de conexiones desconocido",
+                "TYPES": "Tipo de contenido",
+                "TYPE": {
+                    "all": "Todo",
+                    "live": "Televisión",
+                    "movie": "Películas",
+                    "series": "Series"
+                },
+                "RESULTS": "Fuentes",
+                "GROUP_FROM_FAVORITES": "De favoritos",
+                "GROUP_MORE_ON_AIR": "Más en directo",
+                "SEARCH_ON_AIR": "En emisión",
+                "SEARCH_CHANNELS": "Canales",
+                "SEARCH_MOVIES": "Películas",
+                "SEARCH_SERIES": "Series",
+                "TYPE_MOVIE": "Película",
+                "TYPE_SERIES_ONE": "Serie",
+                "CONTINUE_FROM": "Continuar desde {{position}}",
+                "IN_TILE": "En la ventana {{number}}",
+                "EPISODES": "Episodios",
+                "NO_EPISODES": "Sin episodios",
+                "STARTED": "Empezado",
+                "UNAVAILABLE": "No disponible en multivista",
+                "RESOLVE_ERROR": "No se puede abrir esta fuente.",
+                "LOADING": "Cargando…",
+                "LOAD_ERROR": "No se pudo cargar la lista.",
+                "NO_RESULTS": "No se encontró nada",
+                "EMPTY": "Aún no hay nada",
+                "CATEGORY": "Categoría",
+                "CATEGORY_ALL": "Todas las categorías"
+            },
+            "REPLACED": "Ventana {{number}} reemplazada"
+        }
     }
 }

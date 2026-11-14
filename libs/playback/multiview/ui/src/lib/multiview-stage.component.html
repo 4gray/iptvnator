@@ -1,0 +1,45 @@
+<!-- Tiles stay mounted for the whole session: unmounting a tile stops its
+     stream. Without a measured anchor the stage is only hidden. -->
+@if (store.exists()) {
+    <div
+        class="multiview-stage__viewport"
+        data-test-id="multiview-stage"
+        [style.left.px]="stageBox().left"
+        [style.top.px]="stageBox().top"
+        [style.width.px]="stageBox().width"
+        [style.height.px]="stageBox().height"
+        [style.border-radius]="rects()?.radius"
+    >
+        <div
+            class="multiview-stage__tiles"
+            [style.height.px]="tileArea().height"
+        >
+            @for (id of order(); track id) {
+                @let tile = tileById(id);
+                @let placement = placements().get(id);
+                @if (tile && placement) {
+                    <app-multiview-tile
+                        [tile]="tile"
+                        [placement]="placement"
+                        [stage]="tileArea()"
+                        (diagnosticChanged)="onDiagnostic(id, $event)"
+                    />
+                }
+            }
+            @if (failedPip(); as failed) {
+                <app-multiview-error-card
+                    [tile]="failed.tile"
+                    [diagnostic]="failed.diagnostic"
+                    [budget]="failedBudget()"
+                    [box]="failed.box"
+                    [corner]="pipCorner()"
+                    [stage]="tileArea()"
+                />
+            }
+        </div>
+        <app-multiview-bar />
+        <div class="multiview-stage__announcer" aria-live="polite">
+            {{ announcement() }}
+        </div>
+    </div>
+}

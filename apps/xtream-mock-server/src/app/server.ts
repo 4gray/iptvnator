@@ -10,6 +10,10 @@ import express, {
 } from 'express';
 import { installLiveFormatFixture } from './live-format-fixture.js';
 import { resolveXtreamMockPortString } from './mock-port.js';
+import {
+    refuseOverConnectionLimit,
+    resetConnectionLimits,
+} from './connection-limit.js';
 import { resetAccount, resetAll } from './data-store.js';
 import {
     resetDroppingEpisodes,
@@ -119,9 +123,11 @@ export function createXtreamMockApp(
             }
             resetAccount(username, password);
             resetDroppingEpisodes(username, password);
+            resetConnectionLimits(username, password);
         } else {
             resetAll();
             resetDroppingEpisodes();
+            resetConnectionLimits();
         }
         response.json({ status: 'reset' });
     });
@@ -299,6 +305,7 @@ function installStreamRoutes(
             response.status(410).json({ error: 'performance-media-disabled' });
             return;
         }
+        if (refuseOverConnectionLimit(request, response)) return;
         if (downloadStreamFixtureOf(request) === 'local-media') {
             streamSlowSeriesDownload(
                 request,

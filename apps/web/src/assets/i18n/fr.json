@@ -1099,7 +1099,9 @@
             "SEARCH_PLACEHOLDER": "Rechercher des groupes…",
             "NO_RESULTS": "Aucun groupe correspondant trouvé",
             "SAVE": "Enregistrer"
-        }
+        },
+        "MULTIVIEW_TILE": "À l'écran dans la fenêtre {{number}}",
+        "MULTIVIEW_TILE_SOUND": "À l'écran dans la fenêtre {{number}}, avec le son"
     },
     "TOP_MENU": {
         "OPEN_EPG_GUIDE": "Guide des programmes"
@@ -2214,7 +2216,10 @@
                 "COMMAND_PALETTE_RUN": "Exécuter l’élément sélectionné dans la palette de commandes",
                 "CLOSE_DIALOGS": "Fermer une boîte de dialogue ou masquer une superposition",
                 "DOWNLOADS_OPEN_ITEM": "Ouvrir l’élément de téléchargement ciblé dans la bibliothèque",
-                "OPEN_PLAYLIST_SWITCHER": "Changer de playlist"
+                "OPEN_PLAYLIST_SWITCHER": "Changer de playlist",
+                "MULTIVIEW_OPEN_PICKER": "Ouvrir le choix de source de la multivue",
+                "MULTIVIEW_SWAP": "Multivue : échanger la fenêtre principale et la petite",
+                "MULTIVIEW_AUDIO": "Multivue : passer le son à la fenêtre active"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -2549,5 +2554,94 @@
         "STATE_offline": "Historique enregistré localement ; serveur indisponible",
         "STATE_incompatible": "Ce serveur ne prend pas en charge la synchronisation de l’historique",
         "PENDING": "Modifications de l’historique en attente : {{count}}"
+    },
+    "PLAYER": {
+        "MULTIVIEW": {
+            "ACTION": "Multivue",
+            "ACTION_TOOLTIP": "Multivue · Shift+M",
+            "UNAVAILABLE_PLAYER": "Disponible avec le lecteur intégré",
+            "TILE_LABEL": "Fenêtre {{number}} : {{title}}",
+            "STATE_SOUND": "son activé",
+            "STATE_MUTED": "coupée",
+            "STATE_PAUSED": "en pause",
+            "STATE_ERROR": "ne joue pas",
+            "BADGE_VOD": "Vidéo",
+            "SWAP": "Échanger avec la fenêtre principale",
+            "AUDIO_HERE": "Son ici",
+            "CLOSE_TILE": "Fermer la fenêtre {{number}}",
+            "PAUSED_AT": "En pause · {{position}}",
+            "RESUME": "Lire avec le son",
+            "LAYOUT": "Disposition",
+            "LAYOUT_PIP": "Image dans l’image",
+            "ADD_CHANNEL": "Chaîne",
+            "ADD_CHANNEL_HINT": "Ajouter une chaîne",
+            "EXIT": "Quitter",
+            "EXIT_HINT": "Garder la fenêtre avec le son et fermer les autres",
+            "MAIN_ANNOUNCEMENT": "{{title}} est maintenant la fenêtre principale",
+            "TILE_KEYS_HINT": "Les flèches déplacent la fenêtre vers un autre coin, plus et moins la redimensionnent, Entrée l’échange avec la fenêtre principale.",
+            "ERROR_TITLE": "Cette chaîne ne peut pas être lue",
+            "ERROR_LIMIT_TITLE": "Limite de connexions atteinte",
+            "ERROR_LIMIT_CAUSE": "{{playlist}} autorise {{max}} flux à la fois, et ils sont tous utilisés.",
+            "ERROR_NETWORK_CAUSE": "La source est injoignable. Elle est peut-être hors ligne, ou le fournisseur a refusé un flux supplémentaire.",
+            "ERROR_FORMAT_CAUSE": "Ce flux utilise un format que le lecteur intégré ne peut pas lire.",
+            "ERROR_GENERIC_CAUSE": "Le flux s'est arrêté de façon inattendue.",
+            "REPLACE_MAIN": "Remplacer la fenêtre principale",
+            "CHOOSE_ANOTHER": "Choisir une autre source",
+            "PICKER": {
+                "TITLE_ADD": "Ajouter à la multivue",
+                "TITLE_REPLACE": "Remplacer la fenêtre {{number}}",
+                "SUBTITLE_ADD": "{{title}} continue avec le son. La nouvelle démarre sans son.",
+                "SUBTITLE_REPLACE": "{{title}} sera remplacé. La nouvelle démarre sans son.",
+                "SUBTITLE_MUTED": "La nouvelle démarre sans son.",
+                "SEARCH_LABEL": "Rechercher des sources",
+                "SEARCH_PLACEHOLDER": "Chaînes, émissions, films, séries…",
+                "SCOPE_EVERYWHERE": "partout",
+                "SECTIONS": "Rubriques",
+                "QUICK": "Accès rapide",
+                "PLAYLISTS": "Listes de lecture",
+                "SECTION": {
+                    "live-now": "En direct",
+                    "continue": "Reprendre",
+                    "favorites": "Favoris",
+                    "recent": "Récents"
+                },
+                "BUDGET_FREE": "{{count}} libres",
+                "BUDGET_FULL": "complet",
+                "BUDGET_UNKNOWN": "limite ?",
+                "FULL_WARNING": "{{playlist}} n'a plus de connexion libre ; un nouveau flux ne démarrera probablement pas.",
+                "METER": "{{playlist}} : {{used}} sur {{max}} utilisées",
+                "METER_UNKNOWN": "{{playlist}} : limite de connexions inconnue",
+                "TYPES": "Type de contenu",
+                "TYPE": {
+                    "all": "Tout",
+                    "live": "Télé",
+                    "movie": "Films",
+                    "series": "Séries"
+                },
+                "RESULTS": "Sources",
+                "GROUP_FROM_FAVORITES": "Depuis les favoris",
+                "GROUP_MORE_ON_AIR": "Autres directs",
+                "SEARCH_ON_AIR": "À l'antenne",
+                "SEARCH_CHANNELS": "Chaînes",
+                "SEARCH_MOVIES": "Films",
+                "SEARCH_SERIES": "Séries",
+                "TYPE_MOVIE": "Film",
+                "TYPE_SERIES_ONE": "Série",
+                "CONTINUE_FROM": "Reprendre à {{position}}",
+                "IN_TILE": "Dans la fenêtre {{number}}",
+                "EPISODES": "Épisodes",
+                "NO_EPISODES": "Aucun épisode",
+                "STARTED": "Commencé",
+                "UNAVAILABLE": "Pas en multivue",
+                "RESOLVE_ERROR": "Impossible d'ouvrir cette source.",
+                "LOADING": "Chargement…",
+                "LOAD_ERROR": "Impossible de charger la liste.",
+                "NO_RESULTS": "Aucun résultat",
+                "EMPTY": "Rien pour l'instant",
+                "CATEGORY": "Catégorie",
+                "CATEGORY_ALL": "Toutes les catégories"
+            },
+            "REPLACED": "Fenêtre {{number}} remplacée"
+        }
     }
 }

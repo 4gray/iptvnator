@@ -111,6 +111,27 @@
                 "e2eTags": ["@persistence"]
             },
             {
+                "name": "playback-multiview-data-access",
+                "root": "libs/playback/multiview/data-access",
+                "sourceRoot": "libs/playback/multiview/data-access/src",
+                "validationCommand": "pnpm nx test playback-multiview-data-access",
+                "e2eTags": ["@playback"]
+            },
+            {
+                "name": "playback-multiview-ui",
+                "root": "libs/playback/multiview/ui",
+                "sourceRoot": "libs/playback/multiview/ui/src",
+                "validationCommand": "pnpm nx test playback-multiview-ui",
+                "e2eTags": ["@playback"]
+            },
+            {
+                "name": "workspace-multiview-feature",
+                "root": "libs/workspace/multiview/feature",
+                "sourceRoot": "libs/workspace/multiview/feature/src",
+                "validationCommand": "pnpm nx test workspace-multiview-feature",
+                "e2eTags": ["@playback"]
+            },
+            {
                 "name": "m3u-state",
                 "root": "libs/m3u-state",
                 "sourceRoot": "libs/m3u-state/src",

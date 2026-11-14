@@ -1,24 +1,25 @@
 import { session } from 'electron';
+import {
+    getOrigin,
+    type HeaderOverride,
+    normalizeHeaderValue,
+    type ScopedHeaderOverride,
+    selectScopedOverrides,
+    shouldApplyOverride,
+    toComparableUrl,
+} from './request-header-override-matching';
 
 export type StreamCredentialHeaders = {
     authorization?: string | null;
     cookie?: string | null;
 };
 
-type HeaderOverride = {
-    authorization?: string;
-    cookie?: string;
-    /**
-     * Origin the credentials belong to — always the stream URL's own origin.
-     * Cookie/Authorization are attached only on an exact match, never on the
-     * broader `scopeOrigins` set that User-Agent/Referer/Origin use.
-     */
-    credentialOrigin?: string;
-    origin?: string;
-    referer?: string;
-    scopeOrigins?: Set<string>;
-    userAgent?: string;
-};
+/**
+ * Owner of the scoped override every caller uses unless it names its own:
+ * one inline player at a time, exactly the single slot this service had
+ * before multiview. Only multiview tiles pass an owner of their own.
+ */
+export const DEFAULT_SCOPED_OVERRIDE_OWNER = 'default';
 
 const headerOverrideUrlFilter = {
     urls: ['http://*/*', 'https://*/*'],
@@ -38,47 +39,10 @@ const YOUTUBE_EMBED_HOSTS = new Set([
 const YOUTUBE_EMBED_REFERER = 'https://4gray.github.io/iptvnator/';
 
 let activeHeaderOverride: HeaderOverride | null = null;
-let activeScopedHeaderOverride: HeaderOverride | null = null;
+/** One scoped override per owner; see {@link DEFAULT_SCOPED_OVERRIDE_OWNER}. */
+const scopedHeaderOverrides = new Map<string, ScopedHeaderOverride>();
+let scopedOverrideSequence = 0;
 let listenerRegistered = false;
-
-function normalizeHeaderValue(value?: string | null): string | undefined {
-    if (typeof value !== 'string') {
-        return undefined;
-    }
-
-    const trimmed = value.trim();
-    // A control character in a header value is never legitimate and could
-    // otherwise smuggle extra headers into the raw request.
-    // eslint-disable-next-line no-control-regex
-    if (!trimmed || /[\u0000-\u001f\u007f]/.test(trimmed)) {
-        return undefined;
-    }
-
-    return trimmed;
-}
-
-function getOrigin(value?: string | null): string | undefined {
-    const normalizedValue = normalizeHeaderValue(value);
-
-    if (!normalizedValue) {
-        return undefined;
-    }
-
-    try {
-        return new URL(normalizedValue).origin;
-    } catch {
-        return undefined;
-    }
-}
-
-function shouldApplyOverride(url: string, override: HeaderOverride): boolean {
-    if (!override.scopeOrigins) {
-        return true;
-    }
-
-    const requestOrigin = getOrigin(url);
-    return Boolean(requestOrigin && override.scopeOrigins.has(requestOrigin));
-}
 
 function setRequestHeader(
     requestHeaders: Record<string, string>,
@@ -130,10 +94,20 @@ function handleBeforeSendHeaders(
 ): void {
     const requestHeaders = { ...details.requestHeaders };
     applyYoutubeEmbedRefererShim(details.url, requestHeaders);
-    const overrides = [activeHeaderOverride, activeScopedHeaderOverride].filter(
-        (override): override is HeaderOverride =>
-            Boolean(override && shouldApplyOverride(details.url, override))
-    );
+    const overrides: HeaderOverride[] =
+        activeHeaderOverride &&
+        shouldApplyOverride(details.url, activeHeaderOverride) &&
+        !claimedByTile(details.url)
+            ? [activeHeaderOverride]
+            : [];
+    if (scopedHeaderOverrides.size > 0) {
+        overrides.push(
+            ...selectScopedOverrides(
+                details.url,
+                scopedHeaderOverrides.values()
+            )
+        );
+    }
 
     if (overrides.length === 0) {
         callback({ requestHeaders });
@@ -190,12 +164,46 @@ function ensureHeaderOverrideListener(): void {
     listenerRegistered = true;
 }
 
+/** Header-free owners kept at most; the oldest are forgotten first. */
+const MAX_HEADER_FREE_OWNERS = 16;
+
+/**
+ * A multiview tile without custom headers keeps its exact stream URL, so a
+ * request for it never falls back to another tile's headers on the same
+ * host. A released tile is forgotten (`releaseRequestHeaderOwner`); a
+ * renderer without that call leaves a claim that applies nothing, and the
+ * number kept is bounded.
+ */
+function claimHeaderFreeStream(
+    ownerId: string,
+    scopeUrl: string,
+    scopeOrigin: string | undefined
+): void {
+    scopedOverrideSequence += 1;
+    scopedHeaderOverrides.set(ownerId, {
+        scopeOrigins: new Set(scopeOrigin ? [scopeOrigin] : []),
+        scopeUrl: toComparableUrl(scopeUrl),
+        sequence: scopedOverrideSequence,
+        headerFree: true,
+    });
+    const headerFree = [...scopedHeaderOverrides].filter(
+        ([, override]) => override.headerFree
+    );
+    for (const [owner] of headerFree.slice(
+        0,
+        Math.max(0, headerFree.length - MAX_HEADER_FREE_OWNERS)
+    )) {
+        scopedHeaderOverrides.delete(owner);
+    }
+}
+
 export function configureRequestHeaderOverride(
     userAgent?: string | null,
     referer?: string | null,
     scopeUrl?: string | null,
     credentials?: StreamCredentialHeaders | null,
-    origin?: string | null
+    origin?: string | null,
+    ownerId: string = DEFAULT_SCOPED_OVERRIDE_OWNER
 ): void {
     const normalizedUserAgent = normalizeHeaderValue(userAgent);
     const normalizedReferer = normalizeHeaderValue(referer);
@@ -223,8 +231,12 @@ export function configureRequestHeaderOverride(
         !normalizedCookie &&
         !normalizedAuthorization
     ) {
-        if (isScopedOverride) {
-            clearScopedRequestHeaderOverride();
+        if (isScopedOverride && ownerId !== DEFAULT_SCOPED_OVERRIDE_OWNER) {
+            // No listener of its own: a claim only matters next to an owner
+            // with headers, which registered it.
+            claimHeaderFreeStream(ownerId, scopeUrl ?? '', scopeOrigin);
+        } else if (isScopedOverride) {
+            scopedHeaderOverrides.delete(ownerId);
         } else {
             clearRequestHeaderOverride();
         }
@@ -249,7 +261,12 @@ export function configureRequestHeaderOverride(
             override.cookie = normalizedCookie;
             override.authorization = normalizedAuthorization;
         }
-        activeScopedHeaderOverride = override;
+        scopedOverrideSequence += 1;
+        scopedHeaderOverrides.set(ownerId, {
+            ...override,
+            scopeUrl: toComparableUrl(scopeUrl),
+            sequence: scopedOverrideSequence,
+        });
     } else {
         activeHeaderOverride = override;
     }
@@ -261,15 +278,35 @@ export function configureRequestHeaderOverride(
  * Registers the header listener at startup so the YouTube embed Referer
  * shim is active even before any playlist-level override is configured.
  */
+/** Forgets a named owner; the default owner is cleared by configuring it. */
+export function releaseRequestHeaderOwner(ownerId: string): void {
+    if (ownerId !== DEFAULT_SCOPED_OVERRIDE_OWNER) {
+        scopedHeaderOverrides.delete(ownerId);
+    }
+}
+
+/**
+ * Whether a multiview tile's owner covers the request's origin. Its own
+ * override (or its header-free claim) then decides the headers, and the
+ * playlist-wide override, which belongs to one playlist, stays out.
+ */
+function claimedByTile(url: string): boolean {
+    for (const [owner, override] of scopedHeaderOverrides) {
+        if (
+            owner !== DEFAULT_SCOPED_OVERRIDE_OWNER &&
+            shouldApplyOverride(url, override)
+        ) {
+            return true;
+        }
+    }
+    return false;
+}
+
 export function registerStaticHeaderShims(): void {
     ensureHeaderOverrideListener();
 }
 
 export function clearRequestHeaderOverride(): void {
     activeHeaderOverride = null;
-    activeScopedHeaderOverride = null;
-}
-
-function clearScopedRequestHeaderOverride(): void {
-    activeScopedHeaderOverride = null;
+    scopedHeaderOverrides.clear();
 }

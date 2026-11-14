@@ -67,6 +67,7 @@ import {
     RecentViewItem,
 } from './recent-view/recent-view.component';
 import { ChannelListLoadingStateComponent } from '../channel-list-loading-state/channel-list-loading-state.component';
+import { provideM3uMultiviewChannels } from './m3u-multiview-channel';
 
 function groupChannelsByTitle(channels: Channel[]): Record<string, Channel[]> {
     return channels.reduce<Record<string, Channel[]>>((groups, channel) => {
@@ -99,6 +100,7 @@ const EPG_AVAILABILITY_REFRESH_DEBOUNCE_MS = 2000;
     templateUrl: './channel-list-container.component.html',
     styleUrls: ['./channel-list-container.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
+    providers: [provideM3uMultiviewChannels()],
     imports: [
         AllChannelsViewComponent,
         ChannelListLoadingStateComponent,

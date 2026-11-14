@@ -110,6 +110,13 @@ import {
     SidebarComponent,
     WebPlayerViewComponent,
 } from '@iptvnator/ui/playback';
+import {
+    injectMultiviewAnchor,
+    MultiviewPlayerDirective,
+    MultiviewAnchorPlaceholderComponent,
+    provideMultiviewAnchor,
+} from '@iptvnator/ui/playback/multiview-anchor';
+import { createM3uMultiviewHost } from './m3u-multiview-host';
 import { LiveEpgPanelSummary } from '@iptvnator/ui/shared-portals';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 import { ChannelListLoadingStateComponent } from '@iptvnator/ui/components';
@@ -219,6 +226,8 @@ function isInsideScrollableRegion(
         SidebarComponent,
         TranslatePipe,
         WebPlayerViewComponent,
+        MultiviewPlayerDirective,
+        MultiviewAnchorPlaceholderComponent,
     ],
     providers: [
         // The fullscreen channel panel inside the player renders this page's
@@ -229,6 +238,9 @@ function isInsideScrollableRegion(
         },
         M3uEpgGuideSourceService,
         { provide: EPG_GUIDE_SOURCE, useExisting: M3uEpgGuideSourceService },
+        provideMultiviewAnchor(
+            () => inject(VideoPlayerComponent).multiviewAnchor
+        ),
     ],
     templateUrl: './video-player.component.html',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -717,6 +729,33 @@ export class VideoPlayerComponent
     readonly playerSettings = signal<Partial<Settings>>({
         player: VideoPlayer.VideoJs,
     });
+
+    /** Lets a multiview session take over and hand back the inline player. */
+    readonly multiviewAnchor = injectMultiviewAnchor(
+        createM3uMultiviewHost({
+            playlistId: this.activePlaylistId,
+            channel: this.activeChannel,
+            playback: this.embeddedPlayback,
+            sessionKey: this.playbackSessionKey,
+            catchupUrl: this.activePlaybackUrl,
+            volume: () => this.volume(),
+            engine: () =>
+                this.activeChannelIsDash()
+                    ? this.dashPlayerOverride()
+                    : (this.playerSettings().player ?? null),
+            selectChannel: (channelId) => {
+                const channel = this.channels().find(
+                    (item) => String(item.id) === channelId
+                );
+                if (channel) {
+                    this.store.dispatch(
+                        ChannelActions.setActiveChannel({ channel })
+                    );
+                }
+                return !!channel;
+            },
+        })
+    );
 
     readonly isDesktop = this.runtime.isElectron;
     get supportsEpg(): boolean {

@@ -1099,7 +1099,9 @@
             "SEARCH_PLACEHOLDER": "Keresés a csoportok között…",
             "NO_RESULTS": "Nem található a keresésnek megfelelő csoport",
             "SAVE": "Mentés"
-        }
+        },
+        "MULTIVIEW_TILE": "A képernyőn, a(z) {{number}}. ablakban",
+        "MULTIVIEW_TILE_SOUND": "A képernyőn, a(z) {{number}}. ablakban, hanggal"
     },
     "TOP_MENU": {
         "OPEN_EPG_GUIDE": "Műsorújság"
@@ -2214,7 +2216,10 @@
                 "COMMAND_PALETTE_RUN": "A parancspalettán kijelölt művelet végrehajtása",
                 "CLOSE_DIALOGS": "Párbeszédpanel bezárása vagy az előugró felület eltüntetése",
                 "DOWNLOADS_OPEN_ITEM": "A fókuszban lévő letöltés megnyitása a médiatárban",
-                "OPEN_PLAYLIST_SWITCHER": "Lejátszási lista váltása"
+                "OPEN_PLAYLIST_SWITCHER": "Lejátszási lista váltása",
+                "MULTIVIEW_OPEN_PICKER": "A többnézet forrásválasztójának megnyitása",
+                "MULTIVIEW_SWAP": "Többnézet: a fő és a kis ablak cseréje",
+                "MULTIVIEW_AUDIO": "Többnézet: a hang áthelyezése az aktív ablakba"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -2549,5 +2554,94 @@
         "STATE_offline": "Az előzményeket az alkalmazás helyben mentette; a kiszolgáló nem érhető el",
         "STATE_incompatible": "Ez a kiszolgáló nem támogatja a megtekintési előzmények szinkronizálását",
         "PENDING": "Küldésre váró előzménymódosítások: {{count}}"
+    },
+    "PLAYER": {
+        "MULTIVIEW": {
+            "ACTION": "Többképes nézet",
+            "ACTION_TOOLTIP": "Többképes nézet · Shift+M",
+            "UNAVAILABLE_PLAYER": "A beépített lejátszóval érhető el",
+            "TILE_LABEL": "{{number}}. ablak: {{title}}",
+            "STATE_SOUND": "hang bekapcsolva",
+            "STATE_MUTED": "némítva",
+            "STATE_PAUSED": "szüneteltetve",
+            "STATE_ERROR": "nem játszik",
+            "BADGE_VOD": "Videó",
+            "SWAP": "Csere a fő ablakkal",
+            "AUDIO_HERE": "Hang ide",
+            "CLOSE_TILE": "{{number}}. ablak bezárása",
+            "PAUSED_AT": "Szüneteltetve · {{position}}",
+            "RESUME": "Lejátszás hanggal",
+            "LAYOUT": "Elrendezés",
+            "LAYOUT_PIP": "Kép a képben",
+            "ADD_CHANNEL": "Csatorna",
+            "ADD_CHANNEL_HINT": "Csatorna hozzáadása",
+            "EXIT": "Kilépés",
+            "EXIT_HINT": "A hangos ablak marad, a többi bezárul",
+            "MAIN_ANNOUNCEMENT": "{{title}} lett a fő ablak",
+            "TILE_KEYS_HINT": "A nyilak másik sarokba viszik az ablakot, a plusz és a mínusz átméretezi, az Enter felcseréli a fő ablakkal.",
+            "ERROR_TITLE": "Ez a csatorna nem játszható le",
+            "ERROR_LIMIT_TITLE": "Elérte a kapcsolatkorlátot",
+            "ERROR_LIMIT_CAUSE": "{{playlist}} egyszerre {{max}} adatfolyamot enged, és mind használatban van.",
+            "ERROR_NETWORK_CAUSE": "A forrás nem érhető el. Lehet, hogy offline, vagy a szolgáltató elutasított egy újabb adatfolyamot.",
+            "ERROR_FORMAT_CAUSE": "Ez az adatfolyam olyan formátumot használ, amelyet a beépített lejátszó nem támogat.",
+            "ERROR_GENERIC_CAUSE": "Az adatfolyam váratlanul leállt.",
+            "REPLACE_MAIN": "Fő ablak cseréje",
+            "CHOOSE_ANOTHER": "Másik forrás választása",
+            "PICKER": {
+                "TITLE_ADD": "Hozzáadás a többnézethez",
+                "TITLE_REPLACE": "A(z) {{number}}. ablak cseréje",
+                "SUBTITLE_ADD": "A(z) {{title}} hanggal szól tovább. Az új némán indul.",
+                "SUBTITLE_REPLACE": "A(z) {{title}} lecserélődik. Az új némán indul.",
+                "SUBTITLE_MUTED": "Az új némán indul.",
+                "SEARCH_LABEL": "Források keresése",
+                "SEARCH_PLACEHOLDER": "Csatornák, műsorok, filmek, sorozatok…",
+                "SCOPE_EVERYWHERE": "mindenhol",
+                "SECTIONS": "Szakaszok",
+                "QUICK": "Gyors",
+                "PLAYLISTS": "Lejátszási listák",
+                "SECTION": {
+                    "live-now": "Most élőben",
+                    "continue": "Folytatás",
+                    "favorites": "Kedvencek",
+                    "recent": "Legutóbbiak"
+                },
+                "BUDGET_FREE": "{{count}} szabad",
+                "BUDGET_FULL": "tele",
+                "BUDGET_UNKNOWN": "korlát ?",
+                "FULL_WARNING": "A(z) {{playlist}} listának nincs szabad kapcsolata, így egy új adás valószínűleg nem indul el.",
+                "METER": "{{playlist}}: {{max}} kapcsolatból {{used}} foglalt",
+                "METER_UNKNOWN": "{{playlist}}: a kapcsolatkorlát ismeretlen",
+                "TYPES": "Tartalomtípus",
+                "TYPE": {
+                    "all": "Összes",
+                    "live": "Televízió",
+                    "movie": "Filmek",
+                    "series": "Sorozatok"
+                },
+                "RESULTS": "Források",
+                "GROUP_FROM_FAVORITES": "A kedvencekből",
+                "GROUP_MORE_ON_AIR": "További élő adások",
+                "SEARCH_ON_AIR": "Most műsoron",
+                "SEARCH_CHANNELS": "Csatornák",
+                "SEARCH_MOVIES": "Filmek",
+                "SEARCH_SERIES": "Sorozatok",
+                "TYPE_MOVIE": "Film",
+                "TYPE_SERIES_ONE": "Sorozat",
+                "CONTINUE_FROM": "Folytatás innen: {{position}}",
+                "IN_TILE": "A(z) {{number}}. ablakban",
+                "EPISODES": "Epizódok",
+                "NO_EPISODES": "Nincsenek epizódok",
+                "STARTED": "Elkezdve",
+                "UNAVAILABLE": "Többnézetben nem",
+                "RESOLVE_ERROR": "Ez a forrás nem nyitható meg.",
+                "LOADING": "Betöltés…",
+                "LOAD_ERROR": "A lista nem tölthető be.",
+                "NO_RESULTS": "Nincs találat",
+                "EMPTY": "Még nincs itt semmi",
+                "CATEGORY": "Kategória",
+                "CATEGORY_ALL": "Minden kategória"
+            },
+            "REPLACED": "A(z) {{number}}. ablak lecserélve"
+        }
     }
 }

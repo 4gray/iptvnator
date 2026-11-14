@@ -56,6 +56,13 @@ export interface ScenarioConfig {
      * source still imports.
      */
     silentActions?: readonly string[];
+    /**
+     * Streams the account may play at once; a further stream is refused
+     * with 403 while the others are connected (see connection-limit.ts).
+     * `user_info` reports it as `max_connections`. Default: unlimited
+     * streams, `max_connections` 2.
+     */
+    connectionLimit?: number;
 }
 
 /** A 120-character programme title for label overflow tests. */
@@ -79,6 +86,19 @@ export const SCENARIOS: Record<string, ScenarioConfig> = {
         accountStatus: 'Active',
         expiryDate: '2099-12-31',
         categoryFixture: 'scroll',
+    },
+    'limit:limit': {
+        name: 'connection-limit',
+        description:
+            'One connection allowed: a second concurrent stream is refused (multiview error tile)',
+        seed: 1201,
+        categoryCount: { live: 2, vod: 2, series: 1 },
+        itemsPerCategory: 6,
+        seasonsPerSeries: 1,
+        episodesPerSeason: 2,
+        accountStatus: 'Active',
+        expiryDate: '2099-12-31',
+        connectionLimit: 1,
     },
     'live-fallback:live-fallback': {
         name: 'live-format-fallback',

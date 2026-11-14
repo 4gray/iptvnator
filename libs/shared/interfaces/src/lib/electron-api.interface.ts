@@ -1,4 +1,7 @@
-import type { HostedServerCommand, HostedServerStatus } from './hosted-server.interface';
+import type {
+    HostedServerCommand,
+    HostedServerStatus,
+} from './hosted-server.interface';
 export type ElectronBridgeAppMenuAction = 'settings' | 'check-for-updates';
 import type { AppUpdateChannel } from './app-update-channel.util';
 import type { SourceProbeContext, SourceHealthResult } from './source-health';
@@ -780,7 +783,9 @@ export interface ElectronBridgeApi {
             tokenPersisted: boolean;
         }
     >;
-    hostedServerControl?: (command: HostedServerCommand) => Promise<HostedServerStatus>;
+    hostedServerControl?: (
+        command: HostedServerCommand
+    ) => Promise<HostedServerStatus>;
     hostedServerAccessCode?: () => Promise<string>;
     sourceSyncDisconnect?: () => Promise<void>;
     sourceSyncForget?: () => Promise<void>;
@@ -911,13 +916,25 @@ export interface ElectronBridgeApi {
         filePath: string,
         content: string
     ) => Promise<ElectronBridgeResult>;
+    /**
+     * `ownerId` names which scoped override a call with a `scopeUrl` sets or
+     * clears. Omitted, the call uses the one default override every
+     * single-player surface shares; multiview tiles pass their own.
+     */
     setUserAgent: (
         userAgent?: string | null,
         referer?: string | null,
         scopeUrl?: string | null,
         credentials?: ElectronBridgeStreamCredentials | null,
-        origin?: string | null
+        origin?: string | null,
+        ownerId?: string
     ) => Promise<boolean>;
+    /**
+     * Forgets a named header owner (a multiview tile whose player is gone),
+     * as opposed to `setUserAgent` without headers, which keeps the owner's
+     * claim on its stream.
+     */
+    releaseHeaderOwner?: (ownerId: string) => Promise<boolean>;
     openInMpv: (
         url: string,
         title: string,

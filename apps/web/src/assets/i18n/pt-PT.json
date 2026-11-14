@@ -1099,7 +1099,9 @@
             "SEARCH_PLACEHOLDER": "Pesquisar grupos…",
             "NO_RESULTS": "Nenhum grupo correspondente encontrado",
             "SAVE": "Guardar"
-        }
+        },
+        "MULTIVIEW_TILE": "No ecrã, na janela {{number}}",
+        "MULTIVIEW_TILE_SOUND": "No ecrã, na janela {{number}}, com som"
     },
     "TOP_MENU": {
         "OPEN_EPG_GUIDE": "Guia TV"
@@ -2214,7 +2216,10 @@
                 "COMMAND_PALETTE_RUN": "Executar item selecionado da paleta de comandos",
                 "CLOSE_DIALOGS": "Fechar a caixa de diálogo ou a sobreposição",
                 "DOWNLOADS_OPEN_ITEM": "Abrir a transferência em foco na biblioteca",
-                "OPEN_PLAYLIST_SWITCHER": "Mudar de playlist"
+                "OPEN_PLAYLIST_SWITCHER": "Mudar de playlist",
+                "MULTIVIEW_OPEN_PICKER": "Abrir o seletor de fontes da multivista",
+                "MULTIVIEW_SWAP": "Multivista: trocar a janela principal e a pequena",
+                "MULTIVIEW_AUDIO": "Multivista: passar o som para a janela ativa"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -2549,5 +2554,94 @@
         "STATE_offline": "Histórico guardado localmente; servidor indisponível",
         "STATE_incompatible": "Este servidor não suporta sincronização do histórico",
         "PENDING": "Alterações do histórico na fila: {{count}}"
+    },
+    "PLAYER": {
+        "MULTIVIEW": {
+            "ACTION": "Multivisualização",
+            "ACTION_TOOLTIP": "Multivisualização · Shift+M",
+            "UNAVAILABLE_PLAYER": "Disponível no leitor integrado",
+            "TILE_LABEL": "Janela {{number}}: {{title}}",
+            "STATE_SOUND": "com som",
+            "STATE_MUTED": "sem som",
+            "STATE_PAUSED": "em pausa",
+            "STATE_ERROR": "não está a reproduzir",
+            "BADGE_VOD": "Vídeo",
+            "SWAP": "Trocar com a janela principal",
+            "AUDIO_HERE": "Som aqui",
+            "CLOSE_TILE": "Fechar janela {{number}}",
+            "PAUSED_AT": "Em pausa · {{position}}",
+            "RESUME": "Reproduzir com som",
+            "LAYOUT": "Disposição",
+            "LAYOUT_PIP": "Imagem na imagem",
+            "ADD_CHANNEL": "Canal",
+            "ADD_CHANNEL_HINT": "Adicionar um canal",
+            "EXIT": "Sair",
+            "EXIT_HINT": "Manter a janela com som e fechar as restantes",
+            "MAIN_ANNOUNCEMENT": "{{title}} é agora a janela principal",
+            "TILE_KEYS_HINT": "As setas movem a janela para outro canto, mais e menos alteram o tamanho, Enter troca-a com a janela principal.",
+            "ERROR_TITLE": "Este canal não reproduz",
+            "ERROR_LIMIT_TITLE": "Limite de ligações atingido",
+            "ERROR_LIMIT_CAUSE": "{{playlist}} permite {{max}} transmissões em simultâneo, e todas estão em uso.",
+            "ERROR_NETWORK_CAUSE": "Não foi possível aceder à fonte. Pode estar offline ou o fornecedor recusou outra transmissão.",
+            "ERROR_FORMAT_CAUSE": "Esta transmissão usa um formato que o leitor integrado não reproduz.",
+            "ERROR_GENERIC_CAUSE": "A transmissão parou inesperadamente.",
+            "REPLACE_MAIN": "Substituir a janela principal",
+            "CHOOSE_ANOTHER": "Escolher outra fonte",
+            "PICKER": {
+                "TITLE_ADD": "Adicionar à multivista",
+                "TITLE_REPLACE": "Substituir a janela {{number}}",
+                "SUBTITLE_ADD": "{{title}} continua com som. A nova começa sem som.",
+                "SUBTITLE_REPLACE": "{{title}} será substituído. A nova começa sem som.",
+                "SUBTITLE_MUTED": "A nova começa sem som.",
+                "SEARCH_LABEL": "Pesquisar fontes",
+                "SEARCH_PLACEHOLDER": "Canais, programas, filmes, séries…",
+                "SCOPE_EVERYWHERE": "em tudo",
+                "SECTIONS": "Secções",
+                "QUICK": "Acesso rápido",
+                "PLAYLISTS": "Listas",
+                "SECTION": {
+                    "live-now": "Em direto agora",
+                    "continue": "Continuar",
+                    "favorites": "Favoritos",
+                    "recent": "Recentes"
+                },
+                "BUDGET_FREE": "{{count}} livres",
+                "BUDGET_FULL": "cheia",
+                "BUDGET_UNKNOWN": "limite ?",
+                "FULL_WARNING": "{{playlist}} não tem ligações livres; uma nova transmissão provavelmente não vai começar.",
+                "METER": "{{playlist}}: {{used}} de {{max}} em uso",
+                "METER_UNKNOWN": "{{playlist}}: limite de ligações desconhecido",
+                "TYPES": "Tipo de conteúdo",
+                "TYPE": {
+                    "all": "Tudo",
+                    "live": "Televisão",
+                    "movie": "Filmes",
+                    "series": "Séries"
+                },
+                "RESULTS": "Fontes",
+                "GROUP_FROM_FAVORITES": "Dos favoritos",
+                "GROUP_MORE_ON_AIR": "Mais em direto",
+                "SEARCH_ON_AIR": "No ar agora",
+                "SEARCH_CHANNELS": "Canais",
+                "SEARCH_MOVIES": "Filmes",
+                "SEARCH_SERIES": "Séries",
+                "TYPE_MOVIE": "Filme",
+                "TYPE_SERIES_ONE": "Série",
+                "CONTINUE_FROM": "Continuar a partir de {{position}}",
+                "IN_TILE": "Na janela {{number}}",
+                "EPISODES": "Episódios",
+                "NO_EPISODES": "Nenhum episódio",
+                "STARTED": "Iniciado",
+                "UNAVAILABLE": "Indisponível na multivista",
+                "RESOLVE_ERROR": "Não foi possível abrir esta fonte.",
+                "LOADING": "A carregar…",
+                "LOAD_ERROR": "Não foi possível carregar a lista.",
+                "NO_RESULTS": "Nada encontrado",
+                "EMPTY": "Ainda não há nada",
+                "CATEGORY": "Categoria",
+                "CATEGORY_ALL": "Todas as categorias"
+            },
+            "REPLACED": "Janela {{number}} substituída"
+        }
     }
 }

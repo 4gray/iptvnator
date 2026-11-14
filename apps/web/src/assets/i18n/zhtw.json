@@ -1099,7 +1099,9 @@
             "SEARCH_PLACEHOLDER": "搜尋群組...",
             "NO_RESULTS": "找不到符合的群組",
             "SAVE": "儲存"
-        }
+        },
+        "MULTIVIEW_TILE": "正在視窗 {{number}} 中顯示",
+        "MULTIVIEW_TILE_SOUND": "正在視窗 {{number}} 中有聲顯示"
     },
     "TOP_MENU": {
         "OPEN_EPG_GUIDE": "節目表"
@@ -2214,7 +2216,10 @@
                 "COMMAND_PALETTE_RUN": "執行選取的命令面板項目",
                 "CLOSE_DIALOGS": "關閉對話框或取消覆蓋層",
                 "DOWNLOADS_OPEN_ITEM": "在媒體庫中開啟聚焦的下載項目",
-                "OPEN_PLAYLIST_SWITCHER": "切換播放清單"
+                "OPEN_PLAYLIST_SWITCHER": "切換播放清單",
+                "MULTIVIEW_OPEN_PICKER": "開啟多畫面來源選擇",
+                "MULTIVIEW_SWAP": "多畫面：交換主視窗與小視窗",
+                "MULTIVIEW_AUDIO": "多畫面：將聲音移到使用中的視窗"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -2549,5 +2554,94 @@
         "STATE_offline": "歷史已儲存在本機；伺服器無法使用",
         "STATE_incompatible": "此伺服器不支援歷史同步",
         "PENDING": "佇列中的歷史變更：{{count}}"
+    },
+    "PLAYER": {
+        "MULTIVIEW": {
+            "ACTION": "多畫面",
+            "ACTION_TOOLTIP": "多畫面 · Shift+M",
+            "UNAVAILABLE_PLAYER": "在內建播放器中可用",
+            "TILE_LABEL": "視窗 {{number}}：{{title}}",
+            "STATE_SOUND": "聲音開啟",
+            "STATE_MUTED": "已靜音",
+            "STATE_PAUSED": "已暫停",
+            "STATE_ERROR": "未在播放",
+            "BADGE_VOD": "影片",
+            "SWAP": "與主視窗交換",
+            "AUDIO_HERE": "在此播放聲音",
+            "CLOSE_TILE": "關閉視窗 {{number}}",
+            "PAUSED_AT": "已暫停 · {{position}}",
+            "RESUME": "帶聲音播放",
+            "LAYOUT": "版面配置",
+            "LAYOUT_PIP": "子母畫面",
+            "ADD_CHANNEL": "頻道",
+            "ADD_CHANNEL_HINT": "新增頻道",
+            "EXIT": "離開",
+            "EXIT_HINT": "保留有聲音的視窗並關閉其他視窗",
+            "MAIN_ANNOUNCEMENT": "{{title}} 現在是主視窗",
+            "TILE_KEYS_HINT": "方向鍵將視窗移到另一個角落，加號和減號調整大小，Enter 將其與主視窗交換。",
+            "ERROR_TITLE": "無法播放此頻道",
+            "ERROR_LIMIT_TITLE": "已達連線數上限",
+            "ERROR_LIMIT_CAUSE": "{{playlist}} 同時最多允許 {{max}} 路串流，目前已全部使用中。",
+            "ERROR_NETWORK_CAUSE": "無法連線到來源。它可能已離線，或供應商拒絕了另一路串流。",
+            "ERROR_FORMAT_CAUSE": "此串流使用內建播放器無法播放的格式。",
+            "ERROR_GENERIC_CAUSE": "串流意外停止。",
+            "REPLACE_MAIN": "取代主視窗",
+            "CHOOSE_ANOTHER": "選擇其他來源",
+            "PICKER": {
+                "TITLE_ADD": "加入多畫面",
+                "TITLE_REPLACE": "取代視窗 {{number}}",
+                "SUBTITLE_ADD": "{{title}} 會繼續有聲播放。新的會靜音開始。",
+                "SUBTITLE_REPLACE": "{{title}} 將被取代。新的會靜音開始。",
+                "SUBTITLE_MUTED": "新的會靜音開始。",
+                "SEARCH_LABEL": "搜尋來源",
+                "SEARCH_PLACEHOLDER": "頻道、節目、電影、影集…",
+                "SCOPE_EVERYWHERE": "全部",
+                "SECTIONS": "區段",
+                "QUICK": "快速",
+                "PLAYLISTS": "播放清單",
+                "SECTION": {
+                    "live-now": "正在直播",
+                    "continue": "繼續觀看",
+                    "favorites": "我的最愛",
+                    "recent": "最近"
+                },
+                "BUDGET_FREE": "空閒 {{count}}",
+                "BUDGET_FULL": "已滿",
+                "BUDGET_UNKNOWN": "上限 ?",
+                "FULL_WARNING": "{{playlist}} 沒有空閒連線，新的串流可能無法開始。",
+                "METER": "{{playlist}}：已用 {{used}}/{{max}}",
+                "METER_UNKNOWN": "{{playlist}}：連線上限未知",
+                "TYPES": "內容類型",
+                "TYPE": {
+                    "all": "全部",
+                    "live": "電視",
+                    "movie": "電影",
+                    "series": "影集"
+                },
+                "RESULTS": "來源",
+                "GROUP_FROM_FAVORITES": "來自我的最愛",
+                "GROUP_MORE_ON_AIR": "更多直播",
+                "SEARCH_ON_AIR": "正在播出",
+                "SEARCH_CHANNELS": "頻道",
+                "SEARCH_MOVIES": "電影",
+                "SEARCH_SERIES": "影集",
+                "TYPE_MOVIE": "電影",
+                "TYPE_SERIES_ONE": "影集",
+                "CONTINUE_FROM": "從 {{position}} 繼續",
+                "IN_TILE": "在視窗 {{number}} 中",
+                "EPISODES": "集數",
+                "NO_EPISODES": "沒有集數",
+                "STARTED": "已開始",
+                "UNAVAILABLE": "不支援多畫面",
+                "RESOLVE_ERROR": "無法開啟此來源。",
+                "LOADING": "載入中…",
+                "LOAD_ERROR": "無法載入清單。",
+                "NO_RESULTS": "找不到任何內容",
+                "EMPTY": "這裡還沒有內容",
+                "CATEGORY": "分類",
+                "CATEGORY_ALL": "全部分類"
+            },
+            "REPLACED": "已取代視窗 {{number}}"
+        }
     }
 }

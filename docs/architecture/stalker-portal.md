@@ -1362,8 +1362,9 @@ only for the video players and radio renders `AudioPlayerComponent` outside it:
 - `UnifiedLiveTabComponent` (`libs/portal/shared/ui`) — the radio audio player
   of the Favorites / Recently Viewed collection routes.
 
-Each owns a single scope slot and clears it only while it still owns it, so a
-handover between them cannot drop the other's credentials.
+Each uses the default override owner and clears it only while its own stream
+still holds it, so a handover between them cannot drop the other's
+credentials.
 
 Two stream profiles exist, selected by one shared predicate:
 

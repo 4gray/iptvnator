@@ -401,8 +401,17 @@ one colour in every player surface (UI guidelines, "Watch progress colour").
   the hover/tap popover in the compact mode — inline, the button is a
   plain mute toggle for every pointer type (`buttonClick(event,
   { inlineSlider: true })`). Center: previous episode · −10s · **play** ·
-  +10s · next episode. Right: the value chips, the `tune` button,
-  recording, picture-in-picture and fullscreen, end-aligned.
+  +10s · next episode. Right: the value chips, multiview, the `tune`
+  button, recording, picture-in-picture and fullscreen, end-aligned.
+- **Multiview action** (`data-test-id="player-controls-multiview"`, grid
+  icon): rendered only when a host above the player provides
+  `PLAYER_MULTIVIEW_ACTION` (`player-multiview-action.ts`); the
+  `appPlayerMultiviewAction` template directive stamps it inside the dock
+  template so it keeps the dock's icon-button styles. Without a provider the
+  dock is unchanged. A disabled action stays visible and focusable
+  (`disabledInteractive`, `aria-disabled`) and its tooltip names the reason
+  (`disabledReasonKey`); an enabled one shows "Multiview · Shift+M". It hides
+  with the other right-group actions while the roomy settings panel is open.
 - **Play button** (`.player-controls__play`, `data-test-id
   ="player-controls-play"`): a 52px filled accent circle with a white glyph,
   not a Material icon button. Fills under a white glyph (play, active
@@ -1140,6 +1149,24 @@ their `transitionKey`. Session disposal, retry, channel changes, and engine
 handoff therefore clear stale recording ownership without showing a false
 `RECORDING_SAVED` confirmation.
 
+Multiview keys (`multiview-anchor/multiview-shortcuts.ts`, installed by the
+workspace shell) follow the same ownership rules: they ignore keys from
+interactive targets (`comesFromInteractiveTarget`, shared with
+`ControlsShortcuts`), Ctrl/Cmd/Alt chords, and a player surface that is
+`inert` or inside `[data-player-shortcuts-suspended]`. The surface is the
+anchor placeholder while a session runs, else the player that
+`appMultiviewPlayer` marks. `Shift+M` opens the source picker when one is
+installed and the current anchor can start or extend a session; `S` swaps
+and `A` moves the sound only during a session. The listener runs in the
+capture phase on `document`, so a `Shift+M` it takes is `defaultPrevented`
+before `ControlsShortcuts` sees it as mute. Without an installed picker
+`Shift+M` still mutes, and plain `M` and the M3U digits are never taken.
+Escape stays with the picker dialog and never ends a session.
+When `ControlsShortcuts` takes a key it dispatches the bubbling
+`PLAYER_SHORTCUT_EVENT` on its host element; a multiview tile counts it as
+the viewer's own action (D3), so M or Space on a muted tile asks for its
+sound instead of being undone.
+
 ### Vendor-chrome (preference-off) keyboard shortcuts
 
 With `webPlayerSharedControls` off, `app-player-controls` never renders, so no
@@ -1340,6 +1367,11 @@ from a host input, so every host — the M3U player, Xtream and Stalker live
 layouts, and the portal detail inline player — gets it without wiring.
 
 ### Standard element picture-in-picture
+
+Multiview tiles never enter system picture-in-picture (multiview decision
+D12): `WebPlayerTileMedia` sets `disablePictureInPicture` on every tile
+video, and the capability check below already honours that flag, so the
+main tile's dock shows no PiP button. A single player is unaffected.
 
 Picture-in-picture is part of the default-on shared web-controls
 rollout. It is available through standard element PiP for HTML5, Video.js, and
@@ -1789,6 +1821,7 @@ libs/ui/playback/src/lib/player-controls/
 ├── player-settings-panel.component.html
 ├── player-settings-panel.component.scss
 ├── settings-radio-group.directive.ts
+├── player-multiview-action.ts
 ├── controls-fullscreen.ts
 ├── controls-menu-selection.ts
 ├── controls-menu-state.ts

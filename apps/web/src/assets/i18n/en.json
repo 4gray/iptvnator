@@ -1099,7 +1099,9 @@
             "SEARCH_PLACEHOLDER": "Search groups...",
             "NO_RESULTS": "No matching groups found",
             "SAVE": "Save"
-        }
+        },
+        "MULTIVIEW_TILE": "On screen in tile {{number}}",
+        "MULTIVIEW_TILE_SOUND": "On screen in tile {{number}}, with sound"
     },
     "TOP_MENU": {
         "OPEN_EPG_GUIDE": "Programme guide"
@@ -2214,7 +2216,10 @@
                 "COMMAND_PALETTE_RUN": "Run selected command palette item",
                 "CLOSE_DIALOGS": "Close dialog or dismiss overlay",
                 "DOWNLOADS_OPEN_ITEM": "Open focused download item in the library",
-                "OPEN_PLAYLIST_SWITCHER": "Switch playlist"
+                "OPEN_PLAYLIST_SWITCHER": "Switch playlist",
+                "MULTIVIEW_OPEN_PICKER": "Open the multiview source picker",
+                "MULTIVIEW_SWAP": "Multiview: swap the main and the small tile",
+                "MULTIVIEW_AUDIO": "Multiview: move the sound to the active tile"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -2549,5 +2554,94 @@
         "STATE_offline": "History saved locally; server unavailable",
         "STATE_incompatible": "This server does not support history synchronization",
         "PENDING": "Queued history changes: {{count}}"
+    },
+    "PLAYER": {
+        "MULTIVIEW": {
+            "ACTION": "Multiview",
+            "ACTION_TOOLTIP": "Multiview · Shift+M",
+            "UNAVAILABLE_PLAYER": "Available with the built-in player",
+            "TILE_LABEL": "Tile {{number}}: {{title}}",
+            "STATE_SOUND": "sound on",
+            "STATE_MUTED": "muted",
+            "STATE_PAUSED": "paused",
+            "STATE_ERROR": "not playing",
+            "BADGE_VOD": "VOD",
+            "SWAP": "Swap with the main tile",
+            "AUDIO_HERE": "Sound here",
+            "CLOSE_TILE": "Close tile {{number}}",
+            "PAUSED_AT": "Paused · {{position}}",
+            "RESUME": "Play with sound",
+            "LAYOUT": "Layout",
+            "LAYOUT_PIP": "Picture in picture",
+            "ADD_CHANNEL": "Channel",
+            "ADD_CHANNEL_HINT": "Add a channel",
+            "EXIT": "Exit",
+            "EXIT_HINT": "Keep the tile with sound and close the others",
+            "MAIN_ANNOUNCEMENT": "{{title}} is now the main tile",
+            "TILE_KEYS_HINT": "Arrow keys move the tile to another corner, plus and minus resize it, Enter swaps it with the main tile.",
+            "ERROR_TITLE": "This channel won't play",
+            "ERROR_LIMIT_TITLE": "Connection limit reached",
+            "ERROR_LIMIT_CAUSE": "{{playlist}} allows {{max}} streams at a time, and they are all in use.",
+            "ERROR_NETWORK_CAUSE": "The source could not be reached. It may be offline, or the provider refused another stream.",
+            "ERROR_FORMAT_CAUSE": "This stream uses a format the built-in player can't play.",
+            "ERROR_GENERIC_CAUSE": "The stream stopped unexpectedly.",
+            "REPLACE_MAIN": "Replace main tile",
+            "CHOOSE_ANOTHER": "Choose another source",
+            "PICKER": {
+                "TITLE_ADD": "Add to multiview",
+                "TITLE_REPLACE": "Replace tile {{number}}",
+                "SUBTITLE_ADD": "{{title}} keeps playing with sound. The new one starts muted.",
+                "SUBTITLE_REPLACE": "{{title}} will be replaced. The new one starts muted.",
+                "SUBTITLE_MUTED": "The new one starts muted.",
+                "SEARCH_LABEL": "Search sources",
+                "SEARCH_PLACEHOLDER": "Channels, programmes, movies, series…",
+                "SCOPE_EVERYWHERE": "everywhere",
+                "SECTIONS": "Sections",
+                "QUICK": "Quick",
+                "PLAYLISTS": "Playlists",
+                "SECTION": {
+                    "live-now": "Live now",
+                    "continue": "Continue",
+                    "favorites": "Favorites",
+                    "recent": "Recent"
+                },
+                "BUDGET_FREE": "{{count}} free",
+                "BUDGET_FULL": "full",
+                "BUDGET_UNKNOWN": "limit ?",
+                "FULL_WARNING": "{{playlist}} has no free connection, so a new stream probably won't start.",
+                "METER": "{{playlist}}: {{used}} of {{max}} in use",
+                "METER_UNKNOWN": "{{playlist}}: connection limit unknown",
+                "TYPES": "Content type",
+                "TYPE": {
+                    "all": "All",
+                    "live": "TV",
+                    "movie": "Movies",
+                    "series": "Series"
+                },
+                "RESULTS": "Sources",
+                "GROUP_FROM_FAVORITES": "From favourites",
+                "GROUP_MORE_ON_AIR": "More on air",
+                "SEARCH_ON_AIR": "On air now",
+                "SEARCH_CHANNELS": "Channels",
+                "SEARCH_MOVIES": "Movies",
+                "SEARCH_SERIES": "Series",
+                "TYPE_MOVIE": "Movie",
+                "TYPE_SERIES_ONE": "Series",
+                "CONTINUE_FROM": "Continue from {{position}}",
+                "IN_TILE": "In tile {{number}}",
+                "EPISODES": "Episodes",
+                "NO_EPISODES": "No episodes",
+                "STARTED": "Started",
+                "UNAVAILABLE": "Not in multiview",
+                "RESOLVE_ERROR": "This source can't be opened.",
+                "LOADING": "Loading…",
+                "LOAD_ERROR": "The list could not be loaded.",
+                "NO_RESULTS": "Nothing found",
+                "EMPTY": "Nothing here yet",
+                "CATEGORY": "Category",
+                "CATEGORY_ALL": "All categories"
+            },
+            "REPLACED": "Replaced tile {{number}}"
+        }
     }
 }

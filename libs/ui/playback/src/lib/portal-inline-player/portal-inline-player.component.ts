@@ -27,6 +27,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import type { PlaybackFallbackRequest } from '@iptvnator/playback/util';
 import type { PlaybackDiagnosticCode } from '@iptvnator/playback/util';
+import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util/tokens';
 import { SettingsStore } from '@iptvnator/services';
 import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
 import type { PlayerMediaTitle, PlayerUpNextItem } from '../player-controls';
@@ -57,6 +58,14 @@ import { UpNextRailComponent } from './up-next-rail.component';
 import type { UpNextRailItem } from './up-next-rail.util';
 import { IdleControlsVisibility } from './idle-controls-visibility';
 
+import {
+    injectMultiviewAnchor,
+    MultiviewAnchorPlaceholderComponent,
+    MultiviewPlayerDirective,
+    provideMultiviewAnchor,
+} from '../multiview-anchor';
+import { createPortalInlinePlayerMultiviewHost } from './portal-inline-player-multiview-host';
+
 @Component({
     selector: 'app-portal-inline-player',
     templateUrl: './portal-inline-player.component.html',
@@ -71,8 +80,13 @@ import { IdleControlsVisibility } from './idle-controls-visibility';
         UpNextRailComponent,
         VodSourcesChipComponent,
         WebPlayerViewComponent,
+        MultiviewAnchorPlaceholderComponent,
+        MultiviewPlayerDirective,
     ],
     providers: [
+        provideMultiviewAnchor(
+            () => inject(PortalInlinePlayerComponent).multiviewAnchor
+        ),
         // The fullscreen side panel inside the nested player lists this
         // series' episodes (see the `fullscreenEpisodePanel` template). A
         // movie host gets `null` from `panelTemplate`, so nothing renders —
@@ -139,6 +153,10 @@ export class PortalInlinePlayerComponent {
      */
     readonly playerOverride = input<VideoPlayer | null>(null);
     private readonly settingsStore = inject(SettingsStore);
+    /** The runtime's position store (SQLite or the PWA's), as the pages use. */
+    private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS, {
+        optional: true,
+    });
     /**
      * Title row (name, copy-URL, close) visibility: shown on pointer
      * activity over the viewport, hidden again once idle, matching standard
@@ -154,7 +172,30 @@ export class PortalInlinePlayerComponent {
         )
     );
     readonly streamUrl = computed(() => this.playback()?.streamUrl ?? '');
-    readonly startTime = computed(() => this.playback()?.startTime ?? 0);
+    /** After a multiview session, continue where its tile was (R7). */
+    readonly startTime = computed(
+        () =>
+            this.multiviewAnchor.resumePosition() ??
+            this.playback()?.startTime ??
+            0
+    );
+    /** Lets a multiview session take over and hand back this player. */
+    readonly multiviewAnchor = injectMultiviewAnchor(
+        createPortalInlinePlayerMultiviewHost({
+            playback: this.playback,
+            volume: () => this.volume(),
+            sessionKey: this.playbackSessionKey,
+            isEpisode: () => this.episodeMetadata() !== null,
+            engine: () =>
+                this.playerOverride() ?? this.settingsStore.player?.(),
+            persistPosition: (event) => this.timeUpdate.emit(event),
+            savePosition: (playlistId, position) =>
+                void this.playbackPositions?.savePlaybackPosition(
+                    playlistId,
+                    position
+                ),
+        })
+    );
     /**
      * Poster used for the "Ambient mode" fill behind the player. Live channels
      * carry logos rather than posters, so they are excluded.

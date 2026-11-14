@@ -1,6 +1,12 @@
 import { ipcMain } from 'electron';
 import {
+    trackRequestHeaderOwner,
+    untrackRequestHeaderOwner,
+} from '../services/request-header-owner-lifetime';
+import {
     configureRequestHeaderOverride,
+    DEFAULT_SCOPED_OVERRIDE_OWNER,
+    releaseRequestHeaderOwner,
     type StreamCredentialHeaders,
 } from '../services/request-header-overrides.service';
 
@@ -23,16 +29,37 @@ function sanitizeCredentials(value: unknown): StreamCredentialHeaders | null {
     };
 }
 
+/** Owner ids are short renderer-chosen labels; anything else is ignored. */
+function sanitizeOwnerId(value: unknown): string | undefined {
+    return typeof value === 'string' && value.length > 0 && value.length <= 128
+        ? value
+        : undefined;
+}
+
+/** A multiview tile's player is gone: forget its header owner. */
+ipcMain.handle('release-header-owner', (event, ownerId) => {
+    const owner = sanitizeOwnerId(ownerId);
+    if (!owner) return true;
+    releaseRequestHeaderOwner(owner);
+    if (event?.sender) untrackRequestHeaderOwner(event.sender.id, owner);
+    return true;
+});
+
 ipcMain.handle(
     'set-user-agent',
-    (_event, userAgent, referer, scopeUrl, credentials, origin) => {
+    (event, userAgent, referer, scopeUrl, credentials, origin, ownerId) => {
+        const owner = sanitizeOwnerId(ownerId);
         setUserAgent(
             userAgent,
             referer,
             scopeUrl,
             sanitizeCredentials(credentials),
-            origin
+            origin,
+            owner
         );
+        // A reload or crash skips the tile's release: tie it to its page.
+        if (owner && owner !== DEFAULT_SCOPED_OVERRIDE_OWNER && event?.sender)
+            trackRequestHeaderOwner(event.sender, owner);
         return true;
     }
 );
@@ -46,19 +73,23 @@ ipcMain.handle(
  *   applied only to the exact origin of `scopeUrl` and only while the
  *   scoped override is active
  * @param origin explicit Origin override; otherwise derived from referer
+ * @param ownerId which scoped override to set or clear; omitted by every
+ *   single-player surface, which then shares the default one
  */
 export function setUserAgent(
     userAgent?: string | null,
     referer?: string | null,
     scopeUrl?: string | null,
     credentials?: StreamCredentialHeaders | null,
-    origin?: string | null
+    origin?: string | null,
+    ownerId?: string
 ): void {
     configureRequestHeaderOverride(
         userAgent,
         referer,
         scopeUrl,
         credentials,
-        origin
+        origin,
+        ownerId
     );
 }

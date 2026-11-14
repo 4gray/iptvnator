@@ -166,6 +166,35 @@
     opacity: 0.62;
 }
 
+// Multiview (spec 9.4): the tile that shows this channel; the audio tile's
+// badge takes the selection colour and a speaker.
+.multiview-tile-badge {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 2px;
+    height: 17px;
+    padding: 0 5px;
+    border-radius: 5px;
+    background: var(--app-neutral-tag-surface);
+    color: var(--app-body-color);
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 17px;
+
+    mat-icon {
+        width: 12px;
+        height: 12px;
+        font-size: 12px;
+        line-height: 12px;
+    }
+
+    &--audio {
+        background: var(--app-selection-color);
+        color: var(--app-selection-on-color);
+    }
+}
+
 .visually-hidden {
     position: absolute;
     width: 1px;

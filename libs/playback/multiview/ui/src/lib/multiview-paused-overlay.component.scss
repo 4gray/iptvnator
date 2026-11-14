@@ -1,0 +1,42 @@
+// Above the drag surface, but only its controls take pointer input.
+:host {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: rgba(5, 8, 12, 0.35);
+    pointer-events: none;
+}
+
+.paused__play {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: #f4f6fa;
+    color: #0a0e14;
+    cursor: pointer;
+    pointer-events: auto;
+
+    &:focus-visible {
+        outline: 2px solid #4f8eff;
+        outline-offset: 2px;
+    }
+}
+
+.paused__position {
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: rgba(10, 14, 20, 0.78);
+    color: #e7ecf3;
+    font-family: var(--pc-font-mono, ui-monospace, monospace);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}

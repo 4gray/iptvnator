@@ -23,11 +23,18 @@ interface WebPlayerApplicationOwnership {
 
 export class WebPlayerApplicationHandoffCoordinator {
     private headerScopeStreamUrl: string | null = null;
+    /** Owner the current header scope was configured for. */
+    private headerScopeOwner: string | null = null;
     private activeOwnership: WebPlayerApplicationOwnership | null = null;
 
     constructor(
         private readonly streamHeaders: ElectronStreamHeadersService,
-        private readonly recoverySession: PlaybackRecoverySession
+        private readonly recoverySession: PlaybackRecoverySession,
+        /**
+         * Scoped-override owner of this view; null shares the default one
+         * every single-player surface uses.
+         */
+        private readonly headerOwner: () => string | null = () => null
     ) {}
 
     apply(
@@ -40,8 +47,17 @@ export class WebPlayerApplicationHandoffCoordinator {
         accept: (handoff: WebPlayerApplicationHandoff) => void
     ): void {
         this.activeOwnership = Object.freeze({ binding, token });
-        const headerSync = this.streamHeaders.apply(playback);
+        const owner = this.headerOwner();
+        if (owner !== this.headerScopeOwner) {
+            // The view moved to another owner: release what the old one holds.
+            this.clearHeaderScope();
+        }
+        const headerSync =
+            owner === null
+                ? this.streamHeaders.apply(playback)
+                : this.streamHeaders.apply(playback, owner);
         this.headerScopeStreamUrl = playback.streamUrl;
+        this.headerScopeOwner = owner;
         const acceptSource = (): void => {
             const options = createVideoJsOptions({
                 streamUrl: playback.streamUrl,
@@ -105,8 +121,20 @@ export class WebPlayerApplicationHandoffCoordinator {
 
     release(): void {
         this.invalidate();
-        this.streamHeaders.clear(this.headerScopeStreamUrl);
+        this.clearHeaderScope();
+    }
+
+    private clearHeaderScope(): void {
+        if (this.headerScopeOwner === null) {
+            this.streamHeaders.clear(this.headerScopeStreamUrl);
+        } else {
+            this.streamHeaders.clear(
+                this.headerScopeStreamUrl,
+                this.headerScopeOwner
+            );
+        }
         this.headerScopeStreamUrl = null;
+        this.headerScopeOwner = null;
     }
 
     destroy(): void {

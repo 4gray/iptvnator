@@ -144,6 +144,7 @@
                 "libs/epg/data-access/**/*",
                 "libs/m3u-state/**/*",
                 "libs/playback/data-access/**/*",
+                "libs/playback/multiview/data-access/**/*",
                 "libs/playlist/import/feature/**/*",
                 "libs/playlist/shared/ui/**/*",
                 "libs/playlist/shared/util/**/*",
@@ -168,6 +169,7 @@
                 "libs/ui/shared-portals/**/*",
                 "libs/workspace/dashboard/data-access/**/*",
                 "libs/workspace/dashboard/feature/**/*",
+                "libs/workspace/multiview/feature/**/*",
                 "libs/workspace/shell/feature/**/*",
                 "libs/workspace/shell/util/**/*"
             ]

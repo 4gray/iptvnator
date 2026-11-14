@@ -108,6 +108,7 @@
             @for (channel of visibleChannels(); track channel.id) {
                 @let program = epgPrograms().get('' + channel.id);
                 <app-channel-list-item
+                    [appMultiviewChannel]="channel"
                     [name]="
                         channel.o_name ||
                         channel.name ||

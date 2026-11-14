@@ -1,0 +1,75 @@
+<div
+    class="tile-chrome"
+    tabindex="0"
+    role="group"
+    data-test-id="multiview-tile-chrome"
+    [attr.aria-label]="label()"
+    [attr.data-handle]="handleCorner()"
+    [attr.aria-description]="'PLAYER.MULTIVIEW.TILE_KEYS_HINT' | translate"
+    (pointerdown)="onSurfacePointerDown($event)"
+    (dblclick)="swapRequested.emit()"
+    (keydown)="keyPressed.emit($event)"
+>
+    <div class="tile-chrome__label" aria-hidden="true">
+        <span class="tile-chrome__number">{{ tileNumber() }}</span>
+        <span
+            class="tile-chrome__badge"
+            [class.tile-chrome__badge--live]="isLive()"
+            >{{
+                (isLive()
+                    ? 'EMBEDDED_MPV.PLAYER.LIVE_BADGE'
+                    : 'PLAYER.MULTIVIEW.BADGE_VOD'
+                ) | translate
+            }}</span
+        >
+        <span class="tile-chrome__title">{{ tile().title }}</span>
+    </div>
+
+    <div class="tile-chrome__actions">
+        <button
+            type="button"
+            class="tile-chrome__button tile-chrome__button--accent"
+            data-test-id="multiview-tile-swap"
+            [attr.aria-label]="'PLAYER.MULTIVIEW.SWAP' | translate"
+            [matTooltip]="'PLAYER.MULTIVIEW.SWAP' | translate"
+            (click)="swapRequested.emit()"
+        >
+            <mat-icon>swap_horiz</mat-icon>
+        </button>
+        @if (!hasAudio()) {
+            <button
+                type="button"
+                class="tile-chrome__button"
+                data-test-id="multiview-tile-audio"
+                [attr.aria-label]="'PLAYER.MULTIVIEW.AUDIO_HERE' | translate"
+                [matTooltip]="'PLAYER.MULTIVIEW.AUDIO_HERE' | translate"
+                (click)="audioRequested.emit()"
+            >
+                <mat-icon>volume_off</mat-icon>
+            </button>
+        }
+    </div>
+
+    <button
+        type="button"
+        class="tile-chrome__button tile-chrome__close"
+        data-test-id="multiview-tile-close"
+        [attr.aria-label]="
+            'PLAYER.MULTIVIEW.CLOSE_TILE' | translate: { number: tileNumber() }
+        "
+        [matTooltip]="
+            'PLAYER.MULTIVIEW.CLOSE_TILE' | translate: { number: tileNumber() }
+        "
+        (click)="closeRequested.emit()"
+    >
+        <mat-icon>close</mat-icon>
+    </button>
+
+    <div
+        class="tile-chrome__resize"
+        [attr.data-corner]="handleCorner()"
+        data-test-id="multiview-tile-resize"
+        aria-hidden="true"
+        (pointerdown)="onResizePointerDown($event)"
+    ></div>
+</div>

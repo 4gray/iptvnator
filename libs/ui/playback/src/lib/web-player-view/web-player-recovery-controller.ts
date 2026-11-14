@@ -55,6 +55,14 @@ export interface WebPlayerRecoveryControllerDeps {
  * ownership, recommended-player switching, retry, and session sync. The
  * component remains the template-facing facade and delegates here.
  */
+/** What a retry needs of the Embedded MPV player. */
+export interface EmbeddedMpvRetryTarget {
+    isReconnecting(): boolean;
+    isErrored(): boolean;
+    isLiveEnded(): boolean;
+    retry(): void;
+}
+
 export class WebPlayerRecoveryController {
     readonly playbackDiagnostic = signal<PlaybackDiagnostic | null>(null);
     // Diagnostic ownership follows raw intent so an old action disappears;
@@ -137,6 +145,27 @@ export class WebPlayerRecoveryController {
             !this.visiblePlaybackDiagnostic()
         );
     };
+
+    /**
+     * Retries a failed engine: the web engines by reloading
+     * (`retryPlayback`), Embedded MPV itself once it errored or the live
+     * stream ended. False when there is nothing to retry.
+     */
+    retryFailed(
+        mpv: EmbeddedMpvRetryTarget | undefined,
+        retryPlayback: () => void
+    ): boolean {
+        if (!mpv && this.canRetry()) retryPlayback();
+        else if (
+            mpv &&
+            !mpv.isReconnecting() &&
+            (mpv.isErrored() || mpv.isLiveEnded())
+        ) {
+            this.recordEnd(this.deps.playbackApplicationToken());
+            mpv.retry();
+        } else return false;
+        return true;
+    }
 
     canRetry(): boolean {
         return (

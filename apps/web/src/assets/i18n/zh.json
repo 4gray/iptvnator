@@ -1099,7 +1099,9 @@
             "SEARCH_PLACEHOLDER": "搜索分组…",
             "NO_RESULTS": "未找到匹配的分组",
             "SAVE": "保存"
-        }
+        },
+        "MULTIVIEW_TILE": "正在窗口 {{number}} 中显示",
+        "MULTIVIEW_TILE_SOUND": "正在窗口 {{number}} 中有声显示"
     },
     "TOP_MENU": {
         "OPEN_EPG_GUIDE": "节目指南"
@@ -2214,7 +2216,10 @@
                 "COMMAND_PALETTE_RUN": "运行选中的命令面板项目",
                 "CLOSE_DIALOGS": "关闭对话框或取消覆盖层",
                 "DOWNLOADS_OPEN_ITEM": "在媒体库中打开聚焦的下载项",
-                "OPEN_PLAYLIST_SWITCHER": "切换播放列表"
+                "OPEN_PLAYLIST_SWITCHER": "切换播放列表",
+                "MULTIVIEW_OPEN_PICKER": "打开多画面来源选择",
+                "MULTIVIEW_SWAP": "多画面：交换主窗口和小窗口",
+                "MULTIVIEW_AUDIO": "多画面：将声音移到活动窗口"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -2549,5 +2554,94 @@
         "STATE_offline": "历史已保存在本地；服务器不可用",
         "STATE_incompatible": "此服务器不支持历史同步",
         "PENDING": "排队中的历史更改：{{count}}"
+    },
+    "PLAYER": {
+        "MULTIVIEW": {
+            "ACTION": "多画面",
+            "ACTION_TOOLTIP": "多画面 · Shift+M",
+            "UNAVAILABLE_PLAYER": "在内置播放器中可用",
+            "TILE_LABEL": "窗口 {{number}}：{{title}}",
+            "STATE_SOUND": "声音开启",
+            "STATE_MUTED": "已静音",
+            "STATE_PAUSED": "已暂停",
+            "STATE_ERROR": "未在播放",
+            "BADGE_VOD": "视频",
+            "SWAP": "与主窗口交换",
+            "AUDIO_HERE": "在此播放声音",
+            "CLOSE_TILE": "关闭窗口 {{number}}",
+            "PAUSED_AT": "已暂停 · {{position}}",
+            "RESUME": "带声音播放",
+            "LAYOUT": "布局",
+            "LAYOUT_PIP": "画中画",
+            "ADD_CHANNEL": "频道",
+            "ADD_CHANNEL_HINT": "添加频道",
+            "EXIT": "退出",
+            "EXIT_HINT": "保留有声音的窗口并关闭其他窗口",
+            "MAIN_ANNOUNCEMENT": "{{title}} 现在是主窗口",
+            "TILE_KEYS_HINT": "方向键将窗口移到另一个角，加号和减号调整大小，Enter 将其与主窗口交换。",
+            "ERROR_TITLE": "无法播放此频道",
+            "ERROR_LIMIT_TITLE": "已达到连接数上限",
+            "ERROR_LIMIT_CAUSE": "{{playlist}} 同时最多允许 {{max}} 路流，目前已全部占用。",
+            "ERROR_NETWORK_CAUSE": "无法访问该源。它可能已离线，或提供商拒绝了另一路流。",
+            "ERROR_FORMAT_CAUSE": "此流使用内置播放器无法播放的格式。",
+            "ERROR_GENERIC_CAUSE": "流意外停止。",
+            "REPLACE_MAIN": "替换主窗口",
+            "CHOOSE_ANOTHER": "选择其他来源",
+            "PICKER": {
+                "TITLE_ADD": "添加到多画面",
+                "TITLE_REPLACE": "替换窗口 {{number}}",
+                "SUBTITLE_ADD": "{{title}} 将继续有声播放。新的会静音开始。",
+                "SUBTITLE_REPLACE": "{{title}} 将被替换。新的会静音开始。",
+                "SUBTITLE_MUTED": "新的会静音开始。",
+                "SEARCH_LABEL": "搜索来源",
+                "SEARCH_PLACEHOLDER": "频道、节目、电影、剧集…",
+                "SCOPE_EVERYWHERE": "全部",
+                "SECTIONS": "分区",
+                "QUICK": "快速",
+                "PLAYLISTS": "播放列表",
+                "SECTION": {
+                    "live-now": "正在直播",
+                    "continue": "继续观看",
+                    "favorites": "收藏",
+                    "recent": "最近"
+                },
+                "BUDGET_FREE": "空闲 {{count}}",
+                "BUDGET_FULL": "已满",
+                "BUDGET_UNKNOWN": "上限 ?",
+                "FULL_WARNING": "{{playlist}} 没有空闲连接，新的流可能无法开始。",
+                "METER": "{{playlist}}：已用 {{used}}/{{max}}",
+                "METER_UNKNOWN": "{{playlist}}：连接上限未知",
+                "TYPES": "内容类型",
+                "TYPE": {
+                    "all": "全部",
+                    "live": "电视",
+                    "movie": "电影",
+                    "series": "剧集"
+                },
+                "RESULTS": "来源",
+                "GROUP_FROM_FAVORITES": "来自收藏",
+                "GROUP_MORE_ON_AIR": "更多直播",
+                "SEARCH_ON_AIR": "正在播出",
+                "SEARCH_CHANNELS": "频道",
+                "SEARCH_MOVIES": "电影",
+                "SEARCH_SERIES": "剧集",
+                "TYPE_MOVIE": "电影",
+                "TYPE_SERIES_ONE": "剧集",
+                "CONTINUE_FROM": "从 {{position}} 继续",
+                "IN_TILE": "在窗口 {{number}} 中",
+                "EPISODES": "剧集分集",
+                "NO_EPISODES": "没有分集",
+                "STARTED": "已开始",
+                "UNAVAILABLE": "不支持多画面",
+                "RESOLVE_ERROR": "无法打开此来源。",
+                "LOADING": "正在加载…",
+                "LOAD_ERROR": "无法加载列表。",
+                "NO_RESULTS": "未找到任何内容",
+                "EMPTY": "这里还没有内容",
+                "CATEGORY": "分类",
+                "CATEGORY_ALL": "全部分类"
+            },
+            "REPLACED": "已替换窗口 {{number}}"
+        }
     }
 }

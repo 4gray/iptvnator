@@ -1,0 +1,37 @@
+<div class="mv-error__head">
+    <mat-icon class="mv-error__icon" aria-hidden="true">warning</mat-icon>
+    <h3 class="mv-error__title" [id]="'mv-error-' + tile().id">
+        {{ copy().titleKey | translate: copy().params }}
+    </h3>
+</div>
+<p class="mv-error__cause">
+    {{ copy().causeKey | translate: copy().params }}
+</p>
+<div class="mv-error__actions">
+    <button
+        type="button"
+        class="mv-error__button mv-error__button--filled"
+        data-test-id="multiview-error-replace-main"
+        (click)="replaceMain()"
+    >
+        {{ 'PLAYER.MULTIVIEW.REPLACE_MAIN' | translate }}
+    </button>
+    @if (entry.hasPicker) {
+        <button
+            type="button"
+            class="mv-error__button mv-error__button--tonal"
+            data-test-id="multiview-error-choose"
+            (click)="chooseAnother()"
+        >
+            {{ 'PLAYER.MULTIVIEW.CHOOSE_ANOTHER' | translate }}
+        </button>
+    }
+    <button
+        type="button"
+        class="mv-error__button"
+        data-test-id="multiview-error-close"
+        (click)="close()"
+    >
+        {{ 'CLOSE' | translate }}
+    </button>
+</div>

@@ -1099,7 +1099,9 @@
             "SEARCH_PLACEHOLDER": "قلب على مجموعات...",
             "NO_RESULTS": "ما تلقاتش حتى مجموعة مطابقة",
             "SAVE": "حفظ"
-        }
+        },
+        "MULTIVIEW_TILE": "فالشاشة فالنافذة {{number}}",
+        "MULTIVIEW_TILE_SOUND": "فالشاشة فالنافذة {{number}}، بالصوت"
     },
     "TOP_MENU": {
         "OPEN_EPG_GUIDE": "دليل البرامج"
@@ -2214,7 +2216,10 @@
                 "COMMAND_PALETTE_RUN": "شغل العنصر المختار فلوحة الأوامر",
                 "CLOSE_DIALOGS": "سد النافذة ولا خبي الطبقة",
                 "DOWNLOADS_OPEN_ITEM": "حل عنصر التحميل المحدد فالمكتبة",
-                "OPEN_PLAYLIST_SWITCHER": "بدّل الليستة"
+                "OPEN_PLAYLIST_SWITCHER": "بدّل الليستة",
+                "MULTIVIEW_OPEN_PICKER": "حل اختيار المصدر ديال العرض المتعدد",
+                "MULTIVIEW_SWAP": "العرض المتعدد: بدّل النافذة الرئيسية بالصغيرة",
+                "MULTIVIEW_AUDIO": "العرض المتعدد: دوّز الصوت للنافذة النشيطة"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -2549,5 +2554,94 @@
         "STATE_offline": "السجل تحفظ محلياً؛ السيرفر ما متوفرش",
         "STATE_incompatible": "هاد السيرفر ما كيدعمش مزامنة السجل",
         "PENDING": "تغييرات السجل فالانتظار: {{count}}"
+    },
+    "PLAYER": {
+        "MULTIVIEW": {
+            "ACTION": "عرض متعدد",
+            "ACTION_TOOLTIP": "عرض متعدد · Shift+M",
+            "UNAVAILABLE_PLAYER": "كاين غير فالمشغّل المدمج",
+            "TILE_LABEL": "النافذة {{number}}: {{title}}",
+            "STATE_SOUND": "الصوت خدام",
+            "STATE_MUTED": "مسكّت",
+            "STATE_PAUSED": "موقّف",
+            "STATE_ERROR": "ما خدامش",
+            "BADGE_VOD": "فيديو",
+            "SWAP": "بدّل مع النافذة الكبيرة",
+            "AUDIO_HERE": "الصوت هنا",
+            "CLOSE_TILE": "سدّ النافذة {{number}}",
+            "PAUSED_AT": "موقّف · {{position}}",
+            "RESUME": "شغّل بالصوت",
+            "LAYOUT": "التصميم",
+            "LAYOUT_PIP": "صورة وسط صورة",
+            "ADD_CHANNEL": "قناة",
+            "ADD_CHANNEL_HINT": "زيد قناة",
+            "EXIT": "خروج",
+            "EXIT_HINT": "خلّي النافذة اللي فيها الصوت وسدّ الباقي",
+            "MAIN_ANNOUNCEMENT": "{{title}} ولات هي النافذة الكبيرة",
+            "TILE_KEYS_HINT": "السهام كيحركو النافذة لشي ركن آخر، زائد وناقص كيبدلو الحجم، وEnter كيبدلها مع النافذة الكبيرة.",
+            "ERROR_TITLE": "هاد القناة ما بغاتش تخدم",
+            "ERROR_LIMIT_TITLE": "وصلتي للحد ديال الاتصالات",
+            "ERROR_LIMIT_CAUSE": "{{playlist}} كيسمح بـ {{max}} ديال البث فنفس الوقت، وكلهم مستعملين.",
+            "ERROR_NETWORK_CAUSE": "ما قدرناش نوصلو للمصدر. يمكن طافي ولا المزوّد رفض بث آخر.",
+            "ERROR_FORMAT_CAUSE": "هاد البث كيستعمل فورما ما كيقراهاش المشغّل المدمج.",
+            "ERROR_GENERIC_CAUSE": "البث وقف بلا ما نتسناو.",
+            "REPLACE_MAIN": "بدّل النافذة الرئيسية",
+            "CHOOSE_ANOTHER": "ختار مصدر آخر",
+            "PICKER": {
+                "TITLE_ADD": "زيد للعرض المتعدد",
+                "TITLE_REPLACE": "بدّل النافذة {{number}}",
+                "SUBTITLE_ADD": "{{title}} غادي يبقى خدام بالصوت. الجديدة كتبدا بلا صوت.",
+                "SUBTITLE_REPLACE": "{{title}} غادي يتبدّل. الجديدة كتبدا بلا صوت.",
+                "SUBTITLE_MUTED": "الجديدة كتبدا بلا صوت.",
+                "SEARCH_LABEL": "قلّب على المصادر",
+                "SEARCH_PLACEHOLDER": "قنوات، برامج، أفلام، مسلسلات…",
+                "SCOPE_EVERYWHERE": "فكل بلاصة",
+                "SECTIONS": "الأقسام",
+                "QUICK": "بالزربة",
+                "PLAYLISTS": "قوائم التشغيل",
+                "SECTION": {
+                    "live-now": "مباشر دابا",
+                    "continue": "كمّل",
+                    "favorites": "المفضلة",
+                    "recent": "اللي شفتي مؤخرا"
+                },
+                "BUDGET_FREE": "{{count}} خاوين",
+                "BUDGET_FULL": "عامر",
+                "BUDGET_UNKNOWN": "الحد ؟",
+                "FULL_WARNING": "{{playlist}} ما فيهاش اتصال خاوي، البث الجديد يمكن ما يبداش.",
+                "METER": "{{playlist}}: {{used}} من {{max}} مستعملين",
+                "METER_UNKNOWN": "{{playlist}}: حد الاتصالات ما معروفش",
+                "TYPES": "نوع المحتوى",
+                "TYPE": {
+                    "all": "كولشي",
+                    "live": "التلفزة",
+                    "movie": "الأفلام",
+                    "series": "المسلسلات"
+                },
+                "RESULTS": "المصادر",
+                "GROUP_FROM_FAVORITES": "من المفضلة",
+                "GROUP_MORE_ON_AIR": "كثر فالمباشر",
+                "SEARCH_ON_AIR": "كيدوز دابا",
+                "SEARCH_CHANNELS": "القنوات",
+                "SEARCH_MOVIES": "الأفلام",
+                "SEARCH_SERIES": "المسلسلات",
+                "TYPE_MOVIE": "فيلم",
+                "TYPE_SERIES_ONE": "مسلسل",
+                "CONTINUE_FROM": "كمّل من {{position}}",
+                "IN_TILE": "فالنافذة {{number}}",
+                "EPISODES": "الحلقات",
+                "NO_EPISODES": "ما كاين حتى حلقة",
+                "STARTED": "بديتيه",
+                "UNAVAILABLE": "ماشي للعرض المتعدد",
+                "RESOLVE_ERROR": "هاد المصدر ما بغاش يتحل.",
+                "LOADING": "كيتشارجا…",
+                "LOAD_ERROR": "ما قدرناش نشارجيو اللائحة.",
+                "NO_RESULTS": "ما لقينا والو",
+                "EMPTY": "والو هنا دابا",
+                "CATEGORY": "الفئة",
+                "CATEGORY_ALL": "كاع الفئات"
+            },
+            "REPLACED": "تبدّلات النافذة {{number}}"
+        }
     }
 }

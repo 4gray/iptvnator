@@ -58,6 +58,7 @@ import {
 } from './playback-recovery-session';
 import { WebPlayerApplicationHandoffCoordinator } from './web-player-application-handoff';
 import {
+    createRenderedApplications,
     ownsPlaybackApplication,
     type PlaybackApplicationOwnership,
 } from './web-player-application-ownership';
@@ -73,12 +74,19 @@ import {
     toVideoPlayer,
 } from './web-player-recovery-policy';
 import { resolveWebPlayerSharedControls } from './web-player-shared-controls';
+import {
+    type WebPlayerControlsMode,
+    WebPlayerTileMode,
+} from './web-player-tile-mode';
 
 @Component({
     selector: 'app-web-player-view',
     templateUrl: './web-player-view.component.html',
     styleUrls: ['./web-player-view.component.scss'],
-    host: { class: 'web-player-view' },
+    host: {
+        class: 'web-player-view',
+        '[class.web-player-view--chromeless]': '!tileMode.chromeVisible()',
+    },
     imports: [
         ArtPlayerComponent,
         EmbeddedMpvPlayerComponent,
@@ -137,7 +145,8 @@ export class WebPlayerViewComponent implements OnDestroy {
     private readonly applicationHandoff =
         new WebPlayerApplicationHandoffCoordinator(
             inject(ElectronStreamHeadersService),
-            this.recoverySession
+            this.recoverySession,
+            () => this.headerOwner()
         );
 
     readonly streamUrl = input.required<string>();
@@ -147,6 +156,17 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly startTime = input(0);
     readonly volume = input(1);
     readonly playerOverride = input<VideoPlayer | null>(null);
+    /**
+     * Owner of this view's scoped request-header override in Electron. Null
+     * (every single-player host) shares the default override; a multiview
+     * tile passes its own id so concurrent streams keep separate headers.
+     */
+    readonly headerOwner = input<string | null>(null);
+    /** Multiview tile chrome; `full` (the default) is the normal player. */
+    readonly controlsMode = input<WebPlayerControlsMode>('full');
+    /** Session-managed mute and VOD hold of a tile; null leaves them alone. */
+    readonly muted = input<boolean | null>(null);
+    readonly paused = input<boolean | null>(null);
     readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
     /** Next episode for the shared controls' "Up next" card; series hosts only. */
@@ -170,6 +190,9 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly nextEpisodeRequested = output<void>();
     /** Re-emitted embedded-MPV clean recording stop (stop enrichment). */
     readonly recordingStopped = output<RecordingStoppedEvent>();
+    /** A muted tile was unmuted or played by the viewer (multiview D3). */
+    readonly audioRequested = output<void>();
+    readonly diagnosticChanged = output<PlaybackDiagnostic | null>();
 
     readonly embeddedMpvLiveSubtitlesOff = signal(false);
     readonly showCaptions = computed(
@@ -262,7 +285,7 @@ export class WebPlayerViewComponent implements OnDestroy {
         playbackExternallyTransferable: this.playbackExternallyTransferable,
         alternativeSourceCount: () => this.alternativeSources().length,
         managedExternalPlayersAvailable: () =>
-            this.runtime.supportsManagedExternalPlayers,
+            this.supportsManagedExternalPlayers,
         tryAutoLiveFormat: (issue) => this.liveAutoFormat.tryFallback(issue),
         emitPlaybackFailed: (code) => this.playbackFailed.emit(code),
         emitExternalFallbackRequested: (request) =>
@@ -288,30 +311,21 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly recordingFolder = computed(
         () => this.settingsStore.recordingFolder?.() ?? ''
     );
+    /** A multiview tile has no handoff to MPV or VLC: none is offered. */
     get supportsManagedExternalPlayers(): boolean {
-        return this.runtime.supportsManagedExternalPlayers;
+        const tile = this.tileMode.inSession();
+        return this.runtime.supportsManagedExternalPlayers && !tile;
     }
-    readonly renderedApplications = computed<
-        readonly PlaybackApplicationOwnership[]
-    >(() => {
-        if (this.liveAutoFormat.pending()) return [];
-        const binding = this.activeBinding();
-        const embeddedMpv =
-            this.selectedPlayer() === VideoPlayer.EmbeddedMpv && !binding;
-        if (!binding && !embeddedMpv) {
-            return [];
-        }
-
-        return [
-            Object.freeze({
-                binding,
-                embeddedMpv,
-                isLive: this.resolvedIsLive(),
-                sourceRevision: this.playbackSourceRevisionToken(),
-                token: this.playbackApplicationToken(),
-            }),
-        ];
+    readonly renderedApplications = createRenderedApplications({
+        pending: this.liveAutoFormat.pending,
+        activeBinding: this.activeBinding,
+        selectedPlayer: this.selectedPlayer,
+        isLive: this.resolvedIsLive,
+        sourceRevision: this.playbackSourceRevisionToken,
+        token: this.playbackApplicationToken,
     });
+
+    readonly tileMode = new WebPlayerTileMode(this);
 
     private readonly activity = new WebPlayerActivity(
         inject(PLAYBACK_ACTIVITY_EVENTS, { optional: true })
@@ -370,6 +384,7 @@ export class WebPlayerViewComponent implements OnDestroy {
         this.liveAutoFormat.destroy();
         this.externalRecovery.destroy();
         this.applicationHandoff.destroy();
+        this.tileMode.destroy();
     }
 
     handlePlaybackIssue(
@@ -441,16 +456,8 @@ export class WebPlayerViewComponent implements OnDestroy {
     }
 
     retryFailedPlayback(): boolean {
-        const mpv = this.embeddedMpvPlayer();
-        if (!mpv && this.recovery.canRetry()) this.retryPlayback();
-        else if (
-            mpv &&
-            !mpv.isReconnecting() &&
-            (mpv.isErrored() || mpv.isLiveEnded())
-        ) {
-            this.recovery.recordEnd(this.playbackApplicationToken());
-            mpv.retry();
-        } else return false;
-        return true;
+        return this.recovery.retryFailed(this.embeddedMpvPlayer(), () =>
+            this.retryPlayback()
+        );
     }
 }

@@ -254,6 +254,45 @@ which holds "recently viewed" writes until playback is confirmed. It is kept
 out of `@iptvnator/services` on purpose: that barrel ships in the initial
 bundle, and this project is only reached from lazy player and portal code.
 
+`libs/playback/multiview/data-access` is the `playback-multiview-data-access`
+Nx project, imported through `@iptvnator/playback/multiview/data-access`
+(tags `scope:shared`, `domain:playback`, `type:data-access`). It owns the one
+multiview session of the app: a pure reducer for the session rules, its
+selectors and behaviour constants (no Angular imports), and the root
+`MultiviewSessionStore` that exposes them as signals. Multiview UI (stage,
+tiles, bar) lives in a separate UI project, and the source picker in a
+workspace feature project, so this project depends only on shared contracts,
+`@iptvnator/services`, `@iptvnator/playback/util` (session keys) and the
+collection item type of `@iptvnator/portal/shared/util` (list rows that
+become tiles, R5). The behaviour contract is
+`docs/superpowers/specs/2026-11-12-multiview-design.md`.
+
+`libs/playback/multiview/ui` is the `playback-multiview-ui` Nx project,
+imported through `@iptvnator/playback/multiview/ui` (tags `scope:shared`,
+`domain:playback`, `type:ui`). It owns the multiview stage and its tiles,
+which render `WebPlayerViewComponent` from `ui-playback`. The anchor that
+player views create (`injectMultiviewAnchor`, the placeholder and the
+`appMultiviewPlayer` directive) lives in `ui-playback` instead, behind the
+light entry `@iptvnator/ui/playback/multiview-anchor`, because
+`portal-inline-player` in that project hosts an anchor and the stage
+depends on `ui-playback`. The workspace shell loads this project only
+through a dynamic `import()`; nothing may import it statically, and its
+specs must not lazy-import `@iptvnator/ui/playback`, which the shell
+imports statically.
+
+`libs/workspace/multiview/feature` is the `workspace-multiview-feature` Nx
+project, imported through `@iptvnator/workspace/multiview/feature` (tags
+`scope:workspace`, `domain:workspace`, `type:feature`). It implements the
+multiview ports the workspace owns: the source picker's data (sections,
+search, resolving a picked row into a tile source) and the Xtream connection
+budget. It reads favourites, recent items, positions and the current
+playlist through the existing portal data-access projects, including
+`MultiviewCatalogService` (`portal-shared-data-access`) and
+`loadStalkerItvGenre` (`portal-stalker-data-access`). The shell provides the
+ports from `multiview-workspace-ports.ts` and loads this project only
+through a dynamic `import()` on first use; nothing may import it
+statically.
+
 `libs/shared/epg` is the pure `shared-epg` utility project, imported through
 `@iptvnator/shared/epg` (scope:shared, domain:shared-contracts, type:util).
 It owns epoch-millisecond time-axis projection, ticks and clipping used by Angular

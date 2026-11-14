@@ -1099,7 +1099,9 @@
             "SEARCH_PLACEHOLDER": "Cerca gruppi...",
             "NO_RESULTS": "Nessun gruppo corrispondente",
             "SAVE": "Salva"
-        }
+        },
+        "MULTIVIEW_TILE": "Sullo schermo nella finestra {{number}}",
+        "MULTIVIEW_TILE_SOUND": "Sullo schermo nella finestra {{number}}, con audio"
     },
     "TOP_MENU": {
         "OPEN_EPG_GUIDE": "Guida programmi"
@@ -2214,7 +2216,10 @@
                 "COMMAND_PALETTE_RUN": "Esegui elemento selezionato della palette comandi",
                 "CLOSE_DIALOGS": "Chiudi dialogo o nascondi overlay",
                 "DOWNLOADS_OPEN_ITEM": "Apri nella libreria l’elemento download selezionato",
-                "OPEN_PLAYLIST_SWITCHER": "Cambia playlist"
+                "OPEN_PLAYLIST_SWITCHER": "Cambia playlist",
+                "MULTIVIEW_OPEN_PICKER": "Apri la scelta della sorgente della multivista",
+                "MULTIVIEW_SWAP": "Multivista: scambia la finestra principale e quella piccola",
+                "MULTIVIEW_AUDIO": "Multivista: sposta l'audio sulla finestra attiva"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -2549,5 +2554,94 @@
         "STATE_offline": "Cronologia salvata localmente; server non disponibile",
         "STATE_incompatible": "Questo server non supporta la sincronizzazione della cronologia",
         "PENDING": "Modifiche alla cronologia in coda: {{count}}"
+    },
+    "PLAYER": {
+        "MULTIVIEW": {
+            "ACTION": "Multivista",
+            "ACTION_TOOLTIP": "Multivista · Shift+M",
+            "UNAVAILABLE_PLAYER": "Disponibile con il lettore integrato",
+            "TILE_LABEL": "Finestra {{number}}: {{title}}",
+            "STATE_SOUND": "audio attivo",
+            "STATE_MUTED": "muta",
+            "STATE_PAUSED": "in pausa",
+            "STATE_ERROR": "non in riproduzione",
+            "BADGE_VOD": "Video",
+            "SWAP": "Scambia con la finestra principale",
+            "AUDIO_HERE": "Audio qui",
+            "CLOSE_TILE": "Chiudi finestra {{number}}",
+            "PAUSED_AT": "In pausa · {{position}}",
+            "RESUME": "Riproduci con audio",
+            "LAYOUT": "Disposizione",
+            "LAYOUT_PIP": "Picture-in-picture",
+            "ADD_CHANNEL": "Canale",
+            "ADD_CHANNEL_HINT": "Aggiungi un canale",
+            "EXIT": "Esci",
+            "EXIT_HINT": "Mantieni la finestra con l’audio e chiudi le altre",
+            "MAIN_ANNOUNCEMENT": "{{title}} è ora la finestra principale",
+            "TILE_KEYS_HINT": "Le frecce spostano la finestra in un altro angolo, più e meno la ridimensionano, Invio la scambia con la finestra principale.",
+            "ERROR_TITLE": "Questo canale non si riproduce",
+            "ERROR_LIMIT_TITLE": "Limite di connessioni raggiunto",
+            "ERROR_LIMIT_CAUSE": "{{playlist}} consente {{max}} flussi alla volta e sono tutti in uso.",
+            "ERROR_NETWORK_CAUSE": "La sorgente non è raggiungibile. Potrebbe essere offline o il provider ha rifiutato un altro flusso.",
+            "ERROR_FORMAT_CAUSE": "Questo flusso usa un formato che il player integrato non supporta.",
+            "ERROR_GENERIC_CAUSE": "Il flusso si è interrotto inaspettatamente.",
+            "REPLACE_MAIN": "Sostituisci la finestra principale",
+            "CHOOSE_ANOTHER": "Scegli un'altra sorgente",
+            "PICKER": {
+                "TITLE_ADD": "Aggiungi alla multivista",
+                "TITLE_REPLACE": "Sostituisci la finestra {{number}}",
+                "SUBTITLE_ADD": "{{title}} continua con l'audio. La nuova parte senza audio.",
+                "SUBTITLE_REPLACE": "{{title}} verrà sostituito. La nuova parte senza audio.",
+                "SUBTITLE_MUTED": "La nuova parte senza audio.",
+                "SEARCH_LABEL": "Cerca sorgenti",
+                "SEARCH_PLACEHOLDER": "Canali, programmi, film, serie…",
+                "SCOPE_EVERYWHERE": "ovunque",
+                "SECTIONS": "Sezioni",
+                "QUICK": "Accesso rapido",
+                "PLAYLISTS": "Playlist",
+                "SECTION": {
+                    "live-now": "In onda ora",
+                    "continue": "Continua",
+                    "favorites": "Preferiti",
+                    "recent": "Recenti"
+                },
+                "BUDGET_FREE": "{{count}} liberi",
+                "BUDGET_FULL": "piena",
+                "BUDGET_UNKNOWN": "limite ?",
+                "FULL_WARNING": "{{playlist}} non ha connessioni libere: probabilmente un nuovo flusso non partirà.",
+                "METER": "{{playlist}}: {{used}} su {{max}} in uso",
+                "METER_UNKNOWN": "{{playlist}}: limite di connessioni sconosciuto",
+                "TYPES": "Tipo di contenuto",
+                "TYPE": {
+                    "all": "Tutto",
+                    "live": "Televisione",
+                    "movie": "Film",
+                    "series": "Serie"
+                },
+                "RESULTS": "Sorgenti",
+                "GROUP_FROM_FAVORITES": "Dai preferiti",
+                "GROUP_MORE_ON_AIR": "Altro in onda",
+                "SEARCH_ON_AIR": "In onda",
+                "SEARCH_CHANNELS": "Canali",
+                "SEARCH_MOVIES": "Film",
+                "SEARCH_SERIES": "Serie",
+                "TYPE_MOVIE": "Film",
+                "TYPE_SERIES_ONE": "Serie",
+                "CONTINUE_FROM": "Riprendi da {{position}}",
+                "IN_TILE": "Nella finestra {{number}}",
+                "EPISODES": "Episodi",
+                "NO_EPISODES": "Nessun episodio",
+                "STARTED": "Iniziato",
+                "UNAVAILABLE": "Non per la multivista",
+                "RESOLVE_ERROR": "Impossibile aprire questa sorgente.",
+                "LOADING": "Caricamento…",
+                "LOAD_ERROR": "Impossibile caricare l'elenco.",
+                "NO_RESULTS": "Nessun risultato",
+                "EMPTY": "Ancora niente",
+                "CATEGORY": "Categoria",
+                "CATEGORY_ALL": "Tutte le categorie"
+            },
+            "REPLACED": "Finestra {{number}} sostituita"
+        }
     }
 }

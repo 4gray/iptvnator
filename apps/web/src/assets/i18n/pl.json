@@ -1099,7 +1099,9 @@
             "SEARCH_PLACEHOLDER": "Szukaj grup...",
             "NO_RESULTS": "Nie znaleziono pasujących grup",
             "SAVE": "Zapisz"
-        }
+        },
+        "MULTIVIEW_TILE": "Na ekranie w oknie {{number}}",
+        "MULTIVIEW_TILE_SOUND": "Na ekranie w oknie {{number}}, z dźwiękiem"
     },
     "TOP_MENU": {
         "OPEN_EPG_GUIDE": "Przewodnik po programach"
@@ -2214,7 +2216,10 @@
                 "COMMAND_PALETTE_RUN": "Uruchom zaznaczoną pozycję palety poleceń",
                 "CLOSE_DIALOGS": "Zamknij okno dialogowe lub ukryj nakładkę",
                 "DOWNLOADS_OPEN_ITEM": "Otwórz aktywne pobranie w bibliotece",
-                "OPEN_PLAYLIST_SWITCHER": "Przełącz playlistę"
+                "OPEN_PLAYLIST_SWITCHER": "Przełącz playlistę",
+                "MULTIVIEW_OPEN_PICKER": "Otwórz wybór źródła multiwidoku",
+                "MULTIVIEW_SWAP": "Multiwidok: zamień okno główne z małym",
+                "MULTIVIEW_AUDIO": "Multiwidok: przenieś dźwięk do aktywnego okna"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -2549,5 +2554,94 @@
         "STATE_offline": "Historia zapisana lokalnie; serwer niedostępny",
         "STATE_incompatible": "Ten serwer nie obsługuje synchronizacji historii",
         "PENDING": "Zmiany historii w kolejce: {{count}}"
+    },
+    "PLAYER": {
+        "MULTIVIEW": {
+            "ACTION": "Wiele obrazów",
+            "ACTION_TOOLTIP": "Wiele obrazów · Shift+M",
+            "UNAVAILABLE_PLAYER": "Dostępne we wbudowanym odtwarzaczu",
+            "TILE_LABEL": "Okno {{number}}: {{title}}",
+            "STATE_SOUND": "dźwięk włączony",
+            "STATE_MUTED": "wyciszone",
+            "STATE_PAUSED": "wstrzymane",
+            "STATE_ERROR": "nie odtwarza",
+            "BADGE_VOD": "Wideo",
+            "SWAP": "Zamień z głównym oknem",
+            "AUDIO_HERE": "Dźwięk tutaj",
+            "CLOSE_TILE": "Zamknij okno {{number}}",
+            "PAUSED_AT": "Wstrzymano · {{position}}",
+            "RESUME": "Odtwórz z dźwiękiem",
+            "LAYOUT": "Układ",
+            "LAYOUT_PIP": "Obraz w obrazie",
+            "ADD_CHANNEL": "Kanał",
+            "ADD_CHANNEL_HINT": "Dodaj kanał",
+            "EXIT": "Zakończ",
+            "EXIT_HINT": "Zostaw okno z dźwiękiem i zamknij pozostałe",
+            "MAIN_ANNOUNCEMENT": "{{title}} jest teraz głównym oknem",
+            "TILE_KEYS_HINT": "Strzałki przenoszą okno do innego rogu, plus i minus zmieniają rozmiar, Enter zamienia je z głównym oknem.",
+            "ERROR_TITLE": "Tego kanału nie można odtworzyć",
+            "ERROR_LIMIT_TITLE": "Osiągnięto limit połączeń",
+            "ERROR_LIMIT_CAUSE": "{{playlist}} pozwala na {{max}} strumieni naraz i wszystkie są zajęte.",
+            "ERROR_NETWORK_CAUSE": "Źródło jest niedostępne. Może być offline albo dostawca odrzucił kolejny strumień.",
+            "ERROR_FORMAT_CAUSE": "Ten strumień używa formatu, którego wbudowany odtwarzacz nie obsługuje.",
+            "ERROR_GENERIC_CAUSE": "Strumień nieoczekiwanie się zatrzymał.",
+            "REPLACE_MAIN": "Zastąp okno główne",
+            "CHOOSE_ANOTHER": "Wybierz inne źródło",
+            "PICKER": {
+                "TITLE_ADD": "Dodaj do multiwidoku",
+                "TITLE_REPLACE": "Zastąp okno {{number}}",
+                "SUBTITLE_ADD": "{{title}} gra dalej z dźwiękiem. Nowe startuje bez dźwięku.",
+                "SUBTITLE_REPLACE": "{{title}} zostanie zastąpione. Nowe startuje bez dźwięku.",
+                "SUBTITLE_MUTED": "Nowe startuje bez dźwięku.",
+                "SEARCH_LABEL": "Szukaj źródeł",
+                "SEARCH_PLACEHOLDER": "Kanały, programy, filmy, seriale…",
+                "SCOPE_EVERYWHERE": "wszędzie",
+                "SECTIONS": "Sekcje",
+                "QUICK": "Szybki dostęp",
+                "PLAYLISTS": "Listy",
+                "SECTION": {
+                    "live-now": "Teraz na żywo",
+                    "continue": "Kontynuuj",
+                    "favorites": "Ulubione",
+                    "recent": "Ostatnie"
+                },
+                "BUDGET_FREE": "{{count}} woln.",
+                "BUDGET_FULL": "pełna",
+                "BUDGET_UNKNOWN": "limit ?",
+                "FULL_WARNING": "{{playlist}} nie ma wolnych połączeń, nowy strumień prawdopodobnie nie ruszy.",
+                "METER": "{{playlist}}: zajęte {{used}} z {{max}}",
+                "METER_UNKNOWN": "{{playlist}}: limit połączeń nieznany",
+                "TYPES": "Rodzaj treści",
+                "TYPE": {
+                    "all": "Wszystko",
+                    "live": "Telewizja",
+                    "movie": "Filmy",
+                    "series": "Seriale"
+                },
+                "RESULTS": "Źródła",
+                "GROUP_FROM_FAVORITES": "Z ulubionych",
+                "GROUP_MORE_ON_AIR": "Więcej na żywo",
+                "SEARCH_ON_AIR": "Teraz w eterze",
+                "SEARCH_CHANNELS": "Kanały",
+                "SEARCH_MOVIES": "Filmy",
+                "SEARCH_SERIES": "Seriale",
+                "TYPE_MOVIE": "Film",
+                "TYPE_SERIES_ONE": "Serial",
+                "CONTINUE_FROM": "Kontynuuj od {{position}}",
+                "IN_TILE": "W oknie {{number}}",
+                "EPISODES": "Odcinki",
+                "NO_EPISODES": "Brak odcinków",
+                "STARTED": "Rozpoczęte",
+                "UNAVAILABLE": "Niedostępne w multiwidoku",
+                "RESOLVE_ERROR": "Nie można otworzyć tego źródła.",
+                "LOADING": "Ładowanie…",
+                "LOAD_ERROR": "Nie udało się wczytać listy.",
+                "NO_RESULTS": "Nic nie znaleziono",
+                "EMPTY": "Na razie pusto",
+                "CATEGORY": "Kategoria",
+                "CATEGORY_ALL": "Wszystkie kategorie"
+            },
+            "REPLACED": "Zastąpiono okno {{number}}"
+        }
     }
 }

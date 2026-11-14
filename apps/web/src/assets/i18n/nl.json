@@ -1099,7 +1099,9 @@
             "SEARCH_PLACEHOLDER": "Zoek groepen...",
             "NO_RESULTS": "Geen overeenkomende groepen gevonden",
             "SAVE": "Opslaan"
-        }
+        },
+        "MULTIVIEW_TILE": "Op het scherm in venster {{number}}",
+        "MULTIVIEW_TILE_SOUND": "Op het scherm in venster {{number}}, met geluid"
     },
     "TOP_MENU": {
         "OPEN_EPG_GUIDE": "Programmagids"
@@ -2214,7 +2216,10 @@
                 "COMMAND_PALETTE_RUN": "Geselecteerd item in opdrachtpalet uitvoeren",
                 "CLOSE_DIALOGS": "Dialoogvenster sluiten of overlay verbergen",
                 "DOWNLOADS_OPEN_ITEM": "Gefocust downloaditem in de bibliotheek openen",
-                "OPEN_PLAYLIST_SWITCHER": "Afspeellijst wisselen"
+                "OPEN_PLAYLIST_SWITCHER": "Afspeellijst wisselen",
+                "MULTIVIEW_OPEN_PICKER": "Bronkeuze van multiview openen",
+                "MULTIVIEW_SWAP": "Multiview: hoofdvenster en klein venster wisselen",
+                "MULTIVIEW_AUDIO": "Multiview: geluid naar het actieve venster verplaatsen"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -2549,5 +2554,94 @@
         "STATE_offline": "Geschiedenis lokaal opgeslagen; server niet bereikbaar",
         "STATE_incompatible": "Deze server ondersteunt geen geschiedenissynchronisatie",
         "PENDING": "Geschiedeniswijzigingen in wachtrij: {{count}}"
+    },
+    "PLAYER": {
+        "MULTIVIEW": {
+            "ACTION": "Meervoudige weergave",
+            "ACTION_TOOLTIP": "Meervoudige weergave · Shift+M",
+            "UNAVAILABLE_PLAYER": "Beschikbaar met de ingebouwde speler",
+            "TILE_LABEL": "Venster {{number}}: {{title}}",
+            "STATE_SOUND": "geluid aan",
+            "STATE_MUTED": "gedempt",
+            "STATE_PAUSED": "gepauzeerd",
+            "STATE_ERROR": "speelt niet",
+            "BADGE_VOD": "Video",
+            "SWAP": "Wisselen met het hoofdvenster",
+            "AUDIO_HERE": "Geluid hier",
+            "CLOSE_TILE": "Venster {{number}} sluiten",
+            "PAUSED_AT": "Gepauzeerd · {{position}}",
+            "RESUME": "Afspelen met geluid",
+            "LAYOUT": "Indeling",
+            "LAYOUT_PIP": "Beeld-in-beeld",
+            "ADD_CHANNEL": "Zender",
+            "ADD_CHANNEL_HINT": "Een zender toevoegen",
+            "EXIT": "Afsluiten",
+            "EXIT_HINT": "Venster met geluid houden en de andere sluiten",
+            "MAIN_ANNOUNCEMENT": "{{title}} is nu het hoofdvenster",
+            "TILE_KEYS_HINT": "Pijltjestoetsen verplaatsen het venster naar een andere hoek, plus en min wijzigen het formaat, Enter wisselt het met het hoofdvenster.",
+            "ERROR_TITLE": "Dit kanaal speelt niet af",
+            "ERROR_LIMIT_TITLE": "Verbindingslimiet bereikt",
+            "ERROR_LIMIT_CAUSE": "{{playlist}} staat {{max}} streams tegelijk toe en die zijn allemaal in gebruik.",
+            "ERROR_NETWORK_CAUSE": "De bron is niet bereikbaar. Mogelijk is hij offline of weigerde de provider nog een stream.",
+            "ERROR_FORMAT_CAUSE": "Deze stream gebruikt een formaat dat de ingebouwde speler niet kan afspelen.",
+            "ERROR_GENERIC_CAUSE": "De stream is onverwacht gestopt.",
+            "REPLACE_MAIN": "Hoofdvenster vervangen",
+            "CHOOSE_ANOTHER": "Andere bron kiezen",
+            "PICKER": {
+                "TITLE_ADD": "Toevoegen aan multiview",
+                "TITLE_REPLACE": "Venster {{number}} vervangen",
+                "SUBTITLE_ADD": "{{title}} speelt verder met geluid. De nieuwe start zonder geluid.",
+                "SUBTITLE_REPLACE": "{{title}} wordt vervangen. De nieuwe start zonder geluid.",
+                "SUBTITLE_MUTED": "De nieuwe start zonder geluid.",
+                "SEARCH_LABEL": "Bronnen zoeken",
+                "SEARCH_PLACEHOLDER": "Zenders, programma's, films, series…",
+                "SCOPE_EVERYWHERE": "overal",
+                "SECTIONS": "Onderdelen",
+                "QUICK": "Snel",
+                "PLAYLISTS": "Afspeellijsten",
+                "SECTION": {
+                    "live-now": "Nu live",
+                    "continue": "Verder kijken",
+                    "favorites": "Favorieten",
+                    "recent": "Recent bekeken"
+                },
+                "BUDGET_FREE": "{{count}} vrij",
+                "BUDGET_FULL": "vol",
+                "BUDGET_UNKNOWN": "limiet ?",
+                "FULL_WARNING": "{{playlist}} heeft geen vrije verbinding, dus een nieuwe stream start waarschijnlijk niet.",
+                "METER": "{{playlist}}: {{used}} van {{max}} in gebruik",
+                "METER_UNKNOWN": "{{playlist}}: verbindingslimiet onbekend",
+                "TYPES": "Inhoudstype",
+                "TYPE": {
+                    "all": "Alles",
+                    "live": "Televisie",
+                    "movie": "Films",
+                    "series": "Series"
+                },
+                "RESULTS": "Bronnen",
+                "GROUP_FROM_FAVORITES": "Uit favorieten",
+                "GROUP_MORE_ON_AIR": "Meer live",
+                "SEARCH_ON_AIR": "Nu op tv",
+                "SEARCH_CHANNELS": "Zenders",
+                "SEARCH_MOVIES": "Films",
+                "SEARCH_SERIES": "Series",
+                "TYPE_MOVIE": "Film",
+                "TYPE_SERIES_ONE": "Serie",
+                "CONTINUE_FROM": "Verder vanaf {{position}}",
+                "IN_TILE": "In venster {{number}}",
+                "EPISODES": "Afleveringen",
+                "NO_EPISODES": "Geen afleveringen",
+                "STARTED": "Begonnen",
+                "UNAVAILABLE": "Niet in multiview",
+                "RESOLVE_ERROR": "Deze bron kan niet worden geopend.",
+                "LOADING": "Laden…",
+                "LOAD_ERROR": "De lijst kon niet worden geladen.",
+                "NO_RESULTS": "Niets gevonden",
+                "EMPTY": "Nog niets",
+                "CATEGORY": "Categorie",
+                "CATEGORY_ALL": "Alle categorieën"
+            },
+            "REPLACED": "Venster {{number}} vervangen"
+        }
     }
 }

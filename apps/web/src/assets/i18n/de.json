@@ -1099,7 +1099,9 @@
             "SEARCH_PLACEHOLDER": "Gruppen suchen...",
             "NO_RESULTS": "Keine passenden Gruppen gefunden",
             "SAVE": "Speichern"
-        }
+        },
+        "MULTIVIEW_TILE": "Auf dem Bildschirm in Fenster {{number}}",
+        "MULTIVIEW_TILE_SOUND": "Auf dem Bildschirm in Fenster {{number}}, mit Ton"
     },
     "TOP_MENU": {
         "OPEN_EPG_GUIDE": "Programmführer"
@@ -2214,7 +2216,10 @@
                 "COMMAND_PALETTE_RUN": "Ausgewählten Eintrag der Befehlspalette ausführen",
                 "CLOSE_DIALOGS": "Dialog schließen oder Overlay ausblenden",
                 "DOWNLOADS_OPEN_ITEM": "Fokussierten Download-Eintrag in der Bibliothek öffnen",
-                "OPEN_PLAYLIST_SWITCHER": "Playlist wechseln"
+                "OPEN_PLAYLIST_SWITCHER": "Playlist wechseln",
+                "MULTIVIEW_OPEN_PICKER": "Quellenauswahl der Mehrfachansicht öffnen",
+                "MULTIVIEW_SWAP": "Mehrfachansicht: Haupt- und kleines Fenster tauschen",
+                "MULTIVIEW_AUDIO": "Mehrfachansicht: Ton zum aktiven Fenster verschieben"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -2549,5 +2554,94 @@
         "STATE_offline": "Verlauf lokal gespeichert; Server nicht erreichbar",
         "STATE_incompatible": "Dieser Server unterstützt keine Verlaufssynchronisierung",
         "PENDING": "Verlaufsänderungen in der Warteschlange: {{count}}"
+    },
+    "PLAYER": {
+        "MULTIVIEW": {
+            "ACTION": "Mehrfachansicht",
+            "ACTION_TOOLTIP": "Mehrfachansicht · Shift+M",
+            "UNAVAILABLE_PLAYER": "Im integrierten Player verfügbar",
+            "TILE_LABEL": "Fenster {{number}}: {{title}}",
+            "STATE_SOUND": "Ton an",
+            "STATE_MUTED": "stumm",
+            "STATE_PAUSED": "pausiert",
+            "STATE_ERROR": "wird nicht abgespielt",
+            "BADGE_VOD": "Video",
+            "SWAP": "Mit dem Hauptfenster tauschen",
+            "AUDIO_HERE": "Ton hierher",
+            "CLOSE_TILE": "Fenster {{number}} schließen",
+            "PAUSED_AT": "Pausiert · {{position}}",
+            "RESUME": "Mit Ton abspielen",
+            "LAYOUT": "Anordnung",
+            "LAYOUT_PIP": "Bild im Bild",
+            "ADD_CHANNEL": "Sender",
+            "ADD_CHANNEL_HINT": "Sender hinzufügen",
+            "EXIT": "Beenden",
+            "EXIT_HINT": "Fenster mit Ton behalten und die anderen schließen",
+            "MAIN_ANNOUNCEMENT": "{{title}} ist jetzt das Hauptfenster",
+            "TILE_KEYS_HINT": "Pfeiltasten verschieben das Fenster in eine andere Ecke, Plus und Minus ändern die Größe, Enter tauscht es mit dem Hauptfenster.",
+            "ERROR_TITLE": "Dieser Sender lässt sich nicht abspielen",
+            "ERROR_LIMIT_TITLE": "Verbindungslimit erreicht",
+            "ERROR_LIMIT_CAUSE": "{{playlist}} erlaubt {{max}} Streams gleichzeitig, und alle sind belegt.",
+            "ERROR_NETWORK_CAUSE": "Die Quelle ist nicht erreichbar. Sie ist vielleicht offline, oder der Anbieter hat einen weiteren Stream abgelehnt.",
+            "ERROR_FORMAT_CAUSE": "Dieser Stream nutzt ein Format, das der integrierte Player nicht abspielen kann.",
+            "ERROR_GENERIC_CAUSE": "Der Stream wurde unerwartet beendet.",
+            "REPLACE_MAIN": "Hauptfenster ersetzen",
+            "CHOOSE_ANOTHER": "Andere Quelle wählen",
+            "PICKER": {
+                "TITLE_ADD": "Zur Mehrfachansicht hinzufügen",
+                "TITLE_REPLACE": "Fenster {{number}} ersetzen",
+                "SUBTITLE_ADD": "{{title}} läuft mit Ton weiter. Das neue startet stumm.",
+                "SUBTITLE_REPLACE": "{{title}} wird ersetzt. Das neue startet stumm.",
+                "SUBTITLE_MUTED": "Das neue startet stumm.",
+                "SEARCH_LABEL": "Quellen durchsuchen",
+                "SEARCH_PLACEHOLDER": "Sender, Sendungen, Filme, Serien…",
+                "SCOPE_EVERYWHERE": "überall",
+                "SECTIONS": "Bereiche",
+                "QUICK": "Schnellzugriff",
+                "PLAYLISTS": "Wiedergabelisten",
+                "SECTION": {
+                    "live-now": "Jetzt live",
+                    "continue": "Weiterschauen",
+                    "favorites": "Favoriten",
+                    "recent": "Zuletzt gesehen"
+                },
+                "BUDGET_FREE": "{{count}} frei",
+                "BUDGET_FULL": "voll",
+                "BUDGET_UNKNOWN": "Limit ?",
+                "FULL_WARNING": "{{playlist}} hat keine freie Verbindung, ein neuer Stream startet wahrscheinlich nicht.",
+                "METER": "{{playlist}}: {{used}} von {{max}} belegt",
+                "METER_UNKNOWN": "{{playlist}}: Verbindungslimit unbekannt",
+                "TYPES": "Inhaltstyp",
+                "TYPE": {
+                    "all": "Alle",
+                    "live": "Fernsehen",
+                    "movie": "Filme",
+                    "series": "Serien"
+                },
+                "RESULTS": "Quellen",
+                "GROUP_FROM_FAVORITES": "Aus den Favoriten",
+                "GROUP_MORE_ON_AIR": "Weitere Sendungen",
+                "SEARCH_ON_AIR": "Läuft gerade",
+                "SEARCH_CHANNELS": "Sender",
+                "SEARCH_MOVIES": "Filme",
+                "SEARCH_SERIES": "Serien",
+                "TYPE_MOVIE": "Film",
+                "TYPE_SERIES_ONE": "Serie",
+                "CONTINUE_FROM": "Ab {{position}} weiterschauen",
+                "IN_TILE": "In Fenster {{number}}",
+                "EPISODES": "Folgen",
+                "NO_EPISODES": "Keine Folgen",
+                "STARTED": "Begonnen",
+                "UNAVAILABLE": "Nicht für Mehrfachansicht",
+                "RESOLVE_ERROR": "Diese Quelle lässt sich nicht öffnen.",
+                "LOADING": "Wird geladen…",
+                "LOAD_ERROR": "Die Liste konnte nicht geladen werden.",
+                "NO_RESULTS": "Nichts gefunden",
+                "EMPTY": "Noch nichts hier",
+                "CATEGORY": "Kategorie",
+                "CATEGORY_ALL": "Alle Kategorien"
+            },
+            "REPLACED": "Fenster {{number}} ersetzt"
+        }
     }
 }

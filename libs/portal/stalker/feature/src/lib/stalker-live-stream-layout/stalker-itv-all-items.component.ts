@@ -30,6 +30,7 @@ import { EpgProgram, foldSearchText } from '@iptvnator/shared/interfaces';
 import {
     ChannelListItemComponent,
     ChannelListSkeletonComponent,
+    MultiviewChannelDirective,
 } from '@iptvnator/ui/components';
 import { SettingsStore } from '@iptvnator/services';
 
@@ -59,6 +60,7 @@ function restoreViewMode(): ViewMode {
 @Component({
     selector: 'app-stalker-itv-all-items',
     imports: [
+        MultiviewChannelDirective,
         GridListComponent,
         InfiniteScrollDirective,
         MatProgressSpinnerModule,

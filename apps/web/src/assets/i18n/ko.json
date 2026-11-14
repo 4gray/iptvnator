@@ -1099,7 +1099,9 @@
             "SEARCH_PLACEHOLDER": "그룹 검색...",
             "NO_RESULTS": "일치하는 그룹을 찾을 수 없습니다",
             "SAVE": "저장"
-        }
+        },
+        "MULTIVIEW_TILE": "타일 {{number}}에서 재생 중",
+        "MULTIVIEW_TILE_SOUND": "타일 {{number}}에서 소리와 함께 재생 중"
     },
     "TOP_MENU": {
         "OPEN_EPG_GUIDE": "프로그램 가이드"
@@ -2214,7 +2216,10 @@
                 "COMMAND_PALETTE_RUN": "선택한 명령 팔레트 항목 실행",
                 "CLOSE_DIALOGS": "대화상자 닫기 또는 오버레이 해제",
                 "DOWNLOADS_OPEN_ITEM": "포커스된 다운로드 항목을 라이브러리에서 열기",
-                "OPEN_PLAYLIST_SWITCHER": "재생목록 전환"
+                "OPEN_PLAYLIST_SWITCHER": "재생목록 전환",
+                "MULTIVIEW_OPEN_PICKER": "멀티뷰 소스 선택 열기",
+                "MULTIVIEW_SWAP": "멀티뷰: 메인 타일과 작은 타일 바꾸기",
+                "MULTIVIEW_AUDIO": "멀티뷰: 소리를 활성 타일로 옮기기"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -2549,5 +2554,94 @@
         "STATE_offline": "기록을 로컬에 저장함. 서버 사용 불가",
         "STATE_incompatible": "이 서버는 기록 동기화를 지원하지 않습니다",
         "PENDING": "대기 중인 기록 변경: {{count}}개"
+    },
+    "PLAYER": {
+        "MULTIVIEW": {
+            "ACTION": "멀티뷰",
+            "ACTION_TOOLTIP": "멀티뷰 · Shift+M",
+            "UNAVAILABLE_PLAYER": "내장 플레이어에서 사용할 수 있습니다",
+            "TILE_LABEL": "창 {{number}}: {{title}}",
+            "STATE_SOUND": "소리 켜짐",
+            "STATE_MUTED": "음소거",
+            "STATE_PAUSED": "일시정지됨",
+            "STATE_ERROR": "재생되지 않음",
+            "BADGE_VOD": "비디오",
+            "SWAP": "메인 창과 바꾸기",
+            "AUDIO_HERE": "여기서 소리",
+            "CLOSE_TILE": "창 {{number}} 닫기",
+            "PAUSED_AT": "일시정지 · {{position}}",
+            "RESUME": "소리와 함께 재생",
+            "LAYOUT": "레이아웃",
+            "LAYOUT_PIP": "화면 속 화면",
+            "ADD_CHANNEL": "채널",
+            "ADD_CHANNEL_HINT": "채널 추가",
+            "EXIT": "나가기",
+            "EXIT_HINT": "소리가 나는 창만 남기고 나머지 닫기",
+            "MAIN_ANNOUNCEMENT": "이제 {{title}}이(가) 메인 창입니다",
+            "TILE_KEYS_HINT": "화살표 키로 다른 모서리로 옮기고, 더하기와 빼기로 크기를 바꾸며, Enter로 메인 창과 바꿉니다.",
+            "ERROR_TITLE": "이 채널을 재생할 수 없습니다",
+            "ERROR_LIMIT_TITLE": "연결 한도에 도달했습니다",
+            "ERROR_LIMIT_CAUSE": "{{playlist}}은(는) 동시에 {{max}}개의 스트림을 허용하며 모두 사용 중입니다.",
+            "ERROR_NETWORK_CAUSE": "소스에 연결할 수 없습니다. 오프라인이거나 제공자가 추가 스트림을 거부했을 수 있습니다.",
+            "ERROR_FORMAT_CAUSE": "이 스트림은 내장 플레이어가 재생할 수 없는 형식입니다.",
+            "ERROR_GENERIC_CAUSE": "스트림이 예기치 않게 중지되었습니다.",
+            "REPLACE_MAIN": "메인 창 바꾸기",
+            "CHOOSE_ANOTHER": "다른 소스 선택",
+            "PICKER": {
+                "TITLE_ADD": "멀티뷰에 추가",
+                "TITLE_REPLACE": "타일 {{number}} 바꾸기",
+                "SUBTITLE_ADD": "{{title}}은(는) 소리와 함께 계속 재생됩니다. 새 항목은 음소거로 시작합니다.",
+                "SUBTITLE_REPLACE": "{{title}}이(가) 바뀝니다. 새 항목은 음소거로 시작합니다.",
+                "SUBTITLE_MUTED": "새 항목은 음소거로 시작합니다.",
+                "SEARCH_LABEL": "소스 검색",
+                "SEARCH_PLACEHOLDER": "채널, 프로그램, 영화, 시리즈…",
+                "SCOPE_EVERYWHERE": "전체",
+                "SECTIONS": "섹션",
+                "QUICK": "빠른 이동",
+                "PLAYLISTS": "재생목록",
+                "SECTION": {
+                    "live-now": "지금 방송 중",
+                    "continue": "이어 보기",
+                    "favorites": "즐겨찾기",
+                    "recent": "최근"
+                },
+                "BUDGET_FREE": "{{count}}개 여유",
+                "BUDGET_FULL": "가득 참",
+                "BUDGET_UNKNOWN": "한도 ?",
+                "FULL_WARNING": "{{playlist}}에 남은 연결이 없어 새 스트림이 시작되지 않을 수 있습니다.",
+                "METER": "{{playlist}}: {{max}}개 중 {{used}}개 사용 중",
+                "METER_UNKNOWN": "{{playlist}}: 연결 한도를 알 수 없음",
+                "TYPES": "콘텐츠 유형",
+                "TYPE": {
+                    "all": "전체",
+                    "live": "TV 방송",
+                    "movie": "영화",
+                    "series": "시리즈"
+                },
+                "RESULTS": "소스",
+                "GROUP_FROM_FAVORITES": "즐겨찾기에서",
+                "GROUP_MORE_ON_AIR": "다른 방송",
+                "SEARCH_ON_AIR": "지금 방영 중",
+                "SEARCH_CHANNELS": "채널",
+                "SEARCH_MOVIES": "영화",
+                "SEARCH_SERIES": "시리즈",
+                "TYPE_MOVIE": "영화",
+                "TYPE_SERIES_ONE": "시리즈",
+                "CONTINUE_FROM": "{{position}}부터 이어 보기",
+                "IN_TILE": "타일 {{number}}에서 재생 중",
+                "EPISODES": "에피소드",
+                "NO_EPISODES": "에피소드 없음",
+                "STARTED": "시청 중",
+                "UNAVAILABLE": "멀티뷰 불가",
+                "RESOLVE_ERROR": "이 소스를 열 수 없습니다.",
+                "LOADING": "불러오는 중…",
+                "LOAD_ERROR": "목록을 불러오지 못했습니다.",
+                "NO_RESULTS": "결과 없음",
+                "EMPTY": "아직 없음",
+                "CATEGORY": "카테고리",
+                "CATEGORY_ALL": "모든 카테고리"
+            },
+            "REPLACED": "타일 {{number}}을(를) 바꿨습니다"
+        }
     }
 }

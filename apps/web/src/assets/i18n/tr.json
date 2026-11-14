@@ -1099,7 +1099,9 @@
             "SEARCH_PLACEHOLDER": "Grupları ara...",
             "NO_RESULTS": "Eşleşen grup bulunamadı",
             "SAVE": "Kaydet"
-        }
+        },
+        "MULTIVIEW_TILE": "Ekranda, {{number}}. pencerede",
+        "MULTIVIEW_TILE_SOUND": "Ekranda, {{number}}. pencerede, sesli"
     },
     "TOP_MENU": {
         "OPEN_EPG_GUIDE": "Program rehberi"
@@ -2214,7 +2216,10 @@
                 "COMMAND_PALETTE_RUN": "Seçili komut paleti öğesini çalıştır",
                 "CLOSE_DIALOGS": "İletişim kutusunu kapat veya katmanı gizle",
                 "DOWNLOADS_OPEN_ITEM": "Odaktaki indirme öğesini kitaplıkta aç",
-                "OPEN_PLAYLIST_SWITCHER": "Oynatma listesini değiştir"
+                "OPEN_PLAYLIST_SWITCHER": "Oynatma listesini değiştir",
+                "MULTIVIEW_OPEN_PICKER": "Çoklu görünüm kaynak seçicisini aç",
+                "MULTIVIEW_SWAP": "Çoklu görünüm: ana ve küçük pencereyi değiştir",
+                "MULTIVIEW_AUDIO": "Çoklu görünüm: sesi etkin pencereye taşı"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -2549,5 +2554,94 @@
         "STATE_offline": "Geçmiş yerel kaydedildi; sunucu kullanılamıyor",
         "STATE_incompatible": "Bu sunucu geçmiş eşitlemeyi desteklemiyor",
         "PENDING": "Kuyruktaki geçmiş değişiklikleri: {{count}}"
+    },
+    "PLAYER": {
+        "MULTIVIEW": {
+            "ACTION": "Çoklu görünüm",
+            "ACTION_TOOLTIP": "Çoklu görünüm · Shift+M",
+            "UNAVAILABLE_PLAYER": "Yerleşik oynatıcıda kullanılabilir",
+            "TILE_LABEL": "Pencere {{number}}: {{title}}",
+            "STATE_SOUND": "ses açık",
+            "STATE_MUTED": "sessiz",
+            "STATE_PAUSED": "duraklatıldı",
+            "STATE_ERROR": "oynatılmıyor",
+            "BADGE_VOD": "Video",
+            "SWAP": "Ana pencereyle değiştir",
+            "AUDIO_HERE": "Ses burada",
+            "CLOSE_TILE": "{{number}}. pencereyi kapat",
+            "PAUSED_AT": "Duraklatıldı · {{position}}",
+            "RESUME": "Sesli oynat",
+            "LAYOUT": "Yerleşim",
+            "LAYOUT_PIP": "Resim içinde resim",
+            "ADD_CHANNEL": "Kanal",
+            "ADD_CHANNEL_HINT": "Kanal ekle",
+            "EXIT": "Çık",
+            "EXIT_HINT": "Sesli pencereyi tut, diğerlerini kapat",
+            "MAIN_ANNOUNCEMENT": "{{title}} artık ana pencere",
+            "TILE_KEYS_HINT": "Ok tuşları pencereyi başka köşeye taşır, artı ve eksi boyutunu değiştirir, Enter ana pencereyle değiştirir.",
+            "ERROR_TITLE": "Bu kanal oynatılamıyor",
+            "ERROR_LIMIT_TITLE": "Bağlantı sınırına ulaşıldı",
+            "ERROR_LIMIT_CAUSE": "{{playlist}} aynı anda {{max}} yayına izin veriyor ve hepsi kullanımda.",
+            "ERROR_NETWORK_CAUSE": "Kaynağa ulaşılamadı. Çevrimdışı olabilir ya da sağlayıcı bir yayını daha reddetti.",
+            "ERROR_FORMAT_CAUSE": "Bu yayın, yerleşik oynatıcının desteklemediği bir biçim kullanıyor.",
+            "ERROR_GENERIC_CAUSE": "Yayın beklenmedik şekilde durdu.",
+            "REPLACE_MAIN": "Ana pencereyi değiştir",
+            "CHOOSE_ANOTHER": "Başka bir kaynak seç",
+            "PICKER": {
+                "TITLE_ADD": "Çoklu görünüme ekle",
+                "TITLE_REPLACE": "{{number}}. pencereyi değiştir",
+                "SUBTITLE_ADD": "{{title}} sesli oynamaya devam eder. Yenisi sessiz başlar.",
+                "SUBTITLE_REPLACE": "{{title}} değiştirilecek. Yenisi sessiz başlar.",
+                "SUBTITLE_MUTED": "Yenisi sessiz başlar.",
+                "SEARCH_LABEL": "Kaynak ara",
+                "SEARCH_PLACEHOLDER": "Kanallar, programlar, filmler, diziler…",
+                "SCOPE_EVERYWHERE": "her yerde",
+                "SECTIONS": "Bölümler",
+                "QUICK": "Hızlı",
+                "PLAYLISTS": "Oynatma listeleri",
+                "SECTION": {
+                    "live-now": "Şu an yayında",
+                    "continue": "Devam et",
+                    "favorites": "Favoriler",
+                    "recent": "Son izlenenler"
+                },
+                "BUDGET_FREE": "{{count}} boş",
+                "BUDGET_FULL": "dolu",
+                "BUDGET_UNKNOWN": "sınır ?",
+                "FULL_WARNING": "{{playlist}} için boş bağlantı yok; yeni yayın muhtemelen başlamaz.",
+                "METER": "{{playlist}}: {{max}} bağlantının {{used}} tanesi kullanımda",
+                "METER_UNKNOWN": "{{playlist}}: bağlantı sınırı bilinmiyor",
+                "TYPES": "İçerik türü",
+                "TYPE": {
+                    "all": "Tümü",
+                    "live": "Televizyon",
+                    "movie": "Filmler",
+                    "series": "Diziler"
+                },
+                "RESULTS": "Kaynaklar",
+                "GROUP_FROM_FAVORITES": "Favorilerden",
+                "GROUP_MORE_ON_AIR": "Yayındaki diğerleri",
+                "SEARCH_ON_AIR": "Şu an yayında olanlar",
+                "SEARCH_CHANNELS": "Kanallar",
+                "SEARCH_MOVIES": "Filmler",
+                "SEARCH_SERIES": "Diziler",
+                "TYPE_MOVIE": "Film",
+                "TYPE_SERIES_ONE": "Dizi",
+                "CONTINUE_FROM": "{{position}} noktasından devam et",
+                "IN_TILE": "{{number}}. pencerede",
+                "EPISODES": "Bölümler",
+                "NO_EPISODES": "Bölüm yok",
+                "STARTED": "Başlandı",
+                "UNAVAILABLE": "Çoklu görünümde yok",
+                "RESOLVE_ERROR": "Bu kaynak açılamıyor.",
+                "LOADING": "Yükleniyor…",
+                "LOAD_ERROR": "Liste yüklenemedi.",
+                "NO_RESULTS": "Hiçbir şey bulunamadı",
+                "EMPTY": "Henüz bir şey yok",
+                "CATEGORY": "Kategori",
+                "CATEGORY_ALL": "Tüm kategoriler"
+            },
+            "REPLACED": "{{number}}. pencere değiştirildi"
+        }
     }
 }

@@ -1099,7 +1099,9 @@
             "SEARCH_PLACEHOLDER": "بحث في المجموعات...",
             "NO_RESULTS": "لم يتم العثور على مجموعات مطابقة",
             "SAVE": "حفظ"
-        }
+        },
+        "MULTIVIEW_TILE": "على الشاشة في النافذة {{number}}",
+        "MULTIVIEW_TILE_SOUND": "على الشاشة في النافذة {{number}} مع الصوت"
     },
     "TOP_MENU": {
         "OPEN_EPG_GUIDE": "دليل البرامج"
@@ -2214,7 +2216,10 @@
                 "COMMAND_PALETTE_RUN": "تشغيل عنصر لوحة الأوامر المحدد",
                 "CLOSE_DIALOGS": "إغلاق مربع الحوار أو إخفاء التراكب",
                 "DOWNLOADS_OPEN_ITEM": "فتح عنصر التنزيل المحدد في المكتبة",
-                "OPEN_PLAYLIST_SWITCHER": "تبديل قائمة التشغيل"
+                "OPEN_PLAYLIST_SWITCHER": "تبديل قائمة التشغيل",
+                "MULTIVIEW_OPEN_PICKER": "فتح منتقي المصادر للعرض المتعدد",
+                "MULTIVIEW_SWAP": "العرض المتعدد: تبديل النافذة الرئيسية والصغيرة",
+                "MULTIVIEW_AUDIO": "العرض المتعدد: نقل الصوت إلى النافذة النشطة"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -2549,5 +2554,94 @@
         "STATE_offline": "حُفظ السجل محلياً؛ الخادم غير متاح",
         "STATE_incompatible": "لا يدعم هذا الخادم مزامنة السجل",
         "PENDING": "تغييرات السجل في الانتظار: {{count}}"
+    },
+    "PLAYER": {
+        "MULTIVIEW": {
+            "ACTION": "عرض متعدد",
+            "ACTION_TOOLTIP": "عرض متعدد · Shift+M",
+            "UNAVAILABLE_PLAYER": "متاح في المشغّل المدمج",
+            "TILE_LABEL": "النافذة {{number}}: {{title}}",
+            "STATE_SOUND": "الصوت مفعّل",
+            "STATE_MUTED": "مكتوم",
+            "STATE_PAUSED": "متوقف مؤقتًا",
+            "STATE_ERROR": "لا يعمل",
+            "BADGE_VOD": "فيديو",
+            "SWAP": "تبديل مع النافذة الرئيسية",
+            "AUDIO_HERE": "الصوت هنا",
+            "CLOSE_TILE": "إغلاق النافذة {{number}}",
+            "PAUSED_AT": "متوقف مؤقتًا · {{position}}",
+            "RESUME": "تشغيل مع الصوت",
+            "LAYOUT": "التخطيط",
+            "LAYOUT_PIP": "صورة داخل صورة",
+            "ADD_CHANNEL": "قناة",
+            "ADD_CHANNEL_HINT": "إضافة قناة",
+            "EXIT": "خروج",
+            "EXIT_HINT": "الإبقاء على النافذة التي بها صوت وإغلاق الباقي",
+            "MAIN_ANNOUNCEMENT": "{{title}} أصبحت النافذة الرئيسية",
+            "TILE_KEYS_HINT": "مفاتيح الأسهم تنقل النافذة إلى زاوية أخرى، وزر الجمع والطرح يغيّران حجمها، وEnter يبدّلها مع النافذة الرئيسية.",
+            "ERROR_TITLE": "لا يمكن تشغيل هذه القناة",
+            "ERROR_LIMIT_TITLE": "تم بلوغ حد الاتصالات",
+            "ERROR_LIMIT_CAUSE": "يسمح {{playlist}} بـ {{max}} بث في الوقت نفسه، وجميعها قيد الاستخدام.",
+            "ERROR_NETWORK_CAUSE": "تعذّر الوصول إلى المصدر. قد يكون غير متصل أو رفض المزوّد بثًا آخر.",
+            "ERROR_FORMAT_CAUSE": "يستخدم هذا البث تنسيقًا لا يدعمه المشغّل المدمج.",
+            "ERROR_GENERIC_CAUSE": "توقّف البث بشكل غير متوقع.",
+            "REPLACE_MAIN": "استبدال النافذة الرئيسية",
+            "CHOOSE_ANOTHER": "اختيار مصدر آخر",
+            "PICKER": {
+                "TITLE_ADD": "إضافة إلى العرض المتعدد",
+                "TITLE_REPLACE": "استبدال النافذة {{number}}",
+                "SUBTITLE_ADD": "يستمر {{title}} بالصوت. تبدأ الجديدة دون صوت.",
+                "SUBTITLE_REPLACE": "سيُستبدل {{title}}. تبدأ الجديدة دون صوت.",
+                "SUBTITLE_MUTED": "تبدأ الجديدة دون صوت.",
+                "SEARCH_LABEL": "البحث في المصادر",
+                "SEARCH_PLACEHOLDER": "قنوات، برامج، أفلام، مسلسلات…",
+                "SCOPE_EVERYWHERE": "في كل مكان",
+                "SECTIONS": "الأقسام",
+                "QUICK": "سريع",
+                "PLAYLISTS": "قوائم التشغيل",
+                "SECTION": {
+                    "live-now": "مباشر الآن",
+                    "continue": "متابعة",
+                    "favorites": "المفضلة",
+                    "recent": "الأخيرة"
+                },
+                "BUDGET_FREE": "{{count}} متاح",
+                "BUDGET_FULL": "ممتلئ",
+                "BUDGET_UNKNOWN": "الحد ؟",
+                "FULL_WARNING": "لا توجد اتصالات متاحة في {{playlist}}، لذا قد لا يبدأ البث الجديد.",
+                "METER": "{{playlist}}: {{used}} من {{max}} قيد الاستخدام",
+                "METER_UNKNOWN": "{{playlist}}: حد الاتصالات غير معروف",
+                "TYPES": "نوع المحتوى",
+                "TYPE": {
+                    "all": "الكل",
+                    "live": "التلفاز",
+                    "movie": "الأفلام",
+                    "series": "المسلسلات"
+                },
+                "RESULTS": "المصادر",
+                "GROUP_FROM_FAVORITES": "من المفضلة",
+                "GROUP_MORE_ON_AIR": "المزيد على الهواء",
+                "SEARCH_ON_AIR": "يُعرض الآن",
+                "SEARCH_CHANNELS": "القنوات",
+                "SEARCH_MOVIES": "الأفلام",
+                "SEARCH_SERIES": "المسلسلات",
+                "TYPE_MOVIE": "فيلم",
+                "TYPE_SERIES_ONE": "مسلسل",
+                "CONTINUE_FROM": "المتابعة من {{position}}",
+                "IN_TILE": "في النافذة {{number}}",
+                "EPISODES": "الحلقات",
+                "NO_EPISODES": "لا توجد حلقات",
+                "STARTED": "بدأ",
+                "UNAVAILABLE": "غير متاح في العرض المتعدد",
+                "RESOLVE_ERROR": "تعذّر فتح هذا المصدر.",
+                "LOADING": "جارٍ التحميل…",
+                "LOAD_ERROR": "تعذّر تحميل القائمة.",
+                "NO_RESULTS": "لم يُعثر على شيء",
+                "EMPTY": "لا شيء هنا بعد",
+                "CATEGORY": "الفئة",
+                "CATEGORY_ALL": "كل الفئات"
+            },
+            "REPLACED": "تم استبدال النافذة {{number}}"
+        }
     }
 }

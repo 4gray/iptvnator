@@ -14,6 +14,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { ExternalPlaybackDockComponent } from '@iptvnator/ui/components';
 // File-level entry: the @iptvnator/ui/playback barrel would put the web players on the first route.
 import { EmbeddedMpvOverlayVisibilityService } from '@iptvnator/ui/playback/embedded-mpv-player';
+import { installMultiviewShortcuts } from '@iptvnator/ui/playback/multiview-anchor';
 import {
     PlaylistDropOverlayComponent,
     PlaylistDropZoneDirective,
@@ -30,6 +31,11 @@ import { WorkspaceShellXtreamImportService } from './services/workspace-shell-xt
 import { WorkspaceShellCommandPaletteService } from './services/workspace-shell-command-palette.service';
 import { WorkspaceShellHeaderService } from './services/workspace-shell-header.service';
 import { warmPlayerChunk } from './warm-player-chunk';
+import { hostMultiviewStage } from './multiview-stage-host';
+import {
+    installMultiviewPicker,
+    provideMultiviewWorkspacePorts,
+} from './multiview-workspace-ports';
 import { WorkspaceShellRouteStateService } from './services/workspace-shell-route-state.service';
 import { WorkspaceShellSearchSyncService } from './services/workspace-shell-search-sync.service';
 import { WorkspaceShellSearchService } from './services/workspace-shell-search.service';
@@ -77,6 +83,8 @@ import { LIVE_CATEGORIES_POPOVER } from '@iptvnator/portal/shared/util';
             provide: LIVE_CATEGORIES_POPOVER,
             useClass: WorkspaceLiveCategoriesPopoverService,
         },
+        // Picker data and provider budgets for multiview; a lazy chunk.
+        ...provideMultiviewWorkspacePorts(),
     ],
 })
 export class WorkspaceShellComponent {
@@ -90,11 +98,23 @@ export class WorkspaceShellComponent {
         viewChild<WorkspaceShellHeaderShortcutTarget>('workspaceHeader');
     private readonly workspaceContent =
         viewChild<ElementRef<HTMLElement>>('workspaceContent');
+    private readonly contentFrame =
+        viewChild<ElementRef<HTMLElement>>('contentFrame');
 
     constructor() {
         // The web players are not on the first route: load them once it has
         // rendered, so the first list or portal opens without waiting for them.
         warmPlayerChunk(inject(Router));
+        // Multiview: the source picker (a lazy chunk) before the player views
+        // read it, and the stage, created lazily inside the content frame
+        // when the first session starts, over a player view's anchor.
+        installMultiviewPicker();
+        installMultiviewShortcuts();
+        hostMultiviewStage({
+            frame: () => this.contentFrame()?.nativeElement,
+            clipTo: () => this.workspaceContent()?.nativeElement,
+            inert: () => this.contextDrawer.isOpen(),
+        });
 
         // Focus restoration is the closing half of the drawer's focus
         // contract: CdkTrapFocus captures focus into the drawer on open, but

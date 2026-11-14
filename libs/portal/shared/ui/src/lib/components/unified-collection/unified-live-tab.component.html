@@ -60,8 +60,13 @@
                         "
                         [playbackSessionKey]="playbackSessionKey()"
                     />
+                } @else if (multiviewAnchor.ownsSession()) {
+                    <app-multiview-anchor-placeholder
+                        [anchor]="multiviewAnchor"
+                    />
                 } @else {
                     <app-web-player-view
+                        appMultiviewPlayer
                         [playbackSessionKey]="playbackSessionKey()"
                         [streamUrl]="currentStreamUrl()"
                         [title]="activeDetail()?.playback?.title ?? ''"

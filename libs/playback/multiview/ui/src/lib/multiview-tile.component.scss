@@ -1,0 +1,38 @@
+:host {
+    position: absolute;
+    z-index: 1;
+    display: block;
+    overflow: hidden;
+    background: #000;
+    // L6: tiles move and resize, their players are never re-created.
+    transition:
+        left 450ms cubic-bezier(0.2, 0, 0, 1),
+        top 450ms cubic-bezier(0.2, 0, 0, 1),
+        width 450ms cubic-bezier(0.2, 0, 0, 1),
+        height 450ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+:host(.multiview-tile--moving) {
+    transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :host {
+        transition: none;
+    }
+}
+
+// The small tile at rest: picture and shadow only (prototype step 3).
+:host(.multiview-tile--pip) {
+    z-index: 2;
+    border-radius: 12px;
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.08),
+        0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+// R5: a channel row is dragged over this drop target.
+:host(.multiview-drop-target) {
+    outline: 2px solid #4f8eff;
+    outline-offset: -2px;
+}

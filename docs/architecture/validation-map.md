@@ -286,6 +286,11 @@ existing path filters and matrix, and TV E2E remains a separate local target.
 Use atomized E2E targets when available, for example
 `pnpm nx run web-e2e:e2e-ci--src/xtream.e2e.ts`.
 
+Multiview: `pnpm nx run "electron-backend-e2e:e2e-ci--src/multiview-pip.e2e.ts"`
+and `apps/web-e2e/src/multiview-pip.e2e.ts`, both on the Xtream mock's
+`live-fallback` account with the TS stream format, whose channels play a
+local clip (see [Multiview](multiview.md#validation)).
+
 After changing a Playwright config's `webServer` list, `nx.json` target
 defaults or an E2E project's dependencies, run
 `pnpm run e2e:task-graphs:validate`. It builds every Playwright target's task

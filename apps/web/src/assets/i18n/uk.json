@@ -1099,7 +1099,9 @@
             "SEARCH_PLACEHOLDER": "Пошук груп…",
             "NO_RESULTS": "Груп, які б відповідали критеріям пошуку, не знайдено",
             "SAVE": "Зберегти"
-        }
+        },
+        "MULTIVIEW_TILE": "На екрані у вікні {{number}}",
+        "MULTIVIEW_TILE_SOUND": "На екрані у вікні {{number}}, зі звуком"
     },
     "TOP_MENU": {
         "OPEN_EPG_GUIDE": "Програма передач"
@@ -2214,7 +2216,10 @@
                 "COMMAND_PALETTE_RUN": "Виконати обраний пункт палітри команд",
                 "CLOSE_DIALOGS": "Закрити діалог або сховати оверлей",
                 "DOWNLOADS_OPEN_ITEM": "Відкрити виділений елемент завантаження в бібліотеці",
-                "OPEN_PLAYLIST_SWITCHER": "Змінити плейлист"
+                "OPEN_PLAYLIST_SWITCHER": "Змінити плейлист",
+                "MULTIVIEW_OPEN_PICKER": "Відкрити вибір джерела для мультиперегляду",
+                "MULTIVIEW_SWAP": "Мультиперегляд: поміняти основне й мале вікно",
+                "MULTIVIEW_AUDIO": "Мультиперегляд: перенести звук в активне вікно"
             }
         },
         "GLOBAL_FAVORITES": {
@@ -2549,5 +2554,94 @@
         "STATE_offline": "Історію збережено локально; сервер недоступний",
         "STATE_incompatible": "Цей сервер не підтримує синхронізацію історії",
         "PENDING": "Змін історії в черзі: {{count}}"
+    },
+    "PLAYER": {
+        "MULTIVIEW": {
+            "ACTION": "Мультиперегляд",
+            "ACTION_TOOLTIP": "Мультиперегляд · Shift+M",
+            "UNAVAILABLE_PLAYER": "Доступно у вбудованому програвачі",
+            "TILE_LABEL": "Вікно {{number}}: {{title}}",
+            "STATE_SOUND": "зі звуком",
+            "STATE_MUTED": "без звуку",
+            "STATE_PAUSED": "на паузі",
+            "STATE_ERROR": "не відтворюється",
+            "BADGE_VOD": "Відео",
+            "SWAP": "Поміняти з головним вікном",
+            "AUDIO_HERE": "Звук сюди",
+            "CLOSE_TILE": "Закрити вікно {{number}}",
+            "PAUSED_AT": "Пауза · {{position}}",
+            "RESUME": "Відтворити зі звуком",
+            "LAYOUT": "Розкладка",
+            "LAYOUT_PIP": "Картинка в картинці",
+            "ADD_CHANNEL": "Канал",
+            "ADD_CHANNEL_HINT": "Додати канал",
+            "EXIT": "Вийти",
+            "EXIT_HINT": "Залишити вікно зі звуком і закрити інші",
+            "MAIN_ANNOUNCEMENT": "{{title}} тепер головне вікно",
+            "TILE_KEYS_HINT": "Стрілки переміщують вікно в інший кут, плюс і мінус змінюють розмір, Enter міняє його з головним вікном.",
+            "ERROR_TITLE": "Цей канал не відтворюється",
+            "ERROR_LIMIT_TITLE": "Досягнуто ліміту підключень",
+            "ERROR_LIMIT_CAUSE": "{{playlist}} дозволяє {{max}} потоків одночасно, і всі вони зайняті.",
+            "ERROR_NETWORK_CAUSE": "Джерело недоступне. Можливо, воно офлайн або провайдер відмовив у ще одному потоці.",
+            "ERROR_FORMAT_CAUSE": "Потік у форматі, який вбудований плеєр не підтримує.",
+            "ERROR_GENERIC_CAUSE": "Потік несподівано зупинився.",
+            "REPLACE_MAIN": "Замінити основне вікно",
+            "CHOOSE_ANOTHER": "Вибрати інше джерело",
+            "PICKER": {
+                "TITLE_ADD": "Додати в мультиперегляд",
+                "TITLE_REPLACE": "Замінити вікно {{number}}",
+                "SUBTITLE_ADD": "{{title}} гратиме далі зі звуком. Нове почнеться без звуку.",
+                "SUBTITLE_REPLACE": "{{title}} буде замінено. Нове почнеться без звуку.",
+                "SUBTITLE_MUTED": "Нове почнеться без звуку.",
+                "SEARCH_LABEL": "Пошук джерел",
+                "SEARCH_PLACEHOLDER": "Канали, передачі, фільми, серіали…",
+                "SCOPE_EVERYWHERE": "усюди",
+                "SECTIONS": "Розділи",
+                "QUICK": "Швидко",
+                "PLAYLISTS": "Плейлисти",
+                "SECTION": {
+                    "live-now": "Зараз в ефірі",
+                    "continue": "Продовжити",
+                    "favorites": "Обране",
+                    "recent": "Нещодавні"
+                },
+                "BUDGET_FREE": "{{count}} вільн.",
+                "BUDGET_FULL": "зайнято",
+                "BUDGET_UNKNOWN": "ліміт ?",
+                "FULL_WARNING": "У {{playlist}} немає вільних підключень, новий потік, найімовірніше, не запуститься.",
+                "METER": "{{playlist}}: зайнято {{used}} з {{max}}",
+                "METER_UNKNOWN": "{{playlist}}: ліміт підключень невідомий",
+                "TYPES": "Тип вмісту",
+                "TYPE": {
+                    "all": "Усе",
+                    "live": "ТБ",
+                    "movie": "Фільми",
+                    "series": "Серіали"
+                },
+                "RESULTS": "Джерела",
+                "GROUP_FROM_FAVORITES": "З обраного",
+                "GROUP_MORE_ON_AIR": "Ще в ефірі",
+                "SEARCH_ON_AIR": "Іде зараз",
+                "SEARCH_CHANNELS": "Канали",
+                "SEARCH_MOVIES": "Фільми",
+                "SEARCH_SERIES": "Серіали",
+                "TYPE_MOVIE": "Фільм",
+                "TYPE_SERIES_ONE": "Серіал",
+                "CONTINUE_FROM": "Продовжити з {{position}}",
+                "IN_TILE": "У вікні {{number}}",
+                "EPISODES": "Серії",
+                "NO_EPISODES": "Немає серій",
+                "STARTED": "Розпочато",
+                "UNAVAILABLE": "Не для мультиперегляду",
+                "RESOLVE_ERROR": "Це джерело не відкривається.",
+                "LOADING": "Завантаження…",
+                "LOAD_ERROR": "Не вдалося завантажити список.",
+                "NO_RESULTS": "Нічого не знайдено",
+                "EMPTY": "Тут поки порожньо",
+                "CATEGORY": "Категорія",
+                "CATEGORY_ALL": "Усі категорії"
+            },
+            "REPLACED": "Вікно {{number}} замінено"
+        }
     }
 }

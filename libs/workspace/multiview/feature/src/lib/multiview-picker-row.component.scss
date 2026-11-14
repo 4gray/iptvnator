@@ -1,0 +1,161 @@
+// App tokens only; the row sits on the dialog surface in both themes.
+:host {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 52px;
+    padding: 6px 10px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    color: var(--app-heading-color);
+    cursor: pointer;
+}
+
+:host(:hover) {
+    background: var(--app-hover-overlay);
+}
+
+:host(.mv-picker-row--active) {
+    border-color: var(--app-list-selected-outline, var(--app-selection-border));
+    background: var(--app-list-selected-bg);
+}
+
+:host(.mv-picker-row--disabled) {
+    cursor: default;
+    color: var(--app-muted-color);
+
+    .mv-picker-row__art {
+        opacity: 0.6;
+    }
+}
+
+.mv-picker-row__art {
+    display: grid;
+    flex-shrink: 0;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    overflow: hidden;
+    border-radius: 9px;
+    background: var(--app-neutral-tag-surface);
+    color: var(--app-heading-color);
+    font-size: 0.72rem;
+    font-weight: 700;
+
+    &--poster {
+        width: 30px;
+        height: 42px;
+        border-radius: 6px;
+    }
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+}
+
+.mv-picker-row__text {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.mv-picker-row__name,
+.mv-picker-row__line {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mv-picker-row__name {
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.mv-picker-row__line {
+    color: var(--app-muted-color);
+    font-size: 0.75rem;
+}
+
+.mv-picker-row__programme {
+    color: var(--app-body-color);
+}
+
+.mv-picker-row__progress {
+    width: min(170px, 60%);
+    height: 3px;
+    margin-top: 3px;
+    overflow: hidden;
+    border-radius: 2px;
+    background: var(--app-separator);
+
+    span {
+        display: block;
+        height: 100%;
+        background: var(--app-progress-color);
+    }
+}
+
+.mv-picker-row__error {
+    color: var(--app-danger-text);
+    font-size: 0.75rem;
+}
+
+.mv-picker-row__end {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+}
+
+.mv-picker-row__live {
+    padding: 2px 6px;
+    border-radius: 5px;
+    background: color-mix(in srgb, var(--app-live-color) 16%, transparent);
+    color: var(--app-live-color);
+    font-family: var(--app-font-mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
+.mv-picker-row__chip {
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--app-neutral-tag-surface);
+    color: var(--app-body-color);
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.mv-picker-row__episodes {
+    display: inline-flex;
+    align-items: center;
+    color: var(--app-body-color);
+    font-size: 0.75rem;
+    font-weight: 600;
+
+    mat-icon {
+        width: 18px;
+        height: 18px;
+        font-size: 18px;
+    }
+}
+
+.mv-picker-row__spin {
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+    animation: mv-picker-spin 0.9s linear infinite;
+
+    @media (prefers-reduced-motion: reduce) {
+        animation: none;
+    }
+}
+
+@keyframes mv-picker-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

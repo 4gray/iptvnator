@@ -65,3 +65,4 @@ export * from './lib/dialog-shell/dialog-shell.directives';
 export * from './lib/dialog-shell/dialog-size';
 
 export * from './lib/detail-ui/age-rating-chip.component';
+export * from './lib/channel-list-container/channel-list-item/multiview-channel.directive';

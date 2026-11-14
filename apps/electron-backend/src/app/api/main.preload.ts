@@ -1,4 +1,7 @@
-import { HOSTED_SERVER_ACCESS_CODE, HOSTED_SERVER_CONTROL } from '@iptvnator/shared/interfaces';
+import {
+    HOSTED_SERVER_ACCESS_CODE,
+    HOSTED_SERVER_CONTROL,
+} from '@iptvnator/shared/interfaces';
 import { createAppMenuListener } from './app-menu-listener';
 import type {
     ElectronBridgeFavoriteReorderUpdate,
@@ -323,7 +326,8 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('DB_ACTIVITY_LOCAL', request),
     sourceSyncRequest: (request) =>
         ipcRenderer.invoke(SOURCE_SYNC_REQUEST, request),
-    hostedServerControl: (command) => ipcRenderer.invoke(HOSTED_SERVER_CONTROL, command),
+    hostedServerControl: (command) =>
+        ipcRenderer.invoke(HOSTED_SERVER_CONTROL, command),
     hostedServerAccessCode: () => ipcRenderer.invoke(HOSTED_SERVER_ACCESS_CODE),
     sourceSyncConfigure: (url, token, restart, savedInstanceId) =>
         ipcRenderer.invoke(
@@ -565,16 +569,31 @@ const electronApi: ElectronBridgeApi = {
             authorization?: string | null;
             cookie?: string | null;
         } | null,
-        origin?: string | null
+        origin?: string | null,
+        ownerId?: string
     ) =>
-        ipcRenderer.invoke(
-            'set-user-agent',
-            userAgent,
-            referer,
-            scopeUrl,
-            credentials,
-            origin
-        ),
+        // The owner is appended only when given, so every single-player
+        // caller sends the same five arguments it always has.
+        ownerId === undefined
+            ? ipcRenderer.invoke(
+                  'set-user-agent',
+                  userAgent,
+                  referer,
+                  scopeUrl,
+                  credentials,
+                  origin
+              )
+            : ipcRenderer.invoke(
+                  'set-user-agent',
+                  userAgent,
+                  referer,
+                  scopeUrl,
+                  credentials,
+                  origin,
+                  ownerId
+              ),
+    releaseHeaderOwner: (ownerId: string) =>
+        ipcRenderer.invoke('release-header-owner', ownerId),
     openInMpv: (
         url: string,
         title: string,
