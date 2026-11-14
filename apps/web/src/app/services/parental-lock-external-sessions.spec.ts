@@ -30,8 +30,8 @@ function session(
         status: 'playing',
         title: 'Synthetic Film',
         streamUrl: 'http://stream.example/film.mkv',
-        startedAt: new Date(1_000).toISOString(),
-        updatedAt: new Date(1_000).toISOString(),
+        startedAt: new Date(15_000).toISOString(),
+        updatedAt: new Date(15_000).toISOString(),
         canClose: true,
         ...overrides,
     };
@@ -50,6 +50,7 @@ describe('ParentalLockExternalSessions', () => {
     let emitSession: Listener<ExternalPlayerSession>;
     let emitPosition: Listener<PlaybackPositionData>;
     let emitEmbedded: Listener<EmbeddedMpvSession>;
+    let listed: ExternalPlayerSession[];
     let service: ParentalLockExternalSessions;
 
     /** Lock now: the enforcement calls `onLockChange` on the new version. */
@@ -71,8 +72,10 @@ describe('ParentalLockExternalSessions', () => {
                 session({ id, status: 'closed', canClose: false })
         );
         router = { url: '/workspace/playlists/m3u-1/all' };
+        listed = [];
         (window as { electron?: unknown }).electron = {
             closeExternalPlayerSession,
+            listExternalPlayerSessions: async () => listed,
             onExternalPlayerSessionUpdate: (
                 callback: Listener<ExternalPlayerSession>
             ) => (emitSession = callback),
@@ -332,6 +335,51 @@ describe('ParentalLockExternalSessions', () => {
                 );
             }
         );
+
+        describe('sessions still running from before the page loaded', () => {
+            const earlier = () =>
+                session({ startedAt: new Date(5_000).toISOString() });
+
+            /** A reloaded page: a fresh service, started while locked. */
+            const reloadedPage = () => {
+                active.set(true);
+                const page = TestBed.runInInjectionContext(
+                    () => new ParentalLockExternalSessions()
+                );
+                page.now = () => clock;
+                page.start();
+                return page;
+            };
+
+            it('closes one the main process lists, judged as any source', async () => {
+                listed = [earlier()];
+                reloadedPage();
+                await flush();
+
+                expect(hasLocks).toHaveBeenCalledWith(null);
+                expect(closeExternalPlayerSession).toHaveBeenCalledWith(
+                    'session-1',
+                    true
+                );
+            });
+
+            it('closes one first reported by an update after the reload', () => {
+                reloadedPage();
+                emitSession(earlier());
+
+                expect(hasLocks).toHaveBeenCalledWith(null);
+                expect(closeExternalPlayerSession).toHaveBeenCalled();
+            });
+
+            it('keeps one when no source has a locked category', async () => {
+                hasLocks.mockReturnValue(false);
+                listed = [earlier()];
+                reloadedPage();
+                await flush();
+
+                expect(closeExternalPlayerSession).not.toHaveBeenCalled();
+            });
+        });
 
         it('forgets a closed session', () => {
             emitSession(session());

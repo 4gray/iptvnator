@@ -607,6 +607,13 @@ by the enforcement service, tracks every session from
   on its next update, a rejected close is retried every second, and a
   session that cannot be closed (`canClose: false`) is only hidden — shown
   again if the session is unlocked before it closes.
+- **Reload.** A page starts locked (or with the feature off) and knows
+  nothing of earlier sessions. On start it reads the sessions still open
+  in the main process (`listExternalPlayerSessions`); a session that
+  started before the page — listed, or first reported by a later update —
+  has an unknown history and counts as opened while unlocked, with an
+  unknown source. A player left running by a reloaded or crashed page is
+  therefore closed under the same rule.
 - **Owners.** A feature that knows the category of its sessions claims them
   through `ParentalLockSessionOwners` (`libs/services`) and closes only
   those in a withheld category. Xtream Live does:

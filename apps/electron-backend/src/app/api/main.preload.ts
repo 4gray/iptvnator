@@ -631,6 +631,8 @@ const electronApi: ElectronBridgeApi = {
             sessionId,
             ...(exact ? [true] : [])
         ),
+    listExternalPlayerSessions: (): Promise<ExternalPlayerSession[]> =>
+        ipcRenderer.invoke('LIST_EXTERNAL_PLAYER_SESSIONS'),
     getEmbeddedMpvSupport: (): Promise<EmbeddedMpvSupport> =>
         ipcRenderer.invoke('EMBEDDED_MPV_SUPPORT'),
     prepareEmbeddedMpv: (): Promise<EmbeddedMpvSupport> =>

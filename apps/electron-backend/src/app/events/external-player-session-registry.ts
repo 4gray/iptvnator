@@ -96,6 +96,13 @@ export class ExternalPlayerSessionRegistry {
         return this.sessions.get(id)?.snapshot ?? null;
     }
 
+    /** Every session whose player may still be running. */
+    listOpenSessions(): ExternalPlayerSession[] {
+        return [...this.sessions.values()]
+            .map(({ snapshot }) => snapshot)
+            .filter(isRestorableSession);
+    }
+
     isNewerLaunch(id: string | null, session: ExternalPlayerSession): boolean {
         const order = id ? this.getSession(id)?.launchOrder : undefined;
         return (order ?? 0) > (session.launchOrder ?? 0);

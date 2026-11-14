@@ -68,6 +68,7 @@ export class ParentalLockExternalSessions {
     private readonly sessions = new Map<string, Tracked>();
     private readonly embeddedPlaying = new Set<string>();
     private lockedAt = Number.NEGATIVE_INFINITY;
+    private pageStartedAt = Number.NEGATIVE_INFINITY;
     private started = false;
 
     /** The clock; a field so specs can substitute it. */
@@ -78,6 +79,10 @@ export class ParentalLockExternalSessions {
             return;
         }
         this.started = true;
+        // A page starts locked (or with the feature off), and a session it
+        // did not see open — still running across a reload or a crashed
+        // renderer — has an unknown history: treated as opened unlocked.
+        this.pageStartedAt = this.lockedAt = this.now();
         const bridge = window.electron;
         bridge?.onExternalPlayerSessionUpdate?.((session) =>
             this.observe(session)
@@ -88,6 +93,14 @@ export class ParentalLockExternalSessions {
         bridge?.onEmbeddedMpvSessionUpdate?.((session) =>
             this.observeEmbedded(session)
         );
+        void bridge
+            ?.listExternalPlayerSessions?.()
+            .then((sessions) =>
+                sessions.forEach((session) => {
+                    if (!this.sessions.has(session.id)) this.observe(session);
+                })
+            )
+            .catch(() => undefined);
     }
 
     /** Called on every lock version change: closes on relock, shows on unlock. */
@@ -124,7 +137,11 @@ export class ParentalLockExternalSessions {
         const entry: Tracked = current ?? {
             session,
             tainted: false,
-            sourceId: this.routeSourceId(),
+            // The route at a reload is not the one the launch was made from.
+            sourceId:
+                Date.parse(session.startedAt) < this.pageStartedAt
+                    ? null
+                    : this.routeSourceId(),
             closing: false,
         };
         // New media while unlocked: a launch, or an in-place switch of a

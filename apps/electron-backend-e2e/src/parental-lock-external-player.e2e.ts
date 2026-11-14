@@ -13,6 +13,7 @@ import {
     test,
     waitForXtreamWorkspaceReady,
 } from './electron-test-fixtures';
+import { reloadFromMainProcess } from './renderer-reload.support';
 
 const PIN = '2468';
 const PID_KEY = '__parentalLockPlayerPids';
@@ -76,10 +77,11 @@ async function enterPin(page: Page): Promise<void> {
 
 /**
  * A relock closes an MPV session opened while unlocked from a source with
- * a locked category, and leaves one opened while locked. The native process
- * boundary is replaced by a quiet, long-lived child; CI installs no MPV.
+ * a locked category, and leaves one opened while locked; a renderer reload
+ * closes one the unlocked page left running. The native process boundary is
+ * replaced by a quiet, long-lived child; CI installs no MPV.
  */
-test('@electron @parental @playback relock closes an MPV session opened while unlocked', async ({
+test('@electron @parental @playback relock and reload close an MPV session opened while unlocked', async ({
     dataDir,
 }) => {
     test.setTimeout(120_000);
@@ -174,6 +176,24 @@ test('@electron @parental @playback relock closes an MPV session opened while un
         // eslint-disable-next-line playwright/no-wait-for-timeout
         await page.waitForTimeout(3_000);
         expect(playerIsAlive(lockedPid)).toBe(true);
+        stopPlayer(lockedPid);
+
+        // A reload forgets what the page saw; the new page starts locked and
+        // closes a player still running from the unlocked page.
+        await lockButton.click();
+        await enterPin(page);
+        await expect(lockButton).not.toHaveClass(/is-active/);
+        const reloadedPid = await launchPlayer(
+            app,
+            playerPath,
+            'Synthetic launch before a reload'
+        );
+        pids.push(reloadedPid);
+        await reloadFromMainProcess(app);
+        await expect(page.getByTestId('header-parental-lock')).toHaveClass(
+            /is-active/
+        );
+        await expect.poll(() => playerIsAlive(reloadedPid)).toBe(false);
     } finally {
         pids.forEach(stopPlayer);
         await closeElectronApp(app);
