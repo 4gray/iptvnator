@@ -627,7 +627,6 @@
             "CONSEQUENCE_FAVORITES": "이 플레이리스트에 저장된 즐겨찾기",
             "CONSEQUENCE_RECENTLY_VIEWED": "최근 시청 기록",
             "CONSEQUENCE_PLAYBACK": "저장된 재생 위치",
-            "CONSEQUENCE_DOWNLOADS": "이 플레이리스트와 연결된 다운로드 기록 항목",
             "CONSEQUENCE_XTREAM_CACHE": "가져온 Xtream 카테고리와 로컬에 캐시된 콘텐츠",
             "BACKUP_HINT": "삭제 전에 복원 가능한 백업을 남기려면 먼저 내보내기를 사용하세요.",
             "CONFIRM": "모두 삭제"

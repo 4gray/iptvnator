@@ -627,7 +627,6 @@
             "CONSEQUENCE_FAVORITES": "Ulubione zapisane dla tych list odtwarzania",
             "CONSEQUENCE_RECENTLY_VIEWED": "Historię ostatnio oglądanych",
             "CONSEQUENCE_PLAYBACK": "Zapisane pozycje odtwarzania",
-            "CONSEQUENCE_DOWNLOADS": "Wpisy historii pobierania powiązane z tymi listami odtwarzania",
             "CONSEQUENCE_XTREAM_CACHE": "Zaimportowane kategorie Xtream i lokalnie zapisane treści",
             "BACKUP_HINT": "Najpierw użyj eksportu, jeśli przed usunięciem chcesz utworzyć kopię zapasową do przywrócenia.",
             "CONFIRM": "Usuń wszystko"
