@@ -803,6 +803,8 @@
         "NIGHT_OWL_THEME": "بومة الليل",
         "BLACK_OLED_THEME": "أسود OLED",
         "SYSTEM_DESCRIPTION": "يتبع خيار النظام المظهر الفاتح أو الداكن لجهازك.",
+        "SYSTEM_LIGHT_PAIR": "في الوضع الفاتح",
+        "SYSTEM_DARK_PAIR": "في الوضع الداكن",
         "DARK_THEME": "داكن",
         "LIGHT_THEME": "فاتح",
         "SYSTEM_THEME": "النظام",

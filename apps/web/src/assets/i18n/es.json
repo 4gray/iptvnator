@@ -803,6 +803,8 @@
         "NIGHT_OWL_THEME": "Búho nocturno",
         "BLACK_OLED_THEME": "Negro OLED",
         "SYSTEM_DESCRIPTION": "Sistema sigue la apariencia clara u oscura de tu dispositivo.",
+        "SYSTEM_LIGHT_PAIR": "En modo claro",
+        "SYSTEM_DARK_PAIR": "En modo oscuro",
         "DARK_THEME": "Oscuro",
         "LIGHT_THEME": "Claro",
         "SYSTEM_THEME": "Sistema",

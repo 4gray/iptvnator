@@ -71,6 +71,9 @@
                             [themeOptions]="themeOptions"
                             [coverSizeOptions]="coverSizeOptions"
                             (selectTheme)="form.selectTheme($event)"
+                            (selectSystemTheme)="
+                                form.selectSystemTheme($event.mode, $event.theme)
+                            "
                             (selectThemeAccent)="
                                 form.selectThemeAccent($event)
                             "

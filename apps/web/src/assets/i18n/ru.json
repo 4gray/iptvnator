@@ -803,6 +803,8 @@
         "NIGHT_OWL_THEME": "Ночная сова",
         "BLACK_OLED_THEME": "Чёрный OLED",
         "SYSTEM_DESCRIPTION": "Системная тема автоматически переключается между светлой и тёмной.",
+        "SYSTEM_LIGHT_PAIR": "В светлом режиме",
+        "SYSTEM_DARK_PAIR": "В тёмном режиме",
         "DARK_THEME": "Тёмная",
         "LIGHT_THEME": "Светлая",
         "SYSTEM_THEME": "Системная",

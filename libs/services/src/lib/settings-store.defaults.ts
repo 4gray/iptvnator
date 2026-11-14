@@ -45,6 +45,8 @@ export const DEFAULT_SETTINGS = {
     stripCountryPrefix: false,
     theme: Theme.SystemTheme,
     themeAccent: null,
+    systemLightTheme: Theme.LightTheme,
+    systemDarkTheme: Theme.DarkTheme,
     mpvPlayerPath: '',
     mpvPlayerArguments: '',
     mpvReuseInstance: false,

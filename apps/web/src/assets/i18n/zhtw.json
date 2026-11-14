@@ -803,6 +803,8 @@
         "NIGHT_OWL_THEME": "夜貓子",
         "BLACK_OLED_THEME": "OLED 純黑",
         "SYSTEM_DESCRIPTION": "系統主題跟隨裝置的淺色或深色外觀。",
+        "SYSTEM_LIGHT_PAIR": "淺色模式下",
+        "SYSTEM_DARK_PAIR": "深色模式下",
         "DARK_THEME": "深色",
         "LIGHT_THEME": "淺色",
         "SYSTEM_THEME": "跟隨系統",

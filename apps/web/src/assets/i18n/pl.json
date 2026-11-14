@@ -803,6 +803,8 @@
         "NIGHT_OWL_THEME": "Nocna sowa",
         "BLACK_OLED_THEME": "Czerń OLED",
         "SYSTEM_DESCRIPTION": "Motyw systemowy podąża za jasnym lub ciemnym wyglądem urządzenia.",
+        "SYSTEM_LIGHT_PAIR": "W trybie jasnym",
+        "SYSTEM_DARK_PAIR": "W trybie ciemnym",
         "DARK_THEME": "Ciemny",
         "LIGHT_THEME": "Jasny",
         "SYSTEM_THEME": "Systemowy",

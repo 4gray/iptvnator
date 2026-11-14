@@ -12,7 +12,13 @@ import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { TranslateModule } from '@ngx-translate/core';
-import { CoverSize, Theme, ThemeAccent } from '@iptvnator/shared/interfaces';
+import {
+    CoverSize,
+    Theme,
+    THEME_PRESETS,
+    ThemeAccent,
+    ThemeMode,
+} from '@iptvnator/shared/interfaces';
 import {
     RadioGroupDirective,
     RadioOptionDirective,
@@ -44,8 +50,28 @@ export class SettingsAppearanceSectionComponent {
     readonly themeOptions = input.required<ThemeOption[]>();
     readonly coverSizeOptions = input.required<CoverSizeOption[]>();
     readonly selectTheme = output<Theme>();
+    readonly selectSystemTheme = output<{ mode: ThemeMode; theme: Theme }>();
     readonly selectThemeAccent = output<ThemeAccent | null>();
     readonly selectCoverSize = output<CoverSize>();
+
+    readonly systemTheme = Theme.SystemTheme;
+
+    /** The presets System can show in each device mode. */
+    readonly systemPairRows = computed(() =>
+        (['light', 'dark'] as const).map((mode) => ({
+            mode,
+            control: mode === 'dark' ? 'systemDarkTheme' : 'systemLightTheme',
+            labelKey:
+                mode === 'dark'
+                    ? 'THEMES.SYSTEM_DARK_PAIR'
+                    : 'THEMES.SYSTEM_LIGHT_PAIR',
+            options: this.themeOptions().filter(
+                (option) =>
+                    THEME_PRESETS.find((preset) => preset.id === option.presetId)
+                        ?.mode === mode
+            ),
+        }))
+    );
 
     private readonly settingsService = inject(SettingsService);
     readonly appliedThemePresetId = this.settingsService.appliedThemePresetId;

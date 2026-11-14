@@ -803,6 +803,8 @@
         "NIGHT_OWL_THEME": "Gece kuşu",
         "BLACK_OLED_THEME": "OLED siyahı",
         "SYSTEM_DESCRIPTION": "Sistem, cihazınızın açık veya koyu görünümünü izler.",
+        "SYSTEM_LIGHT_PAIR": "Açık modda",
+        "SYSTEM_DARK_PAIR": "Koyu modda",
         "DARK_THEME": "Koyu",
         "LIGHT_THEME": "Açık",
         "SYSTEM_THEME": "Sistem",

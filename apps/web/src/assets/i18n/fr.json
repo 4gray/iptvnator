@@ -803,6 +803,8 @@
         "NIGHT_OWL_THEME": "Oiseau de nuit",
         "BLACK_OLED_THEME": "Noir OLED",
         "SYSTEM_DESCRIPTION": "Le mode système suit l’apparence claire ou sombre de votre appareil.",
+        "SYSTEM_LIGHT_PAIR": "En mode clair",
+        "SYSTEM_DARK_PAIR": "En mode sombre",
         "DARK_THEME": "Sombre",
         "LIGHT_THEME": "Clair",
         "SYSTEM_THEME": "Système",

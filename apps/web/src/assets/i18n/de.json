@@ -803,6 +803,8 @@
         "NIGHT_OWL_THEME": "Nachteule",
         "BLACK_OLED_THEME": "OLED-Schwarz",
         "SYSTEM_DESCRIPTION": "System folgt dem hellen oder dunklen Erscheinungsbild deines Geräts.",
+        "SYSTEM_LIGHT_PAIR": "Im hellen Modus",
+        "SYSTEM_DARK_PAIR": "Im dunklen Modus",
         "DARK_THEME": "Dunkel",
         "LIGHT_THEME": "Hell",
         "SYSTEM_THEME": "System",

@@ -245,7 +245,8 @@ The app mode is the exclusive `.dark-theme` or `.light-theme` class that
 the resolved palette: `light`, `dark`, `cream`, `mocha`, `night-owl`, or
 `black-oled`. Cream uses light mode; Mocha, Night Owl and Black OLED use dark
 mode. A "System" choice resolves the OS preference
-to the original Light/Dark presets there and nowhere else. Component styles never use a
+there and nowhere else, to the user's light-mode and dark-mode presets
+(Light and Dark unless changed). Component styles never use a
 `prefers-color-scheme` query, which follows the OS: with the app set to dark
 on a light OS it paints light colours
 into the dark theme. Read `--app-*` tokens, which switch with the class, or
@@ -1749,8 +1750,14 @@ updates that omit the theme preserve the saved choice.
 The palette picker uses the existing keyboard-accessible radio directives. Six
 named miniature samples use the same app tokens as the real theme, arranged in
 three columns on wide settings containers and two on narrow ones. System is a
-separate row in the same group. Selection previews immediately, Save persists
-it, and Discard restores the saved choice and its System listener when needed.
+separate row in the same group. While System is selected, a pair of rows below
+it chooses the preset for a light device (Light or Cream) and for a dark one
+(Dark, Mocha, Night Owl or Black OLED), stored as `systemLightTheme` and
+`systemDarkTheme`; `normalizeSystemTheme()` falls back to Light or Dark for a
+missing value or one of the other mode. Selection previews immediately, Save
+persists it, and Discard restores the saved choice and its System listener
+when needed. The pair is applied before the theme, since System resolves
+through it.
 
 App palette declarations live in `apps/web/src/_theme-palettes.scss`, included
 by `m3-theme.scss` for both body contexts and decorative preview contexts.

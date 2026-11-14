@@ -78,6 +78,8 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
             'black oled',
             'appearance',
             'color',
+            'system',
+            'automatic',
         ],
     },
     {
