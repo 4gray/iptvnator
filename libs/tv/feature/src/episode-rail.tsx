@@ -107,6 +107,43 @@ export function EpisodeRail({
         placed.current = Math.abs(measured - step) <= 1;
     }, [step]);
     if (!current) return null;
+    // One flat keyed list: an episode keeps its button (and focus) when the
+    // window splits or merges around it.
+    const tiles = [];
+    let rendered = 0;
+    for (const [from, to] of ranges) {
+        if (from > rendered)
+            tiles.push(
+                <span
+                    key={`spacer-${rendered}`}
+                    class="episode-spacer"
+                    aria-hidden="true"
+                    style={{ width: `${(from - rendered) * step}px` }}
+                />
+            );
+        for (let i = from; i < to; i++)
+            tiles.push(
+                <EpisodeCard
+                    key={episodes[i].id}
+                    tv={tv}
+                    item={episodes[i]}
+                    index={i}
+                    onFocus={() => setSelected(i)}
+                />
+            );
+        rendered = to;
+    }
+    if (rendered < episodes.length)
+        tiles.push(
+            <span
+                key={`spacer-${rendered}`}
+                class="episode-spacer"
+                aria-hidden="true"
+                style={{
+                    width: `${(episodes.length - rendered) * step}px`,
+                }}
+            />
+        );
     const focusSelected = () =>
         row.current
             ?.querySelector<HTMLElement>(`[data-episode-index="${index}"]`)
@@ -136,38 +173,7 @@ export function EpisodeRail({
                         options.focus();
                     }}
                 >
-                    {ranges.map(([from, to], part) => [
-                        from > (part ? ranges[part - 1][1] : 0) ? (
-                            <span
-                                key={`spacer-${from}`}
-                                class="episode-spacer"
-                                aria-hidden="true"
-                                style={{
-                                    width: `${(from - (part ? ranges[part - 1][1] : 0)) * step}px`,
-                                }}
-                            />
-                        ) : null,
-                        ...episodes
-                            .slice(from, to)
-                            .map((e, offset) => (
-                                <EpisodeCard
-                                    key={e.id}
-                                    tv={tv}
-                                    item={e}
-                                    index={from + offset}
-                                    onFocus={() => setSelected(from + offset)}
-                                />
-                            )),
-                    ])}
-                    {ranges[ranges.length - 1][1] < episodes.length ? (
-                        <span
-                            class="episode-spacer"
-                            aria-hidden="true"
-                            style={{
-                                width: `${(episodes.length - ranges[ranges.length - 1][1]) * step}px`,
-                            }}
-                        />
-                    ) : null}
+                    {tiles}
                 </div>
             </HorizontalRail>
             <div class="episode-focus">

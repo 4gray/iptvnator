@@ -132,6 +132,13 @@ for (const index of [30, 120])
         });
         await expect(rail.locator('[data-episode-index="199"]')).toBeVisible();
         await expect(chosen).toBeFocused();
+        // Scrolling back to the start puts the window before the focused
+        // episode; its button must survive the split.
+        await rail.evaluate((el) => {
+            el.scrollLeft = 0;
+        });
+        await expect(rail.locator('[data-episode-index="0"]')).toBeVisible();
+        await expect(chosen).toBeFocused();
         await page.keyboard.press('Enter');
         await expect(page.locator('.player-bottom')).toContainText(
             `Anchored episode ${index + 1}`
