@@ -62,6 +62,8 @@ type XtreamProbeApi = {
 const XTREAM_CATCHUP_VARIANT_KEY_PREFIX = 'xtream-catchup-variant:v5:';
 /** How long an unproven programme answers with the fallback without probing. */
 const XTREAM_CATCHUP_FALLBACK_TTL_MS = 60_000;
+/** Bounds the hold map; the oldest entries go first. */
+const XTREAM_CATCHUP_FALLBACK_MAX_HOLDS = 64;
 
 /**
  * Service for constructing Xtream stream URLs.
@@ -258,7 +260,7 @@ export class XtreamUrlService {
         }
 
         const holdKey = `${cacheKey}:${streamId}:${startTimestamp}`;
-        if ((this.catchupFallbackUntil.get(holdKey) ?? 0) > Date.now()) {
+        if (this.isFallbackHeld(holdKey)) {
             return XTREAM_CATCHUP_VARIANT.REST_TS;
         }
 
@@ -320,11 +322,36 @@ export class XtreamUrlService {
         // keeps replaying the same programme from costing every probe again;
         // it is per programme, as one without archive says nothing about
         // the playlist's other programmes.
+        this.holdFallback(holdKey);
+        return XTREAM_CATCHUP_VARIANT.REST_TS;
+    }
+
+    private isFallbackHeld(holdKey: string): boolean {
+        const until = this.catchupFallbackUntil.get(holdKey);
+        if (until === undefined) return false;
+        if (until > Date.now()) return true;
+        this.catchupFallbackUntil.delete(holdKey);
+        return false;
+    }
+
+    /** Drops expired holds, then the oldest beyond the cap. */
+    private holdFallback(holdKey: string): void {
+        const now = Date.now();
+        for (const [key, until] of this.catchupFallbackUntil) {
+            if (until <= now) this.catchupFallbackUntil.delete(key);
+        }
+        this.catchupFallbackUntil.delete(holdKey);
         this.catchupFallbackUntil.set(
             holdKey,
-            Date.now() + XTREAM_CATCHUP_FALLBACK_TTL_MS
+            now + XTREAM_CATCHUP_FALLBACK_TTL_MS
         );
-        return XTREAM_CATCHUP_VARIANT.REST_TS;
+        while (
+            this.catchupFallbackUntil.size > XTREAM_CATCHUP_FALLBACK_MAX_HOLDS
+        ) {
+            const oldest = this.catchupFallbackUntil.keys().next().value;
+            if (oldest === undefined) break;
+            this.catchupFallbackUntil.delete(oldest);
+        }
     }
 
     private async probeCatchupUrl(

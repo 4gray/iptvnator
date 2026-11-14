@@ -418,6 +418,38 @@ describe('XtreamUrlService', () => {
         now.mockRestore();
     });
 
+    it('prunes expired fallback holds and keeps their number bounded', async () => {
+        const now = jest.spyOn(Date, 'now').mockReturnValue(2_000_000);
+        window.electron = {
+            probeStreamUrl: jest.fn(async () => ({ status: 404 })),
+        } as unknown as typeof window.electron;
+        const holds = () =>
+            (
+                service as unknown as {
+                    catchupFallbackUntil: Map<string, number>;
+                }
+            ).catchupFallbackUntil;
+        const resolveAt = (start: number) =>
+            service.resolveCatchupUrl(
+                'playlist-holds',
+                { ...credentials, allowedOutputFormats: ['ts'] },
+                101,
+                start,
+                start + 3600
+            );
+
+        for (let index = 0; index < 70; index++) {
+            await resolveAt(1775296800 + index * 3600);
+        }
+        expect(holds().size).toBe(64);
+
+        // Once they expire, the next hold sweeps them away.
+        now.mockReturnValue(2_000_000 + 61_000);
+        await resolveAt(1775296800 - 3600);
+        expect(holds().size).toBe(1);
+        now.mockRestore();
+    });
+
     it('ignores a variant stored under the previous key version', async () => {
         // v4 could hold a REST TS fallback stored after header-less probes.
         databaseService.getAppState.mockImplementation(async (key: string) =>
