@@ -62,6 +62,10 @@ final class NativePlaybackCheckpoints {
         }
     }
 
+    boolean isEmpty() {
+        return storage.getAll().isEmpty();
+    }
+
     void clear() {
         storage.edit().clear().apply();
     }
