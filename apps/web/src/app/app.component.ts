@@ -119,6 +119,11 @@ export class AppComponent implements OnInit {
         startAppMenuActions();
         syncDocumentLanguage();
 
+        document.documentElement.classList.toggle(
+            'electron',
+            this.runtime.isElectron
+        );
+
         // Body-level class (like 'dark-theme') so layout adjustments also
         // reach content rendered outside app-root, e.g. cdk-overlay content.
         if (this.runtime.usesCustomWindowControls) {
