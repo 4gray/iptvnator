@@ -72,7 +72,9 @@ export class SecondStreamPickerComponent {
     readonly limit = signal(100);
     private request = new AbortController();
     private generation = 0;
-    private initialized = false;
+    private sourceLoad?: Promise<void>;
+    readonly sourceLoadFailed = signal(false);
+    private closed = false;
     private seriesSearch = '';
     readonly hasContentTypes = computed(
         () =>
@@ -132,6 +134,7 @@ export class SecondStreamPickerComponent {
 
     constructor() {
         const cancelRequests = () => {
+            this.closed = true;
             this.generation++;
             this.request.abort();
             this.epg.stop();
@@ -139,6 +142,7 @@ export class SecondStreamPickerComponent {
         };
         this.dialog.beforeClosed().subscribe(cancelRequests);
         inject(DestroyRef).onDestroy(cancelRequests);
+        void this.loadSources();
         effect(() => {
             this.catalog.version();
             untracked(() => {
@@ -152,6 +156,23 @@ export class SecondStreamPickerComponent {
             this.group();
             this.limit.set(100);
         });
+    }
+
+    loadSources(): Promise<void> {
+        if (this.sourceLoad) return this.sourceLoad;
+        this.sourceLoadFailed.set(false);
+        this.sourceLoad = this.catalog
+            .sources()
+            .then((sources) => {
+                if (!this.closed) this.sources.set(sources);
+            })
+            .catch(() => {
+                if (!this.closed) this.sourceLoadFailed.set(true);
+            })
+            .finally(() => {
+                this.sourceLoad = undefined;
+            });
+        return this.sourceLoad;
     }
 
     updateSearch(value: string): void {
@@ -224,16 +245,12 @@ export class SecondStreamPickerComponent {
         this.error.set(null);
         this.data.set({ groups: [], channels: [] });
         try {
-            const [sources, data] = await Promise.all([
-                this.initialized
-                    ? Promise.resolve(this.sources())
-                    : this.catalog.sources(),
-                this.catalog.load(this.source(), this.request.signal),
-            ]);
+            const data = await this.catalog.load(
+                this.source(),
+                this.request.signal
+            );
             if (generation !== this.generation) return;
-            this.sources.set(sources);
             this.data.set(data);
-            this.initialized = true;
             const group = this.group();
             if (
                 group !== null &&

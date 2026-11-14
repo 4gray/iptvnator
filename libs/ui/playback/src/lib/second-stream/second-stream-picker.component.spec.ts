@@ -30,12 +30,14 @@ describe('SecondStreamPickerComponent', () => {
     let load: jest.Mock;
     let resolve: jest.Mock;
     let loadGroup: jest.Mock;
+    let sources: jest.Mock;
     let close: jest.Mock;
     let beforeClosed: Subject<void>;
     let component: SecondStreamPickerComponent;
     beforeEach(() => {
         load = jest.fn().mockResolvedValue({ groups: [], channels: [row] });
         resolve = jest.fn();
+        sources = jest.fn().mockResolvedValue([]);
         loadGroup = jest.fn().mockResolvedValue([row]);
         close = jest.fn();
         beforeClosed = new Subject<void>();
@@ -46,7 +48,7 @@ describe('SecondStreamPickerComponent', () => {
                     provide: SecondStreamCatalogService,
                     useValue: {
                         version: signal(0),
-                        sources: jest.fn().mockResolvedValue([]),
+                        sources,
                         load,
                         resolve,
                         loadGroup,
@@ -91,6 +93,16 @@ describe('SecondStreamPickerComponent', () => {
             SecondStreamPickerComponent
         ).componentInstance;
     });
+    it('keeps playlist choices when the first live catalog fails', async () => {
+        const source = { id: 'portal', name: 'Synthetic portal', portal: true };
+        sources.mockResolvedValue([source]);
+        load.mockRejectedValueOnce(new Error('Synthetic catalog failure'));
+        await component.loadSources();
+        await component.reload();
+        expect(component.error()).toBe('load');
+        expect(component.sources()).toEqual([source]);
+    });
+
     it('ignores a stale source response and aborts its request', async () => {
         let finish!: (value: unknown) => void;
         load.mockImplementationOnce(() => new Promise((r) => (finish = r)));

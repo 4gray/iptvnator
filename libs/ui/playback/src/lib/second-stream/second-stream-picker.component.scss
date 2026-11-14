@@ -23,6 +23,14 @@
     flex: none;
 }
 
+.picker__source-error {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--app-danger-text);
+    font-size: 13px;
+}
+
 .picker__source {
     display: flex;
     flex: 0 1 40%;

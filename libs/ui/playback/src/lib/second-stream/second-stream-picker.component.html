@@ -54,6 +54,16 @@
                 </label>
             </div>
         </div>
+        @if (sourceLoadFailed()) {
+            <div class="picker__source-error" role="alert">
+                <span>{{
+                    'PORTALS.CATALOG_LOAD_ERROR.TITLE' | translate
+                }}</span>
+                <button mat-button type="button" (click)="loadSources()">
+                    {{ 'EMBEDDED_MPV.PLAYER.RETRY' | translate }}
+                </button>
+            </div>
+        }
         @if (hasContentTypes()) {
             <div
                 class="picker__types"
