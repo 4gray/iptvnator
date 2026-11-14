@@ -45,6 +45,7 @@ describe('ControlsSettings', () => {
             setAspectRatio: jest.fn(),
             toggleRecording: jest.fn(),
             togglePictureInPicture: jest.fn(),
+            jumpToLiveEdge: jest.fn(),
         };
         reveal = jest.fn();
         settings = new ControlsSettings({

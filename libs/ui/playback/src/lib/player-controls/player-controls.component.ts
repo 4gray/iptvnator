@@ -26,6 +26,7 @@ import { ControlsStreamStats } from './controls-stream-stats';
 import { ControlsSurface } from './controls-surface';
 import { ControlsTimeline } from './controls-timeline';
 import { ControlsTimelineLabel } from './controls-timeline-label';
+import { ControlsTransport } from './controls-transport';
 import { ControlsUpNext } from './controls-up-next';
 import { ControlsVisibility } from './controls-visibility';
 import { createControlsViewModel } from './controls-view-model';
@@ -91,6 +92,13 @@ export class PlayerControlsComponent implements OnDestroy {
     readonly feedback = new ControlsFeedback();
     readonly anyMenuOpen = this.menus.anyOpen;
     private readonly shortcuts = new ControlsShortcuts();
+    readonly transport = new ControlsTransport({
+        controller: () => this.controller(),
+        feedback: this.feedback,
+        reveal: () => this.reveal(),
+        liveLabel: () =>
+            this.translate.instant('EMBEDDED_MPV.PLAYER.LIVE_BADGE'),
+    });
     readonly layout = new ControlsLayout();
     /** Compact dock: narrow inline players and phone-sized viewports. */
     readonly isCompact = computed(() => this.layout.mode() === 'compact');
@@ -242,7 +250,7 @@ export class PlayerControlsComponent implements OnDestroy {
             onEscape: () => this.closePopovers(),
             togglePaused: () => this.togglePlay(),
             toggleFullscreen: () => void this.toggleFullscreen(),
-            seekBy: (delta) => this.seekBy(delta),
+            seekBy: (delta) => this.transport.seekBy(delta),
             adjustVolume: (delta) => this.volumeInteractions.adjust(delta),
             toggleMute: () => this.volumeInteractions.toggleMute(),
         });
@@ -340,17 +348,6 @@ export class PlayerControlsComponent implements OnDestroy {
             return;
         }
         this.controller().commands.togglePlay();
-    }
-    seekBy(deltaSeconds: number): void {
-        this.reveal();
-        if (!this.capabilities().seek || !this.state().canSeek) {
-            return;
-        }
-        this.controller().commands.seekBy(deltaSeconds);
-        this.feedback.flash(
-            deltaSeconds >= 0 ? 'forward_10' : 'replay_10',
-            `${deltaSeconds >= 0 ? '+' : ''}${Math.round(deltaSeconds)}s`
-        );
     }
     onTimelineInput(event: Event): void {
         this.reveal();

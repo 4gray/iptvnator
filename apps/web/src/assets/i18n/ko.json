@@ -834,6 +834,7 @@
             "NEXT_EPISODE": "다음 에피소드",
             "BACK_10_SECONDS": "10초 뒤로",
             "FORWARD_10_SECONDS": "10초 앞으로",
+            "JUMP_TO_LIVE": "실시간으로 이동",
             "LIVE_STREAM": "라이브 스트림",
             "LIVE_BADGE": "라이브",
             "PLAYBACK_POSITION": "재생 위치",

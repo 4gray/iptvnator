@@ -834,6 +834,7 @@
             "NEXT_EPISODE": "Episódio seguinte",
             "BACK_10_SECONDS": "Voltar 10 segundos",
             "FORWARD_10_SECONDS": "Avançar 10 segundos",
+            "JUMP_TO_LIVE": "Ir para o direto",
             "LIVE_STREAM": "Transmissão em direto",
             "LIVE_BADGE": "Em direto",
             "PLAYBACK_POSITION": "Posição de reprodução",

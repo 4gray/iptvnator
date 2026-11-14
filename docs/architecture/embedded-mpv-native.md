@@ -630,6 +630,56 @@ are cleared, and disables the audio track to verify unavailable observations
 remove codec/channel/sample-rate rows without a new-file reset. This complements renderer mapping/unit coverage with
 the actual libmpv → helper JSON → main/preload path.
 
+## Jump to live (MPEG-TS)
+
+A live MPEG-TS stream (Xtream `.ts` output, or any M3U/Stalker URL mpv opens
+as `file-format` `mpegts`) is one endless HTTP response. Panels commonly
+answer a new connection with a burst of their own backlog (measured: ~13 MB,
+≈23–29 s of video, within 2.5 s) and then send at real-time rate. mpv plays
+from the start of that burst, so the viewer sits as far behind live as the
+burst is long, and every reconnect or channel change repeats it. The buffer
+then stays flat (`demuxer-cache-duration` ≈ 22–23 s).
+
+The live-edge button skips that backlog. `embedded-mpv-live-edge.ts` computes
+`bufferedAheadSeconds − 3` and the adapter sends it through the existing
+relative `seekBy` (`seek <delta> relative+exact`), so mpv seeks inside its
+demuxer cache. That works although mpv reports the stream as not seekable
+(the cached range is seekable). In a 70 s standalone libmpv 0.41 run with a
+2 s target this cut latency from ~23 s to ~3 s, with one ~1 s stall right
+after the jump and a stable 2–3.5 s buffer afterwards. TS self-heals: after a
+stall mpv waits for `cache-pause-wait` of data, and because data keeps
+arriving at 1×, that margin stays in the buffer. The 3 s target covers the
+measured per-second delivery jitter; lower targets brought no lasting gain.
+
+Rules:
+
+- **TS only.** HLS (`file-format` `hls`) is excluded on purpose. Its cache
+  ends at the newest *complete* segment; leaving 3 s there drains the buffer
+  long before the next segment (often ~10 s) arrives. That is a worse
+  `live_start_index=-1`, which in Embedded MPV stalled on every segment, each
+  followed by `restarting audio after underrun`, A/V resync and dropped
+  frames, without self-healing. A safe HLS jump needs the provider's segment
+  length, which the player does not know.
+- **Live only**, in a `playing` or `paused` session without a reconnect in
+  flight.
+- **Always enabled.** The button never disables itself: with ≤ 3 s buffered a
+  click does nothing, otherwise it jumps to 3 s. An earlier version disabled
+  it near the target, and because the buffer of a live TS stream swings by a
+  second or more with delivery jitter, the button flickered.
+- **Debounced for 2 s** after a jump: the snapshot that answers the seek can
+  still carry the pre-seek buffer, and a second jump computed from it would
+  seek past the end of the cache.
+- `seekBy` marks the reconnect resume point stale like any user seek, which is
+  irrelevant for live (the reconnect reloads the stream from its live edge).
+- The value comes from the polled snapshot and can be a few hundred
+  milliseconds old. The buffer only grows meanwhile, so the error is a
+  slightly larger reserve, never an overshoot.
+
+Engines: the gate needs `stats.container` and `stats.bufferedAheadSeconds`
+(see "Stream Stats Properties"). Frame-copy (shared controls) and the macOS
+and Windows native-view backends (legacy dock button) report both. The Linux
+out-of-process backend reports no stats, so the button never appears there.
+
 ## Session End And Series Navigation
 
 `EmbeddedMpvSessionStatus` includes `ended` for successful EOF only. The native addon maps `MPV_EVENT_END_FILE` to:

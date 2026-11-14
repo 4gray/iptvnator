@@ -260,44 +260,54 @@
             </div>
 
             <div class="player-controls__transport">
-                @if (capabilities().seriesNavigation) {
-                    <button
-                        mat-icon-button
-                        type="button"
-                        class="player-controls__button"
-                        data-test-id="player-controls-previous-episode"
-                        [disabled]="isLoading() || !state().canPreviousEpisode"
-                        (click)="requestPreviousEpisode()"
-                        [attr.aria-label]="
-                            'EMBEDDED_MPV.PLAYER.PREVIOUS_EPISODE' | translate
-                        "
-                        [matTooltip]="
-                            'EMBEDDED_MPV.PLAYER.PREVIOUS_EPISODE' | translate
-                        "
-                        matTooltipPosition="above"
-                    >
-                        <mat-icon>skip_previous</mat-icon>
-                    </button>
-                }
+                <div
+                    class="player-controls__transport-side player-controls__transport-side--start"
+                >
+                    @if (capabilities().seriesNavigation) {
+                        <button
+                            mat-icon-button
+                            type="button"
+                            class="player-controls__button"
+                            data-test-id="player-controls-previous-episode"
+                            [disabled]="
+                                isLoading() || !state().canPreviousEpisode
+                            "
+                            (click)="requestPreviousEpisode()"
+                            [attr.aria-label]="
+                                'EMBEDDED_MPV.PLAYER.PREVIOUS_EPISODE'
+                                    | translate
+                            "
+                            [matTooltip]="
+                                'EMBEDDED_MPV.PLAYER.PREVIOUS_EPISODE'
+                                    | translate
+                            "
+                            matTooltipPosition="above"
+                        >
+                            <mat-icon>skip_previous</mat-icon>
+                        </button>
+                    }
 
-                @if (capabilities().seek) {
-                    <button
-                        mat-icon-button
-                        type="button"
-                        class="player-controls__button"
-                        [disabled]="!state().canSeek"
-                        (click)="seekBy(-10)"
-                        [attr.aria-label]="
-                            'EMBEDDED_MPV.PLAYER.BACK_10_SECONDS' | translate
-                        "
-                        [matTooltip]="
-                            'EMBEDDED_MPV.PLAYER.BACK_10_SECONDS' | translate
-                        "
-                        matTooltipPosition="above"
-                    >
-                        <mat-icon>replay_10</mat-icon>
-                    </button>
-                }
+                    @if (capabilities().seek) {
+                        <button
+                            mat-icon-button
+                            type="button"
+                            class="player-controls__button"
+                            [disabled]="!state().canSeek"
+                            (click)="transport.seekBy(-10)"
+                            [attr.aria-label]="
+                                'EMBEDDED_MPV.PLAYER.BACK_10_SECONDS'
+                                    | translate
+                            "
+                            [matTooltip]="
+                                'EMBEDDED_MPV.PLAYER.BACK_10_SECONDS'
+                                    | translate
+                            "
+                            matTooltipPosition="above"
+                        >
+                            <mat-icon>replay_10</mat-icon>
+                        </button>
+                    }
+                </div>
 
                 <button
                     type="button"
@@ -324,44 +334,67 @@
                     }}</mat-icon>
                 </button>
 
-                @if (capabilities().seek) {
-                    <button
-                        mat-icon-button
-                        type="button"
-                        class="player-controls__button"
-                        [disabled]="!state().canSeek"
-                        (click)="seekBy(10)"
-                        [attr.aria-label]="
-                            'EMBEDDED_MPV.PLAYER.FORWARD_10_SECONDS' | translate
-                        "
-                        [matTooltip]="
-                            'EMBEDDED_MPV.PLAYER.FORWARD_10_SECONDS' | translate
-                        "
-                        matTooltipPosition="above"
-                    >
-                        <mat-icon>forward_10</mat-icon>
-                    </button>
-                }
+                <div class="player-controls__transport-side">
+                    @if (capabilities().liveEdge) {
+                        <button
+                            mat-icon-button
+                            type="button"
+                            class="player-controls__button"
+                            data-test-id="player-controls-jump-to-live"
+                            (click)="transport.jumpToLiveEdge()"
+                            [attr.aria-label]="
+                                'EMBEDDED_MPV.PLAYER.JUMP_TO_LIVE' | translate
+                            "
+                            [matTooltip]="
+                                'EMBEDDED_MPV.PLAYER.JUMP_TO_LIVE' | translate
+                            "
+                            matTooltipPosition="above"
+                        >
+                            <mat-icon>fast_forward</mat-icon>
+                        </button>
+                    }
 
-                @if (capabilities().seriesNavigation) {
-                    <button
-                        mat-icon-button
-                        type="button"
-                        class="player-controls__button"
-                        data-test-id="player-controls-next-episode"
-                        [disabled]="isLoading() || !state().canNextEpisode"
-                        (click)="requestNextEpisode()"
-                        [attr.aria-label]="
-                            'EMBEDDED_MPV.PLAYER.NEXT_EPISODE' | translate
-                        "
-                        [matTooltip]="
-                            'EMBEDDED_MPV.PLAYER.NEXT_EPISODE' | translate
-                        "
-                        matTooltipPosition="above"
-                    >
-                        <mat-icon>skip_next</mat-icon>
-                    </button>
-                }
+                    @if (capabilities().seek) {
+                        <button
+                            mat-icon-button
+                            type="button"
+                            class="player-controls__button"
+                            [disabled]="!state().canSeek"
+                            (click)="transport.seekBy(10)"
+                            [attr.aria-label]="
+                                'EMBEDDED_MPV.PLAYER.FORWARD_10_SECONDS'
+                                    | translate
+                            "
+                            [matTooltip]="
+                                'EMBEDDED_MPV.PLAYER.FORWARD_10_SECONDS'
+                                    | translate
+                            "
+                            matTooltipPosition="above"
+                        >
+                            <mat-icon>forward_10</mat-icon>
+                        </button>
+                    }
+
+                    @if (capabilities().seriesNavigation) {
+                        <button
+                            mat-icon-button
+                            type="button"
+                            class="player-controls__button"
+                            data-test-id="player-controls-next-episode"
+                            [disabled]="isLoading() || !state().canNextEpisode"
+                            (click)="requestNextEpisode()"
+                            [attr.aria-label]="
+                                'EMBEDDED_MPV.PLAYER.NEXT_EPISODE' | translate
+                            "
+                            [matTooltip]="
+                                'EMBEDDED_MPV.PLAYER.NEXT_EPISODE' | translate
+                            "
+                            matTooltipPosition="above"
+                        >
+                            <mat-icon>skip_next</mat-icon>
+                        </button>
+                    }
+                </div>
             </div>
 
             <div class="player-controls__actions">

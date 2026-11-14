@@ -1094,6 +1094,13 @@ Manual `ts` and `m3u8` settings remain supported; when a manual setting is not
 allowed by the portal, URL construction falls back to the first
 provider-allowed format.
 
+Latency differs by format. With `ts`, many panels burst 20–30 s of backlog
+when a connection opens and then stream at real-time rate. Embedded MPV's
+jump-to-live button skips that backlog. With `m3u8`, data arrives in whole
+segments (often ~10 s) and the client picks the start segment. The button
+does not exist for HLS, and `Auto` keeps preferring `m3u8`. Details and
+measurements: `embedded-mpv-native.md`, "Jump to live (MPEG-TS)".
+
 ### Initial Auto HLS failure
 
 The routed Xtream Live TV host attaches `ResolvedPortalPlayback.liveAutoTsUrl`

@@ -238,8 +238,8 @@ interface PlayerController {
 `PlayerControlsCapabilities` contains booleans for `seek`, `volume`,
 `audioTracks`, `subtitles`, `externalSubtitles`, `subtitleDelay`,
 `subtitleStyle`, `qualityLevels`, `playbackSpeed`, `aspectRatio`,
-`recording`, `pictureInPicture`, `fullscreen`, `seriesNavigation`, and
-`streamStats`.
+`recording`, `pictureInPicture`, `fullscreen`, `seriesNavigation`,
+`streamStats`, and `liveEdge`.
 
 The default is all-false. An adapter enables only features that its engine and
 current runtime support. Capability flags primarily control whether optional UI
@@ -257,7 +257,7 @@ is rendered; state such as `canSeek`, `canPreviousEpisode`, and
 - pre-labelled quality levels and the ABR/auto flag;
 - playback speed and aspect-ratio selections/presets;
 - recording state;
-- picture-in-picture active state and runtime availability; and
+- picture-in-picture active state and runtime availability;
 - previous/next episode availability.
 
 Adapters translate engine types into this model. The controls component must not
@@ -283,6 +283,10 @@ owner.
 - `setAspectRatio`
 - `toggleRecording`
 - `togglePictureInPicture`
+- `jumpToLiveEdge` — skips buffered live data so playback runs close to the
+  broadcast. Only Embedded MPV implements it, for live MPEG-TS; web adapters
+  report `liveEdge: false` and treat the command as a no-op (see
+  "Jump to live" below)
 
 Episode navigation is deliberately exposed as component outputs
 (`previousEpisodeRequested` and `nextEpisodeRequested`) because the owning
@@ -401,7 +405,11 @@ one colour in every player surface (UI guidelines, "Watch progress colour").
   the hover/tap popover in the compact mode — inline, the button is a
   plain mute toggle for every pointer type (`buttonClick(event,
   { inlineSlider: true })`). Center: previous episode · −10s · **play** ·
-  +10s · next episode. Right: the value chips, the `tune` button,
+  jump to live · +10s · next episode (jump to live and ±10s never appear
+  together: one is live-only, the other VOD-only). The centre is itself a
+  `1fr auto 1fr` grid: play owns the middle column and the buttons before
+  and after it sit in two `.player-controls__transport-side` columns of equal
+  width, so a button that appears on one side never moves play. Right: the value chips, the `tune` button,
   recording, picture-in-picture and fullscreen, end-aligned.
 - **Play button** (`.player-controls__play`, `data-test-id
   ="player-controls-play"`): a 52px filled accent circle with a white glyph,
@@ -418,6 +426,22 @@ one colour in every player surface (UI guidelines, "Watch progress colour").
   off: its colour comes from the app theme, and the light theme's dark layer
   left no visible focus on video. The settings panel's icon buttons use the
   same ring, inset by 2px because the panel body clips at its edge.
+
+### Jump to live
+
+`capabilities.liveEdge` renders a `fast_forward` icon button
+(`data-test-id="player-controls-jump-to-live"`, label `JUMP_TO_LIVE`)
+directly right of play. It is always enabled: whether there is backlog to
+skip is decided by the engine at click time, because a state flag tracking a
+jittery live buffer made the button flicker.
+`ControlsTransport` owns it together with the ±10s skip: both reveal the
+controls, check capability and state, send the command and flash the centre
+feedback (`fast_forward` · `LIVE_BADGE`). There is no keyboard shortcut.
+
+Embedded MPV is the only engine that enables it, and only for a live session
+whose mpv `file-format` is `mpegts`; the native-view engine's legacy dock
+renders the same button (`embedded-mpv-jump-to-live`). Why TS only and how
+the jump works: `embedded-mpv-native.md`, "Jump to live (MPEG-TS)".
 
 ### Timeline segments
 
@@ -1776,6 +1800,7 @@ libs/ui/playback/src/lib/player-controls/
 ├── controls-layout.ts
 ├── controls-timeline-label.ts
 ├── controls-timeline-segments.ts
+├── controls-transport.ts
 ├── controls-settings.ts
 ├── controls-settings-groups.ts
 ├── controls-up-next.ts
@@ -1837,6 +1862,7 @@ libs/ui/playback/src/lib/embedded-mpv-player/
 ├── embedded-mpv-controls.adapter.ts
 ├── embedded-mpv-controls-recording.ts
 ├── embedded-mpv-controls-recording-feedback.ts
+├── embedded-mpv-live-edge.ts
 ├── embedded-mpv-stream-stats.ts
 ├── embedded-mpv-player.component.ts
 ├── embedded-mpv-player.component.html

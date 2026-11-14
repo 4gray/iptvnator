@@ -38,6 +38,7 @@ function createFakeController() {
         setAspectRatio: jest.fn(),
         toggleRecording: jest.fn(),
         togglePictureInPicture: jest.fn(),
+        jumpToLiveEdge: jest.fn(),
     };
     const controller: PlayerController = { capabilities, state, commands };
     return { controller, capabilities, state, commands };
@@ -112,6 +113,7 @@ describe('PlayerControlsComponent dock', () => {
                     NEXT_EPISODE: 'Next episode',
                     BACK_10_SECONDS: 'Back 10 seconds',
                     FORWARD_10_SECONDS: 'Forward 10 seconds',
+                    JUMP_TO_LIVE: 'Jump to live',
                     MUTE: 'Mute',
                     UNMUTE: 'Unmute',
                     LIVE_STREAM: 'Live stream',
@@ -181,6 +183,54 @@ describe('PlayerControlsComponent dock', () => {
             'Forward 10 seconds',
             'Next episode',
         ]);
+    });
+
+    describe('jump to live', () => {
+        const jumpButton = () =>
+            query(
+                '[data-test-id="player-controls-jump-to-live"]'
+            ) as HTMLButtonElement | null;
+
+        it('is absent unless the engine offers it', () => {
+            setState({ isLive: true, status: 'playing' });
+            fixture.detectChanges();
+
+            expect(jumpButton()).toBeNull();
+        });
+
+        it('sits directly right of play and seeks to the live edge', () => {
+            setCapabilities({ liveEdge: true });
+            setState({ isLive: true, status: 'playing' });
+            fixture.detectChanges();
+
+            const labels = Array.from(
+                fixture.nativeElement.querySelectorAll(
+                    '.player-controls__transport button'
+                ) as NodeListOf<HTMLElement>
+            ).map((button) => button.getAttribute('aria-label'));
+            expect(labels).toEqual(['Pause', 'Jump to live']);
+            // Play owns the centre column; the jump button joins the side
+            // column after it, so its appearance never moves play.
+            const transport = query('.player-controls__transport');
+            const columns = Array.from(transport?.children ?? []);
+            expect(columns.map((column) => column.className)).toEqual([
+                expect.stringContaining(
+                    'player-controls__transport-side--start'
+                ),
+                expect.stringContaining('player-controls__play'),
+                'player-controls__transport-side',
+            ]);
+            expect(columns[2].contains(jumpButton())).toBe(true);
+            expect(jumpButton()?.querySelector('mat-icon')?.textContent).toBe(
+                'fast_forward'
+            );
+
+            // Always enabled: whether there is backlog to skip is the
+            // engine's call at click time.
+            expect(jumpButton()?.disabled).toBe(false);
+            jumpButton()?.click();
+            expect(fake.commands.jumpToLiveEdge).toHaveBeenCalledTimes(1);
+        });
     });
 
     describe('timeline row', () => {

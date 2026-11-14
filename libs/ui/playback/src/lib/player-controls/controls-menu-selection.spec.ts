@@ -22,6 +22,7 @@ describe('ControlsMenuSelection', () => {
             setAspectRatio: jest.fn(),
             toggleRecording: jest.fn(),
             togglePictureInPicture: jest.fn(),
+            jumpToLiveEdge: jest.fn(),
         };
         revealSticky = jest.fn();
         selection = new ControlsMenuSelection({

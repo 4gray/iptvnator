@@ -269,6 +269,50 @@ describe('EmbeddedMpvPlayerComponent series navigation', () => {
         ).toBe(true);
     });
 
+    it('offers jump to live right of play in the legacy dock for live MPEG-TS', () => {
+        fixture.destroy();
+        fixture = TestBed.createComponent(EmbeddedMpvPlayerHostComponent);
+        fixture.componentInstance.playback = {
+            streamUrl: 'https://example.test/live/101.ts',
+            title: 'Example Live',
+            isLive: true,
+        };
+        fixture.detectChanges();
+        bindPlayer();
+        const seekBy = jest.spyOn(controller, 'seekBy').mockResolvedValue(true);
+        configureReadyController({
+            streamUrl: 'https://example.test/live/101.ts',
+            title: 'Example Live',
+            durationSeconds: null,
+            stats: { container: 'mpegts', bufferedAheadSeconds: 23 },
+        });
+
+        const transport = Array.from(
+            fixture.nativeElement.querySelectorAll(
+                '.embedded-mpv-player__transport button'
+            ) as NodeListOf<HTMLButtonElement>
+        );
+        expect(transport[1].dataset['testId']).toBe(
+            'embedded-mpv-jump-to-live'
+        );
+        expect(transport[1].disabled).toBe(false);
+
+        transport[1].click();
+        expect(seekBy).toHaveBeenCalledWith(20);
+
+        configureReadyController({
+            streamUrl: 'https://example.test/live/101.m3u8',
+            title: 'Example Live',
+            durationSeconds: null,
+            stats: { container: 'hls', bufferedAheadSeconds: 23 },
+        });
+        expect(
+            fixture.debugElement.query(
+                By.css('[data-test-id="embedded-mpv-jump-to-live"]')
+            )
+        ).toBeNull();
+    });
+
     it('re-evaluates instant()-based labels when the language changes', () => {
         const translate = TestBed.inject(TranslateService);
         translate.setTranslation('en', {

@@ -39,6 +39,7 @@ function createFakeController(sample: jest.Mock) {
         setAspectRatio: jest.fn(),
         toggleRecording: jest.fn(),
         togglePictureInPicture: jest.fn(),
+        jumpToLiveEdge: jest.fn(),
     } as jest.Mocked<PlayerControlsCommands>;
     const controller: PlayerController = {
         capabilities,

@@ -316,11 +316,25 @@
     min-width: 0;
 }
 
+// Play is the fixed centre: the buttons on either side sit in two equal
+// `1fr` columns (an intrinsically sized grid gives both the width of the
+// wider side), so an extra button on one side, such as jump to live,
+// never pushes play off-centre.
 .player-controls__transport {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 8px;
+}
+
+.player-controls__transport-side {
     display: flex;
     align-items: center;
-    justify-content: center;
     gap: 8px;
+}
+
+.player-controls__transport-side--start {
+    justify-content: flex-end;
 }
 
 .player-controls__actions {
@@ -799,7 +813,8 @@
         gap: 4px;
     }
 
-    .player-controls__transport {
+    .player-controls__transport,
+    .player-controls__transport-side {
         gap: 4px;
     }
 

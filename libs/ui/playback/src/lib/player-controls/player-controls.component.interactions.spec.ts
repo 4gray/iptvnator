@@ -35,6 +35,7 @@ function createFakeController() {
         setAspectRatio: jest.fn(),
         toggleRecording: jest.fn(),
         togglePictureInPicture: jest.fn(),
+        jumpToLiveEdge: jest.fn(),
     };
     const controller: PlayerController = { capabilities, state, commands };
     return { controller, capabilities, state, commands };
@@ -77,7 +78,7 @@ describe('PlayerControlsComponent interactions', () => {
             setState({ canSeek: false });
             fixture.detectChanges();
 
-            component.seekBy(10);
+            component.transport.seekBy(10);
             expect(fake.commands.seekBy).not.toHaveBeenCalled();
             expect(component.feedback.current()).toBeNull();
         });
@@ -88,7 +89,7 @@ describe('PlayerControlsComponent interactions', () => {
             setState({ canSeek: true, durationSeconds: 600 });
             fixture.detectChanges();
 
-            component.seekBy(-10);
+            component.transport.seekBy(-10);
             fixture.detectChanges();
 
             expect(fake.commands.seekBy).toHaveBeenCalledWith(-10);

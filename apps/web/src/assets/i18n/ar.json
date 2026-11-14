@@ -834,6 +834,7 @@
             "NEXT_EPISODE": "الحلقة التالية",
             "BACK_10_SECONDS": "رجوع 10 ثوانٍ",
             "FORWARD_10_SECONDS": "تقديم 10 ثوانٍ",
+            "JUMP_TO_LIVE": "الانتقال إلى البث المباشر",
             "LIVE_STREAM": "بث مباشر",
             "LIVE_BADGE": "مباشر",
             "PLAYBACK_POSITION": "موضع التشغيل",

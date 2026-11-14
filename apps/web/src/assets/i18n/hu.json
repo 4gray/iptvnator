@@ -834,6 +834,7 @@
             "NEXT_EPISODE": "Következő epizód",
             "BACK_10_SECONDS": "Ugrás 10 másodperccel vissza",
             "FORWARD_10_SECONDS": "Ugrás 10 másodperccel előre",
+            "JUMP_TO_LIVE": "Ugrás az élő adáshoz",
             "LIVE_STREAM": "Élő adás",
             "LIVE_BADGE": "ÉLŐ",
             "PLAYBACK_POSITION": "Lejátszási pozíció",
