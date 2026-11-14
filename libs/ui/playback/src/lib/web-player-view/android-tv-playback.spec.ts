@@ -120,6 +120,26 @@ function setup() {
     };
 }
 
+it('keeps an attempt across Android settings refreshes and retires it for a new application', () => {
+    const { clear, playback, token, tvWindow } = setup();
+    try {
+        const attempt = playback.attempt();
+        expect(attempt).toBeTruthy();
+        tvWindow.iptvnatorAndroidPlaybackLabels = {
+            open: 'Open again',
+            back: 'Back',
+        };
+        tvWindow.dispatchEvent(
+            new Event('iptvnator:android-playback-availability')
+        );
+        expect(playback.attempt()).toBe(attempt);
+        token.set(Symbol());
+        expect(playback.attempt()).not.toBe(attempt);
+    } finally {
+        clear();
+    }
+});
+
 it('reports only an owned natural end after recording the final position', () => {
     const { clear, events, open, reply, token } = setup();
     try {

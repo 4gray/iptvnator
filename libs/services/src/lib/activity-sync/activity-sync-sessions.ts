@@ -69,8 +69,7 @@ export function beginActivity(
                 position: {
                     ...position,
                     watched: result.state.watched,
-                    updatedAt:
-                        position.nativeCheckpointAt ?? new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
                 },
                 pending: [
                     ...(current?.pending ?? []),
@@ -280,7 +279,8 @@ export async function saveActivity(
                 position: {
                     ...position,
                     watched: result.state.watched,
-                    updatedAt: new Date().toISOString(),
+                    updatedAt:
+                        position.nativeCheckpointAt ?? new Date().toISOString(),
                 },
                 pending: [
                     ...(current?.pending ?? []),

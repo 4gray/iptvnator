@@ -57,8 +57,9 @@ export class AndroidTvPlayback {
     readonly labels = signal(
         this.window?.iptvnatorAndroidPlaybackLabels ?? null
     );
+    private readonly enabled = computed(() => this.labels() !== null);
     readonly attempt = computed(() => {
-        if (!this.labels()) return null;
+        if (!this.enabled()) return null;
         this.currentToken();
         return crypto.randomUUID();
     });

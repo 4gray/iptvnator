@@ -154,9 +154,18 @@ public final class NativePlayerActivity extends Activity {
             @Override
             protected State getState() {
                 State state = super.getState();
-                // Media3 may embed signed media URLs in exceptions. Only the local view needs the error.
-                return getPlayer().getPlayerError() == null
-                    ? state : state.buildUpon().setPlayerError(null).build();
+                // The view and system controls share the app's classification,
+                // including when a live channel is served from a seekable playlist.
+                State.Builder builder = state.buildUpon().setPlayerError(null);
+                if (live) {
+                    builder.setAvailableCommands(state.availableCommands.buildUpon().removeAll(
+                        Player.COMMAND_SEEK_TO_DEFAULT_POSITION, Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM,
+                        Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM, Player.COMMAND_SEEK_TO_PREVIOUS,
+                        Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM, Player.COMMAND_SEEK_TO_NEXT,
+                        Player.COMMAND_SEEK_TO_MEDIA_ITEM, Player.COMMAND_SEEK_BACK, Player.COMMAND_SEEK_FORWARD
+                    ).build());
+                }
+                return builder.build();
             }
 
             @Override
@@ -175,9 +184,10 @@ public final class NativePlayerActivity extends Activity {
                         return Futures.immediateFuture(MediaSession.ConnectionResult.reject());
                     }
                     // Keep provider URLs and media-item replacement out of Android's transport controls.
-                    return Futures.immediateFuture(MediaSession.ConnectionResult.accept(SessionCommands.EMPTY,
-                        new Player.Commands.Builder().addAll(Player.COMMAND_PLAY_PAUSE, Player.COMMAND_STOP,
-                            Player.COMMAND_SEEK_BACK, Player.COMMAND_SEEK_FORWARD).build()));
+                    Player.Commands.Builder commands = new Player.Commands.Builder()
+                        .addAll(Player.COMMAND_PLAY_PAUSE, Player.COMMAND_STOP);
+                    if (!live) commands.addAll(Player.COMMAND_SEEK_BACK, Player.COMMAND_SEEK_FORWARD);
+                    return Futures.immediateFuture(MediaSession.ConnectionResult.accept(SessionCommands.EMPTY, commands.build()));
                 }
 
                 @Override
@@ -199,11 +209,19 @@ public final class NativePlayerActivity extends Activity {
 
             @Override
             public void onTracksChanged(Tracks tracks) {
+                if (tracks.containsType(C.TRACK_TYPE_VIDEO)
+                    && !tracks.isTypeSupported(C.TRACK_TYPE_VIDEO, true)) {
+                    failed = true;
+                    player.stop();
+                    showError();
+                    return;
+                }
                 selectInitialCaption(tracks);
             }
 
             @Override
             public void onPlaybackStateChanged(int state) {
+                if (failed) return;
                 if (state == Player.STATE_READY) {
                     applyInitialSeek();
                     canSnapshotCurrentPlayer = !preserveSavedPosition;
@@ -228,14 +246,14 @@ public final class NativePlayerActivity extends Activity {
                 showError();
             }
         });
-        view.setPlayer(player);
+        view.setPlayer(sessionPlayer);
         prepareStream();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        if (player != null) player.setPlayWhenReady(autoplay);
+        if (player != null && !failed) player.setPlayWhenReady(autoplay);
         checkpointHandler.post(cacheCheckpoint);
     }
 

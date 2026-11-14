@@ -44,6 +44,14 @@ try {
     execFileSync('ffmpeg', ['-nostdin', '-loglevel', 'error', '-i', mp4, '-i', subtitles,
         '-c:v', 'copy', '-c:a', 'ac3', '-ac', '6', '-metadata:s:s:0', 'language=eng',
         '-disposition:s:0', '0', mkv]);
+    const unsupported = join(fixtures, 'synthetic-unsupported-video.mkv');
+    // Theora has no Android video decoder. Leave an ordinary AAC track to
+    // distinguish unsupported video from a source that is meant to be audio-only.
+    execFileSync('ffmpeg', ['-nostdin', '-loglevel', 'error', '-i', mp4,
+        '-t', '4', '-c:v', 'libtheora', '-c:a', 'copy', unsupported]);
+    const audioOnly = join(fixtures, 'synthetic-audio.m4a');
+    execFileSync('ffmpeg', ['-nostdin', '-loglevel', 'error', '-i', mp4,
+        '-vn', '-c:a', 'copy', audioOnly]);
     const clip = readFileSync(mp4);
     const ac3Clip = readFileSync(mkv);
     const chunkedClip = Buffer.concat(
@@ -105,6 +113,10 @@ try {
                 if (offset >= chunkedClip.length) res.end();
             }, 250);
             res.on('close', () => clearInterval(timer));
+        } else if (req.url === '/synthetic-unsupported-video.mkv') {
+            respond(req, res, readFileSync(unsupported), 'video/x-matroska');
+        } else if (req.url === '/synthetic-audio.m4a') {
+            respond(req, res, readFileSync(audioOnly), 'audio/mp4');
         } else if (req.url === '/synthetic-unplayable.mp4') {
             respond(req, res, Buffer.from('Synthetic unsupported media'), 'video/mp4');
         } else if (req.url === '/synthetic-ac3.mkv') {
@@ -433,6 +445,37 @@ try {
     await page.waitForFunction(() => window.__nativeResult !== undefined);
     assert.ok((await page.evaluate(() => window.__nativeResult)).positionMs >= 8000,
         'Resume a VOD from a valid saved offset.');
+
+    for (const [path, failed] of [['/synthetic-unsupported-video.mkv', true], ['/synthetic-audio.m4a', false]]) {
+        await page.evaluate((url) => {
+            delete window.__nativeResult;
+            window.TvShell.postMessage(JSON.stringify(['playNative', crypto.randomUUID(), { url }]));
+        }, origin + path);
+        await waitNative();
+        if (failed) {
+            await expect.poll(() => dumpLayout().includes('The built-in player could not play this stream')).toBe(true);
+        } else {
+            await waitAudio();
+        }
+        await back();
+        await page.waitForFunction(() => window.__nativeResult !== undefined);
+        assert.equal(await page.evaluate(() => window.__nativeResult.failed), failed);
+    }
+
+    await page.evaluate((url) => {
+        window.TvShell.postMessage(JSON.stringify(['playNative', crypto.randomUUID(), { url, live: true, hls: true }]));
+    }, origin + '/synthetic-live');
+    await waitNative();
+    await waitAudio();
+    adb('shell', 'input', 'keyevent', 'KEYCODE_MEDIA_PAUSE');
+    await expect.poll(audioTrack).toBe('');
+    const timeBar = /<node [^>]*resource-id="org\.tvshell\.iptvnator:id\/exo_progress"[^>]*>/;
+    await expect.poll(() => {
+        const bar = dumpLayout().match(timeBar)?.[0];
+        if (!bar) adb('shell', 'input', 'tap', '120', '120');
+        return Boolean(bar && bar.includes('enabled="false"'));
+    }).toBe(true);
+    await back();
 
     const playlistId = 'synthetic-reload-' + randomUUID();
     await page.evaluate(({ url, playlistId }) => {

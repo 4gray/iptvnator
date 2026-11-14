@@ -91,6 +91,7 @@ describe('checkpoint invocation order through Electron CAS retries', () => {
             };
             await client.begin('synthetic-source', position);
             await client.flush();
+            const nativeCheckpointAt = '2025-01-01T12:00:00.000Z';
             const delayed = client.save('synthetic-source', {
                 ...position,
                 positionSeconds: older,
@@ -99,12 +100,17 @@ describe('checkpoint invocation order through Electron CAS retries', () => {
             await client.save('synthetic-source', {
                 ...position,
                 positionSeconds: newer,
+                nativeCheckpointAt,
             });
             await client.flush();
             release();
             await delayed;
             await client.flush();
             expect(conflicts).toBeGreaterThan(0);
+            expect(
+                (await client.positions('synthetic-source'))[0].position
+                    .updatedAt
+            ).toBe(nativeCheckpointAt);
             expect(
                 (await store.read(address))?.state.resume?.positionSeconds
             ).toBe(newer);
