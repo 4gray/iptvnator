@@ -62,10 +62,11 @@ export class SettingsFavoritesSectionComponent {
             : `${ref.provider} · ${ref.kind} · ${ref.id}${ref.provider === 'stalker' && ref.mode ? ` · ${ref.mode}` : ''}`;
     }
     async toggle(change: { checked: boolean; source: { checked: boolean } }) {
+        const enabling = change.checked && !this.runtime()?.enabled();
         await this.action(() => this.runtime()!.setEnabled(change.checked));
         change.source.checked = this.runtime()?.enabled() ?? false;
         this.preview.set(null);
-        if (!change.source.checked) return;
+        if (!enabling || !change.source.checked || this.failed()) return;
         // Enabling must not silently empty the list: offer the local
         // favorites for import before any upload can happen.
         await this.previewImport();

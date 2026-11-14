@@ -3,9 +3,11 @@ import { createRandomId } from '@iptvnator/shared/interfaces';
 import { favoriteAddressKey } from '@iptvnator/shared/interfaces/favorites-sync';
 import {
     FavoritesError,
+    FavoriteM3uCatalogs,
     mediaFavoriteReference,
     queueFavorite,
     discardFavoriteIntents,
+    restoreLocalFavoriteEdits,
     sharedFavoriteCounts,
     type UserDataRepository,
     favoriteItems,
@@ -34,6 +36,8 @@ export function useFavoritesSync(
     const isPlaying = useRef(playing);
     isPlaying.current = playing;
     const lane = useRef(new LatestRequest());
+    const catalogs = useRef<FavoriteM3uCatalogs>();
+    const m3u = (catalogs.current ??= new FavoriteM3uCatalogs());
     const running = useRef<AbortController>();
     const sendAgain = useRef(false);
 
@@ -57,7 +61,9 @@ export function useFavoritesSync(
                 repo,
                 server,
                 start,
-                job.signal
+                job.signal,
+                m3u,
+                manual
             );
             const skipped = upload ? await uploadLocal(start, job.signal) : 0;
             await deliver(repo, server, start, job.signal);
@@ -66,7 +72,7 @@ export function useFavoritesSync(
                     [
                         'Synced',
                         unresolved
-                            ? `${unresolved} unavailable from the playlist`
+                            ? `${unresolved} server favorites unavailable`
                             : '',
                         skipped ? `${skipped} TV favorites kept local` : '',
                     ]
@@ -107,6 +113,9 @@ export function useFavoritesSync(
             item.kind === 'episode'
         )
             return false;
+        const member = !favoriteItems(start).some(
+            (favorite) => favorite.id === item.id
+        );
         const content = await mediaFavoriteReference(item, source);
         if (!content) return false;
         const sourceId = source.libraryId;
@@ -118,7 +127,11 @@ export function useFavoritesSync(
                 .verify(signal)
                 .then(() => contextFor(server, start, source, signal))
                 .catch((failure: unknown) => {
-                    if (savedContext && !(failure instanceof FavoritesError))
+                    if (
+                        savedContext &&
+                        (!(failure instanceof FavoritesError) ||
+                            failure.retryable)
+                    )
                         return savedContext;
                     throw failure;
                 });
@@ -130,10 +143,9 @@ export function useFavoritesSync(
                     return current;
                 const cached = current.sharedFavoriteContexts[sourceId];
                 if (
-                    cached &&
-                    cached.sourceIncarnation !==
+                    cached?.sourceIncarnation !==
                         savedContext?.sourceIncarnation &&
-                    cached.sourceIncarnation !== context.sourceIncarnation
+                    cached?.sourceIncarnation !== context.sourceIncarnation
                 )
                     return current;
                 const key = favoriteAddressKey({
@@ -166,7 +178,7 @@ export function useFavoritesSync(
                     next,
                     source,
                     item,
-                    !existing?.state.member,
+                    member,
                     context,
                     content,
                     start.favoritesConsent,
@@ -179,9 +191,13 @@ export function useFavoritesSync(
             }
         } catch (failure) {
             if (failure instanceof FavoritesError && failure.sourceRetired)
-                await retireContext(repo, start, sourceId, signal).catch(
-                    () => undefined
-                );
+                await retireContext(
+                    repo,
+                    start,
+                    sourceId,
+                    savedContext?.sourceIncarnation,
+                    signal
+                ).catch(() => undefined);
             setError('The shared favorite could not be changed.');
         }
         return handled;
@@ -260,7 +276,9 @@ export function useFavoritesSync(
             await repo.update((current) =>
                 lane.current.owns(job) && ownsLibrary(current, start)
                     ? discardFavoriteIntents({
-                          ...current,
+                          ...(shared
+                              ? current
+                              : restoreLocalFavoriteEdits(current)),
                           favoritesMode: shared ? 'shared' : 'local',
                           favoritesConsent: consent,
                           favoritesDeviceId:

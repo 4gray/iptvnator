@@ -283,8 +283,11 @@ test('shared membership overrides the local copy and becomes inert when the sour
     ).data;
     assert.deepEqual(favoriteItems(removed), []);
     assert.deepEqual(removed.favorites, [liveItem]);
+    const disconnected = disconnectLibrary(added);
+    assert.deepEqual(disconnected.favorites, [liveItem]);
+    assert.deepEqual(favoriteItems(disconnectLibrary(removed)), []);
     for (const changed of [
-        disconnectLibrary(added),
+        disconnected,
         { ...added, library: { ...added.library!, instanceId: 'other' } },
         {
             ...added,

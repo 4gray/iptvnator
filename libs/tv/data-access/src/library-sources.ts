@@ -1,3 +1,7 @@
+import {
+    discardFavoriteIntents,
+    restoreLocalFavoriteEdits,
+} from './favorites-sync';
 import { sourceIdentity, type Playlist } from '@iptvnator/shared/interfaces';
 import {
     httpUrl,
@@ -196,8 +200,8 @@ export function mergeLibrary(
 
 /** Disconnect keeps downloaded sources and viewing data; linked locals regain their config. */
 export function disconnectLibrary(data: UserData): UserData {
-    return {
-        ...data,
+    return discardFavoriteIntents({
+        ...restoreLocalFavoriteEdits(data),
         library: undefined,
         favoritesMode: 'local',
         favoritesConsent: '',
@@ -208,5 +212,5 @@ export function disconnectLibrary(data: UserData): UserData {
             const { libraryId: _link, ...local } = s;
             return local;
         }),
-    };
+    });
 }

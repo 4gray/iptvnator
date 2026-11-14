@@ -73,6 +73,18 @@ describe('independent favorite settings consent', () => {
         expect(f.component.preview()).toEqual(preview);
         expect(f.runtime.importFavorites).not.toHaveBeenCalled();
     });
+    it('keeps the opt-out error and skips preview when disabling fails', async () => {
+        const f = fixture();
+        f.runtime.enabled.set(true);
+        f.runtime.setEnabled.mockRejectedValueOnce(
+            new Error('Synthetic storage failure')
+        );
+        const event = { checked: false, source: { checked: false } };
+        await f.component.toggle(event);
+        expect(event.source.checked).toBe(true);
+        expect(f.component.failed()).toBe(true);
+        expect(f.runtime.previewImport).not.toHaveBeenCalled();
+    });
     it('does not offer an import after disabling', async () => {
         const f = fixture();
         f.runtime.setEnabled.mockImplementation(async () => {

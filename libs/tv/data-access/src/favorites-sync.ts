@@ -19,14 +19,13 @@ import type {
     UserData,
 } from '@iptvnator/tv/util';
 import {
-    m3uFavoriteIndex,
+    FavoriteM3uCatalogs,
     mediaFavoriteSnapshot,
     resolveFavoriteMedia,
     resolveM3uFavoriteMedia,
 } from './favorites-refs';
 import { activeFavoriteEntries } from './favorites-projection';
-import { FavoritesError } from './server-favorites';
-import { loadM3uItems } from './m3u';
+import { FavoritesError } from './favorites-error';
 import type { ProviderTransport } from './transport';
 
 const latestBase = (entry: SharedFavoriteEntry) =>
@@ -201,18 +200,14 @@ export async function resolveFavoriteEntries(
     source: Source,
     entries: FavoriteList['entries'],
     transport?: ProviderTransport,
-    signal = new AbortController().signal
+    signal = new AbortController().signal,
+    catalogs = new FavoriteM3uCatalogs(),
+    refresh = false
 ): Promise<Map<string, Media>> {
     const media = new Map<string, Media>();
     const m3uIndex =
         source.provider === 'm3u' && entries.length
-            ? await m3uFavoriteIndex(
-                  source.m3uItems ??
-                      (transport
-                          ? await loadM3uItems(source, transport, signal)
-                          : []),
-                  signal
-              )
+            ? await catalogs.index(source, transport, signal, refresh)
             : undefined;
     for (const entry of entries) {
         try {
@@ -295,6 +290,24 @@ export function mergeFavoriteSource(
             [context.sourceId]: context,
         },
     });
+}
+
+/** Preserve unsent manual changes locally without granting future delivery. */
+export function restoreLocalFavoriteEdits(data: UserData): UserData {
+    const favorites = new Map(data.favorites.map((item) => [item.id, item]));
+    for (const [, entry] of activeFavoriteEntries(data)) {
+        const intent = entry.record.pending
+            .filter(
+                ({ consentGeneration, operation }) =>
+                    consentGeneration === data.favoritesConsent &&
+                    !entry.importOperations?.includes(operation.operationId)
+            )
+            .pop();
+        if (!intent || !entry.media) continue;
+        if (intent.operation.member) favorites.set(entry.media.id, entry.media);
+        else favorites.delete(entry.media.id);
+    }
+    return { ...data, favorites: [...favorites.values()] };
 }
 
 export function discardFavoriteIntents(data: UserData): UserData {

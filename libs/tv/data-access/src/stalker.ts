@@ -27,7 +27,7 @@ import {
     stalkerEpisodes,
     unwrap,
 } from './stalker-series';
-import { favoriteReferenceKey } from '@iptvnator/shared/interfaces/favorites-sync';
+import { hydrateSharedStalker } from './stalker-favorite-media';
 import { stalkerMediaReference } from './favorites-refs';
 import { ProviderTransport } from './transport';
 export class StalkerProvider implements ProviderClient {
@@ -142,84 +142,14 @@ export class StalkerProvider implements ProviderClient {
             categories,
         };
     }
-    private async hydrateShared(item: Media, signal: AbortSignal) {
-        if (!item.raw.sharedReference) return item;
-        const ref = stalkerMediaReference(item);
-        if (!ref) return item;
-        const key = favoriteReferenceKey(ref);
-        const type =
-            ref.kind === 'live'
-                ? 'itv'
-                : ref.kind === 'radio'
-                  ? 'radio'
-                  : ref.mode === 'regular'
-                    ? 'series'
-                    : 'vod';
-        const kind =
-            type === 'itv' || type === 'radio'
-                ? 'live'
-                : type === 'series'
-                  ? 'series'
-                  : 'movie';
-        const find = (data: Record<string, unknown>[]) => {
-            const matches = data
-                .map((raw) =>
-                    this.media(
-                        type === 'radio' ? { ...raw, radio: 'true' } : raw,
-                        kind
-                    )
-                )
-                .filter((candidate) => {
-                    const reference = stalkerMediaReference(candidate);
-                    return reference && favoriteReferenceKey(reference) === key;
-                });
-            if (new Set(matches.map((match) => text(match.raw.cmd))).size > 1)
-                throw new Error(
-                    'The provider returned ambiguous playback entries.'
-                );
-            return matches[0];
-        };
-        const attach = (match: Media) => ({ ...item, ...match, id: item.id });
-        if (type === 'itv' || type === 'radio') {
-            const response = await this.session
-                .request({ type, action: 'get_all_channels' }, signal)
-                .catch((error: unknown) => {
-                    if (signal.aborted) throw error;
-                    return undefined;
-                });
-            const match = find(rows(unwrap(response)));
-            if (match?.raw.cmd) return attach(match);
-        }
-        const category = item.category;
-        const searches = item.title ? [item.title, ''] : [''];
-        const scopes = category && category !== '*' ? [category, '*'] : ['*'];
-        // shortcut: bound a provider scan when it ignores search; reopen the title from its catalog.
-        for (const scope of scopes) {
-            for (const search of searches) {
-                for (let page = 0; page < 20; page++) {
-                    const result = await this.pages.load(
-                        {
-                            type,
-                            category: scope,
-                            genre:
-                                type === 'itv' && scope === '*' ? '0' : scope,
-                            search,
-                        },
-                        page,
-                        signal
-                    );
-                    const match = find(result.data);
-                    if (match && (match.kind === 'series' || match.raw.cmd))
-                        return attach(match);
-                    if (
-                        !result.data.length ||
-                        (page + 1) * result.pageSize >= result.total
-                    )
-                        break;
-                }
-            }
-        }
-        throw new Error('Favorite is unavailable from its provider.');
+    private hydrateShared(item: Media, signal: AbortSignal) {
+        return hydrateSharedStalker(
+            item,
+            signal,
+            this.session,
+            this.pages,
+            (raw, kind) => this.media(raw, kind)
+        );
     }
 
     async details(item: Media, signal = new AbortController().signal) {

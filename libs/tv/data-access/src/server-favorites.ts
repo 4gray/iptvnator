@@ -12,23 +12,8 @@ import {
 } from '@iptvnator/shared/interfaces/favorites-sync';
 import { backendUrl } from './backend';
 
-export class FavoritesError extends Error {
-    constructor(
-        message: string,
-        readonly code?: string
-    ) {
-        super(message);
-    }
-
-    get sourceRetired() {
-        return [
-            'playlist_missing',
-            'source_changed',
-            'unsupported_source',
-            'not_found',
-        ].includes(this.code ?? '');
-    }
-}
+import { FavoritesError } from './favorites-error';
+export { FavoritesError };
 
 /** `/v1/favorites` client; transport errors stay retryable, record writes stay local. */
 export class ServerFavorites {
@@ -72,7 +57,8 @@ export class ServerFavorites {
                     response.status === 401
                         ? 'Server access denied. Check the library access token.'
                         : 'The shared favorites request failed.',
-                    typeof body?.code === 'string' ? body.code : undefined
+                    typeof body?.code === 'string' ? body.code : undefined,
+                    response.status >= 500
                 );
             }
             return await response.json().catch(() => {

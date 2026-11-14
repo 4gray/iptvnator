@@ -277,11 +277,14 @@ Library & sync offers a separate opt-in for favorites when the server advertises
 receives current memberships, and then sends queued edits. Operations and their
 optimistic projection commit together in IndexedDB. Conflict retries use fresh
 operation IDs and keep later edits queued. Disconnecting or changing consent ends
-the old scope; disabling sharing restores the TV's local favorites archive.
+the old scope. Turning sharing off restores the TV's local favorites archive
+and keeps unsent manual edits on the TV.
 
 Enabling sharing can import TV favorites with explicit confirmation. Previously
 recorded server choices are preserved. Episodes and favorites on unlinked sources
-stay local. M3U URL sources use the provider parser to match exact URL hashes.
+stay local. M3U URL sources use the provider parser to match exact URL hashes. Background
+refreshes reuse the URL index for five minutes. A manual refresh reloads the
+playlist.
 Shared Stalker snapshots carry no playback commands; the TV resolves the matching
 provider row when opening or playing an item.
 
@@ -852,8 +855,8 @@ Virtualized channel rows keep a 9px spacing, which the list's step assumes.
 - Focus is the only use of the mint ring (5px outline, 5px offset). Action
   buttons also take a mint fill; cards scale to 1.06; list rows and grid cells
   use an inset ring on their own fill.
-- Selected (current nav item, settings category, tab, category, day) is a mint
-  bar, never a ring.
+- Selected (current nav item, settings category, tab, category, day) uses a tinted
+  fill or a bottom indicator.
 - On toggles (`.tv-toggle`, such as Saved) show a filled glyph and no border.
   Primary buttons are light at rest, so mint never suggests a second focus.
 

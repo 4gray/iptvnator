@@ -1,5 +1,6 @@
 import type { StalkerPortalItem } from '@iptvnator/shared/interfaces';
-import { m3uMedia } from './m3u';
+import { loadM3uItems, m3uMedia } from './m3u';
+import type { ProviderTransport } from './transport';
 import {
     m3uFavoriteReference,
     parseFavoriteReference,
@@ -175,7 +176,12 @@ export function resolveFavoriteMedia(
             title,
             category: snapshot?.categoryId,
             year: snapshot?.releaseYear,
-            raw: {},
+            raw: {
+                sharedFavoriteHints: {
+                    tmdbId: snapshot?.tmdbId,
+                    releaseYear: snapshot?.releaseYear,
+                },
+            },
         };
     if (reference.provider === 'stalker') {
         const catalogKind = stalkerCatalogKind(reference);
@@ -215,6 +221,53 @@ export async function m3uFavoriteIndex(
         if (url) index.set((await m3uFavoriteReference(url)).urlHash, raw);
     }
     return index;
+}
+
+export class FavoriteM3uCatalogs {
+    private inline = new WeakMap<
+        Record<string, unknown>[],
+        Map<string, Record<string, unknown>>
+    >();
+    private urls = new Map<
+        string,
+        { expires: number; index: Map<string, Record<string, unknown>> }
+    >();
+
+    async index(
+        source: Source,
+        transport: ProviderTransport | undefined,
+        signal: AbortSignal,
+        refresh: boolean
+    ) {
+        if (source.m3uItems) {
+            const cached = this.inline.get(source.m3uItems);
+            if (cached) return cached;
+            const index = await m3uFavoriteIndex(source.m3uItems, signal);
+            this.inline.set(source.m3uItems, index);
+            return index;
+        }
+        if (!transport)
+            throw new Error('Connect a provider backend for URL playlists.');
+        const key = JSON.stringify([
+            transport.backend,
+            source.id,
+            source.url,
+            source.userAgent,
+        ]);
+        const cached = this.urls.get(key);
+        if (!refresh && cached && cached.expires > Date.now())
+            return cached.index;
+        const index = await m3uFavoriteIndex(
+            await loadM3uItems(source, transport, signal),
+            signal
+        );
+        if (this.urls.size >= 8) {
+            const oldest = this.urls.keys().next().value;
+            if (oldest !== undefined) this.urls.delete(oldest);
+        }
+        this.urls.set(key, { expires: Date.now() + 5 * 60_000, index });
+        return index;
+    }
 }
 
 export function resolveM3uFavoriteMedia(

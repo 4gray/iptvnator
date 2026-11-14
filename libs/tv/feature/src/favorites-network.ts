@@ -1,6 +1,7 @@
 import {
     commitFavoriteResult,
     FavoritesError,
+    type FavoriteM3uCatalogs,
     mergeFavoriteSource,
     pendingFavorites,
     ProviderTransport,
@@ -65,10 +66,17 @@ export async function retireContext(
     repo: UserDataRepository,
     start: UserData,
     sourceId: string,
+    incarnation: string | undefined,
     signal: AbortSignal
 ) {
     await repo.update((current) => {
-        if (signal.aborted || !ownsLibrary(current, start)) return current;
+        if (
+            signal.aborted ||
+            !ownsLibrary(current, start) ||
+            current.sharedFavoriteContexts[sourceId]?.sourceIncarnation !==
+                incarnation
+        )
+            return current;
         const sharedFavoriteContexts = {
             ...current.sharedFavoriteContexts,
         };
@@ -81,7 +89,9 @@ export async function refreshSources(
     repo: UserDataRepository,
     server: ServerFavorites,
     start: UserData,
-    signal: AbortSignal
+    signal: AbortSignal,
+    catalogs: FavoriteM3uCatalogs,
+    refresh: boolean
 ) {
     const transport = start.backend
         ? new ProviderTransport(start.backend, start.backendToken)
@@ -92,6 +102,8 @@ export async function refreshSources(
         if (!source.libraryId || !ownsSource(repo.data, source)) continue;
 
         const sourceId = source.libraryId;
+        const previous =
+            repo.data.sharedFavoriteContexts[sourceId]?.sourceIncarnation;
         let context: FavoriteSourceContext;
         let entries: Awaited<ReturnType<ServerFavorites['listAll']>>;
         try {
@@ -99,13 +111,13 @@ export async function refreshSources(
             entries = await server.listAll(sourceId, signal);
             const latest = await server.context(sourceId, signal);
             if (latest.sourceIncarnation !== context.sourceIncarnation) {
-                await retireContext(repo, start, sourceId, signal);
+                await retireContext(repo, start, sourceId, previous, signal);
                 continue;
             }
         } catch (failure) {
             if (!(failure instanceof FavoritesError && failure.sourceRetired))
                 throw failure;
-            await retireContext(repo, start, sourceId, signal);
+            await retireContext(repo, start, sourceId, previous, signal);
             continue;
         }
 
@@ -113,7 +125,9 @@ export async function refreshSources(
             source,
             entries,
             transport,
-            signal
+            signal,
+            catalogs,
+            refresh
         ).catch((failure: unknown) => {
             if (source.provider !== 'm3u' || signal.aborted) throw failure;
             return undefined;
@@ -125,7 +139,10 @@ export async function refreshSources(
         await repo.update((current) =>
             !signal.aborted &&
             ownsLibrary(current, start) &&
-            ownsSource(current, source)
+            ownsSource(current, source) &&
+            [previous, context.sourceIncarnation].includes(
+                current.sharedFavoriteContexts[sourceId]?.sourceIncarnation
+            )
                 ? mergeFavoriteSource(current, source, context, entries, media)
                 : current
         );
@@ -162,7 +179,13 @@ export async function deliver(
         } catch (failure) {
             if (!(failure instanceof FavoritesError && failure.sourceRetired))
                 throw failure;
-            await retireContext(repo, start, head.address.sourceId, signal);
+            await retireContext(
+                repo,
+                start,
+                head.address.sourceId,
+                head.address.sourceIncarnation,
+                signal
+            );
         }
     }
 }

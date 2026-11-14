@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
     createProvider,
+    FavoriteM3uCatalogs,
     ProviderTransport,
     mediaFavoriteReference,
     mediaFavoriteSnapshot,
@@ -10,7 +11,6 @@ import {
     queueFavorite,
     resolveFavoriteEntries,
     resolveFavoriteMedia,
-    sharedFavoriteCounts,
 } from '@iptvnator/tv/data-access';
 import {
     favoriteAddressKey,
@@ -233,6 +233,31 @@ test('downloads a linked URL playlist to resolve server favorites by exact URL h
     assert.equal(media.get(favoriteAddressKey(ref))?.providerId, stream);
 });
 
+test('the M3U favorites index reuses a download until manually refreshed', async () => {
+    const playlist: Source = {
+        ...source,
+        provider: 'm3u',
+        url: 'https://playlist.example/list.m3u',
+    };
+    const transport = new ProviderTransport('https://backend.example');
+    let requests = 0;
+    transport.request = async () => {
+        requests++;
+        return {
+            playlist: { items: [{ url: 'https://media.example/channel' }] },
+        };
+    };
+    const cache = new FavoriteM3uCatalogs();
+    const signal = new AbortController().signal;
+    const first = await cache.index(playlist, transport, signal, false);
+    assert.equal(await cache.index(playlist, transport, signal, false), first);
+    assert.notEqual(
+        await cache.index(playlist, transport, signal, true),
+        first
+    );
+    assert.equal(requests, 2);
+});
+
 test('a downloaded M3U playlist retires cached media after an exact URL disappears', async () => {
     const url = 'https://media.example/original';
     const playlist: Source = {
@@ -270,6 +295,31 @@ test('a downloaded M3U playlist retires cached media after an exact URL disappea
         await resolveFavoriteEntries(changed, [entry])
     );
     assert.equal(sharedFavoriteMedia(updated).length, 0);
+});
+
+test('Xtream shared favorites refuse a catalog row with contradictory metadata', async () => {
+    const movie = resolveFavoriteMedia(
+        source,
+        {
+            ...address,
+            content: { provider: 'xtream', kind: 'movie', id: '42' },
+        },
+        { title: 'Synthetic movie', tmdbId: '123', releaseYear: '2021' }
+    );
+    assert(movie);
+    const transport = new ProviderTransport('https://backend.example');
+    transport.request = async (_source, _route, params) => {
+        assert.equal(params.action, 'get_vod_info');
+        return {
+            info: { tmdb_id: 456, releasedate: '2022-01-01' },
+            movie_data: { stream_id: 42, container_extension: 'mp4' },
+        };
+    };
+    const provider = createProvider(source, transport, async () => undefined);
+    await assert.rejects(
+        provider.resolve(movie, new AbortController().signal),
+        /no longer matches/
+    );
 });
 
 test('an unresolved Xtream identity conflict does not project a playable favorite', async () => {
@@ -334,7 +384,8 @@ test('shared Stalker playback resolves the exact provider row before using its c
                     cmd: 'https://media.example/other',
                 },
                 {
-                    id: '42',
+                    id: '1042',
+                    stream_id: '42',
                     name: 'Synthetic channel',
                     cmd: command,
                     use_http_tmp_link: 0,
@@ -360,23 +411,4 @@ test('shared Stalker playback resolves the exact provider row before using its c
         'https://media.example/live'
     );
     provider.dispose();
-});
-
-test('counts report members, pending and conflicts for the settings status', () => {
-    const data = sharedData();
-    const { data: queued } = queueFavorite(
-        data,
-        source,
-        liveItem,
-        true,
-        context,
-        address.content,
-        data.favoritesConsent,
-        data.favoritesDeviceId
-    );
-    assert.deepEqual(sharedFavoriteCounts(queued), {
-        members: 1,
-        pending: 1,
-        conflicts: 0,
-    });
 });
