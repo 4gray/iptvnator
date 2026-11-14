@@ -627,7 +627,6 @@
             "CONSEQUENCE_FAVORITES": "Preferiti salvati per queste playlist",
             "CONSEQUENCE_RECENTLY_VIEWED": "Cronologia dei contenuti visti di recente",
             "CONSEQUENCE_PLAYBACK": "Posizioni di riproduzione salvate",
-            "CONSEQUENCE_DOWNLOADS": "Voci della cronologia download collegate a quelle playlist",
             "CONSEQUENCE_XTREAM_CACHE": "Categorie Xtream importate e contenuti memorizzati localmente nella cache",
             "BACKUP_HINT": "Usa prima Esporta se vuoi una copia di sicurezza ripristinabile prima di eliminare.",
             "CONFIRM": "Elimina tutto"

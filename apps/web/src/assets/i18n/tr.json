@@ -627,7 +627,6 @@
             "CONSEQUENCE_FAVORITES": "Bu oynatma listeleri için kaydedilen favoriler",
             "CONSEQUENCE_RECENTLY_VIEWED": "Son görüntülenenler geçmişi",
             "CONSEQUENCE_PLAYBACK": "Kaydedilmiş oynatma konumları",
-            "CONSEQUENCE_DOWNLOADS": "Bu oynatma listelerine bağlı indirme geçmişi kayıtları",
             "CONSEQUENCE_XTREAM_CACHE": "İçe aktarılan Xtream kategorileri ve yerel olarak önbelleğe alınmış içerik",
             "BACKUP_HINT": "Silmeden önce geri yüklenebilir bir yedek istiyorsanız önce Dışa aktar’ı kullanın.",
             "CONFIRM": "Her şeyi sil"

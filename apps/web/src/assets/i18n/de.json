@@ -627,7 +627,6 @@
             "CONSEQUENCE_FAVORITES": "Für diese Wiedergabelisten gespeicherte Favoriten",
             "CONSEQUENCE_RECENTLY_VIEWED": "Kürzlich-angesehen-Verlauf",
             "CONSEQUENCE_PLAYBACK": "Gespeicherte Wiedergabepositionen",
-            "CONSEQUENCE_DOWNLOADS": "Download-Verlaufseinträge, die mit diesen Wiedergabelisten verknüpft sind",
             "CONSEQUENCE_XTREAM_CACHE": "Importierte Xtream-Kategorien und lokal zwischengespeicherte Inhalte",
             "BACKUP_HINT": "Nutze zuerst Exportieren, wenn du vor dem Löschen ein wiederherstellbares Backup möchtest.",
             "CONFIRM": "Alles löschen"

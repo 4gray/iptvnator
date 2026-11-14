@@ -627,7 +627,6 @@
             "CONSEQUENCE_FAVORITES": "これらのプレイリストに保存されたお気に入り",
             "CONSEQUENCE_RECENTLY_VIEWED": "最近視聴した履歴",
             "CONSEQUENCE_PLAYBACK": "保存された再生位置",
-            "CONSEQUENCE_DOWNLOADS": "これらのプレイリストに紐づくダウンロード履歴",
             "CONSEQUENCE_XTREAM_CACHE": "インポート済みの Xtream カテゴリとローカルにキャッシュされたコンテンツ",
             "BACKUP_HINT": "削除前に復元可能なバックアップを残したい場合は、先にエクスポートを使用してください。",
             "CONFIRM": "すべて削除"

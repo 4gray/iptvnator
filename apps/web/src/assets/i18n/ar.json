@@ -627,7 +627,6 @@
             "CONSEQUENCE_FAVORITES": "المفضلات المحفوظة لهذه القوائم",
             "CONSEQUENCE_RECENTLY_VIEWED": "سجل المشاهدة الأخير",
             "CONSEQUENCE_PLAYBACK": "مواضع التشغيل المحفوظة",
-            "CONSEQUENCE_DOWNLOADS": "إدخالات سجل التنزيل المرتبطة بهذه القوائم",
             "CONSEQUENCE_XTREAM_CACHE": "فئات Xtream المستوردة والمحتوى المخزن مؤقتًا محليًا",
             "BACKUP_HINT": "استخدم التصدير أولًا إذا كنت تريد نسخة احتياطية قابلة للاستعادة قبل الحذف.",
             "CONFIRM": "حذف كل شيء"
