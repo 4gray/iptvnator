@@ -3,6 +3,8 @@ import { signal } from '@angular/core';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatDialog } from '@angular/material/dialog';
 import { TranslateModule } from '@ngx-translate/core';
+import { EMPTY } from 'rxjs';
+import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { ChannelDetailsDialogComponent } from '@iptvnator/ui/components';
 import { UnifiedFavoriteChannel } from '@iptvnator/portal/shared/util';
 import { Channel, EpgProgram } from '@iptvnator/shared/interfaces';
@@ -12,6 +14,7 @@ import { GlobalFavoritesListComponent } from './global-favorites-list.component'
 describe('GlobalFavoritesListComponent', () => {
     let fixture: ComponentFixture<GlobalFavoritesListComponent>;
     let dialog: { open: jest.Mock };
+    const getEpgMapping = jest.fn();
     let runtime: {
         supportsEpg: boolean;
         supportsProviderEpg: boolean;
@@ -45,6 +48,7 @@ describe('GlobalFavoritesListComponent', () => {
         dialog = {
             open: jest.fn(),
         };
+        getEpgMapping.mockReset().mockResolvedValue(null);
 
         await TestBed.configureTestingModule({
             imports: [
@@ -56,6 +60,10 @@ describe('GlobalFavoritesListComponent', () => {
                 {
                     provide: MatDialog,
                     useValue: dialog,
+                },
+                {
+                    provide: EpgRuntimeBridgeService,
+                    useValue: { getEpgMapping, supportsEpgMapping: false },
                 },
                 {
                     provide: SettingsStore,
@@ -390,6 +398,34 @@ describe('GlobalFavoritesListComponent', () => {
         expect(removed).toHaveBeenCalledWith(
             expect.objectContaining({
                 uid: row.uid,
+            })
+        );
+    });
+
+    it('opens the Stalker Recent EPG mapping by provider channel id', async () => {
+        const row = buildChannel(
+            'stalker::playlist-1::{"provider":"stalker","kind":"live","id":"42"}',
+            'Synthetic Channel',
+            { sourceType: 'stalker', stalkerId: '42' }
+        );
+        fixture.componentRef.setInput('mode', 'recent');
+        fixture.componentRef.setInput('channels', [row]);
+        fixture.detectChanges();
+        fixture.componentInstance.contextMenuChannel.set(
+            fixture.componentInstance.enrichedChannels()[0]
+        );
+        dialog.open.mockReturnValue({ afterClosed: () => EMPTY });
+
+        fixture.componentInstance.openEpgMapping();
+        await fixture.whenStable();
+
+        expect(getEpgMapping).toHaveBeenCalledWith('stalker:playlist-1:42');
+        expect(dialog.open).toHaveBeenCalledWith(
+            expect.any(Function),
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    channelKey: 'stalker:playlist-1:42',
+                }),
             })
         );
     });
