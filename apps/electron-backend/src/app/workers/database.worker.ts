@@ -1007,7 +1007,7 @@ async function executeRequest(
                     controller.emitStarted({
                         phase: DB_OPERATION_PHASES.DELETING_FAVORITES,
                         current: 0,
-                        total: 7,
+                        total: 6,
                     });
 
                     const result = await deleteAllPlaylists(
@@ -1017,8 +1017,8 @@ async function executeRequest(
 
                     controller.emitCompleted({
                         phase: DB_OPERATION_PHASES.DELETING_PLAYLISTS,
-                        current: 7,
-                        total: 7,
+                        current: 6,
+                        total: 6,
                     });
 
                     return result;

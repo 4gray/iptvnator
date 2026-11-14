@@ -627,7 +627,6 @@
             "CONSEQUENCE_FAVORITES": "Favoritos guardados para estas listas",
             "CONSEQUENCE_RECENTLY_VIEWED": "Historial de vistos recientemente",
             "CONSEQUENCE_PLAYBACK": "Posiciones de reproducción guardadas",
-            "CONSEQUENCE_DOWNLOADS": "Entradas del historial de descargas vinculadas a esas listas",
             "CONSEQUENCE_XTREAM_CACHE": "Categorías Xtream importadas y contenido almacenado localmente en caché",
             "BACKUP_HINT": "Usa Exportar primero si quieres una copia de seguridad restaurable antes de eliminar.",
             "CONFIRM": "Eliminar todo"

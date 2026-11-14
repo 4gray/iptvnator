@@ -627,7 +627,6 @@
             "CONSEQUENCE_FAVORITES": "Favorites saved for these playlists",
             "CONSEQUENCE_RECENTLY_VIEWED": "Recently viewed history",
             "CONSEQUENCE_PLAYBACK": "Saved playback positions",
-            "CONSEQUENCE_DOWNLOADS": "Download history entries linked to those playlists",
             "CONSEQUENCE_XTREAM_CACHE": "Imported Xtream categories and locally cached content",
             "BACKUP_HINT": "Use Export first if you want a restorable backup before deleting.",
             "CONFIRM": "Delete everything"

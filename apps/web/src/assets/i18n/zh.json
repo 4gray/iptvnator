@@ -627,7 +627,6 @@
             "CONSEQUENCE_FAVORITES": "这些播放列表中保存的收藏",
             "CONSEQUENCE_RECENTLY_VIEWED": "最近观看记录",
             "CONSEQUENCE_PLAYBACK": "保存的播放位置",
-            "CONSEQUENCE_DOWNLOADS": "与这些播放列表关联的下载历史记录",
             "CONSEQUENCE_XTREAM_CACHE": "已导入的 Xtream 分类和本地缓存内容",
             "BACKUP_HINT": "如果想在删除前保留可恢复备份，请先使用导出。",
             "CONFIRM": "全部删除"

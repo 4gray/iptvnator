@@ -627,7 +627,6 @@
             "CONSEQUENCE_FAVORITES": "A lejátszási listákhoz mentett kedvencek",
             "CONSEQUENCE_RECENTLY_VIEWED": "Megtekintési előzmények",
             "CONSEQUENCE_PLAYBACK": "Mentett lejátszási pozíciók",
-            "CONSEQUENCE_DOWNLOADS": "A lejátszási listákhoz kapcsolódó letöltési előzmények",
             "CONSEQUENCE_XTREAM_CACHE": "Importált Xtream-kategóriák és helyben gyorsítótárazott tartalom",
             "BACKUP_HINT": "Törlés előtt az Exportálás lehetőséggel készíthet később visszaállítható biztonsági mentést.",
             "CONFIRM": "Minden törlése"

@@ -627,7 +627,6 @@
             "CONSEQUENCE_FAVORITES": "Favorieten die voor deze afspeellijsten zijn opgeslagen",
             "CONSEQUENCE_RECENTLY_VIEWED": "Recent bekeken-geschiedenis",
             "CONSEQUENCE_PLAYBACK": "Opgeslagen afspeelposities",
-            "CONSEQUENCE_DOWNLOADS": "Downloadgeschiedenisitems die aan deze afspeellijsten zijn gekoppeld",
             "CONSEQUENCE_XTREAM_CACHE": "Geïmporteerde Xtream-categorieën en lokaal gecachte inhoud",
             "BACKUP_HINT": "Gebruik eerst Exporteren als u vóór het verwijderen een herstelbare back-up wilt maken.",
             "CONFIRM": "Alles verwijderen"
