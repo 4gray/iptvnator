@@ -30,7 +30,7 @@ export function Hero({
 }) {
     return (
         <section
-            class={`hero ${compact ? 'compact' : ''}`}
+            class={`hero ${compact ? 'compact' : ''} ${progress ? 'resume' : ''}`}
             aria-label="Featured title"
         >
             <div class="hero-copy">
@@ -45,27 +45,41 @@ export function Hero({
                 ) : null}
                 {progress ? (
                     <div class="hero-position">
-                        {progress.item.kind === 'episode'
-                            ? `S${progress.item.season ?? 1} · E${progress.item.episode ?? 1} · ${progress.item.title} · `
-                            : ''}
-                        {watchState(progress) === 'unwatched'
-                            ? 'Next episode'
-                            : progressLabel(progress)}
-                        {progress.duration > 0 ? (
-                            <progress
-                                aria-label="Featured viewing progress"
-                                max={progress.duration}
-                                value={progress.seconds}
-                            />
+                        {progress.item.kind === 'episode' ? (
+                            <span class="hero-episode">
+                                S{progress.item.season ?? 1} · E
+                                {progress.item.episode ?? 1} ·{' '}
+                                {progress.item.title}
+                            </span>
                         ) : null}
+                        <span class="hero-progress">
+                            {progress.duration > 0 &&
+                            watchState(progress) === 'in-progress' ? (
+                                <progress
+                                    aria-label="Featured viewing progress"
+                                    max={progress.duration}
+                                    value={progress.seconds}
+                                />
+                            ) : null}
+                            <span>
+                                {progress.item.kind === 'live'
+                                    ? 'Live TV'
+                                    : watchState(progress) === 'unwatched'
+                                      ? 'Next episode'
+                                      : watchState(progress) === 'watched'
+                                        ? 'Watched'
+                                        : progressLabel(progress)}
+                            </span>
+                        </span>
                     </div>
-                ) : null}
-                <p>
-                    {item?.description ||
-                        (progress
-                            ? 'Your next scene is waiting. Continue from your saved position.'
-                            : 'Live television, films and stories from your own sources. Pick something worth staying in for.')}
-                </p>
+                ) : (
+                    // The description lives in Details once there is
+                    // something to continue, so the rail fits on screen.
+                    <p>
+                        {item?.description ||
+                            'Live television, films and stories from your own sources. Pick something worth staying in for.'}
+                    </p>
+                )}
                 {item ? (
                     <div class="actions">
                         {progress ? (

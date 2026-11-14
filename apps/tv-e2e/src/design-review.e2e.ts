@@ -7,7 +7,7 @@ import { prepareLiveMedia } from './live-media';
 import { enableMarketingTmdb } from './marketing-tmdb';
 
 /**
- * Captures the 24 screens of the TV design review at 1920×1080 with the
+ * Captures the TV design review screens (24 plus two menus) at 1920×1080 with the
  * fictional marketing catalog. Opt-in: set TV_DESIGN_REVIEW=1 (and optionally
  * TV_DESIGN_REVIEW_DIR) so ordinary E2E runs skip it.
  */
@@ -51,7 +51,7 @@ test.describe('TV design review capture', () => {
     test.skip(!enabled, 'Set TV_DESIGN_REVIEW=1 to capture review screens');
     test.setTimeout(600000);
 
-    test('captures the 24 review screens', async ({ page }) => {
+    test('captures the design review screens', async ({ page }) => {
         await mkdir(outDir, { recursive: true });
         await start(page);
         await shot(page, '01-first-launch-sources-empty');
@@ -101,6 +101,14 @@ test.describe('TV design review capture', () => {
         await page.locator('.episode').first().focus();
         await page.locator('.episode').first().scrollIntoViewIfNeeded();
         await shot(page, '11-series-detail-episodes');
+        await page.keyboard.press('ArrowDown');
+        await expect(
+            page.locator('[data-focus="episode-options"]')
+        ).toBeFocused();
+        await page.keyboard.press('Enter');
+        await expect(page.getByRole('dialog')).toBeVisible();
+        await shot(page, '39-series-episode-options');
+        await page.keyboard.press('Escape');
 
         await nav(page, 'Home');
         const live = await prepareLiveMedia(page);
@@ -150,14 +158,36 @@ test.describe('TV design review capture', () => {
             .poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime))
             .toBeGreaterThan(0.1);
         await page.getByLabel('Playback position').fill('4');
+        await expect
+            .poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime))
+            .toBeGreaterThanOrEqual(4);
         await page.getByRole('button', { name: 'Pause', exact: false }).focus();
         await shot(page, '31-movie-player-overlay');
         await page.getByLabel('Playback position').focus();
         await shot(page, '32-movie-player-controls');
         await page.getByRole('button', { name: 'Pause', exact: false }).click();
         await page.keyboard.press('Escape');
+        // The 30 s sample may have ended during the captures, so play it once
+        // more from the start and stop at 8 s for a meaningful resume state.
+        await page.locator('[data-focus="detail-start-over"]').click();
+        await expect
+            .poll(
+                () => video.evaluate((v: HTMLVideoElement) => v.currentTime),
+                {
+                    timeout: 20000,
+                }
+            )
+            .toBeGreaterThanOrEqual(8);
+        // Back stops playback and saves the position.
+        await page.mouse.move(1900, 1070);
+        await page.keyboard.press('Escape');
         await expect(page.locator('.detail-hero h1')).toBeVisible();
+        await page.locator('[data-focus="detail-play"]').focus();
         await shot(page, '33-movie-detail-resume-state');
+        await page.locator('[data-focus="detail-more"]').click();
+        await expect(page.getByRole('dialog')).toBeVisible();
+        await shot(page, '38-movie-detail-more-actions');
+        await page.keyboard.press('Escape');
 
         await nav(page, 'Favorites');
         await shot(page, '34-favorites-filled');
