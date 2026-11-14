@@ -91,7 +91,7 @@ export class SecondStreamPickerComponent {
         if (this.vod.series()) return 'PORTALS.DETAIL.EPISODES';
         if (this.vod.type() === 'movie') return 'TMDB_MATCH.SEARCH_MOVIE';
         if (this.vod.type() === 'series') return 'TMDB_MATCH.SEARCH_TV';
-        return 'TWO_STREAMS.SEARCH';
+        return 'EMBEDDED_MPV.PLAYER.SEARCH_CHANNELS';
     });
     readonly filteredVod = computed(() => {
         if (this.stalkerSource()) return this.vod.items();

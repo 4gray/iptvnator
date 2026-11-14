@@ -36,10 +36,13 @@
                     <select
                         [ngModel]="source()"
                         (ngModelChange)="changeSource($event)"
-                        [attr.aria-label]="'TWO_STREAMS.SOURCE' | translate"
+                        [attr.aria-label]="
+                            'HOME.PLAYLISTS.INFO_DIALOG.EXPORT_FILE_TYPE'
+                                | translate
+                        "
                     >
                         <option value="">
-                            {{ 'TWO_STREAMS.FAVORITES' | translate }}
+                            {{ 'HOME.PLAYLISTS.GLOBAL_FAVORITES' | translate }}
                         </option>
                         <option [value]="historySource">
                             {{ 'PORTALS.RECENTLY_VIEWED' | translate }}
@@ -106,7 +109,7 @@
                     <div class="picker__state" role="alert">
                         <p>{{ 'TWO_STREAMS.LOAD_TITLES_ERROR' | translate }}</p>
                         <button mat-button type="button" (click)="vod.retry()">
-                            {{ 'TWO_STREAMS.RETRY' | translate }}
+                            {{ 'EMBEDDED_MPV.PLAYER.RETRY' | translate }}
                         </button>
                     </div>
                 } @else if (vod.series(); as series) {
@@ -237,7 +240,7 @@
             <div class="picker__state" role="alert">
                 <p>{{ 'TWO_STREAMS.LOAD_ERROR' | translate }}</p>
                 <button mat-button (click)="reload()">
-                    {{ 'TWO_STREAMS.RETRY' | translate }}
+                    {{ 'EMBEDDED_MPV.PLAYER.RETRY' | translate }}
                 </button>
             </div>
         } @else if (!data().channels.length && !data().groups.length) {
@@ -259,19 +262,17 @@
                 @if (data().groups.length) {
                     <nav
                         class="picker__groups"
-                        [attr.aria-label]="'TWO_STREAMS.GROUPS' | translate"
+                        [attr.aria-label]="'CHANNELS.GROUPS' | translate"
                     >
-                        <h3>{{ 'TWO_STREAMS.GROUPS' | translate }}</h3>
+                        <h3>{{ 'CHANNELS.GROUPS' | translate }}</h3>
                         <button
                             type="button"
                             [attr.aria-pressed]="group() === null"
                             (click)="selectGroup(null)"
                         >
                             <span
-                                [title]="'TWO_STREAMS.ALL_CHANNELS' | translate"
-                                >{{
-                                    'TWO_STREAMS.ALL_CHANNELS' | translate
-                                }}</span
+                                [title]="'CHANNELS.ALL_CHANNELS' | translate"
+                                >{{ 'CHANNELS.ALL_CHANNELS' | translate }}</span
                             >
                         </button>
                         @for (entry of data().groups; track entry.id) {
@@ -301,7 +302,7 @@
                         <div class="picker__state" role="alert">
                             <p>{{ 'TWO_STREAMS.LOAD_ERROR' | translate }}</p>
                             <button mat-button (click)="selectGroup(group())">
-                                {{ 'TWO_STREAMS.RETRY' | translate }}
+                                {{ 'EMBEDDED_MPV.PLAYER.RETRY' | translate }}
                             </button>
                         </div>
                     } @else {

@@ -116,7 +116,9 @@
                     <button
                         [disabled]="busy()"
                         (click)="small()?.retry()"
-                        [attr.aria-label]="'TWO_STREAMS.RETRY' | translate"
+                        [attr.aria-label]="
+                            'EMBEDDED_MPV.PLAYER.RETRY' | translate
+                        "
                     >
                         <mat-icon>refresh</mat-icon>
                     </button>

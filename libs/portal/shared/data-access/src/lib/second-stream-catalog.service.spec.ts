@@ -14,6 +14,7 @@ import {
     StalkerSessionService,
 } from '@iptvnator/portal/stalker/data-access';
 import { UnifiedFavoritesDataService } from './collection/unified-favorites-data.service';
+import { UnifiedRecentDataService } from './collection/unified-recent-data.service';
 import { StreamResolverService } from './collection/stream-resolver.service';
 import { SecondStreamCatalogService } from './second-stream-catalog.service';
 
@@ -101,6 +102,12 @@ describe('SecondStreamCatalogService', () => {
         TestBed.configureTestingModule({
             providers: [
                 SecondStreamCatalogService,
+                {
+                    provide: UnifiedRecentDataService,
+                    useValue: {
+                        getRecentItems: jest.fn().mockResolvedValue([]),
+                    },
+                },
                 { provide: PlaylistsService, useValue: playlists },
                 {
                     provide: RuntimeCapabilitiesService,
