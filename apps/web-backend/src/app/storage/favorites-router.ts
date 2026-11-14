@@ -6,6 +6,7 @@ import {
 import type { ServerStorage } from './server-storage';
 import { ServerFavoriteService } from './favorites-service';
 import { StorageRequestError } from './storage-route-errors';
+import { scopeQuery } from './profile-scope-guard';
 
 export function createFavoriteRouter(storage: ServerStorage): Router {
     const router = Router();
@@ -43,7 +44,8 @@ export function createFavoriteRouter(storage: ServerStorage): Router {
             service.states.list(
                 storage.database.instanceId,
                 context,
-                cursor as string | undefined
+                cursor as string | undefined,
+                scopeQuery(storage, req)
             )
         );
     });
