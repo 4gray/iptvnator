@@ -105,6 +105,8 @@ try {
                 if (offset >= chunkedClip.length) res.end();
             }, 250);
             res.on('close', () => clearInterval(timer));
+        } else if (req.url === '/synthetic-unplayable.mp4') {
+            respond(req, res, Buffer.from('Synthetic unsupported media'), 'video/mp4');
         } else if (req.url === '/synthetic-ac3.mkv') {
             respond(req, res, ac3Clip, 'video/x-matroska');
         } else if (/^\/synthetic\d+\.ts$/.test(req.url)) {
@@ -166,7 +168,7 @@ try {
         '#EXTINF:-1 group-title="Movies",Synthetic AC-3',
         origin + '/synthetic-ac3.mkv',
         '#EXTINF:-1 group-title="Movies",Synthetic Unplayable',
-        origin + '/synthetic-missing.mp4',
+        origin + '/synthetic-unplayable.mp4',
     ].join('\n');
     await page.goto(new URL('/', page.url()).href);
     await page.getByRole('button', { name: 'Add playlist' }).click();
@@ -519,17 +521,8 @@ try {
     assert.equal(await page.evaluate(() => window.__nativeResults), 1,
         'Checkpoint retry must not replay the original playback result.');
     await entry('Synthetic Unplayable').click();
+    await expect(stage.locator('app-playback-diagnostic-panel')).toBeVisible();
     await expect(action).toBeVisible();
-    // Make the shell see a format failure even if the WebView classifies the
-    // unavailable fixture as a network error. Media3 then fails on the real request.
-    await page.evaluate(({ url }) => {
-        window.__tvShell.currentStreamUrl = () => url;
-        document.querySelector('app-web-player-view').dispatchEvent(
-            new CustomEvent('iptvnator:playback-issue', {
-                bubbles: true, detail: { code: 'unsupported-container' },
-            })
-        );
-    }, { url: origin + '/synthetic-missing.mp4' });
     await action.click();
     await waitNative();
     await expect.poll(() => dumpLayout().includes('The built-in player could not play this stream')).toBe(true);
