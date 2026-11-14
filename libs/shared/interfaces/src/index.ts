@@ -139,3 +139,4 @@ export type {
     ContentCertification,
     AgeRatingDisplay,
 } from './lib/content-certification';
+export * from './lib/profiles/profile-scope';
