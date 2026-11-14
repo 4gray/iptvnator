@@ -456,16 +456,8 @@ export class WebPlayerViewComponent implements OnDestroy {
     }
 
     retryFailedPlayback(): boolean {
-        const mpv = this.embeddedMpvPlayer();
-        if (!mpv && this.recovery.canRetry()) this.retryPlayback();
-        else if (
-            mpv &&
-            !mpv.isReconnecting() &&
-            (mpv.isErrored() || mpv.isLiveEnded())
-        ) {
-            this.recovery.recordEnd(this.playbackApplicationToken());
-            mpv.retry();
-        } else return false;
-        return true;
+        return this.recovery.retryFailed(this.embeddedMpvPlayer(), () =>
+            this.retryPlayback()
+        );
     }
 }

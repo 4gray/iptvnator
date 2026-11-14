@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { MockPipe } from 'ng-mocks';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslateModule, TranslatePipe } from '@ngx-translate/core';
 import { Subject, of } from 'rxjs';
 import {
     LiveLayoutSidebarStateService,
@@ -102,7 +102,12 @@ describe('LiveStreamLayoutComponent multiview anchor', () => {
         runtime.supportsXtreamSqliteDataSource = false;
 
         await TestBed.configureTestingModule({
-            imports: [LiveStreamLayoutComponent, NoopAnimationsModule],
+            imports: [
+                LiveStreamLayoutComponent,
+                NoopAnimationsModule,
+                // The programme guide's source translates its labels.
+                TranslateModule.forRoot(),
+            ],
             providers: [
                 {
                     provide: EpgArchiveDownloadService,
@@ -197,7 +202,7 @@ describe('LiveStreamLayoutComponent multiview anchor', () => {
         fixture.detectChanges();
     });
 
-    afterEach(() => fixture.destroy());
+    afterEach(() => fixture?.destroy());
 
     const OTHER: MultiviewTileSource = {
         playback: {

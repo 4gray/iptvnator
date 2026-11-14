@@ -641,7 +641,6 @@ export class LiveStreamLayoutComponent
         selectChannel: (channelId) => this.selectMultiviewChannel(channelId),
     });
     readonly multiviewAnchor = injectMultiviewAnchor(this.multiviewHost);
-    favorites = new Map<number, boolean>();
 
     constructor() {
         this.externalGuide.bind({
