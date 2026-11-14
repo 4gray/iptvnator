@@ -171,6 +171,32 @@ function SharedFavorites({ tv }: { tv: TvModel }) {
                             ? ` · ${sync.counts.conflicts} conflicts`
                             : ''}
                     </p>
+                    {sync.conflicts.map(({ key, title }) => (
+                        <div
+                            key={key}
+                            role="group"
+                            aria-label={title || 'Favorite conflict'}
+                        >
+                            <p>
+                                {title || 'Favorite'} was changed on another
+                                device.
+                            </p>
+                            <button
+                                onClick={() =>
+                                    void sync.resolveConflict(key, false)
+                                }
+                            >
+                                Keep server choice
+                            </button>
+                            <button
+                                onClick={() =>
+                                    void sync.resolveConflict(key, true)
+                                }
+                            >
+                                Use this TV’s choice
+                            </button>
+                        </div>
+                    ))}
                     <div class="filters">
                         <button
                             disabled={sync.busy || !!tv.playing}

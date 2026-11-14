@@ -4,6 +4,8 @@ import { favoriteAddressKey } from '@iptvnator/shared/interfaces/favorites-sync'
 import {
     FavoritesError,
     FavoriteM3uCatalogs,
+    activeFavoriteEntries,
+    resolveFavoriteConflict,
     mediaFavoriteReference,
     queueFavorite,
     discardFavoriteIntents,
@@ -11,6 +13,7 @@ import {
     sharedFavoriteCounts,
     type UserDataRepository,
     favoriteItems,
+    sameFavorite,
 } from '@iptvnator/tv/data-access';
 import {
     contextFor,
@@ -28,7 +31,17 @@ export function useFavoritesSync(
     ready: boolean,
     playing: boolean,
     repo: UserDataRepository,
-    saveLocal: (item: Media) => Promise<void>
+    local: {
+        favorite: (item: Media) => Promise<void>;
+        favoriteNotice: {
+            setError: (
+                message: string,
+                retry?: () => void,
+                label?: string
+            ) => void;
+            clearError: (label: string) => void;
+        };
+    }
 ) {
     const [busy, setBusy] = useState(false);
     const [status, setStatus] = useState('');
@@ -100,8 +113,12 @@ export function useFavoritesSync(
         }
     }
 
-    async function toggle(item: Media): Promise<boolean> {
-        const start = repo.data;
+    async function toggle(
+        item: Media,
+        start = repo.data,
+        desired?: boolean
+    ): Promise<boolean> {
+        if (!ownsLibrary(repo.data, start) && start !== repo.data) return true;
         const source = start.sources.find(
             (candidate) => candidate.id === item.sourceId
         );
@@ -113,9 +130,11 @@ export function useFavoritesSync(
             item.kind === 'episode'
         )
             return false;
-        const member = !favoriteItems(start).some(
-            (favorite) => favorite.id === item.id
-        );
+        const member =
+            desired ??
+            !favoriteItems(start).some((favorite) =>
+                sameFavorite(favorite, item)
+            );
         const content = await mediaFavoriteReference(item, source);
         if (!content) return false;
         const sourceId = source.libraryId;
@@ -186,6 +205,7 @@ export function useFavoritesSync(
                 ).data;
             });
             if (handled) {
+                local.favoriteNotice.clearError('Retry saving shared favorite');
                 if (running.current) sendAgain.current = true;
                 else void run();
             }
@@ -198,7 +218,12 @@ export function useFavoritesSync(
                     savedContext?.sourceIncarnation,
                     signal
                 ).catch(() => undefined);
-            setError('The shared favorite could not be changed.');
+            if (ownsLibrary(repo.data, start) && ownsSource(repo.data, source))
+                local.favoriteNotice.setError(
+                    'The shared favorite could not be changed.',
+                    () => void toggle(item, start, member),
+                    'Retry saving shared favorite'
+                );
         }
         return handled;
     }
@@ -350,6 +375,19 @@ export function useFavoritesSync(
                 )
         ).length,
         counts: sharedFavoriteCounts(data),
+        conflicts: activeFavoriteEntries(data)
+            .filter(([, { record, media }]) => record.conflict && media)
+            .map(([key, { media }]) => ({ key, title: media?.title })),
+        resolveConflict: async (key: string, keepLocal: boolean) => {
+            try {
+                await repo.update((current) =>
+                    resolveFavoriteConflict(current, key, keepLocal)
+                );
+                void run();
+            } catch {
+                setError('The favorite choice could not be saved.');
+            }
+        },
         setShared,
         uploadLocal: () => run(true, true),
         sync: () => run(false, true),
@@ -357,10 +395,10 @@ export function useFavoritesSync(
     return {
         favoritesSync,
         favorite: async (item: Media) => {
-            if (!(await toggle(item))) await saveLocal(item);
+            if (!(await toggle(item))) await local.favorite(item);
         },
         isFavorite: (item: Media) =>
-            visible.some((favorite) => favorite.id === item.id),
+            visible.some((favorite) => sameFavorite(favorite, item)),
         favoriteItems: () => visible,
     };
 }

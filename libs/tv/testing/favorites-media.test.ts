@@ -170,9 +170,9 @@ test('removeSourceData keeps shared rows inert but deletes local favorites', () 
     );
 });
 
-test('mediaFavoriteSnapshot degrades to empty metadata on contract-breaking titles', () => {
+test('mediaFavoriteSnapshot sanitizes control characters before validating metadata', () => {
     const broken = { ...liveItem, title: 'ab' };
-    assert.deepEqual(mediaFavoriteSnapshot(broken), {});
+    assert.deepEqual(mediaFavoriteSnapshot(broken), { title: 'a b' });
 });
 
 test('resolveFavoriteEntries resolves m3u rows by playlist url hash', async () => {

@@ -128,6 +128,7 @@ export function useUserData(
         player,
         update,
         favorite,
+        favoriteNotice,
         watch,
         saveWatch,
         previousChannel: liveChannels.current.previous(data.sources),

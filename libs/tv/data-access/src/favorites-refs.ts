@@ -50,7 +50,7 @@ async function rawReference(
     return null;
 }
 
-export function stalkerMediaReference(item: Media) {
+export function stalkerMediaReference(item: Media, streamFirst = true) {
     if (item.raw.sharedReference)
         return item.raw.sharedReference as ReturnType<
             typeof stalkerFavoriteReference
@@ -63,6 +63,7 @@ export function stalkerMediaReference(item: Media) {
             : undefined;
     return stalkerFavoriteReference({
         ...raw,
+        id: streamFirst && text(raw.stream_id).trim() ? raw.stream_id : raw.id,
         favoriteContentType: raw.favoriteContentType ?? type,
     });
 }
@@ -88,7 +89,13 @@ export function mediaFavoriteSnapshot(
             : undefined;
     try {
         return parseFavoriteSnapshot({
-            title: item.title || undefined,
+            title:
+                Array.from(item.title, (character) =>
+                    character.charCodeAt(0) < 32 ? ' ' : character
+                )
+                    .join('')
+                    .trim()
+                    .slice(0, 512) || undefined,
             ...(item.category ? { categoryId: item.category } : {}),
             ...(item.metadata?.tmdbId
                 ? { tmdbId: String(item.metadata.tmdbId) }

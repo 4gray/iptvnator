@@ -1,10 +1,6 @@
-import {
-    favoriteReferenceKey,
-    stalkerFavoriteReference,
-} from '@iptvnator/shared/interfaces/favorites-sync';
-import type { StalkerPortalItem } from '@iptvnator/shared/interfaces';
+import { favoriteReferenceKey } from '@iptvnator/shared/interfaces/favorites-sync';
 import type { StalkerPagedCatalog } from '@iptvnator/portal/stalker/client';
-import { rows, text, type Kind, type Media } from '@iptvnator/tv/util';
+import { rows, type Kind, type Media } from '@iptvnator/tv/util';
 import { stalkerMediaReference } from './favorites-refs';
 import type { StalkerSession } from './stalker-session';
 import { unwrap } from './stalker-series';
@@ -34,43 +30,39 @@ export async function hydrateSharedStalker(
             : type === 'series'
               ? 'series'
               : 'movie';
-    const find = (data: Record<string, unknown>[]) => {
-        const matches = data
-            .map((raw) =>
-                toMedia(
-                    type === 'radio' ? { ...raw, radio: 'true' } : raw,
-                    kind
-                )
-            )
-            .filter((candidate) => {
-                const reference = stalkerMediaReference(candidate);
-                if (!reference) return false;
-                if (favoriteReferenceKey(reference) === key) return true;
-                const streamId = text(candidate.raw.stream_id).trim();
-                const alias =
-                    streamId &&
-                    stalkerFavoriteReference({
-                        ...candidate.raw,
-                        id: streamId,
-                        favoriteContentType: type,
-                    } as StalkerPortalItem);
-                return alias && favoriteReferenceKey(alias) === key;
-            });
-        if (
-            new Set(
-                matches.map((match) =>
-                    JSON.stringify([
-                        text(match.raw.stream_id) || match.providerId,
-                        text(match.raw.cmd),
-                    ])
-                )
-            ).size > 1
-        )
-            throw new Error(
-                'The provider returned ambiguous playback entries.'
+    const matches = new Map<string, Media>();
+    function collect(data: Record<string, unknown>[]) {
+        let direct: Media | undefined;
+        for (const raw of data) {
+            const candidate = toMedia(
+                type === 'radio' ? { ...raw, radio: 'true' } : raw,
+                kind
             );
-        return matches[0];
-    };
+            const canonical = stalkerMediaReference(candidate);
+            const legacy = stalkerMediaReference(candidate, false);
+            if (!canonical || !legacy) continue;
+            const canonicalKey = favoriteReferenceKey(canonical);
+            if (canonicalKey !== key && favoriteReferenceKey(legacy) !== key)
+                continue;
+            const previous = matches.get(canonicalKey);
+            if (
+                previous?.raw.cmd &&
+                candidate.raw.cmd &&
+                previous.raw.cmd !== candidate.raw.cmd
+            )
+                throw new Error(
+                    'The provider returned ambiguous playback entries.'
+                );
+            if (!previous || candidate.raw.cmd)
+                matches.set(canonicalKey, candidate);
+            if (
+                canonicalKey === key &&
+                (candidate.kind === 'series' || candidate.raw.cmd)
+            )
+                direct = candidate;
+        }
+        return direct;
+    }
     const attach = (match: Media) => ({
         ...item,
         ...match,
@@ -84,7 +76,7 @@ export async function hydrateSharedStalker(
                 if (signal.aborted) throw error;
                 return undefined;
             });
-        const match = find(rows(unwrap(response)));
+        const match = collect(rows(unwrap(response)));
         if (match?.raw.cmd) return attach(match);
     }
     const category = item.category;
@@ -104,14 +96,22 @@ export async function hydrateSharedStalker(
                     page,
                     signal
                 );
-                const match = find(result.data);
-                if (match && (match.kind === 'series' || match.raw.cmd))
-                    return attach(match);
+                const match = collect(result.data);
+                if (match) return attach(match);
                 if (
                     !result.data.length ||
                     (page + 1) * result.pageSize >= result.total
-                )
+                ) {
+                    if (!search && scope === '*' && matches.size === 1) {
+                        const legacy = matches.values().next().value;
+                        if (
+                            legacy &&
+                            (legacy.kind === 'series' || legacy.raw.cmd)
+                        )
+                            return attach(legacy);
+                    }
                     break;
+                }
             }
         }
     }

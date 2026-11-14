@@ -1,3 +1,5 @@
+import { favoriteReferenceKey } from '@iptvnator/shared/interfaces/favorites-sync';
+import { stalkerMediaReference } from './favorites-refs';
 import { identity, type Media, type UserData } from '@iptvnator/tv/util';
 
 export function activeFavoriteEntries(data: UserData) {
@@ -20,9 +22,11 @@ export function activeFavoriteEntries(data: UserData) {
 }
 
 export function sharedFavoriteMedia(data: UserData): Media[] {
-    return activeFavoriteEntries(data).flatMap(([, { record, media }]) =>
-        record.state.member && media ? [media] : []
-    );
+    return activeFavoriteEntries(data)
+        .map(([, { record, media }]) =>
+            record.state.member ? media : undefined
+        )
+        .filter((media): media is Media => !!media);
 }
 
 export function isSharedFavorite(data: UserData, item: Media): boolean {
@@ -33,6 +37,18 @@ export function isSharedFavorite(data: UserData, item: Media): boolean {
 export function favoriteItems(data: UserData): Media[] {
     if (data.favoritesMode !== 'shared') return data.favorites;
     const visible = new Map(data.favorites.map((item) => [item.id, item]));
+    const localStalker = new Map<string, Media>();
+    for (const item of data.favorites) {
+        const reference = stalkerMediaReference(item);
+        if (reference)
+            localStalker.set(
+                JSON.stringify([
+                    item.sourceId,
+                    favoriteReferenceKey(reference),
+                ]),
+                item
+            );
+    }
     for (const [, { address, record, media }] of activeFavoriteEntries(data)) {
         if (
             address.content.provider === 'xtream' &&
@@ -47,10 +63,35 @@ export function favoriteItems(data: UserData): Media[] {
                 );
         }
         if (!media) continue;
+        const local =
+            address.content.provider === 'stalker'
+                ? localStalker.get(
+                      JSON.stringify([
+                          media.sourceId,
+                          favoriteReferenceKey(address.content),
+                      ])
+                  )
+                : visible.get(media.id);
         if (record.state.member) {
-            if (!visible.has(media.id)) visible.set(media.id, media);
+            if (local) {
+                visible.set(local.id, {
+                    ...local,
+                    raw: {
+                        ...local.raw,
+                        ...(address.content.provider === 'xtream'
+                            ? {
+                                  sharedFavoriteHints:
+                                      media.raw.sharedFavoriteHints,
+                              }
+                            : {}),
+                        ...(address.content.provider === 'stalker'
+                            ? { sharedReference: address.content }
+                            : {}),
+                    },
+                });
+            } else visible.set(media.id, media);
         } else if (record.base.revision || record.pending.length) {
-            visible.delete(media.id);
+            visible.delete(local?.id ?? media.id);
         }
     }
     return [...visible.values()];
@@ -68,4 +109,17 @@ export function sharedFavoriteCounts(data: UserData) {
         if (record.conflict) conflicts++;
     }
     return { members, pending, conflicts };
+}
+
+export function sameFavorite(first: Media, second: Media): boolean {
+    if (first.id === second.id) return true;
+    if (first.sourceId !== second.sourceId || first.kind !== second.kind)
+        return false;
+    const left = stalkerMediaReference(first);
+    const right = stalkerMediaReference(second);
+    return (
+        !!left &&
+        !!right &&
+        favoriteReferenceKey(left) === favoriteReferenceKey(right)
+    );
 }

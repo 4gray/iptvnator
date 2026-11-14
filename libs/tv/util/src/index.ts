@@ -148,8 +148,6 @@ export interface SharedFavoriteEntry {
     record: FavoriteLocalRecord;
     /** Resolved TV item for display/playback; absent until resolvable. */
     media?: Media;
-    /** Bounded conflict-rebase attempts before the server state wins. */
-    retries?: number;
     /** Import adds accept a conflict receipt without replacing server choices. */
     importOperations?: string[];
 }

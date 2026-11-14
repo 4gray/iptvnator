@@ -9,6 +9,7 @@ import {
     pendingFavorites,
     queueFavorite,
     resolveFavoriteEntries,
+    resolveFavoriteConflict,
     sharedFavoriteMedia,
 } from '@iptvnator/tv/data-access';
 import {
@@ -125,7 +126,7 @@ test('applied receipts drain the outbox and commit base state', () => {
     );
     const key = favoriteAddressKey(address);
     const head = queued.sharedFavorites[key].record.pending[0];
-    const { data: committed, delivered } = commitFavoriteResult(
+    const committed = commitFavoriteResult(
         queued,
         key,
         head.operation.operationId,
@@ -138,16 +139,15 @@ test('applied receipts drain the outbox and commit base state', () => {
             },
         }
     );
-    assert.equal(delivered, true);
     const record = committed.sharedFavorites[key].record;
     assert.equal(record.pending.length, 0);
     assert.deepEqual(record.base, record.state);
     assert.equal(record.state.member, true);
 });
 
-test('conflicts rebase the head intent twice, then the server state wins', () => {
+test('a divergent server receipt waits for an explicit choice', () => {
     const data = sharedData();
-    const { data: queued } = queueFavorite(
+    const { data: queued, entry } = queueFavorite(
         data,
         source,
         liveItem,
@@ -158,46 +158,24 @@ test('conflicts rebase the head intent twice, then the server state wins', () =>
         data.favoritesDeviceId
     );
     const key = favoriteAddressKey(address);
-    let current = queued;
-    for (let attempt = 1; attempt <= 2; attempt++) {
-        const head = current.sharedFavorites[key].record.pending[0];
-        const conflict = { revision: attempt, member: false };
-        const result = commitFavoriteResult(
-            current,
-            key,
-            head.operation.operationId,
-            {
-                status: 'conflict',
-                state: conflict,
-            }
-        );
-        assert.equal(result.rebased, true);
-        current = result.data;
-        const record = current.sharedFavorites[key].record;
-        assert.equal(record.pending.length, 1);
-        assert.equal(record.pending[0].operation.expectedRevision, attempt);
-        assert.notEqual(
-            record.pending[0].operation.operationId,
-            head.operation.operationId
-        );
-        assert.equal(record.base.revision, attempt);
-        assert.equal(record.state.member, true);
-    }
-    const head = current.sharedFavorites[key].record.pending[0];
-    const final = commitFavoriteResult(
-        current,
-        key,
-        head.operation.operationId,
-        {
-            status: 'conflict',
-            state: { revision: 3, member: false },
-        }
+    const original = entry.record.pending[0].operation;
+    const server = { revision: 2, member: false };
+    const result = commitFavoriteResult(queued, key, original.operationId, {
+        status: 'conflict',
+        state: server,
+    });
+    assert.deepEqual(pendingFavorites(result), []);
+    assert.deepEqual(result.sharedFavorites[key].record.conflict, server);
+    assert.equal(
+        favoriteItems(resolveFavoriteConflict(result, key, false)).length,
+        0
     );
-    assert.equal(final.rebased, false);
-    const record = final.data.sharedFavorites[key].record;
-    assert.equal(record.pending.length, 0);
-    assert.equal(record.state.member, false);
-    assert.equal(record.state.revision, 3);
+    const confirmed = resolveFavoriteConflict(result, key, true);
+    const operation =
+        pendingFavorites(confirmed)[0].entry.record.pending[0].operation;
+    assert.notEqual(operation.operationId, original.operationId);
+    assert.equal(operation.expectedRevision, server.revision);
+    assert.equal(applyFavoriteOperation(server, operation).status, 'applied');
 });
 
 test('an import add preserves a newer server removal', () => {
@@ -219,9 +197,8 @@ test('an import add preserves a newer server removal', () => {
         status: 'conflict',
         state: { member: false, revision: 2 },
     });
-    assert.equal(result.rebased, false);
-    assert.deepEqual(pendingFavorites(result.data), []);
-    assert.deepEqual(favoriteItems(result.data), []);
+    assert.deepEqual(pendingFavorites(result), []);
+    assert.deepEqual(favoriteItems(result), []);
 });
 
 test('a conflict receipt lets the next queued edit reach the server', () => {
@@ -240,14 +217,14 @@ test('a conflict receipt lets the next queued edit reach the server', () => {
         ).data;
     const queued = queue(queue(data, true), false);
     const [add, remove] = queued.sharedFavorites[key].record.pending;
-    const server = { revision: 1, member: true };
+    const server = { revision: 1, member: false };
     const result = commitFavoriteResult(
         queued,
         key,
         add.operation.operationId,
         applyFavoriteOperation(server, add.operation)
     );
-    const row = result.data.sharedFavorites[key].record;
+    const row = result.sharedFavorites[key].record;
     assert.equal(
         row.pending[0].operation.operationId,
         remove.operation.operationId

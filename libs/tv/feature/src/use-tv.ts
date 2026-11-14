@@ -69,7 +69,7 @@ export function useTv(video: { current: HTMLVideoElement | null }) {
         storageReady,
         !!playing,
         repo.current!,
-        user.favorite
+        user
     );
     const backend = useBackend(data, storageReady, update);
     const { provider, ready, busy, connectionKey, enabled } = useProvider(

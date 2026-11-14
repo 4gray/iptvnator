@@ -89,7 +89,6 @@ export function queueFavorite(
             localOnly: false,
         },
         media: item,
-        retries: current?.retries ?? 0,
         importOperations: importing
             ? [...(current?.importOperations ?? []), operation.operationId]
             : current?.importOperations,
@@ -111,19 +110,20 @@ export function pendingFavorites(data: UserData): {
     return activeFavoriteEntries(data)
         .filter(
             ([, entry]) =>
+                !entry.record.conflict &&
                 entry.record.pending[0]?.consentGeneration ===
-                data.favoritesConsent
+                    data.favoritesConsent
         )
         .map(([key, entry]) => ({ key, entry }));
 }
 
-/** Commits one apply receipt; conflicts rebase the intent twice before the server wins. */
+/** Commits one receipt and pauses divergent edits for an explicit choice. */
 export function commitFavoriteResult(
     data: UserData,
     key: string,
     operationId: string,
     result: FavoriteResult
-): { data: UserData; delivered: boolean; rebased: boolean } {
+): UserData {
     const entry = data.sharedFavorites[key];
     const head = entry?.record.pending[0];
     if (
@@ -131,32 +131,18 @@ export function commitFavoriteResult(
         head?.operation.operationId !== operationId ||
         head.consentGeneration !== data.favoritesConsent
     )
-        return { data, delivered: false, rebased: false };
+        return data;
     const base =
         result.state.revision >= latestBase(entry).revision
             ? result.state
             : latestBase(entry);
-    const retry =
+    const conflict =
         result.status === 'conflict' &&
         !entry.importOperations?.includes(operationId) &&
-        head.operation.member !== base.member &&
-        (entry.retries ?? 0) < 2;
-    const pending = retry
-        ? [
-              {
-                  ...head,
-                  operation: {
-                      ...head.operation,
-                      operationId: createRandomId(),
-                      expectedRevision: base.revision,
-                  },
-              },
-              ...entry.record.pending.slice(1),
-          ]
-        : entry.record.pending.slice(1);
+        entry.record.state.member !== base.member;
+    const pending = entry.record.pending.slice(1);
     const applied: SharedFavoriteEntry = {
         ...entry,
-        retries: retry ? (entry.retries ?? 0) + 1 : 0,
         importOperations: entry.importOperations?.filter(
             (id) => id !== operationId
         ),
@@ -164,17 +150,15 @@ export function commitFavoriteResult(
             ...entry.record,
             base,
             pending,
-            state: projectPending(base, pending),
-            conflict: retry ? base : undefined,
+            state: conflict
+                ? entry.record.state
+                : projectPending(base, pending),
+            conflict: conflict ? base : undefined,
         },
     };
     return {
-        data: {
-            ...data,
-            sharedFavorites: { ...data.sharedFavorites, [key]: applied },
-        },
-        delivered: !retry,
-        rebased: retry,
+        ...data,
+        sharedFavorites: { ...data.sharedFavorites, [key]: applied },
     };
 }
 
@@ -231,7 +215,8 @@ export function mergeFavoriteSource(
     source: Source,
     context: FavoriteSourceContext,
     entries: FavoriteList['entries'],
-    media: Map<string, Media> | undefined
+    media: Map<string, Media> | undefined,
+    localMatches = new Map<string, Media>()
 ): UserData {
     if (
         source.libraryId !== context.sourceId ||
@@ -260,26 +245,32 @@ export function mergeFavoriteSource(
                 ? undefined
                 : media
                   ? (media.get(key) ??
+                    (!entry.state.member ? localMatches.get(key) : undefined) ??
                     (current?.record.pending.length
                         ? current.media
                         : undefined))
-                  : current?.media,
+                  : (current?.media ??
+                    (!entry.state.member ? localMatches.get(key) : undefined)),
             importOperations: current?.importOperations,
-            retries: current?.retries ?? 0,
-            record: current?.record.pending.length
-                ? {
-                      ...current.record,
-                      base,
-                      state: projectPending(base, current.record.pending),
-                      ...(current.record.conflict ? { conflict: base } : {}),
-                  }
-                : {
-                      ...current?.record,
-                      state: base,
-                      base,
-                      pending: [],
-                      conflict: undefined,
-                  },
+            record:
+                current?.record.conflict || current?.record.pending.length
+                    ? {
+                          ...current.record,
+                          base,
+                          state: current.record.conflict
+                              ? current.record.state
+                              : projectPending(base, current.record.pending),
+                          ...(current.record.conflict
+                              ? { conflict: base }
+                              : {}),
+                      }
+                    : {
+                          ...current?.record,
+                          state: base,
+                          base,
+                          pending: [],
+                          conflict: undefined,
+                      },
         };
     }
     return discardFavoriteIntents({
@@ -303,11 +294,56 @@ export function restoreLocalFavoriteEdits(data: UserData): UserData {
                     !entry.importOperations?.includes(operation.operationId)
             )
             .pop();
-        if (!intent || !entry.media) continue;
-        if (intent.operation.member) favorites.set(entry.media.id, entry.media);
+        if ((!intent && !entry.record.conflict) || !entry.media) continue;
+        if (intent ? intent.operation.member : entry.record.state.member)
+            favorites.set(entry.media.id, entry.media);
         else favorites.delete(entry.media.id);
     }
     return { ...data, favorites: [...favorites.values()] };
+}
+
+export function resolveFavoriteConflict(
+    data: UserData,
+    key: string,
+    keepLocal: boolean
+): UserData {
+    const entry = data.sharedFavorites[key];
+    if (
+        !entry?.record.conflict ||
+        !activeFavoriteEntries(data).some(([active]) => active === key)
+    )
+        return data;
+    const base = latestBase(entry);
+    const media = entry.media;
+    const cleared = {
+        ...data,
+        sharedFavorites: {
+            ...data.sharedFavorites,
+            [key]: { ...entry, record: { base, state: base, pending: [] } },
+        },
+    };
+    const context = data.sharedFavoriteContexts[entry.address.sourceId];
+    const source = data.sources.find(
+        (candidate) => candidate.libraryId === context?.sourceId
+    );
+    if (
+        !keepLocal ||
+        !media ||
+        !context ||
+        !source ||
+        base.member === entry.record.state.member
+    )
+        return cleared;
+    return queueFavorite(
+        cleared,
+        source,
+        media,
+        entry.record.state.member,
+        context,
+        entry.address.content,
+        data.favoritesConsent,
+        data.favoritesDeviceId
+    ).data;
 }
 
 export function discardFavoriteIntents(data: UserData): UserData {
@@ -317,11 +353,14 @@ export function discardFavoriteIntents(data: UserData): UserData {
         const live = pending.filter(
             (intent) => intent.consentGeneration === data.favoritesConsent
         );
-        if (live.length === pending.length) continue;
+        if (
+            live.length === pending.length &&
+            !(entry.record.conflict && !data.favoritesConsent)
+        )
+            continue;
         const base = latestBase(entry);
         sharedFavorites[key] = {
             ...entry,
-            retries: 0,
             importOperations: entry.importOperations?.filter((id) =>
                 live.some(({ operation }) => operation.operationId === id)
             ),

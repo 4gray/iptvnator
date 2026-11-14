@@ -3,6 +3,7 @@ import {
     FavoritesError,
     type FavoriteM3uCatalogs,
     mergeFavoriteSource,
+    mediaFavoriteReference,
     pendingFavorites,
     ProviderTransport,
     resolveFavoriteEntries,
@@ -11,7 +12,7 @@ import {
     type UserDataRepository,
 } from '@iptvnator/tv/data-access';
 import { favoriteAddressKey } from '@iptvnator/shared/interfaces/favorites-sync';
-import type { Source, UserData } from '@iptvnator/tv/util';
+import type { Media, Source, UserData } from '@iptvnator/tv/util';
 
 export function serverFor(data: UserData) {
     const library = data.library;
@@ -132,6 +133,27 @@ export async function refreshSources(
             if (source.provider !== 'm3u' || signal.aborted) throw failure;
             return undefined;
         });
+        const localMatches = new Map<string, Media>();
+        if (
+            source.provider === 'm3u' &&
+            entries.some(({ state }) => !state.member)
+        ) {
+            for (const item of repo.data.favorites) {
+                if (item.sourceId !== source.id || signal.aborted) continue;
+                const content = await mediaFavoriteReference(item, source);
+                if (!content) continue;
+                localMatches.set(
+                    favoriteAddressKey({
+                        instanceId: server.instanceId,
+                        scope: 'shared',
+                        sourceId,
+                        sourceIncarnation: context.sourceIncarnation,
+                        content,
+                    }),
+                    item
+                );
+            }
+        }
         unresolved += entries.filter(
             ({ address, state }) =>
                 state.member && !media?.has(favoriteAddressKey(address))
@@ -143,7 +165,14 @@ export async function refreshSources(
             [previous, context.sourceIncarnation].includes(
                 current.sharedFavoriteContexts[sourceId]?.sourceIncarnation
             )
-                ? mergeFavoriteSource(current, source, context, entries, media)
+                ? mergeFavoriteSource(
+                      current,
+                      source,
+                      context,
+                      entries,
+                      media,
+                      localMatches
+                  )
                 : current
         );
     }
@@ -173,7 +202,7 @@ export async function deliver(
                           next.key,
                           head.operation.operationId,
                           result
-                      ).data
+                      )
                     : current
             );
         } catch (failure) {

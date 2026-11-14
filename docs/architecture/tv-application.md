@@ -275,8 +275,8 @@ provider headers, and this change does not add Xtream header handling.
 Library & sync offers a separate opt-in for favorites when the server advertises
 `favorites-v1`. The TV verifies the server instance and source incarnation,
 receives current memberships, and then sends queued edits. Operations and their
-optimistic projection commit together in IndexedDB. Conflict retries use fresh
-operation IDs and keep later edits queued. Disconnecting or changing consent ends
+optimistic projection commit together in IndexedDB. Divergent edits pause for an explicit choice in Library & sync. Confirming
+the TV choice sends a fresh operation against the received server revision. Disconnecting or changing consent ends
 the old scope. Turning sharing off restores the TV's local favorites archive
 and keeps unsent manual edits on the TV.
 
