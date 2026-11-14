@@ -1,11 +1,16 @@
 import { signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatDialog } from '@angular/material/dialog';
+import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import {
     SecondStreamCatalogService,
+    UnifiedRecentDataService,
     type SecondStreamSelection,
 } from '@iptvnator/portal/shared/data-access';
+import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util';
 import { PLAYBACK_ACTIVITY_EVENTS } from '@iptvnator/services/activity-events';
 import { TranslateModule } from '@ngx-translate/core';
+import { NEVER, Subject } from 'rxjs';
 import { EmbeddedMpvPlayerComponent } from '../embedded-mpv-player/embedded-mpv-player.component';
 import { createLoadingSession } from '../embedded-mpv-player/embedded-mpv-session-factory';
 import { SecondStreamComponent } from './second-stream.component';
@@ -28,9 +33,15 @@ describe('SecondStreamComponent', () => {
         },
     };
     let component: SecondStreamComponent;
+    let fixture: ComponentFixture<SecondStreamComponent>;
     let first: EmbeddedMpvPlayerComponent;
     let second: EmbeddedMpvPlayerComponent;
     let volume: jest.Mock;
+    let afterClosed: Subject<SecondStreamSelection | undefined>;
+    const dialogClose = jest.fn();
+    const openDialog = jest.fn();
+    const savePlaybackPosition = jest.fn();
+    const recordPlayback = jest.fn();
     const activity = {
         active: jest.fn(() => false),
         begin: jest.fn().mockResolvedValue(undefined),
@@ -44,6 +55,16 @@ describe('SecondStreamComponent', () => {
 
     beforeEach(() => {
         volume = jest.fn().mockResolvedValue(null);
+        afterClosed = new Subject();
+        dialogClose
+            .mockReset()
+            .mockImplementation(() => afterClosed.next(undefined));
+        openDialog.mockReset().mockReturnValue({
+            close: dialogClose,
+            afterClosed: () => afterClosed,
+        });
+        savePlaybackPosition.mockReset().mockResolvedValue(undefined);
+        recordPlayback.mockReset().mockResolvedValue(undefined);
         allowed.set(true);
         activity.active.mockReturnValue(false);
         activity.begin.mockClear();
@@ -55,6 +76,42 @@ describe('SecondStreamComponent', () => {
         TestBed.configureTestingModule({
             providers: [
                 { provide: PLAYBACK_ACTIVITY_EVENTS, useValue: activity },
+                {
+                    provide: MatDialog,
+                    useValue: {
+                        open: openDialog,
+                        openDialogs: [],
+                        afterOpened: NEVER,
+                        afterAllClosed: NEVER,
+                    },
+                },
+                {
+                    provide: PORTAL_PLAYBACK_POSITIONS,
+                    useValue: { savePlaybackPosition },
+                },
+                {
+                    provide: UnifiedRecentDataService,
+                    useValue: { recordPlayback },
+                },
+                {
+                    provide: ActivatedRoute,
+                    useValue: {
+                        snapshot: {
+                            pathFromRoot: [
+                                {
+                                    routeConfig: { path: 'xtreams/:id' },
+                                    paramMap: convertToParamMap({
+                                        id: 'source-1',
+                                    }),
+                                },
+                                {
+                                    routeConfig: { path: 'movies' },
+                                    paramMap: convertToParamMap({}),
+                                },
+                            ],
+                        },
+                    },
+                },
                 {
                     provide: SecondStreamCatalogService,
                     useValue: { isAllowed: allowed },
@@ -91,12 +148,157 @@ describe('SecondStreamComponent', () => {
         };
         first = makePlayer('first');
         second = makePlayer('second');
-        const fixture = TestBed.createComponent(SecondStreamComponent);
+        fixture = TestBed.createComponent(SecondStreamComponent);
         fixture.componentRef.setInput('primary', first);
         component = fixture.componentInstance;
         Object.defineProperty(component, 'secondary', {
             value: signal(second),
         });
+    });
+
+    it('opens one picker on the active portal and applies its selection', async () => {
+        const opening = component.openPicker();
+        await component.openPicker();
+        await opening;
+        expect(openDialog).toHaveBeenCalledTimes(1);
+        expect(openDialog).toHaveBeenCalledWith(
+            expect.any(Function),
+            expect.objectContaining({
+                data: {
+                    returningToOriginal: false,
+                    initialPlaylist: 'source-1',
+                },
+            })
+        );
+        afterClosed.next(selection);
+        expect(component.selection()).toBe(selection);
+        expect(component.editing()).toBe(false);
+    });
+
+    it('closes the picker when frame-copy support is lost', async () => {
+        const opening = component.openPicker();
+        first.controller.support.set(null);
+        await opening;
+        expect(openDialog).not.toHaveBeenCalled();
+        expect(component.editing()).toBe(false);
+
+        first.controller.support.set({
+            supported: true,
+            engine: 'frame-copy',
+            platform: 'test',
+        });
+        await component.openPicker();
+        first.controller.support.set(null);
+        TestBed.tick();
+        expect(dialogClose).toHaveBeenCalledTimes(1);
+        expect(component.editing()).toBe(false);
+    });
+
+    it('reclamps the floating view on viewport changes and removes listeners on destroy', () => {
+        const stage = document.createElement('section');
+        const measure = jest.spyOn(component.placement, 'measure');
+        const resizeObserver = Object.getOwnPropertyDescriptor(
+            globalThis,
+            'ResizeObserver'
+        );
+        const observe = jest.fn();
+        const disconnect = jest.fn();
+        Object.defineProperty(globalThis, 'ResizeObserver', {
+            configurable: true,
+            value: class {
+                observe = observe;
+                disconnect = disconnect;
+            },
+        });
+        try {
+            fixture.componentRef.setInput('fullscreenTarget', stage);
+            fixture.detectChanges();
+            expect(observe).toHaveBeenCalledWith(stage);
+            expect(measure).toHaveBeenCalledTimes(1);
+            window.dispatchEvent(new Event('resize'));
+            document.dispatchEvent(new Event('fullscreenchange'));
+            expect(measure).toHaveBeenCalledTimes(3);
+
+            fixture.destroy();
+            expect(disconnect).toHaveBeenCalledTimes(1);
+            window.dispatchEvent(new Event('resize'));
+            document.dispatchEvent(new Event('fullscreenchange'));
+            expect(measure).toHaveBeenCalledTimes(3);
+        } finally {
+            fixture.destroy();
+            if (resizeObserver)
+                Object.defineProperty(
+                    globalThis,
+                    'ResizeObserver',
+                    resizeObserver
+                );
+            else Reflect.deleteProperty(globalThis, 'ResizeObserver');
+        }
+    });
+
+    it('lists both streams in view order and pauses the small view after a swap', async () => {
+        const companion = { ...playback, title: 'Fixture companion' };
+        component.selection.set({ ...selection, playback: companion });
+        second.controller.session.set({
+            ...createLoadingSession(companion, 0),
+            id: 'second',
+            status: 'playing',
+        });
+        expect(component.openStreams()).toEqual([
+            { playback, small: false, muted: false },
+            { playback: companion, small: true, muted: true },
+        ]);
+        await component.swap();
+        expect(
+            component.openStreams().map((stream) => stream.playback.title)
+        ).toEqual([companion.title, playback.title]);
+        const pause = jest
+            .spyOn(first.controller, 'togglePaused')
+            .mockResolvedValue(undefined);
+        component.pauseSmall();
+        expect(pause).toHaveBeenCalledTimes(1);
+    });
+
+    it('records local progress and history after companion playback advances', async () => {
+        const media = {
+            ...playback,
+            contentInfo: {
+                playlistId: 'source-1',
+                contentType: 'vod' as const,
+                contentXtreamId: 42,
+            },
+        };
+        component.editing.set(true);
+        await component.selectPlayback({ ...selection, playback: media });
+        const current = component.playback();
+        Object.defineProperty(second, 'playback', { value: signal(current) });
+        component.savePosition({
+            currentTime: 12,
+            duration: 120,
+            playing: true,
+        });
+        component.savePosition({
+            currentTime: 14,
+            duration: 120,
+            playing: true,
+        });
+        second.controller.session.update(
+            (session) => session && { ...session, status: 'paused' }
+        );
+        component.savePosition({
+            currentTime: 22,
+            duration: 120,
+            playing: false,
+        });
+        expect(recordPlayback).toHaveBeenCalledTimes(1);
+        expect(recordPlayback).toHaveBeenCalledWith(selection.item);
+        expect(savePlaybackPosition).toHaveBeenLastCalledWith(
+            'source-1',
+            expect.objectContaining({
+                contentXtreamId: 42,
+                positionSeconds: 22,
+            })
+        );
     });
     afterEach(() => {
         TestBed.resetTestingModule();

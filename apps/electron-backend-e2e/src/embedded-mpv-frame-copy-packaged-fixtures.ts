@@ -229,14 +229,15 @@ export async function installEmbeddedMpvSessionCapture(
     });
 }
 
-export async function installFrameCanvasAndSessionCapture(
-    app: LaunchedElectronApp
+export async function installFrameCanvas(
+    app: LaunchedElectronApp,
+    sessionId: string
 ): Promise<void> {
-    await installEmbeddedMpvSessionCapture(app);
-    await app.mainWindow.evaluate(() => {
+    await app.mainWindow.evaluate((id) => {
         document.querySelector('canvas[data-embedded-mpv-frame]')?.remove();
         const canvas = document.createElement('canvas');
         canvas.dataset['embeddedMpvFrame'] = '';
+        canvas.dataset['sessionId'] = id;
         canvas.dataset['testId'] = 'packaged-embedded-mpv-frame';
         Object.assign(canvas.style, {
             background: '#000',
@@ -248,7 +249,7 @@ export async function installFrameCanvasAndSessionCapture(
             zIndex: '2147483647',
         });
         document.body.append(canvas);
-    });
+    }, sessionId);
 }
 
 export async function getEmbeddedMpvSupport(

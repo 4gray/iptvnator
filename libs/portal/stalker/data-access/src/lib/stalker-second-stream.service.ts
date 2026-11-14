@@ -20,7 +20,10 @@ import type {
 } from './models';
 import { StalkerEpisodeResolver } from './stalker-episode-resolver.service';
 import { StalkerFavoritePlaybackResolver } from './stalker-favorite-playback.service';
-import { buildStalkerExternalPlaybackHeaders } from './stalker-live-playback.utils';
+import {
+    buildStalkerExternalPlaybackHeaders,
+    isCrossOriginStalkerStream,
+} from './stalker-live-playback.utils';
 import { StalkerPortalRepairService } from './stalker-portal-repair.service';
 import {
     loadStalkerSearchPage,
@@ -347,17 +350,24 @@ export class StalkerSecondStreamService {
                       episodeNumber: episode?.episode_num,
                       activityIdentity: episode?.activityIdentity,
                   };
+        const headers = buildStalkerExternalPlaybackHeaders(
+            playlist,
+            this.session.getCachedToken(playlist._id),
+            streamUrl
+        );
+        if (!isCrossOriginStalkerStream(playlist, streamUrl)) {
+            const origin = playlist.origin?.trim();
+            const referrer = playlist.referrer?.trim();
+            if (origin) headers['Origin'] = origin;
+            if (referrer) headers['Referer'] = referrer;
+        }
         return {
             streamUrl,
             title: episode?.title || item.name,
             thumbnail: item.posterUrl,
             isLive: false,
             contentInfo,
-            headers: buildStalkerExternalPlaybackHeaders(
-                playlist,
-                this.session.getCachedToken(playlist._id),
-                streamUrl
-            ),
+            headers,
         };
     }
 }

@@ -142,7 +142,7 @@ The flow is:
 7. For the native-view engine, the addon creates an app-owned platform video
    host inside the Electron window. For frame-copy, the preload frame pump
    attaches the session's shared-memory reader to
-   `<canvas data-embedded-mpv-frame>`.
+   `<canvas data-embedded-mpv-frame>` tagged with the matching `data-session-id`.
 8. On macOS native-view, the addon configures `vo=libmpv`, creates a
    `mpv_render_context`, and draws into the OpenGL surface. On Windows
    native-view, it creates an `mpv_handle`, disables MPV's own OSC/input

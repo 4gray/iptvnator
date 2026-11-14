@@ -4,9 +4,12 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import {
     SecondStreamCatalogService,
     SecondStreamChannel,
+    type SecondStreamEpisode,
+    type SecondStreamVodPage,
     SecondStreamEpgService,
     SecondStreamVodService,
 } from '@iptvnator/portal/shared/data-access';
+import type { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 import {
     EpgPreferencesService,
     EpgSourceSettingsService,
@@ -26,6 +29,46 @@ const row: SecondStreamChannel = {
         playlistName: 'Synthetic source',
     },
 };
+const series: UnifiedCollectionItem = {
+    ...row.item,
+    uid: 'synthetic-series',
+    name: 'Synthetic series',
+    sourceType: 'xtream',
+    contentType: 'series',
+};
+const movie: UnifiedCollectionItem = {
+    ...series,
+    uid: 'synthetic-movie',
+    name: 'Synthetic movie',
+    contentType: 'movie',
+};
+const episode: SecondStreamEpisode = {
+    episode: {
+        id: '42',
+        episode_num: 4,
+        title: 'Fixture finale',
+        season: 1,
+        container_extension: 'mp4',
+        info: [],
+        custom_sid: '',
+        added: '',
+        direct_source: '',
+    },
+    season: 1,
+    position: {
+        contentType: 'episode',
+        contentXtreamId: 42,
+        positionSeconds: 30,
+        durationSeconds: 120,
+    },
+};
+const vodService = {
+    browse: jest.fn(),
+    episodes: jest.fn(),
+    resolveMovie: jest.fn(),
+    resolveEpisode: jest.fn(),
+};
+
 describe('SecondStreamPickerComponent', () => {
     let load: jest.Mock;
     let resolve: jest.Mock;
@@ -35,6 +78,7 @@ describe('SecondStreamPickerComponent', () => {
     let beforeClosed: Subject<void>;
     let component: SecondStreamPickerComponent;
     beforeEach(() => {
+        Object.values(vodService).forEach((mock) => mock.mockReset());
         load = jest.fn().mockResolvedValue({ groups: [], channels: [row] });
         resolve = jest.fn();
         sources = jest.fn().mockResolvedValue([]);
@@ -66,7 +110,7 @@ describe('SecondStreamPickerComponent', () => {
                 },
                 {
                     provide: SecondStreamVodService,
-                    useValue: {},
+                    useValue: vodService,
                 },
                 {
                     provide: SecondStreamEpgService,
@@ -207,5 +251,216 @@ describe('SecondStreamPickerComponent', () => {
         await component.selectGroup('News');
         expect(component.visible()).toEqual([row]);
         expect(component.groupLoading()).toBe(false);
+    });
+
+    it('retries loading playlist choices and resets filters on source changes', async () => {
+        await component.loadSources();
+        const source = { id: 'p', name: 'Synthetic playlist' };
+        sources.mockRejectedValueOnce(new Error('Playlist load failed'));
+        await component.loadSources();
+        expect(component.sourceLoadFailed()).toBe(true);
+
+        sources.mockResolvedValueOnce([source]);
+        await component.loadSources();
+        expect(component.sourceLoadFailed()).toBe(false);
+
+        component.vod.type.set('movie');
+        component.search.set('old query');
+        component.group.set('News');
+        component.changeSource(source.id);
+        expect(component.vod.type()).toBeNull();
+        expect(component.search()).toBe('');
+        expect(component.group()).toBeNull();
+        expect(component.hasContentTypes()).toBe(false);
+        component.changeSource(component.historySource);
+        expect(component.hasContentTypes()).toBe(true);
+    });
+
+    it('returns a failed group load to a selectable state', async () => {
+        loadGroup.mockRejectedValueOnce(new Error('Group load failed'));
+        await component.selectGroup('Sports');
+        expect(component.error()).toBe('group');
+        expect(component.groupLoading()).toBe(false);
+        await component.selectGroup(null);
+        expect(component.error()).toBeNull();
+        expect(component.group()).toBeNull();
+    });
+
+    it('opens the movie selected from a locally filtered catalog', async () => {
+        component.sources.set([
+            { id: 'p', name: 'Fixture portal', portal: true },
+        ]);
+        component.changeSource('p');
+        expect(component.hasContentTypes()).toBe(true);
+        vodService.browse.mockResolvedValue({ items: [movie], hasMore: false });
+        component.changeType('movie');
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(component.searchLabel()).toBe('TMDB_MATCH.SEARCH_MOVIE');
+        component.updateSearch(' synthetic MOVIE ');
+        expect(component.filteredVod()).toEqual([movie]);
+        component.updateSearch('missing title');
+        expect(component.filteredVod()).toEqual([]);
+        expect(vodService.browse).toHaveBeenCalledTimes(1);
+
+        const selection = {
+            item: movie,
+            playback: { streamUrl: 'https://media.example.test/movie' },
+        };
+        vodService.resolveMovie.mockResolvedValue(selection);
+        component.chooseMovie(movie);
+        component.chooseMovie(movie);
+        await Promise.resolve();
+        expect(close).toHaveBeenCalledWith(selection);
+        expect(vodService.resolveMovie).toHaveBeenCalledTimes(1);
+        component.changeType(null);
+        expect(component.searchLabel()).toBe(
+            'EMBEDDED_MPV.PLAYER.SEARCH_CHANNELS'
+        );
+    });
+
+    it('filters episodes by title and number and restores the series search on back', async () => {
+        vodService.browse.mockResolvedValue({
+            items: [series],
+            hasMore: false,
+        });
+        vodService.episodes.mockResolvedValue([episode]);
+        component.updateSearch('synthetic');
+        component.changeType('series');
+        expect(component.searchLabel()).toBe('TMDB_MATCH.SEARCH_TV');
+        component.openSeries(series);
+        await Promise.resolve();
+        expect(component.search()).toBe('');
+        expect(component.searchLabel()).toBe('PORTALS.DETAIL.EPISODES');
+        component.updateSearch('FINALE');
+        expect(component.filteredEpisodes()).toEqual([episode]);
+        component.updateSearch('4');
+        expect(component.filteredEpisodes()).toEqual([episode]);
+        expect(component.vod.episodeProgress(episode)).toBe(25);
+
+        let finish!: (value: unknown) => void;
+        vodService.resolveEpisode.mockImplementationOnce(
+            () => new Promise((resolve) => (finish = resolve))
+        );
+        component.chooseEpisode(series, episode);
+        expect(component.resolving()).toBe(episode.episode.id);
+        expect(vodService.resolveEpisode).toHaveBeenCalledWith(series, episode);
+        component.backToSeries();
+        expect(component.search()).toBe('synthetic');
+        expect(component.vod.series()).toBeNull();
+        expect(component.resolving()).toBeNull();
+        finish({ item: series, playback: {} });
+        await Promise.resolve();
+        expect(close).not.toHaveBeenCalled();
+    });
+
+    it('retries the same catalog page and appends only unseen titles', async () => {
+        vodService.browse
+            .mockResolvedValueOnce({
+                items: [series],
+                hasMore: true,
+                pageKeys: ['series-page-one'],
+                exhaustedCatalogs: ['vod'],
+            })
+            .mockRejectedValueOnce(new Error('Page load failed'))
+            .mockResolvedValueOnce({
+                items: [series, { ...series, uid: 'page-two' }],
+                hasMore: false,
+            });
+        await component.vod.browse('p', 'series');
+        await component.vod.more();
+        expect(component.vod.failed()).toBe(true);
+        expect(component.vod.items()).toEqual([series]);
+        expect(component.vod.hasMore()).toBe(true);
+        component.vod.retry();
+        await Promise.resolve();
+        expect(component.vod.failed()).toBe(false);
+        expect(component.vod.items().map(({ uid }) => uid)).toEqual([
+            series.uid,
+            'page-two',
+        ]);
+        expect(component.vod.hasMore()).toBe(false);
+        expect(vodService.browse.mock.calls.map((call) => call[4])).toEqual([
+            1, 2, 2,
+        ]);
+        expect(vodService.browse).toHaveBeenLastCalledWith(
+            'p',
+            'series',
+            expect.any(AbortSignal),
+            '',
+            2,
+            new Set(['series-page-one']),
+            new Set(['vod'])
+        );
+    });
+
+    it('debounces Stalker search and discards the preceding catalog result', async () => {
+        await component.loadSources();
+        TestBed.tick();
+        jest.useFakeTimers();
+        try {
+            let finish!: (result: SecondStreamVodPage) => void;
+            vodService.browse
+                .mockImplementationOnce(
+                    () =>
+                        new Promise<SecondStreamVodPage>((resolve) => {
+                            finish = resolve;
+                        })
+                )
+                .mockResolvedValueOnce({ items: [movie], hasMore: false });
+            component.sources.set([
+                {
+                    id: 'p',
+                    name: 'Fixture portal',
+                    portal: true,
+                    stalker: true,
+                },
+            ]);
+            component.changeSource('p');
+            component.changeType('movie');
+            const request: AbortSignal = vodService.browse.mock.calls[0][2];
+
+            component.updateSearch(' e ');
+            expect(request.aborted).toBe(true);
+            await jest.advanceTimersByTimeAsync(200);
+            component.updateSearch(' exact ');
+            await jest.advanceTimersByTimeAsync(249);
+            expect(vodService.browse).toHaveBeenCalledTimes(1);
+            await jest.advanceTimersByTimeAsync(1);
+            expect(vodService.browse.mock.calls[1].slice(3, 5)).toEqual([
+                'exact',
+                1,
+            ]);
+            finish({ items: [], hasMore: true });
+            await Promise.resolve();
+            expect(component.filteredVod()).toEqual([movie]);
+            expect(component.vod.hasMore()).toBe(false);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('retries failed episode loading and cancels it on back', async () => {
+        let rejectPending!: (error: Error) => void;
+        vodService.episodes
+            .mockRejectedValueOnce(new Error('Episode load failed'))
+            .mockImplementationOnce(
+                () =>
+                    new Promise<SecondStreamEpisode[]>((_resolve, reject) => {
+                        rejectPending = reject;
+                    })
+            );
+        await component.vod.openSeries(series);
+        expect(component.vod.failed()).toBe(true);
+        component.vod.retry();
+        const request: AbortSignal = vodService.episodes.mock.calls[1][1];
+        expect(component.vod.loading()).toBe(true);
+        component.backToSeries();
+        expect(request.aborted).toBe(true);
+        rejectPending(new Error('Late episode failure'));
+        await Promise.resolve();
+        expect(component.vod.failed()).toBe(false);
+        expect(component.vod.loading()).toBe(false);
+        expect(component.vod.episodes()).toEqual([]);
     });
 });

@@ -1378,7 +1378,8 @@ Two stream profiles exist, selected by one shared predicate:
   session token exists, `User-Agent` (playlist override or the MAG UA — the
   API path always sent both, the playback set historically sent only
   `X-User-Agent`), `X-User-Agent`, `SN` when a real serial exists, and
-  `Origin`/`Referer` set to the portal origin.
+  `Origin`/`Referer` set to the portal origin. For companion movies and
+  episodes, saved playlist overrides take precedence for these two headers.
 - **Foreign / direct** (different host, or an https→http downgrade): the
   credential-free `KSPlayer` direct-stream profile (`User-Agent: KSPlayer`,
   `Accept`, `Icy-MetaData`, `Connection`). Portal credentials must

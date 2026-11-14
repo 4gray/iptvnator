@@ -35,6 +35,7 @@ describe('SecondStreamCatalogService', () => {
         withholdsEverything: jest.Mock;
         active: jest.Mock;
         lockedStalkerIds: jest.Mock;
+        lockedXtreamIds: jest.Mock;
         isM3uGroupLocked: jest.Mock;
         isXtreamCategoryLocked: jest.Mock;
         isStalkerCategoryLocked: jest.Mock;
@@ -47,6 +48,7 @@ describe('SecondStreamCatalogService', () => {
     };
     let resolve: jest.Mock;
     let favorites: jest.Mock;
+    let sendIpcEvent: jest.Mock;
     beforeEach(() => {
         playlists = {
             getAllPlaylists: jest.fn(() => of([playlist])),
@@ -67,6 +69,7 @@ describe('SecondStreamCatalogService', () => {
             withholdsEverything: jest.fn(() => false),
             active: jest.fn(() => false),
             lockedStalkerIds: jest.fn(() => []),
+            lockedXtreamIds: jest.fn(() => []),
             isM3uGroupLocked: jest.fn(() => false),
             isXtreamCategoryLocked: jest.fn(() => false),
             isStalkerCategoryLocked: jest.fn(() => false),
@@ -103,6 +106,9 @@ describe('SecondStreamCatalogService', () => {
             .fn()
             .mockResolvedValue({ streamUrl: channel.url, isLive: true });
         favorites = jest.fn().mockResolvedValue([]);
+        sendIpcEvent = jest.fn().mockResolvedValue({
+            js: [{ id: 'genre-2', title: 'News' }],
+        });
         TestBed.configureTestingModule({
             providers: [
                 SecondStreamCatalogService,
@@ -144,11 +150,7 @@ describe('SecondStreamCatalogService', () => {
                 },
                 {
                     provide: DataService,
-                    useValue: {
-                        sendIpcEvent: jest.fn().mockResolvedValue({
-                            js: [{ id: 'genre-2', title: 'News' }],
-                        }),
-                    },
+                    useValue: { sendIpcEvent },
                 },
                 {
                     provide: StalkerSessionService,
@@ -168,6 +170,46 @@ describe('SecondStreamCatalogService', () => {
             ],
         });
         service = TestBed.inject(SecondStreamCatalogService);
+    });
+
+    it('exposes playlist choices with portal types and omits the internal favorites playlist', async () => {
+        playlists.getAllPlaylists.mockReturnValue(
+            of([
+                playlist,
+                { _id: 'global-favorites', title: 'Internal favorites' },
+                {
+                    _id: 'synthetic-xtream',
+                    title: 'Synthetic Xtream',
+                    serverUrl: 'https://portal.example.test',
+                },
+                {
+                    _id: 'synthetic-stalker',
+                    title: 'Synthetic Stalker',
+                    macAddress: '02:00:00:00:00:02',
+                },
+            ])
+        );
+
+        expect(await service.sources()).toEqual([
+            {
+                id: playlist._id,
+                name: playlist.title,
+                portal: false,
+                stalker: false,
+            },
+            {
+                id: 'synthetic-xtream',
+                name: 'Synthetic Xtream',
+                portal: true,
+                stalker: false,
+            },
+            {
+                id: 'synthetic-stalker',
+                name: 'Synthetic Stalker',
+                portal: true,
+                stalker: true,
+            },
+        ]);
     });
     it('browses M3U groups without changing any player or route', async () => {
         const data = await service.load(
@@ -299,6 +341,100 @@ describe('SecondStreamCatalogService', () => {
         expect(service.isAllowed(item)).toBe(false);
         locks.active.mockReturnValue(false);
         expect(service.isAllowed(item)).toBe(true);
+    });
+
+    it('fails closed when an Xtream movie has no category and categories are PIN locked', () => {
+        const item = {
+            uid: 'movie',
+            name: 'Synthetic movie',
+            playlistId: playlist._id,
+            playlistName: playlist.title,
+            sourceType: 'xtream' as const,
+            contentType: 'movie' as const,
+        };
+        locks.active.mockReturnValue(true);
+        locks.lockedXtreamIds.mockReturnValue([900]);
+        expect(service.isAllowed(item)).toBe(false);
+        expect(locks.lockedXtreamIds).toHaveBeenCalledWith(
+            playlist._id,
+            'movies'
+        );
+        locks.lockedXtreamIds.mockReturnValue([]);
+        expect(service.isAllowed(item)).toBe(true);
+    });
+
+    it('rejects an Xtream source missing credentials and a Stalker source with no genre list', async () => {
+        const signal = new AbortController().signal;
+        playlists.getPlaylistById.mockReturnValueOnce(
+            of({ ...playlist, serverUrl: 'https://portal.example.test' })
+        );
+        xtream.getPlaylist.mockResolvedValueOnce(null);
+        await expect(service.load(playlist._id, signal)).rejects.toThrow(
+            'Source unavailable'
+        );
+        expect(xtream.getCategories).not.toHaveBeenCalled();
+
+        playlists.getPlaylistById.mockReturnValueOnce(
+            of({
+                ...playlist,
+                macAddress: '02:00:00:00:00:02',
+                portalUrl: 'https://portal.example.test/portal.php',
+            })
+        );
+        sendIpcEvent.mockResolvedValueOnce({ js: null });
+        await expect(service.load(playlist._id, signal)).rejects.toThrow(
+            'Channel list unavailable'
+        );
+    });
+
+    it('fetches omitted Stalker genres on demand and withholds locked genres', async () => {
+        playlists.getPlaylistById.mockReturnValue(
+            of({
+                ...playlist,
+                macAddress: '02:00:00:00:00:02',
+                portalUrl: 'https://portal.example.test/portal.php',
+            })
+        );
+        const signal = new AbortController().signal;
+        const genre = 'omitted-genre';
+        locks.isStalkerCategoryLocked.mockReturnValueOnce(true);
+        expect(await service.loadGroup('', genre, signal)).toEqual([]);
+        expect(await service.loadGroup(playlist._id, genre, signal)).toEqual(
+            []
+        );
+        expect(sendIpcEvent).not.toHaveBeenCalled();
+        sendIpcEvent.mockResolvedValueOnce({
+            js: {
+                total_items: 1,
+                data: [
+                    {
+                        id: 'fixture-channel',
+                        name: 'Synthetic channel',
+                        cmd: 'ffmpeg https://media.example.test/live',
+                    },
+                ],
+            },
+        });
+
+        const rows = await service.loadGroup(playlist._id, genre, signal);
+        expect(rows).toHaveLength(1);
+        expect(rows[0]).toMatchObject({
+            group: genre,
+            item: {
+                stalkerId: 'fixture-channel',
+                name: 'Synthetic channel',
+                categoryId: genre,
+            },
+        });
+        expect(sendIpcEvent).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                params: expect.objectContaining({
+                    action: 'get_ordered_list',
+                    genre,
+                }),
+            })
+        );
     });
 
     it('reuses the Stalker ITV cache and carries link flags to the existing resolver', async () => {
