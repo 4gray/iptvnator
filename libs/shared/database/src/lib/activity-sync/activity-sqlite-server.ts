@@ -9,6 +9,9 @@ import {
     type ActivityState,
     type ActivitySourceContext,
     type ActivityListResponse,
+    DEFAULT_PERSONAL_SCOPE,
+    parsePersonalScope,
+    type PersonalScope,
 } from '@iptvnator/shared/interfaces/activity-sync';
 import { ensureActivitySchema } from './activity-schema';
 
@@ -95,22 +98,26 @@ export class SqliteActivityServerStore {
         })();
     }
 
+    /** One profile's entries for a source; the Default profile ('shared') unless `scope` names another. */
     list(
         instanceId: string,
         source: ActivitySourceContext,
-        cursor = ''
+        cursor = '',
+        scope: PersonalScope = DEFAULT_PERSONAL_SCOPE
     ): ActivityListResponse {
         const rows = this.database
             .prepare(
                 `SELECT address, value, address_key FROM activity_server_states
              WHERE instance_id = ? AND source_id = ? AND source_incarnation = ? AND address_key > ?
+               AND json_extract(address, '$.scope') = ?
              ORDER BY address_key LIMIT 101`
             )
             .all(
                 instanceId,
                 source.sourceId,
                 source.sourceIncarnation,
-                cursor
+                cursor,
+                parsePersonalScope(scope)
             ) as { address: string; value: string; address_key: string }[];
         const page = rows.slice(0, 100);
         return {

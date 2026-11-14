@@ -11,6 +11,7 @@ import { StorageRequestError } from './storage-route-errors';
 import { FAVORITES_SYNC_CAPABILITY } from '@iptvnator/shared/interfaces/favorites-sync';
 import { ACTIVITY_SYNC_CAPABILITY } from '@iptvnator/shared/interfaces/activity-sync';
 import { isHostedWorkerRequest } from '../hosted-ingress';
+import { PROFILES_CAPABILITY } from '@iptvnator/shared/interfaces';
 
 export function createInstanceRouter(deps: {
     readonly storage: ServerStorage | null;
@@ -35,6 +36,7 @@ export function createInstanceRouter(deps: {
                           HISTORY_SYNC_CAPABILITY,
                           ...(deps.browserPairing ? ['browser-pairing-v1'] : []),
                           ...(deps.cloudflareDeviceRegistration ? ['cloudflare-device-v1'] : []),
+                          PROFILES_CAPABILITY,
                       ],
                   }
                 : {}),
