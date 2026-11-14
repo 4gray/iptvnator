@@ -77,18 +77,6 @@ export class UnifiedFavoritesDataService {
         return this.getAllFavorites();
     }
 
-    membershipUid(item: UnifiedCollectionItem): string {
-        if (item.sourceType !== 'stalker' || !item.stalkerItem) return item.uid;
-        const reference = stalkerFavoriteReference(item.stalkerItem);
-        return buildCollectionUid(
-            'stalker',
-            item.playlistId,
-            reference
-                ? favoriteReferenceKey(reference)
-                : this.getStalkerFavoriteId(item)
-        );
-    }
-
     async addFavorite(item: UnifiedCollectionItem): Promise<void> {
         switch (item.sourceType) {
             case 'm3u':

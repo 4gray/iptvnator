@@ -91,6 +91,40 @@ function createController(playbackOwnerKey?: () => string) {
 }
 
 describe('StalkerVodPlaybackController', () => {
+    it('does not overwrite the resume point before the engine reaches it', () => {
+        // Search, Favorites and Recent resume through this controller.
+        const { controller, inlinePlayback, playbackPositions } =
+            createController();
+        (
+            inlinePlayback as unknown as {
+                set(value: ResolvedPortalPlayback): void;
+            }
+        ).set({
+            streamUrl: 'https://cdn.example/movie.mkv',
+            title: 'Synthetic Film',
+            isLive: false,
+            startTime: 2400,
+            contentInfo: {
+                playlistId: 'stalker-1',
+                contentXtreamId: 7,
+                contentType: 'vod',
+            },
+        });
+
+        // The engine reports ~0 before its seek to startTime lands.
+        controller.handleInlineTimeUpdate({ currentTime: 0.4, duration: 5400 });
+        expect(playbackPositions.savePlaybackPosition).not.toHaveBeenCalled();
+
+        controller.handleInlineTimeUpdate({
+            currentTime: 2401,
+            duration: 5400,
+        });
+        expect(playbackPositions.savePlaybackPosition).toHaveBeenCalledWith(
+            'stalker-1',
+            expect.objectContaining({ positionSeconds: 2401 })
+        );
+    });
+
     it('ignores stale VOD position loads that resolve after a newer selection', async () => {
         const { controller, playbackPositions, selectedVodPosition } =
             createController();

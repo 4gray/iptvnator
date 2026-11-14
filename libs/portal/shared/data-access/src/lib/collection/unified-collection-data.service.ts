@@ -1,9 +1,12 @@
 import { DestroyRef, inject, Injectable, Signal, signal } from '@angular/core';
 import {
+    buildCollectionUid,
     CollectionContentType,
     CollectionScope,
     UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
+import type { StalkerPortalItem } from '@iptvnator/shared/interfaces';
+import { stalkerFavoriteReference } from '@iptvnator/shared/interfaces/favorites-sync';
 import { createCollectionReloadIndicator } from './collection-reload-indicator';
 import { UnifiedFavoritesDataService } from './unified-favorites-data.service';
 import { UnifiedRecentDataService } from './unified-recent-data.service';
@@ -14,6 +17,62 @@ export interface CollectionLoadRequest {
     scope: CollectionScope;
     playlistId?: string;
     portalType?: string;
+}
+
+function stalkerRecentFavoriteUids(
+    favorites: readonly UnifiedCollectionItem[],
+    recentItems: readonly UnifiedCollectionItem[]
+): string[] {
+    const typedFavorites = new Set<string>();
+    const legacyFavorites = new Set<string>();
+    const typedById = new Map<string, Set<string>>();
+    const recent: { uid: string; id: string; typedUid: string | null }[] = [];
+
+    for (const [items, isFavorite] of [
+        [favorites, true],
+        [recentItems, false],
+    ] as const) {
+        for (const item of items) {
+            if (item.sourceType !== 'stalker' || !item.stalkerId) continue;
+            const id = buildCollectionUid(
+                'stalker',
+                item.playlistId,
+                item.stalkerId
+            );
+            const ref =
+                item.stalkerItem &&
+                stalkerFavoriteReference(item.stalkerItem as StalkerPortalItem);
+            const typedUid = ref
+                ? buildCollectionUid(
+                      'stalker',
+                      item.playlistId,
+                      JSON.stringify(ref)
+                  )
+                : null;
+            if (typedUid) {
+                const types = typedById.get(id) ?? new Set<string>();
+                types.add(typedUid);
+                typedById.set(id, types);
+            }
+            if (isFavorite) {
+                if (typedUid) typedFavorites.add(typedUid);
+                else legacyFavorites.add(id);
+            } else {
+                recent.push({ uid: item.uid, id, typedUid });
+            }
+        }
+    }
+
+    return recent
+        .filter(({ id, typedUid }) => {
+            if (typedUid && typedFavorites.has(typedUid)) return true;
+            // Only use a legacy favorite when every known reference agrees.
+            return (
+                legacyFavorites.has(id) &&
+                (typedById.get(id)?.size ?? 0) === (typedUid ? 1 : 0)
+            );
+        })
+        .map(({ uid }) => uid);
 }
 
 /**
@@ -196,16 +255,16 @@ export class UnifiedCollectionDataService {
                 params.playlistId,
                 params.portalType
             );
-            const uids = new Set(favorites.map((item) => item.uid));
-            const memberships = new Set(
-                favorites.map((item) => this.favoritesData.membershipUid(item))
+            const uids = new Set(
+                favorites
+                    .filter((item) => item.sourceType !== 'stalker')
+                    .map((item) => item.uid)
             );
-            for (const item of recentItems) {
-                if (
-                    item.sourceType === 'stalker' &&
-                    memberships.has(this.favoritesData.membershipUid(item))
-                )
-                    uids.add(item.uid);
+            for (const uid of stalkerRecentFavoriteUids(
+                favorites,
+                recentItems
+            )) {
+                uids.add(uid);
             }
             await Promise.all(
                 recentItems.map(async (item) => {

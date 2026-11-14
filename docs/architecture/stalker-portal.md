@@ -522,6 +522,12 @@ that movie without re-reading the whole progress history.
 Catalog entry also refreshes local progress so watched toggles and inline
 playback in Favorites/Recent are reflected when returning to Movies; retained
 provider pages are not refetched for that refresh.
+Every inline Stalker player saves through the shared
+`createInlinePlaybackPositionWriter` (`@iptvnator/portal/shared/util`): the
+catalog detail, `StalkerVodPlaybackController` (search, Favorites, Recent and
+dashboard collections) and the series view. Its one-shot resume latch skips
+the ~0 s updates an engine reports before reaching `startTime`, which would
+otherwise overwrite the position being resumed from.
 
 `StalkerCatalogFacadeService` derives the visible list from retained raw pages;
 provider totals, deduplication and exhaustion remain store-owned. Counts say how
@@ -1506,6 +1512,10 @@ list:
   transient failure (network, or a page that failed both attempts) is retried
   later but throttled by a per-portal cooldown (`ERROR_COOLDOWN_MS`, 30s) so a
   deterministically-failing page can't trigger an unbounded re-crawl loop.
+- Keyed by the playlist id, `stalkerSessionFingerprint` (portal endpoint,
+  MAC and device identity, credentials), and the observed full or simple
+  portal mode. A change to the connection or its mode uses a separate
+  channel list and `unsupported` verdict.
 - Per-portal reactivity: the "cache ready / refreshed" trigger is a
   **per-portal** version signal (`versionFor(playlist)`), not one global
   counter, and the content resource reads it **only for ITV**. This is
@@ -1889,6 +1899,16 @@ Where this is used:
 - `libs/portal/stalker/feature/src/lib/stalker-search/stalker-search.component.ts`
 - `libs/portal/stalker/feature/src/lib/stalker-catalog-detail/stalker-catalog-detail.component.ts`
 - `libs/portal/stalker/feature/src/lib/stalker-favorites-button/stalker-favorites-button.component.ts`
+
+A local Recently Viewed touch (`mutatePlaylistHistory`,
+`libs/services/src/lib/playlist-history.ts`) moves a row to the top by its
+normalized id and compatible type from `stalkerFavoriteReference`. Live, radio,
+movies, and the regular, embedded and lazy series modes each have distinct
+identities. Episodes of the same series share its history row. Rows of an
+unknown kind, such as older untyped snapshots, still match by id.
+The unified Recent collection uses typed row ids. The favorite heart uses an
+exact typed match first. It falls back to an untyped favorite in the same source
+when the available references for that id identify at most one type and mode.
 
 Navigation rule to preserve:
 
