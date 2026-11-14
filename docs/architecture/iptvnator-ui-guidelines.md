@@ -1778,10 +1778,14 @@ preset; a missing or `null` value keeps the preset's own selection colour and
 sets nothing. `SettingsService` reads the active preset's surface tokens,
 derives the selection, selection-text, on-selection, focus-ring and Material
 primary roles in `theme-accent-tokens.ts`, and sets them inline on `<body>`
-with a `data-theme-accent` attribute. Only the accent's OKLCH lightness moves:
-the selection colour keeps 3:1 against every surface (4.5:1 on dark presets,
-which also use it as selected-row text) and the text roles keep 4.5:1, also on
-the strongest selection tint. The roles are re-derived on every theme change,
+with a `data-theme-accent` attribute. Only the accent's OKLCH lightness moves.
+The accent is also text (badges, selected labels), so it keeps 4.5:1 against
+every surface and its plain selection tint; the selection-text role keeps
+4.5:1 on the strongest tint too. One on-accent colour, used for
+`--app-selection-on-color` and `--mat-sys-on-primary`, keeps 4.5:1 on the
+accent, on Material primary and across the empty-state CTA gradient toward
+the heading ink; the accent darkens or lightens further until one does. The
+roles are re-derived on every theme change,
 including System's OS switches. `data-theme-accent` is a component-token
 boundary in `m3-theme.scss`, because light presets otherwise resolve Material
 component colours on `html`. The swatches preview each accent in the colour it

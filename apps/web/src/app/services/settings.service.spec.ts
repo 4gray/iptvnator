@@ -185,14 +185,29 @@ describe('Service: Settings', () => {
     });
     describe('theme accent', () => {
         // jsdom loads no stylesheet; inline tokens stand in for the palette.
-        const DARK = ['#1e2330', '#0d0f12', '#111318', '#161a22', '#252b3a'];
-        const LIGHT = ['#ffffff', '#eef0f3', '#eef0f3', '#f5f6f8', '#f0f2f5'];
+        const DARK = [
+            '#1e2330',
+            '#0d0f12',
+            '#111318',
+            '#161a22',
+            '#252b3a',
+            '#d8dce8',
+        ];
+        const LIGHT = [
+            '#ffffff',
+            '#eef0f3',
+            '#eef0f3',
+            '#f5f6f8',
+            '#f0f2f5',
+            '#1a1d23',
+        ];
         const SURFACE_TOKENS = [
             '--app-widget-bg',
             '--app-shell-bg',
             '--app-rail-bg',
             '--app-content-bg',
             '--app-card-hover-bg',
+            '--app-heading-color',
         ];
         const setSurfaces = (colors: string[]) =>
             SURFACE_TOKENS.forEach((token, i) =>
@@ -249,12 +264,16 @@ describe('Service: Settings', () => {
             setSurfaces(LIGHT);
             service.changeTheme(Theme.LightTheme);
             service.changeThemeAccent('amber');
-            // Amber is darkened to keep 3:1 against the white widget.
-            expect(token('--app-selection-color')).not.toBe('#f59e0b');
+            const onLight = token('--app-selection-color');
 
             setSurfaces(DARK);
             service.changeTheme(Theme.DarkTheme);
-            expect(token('--app-selection-color')).toBe('#f59e0b');
+            const onDark = token('--app-selection-color');
+            // Darkened for the white widget, lightened for the dark one.
+            expect(onLight).not.toBe(onDark);
+            expect(parseInt(onDark.slice(1, 3), 16)).toBeGreaterThan(
+                parseInt(onLight.slice(1, 3), 16)
+            );
             expect(service.appliedThemePresetId()).toBe('dark');
         });
 

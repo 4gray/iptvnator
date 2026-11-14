@@ -64,36 +64,46 @@ describe('theme accent tokens', () => {
             const surfaces = presetSurfaces(id);
 
             it.each(THEME_ACCENTS.map((accent) => [accent.id, accent.hex]))(
-                'keeps %s readable on every surface',
+                'keeps %s readable as text and under text',
                 (_accent, hex) => {
                     const tokens = deriveThemeAccentTokens(hex, surfaces);
                     const selection = tokens['--app-selection-color']!;
                     const text = tokens['--app-selection-text-color']!;
+                    const on = tokens['--app-selection-on-color']!;
+                    const softTint = mode === 'dark' ? 0.18 : 0.14;
                     const strongTint = mode === 'dark' ? 0.28 : 0.22;
 
-                    for (const surface of surfaces.all) {
-                        expect(
-                            contrastRatio(selection, surface)
-                        ).toBeGreaterThanOrEqual(mode === 'dark' ? 4.5 : 3);
-                        expect(contrastRatio(text, surface)).toBeGreaterThanOrEqual(
+                    // Both are text colours: the accent on surfaces and its
+                    // plain tint (badges), the text role on the strongest.
+                    for (const [color, tint] of [
+                        [selection, softTint],
+                        [text, strongTint],
+                    ] as const) {
+                        for (const surface of surfaces.all) {
+                            expect(
+                                contrastRatio(color, surface)
+                            ).toBeGreaterThanOrEqual(4.5);
+                            expect(
+                                contrastRatio(
+                                    color,
+                                    mixHex(surface, selection, tint)
+                                )
+                            ).toBeGreaterThanOrEqual(4.5);
+                        }
+                    }
+                    // Text on accent fills: buttons, the empty-state CTA
+                    // gradient toward the heading ink, Material primary.
+                    expect(tokens['--mat-sys-on-primary']).toBe(on);
+                    for (const fill of [
+                        selection,
+                        mixHex(selection, surfaces.heading, 0.2),
+                        mixHex(selection, surfaces.heading, 0.4),
+                        tokens['--mat-sys-primary']!,
+                    ]) {
+                        expect(contrastRatio(on, fill)).toBeGreaterThanOrEqual(
                             4.5
                         );
-                        expect(
-                            contrastRatio(
-                                text,
-                                mixHex(surface, selection, strongTint)
-                            )
-                        ).toBeGreaterThanOrEqual(4.5);
                     }
-                    expect(
-                        contrastRatio(
-                            tokens['--app-selection-on-color']!,
-                            selection
-                        )
-                    ).toBeGreaterThanOrEqual(mode === 'dark' ? 4.5 : 3);
-                    expect(
-                        contrastRatio(tokens['--mat-sys-on-primary']!, text)
-                    ).toBeGreaterThanOrEqual(4.5);
                     expect(
                         contrastRatio(
                             tokens['--mat-sys-on-primary-container']!,
@@ -116,9 +126,9 @@ describe('theme accent tokens', () => {
     });
 
     it('leaves an accent that already has the contrast unchanged', () => {
-        // Amber is far brighter than the dark preset's widget surface.
-        const tokens = deriveThemeAccentTokens('#f59e0b', presetSurfaces('dark'));
-        expect(tokens['--app-selection-color']).toBe('#f59e0b');
+        // A pale amber is readable on the dark preset and on its own tint.
+        const tokens = deriveThemeAccentTokens('#ffe0a3', presetSurfaces('dark'));
+        expect(tokens['--app-selection-color']).toBe('#ffe0a3');
     });
 
     it('returns null when the theme styles are not loaded', () => {

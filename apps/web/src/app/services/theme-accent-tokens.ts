@@ -13,6 +13,8 @@ export interface ThemeAccentSurfaces {
     readonly widget: string;
     /** Every surface the accent is drawn on, `widget` included. */
     readonly all: readonly string[];
+    /** Heading ink; accent fills are pulled toward it for depth. */
+    readonly heading: string;
 }
 
 /** Every token `deriveThemeAccentTokens()` can set, for clean removal. */
@@ -36,16 +38,25 @@ export const THEME_ACCENT_SURFACE_TOKENS = [
     '--app-card-hover-bg',
 ] as const;
 
-// The strongest selection tint the palettes draw (`--app-selection-surface-
-// strong`): text in the accent must stay readable on it.
+// The palettes' selection tints. The accent itself is text on the plain one
+// (`--app-selection-surface`, and 12% badges); `--app-selection-text-color`
+// is the text role on the strongest (`--app-selection-surface-strong`).
+const SOFT_TINT = { dark: 0.18, light: 0.14 };
 const STRONG_TINT = { dark: 0.28, light: 0.22 };
-// Dark presets also use the selection colour itself as text in selected
-// rows, so it needs text contrast there; light presets only draw with it.
-const SELECTION_MIN = { dark: 4.5, light: 3 };
+// Solid accent fills that carry `--app-selection-on-color` or
+// `--mat-sys-on-primary` text: the accent itself and the empty-state CTA
+// gradient, which pulls it 20–40% toward the heading ink.
+const FILL_HEADING_MIX = [0, 0.2, 0.4];
 const TEXT_MIN = 4.5;
 // Head-room for the 8-bit rounding of the browser's own colour-mix().
 const MARGIN = 0.05;
 
+/**
+ * The accent is a text colour too (badges, selected labels) and a fill under
+ * text, so it keeps 4.5:1 against every surface and its plain tint, and some
+ * on-accent colour keeps 4.5:1 across every fill made from it. The text role
+ * also keeps 4.5:1 on the strongest tint.
+ */
 export function deriveThemeAccentTokens(
     accentHex: string,
     surfaces: ThemeAccentSurfaces
@@ -53,20 +64,26 @@ export function deriveThemeAccentTokens(
     const dark = luminance(parseHex(surfaces.widget)) < 0.2;
     const mode = dark ? 'dark' : 'light';
     const all = surfaces.all.map(parseHex);
+    const heading = parseHex(surfaces.heading);
+    const readableOn = (color: Rgb, tint: number) => {
+        const tints = all.map((surface) => mix(surface, color, tint));
+        return minContrast(color, [...all, ...tints]) >= TEXT_MIN + MARGIN;
+    };
+    const fills = (color: Rgb) =>
+        FILL_HEADING_MIX.map((amount) => mix(color, heading, amount));
 
     const selection = fitLightness(
         parseHex(accentHex),
         dark,
-        (color) => minContrast(color, all) >= SELECTION_MIN[mode] + MARGIN
+        (color) =>
+            readableOn(color, SOFT_TINT[mode]) &&
+            onColor(color, fills(color)).contrast >= TEXT_MIN + MARGIN
     );
-    const tints = all.map((surface) =>
-        mix(surface, selection, STRONG_TINT[mode])
+    const text = fitLightness(selection, dark, (color) =>
+        readableOn(color, STRONG_TINT[mode])
     );
-    const text = fitLightness(
-        selection,
-        dark,
-        (color) => minContrast(color, [...all, ...tints]) >= TEXT_MIN + MARGIN
-    );
+    // One foreground for every accent fill, `--mat-sys-primary` included.
+    const on = onColor(selection, [...fills(selection), text]).color;
     const container = mix(
         parseHex(surfaces.widget),
         selection,
@@ -76,12 +93,12 @@ export function deriveThemeAccentTokens(
     return {
         '--app-selection-color': toHex(selection),
         '--app-selection-text-color': toHex(text),
-        '--app-selection-on-color': toHex(onColor(selection)),
+        '--app-selection-on-color': toHex(on),
         '--app-focus-ring': toHex(text),
         // Light presets set selected rows in the heading colour already.
         ...(dark ? { '--app-list-selected-fg': toHex(text) } : {}),
         '--mat-sys-primary': toHex(text),
-        '--mat-sys-on-primary': toHex(onColor(text)),
+        '--mat-sys-on-primary': toHex(on),
         '--mat-sys-primary-container': toHex(container),
         '--mat-sys-on-primary-container': toHex(text),
     };
@@ -91,12 +108,14 @@ export function deriveThemeAccentTokens(
 export function readThemeAccentSurfaces(
     style: Pick<CSSStyleDeclaration, 'getPropertyValue'>
 ): ThemeAccentSurfaces | null {
-    const values = THEME_ACCENT_SURFACE_TOKENS.map((token) =>
-        style.getPropertyValue(token).trim()
-    );
+    const read = (token: string) => style.getPropertyValue(token).trim();
+    const values = THEME_ACCENT_SURFACE_TOKENS.map(read);
     const all = values.filter((value) => HEX.test(value));
-    const widget = values[0];
-    return HEX.test(widget) ? { widget, all } : null;
+    const [widget] = values;
+    const heading = read('--app-heading-color');
+    return HEX.test(widget) && HEX.test(heading)
+        ? { widget, all, heading }
+        : null;
 }
 
 export function contrastRatio(a: string, b: string): number {
@@ -152,12 +171,22 @@ function mix(base: Rgb, top: Rgb, amount: number): Rgb {
     return base.map((v, i) => v + (top[i] - v) * amount) as unknown as Rgb;
 }
 
-/** The readable foreground for a solid fill in the accent's own hue. */
-function onColor(fill: Rgb): Rgb {
-    const [, chroma, hue] = toOklch(fill);
-    const light = fromOklch(0.985, Math.min(chroma, 0.02), hue);
-    const deep = fromOklch(0.2, Math.min(chroma, 0.05), hue);
-    return contrast(light, fill) >= contrast(deep, fill) ? light : deep;
+/**
+ * The foreground with the best worst-case contrast across `fills`: a near
+ * white or a deep tone in the accent's own hue.
+ */
+function onColor(
+    accent: Rgb,
+    fills: readonly Rgb[]
+): { color: Rgb; contrast: number } {
+    const [, chroma, hue] = toOklch(accent);
+    const candidates = [
+        fromOklch(0.985, Math.min(chroma, 0.02), hue),
+        fromOklch(0.2, Math.min(chroma, 0.05), hue),
+    ].map((color) => ({ color, contrast: minContrast(color, fills) }));
+    return candidates[0].contrast >= candidates[1].contrast
+        ? candidates[0]
+        : candidates[1];
 }
 
 /**
