@@ -183,6 +183,49 @@ describe('Service: Settings', () => {
             }
         ));
     });
+    describe('system theme pair', () => {
+        afterEach(() => {
+            document.body.classList.remove('dark-theme', 'light-theme');
+            delete document.body.dataset['appTheme'];
+        });
+
+        it('shows the saved dark preset while the device is dark', () => {
+            const service = TestBed.inject(SettingsService);
+            service.changeSystemThemes(Theme.CreamTheme, Theme.MochaTheme);
+            service.changeTheme(Theme.SystemTheme);
+
+            expect(document.body.dataset['appTheme']).toBe('mocha');
+            systemThemeListeners[0]?.({ matches: false } as MediaQueryListEvent);
+            expect(document.body.dataset['appTheme']).toBe('cream');
+            expect(document.body.classList.contains('light-theme')).toBe(true);
+        });
+
+        it('applies a changed pair at once while System is active', () => {
+            const service = TestBed.inject(SettingsService);
+            service.changeTheme(Theme.SystemTheme);
+            expect(document.body.dataset['appTheme']).toBe('dark');
+
+            service.changeSystemThemes(Theme.LightTheme, Theme.NightOwlTheme);
+            expect(document.body.dataset['appTheme']).toBe('night-owl');
+        });
+
+        it('leaves an explicit theme alone when the pair changes', () => {
+            const service = TestBed.inject(SettingsService);
+            service.changeTheme(Theme.CreamTheme);
+            service.changeSystemThemes(Theme.LightTheme, Theme.BlackOledTheme);
+
+            expect(document.body.dataset['appTheme']).toBe('cream');
+        });
+
+        it('falls back to Light and Dark for presets of the wrong mode', () => {
+            const service = TestBed.inject(SettingsService);
+            service.changeSystemThemes(Theme.MochaTheme, Theme.CreamTheme);
+            service.changeTheme(Theme.SystemTheme);
+
+            expect(document.body.dataset['appTheme']).toBe('dark');
+        });
+    });
+
     describe('theme accent', () => {
         // jsdom loads no stylesheet; inline tokens stand in for the palette.
         const DARK = [

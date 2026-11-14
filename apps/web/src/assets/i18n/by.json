@@ -803,6 +803,8 @@
         "NIGHT_OWL_THEME": "Начная сава",
         "BLACK_OLED_THEME": "Чорны OLED",
         "SYSTEM_DESCRIPTION": "Сістэмная тэма аўтаматычна выбірае светлае або цёмнае афармленне прылады.",
+        "SYSTEM_LIGHT_PAIR": "У светлым рэжыме",
+        "SYSTEM_DARK_PAIR": "У цёмным рэжыме",
         "DARK_THEME": "Цёмная",
         "LIGHT_THEME": "Светлая",
         "SYSTEM_THEME": "Сістэмная",

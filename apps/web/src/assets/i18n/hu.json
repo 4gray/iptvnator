@@ -803,6 +803,8 @@
         "NIGHT_OWL_THEME": "Éjjeli bagoly",
         "BLACK_OLED_THEME": "OLED-fekete",
         "SYSTEM_DESCRIPTION": "A „Rendszer” téma az eszköz világos vagy sötét megjelenítési módjához igazodik.",
+        "SYSTEM_LIGHT_PAIR": "Világos módban",
+        "SYSTEM_DARK_PAIR": "Sötét módban",
         "DARK_THEME": "Sötét",
         "LIGHT_THEME": "Világos",
         "SYSTEM_THEME": "Rendszer",

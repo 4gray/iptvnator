@@ -803,6 +803,8 @@
         "NIGHT_OWL_THEME": "Coruja noturna",
         "BLACK_OLED_THEME": "Preto OLED",
         "SYSTEM_DESCRIPTION": "Sistema acompanha a aparência clara ou escura do seu dispositivo.",
+        "SYSTEM_LIGHT_PAIR": "No modo claro",
+        "SYSTEM_DARK_PAIR": "No modo escuro",
         "DARK_THEME": "Escuro",
         "LIGHT_THEME": "Claro",
         "SYSTEM_THEME": "Sistema",

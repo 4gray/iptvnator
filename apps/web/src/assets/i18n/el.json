@@ -803,6 +803,8 @@
         "NIGHT_OWL_THEME": "Νυχτοπούλι",
         "BLACK_OLED_THEME": "Μαύρο OLED",
         "SYSTEM_DESCRIPTION": "Η επιλογή συστήματος ακολουθεί τη φωτεινή ή σκοτεινή εμφάνιση της συσκευής σας.",
+        "SYSTEM_LIGHT_PAIR": "Σε φωτεινή λειτουργία",
+        "SYSTEM_DARK_PAIR": "Σε σκοτεινή λειτουργία",
         "DARK_THEME": "Σκούρο",
         "LIGHT_THEME": "Ανοιχτό",
         "SYSTEM_THEME": "Σύστημα",

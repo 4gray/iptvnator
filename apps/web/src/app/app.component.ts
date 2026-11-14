@@ -191,9 +191,14 @@ export class AppComponent implements OnInit {
                     if (this.epgBridge.supportsImport)
                         void this.fetchStaleEpgData();
 
-                    // Before the theme, which derives the accent's lightness.
+                    // Before the theme, which derives the accent's lightness
+                    // and resolves System through the saved pair.
                     this.settingsService.changeThemeAccent(
                         settings.themeAccent
+                    );
+                    this.settingsService.changeSystemThemes(
+                        settings.systemLightTheme,
+                        settings.systemDarkTheme
                     );
                     if (settings.theme) {
                         this.settingsService.changeTheme(settings.theme);

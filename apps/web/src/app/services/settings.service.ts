@@ -3,6 +3,7 @@ import { inject, Injectable, signal } from '@angular/core';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { catchError, map, Observable } from 'rxjs';
 import {
+    normalizeSystemTheme,
     normalizeTheme,
     normalizeThemeAccent,
     resolveThemeAccentHex,
@@ -86,11 +87,14 @@ export class SettingsService {
     private readonly systemThemeChangeHandler = (
         event: MediaQueryListEvent
     ): void => {
-        this.applyResolvedTheme(
-            event.matches ? Theme.DarkTheme : Theme.LightTheme
-        );
+        this.applyResolvedTheme(this.resolveSystemTheme(event.matches));
     };
     private isSystemThemeSyncActive = false;
+    private isSystemThemeSelected = false;
+    private systemThemes = {
+        light: Theme.LightTheme as Theme,
+        dark: Theme.DarkTheme as Theme,
+    };
     private accent: ThemeAccent | null = null;
 
     /** The preset on screen; "System" resolves to light or dark. */
@@ -104,17 +108,36 @@ export class SettingsService {
         this.stopSystemThemeSync();
 
         const theme = normalizeTheme(selectedTheme);
+        this.isSystemThemeSelected = theme === Theme.SystemTheme;
         if (theme === Theme.SystemTheme) {
             this.startSystemThemeSync();
             this.applyResolvedTheme(
-                this.systemThemeMediaQuery?.matches
-                    ? Theme.DarkTheme
-                    : Theme.LightTheme
+                this.resolveSystemTheme(!!this.systemThemeMediaQuery?.matches)
             );
             return;
         }
 
         this.applyResolvedTheme(theme);
+    }
+
+    /**
+     * The presets "System" shows while the device is light or dark. Applies
+     * at once when System is the active theme.
+     */
+    changeSystemThemes(light: unknown, dark: unknown): void {
+        this.systemThemes = {
+            light: normalizeSystemTheme(light, 'light'),
+            dark: normalizeSystemTheme(dark, 'dark'),
+        };
+        if (this.isSystemThemeSelected) {
+            this.applyResolvedTheme(
+                this.resolveSystemTheme(!!this.systemThemeMediaQuery?.matches)
+            );
+        }
+    }
+
+    private resolveSystemTheme(deviceIsDark: boolean): Theme {
+        return deviceIsDark ? this.systemThemes.dark : this.systemThemes.light;
     }
 
     /**

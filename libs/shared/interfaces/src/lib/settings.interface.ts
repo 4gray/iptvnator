@@ -224,6 +224,12 @@ export interface Settings {
      * `null` value keeps the theme's own selection colour.
      */
     themeAccent?: ThemeAccent | null;
+    /**
+     * Presets "System" shows while the device is light or dark. Missing or
+     * of the wrong mode, they fall back to the original Light and Dark.
+     */
+    systemLightTheme?: Theme;
+    systemDarkTheme?: Theme;
     mpvPlayerPath: string;
     /**
      * Extra MPV CLI arguments entered one argument per line. Applied only when

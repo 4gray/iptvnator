@@ -803,6 +803,8 @@
         "NIGHT_OWL_THEME": "Nachtuil",
         "BLACK_OLED_THEME": "OLED-zwart",
         "SYSTEM_DESCRIPTION": "Systeem volgt de lichte of donkere weergave van je apparaat.",
+        "SYSTEM_LIGHT_PAIR": "In lichte modus",
+        "SYSTEM_DARK_PAIR": "In donkere modus",
         "DARK_THEME": "Donker",
         "LIGHT_THEME": "Licht",
         "SYSTEM_THEME": "Systeem",

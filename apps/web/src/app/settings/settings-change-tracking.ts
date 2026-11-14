@@ -6,6 +6,8 @@ export const SETTINGS_CONTROL_SECTIONS: Readonly<Record<string, string>> = {
     language: 'general',
     theme: 'appearance',
     themeAccent: 'appearance',
+    systemLightTheme: 'appearance',
+    systemDarkTheme: 'appearance',
     coverSize: 'appearance',
     showCoverTitles: 'appearance',
     startupBehavior: 'general',

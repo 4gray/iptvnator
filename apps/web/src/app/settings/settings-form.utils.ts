@@ -22,6 +22,7 @@ import {
     normalizeEpgOffsetMinutes,
     normalizeParentalLockRelockMinutes,
     normalizeStartupWindowMode,
+    normalizeSystemTheme,
     normalizeThemeAccent,
     Settings,
     StartupBehavior,
@@ -106,6 +107,8 @@ export function createSettingsForm(
         stripCountryPrefix: false,
         theme: Theme.SystemTheme,
         themeAccent: null as ThemeAccent | null,
+        systemLightTheme: Theme.LightTheme as Theme,
+        systemDarkTheme: Theme.DarkTheme as Theme,
         mpvPlayerPath: '',
         mpvPlayerArguments: '',
         mpvReuseInstance: false,
@@ -225,6 +228,8 @@ export function createSettingsFromFormValue(
         stripCountryPrefix: value.stripCountryPrefix ?? false,
         theme: value.theme ?? Theme.SystemTheme,
         themeAccent: normalizeThemeAccent(value.themeAccent),
+        systemLightTheme: normalizeSystemTheme(value.systemLightTheme, 'light'),
+        systemDarkTheme: normalizeSystemTheme(value.systemDarkTheme, 'dark'),
         mpvPlayerPath: normalizeExternalPlayerPath(value.mpvPlayerPath),
         mpvPlayerArguments: normalizeExternalPlayerArguments(
             value.mpvPlayerArguments

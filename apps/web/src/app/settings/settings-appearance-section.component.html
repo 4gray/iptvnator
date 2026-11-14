@@ -89,6 +89,73 @@
                                 </mat-icon>
                             </button>
                         }
+                        @if (form().value.theme === systemTheme) {
+                            <div class="system-pair">
+                                @for (row of systemPairRows(); track row.mode) {
+                                    <div class="system-pair__row">
+                                        <span
+                                            class="system-pair__label"
+                                            [id]="'system-pair-' + row.mode"
+                                            >{{ row.labelKey | translate }}</span
+                                        >
+                                        <div
+                                            class="system-pair__options"
+                                            appRadioGroup
+                                            [attr.aria-labelledby]="
+                                                'system-pair-' + row.mode
+                                            "
+                                            [attr.data-test-id]="
+                                                'system-' + row.mode + '-theme'
+                                            "
+                                        >
+                                            @for (
+                                                option of row.options;
+                                                track option.value
+                                            ) {
+                                                <button
+                                                    type="button"
+                                                    class="system-pair__option"
+                                                    [class.system-pair__option--selected]="
+                                                        form().value[
+                                                            row.control
+                                                        ] === option.value
+                                                    "
+                                                    [appRadioOption]="
+                                                        form().value[
+                                                            row.control
+                                                        ] === option.value
+                                                    "
+                                                    [attr.data-test-id]="
+                                                        'system-' +
+                                                        row.mode +
+                                                        '-' +
+                                                        option.presetId
+                                                    "
+                                                    (click)="
+                                                        selectSystemTheme.emit({
+                                                            mode: row.mode,
+                                                            theme: option.value
+                                                        })
+                                                    "
+                                                >
+                                                    <span
+                                                        class="system-pair__swatch"
+                                                        [attr.data-theme-preview]="
+                                                            option.presetId
+                                                        "
+                                                        aria-hidden="true"
+                                                    ></span>
+                                                    {{
+                                                        option.labelKey
+                                                            | translate
+                                                    }}
+                                                </button>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
                         <p class="theme-picker__hint">
                             {{ 'THEMES.SYSTEM_DESCRIPTION' | translate }}
                         </p>
@@ -137,7 +204,7 @@
                                              its preview palette because body
                                              carries the chosen accent. -->
                                         <span
-                                            class="accent-swatch__fill"
+                                            class="accent-swatch__fill accent-swatch__fill--theme"
                                             [attr.data-theme-preview]="
                                                 appliedThemePresetId()
                                             "

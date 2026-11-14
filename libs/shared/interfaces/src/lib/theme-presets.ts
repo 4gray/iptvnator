@@ -31,3 +31,17 @@ export function resolveThemePreset(
         THEME_PRESETS[systemDark ? 1 : 0]
     );
 }
+
+export type ThemeMode = ThemePreset['mode'];
+
+/**
+ * The preset "System" shows while the device uses `mode`: a saved preset of
+ * that mode, otherwise the original Light or Dark.
+ */
+export function normalizeSystemTheme(value: unknown, mode: ThemeMode): Theme {
+    const preset = THEME_PRESETS.find(
+        (candidate) => candidate.value === value && candidate.mode === mode
+    );
+    if (preset) return preset.value as Theme;
+    return mode === 'dark' ? Theme.DarkTheme : Theme.LightTheme;
+}

@@ -127,6 +127,63 @@ describe('SettingsComponent form', () => {
         expect(themeSwatch.getAttribute('aria-checked')).toBe('true');
     });
 
+    it('stages the System pair, previews it and restores it on Discard', () => {
+        setSettingsSection('appearance');
+        fixture.detectChanges();
+        const service = TestBed.inject(SettingsService);
+        const changeSystemThemes = jest.spyOn(service, 'changeSystemThemes');
+        const root = fixture.nativeElement as HTMLElement;
+        expect(component.settingsForm.value.theme).toBe(Theme.SystemTheme);
+
+        const dark = root.querySelector('[data-test-id="system-dark-theme"]');
+        const options = [
+            ...(dark?.querySelectorAll('button') ?? []),
+        ].map((button) => button.getAttribute('data-test-id'));
+        // Only dark presets can be the dark choice.
+        expect(options).toEqual([
+            'system-dark-dark',
+            'system-dark-mocha',
+            'system-dark-night-owl',
+            'system-dark-black-oled',
+        ]);
+
+        (
+            root.querySelector(
+                '[data-test-id="system-light-cream"]'
+            ) as HTMLButtonElement
+        ).click();
+        fixture.detectChanges();
+        expect(component.settingsForm.value.systemLightTheme).toBe(
+            Theme.CreamTheme
+        );
+        expect(changeSystemThemes).toHaveBeenLastCalledWith(
+            Theme.CreamTheme,
+            Theme.DarkTheme
+        );
+        expect(settingsStore.updateSettings).not.toHaveBeenCalled();
+
+        component.discardChanges();
+        fixture.detectChanges();
+        expect(component.settingsForm.value.systemLightTheme).toBe(
+            Theme.LightTheme
+        );
+        expect(changeSystemThemes).toHaveBeenLastCalledWith(
+            Theme.LightTheme,
+            Theme.DarkTheme
+        );
+    });
+
+    it('hides the System pair while an explicit theme is selected', () => {
+        setSettingsSection('appearance');
+        fixture.detectChanges();
+        component.form.selectTheme(Theme.MochaTheme);
+        fixture.detectChanges();
+
+        expect(
+            (fixture.nativeElement as HTMLElement).querySelector('.system-pair')
+        ).toBeNull();
+    });
+
     it('updates the saved key in the open form without saving an unrelated draft', async () => {
         await fixture.whenStable();
         const form = component.settingsForm;
