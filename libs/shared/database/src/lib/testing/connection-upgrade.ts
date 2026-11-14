@@ -17,22 +17,44 @@ const tables = [
     'downloads',
 ] as const;
 
+function hasTable(sqlite: Database.Database, table: string): boolean {
+    return (
+        (sqlite.pragma(`table_info(${table})`) as { name: string }[]).length > 0
+    );
+}
+
+function hasColumn(
+    sqlite: Database.Database,
+    table: string,
+    column: string
+): boolean {
+    return (sqlite.pragma(`table_info(${table})`) as { name: string }[]).some(
+        ({ name }) => name === column
+    );
+}
+
 function seed(sqlite: Database.Database) {
+    // 0.17 has no `categories.hidden` and no position or download tables.
+    const hidden = hasColumn(sqlite, 'categories', 'hidden');
     sqlite.exec(`
         INSERT INTO playlists (id, name, type, serverUrl, username, password)
         VALUES ('saved', 'Saved source', 'xtream', 'https://source.invalid',
                 'synthetic-user', 'synthetic-password');
-        INSERT INTO categories (id, playlist_id, name, type, xtream_id, hidden)
-        VALUES (1, 'saved', 'Movies', 'movies', 42, 1);
+        INSERT INTO categories (id, playlist_id, name, type, xtream_id${hidden ? ', hidden' : ''})
+        VALUES (1, 'saved', 'Movies', 'movies', 42${hidden ? ', 1' : ''});
         INSERT INTO content (id, category_id, title, xtream_id, type, added)
         VALUES (1, 1, 'Saved movie', 7, 'movie', '1700000000');
         INSERT INTO recently_viewed (content_id, playlist_id) VALUES (1, 'saved');
-        INSERT INTO playback_positions
-            (playlist_id, content_xtream_id, content_type, position_seconds, duration_seconds)
-        VALUES ('saved', 7, 'vod', 123, 1800);
-        INSERT INTO downloads (playlist_id, xtream_id, content_type, title, url, status)
-        VALUES ('saved', 7, 'vod', 'Saved movie', 'https://source.invalid/movie', 'completed');
     `);
+    if (hasTable(sqlite, 'playback_positions')) {
+        sqlite.exec(`INSERT INTO playback_positions
+            (playlist_id, content_xtream_id, content_type, position_seconds, duration_seconds)
+        VALUES ('saved', 7, 'vod', 123, 1800)`);
+    }
+    if (hasTable(sqlite, 'downloads')) {
+        sqlite.exec(`INSERT INTO downloads (playlist_id, xtream_id, content_type, title, url, status)
+        VALUES ('saved', 7, 'vod', 'Saved movie', 'https://source.invalid/movie', 'completed')`);
+    }
     const favoriteColumns = sqlite.pragma('table_info(favorites)') as {
         name: string;
     }[];
@@ -134,13 +156,15 @@ function requireSingleStatementExec(): string[] {
 }
 
 function snapshot(sqlite: Database.Database) {
-    return tables.map((table) => {
-        const columns = sqlite.pragma(`table_info(${table})`) as {
-            name: string;
-        }[];
-        const query = `SELECT ${columns.map(({ name }) => `"${name}"`).join(', ')} FROM ${table} ORDER BY id`;
-        return { query, rows: sqlite.prepare(query).all() };
-    });
+    return tables
+        .filter((table) => hasTable(sqlite, table))
+        .map((table) => {
+            const columns = sqlite.pragma(`table_info(${table})`) as {
+                name: string;
+            }[];
+            const query = `SELECT ${columns.map(({ name }) => `"${name}"`).join(', ')} FROM ${table} ORDER BY id`;
+            return { query, rows: sqlite.prepare(query).all() };
+        });
 }
 
 function epgIndex(sqlite: Database.Database) {
@@ -309,6 +333,21 @@ async function main() {
                 assert.deepEqual(sqlite.pragma('integrity_check'), [
                     { integrity_check: 'ok' },
                 ]);
+                // The partial index reads `hidden`, which 0.17 lacks: it must
+                // be created after the column migration, not with the tables.
+                assert.match(
+                    String(
+                        (
+                            sqlite
+                                .prepare(
+                                    "SELECT sql FROM sqlite_master WHERE name = 'idx_categories_visible'"
+                                )
+                                .get() as { sql?: string } | undefined
+                        )?.sql
+                    ),
+                    /WHERE hidden = 0$/,
+                    'idx_categories_visible must exist after initialization'
+                );
                 const index = epgIndex(sqlite);
                 assert(index, 'EPG index must exist after initialization');
                 assert.deepEqual(

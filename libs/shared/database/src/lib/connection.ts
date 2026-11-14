@@ -197,13 +197,6 @@ const CREATE_TABLE_STATEMENTS = [
     `CREATE INDEX IF NOT EXISTS idx_content_xtream ON content(xtream_id)`,
     `CREATE INDEX IF NOT EXISTS idx_content_type_added ON content(type, added)`,
     `CREATE INDEX IF NOT EXISTS idx_categories_type ON categories(type)`,
-    // Partial covering index for visible categories — supports the dashboard's
-    // getGlobalRecentlyAdded plus searchContent/globalSearch when excludeHidden
-    // is set. SQLite can satisfy the join (category_id PK lookup) plus the
-    // hidden = 0 filter directly from this index without touching the
-    // categories row, and hidden categories are absent so they're skipped
-    // before any row lookup.
-    `CREATE INDEX IF NOT EXISTS idx_categories_visible ON categories(id, playlist_id, type) WHERE hidden = 0`,
     // Trigram FTS index for global Xtream title search. It supports fast
     // contains matches such as "max" -> "beIN MAX" and "Cinemax" without
     // scanning the full content table.
@@ -405,6 +398,14 @@ const COLUMN_MIGRATION_STATEMENTS = [
 const INDEX_MIGRATION_STATEMENTS = [
     // Existing v0.19 content tables gain this column above, after CREATE TABLE.
     `CREATE INDEX IF NOT EXISTS idx_content_epg_channel ON content(epg_channel_id)`,
+    // Partial covering index for visible categories — supports the dashboard's
+    // getGlobalRecentlyAdded plus searchContent/globalSearch when excludeHidden
+    // is set. SQLite can satisfy the join (category_id PK lookup) plus the
+    // hidden = 0 filter directly from this index without touching the
+    // categories row, and hidden categories are absent so they're skipped
+    // before any row lookup. v0.17 categories tables gain `hidden` above, so
+    // the index cannot be created with the tables.
+    `CREATE INDEX IF NOT EXISTS idx_categories_visible ON categories(id, playlist_id, type) WHERE hidden = 0`,
     // v1.3.0 -> v1.4.0: Prevent duplicate Xtream categories/content rows
     `CREATE UNIQUE INDEX IF NOT EXISTS categories_playlist_type_xtream_unique ON categories(playlist_id, type, xtream_id)`,
     `CREATE UNIQUE INDEX IF NOT EXISTS content_category_type_xtream_unique ON content(category_id, type, xtream_id)`,

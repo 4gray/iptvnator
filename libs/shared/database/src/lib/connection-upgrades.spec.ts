@@ -6,6 +6,7 @@ import { join, resolve } from 'node:path';
 
 describe('database initialization across skipped releases (#1580)', () => {
     it.each([
+        '0.17.1',
         '0.19.0',
         '0.20.0',
         '0.21.0',
