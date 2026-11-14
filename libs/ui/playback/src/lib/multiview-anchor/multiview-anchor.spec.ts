@@ -225,6 +225,17 @@ describe('MultiviewAnchor', () => {
             expect(store.exists()).toBe(false);
         });
 
+        it('keeps the view selection that took its player slot away', () => {
+            // A radio channel: the view shows its audio player instead.
+            view().playing.set(null);
+            view().shown.set(false);
+            fixture.detectChanges();
+
+            expect(store.exists()).toBe(false);
+            expect(view().adopt).not.toHaveBeenCalled();
+            expect(view().playing()).toBeNull();
+        });
+
         it('brings the player back with the surviving tile (R8, D2)', () => {
             const pip = store.tiles()[1];
             store.setAudio(pip.id);

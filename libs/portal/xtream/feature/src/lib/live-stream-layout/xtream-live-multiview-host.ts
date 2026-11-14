@@ -47,6 +47,19 @@ export function createXtreamLiveMultiviewHost(
             playlistId,
             contentId: channelId === null ? undefined : String(channelId),
             title: playback.title,
+            ...(channelId === null
+                ? {}
+                : {
+                      lockItem: {
+                          uid: `xtream::${playlistId}::live:${channelId}`,
+                          name: playback.title,
+                          sourceType: 'xtream',
+                          contentType: 'live',
+                          playlistId,
+                          playlistName: '',
+                          xtreamId: channelId,
+                      },
+                  }),
         };
     });
 

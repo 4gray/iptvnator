@@ -62,6 +62,24 @@ describe('createStalkerLiveMultiviewHost', () => {
         expect(host.engine()).toBe(VideoPlayer.Html5Player);
     });
 
+    it('carries the playing row for parental relocks (R11)', () => {
+        const item = {
+            uid: 'stalker::portal-1::101',
+            name: 'Synthetic News',
+            contentType: 'live',
+            sourceType: 'stalker',
+            playlistId: 'portal-1',
+            playlistName: '',
+            categoryId: '7',
+        } as const;
+        const host = createStalkerLiveMultiviewHost({
+            ...setup().deps,
+            lockItem: () => item,
+        });
+
+        expect(host.source()?.lockItem).toBe(item);
+    });
+
     it('marks radio so it never becomes a tile', () => {
         const { deps, host } = setup();
         deps.radio.set(true);

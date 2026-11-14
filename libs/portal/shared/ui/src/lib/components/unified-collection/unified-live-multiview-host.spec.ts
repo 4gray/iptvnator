@@ -46,6 +46,8 @@ describe('createUnifiedLiveMultiviewHost', () => {
             playlistId: 'pl-2',
             contentId: 'xtream::pl-2::20',
             title: 'Xtream Live',
+            // What a parental relock checks once the view moved on (R11).
+            lockItem: buildLiveItem('xtream'),
         });
         expect(host.engine()).toBe(VideoPlayer.ArtPlayer);
     });

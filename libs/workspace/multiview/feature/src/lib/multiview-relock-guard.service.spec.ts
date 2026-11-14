@@ -1,6 +1,9 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { MultiviewSessionStore } from '@iptvnator/playback/multiview/data-access';
+import {
+    MultiviewAnchorRegistry,
+    MultiviewSessionStore,
+} from '@iptvnator/playback/multiview/data-access';
 import type { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 import { ParentalLockService } from '@iptvnator/services';
 import { MultiviewPickerDataService } from './multiview-picker-data.service';
@@ -16,6 +19,8 @@ describe('MultiviewRelockGuard (R11)', () => {
         tile({ id: 'multiview-tile-2', playbackSessionKey: 'picked' }),
     ]);
     const withhold = jest.fn();
+    /** What the anchor view plays now. */
+    const viewSelection = signal('own');
     const locked = new Set<string>();
     const xtreamLocked = new Set<string>();
 
@@ -23,6 +28,7 @@ describe('MultiviewRelockGuard (R11)', () => {
         locked.clear();
         xtreamLocked.clear();
         withhold.mockReset();
+        viewSelection.set('own');
         TestBed.configureTestingModule({
             providers: [
                 {
@@ -34,9 +40,26 @@ describe('MultiviewRelockGuard (R11)', () => {
                     useValue: {
                         tiles,
                         exists: () => true,
+                        anchorId: () => 'probe-view',
                         withhold,
                         tile: (id: string) =>
                             tiles().find((candidate) => candidate.id === id),
+                    },
+                },
+                {
+                    provide: MultiviewAnchorRegistry,
+                    useValue: {
+                        find: (id: string | null) =>
+                            id === 'probe-view'
+                                ? {
+                                      host: {
+                                          source: () => ({
+                                              playbackSessionKey:
+                                                  viewSelection(),
+                                          }),
+                                      },
+                                  }
+                                : null,
                     },
                 },
                 {
@@ -117,5 +140,36 @@ describe('MultiviewRelockGuard (R11)', () => {
         await new Promise((resolve) => setTimeout(resolve));
 
         expect(withhold).not.toHaveBeenCalled();
+    });
+
+    it('keeps checking a source the view played once the view moved on', async () => {
+        guard();
+        // The view started on "earlier", which is now the PiP, and plays
+        // "current" in the main tile.
+        tiles.set([
+            tile({
+                id: 'multiview-tile-1',
+                playbackSessionKey: 'current',
+                lockItem: liveItem(6),
+            }),
+            tile({
+                id: 'multiview-tile-2',
+                playbackSessionKey: 'earlier',
+                lockItem: liveItem(5),
+            }),
+        ]);
+        viewSelection.set('current');
+        locked.add(liveItem(5).uid);
+        locked.add(liveItem(6).uid);
+        version.update((n) => n + 1);
+        TestBed.tick();
+        await new Promise((resolve) => setTimeout(resolve));
+
+        // The view handles its own selection; the earlier source stops.
+        expect(withhold).toHaveBeenCalledWith(['multiview-tile-2']);
+        tiles.set([
+            tile({ id: 'multiview-tile-1', playbackSessionKey: 'own' }),
+            tile({ id: 'multiview-tile-2', playbackSessionKey: 'picked' }),
+        ]);
     });
 });

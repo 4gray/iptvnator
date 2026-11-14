@@ -1387,6 +1387,23 @@ the maintainer's request):** five findings.
   sources list every film first, so 100 matching films hid every series:
   each type is now limited to 50 on its own.
 
+**Round 10 (Codex, commit `84d7bb06c`):** four findings.
+- Fixed — P1, a channel the view started on and then left (swap, then a new
+  selection in the view) kept playing in the PiP through a relock: it was
+  neither a picked tile nor the view's selection. Live hosts now give their
+  source the row item (`lockItem`, M3U, Xtream, Stalker, unified live tab),
+  and the guard checks every tile except the view's current selection.
+  VOD and episodes from the details pages are not covered (phase 1 limit).
+- Fixed — P2, selecting an M3U radio channel during a session removed the
+  placeholder, and the anchor then handed the previous audio tile back,
+  undoing the selection: an `anchor-left` end adopts nothing.
+- Fixed — P2, the picker rows ignored the EPG offset setting for the
+  progress and time range: they use the display time
+  (`resolvedEpgOffsetMinutes`).
+- Declined — P2, a toast with Undo for a drop on a tile or "Choose another
+  source": R6 asks for it only when an add replaces a tile at capacity; a
+  direct replace is the user's explicit choice (R5).
+
 Greptile: not run (the `greptile` CLI is not installed on this machine).
 
 ## Phase acceptance (spec 14)

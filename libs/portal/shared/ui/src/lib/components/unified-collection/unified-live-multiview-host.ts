@@ -66,6 +66,7 @@ export function createUnifiedLiveMultiviewHost(
             playlistId: item.playlistId,
             contentId: timeshift ? undefined : item.uid,
             title: playback.title,
+            lockItem: item,
             ...(tab.isRadioSelection() ? { radio: true } : {}),
         };
     });

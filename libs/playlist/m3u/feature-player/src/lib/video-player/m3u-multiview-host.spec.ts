@@ -57,6 +57,13 @@ describe('createM3uMultiviewHost', () => {
             playlistId: 'playlist-1',
             contentId: 'ch-1',
             title: 'Synthetic News',
+            // What a parental relock checks once the view moved on (R11).
+            lockItem: expect.objectContaining({
+                sourceType: 'm3u',
+                contentType: 'live',
+                playlistId: 'playlist-1',
+                m3uChannel: { id: 'ch-1' },
+            }),
         });
         expect(host.engine()).toBe(VideoPlayer.Html5Player);
     });

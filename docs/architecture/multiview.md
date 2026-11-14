@@ -57,7 +57,12 @@ Xtream live, M3U player, Stalker live, the Favorites / Recently viewed live
 tab and the portal inline player (movie and series details).
 
 Tile 1 continues the view's VOD from its position (R1); after the session the
-view resumes its own source where its tile was (`resumePosition`, R7).
+view resumes its own source where its tile was (`resumePosition`, R7). A
+live host also gives its source the channel's row item (`lockItem`), so a
+tile the view played stays under parental relocks after the view moves on.
+When the view's player slot goes away for its own reason (a radio channel
+selected), the session ends without handing the survivor back: the view's
+new selection stands.
 
 ## Stage
 
@@ -121,9 +126,12 @@ progress like their own players, through the runtime's position store
 (`PORTAL_PLAYBACK_POSITIONS`, R9). A picked or dropped item is recorded in recently
 viewed through `PlaybackHistoryGate`, confirmed once the tile plays (R10).
 
-A parental relock stops every tile added from the picker or a list whose
-item is now withheld (`MultiviewRelockGuard`); the anchor's own tile follows
-its view. Replacing a tile shows "Replaced tile N" with Undo (R6).
+A parental relock stops every tile whose item is now withheld
+(`MultiviewRelockGuard`): tiles added from the picker or a list, and tiles a
+view played before it moved on (their `lockItem`); the tile playing the
+view's current selection follows its view. An add that replaces a tile at
+capacity shows "Replaced tile N" with Undo (R6); a drop on a tile or
+"Choose another source" replaces it directly.
 
 ## Picker
 
@@ -151,6 +159,8 @@ without a positive limit show "limit ?".
 
 - PiP only; side by side, grid and focus, `Alt+1–4`, the minimised mini
   player and Embedded MPV tiles are later phases.
+- A film or episode the details page played and then left (another
+  episode) is not rechecked on a relock; live views are.
 - Continue lists Xtream films only; series episodes exist for Xtream only;
   Stalker and M3U films cannot become tiles.
 - The main tile's fullscreen covers that tile only.

@@ -1,7 +1,8 @@
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import type { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
-import { PlaylistsService } from '@iptvnator/services';
+import { PlaylistsService, SettingsStore } from '@iptvnator/services';
 import { TranslateModule } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { MultiviewOnScreenSources } from './multiview-on-screen';
@@ -85,6 +86,10 @@ describe('MultiviewPickerDialogComponent', () => {
             ],
             providers: [
                 { provide: MatDialogRef, useValue: { close } },
+                {
+                    provide: SettingsStore,
+                    useValue: { resolvedEpgOffsetMinutes: signal(0) },
+                },
                 {
                     provide: MAT_DIALOG_DATA,
                     useValue: {

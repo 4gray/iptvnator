@@ -1,3 +1,4 @@
+import type { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 import type {
     ResolvedPortalPlayback,
     VideoPlayer,
@@ -33,6 +34,12 @@ export interface MultiviewTileSource {
     /** Provider id of the content, so a player view can select it again. */
     readonly contentId?: string;
     readonly title: string;
+    /**
+     * The channel a parental relock checks for this source (R11). A view
+     * sets it for its own selection, so the tile stays checked after the
+     * view moves on while the tile keeps playing.
+     */
+    readonly lockItem?: UnifiedCollectionItem;
     /** Radio is audio-only and never becomes a tile (non-goal). */
     readonly radio?: boolean;
     /** VOD position to start from, in seconds. */

@@ -2,18 +2,29 @@ import {
     ChangeDetectionStrategy,
     Component,
     computed,
+    inject,
     input,
     signal,
 } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
-import type { EpgProgram } from '@iptvnator/shared/interfaces';
+import { SettingsStore } from '@iptvnator/services';
+import {
+    epgDisplayTimeMs,
+    type EpgProgram,
+} from '@iptvnator/shared/interfaces';
 import { TranslatePipe } from '@ngx-translate/core';
 import type { MultiviewPickerRow } from './multiview-picker-row';
 
 const MINUTE_MS = 60_000;
 
-function programTime(value: string, timestamp?: number | null): number {
-    return timestamp ? timestamp * 1000 : Date.parse(value);
+/** A programme boundary in display time (with the EPG offset setting). */
+function programTime(
+    value: string,
+    timestamp: number | null | undefined,
+    offsetMinutes: number
+): number {
+    const raw = timestamp ? timestamp * 1000 : Date.parse(value);
+    return epgDisplayTimeMs(raw, offsetMinutes);
 }
 
 /** "SA" for "Sport Arena": the logo tile of a row without a logo. */
@@ -28,11 +39,20 @@ export function initialsOf(name: string): string {
 /** Elapsed share and minutes of a running programme, or null. */
 export function programProgress(
     program: EpgProgram | null,
-    now = Date.now()
+    now = Date.now(),
+    offsetMinutes = 0
 ): { readonly percent: number; readonly minutes: number } | null {
     if (!program) return null;
-    const start = programTime(program.start, program.startTimestamp);
-    const stop = programTime(program.stop, program.stopTimestamp);
+    const start = programTime(
+        program.start,
+        program.startTimestamp,
+        offsetMinutes
+    );
+    const stop = programTime(
+        program.stop,
+        program.stopTimestamp,
+        offsetMinutes
+    );
     if (!Number.isFinite(start) || !Number.isFinite(stop) || stop <= start) {
         return null;
     }
@@ -43,8 +63,12 @@ export function programProgress(
     };
 }
 
-function clock(value: string, timestamp?: number | null): string {
-    const date = new Date(programTime(value, timestamp));
+function clock(
+    value: string,
+    timestamp: number | null | undefined,
+    offsetMinutes: number
+): string {
+    const date = new Date(programTime(value, timestamp, offsetMinutes));
     return Number.isNaN(date.getTime())
         ? ''
         : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -88,13 +112,18 @@ export class MultiviewPickerRowComponent {
             : this.item().logo || this.item().posterUrl || null
     );
     readonly initials = computed(() => initialsOf(this.item().name));
-    readonly progress = computed(() => programProgress(this.program()));
+    private readonly epgOffset = inject(SettingsStore).resolvedEpgOffsetMinutes;
+    readonly progress = computed(() =>
+        programProgress(this.program(), Date.now(), this.epgOffset())
+    );
     readonly times = computed(() => {
         const program = this.program();
+        const offset = this.epgOffset();
         return program
-            ? `${clock(program.start, program.startTimestamp)}–${clock(
+            ? `${clock(program.start, program.startTimestamp, offset)}–${clock(
                   program.stop,
-                  program.stopTimestamp
+                  program.stopTimestamp,
+                  offset
               )}`
             : '';
     });

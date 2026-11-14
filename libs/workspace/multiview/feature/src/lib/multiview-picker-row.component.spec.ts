@@ -1,4 +1,6 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { SettingsStore } from '@iptvnator/services';
 import type { EpgProgram } from '@iptvnator/shared/interfaces';
 import { TranslateModule } from '@ngx-translate/core';
 import { liveItem, movieItem } from './multiview-picker.fixtures';
@@ -32,15 +34,32 @@ describe('picker row helpers', () => {
         ).toBeNull();
         expect(programProgress(null, NOW)).toBeNull();
     });
+
+    it('measures in display time when the EPG is shifted', () => {
+        // -60 min: the programme runs 19:30–21:30 on the viewer's clock.
+        expect(programProgress(program, NOW, -60)).toEqual({
+            percent: 58,
+            minutes: 70,
+        });
+    });
 });
 
 describe('MultiviewPickerRowComponent', () => {
+    const epgOffset = signal(0);
+    afterEach(() => epgOffset.set(0));
+
     function render(
         row: ReturnType<typeof toPickerRow>,
         inputs: Record<string, unknown> = {}
     ): HTMLElement {
         TestBed.configureTestingModule({
             imports: [MultiviewPickerRowComponent, TranslateModule.forRoot()],
+            providers: [
+                {
+                    provide: SettingsStore,
+                    useValue: { resolvedEpgOffsetMinutes: epgOffset },
+                },
+            ],
         });
         const fixture = TestBed.createComponent(MultiviewPickerRowComponent);
         fixture.componentRef.setInput('row', row);
@@ -74,6 +93,25 @@ describe('MultiviewPickerRowComponent', () => {
                     ) as HTMLElement
                 ).style.width
             ).toBe('8%');
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('applies the EPG offset setting to the progress', () => {
+        jest.useFakeTimers({ now: NOW });
+        try {
+            epgOffset.set(-60);
+            const host = render(toPickerRow(liveItem(1), []), { program });
+
+            expect(host.textContent).toContain('70′');
+            expect(
+                (
+                    host.querySelector(
+                        '.mv-picker-row__progress span'
+                    ) as HTMLElement
+                ).style.width
+            ).toBe('58%');
         } finally {
             jest.useRealTimers();
         }

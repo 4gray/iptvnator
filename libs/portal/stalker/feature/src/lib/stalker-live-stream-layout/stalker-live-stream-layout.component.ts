@@ -161,7 +161,10 @@ import {
     provideMultiviewAnchor,
 } from '@iptvnator/ui/playback/multiview-anchor';
 import { createStalkerLiveMultiviewHost } from './stalker-live-multiview-host';
-import { provideStalkerMultiviewChannels } from './stalker-multiview-channel';
+import {
+    provideStalkerMultiviewChannels,
+    stalkerMultiviewChannelItem,
+} from './stalker-multiview-channel';
 
 @Component({
     selector: 'app-stalker-live-stream-layout',
@@ -440,11 +443,13 @@ export class StalkerLiveStreamLayoutComponent
             sessionKey: this.playbackSessionKey,
             radio: this.isRadioMode,
             player: () => this.settingsStore.player?.(),
+            lockItem: () =>
+                stalkerMultiviewChannelItem(
+                    this.multiviewPlaylist() ?? null,
+                    this.listedChannel(this.activePlaybackIdentity()?.contentId)
+                ),
             selectChannel: (channelId) => {
-                const item = this.itvChannels().find(
-                    (channel) =>
-                        normalizeStalkerEntityId(channel.id) === channelId
-                );
+                const item = this.listedChannel(channelId);
                 if (item) void this.playChannel(item, true);
                 return !!item;
             },
@@ -1046,6 +1051,14 @@ export class StalkerLiveStreamLayoutComponent
         this.playbackRequestId += 1;
         this.streamHeaders.clear(this.radioHeaderScopeUrl);
         this.clearActivePlayback();
+    }
+
+    private listedChannel(id: string | undefined): StalkerItvChannel | null {
+        return id === undefined
+            ? null
+            : (this.itvChannels().find(
+                  (channel) => normalizeStalkerEntityId(channel.id) === id
+              ) ?? null);
     }
 
     isSelectedChannel(item: StalkerItvChannel): boolean {

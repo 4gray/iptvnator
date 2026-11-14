@@ -54,6 +54,16 @@ export function createM3uMultiviewHost(
             playlistId,
             contentId: catchupUrl ? undefined : String(channel.id),
             title: playback.title,
+            lockItem: {
+                uid: `m3u::${playlistId}::${channel.id}`,
+                name: channel.name,
+                sourceType: 'm3u',
+                contentType: 'live',
+                playlistId,
+                playlistName: '',
+                channelId: channel.id,
+                m3uChannel: channel,
+            },
             ...(deps.volume ? { volume: deps.volume() } : {}),
             // Radio plays in the audio player and never becomes a tile.
             ...(channel.radio === 'true' ? { radio: true } : {}),

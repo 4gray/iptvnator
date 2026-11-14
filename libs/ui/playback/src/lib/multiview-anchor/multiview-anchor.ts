@@ -176,6 +176,10 @@ export class MultiviewAnchor {
             );
             this.ownTile = null;
             const survivor = notice.effect.survivor;
+            // The view itself moved on (its player slot went away, e.g. for
+            // a radio channel): its own selection stands, nothing is handed
+            // back.
+            if (notice.effect.reason === 'anchor-left') return;
             if (
                 survivor &&
                 survivor.playbackSessionKey !==

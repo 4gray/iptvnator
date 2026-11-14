@@ -57,6 +57,13 @@ describe('createXtreamLiveMultiviewHost', () => {
             playlistId: 'playlist-1',
             contentId: '101',
             title: 'Synthetic News',
+            // What a parental relock checks once the view moved on (R11).
+            lockItem: expect.objectContaining({
+                sourceType: 'xtream',
+                contentType: 'live',
+                playlistId: 'playlist-1',
+                xtreamId: 101,
+            }),
         });
         expect(host.engine()).toBe(VideoPlayer.ArtPlayer);
     });

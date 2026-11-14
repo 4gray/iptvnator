@@ -4,6 +4,7 @@ import type {
     MultiviewTile,
     MultiviewTileSource,
 } from '@iptvnator/playback/multiview/data-access';
+import type { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 import {
     type ResolvedPortalPlayback,
     VideoPlayer,
@@ -20,6 +21,8 @@ export interface StalkerLiveMultiviewDeps {
     readonly sessionKey: Signal<string>;
     readonly radio: Signal<boolean>;
     readonly player: () => VideoPlayer | undefined;
+    /** The playing channel as its row item, for parental relocks. */
+    readonly lockItem?: () => UnifiedCollectionItem | null;
     /** Plays a channel of the current portal; resolves a fresh link. */
     /** Selects the channel; false when the view does not list it. */
     readonly selectChannel: (channelId: string) => boolean;
@@ -45,6 +48,7 @@ export function createStalkerLiveMultiviewHost(
             playlistId: identity.sourceId,
             contentId: identity.contentId,
             title: playback.title,
+            ...lockItemOf(deps),
             ...(deps.radio() ? { radio: true } : {}),
         };
     });
@@ -64,4 +68,11 @@ export function createStalkerLiveMultiviewHost(
             return deps.selectChannel(tile.contentId);
         },
     };
+}
+
+function lockItemOf(deps: StalkerLiveMultiviewDeps): {
+    lockItem?: UnifiedCollectionItem;
+} {
+    const lockItem = deps.lockItem?.();
+    return lockItem ? { lockItem } : {};
 }
