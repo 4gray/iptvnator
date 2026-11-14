@@ -42,6 +42,16 @@ nav button[aria-current='page'],
     box-shadow: inset 0 -5px 0 var(--tv-accent);
 }
 
+/* A focused choice is a focused button first: mint fill, dark text. */
+nav button:focus,
+.favorite-types button:focus,
+.filters button:focus,
+.programme-guide-days button:focus,
+button.tv-toggle:focus {
+    background: var(--tv-accent);
+    color: var(--tv-on-accent);
+}
+
 /* On: the filled glyph carries the state. */
 button.tv-toggle[aria-pressed='true'] {
     box-shadow: none;
