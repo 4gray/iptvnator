@@ -16,7 +16,7 @@ export async function hydrateSharedStalker(
     pages: StalkerPagedCatalog,
     toMedia: (raw: Record<string, unknown>, kind: Kind) => Media
 ) {
-    if (!item.raw.sharedReference) return item;
+    if (!item.raw.sharedReference || item.raw.cmd) return item;
     const ref = stalkerMediaReference(item);
     if (!ref) return item;
     const key = favoriteReferenceKey(ref);
@@ -75,7 +75,7 @@ export async function hydrateSharedStalker(
         ...item,
         ...match,
         id: item.id,
-        raw: { ...match.raw, favoriteContentType: type },
+        raw: { ...match.raw, favoriteContentType: type, sharedReference: ref },
     });
     if (type === 'itv' || type === 'radio') {
         const response = await session

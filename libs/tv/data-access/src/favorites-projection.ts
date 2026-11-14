@@ -1,4 +1,4 @@
-import type { Media, UserData } from '@iptvnator/tv/util';
+import { identity, type Media, type UserData } from '@iptvnator/tv/util';
 
 export function activeFavoriteEntries(data: UserData) {
     if (data.favoritesMode !== 'shared' || !data.library) return [];
@@ -33,7 +33,19 @@ export function isSharedFavorite(data: UserData, item: Media): boolean {
 export function favoriteItems(data: UserData): Media[] {
     if (data.favoritesMode !== 'shared') return data.favorites;
     const visible = new Map(data.favorites.map((item) => [item.id, item]));
-    for (const [, { record, media }] of activeFavoriteEntries(data)) {
+    for (const [, { address, record, media }] of activeFavoriteEntries(data)) {
+        if (
+            address.content.provider === 'xtream' &&
+            record.state.snapshot?.identityConflict
+        ) {
+            const source = data.sources.find(
+                (candidate) => candidate.libraryId === address.sourceId
+            );
+            if (source)
+                visible.delete(
+                    identity(source, address.content.kind, address.content.id)
+                );
+        }
         if (!media) continue;
         if (record.state.member) {
             if (!visible.has(media.id)) visible.set(media.id, media);
