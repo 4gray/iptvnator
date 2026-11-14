@@ -1383,6 +1383,7 @@ for (const theme of ['light', 'dark']) {
             ).toBeVisible();
             await applyUiTheme(page, theme === 'dark');
             await expect(shell).toBeFocused();
+            await expect(shell).toHaveCSS('overscroll-behavior-y', 'auto');
             await expect
                 .poll(() =>
                     shell.evaluate((el) => el.scrollHeight - el.clientHeight)

@@ -428,6 +428,10 @@ TMDB enrichment adds a moment later fills the compact hero instead of
 growing it. The pane is a size container (`detail`); the poster hides below
 760px of pane width.
 
+The detail shell owns vertical scrolling. In standalone PWA windows it stops
+vertical overscroll at both edges so dragging past the content cannot expose a
+gap beneath the workspace header.
+
 The pieces are shared and provider-neutral (`libs/ui/components/src/lib/detail-ui/`):
 `app-meta-chip` (pill; `rating` and `status` variants; facets as projected
 `.meta-chip__facet` buttons), `app-detail-action-button` (the light primary
