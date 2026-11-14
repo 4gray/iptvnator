@@ -41,6 +41,11 @@ app-html-video-player {
     display: grid;
     grid-template-rows: minmax(0, 1fr) var(--second-stream-strip-height);
 }
+.embedded-mpv-pair--side-by-side {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 4px;
+    background: #000;
+}
 .embedded-mpv-pair--swapped > app-embedded-mpv-player {
     position: absolute;
     width: var(--pip-width);

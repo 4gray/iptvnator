@@ -602,6 +602,179 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
         await expect
             .poll(async () => Math.round((await tile.boundingBox())!.width))
             .toBe(Math.round(beforeFullscreen.width));
+        // The left/right slots keep their original canvases even after a PiP swap.
+        const pair = page.locator('.embedded-mpv-pair');
+        const strip = pair.locator('.second-stream__strip');
+        const beside = strip.getByRole('button', { name: 'Side by side' });
+        const floating = strip.getByRole('button', { name: 'Floating window' });
+        const originalControls = strip.getByRole('button', {
+            name: 'Control Synthetic movie',
+        });
+        const originalSound = strip.getByRole('button', {
+            name: 'Sound from Synthetic movie',
+        });
+        const companionSound = strip.getByRole('button', {
+            name: 'Sound from Synthetic live',
+        });
+        const floatingBeforeSideBySide = await tile.boundingBox();
+        ok(firstId && secondId);
+        await canvases.evaluateAll((nodes) => {
+            for (const node of nodes)
+                node.setAttribute('data-original-canvas', '');
+        });
+        const readSessions = () =>
+            page.evaluate(
+                (ids) =>
+                    ids.map((id) =>
+                        window.__packagedEmbeddedMpvSessions
+                            ?.filter((session) => session.id === id)
+                            .at(-1)
+                    ),
+                [firstId, secondId]
+            );
+        const pausedPosition = (await readSessions())[0]?.positionSeconds;
+        const checkColumns = async () => {
+            await expect
+                .poll(() =>
+                    canvases.evaluateAll((nodes) => {
+                        const [left, right] = nodes.map((node) =>
+                            node.getBoundingClientRect()
+                        );
+                        return (
+                            left.width > 0 &&
+                            Math.abs(left.width - right.width) <= 1 &&
+                            left.right <= right.left &&
+                            Math.abs(left.top - right.top) <= 1 &&
+                            Math.abs(left.height - right.height) <= 1
+                        );
+                    })
+                )
+                .toBe(true);
+        };
+        await beside.focus();
+        await beside.press('Enter');
+        await expect(beside).toHaveAttribute('aria-pressed', 'true');
+        await expect(tile).toHaveCount(0);
+        await expect(pair.locator('[popover="manual"]')).toHaveCount(0);
+        await checkColumns();
+        await expect(companionSound).toHaveAttribute('aria-pressed', 'true');
+        await expect(beside).toBeFocused();
+        await strip
+            .getByRole('button', { name: 'Control Synthetic live' })
+            .click();
+        const companionStatus = async () => (await readSessions())[1]?.status;
+        await page.keyboard.press('Space');
+        await expect.poll(companionStatus).toBe('paused');
+        await page.keyboard.press('Space');
+        await expect.poll(companionStatus).toBe('playing');
+        await canvases.first().click();
+        const selectedHost = pair.locator(
+            '.embedded-mpv-player-host--selected'
+        );
+        await expect(selectedHost.locator('canvas')).toHaveAttribute(
+            'data-session-id',
+            firstId
+        );
+        const selectedViewport = selectedHost.locator(
+            '.embedded-mpv-player__viewport'
+        );
+        expect(
+            await selectedViewport.evaluate(
+                (node) => getComputedStyle(node, '::after').borderTopWidth
+            )
+        ).toBe('2px');
+        await expect(originalControls).toHaveAttribute('aria-pressed', 'true');
+        await expect(companionSound).toHaveAttribute('aria-pressed', 'true');
+        await expect.poll(readSessions).toMatchObject([
+            {
+                status: 'paused',
+                positionSeconds: pausedPosition,
+                volume: 0,
+            },
+            { status: 'playing' },
+        ]);
+        await originalSound.click();
+        await expect(originalSound).toHaveAttribute('aria-pressed', 'true');
+        await expect.poll(readSessions).toMatchObject([
+            { status: 'paused', volume: expect.any(Number) },
+            { status: 'playing', volume: 0 },
+        ]);
+        await expect
+            .poll(async () => (await readSessions())[0]?.volume ?? 0)
+            .toBeGreaterThan(0);
+        await companionSound.click();
+        await expect(companionSound).toHaveAttribute('aria-pressed', 'true');
+        await expect(originalControls).toHaveAttribute('aria-pressed', 'true');
+        await canvases.first().hover();
+        const readVolumes = async () =>
+            (await readSessions()).map((session) => session?.volume);
+        await pair.getByRole('button', { name: 'Mute', exact: true }).click();
+        await expect.poll(readVolumes).toEqual([0, 0]);
+        await pair.getByRole('button', { name: 'Unmute', exact: true }).click();
+        await expect
+            .poll(async () => (await readVolumes())[1] ?? 0)
+            .toBeGreaterThan(0);
+        await expect.poll(async () => (await readVolumes())[0]).toBe(0);
+        await pair
+            .getByRole('button', { name: 'Enter fullscreen', exact: true })
+            .click();
+        await expect(pair).toBeVisible();
+        await expect
+            .poll(() =>
+                strip.evaluate(
+                    (node) =>
+                        document.fullscreenElement?.contains(node) ?? false
+                )
+            )
+            .toBe(true);
+        await checkColumns();
+        await expect(beside).toBeVisible();
+        await pair
+            .getByRole('button', { name: 'Exit fullscreen', exact: true })
+            .click();
+        await expect
+            .poll(() =>
+                page.evaluate(() => document.fullscreenElement === null)
+            )
+            .toBe(true);
+        await expect(pair.locator('[data-feedback-key]')).toHaveCount(0);
+        for (const theme of ['dark', 'light'] as const) {
+            await applyTheme(page, theme);
+            await expectTextContrast(
+                originalControls.locator('.second-stream__title')
+            );
+            await pair.screenshot({
+                path: testInfo.outputPath(
+                    `two-stream-side-by-side-${theme}.png`
+                ),
+            });
+        }
+        await floating.click();
+        await expect(floating).toHaveAttribute('aria-pressed', 'true');
+        await expect(tile).toBeVisible();
+        await expect
+            .poll(() => tile.boundingBox())
+            .toEqual(floatingBeforeSideBySide);
+        await expect(pair.locator('canvas[data-original-canvas]')).toHaveCount(
+            2
+        );
+        await expect(canvases.first()).toHaveAttribute(
+            'data-session-id',
+            firstId
+        );
+        await expect(canvases.nth(1)).toHaveAttribute(
+            'data-session-id',
+            secondId
+        );
+        await expect.poll(readSessions).toMatchObject([
+            {
+                status: 'paused',
+                positionSeconds: pausedPosition,
+                volume: 0,
+            },
+            { status: 'playing' },
+        ]);
+
         for (const theme of ['dark', 'light']) {
             await applyTheme(page, theme as 'dark' | 'light');
             await tile.focus();

@@ -104,6 +104,8 @@ export class StubEmbeddedMpvPlayerComponent {
     // Host presentation is exercised with real popovers in Electron E2E.
     readonly appSecondStreamFloating = input(false);
     readonly showControls = input(true);
+    readonly sharedVolumeController = input<unknown>();
+    readonly inactiveSurfaceClicked = output<void>();
     readonly canAddSecondStream = input(false);
     readonly secondStreamRequested = output<void>();
     readonly retryEnabled = input(true);
@@ -137,5 +139,12 @@ export class StubSecondStreamComponent {
     readonly primary = input<unknown>();
     readonly fullscreenTarget = input<HTMLElement | null>(null);
     readonly swapped = signal(false);
+    readonly sideBySide = signal(false);
+    readonly controlsView = signal('primary');
+    readonly secondary = signal<{ controller: unknown } | undefined>(undefined);
     readonly busy = signal(false);
+
+    selectControls(): void {
+        // The Electron workflow exercises selection on the canvas.
+    }
 }

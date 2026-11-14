@@ -97,7 +97,10 @@
     } @else if (application.embeddedMpv) {
         <div
             class="embedded-mpv-pair"
-            [class.embedded-mpv-pair--swapped]="companion.swapped()"
+            [class.embedded-mpv-pair--swapped]="
+                companion.swapped() && !companion.sideBySide()
+            "
+            [class.embedded-mpv-pair--side-by-side]="companion.sideBySide()"
             [class.embedded-mpv-pair--with-strip]="
                 embeddedMpvPlayer.support()?.engine === 'frame-copy'
             "
@@ -113,8 +116,22 @@
                     !companion.active()
                 "
                 (secondStreamRequested)="companion.openPicker()"
-                [appSecondStreamFloating]="companion.swapped()"
-                [showControls]="!companion.busy() && !companion.swapped()"
+                [appSecondStreamFloating]="
+                    companion.swapped() && !companion.sideBySide()
+                "
+                [class.embedded-mpv-player-host--selected]="
+                    companion.sideBySide() &&
+                    companion.controlsView() === 'primary'
+                "
+                [showControls]="
+                    !companion.busy() && companion.controlsView() === 'primary'
+                "
+                [sharedVolumeController]="
+                    companion.swapped()
+                        ? companion.secondary()?.controller
+                        : undefined
+                "
+                (inactiveSurfaceClicked)="companion.selectControls('primary')"
                 [initialVolumeOverride]="companion.swapped() ? 0 : null"
                 [retryEnabled]="!companion.busy()"
                 [(liveSubtitlesOff)]="embeddedMpvLiveSubtitlesOff"
