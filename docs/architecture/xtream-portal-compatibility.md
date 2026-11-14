@@ -1236,11 +1236,23 @@ choice. The cache key includes the playlist id and the normalized
 `allowed_output_formats` advertised by the provider, so a catch-up variant
 detected before account capabilities are known cannot force stale MPEG-TS URLs
 after the portal later reports HLS-only playback. The probe uses a short range
-`GET`, follows only validated redirects, and accepts only `200` or `206` as
-playable. MPEG-TS is preferred before HLS when the provider allows it because
-some portals return a valid HLS manifest while the first media segment fails in
-Chromium/video.js. PWA fallback keeps the REST MPEG-TS URL when no Electron
-probe API is available.
+`GET` through `probeStreamUrl` with the playlist's User-Agent, Referer and
+Origin, as playback sends them, follows only validated redirects, and accepts
+only `200` or `206` as playable. MPEG-TS is preferred before HLS when the
+provider allows it because some portals return a valid HLS manifest while the
+first media segment fails in Chromium/video.js. Only a variant that probed
+playable is persisted, under `xtream-catchup-variant:v5:`; v4 values are
+ignored because they may hold a fallback stored after header-less probes.
+When none does (a network failure, a programme without archive, or no
+Electron probe API in the PWA), the request uses the REST MPEG-TS URL and
+nothing is persisted; that programme (playlist, formats, stream and start)
+answers with the fallback from memory for 60 s, then probes again, while
+other programmes of the playlist are still probed.
+
+Catch-up playback descriptors carry the playlist's `userAgent`, `referrer`
+(as `referer`) and `origin` like the live stream: the Live TV `playCatchup`
+descriptor sets them, and Favorites/Recent catch-up copies the live
+descriptor that `StreamResolverService.resolveXtream` builds with them.
 
 Catch-up is offered from the Xtream Live TV tab and from the unified
 collection surfaces (per-playlist and global Favorites and Recent). The

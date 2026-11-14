@@ -407,6 +407,11 @@ export class PlaylistBackupService {
                 serverUrl: playlist.serverUrl ?? '',
                 username: playlist.username ?? '',
                 ...(playlist.password ? { password: playlist.password } : {}),
+                ...(playlist.userAgent
+                    ? { userAgent: playlist.userAgent }
+                    : {}),
+                ...(playlist.referrer ? { referrer: playlist.referrer } : {}),
+                ...(playlist.origin ? { origin: playlist.origin } : {}),
             },
             userState: {
                 hiddenCategories: [],
@@ -1067,6 +1072,17 @@ export class PlaylistBackupService {
                     : normalizeXtreamContentTypes(entry.xtreamContentTypes),
             username: entry.connection.username,
             password: entry.connection.password,
+            // Archives written before these were exported carry none of them:
+            // a restore over an existing source keeps its own values.
+            ...(entry.connection.userAgent !== undefined
+                ? { userAgent: entry.connection.userAgent }
+                : {}),
+            ...(entry.connection.referrer !== undefined
+                ? { referrer: entry.connection.referrer }
+                : {}),
+            ...(entry.connection.origin !== undefined
+                ? { origin: entry.connection.origin }
+                : {}),
             favorites: [],
             recentlyViewed: [],
         };

@@ -229,12 +229,12 @@ describe('XtreamUrlService', () => {
             ...credentials,
             allowedOutputFormats: ['ts'],
         };
-        const xtreamProbeUrl = jest
+        const probeStreamUrl = jest
             .fn()
             .mockResolvedValueOnce({ status: 404 })
             .mockResolvedValueOnce({ status: 206 });
         window.electron = {
-            xtreamProbeUrl,
+            probeStreamUrl,
         } as unknown as typeof window.electron;
 
         const firstUrl = await service.resolveCatchupUrl(
@@ -255,15 +255,15 @@ describe('XtreamUrlService', () => {
         expect(firstUrl).toContain('/streaming/timeshift.php?');
         expect(firstUrl).toContain('extension=ts');
         expect(secondUrl).toBe(firstUrl);
-        expect(xtreamProbeUrl).toHaveBeenCalledTimes(2);
+        expect(probeStreamUrl).toHaveBeenCalledTimes(2);
         expect(databaseService.setAppState).toHaveBeenCalledWith(
-            'xtream-catchup-variant:v4:playlist-1:formats:ts',
+            'xtream-catchup-variant:v5:playlist-1:formats:ts',
             'legacy:ts'
         );
     });
 
     it('redetects catchup variants when provider output formats become known', async () => {
-        const xtreamProbeUrl = jest.fn(async (url: string) => ({
+        const probeStreamUrl = jest.fn(async (url: string) => ({
             status:
                 url.includes('/streaming/timeshift.php?') &&
                 url.includes('extension=ts')
@@ -274,7 +274,7 @@ describe('XtreamUrlService', () => {
                       : 0,
         }));
         window.electron = {
-            xtreamProbeUrl,
+            probeStreamUrl,
         } as unknown as typeof window.electron;
 
         const initialUrl = await service.resolveCatchupUrl(
@@ -297,19 +297,19 @@ describe('XtreamUrlService', () => {
 
         expect(initialUrl).toContain('extension=ts');
         expect(refreshedUrl).toContain('extension=m3u8');
-        expect(xtreamProbeUrl).toHaveBeenCalledTimes(4);
+        expect(probeStreamUrl).toHaveBeenCalledTimes(4);
         expect(databaseService.setAppState).toHaveBeenCalledWith(
-            'xtream-catchup-variant:v4:playlist-format-refresh:formats:unknown',
+            'xtream-catchup-variant:v5:playlist-format-refresh:formats:unknown',
             'legacy:ts'
         );
         expect(databaseService.setAppState).toHaveBeenCalledWith(
-            'xtream-catchup-variant:v4:playlist-format-refresh:formats:m3u8',
+            'xtream-catchup-variant:v5:playlist-format-refresh:formats:m3u8',
             'legacy:m3u8'
         );
     });
 
     it('prefers playable legacy MPEG-TS catchup before HLS for video.js compatible playlists', async () => {
-        const xtreamProbeUrl = jest.fn(async (url: string) => ({
+        const probeStreamUrl = jest.fn(async (url: string) => ({
             status:
                 url.includes('/streaming/timeshift.php?') &&
                 url.includes('extension=ts')
@@ -317,7 +317,7 @@ describe('XtreamUrlService', () => {
                     : 0,
         }));
         window.electron = {
-            xtreamProbeUrl,
+            probeStreamUrl,
         } as unknown as typeof window.electron;
 
         const catchupUrl = await service.resolveCatchupUrl(
@@ -337,18 +337,19 @@ describe('XtreamUrlService', () => {
         expect(catchupUrl).toContain('start=2026-06-27%3A04-00');
         expect(catchupUrl).toContain('duration=30');
         expect(catchupUrl).toContain('extension=ts');
-        expect(xtreamProbeUrl).toHaveBeenCalledWith(
+        expect(probeStreamUrl).toHaveBeenCalledWith(
             expect.stringContaining('/timeshift/'),
-            'GET'
+            'GET',
+            { userAgent: null, referer: null, origin: null }
         );
         expect(databaseService.setAppState).toHaveBeenCalledWith(
-            'xtream-catchup-variant:v4:playlist-hls:formats:m3u8,ts',
+            'xtream-catchup-variant:v5:playlist-hls:formats:m3u8,ts',
             'legacy:ts'
         );
     });
 
     it('falls back to legacy HLS catchup when MPEG-TS probes fail', async () => {
-        const xtreamProbeUrl = jest.fn(async (url: string) => ({
+        const probeStreamUrl = jest.fn(async (url: string) => ({
             status:
                 url.includes('/streaming/timeshift.php?') &&
                 url.includes('extension=m3u8')
@@ -356,7 +357,7 @@ describe('XtreamUrlService', () => {
                     : 0,
         }));
         window.electron = {
-            xtreamProbeUrl,
+            probeStreamUrl,
         } as unknown as typeof window.electron;
 
         const catchupUrl = await service.resolveCatchupUrl(
@@ -374,8 +375,151 @@ describe('XtreamUrlService', () => {
         expect(catchupUrl).toContain('/streaming/timeshift.php?');
         expect(catchupUrl).toContain('extension=m3u8');
         expect(databaseService.setAppState).toHaveBeenCalledWith(
-            'xtream-catchup-variant:v4:playlist-hls-only:formats:m3u8,ts',
+            'xtream-catchup-variant:v5:playlist-hls-only:formats:m3u8,ts',
             'legacy:m3u8'
+        );
+    });
+
+    it('does not persist the fallback and holds it only for the same programme', async () => {
+        // A network failure or a programme without archive answers every
+        // variant the same way; it must not pin the playlist to REST TS.
+        const now = jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
+        const probeStreamUrl = jest.fn(async () => ({ status: 404 }));
+        window.electron = {
+            probeStreamUrl,
+        } as unknown as typeof window.electron;
+        const resolve = (start = 1775296800) =>
+            service.resolveCatchupUrl(
+                'playlist-unproven',
+                { ...credentials, allowedOutputFormats: ['ts'] },
+                101,
+                start,
+                start + 3600
+            );
+
+        const firstUrl = await resolve();
+        const probesForOneLookup = probeStreamUrl.mock.calls.length;
+        // Within the hold the same programme skips probing a hanging panel,
+        now.mockReturnValue(1_000_000 + 59_000);
+        await resolve();
+        expect(probeStreamUrl).toHaveBeenCalledTimes(probesForOneLookup);
+        // but another programme of the playlist is still probed.
+        await resolve(1775296800 - 7200);
+        expect(probeStreamUrl).toHaveBeenCalledTimes(probesForOneLookup * 2);
+        // After the hold the first programme is probed again.
+        now.mockReturnValue(1_000_000 + 61_000);
+        await resolve();
+
+        expect(firstUrl).toContain('/timeshift/');
+        expect(firstUrl).toMatch(/\.ts$/);
+        expect(databaseService.setAppState).not.toHaveBeenCalled();
+        expect(probesForOneLookup).toBeGreaterThan(0);
+        expect(probeStreamUrl).toHaveBeenCalledTimes(probesForOneLookup * 3);
+        now.mockRestore();
+    });
+
+    it('prunes expired fallback holds and keeps their number bounded', async () => {
+        const now = jest.spyOn(Date, 'now').mockReturnValue(2_000_000);
+        window.electron = {
+            probeStreamUrl: jest.fn(async () => ({ status: 404 })),
+        } as unknown as typeof window.electron;
+        const holds = () =>
+            (
+                service as unknown as {
+                    catchupFallbackUntil: Map<string, number>;
+                }
+            ).catchupFallbackUntil;
+        const resolveAt = (start: number) =>
+            service.resolveCatchupUrl(
+                'playlist-holds',
+                { ...credentials, allowedOutputFormats: ['ts'] },
+                101,
+                start,
+                start + 3600
+            );
+
+        for (let index = 0; index < 70; index++) {
+            await resolveAt(1775296800 + index * 3600);
+        }
+        expect(holds().size).toBe(64);
+
+        // Once they expire, the next hold sweeps them away.
+        now.mockReturnValue(2_000_000 + 61_000);
+        await resolveAt(1775296800 - 3600);
+        expect(holds().size).toBe(1);
+        now.mockRestore();
+    });
+
+    it('ignores a variant stored under the previous key version', async () => {
+        // v4 could hold a REST TS fallback stored after header-less probes.
+        databaseService.getAppState.mockImplementation(async (key: string) =>
+            key.startsWith('xtream-catchup-variant:v4:') ? 'rest:ts' : null
+        );
+        const probeStreamUrl = jest.fn(async (url: string) => ({
+            status: url.includes('/streaming/timeshift.php?') ? 206 : 403,
+        }));
+        window.electron = {
+            probeStreamUrl,
+        } as unknown as typeof window.electron;
+
+        const catchupUrl = await service.resolveCatchupUrl(
+            'playlist-v4',
+            { ...credentials, allowedOutputFormats: ['ts'] },
+            101,
+            1775296800,
+            1775300400
+        );
+
+        expect(catchupUrl).toContain('/streaming/timeshift.php?');
+        expect(databaseService.setAppState).toHaveBeenCalledWith(
+            'xtream-catchup-variant:v5:playlist-v4:formats:ts',
+            'legacy:ts'
+        );
+    });
+
+    it('falls back to REST MPEG-TS without a probe bridge and remembers nothing', async () => {
+        window.electron = {} as unknown as typeof window.electron;
+
+        const catchupUrl = await service.resolveCatchupUrl(
+            'playlist-pwa',
+            credentials,
+            101,
+            1775296800,
+            1775300400
+        );
+
+        expect(catchupUrl).toContain('/timeshift/');
+        expect(databaseService.setAppState).not.toHaveBeenCalled();
+    });
+
+    it("probes catchup URLs with the playlist's User-Agent, Referer and Origin", async () => {
+        const probeStreamUrl = jest.fn(async () => ({ status: 206 }));
+        window.electron = {
+            probeStreamUrl,
+        } as unknown as typeof window.electron;
+
+        await service.resolveCatchupUrl(
+            'playlist-headers',
+            {
+                ...credentials,
+                allowedOutputFormats: ['ts'],
+                userAgent: ' SyntheticPlayer/1.0 ',
+                referrer: 'http://referrer.example.test/',
+                origin: 'http://origin.example.test',
+            },
+            101,
+            1775296800,
+            1775300400
+        );
+
+        expect(probeStreamUrl).toHaveBeenCalledWith(
+            expect.stringContaining('timeshift'),
+            'GET',
+            {
+                userAgent: 'SyntheticPlayer/1.0',
+                referer: 'http://referrer.example.test/',
+                origin: 'http://origin.example.test',
+            }
         );
     });
 

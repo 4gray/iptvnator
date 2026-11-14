@@ -427,11 +427,16 @@ export class StreamResolverService {
 
         const streamUrl = this.xtreamUrl.constructLiveUrl(creds, item.xtreamId);
 
+        // Catch-up from Favorites/Recent copies this descriptor, headers
+        // included, and swaps in the archive URL.
         return {
             streamUrl,
             title: item.name,
             thumbnail: item.logo ?? null,
             isLive: true,
+            userAgent: creds.userAgent,
+            referer: creds.referrer,
+            origin: creds.origin,
         };
     }
 
@@ -877,6 +882,8 @@ export class StreamResolverService {
 
     private async getXtreamCredentials(playlistId: string): Promise<{
         userAgent?: string;
+        referrer?: string;
+        origin?: string;
         serverUrl: string;
         username: string;
         password: string;
@@ -897,6 +904,8 @@ export class StreamResolverService {
             username: playlist.username,
             password: playlist.password,
             userAgent: playlist.userAgent?.trim() || undefined,
+            referrer: playlist.referrer?.trim() || undefined,
+            origin: playlist.origin?.trim() || undefined,
             serverTimezone: playlist.serverTimezone,
         };
     }
