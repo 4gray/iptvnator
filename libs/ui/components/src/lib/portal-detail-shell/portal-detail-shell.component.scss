@@ -48,12 +48,6 @@
     }
 }
 
-@media (display-mode: standalone) {
-    :host {
-        overscroll-behavior-y: none;
-    }
-}
-
 :host-context(.dark-theme) {
     --poster-shadow: 0 18px 40px rgba(0, 0, 0, 0.6);
 }

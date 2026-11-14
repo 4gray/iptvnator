@@ -156,15 +156,26 @@ textarea {
 }
 
 @media (display-mode: standalone) {
+    html {
+        --app-overscroll-y: none;
+    }
+
     html,
     body {
         user-select: none;
     }
 
     body {
-        overscroll-behavior-y: contain;
         overflow: hidden;
     }
+}
+
+html.android-tv-shell {
+    --app-overscroll-y: none;
+}
+
+:where(html, body, app-root > .app-viewport) {
+    overscroll-behavior-y: var(--app-overscroll-y, auto);
 }
 
 // ─── Utilities ────────────────────────────────────────────────────────────────

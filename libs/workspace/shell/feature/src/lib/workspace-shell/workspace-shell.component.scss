@@ -140,7 +140,28 @@ app-workspace-shell-context-sidebar {
     min-width: 0;
     min-height: 0;
     overflow: auto;
+    overscroll-behavior-y: var(--app-overscroll-y, auto);
     background: var(--app-content-bg, var(--mat-sys-surface));
+}
+
+// These scrollers live inside routed components. Keep their rules with the
+// lazy workspace and let horizontal rails pass vertical gestures to the page.
+:host
+    ::ng-deep
+    :where(
+        .settings-nav__groups,
+        .app-scrollbar:not(.epg-timeline__ribbon),
+        app-category-view,
+        app-category-content-view app-grid-list,
+        app-search-layout .results-container,
+        app-unified-grid-tab .grid-container,
+        .epg-guide__viewport,
+        app-recently-added,
+        app-actor-view .actor-view,
+        app-discover-view .discover-view,
+        app-portal-detail-shell
+    ) {
+    overscroll-behavior-y: var(--app-overscroll-y, auto);
 }
 
 // The offline banner has no stylesheet of its own: a component stylesheet

@@ -23,6 +23,12 @@ Use it when changing existing views or introducing new list-based UI in the work
 
 5. Scroll ownership must be explicit.
    Headers stay visible. Lists scroll. Do not let nested panes compete for scroll.
+   The viewport and independent vertical page scrollers stop at their edges in
+   standalone PWAs and the native Android TV shell. The web stylesheet sets
+   `--app-overscroll-y` for those runtimes and applies it to the viewport.
+   The lazy workspace stylesheet applies it to routed scroll panes. Browser
+   tabs retain their normal behavior and horizontal rails still hand vertical
+   gestures to the page.
 
 6. Normal text, including metadata and selected labels, keeps at least 4.5:1
    contrast. Use `--app-muted-color` for secondary text and
@@ -432,9 +438,9 @@ TMDB enrichment adds a moment later fills the compact hero instead of
 growing it. The pane is a size container (`detail`); the poster hides below
 760px of pane width.
 
-The detail shell owns vertical scrolling. In standalone PWA windows it stops
-vertical overscroll at both edges so dragging past the content cannot expose a
-gap beneath the workspace header.
+The detail shell owns vertical scrolling and follows the app's overscroll
+policy so dragging past the content cannot expose a gap beneath the workspace
+header in standalone apps.
 
 The pieces are shared and provider-neutral (`libs/ui/components/src/lib/detail-ui/`):
 `app-meta-chip` (pill; `rating` and `status` variants; facets as projected
