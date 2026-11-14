@@ -25,6 +25,7 @@ type PlaybackResult = {
     readonly positionMs: number;
     readonly durationMs: number;
     readonly playedMs: number;
+    readonly started?: boolean;
     readonly ended?: boolean;
 };
 
@@ -59,7 +60,7 @@ export class AndroidTvPlayback {
         private readonly currentOwner: () => string,
         private readonly currentToken: () => symbol,
         volume: () => number,
-        private readonly onPlayed: (seconds: number) => void,
+        private readonly onStarted: (playedSeconds: number) => void,
         private readonly onPosition: (
             position: PlayerTimeUpdate,
             replayTime: number
@@ -104,9 +105,11 @@ export class AndroidTvPlayback {
                 data.positionMs >= 0 &&
                 (data.durationMs === 0 || data.durationMs >= data.positionMs)
             ) {
-                if (Number.isSafeInteger(data.playedMs) && data.playedMs > 0) {
-                    this.onPlayed(data.playedMs / 1000);
-                }
+                const played = Number.isSafeInteger(data.playedMs)
+                    ? Math.max(0, data.playedMs) / 1000
+                    : 0;
+                if (played > 0 || data.started === true) this.onStarted(played);
+                if (this.ownedSession()?.id !== id) return;
                 if (data.durationMs > 0 || data.positionMs > 0) {
                     const currentTime = data.positionMs / 1000;
                     this.onPosition(

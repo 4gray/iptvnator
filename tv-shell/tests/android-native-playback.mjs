@@ -346,6 +346,17 @@ try {
     assert.equal(unseekableResume.durationMs, 0);
     assert.ok(unseekableResume.playedMs > 0, 'Report playback time even when the existing resume point is preserved.');
 
+    await page.evaluate((url) => {
+        delete window.__nativeResult;
+        window.TvShell.postMessage(JSON.stringify(['playNative', crypto.randomUUID(), { url, startTime: 10 }]));
+    }, origin + '/synthetic-chunked.ts');
+    await waitNative();
+    await page.waitForFunction(() => window.__nativeResult?.ended === true, undefined, { timeout: 40000 });
+    const completed = await page.evaluate(() => window.__nativeResult);
+    assert.equal(completed.started, true);
+    assert.ok(completed.durationMs > 0);
+    assert.equal(completed.positionMs, completed.durationMs, 'Natural EOF completes the episode even when the source cannot seek.');
+
     const sessionRedirectBefore = seen.target.length;
     await page.evaluate((url) => {
         window.TvShell.postMessage(JSON.stringify(['playNative', crypto.randomUUID(), {

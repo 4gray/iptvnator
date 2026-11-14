@@ -126,6 +126,16 @@ export class WebPlayerRecoveryController {
         this.playbackState = { token, ended: true };
     }
 
+    confirmAndroidStart(): boolean {
+        const alreadyStarted = this.hasStartedPlayback();
+        this.clearDiagnostic();
+        this.playbackState = {
+            token: this.deps.playbackApplicationToken(),
+            ended: false,
+        };
+        return !alreadyStarted;
+    }
+
     readonly hasStartedPlayback = (): boolean => {
         const embedded = this.deps.embeddedSession();
         const token = this.deps.playbackApplicationToken();

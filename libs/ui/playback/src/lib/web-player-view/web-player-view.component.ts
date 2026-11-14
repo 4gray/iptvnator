@@ -237,7 +237,10 @@ export class WebPlayerViewComponent implements OnDestroy {
         this.playbackSessionKey,
         this.applicationState.token,
         this.volume,
-        (seconds) => this.historyConfirmation.recordPlayedTime(seconds),
+        (seconds) => {
+            this.historyConfirmation.recordPlayedTime(seconds);
+            if (this.recovery.confirmAndroidStart()) this.emitPlaybackStarted();
+        },
         (update, replayTime) => {
             this.activity.record(this.playback(), update);
             this.recoverySession.recordTimeUpdate(
@@ -379,13 +382,7 @@ export class WebPlayerViewComponent implements OnDestroy {
     handlePlaybackStarted(binding: PlaybackBinding): void {
         if (this.androidPlayback.suspended()) return;
         this.recovery.syncSession();
-        if (
-            this.applicationHandoff.owns(
-                binding,
-                this.playbackApplicationToken()
-            ) &&
-            !this.liveAutoFormat.pending()
-        )
+        if (this.ownsBinding(binding) && !this.liveAutoFormat.pending())
             this.liveAutoFormat.started();
     }
 
@@ -396,9 +393,7 @@ export class WebPlayerViewComponent implements OnDestroy {
         if (!this.ownership.owns(ownership)) return;
 
         if (this.recovery.recordTimeUpdate(ownership.token, event.playing))
-            this.playbackStarted.emit(
-                this.playback() ?? this.resolvedPlayback()
-            );
+            this.emitPlaybackStarted();
         if (!ownership.isLive && !this.activity.record(this.playback(), event))
             return;
         this.recoverySession.recordTimeUpdate(event, ownership.isLive);
@@ -407,8 +402,12 @@ export class WebPlayerViewComponent implements OnDestroy {
     }
 
     handleActivityEnded(ownership: PlaybackApplicationOwnership): void {
-        if (!this.ownership.owns(ownership)) return;
-        this.emitPlaybackEnded(ownership.isLive);
+        if (this.ownership.owns(ownership))
+            this.emitPlaybackEnded(ownership.isLive);
+    }
+
+    private emitPlaybackStarted(): void {
+        this.playbackStarted.emit(this.playback() ?? this.resolvedPlayback());
     }
 
     private emitPlaybackEnded(isLive: boolean): void {
@@ -432,18 +431,18 @@ export class WebPlayerViewComponent implements OnDestroy {
             return;
         }
         this.recovery.syncSession();
-        if (
-            binding &&
-            !this.applicationHandoff.owns(
-                binding,
-                this.playbackApplicationToken()
-            )
-        )
-            return;
+        if (binding && !this.ownsBinding(binding)) return;
         // A current engine can remain buffering after an earlier manual retry.
         // Its wait notice is a fresh user action, not a duplicate old callback.
         if (binding) this.recoverySession.settle(binding);
         this.recovery.retryPlayback();
+    }
+
+    private ownsBinding(binding: PlaybackBinding): boolean {
+        return this.applicationHandoff.owns(
+            binding,
+            this.playbackApplicationToken()
+        );
     }
 
     readonly retryFailedPlayback = () =>

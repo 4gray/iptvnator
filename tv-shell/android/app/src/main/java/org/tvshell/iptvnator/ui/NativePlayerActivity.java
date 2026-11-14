@@ -58,6 +58,7 @@ public final class NativePlayerActivity extends Activity {
     private boolean autoplay = true;
     private boolean failed;
     private boolean ended;
+    private boolean started;
     private boolean positionVerified;
     private boolean canSnapshotCurrentPlayer;
     private boolean preserveSavedPosition;
@@ -91,6 +92,7 @@ public final class NativePlayerActivity extends Activity {
             position = savedState.getLong("position");
             duration = savedState.getLong("duration");
             positionVerified = savedState.getBoolean("positionVerified");
+            started = savedState.getBoolean("started");
             played = savedState.getLong("played");
             failed = savedState.getBoolean("failed");
             hls = savedState.getBoolean("hls", hls);
@@ -173,6 +175,7 @@ public final class NativePlayerActivity extends Activity {
         player.addListener(new Player.Listener() {
             @Override
             public void onIsPlayingChanged(boolean isPlaying) {
+                started |= isPlaying;
                 if (isPlaying) getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
                 else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             }
@@ -313,6 +316,7 @@ public final class NativePlayerActivity extends Activity {
         outState.putLong("position", position);
         outState.putLong("duration", duration);
         outState.putBoolean("positionVerified", positionVerified);
+        outState.putBoolean("started", started);
         outState.putLong("played", playedMs());
         outState.putBoolean("failed", failed);
         outState.putBoolean("hls", hls);
@@ -359,10 +363,18 @@ public final class NativePlayerActivity extends Activity {
 
     private Intent playbackResult() {
         snapshot();
-        long watched = playedMs();
-        return new Intent().putExtra("position", positionVerified ? position : 0)
-            .putExtra("duration", positionVerified ? duration : 0)
-            .putExtra("played", watched).putExtra("ended", ended && (positionVerified || watched > 0));
+        boolean completed = ended && started;
+        // At natural EOF, the terminal playhead gives the runtime of a stream
+        // that did not advertise its duration. Back and Home keep the resume guard.
+        if (completed && player != null) {
+            duration = Math.max(1000, Math.max(player.getDuration(), player.getCurrentPosition()));
+            position = duration;
+        }
+        boolean savePosition = positionVerified || completed;
+        return new Intent().putExtra("position", savePosition ? position : 0)
+            .putExtra("duration", savePosition ? duration : 0)
+            .putExtra("played", playedMs()).putExtra("started", started)
+            .putExtra("ended", completed);
     }
 
     private long playedMs() {

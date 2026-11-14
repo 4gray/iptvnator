@@ -2,7 +2,7 @@ import { isCatalogUnavailable } from '@iptvnator/shared/interfaces';
 import { inject, Injectable, Injector } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { firstValueFrom } from 'rxjs';
-import { extractDrmFromRaw } from '@iptvnator/shared/m3u-utils';
+import { extractDrmFromRaw, isLikelyM3uVod } from '@iptvnator/shared/m3u-utils';
 import {
     EpgPreferencesService,
     EpgSourceSettingsService,
@@ -409,6 +409,7 @@ export class StreamResolverService {
             streamUrl: channel.url ?? '',
             title: channel.name,
             thumbnail: channel.tvg?.logo ?? null,
+            isLive: !isLikelyM3uVod(channel),
             drm: channel.drm ?? extractDrmFromRaw(channel.raw),
             headers: Object.keys(headers).length > 0 ? headers : undefined,
             userAgent,

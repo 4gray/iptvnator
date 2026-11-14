@@ -1778,6 +1778,8 @@ Episodes receive VOD controls even when movie metadata recognition excludes
 their names. A group label or episode name alone is not playback evidence.
 Radio and DASH retain their existing paths; ordinary HLS/TS and unknown URLs
 without a VOD path retain live mode. No network probing is performed.
+M3U entries opened from the unified collection use the same classifier when
+setting playback mode.
 
 `VideoPlayerComponent.embeddedPlayback()` is the mode owner for both the
 ordinary M3U player and the movie detail host: a catch-up URL or positive VOD

@@ -96,6 +96,26 @@ describe('StreamResolverService', () => {
         service = TestBed.inject(StreamResolverService);
     });
 
+    it.each([
+        ['https://media.example.test/synthetic.mp4', false],
+        ['https://media.example.test/live.m3u8', true],
+    ])(
+        'preserves playback mode for an M3U collection entry %s',
+        async (streamUrl, isLive) => {
+            playlistsService.getPlaylistById.mockReturnValue(of(undefined));
+            const detail = await service.resolveM3uPlaybackDetail({
+                uid: 'synthetic-m3u-entry',
+                name: 'Synthetic collection entry',
+                contentType: 'live',
+                sourceType: 'm3u',
+                playlistId: 'synthetic-playlist',
+                playlistName: 'Synthetic playlist',
+                streamUrl,
+            });
+            expect(detail.playback).toMatchObject({ streamUrl, isLive });
+        }
+    );
+
     it('returns M3U live detail with the full channel and raw EPG programs', async () => {
         playlistsService.getPlaylistById.mockReturnValue(
             of({

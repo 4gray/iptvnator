@@ -112,7 +112,7 @@ describe('WebPlayerViewComponent', () => {
         fixture.destroy();
     });
 
-    it('hands playback to Android and restores the web engine on request', () => {
+    it('confirms a live channel played on Android after the web engine failed', () => {
         const postMessage = jest.fn();
         const tvWindow = Object.assign(window, {
             TvShell: { postMessage },
@@ -125,17 +125,25 @@ describe('WebPlayerViewComponent', () => {
         try {
             fixture = TestBed.createComponent(WebPlayerViewComponent);
             component = fixture.componentInstance;
+            const playback = {
+                streamUrl: 'https://media.example.test/synthetic-channel.m3u8',
+                title: 'Synthetic channel',
+                isLive: true,
+            };
             fixture.componentRef.setInput(
                 'playbackSessionKey',
                 'synthetic-session'
             );
-            fixture.componentRef.setInput(
-                'streamUrl',
-                'https://media.example.test/synthetic-episode.mkv'
-            );
-            const position = jest.fn();
-            component.timeUpdate.subscribe(position);
+            fixture.componentRef.setInput('playback', playback);
+            fixture.componentRef.setInput('streamUrl', playback.streamUrl);
+            const started = jest.fn();
+            component.playbackStarted.subscribe(started);
             fixture.detectChanges();
+            component.handlePlaybackIssue(
+                createUnsupportedCodecDiagnostic(),
+                component.activeBinding()!
+            );
+            expect(component.visiblePlaybackDiagnostic()).not.toBeNull();
 
             fixture.nativeElement
                 .querySelector('[data-tv-native-playback]')
@@ -149,19 +157,18 @@ describe('WebPlayerViewComponent', () => {
                     detail: {
                         id,
                         result: {
-                            positionMs: 12000,
-                            durationMs: 20000,
-                            playedMs: 3000,
+                            positionMs: 0,
+                            durationMs: 0,
+                            playedMs: 0,
+                            started: true,
                         },
                     },
                 })
             );
-            expect(position).toHaveBeenCalledWith({
-                currentTime: 12,
-                duration: 20,
-                playing: false,
-                checkpoint: true,
-            });
+            expect(started).toHaveBeenCalledTimes(1);
+            expect(started).toHaveBeenCalledWith(playback);
+            expect(component.hasStartedPlayback()).toBe(true);
+            expect(component.visiblePlaybackDiagnostic()).toBeNull();
             fixture.detectChanges();
             const buttons = fixture.nativeElement.querySelectorAll(
                 '.web-player-android-actions button'

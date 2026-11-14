@@ -145,9 +145,10 @@ including when the viewer seeks and leaves before the watch-history threshold
 or Media3 cannot determine the VOD duration.
 Media3 applies a saved offset after the stream is ready and starts at the
 default position if the stream is shorter than that offset. A source that
-cannot seek keeps its previous resume point and still reports watch time.
-A natural VOD end closes the native activity and reaches the same series
-autoplay handler as the web player. Back and Home return a position checkpoint.
+cannot seek keeps its previous resume point on Back or Home and still reports
+watch time. Natural VOD completion reports the terminal position, using the
+final playhead as the duration when the stream supplies none. It closes the
+native activity and reaches the same series autoplay handler as the web player.
 If Android recreates the WebView during playback, the shell returns the final
 position for the original portal item to the same storage origin. The new
 screen saves the position through the portal's resume store. The checkpoint
