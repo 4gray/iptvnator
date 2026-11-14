@@ -702,11 +702,8 @@ them size from the `--cover-grid-min-width` / `--cover-rail-width` /
 row under VOD and series covers so the grid shows more rows per screen.
 
 - **Resolution.** `CoverTitlesService.postersOnly` (`libs/portal/shared/ui`)
-  is the single source: the opt-out AND a hover-capable pointer
-  (`(any-hover: hover)` media query, tracked live). On touch-only devices the
-  preference is ignored and titles stay under the covers, because a tap
-  already opens the item and there is no gesture left to peek at a hidden
-  name.
+  follows the saved preference on all devices. A tap on a touch screen
+  opens the item, and the card retains its accessible title.
 - **Scope.** Catalog grids (Xtream/Stalker VOD and series), unified
   favorites/recent grids and the portal favorites tab. Exempt, regardless of
   the setting: live channel grids (`type` `live`/`itv`/`radio` or the
@@ -1208,6 +1205,9 @@ actions (mark watched, download season, reset progress) live in that menu
 and drive the season container's presenters. Collection details also keep
 “View in portal” in that menu, in a navigation group before the provider
 actions, regardless of how many hero buttons are visible.
+At the phone breakpoint, Trailer uses a 44px icon button with its translated
+accessible name. Playback keeps its label and the action row can wrap when
+additional controls or long localized labels need more room.
 
 Every section below the hero (Episodes, Cast & crew, Similar) uses
 `app-detail-section-header`: an 18px/600 title, a muted 12.5px tabular
@@ -1639,7 +1639,10 @@ but the component has not.
   it has to opt into the row direction — a nested list that keeps
   `flex-direction: column` stacks its links out of the bar and over the header.
   The bar scrolls sideways once a portal contributes its sections, and the
-  settings link is `position: sticky` so it never scrolls out of reach.
+  settings link is `position: sticky` so it never scrolls out of reach. In
+  standalone mode, the inset for the status bar sits above the 52px scroller.
+- In narrow catalog panes, Refine shares a row with the category title and
+  count. Sort and filter chips wrap below when present.
 - The shell context panel (categories, filters, settings sections) is an
   off-canvas drawer: hidden by default so the route content owns the full
   pane, opened from a toggle in the workspace header, closed by selection,

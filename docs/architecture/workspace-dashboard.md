@@ -170,9 +170,13 @@ a scrim-coloured text shadow, and the slide enters without a fade so that
 scrim never flashes the art on a rotation. Body text is 85% of the heading
 colour; the rating chip uses `--app-rating-color`, set per theme in
 `m3-theme.scss`. Buttons end long labels in an ellipsis.
+At the phone breakpoint (≤640px), artwork uses a full-width 16:9 area
+capped at 33% of the small viewport height. Its lower edge fades into the
+page colour above the slide text. The artwork area stays the same height
+for every slide, while the tallest slide still sets the banner's total height.
 `dashboard-hero-legibility.e2e.ts` replaces every image with a black-and-white
 checkerboard and measures each piece of slide text from the screen in both
-themes, at a wide and a narrow width, for a backdrop, a blurred-poster, a
+themes, at wide, narrow and phone widths, for a backdrop, a blurred poster, a
 no-artwork and a live slide.
 
 Semantics: the page has one stable, visually hidden `h1` ("Dashboard",

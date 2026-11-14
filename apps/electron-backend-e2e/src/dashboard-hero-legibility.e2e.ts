@@ -36,12 +36,12 @@ import {
 // case for either theme's scrim; series images fail, so the favourited
 // series falls back to the generated gradient. Each slide kind (16:9
 // backdrop, blurred poster, no artwork, live channel) is measured from the
-// screen at a wide and a narrow content width.
+// screen in wide, narrow and phone layouts.
 // ---------------------------------------------------------------------------
 
 type SlideKind = 'backdrop' | 'poster' | 'fallback' | 'live';
 
-const widths = { wide: 1280, narrow: 760 } as const;
+const widths = { wide: 1280, narrow: 760, phone: 390 } as const;
 const minimumContrast = 4.5;
 const xtreamCredentials = {
     username: defaultXtreamUsername,
@@ -268,7 +268,7 @@ function slideTexts(slide: Locator): Record<string, Locator> {
 }
 
 test.describe('Dashboard hero legibility', () => {
-    test('keeps slide text at 4.5:1 over any artwork in both themes and widths', async ({
+    test('keeps slide text at 4.5:1 over any artwork in both themes and all layouts', async ({
         dataDir,
         request,
     }, testInfo) => {
@@ -342,6 +342,29 @@ test.describe('Dashboard hero legibility', () => {
                     .locator('h2.hero__title')
             ).toHaveCount(1);
 
+            const stage = page
+                .getByTestId('dashboard-hero')
+                .locator('.hero__stage');
+            for (const height of [844, 480]) {
+                await page.setViewportSize({ width: widths.phone, height });
+                await expect
+                    .poll(() =>
+                        stage.evaluate((element) => {
+                            const { width, height } =
+                                element.getBoundingClientRect();
+                            return Math.abs(
+                                height -
+                                    Math.min(
+                                        (width * 9) / 16,
+                                        innerHeight * 0.33
+                                    )
+                            );
+                        })
+                    )
+                    .toBeLessThan(1);
+            }
+            await page.setViewportSize({ width: widths.wide, height: 800 });
+
             // An unattended rotation, counted like the launch journey's
             // settled layout-shift counter (non-input shifts only), moves
             // nothing. The hero lays out every slide and is as tall as the
@@ -366,7 +389,7 @@ test.describe('Dashboard hero legibility', () => {
                             (content) =>
                                 getComputedStyle(content).maxWidth === 'none'
                         );
-                    expect(narrow).toBe(layout === 'narrow');
+                    expect(narrow).toBe(layout !== 'wide');
                     for (const [index, kind] of kinds.entries()) {
                         const slide = await showSlide(page, index);
                         await enrichSlide(slide);
@@ -400,11 +423,11 @@ test.describe('Dashboard hero legibility', () => {
                 }
             }
 
-            // Again at the narrow width, where slides wrap the most, now that
+            // Again at the phone width, where slides wrap the most, now that
             // every slide also carries a rating and a two-line overview.
             await pause.click();
             await expect(pause).toHaveAttribute('aria-pressed', 'false');
-            await expectStableRotation(page, 'narrow enriched', results);
+            await expectStableRotation(page, 'phone enriched', results);
         } finally {
             const report = testInfo.outputPath('contrast.txt');
             writeFileSync(report, results.join('\n'));

@@ -94,6 +94,18 @@
     .play-btn {
         flex: 1;
         justify-content: center;
+        gap: 6px;
+        padding-inline: 8px;
+    }
+
+    .play-btn--secondary {
+        flex: 0 0 44px;
+        width: 44px;
+        padding: 0;
+
+        .play-btn__copy {
+            display: none;
+        }
     }
 }
 
