@@ -457,7 +457,8 @@
     }
 
     .action-buttons {
-        gap: 6px;
+        // Leave room for the primary label when a classic scrollbar takes space.
+        gap: 6px 4px;
     }
 }
 

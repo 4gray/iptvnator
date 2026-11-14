@@ -94,8 +94,15 @@
     .play-btn {
         flex: 1;
         justify-content: center;
-        gap: 6px;
-        padding-inline: 8px;
+        gap: 4px;
+        padding-inline: 5px;
+
+        mat-icon {
+            width: 18px;
+            height: 18px;
+            font-size: 18px;
+            line-height: 18px;
+        }
     }
 
     .play-btn--secondary {

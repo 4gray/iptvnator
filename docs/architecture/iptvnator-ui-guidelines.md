@@ -467,6 +467,10 @@ pointer handoffs for movie and series menus, including after scrolling.
 The page-level Sass mixin (`libs/ui/styles/_detail-view.scss`)
 only carries the page shell, meta items and the episodes section.
 
+On phones, Trailer uses an icon with its accessible label. Compact horizontal
+spacing leaves room for five 44px-tall controls at 375px, including with a
+classic scrollbar. The action row can wrap when it needs more space.
+
 With `detailTrailerBackdrop` on (Settings → Playback → "Play trailers in
 details background", default off) the hosts hand the trailer embed URL to the
 shell and `app-hero-trailer-backdrop` plays it muted and looping under the

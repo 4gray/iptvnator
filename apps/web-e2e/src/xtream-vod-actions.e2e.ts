@@ -157,14 +157,25 @@ for (const mode of ['catalog', 'missing', 'direct'] as const) {
                 expect(
                     bounds.map(({ x, y, width }) => ({ x, y, width })),
                     `hero controls at ${width}px`
-                ).toEqual(
-                    bounds.map(({ x, width }) => ({ x, y: top, width }))
-                );
+                ).toEqual(bounds.map(({ x, width }) => ({ x, y: top, width })));
                 for (const box of bounds) {
                     expect(box.width).toBeGreaterThanOrEqual(44);
                     expect(box.height).toBeGreaterThanOrEqual(44);
                     expect(box.x + box.width).toBeLessThanOrEqual(width);
                 }
+                const label = primary.locator('.play-btn__label');
+                const labelFits = await label.evaluate((element) => {
+                    const button = element.closest('button');
+                    if (!button) return false;
+                    const { left, right } = element.getBoundingClientRect();
+                    const bounds = button.getBoundingClientRect();
+                    return (
+                        left >= bounds.left &&
+                        right <= bounds.right &&
+                        element.scrollWidth <= element.clientWidth
+                    );
+                });
+                expect(labelFits, `playback label at ${width}px`).toBe(true);
             }
             const actionRow = page.locator('app-content-hero .action-buttons');
             await page.setViewportSize(phone);
