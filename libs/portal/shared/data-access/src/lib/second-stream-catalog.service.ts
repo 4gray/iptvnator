@@ -4,7 +4,6 @@ import {
     DataService,
     ParentalLockService,
     PlaylistsService,
-    RuntimeCapabilitiesService,
 } from '@iptvnator/services';
 import {
     Channel,
@@ -20,20 +19,27 @@ import {
     executeStalkerRequest,
     loadStalkerItvGenre,
     StalkerItvChannel,
+    stalkerSecondStreamType,
     StalkerItvCacheService,
     StalkerPortalRepairService,
     StalkerSessionService,
 } from '@iptvnator/portal/stalker/data-access';
-import { UnifiedFavoritesDataService } from './collection/unified-favorites-data.service';
+import {
+    SECOND_STREAM_HISTORY,
+    SecondStreamCollectionService,
+} from './second-stream-collection.service';
 import { StreamResolverService } from './collection/stream-resolver.service';
 
 export interface SecondStreamSource {
     id: string;
     name: string;
+    portal?: boolean;
+    stalker?: boolean;
 }
 export interface SecondStreamChannel {
     item: UnifiedCollectionItem;
     group: string;
+    epgSourceUrls?: string[];
 }
 export interface SecondStreamSelection {
     item: UnifiedCollectionItem;
@@ -48,7 +54,7 @@ export interface SecondStreamCatalog {
 @Injectable({ providedIn: 'root' })
 export class SecondStreamCatalogService {
     private readonly playlists = inject(PlaylistsService);
-    private readonly favorites = inject(UnifiedFavoritesDataService);
+    private readonly collection = inject(SecondStreamCollectionService);
     private readonly resolver = inject(StreamResolverService);
     private readonly xtream = inject(XTREAM_DATA_SOURCE);
     private readonly itv = inject(StalkerItvCacheService);
@@ -58,14 +64,18 @@ export class SecondStreamCatalogService {
         stalkerSession: inject(StalkerSessionService),
         portalRepair: inject(StalkerPortalRepairService),
     };
-    private readonly runtime = inject(RuntimeCapabilitiesService);
     readonly version = this.locks.version;
 
     async sources(): Promise<SecondStreamSource[]> {
         const metas = await firstValueFrom(this.playlists.getAllPlaylists());
         return metas
             .filter((p) => p._id !== 'global-favorites')
-            .map((p) => ({ id: p._id, name: sourceSortName(p) }));
+            .map((p) => ({
+                id: p._id,
+                name: sourceSortName(p),
+                portal: Boolean(p.serverUrl || p.macAddress),
+                stalker: Boolean(p.macAddress),
+            }));
     }
 
     async load(
@@ -74,26 +84,30 @@ export class SecondStreamCatalogService {
     ): Promise<SecondStreamCatalog> {
         if (this.locks.withholdsEverything())
             return { groups: [], channels: [] };
-        if (!sourceId) {
-            const items = await this.normalizeFavorites(
-                await this.favorites.getFavorites('all')
-            );
+        if (!sourceId || sourceId === SECOND_STREAM_HISTORY) {
+            const items = await this.collection.load(sourceId, 'live', signal);
             const metas = await firstValueFrom(
                 this.playlists.getAllPlaylists()
             );
-            const names = new Map(metas.map((p) => [p._id, sourceSortName(p)]));
+            const playlists = new Map(metas.map((p) => [p._id, p]));
             const channels = items
-                .filter(
-                    (i) =>
-                        i.contentType === 'live' &&
-                        i.radio !== 'true' &&
-                        this.isAllowed(i)
-                )
-                .map((item) => ({ item, group: item.playlistId }));
+                .filter((item) => this.isAllowed(item))
+                .map((item) => ({
+                    item,
+                    group: item.playlistId,
+                    epgSourceUrls: playlists.get(item.playlistId)?.epgUrls,
+                }));
             return {
-                groups: [...new Set(channels.map((c) => c.group))].map(
-                    (id) => ({ id, name: names.get(id) ?? '' })
-                ),
+                groups: (sourceId
+                    ? []
+                    : [...new Set(channels.map((c) => c.group))]
+                ).map((id) => {
+                    const playlist = playlists.get(id);
+                    return {
+                        id,
+                        name: playlist ? sourceSortName(playlist) : '',
+                    };
+                }),
                 channels,
             };
         }
@@ -120,6 +134,7 @@ export class SecondStreamCatalogService {
             )
             .map((c) => ({
                 group: c.group?.title ?? '',
+                epgSourceUrls: playlist.epgUrls,
                 item: {
                     uid: `m3u::${playlist._id}::${c.id}`,
                     name: c.name,
@@ -131,6 +146,7 @@ export class SecondStreamCatalogService {
                     channelId: c.id,
                     streamUrl: c.url,
                     m3uChannel: c,
+                    tvgId: c.tvg?.id?.trim() || c.tvg?.name?.trim(),
                 },
             }));
         return {
@@ -173,45 +189,6 @@ export class SecondStreamCatalogService {
         return playback;
     }
 
-    private async normalizeFavorites(
-        items: UnifiedCollectionItem[]
-    ): Promise<UnifiedCollectionItem[]> {
-        if (!this.runtime.supportsXtreamSqliteDataSource) return items;
-        const ids = [
-            ...new Set(
-                items
-                    .filter(
-                        (i) =>
-                            i.sourceType === 'xtream' &&
-                            i.contentType === 'live'
-                    )
-                    .map((i) => i.playlistId)
-            ),
-        ];
-        const categories = new Map(
-            await Promise.all(
-                ids.map(
-                    async (id) =>
-                        [
-                            id,
-                            await this.xtream.getAllCategories(id, 'live'),
-                        ] as const
-                )
-            )
-        );
-        return items.map((item) =>
-            item.sourceType !== 'xtream'
-                ? item
-                : {
-                      ...item,
-                      categoryId: categories
-                          .get(item.playlistId)
-                          ?.find((c) => c.id === Number(item.categoryId))
-                          ?.xtream_id,
-                  }
-        );
-    }
-
     isAllowed(item: UnifiedCollectionItem): boolean {
         this.version();
         if (this.locks.withholdsEverything() || isCatalogUnavailable(item))
@@ -224,21 +201,36 @@ export class SecondStreamCatalogService {
         if (item.sourceType === 'stalker') {
             const raw = item.stalkerItem as
                 { tv_genre_id?: string | number } | undefined;
+            const type =
+                item.contentType === 'live'
+                    ? 'itv'
+                    : stalkerSecondStreamType(item);
+            const id =
+                type === 'itv'
+                    ? (raw?.tv_genre_id ?? item.categoryId)
+                    : item.categoryId;
+            if (id == null || id === type) {
+                return (
+                    this.locks.lockedStalkerIds(item.playlistId, type)
+                        .length === 0
+                );
+            }
             return !this.locks.isStalkerCategoryLocked(
                 item.playlistId,
-                'itv',
-                raw?.tv_genre_id ?? item.categoryId
+                type,
+                id
             );
         }
-        const categoryId = Number(item.categoryId);
+        const type = item.contentType === 'movie' ? 'movies' : item.contentType;
+        const categoryId = Number(item.categoryId ?? NaN);
         if (!Number.isFinite(categoryId) && this.locks.active()) {
             return (
-                this.locks.lockedXtreamIds(item.playlistId, 'live').length === 0
+                this.locks.lockedXtreamIds(item.playlistId, type).length === 0
             );
         }
         return !this.locks.isXtreamCategoryLocked(
             item.playlistId,
-            'live',
+            type,
             categoryId
         );
     }
@@ -301,6 +293,8 @@ export class SecondStreamCatalogService {
                     contentType: 'live' as const,
                     playlistId: playlist._id,
                     playlistName: sourceSortName(playlist),
+                    epgChannelId:
+                        'epg_channel_id' in c ? c.epg_channel_id : undefined,
                     xtreamId:
                         'xtream_id' in c
                             ? c.xtream_id

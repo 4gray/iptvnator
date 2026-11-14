@@ -27,4 +27,6 @@ export * from './lib/stalker-collection-metadata.service';
 export * from './lib/stalker-display-info';
 export * from './lib/stalker-similar.service';
 
-export * from "./lib/stalker-itv-genre-loader";
+export * from './lib/stalker-itv-genre-loader';
+
+export * from './lib/stalker-second-stream.service';

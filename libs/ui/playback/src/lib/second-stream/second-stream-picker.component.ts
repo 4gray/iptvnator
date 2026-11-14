@@ -1,51 +1,67 @@
-import { CdkTrapFocus } from '@angular/cdk/a11y';
 import {
     ChangeDetectionStrategy,
     Component,
     computed,
     DestroyRef,
     effect,
+    ElementRef,
     inject,
-    input,
-    output,
     signal,
     untracked,
+    viewChild,
+    viewChildren,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
-import { ChannelListItemComponent } from '@iptvnator/ui/components';
 import {
+    ChannelListItemComponent,
+    DialogShellComponent,
+} from '@iptvnator/ui/components';
+import {
+    SECOND_STREAM_HISTORY,
     SecondStreamCatalogService,
     SecondStreamCatalog,
     SecondStreamChannel,
     SecondStreamSelection,
     SecondStreamSource,
 } from '@iptvnator/portal/shared/data-access';
-import { EmbeddedMpvOverlayVisibilityService } from '../embedded-mpv-player/embedded-mpv-overlay-visibility.service';
+import { SecondStreamPickerEpg } from './second-stream-picker-epg';
+import { SecondStreamPickerVod } from './second-stream-picker-vod';
+import type { SecondStreamPickerData } from './second-stream-open-stream';
+import type {
+    SecondStreamEpisode,
+    SecondStreamVodType,
+} from '@iptvnator/portal/shared/data-access';
+import type { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 
 @Component({
     selector: 'app-second-stream-picker',
     templateUrl: './second-stream-picker.component.html',
     styleUrl: './second-stream-picker.component.scss',
     imports: [
-        CdkTrapFocus,
         FormsModule,
         MatButtonModule,
         MatIconModule,
         TranslatePipe,
         ChannelListItemComponent,
+        DialogShellComponent,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SecondStreamPickerComponent {
     private readonly catalog = inject(SecondStreamCatalogService);
-    readonly returningToOriginal = input(false);
-    readonly selected = output<SecondStreamSelection>();
-    readonly dismissed = output<void>();
+    private readonly dialog =
+        inject<
+            MatDialogRef<SecondStreamPickerComponent, SecondStreamSelection>
+        >(MatDialogRef);
+    readonly dialogData = inject<SecondStreamPickerData>(MAT_DIALOG_DATA);
+    readonly vod = new SecondStreamPickerVod();
     readonly sources = signal<SecondStreamSource[]>([]);
-    readonly source = signal('');
+    readonly source = signal(this.dialogData.initialPlaylist ?? '');
+    readonly historySource = SECOND_STREAM_HISTORY;
     readonly group = signal<string | null>(null);
     readonly search = signal('');
     readonly loading = signal(true);
@@ -57,6 +73,43 @@ export class SecondStreamPickerComponent {
     private request = new AbortController();
     private generation = 0;
     private initialized = false;
+    private seriesSearch = '';
+    readonly hasContentTypes = computed(
+        () =>
+            !this.source() ||
+            this.source() === SECOND_STREAM_HISTORY ||
+            this.sources().some(
+                (source) => source.id === this.source() && source.portal
+            )
+    );
+    private readonly stalkerSource = computed(() =>
+        this.sources().some(
+            (source) => source.id === this.source() && source.stalker
+        )
+    );
+    readonly searchLabel = computed(() => {
+        if (this.vod.series()) return 'PORTALS.DETAIL.EPISODES';
+        if (this.vod.type() === 'movie') return 'TMDB_MATCH.SEARCH_MOVIE';
+        if (this.vod.type() === 'series') return 'TMDB_MATCH.SEARCH_TV';
+        return 'TWO_STREAMS.SEARCH';
+    });
+    readonly filteredVod = computed(() => {
+        if (this.stalkerSource()) return this.vod.items();
+        const query = this.search().trim().toLocaleLowerCase();
+        return this.vod
+            .items()
+            .filter((item) => item.name.toLocaleLowerCase().includes(query));
+    });
+    readonly filteredEpisodes = computed(() => {
+        const query = this.search().trim().toLocaleLowerCase();
+        return this.vod
+            .episodes()
+            .filter(
+                ({ episode }) =>
+                    (episode.title ?? '').toLocaleLowerCase().includes(query) ||
+                    String(episode.episode_num).includes(query)
+            );
+    });
     readonly filtered = computed(() => {
         const search = this.search().trim().toLocaleLowerCase();
         return this.data().channels.filter(
@@ -66,19 +119,33 @@ export class SecondStreamPickerComponent {
         );
     });
     readonly visible = computed(() => this.filtered().slice(0, this.limit()));
+    private readonly channelList =
+        viewChild<ElementRef<HTMLElement>>('channelList');
+    private readonly channelRows = viewChildren('channelRow', {
+        read: ElementRef<HTMLElement>,
+    });
+    readonly epg = new SecondStreamPickerEpg(
+        computed(() => (this.vod.type() ? [] : this.visible())),
+        this.channelRows,
+        this.channelList
+    );
 
     constructor() {
-        const release = inject(
-            EmbeddedMpvOverlayVisibilityService
-        ).acquireExternalModalSurface();
-        inject(DestroyRef).onDestroy(() => {
+        const cancelRequests = () => {
             this.generation++;
             this.request.abort();
-            release();
-        });
+            this.epg.stop();
+            this.vod.cancel();
+        };
+        this.dialog.beforeClosed().subscribe(cancelRequests);
+        inject(DestroyRef).onDestroy(cancelRequests);
         effect(() => {
             this.catalog.version();
-            untracked(() => void this.reload());
+            untracked(() => {
+                const type = this.vod.type();
+                if (type) this.changeType(type);
+                else void this.reload();
+            });
         });
         effect(() => {
             this.search();
@@ -87,11 +154,64 @@ export class SecondStreamPickerComponent {
         });
     }
 
+    updateSearch(value: string): void {
+        this.search.set(value);
+        const type = this.vod.type();
+        if (type && this.stalkerSource() && !this.vod.series()) {
+            this.vod.search(this.source(), type, value.trim());
+        }
+    }
+
     changeSource(id: string): void {
+        this.vod.reset();
         this.source.set(id);
         this.group.set(null);
         this.search.set('');
         void this.reload();
+    }
+
+    changeType(type: SecondStreamVodType | null): void {
+        this.generation++;
+        this.request.abort();
+        this.resolving.set(null);
+        this.error.set(null);
+        this.limit.set(100);
+        if (type)
+            void this.vod.browse(this.source(), type, this.search().trim());
+        else {
+            this.vod.reset();
+            void this.reload();
+        }
+    }
+
+    openSeries(item: UnifiedCollectionItem): void {
+        if (this.resolving()) return;
+        this.seriesSearch = this.search();
+        this.search.set('');
+        this.limit.set(100);
+        void this.vod.openSeries(item);
+    }
+
+    backToSeries(): void {
+        this.generation++;
+        this.resolving.set(null);
+        this.error.set(null);
+        this.search.set(this.seriesSearch);
+        this.limit.set(100);
+        this.vod.back();
+    }
+
+    chooseMovie(item: UnifiedCollectionItem): void {
+        void this.resolve(item.uid, () => this.vod.service.resolveMovie(item));
+    }
+
+    chooseEpisode(
+        series: UnifiedCollectionItem,
+        row: SecondStreamEpisode
+    ): void {
+        void this.resolve(row.episode.id, () =>
+            this.vod.service.resolveEpisode(series, row)
+        );
     }
 
     async reload(): Promise<void> {
@@ -164,14 +284,23 @@ export class SecondStreamPickerComponent {
     }
 
     async choose(row: SecondStreamChannel): Promise<void> {
+        await this.resolve(row.item.uid, async () => ({
+            item: row.item,
+            playback: await this.catalog.resolve(row),
+        }));
+    }
+
+    private async resolve(
+        key: string,
+        load: () => Promise<SecondStreamSelection>
+    ): Promise<void> {
         if (this.resolving()) return;
         const generation = this.generation;
-        this.resolving.set(row.item.uid);
+        this.resolving.set(key);
         this.error.set(null);
         try {
-            const playback = await this.catalog.resolve(row);
-            if (generation === this.generation)
-                this.selected.emit({ item: row.item, playback });
+            const selection = await load();
+            if (generation === this.generation) this.dialog.close(selection);
         } catch {
             if (generation === this.generation) this.error.set('play');
         } finally {

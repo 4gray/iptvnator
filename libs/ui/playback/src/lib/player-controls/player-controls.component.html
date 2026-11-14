@@ -374,6 +374,7 @@
                         type="button"
                         class="player-controls__button"
                         data-test-id="player-controls-second-stream-button"
+                        aria-haspopup="dialog"
                         (click)="secondStreamRequested.emit()"
                         [attr.aria-label]="'TWO_STREAMS.ADD' | translate"
                         [matTooltip]="'TWO_STREAMS.ADD' | translate"

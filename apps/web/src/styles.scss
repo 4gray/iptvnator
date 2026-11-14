@@ -270,6 +270,10 @@ body.dark-theme {
     backdrop-filter: blur(6px);
 }
 
+.second-stream-picker-backdrop {
+    background: var(--app-popover-backdrop);
+}
+
 // Dialog surfaces may overlap the frameless title bar's drag region.
 .mat-mdc-dialog-surface {
     app-region: no-drag;

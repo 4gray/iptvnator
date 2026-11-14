@@ -1,10 +1,18 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import {
     SecondStreamCatalogService,
     SecondStreamChannel,
+    SecondStreamEpgService,
+    SecondStreamVodService,
 } from '@iptvnator/portal/shared/data-access';
-import { EmbeddedMpvOverlayVisibilityService } from '../embedded-mpv-player/embedded-mpv-overlay-visibility.service';
+import {
+    EpgPreferencesService,
+    EpgSourceSettingsService,
+    SettingsStore,
+} from '@iptvnator/services';
+import { NEVER, Subject } from 'rxjs';
 import { SecondStreamPickerComponent } from './second-stream-picker.component';
 
 const row: SecondStreamChannel = {
@@ -22,11 +30,15 @@ describe('SecondStreamPickerComponent', () => {
     let load: jest.Mock;
     let resolve: jest.Mock;
     let loadGroup: jest.Mock;
+    let close: jest.Mock;
+    let beforeClosed: Subject<void>;
     let component: SecondStreamPickerComponent;
     beforeEach(() => {
         load = jest.fn().mockResolvedValue({ groups: [], channels: [row] });
         resolve = jest.fn();
         loadGroup = jest.fn().mockResolvedValue([row]);
+        close = jest.fn();
+        beforeClosed = new Subject<void>();
         TestBed.configureTestingModule({
             imports: [SecondStreamPickerComponent],
             providers: [
@@ -41,8 +53,34 @@ describe('SecondStreamPickerComponent', () => {
                     },
                 },
                 {
-                    provide: EmbeddedMpvOverlayVisibilityService,
-                    useValue: { acquireExternalModalSurface: () => jest.fn() },
+                    provide: MatDialogRef,
+                    useValue: { close, beforeClosed: () => beforeClosed },
+                },
+                {
+                    provide: MAT_DIALOG_DATA,
+                    useValue: {
+                        returningToOriginal: false,
+                    },
+                },
+                {
+                    provide: SecondStreamVodService,
+                    useValue: {},
+                },
+                {
+                    provide: SecondStreamEpgService,
+                    useValue: { xmltvAvailable$: NEVER },
+                },
+                {
+                    provide: EpgPreferencesService,
+                    useValue: { enabled: signal(false) },
+                },
+                {
+                    provide: EpgSourceSettingsService,
+                    useValue: { revision: signal(0) },
+                },
+                {
+                    provide: SettingsStore,
+                    useValue: { resolvedEpgOffsetMinutes: signal(0) },
                 },
             ],
         });
@@ -68,12 +106,23 @@ describe('SecondStreamPickerComponent', () => {
     it('does not open a channel whose resolution finishes after source changes', async () => {
         let finish!: (value: unknown) => void;
         resolve.mockImplementation(() => new Promise((r) => (finish = r)));
-        const selected = jest.spyOn(component.selected, 'emit');
         const pending = component.choose(row);
         await component.reload();
         finish({ streamUrl: 'https://media.example.test/live' });
         await pending;
-        expect(selected).not.toHaveBeenCalled();
+        expect(close).not.toHaveBeenCalled();
+    });
+
+    it('ignores a resolution that finishes while the dialog is closing', async () => {
+        let finish!: (value: unknown) => void;
+        resolve.mockImplementation(() => new Promise((r) => (finish = r)));
+        const pending = component.choose(row);
+
+        beforeClosed.next();
+        finish({ streamUrl: 'https://media.example.test/live' });
+        await pending;
+
+        expect(close).not.toHaveBeenCalled();
     });
     it('searches the full source before limiting rendered rows', async () => {
         await component.reload();

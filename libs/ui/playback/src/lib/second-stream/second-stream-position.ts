@@ -80,6 +80,13 @@ export class SecondStreamPosition {
 
     down(event: PointerEvent, mode: 'move' | 'left' | 'right' = 'move'): void {
         if (event.button !== 0 || this.start) return;
+        if (
+            mode === 'move' &&
+            (event.target as Element | null)?.closest(
+                'button, .second-stream__resize'
+            )
+        )
+            return;
         event.preventDefault();
         const geometry = this.geometry();
         this.start = {
@@ -123,6 +130,7 @@ export class SecondStreamPosition {
         this.resizing.set(false);
     }
     key(event: KeyboardEvent): void {
+        if (event.target !== event.currentTarget) return;
         const delta = {
             ArrowLeft: [-16, 0],
             ArrowRight: [16, 0],

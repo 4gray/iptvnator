@@ -129,7 +129,9 @@ export class StubEmbeddedMpvPlayerComponent {
 @Component({ selector: 'app-second-stream', template: '' })
 export class StubSecondStreamComponent {
     readonly recordingStopped = output<RecordingStoppedEvent>();
-    readonly editing = signal(false);
+    openPicker(): void {
+        // The Electron workflow exercises the real dialog.
+    }
     readonly placement = new SecondStreamPosition();
     readonly active = signal(false);
     readonly primary = input<unknown>();

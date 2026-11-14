@@ -101,6 +101,21 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
             contentType: 'application/vnd.apple.mpegurl',
         });
         mediaResources = alsoClosing(mediaResources, live);
+        const now = Date.now();
+        const xmltvTime = (time: number) =>
+            new Date(time).toISOString().slice(0, 19).replace(/\D/g, '') +
+            ' +0000';
+        const guide = await createLocalMediaServer({
+            body: Buffer.from(`<tv>
+                <channel id="synthetic-live"><display-name>Synthetic live</display-name></channel>
+                <programme channel="synthetic-live" start="${xmltvTime(now - 900_000)}" stop="${xmltvTime(now + 2_700_000)}">
+                    <title>Synthetic evening bulletin</title>
+                </programme>
+            </tv>`),
+            resourcePath: '/synthetic-guide.xml',
+            contentType: 'application/xml',
+        });
+        mediaResources = alsoClosing(mediaResources, guide);
         await openSettings(page);
         await openSettingsSection(page, 'playback');
         await page.getByTestId('select-video-player').click();
@@ -108,9 +123,32 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
         await saveSettings(page);
         await goToDashboard(page);
         const playlist = join(dataDir, 'synthetic-pair.m3u');
+        const channels = [
+            ['Movies', 'Synthetic movie', media.url],
+            ['Live', 'Synthetic live', live.url],
+            [
+                'Live',
+                'Synthetic unavailable',
+                new URL('/missing.webm', live.url).href,
+            ],
+            ...Array.from({ length: 12 }, (_, index) => [
+                'Live',
+                `Sample live channel ${index + 1}`,
+                `${live.url}?channel=${index + 1}`,
+            ]),
+            ['News', 'Sample news channel', `${live.url}?channel=news`],
+            ['Sports', 'Sample sports channel', `${live.url}?channel=sports`],
+            ['Music', 'Sample music channel', `${live.url}?channel=music`],
+        ];
         writeFileSync(
             playlist,
-            `#EXTM3U\n#EXTINF:-1 group-title="Movies",Synthetic movie\n${media.url}\n#EXTINF:-1 group-title="Live",Synthetic live\n${live.url}\n#EXTINF:-1 group-title="Live",Synthetic unavailable\n${new URL('/missing.webm', live.url).href}\n`
+            [
+                `#EXTM3U x-tvg-url="${guide.url}"`,
+                ...channels.map(
+                    ([group, title, url]) =>
+                        `#EXTINF:-1 group-title="${group}"${title === 'Synthetic live' ? ' tvg-id="synthetic-live"' : ''},${title}\n${url}`
+                ),
+            ].join('\n')
         );
         await installEmbeddedMpvSessionCapture(app);
         await importM3uPlaylistFromNativeDialog(app, playlist);
@@ -175,11 +213,58 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
             .getByRole('button', { name: 'Add second stream', exact: true })
             .click();
         const picker = page.getByRole('dialog', {
-            name: 'Choose a second channel',
+            name: 'Choose a second stream',
         });
+        const pickerSearch = picker.getByRole('searchbox', {
+            name: 'Search channels',
+        });
+        const liveRow = picker.getByTestId('channel-item').filter({
+            has: page.locator('.channel-name', { hasText: /^Synthetic live$/ }),
+        });
+        await expect(liveRow.locator('.epg-title')).toHaveText(
+            'Synthetic evening bulletin'
+        );
+        await expect(liveRow.locator('.epg-time')).toHaveText([
+            /^\d\d:\d\d$/,
+            /^\d\d:\d\d$/,
+        ]);
+        await expect(liveRow.locator('.epg-progress-fill')).toHaveAttribute(
+            'style',
+            /width: (2[4-9]|30)(\.\d+)?%;/
+        );
+        await expect(pickerSearch).toBeFocused();
+        const playerBounds = await page
+            .locator('.embedded-mpv-pair')
+            .boundingBox();
+        const pickerBounds = await picker.boundingBox();
+        ok(playerBounds && pickerBounds);
+        const viewportHeight = await page.evaluate(() => window.innerHeight);
+        expect(pickerBounds.y + pickerBounds.height).toBeGreaterThan(
+            playerBounds.y + playerBounds.height
+        );
+        expect(pickerBounds.y + pickerBounds.height).toBeLessThan(
+            viewportHeight
+        );
+        await page.mouse.click(24, Math.round(viewportHeight / 2));
+        await expect(picker).toBeHidden();
+        await app.electronApp.evaluate(({ BrowserWindow }) =>
+            BrowserWindow.getAllWindows()[0].webContents.setZoomFactor(2)
+        );
+        await addStream.focus();
+        await page.keyboard.press('Enter');
+        await expect(pickerSearch).toBeFocused();
         await expect(
-            picker.getByRole('button', { name: 'Synthetic live', exact: true })
-        ).toBeVisible();
+            picker.getByRole('button', { name: 'Close dialog' })
+        ).toBeInViewport();
+        await expect(liveRow.getByRole('button')).toBeInViewport();
+        await page.keyboard.press('Escape');
+        await expect(picker).toBeHidden();
+        await expect(addStream).toBeFocused();
+        await app.electronApp.evaluate(({ BrowserWindow }) =>
+            BrowserWindow.getAllWindows()[0].webContents.setZoomFactor(1)
+        );
+        await addStream.click();
+        await expect(liveRow.getByRole('button')).toBeVisible();
         await picker
             .getByLabel('Playlist', { exact: true })
             .selectOption({ label: 'synthetic-pair' });
@@ -187,21 +272,40 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
             .getByRole('navigation', { name: 'Groups' })
             .getByRole('button', { name: 'Live', exact: true })
             .click();
-        await picker
-            .getByRole('searchbox', { name: 'Search channels' })
-            .fill('Synthetic live');
+        await expect(liveRow.locator('.epg-title')).toHaveText(
+            'Synthetic evening bulletin'
+        );
         for (const theme of ['light', 'dark'] as const) {
             await applyTheme(page, theme);
             await expectTextContrast(picker.locator('h2'));
-            await expectTextContrast(picker.locator('.channel-name'));
+            await expectTextContrast(picker.locator('.channel-name').first());
+            await expectTextContrast(
+                picker.getByRole('button', {
+                    name: 'All channels',
+                    exact: true,
+                })
+            );
             await page.screenshot({
                 path: testInfo.outputPath(`two-stream-picker-${theme}.png`),
             });
         }
         await applyTheme(page, 'light');
         await picker
-            .getByRole('button', { name: 'Synthetic live', exact: true })
+            .getByRole('button', {
+                name: 'Sample live channel 12',
+                exact: true,
+            })
+            .scrollIntoViewIfNeeded();
+        await expect(pickerSearch).toBeInViewport();
+        await pickerSearch.fill('Sample live channel 12');
+        await expect(picker.locator('.channel-name')).toHaveText([
+            'Sample live channel 12',
+        ]);
+        await picker
+            .getByRole('button', { name: 'Clear search', exact: true })
             .click();
+        await expect(pickerSearch).toBeFocused();
+        await liveRow.getByRole('button').click();
         await expect(canvases).toHaveCount(2);
         await expect
             .poll(() => canvases.nth(1).getAttribute('data-session-id'))
@@ -276,20 +380,28 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
             firstId
         );
         const tile = page.getByRole('group', {
-            name: 'Small video',
+            name: 'Small view',
             exact: true,
         });
         await tile.hover();
         const initialBox = (await tile.boundingBox())!;
-        const handle = page.getByRole('button', {
-            name: 'Move small video. Arrow keys move it too.',
-        });
-        const moveTile = async (x: number, y: number) => {
+        const moveTile = async (x: number, y: number, fromTitle = false) => {
             await tile.hover();
-            const box = (await handle.boundingBox())!;
-            await page.mouse.move(box.x + 20, box.y + 20);
+            const target = fromTitle
+                ? tile.locator('.second-stream__top > span')
+                : tile;
+            const box = (await target.boundingBox())!;
+            const tileBox = (await tile.boundingBox())!;
+            const startX = box.x + box.width / 2;
+            const startY = box.y + box.height / 2;
+            await page.mouse.move(startX, startY);
+            await expect(target).toHaveCSS('cursor', 'grab');
             await page.mouse.down();
-            await page.mouse.move(x + 20, y + 20, { steps: 10 });
+            await page.mouse.move(
+                x + startX - tileBox.x,
+                y + startY - tileBox.y,
+                { steps: 10 }
+            );
             await page.mouse.up();
         };
         const stage = (await page.locator('.embedded-mpv-pair').boundingBox())!;
@@ -375,7 +487,7 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
             await page.keyboard.press('ArrowRight');
         await expect(resizeRight).toHaveAttribute('aria-valuenow', '320');
         expect((await tile.boundingBox())!.x).toBeLessThan(initialBox.x - 50);
-        await handle.focus();
+        await tile.focus();
         await page.keyboard.press('ArrowLeft');
         await page
             .getByRole('button', { name: 'Swap main and small views' })
@@ -453,6 +565,19 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
             'data-session-id',
             secondId!
         );
+        await tile.hover();
+        await tile
+            .getByRole('button', { name: 'Change second stream' })
+            .click();
+        await expect(pickerSearch).toBeFocused();
+        await expect(picker).toBeVisible();
+        await page.keyboard.press('Escape');
+        await expect(picker).toBeHidden();
+        await expect
+            .poll(() =>
+                page.evaluate(() => Boolean(document.fullscreenElement))
+            )
+            .toBe(true);
         await page.locator('.second-stream__video--main').hover();
         await page
             .getByRole('button', { name: 'Exit fullscreen', exact: true })
@@ -481,6 +606,20 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
             await expectTextContrast(
                 page.locator('.second-stream__bottom > span')
             );
+            const streamStrip = page.locator('.second-stream__strip');
+            await expect(streamStrip.locator('li')).toHaveCount(2);
+            await expect(streamStrip.locator('li').first()).toContainText(
+                'Synthetic live'
+            );
+            await expectTextContrast(
+                streamStrip.locator('.second-stream__title').first()
+            );
+            await expectTextContrast(
+                streamStrip.locator('.second-stream__title').last()
+            );
+            await expect(
+                tile.getByRole('button', { name: 'Swap main and small views' })
+            ).toHaveCSS('border-radius', '8px');
             await expectOverlayContrastOnWhite(
                 tile,
                 tile.getByRole('button', { name: 'Swap main and small views' })
@@ -506,17 +645,10 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
             });
         }
         // Move the floating video clear of the main player's recovery controls.
-        await tile.hover();
-        const recoveryHandle = (await handle.boundingBox())!;
         const stageBox = (await page
             .locator('.embedded-mpv-pair')
             .boundingBox())!;
-        await page.mouse.move(recoveryHandle.x + 16, recoveryHandle.y + 16);
-        await page.mouse.down();
-        await page.mouse.move(stageBox.x + stageBox.width, stageBox.y + 16, {
-            steps: 4,
-        });
-        await page.mouse.up();
+        await moveTile(stageBox.x + stageBox.width, stageBox.y + 16, true);
         // Retry of the promoted companion preserves its sound; the film stays paused.
         const previousSecondId = secondId;
         await page.evaluate(
@@ -629,7 +761,7 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
         );
         // Recover the failed small view by choosing a different channel.
         const changeChannel = tile.getByRole('button', {
-            name: 'Change second channel',
+            name: 'Change second stream',
         });
         await tile.hover();
         const failedId = await canvases.nth(1).getAttribute('data-session-id');
@@ -645,9 +777,7 @@ test('@playback @electron two frame-copy views keep sessions through swap, pause
 
         await tile.hover();
         await changeChannel.click();
-        await picker
-            .getByRole('button', { name: 'Synthetic live', exact: true })
-            .click();
+        await liveRow.getByRole('button').click();
         await expect(picker).toBeHidden();
         await expect(canvases.first()).toHaveAttribute(
             'data-session-id',

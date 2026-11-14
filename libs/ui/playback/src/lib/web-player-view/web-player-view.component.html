@@ -98,6 +98,9 @@
         <div
             class="embedded-mpv-pair"
             [class.embedded-mpv-pair--swapped]="companion.swapped()"
+            [class.embedded-mpv-pair--with-strip]="
+                embeddedMpvPlayer.support()?.engine === 'frame-copy'
+            "
             [style.--pip-left.px]="companion.placement.geometry().left"
             [style.--pip-top.px]="companion.placement.geometry().top"
             [style.--pip-width.px]="companion.placement.geometry().width"
@@ -109,7 +112,7 @@
                     embeddedMpvPlayer.support()?.engine === 'frame-copy' &&
                     !companion.active()
                 "
-                (secondStreamRequested)="companion.editing.set(true)"
+                (secondStreamRequested)="companion.openPicker()"
                 [appSecondStreamFloating]="companion.swapped()"
                 [showControls]="!companion.busy() && !companion.swapped()"
                 [initialVolumeOverride]="companion.swapped() ? 0 : null"

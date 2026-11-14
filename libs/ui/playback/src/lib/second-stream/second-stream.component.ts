@@ -6,25 +6,39 @@ import {
     effect,
     input,
     inject,
+    Injector,
     OnDestroy,
     output,
     signal,
     viewChild,
     untracked,
 } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
+import { MatDialog, type MatDialogRef } from '@angular/material/dialog';
+import { ActivatedRoute } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
+import { dialogSize } from '@iptvnator/ui/components/dialog-size';
 import type { RecordingStoppedEvent } from '@iptvnator/shared/interfaces';
 import {
+    createInlinePlaybackPositionWriter,
+    PORTAL_PLAYBACK_POSITIONS,
+} from '@iptvnator/portal/shared/util';
+import {
     SecondStreamCatalogService,
+    UnifiedRecentDataService,
     type SecondStreamSelection,
 } from '@iptvnator/portal/shared/data-access';
 import { EmbeddedMpvPlayerComponent } from '../embedded-mpv-player/embedded-mpv-player.component';
-import { SecondStreamPickerComponent } from './second-stream-picker.component';
+import type { SecondStreamPickerComponent } from './second-stream-picker.component';
 import { SecondStreamPosition } from './second-stream-position';
 import { handoffMpvAudio } from '../embedded-mpv-player/embedded-mpv-audio-handoff';
+import type {
+    SecondStreamOpenStream,
+    SecondStreamPickerData,
+} from './second-stream-open-stream';
+import { PlaybackProgressConfirmation } from '../playback-history/playback-progress-confirmation';
+import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
 
 @Component({
     selector: 'app-second-stream',
@@ -32,11 +46,9 @@ import { handoffMpvAudio } from '../embedded-mpv-player/embedded-mpv-audio-hando
     styleUrl: './second-stream.component.scss',
     imports: [
         SecondStreamFloatingDirective,
-        MatButtonModule,
         MatIconModule,
         MatTooltipModule,
         TranslatePipe,
-        SecondStreamPickerComponent,
         EmbeddedMpvPlayerComponent,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -47,6 +59,12 @@ export class SecondStreamComponent implements OnDestroy {
     readonly recordingStopped = output<RecordingStoppedEvent>();
     readonly secondary = viewChild(EmbeddedMpvPlayerComponent);
     private readonly catalog = inject(SecondStreamCatalogService);
+    private readonly dialog = inject(MatDialog);
+    private readonly route = inject(ActivatedRoute, { optional: true });
+    private picker?: MatDialogRef<
+        SecondStreamPickerComponent,
+        SecondStreamSelection
+    >;
     readonly selection = signal<SecondStreamSelection | null>(null);
     private readonly relocking = signal(false);
     readonly playback = computed(() => {
@@ -59,6 +77,44 @@ export class SecondStreamComponent implements OnDestroy {
     });
     readonly active = computed(() => this.playback() !== null);
     readonly swapped = signal(false);
+    readonly openStreams = computed<SecondStreamOpenStream[]>(() => {
+        const primary = this.primary().playback();
+        const secondary = this.playback();
+        const streams: SecondStreamOpenStream[] = [];
+        if (primary)
+            streams.push({
+                playback: primary,
+                small: this.swapped(),
+                muted: (this.primary().session()?.volume ?? 0) === 0,
+            });
+        if (secondary)
+            streams.push({
+                playback: secondary,
+                small: !this.swapped(),
+                muted: (this.secondary()?.session()?.volume ?? 0) === 0,
+            });
+        return streams.sort((a, b) => Number(a.small) - Number(b.small));
+    });
+    private readonly positions = inject(PORTAL_PLAYBACK_POSITIONS, {
+        optional: true,
+    });
+    private readonly positionWriter = createInlinePlaybackPositionWriter({
+        playback: this.playback,
+        save: (playlistId, position) => {
+            void this.positions
+                ?.savePlaybackPosition(playlistId, position)
+                .catch(() => undefined);
+        },
+    });
+    private readonly injector = inject(Injector);
+    private readonly history = new PlaybackProgressConfirmation(() => {
+        const item = this.selection()?.item;
+        if (item)
+            void this.injector
+                .get(UnifiedRecentDataService)
+                .recordPlayback(item)
+                .catch(() => undefined);
+    });
     readonly busy = signal(false);
     readonly editing = signal(false);
     readonly error = signal(false);
@@ -80,6 +136,9 @@ export class SecondStreamComponent implements OnDestroy {
     readonly resizeCorners = ['left', 'right'] as const;
 
     constructor() {
+        effect(() => {
+            if (!this.available()) this.picker?.close();
+        });
         effect((cleanup) => {
             const stage = this.fullscreenTarget();
             if (!stage) return;
@@ -125,6 +184,51 @@ export class SecondStreamComponent implements OnDestroy {
         });
     }
 
+    async openPicker(): Promise<void> {
+        if (this.editing() || this.busy() || !this.available()) return;
+        this.editing.set(true);
+        try {
+            const { SecondStreamPickerComponent } =
+                await import('./second-stream-picker.component');
+            if (this.abort.signal.aborted || !this.available()) return;
+
+            const picker = this.dialog.open<
+                SecondStreamPickerComponent,
+                SecondStreamPickerData,
+                SecondStreamSelection
+            >(SecondStreamPickerComponent, {
+                ...dialogSize('lg'),
+                width: '820px',
+                height: 'min(780px, calc(100dvh - 32px))',
+                ariaModal: true,
+                autoFocus: 'input[type="search"]',
+                backdropClass: 'second-stream-picker-backdrop',
+                data: {
+                    returningToOriginal: this.swapped(),
+                    initialPlaylist:
+                        [...(this.route?.snapshot.pathFromRoot ?? [])]
+                            .reverse()
+                            .find((route) =>
+                                /^(xtreams|stalker)\/:id$/.test(
+                                    route.routeConfig?.path ?? ''
+                                )
+                            )
+                            ?.paramMap.get('id') ?? undefined,
+                },
+            });
+            this.picker = picker;
+            picker.afterClosed().subscribe((selection) => {
+                this.picker = undefined;
+                if (!this.abort.signal.aborted && selection) {
+                    void this.selectPlayback(selection);
+                }
+                this.editing.set(false);
+            });
+        } finally {
+            if (!this.picker) this.editing.set(false);
+        }
+    }
+
     async selectPlayback(selection: SecondStreamSelection): Promise<void> {
         if (
             !this.editing() ||
@@ -144,6 +248,7 @@ export class SecondStreamComponent implements OnDestroy {
             !this.catalog.isAllowed(selection.item)
         )
             return;
+        this.flushPosition();
         this.selection.set(selection);
         this.error.set(false);
     }
@@ -193,6 +298,7 @@ export class SecondStreamComponent implements OnDestroy {
                 // Without a mute acknowledgement, leave the primary volume alone.
             }
         }
+        this.flushPosition();
         this.selection.set(null);
         this.swapped.set(false);
         this.relocking.set(false);
@@ -215,6 +321,7 @@ export class SecondStreamComponent implements OnDestroy {
         if (this.swapped()) await this.swap();
         if (this.selection() && !this.active()) return;
         this.swapped.set(false);
+        this.flushPosition();
         this.selection.set(null);
     }
 
@@ -222,7 +329,31 @@ export class SecondStreamComponent implements OnDestroy {
         void this.small()?.controller.togglePaused();
     }
 
+    savePosition(event: PlayerTimeUpdate): void {
+        const player = this.secondary();
+        const status = player?.session()?.status;
+        if (
+            player?.playback() !== this.playback() ||
+            (status !== 'playing' &&
+                status !== 'paused' &&
+                status !== 'ended') ||
+            !(event.currentTime > 0 && Number.isFinite(event.currentTime))
+        )
+            return;
+        this.history.record(event.currentTime, status === 'playing');
+        this.positionWriter.handleTimeUpdate(event);
+        if (status !== 'playing') this.positionWriter.flush();
+    }
+
+    private flushPosition(): void {
+        this.positionWriter.flush();
+        this.positionWriter.reset();
+        this.history.reset();
+    }
+
     ngOnDestroy(): void {
         this.abort.abort();
+        this.picker?.close();
+        this.flushPosition();
     }
 }

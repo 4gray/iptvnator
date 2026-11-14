@@ -523,27 +523,40 @@ Trade-offs and constraints:
 Electron frame-copy playback exposes an icon-only “Add second stream” action
 beside Settings in the bottom player controls, with a localized tooltip.
 It follows the controls’ visibility and disappears while the companion is active.
-Its lazy in-player picker starts with global live favorites and offers saved
-playlists → groups → channels with search. It reads M3U, Xtream and Stalker
-catalogs independently of the active provider selection and uses the shared
-stream resolver, preserving playback metadata and parental locks. The companion
-starts muted; the provider must permit two connections. Closing the companion returns to the original
-mounted video. Route/content replacement still ends both views. Live pause
+Its lazy picker opens through the shared dialog shell and can extend below
+the video into the app window. The playlist selector sits inside the search
+bar above the scrolling results. The strip beneath the video lists the open
+streams in view order and shows which has sound. The picker opens on the current
+portal when available. Global favorites and recently viewed are also available
+in the selector. The portal and collection views have Live TV, Movies and Series
+filters. Live playlists offer groups and search. Channel rows reuse the
+sidebar's programme title, time range and progress. XMLTV previews are batched
+by guide scope, and Xtream and Stalker use the collection EPG resolver. The picker
+requests previews only near the visible list and honors the global EPG preference.
+It reads M3U, Xtream live and Stalker ITV catalogs independently of the active
+provider selection and uses the shared stream resolver, preserving playback
+metadata and parental locks. Xtream and Stalker also expose movies and a
+series-to-episode drill-down. The companion uses the portal player's playlist
+and content keys to resume progress and flushes its latest position when
+paused, replaced or closed. Episode positions retain the parent series and
+episode numbers. The companion starts muted and records items in Recently Viewed
+after playback advances. The provider must permit two connections. Closing the
+companion returns to the original mounted video. Route/content replacement still ends both views. Live pause
 uses MPV pause only and does not promise timeshift or an application buffer.
 
 The primary and companion retain their components and session IDs during
 main/small exchange. CSS changes their geometry; bounds sync resizes each
 helper's render target without loading the media again. Keyboard focus has no
 playback or audio side effect. Only the main view exposes shared controls;
-the small view has exchange, pause/resume, change channel and close-and-return
-controls. Change channel reopens the same picker. Selection replaces only the
+the small view has exchange, pause/resume, change stream and close-and-return
+controls. Change stream reopens the same picker. Selection replaces only the
 companion session and starts it muted. If the views are swapped, the original
 video and its sound return to the main view before the replacement starts.
 The companion keeps its playlist and category identity for parental controls.
 A relock hides a withheld stream immediately and retires its session. The
 primary view resumes sound only after the companion acknowledges its mute,
 including when a relock interrupts an audio exchange.
-A pointer drag handle and arrow keys move the small view anywhere
+Dragging the small video surface or using its arrow keys moves it anywhere
 inside the application viewport, including over channel and EPG panes. The
 existing small canvas and controls use manual DOM popovers to escape ancestor
 clipping without reparenting or remounting playback. Controls are promoted after

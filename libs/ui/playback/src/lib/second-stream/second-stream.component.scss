@@ -5,8 +5,7 @@
 }
 button,
 .second-stream__video,
-.second-stream__tile,
-.second-stream__picker {
+.second-stream__tile {
     app-region: no-drag;
     pointer-events: auto;
 }
@@ -25,12 +24,18 @@ button,
 .second-stream__video--main {
     inset: 0;
     width: 100%;
-    height: 100%;
+    height: calc(100% - var(--second-stream-strip-height, 0px));
     z-index: 0;
     outline: none;
 }
 .second-stream__tile {
     z-index: 5;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+}
+.second-stream__tile--dragging {
+    cursor: grabbing;
 }
 .second-stream__tile:focus-visible {
     outline: 2px solid var(--app-focus-ring);
@@ -45,7 +50,7 @@ button,
     align-items: center;
     height: 40px;
     box-sizing: border-box;
-    padding: 0 4px;
+    padding: 0 8px;
     gap: 4px;
     background: transparent;
     color: #fff;
@@ -53,21 +58,42 @@ button,
     pointer-events: none;
 }
 .second-stream__chrome button {
+    display: grid;
+    place-items: center;
     pointer-events: none;
-    flex-shrink: 0;
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
     color: #fff;
-    background: radial-gradient(
-        circle at center,
-        rgb(0 0 0 / 76%) 58%,
-        transparent 61%
-    );
+    background: rgb(0 0 0 / 76%);
+
+    mat-icon {
+        width: 18px;
+        height: 18px;
+        font-size: 18px;
+    }
+    &:hover:not(:disabled) {
+        background: #15171b;
+    }
     &:disabled {
+        cursor: default;
         color: rgb(255 255 255 / 50%);
     }
     &:focus-visible {
-        outline: 2px solid #fff;
+        outline: 2px solid var(--app-focus-ring);
         outline-offset: -3px;
     }
+}
+.second-stream__bottom button:first-child:not(:disabled) {
+    background: #183c80;
+    color: #fff;
+}
+.second-stream__bottom button:first-child:not(:disabled):hover {
+    background: #204b97;
 }
 .second-stream__top > span + button,
 .second-stream__bottom button:last-child {
@@ -105,28 +131,6 @@ button,
 .second-stream__top > span {
     font-weight: 500;
 }
-.second-stream__drag {
-    cursor: grab;
-    touch-action: none;
-}
-.second-stream__tile--dragging .second-stream__drag {
-    cursor: grabbing;
-}
-.second-stream__backdrop {
-    position: absolute;
-    inset: 0;
-    border: 0;
-    background: var(--app-popover-backdrop);
-    z-index: 6;
-}
-.second-stream__picker {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    bottom: 12px;
-    width: min(640px, calc(100% - 24px));
-    z-index: 7;
-}
 .second-stream__error {
     position: absolute;
     top: 56px;
@@ -158,7 +162,7 @@ button,
     touch-action: none;
     app-region: no-drag;
     &:focus-visible {
-        outline: 2px solid #fff;
+        outline: 2px solid var(--app-focus-ring);
         outline-offset: -3px;
     }
 }
@@ -166,4 +170,62 @@ button,
     right: auto;
     left: 0;
     cursor: nesw-resize;
+}
+
+.second-stream__strip {
+    position: absolute;
+    inset: auto 0 0;
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-sizing: border-box;
+    height: var(--second-stream-strip-height);
+    margin: 0;
+    padding: 4px 8px;
+    list-style: none;
+    background: var(--app-content-bg);
+    border-block-start: 1px solid var(--app-widget-header-border);
+
+    li {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+        max-width: min(48%, 214px);
+        padding: 4px 7px;
+        border: 1px solid var(--app-widget-header-border);
+        border-radius: 7px;
+        background: var(--app-widget-bg);
+        color: var(--app-body-color);
+        font-size: 12px;
+    }
+
+    li:first-child {
+        border-color: var(--app-list-selected-outline);
+        background: var(--app-list-selected-bg);
+        color: var(--app-list-selected-fg);
+    }
+
+    mat-icon {
+        flex: none;
+        width: 15px;
+        height: 15px;
+        font-size: 15px;
+    }
+}
+
+.second-stream__number {
+    flex: none;
+    min-width: 16px;
+    border-radius: 4px;
+    background: var(--app-hover-overlay);
+    text-align: center;
+    font-weight: 600;
+}
+
+.second-stream__title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }

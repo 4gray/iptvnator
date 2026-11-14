@@ -1,7 +1,11 @@
 import { stalkerFavoriteReference } from '@iptvnator/shared/interfaces/favorites-sync';
 import { HISTORY_PLAYLIST_BRIDGE } from '@iptvnator/services/history-events';
 import { inject, Injectable } from '@angular/core';
-import { StalkerCollectionMetadataService } from '@iptvnator/portal/stalker/data-access';
+import {
+    buildStalkerRecentlyViewedPayload,
+    stalkerSecondStreamType,
+    StalkerCollectionMetadataService,
+} from '@iptvnator/portal/stalker/data-access';
 import { normalizeXtreamContentTypes } from '@iptvnator/shared/interfaces';
 import { Store } from '@ngrx/store';
 import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
@@ -266,6 +270,12 @@ export class UnifiedRecentDataService {
     async recordLivePlayback(
         item: UnifiedCollectionItem
     ): Promise<UnifiedCollectionItem> {
+        return this.recordPlayback(item);
+    }
+
+    async recordPlayback(
+        item: UnifiedCollectionItem
+    ): Promise<UnifiedCollectionItem> {
         const viewedAt = new Date().toISOString();
 
         if (item.sourceType === 'm3u') {
@@ -342,8 +352,10 @@ export class UnifiedRecentDataService {
 
         const stalkerItem =
             (item.stalkerItem as StalkerPortalItem | undefined) ?? {};
-        const updatedPlaylist = await firstValueFrom(
-            this.playlistsService.addPortalRecentlyViewed(item.playlistId, {
+        const type =
+            item.contentType === 'live' ? 'itv' : stalkerSecondStreamType(item);
+        const entry = buildStalkerRecentlyViewedPayload(
+            {
                 ...stalkerItem,
                 id:
                     item.stalkerId ??
@@ -363,11 +375,18 @@ export class UnifiedRecentDataService {
                 title: item.name,
                 name: stalkerItem.name ?? item.name,
                 o_name: stalkerItem.o_name ?? item.name,
-                category_id: 'itv',
-                added_at: Date.now(),
-            })
+                ...(type === 'itv'
+                    ? { category_id: 'itv' }
+                    : { category_id: item.categoryId }),
+            },
+            type
         );
-
+        const updatedPlaylist = await firstValueFrom(
+            this.playlistsService.addPortalRecentlyViewed(
+                item.playlistId,
+                entry
+            )
+        );
         this.dispatchPlaylistRecentUpdate(item.playlistId, updatedPlaylist);
 
         return {
