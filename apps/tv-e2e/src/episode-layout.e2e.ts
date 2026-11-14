@@ -110,7 +110,9 @@ for (const index of [30, 120])
         // Layout position in the rail: the focus scale transition does not count.
         const position = () =>
             chosen.evaluate(
-                (el) => el.offsetLeft - (el.parentElement?.scrollLeft ?? 0)
+                (el) =>
+                    (el as HTMLElement).offsetLeft -
+                    (el.parentElement?.scrollLeft ?? 0)
             );
         const before = await position();
         release!();
@@ -122,6 +124,13 @@ for (const index of [30, 120])
             page.locator('[data-focus="episode-options"]')
         ).toBeFocused();
         await page.keyboard.press('ArrowUp');
+        await expect(chosen).toBeFocused();
+        // Pointer or wheel scrolling to the end renders the episodes there
+        // instead of empty spacer, and keeps the focused episode mounted.
+        await rail.evaluate((el) => {
+            el.scrollLeft = el.scrollWidth;
+        });
+        await expect(rail.locator('[data-episode-index="199"]')).toBeVisible();
         await expect(chosen).toBeFocused();
         await page.keyboard.press('Enter');
         await expect(page.locator('.player-bottom')).toContainText(

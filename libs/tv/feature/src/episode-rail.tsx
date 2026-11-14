@@ -8,13 +8,50 @@ import { MoreActions, WatchOptions } from './watch-actions';
 /** Episodes kept in the DOM on each side of the selected one. */
 const BEFORE = 8;
 const AFTER = 16;
+/** Episodes kept around the scrolled-to left edge: a screen and a bit. */
+const SCROLL_BEFORE = 2;
+const SCROLL_AFTER = 8;
 const isKey = (event: KeyboardEvent, key: string, code: number) =>
     event.key === key || event.keyCode === code;
 
 /**
+ * Episode ranges to render: one around the selected episode and, when the
+ * rail was scrolled elsewhere, one around the visible part. Overlapping
+ * ranges merge; the result is sorted and non-empty for a non-empty season.
+ */
+export function windowRanges(
+    count: number,
+    selected: number,
+    visible: number | null
+): [number, number][] {
+    const around = (
+        center: number,
+        before: number,
+        after: number
+    ): [number, number] => [
+        Math.max(0, center - before),
+        Math.min(count, center + after),
+    ];
+    const ranges = [around(selected, BEFORE, AFTER)];
+    if (visible !== null)
+        ranges.push(
+            around(Math.min(visible, count - 1), SCROLL_BEFORE, SCROLL_AFTER)
+        );
+    ranges.sort((a, b) => a[0] - b[0]);
+    const merged: [number, number][] = [];
+    for (const range of ranges) {
+        const last = merged[merged.length - 1];
+        if (last && range[0] <= last[1]) last[1] = Math.max(last[1], range[1]);
+        else merged.push([range[0], range[1]]);
+    }
+    return merged;
+}
+
+/**
  * A horizontal episode rail. Long seasons are windowed around the selected
- * episode; spacers keep scroll coordinates stable. The focused episode's
- * description and its one options button sit under the rail.
+ * episode and the scrolled-to part; spacers keep scroll coordinates stable.
+ * The focused episode's description and its one options button sit under
+ * the rail.
  */
 export function EpisodeRail({
     tv,
@@ -34,9 +71,10 @@ export function EpisodeRail({
         )
     );
     const [step, setStep] = useState(480);
+    /** First episode visible in the rail, from its scroll position. */
+    const [visible, setVisible] = useState<number | null>(null);
     const index = Math.min(selected, Math.max(0, episodes.length - 1));
-    const start = Math.max(0, index - BEFORE);
-    const end = Math.min(episodes.length, index + AFTER);
+    const ranges = windowRanges(episodes.length, index, visible);
     const current = episodes[index];
     useLayoutEffect(() => {
         const first = row.current?.querySelector<HTMLElement>('.episode');
@@ -80,6 +118,12 @@ export function EpisodeRail({
                     class="rail episode-rail"
                     data-tv-horizontal
                     ref={row}
+                    onScroll={(event) => {
+                        // Pointer and wheel scrolling move the rendered window
+                        // too; the selected episode stays mounted.
+                        const left = event.currentTarget.scrollLeft;
+                        setVisible(Math.max(0, Math.floor(left / step)));
+                    }}
                     onKeyDown={(event) => {
                         if (!isKey(event, 'ArrowDown', 40)) return;
                         const options =
@@ -92,28 +136,35 @@ export function EpisodeRail({
                         options.focus();
                     }}
                 >
-                    {start ? (
-                        <span
-                            class="episode-spacer"
-                            aria-hidden="true"
-                            style={{ width: `${start * step}px` }}
-                        />
-                    ) : null}
-                    {episodes.slice(start, end).map((e, offset) => (
-                        <EpisodeCard
-                            key={e.id}
-                            tv={tv}
-                            item={e}
-                            index={start + offset}
-                            onFocus={() => setSelected(start + offset)}
-                        />
-                    ))}
-                    {end < episodes.length ? (
+                    {ranges.map(([from, to], part) => [
+                        from > (part ? ranges[part - 1][1] : 0) ? (
+                            <span
+                                key={`spacer-${from}`}
+                                class="episode-spacer"
+                                aria-hidden="true"
+                                style={{
+                                    width: `${(from - (part ? ranges[part - 1][1] : 0)) * step}px`,
+                                }}
+                            />
+                        ) : null,
+                        ...episodes
+                            .slice(from, to)
+                            .map((e, offset) => (
+                                <EpisodeCard
+                                    key={e.id}
+                                    tv={tv}
+                                    item={e}
+                                    index={from + offset}
+                                    onFocus={() => setSelected(from + offset)}
+                                />
+                            )),
+                    ])}
+                    {ranges[ranges.length - 1][1] < episodes.length ? (
                         <span
                             class="episode-spacer"
                             aria-hidden="true"
                             style={{
-                                width: `${(episodes.length - end) * step}px`,
+                                width: `${(episodes.length - ranges[ranges.length - 1][1]) * step}px`,
                             }}
                         />
                     ) : null}
