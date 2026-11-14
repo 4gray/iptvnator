@@ -7,4 +7,4 @@ export { withRecentItems } from './lib/with-recent-items';
 export * from './lib/content-metadata-backfill';
 export * from './lib/xtream-content-metadata.util';
 export * from './lib/xtream-state';
-export { androidPlaybackResetAt } from './lib/data-sources/pwa-playback-positions';
+export { androidPlaybackResetAt } from './lib/data-sources/pwa-android-playback-resets';

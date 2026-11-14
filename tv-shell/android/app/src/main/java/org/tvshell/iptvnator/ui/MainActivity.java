@@ -853,17 +853,16 @@ public class MainActivity extends Activity {
             nativePlaybackContent = null;
             Intent fallback = id == null ? null : NativePlayerActivity.takeCheckpoint(id);
             Intent result = resultCode == RESULT_OK && data != null ? data : fallback;
-            if (id != null && nativePlaybackDocumentCurrent) {
-                replyToNativePlayback(id, result);
-            } else if (id != null && content != null && result != null
+            if (id != null && content != null && result != null
                 && (result.getLongExtra("duration", 0) > 0 || result.getLongExtra("position", 0) > 0)) {
                 content.putString("id", id);
                 content.putLong("position", result.getLongExtra("position", 0));
                 content.putLong("duration", result.getLongExtra("duration", 0));
                 content.putLong("savedAt", System.currentTimeMillis());
                 nativePlaybackCheckpoints.putBundle(id, content);
-                deliverNativePlaybackCheckpoint();
             }
+            if (id != null && nativePlaybackDocumentCurrent) replyToNativePlayback(id, result);
+            deliverNativePlaybackCheckpoint();
             return;
         }
         if (!fileChooser.onActivityResult(requestCode, resultCode, data)) {

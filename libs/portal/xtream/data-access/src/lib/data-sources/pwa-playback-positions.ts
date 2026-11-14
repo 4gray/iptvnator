@@ -1,60 +1,42 @@
+import {
+    writeXtreamUserDataMap,
+    type UserDataStorage,
+} from '@iptvnator/services';
 import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
-
-type PositionId = Pick<PlaybackPositionData, 'contentType' | 'contentXtreamId'>;
-
-function resetKey(playlistId: string, item: PositionId): string {
-    return (
-        'iptvnator-native-playback-reset:' +
-        JSON.stringify([playlistId, item.contentType, item.contentXtreamId])
-    );
-}
-
-function savePositionResets(
-    playlistId: string,
-    items: PositionId[],
-    write: () => void
-): void {
-    if (!('TvShell' in globalThis)) {
-        write();
-        return;
-    }
-    const timestamp = String(Date.now());
-    const previous = new Map<string, string | null>();
-    try {
-        for (const item of items) {
-            const key = resetKey(playlistId, item);
-            if (previous.has(key)) continue;
-            previous.set(key, localStorage.getItem(key));
-            localStorage.setItem(key, timestamp);
-        }
-        write();
-    } catch (error) {
-        for (const [key, old] of previous) {
-            if (localStorage.getItem(key) !== timestamp) continue;
-            if (old === null) localStorage.removeItem(key);
-            else localStorage.setItem(key, old);
-        }
-        throw error;
-    }
-}
-
-export function androidPlaybackResetAt(
-    playlistId: string,
-    item: PositionId
-): number {
-    return Number(localStorage.getItem(resetKey(playlistId, item)));
-}
-
-type Positions = Record<string, PlaybackPositionData[]>;
+import {
+    type Positions,
+    nativePlaybackResetKey,
+    nativePlaybackResetId,
+    readPlaybackPositions,
+    playbackPositionsStorageKey,
+} from './pwa-android-playback-resets';
 
 /** Loaded on demand. Every mutation reads fresh storage after loading the module. */
 export class PwaPlaybackPositions {
-    constructor(
-        private readonly getPlaybackPositionsFromStorage: () => Positions,
-        private readonly savePlaybackPositionsToStorage: (
-            positions: Positions
-        ) => void
-    ) {}
+    constructor(private readonly storage: UserDataStorage) {}
+
+    private getPlaybackPositionsFromStorage(): Positions {
+        try {
+            return readPlaybackPositions(this.storage);
+        } catch {
+            return {};
+        }
+    }
+
+    private savePlaybackPositionsToStorage(positions: Positions): void {
+        writeXtreamUserDataMap(
+            this.storage,
+            playbackPositionsStorageKey,
+            positions
+        );
+    }
+
+    clearPlaylist(playlistId: string): void {
+        const allPositions = this.getPlaybackPositionsFromStorage();
+        delete allPositions[playlistId];
+        this.savePlaybackPositionsToStorage(allPositions);
+    }
+
     async savePlaybackPosition(
         playlistId: string,
         data: PlaybackPositionData
@@ -185,9 +167,10 @@ export class PwaPlaybackPositions {
         }
 
         const allPositions = this.getPlaybackPositionsFromStorage();
-        savePositionResets(playlistId, items, () => {
-            const playlistPositions = allPositions[playlistId];
-            if (!playlistPositions) return;
+        const playlistPositions = allPositions[playlistId];
+        const android = 'TvShell' in globalThis;
+        if (!playlistPositions && !android) return;
+        if (playlistPositions) {
             const removedKeys = new Set(
                 items.map(
                     (item) => `${item.contentType}_${item.contentXtreamId}`
@@ -196,7 +179,16 @@ export class PwaPlaybackPositions {
             allPositions[playlistId] = playlistPositions.filter(
                 (p) => !removedKeys.has(`${p.contentType}_${p.contentXtreamId}`)
             );
-            this.savePlaybackPositionsToStorage(allPositions);
-        });
+        }
+        if (android) {
+            // Commit the fence in the same write that frees space by removing the position.
+            const resets = { ...allPositions[nativePlaybackResetKey] };
+            const timestamp = Date.now();
+            for (const item of items) {
+                resets[nativePlaybackResetId(playlistId, item)] = timestamp;
+            }
+            allPositions[nativePlaybackResetKey] = resets;
+        }
+        this.savePlaybackPositionsToStorage(allPositions);
     }
 }

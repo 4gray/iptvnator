@@ -67,6 +67,7 @@ function setup() {
         const [, id, request] = JSON.parse(message);
         expect(request.volume).toBe(0);
         expect(request.checkpoint).toEqual({
+            profile: 'iptvnator',
             playlistId: 'synthetic-playlist',
             contentXtreamId: 17,
             contentType: 'episode',

@@ -22,8 +22,6 @@ import {
     ParentalLockService,
     PlaylistsService,
     USER_DATA_STORAGE,
-    XTREAM_USER_DATA_KEYS,
-    writeXtreamUserDataMap,
 } from '@iptvnator/services';
 import { firstValueFrom } from 'rxjs';
 import {
@@ -57,7 +55,6 @@ import type { XtreamCachedContentItem } from './pwa-cached-content';
  */
 const STORAGE_KEYS = {
     PLAYLISTS: 'xtream-playlists',
-    PLAYBACK_POSITIONS: XTREAM_USER_DATA_KEYS.playbackPositions,
 };
 
 type StoredXtreamPlaylistData = Omit<XtreamPlaylistData, 'password'> & {
@@ -169,7 +166,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         this.collectionStorage.clearCollectionItemsForPlaylist(playlistId);
         this.collectionStorage.clearFavoritesForPlaylist(playlistId);
         this.collectionStorage.clearRecentItemsForPlaylist(playlistId);
-        this.clearPlaybackPositionsForPlaylist(playlistId);
+        (await this.playbackPositions()).clearPlaylist(playlistId);
 
         // Clear cache
         this.clearCacheForPlaylist(playlistId);
@@ -824,10 +821,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     private async playbackPositions() {
         const { PwaPlaybackPositions } =
             await import('./pwa-playback-positions');
-        return new PwaPlaybackPositions(
-            this.getPlaybackPositionsFromStorage.bind(this),
-            this.savePlaybackPositionsToStorage.bind(this)
-        );
+        return new PwaPlaybackPositions(this.userDataStorage);
     }
 
     /**
@@ -839,36 +833,6 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
      */
     private async userDataRead(fresh = false): Promise<boolean> {
         return (await this.userDataStorage.ready?.(fresh)) ?? true;
-    }
-
-    private getPlaybackPositionsFromStorage(): Record<
-        string,
-        PlaybackPositionData[]
-    > {
-        try {
-            const data = this.userDataStorage.getItem(
-                STORAGE_KEYS.PLAYBACK_POSITIONS
-            );
-            return data ? JSON.parse(data) : {};
-        } catch {
-            return {};
-        }
-    }
-
-    private savePlaybackPositionsToStorage(
-        positions: Record<string, PlaybackPositionData[]>
-    ): void {
-        writeXtreamUserDataMap(
-            this.userDataStorage,
-            STORAGE_KEYS.PLAYBACK_POSITIONS,
-            positions
-        );
-    }
-
-    private clearPlaybackPositionsForPlaylist(playlistId: string): void {
-        const allPositions = this.getPlaybackPositionsFromStorage();
-        delete allPositions[playlistId];
-        this.savePlaybackPositionsToStorage(allPositions);
     }
 
     // =========================================================================

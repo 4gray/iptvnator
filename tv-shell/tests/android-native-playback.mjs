@@ -298,7 +298,8 @@ try {
     const subtitleButton = /<node [^>]*resource-id="org\.tvshell\.iptvnator:id\/exo_subtitle"[^>]*>/;
     const captionsState = () => {
         const button = dumpLayout().match(subtitleButton)?.[0];
-        if (!button) adb('shell', 'input', 'keyevent', 'KEYCODE_DPAD_CENTER');
+        // Direct bridge launches have no focused control for a remote click.
+        if (!button) adb('shell', 'input', 'tap', '120', '120');
         return button?.match(/content-desc="([^"]*)"/)?.[1] ?? '';
     };
     await expect.poll(captionsState, { timeout: 8000 }).toBe('Disable subtitles');
@@ -436,6 +437,7 @@ try {
             startTime: 25,
             captions: true,
             checkpoint: {
+                profile: 'iptvnator',
                 playlistId,
                 contentType: 'episode',
                 contentXtreamId: 17,
@@ -475,8 +477,47 @@ try {
         const position = stored[id]?.find((item) => item.contentXtreamId === 17)?.positionSeconds;
         return position > 0 && position < 20;
     }, playlistId)).toBe(true);
+    const retryId = 'synthetic-retry-' + randomUUID();
+    await page.evaluate(({ url, retryId }) => {
+        const put = Storage.prototype.setItem;
+        window.__allowPositionWrite = false;
+        window.__positionWriteAttempts = 0;
+        window.__nativeResults = 0;
+        window.addEventListener('iptvnator:android-playback-result', () => window.__nativeResults++);
+        Storage.prototype.setItem = function (key, value) {
+            if (key === 'xtream-playback-positions' && !window.__allowPositionWrite) {
+                window.__positionWriteAttempts++;
+                throw new DOMException('Synthetic quota', 'QuotaExceededError');
+            }
+            return put.call(this, key, value);
+        };
+        window.TvShell.postMessage(JSON.stringify(['playNative', crypto.randomUUID(), {
+            url,
+            startTime: 8,
+            checkpoint: {
+                profile: 'iptvnator',
+                playlistId: retryId,
+                contentType: 'vod',
+                contentXtreamId: 18,
+            },
+        }]));
+    }, { url: origin + '/synthetic-ac3.mkv', retryId });
+    await waitNative();
+    await waitAudio();
+    await back();
+    await expect.poll(() => page.evaluate(() => window.__positionWriteAttempts)).toBeGreaterThan(0);
+    await page.evaluate(() => {
+        window.__allowPositionWrite = true;
+        window.TvShell.postMessage(JSON.stringify(['onReady', location.href]));
+    });
+    await expect.poll(() => page.evaluate((id) => {
+        const stored = JSON.parse(localStorage.getItem('xtream-playback-positions') || '{}');
+        return stored[id]?.find((item) => item.contentXtreamId === 18)?.positionSeconds;
+    }, retryId)).toBeGreaterThanOrEqual(8);
+    assert.equal(await page.evaluate(() => window.__nativeResults), 1,
+        'Checkpoint retry must not replay the original playback result.');
     await setExperiment(false);
-    console.log('PASS Android Media3 opt-in, mute handoff, VOD resume after Home and WebView reload, redirect header scope, extensionless HLS Back, AC-3 audio, captions and natural VOD completion');
+    console.log('PASS Android Media3 opt-in, mute handoff, VOD resume after Home, WebView reload and failed writes, redirect header scope, extensionless HLS Back, AC-3 audio, captions and natural VOD completion');
 } finally {
     if (settingsOpen || topActivity().includes('.ui.NativePlayerActivity')) adb('shell', 'input', 'keyevent', '4');
     await device?.close();

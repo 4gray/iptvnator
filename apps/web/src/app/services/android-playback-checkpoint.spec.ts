@@ -86,6 +86,7 @@ describe('restoring Android playback checkpoints', () => {
                     positionMs: 32_210,
                     durationMs: 90_000,
                     content: JSON.stringify({
+                        profile: 'iptvnator',
                         ...content,
                         streamUrl: 'https://media.example.test/synthetic.mp4',
                     }),
@@ -122,6 +123,21 @@ describe('restoring Android playback checkpoints', () => {
         );
     });
 
+    it('leaves a checkpoint from another source profile pending without blocking this profile', async () => {
+        await deliver({
+            content: JSON.stringify({
+                ...content,
+                profile: 'iptvnator-server:synthetic-instance',
+            }),
+        });
+        expect(getPlaybackPosition).not.toHaveBeenCalled();
+        expect(postMessage).not.toHaveBeenCalled();
+
+        await deliver();
+        expect(savePlaybackPositionOrThrow).toHaveBeenCalledTimes(1);
+        expect(postMessage).toHaveBeenCalledTimes(1);
+    });
+
     it('keeps a newer position from the same episode', async () => {
         getPlaybackPosition.mockResolvedValue({
             updatedAt: new Date(savedAt + 1000).toISOString(),
@@ -140,7 +156,11 @@ describe('restoring Android playback checkpoints', () => {
             deliver(),
             deliver({
                 id: secondId,
-                content: JSON.stringify({ ...content, contentXtreamId: 18 }),
+                content: JSON.stringify({
+                    ...content,
+                    profile: 'iptvnator',
+                    contentXtreamId: 18,
+                }),
             }),
         ]);
         expect(postMessage.mock.calls).toEqual([
@@ -182,13 +202,16 @@ describe('restoring Android playback checkpoints', () => {
         await deliver();
         expect(postMessage).not.toHaveBeenCalled();
         localStorage.setItem(
-            'iptvnator-native-playback-reset:' +
-                JSON.stringify([
-                    content.playlistId,
-                    content.contentType,
-                    content.contentXtreamId,
-                ]),
-            String(Date.now())
+            'xtream-playback-positions',
+            JSON.stringify({
+                __iptvnator_native_playback_resets__: {
+                    [JSON.stringify([
+                        content.playlistId,
+                        content.contentType,
+                        content.contentXtreamId,
+                    ])]: Date.now(),
+                },
+            })
         );
         await deliver();
         expect(savePlaybackPositionOrThrow).toHaveBeenCalledTimes(1);

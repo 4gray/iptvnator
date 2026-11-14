@@ -12,6 +12,7 @@ import {
 } from '@angular/core';
 import { getPlaybackMediaExtensionFromUrl } from '@iptvnator/playback/util';
 import { ParentalLockService } from '@iptvnator/services';
+import { sourceProfileName } from '@iptvnator/services/source-sync/connection';
 import type { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
 import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
 import {
@@ -44,6 +45,7 @@ export class AndroidTvPlayback {
     private readonly session = signal<{
         readonly id: string;
         readonly owner: string;
+        readonly profile: string;
         readonly token: symbol;
         readonly pending: boolean;
         readonly live: boolean;
@@ -191,9 +193,11 @@ export class AndroidTvPlayback {
             ? readVideoVolume(video)
             : (this.ownedSession()?.volume ?? readStoredVolume());
         const id = crypto.randomUUID();
+        const profile = sourceProfileName();
         this.session.set({
             id,
             owner: this.currentOwner(),
+            profile,
             token: this.currentToken(),
             pending: true,
             live,
@@ -231,6 +235,7 @@ export class AndroidTvPlayback {
                             volume,
                             // Only resume metadata crosses this bridge alongside the stream request.
                             checkpoint: contentInfo && {
+                                profile,
                                 playlistId: contentInfo.playlistId,
                                 contentXtreamId: contentInfo.contentXtreamId,
                                 contentType: contentInfo.contentType,
@@ -283,7 +288,8 @@ export class AndroidTvPlayback {
     private ownedSession() {
         const session = this.session();
         return session?.token === this.currentToken() &&
-            session.owner === this.currentOwner()
+            session.owner === this.currentOwner() &&
+            session.profile === sourceProfileName()
             ? session
             : null;
     }
