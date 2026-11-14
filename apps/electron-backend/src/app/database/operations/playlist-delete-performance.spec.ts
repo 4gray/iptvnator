@@ -39,6 +39,12 @@ const ROWS_PER_TABLE = new Map<unknown, number>([
     [schema.playbackPositions, 0],
     [schema.content, 205],
     [schema.categories, 2],
+    [schema.playlists, 1],
+]);
+
+const TABLE_LABELS = new Map<unknown, string>([
+    [schema.playlists, 'delete:playlist'],
+    [schema.appState, 'delete:app-state'],
 ]);
 
 function createDeleteHarness() {
@@ -75,34 +81,58 @@ function createDeleteHarness() {
                 timeline
             )
         );
-    const transactionDelete = jest.fn((table: unknown) => ({
-        where: jest.fn(() => ({
-            run: jest.fn(() => ({ changes: ROWS_PER_TABLE.get(table) ?? 0 })),
+    const deletedCategoryGroups: unknown[] = [];
+    const tx = {
+        delete: jest.fn((table: unknown) => ({
+            where: jest.fn((filter: unknown) => ({
+                run: jest.fn(() => {
+                    const label = TABLE_LABELS.get(table);
+                    if (label) timeline.push(label);
+                    if (table === schema.content)
+                        deletedCategoryGroups.push(filter);
+                    return { changes: ROWS_PER_TABLE.get(table) ?? 0 };
+                }),
+            })),
         })),
-    }));
+        selectDistinct: jest.fn(() => ({
+            from: jest.fn(() => ({
+                where: jest.fn(() => ({
+                    all: jest.fn(() => [{ type: 'movies' }]),
+                })),
+            })),
+        })),
+        insert: jest.fn(() => ({
+            values: jest.fn(() => ({
+                onConflictDoUpdate: jest.fn(() => ({
+                    run: jest.fn(() => {
+                        timeline.push('upsert:import-status');
+                        return { changes: 1 };
+                    }),
+                })),
+            })),
+        })),
+        update: jest.fn((table: unknown) => ({
+            set: jest.fn(() => ({
+                where: jest.fn(() => ({
+                    run: jest.fn(() => {
+                        timeline.push(
+                            table === schema.favorites
+                                ? 'update:favorites'
+                                : 'update:other'
+                        );
+                        return { changes: 0 };
+                    }),
+                })),
+            })),
+        })),
+    };
     const transaction = jest.fn((execute: (tx: unknown) => unknown) => {
         timeline.push('transaction');
-        return execute({ delete: transactionDelete });
+        return execute(tx);
     });
-    const playlistWhere = jest.fn(() => {
-        timeline.push('delete:playlist');
-        return Promise.resolve(undefined);
-    });
-    const deletePlaylistRow = jest.fn((table: unknown) =>
-        table === schema.appState
-            ? {
-                  where: jest.fn(() => ({
-                      run: jest.fn(() =>
-                          timeline.push('delete:history-recovery')
-                      ),
-                  })),
-              }
-            : { where: playlistWhere }
-    );
 
     return {
         db: {
-            delete: deletePlaylistRow,
             select,
             transaction,
         } as unknown as AppDatabase,
@@ -133,18 +163,17 @@ describe('playlist delete performance phases', () => {
             )
         ).resolves.toEqual({ success: true });
 
-        // Favorites, recently viewed, one row-budgeted content group and the
-        // categories commit once each; the empty playback-position stage is
-        // skipped.
+        // Preparing the catalog, one row-budgeted content group, the
+        // categories and the final user-data + playlist transaction.
         expect(harness.transaction).toHaveBeenCalledTimes(4);
-        // Four committed stages plus the final playlist row each keep both
-        // the pre-write and post-progress cooperative checkpoints.
-        expect(checkpoint).toHaveBeenCalledTimes(10);
+        // A checkpoint before each of the four commits and after the two
+        // cancellable progress reports; none after the final commit.
+        expect(checkpoint).toHaveBeenCalledTimes(6);
         expect(onProgress.mock.calls.map(([value]) => value.phase)).toEqual([
-            'deleting-favorites',
-            'deleting-recently-viewed',
             'deleting-content',
             'deleting-categories',
+            'deleting-favorites',
+            'deleting-recently-viewed',
             'deleting-playlist',
         ]);
         expect(harness.timeline.slice(1, 6)).toEqual([
@@ -154,6 +183,17 @@ describe('playlist delete performance phases', () => {
             'select:categories',
             'select:content',
         ]);
+        // Favorites keep their evidence and the catalog is marked
+        // unfinished before any row is deleted.
+        expect(harness.timeline.indexOf('upsert:import-status')).toBeLessThan(
+            harness.timeline.indexOf('progress:deleting-content')
+        );
+        expect(harness.timeline.indexOf('update:favorites')).toBeLessThan(
+            harness.timeline.indexOf('upsert:import-status')
+        );
+        expect(harness.timeline.lastIndexOf('checkpoint')).toBeLessThan(
+            harness.timeline.indexOf('delete:playlist')
+        );
         const writeStart = harness.timeline.indexOf(
             'sqlite.playlist-delete.write-transactions:start'
         );
@@ -166,12 +206,12 @@ describe('playlist delete performance phases', () => {
         expect(writeEnd).toBeGreaterThan(
             harness.timeline.indexOf('progress:deleting-playlist')
         );
-        expect(
-            harness.timeline.indexOf('delete:history-recovery')
-        ).toBeGreaterThan(writeStart);
-        expect(
-            harness.timeline.indexOf('delete:history-recovery')
-        ).toBeLessThan(writeEnd);
+        expect(harness.timeline.indexOf('delete:app-state')).toBeGreaterThan(
+            harness.timeline.indexOf('delete:playlist')
+        );
+        expect(harness.timeline.lastIndexOf('delete:app-state')).toBeLessThan(
+            writeEnd
+        );
         expect(
             harness.timeline
                 .map((entry, index) => ({ entry, index }))
