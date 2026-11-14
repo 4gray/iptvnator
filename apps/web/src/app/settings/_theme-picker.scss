@@ -222,8 +222,14 @@
     background: var(--app-selection-color);
 }
 
+// The theme group and, beside it rather than inside, the System pair.
+.theme-picker-stack {
+    display: grid;
+    gap: 10px;
+    width: min(100%, 540px);
+}
+
 .system-pair {
-    grid-column: 1 / -1;
     display: grid;
     gap: 8px;
     padding: 10px 11px;

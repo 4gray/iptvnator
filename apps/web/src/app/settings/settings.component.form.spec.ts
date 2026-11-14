@@ -173,6 +173,37 @@ describe('SettingsComponent form', () => {
         );
     });
 
+    it('keeps arrow keys in the System pair apart from the theme group', () => {
+        setSettingsSection('appearance');
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        const press = (testId: string) =>
+            root
+                .querySelector(`[data-test-id="${testId}"]`)
+                ?.dispatchEvent(
+                    new KeyboardEvent('keydown', {
+                        key: 'ArrowRight',
+                        bubbles: true,
+                    })
+                );
+
+        // The last dark preset wraps to the first one, inside the pair only.
+        press('system-dark-black-oled');
+        fixture.detectChanges();
+        expect(component.settingsForm.value.systemDarkTheme).toBe(
+            Theme.DarkTheme
+        );
+        expect(component.settingsForm.value.theme).toBe(Theme.SystemTheme);
+
+        // System, the theme group's last option, wraps to its first preset.
+        press(Theme.SystemTheme);
+        fixture.detectChanges();
+        expect(component.settingsForm.value.theme).toBe(Theme.LightTheme);
+        expect(component.settingsForm.value.systemLightTheme).toBe(
+            Theme.LightTheme
+        );
+    });
+
     it('hides the System pair while an explicit theme is selected', () => {
         setSettingsSection('appearance');
         fixture.detectChanges();
