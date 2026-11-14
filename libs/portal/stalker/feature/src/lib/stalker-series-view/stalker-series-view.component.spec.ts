@@ -395,7 +395,8 @@ describe('StalkerSeriesViewComponent', () => {
 
         expect(fetchVodSeriesEpisodes).toHaveBeenCalledWith(
             '50001',
-            'season-1'
+            'season-1',
+            expect.any(Function)
         );
         expect(resolveVodPlayback).toHaveBeenCalledWith(
             '/media/file_episode-1.mpg',
@@ -507,7 +508,8 @@ describe('StalkerSeriesViewComponent', () => {
 
         expect(fetchVodSeriesEpisodes).toHaveBeenCalledWith(
             '50001',
-            'season-1'
+            'season-1',
+            expect.any(Function)
         );
         expect(resolveVodPlayback).toHaveBeenCalledWith(
             '/media/file_episode-1.mpg',
@@ -769,7 +771,8 @@ describe('StalkerSeriesViewComponent', () => {
 
         expect(fetchVodSeriesEpisodes).toHaveBeenCalledWith(
             '50001',
-            'season-2'
+            'season-2',
+            expect.any(Function)
         );
         expect(resolveVodPlayback).toHaveBeenCalledWith(
             '/media/file_episode-2.mpg',

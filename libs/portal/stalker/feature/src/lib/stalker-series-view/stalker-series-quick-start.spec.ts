@@ -187,6 +187,26 @@ describe('getStalkerSeriesQuickStartButton with extras (season 0)', () => {
         expect(button?.episodeLabel).toContain('S04E03');
     });
 
+    it('keeps the most recent short launch even with a later season pending', () => {
+        const playbackPositions = watched(401, 402);
+        playbackPositions.set(101, {
+            contentXtreamId: 101,
+            contentType: 'episode',
+            positionSeconds: 5,
+            durationSeconds: 100,
+            updatedAt: '2026-10-05T12:00:00.000Z',
+        });
+        const button = getStalkerSeriesQuickStartButton({
+            isVodSeries: true,
+            mappedSeasons: { '1': mapped(1, 2), '4': mapped(4, 2), '5': [] },
+            playbackPositions,
+            vodSeriesSeasons: [season('1', 2), season('4', 2), season('5', 0)],
+        });
+
+        expect(button?.lazySeason).toBeNull();
+        expect(button?.action?.episode.id).toBe('101');
+    });
+
     it('loads the next unloaded season after a finished skipped-ahead season instead of wrapping to season 1', () => {
         const button = getStalkerSeriesQuickStartButton({
             isVodSeries: true,

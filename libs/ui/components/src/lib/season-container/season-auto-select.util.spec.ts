@@ -203,6 +203,52 @@ describe('resolveAutoSelectedSeason', () => {
         expect(resolveAutoSelectedSeason(ctx)).toBe('5');
     });
 
+    it('continues in episode number order when the provider lists episodes in reverse', () => {
+        const ctx = context(
+            { '1': ['103', '102', '101'], '2': ['201'] },
+            {
+                '101': watched(101),
+                '102': position(102, {
+                    positionSeconds: 2700,
+                    updatedAt: '2026-07-02T00:00:00Z',
+                }),
+            }
+        );
+        for (const item of ctx.seasons['1']) {
+            item.episode_num = Number(item.id) - 100;
+        }
+
+        expect(resolveAutoSelectedSeason(ctx)).toBe('1');
+    });
+
+    it('compares SQLite and ISO timestamps as UTC instants', () => {
+        const ctx = context(
+            { '1': ['101', '102'], '4': ['401', '402'] },
+            {
+                '101': position(101, {
+                    positionSeconds: 2700,
+                    updatedAt: '2026-07-01 11:00:00',
+                }),
+                '401': position(401, {
+                    positionSeconds: 2700,
+                    updatedAt: '2026-07-01T10:00:00.000Z',
+                }),
+            }
+        );
+
+        expect(resolveAutoSelectedSeason(ctx)).toBe('1');
+    });
+
+    it('advances from the last watched season with earlier seasons and Specials still pending', () => {
+        const ctx = context(
+            { '0': [], '1': [], '4': ['401'], '5': ['501'] },
+            { '401': watched(401) },
+            { hasUnloadedSeasons: true, unloadedSeasonKeys: ['0', '1'] }
+        );
+
+        expect(resolveAutoSelectedSeason(ctx)).toBe('5');
+    });
+
     it('opens the latest non-empty season once everything is watched', () => {
         const ctx = context(
             { '1': ['101'], '2': ['201'], '3': ['301'] },

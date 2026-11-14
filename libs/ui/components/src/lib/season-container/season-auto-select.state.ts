@@ -14,10 +14,11 @@ import { resolveAutoSelectedSeason } from './season-auto-select.util';
 export interface SeasonAutoSelectSources {
     /**
      * The container's selection (see `SeasonContainerComponent.selectedSeason`).
-     * Auto-select writes to it; user tab clicks write to it too and stick
-     * until the auto-select key changes.
+     * Auto-select and manual season picks both write to it.
      */
     readonly selectedSeason: WritableSignal<string | undefined>;
+    readonly playlistId: Signal<string>;
+    readonly seriesId: Signal<number>;
     readonly seasons: Signal<Record<string, XtreamSerieEpisode[]>>;
     /** Season keys in display order. */
     readonly sortedSeasonKeys: Signal<readonly string[]>;
@@ -65,12 +66,9 @@ export function findSeasonOfEpisode(
 }
 
 /**
- * Season auto-selection and `seasonSelected` emission of
- * `SeasonContainerComponent`. The selection re-resolves when the season key
- * set changes or when playback positions first arrive; ongoing position
- * saves do not reset it — only the empty→loaded transition of the positions
- * map does, and even that is ignored once this session toggled watched state
- * itself.
+ * Re-resolves selection when the series, season set or hydrated progress
+ * changes. A manual pick or local watched toggle holds the selected season
+ * while that series' progress loads.
  *
  * Registers two effects, so it must be called in an injection context (the
  * container's constructor).
@@ -78,6 +76,12 @@ export function findSeasonOfEpisode(
 export function createSeasonAutoSelectState(
     sources: SeasonAutoSelectSources
 ): SeasonAutoSelectState {
+    const seriesKey = computed(() =>
+        JSON.stringify([sources.playlistId(), sources.seriesId()])
+    );
+    const seasonSetKey = computed(() =>
+        JSON.stringify([seriesKey(), sources.sortedSeasonKeys()])
+    );
     const autoSelectKey = computed(() => {
         const keys = sources.sortedSeasonKeys();
         const seasonsWithPositions = keys
@@ -87,14 +91,13 @@ export function createSeasonAutoSelectState(
                 )
             )
             .join('|');
-        const hasUnloaded =
-            sources.hasUnloadedSeasons() ||
-            sources.unloadedSeasonKeys().length > 0;
-        return `${keys.join('|')}::${
-            sources.playbackPositions().size > 0 ? '1' : '0'
-        }::${seasonsWithPositions}::${
-            hasUnloaded ? '1' : '0'
-        }::${sources.unloadedSeasonKeys().join('|')}`;
+        return JSON.stringify([
+            seasonSetKey(),
+            sources.playbackPositions().size > 0,
+            seasonsWithPositions,
+            sources.hasUnloadedSeasons(),
+            sources.unloadedSeasonKeys(),
+        ]);
     });
     let lastAutoSelectKey: string | null = null;
     let lastAutoSelectSeasonSet: string | null = null;
@@ -128,7 +131,7 @@ export function createSeasonAutoSelectState(
         if (key === lastAutoSelectKey) {
             return;
         }
-        const seasonSet = untracked(() => sources.sortedSeasonKeys().join('|'));
+        const seasonSet = seasonSetKey();
         const seasonSetUnchanged = seasonSet === lastAutoSelectSeasonSet;
         lastAutoSelectKey = key;
         lastAutoSelectSeasonSet = seasonSet;
@@ -152,8 +155,9 @@ export function createSeasonAutoSelectState(
     // with tabs there is no initial "pick a season" click anymore.
     effect(() => {
         const selected = sources.selectedSeason();
-        if (selected && selected !== lastEmittedSeason) {
-            lastEmittedSeason = selected;
+        const emission = JSON.stringify([seriesKey(), selected]);
+        if (selected && emission !== lastEmittedSeason) {
+            lastEmittedSeason = emission;
             sources.emitSeasonSelected(selected);
         }
     });

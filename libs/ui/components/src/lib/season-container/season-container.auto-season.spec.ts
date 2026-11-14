@@ -206,6 +206,30 @@ describe('SeasonContainerComponent default-season fallback', () => {
         expect(component.selectedSeason()).toBe('1');
     });
 
+    it('keeps a manual selection during hydration and resets it for another series with the same season keys', () => {
+        const seasons = {
+            '1': [createEpisode()],
+            '2': [createEpisode({ id: '201', season: 2 })],
+        };
+        fixture.componentRef.setInput('hasUnloadedSeasons', true);
+        fixture.componentRef.setInput('unloadedSeasonKeys', ['2']);
+        setRequiredInputs({ ...seasons, '2': [] });
+        fixture.detectChanges();
+
+        component.selectSeason('1');
+        fixture.componentRef.setInput('seasons', seasons);
+        fixture.componentRef.setInput('hasUnloadedSeasons', false);
+        fixture.componentRef.setInput('unloadedSeasonKeys', []);
+        const positions = new Map([[101, watchedPosition(101)]]);
+        fixture.componentRef.setInput('playbackPositions', positions);
+        fixture.detectChanges();
+
+        expect(component.selectedSeason()).toBe('1');
+        fixture.componentRef.setInput('seriesId', 21);
+        fixture.detectChanges();
+        expect(component.selectedSeason()).toBe('2');
+    });
+
     it('re-resolves to the watched season once lazy seasons finish hydrating', () => {
         fixture.componentRef.setInput('hasUnloadedSeasons', true);
         fixture.componentRef.setInput('unloadedSeasonKeys', ['2', '3', '4']);

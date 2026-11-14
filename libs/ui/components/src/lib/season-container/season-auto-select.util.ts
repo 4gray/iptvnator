@@ -1,4 +1,6 @@
+import { playbackTimestamp } from '@iptvnator/shared/interfaces';
 import {
+    compareSeriesEpisodes,
     isExtrasSeason,
     isPortalPlaybackInProgress,
     isPortalPlaybackWatched,
@@ -32,11 +34,9 @@ export interface AutoSeasonContext {
 /**
  * The season the container opens on when the season set or the initial
  * playback positions change: the inline-playing episode's season, else the
- * most recently updated in-progress episode's season, else the default
- * fallback below. Extras (season 0) steer neither of the last two while the
- * series' other seasons hold, or may still hold, episodes, as with the
- * series' next episode (`getSeriesNextUp`). Pure, so the container's auto-select effect stays a
- * thin wrapper (see `SeasonContainerComponent.selectedSeason`).
+ * most recently updated in-progress episode's season, then the season where
+ * playback can continue after the last watched episode. Extras (season 0)
+ * are skipped while regular seasons have episodes or are still pending.
  */
 export function resolveAutoSelectedSeason(
     context: AutoSeasonContext
@@ -60,10 +60,21 @@ export function resolveAutoSelectedSeason(
         ) ||
         (unloaded.size === 0 && context.hasUnloadedSeasons);
     const steering = runKeys.length > 0 && runMayHaveEpisodes ? runKeys : keys;
+    const pendingUnknown = unloaded.size === 0 && context.hasUnloadedSeasons;
     return (
         findMostRecentInProgressSeason(context, steering) ??
-        findNextAfterLastWatchedSeason(context, steering) ??
-        resolveDefaultSeason(context, steering, unloaded)
+        findNextAfterLastWatchedSeason(
+            context,
+            steering,
+            unloaded,
+            pendingUnknown
+        ) ??
+        resolveDefaultSeason(
+            context,
+            steering,
+            unloaded,
+            pendingUnknown || steering.some((key) => unloaded.has(key))
+        )
     );
 }
 
@@ -78,9 +89,10 @@ export function resolveAutoSelectedSeason(
  * answered empty before it has nothing to show.
  */
 function resolveDefaultSeason(
-    { hasUnloadedSeasons, episodeCounts, watchedCounts }: AutoSeasonContext,
+    { episodeCounts, watchedCounts }: AutoSeasonContext,
     keys: readonly string[],
-    unloaded: ReadonlySet<string>
+    unloaded: ReadonlySet<string>,
+    hasUnloadedSeasons: boolean
 ): string {
     if (hasUnloadedSeasons) {
         return (
@@ -107,17 +119,14 @@ function findMostRecentInProgressSeason(
     keys: readonly string[]
 ): string | null {
     let bestSeason: string | null = null;
-    let bestUpdatedAt = '';
-    for (const [key, episodes] of Object.entries(seasons)) {
-        if (!keys.includes(key)) {
-            continue;
-        }
-        for (const episode of episodes ?? []) {
+    let bestUpdatedAt = -Infinity;
+    for (const key of keys) {
+        for (const episode of seasons[key] ?? []) {
             const position = positionOf(episode);
             if (!isPortalPlaybackInProgress(position)) {
                 continue;
             }
-            const updatedAt = position?.updatedAt ?? '';
+            const updatedAt = playbackTimestamp(position?.updatedAt);
             if (updatedAt >= bestUpdatedAt) {
                 bestUpdatedAt = updatedAt;
                 bestSeason = key;
@@ -134,54 +143,51 @@ function findMostRecentInProgressSeason(
  * back to season 1.
  */
 function findNextAfterLastWatchedSeason(
-    {
-        seasons,
-        positionOf,
-        hasUnloadedSeasons,
-        episodeCounts,
-        watchedCounts,
-    }: AutoSeasonContext,
-    keys: readonly string[]
+    { seasons, positionOf, episodeCounts, watchedCounts }: AutoSeasonContext,
+    keys: readonly string[],
+    unloaded: ReadonlySet<string>,
+    pendingUnknown: boolean
 ): string | null {
     let lastWatchedKey: string | null = null;
+    let lastWatchedEpisodes: XtreamSerieEpisode[] = [];
     let lastWatchedIndex = -1;
-    let bestUpdatedAt = '';
+    let bestUpdatedAt = -Infinity;
     for (const key of keys) {
-        const episodes = seasons[key] ?? [];
-        for (let index = 0; index < episodes.length; index++) {
-            const position = positionOf(episodes[index]);
+        const episodes = [...(seasons[key] ?? [])].sort(compareSeriesEpisodes);
+        for (const [index, episode] of episodes.entries()) {
+            const position = positionOf(episode);
             if (!isPortalPlaybackWatched(position)) {
                 continue;
             }
-            const updatedAt = position?.updatedAt ?? '';
-            if (lastWatchedKey === null || updatedAt >= bestUpdatedAt) {
+            const updatedAt = playbackTimestamp(position?.updatedAt);
+            if (updatedAt >= bestUpdatedAt) {
                 bestUpdatedAt = updatedAt;
                 lastWatchedKey = key;
+                lastWatchedEpisodes = episodes;
                 lastWatchedIndex = index;
             }
         }
     }
-    if (lastWatchedKey === null) {
+    if (!lastWatchedKey) {
         return null;
     }
-    const remainingInSeason = (seasons[lastWatchedKey] ?? []).slice(
-        lastWatchedIndex + 1
-    );
     if (
-        remainingInSeason.some(
-            (episode) => !isPortalPlaybackWatched(positionOf(episode))
-        )
+        lastWatchedEpisodes
+            .slice(lastWatchedIndex + 1)
+            .some((episode) => !isPortalPlaybackWatched(positionOf(episode)))
     ) {
         return lastWatchedKey;
     }
-    if (hasUnloadedSeasons) {
+    if (pendingUnknown) {
         return null;
     }
-    const afterSeasonIndex = keys.indexOf(lastWatchedKey);
     return (
-        keys.slice(afterSeasonIndex + 1).find((key) => {
-            const total = episodeCounts[key] ?? 0;
-            return total > 0 && (watchedCounts[key] ?? 0) < total;
-        }) ?? null
+        keys
+            .slice(keys.indexOf(lastWatchedKey) + 1)
+            .find(
+                (key) =>
+                    unloaded.has(key) ||
+                    (watchedCounts[key] ?? 0) < (episodeCounts[key] ?? 0)
+            ) ?? null
     );
 }

@@ -101,7 +101,8 @@ describe('StalkerSeriesViewComponent Up Next spillover prefetch', () => {
 
         expect(fetchVodSeriesEpisodes).toHaveBeenCalledWith(
             '50001',
-            'season-2'
+            'season-2',
+            expect.any(Function)
         );
 
         const inlinePlayer = fixture.debugElement.query(

@@ -1,3 +1,4 @@
+import { playbackTimestamp } from '@iptvnator/shared/interfaces';
 import {
     SERIES_QUICK_START_ACTION_KIND,
     formatSeriesEpisodeCode,
@@ -98,8 +99,6 @@ function getOrderedVodSeriesSeasons(
     );
 }
 
-const SQLITE_UTC_TIMESTAMP = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d+)?$/;
-
 function getQuickStartLazyVodSeriesSeason(
     action: SeriesQuickStartAction | null,
     mappedSeasons: Record<string, XtreamSerieEpisode[]>,
@@ -133,7 +132,10 @@ function getQuickStartLazyVodSeriesSeason(
         return firstUnloadedSeason;
     }
 
-    if (action.kind === SERIES_QUICK_START_ACTION_KIND.Resume) {
+    if (
+        action.kind === SERIES_QUICK_START_ACTION_KIND.Resume ||
+        action.kind === SERIES_QUICK_START_ACTION_KIND.PlayRecent
+    ) {
         return null;
     }
 
@@ -203,7 +205,7 @@ function findLastWatchedVodSeriesSeasonIndex(
             if (!isPortalPlaybackWatched(position)) {
                 continue;
             }
-            const timestamp = getPositionTimestamp(position?.updatedAt);
+            const timestamp = playbackTimestamp(position?.updatedAt);
             if (lastWatchedSeasonIndex === -1 || timestamp >= bestTimestamp) {
                 bestTimestamp = timestamp;
                 lastWatchedSeasonIndex = index;
@@ -211,16 +213,6 @@ function findLastWatchedVodSeriesSeasonIndex(
         }
     }
     return lastWatchedSeasonIndex;
-}
-
-function getPositionTimestamp(value: string | undefined): number {
-    if (!value) {
-        return 0;
-    }
-    const timestamp = Date.parse(
-        SQLITE_UTC_TIMESTAMP.test(value) ? `${value.replace(' ', 'T')}Z` : value
-    );
-    return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
 /**

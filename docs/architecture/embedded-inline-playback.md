@@ -340,20 +340,17 @@ drawn in the player's `--pc-progress` like the dock's Up next card.
 
 Season navigation inside `SeasonContainerComponent` uses season tabs
 (`SeasonTabsComponent`; a dropdown beyond 6 seasons) instead of the old
-seasons-grid + "Back to seasons" level. A season is auto-selected
-(inline-playing episode's season → most recently updated in-progress
-episode's season → earliest season with unwatched episodes → latest
-non-empty season; Stalker lazy-VOD series with unhydrated seasons pin
-the fallback to the first season still to load or holding episodes
-(`unloadedSeasonKeys`: a season the portal answered empty is passed over)
-because a pending season's watched state is unknown,
-and the empty→loaded positions flip caused by the session's own watched
-toggles never re-resolves the selection). Extras (season 0, by the
-episodes' season or, unloaded, the key: `isExtrasSeason`) steer none of
-the last three while the series' other seasons hold, or may still hold,
-episodes, as with its next episode, so the page does not open on Specials;
-only a playing extra opens its season. The
-auto-selection emits `seasonSelected`,
+seasons-grid + "Back to seasons" level. The picker opens the inline-playing
+episode's season, then tries the most recent in-progress episode's season,
+then the first season with an unwatched episode or pending list after the last
+watched episode. It falls back to the earliest unwatched season or the latest
+non-empty season when the series is watched. With pending regular seasons and
+no next season derived from progress, Stalker opens the first season still to
+load or holding episodes. A manual pick or local watched toggle holds the
+selection while progress arrives for the current series. Extras (season 0)
+stay outside auto-selection while regular seasons have episodes or are still
+pending. The currently playing episode can still open its Extras season.
+Auto-selection emits `seasonSelected`,
 so host lazy-load/enrichment hooks (Stalker VOD-series episode fetch,
 TMDB season fetch, Xtream `enrichSelectedSerialSeason`) fire on open
 without a click. Switching tabs never stops playback; a "back to playing

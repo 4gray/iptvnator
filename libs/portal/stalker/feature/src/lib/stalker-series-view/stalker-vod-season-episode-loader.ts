@@ -14,7 +14,8 @@ export interface StalkerVodSeasonEpisodeLoaderHost {
     readonly ownerKey: () => string;
     readonly fetchEpisodes: (
         videoId: string,
-        seasonId: string
+        seasonId: string,
+        isCurrent: () => boolean
     ) => Promise<VodSeriesSeasonVm['episodes']>;
     readonly logError: (message: string, error: unknown) => void;
 }
@@ -25,28 +26,32 @@ export class StalkerVodSeasonEpisodeLoader {
         string,
         { season: VodSeriesSeasonVm; promise: Promise<boolean> }
     >();
-    private hydratedSeriesKey = '';
-    private shouldHydrateSeries = false;
-    private readonly failedSeasonIds = new Set<string>();
+    private hydrationOwnerKey: string | null = null;
     private hydrationInFlight = false;
+    private destroyed = false;
+    private readonly failedSeasons = new WeakSet<VodSeriesSeasonVm>();
 
     constructor(private readonly host: StalkerVodSeasonEpisodeLoaderHost) {}
 
     /**
-     * Hydrates pending regular seasons sequentially when a lazy VOD series
-     * opens with saved playback positions, so the season picker and
-     * next-episode action reflect the viewer's actual progress across seasons.
+     * Loads pending regular seasons sequentially when a lazy VOD series
+     * has saved positions, so the picker and quick start can show progress.
      */
-    hydrateForSavedProgress(seriesKey: string, hasSavedProgress: boolean): void {
-        if (seriesKey !== this.hydratedSeriesKey) {
-            this.hydratedSeriesKey = seriesKey;
-            this.shouldHydrateSeries = hasSavedProgress;
-            this.failedSeasonIds.clear();
-        }
+    hydrateForSavedProgress(ownerKey: string | null): void {
+        this.hydrationOwnerKey = ownerKey;
+        this.hydrateNextSeason();
+    }
+
+    destroy(): void {
+        this.destroyed = true;
+    }
+
+    private hydrateNextSeason(): void {
         if (
-            !seriesKey ||
-            !this.shouldHydrateSeries ||
-            this.hydrationInFlight
+            this.destroyed ||
+            this.hydrationInFlight ||
+            !this.hydrationOwnerKey ||
+            this.hydrationOwnerKey !== this.host.ownerKey()
         ) {
             return;
         }
@@ -59,7 +64,7 @@ export class StalkerVodSeasonEpisodeLoader {
         );
         const nextSeason = seasons.find(
             (season) =>
-                !this.failedSeasonIds.has(season.id) &&
+                !this.failedSeasons.has(season) &&
                 !(
                     hasRegularRun &&
                     isExtrasSeason(getVodSeriesSeasonKey(season), null)
@@ -70,21 +75,10 @@ export class StalkerVodSeasonEpisodeLoader {
             return;
         }
         this.hydrationInFlight = true;
-        void this.load(nextSeason)
-            .then((answered) => {
-                if (!answered && this.hydratedSeriesKey === seriesKey) {
-                    this.failedSeasonIds.add(nextSeason.id);
-                }
-            })
-            .finally(() => {
-                this.hydrationInFlight = false;
-                if (this.hydratedSeriesKey === seriesKey) {
-                    this.hydrateForSavedProgress(
-                        seriesKey,
-                        this.shouldHydrateSeries
-                    );
-                }
-            });
+        void this.load(nextSeason).finally(() => {
+            this.hydrationInFlight = false;
+            this.hydrateNextSeason();
+        });
     }
 
     /**
@@ -98,8 +92,10 @@ export class StalkerVodSeasonEpisodeLoader {
      */
     /** Resolves true when the portal answered, false when the request failed. */
     load(season: VodSeriesSeasonVm): Promise<boolean> {
+        if (this.destroyed) return Promise.resolve(false);
+        const ownerKey = this.host.ownerKey();
         const key = JSON.stringify([
-            this.host.ownerKey(),
+            ownerKey,
             season.video_id,
             season.id,
             getVodSeriesSeasonKey(season),
@@ -108,79 +104,69 @@ export class StalkerVodSeasonEpisodeLoader {
         if (inFlight && this.host.seasons().includes(inFlight.season)) {
             return inFlight.promise;
         }
-        const load = this.fetch(season).finally(() => {
-            if (this.loads.get(key)?.promise === load) {
-                this.loads.delete(key);
-            }
-        });
-        const loadingSeason = this.host
-            .seasons()
-            .find(
-                (candidate) =>
-                    candidate.id === season.id &&
-                    candidate.video_id === season.video_id
-            );
-        if (loadingSeason) {
-            this.loads.set(key, {
-                season: loadingSeason,
-                promise: load,
-            });
-        }
-        return load;
-    }
-
-    private async fetch(season: VodSeriesSeasonVm): Promise<boolean> {
-        // Set loading state in local signal
         const seasons = this.host.seasons();
         const index = seasons.findIndex(
-            (s) =>
-                s.id === season.id &&
-                s.video_id === season.video_id &&
-                getVodSeriesSeasonKey(s) === getVodSeriesSeasonKey(season)
+            (candidate) =>
+                candidate.id === season.id &&
+                candidate.video_id === season.video_id &&
+                getVodSeriesSeasonKey(candidate) ===
+                    getVodSeriesSeasonKey(season)
         );
-        if (index === -1) return false;
+        if (index === -1) return Promise.resolve(false);
 
         const updatedSeasons = [...seasons];
         const loadingSeason = { ...updatedSeasons[index], isLoading: true };
         updatedSeasons[index] = loadingSeason;
         this.host.seasons.set(updatedSeasons);
+        // Only the exact loading VM owns this response. Navigation or
+        // refresh can reuse provider ids while replacing the season list.
+        const isCurrent = () =>
+            !this.destroyed &&
+            this.host.ownerKey() === ownerKey &&
+            this.host.seasons().includes(loadingSeason);
 
+        const load = this.fetch(loadingSeason, isCurrent)
+            .then((updatedSeason) => {
+                const current = this.host.seasons();
+                const index = current.indexOf(loadingSeason);
+                if (!isCurrent()) return false;
+                const updated = [...current];
+                updated[index] = updatedSeason;
+                this.host.seasons.set(updated);
+                return !this.failedSeasons.has(updatedSeason);
+            })
+            .finally(() => {
+                if (this.loads.get(key)?.promise === load) {
+                    this.loads.delete(key);
+                }
+            });
+        this.loads.set(key, { season: loadingSeason, promise: load });
+        return load;
+    }
+
+    private async fetch(
+        season: VodSeriesSeasonVm,
+        isCurrent: () => boolean
+    ): Promise<VodSeriesSeasonVm> {
         try {
             const episodes = await this.host.fetchEpisodes(
                 season.video_id,
-                season.id
+                season.id,
+                isCurrent
             );
-
-            // Update with loaded episodes
-            const newSeasons = [...this.host.seasons()];
-            // Only the exact loading VM owns this response. A navigation or
-            // refresh can reuse provider ids while replacing the season list.
-            const newIndex = newSeasons.indexOf(loadingSeason);
-            if (newIndex !== -1) {
-                newSeasons[newIndex] = {
-                    ...newSeasons[newIndex],
-                    episodes: episodes,
-                    // Even an EMPTY answer marks the season loaded: the
-                    // portal spoke, so it must stop counting as "unloaded"
-                    // (label/verdict gating and series-toggle hydration).
-                    episodesLoaded: true,
-                    isLoading: false,
-                };
-                this.host.seasons.set(newSeasons);
-            }
-            return newIndex !== -1;
+            // An empty answer is also a loaded season.
+            return {
+                ...season,
+                episodes,
+                episodesLoaded: true,
+                isLoading: false,
+            };
         } catch (error) {
-            this.host.logError('Failed to load episodes', error);
-            const newSeasons = [...this.host.seasons()];
-            const newIndex = newSeasons.indexOf(loadingSeason);
-            if (newIndex !== -1) {
-                newSeasons[newIndex] = {
-                    ...newSeasons[newIndex],
-                    isLoading: false,
-                };
-                this.host.seasons.set(newSeasons);
-            }
-            return false;
+            if (isCurrent())
+                this.host.logError('Failed to load episodes', error);
+            const failedSeason = { ...season, isLoading: false };
+            this.failedSeasons.add(failedSeason);
+            return failedSeason;
         }
     }
 }

@@ -523,19 +523,19 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         });
 
         effect(() => {
-            const hasSeasonContainer = Boolean(this.seasonContainerRef());
-            const isVod = this.isVodSeries();
-            const loadedKey = this.positions.seriesPositionsLoadedKey();
-            const hasSavedProgress =
+            const ownerKey = this.seriesPlaybackOwnerKey();
+            const playlistId = this.stalkerStore.currentPlaylist()?._id ?? '';
+            const seriesId = this.toSeriesId(this.displayItem()?.id ?? 0);
+            const canHydrate =
+                this.seasonContainerRef() &&
+                this.isVodSeries() &&
+                this.positions.seriesPositionsLoadedKey() ===
+                    this.positions.seriesPositionsKey(playlistId, seriesId) &&
                 this.positions.rawSeriesPositions().length > 0;
             this.vodSeriesSeasons();
-            if (!hasSeasonContainer || !isVod || !loadedKey) {
-                return;
-            }
             untracked(() =>
                 this.vodSeasonLoader.hydrateForSavedProgress(
-                    loadedKey,
-                    hasSavedProgress
+                    canHydrate ? ownerKey : null
                 )
             );
         });
@@ -945,8 +945,12 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     private readonly vodSeasonLoader = new StalkerVodSeasonEpisodeLoader({
         seasons: this.vodSeriesSeasons,
         ownerKey: () => this.seriesPlaybackOwnerKey(),
-        fetchEpisodes: (videoId, seasonId) =>
-            this.stalkerStore.fetchVodSeriesEpisodes(videoId, seasonId),
+        fetchEpisodes: (videoId, seasonId, isCurrent) =>
+            this.stalkerStore.fetchVodSeriesEpisodes(
+                videoId,
+                seasonId,
+                isCurrent
+            ),
         logError: (message, error) => this.logger.error(message, error),
     });
 
@@ -1423,6 +1427,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     }
 
     ngOnDestroy(): void {
+        this.vodSeasonLoader.destroy();
         this.unsubscribePositionUpdates?.();
         this.closeInlinePlayer();
     }

@@ -1662,8 +1662,9 @@ records. Both accept the same closed set: boolean `true`, numeric `1`, or string
   determine completion. Legacy array replies without paging metadata stay
   single-response lists. Empty early pages, malformed replies, repeated pages
   and the 1000-page safety bound fail the load rather than publish a partial
-  list. Navigation retires the collection before another page or state write;
-  an HTTP request already in flight may still finish. Other seasons stay lazy.
+  list. Changing the selected series or closing its view retires episode
+  loading before another page or state write. An HTTP request already in flight
+  may still finish.
 - The season resource depends on the VOD item id and series mode, so a TMDB
   metadata patch does not reload seasons or discard loaded episodes. Pending
   episode requests belong to the exact loading season VM; replies from an old
@@ -1675,18 +1676,17 @@ records. Both accept the same closed set: boolean `true`, numeric `1`, or string
   Multi-season items keep provider numbering. Lazy VOD retains the original
   season key/number separately for stable tracking IDs and compatible legacy
   progress; provider request ids remain unchanged.
-- The series quick-start CTA can load the first unloaded VOD-series season
-  before playback. When a series opens with saved playback positions, pending
-  regular VOD-series seasons hydrate sequentially so the season picker displays
-  episode and watched counts and reconciles saved progress across seasons.
-  Unloaded seasons only precede the quick-start target when no later episode
-  has been watched; once the viewer has watched episodes in a later season,
-  quick start and the season auto-selection continue from the first unwatched
-  episode after the last watched episode. If all currently loaded episodes from
-  the last watched season onward are watched and more season metadata exists,
-  quick start loads the next unloaded season instead of showing the completed
-  state. After a lazy load, quick start is recomputed from the mapped episodes
-  before playback so provider episode ordering cannot start the wrong episode.
+- When a lazy VOD series opens with saved positions, pending regular seasons
+  load one at a time to fill episode and watched counts and reconcile progress.
+  Failed requests are skipped for the current season list and can be retried by
+  selecting the season. A reused view continues with the current series after
+  an older request settles. Without saved positions, seasons load on demand.
+- Quick start preserves the shared resume and recent-launch actions. Otherwise
+  it follows the first unwatched episode after the most recently watched one,
+  loading a pending season in that range before falling back to skipped
+  episodes. After loading, it recomputes the action against the actual episode
+  order. The season picker follows watched progress as episode lists arrive and
+  preserves a manual choice or watched toggle within the current series.
 - Extras (season 0) follow the shared next-episode rule (`getSeriesNextUp`):
   while the series has other seasons they never become the quick-start target,
   and the lazy load before playback picks the first regular season the portal
