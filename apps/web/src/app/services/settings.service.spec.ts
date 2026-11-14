@@ -1,4 +1,3 @@
-import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { inject, TestBed } from '@angular/core/testing';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { of } from 'rxjs';
@@ -40,7 +39,6 @@ describe('Service: Settings', () => {
 
         TestBed.configureTestingModule({
             providers: [SettingsService],
-            imports: [HttpClientTestingModule],
         });
     });
 
@@ -266,11 +264,11 @@ describe('Service: Settings', () => {
             delete document.body.dataset['themeAccent'];
         });
 
-        it('overrides the selection and primary roles on body', () => {
+        it('overrides the selection and primary roles on body', async () => {
             const service = TestBed.inject(SettingsService);
             setSurfaces(DARK);
             service.changeTheme(Theme.DarkTheme);
-            service.changeThemeAccent('magenta');
+            await service.changeThemeAccent('magenta');
 
             expect(document.body.dataset['themeAccent']).toBe('magenta');
             expect(token('--app-selection-color')).toMatch(/^#[0-9a-f]{6}$/);
@@ -282,31 +280,42 @@ describe('Service: Settings', () => {
             );
         });
 
-        it('restores the theme colour when the accent is cleared', () => {
+        it('restores the theme colour when the accent is cleared', async () => {
             const service = TestBed.inject(SettingsService);
             setSurfaces(DARK);
-            service.changeThemeAccent('teal');
-            service.changeThemeAccent(null);
+            await service.changeThemeAccent('teal');
+            await service.changeThemeAccent(null);
 
             expect(document.body.dataset['themeAccent']).toBeUndefined();
             expect(token('--app-selection-color')).toBe('');
             expect(token('--mat-sys-primary')).toBe('');
         });
 
-        it('ignores an unknown saved accent', () => {
+        it('ignores an unknown saved accent', async () => {
             const service = TestBed.inject(SettingsService);
             setSurfaces(DARK);
-            service.changeThemeAccent('chartreuse');
+            await service.changeThemeAccent('chartreuse');
 
             expect(document.body.dataset['themeAccent']).toBeUndefined();
             expect(token('--app-selection-color')).toBe('');
         });
 
-        it('re-derives the accent for the next theme', () => {
+        it('keeps the preset color if the accent is cleared while loading', async () => {
+            const service = TestBed.inject(SettingsService);
+            setSurfaces(DARK);
+            const preview = service.changeThemeAccent('teal');
+            await service.changeThemeAccent(null);
+            await preview;
+
+            expect(document.body.dataset['themeAccent']).toBeUndefined();
+            expect(token('--app-selection-color')).toBe('');
+        });
+
+        it('re-derives the accent for the next theme', async () => {
             const service = TestBed.inject(SettingsService);
             setSurfaces(LIGHT);
             service.changeTheme(Theme.LightTheme);
-            service.changeThemeAccent('amber');
+            await service.changeThemeAccent('amber');
             const onLight = token('--app-selection-color');
 
             setSurfaces(DARK);
@@ -320,13 +329,12 @@ describe('Service: Settings', () => {
             expect(service.appliedThemePresetId()).toBe('dark');
         });
 
-        it('leaves the theme untouched while its styles are missing', () => {
+        it('leaves the theme untouched while its styles are missing', async () => {
             const service = TestBed.inject(SettingsService);
-            service.changeThemeAccent('blue');
+            await service.changeThemeAccent('blue');
 
             expect(document.body.dataset['themeAccent']).toBeUndefined();
             expect(token('--app-selection-color')).toBe('');
-            expect(service.previewThemeAccentColor('blue')).toBe('#3b82f6');
         });
     });
 });

@@ -1,4 +1,27 @@
 @use '../../../../../libs/ui/styles/focus-ring';
+@use '../../theme-palettes' as palettes;
+
+html {
+    // Samples use the same declarations as the app, independent of its theme.
+    [data-theme-preview='light'] {
+        @include palettes.light($preview: true);
+    }
+    [data-theme-preview='dark'] {
+        @include palettes.dark($preview: true);
+    }
+    [data-theme-preview='cream'] {
+        @include palettes.cream($preview: true);
+    }
+    [data-theme-preview='mocha'] {
+        @include palettes.mocha($preview: true);
+    }
+    [data-theme-preview='night-owl'] {
+        @include palettes.night-owl($preview: true);
+    }
+    [data-theme-preview='black-oled'] {
+        @include palettes.black-oled($preview: true);
+    }
+}
 
 .theme-picker {
     display: grid;

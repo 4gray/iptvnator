@@ -1,7 +1,6 @@
-import { HttpClient } from '@angular/common/http';
 import { inject, Injectable, signal } from '@angular/core';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import { catchError, map, Observable } from 'rxjs';
+import { Observable } from 'rxjs';
 import {
     normalizeSystemTheme,
     normalizeTheme,
@@ -13,72 +12,16 @@ import {
     ThemeAccent,
     ThemePreset,
 } from '@iptvnator/shared/interfaces';
-import {
-    deriveThemeAccentTokens,
-    readThemeAccentSurfaces,
-    THEME_ACCENT_TOKEN_NAMES,
-} from './theme-accent-tokens';
-
-const PRERELEASE_KEYWORDS = [
-    'beta',
-    'alpha',
-    'rc',
-    'preview',
-    'dev',
-    'canary',
-    'nightly',
-] as const;
-
-interface ParsedVersion {
-    major: number;
-    minor: number;
-    patch: number;
-    prerelease: boolean;
-}
 
 type LegacyMediaQueryList = MediaQueryList & {
     addListener?: (listener: (event: MediaQueryListEvent) => void) => void;
     removeListener?: (listener: (event: MediaQueryListEvent) => void) => void;
 };
 
-function parseVersion(input: string): ParsedVersion | null {
-    const normalized = input.trim().replace(/^v/i, '');
-    const match = normalized.match(
-        /(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:[-+]?([0-9A-Za-z.-]+))?/
-    );
-
-    if (!match) {
-        return null;
-    }
-
-    return {
-        major: Number(match[1] ?? 0),
-        minor: Number(match[2] ?? 0),
-        patch: Number(match[3] ?? 0),
-        prerelease: Boolean(match[4]),
-    };
-}
-
-function hasPrereleaseKeyword(value: string): boolean {
-    const normalized = value.toLowerCase();
-    return PRERELEASE_KEYWORDS.some((keyword) => normalized.includes(keyword));
-}
-
-function compareVersions(a: ParsedVersion, b: ParsedVersion): number {
-    if (a.major !== b.major) {
-        return a.major - b.major;
-    }
-    if (a.minor !== b.minor) {
-        return a.minor - b.minor;
-    }
-    return a.patch - b.patch;
-}
-
 @Injectable({
     providedIn: 'root',
 })
 export class SettingsService {
-    private http = inject(HttpClient);
     private storage = inject(StorageMap);
     private readonly systemThemeMediaQuery =
         typeof window !== 'undefined' && 'matchMedia' in window
@@ -96,6 +39,7 @@ export class SettingsService {
         dark: Theme.DarkTheme as Theme,
     };
     private accent: ThemeAccent | null = null;
+    private accentTokens?: typeof import('./theme-accent-tokens');
 
     /** The preset on screen; "System" resolves to light or dark. */
     readonly appliedThemePresetId = signal<ThemePreset['id']>('light');
@@ -144,22 +88,9 @@ export class SettingsService {
      * Lays an accent colour over whichever theme is active (and over the
      * themes applied later); `null` restores the theme's own colour.
      */
-    changeThemeAccent(accent: unknown): void {
+    changeThemeAccent(accent: unknown): Promise<void> {
         this.accent = normalizeThemeAccent(accent);
-        this.applyThemeAccent();
-    }
-
-    /** The colour `accent` takes on the theme on screen, for previews. */
-    previewThemeAccentColor(accent: unknown): string | null {
-        const hex = resolveThemeAccentHex(accent);
-        const surfaces = hex
-            ? readThemeAccentSurfaces(getComputedStyle(document.body))
-            : null;
-        if (!hex || !surfaces) return hex;
-        return (
-            deriveThemeAccentTokens(hex, surfaces)['--app-selection-color'] ??
-            hex
-        );
+        return this.applyThemeAccent();
     }
 
     private applyResolvedTheme(selectedTheme: Theme): void {
@@ -177,7 +108,7 @@ export class SettingsService {
         }
         this.appliedThemePresetId.set(preset.id);
         // The accent's lightness depends on the new theme's surfaces.
-        this.applyThemeAccent();
+        void this.applyThemeAccent();
     }
 
     /**
@@ -186,7 +117,23 @@ export class SettingsService {
      * `data-theme-accent` attribute makes `m3-theme.scss` re-declare the
      * Material component tokens there too, so they read these values.
      */
-    private applyThemeAccent(): void {
+    private async applyThemeAccent(): Promise<void> {
+        if (this.accent && !this.accentTokens) {
+            try {
+                this.accentTokens = await import('./theme-accent-tokens');
+            } catch {
+                console.warn('Theme accent colors could not be loaded');
+                return;
+            }
+        }
+        if (!this.accentTokens) return;
+
+        // Read the current selection and surfaces after the chunk arrives.
+        const {
+            deriveThemeAccentTokens,
+            readThemeAccentSurfaces,
+            THEME_ACCENT_TOKEN_NAMES,
+        } = this.accentTokens;
         const body = document.body;
         for (const token of THEME_ACCENT_TOKEN_NAMES) {
             body.style.removeProperty(token);
@@ -270,66 +217,5 @@ export class SettingsService {
         }
 
         this.storage.set(key, value).subscribe();
-    }
-
-    /**
-     * Returns the version of the released app
-     * Filters out pre-release versions (beta, alpha, rc)
-     */
-    getAppVersion() {
-        return this.http
-            .get<
-                { created_at: string; name: string }[]
-            >('https://api.github.com/repos/4gray/iptvnator/releases')
-            .pipe(
-                map((response) => {
-                    // Filter out pre-release versions (beta, alpha, rc, etc.)
-                    const stableReleases = response.filter((release) => {
-                        if (hasPrereleaseKeyword(release.name)) {
-                            return false;
-                        }
-
-                        const version = parseVersion(release.name);
-                        if (!version) return false;
-
-                        return !version.prerelease;
-                    });
-
-                    // Sort stable releases by creation date
-                    const sortedReleases = stableReleases.sort(
-                        (a, b) =>
-                            new Date(b.created_at).getTime() -
-                            new Date(a.created_at).getTime()
-                    );
-
-                    return sortedReleases[0];
-                }),
-                map((response) => response.name),
-                catchError((err) => {
-                    console.error(err);
-                    throw new Error(err);
-                })
-            );
-    }
-
-    /**
-     * Compares current version with latest version
-     * @param currentVersion current version of the app
-     * @param latestVersion latest stable version from GitHub
-     * @returns true if current version is outdated
-     */
-    isVersionOutdated(currentVersion: string, latestVersion: string): boolean {
-        const cleanCurrent = parseVersion(currentVersion);
-        const cleanLatest = parseVersion(latestVersion);
-
-        if (!cleanCurrent || !cleanLatest) {
-            console.warn('Invalid version format:', {
-                currentVersion,
-                latestVersion,
-            });
-            return false;
-        }
-
-        return compareVersions(cleanCurrent, cleanLatest) < 0;
     }
 }

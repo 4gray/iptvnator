@@ -127,6 +127,31 @@ describe('SettingsComponent form', () => {
         expect(themeSwatch.getAttribute('aria-checked')).toBe('true');
     });
 
+    it('restores the saved appearance when a backup import replaces the draft', () => {
+        const service = TestBed.inject(SettingsService);
+        const changeThemeAccent = jest.spyOn(service, 'changeThemeAccent');
+        const changeSystemThemes = jest.spyOn(service, 'changeSystemThemes');
+        const changeTheme = jest.spyOn(service, 'changeTheme');
+        jest.spyOn(component.backup, 'importData').mockImplementation(
+            (onImported) => onImported()
+        );
+
+        component.form.selectThemeAccent('magenta');
+        component.form.selectSystemTheme('light', Theme.CreamTheme);
+        component.form.selectTheme(Theme.DarkTheme);
+        expect(component.settingsForm.dirty).toBe(true);
+
+        component.importData();
+
+        expect(component.settingsForm.pristine).toBe(true);
+        expect(changeThemeAccent).toHaveBeenLastCalledWith(null);
+        expect(changeSystemThemes).toHaveBeenLastCalledWith(
+            Theme.LightTheme,
+            Theme.DarkTheme
+        );
+        expect(changeTheme).toHaveBeenLastCalledWith(Theme.SystemTheme);
+    });
+
     it('stages the System pair, previews it and restores it on Discard', () => {
         setSettingsSection('appearance');
         fixture.detectChanges();

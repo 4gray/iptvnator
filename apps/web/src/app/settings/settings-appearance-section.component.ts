@@ -14,6 +14,7 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { TranslateModule } from '@ngx-translate/core';
 import {
     CoverSize,
+    resolveThemeAccentHex,
     Theme,
     THEME_PRESETS,
     ThemeAccent,
@@ -25,6 +26,10 @@ import {
 } from '@iptvnator/ui/components/radio-group';
 import { map, startWith, switchMap } from 'rxjs';
 import { SettingsService } from '../services/settings.service';
+import {
+    deriveThemeAccentTokens,
+    readThemeAccentSurfaces,
+} from '../services/theme-accent-tokens';
 import { SETTINGS_THEME_ACCENT_OPTIONS } from './settings-options';
 import { CoverSizeOption, ThemeOption } from './settings.models';
 import { markSectionForCheckOnFormEvents } from './settings-section-form-render';
@@ -93,14 +98,23 @@ export class SettingsAppearanceSectionComponent {
     readonly accentSwatches = computed(() => {
         this.appliedThemePresetId();
         const selected = this.selectedAccent();
-        return SETTINGS_THEME_ACCENT_OPTIONS.map((option) => ({
-            ...option,
-            id: option.value ?? 'theme',
-            selected: option.value === selected,
-            color: option.value
-                ? this.settingsService.previewThemeAccentColor(option.value)
-                : null,
-        }));
+        const surfaces = readThemeAccentSurfaces(
+            getComputedStyle(document.body)
+        );
+        return SETTINGS_THEME_ACCENT_OPTIONS.map((option) => {
+            const hex = resolveThemeAccentHex(option.value);
+            return {
+                ...option,
+                id: option.value ?? 'theme',
+                selected: option.value === selected,
+                color:
+                    hex && surfaces
+                        ? (deriveThemeAccentTokens(hex, surfaces)[
+                              '--app-selection-color'
+                          ] ?? hex)
+                        : hex,
+            };
+        });
     });
 
     readonly selectedAccentLabelKey = computed(

@@ -47,7 +47,7 @@ export function restoreSavedAppearance(
     }
     const savedAccent = saved.themeAccent ?? null;
     if ((draft.themeAccent ?? null) === savedAccent) {
-        service.changeThemeAccent(savedAccent);
+        void service.changeThemeAccent(savedAccent);
     }
 }
 
