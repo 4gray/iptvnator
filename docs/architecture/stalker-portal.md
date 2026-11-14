@@ -2185,3 +2185,6 @@ existing provider resolver and parental checks when reopened. Remove and clear
 retain durable intent, independently of resume and watched synchronization.
 Collection favorite membership uses typed references independently of either
 sync consent, so received history matches local favorites without merging kinds.
+Dashboard history cards with missing artwork can use the saved favorite poster
+from the same source and exact typed reference, including the series mode.
+The favorite's category lock applies, and only the rendered poster is filled.
