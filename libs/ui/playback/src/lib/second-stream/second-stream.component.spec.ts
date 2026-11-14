@@ -4,6 +4,7 @@ import {
     SecondStreamCatalogService,
     type SecondStreamSelection,
 } from '@iptvnator/portal/shared/data-access';
+import { PLAYBACK_ACTIVITY_EVENTS } from '@iptvnator/services/activity-events';
 import { TranslateModule } from '@ngx-translate/core';
 import { EmbeddedMpvPlayerComponent } from '../embedded-mpv-player/embedded-mpv-player.component';
 import { createLoadingSession } from '../embedded-mpv-player/embedded-mpv-session-factory';
@@ -30,6 +31,11 @@ describe('SecondStreamComponent', () => {
     let first: EmbeddedMpvPlayerComponent;
     let second: EmbeddedMpvPlayerComponent;
     let volume: jest.Mock;
+    const activity = {
+        active: jest.fn(() => false),
+        begin: jest.fn().mockResolvedValue(undefined),
+        checkpoint: jest.fn().mockResolvedValue(undefined),
+    };
     const allowed = signal(true);
     const originalElectron = Object.getOwnPropertyDescriptor(
         window,
@@ -39,12 +45,16 @@ describe('SecondStreamComponent', () => {
     beforeEach(() => {
         volume = jest.fn().mockResolvedValue(null);
         allowed.set(true);
+        activity.active.mockReturnValue(false);
+        activity.begin.mockClear();
+        activity.checkpoint.mockClear();
         Object.defineProperty(window, 'electron', {
             configurable: true,
             value: { setEmbeddedMpvVolume: volume },
         });
         TestBed.configureTestingModule({
             providers: [
+                { provide: PLAYBACK_ACTIVITY_EVENTS, useValue: activity },
                 {
                     provide: SecondStreamCatalogService,
                     useValue: { isAllowed: allowed },
@@ -109,6 +119,56 @@ describe('SecondStreamComponent', () => {
         expect(volume).not.toHaveBeenCalled();
     });
 
+    it('owns and checkpoints the companion progress when activity sync is enabled', async () => {
+        activity.active.mockReturnValue(true);
+        const content = {
+            ...playback,
+            startTime: 20,
+            contentInfo: {
+                playlistId: 'synthetic-playlist',
+                contentType: 'vod' as const,
+                contentXtreamId: 42,
+            },
+        };
+        component.editing.set(true);
+        await component.selectPlayback({ ...selection, playback: content });
+        const owned = component.playback();
+        if (!owned) throw new Error('Missing companion playback');
+        const sessionId = owned.contentInfo?.activitySessionId;
+        expect(sessionId).toBeTruthy();
+        expect(activity.begin).toHaveBeenCalledWith(
+            owned.contentInfo,
+            20,
+            content.title
+        );
+
+        Object.defineProperty(second, 'playback', { value: signal(owned) });
+        component.savePosition({
+            currentTime: 4,
+            duration: 100,
+            playing: true,
+        });
+        expect(activity.checkpoint).not.toHaveBeenCalled();
+        component.savePosition({
+            currentTime: 22,
+            duration: 100,
+            playing: true,
+        });
+        component.savePosition({
+            currentTime: 28,
+            duration: 100,
+            playing: true,
+        });
+        await component.close();
+
+        expect(activity.checkpoint).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                activitySessionId: sessionId,
+                positionSeconds: 28,
+            })
+        );
+    });
+
     it('returns sound and the main view to the primary before replacing a swapped companion', async () => {
         component.selection.set(selection);
         component.swapped.set(true);
@@ -150,6 +210,9 @@ describe('SecondStreamComponent', () => {
         TestBed.tick();
         expect(component.active()).toBe(false);
         allowed.set(true);
+        activity.active.mockReturnValue(false);
+        activity.begin.mockClear();
+        activity.checkpoint.mockClear();
         TestBed.tick();
         expect(component.active()).toBe(false);
         expect(first.controller.sessionId()).toBe('first');

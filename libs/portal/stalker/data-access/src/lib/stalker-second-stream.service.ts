@@ -143,6 +143,7 @@ export class StalkerSecondStreamService {
                                 category
                             ) ||
                             (category == null &&
+                                this.locks.active() &&
                                 this.locks.lockedStalkerIds(
                                     playlist._id,
                                     catalog

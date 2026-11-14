@@ -2,6 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { sourceSortName } from '@iptvnator/playlist/shared/util';
 import {
     isPortalPlaybackWatched,
+    buildXtreamCollectionUid,
     PORTAL_PLAYBACK_POSITIONS,
     type UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
@@ -97,10 +98,8 @@ export class SecondStreamVodService {
                 ),
             };
         }
-        const credentials = playlist?.serverUrl
-            ? await this.xtream.getPlaylist(playlistId)
-            : null;
-        if (!playlist || !credentials) return { items: [], hasMore: false };
+        if (!playlist?.serverUrl) return { items: [], hasMore: false };
+        const credentials = await this.credentials(playlistId);
         signal.throwIfAborted();
         const categoryType = type === 'movie' ? 'vod' : 'series';
         const categories = await this.xtream.getCategories(
@@ -145,7 +144,7 @@ export class SecondStreamVodService {
             );
             if (!validId(id) || categoryId === undefined) continue;
             const item: UnifiedCollectionItem = {
-                uid: `xtream::${playlistId}::${type}:${id}`,
+                uid: buildXtreamCollectionUid(playlistId, type, id),
                 sourceType: 'xtream',
                 contentType: type,
                 playlistId,
@@ -170,12 +169,7 @@ export class SecondStreamVodService {
         signal: AbortSignal
     ): Promise<SecondStreamEpisode[]> {
         if (series.sourceType === 'stalker') {
-            const playlist = await this.stalkerPlaylist(series);
-            return this.positionedEpisodes(
-                series,
-                await this.stalker.episodes(playlist, series, signal),
-                signal
-            );
+            return this.positionedStalkerEpisodes(series, signal);
         }
         const id = this.requireAllowed(series, 'series');
         const credentials = await this.credentials(series.playlistId);
@@ -193,8 +187,7 @@ export class SecondStreamVodService {
         for (const [season, episodes] of Object.entries(
             details?.episodes ?? {}
         )) {
-            if (!Array.isArray(episodes)) continue;
-            for (const episode of episodes) {
+            for (const episode of Array.isArray(episodes) ? episodes : []) {
                 if (!validId(Number(episode?.id))) continue;
                 rows.push({
                     episode,
@@ -220,7 +213,6 @@ export class SecondStreamVodService {
             id,
             'vod'
         );
-        this.requireAllowed(item, 'movie');
         const resolved = await this.vod.resolve(
             {
                 id: item.uid,
@@ -232,7 +224,11 @@ export class SecondStreamVodService {
                 matchConfidence: 'exact',
                 posterUrl: item.posterUrl ?? null,
             },
-            { startTime: resumeTime(saved) }
+            {
+                startTime: resumeTime(saved),
+                categoryId: item.categoryId,
+                isCurrent: () => this.catalog.isAllowed(item),
+            }
         );
         if (!resolved) throw new Error('Movie unavailable');
         this.requireAllowed(item, 'movie');
@@ -293,14 +289,19 @@ export class SecondStreamVodService {
         };
     }
 
-    private async positionedEpisodes(
+    private async positionedStalkerEpisodes(
         series: UnifiedCollectionItem,
-        mapped: Record<string, XtreamSerieEpisode[]>,
         signal: AbortSignal
     ): Promise<SecondStreamEpisode[]> {
+        const mapped = await this.stalker.episodes(
+            await this.stalkerPlaylist(series),
+            series,
+            signal
+        );
         const saved = await this.stalkerPositions(series, mapped);
         signal.throwIfAborted();
-        this.requireStalkerAllowed(series);
+        if (!this.catalog.isAllowed(series))
+            throw new Error('Source unavailable');
         const rows: SecondStreamEpisode[] = [];
         for (const [season, episodes] of Object.entries(mapped)) {
             for (const episode of episodes) {
@@ -333,19 +334,18 @@ export class SecondStreamVodService {
         }).positionsByTrackingId;
     }
 
-    private requireStalkerAllowed(item: UnifiedCollectionItem): void {
+    private async stalkerPlaylist(item: UnifiedCollectionItem) {
         if (!this.catalog.isAllowed(item))
             throw new Error('Source unavailable');
-    }
-
-    private async stalkerPlaylist(item: UnifiedCollectionItem) {
-        this.requireStalkerAllowed(item);
         const playlist = await firstValueFrom(
             this.playlists.getPlaylistById(item.playlistId)
         );
-        if (!playlist?.macAddress || !(playlist.portalUrl ?? playlist.url))
+        if (
+            !playlist?.macAddress ||
+            !(playlist.portalUrl ?? playlist.url) ||
+            !this.catalog.isAllowed(item)
+        )
             throw new Error('Source unavailable');
-        this.requireStalkerAllowed(item);
         return { ...playlist, portalUrl: playlist.portalUrl ?? playlist.url };
     }
 
@@ -372,7 +372,8 @@ export class SecondStreamVodService {
                     info.contentType
                 )
               : null;
-        this.requireStalkerAllowed(item);
+        if (!this.catalog.isAllowed(item))
+            throw new Error('Source unavailable');
         return {
             item,
             playback: { ...playback, startTime: resumeTime(saved) },
@@ -408,10 +409,6 @@ function validId(value: number): boolean {
 
 function resumeTime(saved: PlaybackPositionData | null): number | undefined {
     const position = saved?.positionSeconds;
-    return position &&
-        position > 0 &&
-        Number.isFinite(position) &&
-        !isPortalPlaybackWatched(saved)
-        ? position
-        : undefined;
+    if (!position || position < 0 || !Number.isFinite(position)) return;
+    return isPortalPlaybackWatched(saved) ? undefined : position;
 }

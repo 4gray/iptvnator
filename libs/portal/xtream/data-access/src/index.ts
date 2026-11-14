@@ -7,3 +7,6 @@ export { withRecentItems } from './lib/with-recent-items';
 export * from './lib/content-metadata-backfill';
 export * from './lib/xtream-content-metadata.util';
 export * from './lib/xtream-state';
+
+export { resolveXtreamVodDetailsSelection } from './lib/stores/xtream-details-request';
+export { buildXtreamVodSelection } from './lib/stores/xtream-vod-selection';

@@ -104,6 +104,16 @@ test('@playback @xtream @stalker @electron second-stream VOD, history and positi
                 )
             ) as Record<string, string>;
             const response = await fetch(upstream, { headers });
+            if (
+                url.searchParams.get('action') === 'get_vod_info' &&
+                Number(url.searchParams.get('vod_id')) === movieId
+            ) {
+                const body = await response.json();
+                delete body.movie_data;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify(body));
+                return;
+            }
             res.writeHead(response.status, {
                 'Content-Type':
                     response.headers.get('content-type') ?? 'application/json',

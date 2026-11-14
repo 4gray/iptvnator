@@ -48,7 +48,11 @@ export async function loadStalkerItvGenre(
                         : genre,
             });
         }
-        if (received >= result.total || rows.length === before) return rows;
+        if (
+            (result.totalKnown && received >= result.total) ||
+            rows.length === before
+        )
+            return rows;
     }
     throw new Error('Stalker genre exceeds the channel limit');
 }

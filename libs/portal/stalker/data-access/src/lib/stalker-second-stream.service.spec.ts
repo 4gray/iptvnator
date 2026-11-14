@@ -44,6 +44,7 @@ describe('Stalker second-stream catalog paging', () => {
                     provide: ParentalLockService,
                     useValue: {
                         withholdsEverything: () => false,
+                        active: () => false,
                         isStalkerCategoryLocked: () => false,
                         lockedStalkerIds: () => [],
                     },

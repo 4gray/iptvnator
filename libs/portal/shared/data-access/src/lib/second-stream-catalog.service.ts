@@ -209,7 +209,7 @@ export class SecondStreamCatalogService {
                 type === 'itv'
                     ? (raw?.tv_genre_id ?? item.categoryId)
                     : item.categoryId;
-            if (id == null || id === type) {
+            if ((id == null || id === type) && this.locks.active()) {
                 return (
                     this.locks.lockedStalkerIds(item.playlistId, type)
                         .length === 0

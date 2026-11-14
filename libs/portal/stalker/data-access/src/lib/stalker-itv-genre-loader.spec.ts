@@ -56,6 +56,25 @@ describe('loadStalkerItvGenre', () => {
             action: 'get_ordered_list',
         });
     });
+    it('continues through the last channel when total_items is missing', async () => {
+        const pages = [[{ id: 1 }, { id: 2 }], [{ id: 3 }], []];
+        const send = jest
+            .fn()
+            .mockImplementation((_event, { params }) =>
+                Promise.resolve({ js: { data: pages[params.p - 1] } })
+            );
+        const rows = await loadStalkerItvGenre(
+            deps(send),
+            playlist,
+            'genre',
+            new AbortController().signal
+        );
+        expect(rows.map((channel) => channel.id)).toEqual([1, 2, 3]);
+        expect(send.mock.calls.map(([, request]) => request.params.p)).toEqual([
+            1, 2, 3,
+        ]);
+    });
+
     it('does not fetch another page after the picker cancels the request', async () => {
         const abort = new AbortController();
         const send = jest.fn().mockImplementation(() => {

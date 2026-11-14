@@ -33,6 +33,8 @@ describe('SecondStreamCatalogService', () => {
     let locks: {
         version: ReturnType<typeof signal<number>>;
         withholdsEverything: jest.Mock;
+        active: jest.Mock;
+        lockedStalkerIds: jest.Mock;
         isM3uGroupLocked: jest.Mock;
         isXtreamCategoryLocked: jest.Mock;
         isStalkerCategoryLocked: jest.Mock;
@@ -63,6 +65,8 @@ describe('SecondStreamCatalogService', () => {
         locks = {
             version: signal(0),
             withholdsEverything: jest.fn(() => false),
+            active: jest.fn(() => false),
+            lockedStalkerIds: jest.fn(() => []),
             isM3uGroupLocked: jest.fn(() => false),
             isXtreamCategoryLocked: jest.fn(() => false),
             isStalkerCategoryLocked: jest.fn(() => false),
@@ -278,6 +282,23 @@ describe('SecondStreamCatalogService', () => {
         expect(data.channels[0].item.categoryId).toBe(900);
         await service.resolve(data.channels[0]);
         expect(resolve).toHaveBeenCalled();
+    });
+
+    it('accepts a Stalker series with an unknown category after PIN unlock', () => {
+        const item = {
+            uid: 'series',
+            name: 'Fixture series',
+            playlistId: playlist._id,
+            playlistName: playlist.title,
+            sourceType: 'stalker' as const,
+            contentType: 'series' as const,
+            categoryId: 'series',
+        };
+        locks.lockedStalkerIds.mockReturnValue(['restricted']);
+        locks.active.mockReturnValue(true);
+        expect(service.isAllowed(item)).toBe(false);
+        locks.active.mockReturnValue(false);
+        expect(service.isAllowed(item)).toBe(true);
     });
 
     it('reuses the Stalker ITV cache and carries link flags to the existing resolver', async () => {

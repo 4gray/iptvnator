@@ -19,7 +19,12 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { dialogSize } from '@iptvnator/ui/components/dialog-size';
-import type { RecordingStoppedEvent } from '@iptvnator/shared/interfaces';
+import {
+    createRandomId,
+    type RecordingStoppedEvent,
+} from '@iptvnator/shared/interfaces';
+import { PLAYBACK_ACTIVITY_EVENTS } from '@iptvnator/services/activity-events';
+import { WebPlayerActivity } from '../web-player-view/web-player-activity';
 import {
     createInlinePlaybackPositionWriter,
     PORTAL_PLAYBACK_POSITIONS,
@@ -98,6 +103,8 @@ export class SecondStreamComponent implements OnDestroy {
     private readonly positions = inject(PORTAL_PLAYBACK_POSITIONS, {
         optional: true,
     });
+    private readonly activityEvents = inject(PLAYBACK_ACTIVITY_EVENTS);
+    private readonly activity = new WebPlayerActivity(this.activityEvents);
     private readonly positionWriter = createInlinePlaybackPositionWriter({
         playback: this.playback,
         save: (playlistId, position) => {
@@ -249,7 +256,20 @@ export class SecondStreamComponent implements OnDestroy {
         )
             return;
         this.flushPosition();
-        this.selection.set(selection);
+        const { playback } = selection;
+        if (playback.contentInfo && !playback.isLive) {
+            const ownedPlayback = {
+                ...playback,
+                contentInfo: {
+                    ...playback.contentInfo,
+                    activitySessionId: createRandomId(),
+                },
+            };
+            this.activity.begin(ownedPlayback);
+            this.selection.set({ ...selection, playback: ownedPlayback });
+        } else {
+            this.selection.set(selection);
+        }
         this.error.set(false);
     }
 
@@ -341,11 +361,22 @@ export class SecondStreamComponent implements OnDestroy {
         )
             return;
         this.history.record(event.currentTime, status === 'playing');
+        const playback = this.playback();
+        if (
+            this.activityEvents.active() &&
+            playback?.contentInfo?.activitySessionId
+        ) {
+            const accepted = this.activity.record(playback, event);
+            if (accepted && status === 'ended' && !player?.session()?.reconnect)
+                this.activity.finish();
+            return;
+        }
         this.positionWriter.handleTimeUpdate(event);
         if (status !== 'playing') this.positionWriter.flush();
     }
 
     private flushPosition(): void {
+        this.activity.begin(null);
         this.positionWriter.flush();
         this.positionWriter.reset();
         this.history.reset();
