@@ -118,7 +118,8 @@ html .dark-theme,
 html [data-app-theme='cream'],
 html [data-app-theme='mocha'],
 html [data-app-theme='night-owl'],
-html [data-app-theme='black-oled'] {
+html [data-app-theme='black-oled'],
+html [data-app-theme='high-contrast'] {
     @include component-tokens($light-theme, (color));
 }
 
@@ -172,6 +173,11 @@ html {
         @include palettes.black-oled;
     }
 
+    [data-app-theme='high-contrast'] {
+        @include dark-variants.high-contrast;
+        @include palettes.high-contrast;
+    }
+
     // Samples use the same declarations as the app, independent of its theme.
     [data-theme-preview='light'] {
         @include palettes.light($preview: true);
@@ -187,6 +193,9 @@ html {
     }
     [data-theme-preview='night-owl'] {
         @include palettes.night-owl($preview: true);
+    }
+    [data-theme-preview='high-contrast'] {
+        @include palettes.high-contrast($preview: true);
     }
     [data-theme-preview='black-oled'] {
         @include palettes.black-oled($preview: true);

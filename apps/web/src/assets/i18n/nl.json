@@ -802,6 +802,7 @@
         "MOCHA_THEME": "Mokka",
         "NIGHT_OWL_THEME": "Nachtuil",
         "BLACK_OLED_THEME": "OLED-zwart",
+        "HIGH_CONTRAST_THEME": "Hoog contrast",
         "SYSTEM_DESCRIPTION": "Systeem volgt de lichte of donkere weergave van je apparaat.",
         "SYSTEM_LIGHT_PAIR": "In lichte modus",
         "SYSTEM_DARK_PAIR": "In donkere modus",

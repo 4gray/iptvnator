@@ -802,6 +802,7 @@
         "MOCHA_THEME": "Мокка",
         "NIGHT_OWL_THEME": "Нічна сова",
         "BLACK_OLED_THEME": "Чорний OLED",
+        "HIGH_CONTRAST_THEME": "Висока контрастність",
         "SYSTEM_DESCRIPTION": "Системна тема автоматично перемикається між світлим і темним оформленням пристрою.",
         "SYSTEM_LIGHT_PAIR": "У світлому режимі",
         "SYSTEM_DARK_PAIR": "У темному режимі",

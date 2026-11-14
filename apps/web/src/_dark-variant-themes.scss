@@ -85,6 +85,16 @@ $night-owl: mat.define-theme(
         ),
     )
 );
+$high-contrast: mat.define-theme(
+    (
+        color: (
+            theme-type: dark,
+            use-system-variables: true,
+            primary: palette($oled-neutral, mat.$yellow-palette),
+            tertiary: mat.$yellow-palette,
+        ),
+    )
+);
 $black-oled: mat.define-theme(
     (
         color: (
@@ -117,6 +127,23 @@ $black-oled: mat.define-theme(
             background: #000000,
             surface: #000000,
             surface-dim: #000000,
+        )
+    );
+}
+
+@mixin high-contrast {
+    @include mat.system-level-colors(
+        $high-contrast,
+        (
+            primary: #ffd60a,
+            on-primary: #000000,
+            background: #000000,
+            surface: #000000,
+            surface-dim: #000000,
+            on-surface: #ffffff,
+            on-surface-variant: #e6e6e6,
+            outline: #ffffff,
+            outline-variant: #bdbdbd,
         )
     );
 }

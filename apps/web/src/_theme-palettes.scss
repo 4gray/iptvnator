@@ -405,3 +405,50 @@
         --app-popover-backdrop: rgba(0, 0, 0, 0.5);
     }
 }
+
+// Accessibility preset: pure black and white, a yellow accent, visible
+// borders and a thicker focus ring, for low vision and viewing from a sofa.
+@mixin high-contrast($preview: false) {
+    @include dark($preview, $variant: true);
+    --app-shell-bg: #000000;
+    --app-rail-bg: #000000;
+    --app-content-bg: #000000;
+    --app-widget-bg: #0f0f0f;
+    --app-heading-color: #ffffff;
+    --app-muted-color: #e6e6e6;
+    --app-selection-color: #ffd60a;
+
+    @if not $preview {
+        --app-header-bg: #000000;
+        --app-widget-header-bg: #0f0f0f;
+        --app-card-hover-bg: #1f1f1f;
+        --app-on-surface: #ffffff;
+        --app-body-color: #f0f0f0;
+        --app-eyebrow-color: #e6e6e6;
+        --app-hover-overlay: rgba(255, 255, 255, 0.16);
+        --app-search-bg: #000000;
+        --app-search-border: rgba(255, 255, 255, 0.6);
+        --app-widget-border: rgba(255, 255, 255, 0.45);
+        --app-widget-header-border: rgba(255, 255, 255, 0.45);
+        --app-separator: rgba(255, 255, 255, 0.45);
+        --app-line-strong: rgba(255, 255, 255, 0.55);
+        --app-selection-text-color: #ffe14d;
+        --app-selection-on-color: #000000;
+        --app-focus-ring: #ffd60a;
+        --app-focus-ring-width: 3px;
+        --app-list-selected-outline: var(--app-selection-color);
+        --app-provider-xtream: #8ab4f8;
+        --app-accent-gradient: linear-gradient(
+            135deg,
+            rgba(255, 214, 10, 0.1),
+            rgba(255, 214, 10, 0.04)
+        );
+        --app-hero-surface: #0f0f0f;
+        --app-cta-bg: #ffffff;
+        --app-cta-fg: #000000;
+        --app-cta-hover-bg: #ffd60a;
+        --app-cta-meta-fg: #333333;
+        --app-rating-color: #ffd60a;
+        --app-popover-backdrop: rgba(0, 0, 0, 0.7);
+    }
+}

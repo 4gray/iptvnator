@@ -802,6 +802,7 @@
         "MOCHA_THEME": "موكا",
         "NIGHT_OWL_THEME": "بومة الليل",
         "BLACK_OLED_THEME": "أسود OLED",
+        "HIGH_CONTRAST_THEME": "تباين عالٍ",
         "SYSTEM_DESCRIPTION": "يتبع خيار النظام المظهر الفاتح أو الداكن لجهازك.",
         "SYSTEM_LIGHT_PAIR": "في الوضع الفاتح",
         "SYSTEM_DARK_PAIR": "في الوضع الداكن",

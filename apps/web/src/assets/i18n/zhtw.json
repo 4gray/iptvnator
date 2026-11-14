@@ -802,6 +802,7 @@
         "MOCHA_THEME": "摩卡",
         "NIGHT_OWL_THEME": "夜貓子",
         "BLACK_OLED_THEME": "OLED 純黑",
+        "HIGH_CONTRAST_THEME": "高對比",
         "SYSTEM_DESCRIPTION": "系統主題跟隨裝置的淺色或深色外觀。",
         "SYSTEM_LIGHT_PAIR": "淺色模式下",
         "SYSTEM_DARK_PAIR": "深色模式下",

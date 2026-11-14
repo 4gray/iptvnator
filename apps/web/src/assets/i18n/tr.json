@@ -802,6 +802,7 @@
         "MOCHA_THEME": "Moka",
         "NIGHT_OWL_THEME": "Gece kuşu",
         "BLACK_OLED_THEME": "OLED siyahı",
+        "HIGH_CONTRAST_THEME": "Yüksek kontrast",
         "SYSTEM_DESCRIPTION": "Sistem, cihazınızın açık veya koyu görünümünü izler.",
         "SYSTEM_LIGHT_PAIR": "Açık modda",
         "SYSTEM_DARK_PAIR": "Koyu modda",
