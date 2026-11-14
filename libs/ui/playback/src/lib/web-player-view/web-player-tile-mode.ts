@@ -38,6 +38,10 @@ export class WebPlayerTileMode {
     readonly engineInteractionEnabled = computed(
         () => this.host.playbackInteractionEnabled() && this.chromeVisible()
     );
+    /** The view plays a multiview tile: the session manages its media. */
+    readonly inSession = computed(
+        () => this.host.muted() !== null || this.host.paused() !== null
+    );
     private media: WebPlayerTileMedia | null = null;
 
     constructor(private readonly host: WebPlayerTileHost) {

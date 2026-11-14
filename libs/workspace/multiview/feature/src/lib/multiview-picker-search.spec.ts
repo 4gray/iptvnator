@@ -132,6 +132,37 @@ describe('MultiviewPickerSearchService', () => {
         expect(results.series.map((r) => r.kind)).toEqual([null]);
     });
 
+    it('keeps the series when more films than the limit match', async () => {
+        getPlaylistById.mockReturnValue(
+            of({ _id: 'playlist-1', serverUrl: 'http://x.example' })
+        );
+        // The data sources list every film before the first series.
+        const films = Array.from({ length: 101 }, (_, index) => ({
+            id: 100 + index,
+            xtream_id: 100 + index,
+            title: `Match Film ${index}`,
+            type: 'movie',
+            poster_url: '',
+        }));
+        searchContent.mockResolvedValue([
+            ...films,
+            {
+                id: 41,
+                xtream_id: 4,
+                title: 'Match Season',
+                type: 'series',
+                poster_url: '',
+            },
+        ]);
+
+        const results = await service().search('match', loaded, 'playlist-1');
+
+        expect(results.series.map((r) => r.item.name)).toEqual([
+            'Match Season',
+        ]);
+        expect(results.movies.length).toBeLessThanOrEqual(50);
+    });
+
     it('searches only the loaded rows for other playlists', async () => {
         getPlaylistById.mockReturnValue(
             of({ _id: 'm', url: 'https://list.example/a.m3u' })

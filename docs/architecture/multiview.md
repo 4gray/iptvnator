@@ -75,7 +75,9 @@ down as the view's own player would.
 
 Tiles render `WebPlayerViewComponent` in tile mode (`controlsMode`, `muted`,
 `paused`, `headerOwner`); added tiles use the HTML5 engine, tile 1 keeps the
-view's engine. Tile videos never enter system picture-in-picture (D12).
+view's engine. Tile videos never enter system picture-in-picture (D12), and
+a tile's playback error offers no MPV or VLC handoff, only the built-in
+recovery actions.
 
 ## Request headers
 
@@ -129,10 +131,12 @@ An 820 px dialog on `app-dialog-shell`: search with a scope chip, sections
 Live now (favourites, then recent, then the current playlist — D9), Continue
 (Xtream films with a resume point), Favorites, Recent, and the current
 playlist only (Q2) with its connection badge and a category menu (a portal
-that lists channels per group only loads one group at a time); grouped search results; series
-episodes as the one drill-down; footer connection meter. EPG is requested for
-at most 20 visible rows per open (Q1). Rows already on screen show "In tile
-N" and are disabled; before a session the playing source counts as tile 1.
+that lists channels per group only loads one group at a time); grouped
+search results (at most 50 films and 50 series from an Xtream playlist's
+catalog); series episodes as the one drill-down; footer connection meter.
+EPG is requested for at most 20 visible rows per open (Q1). Rows already on
+screen show "In tile N" and are disabled; before a session the playing
+source counts as tile 1.
 
 ## Errors and connection budget
 

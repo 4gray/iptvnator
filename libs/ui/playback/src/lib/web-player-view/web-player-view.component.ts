@@ -285,7 +285,7 @@ export class WebPlayerViewComponent implements OnDestroy {
         playbackExternallyTransferable: this.playbackExternallyTransferable,
         alternativeSourceCount: () => this.alternativeSources().length,
         managedExternalPlayersAvailable: () =>
-            this.runtime.supportsManagedExternalPlayers,
+            this.supportsManagedExternalPlayers,
         tryAutoLiveFormat: (issue) => this.liveAutoFormat.tryFallback(issue),
         emitPlaybackFailed: (code) => this.playbackFailed.emit(code),
         emitExternalFallbackRequested: (request) =>
@@ -311,8 +311,10 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly recordingFolder = computed(
         () => this.settingsStore.recordingFolder?.() ?? ''
     );
+    /** A multiview tile has no handoff to MPV or VLC: none is offered. */
     get supportsManagedExternalPlayers(): boolean {
-        return this.runtime.supportsManagedExternalPlayers;
+        const tile = this.tileMode.inSession();
+        return this.runtime.supportsManagedExternalPlayers && !tile;
     }
     readonly renderedApplications = createRenderedApplications({
         pending: this.liveAutoFormat.pending,

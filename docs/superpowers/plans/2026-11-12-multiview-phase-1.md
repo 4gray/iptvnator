@@ -1379,6 +1379,14 @@ the maintainer's request):** five findings.
   owners are tied to the configuring page and released on a cross-document
   navigation, `render-process-gone` and `destroyed`.
 
+**Round 9 (Codex, commit `d38cbd237`):** two findings, both fixed.
+- P2, the main tile's diagnostic panel offered MPV and VLC, but no tile
+  handles the handoff, so the action only timed out: a view in a session
+  (`WebPlayerTileMode.inSession`) offers no external player.
+- P2, the catalog search cut films and series at 100 together; the data
+  sources list every film first, so 100 matching films hid every series:
+  each type is now limited to 50 on its own.
+
 Greptile: not run (the `greptile` CLI is not installed on this machine).
 
 ## Phase acceptance (spec 14)

@@ -19,6 +19,22 @@ import {
 /** Search results kept per catalog type, like the playlist's own search. */
 const CATALOG_RESULT_LIMIT = 50;
 
+/**
+ * At most {@link CATALOG_RESULT_LIMIT} films and as many series: the data
+ * sources list every film before the first series, so one shared cut could
+ * drop all series.
+ */
+function limitPerType(
+    items: readonly UnifiedCollectionItem[]
+): UnifiedCollectionItem[] {
+    const counts = new Map<string, number>();
+    return items.filter((item) => {
+        const count = counts.get(item.contentType) ?? 0;
+        counts.set(item.contentType, count + 1);
+        return count < CATALOG_RESULT_LIMIT;
+    });
+}
+
 function toCollectionItem(
     row: XtreamContentItem,
     playlistId: string,
@@ -82,11 +98,10 @@ export class MultiviewPickerSearchService {
             );
             const name = sourceSortName(playlist);
             const tiles = this.onScreen.current();
-            return rows
-                .slice(0, CATALOG_RESULT_LIMIT * 2)
+            const items = rows
                 .map((row) => toCollectionItem(row, playlistId, name))
-                .filter((item): item is UnifiedCollectionItem => !!item)
-                .map((item) => toPickerRow(item, tiles));
+                .filter((item): item is UnifiedCollectionItem => !!item);
+            return limitPerType(items).map((item) => toPickerRow(item, tiles));
         } catch {
             return [];
         }

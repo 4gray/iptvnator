@@ -23,6 +23,7 @@ import {
     StubVjsPlayerComponent,
 } from './web-player-view.spec-stubs';
 import { PlaybackDiagnosticPanelComponent } from '../playback-diagnostic-panel/playback-diagnostic-panel.component';
+import { isExternalPlayerRecommendation } from '../playback-diagnostic-panel/playback-recommendation-view.util';
 
 jest.unstable_mockModule('video.js', () => ({
     default: jest.fn(),
@@ -59,7 +60,10 @@ describe('WebPlayerViewComponent tile mode', () => {
             await import('./web-player-view.component'));
     });
 
+    const runtime = { supportsManagedExternalPlayers: false };
+
     beforeEach(async () => {
+        runtime.supportsManagedExternalPlayers = false;
         await TestBed.configureTestingModule({
             deferBlockBehavior: DeferBlockBehavior.Playthrough,
             imports: [WebPlayerViewComponent, TranslateModule.forRoot()],
@@ -73,7 +77,7 @@ describe('WebPlayerViewComponent tile mode', () => {
                 },
                 {
                     provide: RuntimeCapabilitiesService,
-                    useValue: { supportsManagedExternalPlayers: false },
+                    useValue: runtime,
                 },
             ],
         })
@@ -142,6 +146,33 @@ describe('WebPlayerViewComponent tile mode', () => {
         fixture.debugElement.query(
             By.css('[data-test-id="playback-diagnostic-banner"]')
         );
+
+    describe('external players (MPV, VLC)', () => {
+        const offersExternal = () =>
+            component.recommendations().some(isExternalPlayerRecommendation);
+
+        beforeEach(() => {
+            runtime.supportsManagedExternalPlayers = true;
+        });
+
+        it('are offered by a single player as before', () => {
+            raiseIssue(unsupportedContainer());
+
+            expect(offersExternal()).toBe(true);
+            expect(component.supportsManagedExternalPlayers).toBe(true);
+        });
+
+        it('are not offered by a tile, which has no handoff to them', () => {
+            // The main tile keeps full chrome and the diagnostic panel.
+            fixture.componentRef.setInput('muted', false);
+            fixture.componentRef.setInput('paused', false);
+            raiseIssue(unsupportedContainer());
+
+            expect(banner()).not.toBeNull();
+            expect(offersExternal()).toBe(false);
+            expect(component.supportsManagedExternalPlayers).toBe(false);
+        });
+    });
 
     describe('with no tile inputs set', () => {
         it('keeps engine interaction, panels and host classes as before', async () => {
