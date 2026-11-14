@@ -14,6 +14,7 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.media3.common.AudioAttributes;
 import androidx.media3.common.C;
+import androidx.media3.common.ForwardingPlayer;
 import androidx.media3.common.ForwardingSimpleBasePlayer;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MimeTypes;
@@ -154,18 +155,8 @@ public final class NativePlayerActivity extends Activity {
             @Override
             protected State getState() {
                 State state = super.getState();
-                // The view and system controls share the app's classification,
-                // including when a live channel is served from a seekable playlist.
-                State.Builder builder = state.buildUpon().setPlayerError(null);
-                if (live) {
-                    builder.setAvailableCommands(state.availableCommands.buildUpon().removeAll(
-                        Player.COMMAND_SEEK_TO_DEFAULT_POSITION, Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM,
-                        Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM, Player.COMMAND_SEEK_TO_PREVIOUS,
-                        Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM, Player.COMMAND_SEEK_TO_NEXT,
-                        Player.COMMAND_SEEK_TO_MEDIA_ITEM, Player.COMMAND_SEEK_BACK, Player.COMMAND_SEEK_FORWARD
-                    ).build());
-                }
-                return builder.build();
+                // Media3 errors can carry provider URLs, which the system session does not need.
+                return state.buildUpon().setPlayerError(null).build();
             }
 
             @Override
@@ -246,7 +237,22 @@ public final class NativePlayerActivity extends Activity {
                 showError();
             }
         });
-        view.setPlayer(sessionPlayer);
+        view.setPlayer(live ? new ForwardingPlayer(player) {
+            @Override
+            public Player.Commands getAvailableCommands() {
+                return super.getAvailableCommands().buildUpon().removeAll(
+                    Player.COMMAND_SEEK_TO_DEFAULT_POSITION, Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM,
+                    Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM, Player.COMMAND_SEEK_TO_PREVIOUS,
+                    Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM, Player.COMMAND_SEEK_TO_NEXT,
+                    Player.COMMAND_SEEK_TO_MEDIA_ITEM, Player.COMMAND_SEEK_BACK, Player.COMMAND_SEEK_FORWARD
+                ).build();
+            }
+
+            @Override
+            public boolean isCommandAvailable(int command) {
+                return getAvailableCommands().contains(command);
+            }
+        } : player);
         prepareStream();
     }
 
