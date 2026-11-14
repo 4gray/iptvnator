@@ -5,6 +5,8 @@ import {
     ProviderTransport,
     mediaFavoriteReference,
     mediaFavoriteSnapshot,
+    mergeFavoriteSource,
+    sharedFavoriteMedia,
     queueFavorite,
     resolveFavoriteEntries,
     resolveFavoriteMedia,
@@ -229,6 +231,58 @@ test('downloads a linked URL playlist to resolve server favorites by exact URL h
         transport
     );
     assert.equal(media.get(favoriteAddressKey(ref))?.providerId, stream);
+});
+
+test('a downloaded M3U playlist retires cached media after an exact URL disappears', async () => {
+    const url = 'https://media.example/original';
+    const playlist: Source = {
+        ...source,
+        provider: 'm3u',
+        m3uItems: [{ url }],
+    };
+    const context = {
+        sourceId: address.sourceId,
+        sourceIncarnation: address.sourceIncarnation,
+        provider: 'm3u' as const,
+    };
+    const entry = {
+        address: { ...address, content: await m3uFavoriteReference(url) },
+        state: { revision: 1, member: true },
+    };
+    const data = sharedData({ sources: [playlist] });
+    const initial = mergeFavoriteSource(
+        data,
+        playlist,
+        context,
+        [entry],
+        await resolveFavoriteEntries(playlist, [entry])
+    );
+    assert.equal(sharedFavoriteMedia(initial).length, 1);
+    const changed = {
+        ...playlist,
+        m3uItems: [{ url: 'https://media.example/replacement' }],
+    };
+    const updated = mergeFavoriteSource(
+        initial,
+        changed,
+        context,
+        [entry],
+        await resolveFavoriteEntries(changed, [entry])
+    );
+    assert.equal(sharedFavoriteMedia(updated).length, 0);
+});
+
+test('an unresolved Xtream identity conflict does not project a playable favorite', async () => {
+    const entry = {
+        address,
+        state: {
+            revision: 1,
+            member: true,
+            snapshot: { identityConflict: true },
+        },
+    };
+    const media = await resolveFavoriteEntries(source, [entry]);
+    assert.equal(media.size, 0);
 });
 
 test('round-trips regular and embedded Stalker series references', async () => {

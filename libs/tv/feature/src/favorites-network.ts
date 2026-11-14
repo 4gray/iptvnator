@@ -10,7 +10,7 @@ import {
     type UserDataRepository,
 } from '@iptvnator/tv/data-access';
 import { favoriteAddressKey } from '@iptvnator/shared/interfaces/favorites-sync';
-import type { Media, Source, UserData } from '@iptvnator/tv/util';
+import type { Source, UserData } from '@iptvnator/tv/util';
 
 export function serverFor(data: UserData) {
     const library = data.library;
@@ -116,11 +116,11 @@ export async function refreshSources(
             signal
         ).catch((failure: unknown) => {
             if (source.provider !== 'm3u' || signal.aborted) throw failure;
-            return new Map<string, Media>();
+            return undefined;
         });
         unresolved += entries.filter(
             ({ address, state }) =>
-                state.member && !media.has(favoriteAddressKey(address))
+                state.member && !media?.has(favoriteAddressKey(address))
         ).length;
         await repo.update((current) =>
             !signal.aborted &&

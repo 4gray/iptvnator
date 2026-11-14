@@ -44,7 +44,8 @@ export function queueFavorite(
     context: FavoriteSourceContext,
     content: FavoriteAddress['content'],
     consent: string,
-    deviceId: string
+    deviceId: string,
+    importing = false
 ): { data: UserData; entry: SharedFavoriteEntry } {
     if (!data.library)
         throw new FavoritesError('The server library is not connected.');
@@ -90,6 +91,9 @@ export function queueFavorite(
         },
         media: item,
         retries: current?.retries ?? 0,
+        importOperations: importing
+            ? [...(current?.importOperations ?? []), operation.operationId]
+            : current?.importOperations,
     };
     return {
         data: {
@@ -135,6 +139,7 @@ export function commitFavoriteResult(
             : latestBase(entry);
     const retry =
         result.status === 'conflict' &&
+        !entry.importOperations?.includes(operationId) &&
         head.operation.member !== base.member &&
         (entry.retries ?? 0) < 2;
     const pending = retry
@@ -153,6 +158,9 @@ export function commitFavoriteResult(
     const applied: SharedFavoriteEntry = {
         ...entry,
         retries: retry ? (entry.retries ?? 0) + 1 : 0,
+        importOperations: entry.importOperations?.filter(
+            (id) => id !== operationId
+        ),
         record: {
             ...entry.record,
             base,
@@ -228,7 +236,7 @@ export function mergeFavoriteSource(
     source: Source,
     context: FavoriteSourceContext,
     entries: FavoriteList['entries'],
-    media: Map<string, Media>
+    media: Map<string, Media> | undefined
 ): UserData {
     if (
         source.libraryId !== context.sourceId ||
@@ -253,7 +261,15 @@ export function mergeFavoriteSource(
         const base = entry.state;
         sharedFavorites[key] = {
             address,
-            media: media.get(key) ?? current?.media,
+            media: entry.state.snapshot?.identityConflict
+                ? undefined
+                : media
+                  ? (media.get(key) ??
+                    (current?.record.pending.length
+                        ? current.media
+                        : undefined))
+                  : current?.media,
+            importOperations: current?.importOperations,
             retries: current?.retries ?? 0,
             record: current?.record.pending.length
                 ? {
@@ -293,6 +309,9 @@ export function discardFavoriteIntents(data: UserData): UserData {
         sharedFavorites[key] = {
             ...entry,
             retries: 0,
+            importOperations: entry.importOperations?.filter((id) =>
+                live.some(({ operation }) => operation.operationId === id)
+            ),
             record: {
                 ...entry.record,
                 base,

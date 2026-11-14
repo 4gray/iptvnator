@@ -150,6 +150,8 @@ export interface SharedFavoriteEntry {
     media?: Media;
     /** Bounded conflict-rebase attempts before the server state wins. */
     retries?: number;
+    /** Import adds accept a conflict receipt without replacing server choices. */
+    importOperations?: string[];
 }
 export interface UserData {
     library?: LibrarySettings;
@@ -267,7 +269,9 @@ export function hydrateUserData(saved: Partial<UserData>): UserData {
     const data = { ...initialData(), ...saved };
     data.favoriteScope = saved.favoriteScope === 'current' ? 'current' : 'all';
     data.favoritesConsent =
-        typeof saved.favoritesConsent === 'string' ? saved.favoritesConsent : '';
+        typeof saved.favoritesConsent === 'string'
+            ? saved.favoritesConsent
+            : '';
     data.favoritesMode =
         saved.favoritesMode === 'shared' && data.favoritesConsent
             ? 'shared'

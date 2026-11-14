@@ -190,29 +190,33 @@ export class StalkerProvider implements ProviderClient {
             const match = find(rows(unwrap(response)));
             if (match?.raw.cmd) return attach(match);
         }
-        const category = item.category || '*';
+        const category = item.category;
         const searches = item.title ? [item.title, ''] : [''];
+        const scopes = category && category !== '*' ? [category, '*'] : ['*'];
         // shortcut: bound a provider scan when it ignores search; reopen the title from its catalog.
-        for (const search of searches) {
-            for (let page = 0; page < 20; page++) {
-                const result = await this.pages.load(
-                    {
-                        type,
-                        category,
-                        genre: category,
-                        search,
-                    },
-                    page,
-                    signal
-                );
-                const match = find(result.data);
-                if (match && (match.kind === 'series' || match.raw.cmd))
-                    return attach(match);
-                if (
-                    !result.data.length ||
-                    (page + 1) * result.pageSize >= result.total
-                )
-                    break;
+        for (const scope of scopes) {
+            for (const search of searches) {
+                for (let page = 0; page < 20; page++) {
+                    const result = await this.pages.load(
+                        {
+                            type,
+                            category: scope,
+                            genre:
+                                type === 'itv' && scope === '*' ? '0' : scope,
+                            search,
+                        },
+                        page,
+                        signal
+                    );
+                    const match = find(result.data);
+                    if (match && (match.kind === 'series' || match.raw.cmd))
+                        return attach(match);
+                    if (
+                        !result.data.length ||
+                        (page + 1) * result.pageSize >= result.total
+                    )
+                        break;
+                }
             }
         }
         throw new Error('Favorite is unavailable from its provider.');
@@ -323,7 +327,9 @@ export class StalkerProvider implements ProviderClient {
                 {
                     type:
                         item.kind === 'live'
-                            ? 'itv'
+                            ? stalkerMediaReference(item)?.kind === 'radio'
+                                ? 'radio'
+                                : 'itv'
                             : item.raw.origin === 'series'
                               ? 'series'
                               : 'vod',

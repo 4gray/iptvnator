@@ -200,28 +200,28 @@ test('conflicts rebase the head intent twice, then the server state wins', () =>
     assert.equal(record.state.revision, 3);
 });
 
-test('a conflict matching the intent is adopted instead of retried', () => {
+test('an import add preserves a newer server removal', () => {
     const data = sharedData();
-    const { data: queued } = queueFavorite(
+    const { data: queued, entry } = queueFavorite(
         data,
         source,
         liveItem,
-        false,
+        true,
         context,
         address.content,
         data.favoritesConsent,
-        data.favoritesDeviceId
+        data.favoritesDeviceId,
+        true
     );
+    const operation = entry.record.pending[0].operation;
     const key = favoriteAddressKey(address);
-    const head = queued.sharedFavorites[key].record.pending[0];
-    const { data: committed, delivered } = commitFavoriteResult(
-        queued,
-        key,
-        head.operation.operationId,
-        { status: 'conflict', state: { revision: 5, member: false } }
-    );
-    assert.equal(delivered, true);
-    assert.equal(committed.sharedFavorites[key].record.pending.length, 0);
+    const result = commitFavoriteResult(queued, key, operation.operationId, {
+        status: 'conflict',
+        state: { member: false, revision: 2 },
+    });
+    assert.equal(result.rebased, false);
+    assert.deepEqual(pendingFavorites(result.data), []);
+    assert.deepEqual(favoriteItems(result.data), []);
 });
 
 test('a conflict receipt lets the next queued edit reach the server', () => {

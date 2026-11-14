@@ -237,7 +237,8 @@ export function useFavoritesSync(
                     context,
                     content,
                     start.favoritesConsent,
-                    current.favoritesDeviceId
+                    current.favoritesDeviceId,
+                    true
                 ).data;
             });
         }

@@ -165,6 +165,7 @@ export function resolveFavoriteMedia(
 ): Media | null {
     const reference = address.content;
     const title = snapshot?.title ?? '';
+    if (snapshot?.identityConflict) return null;
     if (reference.provider === 'xtream')
         return {
             id: identity(source, reference.kind, reference.id),
