@@ -1,0 +1,137 @@
+/*
+ * One focus language. Loaded last so it wins over component styles.
+ *
+ * - Focus: the mint ring, used for nothing else. Action buttons also take a
+ *   mint fill; cards scale to 1.06 (transform only); list rows and dense grid
+ *   cells keep their fill and show the ring.
+ * - Selected (active nav item, tab, season, category, day): a mint bar.
+ * - On (Saved, favourite): a filled icon, never a border.
+ * - Empty, unavailable choices: 40% and not focusable (disabled).
+ */
+button:focus,
+input:focus,
+select:focus,
+summary:focus,
+[data-tv-scroll]:focus {
+    outline: var(--tv-focus-width) solid var(--app-focus-ring-color);
+    outline-offset: var(--tv-focus-offset);
+}
+button:focus,
+button.primary:focus {
+    background: var(--tv-accent);
+    color: var(--tv-on-accent);
+}
+button:focus .muted,
+button:focus small,
+button:focus span {
+    color: inherit;
+}
+
+/* Selected: a mint bar, never a ring. */
+button[aria-pressed='true'],
+nav button[aria-current='page'],
+.settings-categories [aria-selected='true'],
+.tv-picker-options [aria-selected='true'] {
+    border-color: transparent;
+    color: var(--tv-text);
+    box-shadow: inset var(--tv-selected-bar) 0 0 var(--tv-accent);
+}
+.favorite-types button[aria-pressed='true'],
+.filters button[aria-pressed='true'],
+.programme-guide-days button[aria-pressed='true'] {
+    box-shadow: inset 0 -5px 0 var(--tv-accent);
+}
+
+/* A focused choice is a focused button first: mint fill, dark text. */
+nav button:focus,
+.favorite-types button:focus,
+.filters button:focus,
+.programme-guide-days button:focus,
+button.tv-toggle:focus {
+    background: var(--tv-accent);
+    color: var(--tv-on-accent);
+}
+
+/* On: the filled glyph carries the state. */
+button.tv-toggle[aria-pressed='true'] {
+    box-shadow: none;
+}
+
+/* Empty choices are dimmed and skipped by spatial navigation. */
+button:disabled {
+    opacity: 0.4;
+}
+
+/* List rows: ring on the row's own fill, inset so neighbours are not covered. */
+.channel:focus,
+.live-category:focus,
+.settings-categories button:focus,
+.tv-picker-options button:focus,
+.programme-guide-row:focus,
+.grid-channel:focus,
+.grid-program:focus,
+.grid-empty:focus {
+    background: var(--tv-control);
+    color: var(--tv-text);
+    outline-offset: -5px;
+}
+.channel:focus small,
+.live-category:focus > span,
+.grid-channel:focus small,
+.grid-program:focus time,
+.programme-guide-row:focus time {
+    color: var(--tv-muted);
+}
+
+/* Cards: ring and scale on the artwork, no fill. */
+.poster-card,
+.resume-card,
+.person-chip,
+.episode,
+.channel-card {
+    transition: transform 0.15s ease-out;
+}
+.poster-card:focus,
+.resume-card:focus,
+.person-chip:focus {
+    outline: none;
+    background: transparent;
+    color: var(--tv-text);
+}
+.poster-card:focus .poster-art,
+.resume-card:focus .poster-art {
+    outline: var(--tv-focus-width) solid var(--app-focus-ring-color);
+    outline-offset: var(--tv-focus-offset);
+}
+.poster-card:focus,
+.resume-card:focus,
+.person-chip:focus .person-avatar,
+.episode:focus,
+.channel-card:focus {
+    transform: scale(var(--tv-focus-scale));
+}
+.person-chip:focus .person-avatar {
+    outline: var(--tv-focus-width) solid var(--app-focus-ring-color);
+    outline-offset: var(--tv-focus-offset);
+}
+.episode {
+    /* Grow downwards so a focused episode keeps its top edge as an anchor. */
+    transform-origin: 50% 0;
+}
+.episode:focus,
+.channel-card:focus {
+    background: var(--tv-control);
+    color: var(--tv-text);
+}
+.episode:focus .episode-number,
+.episode:focus .episode-description,
+.episode:focus small {
+    color: var(--tv-muted);
+}
+.poster-card:focus .muted,
+.resume-card:focus .muted,
+.resume-card:focus .resume-position,
+.resume-card:focus .resume-date,
+.person-chip:focus small {
+    color: var(--tv-muted);
+}

@@ -1,0 +1,84 @@
+/*
+ * TV design tokens for a 1920×1080 canvas viewed from about three metres.
+ * Type: nothing below 22px; serif only for content and channel titles.
+ * Spacing: 8px base, 64×48 safe area, one left content edge.
+ * Colour: mint marks focus and progress only (see focus.css).
+ */
+:root {
+    /* Colour */
+    --tv-bg: #0b0f0e;
+    --tv-surface: #141c19;
+    --tv-control: #202c28;
+    --tv-control-hover: #2a3a34;
+    --tv-text: #eef3f1;
+    --tv-muted: #b9c6c1;
+    --tv-accent: #8fe3c4;
+    --tv-on-accent: #0b2117;
+    --tv-live: #e5484d;
+    --tv-line: #2a3832;
+    --tv-scroll-thumb: #526b5c;
+    --app-focus-ring-color: var(--tv-accent);
+
+    /* Type families */
+    --tv-font-sans: 'Trebuchet MS', sans-serif;
+    --tv-font-serif: Georgia, serif;
+
+    /* Type scale */
+    --tv-type-display: 88px;
+    --tv-type-title: 56px;
+    --tv-type-heading: 32px;
+    --tv-type-body: 28px;
+    --tv-type-meta: 24px;
+    --tv-type-eyebrow: 22px;
+    --tv-tracking-eyebrow: 0.14em;
+
+    /* Spacing: 8px base */
+    --tv-space-1: 8px;
+    --tv-space-2: 16px;
+    --tv-space-3: 24px;
+    --tv-space-4: 32px;
+    --tv-space-5: 40px;
+    --tv-space-6: 48px;
+    --tv-space-7: 56px;
+    --tv-space-8: 64px;
+    --tv-safe-x: 64px;
+    --tv-safe-y: 48px;
+    --tv-row-gap: 56px;
+    --tv-card-gap: 32px;
+
+    /* Controls */
+    --tv-control-height: 72px;
+    --tv-control-radius: 14px;
+    --tv-list-row: 96px;
+
+    /* Focus */
+    --tv-focus-width: 5px;
+    --tv-focus-offset: 5px;
+    --tv-focus-reach: 10px;
+    --tv-focus-scale: 1.06;
+    --tv-selected-bar: 5px;
+}
+
+/*
+ * The scale above is for the 1920×1080 TV canvas. Smaller browser windows used
+ * in development and on pointer devices keep the earlier, denser proportions.
+ */
+@media (max-width: 1400px) {
+    :root {
+        --tv-type-display: 60px;
+        --tv-type-title: 40px;
+        --tv-type-heading: 26px;
+        --tv-type-body: 20px;
+        --tv-type-meta: 18px;
+        --tv-type-eyebrow: 16px;
+        --tv-safe-x: 35px;
+        --tv-safe-y: 28px;
+        --tv-control-height: 52px;
+        --tv-control-radius: 10px;
+        --tv-list-row: 72px;
+        --tv-row-gap: 40px;
+        --tv-card-gap: 24px;
+        --tv-focus-width: 3px;
+        --tv-focus-offset: 4px;
+    }
+}

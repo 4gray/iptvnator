@@ -4,7 +4,7 @@
 }
 .grid-guide {
     height: 100%;
-    padding: 30px 40px;
+    padding: var(--tv-safe-y) var(--tv-safe-x);
     display: flex;
     flex-direction: column;
 }
@@ -18,12 +18,12 @@
     margin-right: auto;
 }
 .grid-guide-header h1 {
-    font-size: 36px;
+    font-size: var(--tv-type-title);
     margin: 4px 0 0;
 }
 .grid-guide-header .muted {
-    font-size: 14px;
-    letter-spacing: 3px;
+    font-size: var(--tv-type-eyebrow);
+    letter-spacing: var(--tv-tracking-eyebrow);
 }
 .grid-guide-header > button {
     margin-left: 18px;
@@ -45,7 +45,7 @@
 .grid-date {
     flex: 1;
     text-align: center;
-    font-size: 21px;
+    font-size: var(--tv-type-meta);
     padding: 0 16px;
 }
 .grid-axis {
@@ -53,7 +53,7 @@
     height: 36px;
     flex: none;
     color: var(--tv-muted);
-    font-size: 18px;
+    font-size: var(--tv-type-eyebrow);
     padding-right: 16px;
 }
 .grid-axis > span {
@@ -94,8 +94,9 @@
     flex: none;
     display: flex;
     align-items: center;
-    padding: 10px 12px;
-    background: #17221e;
+    padding: 8px 12px;
+    min-height: 0;
+    background: var(--tv-surface);
 }
 .grid-channel .channel-logo {
     width: 48px;
@@ -111,19 +112,21 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-size: 21px;
+    font-family: var(--tv-font-serif);
+    font-weight: 600;
+    font-size: var(--tv-type-meta);
 }
 .grid-channel small {
     display: block;
-    font-size: 14px;
+    font-size: var(--tv-type-eyebrow);
     color: var(--tv-muted);
-    margin-top: 5px;
+    margin-top: 2px;
 }
 .grid-channel.is-playing {
     background: #234334;
 }
 .grid-channel.is-playing small {
-    color: var(--tv-accent);
+    color: var(--tv-text);
 }
 .grid-program-track {
     flex: 1;
@@ -133,11 +136,14 @@
 .grid-program {
     position: absolute;
     height: 100%;
-    padding: 10px 14px;
+    padding: 6px 14px;
+    min-height: 0;
     min-width: 0;
     overflow: hidden;
     background: #1b2722;
     border: 3px solid var(--tv-bg);
+    border-radius: 0;
+    line-height: 1.2;
 }
 .grid-program.on-air {
     background: #2b4034;
@@ -147,7 +153,7 @@
 }
 .grid-program time {
     display: block;
-    font-size: 15px;
+    font-size: var(--tv-type-eyebrow);
     color: var(--tv-muted);
 }
 .grid-program strong {
@@ -155,14 +161,16 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-size: 21px;
-    margin-top: 6px;
+    font-size: var(--tv-type-meta);
+    font-weight: 500;
+    margin-top: 4px;
 }
 .grid-empty {
     width: 100%;
     height: 100%;
+    min-height: 0;
     color: var(--tv-muted);
-    font-size: 18px;
+    font-size: var(--tv-type-eyebrow);
 }
 /* This is a time-position marker, not a decorative side accent. */
 .grid-now-line {
@@ -186,21 +194,23 @@
     padding-right: 32px;
 }
 .grid-details small {
-    color: var(--tv-accent);
-    font-size: 18px;
+    color: var(--tv-muted);
+    font-size: var(--tv-type-eyebrow);
 }
 .grid-details h2 {
-    font-size: 28px;
+    font-family: var(--tv-font-serif);
+    font-weight: 600;
+    font-size: var(--tv-type-heading);
     margin: 8px 0;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
 }
 .grid-description {
-    height: 66px;
+    height: 72px;
     overflow-y: scroll;
-    font-size: 19px;
-    line-height: 1.65;
+    font-size: var(--tv-type-eyebrow);
+    line-height: 1.6;
     color: var(--tv-muted);
     padding-right: 16px;
 }
@@ -211,10 +221,10 @@
     flex: none;
 }
 .grid-details-actions button {
-    min-height: 44px;
-    font-size: 18px;
-    padding: 9px 16px;
-    margin-bottom: 6px;
+    min-height: var(--tv-control-height);
+    font-size: var(--tv-type-meta);
+    padding: 8px 20px;
+    margin-bottom: var(--tv-space-1);
 }
 .grid-loading {
     padding: 12px;

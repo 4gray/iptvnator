@@ -4,8 +4,8 @@
     justify-content: space-between;
     min-width: 0;
     width: 100%;
-    font-size: 24px;
-    border: 1px solid var(--tv-line);
+    font-size: var(--tv-type-meta);
+    border: 2px solid var(--tv-line);
 }
 .tv-select > span {
     overflow: hidden;
@@ -46,7 +46,7 @@
     margin-bottom: 28px;
 }
 .tv-dialog-header h2 {
-    font-size: 36px;
+    font-size: var(--tv-type-heading);
     margin: 0 28px 0 0;
 }
 .tv-dialog-header button {
@@ -54,23 +54,23 @@
 }
 .tv-picker-search {
     flex-shrink: 0;
-    font-size: 22px;
+    font-size: var(--tv-type-meta);
 }
 .tv-picker-options {
     min-height: 0;
     overflow-y: auto;
-    padding: 8px;
-    margin: -8px;
+    padding: var(--tv-focus-reach);
+    margin: calc(-1 * var(--tv-focus-reach));
 }
 .tv-picker-options button {
     display: flex;
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    min-height: 76px;
-    margin-bottom: 12px;
+    min-height: var(--tv-list-row);
+    margin-bottom: var(--tv-space-1);
     padding: 16px 24px;
-    font-size: 28px;
+    font-size: var(--tv-type-body);
     overflow-wrap: break-word;
 }
 .tv-picker-options button > span:first-child {
@@ -81,15 +81,14 @@
     margin-left: 24px;
 }
 .tv-picker-options [aria-selected='true'] {
-    color: var(--tv-accent);
     background: var(--tv-bg);
 }
 .tv-description-text {
     min-height: 0;
     overflow-y: auto;
     padding: 8px;
-    font-size: 26px;
-    line-height: 1.6;
+    font-size: var(--tv-type-body);
+    line-height: 1.5;
     white-space: pre-wrap;
     overflow-wrap: break-word;
 }
