@@ -534,6 +534,8 @@ try {
     await waitAudio();
     await back();
     await expect.poll(() => page.evaluate(() => window.__positionWriteAttempts)).toBeGreaterThan(0);
+    assert.ok(adb('shell', 'run-as', app, 'cat', 'shared_prefs/native_playback_checkpoints.xml').includes(persistedId),
+        'The completed session must already be in app-private storage when the WebView first tries to save it.');
     adb('shell', 'am', 'force-stop', app);
     await device.close();
     adb('shell', 'am', 'start', '-n', `${app}/.ui.MainActivity`);
@@ -541,8 +543,8 @@ try {
     const restoredPage = await (await device.webView({ pkg: app })).page();
     await expect.poll(() => restoredPage.evaluate((id) => {
         const stored = JSON.parse(localStorage.getItem('xtream-playback-positions') || '{}');
-        return stored[id]?.find((item) => item.contentXtreamId === 19)?.positionSeconds;
-    }, persistedId)).toBeGreaterThanOrEqual(8);
+        return stored[id]?.find((item) => item.contentXtreamId === 19)?.positionSeconds ?? 0;
+    }, persistedId), { timeout: 15000 }).toBeGreaterThanOrEqual(8);
     page = restoredPage;
     page.setDefaultTimeout(20000);
     await page.goto(channelRoute);

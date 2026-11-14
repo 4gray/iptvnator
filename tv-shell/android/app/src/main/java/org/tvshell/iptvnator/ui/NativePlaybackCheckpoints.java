@@ -3,10 +3,12 @@ package org.tvshell.iptvnator.ui;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.util.Log;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.tvshell.iptvnator.ShellApp;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -36,7 +38,11 @@ final class NativePlaybackCheckpoints {
                 .put("id", checkpoint.getString("id")).put("origin", origin)
                 .put("content", content.toString()).put("positionMs", checkpoint.getLong("position"))
                 .put("durationMs", checkpoint.getLong("duration")).put("savedAt", savedAt);
-            storage.edit().putString(key, entry.toString()).apply();
+            // Checkpoint the finished session before the WebView sees it. A process
+            // killed immediately after a failed WebView write must still be able to retry.
+            if (!storage.edit().putString(key, entry.toString()).commit()) {
+                Log.w(ShellApp.TAG, "Could not persist native playback checkpoint");
+            }
         } catch (JSONException ignored) {
             // Invalid resume metadata cannot be recovered by the web player.
         }
