@@ -78,12 +78,20 @@ describe('download filename stems', () => {
         );
     });
 
-    it.each(['CON', 'nul', 'Com1', 'LPT9', 'aux.part one', 'PRN '])(
-        'never yields the Windows device name %j',
-        (title) => {
-            expect(sanitizeFilename(title).startsWith('_')).toBe(true);
-        }
-    );
+    it.each([
+        'CON',
+        'nul',
+        'Com1',
+        'LPT9',
+        'com0',
+        'COM\u00b9',
+        'lpt\u00b2',
+        'LPT\u00b3.x',
+        'aux.part one',
+        'PRN ',
+    ])('never yields the Windows device name %j', (title) => {
+        expect(sanitizeFilename(title).startsWith('_')).toBe(true);
+    });
 
     it.each(['Console', 'Common', 'LPT10', 'Nullish'])(
         'leaves a title that only starts like a device name: %s',

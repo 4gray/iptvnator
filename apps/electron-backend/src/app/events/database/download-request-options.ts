@@ -36,8 +36,9 @@ export interface StartDownloadRequest {
  */
 const MAX_STEM_BYTES = 200;
 // Windows reserves a device name before the first dot: "CON.x.mp4" too.
+// COM and LPT take 0-9 and the superscript digits ¹ ² ³ (Win32 file naming).
 const WINDOWS_RESERVED_NAME =
-    /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])\s*(?:\..*)?$/i;
+    /^(?:con|prn|aux|nul|com[0-9¹²³]|lpt[0-9¹²³])\s*(?:\..*)?$/i;
 
 function truncateUtf8(value: string, maxBytes: number): string {
     let bytes = 0;
