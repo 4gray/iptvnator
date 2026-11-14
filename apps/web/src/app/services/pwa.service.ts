@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, Injector } from '@angular/core';
 import { LazySnackBar } from '@iptvnator/services/lazy-snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
@@ -10,6 +10,7 @@ import {
     isBackendUrl,
     isGatewayOutage,
     isServerAccessChallenge,
+    PlaylistsService,
     ServerStorageStatusService,
 } from '@iptvnator/services';
 import {
@@ -62,6 +63,7 @@ export class PwaService extends DataService {
     private readonly http = inject(HttpClient);
     private readonly snackBar = inject(LazySnackBar);
     private readonly store = inject(Store);
+    private readonly injector = inject(Injector);
     private readonly translateService = inject(TranslateService);
     private readonly serverStatus = inject(ServerStorageStatusService);
     private readonly logger = createLogger('PwaService');
@@ -112,7 +114,7 @@ export class PwaService extends DataService {
         }
 
         if (type === PLAYLIST_UPDATE) {
-            // Settles when the refresh does, so callers keep the source busy.
+            // Keep the source busy through the fetch and the local write.
             return this.refreshPlaylist(
                 payload as Partial<Playlist & { id: string }>
             ) as T;
@@ -199,55 +201,73 @@ export class PwaService extends DataService {
         }
     }
 
-    /** Resolves once the backend has answered, whether it succeeded or not. */
-    refreshPlaylist(
+    async refreshPlaylist(
         payload?: Partial<Playlist & { id: string }>
     ): Promise<void> {
         if (!payload?.url || !payload?.id) {
-            return Promise.resolve();
+            return;
         }
 
         const playlistId = payload.id;
         const { url } = payload;
         const userAgent = payload.userAgent?.trim() || undefined;
 
-        return new Promise<void>((resolve) => {
-            this.getPlaylistFromUrl(url, userAgent).subscribe({
-                next: (playlist: Playlist) => {
-                    this.store.dispatch(
-                        PlaylistActions.updatePlaylist({
-                            playlist: { ...playlist, url, userAgent },
-                            playlistId,
-                            refreshEpg: true,
-                        })
-                    );
+        let playlist: Playlist;
+        try {
+            playlist = await firstValueFrom(
+                this.getPlaylistFromUrl(url, userAgent)
+            );
+        } catch (error) {
+            // Redacted: the error can carry the playlist URL.
+            this.logger.error('Playlist refresh download failed:', error);
+            void this.snackBar.open(
+                this.appendProviderErrorCode(
+                    this.getPlaylistRefreshErrorMessage(error),
+                    error
+                ),
+                this.translateService.instant('CLOSE'),
+                { duration: 5000 }
+            );
+            return;
+        }
 
-                    void this.snackBar.open(
-                        this.translateService.instant(
-                            'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'
-                        ),
-                        undefined,
-                        { duration: 2000 }
-                    );
-                },
-                error: (error: unknown) => {
-                    // Redacted: the error can carry the playlist URL.
-                    this.logger.error('Playlist refresh error:', error);
-                    void this.snackBar.open(
-                        this.appendProviderErrorCode(
-                            this.getPlaylistRefreshErrorMessage(error),
-                            error
-                        ),
-                        this.translateService.instant('CLOSE'),
-                        {
-                            duration: 5000,
-                        }
-                    );
-                    resolve();
-                },
-                complete: () => resolve(),
-            });
-        });
+        try {
+            // Resolve after construction: PlaylistsService uses the runtime
+            // DataService, which resolves to this service in the browser.
+            const playlists = this.injector.get(PlaylistsService);
+            const saved = await firstValueFrom(
+                playlists.updatePlaylist(playlistId, {
+                    ...playlist,
+                    _id: playlistId,
+                    url,
+                    userAgent,
+                })
+            );
+            this.store.dispatch(
+                PlaylistActions.updatePlaylist({
+                    playlist: saved,
+                    playlistId,
+                    refreshEpg: true,
+                    persist: false,
+                })
+            );
+            void this.snackBar.open(
+                this.translateService.instant(
+                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'
+                ),
+                undefined,
+                { duration: 2000 }
+            );
+        } catch (error) {
+            this.logger.error('Playlist refresh save failed:', error);
+            void this.snackBar.open(
+                this.translateService.instant(
+                    'HOME.PLAYLISTS.PLAYLIST_UPDATE_FAILED'
+                ),
+                this.translateService.instant('CLOSE'),
+                { duration: 5000 }
+            );
+        }
     }
 
     private getPlaylistRefreshErrorMessage(error: unknown): string {

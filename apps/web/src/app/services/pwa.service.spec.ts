@@ -27,6 +27,7 @@ import {
 } from '@iptvnator/portal/stalker/data-access';
 import {
     clearServerAccessToken,
+    PlaylistsService,
     ServerStorageStatusService,
     writeServerAccessToken,
 } from '@iptvnator/services';
@@ -40,15 +41,23 @@ describe('PwaService', () => {
     let http: HttpTestingController;
     let service: PwaService;
     let versionUpdates: Subject<void>;
+    const updatePlaylist = jest.fn((_id: string, playlist: Playlist) =>
+        of(playlist)
+    );
 
     beforeEach(() => {
         versionUpdates = new Subject<void>();
+        updatePlaylist.mockClear();
         jest.spyOn(console, 'log').mockImplementation(() => undefined);
 
         TestBed.configureTestingModule({
             imports: [HttpClientTestingModule],
             providers: [
                 PwaService,
+                {
+                    provide: PlaylistsService,
+                    useValue: { updatePlaylist },
+                },
                 {
                     provide: LazySnackBar,
                     useValue: {
@@ -161,7 +170,7 @@ describe('PwaService', () => {
     it.each([PLAYLIST_PARSE_BY_URL, PLAYLIST_UPDATE])(
         'passes the saved User-Agent through the proxy for %s',
         async (event) => {
-            service.sendIpcEvent(event, {
+            const pending = service.sendIpcEvent(event, {
                 id: 'playlist-1',
                 url: 'https://provider.example/list.m3u',
                 userAgent: '  IPTVnator-Test/1.0  ',
@@ -176,6 +185,7 @@ describe('PwaService', () => {
             );
             expect(parse.request.headers.has('User-Agent')).toBe(false);
             parse.flush({ _id: 'playlist-1', userAgent: 'IPTVnator-Test/1.0' });
+            await pending;
             expect(TestBed.inject(Store).dispatch).toHaveBeenCalledWith(
                 expect.objectContaining({
                     playlist: expect.objectContaining({
@@ -253,7 +263,9 @@ describe('PwaService', () => {
         }
     });
 
-    it('settles a playlist refresh only once the backend has answered', async () => {
+    it('keeps a refresh pending and quiet until the updated playlist is saved', async () => {
+        const write = new Subject<Playlist>();
+        updatePlaylist.mockReturnValueOnce(write);
         let settled = false;
         const pending = Promise.resolve(
             service.sendIpcEvent(PLAYLIST_UPDATE, {
@@ -274,9 +286,47 @@ describe('PwaService', () => {
         http.expectOne((req) => req.url.endsWith('/parse')).flush({
             _id: 'playlist-1',
         });
+        await new Promise((resolve) => setTimeout(resolve));
+        expect(updatePlaylist).toHaveBeenCalled();
+        expect(settled).toBe(false);
+        expect(TestBed.inject(LazySnackBar).open).not.toHaveBeenCalled();
+
+        write.next({ _id: 'playlist-1' } as Playlist);
         await pending;
         expect(settled).toBe(true);
-        expect(TestBed.inject(Store).dispatch).toHaveBeenCalled();
+        expect(TestBed.inject(Store).dispatch).toHaveBeenCalledWith(
+            expect.objectContaining({
+                playlistId: 'playlist-1',
+                persist: false,
+            })
+        );
+        expect(TestBed.inject(LazySnackBar).open).toHaveBeenCalledWith(
+            'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS',
+            undefined,
+            { duration: 2000 }
+        );
+    });
+
+    it('reports a storage failure without publishing the downloaded catalog', async () => {
+        const playlist = { _id: 'playlist-1' } as Playlist;
+        jest.spyOn(service, 'getPlaylistFromUrl').mockReturnValue(of(playlist));
+        const write = new Subject<Playlist>();
+        updatePlaylist.mockReturnValueOnce(write);
+        const pending = service.refreshPlaylist({
+            id: 'playlist-1',
+            url: 'https://provider.example/list.m3u',
+        });
+        await Promise.resolve();
+        expect(updatePlaylist).toHaveBeenCalled();
+        write.error(new Error('Synthetic transaction abort'));
+        await pending;
+
+        expect(TestBed.inject(Store).dispatch).not.toHaveBeenCalled();
+        expect(TestBed.inject(LazySnackBar).open).toHaveBeenCalledWith(
+            'HOME.PLAYLISTS.PLAYLIST_UPDATE_FAILED',
+            'CLOSE',
+            { duration: 5000 }
+        );
     });
 
     it('settles a failed playlist refresh after reporting it', async () => {
